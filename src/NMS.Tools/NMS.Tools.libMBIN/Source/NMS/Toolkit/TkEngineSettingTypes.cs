@@ -1,0 +1,68 @@
+namespace libMBIN.NMS.Toolkit
+{
+    [NMS(GUID = 0x79B8DA1FC10F4D2D, NameHash = 0xA0749579)]
+    public class TkEngineSettingTypes : NMSTemplate
+    {
+        // size: 0x38
+        public enum EngineSettingEnum : uint {
+            FullScreen,
+            Borderless,
+            ResolutionWidth,
+            ResolutionHeight,
+            ResolutionScale,
+            RetinaScaleIOS,
+            Monitor,
+            FoVOnFoot,
+            FoVInShip,
+            FoVOnFootFP,
+            FoVInShipFP,
+            VSync,
+            TextureQuality,
+            AnimationQuality,
+            ShadowQuality,
+            ReflectionProbesMultiplier,
+            ReflectionProbes,
+            ScreenSpaceReflections,
+            ReflectionsQuality,
+            PostProcessingEffects,
+            VolumetricsQuality,
+            TerrainTessellation,
+            PlanetQuality,
+            WaterQuality,
+            BaseQuality,
+            UIQuality,
+            DLSSQuality,
+            FFXSRQuality,
+            FFXSR2Quality,
+            XESSQuality,
+            DynamicResScaling,
+            EnableTessellation,
+            AntiAliasing,
+            AnisotropyLevel,
+            Brightness,
+            VignetteAndScanlines,
+            AvailableMonitors,
+            MaxFrameRate,
+            NumLowThreads,
+            NumHighThreads,
+            NumGraphicsThreads,
+            TextureStreaming,
+            TexturePageSizeKb,
+            MotionBlurStrength,
+            ShowRequirementsWarnings,
+            AmbientOcclusion,
+            MaxTextureMemoryMb,
+            FixedTextureMemory,
+            UseArbSparseTexture,
+            UseTerrainTextureCache,
+            AdapterIndex,
+            UseHDR,
+            MinGPUMode,
+            MetalFXQuality,
+            DLSSFrameGeneration,
+            NVIDIAReflexLowLatency,
+        }
+        [NMS(Index = 0)]
+        /* 0x0 */ public EngineSettingEnum EngineSetting;
+    }
+}

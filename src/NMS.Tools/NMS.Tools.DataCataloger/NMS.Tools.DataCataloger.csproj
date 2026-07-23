@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>DataCataloger</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NMS.Tools.libMBIN\NMS.Tools.libMBIN.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="K4os.Compression.LZ4" />
+    <PackageReference Include="K4os.Compression.LZ4.Streams" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Pfim" />
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="ZstdNet" />
+  </ItemGroup>
+
+</Project>

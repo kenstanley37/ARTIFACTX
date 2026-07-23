@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="NMS.WinUI3.Views.InspectionPages.AncestrySearchView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:NMS.WinUI3.Views.InspectionPages"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="using:NMS.Core.Models"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="JSON Ancestry Side-by-Side View" Style="{ThemeResource HeaderTextBlockStyle}" FontWeight="Bold"/>
+            <TextBlock Text="Asynchronous isolated memory stream analysis. Scan and cross-examine node hierarchies independently." Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource SystemControlPageTextBaseMediumBrush}"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Spacing="12" Margin="0,0,0,20">
+            <StackPanel Orientation="Horizontal" Spacing="16">
+                <Button x:Name="SelectFolderBtn" Click="SelectFolderBtn_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <SymbolIcon Symbol="Folder"/>
+                        <TextBlock Text="Select Save Directory"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- 📍 KEY SEARCH INPUT -->
+                <TextBox x:Name="GlobalSearchBox" Width="200" PlaceholderText="Target Key (e.g., b2n, :No)..." IsEnabled="False"/>
+
+                <!-- 📍 NEW: VALUE SEARCH INPUT -->
+                <TextBox x:Name="GlobalValueBox" Width="200" PlaceholderText="Target Value (e.g., ^LAUNCHER)..." IsEnabled="False" TextChanged="GlobalValueBox_TextChanged"/>
+
+                <TextBlock x:Name="GlobalStatusLabel" VerticalAlignment="Center" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemControlPageTextBaseMediumBrush}" FontWeight="SemiBold"/>
+            </StackPanel>
+            <TextBlock x:Name="FolderPathLabel" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemControlPageTextBaseMediumBrush}" FontStyle="Italic"/>
+        </StackPanel>
+
+        <Grid Grid.Row="2" ColumnSpacing="24">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 📍 FILE A PANEL (LEFT COLUMN) -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="0,0,0,12">
+                    <ComboBox x:Name="FileDropLeft" Width="180" PlaceholderText="Select File A..." SelectionChanged="FileDropLeft_SelectionChanged"/>
+                    <Button x:Name="ScanBtnLeft" Content="Scan File A" Style="{ThemeResource AccentButtonStyle}" Click="ScanBtnLeft_Click" IsEnabled="False"/>
+                    <ProgressRing x:Name="LoadingRingLeft" IsActive="False" Width="20" Height="20"/>
+                </StackPanel>
+
+                <Grid Grid.Row="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="12"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Top Match List Box Container -->
+                    <ListView x:Name="MatchesListLeft" Grid.Row="0" SelectionChanged="MatchesListLeft_SelectionChanged" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" CornerRadius="4" Background="{ThemeResource LayerFillColorDefaultBrush}">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:JsonNodeMatch">
+                                <Grid Padding="8,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{x:Bind FullPathDisplay}" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="Bold" TextTrimming="None" TextWrapping="Wrap"/>
+                                    <TextBlock Grid.Column="1" Text="{x:Bind ExtractedValue}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="OrangeRed" Margin="16,0,8,0" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+
+                    <!-- 📍 FIXED: Multi-line selection enabled via a clean Read-Only TextBox -->
+                    <Border Grid.Row="2" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" CornerRadius="4" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" Padding="12">
+                        <TextBox x:Name="TreeTextLeft"
+                                 FontFamily="Consolas" 
+                                 FontSize="12" 
+                                 IsReadOnly="True" 
+                                 TextWrapping="NoWrap"
+                                 AcceptsReturn="True"
+                                 BorderThickness="0"
+                                 Background="Transparent"/>
+                    </Border>
+                </Grid>
+            </Grid>
+
+            <!-- 📍 FILE B PANEL (RIGHT COLUMN) -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="0,0,0,12">
+                    <ComboBox x:Name="FileDropRight" Width="180" PlaceholderText="Select File B..." SelectionChanged="FileDropRight_SelectionChanged"/>
+                    <Button x:Name="ScanBtnRight" Content="Scan File B" Style="{ThemeResource AccentButtonStyle}" Click="ScanBtnRight_Click" IsEnabled="False"/>
+                    <ProgressRing x:Name="LoadingRingRight" IsActive="False" Width="20" Height="20"/>
+                </StackPanel>
+
+                <Grid Grid.Row="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="12"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Top Match List Box Container -->
+                    <ListView x:Name="MatchesListRight" Grid.Row="0" SelectionChanged="MatchesListRight_SelectionChanged" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" CornerRadius="4" Background="{ThemeResource LayerFillColorDefaultBrush}">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:JsonNodeMatch">
+                                <Grid Padding="8,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{x:Bind FullPathDisplay}" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="Bold" TextTrimming="None" TextWrapping="Wrap"/>
+                                    <TextBlock Grid.Column="1" Text="{x:Bind ExtractedValue}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="MediumSeaGreen" Margin="16,0,8,0" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+
+                    <!-- 📍 FIXED: Multi-line selection enabled via a clean Read-Only TextBox -->
+                    <Border Grid.Row="2" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" CornerRadius="4" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" Padding="12">
+                        <TextBox x:Name="TreeTextRight"
+                                 FontFamily="Consolas" 
+                                 FontSize="12" 
+                                 IsReadOnly="True" 
+                                 TextWrapping="NoWrap"
+                                 AcceptsReturn="True"
+                                 BorderThickness="0"
+                                 Background="Transparent"/>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>

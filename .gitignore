@@ -1,0 +1,79 @@
+## ====== IDE and Build Tools ======
+[Bb]in/
+[Oo]bj/
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## ====== .NET / Visual Studio ======
+*.CrashDump.json
+_ReSharper.*/
+*.DotSettings.user
+*.xproj
+artifacts/
+
+# MSBuild
+msbuild.log
+msbuild.err
+msbuild.wrn
+*.log
+
+## ====== NuGet ======
+*.nupkg
+*.snupkg
+packages/
+
+## ====== Testing ======
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+## ====== Debug/Log Output ======
+InventoryLogOutput.txt
+*LogOutput.txt
+
+## ====== Editor Backup Files ======
+*.Backup.tmp
+*.orig
+
+## ====== WinUI3 / MSIX Packaging ======
+AppPackages/
+BundleArtifacts/
+*.appx
+*.appxbundle
+*.appxupload
+*.appxsym
+*.msix
+*.msixbundle
+*.msixupload
+*.appinstaller
+*.pfx
+
+## ====== SQLite / Local Data Layers ======
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-shm
+*.db-wal
+
+## ====== Operating Systems ======
+.DS_Store
+Thumbs.db
+
+## ====== Secrets ======
+.env
+
+## ====== NMS Save Editor Specifics ======
+/Backups/
+/TestSaves/
+*.hg
+
+# External libraries (MBINCompiler, libMBIN, etc.)
+src/NMS.Tools/External/
+src/NMS.Tools/External/**
