@@ -28,6 +28,7 @@ public static class SaveSessionManager
     public static bool HasUnsavedChanges => _session?.HasUnsavedChanges ?? false;
     public static SaveSlotGroup? ActiveSlot => _activeSlot;
     public static string? ActiveLabel => _activeSlot?.ActiveLabel;
+    public static bool HasStagedEdit(params string[] path) => _session?.HasStagedEdit(path) ?? false;
 
     public static async Task LoadAsync(SaveSlotGroup slot)
     {

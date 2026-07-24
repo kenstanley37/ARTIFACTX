@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using NMS.WinUI3.ViewModels;
+using System;
 using Windows.UI;
 
 namespace NMS.WinUI3.Controls;
@@ -20,6 +21,12 @@ public sealed partial class InventorySlotGrid : UserControl
         get => (InventoryGridViewModel?)GetValue(ViewModelProperty);
         set => SetValue(ViewModelProperty, value);
     }
+
+    /// <summary>Raised whenever a cell-level action (unlock, and later edit)
+    /// stages a change - lets the containing page react (e.g. show its own
+    /// page-level Reset button) without this control needing to know
+    /// anything about page layout.</summary>
+    public event EventHandler? CellChanged;
 
     public InventorySlotGrid()
     {
@@ -76,7 +83,7 @@ public sealed partial class InventorySlotGrid : UserControl
             {
                 border.Child = new FontIcon
                 {
-                    Glyph = "\uE72E", // Segoe Fluent/MDL2 "Lock" glyph
+                    Glyph = "\uE72E",
                     FontSize = 16,
                     Opacity = 0.5,
                     HorizontalAlignment = HorizontalAlignment.Center,
@@ -98,6 +105,7 @@ public sealed partial class InventorySlotGrid : UserControl
         {
             ViewModel?.UnlockSlot(x, y);
             Refresh();
+            CellChanged?.Invoke(this, EventArgs.Empty);
         };
         flyout.Items.Add(unlockItem);
         return flyout;

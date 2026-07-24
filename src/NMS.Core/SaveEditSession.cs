@@ -49,6 +49,7 @@ public sealed class SaveEditSession
     public long? GetLong(params string[] path) => GetValue(path)?.Value<long>();
     public string? GetString(params string[] path) => GetValue(path)?.Value<string>();
     public bool? GetBool(params string[] path) => GetValue(path)?.Value<bool>();
+    public bool HasStagedEdit(string[] path) => _pendingEdits.ContainsKey(Join(path));
 
     public void StageEdit(JToken? newValue, params string[] path)
     {

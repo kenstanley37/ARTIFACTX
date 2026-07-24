@@ -12,6 +12,7 @@
     <ScrollViewer>
         <StackPanel Padding="24" Spacing="20" HorizontalAlignment="Left">
             <TextBlock Text="Exosuit" FontSize="26" FontWeight="Bold"/>
+            <Button x:Name="PageResetBtn" Content="Reset Exosuit Changes" Click="PageResetBtn_Click" Visibility="Collapsed"/>
 
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="Technology" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>

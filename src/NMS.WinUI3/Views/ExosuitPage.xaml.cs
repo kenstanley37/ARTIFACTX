@@ -21,11 +21,16 @@ public sealed partial class ExosuitPage : Page
         TechGrid.ViewModel = _techViewModel;
         CargoGrid.ViewModel = _cargoViewModel;
 
-        SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
+        TechGrid.CellChanged += (_, _) => PageResetBtn.Visibility = Visibility.Visible;
+        CargoGrid.CellChanged += (_, _) => PageResetBtn.Visibility = Visibility.Visible;
+
+        SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
+        SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
         LoadGrids();
     }
 
-    private void OnActiveSessionChanged(object? sender, EventArgs e) => LoadGrids();
+    private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
+        DispatcherQueue.TryEnqueue(LoadGrids);
 
     private void LoadGrids()
     {
@@ -36,17 +41,31 @@ public sealed partial class ExosuitPage : Page
 
         _cargoViewModel.Load();
         CargoGrid.Refresh();
+
+        PageResetBtn.Visibility = (_techViewModel.HasLocalChanges || _cargoViewModel.HasLocalChanges)
+            ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void UnlockAllTech_Click(object sender, RoutedEventArgs e)
     {
         _techViewModel.UnlockAll();
         TechGrid.Refresh();
+        PageResetBtn.Visibility = Visibility.Visible;
     }
 
     private void UnlockAllCargo_Click(object sender, RoutedEventArgs e)
     {
         _cargoViewModel.UnlockAll();
         CargoGrid.Refresh();
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void PageResetBtn_Click(object sender, RoutedEventArgs e)
+    {
+        _techViewModel.Revert();
+        TechGrid.Refresh();
+        _cargoViewModel.Revert();
+        CargoGrid.Refresh();
+        PageResetBtn.Visibility = Visibility.Collapsed;
     }
 }

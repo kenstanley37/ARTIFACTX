@@ -29,6 +29,9 @@ public partial class InventoryGridViewModel : ObservableObject
     [ObservableProperty]
     private int rows;
 
+    [ObservableProperty]
+    private bool hasLocalChanges;
+
     public InventoryGridViewModel(string[] containerPath, int maxColumns, int maxRows)
     {
         _containerPath = containerPath;
@@ -93,11 +96,13 @@ public partial class InventoryGridViewModel : ObservableObject
                 });
             }
         }
+
+        HasLocalChanges = SaveSessionManager.HasStagedEdit(unlockedPath);
     }
 
     /// <summary>Stages one newly-unlocked position by writing the entire
     /// updated position list back to the container's hl? path. Nothing
-    /// touches disk until the (not-yet-built) global Save commits it.</summary>
+    /// touches disk until the global Save commits it.</summary>
     public void UnlockSlot(int x, int y)
     {
         if (!_unlockedSet.Add((x, y))) return;
@@ -115,6 +120,14 @@ public partial class InventoryGridViewModel : ObservableObject
 
         if (!changed) return;
         StageUnlockedPositions();
+        Load();
+    }
+
+    /// <summary>Reverts only this container's staged edit, leaving every
+    /// other page's pending changes untouched.</summary>
+    public void Revert()
+    {
+        SaveSessionManager.RevertEdit(_containerPath.Append("hl?").ToArray());
         Load();
     }
 
