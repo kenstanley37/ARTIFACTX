@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
+using NMS.WinUI3.Services;
 using NMS.WinUI3.ViewModels;
 using System;
 using Windows.UI;
@@ -55,27 +56,52 @@ public sealed partial class InventorySlotGrid : UserControl
 
             if (cell.IsOccupied)
             {
-                var content = new Grid { Padding = new Thickness(4) };
-                content.Children.Add(new TextBlock
-                {
-                    Text = cell.ShortLabel,
-                    FontSize = 9,
-                    TextWrapping = TextWrapping.Wrap,
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                    MaxLines = 2,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Top
-                });
-                content.Children.Add(new TextBlock
-                {
-                    Text = cell.DisplayText,
-                    FontSize = 10,
-                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Bottom
-                });
-                border.Child = content;
+                var entry = CatalogService.TryGet(cell.ItemId);
+                var content = new Grid { Padding = new Thickness(2) };
 
+                if (entry?.Icon is not null)
+                {
+                    content.Children.Add(new Image
+                    {
+                        Source = entry.Icon,
+                        Stretch = Stretch.Uniform,
+                        Opacity = 0.95
+                    });
+                }
+
+                var nameLabel = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromArgb(170, 0, 0, 0)),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Child = new TextBlock
+                    {
+                        Text = entry?.DisplayName ?? cell.ShortLabel,
+                        FontSize = 8,
+                        TextWrapping = TextWrapping.Wrap,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                        MaxLines = 2,
+                        TextAlignment = TextAlignment.Center
+                    }
+                };
+                content.Children.Add(nameLabel);
+
+                var amountLabel = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromArgb(170, 0, 0, 0)),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Bottom,
+                    Child = new TextBlock
+                    {
+                        Text = cell.DisplayText,
+                        FontSize = 10,
+                        FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                        TextAlignment = TextAlignment.Center
+                    }
+                };
+                content.Children.Add(amountLabel);
+
+                border.Child = content;
                 border.Tapped += (_, _) => ShowAmountFlyout(border, cell);
             }
             else if (cell.State == InventorySlotState.Locked)
@@ -98,11 +124,12 @@ public sealed partial class InventorySlotGrid : UserControl
 
     private void ShowAmountFlyout(FrameworkElement anchor, InventorySlotViewModel cell)
     {
+        var entry = CatalogService.TryGet(cell.ItemId);
         var panel = new StackPanel { Spacing = 8, Width = 220 };
 
         panel.Children.Add(new TextBlock
         {
-            Text = $"{cell.ShortLabel}  ({cell.CategoryLabel})",
+            Text = $"{entry?.DisplayName ?? cell.ShortLabel}  ({cell.CategoryLabel})",
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             TextWrapping = TextWrapping.Wrap
         });

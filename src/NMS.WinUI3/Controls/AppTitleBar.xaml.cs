@@ -9,10 +9,6 @@ namespace NMS.WinUI3.Controls;
 
 public sealed partial class AppTitleBar : UserControl
 {
-    // Suppresses the automatic event-driven Refresh() while a save is in
-    // flight - otherwise the moment CommitAsync clears pending edits, the
-    // PendingEditsChanged event fires and immediately hides the Save button
-    // before the deliberate "Saved" confirmation has had a chance to show.
     private bool _isSaving;
 
     public AppTitleBar()
@@ -20,6 +16,8 @@ public sealed partial class AppTitleBar : UserControl
         InitializeComponent();
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
+        SaveSessionManager.ExternalChangeDetected += OnExternalChangeDetected;
+        GameProcessMonitorService.RunningStateChanged += OnGameRunningStateChanged;
         Refresh();
     }
 
@@ -29,8 +27,44 @@ public sealed partial class AppTitleBar : UserControl
         DispatcherQueue.TryEnqueue(Refresh);
     }
 
+    private void OnGameRunningStateChanged(object? sender, bool isRunning)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            Refresh();
+            if (!isRunning)
+                SaveSessionManager.CheckForExternalChanges();
+        });
+    }
+
+    private void OnExternalChangeDetected(object? sender, EventArgs e)
+    {
+        DispatcherQueue.TryEnqueue(async () =>
+        {
+            var dialog = new ContentDialog
+            {
+                Title = "No Man's Sky was closed",
+                Content = "The save file on disk has changed since you loaded it - most likely from " +
+                          "an in-game autosave. Continuing to edit and save now could overwrite that " +
+                          "recent progress.\n\nWe recommend reloading this save before making further changes.",
+                PrimaryButtonText = "Reload (recommended)",
+                SecondaryButtonText = "Keep editing anyway",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+                await SaveSessionManager.ReloadFromDiskAsync();
+
+            Refresh();
+        });
+    }
+
     private void Refresh()
     {
+        bool gameRunning = GameProcessMonitorService.IsGameRunning;
+
         if (!SaveSessionManager.IsSaveLoaded)
         {
             ActiveSaveTxt.Text = string.Empty;
@@ -51,8 +85,9 @@ public sealed partial class AppTitleBar : UserControl
         QuicksilverTxt.Text = $"{quicksilver:N0} QUICKSILVER";
 
         bool hasChanges = SaveSessionManager.HasUnsavedChanges;
-        SaveBtn.Visibility = hasChanges ? Visibility.Visible : Visibility.Collapsed;
         ResetBtn.Visibility = hasChanges ? Visibility.Visible : Visibility.Collapsed;
+        SaveBtn.Visibility = hasChanges ? Visibility.Visible : Visibility.Collapsed;
+        SaveBtn.IsEnabled = hasChanges && !gameRunning;
     }
 
     private void ResetDisplayTokens()
@@ -62,13 +97,12 @@ public sealed partial class AppTitleBar : UserControl
         QuicksilverTxt.Text = "0 QUICKSILVER";
     }
 
-    private void ResetBtn_Click(object sender, RoutedEventArgs e)
-    {
-        SaveSessionManager.DiscardAllEdits();
-    }
+    private void ResetBtn_Click(object sender, RoutedEventArgs e) => SaveSessionManager.DiscardAllEdits();
 
     private async void SaveBtn_Click(object sender, RoutedEventArgs e)
     {
+        if (GameProcessMonitorService.IsGameRunning) return;
+
         _isSaving = true;
         SaveBtn.IsEnabled = false;
         ResetBtn.IsEnabled = false;
@@ -96,7 +130,6 @@ public sealed partial class AppTitleBar : UserControl
         {
             SaveSpinner.IsActive = false;
             SaveBtnText.Text = "Save";
-            SaveBtn.IsEnabled = true;
             ResetBtn.IsEnabled = true;
             _isSaving = false;
             Refresh();

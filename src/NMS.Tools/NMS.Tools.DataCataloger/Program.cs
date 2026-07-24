@@ -1,13 +1,23 @@
 ﻿using NMS.Tools.DataCataloger.Services;
 using NMS.Tools.DataCataloger.Services.Interfaces;
 
-LogService.Write(">>> PROGRAM.CS MAIN() EXECUTING FROM: " + AppContext.BaseDirectory);
-
-//
-// 0. Ensure working folder (next to EXE)
-//
 string workingFolder = Path.Combine(AppContext.BaseDirectory, "Working");
 Directory.CreateDirectory(workingFolder);
+
+// "DataCataloger trim" reuses an already-built working catalog and writes
+// the small, ship-ready distribution copy - no PAK re-extraction needed.
+if (args.Length > 0 && args[0].Equals("trim", StringComparison.OrdinalIgnoreCase))
+{
+    string sourcePath = Path.Combine(workingFolder, "nms_catalog.sqlite");
+    string distPath = Path.Combine(workingFolder, "nms_catalog_dist.sqlite");
+
+    ConsoleStyle.Header("Trimming working catalog to a distribution-ready copy...");
+    CatalogTrimService.Trim(sourcePath, distPath);
+    ConsoleStyle.Success($"Done. Copy {Path.GetFileName(distPath)} into the app's Data folder as nms_catalog.sqlite.");
+    return;
+}
+
+LogService.Write(">>> PROGRAM.CS MAIN() EXECUTING FROM: " + AppContext.BaseDirectory);
 
 LogService.Write($"Working folder: {workingFolder}");
 LogService.Write("");

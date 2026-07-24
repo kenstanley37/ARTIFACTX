@@ -4,6 +4,7 @@ using NMS.Core.NmsModels;
 using NMS.WinUI3.Services;
 using NMS.WinUI3.ViewModels;
 using System;
+using System.Linq;
 
 namespace NMS.WinUI3.Views;
 
@@ -32,14 +33,19 @@ public sealed partial class ExosuitPage : Page
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(LoadGrids);
 
-    private void LoadGrids()
+    private async void LoadGrids()
     {
         if (!SaveSessionManager.IsSaveLoaded) return;
 
         _techViewModel.Load();
-        TechGrid.Refresh();
-
         _cargoViewModel.Load();
+
+        var itemIds = _techViewModel.Cells.Concat(_cargoViewModel.Cells)
+            .Where(c => c.IsOccupied)
+            .Select(c => c.ItemId);
+        await CatalogService.WarmCacheAsync(itemIds);
+
+        TechGrid.Refresh();
         CargoGrid.Refresh();
 
         PageResetBtn.Visibility = (_techViewModel.HasLocalChanges || _cargoViewModel.HasLocalChanges)

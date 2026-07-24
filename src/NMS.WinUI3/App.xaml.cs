@@ -36,8 +36,10 @@ public partial class App : Application
 
         DeleteWorkingFolder();
 
+
         _window = new MainWindow();
         MainWindowInstance = (MainWindow)_window;
+        Services.GameProcessMonitorService.Start(_window!.DispatcherQueue);
         _window.Activate();
     }
 

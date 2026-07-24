@@ -2,35 +2,32 @@
 using NMS.WinUI3.Models;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace NMS.WinUI3.Services;
 
-/// <summary>
-/// App-wide holder for the one save slot currently open for editing. Loading
-/// parses one representative file (the pair's most recently modified one) once,
-/// off the UI thread - after that, every page's reads and edits are pure
-/// in-memory operations against the shared JSON tree, so switching pages never
-/// touches disk. Committing writes both files in the slot and is likewise run
-/// off the UI thread regardless of save size.
-/// </summary>
 public static class SaveSessionManager
 {
     private static SaveEditSession? _session;
     private static string[] _targetHgPaths = Array.Empty<string>();
     private static SaveSlotGroup? _activeSlot;
+    private static Dictionary<string, DateTime> _loadSnapshot = new();
 
     public static event EventHandler? ActiveSessionChanged;
     public static event EventHandler? PendingEditsChanged;
+
+    /// <summary>Fires when NMS.exe closes and the on-disk save files have
+    /// changed since this session was loaded - meaning continuing to edit
+    /// (and eventually save) risks overwriting real in-game progress.</summary>
+    public static event EventHandler? ExternalChangeDetected;
 
     public static bool IsSaveLoaded => _session is not null;
     public static bool HasUnsavedChanges => _session?.HasUnsavedChanges ?? false;
     public static SaveSlotGroup? ActiveSlot => _activeSlot;
     public static string? ActiveLabel => _activeSlot?.ActiveLabel;
-    public static bool HasStagedEdit(params string[] path) => _session?.HasStagedEdit(path) ?? false;
-    public static bool HasStagedEditsUnder(params string[] pathPrefix) => _session?.HasStagedEditsUnder(pathPrefix) ?? false;
-    public static void RevertEditsUnder(params string[] pathPrefix) => _session?.RevertEditsUnder(pathPrefix);
 
     public static async Task LoadAsync(SaveSlotGroup slot)
     {
@@ -45,6 +42,8 @@ public static class SaveSessionManager
         _activeSlot = slot;
         _activeSlot.IsActive = true;
 
+        TakeSnapshot();
+
         _session.EditsChanged += OnEditsChanged;
         ActiveSessionChanged?.Invoke(null, EventArgs.Empty);
     }
@@ -58,6 +57,7 @@ public static class SaveSessionManager
         _session = null;
         _targetHgPaths = Array.Empty<string>();
         _activeSlot = null;
+        _loadSnapshot.Clear();
         ActiveSessionChanged?.Invoke(null, EventArgs.Empty);
     }
 
@@ -68,12 +68,54 @@ public static class SaveSessionManager
 
     public static void StageEdit(JToken? newValue, params string[] path) => _session?.StageEdit(newValue, path);
     public static void RevertEdit(params string[] path) => _session?.RevertEdit(path);
+    public static bool HasStagedEdit(params string[] path) => _session?.HasStagedEdit(path) ?? false;
+    public static bool HasStagedEditsUnder(params string[] pathPrefix) => _session?.HasStagedEditsUnder(pathPrefix) ?? false;
+    public static void RevertEditsUnder(params string[] pathPrefix) => _session?.RevertEditsUnder(pathPrefix);
     public static void DiscardAllEdits() => _session?.DiscardAllEdits();
 
     public static async Task CommitAsync()
     {
         if (_session is null || _targetHgPaths.Length == 0) return;
         await Task.Run(() => _session.CommitAsync(_targetHgPaths));
+        TakeSnapshot();
+    }
+
+    /// <summary>Discards the current session and reloads fresh from disk -
+    /// use after ExternalChangeDetected when the user chooses to reload
+    /// rather than risk overwriting new in-game progress.</summary>
+    public static async Task ReloadFromDiskAsync()
+    {
+        if (_activeSlot is null) return;
+        var slot = _activeSlot;
+        CloseSession();
+        await LoadAsync(slot);
+    }
+
+    /// <summary>Called by the game-process monitor on the running->stopped
+    /// transition. Compares each target file's current on-disk timestamp
+    /// against what was recorded at load/commit time.</summary>
+    public static void CheckForExternalChanges()
+    {
+        if (_session is null) return;
+
+        foreach (var path in _targetHgPaths)
+        {
+            if (!File.Exists(path)) continue;
+            var currentWriteTime = File.GetLastWriteTimeUtc(path);
+
+            if (_loadSnapshot.TryGetValue(path, out var snapshotTime) && currentWriteTime != snapshotTime)
+            {
+                ExternalChangeDetected?.Invoke(null, EventArgs.Empty);
+                return;
+            }
+        }
+    }
+
+    private static void TakeSnapshot()
+    {
+        _loadSnapshot = _targetHgPaths
+            .Where(File.Exists)
+            .ToDictionary(p => p, File.GetLastWriteTimeUtc);
     }
 
     private static void DetachCurrent()

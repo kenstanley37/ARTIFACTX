@@ -24,10 +24,13 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         InitializeCustomTitleBar();
 
-        // Ready for when Exosuit/Starship/etc. nav items exist - subscribe now so
-        // the wiring is already correct the moment they're added.
         SaveSessionManager.ActiveSessionChanged += (_, _) => UpdateNavAvailability();
         UpdateNavAvailability();
+
+        GameProcessMonitorService.Start(DispatcherQueue);
+        GameProcessMonitorService.RunningStateChanged += (_, isRunning) =>
+            DispatcherQueue.TryEnqueue(() =>
+                GameRunningBanner.Visibility = isRunning ? Visibility.Visible : Visibility.Collapsed);
 
         ContentFrame.Navigate(typeof(SaveFolderSelectPage));
 

@@ -51,7 +51,6 @@
             </Button>
         </StackPanel>
 
-        <!-- Reserved space so window caption buttons (min/max/close) never overlap content -->
         <Border Grid.Column="3" Background="Transparent"/>
     </Grid>
 </UserControl>
