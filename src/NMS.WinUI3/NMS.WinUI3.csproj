@@ -15,11 +15,11 @@
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Controls\AppTitleBar.xaml" />
+    <None Remove="Controls\InventorySlotGrid.xaml" />
     <None Remove="Views\AncestrySearchView.xaml" />
+    <None Remove="Views\ExosuitPage.xaml" />
     <None Remove="Views\InspectionPages\HGDecryptionPage.xaml" />
-    <None Remove="Views\InventoryPage.xaml" />
     <None Remove="Views\SaveFolderSelectPage.xaml" />
-    <None Remove="Views\SaveHubPage.xaml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -47,22 +47,23 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
     <PackageReference Include="Microsoft.WindowsAppSDK" />
+	  <PackageReference Include="CommunityToolkit.Mvvm" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NMS.Core\NMS.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Page Update="Views\SaveHubPage.xaml">
+    <Page Update="Views\ExosuitPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Controls\InventorySlotGrid.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
   <ItemGroup>
     <Page Update="Views\AncestrySearchView.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="Views\InventoryPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
@@ -75,9 +76,6 @@
     <Page Update="Views\InspectionPages\HGDecryptionPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="ViewModels\" />
   </ItemGroup>
   <ItemGroup>
     <Page Update="Views\SaveFolderSelectPage.xaml">

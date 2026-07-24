@@ -3,27 +3,33 @@ using Newtonsoft.Json.Linq;
 
 namespace NMS.Core.NmsModels;
 
+/// <summary>
+/// JSON Path: /vLc
+/// Keys:
+///   idA -> Galaxy index
+///   6f= -> Player state block (see NmsPlayerStateData) - location, currency, etc.
+///   rnc -> Spawn state block (position/rotation-shaped entries) - not yet modeled
+/// </summary>
 public class NmsUniverseState
 {
-    // Galaxy index
     [JsonProperty("idA")]
     public int GalaxyIndex { get; set; }
 
-    // Current system raw block
     [JsonProperty("6f=")]
-    public JToken? RawSystem { get; set; }
+    public NmsPlayerStateData? PlayerState { get; set; }
 
-    // Location description
-    [JsonProperty("n:R")]
-    public string? LocationDescription { get; set; }
+    [JsonProperty("rnc")]
+    public JToken? SpawnState { get; set; }
 
-    // Currency values
-    [JsonProperty("wGS")]
-    public long Units { get; set; }
+    [JsonIgnore]
+    public string? LocationDescription => PlayerState?.LocationDescription;
 
-    [JsonProperty("7QL")]
-    public long Nanites { get; set; }
+    [JsonIgnore]
+    public long Units => PlayerState?.Units ?? 0;
 
-    [JsonProperty("kN;")]
-    public long Quicksilver { get; set; }
+    [JsonIgnore]
+    public long Nanites => PlayerState?.Nanites ?? 0;
+
+    [JsonIgnore]
+    public long Quicksilver => PlayerState?.Quicksilver ?? 0;
 }

@@ -19,6 +19,7 @@
     <Platform Name="x86" />
   </Configurations>
   <Folder Name="/src/NMS.Tools/">
+    <Project Path="src/NMS.Tools/NMS.SaveInspector/NMS.SaveInspector.csproj" Id="f11f227a-29ea-4d61-9908-1601f2d48c2b" />
     <Project Path="src/NMS.Tools/NMS.Tools.DataCataloger/NMS.Tools.DataCataloger.csproj" Id="68f90931-a070-48aa-b4a0-c6db1a447b0a" />
     <Project Path="src/NMS.Tools/NMS.Tools.libMBIN/NMS.Tools.libMBIN.csproj" Id="fdb6b12e-3db6-4809-a673-4906fadd64bb" />
   </Folder>

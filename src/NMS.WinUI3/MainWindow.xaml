@@ -24,15 +24,24 @@
 
         <NavigationView x:Name="RootNav"
                         Grid.Row="1"
-                        PaneDisplayMode="LeftCompact"
+                        PaneDisplayMode="Left"
+                        IsPaneOpen="True"
                         IsSettingsVisible="False"
                         SelectionChanged="RootNav_SelectionChanged"
                         Background="Transparent">
 
             <NavigationView.MenuItems>
-                <NavigationViewItem Content="Save Hub Landing" Icon="Home" Tag="SaveHub" />
-                <NavigationViewItem Content="Inventory Control" Icon="AllApps" Tag="Inventory" />
-                <NavigationViewItem Content="Data Diagnostic" Icon="ReportHacked" Tag="DataDiagnostic" />
+                <NavigationViewItem Content="Save Selection" Icon="Home" Tag="SaveFolderSelect" />
+
+                <!-- Exosuit, Starship, Multi-Tool, etc. nav items go here once built,
+                     gated behind SaveSessionManager.IsSaveLoaded the same way the
+                     removed SaveHub/Inventory items were. -->
+                <NavigationViewItem x:Name="ExosuitNavItem" Content="Exosuit" Tag="Exosuit" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE7EF;" FontFamily="Segoe MDL2 Assets"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
 
                 <NavigationViewItemSeparator/>
 

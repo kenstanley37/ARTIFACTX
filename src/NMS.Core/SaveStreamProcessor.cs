@@ -1,5 +1,6 @@
 ﻿using K4os.Compression.LZ4;
 using System.Diagnostics;
+using System.Text;
 
 namespace NMS.Core;
 
@@ -7,7 +8,8 @@ public class SaveStreamProcessor
 {
     // The magic bytes Hello Games uses to indicate a valid save block container
     private static readonly byte[] SteamMagicHeader = new byte[] { 0xE5, 0xA1, 0xED, 0xFE }; // "4E4D4D53" maps to "DNMS" 
-    private const uint ExpectedMagic = 0xFEEDA1E5;
+    public const uint ExpectedMagic = 0xFEEDA1E5;
+    private const int SaveBlockSize = 0x80000; // 524,288 bytes — confirmed against a real save file's own block sizes.
     /// <summary>
     /// Reads only the first 32 bytes of the save file to identify the container layout structure.
     /// </summary>
@@ -90,6 +92,48 @@ public class SaveStreamProcessor
         decompressedOutputMemory.Position = 0;
         Debug.WriteLine($"[NMS-CORE-LOOP] Stream extraction complete. Final raw JSON memory map footprint: {decompressedOutputMemory.Length} bytes.");
         return decompressedOutputMemory;
+    }
+
+    /// <summary>
+    /// The inverse of DecompressSaveToStreamAsync: writes a single 16-byte block
+    /// header (magic + compressed size + decompressed size) followed by one
+    /// LZ4-encoded block containing the given JSON. DecompressSaveToStreamAsync's
+    /// read loop only requires block-by-block framing to be correct — it doesn't
+    /// care whether the whole payload is one block or several — so a single block
+    /// is a valid, minimal way to prove the container format itself is right.
+    /// </summary>
+    public static async Task WriteSaveContainerAsync(string json, string outputFilePath, CancellationToken cancellationToken = default)
+    {
+        byte[] jsonBytes = Encoding.UTF8.GetBytes(json);
+
+        using var outputStream = new FileStream(outputFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous);
+
+        int offset = 0;
+        while (offset < jsonBytes.Length)
+        {
+            int chunkLength = Math.Min(SaveBlockSize, jsonBytes.Length - offset);
+
+            int maxCompressedSize = LZ4Codec.MaximumOutputSize(chunkLength);
+            byte[] compressedBuffer = new byte[maxCompressedSize];
+
+            int compressedSize = LZ4Codec.Encode(
+                jsonBytes, offset, chunkLength,
+                compressedBuffer, 0, compressedBuffer.Length
+            );
+
+            if (compressedSize <= 0)
+                throw new InvalidOperationException($"LZ4 compression failed to produce a valid block at offset {offset}.");
+
+            byte[] headerBuffer = new byte[16];
+            BitConverter.GetBytes(ExpectedMagic).CopyTo(headerBuffer, 0);
+            BitConverter.GetBytes(compressedSize).CopyTo(headerBuffer, 4);
+            BitConverter.GetBytes((long)chunkLength).CopyTo(headerBuffer, 8);
+
+            await outputStream.WriteAsync(headerBuffer, cancellationToken);
+            await outputStream.WriteAsync(compressedBuffer.AsMemory(0, compressedSize), cancellationToken);
+
+            offset += chunkLength;
+        }
     }
 
     public static async Task<string> ExtractRawJsonAsync(string filePath)

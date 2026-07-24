@@ -3,6 +3,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using NMS.WinUI3.Controls;
+using NMS.WinUI3.Services;
 using NMS.WinUI3.Views;
 using NMS.WinUI3.Views.InspectionPages;
 using System;
@@ -16,20 +17,20 @@ public sealed partial class MainWindow : Window
 {
     private AppWindow _appWindow;
 
-    // FIXED: Expose title bar control context cleanly
     public AppTitleBar TitleBar => CustomTitleBar;
 
     public MainWindow()
     {
         InitializeComponent();
-
-        // 1. Initialize custom TitleBar configuration lifecycle
         InitializeCustomTitleBar();
 
-        // Boot directly to our main dashboard view on launch
+        // Ready for when Exosuit/Starship/etc. nav items exist - subscribe now so
+        // the wiring is already correct the moment they're added.
+        SaveSessionManager.ActiveSessionChanged += (_, _) => UpdateNavAvailability();
+        UpdateNavAvailability();
+
         ContentFrame.Navigate(typeof(SaveFolderSelectPage));
 
-        // Dynamic search lookup updates initial index flag state
         var defaultItem = FindNavItemByTag(RootNav.MenuItems, "SaveFolderSelect");
         if (defaultItem != null) RootNav.SelectedItem = defaultItem;
     }
@@ -37,7 +38,6 @@ public sealed partial class MainWindow : Window
     private void InitializeCustomTitleBar()
     {
         IntPtr windowHandle = WindowNative.GetWindowHandle(this);
-
         WindowId windowId = new WindowId((ulong)windowHandle);
         _appWindow = AppWindow.GetFromWindowId(windowId);
 
@@ -45,7 +45,6 @@ public sealed partial class MainWindow : Window
         {
             var titleBar = _appWindow.TitleBar;
             titleBar.ExtendsContentIntoTitleBar = true;
-
             titleBar.ButtonBackgroundColor = Colors.Transparent;
             titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
             titleBar.ButtonForegroundColor = Color.FromArgb(255, 240, 243, 248);
@@ -61,50 +60,43 @@ public sealed partial class MainWindow : Window
             string tag = selectedItem.Tag.ToString();
             Type targetPageType = tag switch
             {
-                "SaveHub" => typeof(SaveHubPage),
                 "SaveFolderSelect" => typeof(SaveFolderSelectPage),
-                "Inventory" => typeof(InventoryPage),
+                "Exosuit" => typeof(ExosuitPage),
                 "AncestrySearch" => typeof(AncestrySearchView),
                 "HGDecryption" => typeof(HGDecryptionPage),
-                //"DataDiagnostic" => typeof(DataDiagnosticPage),
-                _ => typeof(SaveHubPage)
+                _ => typeof(SaveFolderSelectPage)
             };
 
             if (ContentFrame.CurrentSourcePageType != targetPageType)
             {
-                // 📍 FIXED: Erased hardcoded constraint lock pass
                 ContentFrame.Navigate(targetPageType);
             }
         }
     }
 
     /// <summary>
-    /// Safely unlocks the sidebar navigation options from child pages after save validation passes.
+    /// Toggles visibility of save-scoped nav items (Exosuit, Starship, etc., once
+    /// they exist) based on whether a save is actively loaded in SaveSessionManager.
+    /// Currently a no-op - there's nothing to gate until those pages are added.
     /// </summary>
-    public void SetNavigationState(bool isEnabled)
+    private void UpdateNavAvailability()
     {
-        if (RootNav != null)
-        {
-            RootNav.IsEnabled = isEnabled;
-        }
+        ExosuitNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ContentFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
     {
         string targetTag = e.SourcePageType switch
         {
-            Type t when t == typeof(SaveHubPage) => "SaveHub",
             Type t when t == typeof(SaveFolderSelectPage) => "SaveFolderSelect",
-            Type t when t == typeof(InventoryPage) => "Inventory",
+            Type t when t == typeof(ExosuitPage) => "Exosuit",
             Type t when t == typeof(AncestrySearchView) => "AncestrySearch",
             Type t when t == typeof(HGDecryptionPage) => "HGDecryption",
-            //Type t when t == typeof(DataDiagnosticPage) => "DataDiagnostic",
             _ => string.Empty
         };
 
         if (!string.IsNullOrEmpty(targetTag))
         {
-            // 📍 FIXED: Implemented deep hierarchy recursive element selection updater
             var targetItem = FindNavItemByTag(RootNav.MenuItems, targetTag);
             if (targetItem != null)
             {
@@ -113,10 +105,6 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Monitored recursive lookahead algorithm locates a NavigationViewItem matching the tag context,
-    /// traversing into sub-menus seamlessly.
-    /// </summary>
     private NavigationViewItem? FindNavItemByTag(IList<object> itemsList, string targetTag)
     {
         foreach (var menuNode in itemsList)
@@ -124,11 +112,8 @@ public sealed partial class MainWindow : Window
             if (menuNode is NavigationViewItem item)
             {
                 if (item.Tag?.ToString() == targetTag)
-                {
                     return item;
-                }
 
-                // Check deep nested submenu children blocks if they exist
                 if (item.MenuItems.Count > 0)
                 {
                     var foundSubChild = FindNavItemByTag(item.MenuItems, targetTag);

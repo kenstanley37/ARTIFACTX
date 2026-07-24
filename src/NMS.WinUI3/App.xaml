@@ -15,6 +15,9 @@
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
             <converters:StringFormatConverter x:Key="StringFormatConverter" />
             <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            <converters:BoolToActiveBackgroundConverter x:Key="BoolToActiveBackgroundConverter" />
+            <converters:SlotStateToBackgroundConverter x:Key="SlotStateToBackgroundConverter" />
+            <converters:SlotStateToBorderConverter x:Key="SlotStateToBorderConverter" />
 
             <SolidColorBrush x:Key="NmsBackgroundBrush" Color="#0A0D14" />
             <SolidColorBrush x:Key="NmsPaneBackgroundBrush" Color="#10141F" />

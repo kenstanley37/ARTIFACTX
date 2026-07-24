@@ -26,6 +26,15 @@
                        CharacterSpacing="100"/>
         </StackPanel>
 
+        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0" Spacing="12">
+            <FontIcon Glyph="&#xE7E7;" FontFamily="Segoe MDL2 Assets" Foreground="{ThemeResource NmsAccentBrush}" FontSize="16"/>
+            <TextBlock Text="NMS SAVE EDITOR // ANOMALY COMMAND"
+               Foreground="{ThemeResource NmsTextPrimary}"
+               FontWeight="SemiBold" FontSize="12" CharacterSpacing="100"/>
+            <TextBlock x:Name="ActiveSaveTxt" Text="" FontSize="12" FontWeight="SemiBold"
+               Foreground="{ThemeResource NmsAccentBrush}" VerticalAlignment="Center"/>
+        </StackPanel>
+
         <StackPanel x:Name="CurrencyDisplayRegion" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
             <StackPanel Orientation="Horizontal" Spacing="6">
                 <TextBlock Text="💰" VerticalAlignment="Center" FontSize="12"/>

@@ -8,11 +8,13 @@ public class NullToVisibilityConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
     {
-        return value != null ? Visibility.Visible : Visibility.Collapsed;
+        bool isVisible = value != null;
+        if (parameter is string p && string.Equals(p, "Invert", StringComparison.OrdinalIgnoreCase))
+            isVisible = !isVisible;
+
+        return isVisible ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, string language)
-    {
+    public object ConvertBack(object value, Type targetType, object parameter, string language) =>
         throw new NotImplementedException();
-    }
 }
