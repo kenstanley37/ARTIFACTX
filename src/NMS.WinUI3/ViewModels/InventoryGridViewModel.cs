@@ -8,12 +8,6 @@ using System.Linq;
 
 namespace NMS.WinUI3.ViewModels;
 
-/// <summary>
-/// Loads one inventory container from the active save and renders the FULL
-/// possible grid (up to max capacity), not just the bounding box of currently
-/// unlocked positions - so locked slots the player hasn't purchased yet still
-/// show up and can be unlocked from here.
-/// </summary>
 public partial class InventoryGridViewModel : ObservableObject
 {
     private readonly string[] _containerPath;
@@ -56,19 +50,25 @@ public partial class InventoryGridViewModel : ObservableObject
         if (container is null)
             return;
 
-        // Read hl? through the path-aware getter specifically - a staged-but-
-        // not-yet-committed unlock only shows up if we ask at its own exact
-        // path, since staged edits aren't merged into parent objects when the
-        // parent itself is read in bulk (as above).
         string[] unlockedPath = _containerPath.Append("hl?").ToArray();
         var unlockedPositions = SaveSessionManager.GetValue(unlockedPath) is JArray unlockedToken
             ? unlockedToken.ToObject<List<NmsGridPosition>>() ?? container.UnlockedPositions
             : container.UnlockedPositions;
 
         _unlockedSet = unlockedPositions.Select(p => (p.X, p.Y)).ToHashSet();
-        var occupiedByPosition = container.OccupiedSlots
-            .Where(s => s.Position is not null)
-            .ToDictionary(s => (s.Position!.X, s.Position!.Y));
+
+        // Track each occupied slot's original array index alongside its data -
+        // needed both to stage amount edits at the right :No[i] position, and
+        // (below) to re-check each one individually for a staged amount edit,
+        // since a staged edit three levels under the container's own path
+        // isn't visible when the container is read in bulk, as above.
+        var occupiedByPosition = new Dictionary<(int X, int Y), (NmsInventorySlot Slot, int Index)>();
+        for (int i = 0; i < container.OccupiedSlots.Count; i++)
+        {
+            var slot = container.OccupiedSlots[i];
+            if (slot.Position is not null)
+                occupiedByPosition[(slot.Position.X, slot.Position.Y)] = (slot, i);
+        }
 
         Columns = _maxColumns;
         Rows = _maxRows;
@@ -77,12 +77,21 @@ public partial class InventoryGridViewModel : ObservableObject
         {
             for (int x = 0; x < Columns; x++)
             {
-                occupiedByPosition.TryGetValue((x, y), out var slot);
+                occupiedByPosition.TryGetValue((x, y), out var occupied);
+                var slot = occupied.Slot;
                 bool isUnlocked = _unlockedSet.Contains((x, y));
 
                 var state = slot is not null ? InventorySlotState.Occupied
                     : isUnlocked ? InventorySlotState.UnlockedEmpty
                     : InventorySlotState.Locked;
+
+                int amount = slot?.Amount ?? 0;
+                if (slot is not null)
+                {
+                    var amountPath = _containerPath.Concat(new[] { ":No", occupied.Index.ToString(), "1o9" }).ToArray();
+                    if (SaveSessionManager.GetValue(amountPath) is { } stagedAmount)
+                        amount = stagedAmount.Value<int>();
+                }
 
                 Cells.Add(new InventorySlotViewModel
                 {
@@ -91,18 +100,16 @@ public partial class InventoryGridViewModel : ObservableObject
                     State = state,
                     ItemId = slot?.ItemId,
                     CategoryLabel = slot?.Category?.Label,
-                    Amount = slot?.Amount ?? 0,
-                    MaxAmount = slot?.MaxAmount ?? 0
+                    Amount = amount,
+                    MaxAmount = slot?.MaxAmount ?? 0,
+                    OccupiedIndex = occupied.Index
                 });
             }
         }
 
-        HasLocalChanges = SaveSessionManager.HasStagedEdit(unlockedPath);
+        HasLocalChanges = SaveSessionManager.HasStagedEditsUnder(_containerPath);
     }
 
-    /// <summary>Stages one newly-unlocked position by writing the entire
-    /// updated position list back to the container's hl? path. Nothing
-    /// touches disk until the global Save commits it.</summary>
     public void UnlockSlot(int x, int y)
     {
         if (!_unlockedSet.Add((x, y))) return;
@@ -110,7 +117,6 @@ public partial class InventoryGridViewModel : ObservableObject
         Load();
     }
 
-    /// <summary>Unlocks every currently-locked cell in the rendered grid at once.</summary>
     public void UnlockAll()
     {
         bool changed = false;
@@ -123,11 +129,20 @@ public partial class InventoryGridViewModel : ObservableObject
         Load();
     }
 
-    /// <summary>Reverts only this container's staged edit, leaving every
-    /// other page's pending changes untouched.</summary>
+    /// <summary>Stages a new amount for an already-occupied slot, identified
+    /// by its :No array index.</summary>
+    public void StageAmount(int occupiedIndex, int newAmount)
+    {
+        var path = _containerPath.Concat(new[] { ":No", occupiedIndex.ToString(), "1o9" }).ToArray();
+        SaveSessionManager.StageEdit(newAmount, path);
+        Load();
+    }
+
+    /// <summary>Reverts every staged edit for this container - unlocks and
+    /// amount edits alike.</summary>
     public void Revert()
     {
-        SaveSessionManager.RevertEdit(_containerPath.Append("hl?").ToArray());
+        SaveSessionManager.RevertEditsUnder(_containerPath);
         Load();
     }
 

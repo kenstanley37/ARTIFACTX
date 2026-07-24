@@ -29,6 +29,8 @@ public static class SaveSessionManager
     public static SaveSlotGroup? ActiveSlot => _activeSlot;
     public static string? ActiveLabel => _activeSlot?.ActiveLabel;
     public static bool HasStagedEdit(params string[] path) => _session?.HasStagedEdit(path) ?? false;
+    public static bool HasStagedEditsUnder(params string[] pathPrefix) => _session?.HasStagedEditsUnder(pathPrefix) ?? false;
+    public static void RevertEditsUnder(params string[] pathPrefix) => _session?.RevertEditsUnder(pathPrefix);
 
     public static async Task LoadAsync(SaveSlotGroup slot)
     {

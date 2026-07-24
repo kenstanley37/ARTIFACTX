@@ -1,6 +1,7 @@
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using NMS.WinUI3.ViewModels;
 using System;
@@ -22,10 +23,6 @@ public sealed partial class InventorySlotGrid : UserControl
         set => SetValue(ViewModelProperty, value);
     }
 
-    /// <summary>Raised whenever a cell-level action (unlock, and later edit)
-    /// stages a change - lets the containing page react (e.g. show its own
-    /// page-level Reset button) without this control needing to know
-    /// anything about page layout.</summary>
     public event EventHandler? CellChanged;
 
     public InventorySlotGrid()
@@ -78,6 +75,8 @@ public sealed partial class InventorySlotGrid : UserControl
                     VerticalAlignment = VerticalAlignment.Bottom
                 });
                 border.Child = content;
+
+                border.Tapped += (_, _) => ShowAmountFlyout(border, cell);
             }
             else if (cell.State == InventorySlotState.Locked)
             {
@@ -95,6 +94,54 @@ public sealed partial class InventorySlotGrid : UserControl
 
             RootCanvas.Children.Add(border);
         }
+    }
+
+    private void ShowAmountFlyout(FrameworkElement anchor, InventorySlotViewModel cell)
+    {
+        var panel = new StackPanel { Spacing = 8, Width = 220 };
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"{cell.ShortLabel}  ({cell.CategoryLabel})",
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        var numberBox = new NumberBox
+        {
+            Value = cell.Amount,
+            Minimum = 0,
+            Maximum = cell.MaxAmount,
+            SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline
+        };
+        panel.Children.Add(numberBox);
+
+        var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var maxButton = new Button { Content = $"Max ({cell.MaxAmount})" };
+        maxButton.Click += (_, _) => numberBox.Value = cell.MaxAmount;
+        buttonRow.Children.Add(maxButton);
+        panel.Children.Add(buttonRow);
+
+        var applyButton = new Button
+        {
+            Content = "Apply",
+            Style = (Style)Application.Current.Resources["AccentButtonStyle"],
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        panel.Children.Add(applyButton);
+
+        var flyout = new Flyout { Content = panel };
+
+        applyButton.Click += (_, _) =>
+        {
+            ViewModel?.StageAmount(cell.OccupiedIndex, (int)numberBox.Value);
+            Refresh();
+            CellChanged?.Invoke(this, EventArgs.Empty);
+            flyout.Hide();
+        };
+
+        FlyoutBase.SetAttachedFlyout(anchor, flyout);
+        FlyoutBase.ShowAttachedFlyout(anchor);
     }
 
     private MenuFlyout BuildLockedFlyout(int x, int y)
