@@ -17,10 +17,6 @@ public sealed class InventorySlotViewModel
     public int Amount { get; init; }
     public int MaxAmount { get; init; }
 
-    /// <summary>Index into the container's :No array - only meaningful when
-    /// IsOccupied. Used to stage amount edits at the right array element.</summary>
-    public int OccupiedIndex { get; init; }
-
     public bool IsOccupied => State == InventorySlotState.Occupied;
 
     public double PixelX => X * 68;

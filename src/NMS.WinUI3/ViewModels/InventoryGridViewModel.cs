@@ -39,6 +39,9 @@ public partial class InventoryGridViewModel : ObservableObject
     partial void OnColumnsChanged(int value) => OnPropertyChanged(nameof(GridPixelWidth));
     partial void OnRowsChanged(int value) => OnPropertyChanged(nameof(GridPixelHeight));
 
+    private string[] NoPath => _containerPath.Append(":No").ToArray();
+    private string[] UnlockedPath => _containerPath.Append("hl?").ToArray();
+
     public void Load()
     {
         Cells.Clear();
@@ -50,24 +53,27 @@ public partial class InventoryGridViewModel : ObservableObject
         if (container is null)
             return;
 
-        string[] unlockedPath = _containerPath.Append("hl?").ToArray();
-        var unlockedPositions = SaveSessionManager.GetValue(unlockedPath) is JArray unlockedToken
+        // Both unlocked positions AND occupied slots check for a staged
+        // whole-array override first - this is the single source of truth
+        // for every edit type (unlock, amount change, duplicate), since all
+        // of them now stage a complete, freshly-rebuilt array rather than
+        // touching one element. That's what avoids index drift when a
+        // duplicate changes the array's length/order out from under a
+        // previously-staged edit.
+        var unlockedPositions = SaveSessionManager.GetValue(UnlockedPath) is JArray unlockedToken
             ? unlockedToken.ToObject<List<NmsGridPosition>>() ?? container.UnlockedPositions
             : container.UnlockedPositions;
-
         _unlockedSet = unlockedPositions.Select(p => (p.X, p.Y)).ToHashSet();
 
-        // Track each occupied slot's original array index alongside its data -
-        // needed both to stage amount edits at the right :No[i] position, and
-        // (below) to re-check each one individually for a staged amount edit,
-        // since a staged edit three levels under the container's own path
-        // isn't visible when the container is read in bulk, as above.
-        var occupiedByPosition = new Dictionary<(int X, int Y), (NmsInventorySlot Slot, int Index)>();
-        for (int i = 0; i < container.OccupiedSlots.Count; i++)
+        var occupiedSlots = SaveSessionManager.GetValue(NoPath) is JArray noToken
+            ? noToken.ToObject<List<NmsInventorySlot>>() ?? container.OccupiedSlots
+            : container.OccupiedSlots;
+
+        var occupiedByPosition = new Dictionary<(int X, int Y), NmsInventorySlot>();
+        foreach (var slot in occupiedSlots)
         {
-            var slot = container.OccupiedSlots[i];
             if (slot.Position is not null)
-                occupiedByPosition[(slot.Position.X, slot.Position.Y)] = (slot, i);
+                occupiedByPosition[(slot.Position.X, slot.Position.Y)] = slot;
         }
 
         Columns = _maxColumns;
@@ -77,21 +83,12 @@ public partial class InventoryGridViewModel : ObservableObject
         {
             for (int x = 0; x < Columns; x++)
             {
-                occupiedByPosition.TryGetValue((x, y), out var occupied);
-                var slot = occupied.Slot;
+                occupiedByPosition.TryGetValue((x, y), out var slot);
                 bool isUnlocked = _unlockedSet.Contains((x, y));
 
                 var state = slot is not null ? InventorySlotState.Occupied
                     : isUnlocked ? InventorySlotState.UnlockedEmpty
                     : InventorySlotState.Locked;
-
-                int amount = slot?.Amount ?? 0;
-                if (slot is not null)
-                {
-                    var amountPath = _containerPath.Concat(new[] { ":No", occupied.Index.ToString(), "1o9" }).ToArray();
-                    if (SaveSessionManager.GetValue(amountPath) is { } stagedAmount)
-                        amount = stagedAmount.Value<int>();
-                }
 
                 Cells.Add(new InventorySlotViewModel
                 {
@@ -100,9 +97,8 @@ public partial class InventoryGridViewModel : ObservableObject
                     State = state,
                     ItemId = slot?.ItemId,
                     CategoryLabel = slot?.Category?.Label,
-                    Amount = amount,
-                    MaxAmount = slot?.MaxAmount ?? 0,
-                    OccupiedIndex = occupied.Index
+                    Amount = slot?.Amount ?? 0,
+                    MaxAmount = slot?.MaxAmount ?? 0
                 });
             }
         }
@@ -129,21 +125,70 @@ public partial class InventoryGridViewModel : ObservableObject
         Load();
     }
 
-    /// <summary>Stages a new amount for an already-occupied slot, identified
-    /// by its :No array index.</summary>
-    public void StageAmount(int occupiedIndex, int newAmount)
+    /// <summary>Stages a new amount for the item at (x, y) by rebuilding the
+    /// whole :No array from current cell state, keyed by grid position - not
+    /// by the item's original array index, which can't be trusted to stay
+    /// stable once duplicates start changing the array's length.</summary>
+    public void StageAmount(int x, int y, int newAmount)
     {
-        var path = _containerPath.Concat(new[] { ":No", occupiedIndex.ToString(), "1o9" }).ToArray();
-        SaveSessionManager.StageEdit(newAmount, path);
+        var target = Cells.FirstOrDefault(c => c.X == x && c.Y == y && c.IsOccupied);
+        if (target is null) return;
+
+        var entries = Cells.Where(c => c.IsOccupied).Select(c =>
+            (c.X, c.Y) == (x, y)
+                ? (c.X, c.Y, c.ItemId, Amount: newAmount, c.MaxAmount, c.CategoryLabel)
+                : (c.X, c.Y, c.ItemId, c.Amount, c.MaxAmount, c.CategoryLabel));
+
+        StageWholeArray(entries);
         Load();
     }
 
+    /// <summary>Duplicates an occupied slot's item into the next free
+    /// unlocked-empty cell in this same container. Returns false if no free
+    /// slot exists.</summary>
+    public bool DuplicateSlot(InventorySlotViewModel sourceCell)
+    {
+        if (!sourceCell.IsOccupied) return false;
+
+        var target = Cells.FirstOrDefault(c => c.State == InventorySlotState.UnlockedEmpty);
+        if (target is null) return false;
+
+        var entries = Cells.Where(c => c.IsOccupied)
+            .Select(c => (c.X, c.Y, c.ItemId, c.Amount, c.MaxAmount, c.CategoryLabel))
+            .Append((target.X, target.Y, sourceCell.ItemId, sourceCell.Amount, sourceCell.MaxAmount, sourceCell.CategoryLabel));
+
+        StageWholeArray(entries);
+        Load();
+        return true;
+    }
+
     /// <summary>Reverts every staged edit for this container - unlocks and
-    /// amount edits alike.</summary>
+    /// occupied-slot edits alike.</summary>
     public void Revert()
     {
         SaveSessionManager.RevertEditsUnder(_containerPath);
         Load();
+    }
+
+    // Flag defaults (b76: true, 5tH: false, eVk: 0.0) match every real
+    // occupied slot observed so far - not currently tracked per-cell, so
+    // any rebuild applies them uniformly rather than preserving a slot's
+    // actual original values, if they ever differ.
+    private void StageWholeArray(IEnumerable<(int X, int Y, string? ItemId, int Amount, int MaxAmount, string? CategoryLabel)> entries)
+    {
+        var array = new JArray(entries.Select(e => new JObject
+        {
+            ["Vn8"] = new JObject { ["elv"] = e.CategoryLabel },
+            ["b2n"] = e.ItemId,
+            ["1o9"] = e.Amount,
+            ["F9q"] = e.MaxAmount,
+            ["eVk"] = 0.0,
+            ["b76"] = true,
+            ["5tH"] = false,
+            ["3ZH"] = new JObject { [">Qh"] = e.X, ["XJ>"] = e.Y }
+        }));
+
+        SaveSessionManager.StageEdit(array, NoPath);
     }
 
     private void StageUnlockedPositions()
@@ -154,6 +199,6 @@ public partial class InventoryGridViewModel : ObservableObject
             ["XJ>"] = p.Y
         }));
 
-        SaveSessionManager.StageEdit(array, _containerPath.Append("hl?").ToArray());
+        SaveSessionManager.StageEdit(array, UnlockedPath);
     }
 }

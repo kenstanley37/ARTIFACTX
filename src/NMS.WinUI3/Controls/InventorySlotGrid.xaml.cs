@@ -103,6 +103,7 @@ public sealed partial class InventorySlotGrid : UserControl
 
                 border.Child = content;
                 border.Tapped += (_, _) => ShowAmountFlyout(border, cell);
+                border.ContextFlyout = BuildOccupiedFlyout(border, cell);
             }
             else if (cell.State == InventorySlotState.Locked)
             {
@@ -161,7 +162,7 @@ public sealed partial class InventorySlotGrid : UserControl
 
         applyButton.Click += (_, _) =>
         {
-            ViewModel?.StageAmount(cell.OccupiedIndex, (int)numberBox.Value);
+            ViewModel?.StageAmount(cell.X, cell.Y, (int)numberBox.Value);
             Refresh();
             CellChanged?.Invoke(this, EventArgs.Empty);
             flyout.Hide();
@@ -185,6 +186,36 @@ public sealed partial class InventorySlotGrid : UserControl
         return flyout;
     }
 
+    private MenuFlyout BuildOccupiedFlyout(Border anchor, InventorySlotViewModel cell)
+    {
+        var flyout = new MenuFlyout();
+        var duplicateItem = new MenuFlyoutItem { Text = "Duplicate to a free slot" };
+
+        duplicateItem.Click += async (_, _) =>
+        {
+            bool success = ViewModel?.DuplicateSlot(cell) ?? false;
+
+            if (success)
+            {
+                Refresh();
+                CellChanged?.Invoke(this, EventArgs.Empty);
+                return;
+            }
+
+            var dialog = new ContentDialog
+            {
+                Title = "No free slot available",
+                Content = "Unlock more slots in this grid before duplicating this item.",
+                CloseButtonText = "OK",
+                XamlRoot = anchor.XamlRoot
+            };
+            await dialog.ShowAsync();
+        };
+
+        flyout.Items.Add(duplicateItem);
+        return flyout;
+    }
+
     private static Color BackgroundFor(InventorySlotState state) => state switch
     {
         InventorySlotState.Occupied => Color.FromArgb(60, 255, 157, 0),
@@ -198,4 +229,6 @@ public sealed partial class InventorySlotGrid : UserControl
         InventorySlotState.Locked => Color.FromArgb(140, 90, 60, 60),
         _ => Color.FromArgb(255, 90, 98, 112)
     };
+
+
 }
