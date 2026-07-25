@@ -92,6 +92,104 @@ public static class CatalogService
         }
     }
 
+    /// <summary>Searches the catalog for items whose display name contains the
+    /// query, restricted to the given MBIN table names (e.g. "GcTechnologyTable"
+    /// for the Exosuit tech grid, "GcProductTable"/"GcSubstanceTable" for cargo).
+    /// allowedUsageCategories further restricts to specific equipment slots (e.g.
+    /// "Suit"/"All" for the Exosuit tech grid) - pass null to skip this filter
+    /// entirely, which is required for Product/Substance searches since those rows
+    /// have no UsageCategory at all. Returns bare GameId + elv-style CategoryLabel
+    /// only - callers should follow up with WarmCacheAsync(results...GameId) and
+    /// TryGet() for display name/icon, reusing the existing cache rather than
+    /// duplicating that lookup here.</summary>
+    public static async Task<List<CatalogSearchResult>> SearchAsync(string query, string[] allowedTemplateTypes, string[]? allowedUsageCategories = null, int maxResults = 30)
+    {
+        if (string.IsNullOrWhiteSpace(query) || allowedTemplateTypes.Length == 0)
+            return new();
+
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+
+        try
+        {
+            return await Task.Run(() => QuerySearch(dbPath, query.Trim(), allowedTemplateTypes, allowedUsageCategories, maxResults));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] SearchAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    private static List<CatalogSearchResult> QuerySearch(string dbPath, string query, string[] allowedTemplateTypes, string[]? allowedUsageCategories, int maxResults)
+    {
+        var results = new List<CatalogSearchResult>();
+        var seen = new HashSet<string>();
+
+        using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+        connection.Open();
+
+        string typePlaceholders = string.Join(",", allowedTemplateTypes.Select((_, i) => $"@t{i}"));
+
+        // Only join on UsageCategory when a filter was actually requested - Product/
+        // Substance rows have no UsageCategory at all, so forcing this clause for
+        // every search would silently exclude every cargo item.
+        string usageClause = "";
+        if (allowedUsageCategories is { Length: > 0 })
+        {
+            string usagePlaceholders = string.Join(",", allowedUsageCategories.Select((_, i) => $"@u{i}"));
+            usageClause = $"AND i.UsageCategory IN ({usagePlaceholders})";
+        }
+
+        using var command = connection.CreateCommand();
+        command.CommandText = $@"
+            SELECT i.GameId, c.TemplateType, i.MaxStackSize
+            FROM Items i
+            JOIN Categories c ON c.Id = i.CategoryId
+            WHERE i.NameEnglish IS NOT NULL
+              AND c.TemplateType IN ({typePlaceholders})
+              AND i.NameEnglish LIKE @q
+              {usageClause}
+            LIMIT @max";
+
+        for (int i = 0; i < allowedTemplateTypes.Length; i++)
+            command.Parameters.AddWithValue($"@t{i}", allowedTemplateTypes[i]);
+
+        if (allowedUsageCategories is { Length: > 0 })
+        {
+            for (int i = 0; i < allowedUsageCategories.Length; i++)
+                command.Parameters.AddWithValue($"@u{i}", allowedUsageCategories[i]);
+        }
+
+        command.Parameters.AddWithValue("@q", $"%{query}%");
+        command.Parameters.AddWithValue("@max", maxResults);
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            string gameId = reader.GetString(0);
+            if (!seen.Add(gameId)) continue;
+
+            results.Add(new CatalogSearchResult
+            {
+                GameId = gameId,
+                CategoryLabel = ElvLabelFor(reader.GetString(1)),
+                MaxStackSize = reader.IsDBNull(2) ? null : reader.GetInt32(2)
+            });
+        }
+        return results;
+    }
+
+    // Maps the MBIN source table to the "elv" string the save file itself uses
+    // per-slot (Vn8.elv: "Technology"/"Product"/"Substance") - add new tables here
+    // as they're classified, rather than guessing a default for unknown ones.
+    private static string ElvLabelFor(string templateType) => templateType switch
+    {
+        "GcTechnologyTable" => "Technology",
+        "GcSubstanceTable" => "Substance",
+        _ => "Product"
+    };
+
     private static Dictionary<string, (string DisplayName, byte[]? IconPng)> QueryRows(string dbPath, List<string> gameIds)
     {
         var result = new Dictionary<string, (string, byte[]?)>();
@@ -122,6 +220,50 @@ public static class CatalogService
             result[gameId] = (name, png);
         }
         return result;
+    }
+
+    /// <summary>Multi-tool "Type" (base model) options, sourced from the
+    /// MultiToolTypes category CatalogBuildService discovers by filename rule
+    /// (see that service for how) rather than a curated list anywhere in the
+    /// app. GameId is the model scene path itself; NameEnglish is the derived
+    /// display name. Rebuilding the catalog after a game update refreshes this
+    /// automatically - nothing in the WinUI3 project needs to change.</summary>
+    public static async Task<List<(string DisplayName, string ScenePath)>> GetMultiToolTypesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+
+        try
+        {
+            return await Task.Run(() => QueryMultiToolTypes(dbPath));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetMultiToolTypesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    private static List<(string DisplayName, string ScenePath)> QueryMultiToolTypes(string dbPath)
+    {
+        var results = new List<(string, string)>();
+
+        using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT i.NameEnglish, i.GameId
+            FROM Items i
+            JOIN Categories c ON c.Id = i.CategoryId
+            WHERE c.TemplateType = 'MultiToolTypes'
+            ORDER BY i.NameEnglish";
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+            results.Add((reader.GetString(0), reader.GetString(1)));
+
+        return results;
     }
 
     private static string? ResolveDbPath()

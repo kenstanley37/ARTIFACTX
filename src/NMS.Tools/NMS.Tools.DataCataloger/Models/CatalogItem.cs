@@ -24,5 +24,16 @@ public class CatalogItem
     public string? DescriptionLocKey { get; set; }
     public string? DescriptionEnglish { get; set; }
 
+    /// <summary>Equipment-slot category for row types that have one - currently only
+    /// GcTechnology (Suit/Weapon/Ship/Freighter/Exocraft/Mech/.../All/None), extracted
+    /// generically in CatalogClassifier by field shape, not hardcoded to that type.
+    /// Null for row types with no such field, e.g. Product/Substance.</summary>
+    public string? UsageCategory { get; set; }
+
+    /// <summary>Real inventory stack cap (GcProductData/GcRealitySubstanceData's
+    /// "StackMultiplier"), e.g. 20 for Metal Plating vs 9999 for common resources.
+    /// Null for row types with no such field (Technology has no stack concept).</summary>
+    public int? MaxStackSize { get; set; }
+
     public List<IconAsset> Icons { get; set; } = new();
 }

@@ -27,10 +27,18 @@ public sealed partial class MainWindow : Window
         SaveSessionManager.ActiveSessionChanged += (_, _) => UpdateNavAvailability();
         UpdateNavAvailability();
 
-        GameProcessMonitorService.Start(DispatcherQueue);
         GameProcessMonitorService.RunningStateChanged += (_, isRunning) =>
             DispatcherQueue.TryEnqueue(() =>
                 GameRunningBanner.Visibility = isRunning ? Visibility.Visible : Visibility.Collapsed);
+
+        // Start() calls Poll() synchronously before returning - if NMS is already
+        // running, the state flips false->true and the event fires *during* this
+        // call. Subscribing above first means we never miss that one-time event,
+        // but this explicit sync afterward covers the same case even if that
+        // ordering ever gets disturbed again - it doesn't depend on catching a
+        // transition, just reads whatever the current state actually is.
+        GameProcessMonitorService.Start(DispatcherQueue);
+        GameRunningBanner.Visibility = GameProcessMonitorService.IsGameRunning ? Visibility.Visible : Visibility.Collapsed;
 
         ContentFrame.Navigate(typeof(SaveFolderSelectPage));
 
@@ -65,6 +73,7 @@ public sealed partial class MainWindow : Window
             {
                 "SaveFolderSelect" => typeof(SaveFolderSelectPage),
                 "Exosuit" => typeof(ExosuitPage),
+                "MultiTool" => typeof(MultiToolPage),
                 "AncestrySearch" => typeof(AncestrySearchView),
                 "HGDecryption" => typeof(HGDecryptionPage),
                 _ => typeof(SaveFolderSelectPage)
@@ -85,6 +94,7 @@ public sealed partial class MainWindow : Window
     private void UpdateNavAvailability()
     {
         ExosuitNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        MultiToolNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ContentFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
@@ -93,6 +103,7 @@ public sealed partial class MainWindow : Window
         {
             Type t when t == typeof(SaveFolderSelectPage) => "SaveFolderSelect",
             Type t when t == typeof(ExosuitPage) => "Exosuit",
+            Type t when t == typeof(MultiToolPage) => "MultiTool",
             Type t when t == typeof(AncestrySearchView) => "AncestrySearch",
             Type t when t == typeof(HGDecryptionPage) => "HGDecryption",
             _ => string.Empty

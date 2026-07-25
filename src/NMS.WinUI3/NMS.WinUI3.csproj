@@ -19,6 +19,7 @@
     <None Remove="Views\AncestrySearchView.xaml" />
     <None Remove="Views\ExosuitPage.xaml" />
     <None Remove="Views\InspectionPages\HGDecryptionPage.xaml" />
+    <None Remove="Views\MultiToolPage.xaml" />
     <None Remove="Views\SaveFolderSelectPage.xaml" />
   </ItemGroup>
 
@@ -57,7 +58,13 @@
 	  <PackageReference Include="CommunityToolkit.Mvvm" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\NMS.Almanac\NMS.Almanac.csproj" />
     <ProjectReference Include="..\NMS.Core\NMS.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Views\MultiToolPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Page Update="Views\ExosuitPage.xaml">

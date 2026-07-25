@@ -4,8 +4,8 @@
     <File Path="docs/CONTRIBUTING.md" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/NMS.Almanac/NMS.Almanac.csproj" Id="68d99de1-f1fd-4a68-981f-378ce661b134" />
     <Project Path="src/NMS.Core/NMS.Core.csproj" />
-    <Project Path="src/NMS.Data/NMS.Data.csproj" />
     <Project Path="src/NMS.WinUI3/NMS.WinUI3.csproj" Id="62ead7dc-3cf1-4a0a-b434-b11346199274">
       <Platform Solution="*|ARM64" Project="ARM64" />
       <Platform Solution="*|x64" Project="x64" />

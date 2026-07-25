@@ -105,6 +105,65 @@ public class CatalogBuildService
         var categories = new List<CatalogCategory>();
         int totalRows = 0, totalIcons = 0;
 
+        // -------------------------------------------------------------
+        // Phase 1.5: Multi-tool "Type" (base model) discovery. No in-game data
+        // table maps a Type display name to a model path - confirmed by
+        // searching every classified table, grepping raw MBIN field values for
+        // the string, and dumping the one plausible candidate's actual structure
+        // (see project history / DataCataloger's `inspect`/`grep`/`dumpfile`
+        // commands). The game itself has no such table either - "Type" IS the
+        // model path (NTx.93M in the save), confirmed by a real in-game test
+        // showing the visual swap needs no other field.
+        //
+        // So instead of a curated list, this is a FILENAME RULE applied to the
+        // real, already-indexed PAK entries: every .SCENE.MBIN directly under
+        // weapons/multitool/ whose name ends in "MULTITOOL.SCENE.MBIN" is a
+        // genuine base-model candidate (confirmed against the full 38-file
+        // weapons/multitool scan - this exact pattern cleanly separates every
+        // real candidate from every muzzle-flash/projectile/sub-part/effect
+        // file, none of which match it). Only NPC-only and platform-exclusive
+        // (Switch crossover) variants are excluded, by name - a small, stable
+        // exception list, not a growing inclusion list. Re-running the build
+        // after a game update picks up new Types automatically; nothing here
+        // needs manual maintenance unless Hello Games adds a new file that
+        // ALSO needs excluding for the same NPC/platform-exclusive reasons.
+        // -------------------------------------------------------------
+        var multiToolTypeCategory = new CatalogCategory
+        {
+            TemplateType = "MultiToolTypes",
+            RowType = "SceneModelPath",
+            SourceMbinPath = "models/common/weapons/multitool/*MULTITOOL.SCENE.MBIN (filename rule, not a data table)"
+        };
+
+        var seenModelPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (_, _, entries) in pakData)
+        {
+            foreach (var entry in entries)
+            {
+                if (string.IsNullOrEmpty(entry.FileName)) continue;
+
+                string upperPath = entry.FileName.ToUpperInvariant();
+                if (!upperPath.Contains("WEAPONS/MULTITOOL/")) continue;
+                if (!upperPath.EndsWith("MULTITOOL.SCENE.MBIN")) continue;
+                if (upperPath.Contains("NPC")) continue;
+                if (upperPath.Contains("SWITCH")) continue;
+                if (!seenModelPaths.Add(upperPath)) continue;
+
+                multiToolTypeCategory.Items.Add(new CatalogItem
+                {
+                    GameId = upperPath,
+                    NameEnglish = DeriveMultiToolTypeName(upperPath)
+                });
+            }
+        }
+
+        if (multiToolTypeCategory.Items.Count > 0)
+        {
+            categories.Add(multiToolTypeCategory);
+            LogService.Write($"CatalogBuild: discovered {multiToolTypeCategory.Items.Count} multi-tool Type model paths.");
+        }
+
         foreach (var (pakPath, header, entries) in pakData)
         {
             foreach (var entry in entries)
@@ -175,6 +234,8 @@ public class CatalogBuildService
                         NameLowerEnglish = row.NameLowerLocKey != null && englishLookup.TryGetValue(row.NameLowerLocKey, out var nl) ? nl : null,
                         DescriptionLocKey = row.DescriptionLocKey,
                         DescriptionEnglish = row.DescriptionLocKey != null && englishLookup.TryGetValue(row.DescriptionLocKey, out var d) ? d : null,
+                        UsageCategory = row.UsageCategory,
+                        MaxStackSize = row.MaxStackSize,
                     };
 
                     foreach (var (sourceField, texturePath) in row.Icons)
@@ -270,6 +331,27 @@ public class CatalogBuildService
             foreach (var icon in item.Icons)
                 db.Entry(icon).State = EntityState.Detached;
         }
+    }
+
+    /// <summary>Turns a model path like ".../STAFFMULTITOOLATLAS.SCENE.MBIN" into
+    /// "Staff Atlas": strips the folder and extension, replaces "MULTITOOL" with a
+    /// space (wherever it falls in the name, not just as a suffix) rather than just
+    /// deleting it, so concatenated words split apart correctly, then title-cases
+    /// the result. The base "MULTITOOL.SCENE.MBIN" file itself has nothing left
+    /// after stripping - that's the default Rifle model, special-cased below.</summary>
+    private static string DeriveMultiToolTypeName(string upperPath)
+    {
+        string fileName = upperPath[(upperPath.LastIndexOf('/') + 1)..];
+        int dot = fileName.IndexOf(".SCENE", StringComparison.Ordinal);
+        if (dot >= 0) fileName = fileName[..dot];
+
+        string name = System.Text.RegularExpressions.Regex
+            .Replace(fileName, "MULTITOOL", " ", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+            .Trim();
+
+        if (string.IsNullOrEmpty(name)) name = "RIFLE";
+
+        return System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(name.ToLowerInvariant());
     }
 
     private NMSTemplate? DecodeMbin(string pakPath, PakEntry entry, PakHeader header)

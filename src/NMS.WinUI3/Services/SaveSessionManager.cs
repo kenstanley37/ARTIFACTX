@@ -37,6 +37,16 @@ public static class SaveSessionManager
 
         var primary = slot.Files.OrderByDescending(f => f.LastModified).First();
 
+        // Re-extract fresh from the real .hg file on disk rather than trusting
+        // whatever working copy IndexAsync wrote during the app's initial folder
+        // scan. Without this, re-loading the same slot later in the same app
+        // session (e.g. after making a change in-game and re-saving) silently
+        // shows stale data - nothing else ever re-decrypts that working JSON,
+        // which is exactly why its timestamp never moved no matter how many
+        // times the slot list was reopened.
+        string freshJson = await SaveStreamProcessor.ExtractRawJsonAsync(primary.FullPath);
+        await File.WriteAllTextAsync(primary.WorkingJsonPath, freshJson);
+
         _session = await Task.Run(() => SaveEditSession.LoadAsync(primary.WorkingJsonPath));
         _targetHgPaths = slot.Files.Select(f => f.FullPath).ToArray();
         _activeSlot = slot;

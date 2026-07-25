@@ -68,7 +68,9 @@ public static class CatalogTrimService
                 NameLowerLocKey = sourceItem.NameLowerLocKey,
                 NameLowerEnglish = sourceItem.NameLowerEnglish,
                 DescriptionLocKey = sourceItem.DescriptionLocKey,
-                DescriptionEnglish = sourceItem.DescriptionEnglish
+                DescriptionEnglish = sourceItem.DescriptionEnglish,
+                UsageCategory = sourceItem.UsageCategory,
+                MaxStackSize = sourceItem.MaxStackSize
             };
 
             foreach (var sourceIcon in sourceItem.Icons)

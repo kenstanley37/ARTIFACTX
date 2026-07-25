@@ -19,7 +19,7 @@
 
         <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0" Spacing="12">
             <FontIcon Glyph="&#xE7E7;" FontFamily="Segoe MDL2 Assets" Foreground="{ThemeResource NmsAccentBrush}" FontSize="16"/>
-            <TextBlock Text="NMS SAVE EDITOR // ANOMALY COMMAND"
+            <TextBlock Text="ARTIFACTX"
                        Foreground="{ThemeResource NmsTextPrimary}"
                        FontWeight="SemiBold" FontSize="12" CharacterSpacing="100"/>
             <TextBlock x:Name="ActiveSaveTxt" Text="" FontSize="12" FontWeight="SemiBold"

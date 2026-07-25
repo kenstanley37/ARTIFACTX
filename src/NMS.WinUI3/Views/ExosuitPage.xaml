@@ -17,6 +17,8 @@
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="Technology" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
+                <Button Content="Supercharge All Slots" Click="SuperchargeAllTech_Click"/>
+                <Button Content="Repair All Slots" Click="RepairAllTech_Click"/>
             </StackPanel>
             <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
                     CornerRadius="6" Padding="8" HorizontalAlignment="Left" Opacity="0.9">
