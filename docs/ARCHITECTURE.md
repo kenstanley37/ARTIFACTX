@@ -1,6 +1,6 @@
 # Architectural Specification
 
-## 1. Container Format (NMS.Core / SaveStreamProcessor)
+## 1. Container Format (ArtifactX.Core / SaveStreamProcessor)
 Save files (`save*.hg`) are a sequence of blocks, each a 16-byte header (4-byte magic
 `0xFEEDA1E5`, 4-byte compressed size, 8-byte decompressed size) followed by an
 LZ4-encoded chunk. Hello Games' own writer caps each chunk at 512KB decompressed,
@@ -10,7 +10,7 @@ Steam save on an unmodified round-trip (`SaveStreamProcessor.WriteSaveContainerA
 is the write-side counterpart to `DecompressSaveToStreamAsync`).
 
 ## 2. Editing Model: Generic Tree, Not Hand-Modeled POCOs
-The hand-mapped classes in `NMS.Core.NmsModels` (`NmsSaveFile`, `NmsUniverseState`,
+The hand-mapped classes in `ArtifactX.Core.NmsModels` (`NmsSaveFile`, `NmsUniverseState`,
 etc.) only cover a fraction of the save's obfuscated keys. Deserializing into them
 and reserializing would silently drop every unmapped key, so they're used only for
 lightweight, read-only metadata (e.g. the folder-select slot preview) — never as the
@@ -30,7 +30,7 @@ completely untouched still loads correctly in-game — no manifest regeneration 
 implemented or currently believed necessary. This is unverified on other platforms;
 see the Platform Support Status table in the root `README.md`.
 
-## 4. Relational Data Layer (NMS.Data / NMS.Tools.DataCataloger)
+## 4. Relational Data Layer (ArtifactX.Data / ArtifactX.Tools.DataCataloger)
 This layer is unrelated to save-editing state. It normalizes static item/text/icon
 data extracted from the game's own `.pak` files into a local SQLite instance via
 EF Core, used for reference lookups (item names, icons) when displaying save

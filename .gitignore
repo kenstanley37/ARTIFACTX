@@ -75,5 +75,5 @@ Thumbs.db
 *.hg
 
 # External libraries (MBINCompiler, libMBIN, etc.)
-src/NMS.Tools/External/
-src/NMS.Tools/External/**
+src/ArtifactX.Tools/External/
+src/ArtifactX.Tools/External/**

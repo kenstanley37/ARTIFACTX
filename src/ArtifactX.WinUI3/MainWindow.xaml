@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="ArtifactX.WinUI3.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ArtifactX.WinUI3"
+    xmlns:views="using:ArtifactX.WinUI3.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="ArtifactX">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <Grid Background="{ThemeResource NmsBackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <views:AppTitleBar x:Name="CustomTitleBar" Grid.Row="0"/>
+
+        <Border x:Name="GameRunningBanner" Grid.Row="1"
+                Background="#332B1400" BorderBrush="#FFB800"
+                BorderThickness="0,0,0,2" Padding="12,4" Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                <FontIcon Glyph="&#xE7BA;" FontSize="12" Foreground="#FFB800"/>
+                <TextBlock Text="No Man's Sky is currently running - saving is disabled to prevent data loss."
+                           FontSize="11" Foreground="#FFB800"/>
+            </StackPanel>
+        </Border>
+
+        <NavigationView x:Name="RootNav"
+                        Grid.Row="2"
+                        PaneDisplayMode="Left"
+                        IsPaneOpen="True"
+                        IsSettingsVisible="False"
+                        SelectionChanged="RootNav_SelectionChanged"
+                        Background="Transparent">
+
+            <NavigationView.MenuItems>
+                <NavigationViewItem Content="Save Selection" Icon="Home" Tag="SaveFolderSelect" />
+
+                <!-- Exosuit, Starship, Multi-Tool, etc. nav items go here once built,
+                     gated behind SaveSessionManager.IsSaveLoaded the same way the
+                     removed SaveHub/Inventory items were. -->
+                <NavigationViewItem x:Name="ExosuitNavItem" Content="Exosuit" Tag="Exosuit" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE7EF;" FontFamily="Segoe MDL2 Assets"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <NavigationViewItem x:Name="MultiToolNavItem" Content="Multi-Tool" Tag="MultiTool" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE90F;" FontFamily="Segoe MDL2 Assets"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+
+                <NavigationViewItemSeparator/>
+
+                <NavigationViewItem Content="Structural Analysis" SelectsOnInvoked="False" IsExpanded="True">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE946;" FontFamily="Segoe MDL2 Assets"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.MenuItems>
+                        <NavigationViewItem Content="JSON Ancestry Engine" Icon="Find" Tag="AncestrySearch" />
+                        <NavigationViewItem Content="HG File Decryption" Tag="HGDecryption">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE943;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                    </NavigationViewItem.MenuItems>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+
+            <Frame x:Name="ContentFrame" Navigated="ContentFrame_Navigated"/>
+        </NavigationView>
+    </Grid>
+</Window>

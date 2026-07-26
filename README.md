@@ -27,17 +27,17 @@ A modern, open-source save editor for No Man's Sky, built with .NET 10 and WinUI
 
 The solution is split into a few decoupled layers:
 
-1. **`NMS.Core`** — Save file container format (LZ4 block decompression and
+1. **`ArtifactX.Core`** — Save file container format (LZ4 block decompression and
    the matching writer), plus the schema/path-constant classes documenting
    what each obfuscated JSON key means.
-2. **`NMS.WinUI3`** — The application itself: pages, view models, the
+2. **`ArtifactX.WinUI3`** — The application itself: pages, view models, the
    `SaveSessionManager` singleton that holds the active save's parsed tree
    and staged edits, and the reusable UI controls (like the inventory slot
    grid) shared across Exosuit/Starship/Multi-Tool/Freighter.
-3. **`NMS.Tools.DataCataloger`** — A separate CLI tool that extracts item
+3. **`ArtifactX.Tools.DataCataloger`** — A separate CLI tool that extracts item
    names and icons from your local game files into a SQLite database, which
    the main app reads read-only at runtime.
-4. **`NMS.Tools.SaveInspector`** — A CLI tool for investigating unfamiliar
+4. **`ArtifactX.Tools.SaveInspector`** — A CLI tool for investigating unfamiliar
    save file formats (hex dumps, round-trip tests, targeted field edits)
    without needing the full app.
 
@@ -77,7 +77,7 @@ valuable ways to contribute right now.
 git clone https://github.com/kenstanley37/NMS-Save-Editor.git
 cd NMS-Save-Editor
 ```
-Open `NmsSaveEditor.slnx` in Visual Studio, set `NMS.WinUI3` as the startup
+Open `NmsSaveEditor.slnx` in Visual Studio, set `ArtifactX.WinUI3` as the startup
 project, and run. On first launch, it auto-detects Steam/GOG/Microsoft Store
 save folders, or you can browse for your own.
 
@@ -85,13 +85,13 @@ save folders, or you can browse for your own.
 Without this step, the app still works, but items display as raw internal
 ids (e.g. `ASTEROID2`) instead of real names (`Gold`). To fix that:
 ```bash
-cd src/NMS.Tools/NMS.Tools.DataCataloger
+cd src/ArtifactX.Tools/ArtifactX.Tools.DataCataloger
 dotnet run                # full extraction, ~15 minutes, one-time
 dotnet run -- trim        # produces a small, ship-ready catalog file
 ```
 Then copy the resulting `Working/nms_catalog_dist.sqlite` to:
 
-<NMS.WinUI3 build output folder>/Data/nms_catalog.sqlite
+<ArtifactX.WinUI3 build output folder>/Data/nms_catalog.sqlite
 
 Full details in [docs/DATACATALOGER.md](docs/DATACATALOGER.md).
 

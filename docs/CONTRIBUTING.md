@@ -14,10 +14,10 @@ Thank you for helping improve the NMS Save Editor!
 
 ## Platform Testing Needed
 
-The save-reading and save-writing pipeline (`NMS.Core.SaveStreamProcessor`) has only been verified against **Steam (PC)** saves. If you play on GOG, Xbox/Microsoft Store, PlayStation, or Switch, testing and reports are extremely valuable — this is currently the single biggest gap in the project.
+The save-reading and save-writing pipeline (`ArtifactX.Core.SaveStreamProcessor`) has only been verified against **Steam (PC)** saves. If you play on GOG, Xbox/Microsoft Store, PlayStation, or Switch, testing and reports are extremely valuable — this is currently the single biggest gap in the project.
 
 **How to help, safely:**
-1. Use the `NMS.Tools.SaveInspector` CLI (`src/NMS.Tools/NMS.Tools.SaveInspector`) to inspect your save files — it's read-only and never modifies your originals.
+1. Use the `ArtifactX.Tools.SaveInspector` CLI (`src/ArtifactX.Tools/ArtifactX.Tools.SaveInspector`) to inspect your save files — it's read-only and never modifies your originals.
    - `SaveInspector inspect <path> --full` dumps a file's raw bytes and checks whether it matches the known container magic number.
    - `SaveInspector roundtrip <input> <output>` decompresses and recompresses a file unmodified — a good first check that the container format matches what Steam uses.
 2. **Always work from a backup**, never your live save folder directly.

@@ -1,8 +1,8 @@
 # DataCataloger
 
-`NMS.Tools.DataCataloger` extracts item names and icons from your own local
+`ArtifactX.Tools.DataCataloger` extracts item names and icons from your own local
 copy of No Man's Sky's game files (`.pak`/`.MBIN`), and writes them to a
-SQLite database that `NMS.WinUI3` reads at runtime to show real item names
+SQLite database that `ArtifactX.WinUI3` reads at runtime to show real item names
 and icons instead of raw obfuscated ids like `ASTEROID2` or `JET1`.
 
 ## Two-step process
@@ -35,7 +35,7 @@ Confirmed result on a real extraction: **194 MB → 85.5 MB** (~56% smaller).
 
 ## Wiring the result into the app
 
-Copy `nms_catalog_dist.sqlite` into `NMS.WinUI3`'s output directory as:
+Copy `nms_catalog_dist.sqlite` into `ArtifactX.WinUI3`'s output directory as:
 
 <app folder>/Data/nms_catalog.sqlite
 
