@@ -32,4 +32,7 @@ public class NmsUniverseState
 
     [JsonIgnore]
     public long Quicksilver => PlayerState?.Quicksilver ?? 0;
+
+    [JsonIgnore]
+    public string GameMode => PlayerState?.GameMode ?? "Unknown";
 }

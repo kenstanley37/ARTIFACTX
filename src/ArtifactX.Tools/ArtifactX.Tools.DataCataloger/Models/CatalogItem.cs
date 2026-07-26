@@ -24,6 +24,15 @@ public class CatalogItem
     public string? DescriptionLocKey { get; set; }
     public string? DescriptionEnglish { get; set; }
 
+    /// <summary>Procedural upgrade-module rows (GcProceduralTechnologyTable) only -
+    /// the row's raw "Template" family stem, e.g. "T_SCAN". CatalogBuildService
+    /// strips the "T_" prefix and matches it against GcTechnologyTable to borrow
+    /// the real base technology's icon and name (these rows have none of their
+    /// own) - confirmed the right link by extracting and visually comparing
+    /// icon PNGs; the row's own "Group" field pointed at a real but visually
+    /// wrong item for at least one family.</summary>
+    public string? TemplateId { get; set; }
+
     /// <summary>Equipment-slot category for row types that have one - currently only
     /// GcTechnology (Suit/Weapon/Ship/Freighter/Exocraft/Mech/.../All/None), extracted
     /// generically in CatalogClassifier by field shape, not hardcoded to that type.
@@ -34,6 +43,14 @@ public class CatalogItem
     /// "StackMultiplier"), e.g. 20 for Metal Plating vs 9999 for common resources.
     /// Null for row types with no such field (Technology has no stack concept).</summary>
     public int? MaxStackSize { get; set; }
+
+    /// <summary>ShipCapacity rows only - one Technology or Cargo max-slot count for
+    /// a single (ship type, class letter) pair, straight from the game's own
+    /// GcInventoryTable.ShipInventoryMaxUpgradeSize. GameId encodes which:
+    /// "{SHIPTYPE}_{CLASSLETTER}_CARGO" / "..._TECH". Kept as its own field
+    /// rather than reusing MaxStackSize, which means something different
+    /// (real inventory stack cap) for every other row type.</summary>
+    public int? CapacityValue { get; set; }
 
     public List<IconAsset> Icons { get; set; } = new();
 }

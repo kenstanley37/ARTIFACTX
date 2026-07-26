@@ -16,7 +16,7 @@ public class PakDiscoveryService : IPakDiscoveryService
         var pakFiles = Directory.EnumerateFiles(pcbanksPath, "*.pak", SearchOption.TopDirectoryOnly);
 
         // for testing
-        //var pakFiles = Directory.EnumerateFiles(pcbanksPath, "ArtifactXARC.globals.pak", SearchOption.TopDirectoryOnly);
+        //var pakFiles = Directory.EnumerateFiles(pcbanksPath, "NMSARC.globals.pak", SearchOption.TopDirectoryOnly);
 
         var result = new List<PakInfo>();
 

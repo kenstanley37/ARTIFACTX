@@ -109,13 +109,15 @@
                                                             </Border>
                                                         </Grid>
 
-                                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                                            <Border Background="{ThemeResource NmsAccentBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
-                                                                <TextBlock Text="{x:Bind PrimaryFile.SaveKindLabel}" FontSize="10" FontWeight="SemiBold" Foreground="White"/>
-                                                            </Border>
-                                                            <TextBlock Text="{x:Bind PrimaryFile.SaveName}" FontWeight="SemiBold" FontSize="13"
-                                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                                                        </StackPanel>
+                                                        <TextBlock Text="{x:Bind PrimaryFile.SaveName}" FontWeight="SemiBold" FontSize="13"
+                                                                   TextTrimming="CharacterEllipsis"/>
+
+                                                        <Border Background="Transparent" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                                                                CornerRadius="4" Padding="6,2" HorizontalAlignment="Left"
+                                                                Visibility="{x:Bind PrimaryFile.HasKnownGameMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                            <TextBlock Text="{x:Bind PrimaryFile.GameMode}" FontSize="10" FontWeight="SemiBold"
+                                                                       Foreground="{ThemeResource NmsTextSecondary}"/>
+                                                        </Border>
 
                                                         <TextBlock Text="{x:Bind PrimaryFile.SummaryDisplay}" FontSize="11"
                                                                    Foreground="{ThemeResource NmsTextSecondary}" TextTrimming="CharacterEllipsis"/>

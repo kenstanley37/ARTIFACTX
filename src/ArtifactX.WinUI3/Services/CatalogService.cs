@@ -23,15 +23,30 @@ public static class CatalogService
     public static CatalogEntry? TryGet(string? gameId)
     {
         if (string.IsNullOrEmpty(gameId)) return null;
-        string key = gameId.TrimStart('^');
+        string key = NormalizeId(gameId);
         return Cache.TryGetValue(key, out var entry) ? entry : null;
+    }
+
+    /// <summary>Strips the leading "^" every save-file item id carries, plus a
+    /// trailing "#NNNNN" - a per-instance stat-roll seed that upgrade modules
+    /// (Scanner/Mining/Hazard upgrades etc.) get at the moment they're rolled
+    /// in-game, e.g. "^UP_SCAN0#68250". That number is never part of the
+    /// game's static data, so the catalog only ever has a row for the base
+    /// type ("UP_SCAN0") - looking up the full suffixed id can never match,
+    /// which is why every procedurally-rolled upgrade was silently falling
+    /// back to a raw-id label with no icon before this stripped it too.</summary>
+    private static string NormalizeId(string gameId)
+    {
+        string trimmed = gameId.TrimStart('^');
+        int hashIndex = trimmed.IndexOf('#');
+        return hashIndex >= 0 ? trimmed[..hashIndex] : trimmed;
     }
 
     public static async Task WarmCacheAsync(IEnumerable<string?> gameIds)
     {
         var toFetch = gameIds
             .Where(id => !string.IsNullOrEmpty(id))
-            .Select(id => id!.TrimStart('^'))
+            .Select(id => NormalizeId(id!))
             .Distinct()
             .Where(id => !Cache.ContainsKey(id))
             .ToList();
@@ -197,14 +212,22 @@ public static class CatalogService
         using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
         connection.Open();
 
+        // COALESCE to NameLowerEnglish for rows where NameEnglish never resolves -
+        // true for every GcProceduralTechnologyTable row (Scanner/Mining/Hazard
+        // upgrade modules etc.): their own Name field is just a short id fragment
+        // ("UP_SCAN"), never a real "_NAME"-suffixed loc key, but NameLower
+        // correctly resolves to the base technology's name ("Analysis Visor" for
+        // scanner upgrades). GameId isn't unique across the whole catalog (see
+        // docs/DATACATALOGER.md), so the WHERE clause still requires at least one
+        // of the two to be non-null to pick the "real" row among duplicates.
         string placeholders = string.Join(",", gameIds.Select((_, i) => $"@p{i}"));
         using var command = connection.CreateCommand();
         command.CommandText = $@"
-            SELECT i.GameId, i.NameEnglish, b.PngData
+            SELECT i.GameId, COALESCE(i.NameEnglish, i.NameLowerEnglish) AS DisplayName, b.PngData
             FROM Items i
             LEFT JOIN Icons ic ON ic.ItemId = i.Id
             LEFT JOIN IconBlobs b ON b.Id = ic.IconBlobId
-            WHERE i.NameEnglish IS NOT NULL AND i.GameId IN ({placeholders})";
+            WHERE (i.NameEnglish IS NOT NULL OR i.NameLowerEnglish IS NOT NULL) AND i.GameId IN ({placeholders})";
 
         for (int i = 0; i < gameIds.Count; i++)
             command.Parameters.AddWithValue($"@p{i}", gameIds[i]);
@@ -262,6 +285,76 @@ public static class CatalogService
         using var reader = command.ExecuteReader();
         while (reader.Read())
             results.Add((reader.GetString(0), reader.GetString(1)));
+
+        return results;
+    }
+
+    /// <summary>Ship Technology/Cargo max-slot counts per (ship type, class letter),
+    /// sourced from the ShipCapacity category CatalogBuildService extracts from the
+    /// game's own GcInventoryTable.ShipInventoryMaxUpgradeSize (see that service for
+    /// how). Returns raw GameId -> CapacityValue pairs (e.g. "DROPSHIP_C_CARGO" ->
+    /// 60) rather than anything ship-domain-specific - ArtifactX.Core's
+    /// StarshipCapacity owns the key format and the friendly-type-to-raw-name
+    /// mapping, this just hands back whatever the catalog has. Rebuilding the
+    /// catalog after a game update refreshes these numbers automatically -
+    /// nothing in the WinUI3 project needs to change.</summary>
+    public static async Task<Dictionary<string, int>> GetShipCapacityAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+
+        try
+        {
+            return await Task.Run(() => QueryCapacityByTemplateType(dbPath, "ShipCapacity"));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetShipCapacityAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>Multi-Tool Technology max-slot counts per class letter, sourced
+    /// from the MultiToolCapacity category CatalogBuildService extracts from the
+    /// game's own GcInventoryTable.WeaponInventoryMaxUpgradeSize (see that
+    /// service for how). Same GameId -> CapacityValue shape as
+    /// GetShipCapacityAsync; ArtifactX.Core's MultiToolCapacity owns the key
+    /// format. Unlike ships, multi-tool capacity doesn't vary by Type/shape -
+    /// only by class - so there's no per-type dimension to look up here.</summary>
+    public static async Task<Dictionary<string, int>> GetMultiToolCapacityAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+
+        try
+        {
+            return await Task.Run(() => QueryCapacityByTemplateType(dbPath, "MultiToolCapacity"));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetMultiToolCapacityAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    private static Dictionary<string, int> QueryCapacityByTemplateType(string dbPath, string templateType)
+    {
+        var results = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT i.GameId, i.CapacityValue
+            FROM Items i
+            JOIN Categories c ON c.Id = i.CategoryId
+            WHERE c.TemplateType = @templateType AND i.CapacityValue IS NOT NULL";
+        command.Parameters.AddWithValue("@templateType", templateType);
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+            results[reader.GetString(0)] = reader.GetInt32(1);
 
         return results;
     }

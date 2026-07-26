@@ -164,6 +164,135 @@ public class CatalogBuildService
             LogService.Write($"CatalogBuild: discovered {multiToolTypeCategory.Items.Count} multi-tool Type model paths.");
         }
 
+        // -------------------------------------------------------------
+        // Phase 1.6: Ship Technology/Cargo capacity per (ship type, class letter).
+        // Unlike Multi-Tool Types, this IS a real in-game data table, not a
+        // filename rule: metadata/reality/tables/inventorytable.mbin decodes to
+        // GcInventoryTable, whose ShipInventoryMaxUpgradeSize array (indexed by
+        // GcSpaceshipClasses.ShipClassEnum) holds a GcShipInventoryMaxUpgradeCapacity
+        // per ship type, each with MaxInventoryCapacity/MaxTechInventoryCapacity
+        // arrays indexed by GcInventoryClass.InventoryClassEnum (C/B/A/S) -
+        // confirmed against a real install via DataCataloger's dumpfile command.
+        // MaxCargoInventoryCapacity (a third, separate array on that same type)
+        // was 0 in every entry sampled - the real Cargo total lives in
+        // MaxInventoryCapacity instead, so that's what gets stored as "CARGO"
+        // here. Stored as plain CatalogItem rows (two per type+class, CARGO and
+        // TECH) rather than hardcoded in the app, so a game update that changes
+        // these numbers - or adds a new ship type - is picked up by just
+        // re-running the cataloger, no code change needed.
+        // -------------------------------------------------------------
+        var shipCapacityCategory = new CatalogCategory
+        {
+            TemplateType = "ShipCapacity",
+            RowType = "ShipTypeClassCapacity",
+            SourceMbinPath = "metadata/reality/tables/inventorytable.mbin (GcInventoryTable.ShipInventoryMaxUpgradeSize)"
+        };
+
+        // Multi-Tool Technology capacity, extracted from the SAME decoded table
+        // below - GcInventoryTable.WeaponInventoryMaxUpgradeSize. Unlike ships,
+        // this is a single GcWeaponInventoryMaxUpgradeCapacity (not an array per
+        // type) with just one MaxInventoryCapacity[C/B/A/S] array - confirmed
+        // multi-tool capacity does NOT vary by Type/shape (Pistol/Rifle/Staff/
+        // etc.), only by Class, matching real game mechanics. Replaces
+        // MultiToolCapacity.cs's old flat "best guess, not verified" constant
+        // (6 rows regardless of class) with the real per-class numbers.
+        var multiToolCapacityCategory = new CatalogCategory
+        {
+            TemplateType = "MultiToolCapacity",
+            RowType = "ClassCapacity",
+            SourceMbinPath = "metadata/reality/tables/inventorytable.mbin (GcInventoryTable.WeaponInventoryMaxUpgradeSize)"
+        };
+
+        foreach (var (pakPath, header, entries) in pakData)
+        {
+            var inventoryTableEntry = entries.FirstOrDefault(e =>
+                !string.IsNullOrEmpty(e.FileName) &&
+                e.FileName.EndsWith("inventorytable.mbin", StringComparison.OrdinalIgnoreCase));
+
+            if (inventoryTableEntry == null) continue;
+
+            NMSTemplate? decoded;
+            try
+            {
+                decoded = DecodeMbin(pakPath, inventoryTableEntry, header);
+            }
+            catch
+            {
+                continue; // already logged inside DecodeMbin
+            }
+
+            if (decoded is not libMBIN.NMS.GameComponents.GcInventoryTable inventoryTable ||
+                inventoryTable.ShipInventoryMaxUpgradeSize == null)
+                continue;
+
+            var shipTypeNames = Enum.GetValues<libMBIN.NMS.GameComponents.GcSpaceshipClasses.ShipClassEnum>();
+            var classLetters = Enum.GetValues<libMBIN.NMS.GameComponents.GcInventoryClass.InventoryClassEnum>();
+
+            for (int t = 0; t < inventoryTable.ShipInventoryMaxUpgradeSize.Length && t < shipTypeNames.Length; t++)
+            {
+                var capacity = inventoryTable.ShipInventoryMaxUpgradeSize[t];
+                if (capacity?.MaxInventoryCapacity == null || capacity.MaxTechInventoryCapacity == null) continue;
+
+                string typeName = shipTypeNames[t].ToString().ToUpperInvariant();
+
+                for (int c = 0; c < capacity.MaxInventoryCapacity.Length && c < classLetters.Length; c++)
+                {
+                    string classLetter = classLetters[c].ToString().ToUpperInvariant();
+
+                    shipCapacityCategory.Items.Add(new CatalogItem
+                    {
+                        GameId = $"{typeName}_{classLetter}_CARGO",
+                        NameEnglish = $"{typeName} {classLetter} Cargo",
+                        CapacityValue = capacity.MaxInventoryCapacity[c]
+                    });
+                    shipCapacityCategory.Items.Add(new CatalogItem
+                    {
+                        GameId = $"{typeName}_{classLetter}_TECH",
+                        NameEnglish = $"{typeName} {classLetter} Tech",
+                        CapacityValue = capacity.MaxTechInventoryCapacity[c]
+                    });
+                }
+            }
+
+            if (inventoryTable.WeaponInventoryMaxUpgradeSize?.MaxInventoryCapacity != null)
+            {
+                var weaponCapacity = inventoryTable.WeaponInventoryMaxUpgradeSize.MaxInventoryCapacity;
+                for (int c = 0; c < weaponCapacity.Length && c < classLetters.Length; c++)
+                {
+                    string classLetter = classLetters[c].ToString().ToUpperInvariant();
+
+                    multiToolCapacityCategory.Items.Add(new CatalogItem
+                    {
+                        GameId = $"MULTITOOL_{classLetter}_TECH",
+                        NameEnglish = $"Multi-Tool {classLetter} Tech",
+                        CapacityValue = weaponCapacity[c]
+                    });
+                }
+            }
+
+            break; // found and decoded the one real table - no need to keep scanning PAKs
+        }
+
+        if (shipCapacityCategory.Items.Count > 0)
+        {
+            categories.Add(shipCapacityCategory);
+            LogService.Write($"CatalogBuild: extracted ship capacity for {shipCapacityCategory.Items.Count / 2} ship type/class combinations.");
+        }
+        else
+        {
+            LogService.Write("CatalogBuild: WARNING - could not extract ship capacity data from inventorytable.mbin.");
+        }
+
+        if (multiToolCapacityCategory.Items.Count > 0)
+        {
+            categories.Add(multiToolCapacityCategory);
+            LogService.Write($"CatalogBuild: extracted multi-tool capacity for {multiToolCapacityCategory.Items.Count} classes.");
+        }
+        else
+        {
+            LogService.Write("CatalogBuild: WARNING - could not extract multi-tool capacity data from inventorytable.mbin.");
+        }
+
         foreach (var (pakPath, header, entries) in pakData)
         {
             foreach (var entry in entries)
@@ -234,6 +363,7 @@ public class CatalogBuildService
                         NameLowerEnglish = row.NameLowerLocKey != null && englishLookup.TryGetValue(row.NameLowerLocKey, out var nl) ? nl : null,
                         DescriptionLocKey = row.DescriptionLocKey,
                         DescriptionEnglish = row.DescriptionLocKey != null && englishLookup.TryGetValue(row.DescriptionLocKey, out var d) ? d : null,
+                        TemplateId = row.TemplateId,
                         UsageCategory = row.UsageCategory,
                         MaxStackSize = row.MaxStackSize,
                     };
@@ -268,6 +398,63 @@ public class CatalogBuildService
         }
 
         LogService.Write($"CatalogBuild: classified {categories.Count} tables, {totalRows} rows, {totalIcons} icon references.");
+
+        // -------------------------------------------------------------
+        // Phase 2.5: procedural upgrade modules (GcProceduralTechnologyTable -
+        // Scanner/Mining/Hazard Sigma/Tau/Theta upgrades etc.) have no icon of
+        // their own anywhere in that table - confirmed by decoding the real
+        // table directly, every row's only icon-shaped field is simply absent.
+        // Their raw "Template" value (e.g. "T_SCAN") identifies which real
+        // GcTechnologyTable row is the actual base technology to borrow the
+        // icon (and name, for consistency) from: strip the "T_" prefix, then
+        // the SHORTEST GcTechnologyTable GameId starting with that stem is the
+        // right one. Confirmed for two families by extracting and visually
+        // comparing the actual icon PNGs - "T_SCAN" correctly resolves to
+        // SCAN1 ("Scanner"), NOT the longer SCANBINOC1 ("Analysis Visor",
+        // a real item but visually a goggles/visor shape, not what the
+        // procedural Scan-family upgrade module actually looks like in-game).
+        // Deliberately NOT keyed off the row's own "Group" field, which for
+        // this same family pointed at that wrong Analysis Visor item - Group
+        // and Template can reference two different, only loosely related
+        // base techs, and only Template's link was confirmed correct here.
+        // -------------------------------------------------------------
+        var baseTechByGameId = categories
+            .Where(c => c.TemplateType == "GcTechnologyTable")
+            .SelectMany(c => c.Items)
+            .Where(i => i.Icons.Count > 0)
+            .OrderBy(i => i.GameId.Length)
+            .ToList();
+
+        int borrowedIcons = 0;
+        foreach (var category in categories)
+        {
+            if (category.TemplateType != "GcProceduralTechnologyTable") continue;
+
+            foreach (var item in category.Items)
+            {
+                if (item.Icons.Count > 0 || string.IsNullOrEmpty(item.TemplateId)) continue;
+
+                string stem = item.TemplateId.StartsWith("T_", StringComparison.OrdinalIgnoreCase)
+                    ? item.TemplateId[2..]
+                    : item.TemplateId;
+
+                var baseItem = baseTechByGameId.FirstOrDefault(b =>
+                    b.GameId.StartsWith(stem, StringComparison.OrdinalIgnoreCase));
+                if (baseItem is null) continue;
+
+                foreach (var baseIcon in baseItem.Icons)
+                    item.Icons.Add(new IconAsset { SourceField = $"Template->{baseIcon.SourceField}", IconBlob = baseIcon.IconBlob });
+
+                // Overwrites (not just a null fallback) - the base tech found via
+                // Template is the confirmed-correct match, taking priority over
+                // whatever this row's own Name/NameLower already resolved to.
+                item.NameEnglish = baseItem.NameEnglish;
+                item.NameLowerEnglish = baseItem.NameLowerEnglish;
+                borrowedIcons += baseItem.Icons.Count;
+            }
+        }
+
+        LogService.Write($"CatalogBuild: borrowed base-technology icons for {borrowedIcons} procedural upgrade module references.");
 
         // -------------------------------------------------------------
         // Phase 3: write everything to a fresh SQLite database.

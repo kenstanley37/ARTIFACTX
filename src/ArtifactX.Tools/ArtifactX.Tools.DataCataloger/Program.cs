@@ -428,7 +428,7 @@ if (args.Length > 1 && args[0].Equals("inspect", StringComparison.OrdinalIgnoreC
         {
             ConsoleStyle.Success(
                 $"  GameId={item.GameId}  NameLocKey={item.NameLocKey}  NameEnglish={item.NameEnglish}  " +
-                $"UsageCategory={item.UsageCategory}  MaxStackSize={item.MaxStackSize}");
+                $"UsageCategory={item.UsageCategory}  MaxStackSize={item.MaxStackSize}  CapacityValue={item.CapacityValue}");
         }
     }
 

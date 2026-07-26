@@ -9,7 +9,7 @@
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.10" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9" />
-    <PackageVersion Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2270" />
+    <PackageVersion Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2526" />
     <PackageVersion Include="Microsoft.WindowsAppSDK" Version="2.3.1" />
     <PackageVersion Include="K4os.Compression.LZ4" Version="1.3.8" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
@@ -17,6 +17,18 @@
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageVersion Include="Pfim" Version="0.11.4" />
     <PackageVersion Include="SkiaSharp" Version="4.150.1" />
+    <!-- Microsoft.Data.Sqlite 10.0.10 (currently the latest stable) still pins
+         these transitively at the vulnerable 2.1.11 (GHSA-2m69-gcr7-jv3q /
+         CVE-2025-6965). 2.1.12 is the same-generation patch release that fixes
+         it - explicit PackageReferences below (in ArtifactX.WinUI3 and
+         ArtifactX.Tools.DataCataloger, the two projects that pull SQLite in)
+         make these direct rather than transitive, which is what lets this
+         version win over Microsoft.Data.Sqlite's own pin. Safe to remove once
+         Microsoft ships a Microsoft.Data.Sqlite version that bumps this itself. -->
+    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.12" />
+    <PackageVersion Include="SQLitePCLRaw.core" Version="2.1.12" />
+    <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
+    <PackageVersion Include="SQLitePCLRaw.provider.e_sqlite3" Version="2.1.12" />
     <PackageVersion Include="System.Text.Json" Version="10.0.10" />
     <PackageVersion Include="ZstdNet" Version="1.5.7" />
     <PackageVersion Include="ZstdSharp" Version="0.7.2" />

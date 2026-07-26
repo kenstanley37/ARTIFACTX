@@ -15,6 +15,7 @@ namespace ArtifactX.Core.NmsModels;
 ///   wGS -> Units
 ///   7QL -> Nanites
 ///   kN; -> Quicksilver
+///   LyC -> Difficulty/game mode settings (see NmsDifficultySettings) - inferred, not community-documented
 /// </summary>
 public class NmsPlayerStateData
 {
@@ -30,6 +31,12 @@ public class NmsPlayerStateData
     [JsonProperty("kN;")]
     public long Quicksilver { get; set; }
 
+    [JsonProperty("LyC")]
+    public NmsDifficultySettings? DifficultySettings { get; set; }
+
+    [JsonIgnore]
+    public string GameMode => DifficultySettings?.GameMode ?? "Unknown";
+
     // Path constants for the live-edit engine. Full parent chain included, so
     // a page can reference NmsPlayerStateData.UnitsPath directly with no need
     // to know vLc/6f= exist as separate steps.
@@ -37,4 +44,5 @@ public class NmsPlayerStateData
     public static readonly string[] UnitsPath = { "vLc", "6f=", "wGS" };
     public static readonly string[] NanitesPath = { "vLc", "6f=", "7QL" };
     public static readonly string[] QuicksilverPath = { "vLc", "6f=", "kN;" };
+    public static readonly string[] GameModePath = { "vLc", "6f=", "LyC", "brJ", "7ND" };
 }

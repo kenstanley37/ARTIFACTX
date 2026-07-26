@@ -4,8 +4,8 @@ namespace ArtifactX.Tools.DataCataloger.Services;
 
 /// <summary>
 /// Flat lookup of every file across every PAK, keyed by path, so an icon/texture path
-/// discovered in one PAK (e.g. a table inside ArtifactXARC.MetadataEtc.pak) can be resolved to
-/// its actual bytes in a completely different PAK (e.g. ArtifactXARC.TexUI.pak). Build this once
+/// discovered in one PAK (e.g. a table inside NMSARC.MetadataEtc.pak) can be resolved to
+/// its actual bytes in a completely different PAK (e.g. NMSARC.TexUI.pak). Build this once
 /// up front by feeding it every PAK's entry list before running the catalog/icon passes.
 /// </summary>
 public class GlobalFileIndexService

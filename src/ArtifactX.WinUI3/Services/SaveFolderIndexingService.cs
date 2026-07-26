@@ -82,11 +82,10 @@ public static class SaveFolderIndexingService
                 WorkingJsonPath = workingJsonPath,
                 LastModified = fi.LastWriteTime,
                 SaveName = save?.Header?.SaveName is { Length: > 0 } name ? name : "Unnamed Save",
-                IsManualSave = save?.Header?.IsManualSave ?? false,
-                IsAutoSave = save?.Header?.IsAutoSave ?? false,
-                IsExpeditionSave = save?.Header?.IsExpeditionSave ?? false,
+                SaveType = save?.SaveType is { Length: > 0 } type ? type : "Unknown",
                 PlayTimeSeconds = save?.PlayTimeSeconds ?? 0,
                 GalaxyIndex = save?.Universe?.GalaxyIndex ?? -1,
+                GameMode = save?.Universe?.GameMode ?? "Unknown",
                 IsReadable = save is not null
             };
         }

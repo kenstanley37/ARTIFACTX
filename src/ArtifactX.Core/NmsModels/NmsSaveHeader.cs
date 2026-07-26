@@ -8,9 +8,17 @@ namespace ArtifactX.Core.NmsModels;
 /// Keys:
 ///   Pk4 -> Save name (user-defined)
 ///   Lg8 -> Save version / revision
-///   kPF -> Manual save flag (restore point)
-///   wb: -> Auto save flag
-///   Wh< -> Expedition save flag
+///   kPF -> NOT a reliable "this file was a manual save" discriminator -
+///          observed True on every real sample checked (including autosave
+///          writes), so it doesn't vary the way the name implies.
+///   wb: -> Same caveat as kPF - observed True on every real sample checked.
+///   Wh< -> NOT "this save file is from Expedition mode" - that's
+///          NmsSaveFile.SaveType (XTp) instead. Observed False only on
+///          freshly-created characters and True on every established save
+///          regardless of current game mode, so this more likely tracks
+///          "has this character ever touched Expedition content" (Expedition
+///          rewards are known to carry over permanently into a player's main
+///          save) - unconfirmed, but confidently not a per-file save-type flag.
 ///   j3Y -> Player state block
 /// </summary>
 public class NmsSaveHeader
@@ -28,7 +36,7 @@ public class NmsSaveHeader
     public bool IsAutoSave { get; set; }
 
     [JsonProperty("Wh<")]
-    public bool IsExpeditionSave { get; set; }
+    public bool HasExpeditionHistory { get; set; }
 
     [JsonProperty("j3Y")]
     public NmsPlayerHazardState HazardState { get; set; }

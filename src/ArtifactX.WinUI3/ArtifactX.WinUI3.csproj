@@ -21,6 +21,7 @@
     <None Remove="Views\InspectionPages\HGDecryptionPage.xaml" />
     <None Remove="Views\MultiToolPage.xaml" />
     <None Remove="Views\SaveFolderSelectPage.xaml" />
+    <None Remove="Views\ShipsPage.xaml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -59,6 +60,14 @@
 	  <PackageReference Include="CommunityToolkit.Mvvm" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Direct references so these win over Microsoft.Data.Sqlite's own pin at
+         the vulnerable 2.1.11 - see Directory.Packages.props for details. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
+    <PackageReference Include="SQLitePCLRaw.core" />
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" />
+    <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\ArtifactX.Almanac\ArtifactX.Almanac.csproj" />
     <ProjectReference Include="..\ArtifactX.Core\ArtifactX.Core.csproj" />
   </ItemGroup>
@@ -69,6 +78,11 @@
   </ItemGroup>
   <ItemGroup>
     <Page Update="Views\ExosuitPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Views\ShipsPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>

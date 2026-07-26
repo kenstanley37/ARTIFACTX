@@ -31,6 +31,11 @@ public sealed partial class MultiToolPage : Page
     private int _activeIndex = -1;
     private List<ToolEntry> _tools = new();
 
+    // Class -> max Technology slots, loaded once per page lifetime from the
+    // catalog - see MultiToolCapacity for why these numbers live in the
+    // database instead of being hardcoded here.
+    private Dictionary<string, int>? _multiToolCapacity;
+
     public MultiToolPage()
     {
         InitializeComponent();
@@ -44,6 +49,22 @@ public sealed partial class MultiToolPage : Page
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(LoadToolList);
+
+    private async Task<Dictionary<string, int>> GetMultiToolCapacityAsync()
+    {
+        _multiToolCapacity ??= await CatalogService.GetMultiToolCapacityAsync();
+        return _multiToolCapacity;
+    }
+
+    private static int LookupTechSlots(Dictionary<string, int> capacity, string? classLetter) =>
+        capacity.TryGetValue(MultiToolCapacity.TechCapacityKey(classLetter), out int slots)
+            ? slots : MultiToolCapacity.FallbackTechSlots;
+
+    /// <summary>Reads a tool's Class letter directly from the save, BEFORE any
+    /// InventoryGridViewModel exists for it - needed up front to size the grid
+    /// correctly, since capacity depends on class (MultiToolCapacity).</summary>
+    private static string? GetToolClassLetter(int toolIndex) =>
+        SaveSessionManager.GetValue(NmsInventoryContainer.MultiToolTechnologyPath(toolIndex).Append("B@N").Append("1o6").ToArray())?.Value<string>();
 
     /// <summary>Re-reads the owned multi-tool list from the current session and
     /// rebuilds the selector strip. Defaults selection to the in-game active
@@ -209,6 +230,10 @@ public sealed partial class MultiToolPage : Page
 
         var selectedTool = _tools.First(t => t.Index == _selectedIndex);
 
+        string? classLetter = GetToolClassLetter(_selectedIndex);
+        var capacity = await GetMultiToolCapacityAsync();
+        int techRows = MultiToolCapacity.SlotsToRows(LookupTechSlots(capacity, classLetter));
+
         // Kgt looked like the safer target for editing the active tool, but a
         // real save/load test proved it wrong: edits written there (an item add
         // AND a class change) never showed up in-game. Kgt is a derived/cached
@@ -216,8 +241,8 @@ public sealed partial class MultiToolPage : Page
         // so SuJ[i].OsQ is the one true source regardless of active status.
         _techViewModel = new InventoryGridViewModel(
             NmsInventoryContainer.MultiToolTechnologyPath(_selectedIndex),
-            MultiToolCapacity.TechnologyColumns,
-            MultiToolCapacity.TechnologyRows);
+            MultiToolCapacity.Columns,
+            techRows);
 
         _techViewModel.Load();
 
@@ -502,11 +527,12 @@ public sealed partial class MultiToolPage : Page
 
             button.Click += (_, _) =>
             {
+                // A class change can change this tool's real Technology slot
+                // total (MultiToolCapacity), so the grid gets fully rebuilt via
+                // LoadSelectedTool rather than just refreshed in place.
                 _techViewModel?.SetClass(letter);
-                TechGrid.Refresh();
                 PageResetBtn.Visibility = Visibility.Visible;
-                BuildClassSelector();
-                UpdateClassBadge();
+                LoadSelectedTool();
             };
 
             ClassSelectorPanel.Children.Add(button);
@@ -584,10 +610,12 @@ public sealed partial class MultiToolPage : Page
 
         var targetTool = otherTools[pickerList.SelectedIndex];
 
+        string? targetClassLetter = GetToolClassLetter(targetTool.Index);
+        var targetCapacity = await GetMultiToolCapacityAsync();
         var targetViewModel = new InventoryGridViewModel(
             NmsInventoryContainer.MultiToolTechnologyPath(targetTool.Index),
-            MultiToolCapacity.TechnologyColumns,
-            MultiToolCapacity.TechnologyRows);
+            MultiToolCapacity.Columns,
+            MultiToolCapacity.SlotsToRows(LookupTechSlots(targetCapacity, targetClassLetter)));
         targetViewModel.Load();
 
         var sourcePositions = _techViewModel.Cells.Where(c => c.IsOccupied).Select(c => (c.X, c.Y));
@@ -736,9 +764,12 @@ public sealed partial class MultiToolPage : Page
         if (!confirmed) return;
 
         _techViewModel.ApplyTemplate(template, alsoMatchClass);
-        TechGrid.Refresh();
         PageResetBtn.Visibility = Visibility.Visible;
-        UpdateStatDisplay();
+
+        // A class change (alsoMatchClass) can change this tool's real
+        // Technology slot total (MultiToolCapacity), so the grid gets fully
+        // rebuilt via LoadSelectedTool rather than just refreshed in place.
+        LoadSelectedTool();
     }
 
     /// <summary>Shared by CopyTechStackBtn_Click and ApplyTemplateAsync - shows

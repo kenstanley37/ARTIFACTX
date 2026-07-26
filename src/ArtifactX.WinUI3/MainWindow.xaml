@@ -47,6 +47,8 @@
                 <!-- Exosuit, Starship, Multi-Tool, etc. nav items go here once built,
                      gated behind SaveSessionManager.IsSaveLoaded the same way the
                      removed SaveHub/Inventory items were. -->
+                <NavigationViewItem x:Name="GeneralNavItem" Content="General" Tag="General" Visibility="Collapsed" Icon="Setting"/>
+
                 <NavigationViewItem x:Name="ExosuitNavItem" Content="Exosuit" Tag="Exosuit" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE7EF;" FontFamily="Segoe MDL2 Assets"/>
@@ -56,6 +58,12 @@
                 <NavigationViewItem x:Name="MultiToolNavItem" Content="Multi-Tool" Tag="MultiTool" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE90F;" FontFamily="Segoe MDL2 Assets"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <NavigationViewItem x:Name="ShipsNavItem" Content="Starships" Tag="Ships" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE709;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 

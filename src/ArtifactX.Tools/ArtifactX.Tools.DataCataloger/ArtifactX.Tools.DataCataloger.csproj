@@ -22,4 +22,13 @@
     <PackageReference Include="ZstdNet" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Direct references so these win over Microsoft.EntityFrameworkCore.Sqlite's
+         own pin at the vulnerable 2.1.11 - see Directory.Packages.props for details. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
+    <PackageReference Include="SQLitePCLRaw.core" />
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" />
+    <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" />
+  </ItemGroup>
+
 </Project>

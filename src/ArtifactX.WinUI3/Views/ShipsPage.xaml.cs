@@ -1,0 +1,504 @@
+using Microsoft.UI;
+using Microsoft.UI.Text;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using ArtifactX.Core.NmsModels;
+using ArtifactX.WinUI3.Services;
+using ArtifactX.WinUI3.ViewModels;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Windows.UI;
+
+namespace ArtifactX.WinUI3.Views;
+
+public sealed partial class ShipsPage : Page
+{
+    // Matches the ScrollViewers' own XAML-declared MaxHeight - restored when a
+    // section is collapsed again. Same values as ExosuitPage since ships share
+    // the same 10x6 Technology / 10x12 Cargo best-guess capacity.
+    private const double TechCollapsedHeight = 232;
+    private const double CargoCollapsedHeight = 368;
+
+    private static readonly string ChevronDownGlyph = char.ConvertFromUtf32(0xE70D);
+    private static readonly string ChevronUpGlyph = char.ConvertFromUtf32(0xE70E);
+
+    // Unlike Multi-Tool's Kgt (a full mirrored container), the currently
+    // EQUIPPED ship is tracked by a plain integer index - NmsInventoryContainer.
+    // ActiveShipIndexPath (aBE) - confirmed against 15 real save files across
+    // 3 characters.
+    private sealed record ShipEntry(int Index, string Name, bool IsGameActive);
+
+    private InventoryGridViewModel? _techViewModel;
+    private InventoryGridViewModel? _cargoViewModel;
+    private int _selectedIndex = -1;
+    private List<ShipEntry> _ships = new();
+
+    // Ship-type/class -> max-slot lookups (GameId -> CapacityValue), loaded once
+    // per page lifetime from the catalog - see StarshipCapacity for why these
+    // numbers live in the database instead of being hardcoded here.
+    private Dictionary<string, int>? _shipCapacity;
+
+    public ShipsPage()
+    {
+        InitializeComponent();
+
+        SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
+        SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
+
+        LoadShipList();
+    }
+
+    private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
+        DispatcherQueue.TryEnqueue(LoadShipList);
+
+    /// <summary>Reads a ship's model scene path (to detect its real ship type -
+    /// Hauler/Fighter/Explorer/etc.) and its current Class letter, BEFORE any
+    /// InventoryGridViewModel exists for it - both are needed up front to size
+    /// the grids correctly, since capacity genuinely differs by type+class
+    /// (a Hauler has more Cargo than a Fighter - confirmed in StarshipCapacity).</summary>
+    private static (StarshipCapacity.ShipType? Type, string? ClassLetter) GetShipTypeAndClass(int shipIndex)
+    {
+        string? scenePath = SaveSessionManager.GetValue(
+            "vLc", "6f=", "@Cs", shipIndex.ToString(), "NTx", "93M")?.Value<string>();
+        var type = StarshipCapacity.DetectShipType(scenePath);
+
+        var classPath = NmsInventoryContainer.ShipTechnologyPath(shipIndex).Append("B@N").Append("1o6").ToArray();
+        string? classLetter = SaveSessionManager.GetValue(classPath)?.Value<string>();
+
+        return (type, classLetter);
+    }
+
+    private async Task<Dictionary<string, int>> GetShipCapacityAsync()
+    {
+        _shipCapacity ??= await CatalogService.GetShipCapacityAsync();
+        return _shipCapacity;
+    }
+
+    private static int LookupCargoSlots(Dictionary<string, int> capacity, StarshipCapacity.ShipType? type, string? classLetter) =>
+        type.HasValue && capacity.TryGetValue(StarshipCapacity.CargoCapacityKey(type.Value, classLetter), out int slots)
+            ? slots : StarshipCapacity.FallbackCargoSlots;
+
+    private static int LookupTechSlots(Dictionary<string, int> capacity, StarshipCapacity.ShipType? type, string? classLetter) =>
+        type.HasValue && capacity.TryGetValue(StarshipCapacity.TechCapacityKey(type.Value, classLetter), out int slots)
+            ? slots : StarshipCapacity.FallbackTechSlots;
+
+    /// <summary>Re-reads the owned ship list from the current session and
+    /// rebuilds the selector strip. A plain edits-changed refresh keeps
+    /// whatever the user already has selected, mirroring MultiToolPage.</summary>
+    private void LoadShipList()
+    {
+        if (!SaveSessionManager.IsSaveLoaded)
+        {
+            _ships = new();
+            _selectedIndex = -1;
+            ShipSelectorPanel.Children.Clear();
+            TechGrid.ViewModel = null;
+            TechGrid.Refresh();
+            CargoGrid.ViewModel = null;
+            CargoGrid.Refresh();
+            return;
+        }
+
+        if (SaveSessionManager.GetValue(NmsInventoryContainer.ShipArrayPath) is not JArray array)
+            return;
+
+        int activeIndex = SaveSessionManager.GetValue(NmsInventoryContainer.ActiveShipIndexPath)?.Value<int>() ?? -1;
+
+        var ships = new List<ShipEntry>();
+        for (int i = 0; i < array.Count; i++)
+        {
+            string name = array[i]?["NKm"]?.Value<string>() ?? "";
+            if (string.IsNullOrEmpty(name)) continue;
+            ships.Add(new ShipEntry(i, name, i == activeIndex));
+        }
+
+        _ships = ships;
+
+        // Defaults selection to the in-game active ship the first time a
+        // session loads; a plain edits-changed refresh keeps whatever the
+        // user already has selected, mirroring MultiToolPage.
+        if (_selectedIndex < 0 || _ships.All(s => s.Index != _selectedIndex))
+        {
+            var defaultShip = _ships.FirstOrDefault(s => s.IsGameActive) ?? _ships.FirstOrDefault();
+            _selectedIndex = defaultShip?.Index ?? -1;
+        }
+
+        BuildSelectorStrip();
+        LoadSelectedShip();
+    }
+
+    private void BuildSelectorStrip()
+    {
+        ShipSelectorPanel.Children.Clear();
+
+        foreach (var ship in _ships)
+        {
+            bool isSelected = ship.Index == _selectedIndex;
+
+            var button = new Button
+            {
+                Content = BuildButtonContent(ship, isSelected),
+                Padding = new Thickness(12, 6, 12, 6),
+                BorderThickness = new Thickness(isSelected ? 2 : 1),
+                BorderBrush = new SolidColorBrush(isSelected
+                    ? Color.FromArgb(255, 255, 157, 0)
+                    : Color.FromArgb(255, 90, 98, 112)),
+                Background = new SolidColorBrush(isSelected
+                    ? Color.FromArgb(60, 255, 157, 0)
+                    : Color.FromArgb(20, 255, 255, 255))
+            };
+
+            button.Click += (_, _) =>
+            {
+                _selectedIndex = ship.Index;
+                BuildSelectorStrip();
+                LoadSelectedShip();
+            };
+
+            ShipSelectorPanel.Children.Add(button);
+        }
+    }
+
+    /// <summary>Selected state bolds the name; game-active state adds a small
+    /// green "ACTIVE" badge - the two are independent and can appear together
+    /// or separately (e.g. viewing a ship that isn't the one you're flying).</summary>
+    private static StackPanel BuildButtonContent(ShipEntry ship, bool isSelected)
+    {
+        var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = ship.Name,
+            FontWeight = isSelected ? FontWeights.SemiBold : FontWeights.Normal,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+
+        if (ship.IsGameActive)
+        {
+            panel.Children.Add(new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(255, 60, 200, 90)),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(6, 1, 6, 1),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock { Text = "ACTIVE", FontSize = 10, FontWeight = FontWeights.Bold }
+            });
+        }
+
+        return panel;
+    }
+
+    private async void LoadSelectedShip()
+    {
+        if (_selectedIndex < 0)
+        {
+            _techViewModel = null;
+            _cargoViewModel = null;
+            TechGrid.ViewModel = null;
+            TechGrid.Refresh();
+            CargoGrid.ViewModel = null;
+            CargoGrid.Refresh();
+            TechHeaderTxt.Text = "Technology";
+            ClassSelectorPanel.Children.Clear();
+            NameEditBox.Text = "";
+            return;
+        }
+
+        var selectedShip = _ships.First(s => s.Index == _selectedIndex);
+
+        var (shipType, classLetter) = GetShipTypeAndClass(_selectedIndex);
+        var capacity = await GetShipCapacityAsync();
+        int techRows = StarshipCapacity.SlotsToRows(LookupTechSlots(capacity, shipType, classLetter));
+        int cargoRows = StarshipCapacity.SlotsToRows(LookupCargoSlots(capacity, shipType, classLetter));
+
+        _techViewModel = new InventoryGridViewModel(
+            NmsInventoryContainer.ShipTechnologyPath(_selectedIndex),
+            StarshipCapacity.Columns,
+            techRows);
+        _cargoViewModel = new InventoryGridViewModel(
+            NmsInventoryContainer.ShipCargoPath(_selectedIndex),
+            StarshipCapacity.Columns,
+            cargoRows);
+
+        _techViewModel.Load();
+        _cargoViewModel.Load();
+
+        var itemIds = _techViewModel.Cells.Concat(_cargoViewModel.Cells)
+            .Where(c => c.IsOccupied)
+            .Select(c => c.ItemId);
+        await CatalogService.WarmCacheAsync(itemIds);
+
+        TechGrid.ViewModel = _techViewModel;
+        TechGrid.AllowedCategories = new[] { "Technology" };
+        TechGrid.AllowedTemplateTypes = new[] { "GcTechnologyTable" };
+        TechGrid.AllowedUsageCategories = new[] { "Ship", "All" };
+
+        CargoGrid.ViewModel = _cargoViewModel;
+        CargoGrid.AllowedCategories = new[] { "Substance", "Product" };
+        CargoGrid.AllowedTemplateTypes = new[] { "GcProductTable", "GcSubstanceTable" };
+        CargoGrid.SupportsSupercharge = false;
+        CargoGrid.SupportsRepair = false;
+        CargoGrid.ProductStorageMultiplier = 10;
+
+        // Reload can run many times per page lifetime (every selector click) -
+        // unsubscribe first so CellChanged doesn't fire the reset-button handler
+        // multiple times per single actual edit.
+        TechGrid.CellChanged -= GridCellChanged;
+        TechGrid.CellChanged += GridCellChanged;
+        CargoGrid.CellChanged -= GridCellChanged;
+        CargoGrid.CellChanged += GridCellChanged;
+
+        TechGrid.Refresh();
+        CargoGrid.Refresh();
+
+        TechHeaderTxt.Text = $"Technology - {selectedShip.Name}";
+        PageResetBtn.Visibility = (_techViewModel.HasLocalChanges || _cargoViewModel.HasLocalChanges)
+            ? Visibility.Visible : Visibility.Collapsed;
+
+        BuildClassSelector();
+        NameEditBox.Text = selectedShip.Name;
+    }
+
+    private void GridCellChanged(object? sender, EventArgs e) =>
+        PageResetBtn.Visibility = Visibility.Visible;
+
+    /// <summary>Stages the rename when the field loses focus - not on every
+    /// keystroke, since that would rebuild the selector strip mid-typing.</summary>
+    private void NameEditBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0) return;
+
+        string newName = NameEditBox.Text?.Trim() ?? "";
+        if (string.IsNullOrEmpty(newName)) return;
+
+        var currentShip = _ships.FirstOrDefault(s => s.Index == _selectedIndex);
+        if (currentShip != null && newName == currentShip.Name) return;
+
+        var namePath = new[] { "vLc", "6f=", "@Cs", _selectedIndex.ToString(), "NKm" };
+        SaveSessionManager.StageEdit(newName, namePath);
+
+        PageResetBtn.Visibility = Visibility.Visible;
+        LoadShipList();
+    }
+
+    private void BuildClassSelector()
+    {
+        ClassSelectorPanel.Children.Clear();
+        if (_techViewModel is null) return;
+
+        foreach (var letter in new[] { "S", "A", "B", "C" })
+        {
+            bool isCurrent = string.Equals(_techViewModel.CurrentClass, letter, StringComparison.OrdinalIgnoreCase);
+
+            var button = new Button
+            {
+                Content = new TextBlock
+                {
+                    Text = letter,
+                    FontWeight = isCurrent ? FontWeights.Bold : FontWeights.Normal
+                },
+                Padding = new Thickness(14, 4, 14, 4),
+                BorderThickness = new Thickness(isCurrent ? 2 : 1),
+                BorderBrush = new SolidColorBrush(isCurrent
+                    ? Color.FromArgb(255, 255, 157, 0)
+                    : Color.FromArgb(255, 90, 98, 112)),
+                Background = new SolidColorBrush(isCurrent
+                    ? Color.FromArgb(60, 255, 157, 0)
+                    : Color.FromArgb(20, 255, 255, 255))
+            };
+
+            button.Click += (_, _) =>
+            {
+                // A class change can change this ship's real Tech/Cargo slot
+                // totals (StarshipCapacity), so both grids get fully rebuilt via
+                // LoadSelectedShip rather than just refreshed in place.
+                _techViewModel?.SetClass(letter);
+                PageResetBtn.Visibility = Visibility.Visible;
+                LoadSelectedShip();
+            };
+
+            ClassSelectorPanel.Children.Add(button);
+        }
+    }
+
+    private void UnlockAllTech_Click(object sender, RoutedEventArgs e)
+    {
+        _techViewModel?.UnlockAll();
+        TechGrid.Refresh();
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void UnlockAllCargo_Click(object sender, RoutedEventArgs e)
+    {
+        _cargoViewModel?.UnlockAll();
+        CargoGrid.Refresh();
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void SuperchargeAllTech_Click(object sender, RoutedEventArgs e)
+    {
+        _techViewModel?.SuperchargeAll();
+        TechGrid.Refresh();
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void RepairAllTech_Click(object sender, RoutedEventArgs e)
+    {
+        _techViewModel?.RepairAll();
+        TechGrid.Refresh();
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Toggles between the compact, game-matching preview height and
+    /// showing every row at once - same pattern as ExosuitPage.</summary>
+    private void TechExpandBtn_Click(object sender, RoutedEventArgs e)
+    {
+        bool isCollapsed = TechScrollViewer.MaxHeight < double.PositiveInfinity;
+        TechScrollViewer.MaxHeight = isCollapsed ? double.PositiveInfinity : TechCollapsedHeight;
+        TechExpandIcon.Glyph = isCollapsed ? ChevronUpGlyph : ChevronDownGlyph;
+        ToolTipService.SetToolTip(TechExpandBtn, isCollapsed ? "Collapse" : "Expand");
+    }
+
+    private void CargoExpandBtn_Click(object sender, RoutedEventArgs e)
+    {
+        bool isCollapsed = CargoScrollViewer.MaxHeight < double.PositiveInfinity;
+        CargoScrollViewer.MaxHeight = isCollapsed ? double.PositiveInfinity : CargoCollapsedHeight;
+        CargoExpandIcon.Glyph = isCollapsed ? ChevronUpGlyph : ChevronDownGlyph;
+        ToolTipService.SetToolTip(CargoExpandBtn, isCollapsed ? "Collapse" : "Expand");
+    }
+
+    /// <summary>Copies the currently selected ship's entire tech loadout onto
+    /// another owned ship - same analysis/confirmation flow as MultiToolPage's
+    /// Copy Tech Stack. Cargo is deliberately not included, matching the
+    /// approved core scope.</summary>
+    private async void CopyTechStackBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0 || _techViewModel is null) return;
+
+        var sourceShip = _ships.FirstOrDefault(s => s.Index == _selectedIndex);
+        if (sourceShip is null) return;
+
+        var otherShips = _ships.Where(s => s.Index != _selectedIndex).ToList();
+        if (otherShips.Count == 0)
+        {
+            await new ContentDialog
+            {
+                Title = "No other ships",
+                Content = "You only own one starship, so there's nothing to copy this stack onto.",
+                CloseButtonText = "OK",
+                XamlRoot = this.XamlRoot
+            }.ShowAsync();
+            return;
+        }
+
+        var pickerList = new ListView { SelectionMode = ListViewSelectionMode.Single };
+        foreach (var s in otherShips)
+            pickerList.Items.Add(s.Name);
+
+        var pickerDialog = new ContentDialog
+        {
+            Title = $"Copy {sourceShip.Name}'s tech stack to...",
+            Content = pickerList,
+            PrimaryButtonText = "Next",
+            IsPrimaryButtonEnabled = false,
+            CloseButtonText = "Cancel",
+            XamlRoot = this.XamlRoot
+        };
+        pickerList.SelectionChanged += (_, _) => pickerDialog.IsPrimaryButtonEnabled = pickerList.SelectedIndex >= 0;
+
+        if (await pickerDialog.ShowAsync() != ContentDialogResult.Primary || pickerList.SelectedIndex < 0)
+            return;
+
+        var targetShip = otherShips[pickerList.SelectedIndex];
+
+        var (targetType, targetClass) = GetShipTypeAndClass(targetShip.Index);
+        var targetCapacity = await GetShipCapacityAsync();
+        var targetViewModel = new InventoryGridViewModel(
+            NmsInventoryContainer.ShipTechnologyPath(targetShip.Index),
+            StarshipCapacity.Columns,
+            StarshipCapacity.SlotsToRows(LookupTechSlots(targetCapacity, targetType, targetClass)));
+        targetViewModel.Load();
+
+        var sourcePositions = _techViewModel.Cells.Where(c => c.IsOccupied).Select(c => (c.X, c.Y));
+        var (confirmed, alsoMatchClass) = await ShowCopyConfirmationAsync(
+            $"a copy of {sourceShip.Name}'s", _techViewModel.CurrentClass, sourcePositions, targetShip.Name, targetViewModel);
+
+        if (!confirmed) return;
+
+        targetViewModel.CopyTechStackFrom(_techViewModel, alsoMatchClass);
+
+        PageResetBtn.Visibility = Visibility.Visible;
+        LoadShipList();
+    }
+
+    /// <summary>Shared confirmation dialog - identical shape to MultiToolPage's,
+    /// duplicated rather than factored out since it's a small, page-local UI
+    /// helper and the two pages have no other shared base to hang it on.</summary>
+    private async Task<(bool Confirmed, bool AlsoMatchClass)> ShowCopyConfirmationAsync(
+        string sourceLabel, string? sourceClass, IEnumerable<(int X, int Y)> sourcePositions,
+        string targetLabel, InventoryGridViewModel targetViewModel)
+    {
+        var sourcePositionSet = sourcePositions.ToHashSet();
+        var targetUnlocked = targetViewModel.Cells.Where(c => c.State != InventorySlotState.Locked).Select(c => (c.X, c.Y)).ToHashSet();
+        int newSlotsNeeded = sourcePositionSet.Except(targetUnlocked).Count();
+
+        bool classDiffers = !string.Equals(sourceClass, targetViewModel.CurrentClass, StringComparison.OrdinalIgnoreCase);
+
+        var panel = new StackPanel { Spacing = 10 };
+        panel.Children.Add(new TextBlock
+        {
+            TextWrapping = TextWrapping.Wrap,
+            Text = $"This replaces {targetLabel}'s entire tech loadout with {sourceLabel}."
+        });
+
+        if (newSlotsNeeded > 0)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(Color.FromArgb(255, 230, 160, 60)),
+                Text = $"⚠ {newSlotsNeeded} slot(s) will also be unlocked on {targetLabel} to fit this stack."
+            });
+        }
+
+        CheckBox? matchClassBox = null;
+        if (classDiffers)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(Color.FromArgb(255, 230, 160, 60)),
+                Text = $"⚠ Class differs: {targetLabel} is currently {targetViewModel.CurrentClass ?? "unknown"}, source is {sourceClass ?? "unknown"}."
+            });
+
+            matchClassBox = new CheckBox { Content = $"Also change {targetLabel}'s class to {sourceClass} to match" };
+            panel.Children.Add(matchClassBox);
+        }
+
+        var dialog = new ContentDialog
+        {
+            Title = "Confirm tech stack copy",
+            Content = panel,
+            PrimaryButtonText = "Copy",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = this.XamlRoot
+        };
+
+        bool confirmed = await dialog.ShowAsync() == ContentDialogResult.Primary;
+        return (confirmed, matchClassBox?.IsChecked == true);
+    }
+
+    private void PageResetBtn_Click(object sender, RoutedEventArgs e)
+    {
+        _techViewModel?.Revert();
+        TechGrid.Refresh();
+        _cargoViewModel?.Revert();
+        CargoGrid.Refresh();
+        PageResetBtn.Visibility = Visibility.Collapsed;
+    }
+}

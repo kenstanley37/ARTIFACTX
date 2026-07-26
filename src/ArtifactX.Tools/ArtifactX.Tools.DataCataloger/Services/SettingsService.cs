@@ -25,7 +25,7 @@ public static class SettingsService
         if (string.IsNullOrWhiteSpace(settings.NmsInstallationPath)) return false;
 
         // Check if the folder exists AND if at least one core file is present
-        string corePakPath = Path.Combine(settings.NmsInstallationPath, "ArtifactXARC.globals.pak");
+        string corePakPath = Path.Combine(settings.NmsInstallationPath, "NMSARC.globals.pak");
         return Directory.Exists(settings.NmsInstallationPath) && File.Exists(corePakPath);
     }
 }

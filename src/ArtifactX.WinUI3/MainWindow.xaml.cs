@@ -17,12 +17,19 @@ public sealed partial class MainWindow : Window
 {
     private AppWindow _appWindow;
 
+    // Set right before a programmatic re-Close() following user confirmation,
+    // so MainWindow_Closed lets that second attempt through instead of
+    // re-prompting - Closed fires again on every Close() call, confirmed or not.
+    private bool _closeConfirmed;
+
     public AppTitleBar TitleBar => CustomTitleBar;
 
     public MainWindow()
     {
         InitializeComponent();
         InitializeCustomTitleBar();
+
+        Closed += MainWindow_Closed;
 
         SaveSessionManager.ActiveSessionChanged += (_, _) => UpdateNavAvailability();
         UpdateNavAvailability();
@@ -44,6 +51,65 @@ public sealed partial class MainWindow : Window
 
         var defaultItem = FindNavItemByTag(RootNav.MenuItems, "SaveFolderSelect");
         if (defaultItem != null) RootNav.SelectedItem = defaultItem;
+    }
+
+    /// <summary>Blocks closing while there's a staged edit nobody's committed
+    /// yet - without this, alt-F4 or the titlebar X silently discards
+    /// whatever's pending with zero warning, the same edits the in-app Reset
+    /// button treats as important enough to ask about. Save/Discard mirrors
+    /// AppTitleBar's own Save button, including staying disabled while No
+    /// Man's Sky is running (SaveSessionManager.CommitAsync isn't safe to
+    /// call then either).</summary>
+    private async void MainWindow_Closed(object sender, WindowEventArgs args)
+    {
+        if (_closeConfirmed || !SaveSessionManager.HasUnsavedChanges)
+            return;
+
+        args.Handled = true;
+
+        bool canSave = !GameProcessMonitorService.IsGameRunning;
+
+        var dialog = new ContentDialog
+        {
+            Title = "Unsaved changes",
+            Content = canSave
+                ? $"You have unsaved changes to {SaveSessionManager.ActiveLabel}. Save before closing?"
+                : $"You have unsaved changes to {SaveSessionManager.ActiveLabel}. No Man's Sky is currently " +
+                  "running, so saving is disabled right now - closing will discard these changes.",
+            PrimaryButtonText = canSave ? "Save" : null,
+            SecondaryButtonText = "Discard and Close",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = Content.XamlRoot
+        };
+
+        ContentDialogResult result = await dialog.ShowAsync();
+
+        if (result == ContentDialogResult.Primary && canSave)
+        {
+            try
+            {
+                await SaveSessionManager.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await new ContentDialog
+                {
+                    Title = "Save failed",
+                    Content = $"{ex.Message}\n\nThe app will stay open so you don't lose these changes.",
+                    CloseButtonText = "OK",
+                    XamlRoot = Content.XamlRoot
+                }.ShowAsync();
+                return;
+            }
+        }
+        else if (result != ContentDialogResult.Secondary)
+        {
+            return; // Cancel, or dismissed without a choice - stay open
+        }
+
+        _closeConfirmed = true;
+        Close();
     }
 
     private void InitializeCustomTitleBar()
@@ -72,8 +138,10 @@ public sealed partial class MainWindow : Window
             Type targetPageType = tag switch
             {
                 "SaveFolderSelect" => typeof(SaveFolderSelectPage),
+                "General" => typeof(GeneralPage),
                 "Exosuit" => typeof(ExosuitPage),
                 "MultiTool" => typeof(MultiToolPage),
+                "Ships" => typeof(ShipsPage),
                 "AncestrySearch" => typeof(AncestrySearchView),
                 "HGDecryption" => typeof(HGDecryptionPage),
                 _ => typeof(SaveFolderSelectPage)
@@ -93,8 +161,10 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void UpdateNavAvailability()
     {
+        GeneralNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         ExosuitNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         MultiToolNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        ShipsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ContentFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
@@ -102,8 +172,10 @@ public sealed partial class MainWindow : Window
         string targetTag = e.SourcePageType switch
         {
             Type t when t == typeof(SaveFolderSelectPage) => "SaveFolderSelect",
+            Type t when t == typeof(GeneralPage) => "General",
             Type t when t == typeof(ExosuitPage) => "Exosuit",
             Type t when t == typeof(MultiToolPage) => "MultiTool",
+            Type t when t == typeof(ShipsPage) => "Ships",
             Type t when t == typeof(AncestrySearchView) => "AncestrySearch",
             Type t when t == typeof(HGDecryptionPage) => "HGDecryption",
             _ => string.Empty

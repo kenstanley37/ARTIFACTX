@@ -10,6 +10,23 @@ public class ClassifiedRow
     public string? NameLowerLocKey { get; set; }
     public string? DescriptionLocKey { get; set; }
 
+    /// <summary>GcProceduralTechnologyData rows (Sigma/Tau/Theta-style upgrade
+    /// modules - Scanner/Mining/Hazard upgrades etc.) have no icon of their own
+    /// anywhere in that table - confirmed by decoding the real table directly.
+    /// This raw "Template" field value (e.g. "T_SCAN", "T_LASER") is a family
+    /// stem CatalogBuildService uses to find the real base technology in
+    /// GcTechnologyTable to borrow its icon AND name from: strip the "T_"
+    /// prefix, then the SHORTEST GcTechnologyTable GameId starting with that
+    /// stem is the right one - confirmed against real data for two families
+    /// (T_SCAN -> SCAN1 "Scanner", not the longer SCANBINOC1 "Analysis Visor";
+    /// T_LASER -> LASER "Mining Beam", not the longer LASER_XO). Deliberately
+    /// NOT the row's own "Group" field (a name-only loc-key reference that,
+    /// for the Scan family, pointed at Analysis Visor - a real but visually
+    /// wrong icon, confirmed by comparing the extracted PNGs directly; Group
+    /// and Template can point at two different, only loosely related base
+    /// techs). Null for row types with no "Template" field.</summary>
+    public string? TemplateId { get; set; }
+
     /// <summary>The row's equipment-slot category, when it has one - e.g. GcTechnology's
     /// "Category" field (Suit/Weapon/Ship/Freighter/Exocraft/All/etc.) is the only thing
     /// that actually distinguishes Exosuit tech from Starship/Multi-tool tech; GcTechnologyTable
@@ -102,7 +119,7 @@ public static class CatalogClassifier
         // consistently ends in _NAME / _NAME_L / _DESC / _DESCRIPTION, so that shape check
         // is what actually confirms "this value is a loc key", independent of whether we
         // currently have it loaded in the English dictionary.
-        string? bestName = null, bestNameLower = null, bestDescription = null;
+        string? bestName = null, bestNameLower = null, bestDescription = null, template = null;
 
         foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
         {
@@ -128,8 +145,13 @@ public static class CatalogClassifier
                     value.EndsWith("_DESCRIPTION", StringComparison.OrdinalIgnoreCase))
                     bestDescription ??= value;
             }
+            else if (fieldName == "template")
+            {
+                template ??= value;
+            }
         }
 
+        row.TemplateId = template;
         row.NameLocKey = bestName;
         row.NameLowerLocKey = bestNameLower;
         row.DescriptionLocKey = bestDescription;

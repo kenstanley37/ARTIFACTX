@@ -9,18 +9,13 @@ public sealed class SaveFileEntry
     public string WorkingJsonPath { get; init; } = string.Empty;
     public DateTime LastModified { get; init; }
     public string SaveName { get; init; } = "Unnamed Save";
-    public bool IsManualSave { get; init; }
-    public bool IsAutoSave { get; init; }
-    public bool IsExpeditionSave { get; init; }
+    public string SaveType { get; init; } = "Unknown";
     public int PlayTimeSeconds { get; init; }
     public int GalaxyIndex { get; init; } = -1;
     public bool IsReadable { get; init; } = true;
+    public string GameMode { get; init; } = "Unknown";
 
-    public string SaveKindLabel => !IsReadable ? "Unreadable"
-        : IsExpeditionSave ? "Expedition"
-        : IsManualSave ? "Manual"
-        : IsAutoSave ? "Autosave"
-        : "Save";
+    public bool HasKnownGameMode => IsReadable && GameMode != "Unknown";
 
     public string LastModifiedDisplay => LastModified.ToString("MMM d, yyyy h:mm tt");
 

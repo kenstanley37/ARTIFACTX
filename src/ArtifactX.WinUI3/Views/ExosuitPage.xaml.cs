@@ -10,6 +10,15 @@ namespace ArtifactX.WinUI3.Views;
 
 public sealed partial class ExosuitPage : Page
 {
+    // Matches the ScrollViewers' own XAML-declared MaxHeight (~3 rows for
+    // Technology, ~5 for Cargo) - restored when a section is collapsed again.
+    private const double TechCollapsedHeight = 232;
+    private const double CargoCollapsedHeight = 368;
+
+    // Segoe MDL2 Assets: E70D = ChevronDown, E70E = ChevronUp.
+    private static readonly string ChevronDownGlyph = char.ConvertFromUtf32(0xE70D);
+    private static readonly string ChevronUpGlyph = char.ConvertFromUtf32(0xE70E);
+
     private readonly InventoryGridViewModel _techViewModel =
         new(NmsInventoryContainer.ExosuitTechnologyPath, ExosuitCapacity.TechnologyColumns, ExosuitCapacity.TechnologyRows);
 
@@ -88,6 +97,28 @@ public sealed partial class ExosuitPage : Page
         _techViewModel.RepairAll();
         TechGrid.Refresh();
         PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Toggles between the compact, game-matching preview height and
+    /// showing every row at once - the ScrollViewer itself already sizes to
+    /// whatever content it's given, so removing the cap (rather than
+    /// computing an exact "full" height) is all expanding needs. The chevron
+    /// flips to point the opposite direction so it always reads as "click to
+    /// do this next", not as a static state label.</summary>
+    private void TechExpandBtn_Click(object sender, RoutedEventArgs e)
+    {
+        bool isCollapsed = TechScrollViewer.MaxHeight < double.PositiveInfinity;
+        TechScrollViewer.MaxHeight = isCollapsed ? double.PositiveInfinity : TechCollapsedHeight;
+        TechExpandIcon.Glyph = isCollapsed ? ChevronUpGlyph : ChevronDownGlyph;
+        ToolTipService.SetToolTip(TechExpandBtn, isCollapsed ? "Collapse" : "Expand");
+    }
+
+    private void CargoExpandBtn_Click(object sender, RoutedEventArgs e)
+    {
+        bool isCollapsed = CargoScrollViewer.MaxHeight < double.PositiveInfinity;
+        CargoScrollViewer.MaxHeight = isCollapsed ? double.PositiveInfinity : CargoCollapsedHeight;
+        CargoExpandIcon.Glyph = isCollapsed ? ChevronUpGlyph : ChevronDownGlyph;
+        ToolTipService.SetToolTip(CargoExpandBtn, isCollapsed ? "Collapse" : "Expand");
     }
 
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)

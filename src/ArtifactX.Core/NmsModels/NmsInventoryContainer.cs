@@ -49,4 +49,29 @@ public class NmsInventoryContainer
     /// SuJ entry, to avoid a risk of edits landing somewhere the game ignores or
     /// getting clobbered by a later Kgt->SuJ resync.</summary>
     public static readonly string[] MultiToolActivePath = { "vLc", "6f=", "Kgt" };
+
+    // Ships live in @Cs, the sibling array to SuJ noted above - up to 12 slots,
+    // only some owned (empty slots have NKm == ""). Confirmed against real save
+    // data: each owned entry has NKm (name), NTx.93M (model scene path), PMT
+    // (Technology container, 12-key shape matching this class - B@N.1o6 Class
+    // letter confirmed), and ;l5 (Cargo container, same 12-key shape). A third
+    // container-shaped sibling, "gan", also exists per-ship but its purpose is
+    // unconfirmed (empty in every save sampled) - deliberately not exposed here.
+    public static readonly string[] ShipArrayPath = { "vLc", "6f=", "@Cs" };
+
+    public static string[] ShipTechnologyPath(int shipIndex) =>
+        new[] { "vLc", "6f=", "@Cs", shipIndex.ToString(), "PMT" };
+
+    public static string[] ShipCargoPath(int shipIndex) =>
+        new[] { "vLc", "6f=", "@Cs", shipIndex.ToString(), ";l5" };
+
+    /// <summary>Plain integer index into @Cs of whichever ship is CURRENTLY
+    /// EQUIPPED - unlike Multi-Tool's Kgt (a full mirrored container), this is
+    /// just a scalar pointer. Confirmed against 15 real save files across 3
+    /// different characters/saves: this value always pointed at a genuinely
+    /// owned (non-empty NKm) ship, and was NOT simply the count of owned ships
+    /// (several samples had aBE != owned-ship-count, ruling that out) - e.g. one
+    /// save had 6 owned ships but aBE=5, pointing at a specific one of them by
+    /// index, not the count.</summary>
+    public static readonly string[] ActiveShipIndexPath = { "vLc", "6f=", "aBE" };
 }

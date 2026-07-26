@@ -245,55 +245,6 @@ public sealed partial class InventorySlotGrid : UserControl
         CellChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private void ShowAmountFlyout(FrameworkElement anchor, InventorySlotViewModel cell)
-    {
-        var entry = CatalogService.TryGet(cell.ItemId);
-        var panel = new StackPanel { Spacing = 8, Width = 220 };
-
-        panel.Children.Add(new TextBlock
-        {
-            Text = $"{entry?.DisplayName ?? cell.ShortLabel}  ({cell.CategoryLabel})",
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            TextWrapping = TextWrapping.Wrap
-        });
-
-        var numberBox = new NumberBox
-        {
-            Value = cell.Amount,
-            Minimum = 0,
-            Maximum = cell.MaxAmount,
-            SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline
-        };
-        panel.Children.Add(numberBox);
-
-        var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        var maxButton = new Button { Content = $"Max ({cell.MaxAmount})" };
-        maxButton.Click += (_, _) => numberBox.Value = cell.MaxAmount;
-        buttonRow.Children.Add(maxButton);
-        panel.Children.Add(buttonRow);
-
-        var applyButton = new Button
-        {
-            Content = "Apply",
-            Style = (Style)Application.Current.Resources["AccentButtonStyle"],
-            HorizontalAlignment = HorizontalAlignment.Stretch
-        };
-        panel.Children.Add(applyButton);
-
-        var flyout = new Flyout { Content = panel };
-
-        applyButton.Click += (_, _) =>
-        {
-            ViewModel?.StageAmount(cell.X, cell.Y, (int)numberBox.Value);
-            Refresh();
-            CellChanged?.Invoke(this, EventArgs.Empty);
-            flyout.Hide();
-        };
-
-        FlyoutBase.SetAttachedFlyout(anchor, flyout);
-        FlyoutBase.ShowAttachedFlyout(anchor);
-    }
-
     private MenuFlyout BuildLockedFlyout(int x, int y)
     {
         var flyout = new MenuFlyout();
@@ -312,9 +263,17 @@ public sealed partial class InventorySlotGrid : UserControl
     {
         var flyout = new MenuFlyout();
 
-        var editAmountItem = new MenuFlyoutItem { Text = "Edit amount..." };
-        editAmountItem.Click += (_, _) => ShowAmountFlyout(anchor, cell);
-        flyout.Items.Add(editAmountItem);
+        // One click to the value people actually want - if they'd rather have
+        // less, selling/dropping the difference in-game is easier than dialing
+        // in an exact number here.
+        var maxQtyItem = new MenuFlyoutItem { Text = "Max Qty" };
+        maxQtyItem.Click += (_, _) =>
+        {
+            ViewModel?.StageAmount(cell.X, cell.Y, cell.MaxAmount);
+            Refresh();
+            CellChanged?.Invoke(this, EventArgs.Empty);
+        };
+        flyout.Items.Add(maxQtyItem);
 
         if (SupportsRepair)
         {
@@ -467,15 +426,18 @@ public sealed partial class InventorySlotGrid : UserControl
             // StackMultiplier of 2, times Cargo's ProductStorageMultiplier of 10,
             // gives the real 20-item cap. Substances use their own (usually 1x)
             // multiplier instead. 9999 is only a last-resort fallback for a row
-            // with no MaxStackSize recorded at all, not the norm.
-            (int amount, int maxAmount) = match.CategoryLabel switch
+            // with no MaxStackSize recorded at all, not the norm. New items start
+            // at that cap outright rather than 1 - same reasoning as the Max Qty
+            // context-menu action: that's the value people actually want, and
+            // trimming down is easier (sell/drop in-game) than topping up here.
+            int maxAmount = match.CategoryLabel switch
             {
-                "Technology" => (100, 100),
-                "Product" => (1, ComputeStackCap(match.MaxStackSize, ProductStorageMultiplier)),
-                _ => (1, ComputeStackCap(match.MaxStackSize, SubstanceStorageMultiplier)),
+                "Technology" => 100,
+                "Product" => ComputeStackCap(match.MaxStackSize, ProductStorageMultiplier),
+                _ => ComputeStackCap(match.MaxStackSize, SubstanceStorageMultiplier),
             };
 
-            ViewModel?.AddItem(cell.X, cell.Y, match.GameId, match.CategoryLabel, amount, maxAmount);
+            ViewModel?.AddItem(cell.X, cell.Y, match.GameId, match.CategoryLabel, maxAmount, maxAmount);
             Refresh();
             CellChanged?.Invoke(this, EventArgs.Empty);
             flyout.Hide();
