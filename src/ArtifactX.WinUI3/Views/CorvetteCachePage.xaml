@@ -16,7 +16,6 @@
 
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="Contents" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                <Button Content="Unlock All Slots" Click="UnlockAllBtn_Click"/>
                 <Button Content="Max All Qty" Click="MaxAllQtyBtn_Click"/>
             </StackPanel>
             <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"

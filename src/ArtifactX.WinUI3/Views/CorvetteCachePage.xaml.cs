@@ -14,7 +14,10 @@ namespace ArtifactX.WinUI3.Views;
 /// Corvette. Unlike Ships/Multi-Tool/Freighter there's only ever one of
 /// these (no per-item selector needed) and unlike Base Storage it lives at a
 /// known, fixed path rather than needing runtime discovery - see
-/// NmsInventoryContainer.CorvetteCachePath for how it was confirmed.
+/// NmsInventoryContainer.CorvetteCachePath for how it was confirmed. No
+/// "Unlock All Slots" button here (unlike every other page) - the player has
+/// no in-game way to expand this cache's slot count, so there's nothing to
+/// unlock.
 /// </summary>
 public sealed partial class CorvetteCachePage : Page
 {
@@ -60,13 +63,6 @@ public sealed partial class CorvetteCachePage : Page
         CacheGrid.Refresh();
 
         PageResetBtn.Visibility = _viewModel.HasLocalChanges ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    private void UnlockAllBtn_Click(object sender, RoutedEventArgs e)
-    {
-        _viewModel.UnlockAll();
-        CacheGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
     }
 
     private void MaxAllQtyBtn_Click(object sender, RoutedEventArgs e)
