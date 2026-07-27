@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
+    <AssemblyName>ArtifactX</AssemblyName>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>ArtifactX.WinUI3</RootNamespace>
@@ -12,6 +13,14 @@
     <WinUISDKReferences>false</WinUISDKReferences>
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
+
+    <!-- Unpackaged by default so the app runs on any PC with no install/
+         sideloading step - just run the exe. Package.appxmanifest and
+         EnableMsixTooling stay in place so an MSIX can still be produced
+         later (e.g. `dotnet publish -p:WindowsPackageType=Msix`) if Store
+         distribution is ever wanted; this only changes the default. -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Controls\AppTitleBar.xaml" />

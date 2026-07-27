@@ -1,17 +1,64 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Windows.Storage;
 
 namespace ArtifactX.WinUI3.Services;
 
+/// <summary>
+/// Persists as a flat key/value JSON file under LocalAppDataPaths rather than
+/// Windows.Storage.ApplicationData.Current.LocalSettings (which threw
+/// InvalidOperationException when this app moved to running unpackaged - see
+/// LocalAppDataPaths). Each value is itself a JSON-serialized blob, same
+/// nested-JSON-string shape LocalSettings.Values held before, to keep this
+/// change to a storage-backend swap rather than a data-shape rewrite.
+/// </summary>
 public static class SaveFolderSettingsService
 {
     private const string CustomFoldersKey = "CustomSaveFolders";
     private const string ExpandedFoldersKey = "ExpandedSaveFolders";
     private const string FolderNamesKey = "SaveFolderCustomNames";
+
+    private static readonly string SettingsFilePath = Path.Combine(LocalAppDataPaths.RootFolder, "settings.json");
+
+    private static Dictionary<string, string>? _cache;
+
+    private static Dictionary<string, string> LoadSettings()
+    {
+        if (_cache != null) return _cache;
+
+        if (File.Exists(SettingsFilePath))
+        {
+            try
+            {
+                string fileJson = File.ReadAllText(SettingsFilePath);
+                _cache = JsonSerializer.Deserialize(fileJson, SaveFolderJsonContext.Default.DictionaryStringString)
+                    ?? new Dictionary<string, string>();
+                return _cache;
+            }
+            catch (JsonException)
+            {
+                // fall through to a fresh, empty settings store
+            }
+        }
+
+        _cache = new Dictionary<string, string>();
+        return _cache;
+    }
+
+    private static bool TryGetSetting(string key, out string value)
+    {
+        return LoadSettings().TryGetValue(key, out value!);
+    }
+
+    private static void SetSetting(string key, string value)
+    {
+        var settings = LoadSettings();
+        settings[key] = value;
+        File.WriteAllText(SettingsFilePath, JsonSerializer.Serialize(settings, SaveFolderJsonContext.Default.DictionaryStringString));
+    }
 
     /// <summary>Which folder cards the user left expanded, so re-launching the
     /// app doesn't dump them back into a fully-collapsed list. Null (as opposed
@@ -19,8 +66,7 @@ public static class SaveFolderSettingsService
     /// caller treats differently from "user explicitly collapsed everything".</summary>
     public static IReadOnlyList<string>? GetExpandedFolders()
     {
-        if (ApplicationData.Current.LocalSettings.Values.TryGetValue(ExpandedFoldersKey, out var raw) &&
-            raw is string json && !string.IsNullOrWhiteSpace(json))
+        if (TryGetSetting(ExpandedFoldersKey, out var json) && !string.IsNullOrWhiteSpace(json))
         {
             try
             {
@@ -38,13 +84,12 @@ public static class SaveFolderSettingsService
     public static void SetExpandedFolders(IEnumerable<string> paths)
     {
         string json = JsonSerializer.Serialize(paths.ToList(), SaveFolderJsonContext.Default.ListString);
-        ApplicationData.Current.LocalSettings.Values[ExpandedFoldersKey] = json;
+        SetSetting(ExpandedFoldersKey, json);
     }
 
     public static IReadOnlyList<string> GetCustomFolders()
     {
-        if (ApplicationData.Current.LocalSettings.Values.TryGetValue(CustomFoldersKey, out var raw) &&
-            raw is string json && !string.IsNullOrWhiteSpace(json))
+        if (TryGetSetting(CustomFoldersKey, out var json) && !string.IsNullOrWhiteSpace(json))
         {
             try
             {
@@ -62,7 +107,7 @@ public static class SaveFolderSettingsService
     public static void SetCustomFolders(IEnumerable<string> paths)
     {
         string json = JsonSerializer.Serialize(paths.ToList(), SaveFolderJsonContext.Default.ListString);
-        ApplicationData.Current.LocalSettings.Values[CustomFoldersKey] = json;
+        SetSetting(CustomFoldersKey, json);
     }
 
     public static void AddCustomFolder(string folderPath)
@@ -104,13 +149,12 @@ public static class SaveFolderSettingsService
             names[folderPath] = name.Trim();
 
         string json = JsonSerializer.Serialize(names, SaveFolderJsonContext.Default.DictionaryStringString);
-        ApplicationData.Current.LocalSettings.Values[FolderNamesKey] = json;
+        SetSetting(FolderNamesKey, json);
     }
 
     private static Dictionary<string, string> GetCustomFolderNames()
     {
-        if (ApplicationData.Current.LocalSettings.Values.TryGetValue(FolderNamesKey, out var raw) &&
-            raw is string json && !string.IsNullOrWhiteSpace(json))
+        if (TryGetSetting(FolderNamesKey, out var json) && !string.IsNullOrWhiteSpace(json))
         {
             try
             {
