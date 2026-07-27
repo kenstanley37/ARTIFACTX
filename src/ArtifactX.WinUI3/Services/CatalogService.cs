@@ -251,23 +251,41 @@ public static class CatalogService
     /// app. GameId is the model scene path itself; NameEnglish is the derived
     /// display name. Rebuilding the catalog after a game update refreshes this
     /// automatically - nothing in the WinUI3 project needs to change.</summary>
-    public static async Task<List<(string DisplayName, string ScenePath)>> GetMultiToolTypesAsync()
+    public static async Task<List<(string DisplayName, string ScenePath)>> GetMultiToolTypesAsync() =>
+        await GetScenePathOptionsAsync("MultiToolTypes");
+
+    /// <summary>Freighter "Type" (hull model) options, sourced from the
+    /// FreighterTypes category - same filename-rule discovery as Multi-Tool
+    /// Types, see CatalogBuildService for how. Confirmed real names for the
+    /// three model paths actually seen in player saves: "Normal"
+    /// (FREIGHTER_PROC), "Capital" (CAPITALFREIGHTER_PROC), "Dreadnought"
+    /// (PIRATEFREIGHTER) - cross-checked against NomNom.</summary>
+    public static async Task<List<(string DisplayName, string ScenePath)>> GetFreighterTypesAsync() =>
+        await GetScenePathOptionsAsync("FreighterTypes");
+
+    /// <summary>Freighter crew captain "Race" options (Gek/Korvax/Vy'keen/Robot),
+    /// sourced from the FreighterCrewRaces category - the captain is a separate
+    /// model reference (Sjw.93M) from the freighter hull itself (bIR.93M).</summary>
+    public static async Task<List<(string DisplayName, string ScenePath)>> GetFreighterCrewRacesAsync() =>
+        await GetScenePathOptionsAsync("FreighterCrewRaces");
+
+    private static async Task<List<(string DisplayName, string ScenePath)>> GetScenePathOptionsAsync(string templateType)
     {
         string? dbPath = ResolveDbPath();
         if (dbPath is null) return new();
 
         try
         {
-            return await Task.Run(() => QueryMultiToolTypes(dbPath));
+            return await Task.Run(() => QueryScenePathOptions(dbPath, templateType));
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[CatalogService] GetMultiToolTypesAsync failed: {ex.Message}");
+            Debug.WriteLine($"[CatalogService] GetScenePathOptionsAsync({templateType}) failed: {ex.Message}");
             return new();
         }
     }
 
-    private static List<(string DisplayName, string ScenePath)> QueryMultiToolTypes(string dbPath)
+    private static List<(string DisplayName, string ScenePath)> QueryScenePathOptions(string dbPath, string templateType)
     {
         var results = new List<(string, string)>();
 
@@ -279,8 +297,9 @@ public static class CatalogService
             SELECT i.NameEnglish, i.GameId
             FROM Items i
             JOIN Categories c ON c.Id = i.CategoryId
-            WHERE c.TemplateType = 'MultiToolTypes'
+            WHERE c.TemplateType = @templateType
             ORDER BY i.NameEnglish";
+        command.Parameters.AddWithValue("@templateType", templateType);
 
         using var reader = command.ExecuteReader();
         while (reader.Read())

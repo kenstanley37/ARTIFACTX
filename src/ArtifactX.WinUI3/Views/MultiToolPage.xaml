@@ -104,7 +104,7 @@
                 <!-- No cargo section on this page (multi-tools don't have one) so the
                      full 10x6 grid is shown at once - no scroll cap needed. -->
                 <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                        CornerRadius="6" Padding="8" Opacity="0.9">
+                        CornerRadius="6" Padding="8" VerticalAlignment="Top" Opacity="0.9">
                     <controls:InventorySlotGrid x:Name="TechGrid"/>
                 </Border>
 

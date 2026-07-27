@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.Core.NmsModels;
+using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Newtonsoft.Json.Linq;
@@ -50,6 +51,7 @@ public sealed partial class ShipsPage : Page
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
 
         LoadShipList();
+        _ = RefreshTemplatesListAsync();
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
@@ -433,6 +435,147 @@ public sealed partial class ShipsPage : Page
 
         PageResetBtn.Visibility = Visibility.Visible;
         LoadShipList();
+    }
+
+    private async void SaveAsTemplateBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0 || _techViewModel is null) return;
+
+        var sourceShip = _ships.FirstOrDefault(s => s.Index == _selectedIndex);
+        if (sourceShip is null) return;
+
+        if (!_techViewModel.Cells.Any(c => c.IsOccupied))
+        {
+            await new ContentDialog
+            {
+                Title = "Nothing to save",
+                Content = $"{sourceShip.Name} has no tech installed, so there's nothing to capture as a template.",
+                CloseButtonText = "OK",
+                XamlRoot = this.XamlRoot
+            }.ShowAsync();
+            return;
+        }
+
+        var nameBox = new TextBox { PlaceholderText = "e.g. \"Combat Hauler\"" };
+        var nameDialog = new ContentDialog
+        {
+            Title = "Save as Template",
+            Content = new StackPanel
+            {
+                Spacing = 8,
+                Children = { new TextBlock { Text = "Name this loadout:" }, nameBox }
+            },
+            PrimaryButtonText = "Save",
+            CloseButtonText = "Cancel",
+            XamlRoot = this.XamlRoot
+        };
+
+        if (await nameDialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+        string name = nameBox.Text?.Trim() ?? "";
+        if (string.IsNullOrEmpty(name)) return;
+
+        var template = _techViewModel.ExtractTemplate(name, sourceShip.Name, "Ship");
+        await LoadoutTemplateService.SaveAsync(template);
+
+        // No confirmation popup here on purpose - the whole point of moving
+        // templates into a persistent list is that saving one should visibly
+        // show up right away, not need a separate dialog to prove it worked.
+        await RefreshTemplatesListAsync();
+    }
+
+    /// <summary>Rebuilds the persistent Templates list, filtered to Ship-sourced
+    /// templates only - Multi-Tool templates share the same on-disk pool but
+    /// contain Weapon-usage tech that doesn't belong in a ship's grid. Called
+    /// after saving, deleting, or applying a template, and once on page load.</summary>
+    private async Task RefreshTemplatesListAsync()
+    {
+        var templates = (await LoadoutTemplateService.LoadAllAsync())
+            .Where(t => t.SourceKind == "Ship")
+            .ToList();
+
+        TemplatesListPanel.Children.Clear();
+
+        if (templates.Count == 0)
+        {
+            TemplatesListPanel.Children.Add(new TextBlock
+            {
+                Text = "No templates saved yet.",
+                FontSize = 11,
+                Opacity = 0.6,
+                TextWrapping = TextWrapping.Wrap
+            });
+            return;
+        }
+
+        foreach (var template in templates)
+        {
+            string sourceInfo = template.SourceToolName is null ? "" : $" - from {template.SourceToolName}";
+
+            var row = new StackPanel { Spacing = 4 };
+            row.Children.Add(new TextBlock
+            {
+                Text = $"{template.Name}",
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 13,
+                TextWrapping = TextWrapping.Wrap
+            });
+            row.Children.Add(new TextBlock
+            {
+                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class{sourceInfo}",
+                FontSize = 10,
+                Opacity = 0.6,
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+
+            var applyButton = new Button { Content = "Apply", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            applyButton.Click += async (_, _) => await ApplyTemplateAsync(template);
+            buttonRow.Children.Add(applyButton);
+
+            var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            deleteButton.Click += async (_, _) =>
+            {
+                await LoadoutTemplateService.DeleteAsync(template.Id);
+                await RefreshTemplatesListAsync();
+            };
+            buttonRow.Children.Add(deleteButton);
+
+            row.Children.Add(buttonRow);
+
+            row.Children.Add(new Border
+            {
+                BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+
+            TemplatesListPanel.Children.Add(row);
+        }
+    }
+
+    /// <summary>Applies a saved template to whichever ship is currently selected
+    /// in the main strip - same flow as MultiToolPage's ApplyTemplateAsync. A
+    /// class change (alsoMatchClass) can change this ship's real Tech/Cargo
+    /// slot totals (StarshipCapacity), so the grids get fully rebuilt via
+    /// LoadSelectedShip rather than just refreshed in place.</summary>
+    private async Task ApplyTemplateAsync(NmsLoadoutTemplate template)
+    {
+        if (_selectedIndex < 0 || _techViewModel is null) return;
+
+        var targetShip = _ships.FirstOrDefault(s => s.Index == _selectedIndex);
+        if (targetShip is null) return;
+
+        var sourcePositions = template.UnlockedPositions.Select(p => (p.X, p.Y));
+        var (confirmed, alsoMatchClass) = await ShowCopyConfirmationAsync(
+            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions, targetShip.Name, _techViewModel);
+
+        if (!confirmed) return;
+
+        _techViewModel.ApplyTemplate(template, alsoMatchClass);
+        PageResetBtn.Visibility = Visibility.Visible;
+        LoadSelectedShip();
     }
 
     /// <summary>Shared confirmation dialog - identical shape to MultiToolPage's,

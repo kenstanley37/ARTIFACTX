@@ -668,7 +668,7 @@ public sealed partial class MultiToolPage : Page
         string name = nameBox.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(name)) return;
 
-        var template = _techViewModel.ExtractTemplate(name, sourceTool.Name);
+        var template = _techViewModel.ExtractTemplate(name, sourceTool.Name, "MultiTool");
         await LoadoutTemplateService.SaveAsync(template);
 
         // No confirmation popup here on purpose - the whole point of moving
@@ -683,7 +683,9 @@ public sealed partial class MultiToolPage : Page
     /// button the user has to remember to press.</summary>
     private async Task RefreshTemplatesListAsync()
     {
-        var templates = await LoadoutTemplateService.LoadAllAsync();
+        var templates = (await LoadoutTemplateService.LoadAllAsync())
+            .Where(t => t.SourceKind == "MultiTool")
+            .ToList();
 
         TemplatesListPanel.Children.Clear();
 

@@ -218,6 +218,24 @@ public partial class InventoryGridViewModel : ObservableObject
         Load();
     }
 
+    /// <summary>Sets every occupied slot's Amount to its own MaxAmount at
+    /// once - same "max out" convenience as InventorySlotGrid's per-slot Max
+    /// Qty flyout action, just applied to the whole container in one edit
+    /// (e.g. topping off every ore stack in a storage container at once).</summary>
+    public void MaxAllQuantities()
+    {
+        bool changed = false;
+        var entries = Cells.Where(c => c.IsOccupied).Select(c =>
+        {
+            if (c.Amount != c.MaxAmount) changed = true;
+            return (c.X, c.Y, c.ItemId, Amount: c.MaxAmount, c.MaxAmount, c.CategoryLabel, c.IsFunctional, c.MalfunctionSeverity);
+        }).ToList();
+
+        if (!changed) return;
+        StageWholeArray(entries);
+        Load();
+    }
+
     /// <summary>Sets this container's rarity/quality class (S/A/B/C). A plain
     /// single-letter string write - confirmed independent of the identity seed
     /// (@EL), so this can't corrupt or desync the item's appearance/stats.</summary>
@@ -368,12 +386,13 @@ public partial class InventoryGridViewModel : ObservableObject
     /// this specific tool - the whole point is for it to outlive the tool it
     /// was captured from, so a build can be re-applied to a brand-new tool
     /// later instead of re-buying every piece of tech again.</summary>
-    public NmsLoadoutTemplate ExtractTemplate(string name, string? sourceToolName)
+    public NmsLoadoutTemplate ExtractTemplate(string name, string? sourceToolName, string sourceKind)
     {
         var template = new NmsLoadoutTemplate
         {
             Name = name,
             SourceToolName = sourceToolName,
+            SourceKind = sourceKind,
             SourceClass = CurrentClass
         };
 

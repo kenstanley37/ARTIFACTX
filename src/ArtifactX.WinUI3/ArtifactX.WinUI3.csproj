@@ -22,6 +22,8 @@
     <None Remove="Views\MultiToolPage.xaml" />
     <None Remove="Views\SaveFolderSelectPage.xaml" />
     <None Remove="Views\ShipsPage.xaml" />
+    <None Remove="Views\FreighterPage.xaml" />
+    <None Remove="Views\BaseStoragePage.xaml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -83,6 +85,16 @@
   </ItemGroup>
   <ItemGroup>
     <Page Update="Views\ShipsPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Views\FreighterPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Views\BaseStoragePage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>

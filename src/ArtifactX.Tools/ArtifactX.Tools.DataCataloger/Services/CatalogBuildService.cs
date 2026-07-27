@@ -165,6 +165,135 @@ public class CatalogBuildService
         }
 
         // -------------------------------------------------------------
+        // Phase 1.55: Freighter "Type" (base model) discovery - same filename
+        // rule idea as Multi-Tool Types. A first pass wrongly concluded every
+        // freighter uses one shared model, based on sampling only one save;
+        // cross-checking real saves from 3 different characters found THREE
+        // distinct model paths actually in use (PIRATEFREIGHTER,
+        // CAPITALFREIGHTER_PROC, FREIGHTER_PROC), all living directly under
+        // models/common/spacecraft/industrial/ - so "Type" IS the model path
+        // here too (bIR.93M in the save), same mechanism as Ships/Multi-Tool.
+        //
+        // Filename rule: every .SCENE.MBIN directly under spacecraft/industrial/
+        // (not a subfolder - those are sub-components like hull/cargo/engine
+        // pieces, not full swappable base models). Excludes legacy/destroyed/
+        // trench/LOD/switch/cruiser/inventory-effect/decoration files by name -
+        // a small, stable exception list, not a growing inclusion list. Unlike
+        // Multi-Tool Types, individual entries beyond the three confirmed above
+        // haven't each been verified in a real save - flagged here so a future
+        // pass knows to treat any newly-surfaced entry as unconfirmed until seen
+        // in real player data.
+        // -------------------------------------------------------------
+        var freighterTypeCategory = new CatalogCategory
+        {
+            TemplateType = "FreighterTypes",
+            RowType = "SceneModelPath",
+            SourceMbinPath = "models/common/spacecraft/industrial/*.SCENE.MBIN (filename rule, not a data table)"
+        };
+
+        var seenFreighterModelPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        const string industrialFolder = "SPACECRAFT/INDUSTRIAL/";
+
+        foreach (var (_, _, entries) in pakData)
+        {
+            foreach (var entry in entries)
+            {
+                if (string.IsNullOrEmpty(entry.FileName)) continue;
+
+                string upperPath = entry.FileName.ToUpperInvariant();
+                int industrialIdx = upperPath.IndexOf(industrialFolder, StringComparison.Ordinal);
+                if (industrialIdx < 0) continue;
+                if (!upperPath.EndsWith(".SCENE.MBIN")) continue;
+
+                // Must be directly in the folder, not a nested subfolder (hull/,
+                // cargo/, engine/, etc. hold sub-components, not full models).
+                string afterIndustrial = upperPath[(industrialIdx + industrialFolder.Length)..];
+                if (afterIndustrial.Contains('/')) continue;
+
+                if (upperPath.Contains("LEGACY")) continue;
+                if (upperPath.Contains("DESTROYED")) continue;
+                if (upperPath.Contains("TRENCH")) continue;
+                if (upperPath.Contains("LOD")) continue;
+                if (upperPath.Contains("SWITCH")) continue;
+                if (upperPath.Contains("CRUISER")) continue;
+                if (upperPath.Contains("INVENTORY_")) continue;
+                if (upperPath.Contains("DECORATION")) continue;
+                if (upperPath.Contains("TORPEDO")) continue;
+                // Real, distinctly different NPC-only craft (station trade
+                // traffic and a one-off unnamed ship) that happen to sit in
+                // the same folder - neither is a real player freighter hull.
+                if (upperPath.Contains("SMALLTRANSPORT")) continue;
+                if (upperPath.Contains("FREIGHTSHIP")) continue;
+                if (!seenFreighterModelPaths.Add(upperPath)) continue;
+
+                freighterTypeCategory.Items.Add(new CatalogItem
+                {
+                    GameId = upperPath,
+                    NameEnglish = DeriveFreighterTypeName(upperPath)
+                });
+            }
+        }
+
+        if (freighterTypeCategory.Items.Count > 0)
+        {
+            categories.Add(freighterTypeCategory);
+            LogService.Write($"CatalogBuild: discovered {freighterTypeCategory.Items.Count} freighter Type model paths.");
+        }
+
+        // -------------------------------------------------------------
+        // Phase 1.56: Freighter Crew Race discovery. The freighter's crew
+        // captain is a separate model reference (Sjw.93M in the save) from the
+        // freighter hull itself (bIR.93M) - confirmed by a real save showing
+        // Sjw.93M = ".../NPCVYKEEN.SCENE.MBIN" with Sjw.@EL's seed exactly
+        // matching NomNom's "Crew Seed" field for the same freighter.
+        //
+        // Filename rule: every NPC*.SCENE.MBIN directly under
+        // player/playercharacter/, limited to the three real playable species
+        // (Gek/Korvax/Vy'keen) plus a fourth "Robot" captain model - the
+        // folder also holds several NON-race NPCs (Nada/Polo - unique Atlas
+        // Emissary characters, Fourth/Fifth - Expedition story-unique
+        // characters, Settler/SpecialShop/Unique/Astro/RobotSpider/RobotTorso -
+        // vendor or sub-part models) which are deliberately excluded by an
+        // explicit inclusion list rather than an exclusion list, since "is this
+        // a real selectable crew race" isn't reliably detectable from the
+        // filename alone the way Multi-Tool/Freighter Type files are.
+        // -------------------------------------------------------------
+        var freighterCrewRaceCategory = new CatalogCategory
+        {
+            TemplateType = "FreighterCrewRaces",
+            RowType = "SceneModelPath",
+            SourceMbinPath = "models/common/player/playercharacter/npc{gek,korvax,vykeen,robot}.scene.mbin (filename rule, not a data table)"
+        };
+
+        var includedCrewRaceFiles = new[] { "NPCGEK.SCENE.MBIN", "NPCKORVAX.SCENE.MBIN", "NPCVYKEEN.SCENE.MBIN", "NPCROBOT.SCENE.MBIN" };
+        var seenCrewRacePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (_, _, entries) in pakData)
+        {
+            foreach (var entry in entries)
+            {
+                if (string.IsNullOrEmpty(entry.FileName)) continue;
+
+                string upperPath = entry.FileName.ToUpperInvariant();
+                if (!upperPath.Contains("PLAYER/PLAYERCHARACTER/")) continue;
+                if (!includedCrewRaceFiles.Any(f => upperPath.EndsWith(f, StringComparison.Ordinal))) continue;
+                if (!seenCrewRacePaths.Add(upperPath)) continue;
+
+                freighterCrewRaceCategory.Items.Add(new CatalogItem
+                {
+                    GameId = upperPath,
+                    NameEnglish = DeriveCrewRaceName(upperPath)
+                });
+            }
+        }
+
+        if (freighterCrewRaceCategory.Items.Count > 0)
+        {
+            categories.Add(freighterCrewRaceCategory);
+            LogService.Write($"CatalogBuild: discovered {freighterCrewRaceCategory.Items.Count} freighter crew race model paths.");
+        }
+
+        // -------------------------------------------------------------
         // Phase 1.6: Ship Technology/Cargo capacity per (ship type, class letter).
         // Unlike Multi-Tool Types, this IS a real in-game data table, not a
         // filename rule: metadata/reality/tables/inventorytable.mbin decodes to
@@ -539,6 +668,55 @@ public class CatalogBuildService
         if (string.IsNullOrEmpty(name)) name = "RIFLE";
 
         return System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(name.ToLowerInvariant());
+    }
+
+    /// <summary>Turns a model path like ".../PIRATEFREIGHTER.SCENE.MBIN" into
+    /// a display name. The three model paths actually confirmed in real player
+    /// saves get their real in-game names (cross-checked against NomNom, an
+    /// established NMS save editor, showing exactly "Normal"/"Capital"/
+    /// "Dreadnought" as freighter Type options); anything else discovered by
+    /// the filename rule falls back to a generic derivation (strip folder/
+    /// extension/trailing "_PROC", split "FREIGHTER" out as its own word,
+    /// title-case) since it hasn't been individually confirmed.</summary>
+    private static string DeriveFreighterTypeName(string upperPath)
+    {
+        string fileName = upperPath[(upperPath.LastIndexOf('/') + 1)..];
+        int dot = fileName.IndexOf(".SCENE", StringComparison.Ordinal);
+        if (dot >= 0) fileName = fileName[..dot];
+
+        switch (fileName.ToUpperInvariant())
+        {
+            case "FREIGHTER_PROC": return "Normal";
+            case "CAPITALFREIGHTER_PROC": return "Capital";
+            case "PIRATEFREIGHTER": return "Dreadnought";
+        }
+
+        fileName = System.Text.RegularExpressions.Regex.Replace(
+            fileName, "_PROC$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        fileName = fileName.Replace('_', ' ');
+        fileName = System.Text.RegularExpressions.Regex.Replace(
+            fileName, "FREIGHTER", " FREIGHTER ", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        fileName = System.Text.RegularExpressions.Regex.Replace(fileName, @"\s+", " ").Trim();
+
+        return System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(fileName.ToLowerInvariant());
+    }
+
+    /// <summary>Turns a crew captain model path like ".../NPCVYKEEN.SCENE.MBIN"
+    /// into "Vy'keen". Only the four real playable-race captain models get a
+    /// name here; FreighterCrewRaces discovery only includes those four in the
+    /// first place (see that block's own exclusion list for why the other NPC
+    /// models found under player/playercharacter/ - Nada, Polo, story-unique
+    /// characters, vendor/settler NPCs - aren't real crew race options).</summary>
+    private static string DeriveCrewRaceName(string upperPath)
+    {
+        string fileName = upperPath[(upperPath.LastIndexOf('/') + 1)..];
+
+        if (fileName.Contains("NPCGEK", StringComparison.OrdinalIgnoreCase)) return "Gek";
+        if (fileName.Contains("NPCKORVAX", StringComparison.OrdinalIgnoreCase)) return "Korvax";
+        if (fileName.Contains("NPCVYKEEN", StringComparison.OrdinalIgnoreCase)) return "Vy'keen";
+        if (fileName.Contains("NPCROBOT", StringComparison.OrdinalIgnoreCase)) return "Robot";
+
+        return fileName;
     }
 
     private NMSTemplate? DecodeMbin(string pakPath, PakEntry entry, PakHeader header)

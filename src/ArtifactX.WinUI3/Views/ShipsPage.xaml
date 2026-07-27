@@ -11,17 +11,70 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <ScrollViewer>
-        <StackPanel Padding="24" Spacing="20" HorizontalAlignment="Left">
-            <TextBlock Text="Starships" FontSize="26" FontWeight="Bold"/>
-            <Button x:Name="PageResetBtn" Content="Reset Starship Changes" Click="PageResetBtn_Click" Visibility="Collapsed"/>
+        <StackPanel Padding="24" Spacing="20" HorizontalAlignment="Stretch">
 
-            <TextBlock Text="Owned Starships" FontSize="14" Opacity="0.8"/>
-            <!-- Same bounded/scrollable pattern as Multi-Tool's selector - a save
-                 with many ships stays just as usable as one with a couple. -->
-            <ScrollViewer MaxHeight="104" VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-                <ctcontrols:WrapPanel x:Name="ShipSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
-            </ScrollViewer>
+            <!-- Same Grid+VisualStateManager pattern as MultiToolPage: Templates
+                 pinned to the top-right while there's room, dropping to a
+                 full-width row under the selector once the window gets narrow. -->
+            <Grid x:Name="HeaderGrid" ColumnSpacing="24" RowSpacing="20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="320"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="20">
+                    <TextBlock Text="Starships" FontSize="26" FontWeight="Bold"/>
+                    <Button x:Name="PageResetBtn" Content="Reset Starship Changes" Click="PageResetBtn_Click" Visibility="Collapsed"/>
+
+                    <TextBlock Text="Owned Starships" FontSize="14" Opacity="0.8"/>
+                    <!-- Same bounded/scrollable pattern as Multi-Tool's selector - a save
+                         with many ships stays just as usable as one with a couple. -->
+                    <ScrollViewer MaxHeight="104" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+                        <ctcontrols:WrapPanel x:Name="ShipSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+                    </ScrollViewer>
+                </StackPanel>
+
+                <Border x:Name="TemplatesBorder" Grid.Row="0" Grid.Column="1"
+                        BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                        CornerRadius="8" Padding="16" Opacity="0.9" Width="300" VerticalAlignment="Top">
+                    <StackPanel Spacing="10">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="Templates" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <Button Content="Save Current..." Click="SaveAsTemplateBtn_Click" FontSize="11" Padding="8,3,8,3"/>
+                        </StackPanel>
+                        <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                                   Text="Apply replaces the currently selected ship's tech with this template."/>
+                        <StackPanel x:Name="TemplatesListPanel" Spacing="8"/>
+                    </StackPanel>
+                </Border>
+
+                <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroup>
+                        <VisualState x:Name="HeaderWide">
+                            <VisualState.StateTriggers>
+                                <AdaptiveTrigger MinWindowWidth="950"/>
+                            </VisualState.StateTriggers>
+                        </VisualState>
+                        <VisualState x:Name="HeaderNarrow">
+                            <VisualState.StateTriggers>
+                                <AdaptiveTrigger MinWindowWidth="0"/>
+                            </VisualState.StateTriggers>
+                            <VisualState.Setters>
+                                <Setter Target="TemplatesBorder.(Grid.Row)" Value="1"/>
+                                <Setter Target="TemplatesBorder.(Grid.Column)" Value="0"/>
+                                <Setter Target="TemplatesBorder.(Grid.ColumnSpan)" Value="2"/>
+                                <Setter Target="TemplatesBorder.Width" Value="NaN"/>
+                                <Setter Target="TemplatesBorder.HorizontalAlignment" Value="Stretch"/>
+                            </VisualState.Setters>
+                        </VisualState>
+                    </VisualStateGroup>
+                </VisualStateManager.VisualStateGroups>
+            </Grid>
 
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="Name" FontSize="12" Opacity="0.7" VerticalAlignment="Center"/>

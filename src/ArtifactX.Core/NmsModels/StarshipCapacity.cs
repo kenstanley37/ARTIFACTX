@@ -39,6 +39,14 @@ public static class StarshipCapacity
         Shuttle,
         Solar,
         Corvette,
+
+        // Not a @Cs entry - a player only ever manages one, so FreighterPage
+        // passes this directly rather than going through DetectShipType. Still
+        // sourced from the same real GcInventoryTable.ShipInventoryMaxUpgradeSize
+        // - GcSpaceshipClasses.ShipClassEnum includes "Freighter" as its own
+        // index, confirmed correct against real save data (see
+        // NmsInventoryContainer.FreighterTechnologyPath).
+        Freighter,
     }
 
     // Our friendly ShipType name -> the raw GcSpaceshipClasses.ShipClassEnum
@@ -51,6 +59,7 @@ public static class StarshipCapacity
         [ShipType.Shuttle] = "SHUTTLE",
         [ShipType.Solar] = "SAIL",
         [ShipType.Corvette] = "CORVETTE",
+        [ShipType.Freighter] = "FREIGHTER",
     };
 
     // Safe fallback when the catalog has no ShipCapacity data yet (e.g. an

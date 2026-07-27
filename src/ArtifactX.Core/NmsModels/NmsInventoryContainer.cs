@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ArtifactX.Core.NmsModels;
 
@@ -74,4 +75,67 @@ public class NmsInventoryContainer
     /// save had 6 owned ships but aBE=5, pointing at a specific one of them by
     /// index, not the count.</summary>
     public static readonly string[] ActiveShipIndexPath = { "vLc", "6f=", "aBE" };
+
+    // Unlike ships/multi-tools, a player only ever actively manages ONE
+    // freighter's own Technology/Cargo for editing purposes (owning a wider
+    // Frigate Fleet - the "nlG" array - is a separate, much bigger system left
+    // untouched here) - so these are plain top-level siblings, not array
+    // entries, matching Exosuit's own pattern. Identified via real save data:
+    // "0wS" holds unambiguous Freighter Technology items (^F_HYPERDRIVE,
+    // ^F_TELEPORT, ^F_SCANNER, ^F_HACCESS*, ^F_HDRIVEBOOST*) and its unlocked
+    // count (30) exactly matched the real FREIGHTER_C_TECH catalog value
+    // already extracted for Ships (GcInventoryTable also indexes a "Freighter"
+    // ship type). "8ZP" is Freighter Cargo - confirmed directly by the user:
+    // its single occupied item (^U_LASER1) resolves in the catalog to "MINING
+    // BEAM MODULE" (GcProductTable), exactly matching what they saw in-game,
+    // and its unlocked count (60) exactly matches FREIGHTER_C_CARGO. An
+    // earlier guess ("Bq<") looked plausible from item content (bulk crafting
+    // materials) but was confirmed WRONG by the user - that's actually one of
+    // their player-placed Base Storage Containers (BS0-BS9), a same-shaped but
+    // unrelated container.
+    public static readonly string[] FreighterTechnologyPath = { "vLc", "6f=", "0wS" };
+    public static readonly string[] FreighterCargoPath = { "vLc", "6f=", "8ZP" };
+
+    /// <summary>The active freighter's display name - a plain string, not
+    /// nested inside a container. Confirmed via real save data: renaming the
+    /// freighter in-game and re-saving changed exactly this value.</summary>
+    public static readonly string[] FreighterNamePath = { "vLc", "6f=", "vxi" };
+
+    /// <summary>The freighter hull's model scene path ("Type" - Normal/Capital/
+    /// Dreadnought). Confirmed via cross-referencing 3 different real
+    /// characters' saves plus NomNom (an established NMS save editor) showing
+    /// the same three options for the same freighters. "@EL"'s second element
+    /// (index 1) is NomNom's "Model Seed" - confirmed by an exact value match
+    /// against a real save.</summary>
+    public static readonly string[] FreighterTypePath = { "vLc", "6f=", "bIR", "93M" };
+    public static readonly string[] FreighterModelSeedPath = { "vLc", "6f=", "bIR", "@EL", "1" };
+
+    /// <summary>The freighter's crew captain - a SEPARATE model reference from
+    /// the hull itself (bIR above), confirmed via real save data: the
+    /// captain's model path (".../NPCVYKEEN.SCENE.MBIN") and its seed
+    /// (@EL[1]) exactly matched NomNom's "Crew Race" and "Crew Seed" fields
+    /// for the same freighter.</summary>
+    public static readonly string[] FreighterCrewRacePath = { "vLc", "6f=", "Sjw", "93M" };
+    public static readonly string[] FreighterCrewSeedPath = { "vLc", "6f=", "Sjw", "@EL", "1" };
+
+    /// <summary>Freighter Technology's continuous stat bonuses array - same
+    /// shape and editing pattern as Multi-Tool's OsQ.@bB (WEAPON_DAMAGE/etc.).
+    /// Confirmed via real save data: holds exactly two entries keyed
+    /// "^FREI_HYPERDRIVE" and "^FREI_FLEET", matching NomNom's "Hyperdrive"
+    /// and "Fleet Coordination" Base Stats fields.</summary>
+    public static string[] FreighterStatBonusesPath => FreighterTechnologyPath.Append("@bB").ToArray();
+
+    /// <summary>Player-placed Base Storage Containers ("Chests") - unlike every
+    /// other container on this class, these are scattered top-level siblings
+    /// under vLc/6f= with NO fixed/known key names (each container gets a
+    /// fresh short key when placed), so there's no static path list here the
+    /// way ShipTechnologyPath/etc. have. Confirmed via real save data: renaming
+    /// 10 containers in-game to "BS0".."BS9" and searching the whole save found
+    /// all 10 as top-level 12-key containers, each with WA4.rri == "Chest" -
+    /// that field is the reliable structural marker WinUI3's discovery code
+    /// uses to find every owned container regardless of how many exist or what
+    /// they're named. Capacity is fixed (BaseStorageCapacity), not Class-based -
+    /// B@N.1o6 was uniformly "C" with no in-game way to change it.</summary>
+    public static string[] BaseStorageContainerPath(string containerKey) =>
+        new[] { "vLc", "6f=", containerKey };
 }

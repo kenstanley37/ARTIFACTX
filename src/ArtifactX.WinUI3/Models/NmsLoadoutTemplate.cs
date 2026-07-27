@@ -15,9 +15,18 @@ public sealed class NmsLoadoutTemplate
     public string Name { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
 
-    /// <summary>Informational only - which tool this was captured from, shown in
-    /// the picker so old templates are easier to recognize later.</summary>
+    /// <summary>Informational only - which tool/ship this was captured from,
+    /// shown in the picker so old templates are easier to recognize later.</summary>
     public string? SourceToolName { get; set; }
+
+    /// <summary>Which equipment kind this template belongs to ("MultiTool" or
+    /// "Ship") - templates are stored in one shared pool on disk, but Multi-Tool
+    /// and Ship Technology use different usage categories (Weapon vs Ship), so
+    /// a template captured from one would contain items that don't belong in
+    /// the other's grid. Each page filters its own list to this kind. Defaults
+    /// to "MultiTool" for templates saved before this field existed - the only
+    /// source that could have created them.</summary>
+    public string SourceKind { get; set; } = "MultiTool";
 
     /// <summary>The class (S/A/B/C) the source tool had when this was captured -
     /// null if unknown. Applying a template only changes the target's class if

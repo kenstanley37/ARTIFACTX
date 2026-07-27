@@ -142,6 +142,8 @@ public sealed partial class MainWindow : Window
                 "Exosuit" => typeof(ExosuitPage),
                 "MultiTool" => typeof(MultiToolPage),
                 "Ships" => typeof(ShipsPage),
+                "Freighter" => typeof(FreighterPage),
+                "BaseStorage" => typeof(BaseStoragePage),
                 "AncestrySearch" => typeof(AncestrySearchView),
                 "HGDecryption" => typeof(HGDecryptionPage),
                 _ => typeof(SaveFolderSelectPage)
@@ -165,6 +167,8 @@ public sealed partial class MainWindow : Window
         ExosuitNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         MultiToolNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         ShipsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        FreighterNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        BaseStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ContentFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
@@ -176,6 +180,8 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(ExosuitPage) => "Exosuit",
             Type t when t == typeof(MultiToolPage) => "MultiTool",
             Type t when t == typeof(ShipsPage) => "Ships",
+            Type t when t == typeof(FreighterPage) => "Freighter",
+            Type t when t == typeof(BaseStoragePage) => "BaseStorage",
             Type t when t == typeof(AncestrySearchView) => "AncestrySearch",
             Type t when t == typeof(HGDecryptionPage) => "HGDecryption",
             _ => string.Empty
