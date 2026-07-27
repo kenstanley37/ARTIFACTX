@@ -208,6 +208,7 @@ public sealed partial class ShipsPage : Page
             TechHeaderTxt.Text = "Technology";
             ClassSelectorPanel.Children.Clear();
             NameEditBox.Text = "";
+            SeedEditBox.Text = "";
             DamageStatBox.Value = double.NaN;
             ShieldStatBox.Value = double.NaN;
             HyperdriveStatBox.Value = double.NaN;
@@ -268,7 +269,46 @@ public sealed partial class ShipsPage : Page
 
         BuildClassSelector();
         NameEditBox.Text = selectedShip.Name;
+        SeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.ShipModelSeedPath(_selectedIndex))?.Value<string>() ?? "";
         UpdateStatDisplay();
+    }
+
+    /// <summary>Stages the seed when the field loses focus - same plain-text
+    /// staging pattern as Freighter's ModelSeedEditBox/CrewSeedEditBox.</summary>
+    private void SeedEditBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0) return;
+
+        string newSeed = SeedEditBox.Text?.Trim() ?? "";
+        if (string.IsNullOrEmpty(newSeed)) return;
+
+        var seedPath = NmsInventoryContainer.ShipModelSeedPath(_selectedIndex);
+        string? currentSeed = SaveSessionManager.GetValue(seedPath)?.Value<string>();
+        if (newSeed == currentSeed) return;
+
+        SaveSessionManager.StageEdit(newSeed, seedPath);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Rerolls the selected ship to a brand new random seed - same
+    /// idea as NomNom's own reroll, not a targeted "give me X wings" picker:
+    /// the actual seed-to-appearance algorithm lives in the game's compiled
+    /// code, not in any MBIN data this app can read, so there's no way to
+    /// preview or aim for a specific look here. All 6 non-Living-Ship seeds
+    /// sampled from a real save were full 64-bit values (one started with
+    /// 'A', confirming the high bit genuinely gets used) - hence generating
+    /// from all 8 random bytes rather than a signed 63-bit long.</summary>
+    private void GenerateSeedBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0) return;
+
+        var bytes = new byte[8];
+        Random.Shared.NextBytes(bytes);
+        string newSeed = "0x" + BitConverter.ToUInt64(bytes).ToString("X16");
+
+        SeedEditBox.Text = newSeed;
+        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.ShipModelSeedPath(_selectedIndex));
+        PageResetBtn.Visibility = Visibility.Visible;
     }
 
     private void GridCellChanged(object? sender, EventArgs e) =>

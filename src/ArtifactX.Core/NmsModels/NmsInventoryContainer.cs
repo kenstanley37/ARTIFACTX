@@ -82,6 +82,18 @@ public class NmsInventoryContainer
     public static string[] ShipStatBonusesPath(int shipIndex) =>
         ShipTechnologyPath(shipIndex).Append("@bB").ToArray();
 
+    /// <summary>A ship's model seed - the hex value that (together with its
+    /// model scene path) drives the ship's procedural look, same "@EL"
+    /// second-element shape as Freighter's Model Seed (bIR.@EL[1]) and Crew
+    /// Seed (Sjw.@EL[1]). Confirmed via real save data: every owned ship's
+    /// "NTx" object (already read for its scene path - see
+    /// ShipsPage.GetShipTypeAndClass) carries the exact same [bool, hex
+    /// string] "@EL" pair. One sampled Living Ship ("The Wraith") had seed
+    /// "0x0" - those are quest-crafted rather than seed-rolled, so editing
+    /// this field on one may not visibly change anything in-game.</summary>
+    public static string[] ShipModelSeedPath(int shipIndex) =>
+        new[] { "vLc", "6f=", "@Cs", shipIndex.ToString(), "NTx", "@EL", "1" };
+
     /// <summary>Plain integer index into @Cs of whichever ship is CURRENTLY
     /// EQUIPPED - unlike Multi-Tool's Kgt (a full mirrored container), this is
     /// just a scalar pointer. Confirmed against 15 real save files across 3

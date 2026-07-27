@@ -76,83 +76,119 @@
                 </VisualStateManager.VisualStateGroups>
             </Grid>
 
-            <StackPanel Orientation="Horizontal" Spacing="12">
-                <TextBlock Text="Name" FontSize="12" Opacity="0.7" VerticalAlignment="Center"/>
-                <TextBox x:Name="NameEditBox" Width="240" LostFocus="NameEditBox_LostFocus"/>
-                <TextBlock Text="Class" Opacity="0.7" VerticalAlignment="Center" Margin="12,0,0,0"/>
-                <StackPanel x:Name="ClassSelectorPanel" Orientation="Horizontal" Spacing="6"/>
-            </StackPanel>
+            <!-- Technology and Cargo stack in their own column so they always
+                 sit directly under each other regardless of how tall the info
+                 panel is; the info panel is a separate column that just sits
+                 at the top rather than pairing with the Tech grid alone (a
+                 WrapPanel pairing would let a tall info panel stretch/gap the
+                 shorter Tech grid's row, pushing Cargo down with it) - same
+                 fix already applied on FreighterPage. -->
+            <Grid ColumnSpacing="24">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-            <StackPanel Spacing="8">
-                <TextBlock Text="Base Stats" FontSize="14" FontWeight="SemiBold"/>
-                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                           Text="These are the ship's own rolled bonus stats - changing Class above does not change them by itself. No known upper limit; extreme values won't corrupt your save, just unbalance it."/>
-                <Grid ColumnSpacing="8" RowSpacing="6" HorizontalAlignment="Left">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="140"/>
-                        <ColumnDefinition Width="140"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Damage" VerticalAlignment="Center"/>
-                    <NumberBox Grid.Row="0" Grid.Column="1" x:Name="DamageStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="DamageStatBox_ValueChanged" LostFocus="DamageStatBox_LostFocus"/>
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Shield" VerticalAlignment="Center"/>
-                    <NumberBox Grid.Row="1" Grid.Column="1" x:Name="ShieldStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="ShieldStatBox_ValueChanged" LostFocus="ShieldStatBox_LostFocus"/>
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Hyperdrive" VerticalAlignment="Center"/>
-                    <NumberBox Grid.Row="2" Grid.Column="1" x:Name="HyperdriveStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="HyperdriveStatBox_ValueChanged" LostFocus="HyperdriveStatBox_LostFocus"/>
-                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Maneuverability" VerticalAlignment="Center"/>
-                    <NumberBox Grid.Row="3" Grid.Column="1" x:Name="AgileStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="AgileStatBox_ValueChanged" LostFocus="AgileStatBox_LostFocus"/>
-                </Grid>
-            </StackPanel>
+                <StackPanel Grid.Column="0" Spacing="20">
+                    <StackPanel Spacing="8">
+                        <TextBlock x:Name="TechHeaderTxt" Text="Technology" FontSize="18" FontWeight="SemiBold"/>
+                        <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
+                            <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
+                            <Button Content="Supercharge All Slots" Click="SuperchargeAllTech_Click"/>
+                            <Button Content="Repair All Slots" Click="RepairAllTech_Click"/>
+                            <Button Content="Copy Tech Stack..." Click="CopyTechStackBtn_Click"/>
+                        </ctcontrols:WrapPanel>
+                    </StackPanel>
+                    <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                            CornerRadius="6" HorizontalAlignment="Left" Opacity="0.9">
+                        <Grid>
+                            <ScrollViewer x:Name="TechScrollViewer" Padding="8,32,8,8" MaxHeight="232" VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
+                                <controls:InventorySlotGrid x:Name="TechGrid"/>
+                            </ScrollViewer>
+                            <Button x:Name="TechExpandBtn" Click="TechExpandBtn_Click"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"
+                                    Padding="6" Background="Transparent" BorderThickness="0"
+                                    ToolTipService.ToolTip="Expand">
+                                <FontIcon x:Name="TechExpandIcon" Glyph="&#xE70D;" FontSize="12"/>
+                            </Button>
+                        </Grid>
+                    </Border>
 
-            <StackPanel Spacing="8">
-                <TextBlock x:Name="TechHeaderTxt" Text="Technology" FontSize="18" FontWeight="SemiBold"/>
-                <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
-                    <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
-                    <Button Content="Supercharge All Slots" Click="SuperchargeAllTech_Click"/>
-                    <Button Content="Repair All Slots" Click="RepairAllTech_Click"/>
-                    <Button Content="Copy Tech Stack..." Click="CopyTechStackBtn_Click"/>
-                </ctcontrols:WrapPanel>
-            </StackPanel>
-            <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                    CornerRadius="6" HorizontalAlignment="Left" Opacity="0.9">
-                <Grid>
-                    <ScrollViewer x:Name="TechScrollViewer" Padding="8,32,8,8" MaxHeight="232" VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
-                        <controls:InventorySlotGrid x:Name="TechGrid"/>
-                    </ScrollViewer>
-                    <Button x:Name="TechExpandBtn" Click="TechExpandBtn_Click"
-                            HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"
-                            Padding="6" Background="Transparent" BorderThickness="0"
-                            ToolTipService.ToolTip="Expand">
-                        <FontIcon x:Name="TechExpandIcon" Glyph="&#xE70D;" FontSize="12"/>
-                    </Button>
-                </Grid>
-            </Border>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="Cargo" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Button Content="Unlock All Slots" Click="UnlockAllCargo_Click"/>
+                    </StackPanel>
+                    <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                            CornerRadius="6" HorizontalAlignment="Left" Opacity="0.9">
+                        <Grid>
+                            <ScrollViewer x:Name="CargoScrollViewer" Padding="8,32,8,8" MaxHeight="368" VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
+                                <controls:InventorySlotGrid x:Name="CargoGrid"/>
+                            </ScrollViewer>
+                            <Button x:Name="CargoExpandBtn" Click="CargoExpandBtn_Click"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"
+                                    Padding="6" Background="Transparent" BorderThickness="0"
+                                    ToolTipService.ToolTip="Expand">
+                                <FontIcon x:Name="CargoExpandIcon" Glyph="&#xE70D;" FontSize="12"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </StackPanel>
 
-            <StackPanel Orientation="Horizontal" Spacing="12">
-                <TextBlock Text="Cargo" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                <Button Content="Unlock All Slots" Click="UnlockAllCargo_Click"/>
-            </StackPanel>
-            <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                    CornerRadius="6" HorizontalAlignment="Left" Opacity="0.9">
-                <Grid>
-                    <ScrollViewer x:Name="CargoScrollViewer" Padding="8,32,8,8" MaxHeight="368" VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
-                        <controls:InventorySlotGrid x:Name="CargoGrid"/>
-                    </ScrollViewer>
-                    <Button x:Name="CargoExpandBtn" Click="CargoExpandBtn_Click"
-                            HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"
-                            Padding="6" Background="Transparent" BorderThickness="0"
-                            ToolTipService.ToolTip="Expand">
-                        <FontIcon x:Name="CargoExpandIcon" Glyph="&#xE70D;" FontSize="12"/>
-                    </Button>
-                </Grid>
-            </Border>
+                <!-- Name/Class/Base Stats, grouped together and top-aligned so
+                     the group starts level with the Technology header. -->
+                <Border Grid.Column="1" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                        CornerRadius="8" Padding="16" Opacity="0.9" Width="300" VerticalAlignment="Top">
+                    <StackPanel Spacing="14">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Name" FontSize="12" Opacity="0.7"/>
+                            <TextBox x:Name="NameEditBox" Width="260" LostFocus="NameEditBox_LostFocus"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="Class" Opacity="0.7" VerticalAlignment="Center"/>
+                            <StackPanel x:Name="ClassSelectorPanel" Orientation="Horizontal" Spacing="6"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Seed" FontSize="12" Opacity="0.7"/>
+                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                                       Text="Drives this ship's procedural look, alongside its Class/model. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBox x:Name="SeedEditBox" Width="185" LostFocus="SeedEditBox_LostFocus"/>
+                                <Button Content="Generate" Click="GenerateSeedBtn_Click"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Base Stats" FontSize="12" Opacity="0.7"/>
+                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                                       Text="These are the ship's own rolled bonus stats - changing Class above does not change them by itself. No known upper limit; extreme values won't corrupt your save, just unbalance it."/>
+                            <Grid ColumnSpacing="8" RowSpacing="6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="140"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Damage" VerticalAlignment="Center"/>
+                                <NumberBox Grid.Row="0" Grid.Column="1" x:Name="DamageStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="DamageStatBox_ValueChanged" LostFocus="DamageStatBox_LostFocus"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Shield" VerticalAlignment="Center"/>
+                                <NumberBox Grid.Row="1" Grid.Column="1" x:Name="ShieldStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="ShieldStatBox_ValueChanged" LostFocus="ShieldStatBox_LostFocus"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Hyperdrive" VerticalAlignment="Center"/>
+                                <NumberBox Grid.Row="2" Grid.Column="1" x:Name="HyperdriveStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="HyperdriveStatBox_ValueChanged" LostFocus="HyperdriveStatBox_LostFocus"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Maneuverability" VerticalAlignment="Center"/>
+                                <NumberBox Grid.Row="3" Grid.Column="1" x:Name="AgileStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="AgileStatBox_ValueChanged" LostFocus="AgileStatBox_LostFocus"/>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
         </StackPanel>
     </ScrollViewer>
 </Page>
