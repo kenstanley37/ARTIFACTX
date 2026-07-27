@@ -28,6 +28,7 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         InitializeCustomTitleBar();
+        WindowPlacementService.Restore(WindowNative.GetWindowHandle(this));
 
         Closed += MainWindow_Closed;
 
@@ -62,6 +63,13 @@ public sealed partial class MainWindow : Window
     /// call then either).</summary>
     private async void MainWindow_Closed(object sender, WindowEventArgs args)
     {
+        // Saved on every entry (including the re-entrant call after a
+        // confirmed close below) - the window's bounds haven't changed
+        // between then and now, so it's harmless to save more than once,
+        // and this way every real closing path is covered without needing
+        // its own explicit save call.
+        WindowPlacementService.Save(WindowNative.GetWindowHandle(this));
+
         if (_closeConfirmed || !SaveSessionManager.HasUnsavedChanges)
             return;
 
