@@ -66,6 +66,22 @@ public class NmsInventoryContainer
     public static string[] ShipCargoPath(int shipIndex) =>
         new[] { "vLc", "6f=", "@Cs", shipIndex.ToString(), ";l5" };
 
+    /// <summary>A ship's own rolled bonus stats - same "continuous stat roll"
+    /// shape/editing pattern as Multi-Tool's OsQ.@bB and Freighter's
+    /// FreighterStatBonusesPath. Confirmed via real save data across 7 owned
+    /// ships: every ship carries exactly "^SHIP_DAMAGE"/"^SHIP_SHIELD"/
+    /// "^SHIP_HYPERDRIVE"/"^SHIP_AGILE" (plus "^ALIEN_SHIP" on at least one
+    /// Living Ship, left alone by SetStatValue's key-matched rebuild), and the
+    /// magnitudes tracked Class hard: a lone C-class Fighter sampled near zero
+    /// on every stat (9.5/0/0/10.1) while every S-class ship sampled well
+    /// above it (Damage up to 77, Shield up to 115, Hyperdrive up to 93, Agile
+    /// up to 43) - confirming Class only gates the roll RANGE at generation
+    /// time, not a value read live off the Class letter. This is exactly why
+    /// ShipsPage's Class buttons (SetClass) alone don't make a ship
+    /// perform any better - they never touched this array.</summary>
+    public static string[] ShipStatBonusesPath(int shipIndex) =>
+        ShipTechnologyPath(shipIndex).Append("@bB").ToArray();
+
     /// <summary>Plain integer index into @Cs of whichever ship is CURRENTLY
     /// EQUIPPED - unlike Multi-Tool's Kgt (a full mirrored container), this is
     /// just a scalar pointer. Confirmed against 15 real save files across 3

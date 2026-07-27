@@ -37,6 +37,7 @@ public sealed partial class ShipsPage : Page
     private InventoryGridViewModel? _cargoViewModel;
     private int _selectedIndex = -1;
     private List<ShipEntry> _ships = new();
+    private bool _suppressStatChangeEvent;
 
     // Ship-type/class -> max-slot lookups (GameId -> CapacityValue), loaded once
     // per page lifetime from the catalog - see StarshipCapacity for why these
@@ -207,6 +208,10 @@ public sealed partial class ShipsPage : Page
             TechHeaderTxt.Text = "Technology";
             ClassSelectorPanel.Children.Clear();
             NameEditBox.Text = "";
+            DamageStatBox.Value = double.NaN;
+            ShieldStatBox.Value = double.NaN;
+            HyperdriveStatBox.Value = double.NaN;
+            AgileStatBox.Value = double.NaN;
             return;
         }
 
@@ -263,6 +268,7 @@ public sealed partial class ShipsPage : Page
 
         BuildClassSelector();
         NameEditBox.Text = selectedShip.Name;
+        UpdateStatDisplay();
     }
 
     private void GridCellChanged(object? sender, EventArgs e) =>
@@ -324,6 +330,135 @@ public sealed partial class ShipsPage : Page
             };
 
             ClassSelectorPanel.Children.Add(button);
+        }
+    }
+
+    /// <summary>Loads the selected ship's PMT.@bB raw continuous stat rolls
+    /// (SHIP_DAMAGE/SHIP_SHIELD/SHIP_HYPERDRIVE/SHIP_AGILE) into the editable
+    /// NumberBoxes - same source/shape as Freighter's Hyperdrive/Fleet
+    /// Coordination and Multi-Tool's Damage/Mining/Scanner. Confirmed
+    /// independent of the Class letter (SetClass only ever writes B@N.1o6),
+    /// which is exactly why these need their own editable fields - changing
+    /// Class alone doesn't touch them.</summary>
+    private void UpdateStatDisplay()
+    {
+        _suppressStatChangeEvent = true;
+
+        var bonuses = _selectedIndex >= 0
+            ? SaveSessionManager.GetValue(NmsInventoryContainer.ShipStatBonusesPath(_selectedIndex)) as JArray
+            : null;
+
+        double? Find(string key) =>
+            bonuses?.FirstOrDefault(b => b["QL1"]?.Value<string>() == key)?[">MX"]?.Value<double>();
+
+        DamageStatBox.Value = Find("^SHIP_DAMAGE") ?? double.NaN;
+        ShieldStatBox.Value = Find("^SHIP_SHIELD") ?? double.NaN;
+        HyperdriveStatBox.Value = Find("^SHIP_HYPERDRIVE") ?? double.NaN;
+        AgileStatBox.Value = Find("^SHIP_AGILE") ?? double.NaN;
+
+        _suppressStatChangeEvent = false;
+    }
+
+    /// <summary>Stages a new value for one @bB entry, matched by its QL1 key,
+    /// rebuilding and staging the WHOLE @bB array at once - same reasoning as
+    /// FreighterPage/MultiToolPage.SetStatValue (a deeper leaf-only stage
+    /// isn't seen by SaveSessionManager's staged-edit lookup, which only
+    /// matches at the exact path queried). Entries this page doesn't know
+    /// about (e.g. a Living Ship's "^ALIEN_SHIP") pass through untouched.</summary>
+    private void SetStatValue(string statKey, double newValue)
+    {
+        if (_selectedIndex < 0 || double.IsNaN(newValue)) return;
+
+        var bonusesPath = NmsInventoryContainer.ShipStatBonusesPath(_selectedIndex);
+        var bonuses = SaveSessionManager.GetValue(bonusesPath) as JArray;
+        if (bonuses is null) return;
+
+        var updated = new JArray();
+        foreach (var entry in bonuses)
+        {
+            if (entry is JObject obj && obj["QL1"]?.Value<string>() == statKey)
+            {
+                var clone = (JObject)obj.DeepClone();
+                clone[">MX"] = newValue;
+                updated.Add(clone);
+            }
+            else
+            {
+                updated.Add(entry.DeepClone());
+            }
+        }
+
+        SaveSessionManager.StageEdit(updated, bonusesPath);
+    }
+
+    private void DamageStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        if (_suppressStatChangeEvent) return;
+        SetStatValue("^SHIP_DAMAGE", args.NewValue);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Redundant safety net alongside ValueChanged - some WinUI3
+    /// NumberBox versions don't reliably fire ValueChanged on a plain focus
+    /// loss, matching Freighter/MultiToolPage's own *StatBox_LostFocus.</summary>
+    private void DamageStatBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_suppressStatChangeEvent) return;
+        if (!double.IsNaN(DamageStatBox.Value))
+        {
+            SetStatValue("^SHIP_DAMAGE", DamageStatBox.Value);
+            PageResetBtn.Visibility = Visibility.Visible;
+        }
+    }
+
+    private void ShieldStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        if (_suppressStatChangeEvent) return;
+        SetStatValue("^SHIP_SHIELD", args.NewValue);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void ShieldStatBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_suppressStatChangeEvent) return;
+        if (!double.IsNaN(ShieldStatBox.Value))
+        {
+            SetStatValue("^SHIP_SHIELD", ShieldStatBox.Value);
+            PageResetBtn.Visibility = Visibility.Visible;
+        }
+    }
+
+    private void HyperdriveStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        if (_suppressStatChangeEvent) return;
+        SetStatValue("^SHIP_HYPERDRIVE", args.NewValue);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void HyperdriveStatBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_suppressStatChangeEvent) return;
+        if (!double.IsNaN(HyperdriveStatBox.Value))
+        {
+            SetStatValue("^SHIP_HYPERDRIVE", HyperdriveStatBox.Value);
+            PageResetBtn.Visibility = Visibility.Visible;
+        }
+    }
+
+    private void AgileStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        if (_suppressStatChangeEvent) return;
+        SetStatValue("^SHIP_AGILE", args.NewValue);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void AgileStatBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_suppressStatChangeEvent) return;
+        if (!double.IsNaN(AgileStatBox.Value))
+        {
+            SetStatValue("^SHIP_AGILE", AgileStatBox.Value);
+            PageResetBtn.Visibility = Visibility.Visible;
         }
     }
 

@@ -84,6 +84,32 @@
             </StackPanel>
 
             <StackPanel Spacing="8">
+                <TextBlock Text="Base Stats" FontSize="14" FontWeight="SemiBold"/>
+                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                           Text="These are the ship's own rolled bonus stats - changing Class above does not change them by itself. No known upper limit; extreme values won't corrupt your save, just unbalance it."/>
+                <Grid ColumnSpacing="8" RowSpacing="6" HorizontalAlignment="Left">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="140"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Damage" VerticalAlignment="Center"/>
+                    <NumberBox Grid.Row="0" Grid.Column="1" x:Name="DamageStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="DamageStatBox_ValueChanged" LostFocus="DamageStatBox_LostFocus"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Shield" VerticalAlignment="Center"/>
+                    <NumberBox Grid.Row="1" Grid.Column="1" x:Name="ShieldStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="ShieldStatBox_ValueChanged" LostFocus="ShieldStatBox_LostFocus"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Hyperdrive" VerticalAlignment="Center"/>
+                    <NumberBox Grid.Row="2" Grid.Column="1" x:Name="HyperdriveStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="HyperdriveStatBox_ValueChanged" LostFocus="HyperdriveStatBox_LostFocus"/>
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Maneuverability" VerticalAlignment="Center"/>
+                    <NumberBox Grid.Row="3" Grid.Column="1" x:Name="AgileStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="AgileStatBox_ValueChanged" LostFocus="AgileStatBox_LostFocus"/>
+                </Grid>
+            </StackPanel>
+
+            <StackPanel Spacing="8">
                 <TextBlock x:Name="TechHeaderTxt" Text="Technology" FontSize="18" FontWeight="SemiBold"/>
                 <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
                     <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
