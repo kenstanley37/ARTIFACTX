@@ -79,6 +79,12 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
+                <NavigationViewItem x:Name="CorvetteCacheNavItem" Content="Corvette Cache" Tag="CorvetteCache" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE7C1;" FontFamily="Segoe MDL2 Assets"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
 
                 <NavigationViewItemSeparator/>
 

@@ -138,4 +138,17 @@ public class NmsInventoryContainer
     /// B@N.1o6 was uniformly "C" with no in-game way to change it.</summary>
     public static string[] BaseStorageContainerPath(string containerKey) =>
         new[] { "vLc", "6f=", containerKey };
+
+    /// <summary>The Corvette Workshop Cache - a single top-level sibling (not
+    /// array-indexed; there's only ever one), holding the proc-gen building
+    /// parts used to construct/upgrade a player's Corvette. Confirmed via real
+    /// save data: found by its distinctive 500-max-stack fingerprint (13 items,
+    /// all F9q==500), then verified via WA4.rri == "BaseCapsule" (a role value
+    /// not seen on any other container) and by cross-referencing all 13 item
+    /// ids (^B_DECO_A, ^B_WNG_I, etc.) against the catalog - every one resolves
+    /// under GcProductTable/UsageCategory "BuildingPart" to a real part name
+    /// (e.g. "MEDUSA-CLASS REACTOR", "THUNDERBIRD-CLASS COCKPIT") matching the
+    /// in-game panel exactly. Capacity is CorvetteCacheCapacity (10x16=160),
+    /// also confirmed via this container's own =Tb/N9> fields.</summary>
+    public static readonly string[] CorvetteCachePath = { "vLc", "6f=", "wem" };
 }

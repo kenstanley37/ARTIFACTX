@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="ArtifactX.WinUI3.Views.CorvetteCachePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <ScrollViewer>
+        <StackPanel Padding="24" Spacing="20" HorizontalAlignment="Left">
+            <TextBlock Text="Corvette Workshop Cache" FontSize="26" FontWeight="Bold"/>
+            <Button x:Name="PageResetBtn" Content="Reset Cache Changes" Click="PageResetBtn_Click" Visibility="Collapsed"/>
+
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="Contents" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <Button Content="Unlock All Slots" Click="UnlockAllBtn_Click"/>
+                <Button Content="Max All Qty" Click="MaxAllQtyBtn_Click"/>
+            </StackPanel>
+            <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                    CornerRadius="6" Padding="8" HorizontalAlignment="Left" VerticalAlignment="Top" Opacity="0.9">
+                <controls:InventorySlotGrid x:Name="CacheGrid"/>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>
