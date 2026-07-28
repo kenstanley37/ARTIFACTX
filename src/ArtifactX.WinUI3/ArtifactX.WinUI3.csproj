@@ -83,6 +83,13 @@
   <ItemGroup>
     <ProjectReference Include="..\ArtifactX.Almanac\ArtifactX.Almanac.csproj" />
     <ProjectReference Include="..\ArtifactX.Core\ArtifactX.Core.csproj" />
+    <!-- Structural type definitions only (enums, field classes) - no PAK/MBIN
+         file I/O lives in this library, so referencing it doesn't mean the UI
+         extracts game files at runtime. Used to pull real, authoritative
+         valid-value sets (e.g. GcCreatureTypes.CreatureTypeEnum) straight from
+         the same source DataCataloger uses, instead of hand-copying enum
+         lists into ArtifactX's own code where they can drift out of sync. -->
+    <ProjectReference Include="..\ArtifactX.Tools\NMS.Tools.libMBIN\NMS.Tools.libMBIN.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Page Update="Views\MultiToolPage.xaml">

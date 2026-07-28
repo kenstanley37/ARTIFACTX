@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
+using libMBIN.NMS.GameComponents;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -239,7 +240,8 @@ public sealed partial class PetsPage : Page
         AdvancedFieldsPanel.Children.Clear();
 
         AddHexPairFieldRow("Secondary Seed (1p=)", NmsPetPaths.SecondarySeedActivePath(petIndex), NmsPetPaths.SecondarySeedPath(petIndex));
-        AddEnumFieldRow("Creature Type (HbY)", NmsPetPaths.CreatureTypePath(petIndex), NmsPetPaths.CreatureTypeValues);
+        AddEnumFieldRow("Creature Type (HbY)", NmsPetPaths.CreatureTypePath(petIndex),
+            Enum.GetNames<GcCreatureTypes.CreatureTypeEnum>());
         AddStringFieldRow("Custom Species Name (HhX)", NmsPetPaths.CustomSpeciesNamePath(petIndex));
         AddHexFieldRow("Unknown Hex (5L6)", NmsPetPaths.UnknownHexCPath(petIndex));
         AddBoolFieldRow("Unknown Bool (Q6I)", NmsPetPaths.UnknownBoolAPath(petIndex));
@@ -279,10 +281,11 @@ public sealed partial class PetsPage : Page
     }
 
     /// <summary>Like AddStringFieldRow, but constrained to a known,
-    /// game-defined set of valid values (e.g. NmsPetPaths.CreatureTypeValues)
-    /// via a dropdown instead of free text - safe to let the user pick from
-    /// even when the field's in-game effect is still unconfirmed, since the
-    /// value set itself is a real constraint, not a guess.</summary>
+    /// game-defined set of valid values (e.g. libMBIN's own
+    /// GcCreatureTypes.CreatureTypeEnum via Enum.GetNames) via a dropdown
+    /// instead of free text - safe to let the user pick from even when the
+    /// field's in-game effect is still unconfirmed, since the value set
+    /// itself is a real constraint, not a guess.</summary>
     private void AddEnumFieldRow(string label, string[] path, IReadOnlyList<string> values)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };

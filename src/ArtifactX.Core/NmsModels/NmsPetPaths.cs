@@ -243,29 +243,12 @@ public static class NmsPetPaths
     /// the CreatureSpecies catalog, see CatalogBuildService). Distinct from
     /// Biome/XID; purpose beyond flavor is unconfirmed. Stored as the plain
     /// enum member name (no "^" prefix, unlike XID/HhX) - confirmed on a
-    /// real pet ("Passive").</summary>
+    /// real pet ("Passive"). The complete, authoritative value set is
+    /// libMBIN's own GcCreatureTypes.CreatureTypeEnum - ArtifactX.Core
+    /// deliberately doesn't reference libMBIN (that's a WinUI3-side
+    /// concern), so the UI pulls the enum's values directly via
+    /// Enum.GetNames rather than a hand-copied duplicate living here.</summary>
     public static string[] CreatureTypePath(int petIndex) => PetPath(petIndex).Append("HbY").Append("HbY").ToArray();
-
-    /// <summary>The complete, authoritative value set for CreatureTypePath -
-    /// copied directly from libMBIN's own GcCreatureTypes.CreatureTypeEnum
-    /// (Source/NMS/GameComponents/GcCreatureTypes.cs in the vendored
-    /// ArtifactX.Tools.NMS.Tools.libMBIN project, not referenced by this
-    /// app at runtime so the list is duplicated here rather than pulled via
-    /// reflection). Mixes creature-shape archetypes (Bird, Crab, Rodent...)
-    /// and behavioral roles (Predator, Prey, Passive, Pet...) in one enum -
-    /// this is a real game-defined type constraint, not a guess, so a
-    /// dropdown restricted to exactly these values is safe to expose even
-    /// though the field's in-game effect itself remains unconfirmed.</summary>
-    public static readonly string[] CreatureTypeValues =
-    {
-        "None", "Bird", "FlyingLizard", "FlyingSnake", "Butterfly", "FlyingBeetle", "Beetle", "Fish", "Shark",
-        "Crab", "Snake", "Dino", "Antelope", "Rodent", "Cat", "Fiend", "BugQueen", "BugFiend", "Drone", "Quad",
-        "SpiderQuad", "SpiderQuadMini", "Walker", "Predator", "PlayerPredator", "Prey", "Passive", "FishPredator",
-        "FishPrey", "FiendFishSmall", "FiendFishBig", "Jellyfish", "LandJellyfish", "RockCreature", "MiniFiend",
-        "Floater", "Scuttler", "Slug", "MiniDrone", "MiniRobo", "SpaceFloater", "JellyBoss", "JellyBossBrood",
-        "LandSquid", "Weird", "SeaSnake", "SandWorm", "ProtoRoller", "ProtoFlyer", "ProtoDigger", "Plough",
-        "Digger", "Drill", "Brainless", "Pet",
-    };
 
     /// <summary>CustomSpeciesName - always "^" (empty) on every sampled pet;
     /// presumably the manual override for the in-game fancy Latin species
