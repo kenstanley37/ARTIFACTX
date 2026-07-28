@@ -308,6 +308,60 @@ public static class CatalogService
         return results;
     }
 
+    /// <summary>Per-species pet/creature data (Rarity, whether the species can be
+    /// used in Holo-Arena Pet Battles, its native MoveArea, and its
+    /// PetBattlerForcedAffinity), sourced from the CreatureSpecies category -
+    /// CatalogBuildService extracts this from the game's own
+    /// metadata/simulation/ecosystem/creaturedatatable.mbin (GcCreatureDataTable),
+    /// found while investigating the Pets page's "Battle Abilities" grades (they
+    /// turned out NOT to live here, but this data is real and otherwise
+    /// undiscoverable, so it's kept). Keyed by the same uppercase archetype code
+    /// the save's own pet XID field uses (e.g. "RODENT") - confirmed via real
+    /// save data, see ArtifactX.Core.NmsModels.NmsPetPaths. Rarity is
+    /// species-wide (every Rodent shares the same value), NOT a per-pet-instance
+    /// stat the way ujr/Trust/etc. are.</summary>
+    public static async Task<Dictionary<string, (string DisplayName, string Rarity, string Description)>> GetCreatureSpeciesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+
+        try
+        {
+            return await Task.Run(() => QueryCreatureSpecies(dbPath));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetCreatureSpeciesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    private static Dictionary<string, (string DisplayName, string Rarity, string Description)> QueryCreatureSpecies(string dbPath)
+    {
+        var results = new Dictionary<string, (string, string, string)>(StringComparer.OrdinalIgnoreCase);
+
+        using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT i.GameId, i.NameEnglish, i.UsageCategory, i.DescriptionEnglish
+            FROM Items i
+            JOIN Categories c ON c.Id = i.CategoryId
+            WHERE c.TemplateType = 'CreatureSpecies'";
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            results[reader.GetString(0)] = (
+                reader.GetString(1),
+                reader.IsDBNull(2) ? "Unknown" : reader.GetString(2),
+                reader.IsDBNull(3) ? "" : reader.GetString(3));
+        }
+
+        return results;
+    }
+
     /// <summary>Ship Technology/Cargo max-slot counts per (ship type, class letter),
     /// sourced from the ShipCapacity category CatalogBuildService extracts from the
     /// game's own GcInventoryTable.ShipInventoryMaxUpgradeSize (see that service for

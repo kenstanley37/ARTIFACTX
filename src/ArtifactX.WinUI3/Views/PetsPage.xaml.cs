@@ -32,6 +32,10 @@ public sealed partial class PetsPage : Page
     private List<PetEntry> _pets = new();
     private bool _suppressStatChangeEvent;
 
+    // Species archetype (XID, e.g. "RODENT") -> catalog data, loaded once per
+    // page lifetime from the CreatureSpecies category - see CatalogService.
+    private Dictionary<string, (string DisplayName, string Rarity, string Description)>? _creatureSpecies;
+
     public PetsPage()
     {
         InitializeComponent();
@@ -117,6 +121,7 @@ public sealed partial class PetsPage : Page
         NameEditBox.Text = "";
         SpeciesTxt.Text = "";
         ClimateTxt.Text = "";
+        RarityTxt.Text = "";
         SeedEditBox.Text = "";
         TrustStatBox.Value = double.NaN;
         Trait1Box.Value = double.NaN;
@@ -130,7 +135,7 @@ public sealed partial class PetsPage : Page
         CombatPointsBox.Value = double.NaN;
     }
 
-    private void LoadSelectedPet()
+    private async void LoadSelectedPet()
     {
         if (_selectedIndex < 0)
         {
@@ -144,7 +149,11 @@ public sealed partial class PetsPage : Page
         NameEditBox.Text = pet.Name;
 
         string archetype = SaveSessionManager.GetValue(NmsPetPaths.SpeciesArchetypePath(_selectedIndex))?.Value<string>() ?? "";
+        string archetypeId = archetype.TrimStart('^');
         SpeciesTxt.Text = FormatArchetype(archetype);
+
+        _creatureSpecies ??= await CatalogService.GetCreatureSpeciesAsync();
+        RarityTxt.Text = _creatureSpecies.TryGetValue(archetypeId, out var species) ? species.Rarity : "";
 
         ClimateTxt.Text = SaveSessionManager.GetValue(NmsPetPaths.NativeClimatePath(_selectedIndex))?.Value<string>() ?? "";
 

@@ -24,7 +24,7 @@
                  rows side by side rather than stacking the whole card into
                  one long vertical column. -->
             <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                    CornerRadius="8" Padding="20" Opacity="0.9" Width="780">
+                    CornerRadius="8" Padding="20" Opacity="0.9" Width="860">
                 <StackPanel Spacing="18">
                     <StackPanel Spacing="6">
                         <TextBlock Text="Name" FontSize="12" Opacity="0.7"/>
@@ -39,6 +39,10 @@
                         <StackPanel Spacing="6" Width="160">
                             <TextBlock Text="Native Climate" FontSize="12" Opacity="0.7"/>
                             <TextBlock x:Name="ClimateTxt" FontSize="14"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6" Width="160">
+                            <TextBlock Text="Rarity" FontSize="12" Opacity="0.7"/>
+                            <TextBlock x:Name="RarityTxt" FontSize="14"/>
                         </StackPanel>
                         <StackPanel Spacing="6" Width="160">
                             <TextBlock Text="Trust" FontSize="12" Opacity="0.7"/>

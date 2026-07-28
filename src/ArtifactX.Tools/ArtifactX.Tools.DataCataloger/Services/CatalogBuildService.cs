@@ -422,6 +422,89 @@ public class CatalogBuildService
             LogService.Write("CatalogBuild: WARNING - could not extract multi-tool capacity data from inventorytable.mbin.");
         }
 
+        // -------------------------------------------------------------
+        // Phase 1.65: Creature/Pet species data - metadata/simulation/
+        // ecosystem/creaturedatatable.mbin decodes to GcCreatureDataTable,
+        // whose Table is a real data table (not a filename rule) keyed by
+        // the same archetype Id the save's own pet entries use as XID (e.g.
+        // "RODENT" - confirmed via real save data, see
+        // ArtifactX.Core.NmsModels.NmsPetPaths). Found while investigating
+        // whether the in-game "Battle Abilities" grades (Combat
+        // Effectiveness/Agility/Health) are baked in here - they are NOT
+        // (no such field exists anywhere on GcCreatureData), but the table
+        // does hold real, confirmed, otherwise-undiscoverable per-species
+        // data worth keeping regardless: Rarity (Common/Uncommon/Rare/
+        // SuperRare - species-wide, not per-pet-instance), whether the
+        // species can appear in Holo-Arena Pet Battles at all
+        // (CanBeUsedInPetBattler), its native MoveArea (Ground/Water/Air/
+        // Space), and its PetBattlerForcedAffinity (Normal/Lush/Cold/Fire/
+        // Toxic/Barren/Radioactive/Weird/Mech - an elemental-style battle
+        // typing). There's no real display-name field on this row shape
+        // (the fancy in-game Latin species name is generated per-pet-
+        // instance from seeds, not looked up from a static table), so
+        // NameEnglish is just a Title-Cased version of Id.
+        // -------------------------------------------------------------
+        var creatureSpeciesCategory = new CatalogCategory
+        {
+            TemplateType = "CreatureSpecies",
+            RowType = "GcCreatureData",
+            SourceMbinPath = "metadata/simulation/ecosystem/creaturedatatable.mbin (GcCreatureDataTable.Table)"
+        };
+
+        foreach (var (pakPath, header, entries) in pakData)
+        {
+            var creatureDataEntry = entries.FirstOrDefault(e =>
+                !string.IsNullOrEmpty(e.FileName) &&
+                e.FileName.EndsWith("creaturedatatable.mbin", StringComparison.OrdinalIgnoreCase));
+
+            if (creatureDataEntry == null) continue;
+
+            NMSTemplate? decoded;
+            try
+            {
+                decoded = DecodeMbin(pakPath, creatureDataEntry, header);
+            }
+            catch
+            {
+                continue; // already logged inside DecodeMbin
+            }
+
+            if (decoded is not libMBIN.NMS.GameComponents.GcCreatureDataTable creatureTable ||
+                creatureTable.Table == null)
+                continue;
+
+            foreach (var row in creatureTable.Table)
+            {
+                string? id = row?.Id?.ToString();
+                if (string.IsNullOrWhiteSpace(id)) continue;
+
+                string rarity = row!.Rarity?.CreatureRarity.ToString() ?? "Unknown";
+                string moveArea = row.MoveArea.ToString();
+                string affinity = row.PetBattlerForcedAffinity?.PetBattlerAffinity.ToString() ?? "Unknown";
+                string petBattler = row.CanBeUsedInPetBattler ? "Yes" : "No";
+
+                creatureSpeciesCategory.Items.Add(new CatalogItem
+                {
+                    GameId = id.ToUpperInvariant(),
+                    NameEnglish = char.ToUpperInvariant(id[0]) + id[1..].ToLowerInvariant(),
+                    UsageCategory = rarity,
+                    DescriptionEnglish = $"PetBattler: {petBattler}; MoveArea: {moveArea}; Affinity: {affinity}"
+                });
+            }
+
+            break; // found and decoded the one real table - no need to keep scanning PAKs
+        }
+
+        if (creatureSpeciesCategory.Items.Count > 0)
+        {
+            categories.Add(creatureSpeciesCategory);
+            LogService.Write($"CatalogBuild: extracted {creatureSpeciesCategory.Items.Count} creature species entries.");
+        }
+        else
+        {
+            LogService.Write("CatalogBuild: WARNING - could not extract creature species data from creaturedatatable.mbin.");
+        }
+
         foreach (var (pakPath, header, entries) in pakData)
         {
             foreach (var entry in entries)
