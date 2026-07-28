@@ -239,7 +239,7 @@ public sealed partial class PetsPage : Page
         AdvancedFieldsPanel.Children.Clear();
 
         AddHexPairFieldRow("Secondary Seed (1p=)", NmsPetPaths.SecondarySeedActivePath(petIndex), NmsPetPaths.SecondarySeedPath(petIndex));
-        AddStringFieldRow("Creature Type (HbY)", NmsPetPaths.CreatureTypePath(petIndex));
+        AddEnumFieldRow("Creature Type (HbY)", NmsPetPaths.CreatureTypePath(petIndex), NmsPetPaths.CreatureTypeValues);
         AddStringFieldRow("Custom Species Name (HhX)", NmsPetPaths.CustomSpeciesNamePath(petIndex));
         AddHexFieldRow("Unknown Hex (5L6)", NmsPetPaths.UnknownHexCPath(petIndex));
         AddBoolFieldRow("Unknown Bool (Q6I)", NmsPetPaths.UnknownBoolAPath(petIndex));
@@ -270,6 +270,40 @@ public sealed partial class PetsPage : Page
             string newValue = box.Text ?? "";
             string current = SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
             if (newValue == current) return;
+            SaveSessionManager.StageEdit(newValue, path);
+            PageResetBtn.Visibility = Visibility.Visible;
+        };
+        row.Children.Add(box);
+
+        AdvancedFieldsPanel.Children.Add(row);
+    }
+
+    /// <summary>Like AddStringFieldRow, but constrained to a known,
+    /// game-defined set of valid values (e.g. NmsPetPaths.CreatureTypeValues)
+    /// via a dropdown instead of free text - safe to let the user pick from
+    /// even when the field's in-game effect is still unconfirmed, since the
+    /// value set itself is a real constraint, not a guess.</summary>
+    private void AddEnumFieldRow(string label, string[] path, IReadOnlyList<string> values)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        row.Children.Add(AdvancedFieldLabel(label));
+
+        var box = new ComboBox { Width = 220 };
+        foreach (var value in values)
+            box.Items.Add(new ComboBoxItem { Content = value });
+
+        string current = SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
+        box.SelectedItem = box.Items.Cast<ComboBoxItem>()
+            .FirstOrDefault(item => string.Equals(item.Content as string, current, StringComparison.OrdinalIgnoreCase));
+
+        box.SelectionChanged += (_, _) =>
+        {
+            if (_suppressStatChangeEvent) return;
+
+            string newValue = (box.SelectedItem as ComboBoxItem)?.Content as string ?? "";
+            string currentValue = SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
+            if (newValue == currentValue) return;
+
             SaveSessionManager.StageEdit(newValue, path);
             PageResetBtn.Visibility = Visibility.Visible;
         };
