@@ -170,9 +170,15 @@ public static class NmsPetPaths
     public static string[] TraitsPath(int petIndex) => PetPath(petIndex).Append("JAy").ToArray();
 
     /// <summary>CreatureSeed - the pet's primary procedural-look seed.
-    /// Confirmed via real reroll-and-reload testing to drive color variance
-    /// (see this class's doc comment); BoneScaleSeedPath below is kept in
-    /// sync with this one on every reroll since every sampled pet showed
+    /// Confirmed via real reroll-and-reload testing to drive the pet's
+    /// pattern/texture (markings, scale/fur style) AND its color WHILE
+    /// ColourBaseSeedActivePath is off. Whether this field still controls
+    /// pattern once the override IS active is untested - every override
+    /// test so far held this field fixed and only varied the override hex
+    /// (see ColourBaseSeedActivePath below), so it's unconfirmed whether
+    /// rerolling this while the override is active would change pattern,
+    /// leave it alone, or something else. BoneScaleSeedPath below is kept
+    /// in sync with this one on every reroll since every sampled pet showed
     /// them mirrored.</summary>
     public static string[] SeedPath(int petIndex) => PetPath(petIndex).Append("WTp").Append("1").ToArray();
 
@@ -221,20 +227,21 @@ public static class NmsPetPaths
 
     /// <summary>ColourBaseSeed's active flag - permanently false, never
     /// independently rolled by the game, on every sampled pet until real
-    /// testing (2026-07-28). CONFIRMED an OVERRIDE, not a blended secondary
-    /// layer - refined via further testing after an initial "secondary
-    /// layer" read turned out too simple: with this inactive, regenerating
-    /// SeedPath (WTp) alone visibly changes the pet's color (as already
-    /// known); once this is activated, the color instead follows THIS
-    /// field's own hex, appearing independent of whatever WTp currently
-    /// holds - i.e. active uAX replaces WTp's contribution to color rather
-    /// than combining with it. 3 separate freshly generated hex values
-    /// while active each produced a distinct, clearly different coloration
-    /// (uniform olive-green, uniform teal/cyan-blue, two-tone
-    /// red-front/olive-rear) - multiple independent shifts, stronger
-    /// evidence than one before/after. Species name, badges, Traits,
-    /// Weight/Height, and Holo-Arena Victories were unaffected
-    /// throughout.</summary>
+    /// testing (2026-07-28). CONFIRMED an OVERRIDE that swaps ONLY color,
+    /// leaving pattern/texture untouched - settled via two rounds of
+    /// testing. First round (regenerating the override hex while also
+    /// changing SeedPath/WTp partway through) briefly looked like it might
+    /// be swapping pattern too, since different Seed values happened to
+    /// pair with different-looking override results. Second round isolated
+    /// the variables properly: with SeedPath held completely fixed and
+    /// Override Active checked, three separate freshly generated override
+    /// hexes in a row (green/brown camo, red, teal) all rendered on the
+    /// EXACT SAME scale/texture pattern - only the color changed each time.
+    /// A paired control (regenerating the override hex while Active stayed
+    /// UNCHECKED) produced zero visible change, confirming the hex is
+    /// simply not read at all while inactive. Species name, badges, Traits,
+    /// Weight/Height, and Holo-Arena Victories were unaffected throughout
+    /// either round.</summary>
     public static string[] ColourBaseSeedActivePath(int petIndex) => PetPath(petIndex).Append("uAX").Append("0").ToArray();
     public static string[] ColourBaseSeedPath(int petIndex) => PetPath(petIndex).Append("uAX").Append("1").ToArray();
 

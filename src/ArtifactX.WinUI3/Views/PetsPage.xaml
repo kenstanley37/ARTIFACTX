@@ -114,7 +114,7 @@
                     <StackPanel Spacing="6">
                         <TextBlock Text="Seed" FontSize="12" Opacity="0.7"/>
                         <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
-                                   Text="Drives this pet's color variance, confirmed via real testing - body shape and Battle Abilities grades stayed the same after a reroll. Generate rolls a fresh value into both of this pet's active color-seed slots together (they were always found mirrored on real saves); paste a seed you've found elsewhere to set just the primary one."/>
+                                   Text="Drives this pet's pattern/texture (markings, scale/fur style) and, while Color Override below is off, its color too - confirmed via real testing; body shape and Battle Abilities grades stayed the same after a reroll either way. Whether this still affects pattern once Color Override is active is untested. Generate rolls a fresh value into both of this pet's active color-seed slots together (they were always found mirrored on real saves); paste a seed you've found elsewhere to set just the primary one."/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBox x:Name="SeedEditBox" Width="220" LostFocus="SeedEditBox_LostFocus"/>
                             <Button Content="Generate" Click="GenerateSeedBtn_Click"/>
@@ -124,7 +124,7 @@
                     <StackPanel Spacing="6">
                         <TextBlock Text="Color Override Seed" FontSize="12" Opacity="0.7"/>
                         <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
-                                   Text="Confirmed via real testing (three separate regenerations, each producing a distinct coloration) - overrides the primary Seed's contribution to color while Active is checked, rather than blending with it (regenerating the primary Seed above has no visible effect while this is active). Dormant on every wild-tamed pet until turned on. Generate activates it and rolls a fresh value; unchecking Active goes back to the primary Seed's own color."/>
+                                   Text="Confirmed via real testing - overrides ONLY the primary Seed's contribution to color while Active is checked, leaving pattern/texture untouched. Isolated with the primary Seed held fixed: three separate freshly generated override hexes each rendered a clearly different color on the exact same pattern. Dormant on every wild-tamed pet until turned on - regenerating this while Active is unchecked has no visible effect. Generate activates it and rolls a fresh value; unchecking Active goes back to the primary Seed's own color."/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <CheckBox x:Name="ColourBaseSeedActiveCheckBox" Content="Active" Click="ColourBaseSeedActiveCheckBox_Click"/>
                             <TextBox x:Name="ColourBaseSeedEditBox" Width="220" LostFocus="ColourBaseSeedEditBox_LostFocus"/>
