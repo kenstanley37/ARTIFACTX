@@ -291,20 +291,14 @@ public sealed partial class ShipsPage : Page
     }
 
     /// <summary>Rerolls the selected ship to a brand new random seed - same
-    /// idea as NomNom's own reroll, not a targeted "give me X wings" picker:
-    /// the actual seed-to-appearance algorithm lives in the game's compiled
-    /// code, not in any MBIN data this app can read, so there's no way to
-    /// preview or aim for a specific look here. All 6 non-Living-Ship seeds
-    /// sampled from a real save were full 64-bit values (one started with
-    /// 'A', confirming the high bit genuinely gets used) - hence generating
-    /// from all 8 random bytes rather than a signed 63-bit long.</summary>
+    /// idea as NomNom's own reroll, not a targeted "give me X wings" picker.
+    /// See NmsSeedGenerator for why (shared with FreighterPage's Model
+    /// Seed/Crew Seed Generate buttons, so both pages roll the same way).</summary>
     private void GenerateSeedBtn_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedIndex < 0) return;
 
-        var bytes = new byte[8];
-        Random.Shared.NextBytes(bytes);
-        string newSeed = "0x" + BitConverter.ToUInt64(bytes).ToString("X16");
+        string newSeed = NmsSeedGenerator.GenerateRandom();
 
         SeedEditBox.Text = newSeed;
         SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.ShipModelSeedPath(_selectedIndex));

@@ -20,22 +20,35 @@
                  panel is; the info panel is a separate column that just sits
                  at the top rather than pairing with the Tech grid alone (a
                  WrapPanel pairing would let a tall info panel stretch/gap the
-                 shorter Tech grid's row, pushing Cargo down with it). -->
-            <Grid ColumnSpacing="24">
+                 shorter Tech grid's row, pushing Cargo down with it). Split
+                 into two Grid rows (rather than one StackPanel per column) so
+                 the info panel's top edge lands exactly level with the Tech
+                 GRID's border, not the "Technology" heading above it - Row 0
+                 holds only the heading/buttons (Column 1 empty), Row 1 holds
+                 the grid+Cargo stack and the info panel side by side, so both
+                 start at the same Y regardless of how tall the heading row
+                 ends up being (e.g. if the button WrapPanel wraps to two
+                 lines on a narrower window). -->
+            <Grid ColumnSpacing="24" RowSpacing="20">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                <StackPanel Grid.Column="0" Spacing="20">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="Technology" FontSize="18" FontWeight="SemiBold"/>
-                        <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
-                            <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
-                            <Button Content="Supercharge All Slots" Click="SuperchargeAllTech_Click"/>
-                            <Button Content="Repair All Slots" Click="RepairAllTech_Click"/>
-                        </ctcontrols:WrapPanel>
-                    </StackPanel>
+                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="8">
+                    <TextBlock Text="Technology" FontSize="18" FontWeight="SemiBold"/>
+                    <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
+                        <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
+                        <Button Content="Supercharge All Slots" Click="SuperchargeAllTech_Click"/>
+                        <Button Content="Repair All Slots" Click="RepairAllTech_Click"/>
+                    </ctcontrols:WrapPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Row="1" Grid.Column="0" Spacing="20">
                     <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
                             CornerRadius="6" HorizontalAlignment="Left" Opacity="0.9">
                         <Grid>
@@ -77,7 +90,7 @@
                      model scene-path swaps (bIR.93M and Sjw.93M respectively),
                      Model Seed and Crew Seed are the matching @EL seeds NomNom
                      shows alongside them. -->
-                <Border Grid.Column="1" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                <Border Grid.Row="1" Grid.Column="1" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
                         CornerRadius="8" Padding="16" Opacity="0.9" Width="300" VerticalAlignment="Top">
                     <StackPanel Spacing="14">
                         <StackPanel Spacing="6">
@@ -99,7 +112,12 @@
 
                         <StackPanel Spacing="6">
                             <TextBlock Text="Model Seed" FontSize="12" Opacity="0.7"/>
-                            <TextBox x:Name="ModelSeedEditBox" Width="260" LostFocus="ModelSeedEditBox_LostFocus"/>
+                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                                       Text="Drives the hull's procedural look, alongside its Type/Class. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBox x:Name="ModelSeedEditBox" Width="185" LostFocus="ModelSeedEditBox_LostFocus"/>
+                                <Button Content="Generate" Click="GenerateModelSeedBtn_Click"/>
+                            </StackPanel>
                         </StackPanel>
 
                         <StackPanel Spacing="6">
@@ -111,7 +129,12 @@
 
                         <StackPanel Spacing="6">
                             <TextBlock Text="Crew Seed" FontSize="12" Opacity="0.7"/>
-                            <TextBox x:Name="CrewSeedEditBox" Width="260" LostFocus="CrewSeedEditBox_LostFocus"/>
+                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                                       Text="Drives the captain's procedural look, alongside their Race. Paste a seed you've found elsewhere, or click Generate for a new random look."/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBox x:Name="CrewSeedEditBox" Width="185" LostFocus="CrewSeedEditBox_LostFocus"/>
+                                <Button Content="Generate" Click="GenerateCrewSeedBtn_Click"/>
+                            </StackPanel>
                         </StackPanel>
 
                         

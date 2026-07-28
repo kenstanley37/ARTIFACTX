@@ -222,6 +222,18 @@ public sealed partial class FreighterPage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
+    /// <summary>Rerolls the captain to a brand new random seed - see
+    /// GenerateModelSeedBtn_Click above.</summary>
+    private void GenerateCrewSeedBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (!SaveSessionManager.IsSaveLoaded) return;
+
+        string newSeed = NmsSeedGenerator.GenerateRandom();
+        CrewSeedEditBox.Text = newSeed;
+        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterCrewSeedPath);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
     private void ModelSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (!SaveSessionManager.IsSaveLoaded) return;
@@ -232,6 +244,20 @@ public sealed partial class FreighterPage : Page
         string? currentSeed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>();
         if (newSeed == currentSeed) return;
 
+        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterModelSeedPath);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Rerolls the hull to a brand new random seed - see
+    /// NmsSeedGenerator for why this is a plain reroll, not a targeted
+    /// picker (shared with ShipsPage's own Generate button, and with
+    /// GenerateCrewSeedBtn_Click above, so all three roll the same way).</summary>
+    private void GenerateModelSeedBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (!SaveSessionManager.IsSaveLoaded) return;
+
+        string newSeed = NmsSeedGenerator.GenerateRandom();
+        ModelSeedEditBox.Text = newSeed;
         SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterModelSeedPath);
         PageResetBtn.Visibility = Visibility.Visible;
     }
