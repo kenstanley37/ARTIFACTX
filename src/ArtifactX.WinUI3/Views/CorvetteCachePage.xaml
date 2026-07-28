@@ -10,10 +10,23 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <ScrollViewer>
-        <StackPanel Padding="24" Spacing="20" HorizontalAlignment="Left">
-            <TextBlock Text="Corvette Workshop Cache" FontSize="26" FontWeight="Bold"/>
-            <Button x:Name="PageResetBtn" Content="Reset Cache Changes" Click="PageResetBtn_Click" Visibility="Collapsed"/>
+        <StackPanel Padding="24" Spacing="20">
+            <!-- Reset button on the title's own row, pinned far right via the
+                 "*" spacer column, styled to stand out as a destructive
+                 action - not its own row below, which shifted the whole page
+                 down whenever it appeared. -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Corvette Workshop Cache" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Cache Changes" Click="PageResetBtn_Click"
+                        Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+            </Grid>
 
+            <StackPanel Spacing="20" HorizontalAlignment="Left">
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="Contents" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 <Button Content="Max All Qty" Click="MaxAllQtyBtn_Click"/>
@@ -33,6 +46,7 @@
                     </Button>
                 </Grid>
             </Border>
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </Page>

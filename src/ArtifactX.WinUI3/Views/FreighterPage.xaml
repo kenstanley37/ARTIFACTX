@@ -11,10 +11,23 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <ScrollViewer>
-        <StackPanel Padding="24" Spacing="20" HorizontalAlignment="Left">
-            <TextBlock Text="Freighter" FontSize="26" FontWeight="Bold"/>
-            <Button x:Name="PageResetBtn" Content="Reset Freighter Changes" Click="PageResetBtn_Click" Visibility="Collapsed"/>
+        <StackPanel Padding="24" Spacing="20">
+            <!-- Reset button on the title's own row, pinned far right via the
+                 "*" spacer column, styled to stand out as a destructive
+                 action - not its own row below, which shifted the whole page
+                 down whenever it appeared. -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Freighter" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Freighter Changes" Click="PageResetBtn_Click"
+                        Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+            </Grid>
 
+            <StackPanel Spacing="20" HorizontalAlignment="Left">
             <!-- Technology and Cargo stack in their own column so they always
                  sit directly under each other regardless of how tall the info
                  panel is; the info panel is a separate column that just sits
@@ -161,6 +174,7 @@
                     </StackPanel>
                 </Border>
             </Grid>
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </Page>

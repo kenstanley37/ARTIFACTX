@@ -10,16 +10,25 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <ScrollViewer>
-        <StackPanel Padding="24" Spacing="20" HorizontalAlignment="Left">
+        <StackPanel Padding="24" Spacing="20">
             <!-- Same row as the title, not its own row below - so the Reset
                  button appearing/disappearing doesn't shift everything under
                  it down (was previously its own row, added/removed vertical
-                 space each time its Visibility changed). -->
-            <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
-                <TextBlock Text="Pets" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
-                <Button x:Name="PageResetBtn" Content="Reset Pet Changes" Click="PageResetBtn_Click" Visibility="Collapsed" VerticalAlignment="Center"/>
-            </StackPanel>
+                 space each time its Visibility changed). Pinned to the far
+                 right via the "*" spacer column, and styled to stand out
+                 since it's a destructive action (discards pending edits). -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Pets" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Pet Changes" Click="PageResetBtn_Click"
+                        Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+            </Grid>
 
+            <StackPanel Spacing="20" HorizontalAlignment="Left">
             <TextBlock Text="Owned Pets" FontSize="14" Opacity="0.8"/>
             <ScrollViewer MaxHeight="104" VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
@@ -206,6 +215,7 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </Page>

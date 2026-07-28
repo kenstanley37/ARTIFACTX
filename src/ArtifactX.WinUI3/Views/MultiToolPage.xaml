@@ -32,8 +32,21 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Row="0" Grid.Column="0" Spacing="20">
-                    <TextBlock Text="Multi-Tool" FontSize="26" FontWeight="Bold"/>
-                    <Button x:Name="PageResetBtn" Content="Reset Multi-Tool Changes" Click="PageResetBtn_Click" Visibility="Collapsed"/>
+                    <!-- Reset button pinned far right of THIS column (not the
+                         whole page - Column 1 is the Templates panel), styled
+                         to stand out as a destructive action - not its own
+                         row below, which shifted everything under it down
+                         whenever it appeared. -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Multi-Tool" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Multi-Tool Changes" Click="PageResetBtn_Click"
+                                Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+                    </Grid>
 
                     <TextBlock Text="Owned Multi-Tools" FontSize="14" Opacity="0.8"/>
                     <!-- The game doesn't hard-cap how many multi-tools a player can own, so

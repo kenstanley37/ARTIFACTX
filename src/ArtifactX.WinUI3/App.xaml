@@ -25,9 +25,26 @@
             <SolidColorBrush x:Key="NmsAccentBrush" Color="#FF9D00" />
             <SolidColorBrush x:Key="NmsTextPrimary" Color="#F0F3F8" />
             <SolidColorBrush x:Key="NmsTextSecondary" Color="#8A96A8" />
+            <SolidColorBrush x:Key="NmsDangerBrush" Color="#C42B1C" />
 
             <StaticResource x:Key="NavigationViewTopPaneBackground" ResourceKey="NmsPaneBackgroundBrush" />
             <StaticResource x:Key="NavigationViewDefaultPaneBackground" ResourceKey="NmsPaneBackgroundBrush" />
+
+            <!-- Every page's "Reset X Changes" button uses this - a plain
+                 default-styled button blended into the background too easily,
+                 and this is a destructive action (discards pending edits) that
+                 deserves to stand out. Plain property Setters (not a
+                 ThemeResource-key override, which needs a Style.Resources
+                 block WinUI3 doesn't actually support) - the default Button
+                 template binds its idle Background/Foreground/BorderBrush
+                 straight from these properties, which covers the state this
+                 button is in almost all the time; hover/pressed still use the
+                 stock highlight treatment on top of it. -->
+            <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                <Setter Property="Background" Value="{StaticResource NmsDangerBrush}"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderBrush" Value="{StaticResource NmsDangerBrush}"/>
+            </Style>
 
         </ResourceDictionary>
     </Application.Resources>
