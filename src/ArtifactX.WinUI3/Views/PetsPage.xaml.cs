@@ -145,6 +145,10 @@ public sealed partial class PetsPage : Page
         SeedEditBox.Text = "";
         BattleAbilitySeedEditBox.Text = "";
         BattleAbilitySeed2EditBox.Text = "";
+        ClassLetterOverrideActiveCheckBox.IsChecked = false;
+        ClassLetterHealthBox.Text = "";
+        ClassLetterAgilityBox.Text = "";
+        ClassLetterCombatBox.Text = "";
         TrustStatBox.Value = double.NaN;
         Trait1Box.Value = double.NaN;
         Trait2Box.Value = double.NaN;
@@ -185,6 +189,11 @@ public sealed partial class PetsPage : Page
         SeedEditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.SeedPath(_selectedIndex))?.Value<string>() ?? "";
         BattleAbilitySeedEditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.RollSeedPrimaryPath(_selectedIndex))?.Value<string>() ?? "";
         BattleAbilitySeed2EditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.RollSeedSecondaryPath(_selectedIndex))?.Value<string>() ?? "";
+
+        ClassLetterOverrideActiveCheckBox.IsChecked = SaveSessionManager.GetValue(NmsPetPaths.ClassLetterOverrideActivePath(_selectedIndex))?.Value<bool>() ?? false;
+        ClassLetterHealthBox.Text = SaveSessionManager.GetValue(NmsPetPaths.ClassLetterPath(_selectedIndex, 0))?.Value<string>() ?? "";
+        ClassLetterAgilityBox.Text = SaveSessionManager.GetValue(NmsPetPaths.ClassLetterPath(_selectedIndex, 1))?.Value<string>() ?? "";
+        ClassLetterCombatBox.Text = SaveSessionManager.GetValue(NmsPetPaths.ClassLetterPath(_selectedIndex, 2))?.Value<string>() ?? "";
 
         double trust = SaveSessionManager.GetValue(NmsPetPaths.TrustPath(_selectedIndex))?.Value<double>() ?? 0;
         TrustStatBox.Value = Math.Round(trust * 100, 1);
@@ -227,14 +236,12 @@ public sealed partial class PetsPage : Page
         AddHexPairFieldRow("Colour Base Seed (uAX)", NmsPetPaths.ColourBaseSeedActivePath(petIndex), NmsPetPaths.ColourBaseSeedPath(petIndex));
         AddStringFieldRow("Creature Type (HbY)", NmsPetPaths.CreatureTypePath(petIndex));
         AddStringFieldRow("Custom Species Name (HhX)", NmsPetPaths.CustomSpeciesNamePath(petIndex));
-        AddClassLetterRow(petIndex);
         AddHexFieldRow("Unknown Hex (5L6)", NmsPetPaths.UnknownHexCPath(petIndex));
         AddBoolFieldRow("Unknown Bool (Q6I)", NmsPetPaths.UnknownBoolAPath(petIndex));
         AddBoolFieldRow("Unknown Bool (IaE)", NmsPetPaths.UnknownBoolBPath(petIndex));
         AddBoolFieldRow("Unknown Bool (?<V)", NmsPetPaths.UnknownBoolCPath(petIndex));
         AddBoolFieldRow("Unknown Bool (eK9)", NmsPetPaths.UnknownBoolDPath(petIndex));
         AddBoolFieldRow("Unknown Bool (WQX)", NmsPetPaths.UnknownBoolEPath(petIndex));
-        AddBoolFieldRow("Unknown Bool (isp)", NmsPetPaths.UnknownBoolFPath(petIndex));
     }
 
     private static TextBlock AdvancedFieldLabel(string text) => new()
@@ -355,39 +362,6 @@ public sealed partial class PetsPage : Page
             PageResetBtn.Visibility = Visibility.Visible;
         };
         row.Children.Add(generateBtn);
-
-        AdvancedFieldsPanel.Children.Add(row);
-    }
-
-    private void AddClassLetterRow(int petIndex)
-    {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-        row.Children.Add(AdvancedFieldLabel("Class Letters (E<S) [confirmed unrelated to badges]"));
-
-        string[] statLabels = { "Agility", "Health", "Combat" };
-        for (int i = 0; i < 3; i++)
-        {
-            var path = NmsPetPaths.ClassLetterPath(petIndex, i);
-
-            row.Children.Add(new TextBlock
-            {
-                Text = statLabels[i],
-                VerticalAlignment = VerticalAlignment.Center,
-                FontSize = 11,
-                Opacity = 0.6
-            });
-
-            var box = new TextBox { Width = 50, Text = SaveSessionManager.GetValue(path)?.Value<string>() ?? "" };
-            box.LostFocus += (_, _) =>
-            {
-                string newValue = box.Text?.Trim().ToUpperInvariant() ?? "";
-                string current = SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
-                if (newValue == current) return;
-                SaveSessionManager.StageEdit(newValue, path);
-                PageResetBtn.Visibility = Visibility.Visible;
-            };
-            row.Children.Add(box);
-        }
 
         AdvancedFieldsPanel.Children.Add(row);
     }
@@ -645,6 +619,32 @@ public sealed partial class PetsPage : Page
         SaveSessionManager.StageEdit(newSeed, NmsPetPaths.RollSeedSecondaryPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
+
+    private void ClassLetterOverrideActiveCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0) return;
+
+        SaveSessionManager.StageEdit(ClassLetterOverrideActiveCheckBox.IsChecked ?? false,
+            NmsPetPaths.ClassLetterOverrideActivePath(_selectedIndex));
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void StageClassLetterEdit(TextBox box, int statIndex)
+    {
+        if (_selectedIndex < 0) return;
+
+        string newValue = box.Text?.Trim().ToUpperInvariant() ?? "";
+        var path = NmsPetPaths.ClassLetterPath(_selectedIndex, statIndex);
+        string current = SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
+        if (newValue == current) return;
+
+        SaveSessionManager.StageEdit(newValue, path);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void ClassLetterHealthBox_LostFocus(object sender, RoutedEventArgs e) => StageClassLetterEdit(ClassLetterHealthBox, 0);
+    private void ClassLetterAgilityBox_LostFocus(object sender, RoutedEventArgs e) => StageClassLetterEdit(ClassLetterAgilityBox, 1);
+    private void ClassLetterCombatBox_LostFocus(object sender, RoutedEventArgs e) => StageClassLetterEdit(ClassLetterCombatBox, 2);
 
     /// <summary>Scoped to just the currently selected pet's own subtree (via
     /// RevertEditsUnder) - same "current item only" scope as every other

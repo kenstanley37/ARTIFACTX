@@ -120,6 +120,27 @@
                         </StackPanel>
                     </StackPanel>
 
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Battle Ability Override" FontSize="12" Opacity="0.7"/>
+                        <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
+                                   Text="Confirmed via real testing - when Override Active is checked, the Battle Abilities badges are read directly from the Class Letters below instead of the Battle Ability Seeds above. Unchecked (the default on every wild-tamed pet) leaves the badges driven by the Seeds, and these letters sit dormant. Confirmed via real testing that the display order here is Health/Agility/Combat, NOT the Agility/Health/Combat order used above and in Genetic Profile below."/>
+                        <CheckBox x:Name="ClassLetterOverrideActiveCheckBox" Content="Override Active" Click="ClassLetterOverrideActiveCheckBox_Click"/>
+                        <StackPanel Orientation="Horizontal" Spacing="32">
+                            <StackPanel Spacing="6" Width="160">
+                                <TextBlock Text="Health" Opacity="0.7"/>
+                                <TextBox x:Name="ClassLetterHealthBox" Width="60" HorizontalAlignment="Left" LostFocus="ClassLetterHealthBox_LostFocus"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6" Width="160">
+                                <TextBlock Text="Agility" Opacity="0.7"/>
+                                <TextBox x:Name="ClassLetterAgilityBox" Width="60" HorizontalAlignment="Left" LostFocus="ClassLetterAgilityBox_LostFocus"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6" Width="160">
+                                <TextBlock Text="Combat" Opacity="0.7"/>
+                                <TextBox x:Name="ClassLetterCombatBox" Width="60" HorizontalAlignment="Left" LostFocus="ClassLetterCombatBox_LostFocus"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
                     <StackPanel Spacing="8">
                         <TextBlock Text="Genetic Profile" FontSize="14" FontWeight="SemiBold"/>
                         <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
@@ -146,7 +167,7 @@
                     <StackPanel Spacing="8">
                         <TextBlock Text="Advanced Fields (Unconfirmed Purpose)" FontSize="14" FontWeight="SemiBold"/>
                         <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="820"
-                                   Text="Every other raw field on this pet with no confirmed in-game effect yet - edit one at a time and check in-game what changes, if anything. Class Letters (E&lt;S) and Unknown Hex (5L6) are both confirmed NOT to drive the Battle Abilities badges; everything else here is completely unconfirmed, including whether it does anything at all."/>
+                                   Text="Every other raw field on this pet with no confirmed in-game effect yet - edit one at a time and check in-game what changes, if anything. Unknown Hex (5L6) is confirmed NOT to drive the Battle Abilities badges; everything here is otherwise completely unconfirmed, including whether it does anything at all."/>
                         <StackPanel x:Name="AdvancedFieldsPanel" Spacing="10"/>
                     </StackPanel>
                 </StackPanel>

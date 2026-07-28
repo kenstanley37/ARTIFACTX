@@ -78,16 +78,27 @@ namespace ArtifactX.Core.NmsModels;
 ///    "1o6" Class-letter convention as Ships/Freighter/Multi-Tool) are both
 ///    pet-specific fields beyond the base CreatureSave contract (Creature-
 ///    Builder doesn't cover the companion leveling metagame). ujr is
-///    confirmed via exact "X/10" matches. E&lt;S is CONFIRMED NOT to drive the
-///    in-game "Battle Abilities" badges (Combat Effectiveness/Agility/
-///    Health) it was originally guessed to control - real-save testing
-///    forced one pet's E&lt;S to S/S/S across multiple saves/reloads with its
-///    badges staying exactly what they were before the edit, a second,
-///    never-edited pet's badges (S/C/C) didn't match its own untouched E&lt;S
-///    (C/C/C), grinding a third pet's actual mutation POINTS up through real
-///    battles didn't move its badges either, and a WTp/6fX reroll didn't
-///    either. E&lt;S's own purpose is still unconfirmed - exposed via
-///    ClassLetterPath below as an "Advanced (Unconfirmed)" field.
+///    confirmed via exact "X/10" matches. E&lt;S's relationship to the "Battle
+///    Abilities" badges took two rounds to fully understand - first-round
+///    testing (forcing one pet's E&lt;S to S/S/S across reloads with no badge
+///    change, a second pet's untouched badges/E&lt;S not matching, grinding
+///    mutation points not moving badges, a WTp/6fX reroll not moving them)
+///    concluded E&lt;S was unrelated. That conclusion was INCOMPLETE, not
+///    wrong: every one of those test pets had isp (see UnknownBoolFPath,
+///    now ClassLetterOverrideActivePath below) false, which is the default
+///    on every wild-tamed pet sampled - and isp=false is exactly the state
+///    where E&lt;S is dormant/ignored (always observed as S/S/S, a placeholder
+///    default) while the badges instead come from the m9o/JrL roll below.
+///    Setting isp=true (2026-07-28) flips the game into reading E&lt;S
+///    directly for the badges instead - confirmed via real testing: with
+///    isp=true and E&lt;S left at its default S/S/S, all three badges/bars
+///    jumped to max (S/S/S); with isp still true and E&lt;S manually set to
+///    distinct letters (Agility=A/Health=B/Combat=C typed), the in-game
+///    badges displayed exactly those three letters. That same test also
+///    caught a real index-order bug: E&lt;S does NOT share ujr's Agility/
+///    Health/Combat order - statIndex 0 is Health and statIndex 1 is
+///    Agility (swapped relative to ujr), while statIndex 2 (Combat) does
+///    match. See ClassLetterPath below for the corrected mapping.
 ///  - m9o AND JrL (hex strings, RollSeedPrimaryPath/RollSeedSecondaryPath
 ///    below) are BOTH CONFIRMED co-inputs driving the Battle Abilities
 ///    badges (Combat Effectiveness/Agility/Health grades) AND the in-game
@@ -220,11 +231,16 @@ public static class NmsPetPaths
     public static string[] CustomSpeciesNamePath(int petIndex) => PetPath(petIndex).Append("HhX").ToArray();
 
     /// <summary>E&lt;S[statIndex].1o6 - the same "1o6" Class-letter (S/A/B/C)
-    /// convention Ships/Freighter/Multi-Tool use, one per mutation stat
-    /// (statIndex 0/1/2 = Agility/Health/Combat, same order as
-    /// MutationPointsPath/ujr). CONFIRMED NOT to drive the in-game "Battle
-    /// Abilities" badges (see this class's doc comment) - exposed anyway
-    /// since its real purpose, if any, is still unconfirmed.</summary>
+    /// convention Ships/Freighter/Multi-Tool use. CONFIRMED (2026-07-28) to
+    /// directly set the in-game "Battle Abilities" badges (Combat
+    /// Effectiveness/Agility/Health grades) whenever
+    /// ClassLetterOverrideActivePath is true - see this class's doc comment
+    /// for the full test. statIndex order does NOT match ujr/
+    /// MutationPointsPath's Agility/Health/Combat order - confirmed via real
+    /// testing (typed 3 distinct letters into each slot, compared to which
+    /// in-game badge showed which letter): statIndex 0 = Health, statIndex
+    /// 1 = Agility, statIndex 2 = Combat (only Combat's position
+    /// matches ujr's order).</summary>
     public static string[] ClassLetterPath(int petIndex, int statIndex) =>
         PetPath(petIndex).Append("E<S").Append(statIndex.ToString()).Append("1o6").ToArray();
 
@@ -276,5 +292,15 @@ public static class NmsPetPaths
     /// checked as UnknownBoolAPath, all stayed identical. Purpose otherwise
     /// unknown.</summary>
     public static string[] UnknownBoolEPath(int petIndex) => PetPath(petIndex).Append("WQX").ToArray();
-    public static string[] UnknownBoolFPath(int petIndex) => PetPath(petIndex).Append("isp").ToArray();
+
+    /// <summary>CONFIRMED (2026-07-28, real testing) to be a mode switch for
+    /// the Battle Abilities badges: false (the default on every wild-tamed
+    /// pet sampled) means the badges come from the RollSeedPrimaryPath/
+    /// RollSeedSecondaryPath roll; true means the game reads ClassLetterPath
+    /// (E&lt;S) directly instead, ignoring the roll fields. See this class's
+    /// doc comment for the full test - toggling this true alone (with E&lt;S
+    /// left at its dormant default S/S/S) immediately maxed all three
+    /// badges, and setting E&lt;S to distinct letters while this stayed true
+    /// made the badges show exactly those letters.</summary>
+    public static string[] ClassLetterOverrideActivePath(int petIndex) => PetPath(petIndex).Append("isp").ToArray();
 }
