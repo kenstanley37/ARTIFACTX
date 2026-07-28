@@ -153,6 +153,7 @@ public sealed partial class MainWindow : Window
                 "Freighter" => typeof(FreighterPage),
                 "BaseStorage" => typeof(BaseStoragePage),
                 "CorvetteCache" => typeof(CorvetteCachePage),
+                "Pets" => typeof(PetsPage),
                 "AncestrySearch" => typeof(AncestrySearchView),
                 "HGDecryption" => typeof(HGDecryptionPage),
                 _ => typeof(SaveFolderSelectPage)
@@ -179,6 +180,7 @@ public sealed partial class MainWindow : Window
         FreighterNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         BaseStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         CorvetteCacheNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        PetsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ContentFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
@@ -193,6 +195,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(FreighterPage) => "Freighter",
             Type t when t == typeof(BaseStoragePage) => "BaseStorage",
             Type t when t == typeof(CorvetteCachePage) => "CorvetteCache",
+            Type t when t == typeof(PetsPage) => "Pets",
             Type t when t == typeof(AncestrySearchView) => "AncestrySearch",
             Type t when t == typeof(HGDecryptionPage) => "HGDecryption",
             _ => string.Empty

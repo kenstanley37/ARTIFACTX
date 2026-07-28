@@ -34,6 +34,7 @@
     <None Remove="Views\FreighterPage.xaml" />
     <None Remove="Views\BaseStoragePage.xaml" />
     <None Remove="Views\CorvetteCachePage.xaml" />
+    <None Remove="Views\PetsPage.xaml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -110,6 +111,11 @@
   </ItemGroup>
   <ItemGroup>
     <Page Update="Views\CorvetteCachePage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Views\PetsPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>

@@ -54,6 +54,9 @@ BundleArtifacts/
 *.appinstaller
 *.pfx
 
+## ====== Local tool config (machine-specific paths) ======
+src/ArtifactX.Tools/ArtifactX.Tools.DataCataloger/config.json
+
 ## ====== SQLite / Local Data Layers ======
 *.db
 *.sqlite
