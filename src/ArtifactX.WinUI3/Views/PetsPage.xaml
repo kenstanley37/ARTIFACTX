@@ -106,6 +106,16 @@
                         </StackPanel>
                     </StackPanel>
 
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Battle Ability Seed" FontSize="12" Opacity="0.7"/>
+                        <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
+                                   Text="Drives the in-game Battle Abilities badges (Combat Effectiveness/Agility/Health grades) AND the fancy auto-generated species name shown in-game - confirmed via real reroll-and-revert testing: rerolling changed both together, and restoring the original value reverted both back exactly. Distinct from the color Seed above, which is confirmed NOT to touch either of these."/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="BattleAbilitySeedEditBox" Width="220" LostFocus="BattleAbilitySeedEditBox_LostFocus"/>
+                            <Button Content="Generate" Click="GenerateBattleAbilitySeedBtn_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+
                     <StackPanel Spacing="8">
                         <TextBlock Text="Genetic Profile" FontSize="14" FontWeight="SemiBold"/>
                         <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
@@ -127,6 +137,13 @@
                                            SpinButtonPlacementMode="Hidden" ValueChanged="CombatPointsBox_ValueChanged"/>
                             </StackPanel>
                         </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Advanced Fields (Unconfirmed Purpose)" FontSize="14" FontWeight="SemiBold"/>
+                        <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="820"
+                                   Text="Every other raw field on this pet with no confirmed in-game effect yet - edit one at a time and check in-game what changes, if anything. Class Letters (E&lt;S) is confirmed NOT to drive the Battle Abilities badges; everything else here is completely unconfirmed, including whether it does anything at all."/>
+                        <StackPanel x:Name="AdvancedFieldsPanel" Spacing="10"/>
                     </StackPanel>
                 </StackPanel>
             </Border>

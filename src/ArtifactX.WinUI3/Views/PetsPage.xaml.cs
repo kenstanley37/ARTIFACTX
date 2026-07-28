@@ -143,6 +143,7 @@ public sealed partial class PetsPage : Page
         ClimateTxt.Text = "";
         RarityTxt.Text = "";
         SeedEditBox.Text = "";
+        BattleAbilitySeedEditBox.Text = "";
         TrustStatBox.Value = double.NaN;
         Trait1Box.Value = double.NaN;
         Trait2Box.Value = double.NaN;
@@ -153,6 +154,7 @@ public sealed partial class PetsPage : Page
         AgilityPointsBox.Value = double.NaN;
         HealthPointsBox.Value = double.NaN;
         CombatPointsBox.Value = double.NaN;
+        AdvancedFieldsPanel.Children.Clear();
     }
 
     private async void LoadSelectedPet()
@@ -180,6 +182,7 @@ public sealed partial class PetsPage : Page
         ClimateTxt.Text = SaveSessionManager.GetValue(NmsPetPaths.NativeClimatePath(_selectedIndex))?.Value<string>() ?? "";
 
         SeedEditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.SeedPath(_selectedIndex))?.Value<string>() ?? "";
+        BattleAbilitySeedEditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.RollSeedPath(_selectedIndex))?.Value<string>() ?? "";
 
         double trust = SaveSessionManager.GetValue(NmsPetPaths.TrustPath(_selectedIndex))?.Value<double>() ?? 0;
         TrustStatBox.Value = Math.Round(trust * 100, 1);
@@ -204,7 +207,188 @@ public sealed partial class PetsPage : Page
         PageResetBtn.Visibility = SaveSessionManager.HasStagedEditsUnder(NmsPetPaths.PetPath(_selectedIndex))
             ? Visibility.Visible : Visibility.Collapsed;
 
+        BuildAdvancedFieldsPanel(_selectedIndex);
+
         _suppressStatChangeEvent = false;
+    }
+
+    /// <summary>Every remaining raw field on this pet with no confirmed
+    /// in-game effect - built dynamically (like BuildSelectorStrip above)
+    /// rather than as fixed named XAML controls, since the field set itself
+    /// is exploratory and may grow/shrink as fields get confirmed one way or
+    /// the other.</summary>
+    private void BuildAdvancedFieldsPanel(int petIndex)
+    {
+        AdvancedFieldsPanel.Children.Clear();
+
+        AddHexPairFieldRow("Secondary Seed (1p=)", NmsPetPaths.SecondarySeedActivePath(petIndex), NmsPetPaths.SecondarySeedPath(petIndex));
+        AddHexPairFieldRow("Colour Base Seed (uAX)", NmsPetPaths.ColourBaseSeedActivePath(petIndex), NmsPetPaths.ColourBaseSeedPath(petIndex));
+        AddStringFieldRow("Creature Type (HbY)", NmsPetPaths.CreatureTypePath(petIndex));
+        AddStringFieldRow("Custom Species Name (HhX)", NmsPetPaths.CustomSpeciesNamePath(petIndex));
+        AddClassLetterRow(petIndex);
+        AddHexFieldRow("Unknown Hex (JrL)", NmsPetPaths.UnknownHexBPath(petIndex));
+        AddHexFieldRow("Unknown Hex (5L6)", NmsPetPaths.UnknownHexCPath(petIndex));
+        AddBoolFieldRow("Unknown Bool (Q6I)", NmsPetPaths.UnknownBoolAPath(petIndex));
+        AddBoolFieldRow("Unknown Bool (IaE)", NmsPetPaths.UnknownBoolBPath(petIndex));
+        AddBoolFieldRow("Unknown Bool (?<V)", NmsPetPaths.UnknownBoolCPath(petIndex));
+        AddBoolFieldRow("Unknown Bool (eK9)", NmsPetPaths.UnknownBoolDPath(petIndex));
+        AddBoolFieldRow("Unknown Bool (WQX)", NmsPetPaths.UnknownBoolEPath(petIndex));
+        AddBoolFieldRow("Unknown Bool (isp)", NmsPetPaths.UnknownBoolFPath(petIndex));
+    }
+
+    private static TextBlock AdvancedFieldLabel(string text) => new()
+    {
+        Text = text,
+        Width = 210,
+        VerticalAlignment = VerticalAlignment.Center,
+        Opacity = 0.8,
+        FontSize = 12,
+        TextWrapping = TextWrapping.Wrap
+    };
+
+    private void AddStringFieldRow(string label, string[] path)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        row.Children.Add(AdvancedFieldLabel(label));
+
+        var box = new TextBox { Width = 260, Text = SaveSessionManager.GetValue(path)?.Value<string>() ?? "" };
+        box.LostFocus += (_, _) =>
+        {
+            string newValue = box.Text ?? "";
+            string current = SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
+            if (newValue == current) return;
+            SaveSessionManager.StageEdit(newValue, path);
+            PageResetBtn.Visibility = Visibility.Visible;
+        };
+        row.Children.Add(box);
+
+        AdvancedFieldsPanel.Children.Add(row);
+    }
+
+    /// <summary>Like AddStringFieldRow, but for a raw hex-string field with
+    /// no separate active flag - adds a Generate button using the same
+    /// NmsSeedGenerator the confirmed Seed field uses.</summary>
+    private void AddHexFieldRow(string label, string[] path)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        row.Children.Add(AdvancedFieldLabel(label));
+
+        var box = new TextBox { Width = 220, Text = SaveSessionManager.GetValue(path)?.Value<string>() ?? "" };
+        box.LostFocus += (_, _) =>
+        {
+            string newValue = box.Text ?? "";
+            string current = SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
+            if (newValue == current) return;
+            SaveSessionManager.StageEdit(newValue, path);
+            PageResetBtn.Visibility = Visibility.Visible;
+        };
+        row.Children.Add(box);
+
+        var generateBtn = new Button { Content = "Generate" };
+        generateBtn.Click += (_, _) =>
+        {
+            string newValue = NmsSeedGenerator.GenerateRandom();
+            box.Text = newValue;
+            SaveSessionManager.StageEdit(newValue, path);
+            PageResetBtn.Visibility = Visibility.Visible;
+        };
+        row.Children.Add(generateBtn);
+
+        AdvancedFieldsPanel.Children.Add(row);
+    }
+
+    private void AddBoolFieldRow(string label, string[] path)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        row.Children.Add(AdvancedFieldLabel(label));
+
+        var box = new CheckBox { IsChecked = SaveSessionManager.GetValue(path)?.Value<bool>() ?? false };
+        box.Click += (_, _) =>
+        {
+            SaveSessionManager.StageEdit(box.IsChecked ?? false, path);
+            PageResetBtn.Visibility = Visibility.Visible;
+        };
+        row.Children.Add(box);
+
+        AdvancedFieldsPanel.Children.Add(row);
+    }
+
+    private void AddHexPairFieldRow(string label, string[] activePath, string[] hexPath)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        row.Children.Add(AdvancedFieldLabel(label));
+
+        var activeBox = new CheckBox
+        {
+            Content = "Active",
+            IsChecked = SaveSessionManager.GetValue(activePath)?.Value<bool>() ?? false
+        };
+        activeBox.Click += (_, _) =>
+        {
+            SaveSessionManager.StageEdit(activeBox.IsChecked ?? false, activePath);
+            PageResetBtn.Visibility = Visibility.Visible;
+        };
+        row.Children.Add(activeBox);
+
+        var hexBox = new TextBox { Width = 220, Text = SaveSessionManager.GetValue(hexPath)?.Value<string>() ?? "" };
+        hexBox.LostFocus += (_, _) =>
+        {
+            string newValue = hexBox.Text ?? "";
+            string current = SaveSessionManager.GetValue(hexPath)?.Value<string>() ?? "";
+            if (newValue == current) return;
+            SaveSessionManager.StageEdit(newValue, hexPath);
+            PageResetBtn.Visibility = Visibility.Visible;
+        };
+        row.Children.Add(hexBox);
+
+        // Generate also flips Active on - a randomized hex behind a false
+        // flag is an untested combination, not a meaningful test on its own.
+        var generateBtn = new Button { Content = "Generate" };
+        generateBtn.Click += (_, _) =>
+        {
+            string newValue = NmsSeedGenerator.GenerateRandom();
+            hexBox.Text = newValue;
+            activeBox.IsChecked = true;
+            SaveSessionManager.StageEdit(newValue, hexPath);
+            SaveSessionManager.StageEdit(true, activePath);
+            PageResetBtn.Visibility = Visibility.Visible;
+        };
+        row.Children.Add(generateBtn);
+
+        AdvancedFieldsPanel.Children.Add(row);
+    }
+
+    private void AddClassLetterRow(int petIndex)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        row.Children.Add(AdvancedFieldLabel("Class Letters (E<S) [confirmed unrelated to badges]"));
+
+        string[] statLabels = { "Agility", "Health", "Combat" };
+        for (int i = 0; i < 3; i++)
+        {
+            var path = NmsPetPaths.ClassLetterPath(petIndex, i);
+
+            row.Children.Add(new TextBlock
+            {
+                Text = statLabels[i],
+                VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 11,
+                Opacity = 0.6
+            });
+
+            var box = new TextBox { Width = 50, Text = SaveSessionManager.GetValue(path)?.Value<string>() ?? "" };
+            box.LostFocus += (_, _) =>
+            {
+                string newValue = box.Text?.Trim().ToUpperInvariant() ?? "";
+                string current = SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
+                if (newValue == current) return;
+                SaveSessionManager.StageEdit(newValue, path);
+                PageResetBtn.Visibility = Visibility.Visible;
+            };
+            row.Children.Add(box);
+        }
+
+        AdvancedFieldsPanel.Children.Add(row);
     }
 
     /// <summary>"^PLANTCAT" -> "Plantcat" - just enough formatting to be
@@ -401,6 +585,35 @@ public sealed partial class PetsPage : Page
         SeedEditBox.Text = newSeed;
         SaveSessionManager.StageEdit(newSeed, NmsPetPaths.SeedPath(_selectedIndex));
         SaveSessionManager.StageEdit(newSeed, NmsPetPaths.BoneScaleSeedPath(_selectedIndex));
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void BattleAbilitySeedEditBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0) return;
+
+        string newSeed = BattleAbilitySeedEditBox.Text?.Trim() ?? "";
+        if (string.IsNullOrEmpty(newSeed)) return;
+
+        var rollSeedPath = NmsPetPaths.RollSeedPath(_selectedIndex);
+        string? currentSeed = SaveSessionManager.GetValue(rollSeedPath)?.Value<string>();
+        if (newSeed == currentSeed) return;
+
+        SaveSessionManager.StageEdit(newSeed, rollSeedPath);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Rerolls the selected pet's Battle Abilities badges and fancy
+    /// species name to a brand new random roll - confirmed via a real
+    /// reroll-and-revert round trip (see NmsPetPaths.RollSeedPath).</summary>
+    private void GenerateBattleAbilitySeedBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0) return;
+
+        string newSeed = NmsSeedGenerator.GenerateRandom();
+
+        BattleAbilitySeedEditBox.Text = newSeed;
+        SaveSessionManager.StageEdit(newSeed, NmsPetPaths.RollSeedPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 

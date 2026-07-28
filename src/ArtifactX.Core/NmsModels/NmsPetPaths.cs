@@ -13,10 +13,13 @@ namespace ArtifactX.Core.NmsModels;
 /// never-renamed pet still occupies its slot with fH8 == "" (real bug hit
 /// 2026-07-28: the Pets page originally filtered occupied slots by fH8,
 /// silently dropping every unnamed pet). The fancy auto-generated name
-/// shown in-game (e.g. "Riverpito") is computed client-side for display
-/// only and is never written to the save at all - confirmed by decrypting a
-/// real save with 7 such pets and full-text-searching the raw JSON for
-/// their names, which found nothing anywhere in the file.
+/// shown in-game (e.g. "Riverpito") is computed client-side for display -
+/// the literal text itself is never written to the save (confirmed by
+/// decrypting a real save with 7 such pets and full-text-searching the raw
+/// JSON for their names, which found nothing anywhere in the file) - but
+/// the seed that computation is driven from (m9o, see RollSeedPath below)
+/// IS stored and IS confirmed editable, indirectly changing which name gets
+/// picked.
 ///
 /// Confirmed via real save data (4 owned test pets, cross-checked against
 /// in-game screenshots) AND cross-referenced against NMSCD/Creature-Builder
@@ -83,12 +86,23 @@ namespace ArtifactX.Core.NmsModels;
 ///    never-edited pet's badges (S/C/C) didn't match its own untouched E&lt;S
 ///    (C/C/C), grinding a third pet's actual mutation POINTS up through real
 ///    battles didn't move its badges either, and a WTp/6fX reroll didn't
-///    either. A PAK search for a per-species stat table (gccreatureglobals.
-///    mbin) and the Creature-Builder contract itself (no such field exists
-///    anywhere in it) both came up empty too. Working conclusion: these
-///    badges are computed by the game's own logic from data outside what
-///    save-editing or MBIN data tables can reach, not stored anywhere in
-///    this object - E&lt;S is deliberately not exposed for editing.
+///    either. E&lt;S's own purpose is still unconfirmed - exposed via
+///    ClassLetterPath below as an "Advanced (Unconfirmed)" field.
+///  - m9o (hex string, RollSeedPath below) IS CONFIRMED to drive the Battle
+///    Abilities badges (Combat Effectiveness/Agility/Health grades) AND the
+///    in-game fancy auto-generated species name (e.g. "M. Swanuciluoe") -
+///    found 2026-07-28 dumping a real pet's full raw structure while
+///    building an "Advanced Fields" experimentation panel, then confirmed
+///    via a real reroll-and-revert round trip: regenerating m9o changed both
+///    the name and all three badges together, and restoring the pet's
+///    original m9o value reverted both back to their exact original state.
+///    This settles the "badges computed from data outside what save-editing
+///    can reach" theory from earlier testing - they're reachable after all,
+///    just via a different field (m9o) than the one originally guessed
+///    (E&lt;S). No PAK/MBIN table search ever needed to be right about this -
+///    it was in the save the whole time. JrL and 5L6 (also raw hex strings,
+///    see UnknownHexBPath/UnknownHexCPath below) remain unconfirmed and may
+///    be related inputs to the same roll; not yet tested in isolation.
 ///  - fjE (5 slots, each an id + level + magnitude) is very likely the
 ///    Genetic Profile's 5 named special-ability mutation nodes (e.g.
 ///    "Frostburn"/"Voidfrost"/"Shrieking Gale"/"Glacial Energy"/"Refresh"
@@ -147,4 +161,65 @@ public static class NmsPetPaths
     /// observed mirror rather than letting the two diverge into an untested
     /// state.</summary>
     public static string[] BoneScaleSeedPath(int petIndex) => PetPath(petIndex).Append("6fX").Append("1").ToArray();
+
+    /// <summary>CONFIRMED (2026-07-28, real reroll-and-revert round trip) to
+    /// drive the in-game Battle Abilities badges (Combat Effectiveness/
+    /// Agility/Health grades) AND the fancy auto-generated species name
+    /// (e.g. "M. Swanuciluoe") - see this class's doc comment for the full
+    /// test. Distinct from SeedPath (WTp) above, which only drives color.
+    /// Unlike the color seed, m9o has no known "mirror" field to keep in
+    /// sync - it's a single hex string, not a [bool, hex] pair.</summary>
+    public static string[] RollSeedPath(int petIndex) => PetPath(petIndex).Append("m9o").ToArray();
+
+    /// <summary>CreatureSecondarySeed's active flag - every sampled pet has
+    /// this permanently false (never independently rolled by the game), an
+    /// untested state worth exposing for experimentation now that the
+    /// primary seed (WTp) is confirmed to only drive color variance.</summary>
+    public static string[] SecondarySeedActivePath(int petIndex) => PetPath(petIndex).Append("1p=").Append("0").ToArray();
+    public static string[] SecondarySeedPath(int petIndex) => PetPath(petIndex).Append("1p=").Append("1").ToArray();
+
+    /// <summary>ColourBaseSeed's active flag - same permanently-false,
+    /// never-independently-rolled state as SecondarySeedActivePath.</summary>
+    public static string[] ColourBaseSeedActivePath(int petIndex) => PetPath(petIndex).Append("uAX").Append("0").ToArray();
+    public static string[] ColourBaseSeedPath(int petIndex) => PetPath(petIndex).Append("uAX").Append("1").ToArray();
+
+    /// <summary>CreatureType (locomotion/role archetype, e.g. "Crab" or
+    /// "Passive" - shares its enum with the species-shape archetypes seen in
+    /// the CreatureSpecies catalog, see CatalogBuildService). Distinct from
+    /// Biome/XID; purpose beyond flavor is unconfirmed.</summary>
+    public static string[] CreatureTypePath(int petIndex) => PetPath(petIndex).Append("HbY").Append("HbY").ToArray();
+
+    /// <summary>CustomSpeciesName - always "^" (empty) on every sampled pet;
+    /// presumably the manual override for the in-game fancy Latin species
+    /// name, but no sampled pet has ever had one set.</summary>
+    public static string[] CustomSpeciesNamePath(int petIndex) => PetPath(petIndex).Append("HhX").ToArray();
+
+    /// <summary>E&lt;S[statIndex].1o6 - the same "1o6" Class-letter (S/A/B/C)
+    /// convention Ships/Freighter/Multi-Tool use, one per mutation stat
+    /// (statIndex 0/1/2 = Agility/Health/Combat, same order as
+    /// MutationPointsPath/ujr). CONFIRMED NOT to drive the in-game "Battle
+    /// Abilities" badges (see this class's doc comment) - exposed anyway
+    /// since its real purpose, if any, is still unconfirmed.</summary>
+    public static string[] ClassLetterPath(int petIndex, int statIndex) =>
+        PetPath(petIndex).Append("E<S").Append(statIndex.ToString()).Append("1o6").ToArray();
+
+    // The remaining fields below (found 2026-07-28 dumping a real pet's full
+    // structure while building the Pets page's "Advanced Fields" section)
+    // aren't in this class's own doc comment because they were missed
+    // entirely by the original CreatureSave cross-reference - either newer
+    // than that pass, or just overlooked. No guess at their purpose exists
+    // yet; named by rough type/position only (m9o was in this same batch
+    // but has since been confirmed - see RollSeedPath above - and moved out
+    // of this "unknown" group). Observed on a real, fully leveled,
+    // 161-Holo-Arena-victory pet: JrL="0xFB3A23E0564291EE",
+    // 5L6="0x303D00FB0F5921", Q6I=false, IaE=true, "?&lt;V"=false, eK9=false,
+    // WQX=true, isp=false.
+    public static string[] UnknownHexBPath(int petIndex) => PetPath(petIndex).Append("JrL").ToArray();
+    public static string[] UnknownHexCPath(int petIndex) => PetPath(petIndex).Append("5L6").ToArray();
+    public static string[] UnknownBoolAPath(int petIndex) => PetPath(petIndex).Append("Q6I").ToArray();
+    public static string[] UnknownBoolBPath(int petIndex) => PetPath(petIndex).Append("IaE").ToArray();
+    public static string[] UnknownBoolCPath(int petIndex) => PetPath(petIndex).Append("?<V").ToArray();
+    public static string[] UnknownBoolDPath(int petIndex) => PetPath(petIndex).Append("eK9").ToArray();
+    public static string[] UnknownBoolEPath(int petIndex) => PetPath(petIndex).Append("WQX").ToArray();
+    public static string[] UnknownBoolFPath(int petIndex) => PetPath(petIndex).Append("isp").ToArray();
 }
