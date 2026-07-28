@@ -107,6 +107,17 @@
                     </StackPanel>
 
                     <StackPanel Spacing="6">
+                        <TextBlock Text="Secondary Color Seed" FontSize="12" Opacity="0.7"/>
+                        <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
+                                   Text="Confirmed via real testing (three separate regenerations, each producing a distinct coloration) - a secondary color layer on top of the primary Seed above, dormant (Active unchecked) on every wild-tamed pet until turned on. Generate activates it and rolls a fresh value; unchecking Active leaves the pet on just the primary Seed's color again."/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <CheckBox x:Name="ColourBaseSeedActiveCheckBox" Content="Active" Click="ColourBaseSeedActiveCheckBox_Click"/>
+                            <TextBox x:Name="ColourBaseSeedEditBox" Width="220" LostFocus="ColourBaseSeedEditBox_LostFocus"/>
+                            <Button Content="Generate" Click="GenerateColourBaseSeedBtn_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
                         <TextBlock Text="Battle Ability Seeds" FontSize="12" Opacity="0.7"/>
                         <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
                                    Text="Two confirmed co-inputs that together drive the in-game Battle Abilities badges (Combat Effectiveness/Agility/Health grades) AND the fancy auto-generated species name shown in-game - each one independently confirmed via real reroll-and-revert testing (changing either alone shifts both the name and all three badges). Distinct from the color Seed above, which is confirmed NOT to touch either of these. A third candidate field (5L6) was also tested in isolation and confirmed NOT to be part of this roll."/>

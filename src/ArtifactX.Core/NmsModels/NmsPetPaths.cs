@@ -219,18 +219,18 @@ public static class NmsPetPaths
     public static string[] SecondarySeedActivePath(int petIndex) => PetPath(petIndex).Append("1p=").Append("0").ToArray();
     public static string[] SecondarySeedPath(int petIndex) => PetPath(petIndex).Append("1p=").Append("1").ToArray();
 
-    /// <summary>ColourBaseSeed's active flag - same permanently-false,
-    /// never-independently-rolled default as SecondarySeedActivePath, until
-    /// real testing (2026-07-28) activated it with a fresh generated hex.
-    /// TENTATIVE POSITIVE, not yet fully confirmed: the pet's coloration
-    /// visibly shifted (reddish-brown -&gt; olive-green) after activating this,
-    /// consistent with what its name always implied - but observed from a
-    /// single screenshot comparison, not yet nailed down with the same
-    /// reroll-then-revert-to-original round trip that confirmed
-    /// RollSeedPrimaryPath/m9o. Species name, badges, Traits, Weight/
-    /// Height, and Holo-Arena Victories were unaffected. If revert testing
-    /// confirms this, promote out of Advanced Fields the same way
-    /// RollSeedPrimaryPath/RollSeedSecondaryPath were.</summary>
+    /// <summary>ColourBaseSeed's active flag - permanently false, never
+    /// independently rolled by the game, on every sampled pet until real
+    /// testing (2026-07-28). CONFIRMED (multi-sample, not just a single
+    /// revert): activated with 3 separate freshly generated hex values in a
+    /// row, each producing a distinct, clearly different coloration
+    /// (uniform olive-green, then uniform teal/cyan-blue, then two-tone
+    /// red-front/olive-rear) - each regeneration changing the result rules
+    /// out coincidence more strongly than a single before/after would.
+    /// Distinct from SeedPath (WTp) above, which is the primary color
+    /// driver present on every pet; this is a secondary color layer that
+    /// only kicks in once activated. Species name, badges, Traits, Weight/
+    /// Height, and Holo-Arena Victories were unaffected throughout.</summary>
     public static string[] ColourBaseSeedActivePath(int petIndex) => PetPath(petIndex).Append("uAX").Append("0").ToArray();
     public static string[] ColourBaseSeedPath(int petIndex) => PetPath(petIndex).Append("uAX").Append("1").ToArray();
 

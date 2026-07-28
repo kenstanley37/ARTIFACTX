@@ -143,6 +143,8 @@ public sealed partial class PetsPage : Page
         ClimateTxt.Text = "";
         RarityTxt.Text = "";
         SeedEditBox.Text = "";
+        ColourBaseSeedActiveCheckBox.IsChecked = false;
+        ColourBaseSeedEditBox.Text = "";
         BattleAbilitySeedEditBox.Text = "";
         BattleAbilitySeed2EditBox.Text = "";
         ClassLetterOverrideActiveCheckBox.IsChecked = false;
@@ -188,6 +190,8 @@ public sealed partial class PetsPage : Page
         ClimateTxt.Text = SaveSessionManager.GetValue(NmsPetPaths.NativeClimatePath(_selectedIndex))?.Value<string>() ?? "";
 
         SeedEditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.SeedPath(_selectedIndex))?.Value<string>() ?? "";
+        ColourBaseSeedActiveCheckBox.IsChecked = SaveSessionManager.GetValue(NmsPetPaths.ColourBaseSeedActivePath(_selectedIndex))?.Value<bool>() ?? false;
+        ColourBaseSeedEditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.ColourBaseSeedPath(_selectedIndex))?.Value<string>() ?? "";
         BattleAbilitySeedEditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.RollSeedPrimaryPath(_selectedIndex))?.Value<string>() ?? "";
         BattleAbilitySeed2EditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.RollSeedSecondaryPath(_selectedIndex))?.Value<string>() ?? "";
 
@@ -235,7 +239,6 @@ public sealed partial class PetsPage : Page
         AdvancedFieldsPanel.Children.Clear();
 
         AddHexPairFieldRow("Secondary Seed (1p=)", NmsPetPaths.SecondarySeedActivePath(petIndex), NmsPetPaths.SecondarySeedPath(petIndex));
-        AddHexPairFieldRow("Colour Base Seed (uAX)", NmsPetPaths.ColourBaseSeedActivePath(petIndex), NmsPetPaths.ColourBaseSeedPath(petIndex));
         AddStringFieldRow("Creature Type (HbY)", NmsPetPaths.CreatureTypePath(petIndex));
         AddStringFieldRow("Custom Species Name (HhX)", NmsPetPaths.CustomSpeciesNamePath(petIndex));
         AddHexFieldRow("Unknown Hex (5L6)", NmsPetPaths.UnknownHexCPath(petIndex));
@@ -562,6 +565,45 @@ public sealed partial class PetsPage : Page
         SeedEditBox.Text = newSeed;
         SaveSessionManager.StageEdit(newSeed, NmsPetPaths.SeedPath(_selectedIndex));
         SaveSessionManager.StageEdit(newSeed, NmsPetPaths.BoneScaleSeedPath(_selectedIndex));
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void ColourBaseSeedActiveCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0) return;
+
+        SaveSessionManager.StageEdit(ColourBaseSeedActiveCheckBox.IsChecked ?? false,
+            NmsPetPaths.ColourBaseSeedActivePath(_selectedIndex));
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void ColourBaseSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0) return;
+
+        string newValue = ColourBaseSeedEditBox.Text?.Trim() ?? "";
+        var path = NmsPetPaths.ColourBaseSeedPath(_selectedIndex);
+        string current = SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
+        if (newValue == current) return;
+
+        SaveSessionManager.StageEdit(newValue, path);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Activates AND rerolls together - confirmed via real testing
+    /// (see NmsPetPaths.ColourBaseSeedActivePath) that this is a dormant
+    /// secondary color layer, so a randomized hex behind an inactive flag
+    /// wouldn't show anything in-game.</summary>
+    private void GenerateColourBaseSeedBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0) return;
+
+        string newSeed = NmsSeedGenerator.GenerateRandom();
+
+        ColourBaseSeedEditBox.Text = newSeed;
+        ColourBaseSeedActiveCheckBox.IsChecked = true;
+        SaveSessionManager.StageEdit(newSeed, NmsPetPaths.ColourBaseSeedPath(_selectedIndex));
+        SaveSessionManager.StageEdit(true, NmsPetPaths.ColourBaseSeedActivePath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
