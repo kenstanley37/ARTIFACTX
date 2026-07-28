@@ -221,16 +221,20 @@ public static class NmsPetPaths
 
     /// <summary>ColourBaseSeed's active flag - permanently false, never
     /// independently rolled by the game, on every sampled pet until real
-    /// testing (2026-07-28). CONFIRMED (multi-sample, not just a single
-    /// revert): activated with 3 separate freshly generated hex values in a
-    /// row, each producing a distinct, clearly different coloration
-    /// (uniform olive-green, then uniform teal/cyan-blue, then two-tone
-    /// red-front/olive-rear) - each regeneration changing the result rules
-    /// out coincidence more strongly than a single before/after would.
-    /// Distinct from SeedPath (WTp) above, which is the primary color
-    /// driver present on every pet; this is a secondary color layer that
-    /// only kicks in once activated. Species name, badges, Traits, Weight/
-    /// Height, and Holo-Arena Victories were unaffected throughout.</summary>
+    /// testing (2026-07-28). CONFIRMED an OVERRIDE, not a blended secondary
+    /// layer - refined via further testing after an initial "secondary
+    /// layer" read turned out too simple: with this inactive, regenerating
+    /// SeedPath (WTp) alone visibly changes the pet's color (as already
+    /// known); once this is activated, the color instead follows THIS
+    /// field's own hex, appearing independent of whatever WTp currently
+    /// holds - i.e. active uAX replaces WTp's contribution to color rather
+    /// than combining with it. 3 separate freshly generated hex values
+    /// while active each produced a distinct, clearly different coloration
+    /// (uniform olive-green, uniform teal/cyan-blue, two-tone
+    /// red-front/olive-rear) - multiple independent shifts, stronger
+    /// evidence than one before/after. Species name, badges, Traits,
+    /// Weight/Height, and Holo-Arena Victories were unaffected
+    /// throughout.</summary>
     public static string[] ColourBaseSeedActivePath(int petIndex) => PetPath(petIndex).Append("uAX").Append("0").ToArray();
     public static string[] ColourBaseSeedPath(int petIndex) => PetPath(petIndex).Append("uAX").Append("1").ToArray();
 

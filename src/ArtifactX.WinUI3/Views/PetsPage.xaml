@@ -107,9 +107,9 @@
                     </StackPanel>
 
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Secondary Color Seed" FontSize="12" Opacity="0.7"/>
+                        <TextBlock Text="Color Override Seed" FontSize="12" Opacity="0.7"/>
                         <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
-                                   Text="Confirmed via real testing (three separate regenerations, each producing a distinct coloration) - a secondary color layer on top of the primary Seed above, dormant (Active unchecked) on every wild-tamed pet until turned on. Generate activates it and rolls a fresh value; unchecking Active leaves the pet on just the primary Seed's color again."/>
+                                   Text="Confirmed via real testing (three separate regenerations, each producing a distinct coloration) - overrides the primary Seed's contribution to color while Active is checked, rather than blending with it (regenerating the primary Seed above has no visible effect while this is active). Dormant on every wild-tamed pet until turned on. Generate activates it and rolls a fresh value; unchecking Active goes back to the primary Seed's own color."/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <CheckBox x:Name="ColourBaseSeedActiveCheckBox" Content="Active" Click="ColourBaseSeedActiveCheckBox_Click"/>
                             <TextBox x:Name="ColourBaseSeedEditBox" Width="220" LostFocus="ColourBaseSeedEditBox_LostFocus"/>
