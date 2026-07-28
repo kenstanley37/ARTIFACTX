@@ -146,9 +146,9 @@ public sealed partial class PetsPage : Page
         BattleAbilitySeedEditBox.Text = "";
         BattleAbilitySeed2EditBox.Text = "";
         ClassLetterOverrideActiveCheckBox.IsChecked = false;
-        ClassLetterHealthBox.Text = "";
-        ClassLetterAgilityBox.Text = "";
-        ClassLetterCombatBox.Text = "";
+        ClassLetterHealthBox.SelectedIndex = -1;
+        ClassLetterAgilityBox.SelectedIndex = -1;
+        ClassLetterCombatBox.SelectedIndex = -1;
         UpdateClassLetterBoxesEnabled();
         TrustStatBox.Value = double.NaN;
         Trait1Box.Value = double.NaN;
@@ -192,9 +192,9 @@ public sealed partial class PetsPage : Page
         BattleAbilitySeed2EditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.RollSeedSecondaryPath(_selectedIndex))?.Value<string>() ?? "";
 
         ClassLetterOverrideActiveCheckBox.IsChecked = SaveSessionManager.GetValue(NmsPetPaths.ClassLetterOverrideActivePath(_selectedIndex))?.Value<bool>() ?? false;
-        ClassLetterHealthBox.Text = SaveSessionManager.GetValue(NmsPetPaths.ClassLetterPath(_selectedIndex, 0))?.Value<string>() ?? "";
-        ClassLetterAgilityBox.Text = SaveSessionManager.GetValue(NmsPetPaths.ClassLetterPath(_selectedIndex, 1))?.Value<string>() ?? "";
-        ClassLetterCombatBox.Text = SaveSessionManager.GetValue(NmsPetPaths.ClassLetterPath(_selectedIndex, 2))?.Value<string>() ?? "";
+        SetClassLetterSelection(ClassLetterHealthBox, SaveSessionManager.GetValue(NmsPetPaths.ClassLetterPath(_selectedIndex, 0))?.Value<string>());
+        SetClassLetterSelection(ClassLetterAgilityBox, SaveSessionManager.GetValue(NmsPetPaths.ClassLetterPath(_selectedIndex, 1))?.Value<string>());
+        SetClassLetterSelection(ClassLetterCombatBox, SaveSessionManager.GetValue(NmsPetPaths.ClassLetterPath(_selectedIndex, 2))?.Value<string>());
         UpdateClassLetterBoxesEnabled();
 
         double trust = SaveSessionManager.GetValue(NmsPetPaths.TrustPath(_selectedIndex))?.Value<double>() ?? 0;
@@ -643,11 +643,28 @@ public sealed partial class PetsPage : Page
         ClassLetterCombatBox.IsEnabled = active;
     }
 
-    private void StageClassLetterEdit(TextBox box, int statIndex)
+    /// <summary>Selects the ComboBoxItem matching the stored letter (S/A/B/C
+    /// - the same fixed set Ships/Freighter/Multi-Tool use for Class),
+    /// clearing selection if the value doesn't match any of them (e.g. a
+    /// pet that's never had this field touched).</summary>
+    private static void SetClassLetterSelection(ComboBox box, string? letter)
     {
-        if (_selectedIndex < 0) return;
+        foreach (ComboBoxItem item in box.Items.Cast<ComboBoxItem>())
+        {
+            if (string.Equals(item.Content as string, letter, StringComparison.OrdinalIgnoreCase))
+            {
+                box.SelectedItem = item;
+                return;
+            }
+        }
+        box.SelectedIndex = -1;
+    }
 
-        string newValue = box.Text?.Trim().ToUpperInvariant() ?? "";
+    private void StageClassLetterEdit(ComboBox box, int statIndex)
+    {
+        if (_selectedIndex < 0 || _suppressStatChangeEvent) return;
+
+        string newValue = (box.SelectedItem as ComboBoxItem)?.Content as string ?? "";
         var path = NmsPetPaths.ClassLetterPath(_selectedIndex, statIndex);
         string current = SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
         if (newValue == current) return;
@@ -656,9 +673,9 @@ public sealed partial class PetsPage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
-    private void ClassLetterHealthBox_LostFocus(object sender, RoutedEventArgs e) => StageClassLetterEdit(ClassLetterHealthBox, 0);
-    private void ClassLetterAgilityBox_LostFocus(object sender, RoutedEventArgs e) => StageClassLetterEdit(ClassLetterAgilityBox, 1);
-    private void ClassLetterCombatBox_LostFocus(object sender, RoutedEventArgs e) => StageClassLetterEdit(ClassLetterCombatBox, 2);
+    private void ClassLetterHealthBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => StageClassLetterEdit(ClassLetterHealthBox, 0);
+    private void ClassLetterAgilityBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => StageClassLetterEdit(ClassLetterAgilityBox, 1);
+    private void ClassLetterCombatBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => StageClassLetterEdit(ClassLetterCombatBox, 2);
 
     /// <summary>Scoped to just the currently selected pet's own subtree (via
     /// RevertEditsUnder) - same "current item only" scope as every other

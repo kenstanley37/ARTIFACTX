@@ -129,15 +129,30 @@
                             <StackPanel Orientation="Horizontal" Spacing="32">
                                 <StackPanel Spacing="6" Width="160">
                                     <TextBlock Text="Health" Opacity="0.7"/>
-                                    <TextBox x:Name="ClassLetterHealthBox" Width="60" HorizontalAlignment="Left" LostFocus="ClassLetterHealthBox_LostFocus"/>
+                                    <ComboBox x:Name="ClassLetterHealthBox" Width="70" HorizontalAlignment="Left" SelectionChanged="ClassLetterHealthBox_SelectionChanged">
+                                        <ComboBoxItem Content="S"/>
+                                        <ComboBoxItem Content="A"/>
+                                        <ComboBoxItem Content="B"/>
+                                        <ComboBoxItem Content="C"/>
+                                    </ComboBox>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="160">
                                     <TextBlock Text="Agility" Opacity="0.7"/>
-                                    <TextBox x:Name="ClassLetterAgilityBox" Width="60" HorizontalAlignment="Left" LostFocus="ClassLetterAgilityBox_LostFocus"/>
+                                    <ComboBox x:Name="ClassLetterAgilityBox" Width="70" HorizontalAlignment="Left" SelectionChanged="ClassLetterAgilityBox_SelectionChanged">
+                                        <ComboBoxItem Content="S"/>
+                                        <ComboBoxItem Content="A"/>
+                                        <ComboBoxItem Content="B"/>
+                                        <ComboBoxItem Content="C"/>
+                                    </ComboBox>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="160">
                                     <TextBlock Text="Combat" Opacity="0.7"/>
-                                    <TextBox x:Name="ClassLetterCombatBox" Width="60" HorizontalAlignment="Left" LostFocus="ClassLetterCombatBox_LostFocus"/>
+                                    <ComboBox x:Name="ClassLetterCombatBox" Width="70" HorizontalAlignment="Left" SelectionChanged="ClassLetterCombatBox_SelectionChanged">
+                                        <ComboBoxItem Content="S"/>
+                                        <ComboBoxItem Content="A"/>
+                                        <ComboBoxItem Content="B"/>
+                                        <ComboBoxItem Content="C"/>
+                                    </ComboBox>
                                 </StackPanel>
                             </StackPanel>
                         </StackPanel>
