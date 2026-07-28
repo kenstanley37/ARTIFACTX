@@ -254,6 +254,11 @@ public static class NmsPetPaths
     /// panel this app hasn't cross-referenced). Purpose otherwise
     /// unknown.</summary>
     public static string[] UnknownBoolAPath(int petIndex) => PetPath(petIndex).Append("Q6I").ToArray();
+
+    /// <summary>Toggled (real test, 2026-07-28) with no observable effect
+    /// anywhere on the in-game pet screen - same fields checked as
+    /// UnknownBoolAPath, all stayed identical. Purpose otherwise
+    /// unknown.</summary>
     public static string[] UnknownBoolBPath(int petIndex) => PetPath(petIndex).Append("IaE").ToArray();
     public static string[] UnknownBoolCPath(int petIndex) => PetPath(petIndex).Append("?<V").ToArray();
     public static string[] UnknownBoolDPath(int petIndex) => PetPath(petIndex).Append("eK9").ToArray();
