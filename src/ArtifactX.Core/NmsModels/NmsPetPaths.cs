@@ -245,6 +245,14 @@ public static class NmsPetPaths
     /// both held fixed - regenerating this field alone produced no change to
     /// the badges or species name). Purpose otherwise unknown.</summary>
     public static string[] UnknownHexCPath(int petIndex) => PetPath(petIndex).Append("5L6").ToArray();
+
+    /// <summary>Toggled true (real test, 2026-07-28) with no observable
+    /// effect anywhere on the in-game pet screen - Battle Abilities badges,
+    /// species name, Traits, Weight/Height, Holo-Arena Victories, and
+    /// Genetic Profile all stayed identical. Doesn't rule out an effect
+    /// outside what's visible there (e.g. something server-side, or a UI
+    /// panel this app hasn't cross-referenced). Purpose otherwise
+    /// unknown.</summary>
     public static string[] UnknownBoolAPath(int petIndex) => PetPath(petIndex).Append("Q6I").ToArray();
     public static string[] UnknownBoolBPath(int petIndex) => PetPath(petIndex).Append("IaE").ToArray();
     public static string[] UnknownBoolCPath(int petIndex) => PetPath(petIndex).Append("?<V").ToArray();
