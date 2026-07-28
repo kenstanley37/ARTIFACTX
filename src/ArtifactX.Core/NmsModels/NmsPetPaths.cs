@@ -109,8 +109,10 @@ namespace ArtifactX.Core.NmsModels;
 ///    No PAK/MBIN table search ever needed to be right about this - it was
 ///    in the save the whole time. 5L6 (also a raw hex string, see
 ///    UnknownHexCPath below, the remaining member of the same
-///    originally-grouped trio) is a strong candidate to be a third co-input;
-///    not yet tested in isolation.
+///    originally-grouped trio) was tested the same way and is CONFIRMED NOT
+///    a co-input - regenerated in isolation with m9o/JrL both held fixed,
+///    name and all three badges stayed exactly the same. Its own purpose
+///    remains unknown.
 ///  - fjE (5 slots, each an id + level + magnitude) is very likely the
 ///    Genetic Profile's 5 named special-ability mutation nodes (e.g.
 ///    "Frostburn"/"Voidfrost"/"Shrieking Gale"/"Glacial Energy"/"Refresh"
@@ -237,6 +239,11 @@ public static class NmsPetPaths
     // Observed on a real, fully leveled, 161-Holo-Arena-victory pet:
     // 5L6="0x303D00FB0F5921", Q6I=false, IaE=true, "?&lt;V"=false, eK9=false,
     // WQX=true, isp=false.
+
+    /// <summary>CONFIRMED NOT a Battle Ability roll co-input (2026-07-28,
+    /// real isolated test with RollSeedPrimaryPath/RollSeedSecondaryPath
+    /// both held fixed - regenerating this field alone produced no change to
+    /// the badges or species name). Purpose otherwise unknown.</summary>
     public static string[] UnknownHexCPath(int petIndex) => PetPath(petIndex).Append("5L6").ToArray();
     public static string[] UnknownBoolAPath(int petIndex) => PetPath(petIndex).Append("Q6I").ToArray();
     public static string[] UnknownBoolBPath(int petIndex) => PetPath(petIndex).Append("IaE").ToArray();
