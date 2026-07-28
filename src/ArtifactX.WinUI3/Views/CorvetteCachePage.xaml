@@ -19,8 +19,19 @@
                 <Button Content="Max All Qty" Click="MaxAllQtyBtn_Click"/>
             </StackPanel>
             <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                    CornerRadius="6" Padding="8" HorizontalAlignment="Left" VerticalAlignment="Top" Opacity="0.9">
-                <controls:InventorySlotGrid x:Name="CacheGrid"/>
+                    CornerRadius="6" HorizontalAlignment="Left" Opacity="0.9">
+                <Grid>
+                    <ScrollViewer x:Name="CacheScrollViewer" Padding="8,32,8,8" MaxHeight="708" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
+                        <controls:InventorySlotGrid x:Name="CacheGrid"/>
+                    </ScrollViewer>
+                    <Button x:Name="CacheExpandBtn" Click="CacheExpandBtn_Click"
+                            HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"
+                            Padding="6" Background="Transparent" BorderThickness="0"
+                            ToolTipService.ToolTip="Expand">
+                        <FontIcon x:Name="CacheExpandIcon" Glyph="&#xE70D;" FontSize="12"/>
+                    </Button>
+                </Grid>
             </Border>
         </StackPanel>
     </ScrollViewer>

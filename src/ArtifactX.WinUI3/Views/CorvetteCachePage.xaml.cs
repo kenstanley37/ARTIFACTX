@@ -21,6 +21,14 @@ namespace ArtifactX.WinUI3.Views;
 /// </summary>
 public sealed partial class CorvetteCachePage : Page
 {
+    // Matches the ScrollViewer's own XAML-declared MaxHeight (10 rows) -
+    // restored when the section is collapsed again, same pattern as every
+    // other page's Tech/Cargo expand toggle.
+    private const double CollapsedHeight = 708;
+
+    private static readonly string ChevronDownGlyph = char.ConvertFromUtf32(0xE70D);
+    private static readonly string ChevronUpGlyph = char.ConvertFromUtf32(0xE70E);
+
     private readonly InventoryGridViewModel _viewModel =
         new(NmsInventoryContainer.CorvetteCachePath, CorvetteCacheCapacity.Columns, CorvetteCacheCapacity.Rows);
 
@@ -77,5 +85,15 @@ public sealed partial class CorvetteCachePage : Page
         _viewModel.Revert();
         CacheGrid.Refresh();
         PageResetBtn.Visibility = Visibility.Collapsed;
+    }
+
+    /// <summary>Toggles between the compact, ~10-row preview height and
+    /// showing every row at once - same pattern as ExosuitPage/etc.</summary>
+    private void CacheExpandBtn_Click(object sender, RoutedEventArgs e)
+    {
+        bool isCollapsed = CacheScrollViewer.MaxHeight < double.PositiveInfinity;
+        CacheScrollViewer.MaxHeight = isCollapsed ? double.PositiveInfinity : CollapsedHeight;
+        CacheExpandIcon.Glyph = isCollapsed ? ChevronUpGlyph : ChevronDownGlyph;
+        ToolTipService.SetToolTip(CacheExpandBtn, isCollapsed ? "Collapse" : "Expand");
     }
 }
