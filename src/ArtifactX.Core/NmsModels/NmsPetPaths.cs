@@ -260,6 +260,10 @@ public static class NmsPetPaths
     /// UnknownBoolAPath, all stayed identical. Purpose otherwise
     /// unknown.</summary>
     public static string[] UnknownBoolBPath(int petIndex) => PetPath(petIndex).Append("IaE").ToArray();
+    /// <summary>Toggled (real test, 2026-07-28) with no observable effect
+    /// anywhere on the in-game pet screen - same fields checked as
+    /// UnknownBoolAPath, all stayed identical. Purpose otherwise
+    /// unknown.</summary>
     public static string[] UnknownBoolCPath(int petIndex) => PetPath(petIndex).Append("?<V").ToArray();
     public static string[] UnknownBoolDPath(int petIndex) => PetPath(petIndex).Append("eK9").ToArray();
     public static string[] UnknownBoolEPath(int petIndex) => PetPath(petIndex).Append("WQX").ToArray();
