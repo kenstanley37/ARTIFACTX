@@ -210,13 +210,12 @@ public static class NmsPetPaths
     /// <summary>CreatureSecondarySeed's active flag - every sampled pet had
     /// this permanently false (never independently rolled by the game)
     /// until real testing (2026-07-28) activated it with a fresh generated
-    /// hex. No observable change to species name, Traits, Weight/Height, or
-    /// Holo-Arena Victories - a reasonably clean negative result for those.
-    /// Battle Abilities specifically wasn't a clean test in that same
-    /// session (ClassLetterOverrideActivePath was already true with Class
-    /// Letters pinned to S/S/S, which would have masked any real roll
-    /// change regardless) - worth retesting with the override off if this
-    /// comes up again.</summary>
+    /// hex. CONFIRMED no effect: no change to species name, Traits, Weight/
+    /// Height, or Holo-Arena Victories, and a follow-up test with
+    /// ClassLetterOverrideActivePath off (so the m9o/JrL roll was actually
+    /// driving the badges again, not masked by Class Letters) showed the
+    /// same badges as before this field was ever touched. Purpose otherwise
+    /// unknown.</summary>
     public static string[] SecondarySeedActivePath(int petIndex) => PetPath(petIndex).Append("1p=").Append("0").ToArray();
     public static string[] SecondarySeedPath(int petIndex) => PetPath(petIndex).Append("1p=").Append("1").ToArray();
 
