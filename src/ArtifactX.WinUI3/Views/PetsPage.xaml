@@ -107,12 +107,16 @@
                     </StackPanel>
 
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Battle Ability Seed" FontSize="12" Opacity="0.7"/>
+                        <TextBlock Text="Battle Ability Seeds" FontSize="12" Opacity="0.7"/>
                         <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
-                                   Text="Drives the in-game Battle Abilities badges (Combat Effectiveness/Agility/Health grades) AND the fancy auto-generated species name shown in-game - confirmed via real reroll-and-revert testing: rerolling changed both together, and restoring the original value reverted both back exactly. Distinct from the color Seed above, which is confirmed NOT to touch either of these."/>
+                                   Text="Two confirmed co-inputs that together drive the in-game Battle Abilities badges (Combat Effectiveness/Agility/Health grades) AND the fancy auto-generated species name shown in-game - each one independently confirmed via real reroll-and-revert testing (changing either alone shifts both the name and all three badges). Distinct from the color Seed above, which is confirmed NOT to touch either of these. A third field (5L6, in Advanced Fields below) is a strong candidate to be a third co-input - not yet tested."/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBox x:Name="BattleAbilitySeedEditBox" Width="220" LostFocus="BattleAbilitySeedEditBox_LostFocus"/>
                             <Button Content="Generate" Click="GenerateBattleAbilitySeedBtn_Click"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="BattleAbilitySeed2EditBox" Width="220" LostFocus="BattleAbilitySeed2EditBox_LostFocus"/>
+                            <Button Content="Generate" Click="GenerateBattleAbilitySeed2Btn_Click"/>
                         </StackPanel>
                     </StackPanel>
 

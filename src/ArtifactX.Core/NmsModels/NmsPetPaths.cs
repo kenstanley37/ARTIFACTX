@@ -88,21 +88,29 @@ namespace ArtifactX.Core.NmsModels;
 ///    battles didn't move its badges either, and a WTp/6fX reroll didn't
 ///    either. E&lt;S's own purpose is still unconfirmed - exposed via
 ///    ClassLetterPath below as an "Advanced (Unconfirmed)" field.
-///  - m9o (hex string, RollSeedPath below) IS CONFIRMED to drive the Battle
-///    Abilities badges (Combat Effectiveness/Agility/Health grades) AND the
-///    in-game fancy auto-generated species name (e.g. "M. Swanuciluoe") -
-///    found 2026-07-28 dumping a real pet's full raw structure while
-///    building an "Advanced Fields" experimentation panel, then confirmed
-///    via a real reroll-and-revert round trip: regenerating m9o changed both
-///    the name and all three badges together, and restoring the pet's
-///    original m9o value reverted both back to their exact original state.
-///    This settles the "badges computed from data outside what save-editing
-///    can reach" theory from earlier testing - they're reachable after all,
-///    just via a different field (m9o) than the one originally guessed
-///    (E&lt;S). No PAK/MBIN table search ever needed to be right about this -
-///    it was in the save the whole time. JrL and 5L6 (also raw hex strings,
-///    see UnknownHexBPath/UnknownHexCPath below) remain unconfirmed and may
-///    be related inputs to the same roll; not yet tested in isolation.
+///  - m9o AND JrL (hex strings, RollSeedPrimaryPath/RollSeedSecondaryPath
+///    below) are BOTH CONFIRMED co-inputs driving the Battle Abilities
+///    badges (Combat Effectiveness/Agility/Health grades) AND the in-game
+///    fancy auto-generated species name (e.g. "M. Swanuciluoe") - found
+///    2026-07-28 dumping a real pet's full raw structure while building an
+///    "Advanced Fields" experimentation panel. m9o was confirmed first via a
+///    reroll-and-revert round trip (regenerating it changed name+badges
+///    together, restoring its original value reverted both exactly). JrL
+///    was then confirmed independently: regenerated with m9o held fixed,
+///    and the resulting name+badge change was verified directly against the
+///    decrypted save (m9o genuinely unchanged, JrL matched the newly
+///    generated value exactly). Since either field alone shifts the result,
+///    they're most likely combined into one hash/roll rather than either
+///    being "the" seed on its own - the same pattern NMS uses combining
+///    multiple seed fields for full creature generation elsewhere. This
+///    settles the "badges computed from data outside what save-editing can
+///    reach" theory from earlier testing - they're reachable after all, just
+///    via different fields (m9o/JrL) than the one originally guessed (E&lt;S).
+///    No PAK/MBIN table search ever needed to be right about this - it was
+///    in the save the whole time. 5L6 (also a raw hex string, see
+///    UnknownHexCPath below, the remaining member of the same
+///    originally-grouped trio) is a strong candidate to be a third co-input;
+///    not yet tested in isolation.
 ///  - fjE (5 slots, each an id + level + magnitude) is very likely the
 ///    Genetic Profile's 5 named special-ability mutation nodes (e.g.
 ///    "Frostburn"/"Voidfrost"/"Shrieking Gale"/"Glacial Energy"/"Refresh"
@@ -168,8 +176,23 @@ public static class NmsPetPaths
     /// (e.g. "M. Swanuciluoe") - see this class's doc comment for the full
     /// test. Distinct from SeedPath (WTp) above, which only drives color.
     /// Unlike the color seed, m9o has no known "mirror" field to keep in
-    /// sync - it's a single hex string, not a [bool, hex] pair.</summary>
-    public static string[] RollSeedPath(int petIndex) => PetPath(petIndex).Append("m9o").ToArray();
+    /// sync - it's a single hex string, not a [bool, hex] pair. NOT the sole
+    /// input to the badge/name roll - see RollSeedSecondaryPath below,
+    /// confirmed to independently shift the same outputs while this field
+    /// stays untouched. Most likely both feed one combined hash, the same
+    /// way NMS combines multiple seed fields elsewhere in full creature
+    /// generation.</summary>
+    public static string[] RollSeedPrimaryPath(int petIndex) => PetPath(petIndex).Append("m9o").ToArray();
+
+    /// <summary>CONFIRMED (2026-07-28, real isolated single-field test with
+    /// RollSeedPrimaryPath/m9o held fixed and verified unchanged directly
+    /// against the decrypted save afterward) to ALSO independently drive the
+    /// same Battle Abilities badges and fancy species name as
+    /// RollSeedPrimaryPath. 5L6 (still UnknownHexCPath below, untested in
+    /// isolation) is the remaining member of the same originally-grouped
+    /// "unknown hex" trio and a strong candidate to be a third co-input to
+    /// the same roll.</summary>
+    public static string[] RollSeedSecondaryPath(int petIndex) => PetPath(petIndex).Append("JrL").ToArray();
 
     /// <summary>CreatureSecondarySeed's active flag - every sampled pet has
     /// this permanently false (never independently rolled by the game), an
@@ -208,13 +231,12 @@ public static class NmsPetPaths
     // aren't in this class's own doc comment because they were missed
     // entirely by the original CreatureSave cross-reference - either newer
     // than that pass, or just overlooked. No guess at their purpose exists
-    // yet; named by rough type/position only (m9o was in this same batch
-    // but has since been confirmed - see RollSeedPath above - and moved out
-    // of this "unknown" group). Observed on a real, fully leveled,
-    // 161-Holo-Arena-victory pet: JrL="0xFB3A23E0564291EE",
+    // yet; named by rough type/position only (m9o and JrL were in this same
+    // batch but have since been confirmed - see RollSeedPrimaryPath/
+    // RollSeedSecondaryPath above - and moved out of this "unknown" group).
+    // Observed on a real, fully leveled, 161-Holo-Arena-victory pet:
     // 5L6="0x303D00FB0F5921", Q6I=false, IaE=true, "?&lt;V"=false, eK9=false,
     // WQX=true, isp=false.
-    public static string[] UnknownHexBPath(int petIndex) => PetPath(petIndex).Append("JrL").ToArray();
     public static string[] UnknownHexCPath(int petIndex) => PetPath(petIndex).Append("5L6").ToArray();
     public static string[] UnknownBoolAPath(int petIndex) => PetPath(petIndex).Append("Q6I").ToArray();
     public static string[] UnknownBoolBPath(int petIndex) => PetPath(petIndex).Append("IaE").ToArray();

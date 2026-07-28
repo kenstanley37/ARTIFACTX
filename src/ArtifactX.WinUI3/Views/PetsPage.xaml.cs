@@ -144,6 +144,7 @@ public sealed partial class PetsPage : Page
         RarityTxt.Text = "";
         SeedEditBox.Text = "";
         BattleAbilitySeedEditBox.Text = "";
+        BattleAbilitySeed2EditBox.Text = "";
         TrustStatBox.Value = double.NaN;
         Trait1Box.Value = double.NaN;
         Trait2Box.Value = double.NaN;
@@ -182,7 +183,8 @@ public sealed partial class PetsPage : Page
         ClimateTxt.Text = SaveSessionManager.GetValue(NmsPetPaths.NativeClimatePath(_selectedIndex))?.Value<string>() ?? "";
 
         SeedEditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.SeedPath(_selectedIndex))?.Value<string>() ?? "";
-        BattleAbilitySeedEditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.RollSeedPath(_selectedIndex))?.Value<string>() ?? "";
+        BattleAbilitySeedEditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.RollSeedPrimaryPath(_selectedIndex))?.Value<string>() ?? "";
+        BattleAbilitySeed2EditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.RollSeedSecondaryPath(_selectedIndex))?.Value<string>() ?? "";
 
         double trust = SaveSessionManager.GetValue(NmsPetPaths.TrustPath(_selectedIndex))?.Value<double>() ?? 0;
         TrustStatBox.Value = Math.Round(trust * 100, 1);
@@ -226,7 +228,6 @@ public sealed partial class PetsPage : Page
         AddStringFieldRow("Creature Type (HbY)", NmsPetPaths.CreatureTypePath(petIndex));
         AddStringFieldRow("Custom Species Name (HhX)", NmsPetPaths.CustomSpeciesNamePath(petIndex));
         AddClassLetterRow(petIndex);
-        AddHexFieldRow("Unknown Hex (JrL)", NmsPetPaths.UnknownHexBPath(petIndex));
         AddHexFieldRow("Unknown Hex (5L6)", NmsPetPaths.UnknownHexCPath(petIndex));
         AddBoolFieldRow("Unknown Bool (Q6I)", NmsPetPaths.UnknownBoolAPath(petIndex));
         AddBoolFieldRow("Unknown Bool (IaE)", NmsPetPaths.UnknownBoolBPath(petIndex));
@@ -595,7 +596,7 @@ public sealed partial class PetsPage : Page
         string newSeed = BattleAbilitySeedEditBox.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(newSeed)) return;
 
-        var rollSeedPath = NmsPetPaths.RollSeedPath(_selectedIndex);
+        var rollSeedPath = NmsPetPaths.RollSeedPrimaryPath(_selectedIndex);
         string? currentSeed = SaveSessionManager.GetValue(rollSeedPath)?.Value<string>();
         if (newSeed == currentSeed) return;
 
@@ -605,7 +606,7 @@ public sealed partial class PetsPage : Page
 
     /// <summary>Rerolls the selected pet's Battle Abilities badges and fancy
     /// species name to a brand new random roll - confirmed via a real
-    /// reroll-and-revert round trip (see NmsPetPaths.RollSeedPath).</summary>
+    /// reroll-and-revert round trip (see NmsPetPaths.RollSeedPrimaryPath).</summary>
     private void GenerateBattleAbilitySeedBtn_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedIndex < 0) return;
@@ -613,7 +614,35 @@ public sealed partial class PetsPage : Page
         string newSeed = NmsSeedGenerator.GenerateRandom();
 
         BattleAbilitySeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsPetPaths.RollSeedPath(_selectedIndex));
+        SaveSessionManager.StageEdit(newSeed, NmsPetPaths.RollSeedPrimaryPath(_selectedIndex));
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void BattleAbilitySeed2EditBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0) return;
+
+        string newSeed = BattleAbilitySeed2EditBox.Text?.Trim() ?? "";
+        if (string.IsNullOrEmpty(newSeed)) return;
+
+        var rollSeedPath = NmsPetPaths.RollSeedSecondaryPath(_selectedIndex);
+        string? currentSeed = SaveSessionManager.GetValue(rollSeedPath)?.Value<string>();
+        if (newSeed == currentSeed) return;
+
+        SaveSessionManager.StageEdit(newSeed, rollSeedPath);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Second confirmed co-input to the same roll as
+    /// GenerateBattleAbilitySeedBtn_Click - see NmsPetPaths.RollSeedSecondaryPath.</summary>
+    private void GenerateBattleAbilitySeed2Btn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0) return;
+
+        string newSeed = NmsSeedGenerator.GenerateRandom();
+
+        BattleAbilitySeed2EditBox.Text = newSeed;
+        SaveSessionManager.StageEdit(newSeed, NmsPetPaths.RollSeedSecondaryPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
