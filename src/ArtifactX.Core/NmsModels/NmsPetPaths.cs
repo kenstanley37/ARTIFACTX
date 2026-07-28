@@ -8,6 +8,16 @@ namespace ArtifactX.Core.NmsModels;
 /// inventory grid - it's a flat 30-slot array of per-pet stat objects, one
 /// slot per owned/tamed pet (empty slots have fH8 == "").
 ///
+/// A slot's occupancy is XID (species), not fH8 (custom name) - fH8 is
+/// empty until the player manually renames a pet, so a freshly tamed,
+/// never-renamed pet still occupies its slot with fH8 == "" (real bug hit
+/// 2026-07-28: the Pets page originally filtered occupied slots by fH8,
+/// silently dropping every unnamed pet). The fancy auto-generated name
+/// shown in-game (e.g. "Riverpito") is computed client-side for display
+/// only and is never written to the save at all - confirmed by decrypting a
+/// real save with 7 such pets and full-text-searching the raw JSON for
+/// their names, which found nothing anywhere in the file.
+///
 /// Confirmed via real save data (4 owned test pets, cross-checked against
 /// in-game screenshots) AND cross-referenced against NMSCD/Creature-Builder
 /// (github.com/NMSCD/Creature-Builder, the open-source tool behind

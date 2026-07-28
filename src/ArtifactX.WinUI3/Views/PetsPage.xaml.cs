@@ -14,9 +14,15 @@ using Windows.UI;
 namespace ArtifactX.WinUI3.Views;
 
 /// <summary>
-/// Animal Companions ("Pets") - a flat 30-slot array (Mcl, empty slots have
-/// fH8 == ""), unlike every other page's :No/hl? inventory-grid shape. Only
-/// the fields confirmed against real save data (see NmsPetPaths) are
+/// Animal Companions ("Pets") - a flat 30-slot array (Mcl), unlike every
+/// other page's :No/hl? inventory-grid shape. A slot's occupancy is XID
+/// (species), not fH8 (custom name) - fH8 is only set once the player
+/// manually renames a pet, so a freshly tamed, never-renamed pet has fH8 ==
+/// "" while still very much occupying the slot (real bug hit 2026-07-28:
+/// filtering on fH8 silently dropped every unnamed pet from the Pets page's
+/// list). The fancy auto-generated name shown in-game (e.g. "Riverpito") is
+/// computed client-side for display only and is never written to the save.
+/// Only the fields confirmed against real save data (see NmsPetPaths) are
 /// exposed here - Current Mood, Age, Gender, the fancy species name, and
 /// Weight have no confirmed backing field (cross-referenced against
 /// NMSCD/Creature-Builder's own reverse-engineered save contract, which
@@ -26,7 +32,7 @@ namespace ArtifactX.WinUI3.Views;
 /// </summary>
 public sealed partial class PetsPage : Page
 {
-    private sealed record PetEntry(int Index, string Name);
+    private sealed record PetEntry(int Index, string SelectorLabel);
 
     private int _selectedIndex = -1;
     private List<PetEntry> _pets = new();
@@ -63,12 +69,26 @@ public sealed partial class PetsPage : Page
         if (SaveSessionManager.GetValue(NmsPetPaths.PetArrayPath) is not JArray array)
             return;
 
+        // Occupancy is XID (species), NOT fH8 (custom name) - a freshly tamed
+        // pet the player never manually renamed has fH8 == "" while still
+        // occupying a real slot. The fancy auto-generated name shown in-game
+        // (e.g. "Riverpito") is computed client-side for display and is
+        // never written to the save at all - confirmed 2026-07-28 by
+        // decrypting a real save with 7 such pets and full-text-searching
+        // the raw JSON for their names, which found nothing anywhere in the
+        // file. Filtering on fH8 (the original assumption) silently dropped
+        // every one of them from this list.
         var pets = new List<PetEntry>();
         for (int i = 0; i < array.Count; i++)
         {
-            string name = array[i]?["fH8"]?.Value<string>() ?? "";
-            if (string.IsNullOrEmpty(name)) continue;
-            pets.Add(new PetEntry(i, name));
+            // XID is "^" (a bare, contentless prefix) on a truly empty slot,
+            // not "" - IsNullOrEmpty alone doesn't catch it.
+            string xid = array[i]?["XID"]?.Value<string>() ?? "";
+            if (string.IsNullOrEmpty(xid.TrimStart('^'))) continue;
+
+            string customName = array[i]?["fH8"]?.Value<string>() ?? "";
+            string label = string.IsNullOrEmpty(customName) ? $"{FormatArchetype(xid)} #{i + 1}" : customName;
+            pets.Add(new PetEntry(i, label));
         }
 
         _pets = pets;
@@ -92,7 +112,7 @@ public sealed partial class PetsPage : Page
             {
                 Content = new TextBlock
                 {
-                    Text = pet.Name,
+                    Text = pet.SelectorLabel,
                     FontWeight = isSelected ? FontWeights.SemiBold : FontWeights.Normal
                 },
                 Padding = new Thickness(12, 6, 12, 6),
@@ -145,8 +165,10 @@ public sealed partial class PetsPage : Page
 
         _suppressStatChangeEvent = true;
 
-        var pet = _pets.First(p => p.Index == _selectedIndex);
-        NameEditBox.Text = pet.Name;
+        // The real stored value, not the selector strip's fallback label -
+        // shows genuinely empty when the player never manually renamed this
+        // pet, rather than the synthetic "Species #N" placeholder.
+        NameEditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.NamePath(_selectedIndex))?.Value<string>() ?? "";
 
         string archetype = SaveSessionManager.GetValue(NmsPetPaths.SpeciesArchetypePath(_selectedIndex))?.Value<string>() ?? "";
         string archetypeId = archetype.TrimStart('^');
@@ -202,8 +224,8 @@ public sealed partial class PetsPage : Page
         string newName = NameEditBox.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(newName)) return;
 
-        var currentPet = _pets.FirstOrDefault(p => p.Index == _selectedIndex);
-        if (currentPet != null && newName == currentPet.Name) return;
+        string currentName = SaveSessionManager.GetValue(NmsPetPaths.NamePath(_selectedIndex))?.Value<string>() ?? "";
+        if (newName == currentName) return;
 
         SaveSessionManager.StageEdit(newName, NmsPetPaths.NamePath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
