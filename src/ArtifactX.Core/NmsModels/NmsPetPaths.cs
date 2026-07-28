@@ -207,10 +207,16 @@ public static class NmsPetPaths
     /// the same roll.</summary>
     public static string[] RollSeedSecondaryPath(int petIndex) => PetPath(petIndex).Append("JrL").ToArray();
 
-    /// <summary>CreatureSecondarySeed's active flag - every sampled pet has
-    /// this permanently false (never independently rolled by the game), an
-    /// untested state worth exposing for experimentation now that the
-    /// primary seed (WTp) is confirmed to only drive color variance.</summary>
+    /// <summary>CreatureSecondarySeed's active flag - every sampled pet had
+    /// this permanently false (never independently rolled by the game)
+    /// until real testing (2026-07-28) activated it with a fresh generated
+    /// hex. No observable change to species name, Traits, Weight/Height, or
+    /// Holo-Arena Victories - a reasonably clean negative result for those.
+    /// Battle Abilities specifically wasn't a clean test in that same
+    /// session (ClassLetterOverrideActivePath was already true with Class
+    /// Letters pinned to S/S/S, which would have masked any real roll
+    /// change regardless) - worth retesting with the override off if this
+    /// comes up again.</summary>
     public static string[] SecondarySeedActivePath(int petIndex) => PetPath(petIndex).Append("1p=").Append("0").ToArray();
     public static string[] SecondarySeedPath(int petIndex) => PetPath(petIndex).Append("1p=").Append("1").ToArray();
 
