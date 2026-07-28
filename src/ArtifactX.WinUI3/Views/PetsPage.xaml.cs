@@ -149,6 +149,7 @@ public sealed partial class PetsPage : Page
         ClassLetterHealthBox.Text = "";
         ClassLetterAgilityBox.Text = "";
         ClassLetterCombatBox.Text = "";
+        UpdateClassLetterBoxesEnabled();
         TrustStatBox.Value = double.NaN;
         Trait1Box.Value = double.NaN;
         Trait2Box.Value = double.NaN;
@@ -194,6 +195,7 @@ public sealed partial class PetsPage : Page
         ClassLetterHealthBox.Text = SaveSessionManager.GetValue(NmsPetPaths.ClassLetterPath(_selectedIndex, 0))?.Value<string>() ?? "";
         ClassLetterAgilityBox.Text = SaveSessionManager.GetValue(NmsPetPaths.ClassLetterPath(_selectedIndex, 1))?.Value<string>() ?? "";
         ClassLetterCombatBox.Text = SaveSessionManager.GetValue(NmsPetPaths.ClassLetterPath(_selectedIndex, 2))?.Value<string>() ?? "";
+        UpdateClassLetterBoxesEnabled();
 
         double trust = SaveSessionManager.GetValue(NmsPetPaths.TrustPath(_selectedIndex))?.Value<double>() ?? 0;
         TrustStatBox.Value = Math.Round(trust * 100, 1);
@@ -627,6 +629,18 @@ public sealed partial class PetsPage : Page
         SaveSessionManager.StageEdit(ClassLetterOverrideActiveCheckBox.IsChecked ?? false,
             NmsPetPaths.ClassLetterOverrideActivePath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
+        UpdateClassLetterBoxesEnabled();
+    }
+
+    /// <summary>The Health/Agility/Combat letter boxes only do anything
+    /// in-game while Override Active is checked - disabled otherwise so
+    /// their text can't be mistaken for something currently in effect.</summary>
+    private void UpdateClassLetterBoxesEnabled()
+    {
+        bool active = ClassLetterOverrideActiveCheckBox.IsChecked ?? false;
+        ClassLetterHealthBox.IsEnabled = active;
+        ClassLetterAgilityBox.IsEnabled = active;
+        ClassLetterCombatBox.IsEnabled = active;
     }
 
     private void StageClassLetterEdit(TextBox box, int statIndex)
