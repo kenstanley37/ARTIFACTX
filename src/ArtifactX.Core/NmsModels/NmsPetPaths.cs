@@ -248,13 +248,17 @@ public static class NmsPetPaths
     /// <summary>CreatureType (locomotion/role archetype, e.g. "Crab" or
     /// "Passive" - shares its enum with the species-shape archetypes seen in
     /// the CreatureSpecies catalog, see CatalogBuildService). Distinct from
-    /// Biome/XID; purpose beyond flavor is unconfirmed. Stored as the plain
-    /// enum member name (no "^" prefix, unlike XID/HhX) - confirmed on a
-    /// real pet ("Passive"). The complete, authoritative value set is
-    /// libMBIN's own GcCreatureTypes.CreatureTypeEnum - ArtifactX.Core
-    /// deliberately doesn't reference libMBIN (that's a WinUI3-side
-    /// concern), so the UI pulls the enum's values directly via
-    /// Enum.GetNames rather than a hand-copied duplicate living here.</summary>
+    /// Biome/XID. Stored as the plain enum member name (no "^" prefix,
+    /// unlike XID/HhX) - confirmed on a real pet ("Passive"). The complete,
+    /// authoritative value set is libMBIN's own GcCreatureTypes.
+    /// CreatureTypeEnum - ArtifactX.Core deliberately doesn't reference
+    /// libMBIN (that's a WinUI3-side concern), so the UI pulls the enum's
+    /// values directly via Enum.GetNames rather than a hand-copied
+    /// duplicate living here. CONFIRMED no visible effect (real test,
+    /// 2026-07-28): set to "Jellyfish" on a Rodent-shaped pet (about as
+    /// different a value as the enum allows) with no change to the model,
+    /// species name, Battle Abilities, or stats. Purpose otherwise
+    /// unknown.</summary>
     public static string[] CreatureTypePath(int petIndex) => PetPath(petIndex).Append("HbY").Append("HbY").ToArray();
 
     /// <summary>CustomSpeciesName - always "^" (empty) on every sampled pet;
