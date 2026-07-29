@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="ArtifactX.WinUI3.Views.SettlementPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <ScrollViewer>
+        <StackPanel Padding="24" Spacing="20">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Settlements" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Settlement Changes" Click="PageResetBtn_Click"
+                        Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+            </Grid>
+
+            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="820"
+                       Text="FIRST PASS, 2026-07-29 - field names below are inferred by cross-referencing a real settlement's raw save keys against libMBIN's own GcSettlementState class (same field count, same order, plausible values for every match), NOT yet confirmed by editing and reloading in-game the way every Pets field was. Treat everything here as a strong hypothesis to test, not a settled fact - change one field at a time and check in-game what happens."/>
+
+            <StackPanel Spacing="20" HorizontalAlignment="Left">
+                <TextBlock Text="Owned Settlements" FontSize="14" Opacity="0.8"/>
+                <ScrollViewer MaxHeight="104" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+                    <ctcontrols:WrapPanel x:Name="SettlementSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+                </ScrollViewer>
+
+                <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                        CornerRadius="8" Padding="20" Opacity="0.9" Width="860">
+                    <StackPanel Spacing="18">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Name" FontSize="12" Opacity="0.7"/>
+                            <TextBox x:Name="NameEditBox" Width="300" HorizontalAlignment="Left" LostFocus="NameEditBox_LostFocus"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="32">
+                            <StackPanel Spacing="6" Width="160">
+                                <TextBlock Text="Owner" FontSize="12" Opacity="0.7"/>
+                                <TextBlock x:Name="OwnerTxt" FontSize="14"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6" Width="160">
+                                <TextBlock Text="Culture (Race)" FontSize="12" Opacity="0.7"/>
+                                <ComboBox x:Name="RaceBox" Width="150" HorizontalAlignment="Left" SelectionChanged="RaceBox_SelectionChanged"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6" Width="160">
+                                <TextBlock Text="Population" FontSize="12" Opacity="0.7"/>
+                                <NumberBox x:Name="PopulationBox" Width="140" HorizontalAlignment="Left"
+                                           Minimum="0" SpinButtonPlacementMode="Hidden"
+                                           ValueChanged="PopulationBox_ValueChanged" LostFocus="PopulationBox_LostFocus"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Stats" FontSize="14" FontWeight="SemiBold"/>
+                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
+                                       Text="Matches libMBIN's SettlementStatTypeEnum (8 members) positionally - real sampled values varied widely in scale (e.g. Debt in the hundreds of thousands, Happiness in the tens), so no min/max is enforced here. Unconfirmed which of these the game actually displays anywhere vs. tracks internally only."/>
+                            <StackPanel Orientation="Horizontal" Spacing="24">
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Max Population" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat0Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat0Box_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Happiness" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat1Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat1Box_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Production" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat2Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat2Box_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Upkeep" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat3Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat3Box_ValueChanged"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="24">
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Sentinels" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat4Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat4Box_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Debt" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat5Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat5Box_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Alert" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat6Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat6Box_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Bug Attack" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat7Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat7Box_ValueChanged"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>
