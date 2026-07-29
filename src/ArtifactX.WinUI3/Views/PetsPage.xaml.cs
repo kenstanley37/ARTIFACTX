@@ -566,9 +566,39 @@ public sealed partial class PetsPage : Page
         remainder = remainder.Trim('_');
         if (remainder.Length == 0) return rawCode.Trim('_');
 
-        var parts = remainder.Split('_', StringSplitOptions.RemoveEmptyEntries)
-            .Select(p => char.ToUpperInvariant(p[0]) + p[1..].ToLowerInvariant());
-        return string.Join(' ', parts);
+        // "XRARE" is a real, recognizable rarity-tier suffix seen across
+        // many categories in the game's own data (e.g. "_TREX_3XRARE",
+        // "_TAIL_ALIENXRARE", "_HTAZEARS_0XRARE") - preserve it as a clean
+        // "(Rare)" suffix instead of letting the generic path below mash it
+        // into unreadable noise like "3xrare".
+        bool isRare = remainder.EndsWith("XRARE", StringComparison.OrdinalIgnoreCase);
+        if (isRare) remainder = remainder[..^5].Trim('_');
+
+        string label;
+        if (remainder.Length == 0)
+        {
+            label = "";
+        }
+        else if (remainder.All(char.IsDigit))
+        {
+            // Confirmed against the real catalog data (e.g. rodent's
+            // _HTAZEARS_/_HTAZACC_/_TAZBACK_ slots) that some categories
+            // are ENTIRELY bare-numbered variants with no descriptive text
+            // anywhere in the game's own data - not a gap in this
+            // formatting, there's genuinely nothing more to extract. Labeled
+            // "Variant N" rather than a bare number so it reads as an
+            // intentional unnamed option, not a broken label.
+            label = $"Variant {remainder}";
+        }
+        else
+        {
+            var parts = remainder.Split('_', StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => char.ToUpperInvariant(p[0]) + p[1..].ToLowerInvariant());
+            label = string.Join(' ', parts);
+        }
+
+        if (!isRare) return label;
+        return label.Length == 0 ? "(Rare)" : $"{label} (Rare)";
     }
 
     /// <summary>"^PLANTCAT" -> "Plantcat" - just enough formatting to be
