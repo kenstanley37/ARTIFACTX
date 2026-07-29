@@ -261,9 +261,17 @@ public static class NmsPetPaths
     /// unknown.</summary>
     public static string[] CreatureTypePath(int petIndex) => PetPath(petIndex).Append("HbY").Append("HbY").ToArray();
 
-    /// <summary>CustomSpeciesName - always "^" (empty) on every sampled pet;
-    /// presumably the manual override for the in-game fancy Latin species
-    /// name, but no sampled pet has ever had one set.</summary>
+    /// <summary>CustomSpeciesName - always "^" (empty) on every sampled pet
+    /// until real testing (2026-07-28) confirmed it: overrides the fancy
+    /// in-game Latin species name (the auto-generated one, e.g.
+    /// "Z. Spellgigarnima") with whatever plain text is set, uppercased in
+    /// display. CONFIRMED purely cosmetic - no effect on stats, Battle
+    /// Abilities, or anything else tested. Uses the same "^" prefix
+    /// convention as XID - the game visibly broke when tested with plain
+    /// text and no leading caret, so ArtifactX.WinUI3's UI (see
+    /// PetsPage.AddCaretPrefixedStringFieldRow) always adds the prefix back
+    /// automatically before staging, regardless of what the user
+    /// types.</summary>
     public static string[] CustomSpeciesNamePath(int petIndex) => PetPath(petIndex).Append("HhX").ToArray();
 
     /// <summary>E&lt;S[statIndex].1o6 - the same "1o6" Class-letter (S/A/B/C)

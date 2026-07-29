@@ -242,7 +242,7 @@ public sealed partial class PetsPage : Page
         AddHexPairFieldRow("Secondary Seed (1p=)", NmsPetPaths.SecondarySeedActivePath(petIndex), NmsPetPaths.SecondarySeedPath(petIndex));
         AddEnumFieldRow("Creature Type (HbY)", NmsPetPaths.CreatureTypePath(petIndex),
             Enum.GetNames<GcCreatureTypes.CreatureTypeEnum>());
-        AddStringFieldRow("Custom Species Name (HhX)", NmsPetPaths.CustomSpeciesNamePath(petIndex));
+        AddCaretPrefixedStringFieldRow("Custom Species Name (HhX)", NmsPetPaths.CustomSpeciesNamePath(petIndex));
         AddHexFieldRow("Unknown Hex (5L6)", NmsPetPaths.UnknownHexCPath(petIndex));
         AddBoolFieldRow("Unknown Bool (Q6I)", NmsPetPaths.UnknownBoolAPath(petIndex));
         AddBoolFieldRow("Unknown Bool (IaE)", NmsPetPaths.UnknownBoolBPath(petIndex));
@@ -261,17 +261,25 @@ public sealed partial class PetsPage : Page
         TextWrapping = TextWrapping.Wrap
     };
 
-    private void AddStringFieldRow(string label, string[] path)
+    /// <summary>For a field that uses the same "^" prefix convention as
+    /// XID/archetype fields - CONFIRMED real test, 2026-07-28: typing plain
+    /// text with no caret broke something in-game; retyping with a leading
+    /// caret worked fine and only changed the in-game Species display text,
+    /// no effect on stats/Battle Abilities. Displays and accepts the value
+    /// WITHOUT the caret for a cleaner box, and adds exactly one back
+    /// before staging so the raw prefix can't be forgotten.</summary>
+    private void AddCaretPrefixedStringFieldRow(string label, string[] path)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
         row.Children.Add(AdvancedFieldLabel(label));
 
-        var box = new TextBox { Width = 260, Text = SaveSessionManager.GetValue(path)?.Value<string>() ?? "" };
+        string current = SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
+        var box = new TextBox { Width = 260, Text = current.TrimStart('^') };
         box.LostFocus += (_, _) =>
         {
-            string newValue = box.Text ?? "";
-            string current = SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
-            if (newValue == current) return;
+            string newValue = "^" + (box.Text ?? "").TrimStart('^');
+            string currentValue = SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
+            if (newValue == currentValue) return;
             SaveSessionManager.StageEdit(newValue, path);
             PageResetBtn.Visibility = Visibility.Visible;
         };
