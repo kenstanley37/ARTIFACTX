@@ -31,6 +31,10 @@ public sealed partial class SettlementPage : Page
     private List<SettlementEntry> _settlements = new();
     private bool _suppressStatChangeEvent;
 
+    // Perk id -> catalog data, loaded once per page lifetime from the
+    // SettlementPerks category - see CatalogService.GetSettlementPerksAsync.
+    private Dictionary<string, (string DisplayName, string Description, string Category)>? _settlementPerks;
+
     public SettlementPage()
     {
         InitializeComponent();
@@ -134,9 +138,10 @@ public sealed partial class SettlementPage : Page
         Stat5Box.Value = double.NaN;
         Stat6Box.Value = double.NaN;
         Stat7Box.Value = double.NaN;
+        PerksPanel.Children.Clear();
     }
 
-    private void LoadSelectedSettlement()
+    private async void LoadSelectedSettlement()
     {
         if (_selectedIndex < 0)
         {
@@ -168,10 +173,98 @@ public sealed partial class SettlementPage : Page
         Stat6Box.Value = stats?.Count > 6 ? stats[6].Value<double>() : double.NaN;
         Stat7Box.Value = stats?.Count > 7 ? stats[7].Value<double>() : double.NaN;
 
+        _settlementPerks ??= await CatalogService.GetSettlementPerksAsync();
+        BuildPerksPanel(_selectedIndex, _settlementPerks);
+
         PageResetBtn.Visibility = SaveSessionManager.HasStagedEditsUnder(NmsSettlementPaths.SettlementPath(_selectedIndex))
             ? Visibility.Visible : Visibility.Collapsed;
 
         _suppressStatChangeEvent = false;
+    }
+
+    private static TextBlock FieldLabel(string text) => new()
+    {
+        Text = text,
+        Width = 90,
+        VerticalAlignment = VerticalAlignment.Center,
+        Opacity = 0.8,
+        FontSize = 12
+    };
+
+    /// <summary>One dropdown per Perks (OEf) array slot, each offering
+    /// "(None)" plus every cataloged perk - see NmsSettlementPaths.
+    /// PerksPath and this page's XAML description for the full picture.
+    /// Matches the slot's CURRENT value by its base id (stripping the "^"
+    /// prefix and any "#NNNNN" per-instance roll suffix some perks carry).
+    /// Picking a genuinely different perk writes a plain "^"+id with no
+    /// roll suffix - untested whether Proc-flagged perks specifically need
+    /// one back to work correctly in-game.</summary>
+    private void BuildPerksPanel(int settlementIndex, Dictionary<string, (string DisplayName, string Description, string Category)> perksCatalog)
+    {
+        PerksPanel.Children.Clear();
+
+        var path = NmsSettlementPaths.PerksPath(settlementIndex);
+        if (SaveSessionManager.GetValue(path) is not JArray perks) return;
+
+        var sortedPerks = perksCatalog
+            .OrderBy(kv => kv.Value.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        for (int i = 0; i < perks.Count; i++)
+        {
+            int index = i; // capture for the closure below
+            string raw = perks[i]?.Value<string>() ?? "";
+            string stripped = raw.TrimStart('^');
+            int hashIdx = stripped.IndexOf('#');
+            string baseId = hashIdx >= 0 ? stripped[..hashIdx] : stripped;
+
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+            row.Children.Add(FieldLabel($"Buff {i + 1}"));
+
+            var box = new ComboBox { Width = 340 };
+            var noneItem = new ComboBoxItem { Content = "(None)", Tag = "" };
+            box.Items.Add(noneItem);
+            foreach (var kv in sortedPerks)
+            {
+                var item = new ComboBoxItem { Content = $"{kv.Value.DisplayName} ({kv.Value.Category})", Tag = kv.Key };
+                ToolTipService.SetToolTip(item, kv.Value.Description);
+                box.Items.Add(item);
+            }
+
+            box.SelectedItem = string.IsNullOrEmpty(baseId)
+                ? noneItem
+                : box.Items.Cast<ComboBoxItem>().FirstOrDefault(item => string.Equals(item.Tag as string, baseId, StringComparison.OrdinalIgnoreCase)) ?? noneItem;
+
+            if (perksCatalog.TryGetValue(baseId, out var currentInfo))
+                ToolTipService.SetToolTip(box, currentInfo.Description);
+
+            box.SelectionChanged += (_, _) =>
+            {
+                if (_suppressStatChangeEvent) return;
+
+                string newBaseId = (box.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+
+                if (SaveSessionManager.GetValue(path) is not JArray currentArray || index >= currentArray.Count) return;
+
+                string existing = currentArray[index]?.Value<string>() ?? "";
+                string existingStripped = existing.TrimStart('^');
+                int existingHashIdx = existingStripped.IndexOf('#');
+                string existingBaseId = existingHashIdx >= 0 ? existingStripped[..existingHashIdx] : existingStripped;
+
+                if (string.Equals(newBaseId, existingBaseId, StringComparison.OrdinalIgnoreCase)) return;
+
+                string newValue = string.IsNullOrEmpty(newBaseId) ? "^" : "^" + newBaseId;
+
+                var updated = new JArray(currentArray.Select(v => v.DeepClone()));
+                updated[index] = newValue;
+
+                SaveSessionManager.StageEdit(updated, path);
+                PageResetBtn.Visibility = Visibility.Visible;
+            };
+            row.Children.Add(box);
+
+            PerksPanel.Children.Add(row);
+        }
     }
 
     private void NameEditBox_LostFocus(object sender, RoutedEventArgs e)

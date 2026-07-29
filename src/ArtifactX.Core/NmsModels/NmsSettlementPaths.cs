@@ -39,9 +39,24 @@ namespace ArtifactX.Core.NmsModels;
 /// settlement vs 0 for empty, Race="Warriors" is a real AlienRaceEnum
 /// member, Stats has exactly 8 entries matching SettlementStatTypeEnum's 8
 /// members) but is NOT the same as in-game test confirmation the way
-/// Pets fields eventually got - nothing here has been round-trip tested
-/// (edit, save, reload, observe) yet. Full field map, in Index/JSON-key
-/// order:
+/// Pets fields eventually got.
+///
+/// FIRST REAL IN-GAME COMPARISON (2026-07-29): Name and Population (x3&lt;)
+/// both matched exactly. Two of the 8 Stats (Debt, Happiness) were close to
+/// the in-game display (within normal simulation drift over the time
+/// between decrypt and screenshot). The other 4 displayed values in-game
+/// (Max Population, Productivity, Maintenance Cost, Sentinel Alert Level)
+/// did NOT match their assumed Stats slots (MaxPopulation/Production/
+/// Upkeep/Sentinels all read back near 0 or a value unrelated to what was
+/// shown) - those are most likely computed live from Buildings/Perks
+/// rather than stored as a simple absolute number in Stats, so editing
+/// those 4 specific slots may do nothing visible even though the array
+/// position mapping itself is probably still correct. Race and the Perks
+/// array (see PerksPath below) were independently confirmed correct by
+/// name via NomNom (an established third-party NMS save editor) showing
+/// matching values for the same real settlement.
+///
+/// Full field map, in Index/JSON-key order:
 ///  0 20I  = UniqueId (NMSString0x40, hex-looking id, e.g. "12c32f3ab8745642")
 ///  1 yhJ  = UniverseAddress (ulong)
 ///  2 wMC  = Position ([x,y,z] floats)
@@ -140,6 +155,17 @@ public static class NmsSettlementPaths
     public static string[] RacePath(int settlementIndex) => SettlementPath(settlementIndex).Append("SS2").Append("0Hi").ToArray();
 
     public static string[] PopulationPath(int settlementIndex) => SettlementPath(settlementIndex).Append("x3<").ToArray();
+
+    /// <summary>The whole 8-entry Perks array ("buffs" shown in-game under
+    /// "Settlement Features") - each entry is either "^" (empty) or a
+    /// caret-prefixed perk id, e.g. "^PROC_FUN#09286" (IsProc-flagged
+    /// perks carry a "#NNNNN" per-instance roll suffix; non-Proc perks like
+    /// "^SENT_QUAR"/"^POSITIVE_EXTRA2" don't, confirmed in a real sample).
+    /// Real perk ids and their resolved names/descriptions/stat effects are
+    /// catalogued separately - see CatalogService.GetSettlementPerksAsync
+    /// and CatalogBuildService's Phase 1.8. Staged as a whole array, same
+    /// reasoning as StatsPath below.</summary>
+    public static string[] PerksPath(int settlementIndex) => SettlementPath(settlementIndex).Append("OEf").ToArray();
 
     /// <summary>The whole 8-entry Stats array (MaxPopulation/Happiness/
     /// Production/Upkeep/Sentinels/Debt/Alert/BugAttack, in that exact

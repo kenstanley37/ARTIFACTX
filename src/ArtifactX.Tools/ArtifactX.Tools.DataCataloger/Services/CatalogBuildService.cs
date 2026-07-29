@@ -593,6 +593,118 @@ public class CatalogBuildService
         else
             LogService.Write("CatalogBuild: WARNING - found no creature descriptor.mbin body-part trees.");
 
+        // -------------------------------------------------------------
+        // Phase 1.8: Settlement Perks ("buffs" shown in-game under
+        // "Settlement Features") - metadata/reality/tables/
+        // settlementperkstable.mbin decodes to GcSettlementPerksTable, a
+        // real data table the generic classifier sweep below ALREADY
+        // discovers on its own (TemplateType "GcSettlementPerksTable"),
+        // but GcSettlementPerkData's Name/Description fields aren't
+        // recognized as loc-key candidates by the generic row extractor,
+        // so every row comes out with NameEnglish/DescriptionEnglish both
+        // null. They ARE genuine loc keys, not literal text - confirmed by
+        // resolving one directly against the merged English loc lookup
+        // ("UI_PERK_POSITIVE_TITLE_18" -> "Public artworks",
+        // "UI_PERK_POSITIVE_DESC_MOOD" -> "Improves citizen happiness"),
+        // which matched EXACTLY what a real settlement's own in-game
+        // "Settlement Features" panel showed for that perk. Extracted here
+        // directly instead, same idea as the Creature Species phase -
+        // deliberately using a custom TemplateType ("SettlementPerks", not
+        // the real "GcSettlementPerksTable") so this doesn't collide with
+        // the generic sweep's own nameless copy of the same table; that
+        // nameless copy is harmless dead weight in the working catalog and
+        // never reaches the trimmed distribution copy (CatalogTrimService
+        // only keeps items with a resolved NameEnglish).
+        //
+        // A perk's StatChanges (which stat it affects and how strongly -
+        // e.g. Happiness/PositiveMedium) is folded into DescriptionEnglish
+        // as a plain qualitative summary ("Happiness +Medium"), NOT the
+        // exact numeric range NomNom's UI shows (e.g. "-6..-1") - that
+        // exact range lives in a SEPARATE global table
+        // (GcSettlementGlobals.PerkStatStrengthValues, one entry per Stat,
+        // each itself holding a range per Strength tier) not decoded here;
+        // left as a follow-up if the qualitative summary isn't enough.
+        // -------------------------------------------------------------
+        var settlementPerksCategory = new CatalogCategory
+        {
+            TemplateType = "SettlementPerks",
+            RowType = "GcSettlementPerkData",
+            SourceMbinPath = "metadata/reality/tables/settlementperkstable.mbin (GcSettlementPerksTable.Table)"
+        };
+
+        foreach (var (pakPath, header, entries) in pakData)
+        {
+            var perksEntry = entries.FirstOrDefault(e =>
+                !string.IsNullOrEmpty(e.FileName) &&
+                e.FileName.EndsWith("settlementperkstable.mbin", StringComparison.OrdinalIgnoreCase));
+
+            if (perksEntry == null) continue;
+
+            NMSTemplate? perksDecoded;
+            try
+            {
+                perksDecoded = DecodeMbin(pakPath, perksEntry, header);
+            }
+            catch
+            {
+                continue; // already logged inside DecodeMbin
+            }
+
+            if (perksDecoded is not libMBIN.NMS.GameComponents.GcSettlementPerksTable perksTable || perksTable.Table == null)
+                continue;
+
+            foreach (var perk in perksTable.Table)
+            {
+                string? id = perk?.ID?.ToString();
+                if (string.IsNullOrWhiteSpace(id)) continue;
+
+                string? nameKey = perk!.Name?.ToString();
+                string? descKey = perk.Description?.ToString();
+                string name = !string.IsNullOrEmpty(nameKey) && englishLookup.TryGetValue(nameKey, out var resolvedName) ? resolvedName : (nameKey ?? id);
+                string description = !string.IsNullOrEmpty(descKey) && englishLookup.TryGetValue(descKey, out var resolvedDesc) ? resolvedDesc : "";
+
+                var statSummaries = new List<string>();
+                if (perk.StatChanges != null)
+                {
+                    foreach (var change in perk.StatChanges)
+                    {
+                        string statName = change?.Stat?.SettlementStatType.ToString() ?? "?";
+                        string strength = change?.Strength?.SettlementStatStrength.ToString() ?? "?";
+                        bool positive = strength.StartsWith("Positive", StringComparison.OrdinalIgnoreCase);
+                        string magnitude = strength.Replace("Positive", "").Replace("Negative", "");
+                        statSummaries.Add($"{statName} {(positive ? "+" : "-")}{magnitude}");
+                    }
+                }
+
+                string flags = perk.IsBlessing ? "Blessing"
+                    : perk.IsJob ? "Job"
+                    : perk.IsStarter ? "Starter"
+                    : perk.IsProc ? "Proc"
+                    : perk.IsNegative ? "Negative"
+                    : "Positive";
+
+                settlementPerksCategory.Items.Add(new CatalogItem
+                {
+                    GameId = id,
+                    NameEnglish = name,
+                    DescriptionEnglish = statSummaries.Count > 0 ? $"{description} ({string.Join(", ", statSummaries)})" : description,
+                    UsageCategory = flags
+                });
+            }
+
+            break; // found and decoded the one real table - no need to keep scanning PAKs
+        }
+
+        if (settlementPerksCategory.Items.Count > 0)
+        {
+            categories.Add(settlementPerksCategory);
+            LogService.Write($"CatalogBuild: extracted {settlementPerksCategory.Items.Count} settlement perks.");
+        }
+        else
+        {
+            LogService.Write("CatalogBuild: WARNING - could not extract settlement perks from settlementperkstable.mbin.");
+        }
+
         foreach (var (pakPath, header, entries) in pakData)
         {
             foreach (var entry in entries)
