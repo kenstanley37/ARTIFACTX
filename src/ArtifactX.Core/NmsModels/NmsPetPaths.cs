@@ -71,18 +71,29 @@ namespace ArtifactX.Core.NmsModels;
 ///    and reloading in-game rendered every new part correctly (a
 ///    lizard-shaped test pet became turtle/sloth/monkey-shaped), with no
 ///    change to Species name, Rarity/Affinity, Trust, Traits, Mutation
-///    Progress, Battle Abilities, or Holo-Arena Victories. Every row except
-///    the top-level one swaps a slot's value among its own real sibling
-///    options (same Category, same parent). The top-level row (osl[0], a
-///    different rig archetype, e.g. TREX's _TREX_4 vs _TREX_3XRARE) is
-///    handled differently - picking a new one there REBUILDS the whole
-///    array from scratch (PetsPage.BuildDefaultDescriptorArray: walks the
-///    new archetype's tree depth-first, picking a default per slot in the
-///    game's own original category order, preserving any trailing
-///    non-tree entries like the detail seed unchanged) since a different
-///    archetype has entirely different child slots. UNTESTED IN-GAME as of
-///    2026-07-29 - unlike the confirmed same-slot swap above, nobody has
-///    yet confirmed the game accepts a full archetype swap built this way.
+///    Progress, Battle Abilities, or Holo-Arena Victories. Most rows swap a
+///    slot's value among its own real sibling options (same Category, same
+///    parent) - including root-level ones on rigs like rodent that have
+///    MULTIPLE independent root categories (Head/Body/Tail as separate
+///    peers, not alternatives of one choice - swapping Body there doesn't
+///    touch Head or Tail). The exception: on a rig whose tree has exactly
+///    ONE distinct root category (e.g. TREX's single "_TREX_" category,
+///    whose 2 alternatives lead to entirely different child slot sets -
+///    TAILB/TOPB vs HEAD/BODY/TAIL), that one root row IS a genuine
+///    archetype choice, and picking a different alternative REBUILDS the
+///    whole array from scratch instead (PetsPage.BuildDefaultDescriptorArray:
+///    walks the new archetype's tree depth-first, picking a default per
+///    slot in the game's own original category order, preserving any
+///    trailing non-tree entries like the detail seed unchanged) since a
+///    different archetype has entirely different child slots. Checked
+///    every cataloged rig: 27 of 71 have the multi-root shape, so this
+///    can't be assumed to be "always the first row" - an earlier version
+///    of this feature got that wrong and would have silently discarded a
+///    rodent-shaped pet's other selections the first time someone touched
+///    a Head/Body/Tail row, caught before it shipped to real testing.
+///    UNTESTED IN-GAME as of 2026-07-29 - unlike the confirmed same-slot
+///    swap above, nobody has yet confirmed the game accepts a full
+///    archetype swap built this way.
 ///  - WTp/1p=/uAX/6fX ([bool, hex] pairs) = CreatureSeed/
 ///    CreatureSecondarySeed/ColourBaseSeed/BoneScaleSeed. Only WTp
 ///    (CreatureSeed) was exposed for editing before this was found - real
@@ -339,11 +350,12 @@ public static class NmsPetPaths
     /// creature became a stocky turtle/sloth-shaped one) - with Species
     /// name, Rarity/Affinity, Trust, Traits, Mutation Progress, Battle
     /// Abilities, and Holo-Arena Victories all unchanged. The editor now
-    /// ALSO supports rebuilding the whole array for a different TOP-LEVEL
-    /// archetype (osl[0]) - see PetsPage.BuildDefaultDescriptorArray - but
-    /// that specific path is UNTESTED IN-GAME as of 2026-07-29, and
-    /// long-term save stability beyond one reload cycle is untested for
-    /// either kind of edit.</summary>
+    /// ALSO supports rebuilding the whole array for a different archetype
+    /// on rigs that have exactly one - see PetsPage.BuildDescriptorsPanel's
+    /// rigHasSingleRootArchetype for why that's rig-shape-dependent, not
+    /// always "osl[0]" - but that specific path is UNTESTED IN-GAME as of
+    /// 2026-07-29, and long-term save stability beyond one reload cycle is
+    /// untested for either kind of edit.</summary>
     public static string[] DescriptorsPath(int petIndex) => PetPath(petIndex).Append("osl").ToArray();
 
     /// <summary>E&lt;S[statIndex].1o6 - the same "1o6" Class-letter (S/A/B/C)

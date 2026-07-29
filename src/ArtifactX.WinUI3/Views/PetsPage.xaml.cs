@@ -314,18 +314,34 @@ public sealed partial class PetsPage : Page
     /// DescriptorsPath and this page's XAML description for the full
     /// picture. CONFIRMED WORKING (2026-07-29, real save+reload test) -
     /// swapping several rows at once and reloading in-game rendered every
-    /// new part correctly with no side effects elsewhere. Every row except
-    /// the top-level one swaps ONE entry's value among its own siblings,
-    /// preserving array length/order/every other entry. The top-level row
-    /// (ParentOptionId == null, labeled "- ARCHETYPE") is different -
-    /// picking a new value there rebuilds the WHOLE array from scratch (see
+    /// new part correctly with no side effects elsewhere.
+    ///
+    /// Most rows swap ONE entry's value among its own siblings, preserving
+    /// array length/order/every other entry - safe and confirmed. The
+    /// exception: on a rig whose tree has exactly ONE distinct root-level
+    /// category (rigHasSingleRootArchetype - e.g. TREX's single "_TREX_"
+    /// category with 2 alternatives, one leading to TAILB/TOPB slots and
+    /// the other to a completely different HEAD/BODY/TAIL set), that one
+    /// root row is a genuine archetype choice - picking a different
+    /// alternative rebuilds the WHOLE array from scratch (see
     /// BuildDefaultDescriptorArray) since it changes which child slots even
     /// apply, and re-renders this whole panel since the row set itself
     /// changes. UNTESTED IN-GAME as of 2026-07-29, unlike the confirmed
-    /// same-slot swap. A tree.Count == 0 result means no rig data was found
-    /// for this species (see CatalogService.GetCreatureDescriptorTreeAsync's
-    /// own doc comment for the confirmed exceptions) - shown as a plain
-    /// message rather than an empty, silently-broken-looking panel.</summary>
+    /// same-slot swap.
+    ///
+    /// Real bug caught and fixed 2026-07-29: originally ANY root-level row
+    /// (ParentOptionId == null) got this rebuild treatment, which broke
+    /// rigs like rodent that have MULTIPLE independent root categories
+    /// (HEAD/BODY/TAIL as separate peers, not alternatives of one choice) -
+    /// a user picking a different Body there would have silently discarded
+    /// their Head/Tail selections. Checked every cataloged rig: 27 of 71
+    /// have this multi-root shape, so it couldn't be assumed away - only
+    /// single-root rigs get archetype treatment now.
+    ///
+    /// A tree.Count == 0 result means no rig data was found for this
+    /// species (see CatalogService.GetCreatureDescriptorTreeAsync's own doc
+    /// comment for the confirmed exceptions) - shown as a plain message
+    /// rather than an empty, silently-broken-looking panel.</summary>
     private void BuildDescriptorsPanel(int petIndex, List<CreatureDescriptorNode> tree)
     {
         DescriptorsPanel.Children.Clear();
@@ -349,6 +365,25 @@ public sealed partial class PetsPage : Page
         foreach (var node in tree)
             byOptionId[node.OptionId] = node;
 
+        // Whether a root-level (ParentOptionId == null) row is a genuine
+        // "archetype" choice - where alternatives have fundamentally
+        // different downstream slots, so swapping needs the whole array
+        // rebuilt (e.g. TREX has ONE root category "_TREX_" with 2 options,
+        // one leading to TAILB/TOPB slots and the other to HEAD/BODY/TAIL) -
+        // vs an ordinary independent top-level slot that just happens to
+        // have no parent (e.g. rodent has THREE separate root categories,
+        // HEAD/BODY/TAIL, each just an ordinary same-slot swap like any
+        // other row - picking a different Body doesn't touch Head or Tail
+        // at all). Confirmed by checking every cataloged rig: 27 of 71 have
+        // multiple independent root categories like rodent, so this can't
+        // be assumed away - only a rig with EXACTLY ONE distinct root
+        // category gets archetype (full-rebuild) treatment.
+        bool rigHasSingleRootArchetype = tree
+            .Where(n => n.ParentOptionId == null)
+            .Select(n => n.Category)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count() == 1;
+
         for (int i = 0; i < osl.Count; i++)
         {
             int index = i; // capture for the closure below
@@ -368,7 +403,7 @@ public sealed partial class PetsPage : Page
                 continue;
             }
 
-            bool isTopLevel = node.ParentOptionId == null;
+            bool isTopLevel = node.ParentOptionId == null && rigHasSingleRootArchetype;
 
             var siblings = tree
                 .Where(n => n.Category == node.Category && n.ParentOptionId == node.ParentOptionId)
