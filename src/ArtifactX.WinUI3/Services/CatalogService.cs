@@ -468,7 +468,7 @@ public static class CatalogService
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT c.Category, c.OptionId, c.Name, p.OptionId AS ParentOptionId
+            SELECT c.Category, c.OptionId, c.Name, p.OptionId AS ParentOptionId, c.Id AS SortOrder
             FROM CreatureDescriptorOptions c
             LEFT JOIN CreatureDescriptorOptions p ON p.Id = c.ParentOptionId
             WHERE c.RigId = @rigId";
@@ -482,7 +482,8 @@ public static class CatalogService
                 Category = reader.GetString(0),
                 OptionId = reader.GetString(1),
                 Name = reader.GetString(2),
-                ParentOptionId = reader.IsDBNull(3) ? null : reader.GetString(3)
+                ParentOptionId = reader.IsDBNull(3) ? null : reader.GetString(3),
+                SortOrder = reader.GetInt32(4)
             });
         }
         return results;

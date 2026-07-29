@@ -246,21 +246,86 @@ public sealed partial class PetsPage : Page
         _suppressStatChangeEvent = false;
     }
 
+    /// <summary>Rebuilds a WHOLE new osl array for a different top-level
+    /// archetype choice (e.g. TREX's _TREX_4 -> _TREX_3XRARE) - needed
+    /// because the top-level entry determines which child slots even exist
+    /// (HEAD/BODY/TAIL for one archetype, TAILB/TOPB for another), so a
+    /// same-slot swap doesn't apply here the way it does for every other
+    /// row. Walks the tree depth-first from newRootOptionId, and at each
+    /// branch, visits sibling CATEGORIES in the game's own original order
+    /// (via SortOrder - see CreatureDescriptorNode's doc comment) picking
+    /// ONE default option per category (preferring a non-"(Rare)" option
+    /// when one exists, then lowest SortOrder) - matching the exact
+    /// depth-first shape confirmed against real save data (e.g. TREX's
+    /// osl visits HEAD's full subtree, then BODY's, then TAIL's, in that
+    /// order). Any entries from the CURRENT array that don't match any
+    /// catalog node at all (the trailing per-instance detail seed seen on
+    /// every sampled pet) are preserved as-is, appended after the rebuilt
+    /// tree portion - there's no way to regenerate those and no evidence
+    /// they need to change when the archetype does.
+    /// UNTESTED IN-GAME as of 2026-07-29 - unlike the confirmed same-slot
+    /// swap, nobody has yet confirmed the game accepts a full archetype
+    /// swap built this way.</summary>
+    private static JArray BuildDefaultDescriptorArray(List<CreatureDescriptorNode> tree, string newRootOptionId, JArray currentOsl)
+    {
+        var childrenByParent = tree
+            .Where(n => n.ParentOptionId != null)
+            .GroupBy(n => n.ParentOptionId!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+        var result = new List<string>();
+
+        void Visit(string optionId)
+        {
+            result.Add("^" + optionId);
+
+            if (!childrenByParent.TryGetValue(optionId, out var children)) return;
+
+            var categoriesInOrder = children
+                .GroupBy(n => n.Category)
+                .OrderBy(g => g.Min(n => n.SortOrder));
+
+            foreach (var categoryGroup in categoriesInOrder)
+            {
+                var defaultChoice = categoryGroup
+                    .OrderBy(n => n.OptionId.EndsWith("XRARE", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+                    .ThenBy(n => n.SortOrder)
+                    .First();
+                Visit(defaultChoice.OptionId);
+            }
+        }
+
+        Visit(newRootOptionId);
+
+        var byOptionId = new HashSet<string>(tree.Select(n => n.OptionId), StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in currentOsl)
+        {
+            string raw = entry?.Value<string>() ?? "";
+            if (!byOptionId.Contains(raw.TrimStart('^')))
+                result.Add(raw);
+        }
+
+        return new JArray(result.Cast<object>());
+    }
+
     /// <summary>One dropdown per osl (Descriptors) array entry, each
     /// constrained to that entry's real sibling options (same Category,
     /// same parent) from the rig's own catalog tree - see NmsPetPaths.
     /// DescriptorsPath and this page's XAML description for the full
     /// picture. CONFIRMED WORKING (2026-07-29, real save+reload test) -
     /// swapping several rows at once and reloading in-game rendered every
-    /// new part correctly with no side effects elsewhere. Each row still
-    /// only swaps ONE entry's value among its own siblings, preserving
-    /// array length/order/every other entry - doesn't yet handle picking a
-    /// different TOP-LEVEL archetype (which would change which child slots
-    /// even apply), since that needs a real cascading picker. A
-    /// tree.Count == 0 result means no rig data was found for this species
-    /// (see CatalogService.GetCreatureDescriptorTreeAsync's own doc comment
-    /// for the confirmed exceptions) - shown as a plain message rather than
-    /// an empty, silently-broken-looking panel.</summary>
+    /// new part correctly with no side effects elsewhere. Every row except
+    /// the top-level one swaps ONE entry's value among its own siblings,
+    /// preserving array length/order/every other entry. The top-level row
+    /// (ParentOptionId == null, labeled "- ARCHETYPE") is different -
+    /// picking a new value there rebuilds the WHOLE array from scratch (see
+    /// BuildDefaultDescriptorArray) since it changes which child slots even
+    /// apply, and re-renders this whole panel since the row set itself
+    /// changes. UNTESTED IN-GAME as of 2026-07-29, unlike the confirmed
+    /// same-slot swap. A tree.Count == 0 result means no rig data was found
+    /// for this species (see CatalogService.GetCreatureDescriptorTreeAsync's
+    /// own doc comment for the confirmed exceptions) - shown as a plain
+    /// message rather than an empty, silently-broken-looking panel.</summary>
     private void BuildDescriptorsPanel(int petIndex, List<CreatureDescriptorNode> tree)
     {
         DescriptorsPanel.Children.Clear();
@@ -303,12 +368,15 @@ public sealed partial class PetsPage : Page
                 continue;
             }
 
+            bool isTopLevel = node.ParentOptionId == null;
+
             var siblings = tree
                 .Where(n => n.Category == node.Category && n.ParentOptionId == node.ParentOptionId)
                 .OrderBy(n => n.OptionId, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            row.Children.Add(AdvancedFieldLabel($"{HumanizeDescriptorCategory(node.Category)} (osl[{i}])"));
+            string rowLabel = $"{HumanizeDescriptorCategory(node.Category)} (osl[{i}])";
+            row.Children.Add(AdvancedFieldLabel(isTopLevel ? rowLabel + " - ARCHETYPE" : rowLabel));
 
             var box = new ComboBox { Width = 240 };
             foreach (var sibling in siblings)
@@ -322,27 +390,55 @@ public sealed partial class PetsPage : Page
                 .FirstOrDefault(item => string.Equals(item.Tag as string, optionId, StringComparison.OrdinalIgnoreCase));
             ToolTipService.SetToolTip(box, optionId);
 
-            box.SelectionChanged += (_, _) =>
+            if (isTopLevel)
             {
-                if (_suppressStatChangeEvent) return;
+                // Changing the archetype changes which child slots even
+                // apply, so this can't be a same-slot swap like every other
+                // row - rebuilds the WHOLE array (see
+                // BuildDefaultDescriptorArray) and re-renders this whole
+                // panel, since the row set itself will differ.
+                box.SelectionChanged += (_, _) =>
+                {
+                    if (_suppressStatChangeEvent) return;
 
-                var selected = box.SelectedItem as ComboBoxItem;
-                string newOptionId = selected?.Tag as string ?? "";
-                if (string.IsNullOrEmpty(newOptionId)) return;
-                ToolTipService.SetToolTip(box, newOptionId);
+                    var selected = box.SelectedItem as ComboBoxItem;
+                    string newRootOptionId = selected?.Tag as string ?? "";
+                    if (string.IsNullOrEmpty(newRootOptionId) || string.Equals(newRootOptionId, optionId, StringComparison.OrdinalIgnoreCase))
+                        return;
 
-                if (SaveSessionManager.GetValue(path) is not JArray currentArray || index >= currentArray.Count) return;
+                    if (SaveSessionManager.GetValue(path) is not JArray currentArray) return;
 
-                string existing = currentArray[index]?.Value<string>() ?? "";
-                string newValue = "^" + newOptionId;
-                if (newValue == existing) return;
+                    var rebuilt = BuildDefaultDescriptorArray(tree, newRootOptionId, currentArray);
+                    SaveSessionManager.StageEdit(rebuilt, path);
+                    PageResetBtn.Visibility = Visibility.Visible;
 
-                var updated = new JArray(currentArray.Select(v => v.DeepClone()));
-                updated[index] = newValue;
+                    BuildDescriptorsPanel(petIndex, tree);
+                };
+            }
+            else
+            {
+                box.SelectionChanged += (_, _) =>
+                {
+                    if (_suppressStatChangeEvent) return;
 
-                SaveSessionManager.StageEdit(updated, path);
-                PageResetBtn.Visibility = Visibility.Visible;
-            };
+                    var selected = box.SelectedItem as ComboBoxItem;
+                    string newOptionId = selected?.Tag as string ?? "";
+                    if (string.IsNullOrEmpty(newOptionId)) return;
+                    ToolTipService.SetToolTip(box, newOptionId);
+
+                    if (SaveSessionManager.GetValue(path) is not JArray currentArray || index >= currentArray.Count) return;
+
+                    string existing = currentArray[index]?.Value<string>() ?? "";
+                    string newValue = "^" + newOptionId;
+                    if (newValue == existing) return;
+
+                    var updated = new JArray(currentArray.Select(v => v.DeepClone()));
+                    updated[index] = newValue;
+
+                    SaveSessionManager.StageEdit(updated, path);
+                    PageResetBtn.Visibility = Visibility.Visible;
+                };
+            }
             row.Children.Add(box);
 
             DescriptorsPanel.Children.Add(row);
