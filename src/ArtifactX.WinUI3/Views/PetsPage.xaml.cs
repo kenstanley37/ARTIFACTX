@@ -308,21 +308,28 @@ public sealed partial class PetsPage : Page
                 .OrderBy(n => n.OptionId, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            row.Children.Add(AdvancedFieldLabel($"{node.Category.Trim('_')} (osl[{i}])"));
+            row.Children.Add(AdvancedFieldLabel($"{HumanizeDescriptorCategory(node.Category)} (osl[{i}])"));
 
-            var box = new ComboBox { Width = 220 };
+            var box = new ComboBox { Width = 240 };
             foreach (var sibling in siblings)
-                box.Items.Add(new ComboBoxItem { Content = sibling.OptionId });
+            {
+                var item = new ComboBoxItem { Content = HumanizeDescriptorOption(node.Category, sibling.OptionId), Tag = sibling.OptionId };
+                ToolTipService.SetToolTip(item, sibling.OptionId);
+                box.Items.Add(item);
+            }
 
             box.SelectedItem = box.Items.Cast<ComboBoxItem>()
-                .FirstOrDefault(item => string.Equals(item.Content as string, optionId, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(item => string.Equals(item.Tag as string, optionId, StringComparison.OrdinalIgnoreCase));
+            ToolTipService.SetToolTip(box, optionId);
 
             box.SelectionChanged += (_, _) =>
             {
                 if (_suppressStatChangeEvent) return;
 
-                string newOptionId = (box.SelectedItem as ComboBoxItem)?.Content as string ?? "";
+                var selected = box.SelectedItem as ComboBoxItem;
+                string newOptionId = selected?.Tag as string ?? "";
                 if (string.IsNullOrEmpty(newOptionId)) return;
+                ToolTipService.SetToolTip(box, newOptionId);
 
                 if (SaveSessionManager.GetValue(path) is not JArray currentArray || index >= currentArray.Count) return;
 
@@ -526,6 +533,42 @@ public sealed partial class PetsPage : Page
         row.Children.Add(generateBtn);
 
         AdvancedFieldsPanel.Children.Add(row);
+    }
+
+    /// <summary>Turns a raw descriptor slot code like "_HTAZEARS_" into
+    /// "Htazears" - title-cased for readability. Rig slot names are the
+    /// game's own internal shorthand (not always a recognizable English
+    /// word), so this is cosmetic cleanup only, not a translation - see
+    /// HumanizeDescriptorOption below for the same caveat on option
+    /// values.</summary>
+    private static string HumanizeDescriptorCategory(string category)
+    {
+        string trimmed = category.Trim('_');
+        if (trimmed.Length == 0) return category;
+        return char.ToUpperInvariant(trimmed[0]) + trimmed[1..].ToLowerInvariant();
+    }
+
+    /// <summary>Turns a raw descriptor option code like "_HEAD_TURTLE" into
+    /// "Turtle" for the dropdown label - strips the category's own prefix
+    /// (already shown as the row label via HumanizeDescriptorCategory),
+    /// splits what's left on underscores, and capitalizes each piece. The
+    /// game ships no separate display-name data for these at all -
+    /// TkResourceDescriptorData's own "Name" field turned out to just be a
+    /// differently-cased copy of the Id, not a real label, confirmed while
+    /// decoding the tree - so this is the best available cleanup, not a
+    /// translation. The exact raw code stays visible via each item's
+    /// tooltip for anyone who wants to report back the literal value.</summary>
+    private static string HumanizeDescriptorOption(string category, string rawCode)
+    {
+        string remainder = rawCode;
+        if (remainder.StartsWith(category, StringComparison.OrdinalIgnoreCase))
+            remainder = remainder[category.Length..];
+        remainder = remainder.Trim('_');
+        if (remainder.Length == 0) return rawCode.Trim('_');
+
+        var parts = remainder.Split('_', StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => char.ToUpperInvariant(p[0]) + p[1..].ToLowerInvariant());
+        return string.Join(' ', parts);
     }
 
     /// <summary>"^PLANTCAT" -> "Plantcat" - just enough formatting to be
