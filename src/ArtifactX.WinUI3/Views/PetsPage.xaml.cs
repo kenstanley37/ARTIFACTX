@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.Core.NmsModels;
+using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
 using libMBIN.NMS.GameComponents;
 using Newtonsoft.Json.Linq;
@@ -42,6 +43,12 @@ public sealed partial class PetsPage : Page
     // Species archetype (XID, e.g. "RODENT") -> catalog data, loaded once per
     // page lifetime from the CreatureSpecies category - see CatalogService.
     private Dictionary<string, (string DisplayName, string Rarity, string Description)>? _creatureSpecies;
+
+    // Rig id (species XID lowercased, e.g. "trex") -> its full descriptor
+    // option tree, fetched once per rig and reused across pets that share
+    // one (e.g. multiple tamed Rodents) - see CatalogService.
+    // GetCreatureDescriptorTreeAsync and NmsPetPaths.DescriptorsPath.
+    private readonly Dictionary<string, List<CreatureDescriptorNode>> _descriptorTreeCache = new();
 
     public PetsPage()
     {
@@ -163,6 +170,7 @@ public sealed partial class PetsPage : Page
         AgilityPointsBox.Value = double.NaN;
         HealthPointsBox.Value = double.NaN;
         CombatPointsBox.Value = double.NaN;
+        DescriptorsPanel.Children.Clear();
         AdvancedFieldsPanel.Children.Clear();
     }
 
@@ -187,6 +195,14 @@ public sealed partial class PetsPage : Page
 
         _creatureSpecies ??= await CatalogService.GetCreatureSpeciesAsync();
         RarityTxt.Text = _creatureSpecies.TryGetValue(archetypeId, out var species) ? species.Rarity : "";
+
+        string rigId = archetypeId.ToLowerInvariant();
+        if (!_descriptorTreeCache.TryGetValue(rigId, out var descriptorTree))
+        {
+            descriptorTree = await CatalogService.GetCreatureDescriptorTreeAsync(rigId);
+            _descriptorTreeCache[rigId] = descriptorTree;
+        }
+        BuildDescriptorsPanel(_selectedIndex, descriptorTree);
 
         ClimateTxt.Text = SaveSessionManager.GetValue(NmsPetPaths.NativeClimatePath(_selectedIndex))?.Value<string>() ?? "";
 
@@ -228,6 +244,102 @@ public sealed partial class PetsPage : Page
         BuildAdvancedFieldsPanel(_selectedIndex);
 
         _suppressStatChangeEvent = false;
+    }
+
+    /// <summary>One dropdown per osl (Descriptors) array entry, each
+    /// constrained to that entry's real sibling options (same Category,
+    /// same parent) from the rig's own catalog tree - see NmsPetPaths.
+    /// DescriptorsPath and this page's XAML description for the full
+    /// picture. CONFIRMED WORKING (2026-07-29, real save+reload test) -
+    /// swapping several rows at once and reloading in-game rendered every
+    /// new part correctly with no side effects elsewhere. Each row still
+    /// only swaps ONE entry's value among its own siblings, preserving
+    /// array length/order/every other entry - doesn't yet handle picking a
+    /// different TOP-LEVEL archetype (which would change which child slots
+    /// even apply), since that needs a real cascading picker. A
+    /// tree.Count == 0 result means no rig data was found for this species
+    /// (see CatalogService.GetCreatureDescriptorTreeAsync's own doc comment
+    /// for the confirmed exceptions) - shown as a plain message rather than
+    /// an empty, silently-broken-looking panel.</summary>
+    private void BuildDescriptorsPanel(int petIndex, List<CreatureDescriptorNode> tree)
+    {
+        DescriptorsPanel.Children.Clear();
+
+        var path = NmsPetPaths.DescriptorsPath(petIndex);
+        if (SaveSessionManager.GetValue(path) is not JArray osl) return;
+
+        if (tree.Count == 0)
+        {
+            DescriptorsPanel.Children.Add(new TextBlock
+            {
+                Text = "No catalog data found for this creature's rig - nothing to edit here.",
+                FontSize = 11,
+                Opacity = 0.6,
+                TextWrapping = TextWrapping.Wrap
+            });
+            return;
+        }
+
+        var byOptionId = new Dictionary<string, CreatureDescriptorNode>(StringComparer.OrdinalIgnoreCase);
+        foreach (var node in tree)
+            byOptionId[node.OptionId] = node;
+
+        for (int i = 0; i < osl.Count; i++)
+        {
+            int index = i; // capture for the closure below
+            string raw = osl[i]?.Value<string>() ?? "";
+            string optionId = raw.TrimStart('^');
+
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+
+            if (!byOptionId.TryGetValue(optionId, out var node))
+            {
+                // Doesn't match any known tree node (e.g. the trailing
+                // per-instance detail seed seen on every sampled pet) -
+                // shown read-only so the array stays visible in full.
+                row.Children.Add(AdvancedFieldLabel($"osl[{i}]"));
+                row.Children.Add(new TextBlock { Text = raw, VerticalAlignment = VerticalAlignment.Center, Opacity = 0.6, FontSize = 12 });
+                DescriptorsPanel.Children.Add(row);
+                continue;
+            }
+
+            var siblings = tree
+                .Where(n => n.Category == node.Category && n.ParentOptionId == node.ParentOptionId)
+                .OrderBy(n => n.OptionId, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            row.Children.Add(AdvancedFieldLabel($"{node.Category.Trim('_')} (osl[{i}])"));
+
+            var box = new ComboBox { Width = 220 };
+            foreach (var sibling in siblings)
+                box.Items.Add(new ComboBoxItem { Content = sibling.OptionId });
+
+            box.SelectedItem = box.Items.Cast<ComboBoxItem>()
+                .FirstOrDefault(item => string.Equals(item.Content as string, optionId, StringComparison.OrdinalIgnoreCase));
+
+            box.SelectionChanged += (_, _) =>
+            {
+                if (_suppressStatChangeEvent) return;
+
+                string newOptionId = (box.SelectedItem as ComboBoxItem)?.Content as string ?? "";
+                if (string.IsNullOrEmpty(newOptionId)) return;
+
+                if (SaveSessionManager.GetValue(path) is not JArray currentArray || index >= currentArray.Count) return;
+
+                string existing = currentArray[index]?.Value<string>() ?? "";
+                string newValue = "^" + newOptionId;
+                if (newValue == existing) return;
+
+                var updated = new JArray(currentArray.Select(v => v.DeepClone()));
+                updated[index] = newValue;
+
+                SaveSessionManager.StageEdit(updated, path);
+                PageResetBtn.Visibility = Visibility.Visible;
+            };
+            row.Children.Add(box);
+
+            DescriptorsPanel.Children.Add(row);
+        }
     }
 
     /// <summary>Every remaining raw field on this pet with no confirmed

@@ -64,13 +64,18 @@ namespace ArtifactX.Core.NmsModels;
 ///    exact for most species but a confirmed minority don't match
 ///    (SWIMCOW/cowswim, TWOLEGANTELOPE/antelopetwolegs, ROBOTANTELOPE/
 ///    anteloperobot - word order flips), so callers should treat an empty
-///    tree result as "no data for this species," not force a guess. NOT
-///    exposed for editing yet - the catalog data alone was built as
-///    groundwork; nobody has round-trip tested that the game accepts an
-///    edited osl at all (order requirements, whether every branch must be
-///    present, etc.), and any editor would need a cascading tree-picker UI
-///    (a choice at one level gates which choices are valid at the next),
-///    not a simple field.
+///    tree result as "no data for this species," not force a guess.
+///    CONFIRMED EDITABLE (2026-07-29): a per-slot dropdown editor (see
+///    DescriptorsPath below) shipped and was real-tested on a live save -
+///    swapping Head/Ears/Acc/Body/Back/Tail together in one edit, saving,
+///    and reloading in-game rendered every new part correctly (a
+///    lizard-shaped test pet became turtle/sloth/monkey-shaped), with no
+///    change to Species name, Rarity/Affinity, Trust, Traits, Mutation
+///    Progress, Battle Abilities, or Holo-Arena Victories. The editor only
+///    swaps a slot's value among its own real sibling options (same
+///    Category, same parent) - it does NOT yet support picking a different
+///    TOP-LEVEL archetype (osl[0]), since that would change which child
+///    slots even apply and needs a real cascading tree-picker, not tested.
 ///  - WTp/1p=/uAX/6fX ([bool, hex] pairs) = CreatureSeed/
 ///    CreatureSecondarySeed/ColourBaseSeed/BoneScaleSeed. Only WTp
 ///    (CreatureSeed) was exposed for editing before this was found - real
@@ -311,6 +316,27 @@ public static class NmsPetPaths
     /// automatically before staging, regardless of what the user
     /// types.</summary>
     public static string[] CustomSpeciesNamePath(int petIndex) => PetPath(petIndex).Append("HhX").ToArray();
+
+    /// <summary>The whole osl array (Descriptors, body-part composition
+    /// "recipe") - see this class's doc comment (the "osl" bullet) for the
+    /// confirmed recursive-tree finding. Staged as a whole array, same
+    /// reasoning as TraitsPath/MutationPointsPath above - ArtifactX.WinUI3's
+    /// editor swaps individual entries' values in place (preserving array
+    /// length/order) rather than rebuilding the array shape, backed by the
+    /// CreatureDescriptorOption catalog data (CatalogService.
+    /// GetCreatureDescriptorTreeAsync). CONFIRMED WORKING (2026-07-29, real
+    /// save+reload test): swapped Head/Ears/Acc/Body/Back/Tail all together
+    /// in one edit (e.g. Head Taz->Turtle, Body Rodent->Sloth, Tail
+    /// Rodent->Monkey) and the pet rendered with every new part correctly
+    /// applied in-game - visibly a different body shape (a lizard-posed
+    /// creature became a stocky turtle/sloth-shaped one) - with Species
+    /// name, Rarity/Affinity, Trust, Traits, Mutation Progress, Battle
+    /// Abilities, and Holo-Arena Victories all unchanged. Untested: editing
+    /// just the TOP-LEVEL archetype entry (e.g. osl[0], which would change
+    /// which child slots even apply - this editor only swaps a slot's value
+    /// among its own siblings, not the tree shape itself), and long-term
+    /// save stability beyond one reload cycle.</summary>
+    public static string[] DescriptorsPath(int petIndex) => PetPath(petIndex).Append("osl").ToArray();
 
     /// <summary>E&lt;S[statIndex].1o6 - the same "1o6" Class-letter (S/A/B/C)
     /// convention Ships/Freighter/Multi-Tool use. CONFIRMED (2026-07-28) to
