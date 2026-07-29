@@ -100,6 +100,59 @@ public static class CatalogTrimService
 
         dest.SaveChanges();
 
+        // Creature descriptor trees are a small, fully-content table (a few
+        // thousand rows total across every rig) - unlike Items, there's no
+        // "unnamed noise" to filter out, so every row copies over. Self-
+        // referencing, so a multi-pass copy is needed: each pass copies
+        // whatever's left whose parent (if any) has already been copied,
+        // until nothing more can be resolved - this doesn't assume source
+        // row Ids already happen to be in parent-before-child order.
+        var sourceDescriptors = source.CreatureDescriptorOptions.AsNoTracking().ToList();
+        var descriptorMap = new Dictionary<int, CreatureDescriptorOption>();
+        var remainingDescriptors = sourceDescriptors;
+
+        while (remainingDescriptors.Count > 0)
+        {
+            var stillRemaining = new List<CreatureDescriptorOption>();
+
+            foreach (var sourceOption in remainingDescriptors)
+            {
+                CreatureDescriptorOption? destParent = null;
+                if (sourceOption.ParentOptionId is int parentId)
+                {
+                    if (!descriptorMap.TryGetValue(parentId, out destParent))
+                    {
+                        stillRemaining.Add(sourceOption);
+                        continue;
+                    }
+                }
+
+                var destOption = new CreatureDescriptorOption
+                {
+                    RigId = sourceOption.RigId,
+                    Category = sourceOption.Category,
+                    OptionId = sourceOption.OptionId,
+                    Name = sourceOption.Name,
+                    Chance = sourceOption.Chance,
+                    ParentOption = destParent
+                };
+
+                descriptorMap[sourceOption.Id] = destOption;
+                dest.CreatureDescriptorOptions.Add(destOption);
+            }
+
+            if (stillRemaining.Count == remainingDescriptors.Count)
+            {
+                LogService.Write($"CatalogTrim: WARNING - {stillRemaining.Count} creature descriptor nodes had unresolved parents (orphaned), skipping.");
+                break;
+            }
+
+            remainingDescriptors = stillRemaining;
+        }
+
+        dest.SaveChanges();
+        LogService.Write($"CatalogTrim: copied {descriptorMap.Count} of {sourceDescriptors.Count} creature descriptor tree nodes.");
+
         long sourceSize = new FileInfo(sourceDbPath).Length;
         long destSize = new FileInfo(destDbPath).Length;
 

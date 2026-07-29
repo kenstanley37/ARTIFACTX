@@ -10,6 +10,7 @@ public class CatalogDbContext : DbContext
     public DbSet<IconAsset> Icons => Set<IconAsset>();
     public DbSet<IconBlob> IconBlobs => Set<IconBlob>();
     public DbSet<LocalizedText> LocalizedTexts => Set<LocalizedText>();
+    public DbSet<CreatureDescriptorOption> CreatureDescriptorOptions => Set<CreatureDescriptorOption>();
 
     private readonly string _dbPath;
 
@@ -52,5 +53,18 @@ public class CatalogDbContext : DbContext
         modelBuilder.Entity<LocalizedText>()
             .HasIndex(l => new { l.LocKey, l.Language })
             .IsUnique();
+
+        // Self-referencing tree (Restrict, not the EF default Cascade, so a
+        // future delete of one node can't accidentally cascade-delete its
+        // whole subtree silently - this data is a build-time extraction
+        // artifact, never edited in place).
+        modelBuilder.Entity<CreatureDescriptorOption>()
+            .HasOne(o => o.ParentOption)
+            .WithMany(o => o.Children)
+            .HasForeignKey(o => o.ParentOptionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<CreatureDescriptorOption>()
+            .HasIndex(o => new { o.RigId, o.ParentOptionId });
     }
 }

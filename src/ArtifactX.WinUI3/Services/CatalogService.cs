@@ -432,6 +432,62 @@ public static class CatalogService
         return results;
     }
 
+    /// <summary>Full body-part "Descriptors" option tree for one creature
+    /// rig (e.g. "trex"), sourced from CreatureDescriptorOptions - see
+    /// CatalogBuildService's Phase 1.7 for how this is extracted and
+    /// ArtifactX.Core.NmsModels.NmsPetPaths' class doc comment (the "osl"
+    /// bullet) for how a pet's own osl save field references these nodes by
+    /// OptionId. rigId should be the pet's XID, lowercased - most species
+    /// match their rig filename exactly, but a real minority don't (see
+    /// Phase 1.7's comment for the confirmed exceptions); this returns an
+    /// empty list for those rather than guessing, so callers should treat
+    /// an empty result as "no tree data available for this pet's species",
+    /// not an error.</summary>
+    public static async Task<List<CreatureDescriptorNode>> GetCreatureDescriptorTreeAsync(string rigId)
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+
+        try
+        {
+            return await Task.Run(() => QueryCreatureDescriptorTree(dbPath, rigId));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetCreatureDescriptorTreeAsync({rigId}) failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    private static List<CreatureDescriptorNode> QueryCreatureDescriptorTree(string dbPath, string rigId)
+    {
+        var results = new List<CreatureDescriptorNode>();
+
+        using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT c.Category, c.OptionId, c.Name, p.OptionId AS ParentOptionId
+            FROM CreatureDescriptorOptions c
+            LEFT JOIN CreatureDescriptorOptions p ON p.Id = c.ParentOptionId
+            WHERE c.RigId = @rigId";
+        command.Parameters.AddWithValue("@rigId", rigId);
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            results.Add(new CreatureDescriptorNode
+            {
+                Category = reader.GetString(0),
+                OptionId = reader.GetString(1),
+                Name = reader.GetString(2),
+                ParentOptionId = reader.IsDBNull(3) ? null : reader.GetString(3)
+            });
+        }
+        return results;
+    }
+
     private static string? ResolveDbPath()
     {
         if (_pathChecked) return _dbPath;

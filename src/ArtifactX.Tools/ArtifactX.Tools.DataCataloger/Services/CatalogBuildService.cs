@@ -505,6 +505,94 @@ public class CatalogBuildService
             LogService.Write("CatalogBuild: WARNING - could not extract creature species data from creaturedatatable.mbin.");
         }
 
+        // -------------------------------------------------------------
+        // Phase 1.7: Creature body-part "Descriptors" trees (osl in the save -
+        // confirmed 2026-07-28 via a real pet's osl array, e.g. ["_TREX_4",
+        // "_HEAD_ALIEN", "_BLOB_2B", "_EYES_1", "_ANTENNAS_1", "_BODY_BIRDREX",
+        // "_BBRACC_5N", "_TAIL_RAT", "4262532434"], cross-referenced against
+        // the real decoded models/planets/creatures/trexrig/trex.descriptor.
+        // mbin - every named entry matched a node in this tree exactly. Not a
+        // flat value list: each creature body "rig" (trex, cat, rodent,
+        // spider, grunt, ...) has its own recursively-nested option tree
+        // (TkModelDescriptorList -> TkResourceDescriptorList.Descriptors ->
+        // TkResourceDescriptorData, whose own Children re-enter a nested
+        // TkModelDescriptorList for the next branch down) - e.g. TREX's tree
+        // picks a body archetype (_TREX_4 vs _TREX_3XRARE) which opens up
+        // HEAD/BODY/TAIL choices, some of which open further sub-choices
+        // (_HEAD_ALIEN -> BLOB -> EYES/ANTENNAS). osl is a flat array of the
+        // selected node Id at each branch actually taken for that pet, not
+        // every possible node. Its trailing numeric-looking entry (e.g.
+        // "4262532434") doesn't match any node Id anywhere in the tree -
+        // most likely a per-instance detail/variation seed, not itself a
+        // selectable option.
+        //
+        // No CatalogItem/CatalogCategory row here - the recursive parent/
+        // child shape doesn't fit that flat schema, so this gets its own
+        // dedicated table (CreatureDescriptorOption, self-referencing via
+        // ParentOptionId) written directly in Phase 3 below.
+        //
+        // Rig discovery is a FILENAME RULE, not a curated list (same idea as
+        // Multi-Tool/Freighter Types above): every *.descriptor.mbin
+        // directly under models/planets/creatures/, excluding any path
+        // segment starting with "ANIM" (ANIM/ANIMS/ANIMATION subfolders hold
+        // hundreds of unrelated per-animation-clip descriptor files,
+        // confirmed by sampling - those are a completely different use of
+        // the same MBIN type, not body-part trees). RigId is the filename
+        // stem lowercased (e.g. "trex.descriptor.mbin" -> "trex") -
+        // confirmed to exactly match a pet's own XID lowercased for the one
+        // archetype tested (TREX); cross-checking the full ~85-entry
+        // creaturedatatable.mbin species list against these rig filenames
+        // found most match exactly but a real minority don't (SWIMCOW/
+        // cowswim, TWOLEGANTELOPE/antelopetwolegs, ROBOTANTELOPE/
+        // anteloperobot - word order flips), so the app-side lookup should
+        // be an exact match with a graceful "no data" fallback for those,
+        // not a fuzzy matcher guessing at the irregular cases.
+        // -------------------------------------------------------------
+        var creatureDescriptorOptions = new List<CreatureDescriptorOption>();
+        var seenRigFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        int rigsProcessed = 0;
+
+        foreach (var (pakPath, header, entries) in pakData)
+        {
+            foreach (var entry in entries)
+            {
+                if (string.IsNullOrEmpty(entry.FileName)) continue;
+
+                string upperPath = entry.FileName.ToUpperInvariant();
+                if (!upperPath.Contains("MODELS/PLANETS/CREATURES/")) continue;
+                if (!upperPath.EndsWith(".DESCRIPTOR.MBIN")) continue;
+                if (upperPath.Split('/').Any(s => s.StartsWith("ANIM", StringComparison.Ordinal))) continue;
+                if (!seenRigFiles.Add(upperPath)) continue;
+
+                NMSTemplate? decoded;
+                try
+                {
+                    decoded = DecodeMbin(pakPath, entry, header);
+                }
+                catch
+                {
+                    continue; // already logged inside DecodeMbin
+                }
+
+                if (decoded is not libMBIN.NMS.Toolkit.TkModelDescriptorList rootList || rootList.List == null)
+                    continue;
+
+                string fileName = entry.FileName[(entry.FileName.LastIndexOf('/') + 1)..];
+                int dotIdx = fileName.IndexOf(".descriptor", StringComparison.OrdinalIgnoreCase);
+                string rigId = (dotIdx >= 0 ? fileName[..dotIdx] : fileName).ToLowerInvariant();
+
+                foreach (var slot in rootList.List)
+                    ExtractDescriptorSlot(slot, rigId, null, creatureDescriptorOptions);
+
+                rigsProcessed++;
+            }
+        }
+
+        if (creatureDescriptorOptions.Count > 0)
+            LogService.Write($"CatalogBuild: extracted {creatureDescriptorOptions.Count} creature descriptor tree nodes across {rigsProcessed} rigs.");
+        else
+            LogService.Write("CatalogBuild: WARNING - found no creature descriptor.mbin body-part trees.");
+
         foreach (var (pakPath, header, entries) in pakData)
         {
             foreach (var entry in entries)
@@ -690,6 +778,18 @@ public class CatalogBuildService
             LogService.Write($"CatalogBuild: failed to save localisation texts: {ex.Message}");
         }
 
+        db.CreatureDescriptorOptions.AddRange(creatureDescriptorOptions);
+
+        try
+        {
+            db.SaveChanges();
+            LogService.Write($"CatalogBuild: wrote {creatureDescriptorOptions.Count} creature descriptor tree nodes to {dbOutputPath}.");
+        }
+        catch (Exception ex)
+        {
+            LogService.Write($"CatalogBuild: failed to save creature descriptor options: {ex.Message}");
+        }
+
         int savedCategories = 0, savedItems = 0;
 
         foreach (var category in categories)
@@ -800,6 +900,50 @@ public class CatalogBuildService
         if (fileName.Contains("NPCROBOT", StringComparison.OrdinalIgnoreCase)) return "Robot";
 
         return fileName;
+    }
+
+    /// <summary>Recursively flattens one TkResourceDescriptorList "slot" (a
+    /// category of mutually-exclusive options, e.g. all HEAD choices) into
+    /// CreatureDescriptorOption rows, following each option's own Children
+    /// back down into whatever further slots it opens up (e.g. _HEAD_ALIEN
+    /// opening a BLOB slot). See Phase 1.7 above for the full picture.</summary>
+    private static void ExtractDescriptorSlot(
+        libMBIN.NMS.Toolkit.TkResourceDescriptorList? slot,
+        string rigId,
+        CreatureDescriptorOption? parentOption,
+        List<CreatureDescriptorOption> collected)
+    {
+        if (slot?.Descriptors == null) return;
+
+        string category = slot.TypeId?.ToString() ?? "";
+
+        foreach (var data in slot.Descriptors)
+        {
+            string? optionId = data?.Id?.ToString();
+            if (string.IsNullOrWhiteSpace(optionId)) continue;
+
+            var option = new CreatureDescriptorOption
+            {
+                RigId = rigId,
+                Category = category,
+                OptionId = optionId,
+                Name = data!.Name?.ToString() ?? "",
+                Chance = data.Chance,
+                ParentOption = parentOption
+            };
+            collected.Add(option);
+
+            if (data.Children == null) continue;
+
+            foreach (var child in data.Children)
+            {
+                if (child is libMBIN.NMS.Toolkit.TkModelDescriptorList childList && childList.List != null)
+                {
+                    foreach (var childSlot in childList.List)
+                        ExtractDescriptorSlot(childSlot, rigId, option, collected);
+                }
+            }
+        }
     }
 
     private NMSTemplate? DecodeMbin(string pakPath, PakEntry entry, PakHeader header)

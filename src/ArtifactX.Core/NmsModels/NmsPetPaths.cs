@@ -32,7 +32,45 @@ namespace ArtifactX.Core.NmsModels;
 ///  - fH8 = CustomName, xDJ = Trust, unY = Scale, XID = CreatureID: already
 ///    independently confirmed via exact value matches against screenshots.
 ///  - osl (body part list) = Descriptors (Array&lt;string&gt;) - the
-///    construction "recipe", separate from the seeds below.
+///    construction "recipe", separate from the seeds below. CONFIRMED
+///    2026-07-28 what this actually is: a flat array of node Ids sampled
+///    from a per-species RECURSIVE option tree, not a flat value list. Each
+///    creature body "rig" (trex, cat, rodent, spider, grunt, ...) has its
+///    own tree in models/planets/creatures/&lt;rig&gt;/&lt;name&gt;.descriptor.mbin
+///    (TkModelDescriptorList -&gt; TkResourceDescriptorList.Descriptors -&gt;
+///    TkResourceDescriptorData, whose own Children re-enter a nested
+///    TkModelDescriptorList for the next branch down) - confirmed by
+///    decoding a real pet's rig file and matching every one of its osl
+///    entries to an exact node in that tree: a real TREX pet's osl
+///    ["_TREX_4", "_HEAD_ALIEN", "_BLOB_2B", "_EYES_1", "_ANTENNAS_1",
+///    "_BODY_BIRDREX", "_BBRACC_5N", "_TAIL_RAT", "4262532434"] matched
+///    _TREX_4 (a top-level body archetype, sibling to _TREX_3XRARE) -&gt;
+///    HEAD=_HEAD_ALIEN (one of 8 HEAD choices) -&gt; that head's own BLOB
+///    slot=_BLOB_2B -&gt; that blob's own EYES=_EYES_1 and ANTENNAS=
+///    _ANTENNAS_1 sub-choices, plus _TREX_4's sibling BODY=_BODY_BIRDREX
+///    (one of 4) -&gt; its own BBRACC=_BBRACC_5N accessory slot, and sibling
+///    TAIL=_TAIL_RAT (one of 5, a leaf with no further sub-choices) - every
+///    named entry matched exactly, with only the trailing numeric entry
+///    ("4262532434") unaccounted for anywhere in the tree, most likely a
+///    per-instance detail/variation seed rather than a selectable node.
+///    Now extracted into its own database table (CreatureDescriptorOption,
+///    self-referencing via ParentOptionId - see CatalogBuildService's Phase
+///    1.7 and ArtifactX.WinUI3's CatalogService.GetCreatureDescriptorTreeAsync)
+///    rather than hardcoded, since it's real per-rig PAK content discovered
+///    by a filename rule (every *.descriptor.mbin under models/planets/
+///    creatures/, excluding ANIM/ANIMS/ANIMATION subfolders which hold
+///    unrelated per-animation-clip files using the same MBIN type) covering
+///    roughly 30-40 rigs. A pet's rig is looked up by XID lowercased -
+///    exact for most species but a confirmed minority don't match
+///    (SWIMCOW/cowswim, TWOLEGANTELOPE/antelopetwolegs, ROBOTANTELOPE/
+///    anteloperobot - word order flips), so callers should treat an empty
+///    tree result as "no data for this species," not force a guess. NOT
+///    exposed for editing yet - the catalog data alone was built as
+///    groundwork; nobody has round-trip tested that the game accepts an
+///    edited osl at all (order requirements, whether every branch must be
+///    present, etc.), and any editor would need a cascading tree-picker UI
+///    (a choice at one level gates which choices are valid at the next),
+///    not a simple field.
 ///  - WTp/1p=/uAX/6fX ([bool, hex] pairs) = CreatureSeed/
 ///    CreatureSecondarySeed/ColourBaseSeed/BoneScaleSeed. Only WTp
 ///    (CreatureSeed) was exposed for editing before this was found - real
