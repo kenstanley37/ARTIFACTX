@@ -65,19 +65,20 @@ namespace ArtifactX.Core.NmsModels;
 /// name via NomNom (an established third-party NMS save editor) showing
 /// matching values for the same real settlement.
 ///
-/// BugAttack (Stats[7]) - OBSERVED 2026-07-30: setting it to a large
-/// distinctive value (1000) was followed, in the same play session, by a
-/// real in-game "biological infestation" event triggering specifically at
-/// that settlement - a new "Purge the infestation" objective appeared under
-/// "The Settlers: Settlement1" and a Vile Queen boss fight had to be
-/// completed to clear it. Strongly suggestive that BugAttack drives/
-/// triggers this event rather than being purely cosmetic, but this was a
-/// single uncontrolled observation (settlements can also get infestation
-/// events on their own during normal play) - not yet isolated the way
-/// Production/MaxPopulation's additive effect was confirmed. Worth a
-/// follow-up: set BugAttack to 0 on a settlement and see if infestations
-/// stop, or push it high on a second settlement and see if the same event
-/// reliably follows.
+/// BugAttack (Stats[7]) - CONFIRMED 2026-07-30: setting it to a large
+/// distinctive value (1000) triggers a real in-game "biological
+/// infestation" event at that exact settlement - a "Purge the infestation"
+/// objective appears under "The Settlers: &lt;name&gt;" and a Vile Queen boss
+/// fight has to be completed to clear it. First seen on Settlement1
+/// (single observation, flagged as unconfirmed/possibly coincidental since
+/// settlements can get infestations on their own). Repeated independently
+/// on Settlement2 (same value, same result: infestation objective appeared
+/// specifically for Settlement2) - two-for-two across two different
+/// settlements is enough to call this confirmed rather than coincidence.
+/// Unlike Production/MaxPopulation's additive-to-baseline model, BugAttack
+/// looks like a threshold/trigger value for the settlement event system
+/// rather than something the game displays directly - exact threshold
+/// (below 1000?) not yet narrowed down.
 ///
 /// CORRECTION (2026-07-30): an earlier version of this doc comment claimed
 /// the Perks array (OEf) was confirmed capped at exactly 8 - that was a real
