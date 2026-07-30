@@ -216,7 +216,19 @@ public static class NmsSettlementPaths
     /// Real perk ids and their resolved names/descriptions/stat effects are
     /// catalogued separately - see CatalogService.GetSettlementPerksAsync
     /// and CatalogBuildService's Phase 1.8. Staged as a whole array, same
-    /// reasoning as StatsPath below.</summary>
+    /// reasoning as StatsPath below.
+    ///
+    /// CONFIRMED (2026-07-30): writing an IsProc perk id with NO roll
+    /// suffix works fine - the game generates fresh, readable, thematically
+    /// appropriate flavor text on its own rather than needing one supplied.
+    /// Real examples from a save+reload test (GameId -&gt; in-game text):
+    /// "^PROC_FARM" (catalog Name template "%FOOD% %FARM%") rendered as
+    /// "Ever-burning Jam cannery"; "^POL_MOOD" ("%HAPPY_ADJ%
+    /// %HAPPY_FACILITY%") rendered as "Generous festivals"; "^PROC_BUI"
+    /// ("%GREEK%") rendered as literal fake-Greek gibberish
+    /// ("11&#947;&#955;110&#956;&#953;") - apparently the intended joke for
+    /// that specific template. Safe to pick any cataloged perk id, Proc or
+    /// not, without worrying about reconstructing a suffix.</summary>
     public static string[] PerksPath(int settlementIndex) => SettlementPath(settlementIndex).Append("OEf").ToArray();
 
     /// <summary>The whole 8-entry Stats array (MaxPopulation/Happiness/
