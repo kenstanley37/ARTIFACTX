@@ -39,7 +39,7 @@ public sealed partial class ExosuitPage : Page
         CargoGrid.AllowedTemplateTypes = new[] { "GcProductTable", "GcSubstanceTable" };
         CargoGrid.SupportsSupercharge = false;
         CargoGrid.SupportsRepair = false;
-        CargoGrid.ProductStorageMultiplier = 10; // Substances stay at the 1x default
+        CargoGrid.ProductStorageMultiplier = 10;
 
         TechGrid.CellChanged += (_, _) => PageResetBtn.Visibility = Visibility.Visible;
         CargoGrid.CellChanged += (_, _) => PageResetBtn.Visibility = Visibility.Visible;

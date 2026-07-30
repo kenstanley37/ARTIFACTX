@@ -60,13 +60,11 @@ public sealed partial class InventorySlotGrid : UserControl
     /// StackMultiplier to get its real max stack here - e.g. 10 for a standard Cargo
     /// container (confirmed: Metal Plating's StackMultiplier of 2 x 10 = the real
     /// 20-item cap). Differs by container type (Ship/Freighter/personal storage use
-    /// different multipliers) - defaults to 1x (no boost) until a host page sets it.</summary>
+    /// different multipliers) - defaults to 1x (no boost) until a host page sets it.
+    /// Substances don't have an equivalent - see the "Substance" branch where
+    /// AddItem computes maxAmount for why that raw catalog value isn't usable at
+    /// all for that category, multiplied or not.</summary>
     public int ProductStorageMultiplier { get; set; } = 1;
-
-    /// <summary>Same idea as ProductStorageMultiplier but for Substances - Cargo's
-    /// is 1x (no boost) per ArtifactX's own DefaultInventoryBalance data, since raw ores'
-    /// StackMultiplier is already the full number (e.g. ~9999) with no scaling needed.</summary>
-    public int SubstanceStorageMultiplier { get; set; } = 1;
 
     // Shared across every InventorySlotGrid instance in the app so a drag started
     // in one grid (e.g. Tech) can be dropped onto another (e.g. Cargo) - there's
@@ -419,22 +417,34 @@ public sealed partial class InventorySlotGrid : UserControl
             if (resultsList.SelectedItem is not ListViewItem { Tag: CatalogSearchResult match }) return;
 
             // Technology entries track durability (0-100), not a stack count - a
-            // freshly-added module starts at full. Product/Substance use the real
+            // freshly-added module starts at full. Products use the real
             // per-container cap: StackMultiplier is a BASE value the container
             // itself further multiplies (confirmed against ArtifactX's own
             // DefaultInventoryBalance data) - e.g. Metal Plating's raw
             // StackMultiplier of 2, times Cargo's ProductStorageMultiplier of 10,
-            // gives the real 20-item cap. Substances use their own (usually 1x)
-            // multiplier instead. 9999 is only a last-resort fallback for a row
-            // with no MaxStackSize recorded at all, not the norm. New items start
-            // at that cap outright rather than 1 - same reasoning as the Max Qty
-            // context-menu action: that's the value people actually want, and
-            // trimming down is easier (sell/drop in-game) than topping up here.
+            // gives the real 20-item cap.
+            //
+            // Substances DON'T follow that pattern - real bug found and fixed
+            // 2026-07-30: the catalog's raw StackMultiplier for GcSubstanceTable
+            // rows is essentially meaningless. Checked every row: 73 of 79 report
+            // exactly 1 regardless of the actual substance (confirmed on a real
+            // save - a freshly-added Polished Stone capped at 1 instead of the
+            // real in-game 9999), and the only 6 rows reporting something else
+            // are non-physical trackers (Units/Quicksilver/Nanites/reputation
+            // standings), not real cargo. Every genuine substance caps at the
+            // game's universal 9999 ceiling in practice, so this skips the
+            // per-container multiplier math entirely for that category rather
+            // than multiplying a value that was never trustworthy to begin with.
+            //
+            // New items start at their cap outright rather than 1 either way -
+            // same reasoning as the Max Qty context-menu action: that's the
+            // value people actually want, and trimming down is easier (sell/drop
+            // in-game) than topping up here.
             int maxAmount = match.CategoryLabel switch
             {
                 "Technology" => 100,
                 "Product" => ComputeStackCap(match.MaxStackSize, ProductStorageMultiplier),
-                _ => ComputeStackCap(match.MaxStackSize, SubstanceStorageMultiplier),
+                _ => 9999,
             };
 
             ViewModel?.AddItem(cell.X, cell.Y, match.GameId, match.CategoryLabel, maxAmount, maxAmount);
