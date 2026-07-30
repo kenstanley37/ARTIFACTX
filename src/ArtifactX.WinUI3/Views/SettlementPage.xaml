@@ -47,7 +47,8 @@
                             </StackPanel>
                             <StackPanel Spacing="6" Width="160">
                                 <TextBlock Text="Culture (Race)" FontSize="12" Opacity="0.7"/>
-                                <ComboBox x:Name="RaceBox" Width="150" HorizontalAlignment="Left" SelectionChanged="RaceBox_SelectionChanged"/>
+                                <ComboBox x:Name="RaceBox" Width="150" HorizontalAlignment="Left" SelectionChanged="RaceBox_SelectionChanged"
+                                          ToolTipService.ToolTip="Unconfirmed and looks inconsistent - across 3 real tests, the in-game subtitle never matched this value (once showing a race that isn't even in this dropdown's list). Don't assume edits here do anything yet."/>
                             </StackPanel>
                             <StackPanel Spacing="6" Width="160">
                                 <TextBlock Text="Population" FontSize="12" Opacity="0.7"/>

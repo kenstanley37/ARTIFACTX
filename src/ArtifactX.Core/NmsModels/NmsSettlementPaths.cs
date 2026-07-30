@@ -60,11 +60,37 @@ namespace ArtifactX.Core.NmsModels;
 /// effect; it's just relative to a baseline, not an absolute override.
 /// Upkeep/Sentinels haven't specifically been pushed to a large distinctive
 /// value the way Production was, so their exact additive-vs-ignored status
-/// is still one notch less certain than Production/MaxPopulation's. Race
-/// and the Perks array (see PerksPath below) were independently confirmed
-/// correct by name via NomNom (an established third-party NMS save editor)
-/// showing matching values for the same real settlement.
+/// is still one notch less certain than Production/MaxPopulation's. The
+/// Perks array (see PerksPath below) was independently confirmed correct by
+/// name via NomNom (an established third-party NMS save editor) showing
+/// matching values for the same real settlement.
 ///
+/// Perks array size CONFIRMED as exactly 8, not more (2026-07-29): the
+/// in-game "Settlement Features" panel paginates 6 per page, which briefly
+/// looked like it might imply a 12-slot cap when 2 pages were seen - a real
+/// test settled it: with exactly 7 of the 8 OEf slots populated, the panel
+/// showed 6 on page 1 and exactly 1 on page 2, matching an 8-slot array
+/// perfectly (2 pages is just what 7-8 populated items looks like at
+/// 6-per-page, regardless of whether the true cap is 8 or 12 - this
+/// specific count settles it at 8).
+///
+/// Race (SS2/0Hi) is UNCONFIRMED and looks INCONSISTENT, not just
+/// unconfirmed - across three separate test rounds, the in-game "X
+/// Planetary Settlement" subtitle text never matched whatever SS2 was set
+/// to at the time (SS2 was Warriors/Builders in one round while the
+/// subtitle showed "Vy'keen"/"Autophage" - neither of which is even a
+/// member of GcAlienRace.AlienRaceEnum; a later round set SS2 to "Robots"
+/// and the subtitle showed no race prefix at all, just "Planetary
+/// Settlement"). This suggests the visible subtitle text is driven by
+/// something OTHER than this field - possibly the Owner's own player-
+/// character race/story path, not a per-settlement property at all - or
+/// that SS2 affects something else not visible in the overview screen
+/// (building architecture style, NPC appearance) rather than the subtitle.
+/// An earlier version of this doc comment claimed NomNom independently
+/// confirmed Race - that claim was not well-supported (NomNom's own
+/// screenshot didn't show a Race/Culture field at all) and has been
+/// removed; only the Perks names/descriptions were actually cross-checked
+/// against NomNom.
 /// Full field map, in Index/JSON-key order:
 ///  0 20I  = UniqueId (NMSString0x40, hex-looking id, e.g. "12c32f3ab8745642")
 ///  1 yhJ  = UniverseAddress (ulong)
@@ -119,10 +145,11 @@ namespace ArtifactX.Core.NmsModels;
 ///           "Settlement_LandingZone" when a specific building class is
 ///           queued, "None" otherwise)
 /// 24 xru  = NextBuildingUpgradeSeedValue (ulong, hex-string formatted)
-/// 25 SS2  = Race (wrapped GcAlienRace enum, field "0Hi" - despite the
-///           name, this is the settlement's CULTURE/archetype, not a
+/// 25 SS2  = Race (wrapped GcAlienRace enum, field "0Hi" - the type-level
+///           name suggests the settlement's CULTURE/archetype, not a
 ///           player species: Traders/Warriors/Explorers/Robots/Atlas/
-///           Diplomats/Exotics/None/Builders) - see RacePath below
+///           Diplomats/Exotics/None/Builders - but UNCONFIRMED/likely
+///           inconsistent, see RacePath below for why)
 /// 26 @rg  = MiniMissionStartTime (ulong timestamp)
 /// 27 Ak8  = MiniMissionSeed (ulong, 0 when no mini-mission generated yet)
 /// 28 rr0  = LastJudgementPerkID (NMSString0x10 - references one of the
@@ -156,11 +183,20 @@ public static class NmsSettlementPaths
     public static string[] OwnerPlatformPath(int settlementIndex) => SettlementPath(settlementIndex).Append("3?K").Append("D6b").ToArray();
 
     /// <summary>Race (settlement Culture/archetype, e.g. "Warriors") - the
-    /// complete, authoritative value set is libMBIN's own GcAlienRace.
-    /// AlienRaceEnum. ArtifactX.Core deliberately doesn't reference libMBIN
-    /// (a WinUI3-side concern), so the UI pulls the enum's values directly
-    /// via Enum.GetNames rather than a hand-copied duplicate living here -
-    /// same pattern as Pets' CreatureTypePath.</summary>
+    /// complete value set libMBIN declares is GcAlienRace.AlienRaceEnum.
+    /// ArtifactX.Core deliberately doesn't reference libMBIN (a WinUI3-side
+    /// concern), so the UI pulls the enum's values directly via
+    /// Enum.GetNames rather than a hand-copied duplicate living here - same
+    /// pattern as Pets' CreatureTypePath. UNCONFIRMED and looks
+    /// INCONSISTENT (2026-07-29): across three real test rounds, the
+    /// in-game "X Planetary Settlement" subtitle never matched whatever
+    /// this field was set to (seen showing "Vy'keen"/"Autophage" - neither
+    /// a member of the enum this field uses - and later showing no prefix
+    /// at all for "Robots"). Either this field drives something not
+    /// visible on the overview screen, or the subtitle is driven by
+    /// something else (e.g. the Owner's own player-character race) rather
+    /// than this field. Don't treat edits here as confirmed to do
+    /// anything until that's resolved.</summary>
     public static string[] RacePath(int settlementIndex) => SettlementPath(settlementIndex).Append("SS2").Append("0Hi").ToArray();
 
     public static string[] PopulationPath(int settlementIndex) => SettlementPath(settlementIndex).Append("x3<").ToArray();
