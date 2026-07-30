@@ -22,9 +22,6 @@
                         Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
             </Grid>
 
-            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="820"
-                       Text="FIRST PASS, 2026-07-29 - field names below are inferred by cross-referencing a real settlement's raw save keys against libMBIN's own GcSettlementState class (same field count, same order, plausible values for every match), NOT yet confirmed by editing and reloading in-game the way every Pets field was. Treat everything here as a strong hypothesis to test, not a settled fact - change one field at a time and check in-game what happens."/>
-
             <StackPanel Spacing="20" HorizontalAlignment="Stretch">
                 <TextBlock Text="Owned Settlements" FontSize="14" Opacity="0.8"/>
                 <ScrollViewer MaxHeight="104" VerticalScrollBarVisibility="Auto"
@@ -65,8 +62,6 @@
 
                         <StackPanel Spacing="8">
                             <TextBlock Text="Stats" FontSize="14" FontWeight="SemiBold"/>
-                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
-                                       Text="Matches libMBIN's SettlementStatTypeEnum (8 members) positionally - real sampled values varied widely in scale, so no min/max is enforced here. Confirmed 2026-07-29: Debt and Happiness track the in-game display closely. Max Population and Production DO feed the in-game Max Population/Productivity numbers - confirmed by setting Production to 2,000,000,000 and seeing an in-game Productivity of ~2,000,301,113 - but ADDITIVELY, combined with a baseline from Buildings/Perks, not as a direct overwrite (e.g. Max Population 0-&gt;100 moved the shown max from ~55 to 159, not to exactly 100). Upkeep/Sentinels are assumed to work the same way but haven't been pushed to a distinctive test value yet to fully confirm. CONFIRMED 2026-07-30: setting Bug Attack to 1000 triggers a real in-game &quot;biological infestation&quot; event at that exact settlement (a Vile Queen boss fight to purge) - verified independently on both Settlement1 and Settlement2. Unlike the other stats this looks like a trigger/threshold value rather than something displayed directly."/>
                             <StackPanel Orientation="Horizontal" Spacing="24">
                                 <StackPanel Spacing="6" Width="120">
                                     <TextBlock Text="Max Population" Opacity="0.7" FontSize="11"/>
@@ -106,26 +101,12 @@
                         </StackPanel>
 
                         <StackPanel Spacing="8">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Buffs (Settlement Features)" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                                    <Button x:Name="AddPerkSlotBtn" Content="Add Buff Slot" Click="AddPerkSlotBtn_Click"/>
-                                    <Button x:Name="FillEmptyPerksBtn" Content="Fill Empty Slots" Click="FillEmptyPerksBtn_Click"/>
-                                </StackPanel>
-                            </Grid>
-                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
-                                       Text="Confirmed 2026-07-29 - real names/descriptions resolved directly from the game's own settlement perks table (matched exactly against a real settlement's in-game &quot;Settlement Features&quot; panel, e.g. &quot;Public artworks - Improves citizen happiness&quot;). Each row is one Perks array entry; &quot;(None)&quot; means that entry is empty. Picking a different perk swaps just that entry's id, dropping any per-instance roll suffix some perks carry (e.g. &quot;PROC_FUN#09286&quot;). A perk labeled &quot;Proc&quot; shows raw text like &quot;%FUN_ADJ% %FUN_FACILITY%&quot; here only - CONFIRMED 2026-07-30 the game generates real, readable, themed flavor text for these on its own even with no roll suffix supplied - safe to pick freely, no suffix needed. CORRECTED 2026-07-30: this array is NOT capped at 8 - that was a real analysis mistake (the game field is an unbounded list, not a fixed array), proven wrong when a real settlement grew to 10 features through normal play alone. CONFIRMED 2026-07-30: grown to 19 entries via &quot;Add Buff Slot&quot; and tested in-game - all 19 loaded fine across 4 paginated panel pages, no crash, no cap found. Treat this as effectively unbounded. &quot;Fill Empty Slots&quot; randomly picks a real perk for every currently-empty entry, leaving anything you've already set untouched."/>
-                            <!-- Perks are grouped into cards of 6 (built in code-behind, see
-                                 BuildPerksPanel) rather than one long flat list, since the
-                                 array's real length is confirmed unbounded. A WrapPanel flows
-                                 cards left-to-right and drops extras to new rows automatically
-                                 as the window narrows - no fixed page-width assumption needed. -->
-                            <ctcontrols:WrapPanel x:Name="PerksPanel" HorizontalSpacing="16" VerticalSpacing="16"/>
+                            <TextBlock  Text="Settlement Features" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <StackPanel  Orientation="Horizontal" Spacing="8">
+                                <Button x:Name="AddPerkSlotBtn" Content="Add Feature Slot" Click="AddFeatureSlotBtn_Click"/>
+                            </StackPanel>
                         </StackPanel>
+                        <ctcontrols:WrapPanel x:Name="PerksPanel" HorizontalSpacing="16" VerticalSpacing="16"/>
                     </StackPanel>
                 </Border>
             </StackPanel>

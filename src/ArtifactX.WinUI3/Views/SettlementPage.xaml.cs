@@ -203,7 +203,7 @@ public sealed partial class SettlementPage : Page
     /// pages, no crash, no cap found. Treat the array as effectively
     /// unbounded - follow with "Fill Empty Slots" or pick a perk for the new
     /// row directly.</summary>
-    private void AddPerkSlotBtn_Click(object sender, RoutedEventArgs e)
+    private void AddFeatureSlotBtn_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedIndex < 0) return;
 
@@ -216,39 +216,6 @@ public sealed partial class SettlementPage : Page
         SaveSessionManager.StageEdit(updated, path);
         PageResetBtn.Visibility = Visibility.Visible;
         BuildPerksPanel(_selectedIndex, _settlementPerks ?? new());
-    }
-
-    /// <summary>Randomly fills every currently-empty Perks entry with a real
-    /// cataloged perk, leaving anything already set untouched - a quick way
-    /// to get everything populated at once for testing, rather than
-    /// clicking through each dropdown by hand.</summary>
-    private void FillEmptyPerksBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0 || _settlementPerks is null || _settlementPerks.Count == 0) return;
-
-        var path = NmsSettlementPaths.PerksPath(_selectedIndex);
-        if (SaveSessionManager.GetValue(path) is not JArray currentArray) return;
-
-        var perkKeys = _settlementPerks.Keys.ToList();
-        var updated = new JArray(currentArray.Select(v => v.DeepClone()));
-        bool changed = false;
-
-        for (int i = 0; i < updated.Count; i++)
-        {
-            string raw = updated[i]?.Value<string>() ?? "";
-            string stripped = raw.TrimStart('^');
-            if (!string.IsNullOrEmpty(stripped)) continue; // already has something, leave it alone
-
-            string randomKey = perkKeys[PerkRandom.Next(perkKeys.Count)];
-            updated[i] = "^" + randomKey;
-            changed = true;
-        }
-
-        if (!changed) return;
-
-        SaveSessionManager.StageEdit(updated, path);
-        PageResetBtn.Visibility = Visibility.Visible;
-        BuildPerksPanel(_selectedIndex, _settlementPerks);
     }
 
     private static readonly SolidColorBrush NegativePerkBrush = new(Color.FromArgb(255, 0xE0, 0x4C, 0x3D));
