@@ -29,6 +29,10 @@ public sealed partial class FrigatePage : Page
     private List<FrigateEntry> _frigates = new();
     private bool _suppressFieldChangeEvent;
 
+    // Trait id -> catalog data, loaded once per page lifetime from the
+    // FrigateTraits category - see CatalogService.GetFrigateTraitsAsync.
+    private Dictionary<string, (string DisplayName, string Description, string Category)>? _frigateTraits;
+
     public FrigatePage()
     {
         InitializeComponent();
@@ -125,6 +129,8 @@ public sealed partial class FrigatePage : Page
         FrigateClassBox.SelectedIndex = -1;
         RaceBox.SelectedIndex = -1;
         InventoryClassBox.SelectedIndex = -1;
+        ModelSeedEditBox.Text = "";
+        HomeSeedEditBox.Text = "";
         Stat0Box.Value = double.NaN;
         Stat1Box.Value = double.NaN;
         Stat2Box.Value = double.NaN;
@@ -145,7 +151,7 @@ public sealed partial class FrigatePage : Page
         TraitsPanel.Children.Clear();
     }
 
-    private void LoadSelectedFrigate()
+    private async void LoadSelectedFrigate()
     {
         if (_selectedIndex < 0)
         {
@@ -156,6 +162,8 @@ public sealed partial class FrigatePage : Page
         _suppressFieldChangeEvent = true;
 
         NameEditBox.Text = SaveSessionManager.GetValue(NmsFrigatePaths.CustomNamePath(_selectedIndex))?.Value<string>() ?? "";
+        ModelSeedEditBox.Text = SaveSessionManager.GetValue(NmsFrigatePaths.ModelSeedPath(_selectedIndex))?.Value<string>() ?? "";
+        HomeSeedEditBox.Text = SaveSessionManager.GetValue(NmsFrigatePaths.HomeSeedPath(_selectedIndex))?.Value<string>() ?? "";
 
         string frigateClass = SaveSessionManager.GetValue(NmsFrigatePaths.FrigateClassPath(_selectedIndex))?.Value<string>() ?? "";
         FrigateClassBox.SelectedItem = FrigateClassBox.Items.Cast<ComboBoxItem>()
@@ -189,7 +197,8 @@ public sealed partial class FrigatePage : Page
         RepairsMadeBox.Value = SaveSessionManager.GetValue(NmsFrigatePaths.RepairsMadePath(_selectedIndex))?.Value<double>() ?? 0;
         DamageTakenBox.Value = SaveSessionManager.GetValue(NmsFrigatePaths.DamageTakenPath(_selectedIndex))?.Value<double>() ?? 0;
 
-        BuildTraitsPanel(_selectedIndex);
+        _frigateTraits ??= await CatalogService.GetFrigateTraitsAsync();
+        BuildTraitsPanel(_selectedIndex, _frigateTraits);
 
         PageResetBtn.Visibility = SaveSessionManager.HasStagedEditsUnder(NmsFrigatePaths.FrigatePath(_selectedIndex))
             ? Visibility.Visible : Visibility.Collapsed;
@@ -206,30 +215,117 @@ public sealed partial class FrigatePage : Page
         FontSize = 12
     };
 
-    /// <summary>Read-only for v1 - no trait id/description catalog exists
-    /// yet (Settlement Perks started the same way before its own catalog
-    /// phase was added). "^" is an empty slot.</summary>
-    private void BuildTraitsPanel(int frigateIndex)
+    private static readonly SolidColorBrush NegativeTraitBrush = new(Color.FromArgb(255, 0xE0, 0x4C, 0x3D));
+    private static readonly SolidColorBrush PositiveTraitBrush = new(Color.FromArgb(255, 0x3D, 0xC4, 0x77));
+    private static readonly SolidColorBrush NeutralTraitBrush = new(Color.FromArgb(255, 0x8A, 0x96, 0xA8));
+    private static readonly SolidColorBrush CardBorderBrush = new(Color.FromArgb(255, 90, 98, 112));
+    private static readonly SolidColorBrush CardBackgroundBrush = new(Color.FromArgb(18, 255, 255, 255));
+    private const int TraitsPerCard = 6;
+
+    private static SolidColorBrush TraitSignBrush(string? category) => category?.ToLowerInvariant() switch
+    {
+        "negative" => NegativeTraitBrush,
+        "positive" => PositiveTraitBrush,
+        _ => NeutralTraitBrush
+    };
+
+    /// <summary>One dropdown per Traits (Mjm) array slot, each offering
+    /// "(None)" plus every cataloged trait, formatted with its exact stat
+    /// bonus (e.g. "Deep Scout Prototype (+15 Combat)") - see
+    /// NmsFrigatePaths.TraitIDsPath. Matches the slot's CURRENT value by its
+    /// base id (stripping the "^" prefix). Rows are grouped into
+    /// TraitsPerCard-sized card Borders inside a WrapPanel, same pattern as
+    /// Settlement's BuildPerksPanel - the array is declared unbounded in
+    /// libMBIN even though every sampled frigate had exactly 5.</summary>
+    private void BuildTraitsPanel(int frigateIndex, Dictionary<string, (string DisplayName, string Description, string Category)> traitsCatalog)
     {
         TraitsPanel.Children.Clear();
 
         var path = NmsFrigatePaths.TraitIDsPath(frigateIndex);
         if (SaveSessionManager.GetValue(path) is not JArray traits) return;
 
+        var sortedTraits = traitsCatalog
+            .OrderBy(kv => kv.Value.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        StackPanel? cardStack = null;
+
         for (int i = 0; i < traits.Count; i++)
         {
+            if (i % TraitsPerCard == 0)
+            {
+                cardStack = new StackPanel { Spacing = 10 };
+                var card = new Border
+                {
+                    BorderBrush = CardBorderBrush,
+                    Background = CardBackgroundBrush,
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(14),
+                    Child = cardStack
+                };
+                TraitsPanel.Children.Add(card);
+            }
+
+            int index = i; // capture for the closure below
             string raw = traits[i]?.Value<string>() ?? "";
-            string stripped = raw.TrimStart('^');
+            string baseId = raw.TrimStart('^');
 
             var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
             row.Children.Add(FieldLabel($"Trait {i + 1}"));
-            row.Children.Add(new TextBlock
+
+            var swatch = new Border
             {
-                Text = string.IsNullOrEmpty(stripped) ? "(empty)" : stripped,
-                Opacity = string.IsNullOrEmpty(stripped) ? 0.5 : 1.0,
+                Width = 14,
+                Height = 14,
+                CornerRadius = new CornerRadius(7),
                 VerticalAlignment = VerticalAlignment.Center
-            });
-            TraitsPanel.Children.Add(row);
+            };
+
+            var box = new ComboBox { Width = 340 };
+            var noneItem = new ComboBoxItem { Content = "(None)", Tag = "", Foreground = NeutralTraitBrush };
+            box.Items.Add(noneItem);
+            foreach (var kv in sortedTraits)
+            {
+                var item = new ComboBoxItem
+                {
+                    Content = kv.Value.Description,
+                    Tag = kv.Key,
+                    Foreground = TraitSignBrush(kv.Value.Category)
+                };
+                box.Items.Add(item);
+            }
+
+            box.SelectedItem = string.IsNullOrEmpty(baseId)
+                ? noneItem
+                : box.Items.Cast<ComboBoxItem>().FirstOrDefault(item => string.Equals(item.Tag as string, baseId, StringComparison.OrdinalIgnoreCase)) ?? noneItem;
+
+            swatch.Background = traitsCatalog.TryGetValue(baseId, out var currentInfo) ? TraitSignBrush(currentInfo.Category) : NeutralTraitBrush;
+
+            box.SelectionChanged += (_, _) =>
+            {
+                string selectedBaseId = (box.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+                swatch.Background = traitsCatalog.TryGetValue(selectedBaseId, out var selectedInfo) ? TraitSignBrush(selectedInfo.Category) : NeutralTraitBrush;
+
+                if (_suppressFieldChangeEvent) return;
+
+                if (SaveSessionManager.GetValue(path) is not JArray currentArray || index >= currentArray.Count) return;
+
+                string existingBaseId = (currentArray[index]?.Value<string>() ?? "").TrimStart('^');
+                if (string.Equals(selectedBaseId, existingBaseId, StringComparison.OrdinalIgnoreCase)) return;
+
+                string newValue = string.IsNullOrEmpty(selectedBaseId) ? "^" : "^" + selectedBaseId;
+
+                var updated = new JArray(currentArray.Select(v => v.DeepClone()));
+                updated[index] = newValue;
+
+                SaveSessionManager.StageEdit(updated, path);
+                PageResetBtn.Visibility = Visibility.Visible;
+            };
+            row.Children.Add(box);
+            row.Children.Add(swatch);
+
+            cardStack!.Children.Add(row);
         }
     }
 
@@ -270,6 +366,57 @@ public sealed partial class FrigatePage : Page
         if (newValue == current) return;
 
         SaveSessionManager.StageEdit(newValue, path);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void ModelSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0) return;
+
+        string newSeed = ModelSeedEditBox.Text?.Trim() ?? "";
+        if (string.IsNullOrEmpty(newSeed)) return;
+
+        string? currentSeed = SaveSessionManager.GetValue(NmsFrigatePaths.ModelSeedPath(_selectedIndex))?.Value<string>();
+        if (newSeed == currentSeed) return;
+
+        SaveSessionManager.StageEdit(newSeed, NmsFrigatePaths.ModelSeedPath(_selectedIndex));
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Rerolls the hull to a brand new random seed - see
+    /// NmsSeedGenerator; same plain-reroll approach FreighterPage/ShipsPage
+    /// already use for their own Model Seed buttons.</summary>
+    private void GenerateModelSeedBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0) return;
+
+        string newSeed = NmsSeedGenerator.GenerateRandom();
+        ModelSeedEditBox.Text = newSeed;
+        SaveSessionManager.StageEdit(newSeed, NmsFrigatePaths.ModelSeedPath(_selectedIndex));
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void HomeSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0) return;
+
+        string newSeed = HomeSeedEditBox.Text?.Trim() ?? "";
+        if (string.IsNullOrEmpty(newSeed)) return;
+
+        string? currentSeed = SaveSessionManager.GetValue(NmsFrigatePaths.HomeSeedPath(_selectedIndex))?.Value<string>();
+        if (newSeed == currentSeed) return;
+
+        SaveSessionManager.StageEdit(newSeed, NmsFrigatePaths.HomeSeedPath(_selectedIndex));
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void GenerateHomeSeedBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0) return;
+
+        string newSeed = NmsSeedGenerator.GenerateRandom();
+        HomeSeedEditBox.Text = newSeed;
+        SaveSessionManager.StageEdit(newSeed, NmsFrigatePaths.HomeSeedPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 

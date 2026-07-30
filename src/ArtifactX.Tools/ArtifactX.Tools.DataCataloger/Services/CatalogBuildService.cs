@@ -711,6 +711,162 @@ public class CatalogBuildService
             LogService.Write("CatalogBuild: WARNING - could not extract settlement perks from settlementperkstable.mbin.");
         }
 
+        // -------------------------------------------------------------
+        // Phase 1.9: Frigate Traits (the 5-per-frigate perks shown in-game
+        // on the Frigate detail screen, e.g. "Deep Scout Prototype (+15
+        // Combat)") - same "generic sweep misses/mangles this shape, add a
+        // targeted phase" reasoning as Settlement Perks above. Two source
+        // tables needed, both confirmed via `dumpfile`:
+        //   - metadata/reality/tables/frigatetraittable.mbin decodes to
+        //     GcFrigateTraitTable.Table (178 rows in the version checked) -
+        //     GcFrigateTraitData.DisplayName is a loc key (e.g.
+        //     "UI_NORMANDY_TRAIT1"), ID is the raw save-file id (e.g.
+        //     "NORMANDY_1"), and FrigateStatType+Strength together say
+        //     WHICH stat is affected and by how much - but only as an
+        //     enum tier (e.g. Combat/Primary), not a real number.
+        //   - metadata/reality/globals/gcfleetglobals.global.mbin (found
+        //     via dumpfile as "gcfleetglobals.global.mbin") decodes to
+        //     GcFleetGlobals, whose FrigateTraitStrengths field
+        //     (GcFrigateTraitStrengthByType) is a fixed 11-entry array
+        //     indexed by FrigateStatTypeEnum, each holding its own
+        //     10-entry StatAlteration[] indexed by
+        //     FrigateTraitStrengthEnum - e.g. Combat's array is
+        //     [-6,-4,-2,1,2,3,2,4,6,15], so Combat+Primary (index 9) = 15.
+        //     Checked all 5 traits on the same real frigate (SSV Normandy
+        //     SR1) against a NomNom screenshot the user provided: 3 of 5
+        //     matched NomNom's displayed number exactly (Combat/Combat/
+        //     Exploration-tagged traits). The other 2 (Stealth/Speed-tagged)
+        //     resolved the right trait NAME but NomNom shows special
+        //     flavor text ("Silent Running Capability Enabled", "+3%
+        //     Expedition Duration") instead of a plain stat delta for those
+        //     two specifically - likely NomNom hardcodes a few unique
+        //     traits rather than always using the generic formula. The
+        //     computed number here is still mathematically correct per the
+        //     game's own StatAlteration table either way - unlike
+        //     Settlement Perks, which only got a qualitative summary
+        //     because its equivalent globals table wasn't decoded, this at
+        //     least gives a real number, just not always NomNom's exact
+        //     wording.
+        // Deliberately using a custom TemplateType ("FrigateTraits") so
+        // this doesn't collide with the generic sweep's own nameless copy
+        // of frigatetraittable.mbin.
+        // -------------------------------------------------------------
+        var frigateTraitsCategory = new CatalogCategory
+        {
+            TemplateType = "FrigateTraits",
+            RowType = "GcFrigateTraitData",
+            SourceMbinPath = "metadata/reality/tables/frigatetraittable.mbin (GcFrigateTraitTable.Table) + gcfleetglobals.global.mbin (GcFleetGlobals.FrigateTraitStrengths)"
+        };
+
+        // FrigateStatTypeEnum order (0-10) - matches libMBIN's declared enum
+        // exactly, used both to index FrigateTraitStrengths.FrigateStatType[]
+        // and to build a human-readable label for the formatted description.
+        string[] frigateStatLabels =
+        {
+            "Combat", "Exploration", "Mining", "Diplomatic", "Fuel Burn Rate",
+            "Fuel Capacity", "Speed", "Extra Loot", "Repair", "Invulnerable", "Stealth"
+        };
+
+        libMBIN.NMS.GameComponents.GcFrigateTraitStrengthByType? traitStrengths = null;
+
+        foreach (var (pakPath, header, entries) in pakData)
+        {
+            var globalsEntry = entries.FirstOrDefault(e =>
+                !string.IsNullOrEmpty(e.FileName) &&
+                e.FileName.EndsWith("gcfleetglobals.global.mbin", StringComparison.OrdinalIgnoreCase));
+
+            if (globalsEntry == null) continue;
+
+            NMSTemplate? globalsDecoded;
+            try
+            {
+                globalsDecoded = DecodeMbin(pakPath, globalsEntry, header);
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (globalsDecoded is libMBIN.NMS.Globals.GcFleetGlobals fleetGlobals)
+                traitStrengths = fleetGlobals.FrigateTraitStrengths;
+
+            break; // found and decoded the one real globals table - no need to keep scanning PAKs
+        }
+
+        if (traitStrengths?.FrigateStatType == null)
+        {
+            LogService.Write("CatalogBuild: WARNING - could not extract FrigateTraitStrengths from gcfleetglobals.global.mbin; frigate traits will have no numeric value in their description.");
+        }
+
+        foreach (var (pakPath, header, entries) in pakData)
+        {
+            var traitsEntry = entries.FirstOrDefault(e =>
+                !string.IsNullOrEmpty(e.FileName) &&
+                e.FileName.EndsWith("frigatetraittable.mbin", StringComparison.OrdinalIgnoreCase));
+
+            if (traitsEntry == null) continue;
+
+            NMSTemplate? traitsDecoded;
+            try
+            {
+                traitsDecoded = DecodeMbin(pakPath, traitsEntry, header);
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (traitsDecoded is not libMBIN.NMS.GameComponents.GcFrigateTraitTable traitsTable || traitsTable.Traits == null)
+                continue;
+
+            foreach (var trait in traitsTable.Traits)
+            {
+                string? id = trait?.ID?.ToString();
+                if (string.IsNullOrWhiteSpace(id)) continue;
+
+                string? nameKey = trait!.DisplayName?.ToString();
+                string name = !string.IsNullOrEmpty(nameKey) && englishLookup.TryGetValue(nameKey, out var resolvedName) ? resolvedName : (nameKey ?? id);
+
+                int statIndex = (int)trait.FrigateStatType.FrigateStatType;
+                int strengthIndex = (int)trait.Strength.FrigateTraitStrength;
+                string statLabel = statIndex >= 0 && statIndex < frigateStatLabels.Length ? frigateStatLabels[statIndex] : "?";
+
+                string description = name;
+                int delta = 0;
+                bool hasDelta = false;
+                if (traitStrengths?.FrigateStatType != null && statIndex >= 0 && statIndex < traitStrengths.FrigateStatType.Length)
+                {
+                    var alterations = traitStrengths.FrigateStatType[statIndex]?.StatAlteration;
+                    if (alterations != null && strengthIndex >= 0 && strengthIndex < alterations.Length)
+                    {
+                        delta = alterations[strengthIndex];
+                        hasDelta = true;
+                        description = $"{name} ({(delta >= 0 ? "+" : "")}{delta} {statLabel})";
+                    }
+                }
+
+                frigateTraitsCategory.Items.Add(new CatalogItem
+                {
+                    GameId = id,
+                    NameEnglish = name,
+                    DescriptionEnglish = description,
+                    UsageCategory = hasDelta ? (delta < 0 ? "Negative" : "Positive") : "Neutral"
+                });
+            }
+
+            break; // found and decoded the one real table - no need to keep scanning PAKs
+        }
+
+        if (frigateTraitsCategory.Items.Count > 0)
+        {
+            categories.Add(frigateTraitsCategory);
+            LogService.Write($"CatalogBuild: extracted {frigateTraitsCategory.Items.Count} frigate traits.");
+        }
+        else
+        {
+            LogService.Write("CatalogBuild: WARNING - could not extract frigate traits from frigatetraittable.mbin.");
+        }
+
         foreach (var (pakPath, header, entries) in pakData)
         {
             foreach (var entry in entries)

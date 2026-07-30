@@ -49,13 +49,34 @@
                                           ToolTipService.ToolTip="Confirmed 2026-07-30 against 29 real frigates - drives the in-game Role pill: Combat-&gt;COMBAT, Exploration-&gt;EXPLORATION, Mining-&gt;INDUSTRIAL, Diplomacy-&gt;TRADE, Support-&gt;SUPPORT, Pirate-&gt;RAIDER, Normandy-&gt;RECON (easter egg, always &quot;SSV Normandy SR1&quot;), DeepSpace-&gt;ORGANIC, GhostShip-&gt;DOOMED. DeepSpaceCommon/Swarm untested (not seen in the sample)."/>
                             </StackPanel>
                             <StackPanel Spacing="6" Width="150">
-                                <TextBlock Text="Race" FontSize="12" Opacity="0.7"/>
+                                <TextBlock Text="Crew Race" FontSize="12" Opacity="0.7"/>
                                 <ComboBox x:Name="RaceBox" Width="140" HorizontalAlignment="Left" SelectionChanged="RaceBox_SelectionChanged"/>
                             </StackPanel>
                             <StackPanel Spacing="6" Width="150">
                                 <TextBlock Text="Class Rating" FontSize="12" Opacity="0.7"/>
                                 <ComboBox x:Name="InventoryClassBox" Width="140" HorizontalAlignment="Left" SelectionChanged="InventoryClassBox_SelectionChanged"
                                           ToolTipService.ToolTip="The S/A/B/C badge shown next to each frigate in-game."/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="32">
+                            <StackPanel Spacing="6" Width="260">
+                                <TextBlock Text="Model Seed" FontSize="12" Opacity="0.7"/>
+                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                                           Text="Drives the hull's procedural look, alongside Class/Type. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBox x:Name="ModelSeedEditBox" Width="180" LostFocus="ModelSeedEditBox_LostFocus"/>
+                                    <Button Content="Generate" Click="GenerateModelSeedBtn_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Spacing="6" Width="260">
+                                <TextBlock Text="Home Seed" FontSize="12" Opacity="0.7"/>
+                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                                           Text="Drives which home system/name this frigate generates for itself. Paste a seed you've found elsewhere, or click Generate for a new random one."/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBox x:Name="HomeSeedEditBox" Width="180" LostFocus="HomeSeedEditBox_LostFocus"/>
+                                    <Button Content="Generate" Click="GenerateHomeSeedBtn_Click"/>
+                                </StackPanel>
                             </StackPanel>
                         </StackPanel>
 
@@ -144,8 +165,8 @@
                         <StackPanel Spacing="8">
                             <TextBlock Text="Traits" FontSize="14" FontWeight="SemiBold"/>
                             <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
-                                       Text="Read-only for now - no catalog of trait ids/descriptions has been built yet (same starting point Settlement Perks had before its own catalog phase was added). Shown as raw ids; &quot;(empty)&quot; means that slot is unused."/>
-                            <StackPanel x:Name="TraitsPanel" Spacing="4"/>
+                                       Text="Real names and computed stat bonuses resolved from the game's own frigate traits table, e.g. &quot;Deep Scout Prototype (+15 Combat)&quot; - 3 of 5 checked against a real NomNom screenshot of this same frigate matched exactly; 2 (Stealth/Speed-tagged ones) show the right name but a plain computed number where NomNom shows special flavor text instead (e.g. &quot;+3 Speed&quot; here vs. NomNom's &quot;+3% Expedition Duration&quot;) - the underlying number is accurate to the game's own data table either way. Each row is one Traits array entry; &quot;(None)&quot; means that entry is empty."/>
+                            <ctcontrols:WrapPanel x:Name="TraitsPanel" HorizontalSpacing="16" VerticalSpacing="16"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>

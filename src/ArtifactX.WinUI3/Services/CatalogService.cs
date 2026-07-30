@@ -418,6 +418,52 @@ public static class CatalogService
         return results;
     }
 
+    /// <summary>Frigate trait id -> (DisplayName, formatted description with the
+    /// exact numeric stat delta e.g. "Deep Scout Prototype (+15 Combat)", sign
+    /// Category) - see CatalogBuildService's Phase 1.9 for how the description
+    /// is computed from GcFleetGlobals.FrigateTraitStrengths.</summary>
+    public static async Task<Dictionary<string, (string DisplayName, string Description, string Category)>> GetFrigateTraitsAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+
+        try
+        {
+            return await Task.Run(() => QueryFrigateTraits(dbPath));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetFrigateTraitsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    private static Dictionary<string, (string DisplayName, string Description, string Category)> QueryFrigateTraits(string dbPath)
+    {
+        var results = new Dictionary<string, (string, string, string)>(StringComparer.OrdinalIgnoreCase);
+
+        using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT i.GameId, i.NameEnglish, i.DescriptionEnglish, i.UsageCategory
+            FROM Items i
+            JOIN Categories c ON c.Id = i.CategoryId
+            WHERE c.TemplateType = 'FrigateTraits'";
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            results[reader.GetString(0)] = (
+                reader.GetString(1),
+                reader.IsDBNull(2) ? "" : reader.GetString(2),
+                reader.IsDBNull(3) ? "" : reader.GetString(3));
+        }
+
+        return results;
+    }
+
     /// <summary>Ship Technology/Cargo max-slot counts per (ship type, class letter),
     /// sourced from the ShipCapacity category CatalogBuildService extracts from the
     /// game's own GcInventoryTable.ShipInventoryMaxUpgradeSize (see that service for
