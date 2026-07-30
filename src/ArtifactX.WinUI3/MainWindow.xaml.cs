@@ -151,6 +151,7 @@ public sealed partial class MainWindow : Window
                 "MultiTool" => typeof(MultiToolPage),
                 "Ships" => typeof(ShipsPage),
                 "Freighter" => typeof(FreighterPage),
+                "Frigate" => typeof(FrigatePage),
                 "BaseStorage" => typeof(BaseStoragePage),
                 "CorvetteCache" => typeof(CorvetteCachePage),
                 "Pets" => typeof(PetsPage),
@@ -179,6 +180,7 @@ public sealed partial class MainWindow : Window
         MultiToolNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         ShipsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         FreighterNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        FrigateNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         BaseStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         CorvetteCacheNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         PetsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
@@ -195,6 +197,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(MultiToolPage) => "MultiTool",
             Type t when t == typeof(ShipsPage) => "Ships",
             Type t when t == typeof(FreighterPage) => "Freighter",
+            Type t when t == typeof(FrigatePage) => "Frigate",
             Type t when t == typeof(BaseStoragePage) => "BaseStorage",
             Type t when t == typeof(CorvetteCachePage) => "CorvetteCache",
             Type t when t == typeof(PetsPage) => "Pets",
