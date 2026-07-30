@@ -25,15 +25,20 @@
             <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="820"
                        Text="FIRST PASS, 2026-07-29 - field names below are inferred by cross-referencing a real settlement's raw save keys against libMBIN's own GcSettlementState class (same field count, same order, plausible values for every match), NOT yet confirmed by editing and reloading in-game the way every Pets field was. Treat everything here as a strong hypothesis to test, not a settled fact - change one field at a time and check in-game what happens."/>
 
-            <StackPanel Spacing="20" HorizontalAlignment="Left">
+            <StackPanel Spacing="20" HorizontalAlignment="Stretch">
                 <TextBlock Text="Owned Settlements" FontSize="14" Opacity="0.8"/>
                 <ScrollViewer MaxHeight="104" VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
                     <ctcontrols:WrapPanel x:Name="SettlementSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
                 </ScrollViewer>
 
+                <!-- Full width (page's own Padding="24" above is the only margin) rather than
+                     the old fixed Width="860" - the Buffs section below can't be given a sane
+                     fixed width now that its real length is confirmed unbounded (tested to 19
+                     entries with no cap found), so the whole card stretches to use whatever
+                     room the window actually has. -->
                 <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                        CornerRadius="8" Padding="20" Opacity="0.9" Width="860">
+                        CornerRadius="8" Padding="20" Opacity="0.9" HorizontalAlignment="Stretch">
                     <StackPanel Spacing="18">
                         <StackPanel Spacing="6">
                             <TextBlock Text="Name" FontSize="12" Opacity="0.7"/>
@@ -114,7 +119,12 @@
                             </Grid>
                             <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
                                        Text="Confirmed 2026-07-29 - real names/descriptions resolved directly from the game's own settlement perks table (matched exactly against a real settlement's in-game &quot;Settlement Features&quot; panel, e.g. &quot;Public artworks - Improves citizen happiness&quot;). Each row is one Perks array entry; &quot;(None)&quot; means that entry is empty. Picking a different perk swaps just that entry's id, dropping any per-instance roll suffix some perks carry (e.g. &quot;PROC_FUN#09286&quot;). A perk labeled &quot;Proc&quot; shows raw text like &quot;%FUN_ADJ% %FUN_FACILITY%&quot; here only - CONFIRMED 2026-07-30 the game generates real, readable, themed flavor text for these on its own even with no roll suffix supplied - safe to pick freely, no suffix needed. CORRECTED 2026-07-30: this array is NOT capped at 8 - that was a real analysis mistake (the game field is an unbounded list, not a fixed array), proven wrong when a real settlement grew to 10 features through normal play alone. CONFIRMED 2026-07-30: grown to 19 entries via &quot;Add Buff Slot&quot; and tested in-game - all 19 loaded fine across 4 paginated panel pages, no crash, no cap found. Treat this as effectively unbounded. &quot;Fill Empty Slots&quot; randomly picks a real perk for every currently-empty entry, leaving anything you've already set untouched."/>
-                            <StackPanel x:Name="PerksPanel" Spacing="10"/>
+                            <!-- Perks are grouped into cards of 6 (built in code-behind, see
+                                 BuildPerksPanel) rather than one long flat list, since the
+                                 array's real length is confirmed unbounded. A WrapPanel flows
+                                 cards left-to-right and drops extras to new rows automatically
+                                 as the window narrows - no fixed page-width assumption needed. -->
+                            <ctcontrols:WrapPanel x:Name="PerksPanel" HorizontalSpacing="16" VerticalSpacing="16"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>

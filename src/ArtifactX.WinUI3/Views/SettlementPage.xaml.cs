@@ -268,6 +268,10 @@ public sealed partial class SettlementPage : Page
         _ => NeutralPerkBrush
     };
 
+    private static readonly SolidColorBrush CardBorderBrush = new(Color.FromArgb(255, 90, 98, 112));
+    private static readonly SolidColorBrush CardBackgroundBrush = new(Color.FromArgb(18, 255, 255, 255));
+    private const int PerksPerCard = 6;
+
     /// <summary>One dropdown per Perks (OEf) array slot, each offering
     /// "(None)" plus every cataloged perk - see NmsSettlementPaths.
     /// PerksPath and this page's XAML description for the full picture.
@@ -280,7 +284,15 @@ public sealed partial class SettlementPage : Page
     /// by its Negative/Positive flag, and a small swatch next to the
     /// dropdown mirrors whichever perk is currently selected, since a
     /// WinUI3 ComboBox's own closed-state header doesn't reliably repaint
-    /// itself in the selected ComboBoxItem's Foreground.</summary>
+    /// itself in the selected ComboBoxItem's Foreground.
+    ///
+    /// Rows are grouped into PerksPerCard-sized card Borders rather than one
+    /// flat list - added 2026-07-30 once the array's real length was
+    /// confirmed unbounded (tested to 19 with no cap found), so there's no
+    /// longer a sane fixed page width to design a single list around. Cards
+    /// are dropped into PerksPanel, a WrapPanel in XAML, which flows them
+    /// left-to-right and wraps to new rows on its own as the window resizes
+    /// - no explicit breakpoints needed here.</summary>
     private void BuildPerksPanel(int settlementIndex, Dictionary<string, (string DisplayName, string Description, string Category)> perksCatalog)
     {
         PerksPanel.Children.Clear();
@@ -292,8 +304,25 @@ public sealed partial class SettlementPage : Page
             .OrderBy(kv => kv.Value.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        StackPanel? cardStack = null;
+
         for (int i = 0; i < perks.Count; i++)
         {
+            if (i % PerksPerCard == 0)
+            {
+                cardStack = new StackPanel { Spacing = 10 };
+                var card = new Border
+                {
+                    BorderBrush = CardBorderBrush,
+                    Background = CardBackgroundBrush,
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(14),
+                    Child = cardStack
+                };
+                PerksPanel.Children.Add(card);
+            }
+
             int index = i; // capture for the closure below
             string raw = perks[i]?.Value<string>() ?? "";
             string stripped = raw.TrimStart('^');
@@ -361,7 +390,7 @@ public sealed partial class SettlementPage : Page
             row.Children.Add(box);
             row.Children.Add(swatch);
 
-            PerksPanel.Children.Add(row);
+            cardStack!.Children.Add(row);
         }
     }
 
