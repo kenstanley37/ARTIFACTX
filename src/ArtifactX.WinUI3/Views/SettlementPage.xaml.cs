@@ -197,10 +197,12 @@ public sealed partial class SettlementPage : Page
     /// than filling/swapping an existing one - added 2026-07-30 after
     /// discovering the array isn't actually capped at 8 the way an earlier
     /// (wrong) analysis claimed: real gameplay grew a real settlement to 10
-    /// active features with no save editing at all. Lets the user grow past
-    /// whatever length they currently have to test how high it can actually
-    /// go (12? unbounded?) - follow with "Fill Empty Slots" or pick a perk
-    /// for the new row directly.</summary>
+    /// active features with no save editing at all. CONFIRMED 2026-07-30
+    /// (same day): using this button, a real settlement was grown to 19
+    /// entries and tested in-game - all loaded fine across 4 paginated panel
+    /// pages, no crash, no cap found. Treat the array as effectively
+    /// unbounded - follow with "Fill Empty Slots" or pick a perk for the new
+    /// row directly.</summary>
     private void AddPerkSlotBtn_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedIndex < 0) return;

@@ -77,12 +77,17 @@ namespace ArtifactX.Core.NmsModels;
 /// array already was, so it never actually could have revealed a higher
 /// ceiling either way. Real counter-evidence: normal gameplay (settlement
 /// judgement decisions granting new perks over time, no save editing at
-/// all) grew a real settlement to 10 active features. The true cap - 12 (a
-/// natural guess given the panel paginates 6-per-page), fully unbounded, or
-/// something else - is not yet determined; ArtifactX.WinUI3's
-/// SettlementPage gained an "Add Buff Slot" button (appends a new entry to
-/// this same PerksPath array rather than just filling/swapping existing
-/// ones) specifically to test past 8 directly.
+/// all) grew a real settlement to 10 active features.
+///
+/// CONFIRMED (2026-07-30, later same day): using the new "Add Buff Slot"
+/// button, the user grew a real settlement's Perks array to 13, then 19
+/// entries via repeated save-edit-reload rounds. All 19 loaded and rendered
+/// correctly in-game with no crash, no truncation, and no error - the
+/// "Settlement Features" panel simply kept paginating (up to 4 pages seen at
+/// 19 entries, ~5-6 per page) rather than hitting any wall. No ceiling was
+/// found at 12 or anywhere else tested. Treat OEf/Perks as effectively
+/// unbounded - matching what its `List&lt;T&gt;` declaration (no Size
+/// attribute) already implied - unless a future test finds a real limit.
 ///
 /// Race (SS2/0Hi) is CONFIRMED WORKING (2026-07-30), via a clean
 /// one-variable-at-a-time test round after an earlier scattered/uncontrolled
@@ -224,9 +229,11 @@ public static class NmsSettlementPaths
     /// perks carry a "#NNNNN" per-instance roll suffix; non-Proc perks like
     /// "^SENT_QUAR"/"^POSITIVE_EXTRA2" don't, confirmed in a real sample).
     /// A GROWABLE list, NOT a fixed-size array like StatsPath below - see
-    /// this class's doc comment (the CORRECTION paragraph) for why an
-    /// earlier version of this file wrongly claimed a fixed cap of 8. Real
-    /// perk ids and their resolved names/descriptions/stat effects are
+    /// this class's doc comment (the CORRECTION/CONFIRMED paragraphs) for
+    /// why an earlier version of this file wrongly claimed a fixed cap of 8,
+    /// and the later real-world test (grown to 19 entries, all rendering
+    /// fine in-game across 4 paginated panel pages) that found no ceiling.
+    /// Real perk ids and their resolved names/descriptions/stat effects are
     /// catalogued separately - see CatalogService.GetSettlementPerksAsync
     /// and CatalogBuildService's Phase 1.8.
     ///
