@@ -85,6 +85,13 @@ public sealed partial class ExosuitPage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
+    private void MaxAllQtyCargo_Click(object sender, RoutedEventArgs e)
+    {
+        _cargoViewModel.MaxAllQuantities();
+        CargoGrid.Refresh();
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
     private void SuperchargeAllTech_Click(object sender, RoutedEventArgs e)
     {
         _techViewModel.SuperchargeAll();

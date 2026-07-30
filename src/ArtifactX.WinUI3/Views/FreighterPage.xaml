@@ -81,6 +81,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <TextBlock Text="Cargo" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
                         <Button Content="Unlock All Slots" Click="UnlockAllCargo_Click"/>
+                        <Button Content="Max All Qty" Click="MaxAllQtyCargo_Click"/>
                     </StackPanel>
                     <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
                             CornerRadius="6" HorizontalAlignment="Left" Opacity="0.9">
