@@ -193,10 +193,33 @@ public sealed partial class SettlementPage : Page
 
     private static readonly Random PerkRandom = new();
 
-    /// <summary>Randomly fills every currently-empty Perks slot with a real
+    /// <summary>Appends ONE new empty ("^") entry to the Perks array, rather
+    /// than filling/swapping an existing one - added 2026-07-30 after
+    /// discovering the array isn't actually capped at 8 the way an earlier
+    /// (wrong) analysis claimed: real gameplay grew a real settlement to 10
+    /// active features with no save editing at all. Lets the user grow past
+    /// whatever length they currently have to test how high it can actually
+    /// go (12? unbounded?) - follow with "Fill Empty Slots" or pick a perk
+    /// for the new row directly.</summary>
+    private void AddPerkSlotBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0) return;
+
+        var path = NmsSettlementPaths.PerksPath(_selectedIndex);
+        if (SaveSessionManager.GetValue(path) is not JArray currentArray) return;
+
+        var updated = new JArray(currentArray.Select(v => v.DeepClone()));
+        updated.Add("^");
+
+        SaveSessionManager.StageEdit(updated, path);
+        PageResetBtn.Visibility = Visibility.Visible;
+        BuildPerksPanel(_selectedIndex, _settlementPerks ?? new());
+    }
+
+    /// <summary>Randomly fills every currently-empty Perks entry with a real
     /// cataloged perk, leaving anything already set untouched - a quick way
-    /// to get all 8 slots populated at once for testing, rather than
-    /// clicking through 8 dropdowns by hand.</summary>
+    /// to get everything populated at once for testing, rather than
+    /// clicking through each dropdown by hand.</summary>
     private void FillEmptyPerksBtn_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedIndex < 0 || _settlementPerks is null || _settlementPerks.Count == 0) return;
@@ -249,8 +272,9 @@ public sealed partial class SettlementPage : Page
     /// Matches the slot's CURRENT value by its base id (stripping the "^"
     /// prefix and any "#NNNNN" per-instance roll suffix some perks carry).
     /// Picking a genuinely different perk writes a plain "^"+id with no
-    /// roll suffix - untested whether Proc-flagged perks specifically need
-    /// one back to work correctly in-game. Each option is colored red/green
+    /// roll suffix - confirmed 2026-07-30 that Proc-flagged perks work fine
+    /// without one (the game generates its own flavor text on the fly).
+    /// Each option is colored red/green
     /// by its Negative/Positive flag, and a small swatch next to the
     /// dropdown mirrors whichever perk is currently selected, since a
     /// WinUI3 ComboBox's own closed-state header doesn't reliably repaint

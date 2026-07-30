@@ -65,14 +65,24 @@ namespace ArtifactX.Core.NmsModels;
 /// name via NomNom (an established third-party NMS save editor) showing
 /// matching values for the same real settlement.
 ///
-/// Perks array size CONFIRMED as exactly 8, not more (2026-07-29): the
-/// in-game "Settlement Features" panel paginates 6 per page, which briefly
-/// looked like it might imply a 12-slot cap when 2 pages were seen - a real
-/// test settled it: with exactly 7 of the 8 OEf slots populated, the panel
-/// showed 6 on page 1 and exactly 1 on page 2, matching an 8-slot array
-/// perfectly (2 pages is just what 7-8 populated items looks like at
-/// 6-per-page, regardless of whether the true cap is 8 or 12 - this
-/// specific count settles it at 8).
+/// CORRECTION (2026-07-30): an earlier version of this doc comment claimed
+/// the Perks array (OEf) was confirmed capped at exactly 8 - that was a real
+/// analysis error, not just an untested guess. OEf/Perks is declared in
+/// libMBIN as `List&lt;NMSString0x10&gt; Perks` with NO Size attribute -
+/// unlike Stats (`int[] Stats`, Size=0x8, a genuine fixed array) or
+/// BuildingStates (Size=0x30) - so nothing in the type itself caps it at 8.
+/// The "8" was just how many perks the one sampled settlement happened to
+/// have; the "confirming" test (filling every existing slot, observing 6+1
+/// across 2 in-game pages) could only ever test within whatever length the
+/// array already was, so it never actually could have revealed a higher
+/// ceiling either way. Real counter-evidence: normal gameplay (settlement
+/// judgement decisions granting new perks over time, no save editing at
+/// all) grew a real settlement to 10 active features. The true cap - 12 (a
+/// natural guess given the panel paginates 6-per-page), fully unbounded, or
+/// something else - is not yet determined; ArtifactX.WinUI3's
+/// SettlementPage gained an "Add Buff Slot" button (appends a new entry to
+/// this same PerksPath array rather than just filling/swapping existing
+/// ones) specifically to test past 8 directly.
 ///
 /// Race (SS2/0Hi) is CONFIRMED WORKING (2026-07-30), via a clean
 /// one-variable-at-a-time test round after an earlier scattered/uncontrolled
@@ -208,15 +218,17 @@ public static class NmsSettlementPaths
 
     public static string[] PopulationPath(int settlementIndex) => SettlementPath(settlementIndex).Append("x3<").ToArray();
 
-    /// <summary>The whole 8-entry Perks array ("buffs" shown in-game under
+    /// <summary>The whole Perks array ("buffs" shown in-game under
     /// "Settlement Features") - each entry is either "^" (empty) or a
     /// caret-prefixed perk id, e.g. "^PROC_FUN#09286" (IsProc-flagged
     /// perks carry a "#NNNNN" per-instance roll suffix; non-Proc perks like
     /// "^SENT_QUAR"/"^POSITIVE_EXTRA2" don't, confirmed in a real sample).
-    /// Real perk ids and their resolved names/descriptions/stat effects are
+    /// A GROWABLE list, NOT a fixed-size array like StatsPath below - see
+    /// this class's doc comment (the CORRECTION paragraph) for why an
+    /// earlier version of this file wrongly claimed a fixed cap of 8. Real
+    /// perk ids and their resolved names/descriptions/stat effects are
     /// catalogued separately - see CatalogService.GetSettlementPerksAsync
-    /// and CatalogBuildService's Phase 1.8. Staged as a whole array, same
-    /// reasoning as StatsPath below.
+    /// and CatalogBuildService's Phase 1.8.
     ///
     /// CONFIRMED (2026-07-30): writing an IsProc perk id with NO roll
     /// suffix works fine - the game generates fresh, readable, thematically
