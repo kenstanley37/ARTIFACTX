@@ -71,6 +71,7 @@ public sealed partial class AppTitleBar : UserControl
             ResetDisplayTokens();
             SaveBtn.Visibility = Visibility.Collapsed;
             ResetBtn.Visibility = Visibility.Collapsed;
+            PendingChangesTxt.Visibility = Visibility.Collapsed;
             return;
         }
 
@@ -88,6 +89,10 @@ public sealed partial class AppTitleBar : UserControl
         ResetBtn.Visibility = hasChanges ? Visibility.Visible : Visibility.Collapsed;
         SaveBtn.Visibility = hasChanges ? Visibility.Visible : Visibility.Collapsed;
         SaveBtn.IsEnabled = hasChanges && !gameRunning;
+
+        int pendingCount = SaveSessionManager.PendingEditCount;
+        PendingChangesTxt.Text = pendingCount == 1 ? "1 change pending" : $"{pendingCount} changes pending";
+        PendingChangesTxt.Visibility = hasChanges ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ResetDisplayTokens()

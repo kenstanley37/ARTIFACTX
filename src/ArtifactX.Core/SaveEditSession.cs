@@ -33,6 +33,12 @@ public sealed class SaveEditSession
 
     public bool HasUnsavedChanges => _pendingEdits.Count > 0;
 
+    /// <summary>Number of distinct field paths with a staged edit - not the
+    /// number of individual values changed within them, since an array
+    /// field (e.g. Settlement Stats) is staged as a single whole-array
+    /// entry regardless of how many of its elements actually differ.</summary>
+    public int PendingEditCount => _pendingEdits.Count;
+
     public JToken? GetValue(params string[] path)
     {
         string key = Join(path);

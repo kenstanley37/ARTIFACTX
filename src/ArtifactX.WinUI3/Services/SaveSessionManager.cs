@@ -26,6 +26,7 @@ public static class SaveSessionManager
 
     public static bool IsSaveLoaded => _session is not null;
     public static bool HasUnsavedChanges => _session?.HasUnsavedChanges ?? false;
+    public static int PendingEditCount => _session?.PendingEditCount ?? 0;
     public static SaveSlotGroup? ActiveSlot => _activeSlot;
     public static string? ActiveLabel => _activeSlot?.ActiveLabel;
 
