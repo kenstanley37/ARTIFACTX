@@ -74,23 +74,29 @@ namespace ArtifactX.Core.NmsModels;
 /// 6-per-page, regardless of whether the true cap is 8 or 12 - this
 /// specific count settles it at 8).
 ///
-/// Race (SS2/0Hi) is UNCONFIRMED and looks INCONSISTENT, not just
-/// unconfirmed - across three separate test rounds, the in-game "X
-/// Planetary Settlement" subtitle text never matched whatever SS2 was set
-/// to at the time (SS2 was Warriors/Builders in one round while the
-/// subtitle showed "Vy'keen"/"Autophage" - neither of which is even a
-/// member of GcAlienRace.AlienRaceEnum; a later round set SS2 to "Robots"
-/// and the subtitle showed no race prefix at all, just "Planetary
-/// Settlement"). This suggests the visible subtitle text is driven by
-/// something OTHER than this field - possibly the Owner's own player-
-/// character race/story path, not a per-settlement property at all - or
-/// that SS2 affects something else not visible in the overview screen
-/// (building architecture style, NPC appearance) rather than the subtitle.
-/// An earlier version of this doc comment claimed NomNom independently
-/// confirmed Race - that claim was not well-supported (NomNom's own
-/// screenshot didn't show a Race/Culture field at all) and has been
-/// removed; only the Perks names/descriptions were actually cross-checked
-/// against NomNom.
+/// Race (SS2/0Hi) is CONFIRMED WORKING (2026-07-30), via a clean
+/// one-variable-at-a-time test round after an earlier scattered/uncontrolled
+/// round wrongly looked inconsistent. It does NOT write the in-game "X
+/// Planetary Settlement" subtitle text literally - the game TRANSLATES the
+/// culture archetype into one of the real playable species for that
+/// subtitle, matching known NMS lore associations exactly:
+///   Traders  -> "Gek"      (Gek are canonically merchants/traders)
+///   Warriors -> "Vy'keen"  (Vy'keen are canonically a warrior culture)
+///   Explorers -> "Korvax"  (Korvax are canonically explorers/scientists)
+/// Those 3 were directly confirmed via save-edit-reload round trips, each
+/// showing the exact predicted subtitle. The other 6 enum members (Robots/
+/// Atlas/Diplomats/Exotics/None/Builders) haven't been individually tested,
+/// though "Robots" -> "Autophage" is a strong untested guess (Autophage are
+/// the mechanical NMS race, seen in an earlier uncontrolled test round).
+///
+/// IMPORTANT CAVEAT this field does NOT affect: a settlement's "Dominant
+/// Lifeform" (visible on the deeper stats/Overseer-tenure screen, reached
+/// via a second interaction, not the main overview) stayed "Vy'keen"
+/// across all three race changes including when the subtitle correctly
+/// showed "Korvax" - so Dominant Lifeform is a genuinely separate,
+/// still-unmapped stat, not driven by SS2. Don't assume changing Race
+/// affects anything beyond the cosmetic subtitle text until Dominant
+/// Lifeform's real backing field is found.
 /// Full field map, in Index/JSON-key order:
 ///  0 20I  = UniqueId (NMSString0x40, hex-looking id, e.g. "12c32f3ab8745642")
 ///  1 yhJ  = UniverseAddress (ulong)
@@ -187,16 +193,17 @@ public static class NmsSettlementPaths
     /// ArtifactX.Core deliberately doesn't reference libMBIN (a WinUI3-side
     /// concern), so the UI pulls the enum's values directly via
     /// Enum.GetNames rather than a hand-copied duplicate living here - same
-    /// pattern as Pets' CreatureTypePath. UNCONFIRMED and looks
-    /// INCONSISTENT (2026-07-29): across three real test rounds, the
-    /// in-game "X Planetary Settlement" subtitle never matched whatever
-    /// this field was set to (seen showing "Vy'keen"/"Autophage" - neither
-    /// a member of the enum this field uses - and later showing no prefix
-    /// at all for "Robots"). Either this field drives something not
-    /// visible on the overview screen, or the subtitle is driven by
-    /// something else (e.g. the Owner's own player-character race) rather
-    /// than this field. Don't treat edits here as confirmed to do
-    /// anything until that's resolved.</summary>
+    /// pattern as Pets' CreatureTypePath. CONFIRMED WORKING (2026-07-30) via
+    /// a clean one-variable-at-a-time save+reload test: this field controls
+    /// the in-game "X Planetary Settlement" subtitle, but the game
+    /// TRANSLATES it to a real species name rather than writing it
+    /// literally - Traders-&gt;"Gek", Warriors-&gt;"Vy'keen", Explorers-&gt;
+    /// "Korvax" were each individually confirmed (matches known NMS lore
+    /// associations for those species). The other 6 enum members are
+    /// untested. Confirmed NOT to affect a separate "Dominant Lifeform"
+    /// stat shown on the settlement's deeper Overseer-tenure screen, which
+    /// stayed fixed across all three race changes - that's a genuinely
+    /// different, still-unmapped field.</summary>
     public static string[] RacePath(int settlementIndex) => SettlementPath(settlementIndex).Append("SS2").Append("0Hi").ToArray();
 
     public static string[] PopulationPath(int settlementIndex) => SettlementPath(settlementIndex).Append("x3<").ToArray();

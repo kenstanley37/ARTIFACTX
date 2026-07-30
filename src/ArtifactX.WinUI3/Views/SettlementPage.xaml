@@ -48,7 +48,7 @@
                             <StackPanel Spacing="6" Width="160">
                                 <TextBlock Text="Culture (Race)" FontSize="12" Opacity="0.7"/>
                                 <ComboBox x:Name="RaceBox" Width="150" HorizontalAlignment="Left" SelectionChanged="RaceBox_SelectionChanged"
-                                          ToolTipService.ToolTip="Unconfirmed and looks inconsistent - across 3 real tests, the in-game subtitle never matched this value (once showing a race that isn't even in this dropdown's list). Don't assume edits here do anything yet."/>
+                                          ToolTipService.ToolTip="Confirmed 2026-07-30 - controls the in-game &quot;X Planetary Settlement&quot; subtitle, but the game translates it to a real species name: Traders-&gt;Gek, Warriors-&gt;Vy'keen, Explorers-&gt;Korvax (confirmed by testing each). The other 6 options are untested. Confirmed this does NOT affect the separate &quot;Dominant Lifeform&quot; stat on the deeper settlement stats screen - that's cosmetic-only, not tied to this field."/>
                             </StackPanel>
                             <StackPanel Spacing="6" Width="160">
                                 <TextBlock Text="Population" FontSize="12" Opacity="0.7"/>
