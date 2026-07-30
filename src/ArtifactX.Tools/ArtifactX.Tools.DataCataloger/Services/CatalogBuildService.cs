@@ -676,12 +676,18 @@ public class CatalogBuildService
                     }
                 }
 
-                string flags = perk.IsBlessing ? "Blessing"
-                    : perk.IsJob ? "Job"
-                    : perk.IsStarter ? "Starter"
-                    : perk.IsProc ? "Proc"
-                    : perk.IsNegative ? "Negative"
-                    : "Positive";
+                // IsNegative always comes first so UI code can key color-coding
+                // (red/green) off a simple StartsWith check, without losing the
+                // other independent flags - a perk can be e.g. both a Starter
+                // AND Negative, and the original single-branch priority order
+                // here silently dropped the sign whenever any of Blessing/Job/
+                // Starter/Proc was also set.
+                var flagTags = new List<string> { perk.IsNegative ? "Negative" : "Positive" };
+                if (perk.IsBlessing) flagTags.Add("Blessing");
+                if (perk.IsJob) flagTags.Add("Job");
+                if (perk.IsStarter) flagTags.Add("Starter");
+                if (perk.IsProc) flagTags.Add("Proc");
+                string flags = string.Join(", ", flagTags);
 
                 settlementPerksCategory.Items.Add(new CatalogItem
                 {

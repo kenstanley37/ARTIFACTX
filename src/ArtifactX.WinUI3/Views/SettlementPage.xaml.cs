@@ -191,6 +191,23 @@ public sealed partial class SettlementPage : Page
         FontSize = 12
     };
 
+    private static readonly SolidColorBrush NegativePerkBrush = new(Color.FromArgb(255, 0xE0, 0x4C, 0x3D));
+    private static readonly SolidColorBrush PositivePerkBrush = new(Color.FromArgb(255, 0x3D, 0xC4, 0x77));
+    private static readonly SolidColorBrush NeutralPerkBrush = new(Color.FromArgb(255, 0x8A, 0x96, 0xA8));
+
+    /// <summary>Red for a Negative-flagged perk, green for Positive,
+    /// neutral gray for "(None)"/unrecognized - Category always starts
+    /// with "Negative"/"Positive" (see CatalogBuildService's Phase 1.8;
+    /// the other flags like Blessing/Job/Starter/Proc are appended after,
+    /// never first) so a simple StartsWith check is enough.</summary>
+    private static SolidColorBrush PerkSignBrush(string? category) => category switch
+    {
+        null or "" => NeutralPerkBrush,
+        _ when category.StartsWith("Negative", StringComparison.OrdinalIgnoreCase) => NegativePerkBrush,
+        _ when category.StartsWith("Positive", StringComparison.OrdinalIgnoreCase) => PositivePerkBrush,
+        _ => NeutralPerkBrush
+    };
+
     /// <summary>One dropdown per Perks (OEf) array slot, each offering
     /// "(None)" plus every cataloged perk - see NmsSettlementPaths.
     /// PerksPath and this page's XAML description for the full picture.
@@ -198,7 +215,11 @@ public sealed partial class SettlementPage : Page
     /// prefix and any "#NNNNN" per-instance roll suffix some perks carry).
     /// Picking a genuinely different perk writes a plain "^"+id with no
     /// roll suffix - untested whether Proc-flagged perks specifically need
-    /// one back to work correctly in-game.</summary>
+    /// one back to work correctly in-game. Each option is colored red/green
+    /// by its Negative/Positive flag, and a small swatch next to the
+    /// dropdown mirrors whichever perk is currently selected, since a
+    /// WinUI3 ComboBox's own closed-state header doesn't reliably repaint
+    /// itself in the selected ComboBoxItem's Foreground.</summary>
     private void BuildPerksPanel(int settlementIndex, Dictionary<string, (string DisplayName, string Description, string Category)> perksCatalog)
     {
         PerksPanel.Children.Clear();
@@ -221,12 +242,25 @@ public sealed partial class SettlementPage : Page
             var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
             row.Children.Add(FieldLabel($"Buff {i + 1}"));
 
+            var swatch = new Border
+            {
+                Width = 14,
+                Height = 14,
+                CornerRadius = new CornerRadius(7),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
             var box = new ComboBox { Width = 340 };
-            var noneItem = new ComboBoxItem { Content = "(None)", Tag = "" };
+            var noneItem = new ComboBoxItem { Content = "(None)", Tag = "", Foreground = NeutralPerkBrush };
             box.Items.Add(noneItem);
             foreach (var kv in sortedPerks)
             {
-                var item = new ComboBoxItem { Content = $"{kv.Value.DisplayName} ({kv.Value.Category})", Tag = kv.Key };
+                var item = new ComboBoxItem
+                {
+                    Content = $"{kv.Value.DisplayName} ({kv.Value.Category})",
+                    Tag = kv.Key,
+                    Foreground = PerkSignBrush(kv.Value.Category)
+                };
                 ToolTipService.SetToolTip(item, kv.Value.Description);
                 box.Items.Add(item);
             }
@@ -235,14 +269,16 @@ public sealed partial class SettlementPage : Page
                 ? noneItem
                 : box.Items.Cast<ComboBoxItem>().FirstOrDefault(item => string.Equals(item.Tag as string, baseId, StringComparison.OrdinalIgnoreCase)) ?? noneItem;
 
-            if (perksCatalog.TryGetValue(baseId, out var currentInfo))
+            swatch.Background = perksCatalog.TryGetValue(baseId, out var currentInfo) ? PerkSignBrush(currentInfo.Category) : NeutralPerkBrush;
+            if (perksCatalog.TryGetValue(baseId, out currentInfo))
                 ToolTipService.SetToolTip(box, currentInfo.Description);
 
             box.SelectionChanged += (_, _) =>
             {
-                if (_suppressStatChangeEvent) return;
+                string selectedBaseId = (box.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+                swatch.Background = perksCatalog.TryGetValue(selectedBaseId, out var selectedInfo) ? PerkSignBrush(selectedInfo.Category) : NeutralPerkBrush;
 
-                string newBaseId = (box.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+                if (_suppressStatChangeEvent) return;
 
                 if (SaveSessionManager.GetValue(path) is not JArray currentArray || index >= currentArray.Count) return;
 
@@ -251,9 +287,9 @@ public sealed partial class SettlementPage : Page
                 int existingHashIdx = existingStripped.IndexOf('#');
                 string existingBaseId = existingHashIdx >= 0 ? existingStripped[..existingHashIdx] : existingStripped;
 
-                if (string.Equals(newBaseId, existingBaseId, StringComparison.OrdinalIgnoreCase)) return;
+                if (string.Equals(selectedBaseId, existingBaseId, StringComparison.OrdinalIgnoreCase)) return;
 
-                string newValue = string.IsNullOrEmpty(newBaseId) ? "^" : "^" + newBaseId;
+                string newValue = string.IsNullOrEmpty(selectedBaseId) ? "^" : "^" + selectedBaseId;
 
                 var updated = new JArray(currentArray.Select(v => v.DeepClone()));
                 updated[index] = newValue;
@@ -262,6 +298,7 @@ public sealed partial class SettlementPage : Page
                 PageResetBtn.Visibility = Visibility.Visible;
             };
             row.Children.Add(box);
+            row.Children.Add(swatch);
 
             PerksPanel.Children.Add(row);
         }
