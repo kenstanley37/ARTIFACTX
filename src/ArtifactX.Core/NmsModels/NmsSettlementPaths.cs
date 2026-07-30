@@ -44,17 +44,26 @@ namespace ArtifactX.Core.NmsModels;
 /// FIRST REAL IN-GAME COMPARISON (2026-07-29): Name and Population (x3&lt;)
 /// both matched exactly. Two of the 8 Stats (Debt, Happiness) were close to
 /// the in-game display (within normal simulation drift over the time
-/// between decrypt and screenshot). The other 4 displayed values in-game
-/// (Max Population, Productivity, Maintenance Cost, Sentinel Alert Level)
-/// did NOT match their assumed Stats slots (MaxPopulation/Production/
-/// Upkeep/Sentinels all read back near 0 or a value unrelated to what was
-/// shown) - those are most likely computed live from Buildings/Perks
-/// rather than stored as a simple absolute number in Stats, so editing
-/// those 4 specific slots may do nothing visible even though the array
-/// position mapping itself is probably still correct. Race and the Perks
-/// array (see PerksPath below) were independently confirmed correct by
-/// name via NomNom (an established third-party NMS save editor) showing
-/// matching values for the same real settlement.
+/// between decrypt and screenshot). The other 4 (Max Population,
+/// Production/Productivity, Upkeep/Maintenance Cost, Sentinels/Sentinel
+/// Alert Level) did NOT match with the field left at its original value -
+/// first read as "probably computed independently, ignoring Stats
+/// entirely." A SECOND round (2026-07-29, same day) corrected that: setting
+/// Production to a large, distinctive value (2,000,000,000) produced an
+/// in-game Productivity display of 2,000,301,113 - a 0.015% difference,
+/// i.e. essentially the edited value flowing straight through. Setting Max
+/// Population from 0 to 100 moved the displayed max from ~53-56 to 159, a
+/// big correlated jump but not a 1:1 overwrite. Best-supported model now:
+/// the display is ADDITIVE - edited Stats value + a baseline contribution
+/// from Buildings/Perks/other settlement state - not "Stats is ignored."
+/// Confirmed editing these 4 slots DOES have a real, visible in-game
+/// effect; it's just relative to a baseline, not an absolute override.
+/// Upkeep/Sentinels haven't specifically been pushed to a large distinctive
+/// value the way Production was, so their exact additive-vs-ignored status
+/// is still one notch less certain than Production/MaxPopulation's. Race
+/// and the Perks array (see PerksPath below) were independently confirmed
+/// correct by name via NomNom (an established third-party NMS save editor)
+/// showing matching values for the same real settlement.
 ///
 /// Full field map, in Index/JSON-key order:
 ///  0 20I  = UniqueId (NMSString0x40, hex-looking id, e.g. "12c32f3ab8745642")
