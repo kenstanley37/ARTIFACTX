@@ -100,9 +100,16 @@
                         </StackPanel>
 
                         <StackPanel Spacing="8">
-                            <TextBlock Text="Buffs (Settlement Features)" FontSize="14" FontWeight="SemiBold"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Buffs (Settlement Features)" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <Button Grid.Column="1" x:Name="FillEmptyPerksBtn" Content="Fill Empty Slots" Click="FillEmptyPerksBtn_Click"/>
+                            </Grid>
                             <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
-                                       Text="Confirmed 2026-07-29 - real names/descriptions resolved directly from the game's own settlement perks table (matched exactly against a real settlement's in-game &quot;Settlement Features&quot; panel, e.g. &quot;Public artworks - Improves citizen happiness&quot;). Each row is one of the 8 perk slots; &quot;(None)&quot; means that slot is empty. Picking a different perk swaps just that slot's id, dropping any per-instance roll suffix some perks carry (e.g. &quot;PROC_FUN#09286&quot;) - untested whether the game needs that suffix back for that specific kind of perk (flagged Proc below) to work correctly. A perk labeled &quot;Proc&quot; showing raw text like &quot;%FUN_ADJ% %FUN_FACILITY%&quot; isn't a bug - its real display name is generated per-instance from that same roll suffix, which isn't decoded here."/>
+                                       Text="Confirmed 2026-07-29 - real names/descriptions resolved directly from the game's own settlement perks table (matched exactly against a real settlement's in-game &quot;Settlement Features&quot; panel, e.g. &quot;Public artworks - Improves citizen happiness&quot;). Each row is one of the 8 perk slots; &quot;(None)&quot; means that slot is empty. Picking a different perk swaps just that slot's id, dropping any per-instance roll suffix some perks carry (e.g. &quot;PROC_FUN#09286&quot;) - untested whether the game needs that suffix back for that specific kind of perk (flagged Proc below) to work correctly. A perk labeled &quot;Proc&quot; showing raw text like &quot;%FUN_ADJ% %FUN_FACILITY%&quot; isn't a bug - its real display name is generated per-instance from that same roll suffix, which isn't decoded here. &quot;Fill Empty Slots&quot; randomly picks a real perk for every currently-empty slot, leaving anything you've already set untouched - useful for quickly testing whether the game handles all 8 slots populated at once."/>
                             <StackPanel x:Name="PerksPanel" Spacing="10"/>
                         </StackPanel>
                     </StackPanel>

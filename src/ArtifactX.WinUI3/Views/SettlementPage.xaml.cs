@@ -191,6 +191,41 @@ public sealed partial class SettlementPage : Page
         FontSize = 12
     };
 
+    private static readonly Random PerkRandom = new();
+
+    /// <summary>Randomly fills every currently-empty Perks slot with a real
+    /// cataloged perk, leaving anything already set untouched - a quick way
+    /// to get all 8 slots populated at once for testing, rather than
+    /// clicking through 8 dropdowns by hand.</summary>
+    private void FillEmptyPerksBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0 || _settlementPerks is null || _settlementPerks.Count == 0) return;
+
+        var path = NmsSettlementPaths.PerksPath(_selectedIndex);
+        if (SaveSessionManager.GetValue(path) is not JArray currentArray) return;
+
+        var perkKeys = _settlementPerks.Keys.ToList();
+        var updated = new JArray(currentArray.Select(v => v.DeepClone()));
+        bool changed = false;
+
+        for (int i = 0; i < updated.Count; i++)
+        {
+            string raw = updated[i]?.Value<string>() ?? "";
+            string stripped = raw.TrimStart('^');
+            if (!string.IsNullOrEmpty(stripped)) continue; // already has something, leave it alone
+
+            string randomKey = perkKeys[PerkRandom.Next(perkKeys.Count)];
+            updated[i] = "^" + randomKey;
+            changed = true;
+        }
+
+        if (!changed) return;
+
+        SaveSessionManager.StageEdit(updated, path);
+        PageResetBtn.Visibility = Visibility.Visible;
+        BuildPerksPanel(_selectedIndex, _settlementPerks);
+    }
+
     private static readonly SolidColorBrush NegativePerkBrush = new(Color.FromArgb(255, 0xE0, 0x4C, 0x3D));
     private static readonly SolidColorBrush PositivePerkBrush = new(Color.FromArgb(255, 0x3D, 0xC4, 0x77));
     private static readonly SolidColorBrush NeutralPerkBrush = new(Color.FromArgb(255, 0x8A, 0x96, 0xA8));
