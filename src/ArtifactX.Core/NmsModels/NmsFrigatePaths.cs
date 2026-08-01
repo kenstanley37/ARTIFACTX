@@ -14,7 +14,7 @@ namespace ArtifactX.Core.NmsModels;
 /// Field map CONFIRMED (2026-07-30) via exact positional cross-reference
 /// against libMBIN's GcFleetFrigateSaveData (16 fields, JSON key order
 /// matches NMS Index order exactly, same technique used for Settlements/
-/// Pets) - AND independently verified against real screenshot data: all 29
+/// Companions) - AND independently verified against real screenshot data: all 29
 /// frigates in the test save (Steam Slot 6) were dumped and cross-checked
 /// one-by-one against 4 screenshots of the in-game "Frigate List" panel.
 /// Every single one matched exactly (Class badge, Role label, and all 4

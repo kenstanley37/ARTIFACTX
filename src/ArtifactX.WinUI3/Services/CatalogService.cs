@@ -313,11 +313,11 @@ public static class CatalogService
     /// PetBattlerForcedAffinity), sourced from the CreatureSpecies category -
     /// CatalogBuildService extracts this from the game's own
     /// metadata/simulation/ecosystem/creaturedatatable.mbin (GcCreatureDataTable),
-    /// found while investigating the Pets page's "Battle Abilities" grades (they
+    /// found while investigating the Companions page's "Battle Abilities" grades (they
     /// turned out NOT to live here, but this data is real and otherwise
     /// undiscoverable, so it's kept). Keyed by the same uppercase archetype code
     /// the save's own pet XID field uses (e.g. "RODENT") - confirmed via real
-    /// save data, see ArtifactX.Core.NmsModels.NmsPetPaths. Rarity is
+    /// save data, see ArtifactX.Core.NmsModels.NmsCompanionPaths. Rarity is
     /// species-wide (every Rodent shares the same value), NOT a per-pet-instance
     /// stat the way ujr/Trust/etc. are.</summary>
     public static async Task<Dictionary<string, (string DisplayName, string Rarity, string Description)>> GetCreatureSpeciesAsync()
@@ -537,7 +537,7 @@ public static class CatalogService
     /// <summary>Full body-part "Descriptors" option tree for one creature
     /// rig (e.g. "trex"), sourced from CreatureDescriptorOptions - see
     /// CatalogBuildService's Phase 1.7 for how this is extracted and
-    /// ArtifactX.Core.NmsModels.NmsPetPaths' class doc comment (the "osl"
+    /// ArtifactX.Core.NmsModels.NmsCompanionPaths' class doc comment (the "osl"
     /// bullet) for how a pet's own osl save field references these nodes by
     /// OptionId. rigId should be the pet's XID, lowercased - most species
     /// match their rig filename exactly, but a real minority don't (see

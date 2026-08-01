@@ -3,7 +3,7 @@ using System.Linq;
 namespace ArtifactX.Core.NmsModels;
 
 /// <summary>
-/// Path helpers for owned Settlements. Unlike Pets (a small flat 30-slot
+/// Path helpers for owned Settlements. Unlike Companions (a small flat 30-slot
 /// array under the same vLc/6f= container), settlements live in a much
 /// bigger 100-slot array (GQA) that is NOT exclusively "mine" - most of its
 /// entries belong to OTHER real players (confirmed 2026-07-29: of 100
@@ -24,7 +24,7 @@ namespace ArtifactX.Core.NmsModels;
 /// save's own single-entry "local platform account" record, confirmed
 /// present in every top-level save and exactly matching both owned
 /// settlements' Owner.K7E in the one real save checked so far). An empty
-/// slot has NKm == "" (not the "^" bare-caret convention Pets/other pages
+/// slot has NKm == "" (not the "^" bare-caret convention Companions/other pages
 /// use) and every other field zeroed/defaulted (hiD == -1, x3&lt; == 0,
 /// :Qn/SS2/HMQ wrapper objects all their "None" member, abj's 2 production
 /// slots present but with CZw == "^" and zeroed amounts).
@@ -33,13 +33,13 @@ namespace ArtifactX.Core.NmsModels;
 /// against libMBIN's own GcSettlementState - a real settlement record's 32
 /// JSON keys appear in EXACTLY the same order as GcSettlementState's 32
 /// fields by NMS Index (0-31), the same technique that helped confirm
-/// several CreatureSave fields for Pets. This is strong static evidence
+/// several CreatureSave fields for Companions. This is strong static evidence
 /// (same field count, same order, and every sampled value is plausible for
 /// its matched field's type/name - e.g. Population=22 for a real
 /// settlement vs 0 for empty, Race="Warriors" is a real AlienRaceEnum
 /// member, Stats has exactly 8 entries matching SettlementStatTypeEnum's 8
 /// members) but is NOT the same as in-game test confirmation the way
-/// Pets fields eventually got.
+/// Companions fields eventually got.
 ///
 /// FIRST REAL IN-GAME COMPARISON (2026-07-29): Name and Population (x3&lt;)
 /// both matched exactly. Two of the 8 Stats (Debt, Happiness) were close to
@@ -157,7 +157,7 @@ namespace ArtifactX.Core.NmsModels;
 ///           Sentinels/Debt/Alert/BugAttack)
 /// 11 OEf  = Perks (string[8], "^" for an empty slot else a perk id like
 ///           "^PROC_FUN#09286" - NOT exposed for editing yet, since valid
-///           perk ids aren't cataloged anywhere yet, unlike Pets' osl)
+///           perk ids aren't cataloged anywhere yet, unlike Companions' osl)
 /// 12 0Qr  = LastJudgementTime (ulong timestamp)
 /// 13 OI3  = LastUpkeepDebtCheckTime (ulong timestamp)
 /// 14 g&lt;v  = LastDebtChangeTime (ulong timestamp)
@@ -223,7 +223,7 @@ public static class NmsSettlementPaths
     /// ArtifactX.Core deliberately doesn't reference libMBIN (a WinUI3-side
     /// concern), so the UI pulls the enum's values directly via
     /// Enum.GetNames rather than a hand-copied duplicate living here - same
-    /// pattern as Pets' CreatureTypePath. CONFIRMED WORKING (2026-07-30) via
+    /// pattern as Companions' CreatureTypePath. CONFIRMED WORKING (2026-07-30) via
     /// a clean one-variable-at-a-time save+reload test: this field controls
     /// the in-game "X Planetary Settlement" subtitle, but the game
     /// TRANSLATES it to a real species name rather than writing it
@@ -268,7 +268,7 @@ public static class NmsSettlementPaths
     /// <summary>The whole 8-entry Stats array (MaxPopulation/Happiness/
     /// Production/Upkeep/Sentinels/Debt/Alert/BugAttack, in that exact
     /// order - matches libMBIN's GcSettlementStatType.SettlementStatTypeEnum).
-    /// Staged as a whole, same reasoning as Pets' TraitsPath/
+    /// Staged as a whole, same reasoning as Companions' TraitsPath/
     /// MutationPointsPath (a deeper leaf-only stage isn't seen by
     /// SaveSessionManager's staged-edit lookup).</summary>
     public static string[] StatsPath(int settlementIndex) => SettlementPath(settlementIndex).Append("gUR").ToArray();

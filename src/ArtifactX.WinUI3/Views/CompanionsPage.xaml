@@ -84,7 +84,7 @@
                     <TextBlock Text="Owned Companions" FontSize="14" Opacity="0.8"/>
                     <ScrollViewer MaxHeight="150" VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-                        <ctcontrols:WrapPanel x:Name="PetSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+                        <ctcontrols:WrapPanel x:Name="CompanionSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
                     </ScrollViewer>
 
                     <!-- Wide/short instead of narrow/tall - related fields sit in

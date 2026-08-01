@@ -16,7 +16,7 @@ namespace ArtifactX.Core.NmsModels;
 /// block as everything else on this save, and each of the app's other save
 /// slots is a fully independent file with its own separate copy of this
 /// whole structure. "Not tied to any single pet" (the actual point worth
-/// making, since PetsPage also has a genuinely different PER-PET
+/// making, since CompanionsPage also has a genuinely different PER-PET
 /// "Holo-Arena Victories" field) is not the same claim as "shared across the
 /// account" - an earlier version of this doc comment conflated the two.
 ///
@@ -46,7 +46,7 @@ namespace ArtifactX.Core.NmsModels;
 /// Because this is a "find by id" structure like Settlement Perks/Frigate
 /// Traits, NOT a fixed-index array, callers must locate the GLOBAL_STATS
 /// group's index and a stat's index within it at RUNTIME by scanning the
-/// live JSON (see PetsPage.xaml.cs's ResolveGlobalStatGroupIndex/
+/// live JSON (see CompanionsPage.xaml.cs's ResolveGlobalStatGroupIndex/
 /// ResolveStatIndex) - group order/position is not assumed stable across
 /// different saves.
 ///
@@ -58,7 +58,7 @@ namespace ArtifactX.Core.NmsModels;
 ///   PB_BOSS_WINS -&gt; "Champions Defeated" (40 == 40)
 ///   PB_WINS -&gt; "Holo-Arena Victories" (49 == 49) - NOT the same thing as
 ///     the existing PER-PET "Holo-Arena Victories" field already on
-///     PetsPage (NmsPetPaths.HoloArenaVictoriesPath) - that's each
+///     CompanionsPage (NmsCompanionPaths.HoloArenaVictoriesPath) - that's each
 ///     individual creature's own win count; this is this save's total
 ///     across every pet combined, a genuinely different number in a
 ///     completely different part of the save.

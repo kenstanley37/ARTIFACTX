@@ -1,7 +1,7 @@
 namespace ArtifactX.WinUI3.Models;
 
 /// <summary>One node from CatalogService.GetCreatureDescriptorTreeAsync -
-/// see ArtifactX.Core.NmsModels.NmsPetPaths' class doc comment (the "osl"
+/// see ArtifactX.Core.NmsModels.NmsCompanionPaths' class doc comment (the "osl"
 /// bullet) for how a pet's own save data references these nodes by
 /// OptionId, and CatalogBuildService's Phase 1.7 for how the tree is
 /// extracted. ParentOptionId is the PARENT NODE'S OWN OptionId (not a raw

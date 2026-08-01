@@ -11,7 +11,7 @@ namespace ArtifactX.Core.NmsModels;
 /// A slot's occupancy is XID (species), not fH8 (custom name) - fH8 is
 /// empty until the player manually renames a pet, so a freshly tamed,
 /// never-renamed pet still occupies its slot with fH8 == "" (real bug hit
-/// 2026-07-28: the Pets page originally filtered occupied slots by fH8,
+/// 2026-07-28: the Companions page originally filtered occupied slots by fH8,
 /// silently dropping every unnamed pet). The fancy auto-generated name
 /// shown in-game (e.g. "Riverpito") is computed client-side for display -
 /// the literal text itself is never written to the save (confirmed by
@@ -81,7 +81,7 @@ namespace ArtifactX.Core.NmsModels;
 ///    whose 2 alternatives lead to entirely different child slot sets -
 ///    TAILB/TOPB vs HEAD/BODY/TAIL), that one root row IS a genuine
 ///    archetype choice, and picking a different alternative REBUILDS the
-///    whole array from scratch instead (PetsPage.BuildDefaultDescriptorArray:
+///    whole array from scratch instead (CompanionsPage.BuildDefaultDescriptorArray:
 ///    walks the new archetype's tree depth-first, picking a default per
 ///    slot in the game's own original category order, preserving any
 ///    trailing non-tree entries like the detail seed unchanged) since a
@@ -197,7 +197,7 @@ namespace ArtifactX.Core.NmsModels;
 ///    own between two real saves with no edit from this app, so it rotates
 ///    somehow independent of anything above. Not exposed.
 /// </summary>
-public static class NmsPetPaths
+public static class NmsCompanionPaths
 {
     /// <summary>Fixed per-stat mutation point cap (matches "X/10" for every
     /// one of the 3 mutation stats) and the derived sum cap "Genes Improved"
@@ -205,30 +205,30 @@ public static class NmsPetPaths
     public const int MutationPointsMax = 10;
     public const int GenesImprovedMax = MutationPointsMax * 3;
 
-    public static readonly string[] PetArrayPath = { "vLc", "6f=", "Mcl" };
+    public static readonly string[] CompanionArrayPath = { "vLc", "6f=", "Mcl" };
 
-    public static string[] PetPath(int petIndex) =>
-        new[] { "vLc", "6f=", "Mcl", petIndex.ToString() };
+    public static string[] CompanionPath(int companionIndex) =>
+        new[] { "vLc", "6f=", "Mcl", companionIndex.ToString() };
 
-    public static string[] NamePath(int petIndex) => PetPath(petIndex).Append("fH8").ToArray();
-    public static string[] TrustPath(int petIndex) => PetPath(petIndex).Append("xDJ").ToArray();
-    public static string[] NativeClimatePath(int petIndex) => PetPath(petIndex).Append("8jm").Append("8jm").ToArray();
-    public static string[] SpeciesArchetypePath(int petIndex) => PetPath(petIndex).Append("XID").ToArray();
-    public static string[] GenesImprovedPath(int petIndex) => PetPath(petIndex).Append("a2U").ToArray();
-    public static string[] MutationProgressPath(int petIndex) => PetPath(petIndex).Append("KAx").ToArray();
-    public static string[] HoloArenaVictoriesPath(int petIndex) => PetPath(petIndex).Append("u75").ToArray();
+    public static string[] NamePath(int companionIndex) => CompanionPath(companionIndex).Append("fH8").ToArray();
+    public static string[] TrustPath(int companionIndex) => CompanionPath(companionIndex).Append("xDJ").ToArray();
+    public static string[] NativeClimatePath(int companionIndex) => CompanionPath(companionIndex).Append("8jm").Append("8jm").ToArray();
+    public static string[] SpeciesArchetypePath(int companionIndex) => CompanionPath(companionIndex).Append("XID").ToArray();
+    public static string[] GenesImprovedPath(int companionIndex) => CompanionPath(companionIndex).Append("a2U").ToArray();
+    public static string[] MutationProgressPath(int companionIndex) => CompanionPath(companionIndex).Append("KAx").ToArray();
+    public static string[] HoloArenaVictoriesPath(int companionIndex) => CompanionPath(companionIndex).Append("u75").ToArray();
 
     /// <summary>The whole 3-entry mutation-points array (Agility/Health/
     /// Combat, display order) - staged as a whole, same reasoning as Ship/
     /// Freighter/Multi-Tool's @bB stat-bonus arrays (a deeper leaf-only
     /// stage isn't seen by SaveSessionManager's staged-edit lookup, which
     /// only matches at the exact path queried).</summary>
-    public static string[] MutationPointsPath(int petIndex) => PetPath(petIndex).Append("ujr").ToArray();
+    public static string[] MutationPointsPath(int companionIndex) => CompanionPath(companionIndex).Append("ujr").ToArray();
 
     /// <summary>The whole 3-entry Traits (personality) array - see this
     /// class's doc comment for the JAy -&gt; Traits confirmation. Staged as a
     /// whole, same reasoning as MutationPointsPath above.</summary>
-    public static string[] TraitsPath(int petIndex) => PetPath(petIndex).Append("JAy").ToArray();
+    public static string[] TraitsPath(int companionIndex) => CompanionPath(companionIndex).Append("JAy").ToArray();
 
     /// <summary>CreatureSeed - the pet's primary procedural-look seed.
     /// Confirmed via real reroll-and-reload testing to drive the pet's
@@ -241,14 +241,14 @@ public static class NmsPetPaths
     /// leave it alone, or something else. BoneScaleSeedPath below is kept
     /// in sync with this one on every reroll since every sampled pet showed
     /// them mirrored.</summary>
-    public static string[] SeedPath(int petIndex) => PetPath(petIndex).Append("WTp").Append("1").ToArray();
+    public static string[] SeedPath(int companionIndex) => CompanionPath(companionIndex).Append("WTp").Append("1").ToArray();
 
     /// <summary>BoneScaleSeed - always mirrored WTp's value in every sample
     /// gathered so far. Not exposed as its own editable field; only ever
     /// written by GenerateSeedBtn_Click alongside SeedPath, to preserve that
     /// observed mirror rather than letting the two diverge into an untested
     /// state.</summary>
-    public static string[] BoneScaleSeedPath(int petIndex) => PetPath(petIndex).Append("6fX").Append("1").ToArray();
+    public static string[] BoneScaleSeedPath(int companionIndex) => CompanionPath(companionIndex).Append("6fX").Append("1").ToArray();
 
     /// <summary>CONFIRMED (2026-07-28, real reroll-and-revert round trip) to
     /// drive the in-game Battle Abilities badges (Combat Effectiveness/
@@ -262,7 +262,7 @@ public static class NmsPetPaths
     /// stays untouched. Most likely both feed one combined hash, the same
     /// way NMS combines multiple seed fields elsewhere in full creature
     /// generation.</summary>
-    public static string[] RollSeedPrimaryPath(int petIndex) => PetPath(petIndex).Append("m9o").ToArray();
+    public static string[] RollSeedPrimaryPath(int companionIndex) => CompanionPath(companionIndex).Append("m9o").ToArray();
 
     /// <summary>CONFIRMED (2026-07-28, real isolated single-field test with
     /// RollSeedPrimaryPath/m9o held fixed and verified unchanged directly
@@ -272,7 +272,7 @@ public static class NmsPetPaths
     /// isolation) is the remaining member of the same originally-grouped
     /// "unknown hex" trio and a strong candidate to be a third co-input to
     /// the same roll.</summary>
-    public static string[] RollSeedSecondaryPath(int petIndex) => PetPath(petIndex).Append("JrL").ToArray();
+    public static string[] RollSeedSecondaryPath(int companionIndex) => CompanionPath(companionIndex).Append("JrL").ToArray();
 
     /// <summary>CreatureSecondarySeed's active flag - every sampled pet had
     /// this permanently false (never independently rolled by the game)
@@ -283,8 +283,8 @@ public static class NmsPetPaths
     /// driving the badges again, not masked by Class Letters) showed the
     /// same badges as before this field was ever touched. Purpose otherwise
     /// unknown.</summary>
-    public static string[] SecondarySeedActivePath(int petIndex) => PetPath(petIndex).Append("1p=").Append("0").ToArray();
-    public static string[] SecondarySeedPath(int petIndex) => PetPath(petIndex).Append("1p=").Append("1").ToArray();
+    public static string[] SecondarySeedActivePath(int companionIndex) => CompanionPath(companionIndex).Append("1p=").Append("0").ToArray();
+    public static string[] SecondarySeedPath(int companionIndex) => CompanionPath(companionIndex).Append("1p=").Append("1").ToArray();
 
     /// <summary>ColourBaseSeed's active flag - permanently false, never
     /// independently rolled by the game, on every sampled pet until real
@@ -303,8 +303,8 @@ public static class NmsPetPaths
     /// simply not read at all while inactive. Species name, badges, Traits,
     /// Weight/Height, and Holo-Arena Victories were unaffected throughout
     /// either round.</summary>
-    public static string[] ColourBaseSeedActivePath(int petIndex) => PetPath(petIndex).Append("uAX").Append("0").ToArray();
-    public static string[] ColourBaseSeedPath(int petIndex) => PetPath(petIndex).Append("uAX").Append("1").ToArray();
+    public static string[] ColourBaseSeedActivePath(int companionIndex) => CompanionPath(companionIndex).Append("uAX").Append("0").ToArray();
+    public static string[] ColourBaseSeedPath(int companionIndex) => CompanionPath(companionIndex).Append("uAX").Append("1").ToArray();
 
     /// <summary>CreatureType (locomotion/role archetype, e.g. "Crab" or
     /// "Passive" - shares its enum with the species-shape archetypes seen in
@@ -320,7 +320,7 @@ public static class NmsPetPaths
     /// different a value as the enum allows) with no change to the model,
     /// species name, Battle Abilities, or stats. Purpose otherwise
     /// unknown.</summary>
-    public static string[] CreatureTypePath(int petIndex) => PetPath(petIndex).Append("HbY").Append("HbY").ToArray();
+    public static string[] CreatureTypePath(int companionIndex) => CompanionPath(companionIndex).Append("HbY").Append("HbY").ToArray();
 
     /// <summary>CustomSpeciesName - always "^" (empty) on every sampled pet
     /// until real testing (2026-07-28) confirmed it: overrides the fancy
@@ -330,10 +330,10 @@ public static class NmsPetPaths
     /// Abilities, or anything else tested. Uses the same "^" prefix
     /// convention as XID - the game visibly broke when tested with plain
     /// text and no leading caret, so ArtifactX.WinUI3's UI (see
-    /// PetsPage.AddCaretPrefixedStringFieldRow) always adds the prefix back
+    /// CompanionsPage.AddCaretPrefixedStringFieldRow) always adds the prefix back
     /// automatically before staging, regardless of what the user
     /// types.</summary>
-    public static string[] CustomSpeciesNamePath(int petIndex) => PetPath(petIndex).Append("HhX").ToArray();
+    public static string[] CustomSpeciesNamePath(int companionIndex) => CompanionPath(companionIndex).Append("HhX").ToArray();
 
     /// <summary>The whole osl array (Descriptors, body-part composition
     /// "recipe") - see this class's doc comment (the "osl" bullet) for the
@@ -351,12 +351,12 @@ public static class NmsPetPaths
     /// name, Rarity/Affinity, Trust, Traits, Mutation Progress, Battle
     /// Abilities, and Holo-Arena Victories all unchanged. The editor now
     /// ALSO supports rebuilding the whole array for a different archetype
-    /// on rigs that have exactly one - see PetsPage.BuildDescriptorsPanel's
+    /// on rigs that have exactly one - see CompanionsPage.BuildDescriptorsPanel's
     /// rigHasSingleRootArchetype for why that's rig-shape-dependent, not
     /// always "osl[0]" - but that specific path is UNTESTED IN-GAME as of
     /// 2026-07-29, and long-term save stability beyond one reload cycle is
     /// untested for either kind of edit.</summary>
-    public static string[] DescriptorsPath(int petIndex) => PetPath(petIndex).Append("osl").ToArray();
+    public static string[] DescriptorsPath(int companionIndex) => CompanionPath(companionIndex).Append("osl").ToArray();
 
     /// <summary>E&lt;S[statIndex].1o6 - the same "1o6" Class-letter (S/A/B/C)
     /// convention Ships/Freighter/Multi-Tool use. CONFIRMED (2026-07-28) to
@@ -369,11 +369,11 @@ public static class NmsPetPaths
     /// in-game badge showed which letter): statIndex 0 = Health, statIndex
     /// 1 = Agility, statIndex 2 = Combat (only Combat's position
     /// matches ujr's order).</summary>
-    public static string[] ClassLetterPath(int petIndex, int statIndex) =>
-        PetPath(petIndex).Append("E<S").Append(statIndex.ToString()).Append("1o6").ToArray();
+    public static string[] ClassLetterPath(int companionIndex, int statIndex) =>
+        CompanionPath(companionIndex).Append("E<S").Append(statIndex.ToString()).Append("1o6").ToArray();
 
     // The remaining fields below (found 2026-07-28 dumping a real pet's full
-    // structure while building the Pets page's "Advanced Fields" section)
+    // structure while building the Companions page's "Advanced Fields" section)
     // aren't in this class's own doc comment because they were missed
     // entirely by the original CreatureSave cross-reference - either newer
     // than that pass, or just overlooked. No guess at their purpose exists
@@ -388,7 +388,7 @@ public static class NmsPetPaths
     /// real isolated test with RollSeedPrimaryPath/RollSeedSecondaryPath
     /// both held fixed - regenerating this field alone produced no change to
     /// the badges or species name). Purpose otherwise unknown.</summary>
-    public static string[] UnknownHexCPath(int petIndex) => PetPath(petIndex).Append("5L6").ToArray();
+    public static string[] UnknownHexCPath(int companionIndex) => CompanionPath(companionIndex).Append("5L6").ToArray();
 
     /// <summary>Toggled true (real test, 2026-07-28) with no observable
     /// effect anywhere on the in-game pet screen - Battle Abilities badges,
@@ -397,29 +397,29 @@ public static class NmsPetPaths
     /// outside what's visible there (e.g. something server-side, or a UI
     /// panel this app hasn't cross-referenced). Purpose otherwise
     /// unknown.</summary>
-    public static string[] UnknownBoolAPath(int petIndex) => PetPath(petIndex).Append("Q6I").ToArray();
+    public static string[] UnknownBoolAPath(int companionIndex) => CompanionPath(companionIndex).Append("Q6I").ToArray();
 
     /// <summary>Toggled (real test, 2026-07-28) with no observable effect
     /// anywhere on the in-game pet screen - same fields checked as
     /// UnknownBoolAPath, all stayed identical. Purpose otherwise
     /// unknown.</summary>
-    public static string[] UnknownBoolBPath(int petIndex) => PetPath(petIndex).Append("IaE").ToArray();
+    public static string[] UnknownBoolBPath(int companionIndex) => CompanionPath(companionIndex).Append("IaE").ToArray();
     /// <summary>Toggled (real test, 2026-07-28) with no observable effect
     /// anywhere on the in-game pet screen - same fields checked as
     /// UnknownBoolAPath, all stayed identical. Purpose otherwise
     /// unknown.</summary>
-    public static string[] UnknownBoolCPath(int petIndex) => PetPath(petIndex).Append("?<V").ToArray();
+    public static string[] UnknownBoolCPath(int companionIndex) => CompanionPath(companionIndex).Append("?<V").ToArray();
     /// <summary>Toggled (real test, 2026-07-28) with no observable effect
     /// anywhere on the in-game pet screen - same fields checked as
     /// UnknownBoolAPath, all stayed identical. Purpose otherwise
     /// unknown.</summary>
-    public static string[] UnknownBoolDPath(int petIndex) => PetPath(petIndex).Append("eK9").ToArray();
+    public static string[] UnknownBoolDPath(int companionIndex) => CompanionPath(companionIndex).Append("eK9").ToArray();
     /// <summary>Toggled true->false (real test, 2026-07-28 - this one
     /// started true on every sampled pet, unlike the others) with no
     /// observable effect anywhere on the in-game pet screen - same fields
     /// checked as UnknownBoolAPath, all stayed identical. Purpose otherwise
     /// unknown.</summary>
-    public static string[] UnknownBoolEPath(int petIndex) => PetPath(petIndex).Append("WQX").ToArray();
+    public static string[] UnknownBoolEPath(int companionIndex) => CompanionPath(companionIndex).Append("WQX").ToArray();
 
     /// <summary>CONFIRMED (2026-07-28, real testing) to be a mode switch for
     /// the Battle Abilities badges: false (the default on every wild-tamed
@@ -430,5 +430,5 @@ public static class NmsPetPaths
     /// left at its dormant default S/S/S) immediately maxed all three
     /// badges, and setting E&lt;S to distinct letters while this stayed true
     /// made the badges show exactly those letters.</summary>
-    public static string[] ClassLetterOverrideActivePath(int petIndex) => PetPath(petIndex).Append("isp").ToArray();
+    public static string[] ClassLetterOverrideActivePath(int companionIndex) => CompanionPath(companionIndex).Append("isp").ToArray();
 }

@@ -21,39 +21,39 @@ namespace ArtifactX.WinUI3.Views;
 /// (species), not fH8 (custom name) - fH8 is only set once the player
 /// manually renames a pet, so a freshly tamed, never-renamed pet has fH8 ==
 /// "" while still very much occupying the slot (real bug hit 2026-07-28:
-/// filtering on fH8 silently dropped every unnamed pet from the Pets page's
-/// list). The fancy auto-generated name shown in-game (e.g. "Riverpito") is
+/// filtering on fH8 silently dropped every unnamed pet from the Companions
+/// page's list). The fancy auto-generated name shown in-game (e.g. "Riverpito") is
 /// computed client-side for display only and is never written to the save.
-/// Only the fields confirmed against real save data (see NmsPetPaths) are
+/// Only the fields confirmed against real save data (see NmsCompanionPaths) are
 /// exposed here - Current Mood, Age, Gender, the fancy species name, and
 /// Weight have no confirmed backing field (cross-referenced against
 /// NMSCD/Creature-Builder's own reverse-engineered save contract, which
 /// doesn't have them either) and aren't exposed. Personality Traits ARE
-/// real and stored (see NmsPetPaths.TraitsPath) - initially miscategorized
+/// real and stored (see NmsCompanionPaths.TraitsPath) - initially miscategorized
 /// as an unrelated position vector until that cross-reference caught it.
 /// </summary>
 public sealed partial class CompanionsPage : Page
 {
-    private sealed record PetEntry(int Index, string SelectorLabel);
+    private sealed record CompanionEntry(int Index, string SelectorLabel);
 
     private int _selectedIndex = -1;
-    private List<PetEntry> _pets = new();
+    private List<CompanionEntry> _companions = new();
     private bool _suppressStatChangeEvent;
 
     // Separate from _suppressStatChangeEvent on purpose - real bug found
-    // 2026-07-31: LoadSelectedPet is `async` and awaits catalog fetches
-    // partway through, so it's still suspended (mid-await) when LoadPetList
+    // 2026-07-31: LoadSelectedCompanion is `async` and awaits catalog fetches
+    // partway through, so it's still suspended (mid-await) when LoadCompanionList
     // goes on to call LoadArenaLeagueStats() right after starting it. Both
     // methods used to share _suppressStatChangeEvent, so Arena's own load
     // (synchronous, finishes immediately) reset the SHARED flag back to
-    // false while LoadSelectedPet was still paused - by the time
-    // LoadSelectedPet resumed past its awaits and set Trust/Traits/
+    // false while LoadSelectedCompanion was still paused - by the time
+    // LoadSelectedCompanion resumed past its awaits and set Trust/Traits/
     // GenesImproved/MutationProgress/HoloArenaVictories/MutationPoints,
     // the flag was already false, so those load-time assignments got
     // misread as real user edits and staged as 6 phantom pending changes
     // (confirmed via a temporary diagnostic dump of the actual staged
     // paths+values - all 6 matched exactly what had just been loaded, a
-    // pure no-op re-write). Fields set BEFORE LoadSelectedPet's first
+    // pure no-op re-write). Fields set BEFORE LoadSelectedCompanion's first
     // await (e.g. Name) were never affected, which is what pointed at the
     // await/interleaving as the cause rather than a guard being missing
     // outright. Two independent flags means neither load path can clobber
@@ -67,7 +67,7 @@ public sealed partial class CompanionsPage : Page
     // Rig id (species XID lowercased, e.g. "trex") -> its full descriptor
     // option tree, fetched once per rig and reused across pets that share
     // one (e.g. multiple tamed Rodents) - see CatalogService.
-    // GetCreatureDescriptorTreeAsync and NmsPetPaths.DescriptorsPath.
+    // GetCreatureDescriptorTreeAsync and NmsCompanionPaths.DescriptorsPath.
     private readonly Dictionary<string, List<CreatureDescriptorNode>> _descriptorTreeCache = new();
 
     // Save-wide (not per-pet) Arena League stats (NmsPlayerStatsPaths) - a "find by id"
@@ -84,25 +84,25 @@ public sealed partial class CompanionsPage : Page
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
 
-        LoadPetList();
+        LoadCompanionList();
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
-        DispatcherQueue.TryEnqueue(LoadPetList);
+        DispatcherQueue.TryEnqueue(LoadCompanionList);
 
-    private void LoadPetList()
+    private void LoadCompanionList()
     {
         if (!SaveSessionManager.IsSaveLoaded)
         {
-            _pets = new();
+            _companions = new();
             _selectedIndex = -1;
-            PetSelectorPanel.Children.Clear();
+            CompanionSelectorPanel.Children.Clear();
             ClearFields();
             LoadArenaLeagueStats();
             return;
         }
 
-        if (SaveSessionManager.GetValue(NmsPetPaths.PetArrayPath) is not JArray array)
+        if (SaveSessionManager.GetValue(NmsCompanionPaths.CompanionArrayPath) is not JArray array)
             return;
 
         // Occupancy is XID (species), NOT fH8 (custom name) - a freshly tamed
@@ -114,7 +114,7 @@ public sealed partial class CompanionsPage : Page
         // the raw JSON for their names, which found nothing anywhere in the
         // file. Filtering on fH8 (the original assumption) silently dropped
         // every one of them from this list.
-        var pets = new List<PetEntry>();
+        var companions = new List<CompanionEntry>();
         for (int i = 0; i < array.Count; i++)
         {
             // XID is "^" (a bare, contentless prefix) on a truly empty slot,
@@ -124,16 +124,16 @@ public sealed partial class CompanionsPage : Page
 
             string customName = array[i]?["fH8"]?.Value<string>() ?? "";
             string label = string.IsNullOrEmpty(customName) ? $"{FormatArchetype(xid)} #{i + 1}" : customName;
-            pets.Add(new PetEntry(i, label));
+            companions.Add(new CompanionEntry(i, label));
         }
 
-        _pets = pets;
+        _companions = companions;
 
-        if (_selectedIndex < 0 || _pets.All(p => p.Index != _selectedIndex))
-            _selectedIndex = _pets.FirstOrDefault()?.Index ?? -1;
+        if (_selectedIndex < 0 || _companions.All(p => p.Index != _selectedIndex))
+            _selectedIndex = _companions.FirstOrDefault()?.Index ?? -1;
 
         BuildSelectorStrip();
-        LoadSelectedPet();
+        LoadSelectedCompanion();
         LoadArenaLeagueStats();
     }
 
@@ -223,17 +223,17 @@ public sealed partial class CompanionsPage : Page
 
     private void BuildSelectorStrip()
     {
-        PetSelectorPanel.Children.Clear();
+        CompanionSelectorPanel.Children.Clear();
 
-        foreach (var pet in _pets)
+        foreach (var companion in _companions)
         {
-            bool isSelected = pet.Index == _selectedIndex;
+            bool isSelected = companion.Index == _selectedIndex;
 
             var button = new Button
             {
                 Content = new TextBlock
                 {
-                    Text = pet.SelectorLabel,
+                    Text = companion.SelectorLabel,
                     FontWeight = isSelected ? FontWeights.SemiBold : FontWeights.Normal
                 },
                 Padding = new Thickness(12, 6, 12, 6),
@@ -248,12 +248,12 @@ public sealed partial class CompanionsPage : Page
 
             button.Click += (_, _) =>
             {
-                _selectedIndex = pet.Index;
+                _selectedIndex = companion.Index;
                 BuildSelectorStrip();
-                LoadSelectedPet();
+                LoadSelectedCompanion();
             };
 
-            PetSelectorPanel.Children.Add(button);
+            CompanionSelectorPanel.Children.Add(button);
         }
     }
 
@@ -287,7 +287,7 @@ public sealed partial class CompanionsPage : Page
         AdvancedFieldsPanel.Children.Clear();
     }
 
-    private async void LoadSelectedPet()
+    private async void LoadSelectedCompanion()
     {
         if (_selectedIndex < 0)
         {
@@ -300,9 +300,9 @@ public sealed partial class CompanionsPage : Page
         // The real stored value, not the selector strip's fallback label -
         // shows genuinely empty when the player never manually renamed this
         // pet, rather than the synthetic "Species #N" placeholder.
-        NameEditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.NamePath(_selectedIndex))?.Value<string>() ?? "";
+        NameEditBox.Text = SaveSessionManager.GetValue(NmsCompanionPaths.NamePath(_selectedIndex))?.Value<string>() ?? "";
 
-        string archetype = SaveSessionManager.GetValue(NmsPetPaths.SpeciesArchetypePath(_selectedIndex))?.Value<string>() ?? "";
+        string archetype = SaveSessionManager.GetValue(NmsCompanionPaths.SpeciesArchetypePath(_selectedIndex))?.Value<string>() ?? "";
         string archetypeId = archetype.TrimStart('^');
         SpeciesTxt.Text = FormatArchetype(archetype);
 
@@ -317,41 +317,41 @@ public sealed partial class CompanionsPage : Page
         }
         BuildDescriptorsPanel(_selectedIndex, descriptorTree);
 
-        ClimateTxt.Text = SaveSessionManager.GetValue(NmsPetPaths.NativeClimatePath(_selectedIndex))?.Value<string>() ?? "";
+        ClimateTxt.Text = SaveSessionManager.GetValue(NmsCompanionPaths.NativeClimatePath(_selectedIndex))?.Value<string>() ?? "";
 
-        SeedEditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.SeedPath(_selectedIndex))?.Value<string>() ?? "";
-        ColourBaseSeedActiveCheckBox.IsChecked = SaveSessionManager.GetValue(NmsPetPaths.ColourBaseSeedActivePath(_selectedIndex))?.Value<bool>() ?? false;
-        ColourBaseSeedEditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.ColourBaseSeedPath(_selectedIndex))?.Value<string>() ?? "";
-        BattleAbilitySeedEditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.RollSeedPrimaryPath(_selectedIndex))?.Value<string>() ?? "";
-        BattleAbilitySeed2EditBox.Text = SaveSessionManager.GetValue(NmsPetPaths.RollSeedSecondaryPath(_selectedIndex))?.Value<string>() ?? "";
+        SeedEditBox.Text = SaveSessionManager.GetValue(NmsCompanionPaths.SeedPath(_selectedIndex))?.Value<string>() ?? "";
+        ColourBaseSeedActiveCheckBox.IsChecked = SaveSessionManager.GetValue(NmsCompanionPaths.ColourBaseSeedActivePath(_selectedIndex))?.Value<bool>() ?? false;
+        ColourBaseSeedEditBox.Text = SaveSessionManager.GetValue(NmsCompanionPaths.ColourBaseSeedPath(_selectedIndex))?.Value<string>() ?? "";
+        BattleAbilitySeedEditBox.Text = SaveSessionManager.GetValue(NmsCompanionPaths.RollSeedPrimaryPath(_selectedIndex))?.Value<string>() ?? "";
+        BattleAbilitySeed2EditBox.Text = SaveSessionManager.GetValue(NmsCompanionPaths.RollSeedSecondaryPath(_selectedIndex))?.Value<string>() ?? "";
 
-        ClassLetterOverrideActiveCheckBox.IsChecked = SaveSessionManager.GetValue(NmsPetPaths.ClassLetterOverrideActivePath(_selectedIndex))?.Value<bool>() ?? false;
-        SetClassLetterSelection(ClassLetterHealthBox, SaveSessionManager.GetValue(NmsPetPaths.ClassLetterPath(_selectedIndex, 0))?.Value<string>());
-        SetClassLetterSelection(ClassLetterAgilityBox, SaveSessionManager.GetValue(NmsPetPaths.ClassLetterPath(_selectedIndex, 1))?.Value<string>());
-        SetClassLetterSelection(ClassLetterCombatBox, SaveSessionManager.GetValue(NmsPetPaths.ClassLetterPath(_selectedIndex, 2))?.Value<string>());
+        ClassLetterOverrideActiveCheckBox.IsChecked = SaveSessionManager.GetValue(NmsCompanionPaths.ClassLetterOverrideActivePath(_selectedIndex))?.Value<bool>() ?? false;
+        SetClassLetterSelection(ClassLetterHealthBox, SaveSessionManager.GetValue(NmsCompanionPaths.ClassLetterPath(_selectedIndex, 0))?.Value<string>());
+        SetClassLetterSelection(ClassLetterAgilityBox, SaveSessionManager.GetValue(NmsCompanionPaths.ClassLetterPath(_selectedIndex, 1))?.Value<string>());
+        SetClassLetterSelection(ClassLetterCombatBox, SaveSessionManager.GetValue(NmsCompanionPaths.ClassLetterPath(_selectedIndex, 2))?.Value<string>());
         UpdateClassLetterBoxesEnabled();
 
-        double trust = SaveSessionManager.GetValue(NmsPetPaths.TrustPath(_selectedIndex))?.Value<double>() ?? 0;
+        double trust = SaveSessionManager.GetValue(NmsCompanionPaths.TrustPath(_selectedIndex))?.Value<double>() ?? 0;
         TrustStatBox.Value = Math.Round(trust * 100, 1);
 
-        var traits = SaveSessionManager.GetValue(NmsPetPaths.TraitsPath(_selectedIndex)) as JArray;
+        var traits = SaveSessionManager.GetValue(NmsCompanionPaths.TraitsPath(_selectedIndex)) as JArray;
         Trait1Box.Value = traits?.Count > 0 ? Math.Round(Math.Abs(traits[0].Value<double>()) * 100, 1) : double.NaN;
         Trait2Box.Value = traits?.Count > 1 ? Math.Round(Math.Abs(traits[1].Value<double>()) * 100, 1) : double.NaN;
         Trait3Box.Value = traits?.Count > 2 ? Math.Round(Math.Abs(traits[2].Value<double>()) * 100, 1) : double.NaN;
 
-        GenesImprovedStatBox.Value = SaveSessionManager.GetValue(NmsPetPaths.GenesImprovedPath(_selectedIndex))?.Value<double>() ?? 0;
+        GenesImprovedStatBox.Value = SaveSessionManager.GetValue(NmsCompanionPaths.GenesImprovedPath(_selectedIndex))?.Value<double>() ?? 0;
 
-        double mutationProgress = SaveSessionManager.GetValue(NmsPetPaths.MutationProgressPath(_selectedIndex))?.Value<double>() ?? 0;
+        double mutationProgress = SaveSessionManager.GetValue(NmsCompanionPaths.MutationProgressPath(_selectedIndex))?.Value<double>() ?? 0;
         MutationProgressStatBox.Value = Math.Round(mutationProgress * 100, 1);
 
-        VictoriesStatBox.Value = SaveSessionManager.GetValue(NmsPetPaths.HoloArenaVictoriesPath(_selectedIndex))?.Value<double>() ?? 0;
+        VictoriesStatBox.Value = SaveSessionManager.GetValue(NmsCompanionPaths.HoloArenaVictoriesPath(_selectedIndex))?.Value<double>() ?? 0;
 
-        var points = SaveSessionManager.GetValue(NmsPetPaths.MutationPointsPath(_selectedIndex)) as JArray;
+        var points = SaveSessionManager.GetValue(NmsCompanionPaths.MutationPointsPath(_selectedIndex)) as JArray;
         AgilityPointsBox.Value = points?.Count > 0 ? points[0].Value<double>() : double.NaN;
         HealthPointsBox.Value = points?.Count > 1 ? points[1].Value<double>() : double.NaN;
         CombatPointsBox.Value = points?.Count > 2 ? points[2].Value<double>() : double.NaN;
 
-        PageResetBtn.Visibility = SaveSessionManager.HasStagedEditsUnder(NmsPetPaths.PetPath(_selectedIndex)) ||
+        PageResetBtn.Visibility = SaveSessionManager.HasStagedEditsUnder(NmsCompanionPaths.CompanionPath(_selectedIndex)) ||
             SaveSessionManager.HasStagedEditsUnder(NmsPlayerStatsPaths.StatGroupsArrayPath)
             ? Visibility.Visible : Visibility.Collapsed;
 
@@ -424,7 +424,7 @@ public sealed partial class CompanionsPage : Page
 
     /// <summary>One dropdown per osl (Descriptors) array entry, each
     /// constrained to that entry's real sibling options (same Category,
-    /// same parent) from the rig's own catalog tree - see NmsPetPaths.
+    /// same parent) from the rig's own catalog tree - see NmsCompanionPaths.
     /// DescriptorsPath and this page's XAML description for the full
     /// picture. CONFIRMED WORKING (2026-07-29, real save+reload test) -
     /// swapping several rows at once and reloading in-game rendered every
@@ -456,11 +456,11 @@ public sealed partial class CompanionsPage : Page
     /// species (see CatalogService.GetCreatureDescriptorTreeAsync's own doc
     /// comment for the confirmed exceptions) - shown as a plain message
     /// rather than an empty, silently-broken-looking panel.</summary>
-    private void BuildDescriptorsPanel(int petIndex, List<CreatureDescriptorNode> tree)
+    private void BuildDescriptorsPanel(int companionIndex, List<CreatureDescriptorNode> tree)
     {
         DescriptorsPanel.Children.Clear();
 
-        var path = NmsPetPaths.DescriptorsPath(petIndex);
+        var path = NmsCompanionPaths.DescriptorsPath(companionIndex);
         if (SaveSessionManager.GetValue(path) is not JArray osl) return;
 
         if (tree.Count == 0)
@@ -561,7 +561,7 @@ public sealed partial class CompanionsPage : Page
                     SaveSessionManager.StageEdit(rebuilt, path);
                     PageResetBtn.Visibility = Visibility.Visible;
 
-                    BuildDescriptorsPanel(petIndex, tree);
+                    BuildDescriptorsPanel(companionIndex, tree);
                 };
             }
             else
@@ -599,20 +599,20 @@ public sealed partial class CompanionsPage : Page
     /// rather than as fixed named XAML controls, since the field set itself
     /// is exploratory and may grow/shrink as fields get confirmed one way or
     /// the other.</summary>
-    private void BuildAdvancedFieldsPanel(int petIndex)
+    private void BuildAdvancedFieldsPanel(int companionIndex)
     {
         AdvancedFieldsPanel.Children.Clear();
 
-        AddHexPairFieldRow("Secondary Seed (1p=)", NmsPetPaths.SecondarySeedActivePath(petIndex), NmsPetPaths.SecondarySeedPath(petIndex));
-        AddEnumFieldRow("Creature Type (HbY)", NmsPetPaths.CreatureTypePath(petIndex),
+        AddHexPairFieldRow("Secondary Seed (1p=)", NmsCompanionPaths.SecondarySeedActivePath(companionIndex), NmsCompanionPaths.SecondarySeedPath(companionIndex));
+        AddEnumFieldRow("Creature Type (HbY)", NmsCompanionPaths.CreatureTypePath(companionIndex),
             Enum.GetNames<GcCreatureTypes.CreatureTypeEnum>());
-        AddCaretPrefixedStringFieldRow("Custom Species Name (HhX)", NmsPetPaths.CustomSpeciesNamePath(petIndex));
-        AddHexFieldRow("Unknown Hex (5L6)", NmsPetPaths.UnknownHexCPath(petIndex));
-        AddBoolFieldRow("Unknown Bool (Q6I)", NmsPetPaths.UnknownBoolAPath(petIndex));
-        AddBoolFieldRow("Unknown Bool (IaE)", NmsPetPaths.UnknownBoolBPath(petIndex));
-        AddBoolFieldRow("Unknown Bool (?<V)", NmsPetPaths.UnknownBoolCPath(petIndex));
-        AddBoolFieldRow("Unknown Bool (eK9)", NmsPetPaths.UnknownBoolDPath(petIndex));
-        AddBoolFieldRow("Unknown Bool (WQX)", NmsPetPaths.UnknownBoolEPath(petIndex));
+        AddCaretPrefixedStringFieldRow("Custom Species Name (HhX)", NmsCompanionPaths.CustomSpeciesNamePath(companionIndex));
+        AddHexFieldRow("Unknown Hex (5L6)", NmsCompanionPaths.UnknownHexCPath(companionIndex));
+        AddBoolFieldRow("Unknown Bool (Q6I)", NmsCompanionPaths.UnknownBoolAPath(companionIndex));
+        AddBoolFieldRow("Unknown Bool (IaE)", NmsCompanionPaths.UnknownBoolBPath(companionIndex));
+        AddBoolFieldRow("Unknown Bool (?<V)", NmsCompanionPaths.UnknownBoolCPath(companionIndex));
+        AddBoolFieldRow("Unknown Bool (eK9)", NmsCompanionPaths.UnknownBoolDPath(companionIndex));
+        AddBoolFieldRow("Unknown Bool (WQX)", NmsCompanionPaths.UnknownBoolEPath(companionIndex));
     }
 
     private static TextBlock AdvancedFieldLabel(string text) => new()
@@ -848,7 +848,7 @@ public sealed partial class CompanionsPage : Page
 
     /// <summary>"^PLANTCAT" -> "Plantcat" - just enough formatting to be
     /// readable; not the fancy in-game Latin species name (unconfirmed/
-    /// likely not stored - see NmsPetPaths).</summary>
+    /// likely not stored - see NmsCompanionPaths).</summary>
     private static string FormatArchetype(string raw)
     {
         string trimmed = raw.TrimStart('^');
@@ -863,18 +863,18 @@ public sealed partial class CompanionsPage : Page
         string newName = NameEditBox.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(newName)) return;
 
-        string currentName = SaveSessionManager.GetValue(NmsPetPaths.NamePath(_selectedIndex))?.Value<string>() ?? "";
+        string currentName = SaveSessionManager.GetValue(NmsCompanionPaths.NamePath(_selectedIndex))?.Value<string>() ?? "";
         if (newName == currentName) return;
 
-        SaveSessionManager.StageEdit(newName, NmsPetPaths.NamePath(_selectedIndex));
+        SaveSessionManager.StageEdit(newName, NmsCompanionPaths.NamePath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
-        LoadPetList();
+        LoadCompanionList();
     }
 
     private void TrustStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
     {
         if (_suppressStatChangeEvent || _selectedIndex < 0 || double.IsNaN(args.NewValue)) return;
-        SaveSessionManager.StageEdit(args.NewValue / 100.0, NmsPetPaths.TrustPath(_selectedIndex));
+        SaveSessionManager.StageEdit(args.NewValue / 100.0, NmsCompanionPaths.TrustPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
@@ -884,49 +884,49 @@ public sealed partial class CompanionsPage : Page
     private void TrustStatBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (_suppressStatChangeEvent || _selectedIndex < 0 || double.IsNaN(TrustStatBox.Value)) return;
-        SaveSessionManager.StageEdit(TrustStatBox.Value / 100.0, NmsPetPaths.TrustPath(_selectedIndex));
+        SaveSessionManager.StageEdit(TrustStatBox.Value / 100.0, NmsCompanionPaths.TrustPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
     private void GenesImprovedStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
     {
         if (_suppressStatChangeEvent || _selectedIndex < 0 || double.IsNaN(args.NewValue)) return;
-        SaveSessionManager.StageEdit((int)args.NewValue, NmsPetPaths.GenesImprovedPath(_selectedIndex));
+        SaveSessionManager.StageEdit((int)args.NewValue, NmsCompanionPaths.GenesImprovedPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
     private void GenesImprovedStatBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (_suppressStatChangeEvent || _selectedIndex < 0 || double.IsNaN(GenesImprovedStatBox.Value)) return;
-        SaveSessionManager.StageEdit((int)GenesImprovedStatBox.Value, NmsPetPaths.GenesImprovedPath(_selectedIndex));
+        SaveSessionManager.StageEdit((int)GenesImprovedStatBox.Value, NmsCompanionPaths.GenesImprovedPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
     private void MutationProgressStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
     {
         if (_suppressStatChangeEvent || _selectedIndex < 0 || double.IsNaN(args.NewValue)) return;
-        SaveSessionManager.StageEdit(args.NewValue / 100.0, NmsPetPaths.MutationProgressPath(_selectedIndex));
+        SaveSessionManager.StageEdit(args.NewValue / 100.0, NmsCompanionPaths.MutationProgressPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
     private void MutationProgressStatBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (_suppressStatChangeEvent || _selectedIndex < 0 || double.IsNaN(MutationProgressStatBox.Value)) return;
-        SaveSessionManager.StageEdit(MutationProgressStatBox.Value / 100.0, NmsPetPaths.MutationProgressPath(_selectedIndex));
+        SaveSessionManager.StageEdit(MutationProgressStatBox.Value / 100.0, NmsCompanionPaths.MutationProgressPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
     private void VictoriesStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
     {
         if (_suppressStatChangeEvent || _selectedIndex < 0 || double.IsNaN(args.NewValue)) return;
-        SaveSessionManager.StageEdit((int)args.NewValue, NmsPetPaths.HoloArenaVictoriesPath(_selectedIndex));
+        SaveSessionManager.StageEdit((int)args.NewValue, NmsCompanionPaths.HoloArenaVictoriesPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
     private void VictoriesStatBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (_suppressStatChangeEvent || _selectedIndex < 0 || double.IsNaN(VictoriesStatBox.Value)) return;
-        SaveSessionManager.StageEdit((int)VictoriesStatBox.Value, NmsPetPaths.HoloArenaVictoriesPath(_selectedIndex));
+        SaveSessionManager.StageEdit((int)VictoriesStatBox.Value, NmsCompanionPaths.HoloArenaVictoriesPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
@@ -950,7 +950,7 @@ public sealed partial class CompanionsPage : Page
     {
         if (_selectedIndex < 0 || double.IsNaN(newValue)) return;
 
-        var path = NmsPetPaths.MutationPointsPath(_selectedIndex);
+        var path = NmsCompanionPaths.MutationPointsPath(_selectedIndex);
         if (SaveSessionManager.GetValue(path) is not JArray points || points.Count != 3) return;
 
         var updated = new JArray(points.Select(p => p.DeepClone()));
@@ -988,7 +988,7 @@ public sealed partial class CompanionsPage : Page
     {
         if (_selectedIndex < 0 || double.IsNaN(newMagnitude)) return;
 
-        var path = NmsPetPaths.TraitsPath(_selectedIndex);
+        var path = NmsCompanionPaths.TraitsPath(_selectedIndex);
         if (SaveSessionManager.GetValue(path) is not JArray traits || traits.Count != 3) return;
 
         double currentValue = traits[traitIndex].Value<double>();
@@ -1028,7 +1028,7 @@ public sealed partial class CompanionsPage : Page
         string newSeed = SeedEditBox.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(newSeed)) return;
 
-        var seedPath = NmsPetPaths.SeedPath(_selectedIndex);
+        var seedPath = NmsCompanionPaths.SeedPath(_selectedIndex);
         string? currentSeed = SaveSessionManager.GetValue(seedPath)?.Value<string>();
         if (newSeed == currentSeed) return;
 
@@ -1040,7 +1040,7 @@ public sealed partial class CompanionsPage : Page
     /// same plain-reroll semantics as Ships/Freighter (NmsSeedGenerator), not
     /// a targeted picker. Writes the SAME new value into both SeedPath
     /// (CreatureSeed) and BoneScaleSeedPath (BoneScaleSeed), preserving the
-    /// mirror every real sample showed between them - see NmsPetPaths for
+    /// mirror every real sample showed between them - see NmsCompanionPaths for
     /// why the other two seed pairs (CreatureSecondarySeed/ColourBaseSeed)
     /// are deliberately left untouched.</summary>
     private void GenerateSeedBtn_Click(object sender, RoutedEventArgs e)
@@ -1050,8 +1050,8 @@ public sealed partial class CompanionsPage : Page
         string newSeed = NmsSeedGenerator.GenerateRandom();
 
         SeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsPetPaths.SeedPath(_selectedIndex));
-        SaveSessionManager.StageEdit(newSeed, NmsPetPaths.BoneScaleSeedPath(_selectedIndex));
+        SaveSessionManager.StageEdit(newSeed, NmsCompanionPaths.SeedPath(_selectedIndex));
+        SaveSessionManager.StageEdit(newSeed, NmsCompanionPaths.BoneScaleSeedPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
@@ -1060,7 +1060,7 @@ public sealed partial class CompanionsPage : Page
         if (_selectedIndex < 0) return;
 
         SaveSessionManager.StageEdit(ColourBaseSeedActiveCheckBox.IsChecked ?? false,
-            NmsPetPaths.ColourBaseSeedActivePath(_selectedIndex));
+            NmsCompanionPaths.ColourBaseSeedActivePath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
@@ -1069,7 +1069,7 @@ public sealed partial class CompanionsPage : Page
         if (_selectedIndex < 0) return;
 
         string newValue = ColourBaseSeedEditBox.Text?.Trim() ?? "";
-        var path = NmsPetPaths.ColourBaseSeedPath(_selectedIndex);
+        var path = NmsCompanionPaths.ColourBaseSeedPath(_selectedIndex);
         string current = SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
         if (newValue == current) return;
 
@@ -1078,7 +1078,7 @@ public sealed partial class CompanionsPage : Page
     }
 
     /// <summary>Activates AND rerolls together - confirmed via real testing
-    /// (see NmsPetPaths.ColourBaseSeedActivePath) that this is a dormant
+    /// (see NmsCompanionPaths.ColourBaseSeedActivePath) that this is a dormant
     /// secondary color layer, so a randomized hex behind an inactive flag
     /// wouldn't show anything in-game.</summary>
     private void GenerateColourBaseSeedBtn_Click(object sender, RoutedEventArgs e)
@@ -1089,8 +1089,8 @@ public sealed partial class CompanionsPage : Page
 
         ColourBaseSeedEditBox.Text = newSeed;
         ColourBaseSeedActiveCheckBox.IsChecked = true;
-        SaveSessionManager.StageEdit(newSeed, NmsPetPaths.ColourBaseSeedPath(_selectedIndex));
-        SaveSessionManager.StageEdit(true, NmsPetPaths.ColourBaseSeedActivePath(_selectedIndex));
+        SaveSessionManager.StageEdit(newSeed, NmsCompanionPaths.ColourBaseSeedPath(_selectedIndex));
+        SaveSessionManager.StageEdit(true, NmsCompanionPaths.ColourBaseSeedActivePath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
@@ -1101,7 +1101,7 @@ public sealed partial class CompanionsPage : Page
         string newSeed = BattleAbilitySeedEditBox.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(newSeed)) return;
 
-        var rollSeedPath = NmsPetPaths.RollSeedPrimaryPath(_selectedIndex);
+        var rollSeedPath = NmsCompanionPaths.RollSeedPrimaryPath(_selectedIndex);
         string? currentSeed = SaveSessionManager.GetValue(rollSeedPath)?.Value<string>();
         if (newSeed == currentSeed) return;
 
@@ -1111,7 +1111,7 @@ public sealed partial class CompanionsPage : Page
 
     /// <summary>Rerolls the selected pet's Battle Abilities badges and fancy
     /// species name to a brand new random roll - confirmed via a real
-    /// reroll-and-revert round trip (see NmsPetPaths.RollSeedPrimaryPath).</summary>
+    /// reroll-and-revert round trip (see NmsCompanionPaths.RollSeedPrimaryPath).</summary>
     private void GenerateBattleAbilitySeedBtn_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedIndex < 0) return;
@@ -1119,7 +1119,7 @@ public sealed partial class CompanionsPage : Page
         string newSeed = NmsSeedGenerator.GenerateRandom();
 
         BattleAbilitySeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsPetPaths.RollSeedPrimaryPath(_selectedIndex));
+        SaveSessionManager.StageEdit(newSeed, NmsCompanionPaths.RollSeedPrimaryPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
@@ -1130,7 +1130,7 @@ public sealed partial class CompanionsPage : Page
         string newSeed = BattleAbilitySeed2EditBox.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(newSeed)) return;
 
-        var rollSeedPath = NmsPetPaths.RollSeedSecondaryPath(_selectedIndex);
+        var rollSeedPath = NmsCompanionPaths.RollSeedSecondaryPath(_selectedIndex);
         string? currentSeed = SaveSessionManager.GetValue(rollSeedPath)?.Value<string>();
         if (newSeed == currentSeed) return;
 
@@ -1139,7 +1139,7 @@ public sealed partial class CompanionsPage : Page
     }
 
     /// <summary>Second confirmed co-input to the same roll as
-    /// GenerateBattleAbilitySeedBtn_Click - see NmsPetPaths.RollSeedSecondaryPath.</summary>
+    /// GenerateBattleAbilitySeedBtn_Click - see NmsCompanionPaths.RollSeedSecondaryPath.</summary>
     private void GenerateBattleAbilitySeed2Btn_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedIndex < 0) return;
@@ -1147,7 +1147,7 @@ public sealed partial class CompanionsPage : Page
         string newSeed = NmsSeedGenerator.GenerateRandom();
 
         BattleAbilitySeed2EditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsPetPaths.RollSeedSecondaryPath(_selectedIndex));
+        SaveSessionManager.StageEdit(newSeed, NmsCompanionPaths.RollSeedSecondaryPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
@@ -1156,7 +1156,7 @@ public sealed partial class CompanionsPage : Page
         if (_selectedIndex < 0) return;
 
         SaveSessionManager.StageEdit(ClassLetterOverrideActiveCheckBox.IsChecked ?? false,
-            NmsPetPaths.ClassLetterOverrideActivePath(_selectedIndex));
+            NmsCompanionPaths.ClassLetterOverrideActivePath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
         UpdateClassLetterBoxesEnabled();
     }
@@ -1194,7 +1194,7 @@ public sealed partial class CompanionsPage : Page
         if (_selectedIndex < 0 || _suppressStatChangeEvent) return;
 
         string newValue = (box.SelectedItem as ComboBoxItem)?.Content as string ?? "";
-        var path = NmsPetPaths.ClassLetterPath(_selectedIndex, statIndex);
+        var path = NmsCompanionPaths.ClassLetterPath(_selectedIndex, statIndex);
         string current = SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
         if (newValue == current) return;
 
@@ -1216,8 +1216,8 @@ public sealed partial class CompanionsPage : Page
     {
         if (_selectedIndex >= 0)
         {
-            SaveSessionManager.RevertEditsUnder(NmsPetPaths.PetPath(_selectedIndex));
-            LoadSelectedPet();
+            SaveSessionManager.RevertEditsUnder(NmsCompanionPaths.CompanionPath(_selectedIndex));
+            LoadSelectedCompanion();
         }
 
         SaveSessionManager.RevertEditsUnder(NmsPlayerStatsPaths.StatGroupsArrayPath);

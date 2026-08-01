@@ -17,7 +17,7 @@ namespace ArtifactX.WinUI3.Views;
 /// Owned Settlements - FIRST PASS (2026-07-29), field names inferred by
 /// exact positional cross-reference against libMBIN's GcSettlementState
 /// (see NmsSettlementPaths for the full map), not yet confirmed in-game the
-/// way Pets fields were. A settlement slot lives in a much bigger array
+/// way Companions fields were. A settlement slot lives in a much bigger array
 /// (GQA, 100 entries in the one real save checked) shared with OTHER real
 /// players' settlements the save has encountered - occupancy here means
 /// "has a name AND its Owner matches the local account," not just "has a
