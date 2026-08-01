@@ -27,6 +27,17 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
+#if !DEBUG
+        // Dev-only tools for reverse-engineering raw JSON field mappings - not
+        // something a real end user should ever see or need. This whole block
+        // is compiled out of Debug builds, so during development the nav stays
+        // visible by default (the XAML doesn't set Collapsed itself); a Release
+        // build always runs this and hides both the separator and the section.
+        StructuralAnalysisSeparator.Visibility = Visibility.Collapsed;
+        StructuralAnalysisNavItem.Visibility = Visibility.Collapsed;
+#endif
+
         InitializeCustomTitleBar();
         WindowPlacementService.Restore(WindowNative.GetWindowHandle(this));
 

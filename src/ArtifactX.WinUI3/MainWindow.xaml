@@ -104,9 +104,12 @@
                 </NavigationViewItem>
 
 
-                <NavigationViewItemSeparator/>
+                <!-- Dev-only tools (raw JSON diffing/decryption used to reverse-engineer
+                     field mappings) - collapsed in Release builds via MainWindow's
+                     constructor (#if !DEBUG), never shown to a real end user. -->
+                <NavigationViewItemSeparator x:Name="StructuralAnalysisSeparator"/>
 
-                <NavigationViewItem Content="Structural Analysis" SelectsOnInvoked="False" IsExpanded="True">
+                <NavigationViewItem x:Name="StructuralAnalysisNavItem" Content="Structural Analysis" SelectsOnInvoked="False" IsExpanded="True">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE946;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
