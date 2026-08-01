@@ -50,6 +50,14 @@ public sealed partial class FreighterPage : Page
     private bool _suppressCrewRaceSelectionEvent;
     private bool _suppressStatChangeEvent;
 
+    // Set around SetStatValue's own StageEdit call so OnSessionOrEditsChanged
+    // can skip the reload it would otherwise trigger for that same edit -
+    // same fix and reasoning as ShipsPage.SetStatValue (2026-08-01): LoadGrids
+    // recreates both InventoryGridViewModels and re-warms the catalog icon
+    // cache on every call, none of which changes when only Hyperdrive/Fleet
+    // Coordination is edited.
+    private bool _suppressReloadOnOwnStatEdit;
+
     public FreighterPage()
     {
         InitializeComponent();
@@ -61,8 +69,11 @@ public sealed partial class FreighterPage : Page
         LoadGrids();
     }
 
-    private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
+    private void OnSessionOrEditsChanged(object? sender, EventArgs e)
+    {
+        if (_suppressReloadOnOwnStatEdit) return;
         DispatcherQueue.TryEnqueue(LoadGrids);
+    }
 
     /// <summary>Without this, the constructor's subscriptions above never
     /// get released across page navigation (Frame.Navigate makes a fresh
@@ -363,7 +374,9 @@ public sealed partial class FreighterPage : Page
             }
         }
 
+        _suppressReloadOnOwnStatEdit = true;
         SaveSessionManager.StageEdit(updated, bonusesPath);
+        _suppressReloadOnOwnStatEdit = false;
     }
 
     private void HyperdriveStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)

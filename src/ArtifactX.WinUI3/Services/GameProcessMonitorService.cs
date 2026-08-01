@@ -38,7 +38,15 @@ public static class GameProcessMonitorService
 
     private static void Poll()
     {
-        bool nowRunning = Process.GetProcessesByName(ProcessName).Length > 0;
+        // Process.GetProcessesByName returns live Process objects, each
+        // wrapping a native OS handle - IDisposable, but nothing here needs
+        // to keep holding it open past the length check. Left undisposed,
+        // every 3-second poll for the app's entire lifetime would leak a
+        // handle until the next GC finalizer pass gets around to it.
+        var processes = Process.GetProcessesByName(ProcessName);
+        bool nowRunning = processes.Length > 0;
+        foreach (var process in processes) process.Dispose();
+
         if (nowRunning == _isRunning) return;
 
         _isRunning = nowRunning;

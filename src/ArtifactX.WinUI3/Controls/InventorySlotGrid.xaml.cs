@@ -169,6 +169,17 @@ public sealed partial class InventorySlotGrid : UserControl
                     // needs *something* in it for the drop to be accepted anywhere.
                     args.Data.SetText(cell.ItemId ?? "item");
                 };
+
+                // _dragPayload is static, so it outlives this grid/page - HandleDrop
+                // clears it on a successful drop, but a cancelled one (dropped outside
+                // any valid target, Esc, etc.) never fires Drop at all, which without
+                // this would leave the static field holding the source ViewModel (and
+                // its whole Cells collection) alive indefinitely, until the next drag
+                // anywhere in the app happens to overwrite it. DropCompleted fires on
+                // the drag SOURCE after the target's Drop has already run either way,
+                // so this is a safe no-op on the success path (HandleDrop already
+                // nulled it) and the actual fix on the cancel path.
+                border.DropCompleted += (_, _) => _dragPayload = null;
             }
             else if (cell.State == InventorySlotState.Locked)
             {
