@@ -45,4 +45,24 @@ public class NmsPlayerStateData
     public static readonly string[] NanitesPath = { "vLc", "6f=", "7QL" };
     public static readonly string[] QuicksilverPath = { "vLc", "6f=", "kN;" };
     public static readonly string[] GameModePath = { "vLc", "6f=", "LyC", "brJ", "7ND" };
+
+    /// <summary>Units/Nanites/Quicksilver are stored by the game itself as a
+    /// signed 32-bit field that wraps to negative once the real balance
+    /// exceeds int32.MaxValue (~2.1 billion) - confirmed 2026-08-01 directly
+    /// in a real save with hundreds of hours played: Units read literally
+    /// -84998516 in the save's own JSON (this is what the game itself wrote,
+    /// not an ArtifactX parsing issue), yet the in-game HUD showed a huge,
+    /// correct-looking positive balance. Reapplying 2^32 to the negative raw
+    /// value lines up with the HUD's actual numbers, so the game's own
+    /// display code must be reinterpreting the same 32-bit pattern as
+    /// UNSIGNED when rendering it. ToDisplayValue undoes that wrap for
+    /// ArtifactX's own UI; ToRawValue re-applies it when staging an edit so
+    /// the written value keeps the exact bit pattern the game already
+    /// tolerates (unverified whether writing the plain positive number
+    /// instead would also work - not worth the risk of finding out the hard
+    /// way on someone's real save when reproducing the game's own existing
+    /// representation is guaranteed safe). Both are no-ops for every balance
+    /// under ~2.1 billion, which is nearly every save.</summary>
+    public static long ToDisplayValue(long raw) => raw < 0 ? raw + 4294967296L : raw;
+    public static long ToRawValue(long display) => display > int.MaxValue ? display - 4294967296L : display;
 }

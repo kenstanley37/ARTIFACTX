@@ -77,9 +77,12 @@ public sealed partial class AppTitleBar : UserControl
 
         ActiveSaveTxt.Text = $"•  {SaveSessionManager.ActiveLabel}";
 
-        long units = SaveSessionManager.GetLong(NmsPlayerStateData.UnitsPath) ?? 0;
-        long nanites = SaveSessionManager.GetLong(NmsPlayerStateData.NanitesPath) ?? 0;
-        long quicksilver = SaveSessionManager.GetLong(NmsPlayerStateData.QuicksilverPath) ?? 0;
+        // ToDisplayValue undoes the uint32 wrap the game itself writes for a
+        // balance over ~2.1 billion - see its doc comment. No-op for the
+        // vast majority of saves that never get that high.
+        long units = NmsPlayerStateData.ToDisplayValue(SaveSessionManager.GetLong(NmsPlayerStateData.UnitsPath) ?? 0);
+        long nanites = NmsPlayerStateData.ToDisplayValue(SaveSessionManager.GetLong(NmsPlayerStateData.NanitesPath) ?? 0);
+        long quicksilver = NmsPlayerStateData.ToDisplayValue(SaveSessionManager.GetLong(NmsPlayerStateData.QuicksilverPath) ?? 0);
 
         UnitsTxt.Text = $"{units:N0} UNITS";
         NanitesTxt.Text = $"{nanites:N0} NANITES";

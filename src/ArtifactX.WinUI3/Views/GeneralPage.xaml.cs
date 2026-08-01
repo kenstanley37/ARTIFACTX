@@ -51,31 +51,38 @@ public sealed partial class GeneralPage : Page
             return;
         }
 
-        UnitsBox.Value = SaveSessionManager.GetLong(NmsPlayerStateData.UnitsPath) ?? 0;
-        NanitesBox.Value = SaveSessionManager.GetLong(NmsPlayerStateData.NanitesPath) ?? 0;
-        QuicksilverBox.Value = SaveSessionManager.GetLong(NmsPlayerStateData.QuicksilverPath) ?? 0;
+        // ToDisplayValue undoes the uint32 wrap the game itself writes for a
+        // balance over ~2.1 billion - see its doc comment. No-op for the
+        // vast majority of saves that never get that high.
+        UnitsBox.Value = NmsPlayerStateData.ToDisplayValue(SaveSessionManager.GetLong(NmsPlayerStateData.UnitsPath) ?? 0);
+        NanitesBox.Value = NmsPlayerStateData.ToDisplayValue(SaveSessionManager.GetLong(NmsPlayerStateData.NanitesPath) ?? 0);
+        QuicksilverBox.Value = NmsPlayerStateData.ToDisplayValue(SaveSessionManager.GetLong(NmsPlayerStateData.QuicksilverPath) ?? 0);
 
         _suppressChangeEvents = false;
     }
 
+    // ToRawValue re-wraps a displayed balance back to the exact bit pattern
+    // the game itself already uses once it's over ~2.1 billion, so staged
+    // edits round-trip the same way the game's own save data already does -
+    // see NmsPlayerStateData.ToDisplayValue's doc comment.
     private void StageUnits(double value)
     {
         if (_suppressChangeEvents || double.IsNaN(value)) return;
-        SaveSessionManager.StageEdit((long)value, NmsPlayerStateData.UnitsPath);
+        SaveSessionManager.StageEdit(NmsPlayerStateData.ToRawValue((long)value), NmsPlayerStateData.UnitsPath);
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
     private void StageNanites(double value)
     {
         if (_suppressChangeEvents || double.IsNaN(value)) return;
-        SaveSessionManager.StageEdit((long)value, NmsPlayerStateData.NanitesPath);
+        SaveSessionManager.StageEdit(NmsPlayerStateData.ToRawValue((long)value), NmsPlayerStateData.NanitesPath);
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
     private void StageQuicksilver(double value)
     {
         if (_suppressChangeEvents || double.IsNaN(value)) return;
-        SaveSessionManager.StageEdit((long)value, NmsPlayerStateData.QuicksilverPath);
+        SaveSessionManager.StageEdit(NmsPlayerStateData.ToRawValue((long)value), NmsPlayerStateData.QuicksilverPath);
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
