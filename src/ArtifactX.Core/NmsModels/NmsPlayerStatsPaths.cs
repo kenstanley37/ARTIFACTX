@@ -69,11 +69,21 @@ namespace ArtifactX.Core.NmsModels;
 ///
 /// PB_CHALL_WINS (6 in the sample) and PB_LOSSES (4) are clearly
 /// Arena-adjacent by naming but weren't matched to anything specific visible
-/// on the Milestones screen - not exposed yet. "Iteration: Oceanus" (a
-/// specific named one-off boss/event, shown at 0/1 with a dim/unlit medal
-/// icon in the screenshot) has no obvious matching id anywhere in the ~457
-/// sampled GLOBAL_STATS entries - likely tracked elsewhere entirely (a
-/// seasonal/mission flag, not this generic counter system). Not exposed.
+/// on the Milestones screen - not exposed yet.
+///
+/// PB_D_NEXUS -&gt; "Iteration: Oceanus" (2026-07-31, resolved after the id
+/// search above missed it - "OCEAN"/"OCEANUS" doesn't appear anywhere in the
+/// stat's own id text, it's an unrelated internal codename like the other
+/// Arena stats' abbreviations). Confirmed via value progression across two
+/// real saves rather than a single-snapshot text match: an older save/dump
+/// from before this milestone was ever earned has NO PB_D_NEXUS entry at all
+/// (matching the screenshot's dim/unlit "0/1" medal from that time), while
+/// this SAME account's current save has PB_D_NEXUS = 1, exactly matching a
+/// fresh screenshot's "Iteration: Oceanus - Total: 1" after the player
+/// earned that first win. It's also the only still-unmapped PB_-prefixed
+/// stat whose value is a plausible "victories" count (PB_CHALL_WINS/
+/// PB_LOSSES are both non-zero and track something else). Exposed as the
+/// 5th Arena League box.
 /// </summary>
 public static class NmsPlayerStatsPaths
 {

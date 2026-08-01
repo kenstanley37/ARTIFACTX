@@ -32,7 +32,7 @@
                     <StackPanel Spacing="10">
                         <TextBlock Text="Arena League" FontSize="14" FontWeight="SemiBold"/>
                         <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                   Text="From Catalog &amp; Guide -&gt; Milestones -&gt; Arena League - save-wide, not per-pet (a different number from &quot;Holo-Arena Victories&quot; below). NOT shared with your other save slots, each of which is a fully independent file. All 4 confirmed exact against a real screenshot; &quot;Iteration: Oceanus&quot; couldn't be found in the save's stat list."/>
+                                   Text="From Catalog &amp; Guide -&gt; Milestones -&gt; Arena League - save-wide, not per-pet (a different number from &quot;Holo-Arena Victories&quot; below). NOT shared with your other save slots, each of which is a fully independent file. All 5 confirmed exact against real screenshots."/>
                         <StackPanel Spacing="6">
                             <TextBlock Text="Champions Defeated" Opacity="0.7" FontSize="11"/>
                             <NumberBox x:Name="ArenaChampionsBox" HorizontalAlignment="Stretch" Minimum="0"
@@ -52,6 +52,11 @@
                             <TextBlock Text="Hatch Eggs" Opacity="0.7" FontSize="11"/>
                             <NumberBox x:Name="ArenaEggsBox" HorizontalAlignment="Stretch" Minimum="0"
                                        SpinButtonPlacementMode="Hidden" ValueChanged="ArenaEggsBox_ValueChanged" LostFocus="ArenaEggsBox_LostFocus"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Iteration: Oceanus" Opacity="0.7" FontSize="11"/>
+                            <NumberBox x:Name="ArenaOceanusBox" HorizontalAlignment="Stretch" Minimum="0"
+                                       SpinButtonPlacementMode="Hidden" ValueChanged="ArenaOceanusBox_ValueChanged" LostFocus="ArenaOceanusBox_LostFocus"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>

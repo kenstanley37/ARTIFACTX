@@ -181,6 +181,7 @@ public sealed partial class CompanionsPage : Page
             ArenaVictoriesBox.Value = double.NaN;
             ArenaCompanionsBox.Value = double.NaN;
             ArenaEggsBox.Value = double.NaN;
+            ArenaOceanusBox.Value = double.NaN;
             return;
         }
 
@@ -191,6 +192,7 @@ public sealed partial class CompanionsPage : Page
         ArenaVictoriesBox.Value = ReadArenaStat(groupIndex, "PB_WINS");
         ArenaCompanionsBox.Value = ReadArenaStat(groupIndex, "PB_PETS_MAXED");
         ArenaEggsBox.Value = ReadArenaStat(groupIndex, "EGGS_HATCHED");
+        ArenaOceanusBox.Value = ReadArenaStat(groupIndex, "PB_D_NEXUS");
 
         _suppressArenaChangeEvent = false;
     }
@@ -941,6 +943,9 @@ public sealed partial class CompanionsPage : Page
 
     private void ArenaEggsBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => SetArenaStat("EGGS_HATCHED", args.NewValue);
     private void ArenaEggsBox_LostFocus(object sender, RoutedEventArgs e) => SetArenaStat("EGGS_HATCHED", ArenaEggsBox.Value);
+
+    private void ArenaOceanusBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => SetArenaStat("PB_D_NEXUS", args.NewValue);
+    private void ArenaOceanusBox_LostFocus(object sender, RoutedEventArgs e) => SetArenaStat("PB_D_NEXUS", ArenaOceanusBox.Value);
 
     /// <summary>Stages one entry of the whole 3-slot mutation-points array -
     /// rebuilds and stages the WHOLE array at once, same reasoning as every
