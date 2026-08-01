@@ -13,14 +13,24 @@
     <ScrollViewer>
         <StackPanel Padding="24" Spacing="20" HorizontalAlignment="Stretch">
 
-            <!-- Title/tool-selector on the left, a persistent Templates list pinned to
-                 the top-right where the info panel used to sit (before it moved down
-                 next to the tech grid) - always visible, not hidden behind a button, so
-                 saving a template actually shows up somewhere instead of silently
-                 vanishing. A Grid (not WrapPanel) so Templates actually sticks to the
-                 right edge while there's room; VisualStateManager below drops it to a
-                 full-width row under the selector once the window gets too narrow for
-                 both columns to fit comfortably. -->
+            <!-- ONE Grid for the whole page body (title row + a single tall
+                 content row) rather than Templates living in its own Grid
+                 above everything else - a real gap bug (2026-08-01) showed up
+                 between the selector and "Technology" once the Templates
+                 panel grew a 2nd section (Full Build) and got taller than the
+                 title+selector column: with title+selector+Templates in
+                 their own Grid, that Grid's own outer height was forced to
+                 match whichever column was taller (Templates), pushing
+                 everything below it down by the difference even though the
+                 selector's own visible content ended much higher up. Fix
+                 (same root cause/fix as CompanionsPage's Arena League gap and
+                 ShipsPage's identical version of this same bug): put every
+                 left-column element (selector, Technology, Class, tech
+                 grid+info) in ONE StackPanel and Templates in the other
+                 column, both in the SAME Grid row - so the row's height is
+                 driven by column 0 (always the taller side), and Templates
+                 just renders top-aligned within it with no effect on
+                 anything after it, since this is the Grid's last row. -->
             <Grid x:Name="HeaderGrid" ColumnSpacing="24" RowSpacing="20">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" MinWidth="320"/>
@@ -29,37 +39,115 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="20">
-                    <!-- Reset button pinned far right of THIS column (not the
-                         whole page - Column 1 is the Templates panel), styled
-                         to stand out as a destructive action - not its own
-                         row below, which shifted everything under it down
-                         whenever it appeared. -->
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Multi-Tool" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
-                        <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Multi-Tool Changes" Click="PageResetBtn_Click"
-                                Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
-                    </Grid>
+                <!-- Reset button pinned far right of THIS row (not tied to
+                     either column below), styled to stand out as a
+                     destructive action - its own row so it appearing/
+                     disappearing never shifts the selector or Templates. -->
+                <Grid Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Multi-Tool" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Multi-Tool Changes" Click="PageResetBtn_Click"
+                            Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+                </Grid>
 
-                    <TextBlock Text="Owned Multi-Tools" FontSize="14" Opacity="0.8"/>
-                    <!-- The game doesn't hard-cap how many multi-tools a player can own, so
-                         this strip is bounded and scrolls internally (~2 rows) instead of
-                         growing the page - a save with a couple dozen tools stays just as
-                         usable as one with three. -->
-                    <ScrollViewer MaxHeight="104" VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-                        <ctcontrols:WrapPanel x:Name="ToolSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
-                    </ScrollViewer>
+                <StackPanel Grid.Row="1" Grid.Column="0" Spacing="20">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Owned Multi-Tools" FontSize="14" Opacity="0.8"/>
+                        <!-- The game doesn't hard-cap how many multi-tools a player can own, so
+                             this strip is bounded and scrolls internally (~2 rows) instead of
+                             growing the page - a save with a couple dozen tools stays just as
+                             usable as one with three. -->
+                        <ScrollViewer MaxHeight="104" VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+                            <ctcontrols:WrapPanel x:Name="ToolSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+                        </ScrollViewer>
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock x:Name="TechHeaderTxt" Text="Technology" FontSize="18" FontWeight="SemiBold"/>
+                        <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
+                            <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
+                            <Button Content="Supercharge All Slots" Click="SuperchargeAllTech_Click"/>
+                            <Button Content="Repair All Slots" Click="RepairAllTech_Click"/>
+                            <Button Content="Copy Tech Stack..." Click="CopyTechStackBtn_Click"/>
+                        </ctcontrols:WrapPanel>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="Class:" FontSize="14" Opacity="0.8" VerticalAlignment="Center"/>
+                        <StackPanel x:Name="ClassSelectorPanel" Orientation="Horizontal" Spacing="6"/>
+                    </StackPanel>
+
+                    <!-- Tech grid and the info panel sit side by side here when there's room,
+                         and stack (info panel drops below the grid) when there isn't. -->
+                    <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="24">
+                        <!-- No cargo section on this page (multi-tools don't have one) so the
+                             full 10x6 grid is shown at once - no scroll cap needed. -->
+                        <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                                CornerRadius="6" Padding="8" VerticalAlignment="Top" Opacity="0.9">
+                            <controls:InventorySlotGrid x:Name="TechGrid"/>
+                        </Border>
+
+                        <!-- Name (editable, NKm), class badge, Type, and Base Stats sourced
+                             from OsQ.@bB (WEAPON_DAMAGE/WEAPON_MINING/WEAPON_SCAN), matching
+                             the Damage Potential / Scanner Range figures the game shows. -->
+                        <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                                CornerRadius="8" Padding="16" Opacity="0.9" Width="300" VerticalAlignment="Top">
+                            <StackPanel Spacing="14">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Name" FontSize="12" Opacity="0.7"/>
+                                    <TextBox x:Name="NameEditBox" Width="260" LostFocus="NameEditBox_LostFocus"/>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="Class" Opacity="0.7" VerticalAlignment="Center"/>
+                                    <Border x:Name="SelectedToolClassBadge" CornerRadius="4" Padding="10,3,10,3">
+                                        <TextBlock x:Name="SelectedToolClassTxt" Text="—" FontWeight="Bold" FontSize="13"/>
+                                    </Border>
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Type" FontSize="12" Opacity="0.7"/>
+                                    <ComboBox x:Name="TypeComboBox" Width="260"
+                                              DisplayMemberPath="DisplayName"
+                                              SelectionChanged="TypeComboBox_SelectionChanged"/>
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Base Stats" FontSize="12" Opacity="0.7"/>
+                                    <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                                               Text="No known upper limit - the game (and NomNom) don't enforce one. Extreme values won't corrupt your save, just unbalance it."/>
+                                    <Grid ColumnSpacing="8" RowSpacing="6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="190"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Damage" VerticalAlignment="Center"/>
+                                        <NumberBox Grid.Row="0" Grid.Column="1" x:Name="DamageStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="DamageStatBox_ValueChanged" LostFocus="DamageStatBox_LostFocus"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Mining" VerticalAlignment="Center"/>
+                                        <NumberBox Grid.Row="1" Grid.Column="1" x:Name="MiningStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="MiningStatBox_ValueChanged" LostFocus="MiningStatBox_LostFocus"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Scanner" VerticalAlignment="Center"/>
+                                        <NumberBox Grid.Row="2" Grid.Column="1" x:Name="ScannerStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="ScannerStatBox_ValueChanged" LostFocus="ScannerStatBox_LostFocus"/>
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </ctcontrols:WrapPanel>
                 </StackPanel>
 
-                <Border x:Name="TemplatesBorder" Grid.Row="0" Grid.Column="1"
+                <Border x:Name="TemplatesBorder" Grid.Row="1" Grid.Column="1"
                         BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
                         CornerRadius="8" Padding="16" Opacity="0.9" Width="300" VerticalAlignment="Top">
                     <StackPanel Spacing="18">
@@ -105,7 +193,7 @@
                                 <AdaptiveTrigger MinWindowWidth="0"/>
                             </VisualState.StateTriggers>
                             <VisualState.Setters>
-                                <Setter Target="TemplatesBorder.(Grid.Row)" Value="1"/>
+                                <Setter Target="TemplatesBorder.(Grid.Row)" Value="2"/>
                                 <Setter Target="TemplatesBorder.(Grid.Column)" Value="0"/>
                                 <Setter Target="TemplatesBorder.(Grid.ColumnSpan)" Value="2"/>
                                 <Setter Target="TemplatesBorder.Width" Value="NaN"/>
@@ -115,82 +203,6 @@
                     </VisualStateGroup>
                 </VisualStateManager.VisualStateGroups>
             </Grid>
-
-            <StackPanel Spacing="8">
-                <TextBlock x:Name="TechHeaderTxt" Text="Technology" FontSize="18" FontWeight="SemiBold"/>
-                <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
-                    <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
-                    <Button Content="Supercharge All Slots" Click="SuperchargeAllTech_Click"/>
-                    <Button Content="Repair All Slots" Click="RepairAllTech_Click"/>
-                    <Button Content="Copy Tech Stack..." Click="CopyTechStackBtn_Click"/>
-                </ctcontrols:WrapPanel>
-            </StackPanel>
-
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <TextBlock Text="Class:" FontSize="14" Opacity="0.8" VerticalAlignment="Center"/>
-                <StackPanel x:Name="ClassSelectorPanel" Orientation="Horizontal" Spacing="6"/>
-            </StackPanel>
-
-            <!-- Tech grid and the info panel sit side by side here when there's room,
-                 and stack (info panel drops below the grid) when there isn't. -->
-            <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="24">
-                <!-- No cargo section on this page (multi-tools don't have one) so the
-                     full 10x6 grid is shown at once - no scroll cap needed. -->
-                <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                        CornerRadius="6" Padding="8" VerticalAlignment="Top" Opacity="0.9">
-                    <controls:InventorySlotGrid x:Name="TechGrid"/>
-                </Border>
-
-                <!-- Name (editable, NKm), class badge, Type, and Base Stats sourced
-                     from OsQ.@bB (WEAPON_DAMAGE/WEAPON_MINING/WEAPON_SCAN), matching
-                     the Damage Potential / Scanner Range figures the game shows. -->
-                <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                        CornerRadius="8" Padding="16" Opacity="0.9" Width="300" VerticalAlignment="Top">
-                    <StackPanel Spacing="14">
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Name" FontSize="12" Opacity="0.7"/>
-                            <TextBox x:Name="NameEditBox" Width="260" LostFocus="NameEditBox_LostFocus"/>
-                        </StackPanel>
-
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="Class" Opacity="0.7" VerticalAlignment="Center"/>
-                            <Border x:Name="SelectedToolClassBadge" CornerRadius="4" Padding="10,3,10,3">
-                                <TextBlock x:Name="SelectedToolClassTxt" Text="—" FontWeight="Bold" FontSize="13"/>
-                            </Border>
-                        </StackPanel>
-
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Type" FontSize="12" Opacity="0.7"/>
-                            <ComboBox x:Name="TypeComboBox" Width="260"
-                                      DisplayMemberPath="DisplayName"
-                                      SelectionChanged="TypeComboBox_SelectionChanged"/>
-                        </StackPanel>
-
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Base Stats" FontSize="12" Opacity="0.7"/>
-                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                       Text="No known upper limit - the game (and NomNom) don't enforce one. Extreme values won't corrupt your save, just unbalance it."/>
-                            <Grid ColumnSpacing="8" RowSpacing="6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="190"/>
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Damage" VerticalAlignment="Center"/>
-                                <NumberBox Grid.Row="0" Grid.Column="1" x:Name="DamageStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="DamageStatBox_ValueChanged" LostFocus="DamageStatBox_LostFocus"/>
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Mining" VerticalAlignment="Center"/>
-                                <NumberBox Grid.Row="1" Grid.Column="1" x:Name="MiningStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="MiningStatBox_ValueChanged" LostFocus="MiningStatBox_LostFocus"/>
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Scanner" VerticalAlignment="Center"/>
-                                <NumberBox Grid.Row="2" Grid.Column="1" x:Name="ScannerStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="ScannerStatBox_ValueChanged" LostFocus="ScannerStatBox_LostFocus"/>
-                            </Grid>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-            </ctcontrols:WrapPanel>
         </StackPanel>
     </ScrollViewer>
 </Page>
