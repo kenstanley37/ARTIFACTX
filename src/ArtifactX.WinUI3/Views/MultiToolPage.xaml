@@ -62,14 +62,34 @@
                 <Border x:Name="TemplatesBorder" Grid.Row="0" Grid.Column="1"
                         BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
                         CornerRadius="8" Padding="16" Opacity="0.9" Width="300" VerticalAlignment="Top">
-                    <StackPanel Spacing="10">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="Templates" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            <Button Content="Save Current..." Click="SaveAsTemplateBtn_Click" FontSize="11" Padding="8,3,8,3"/>
+                    <StackPanel Spacing="18">
+                        <!-- Two separate domains on purpose - a Tech Stack template never
+                             touches Stats/Seed/Name, a Full Build template also carries
+                             Stats + Seed (still never Name or equip state). Kept as two
+                             clearly separate lists rather than one merged list with a type
+                             tag, so it's obvious at a glance what a given template will and
+                             won't touch before applying it. -->
+                        <StackPanel Spacing="10">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Tech Stack Templates" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <Button Content="Save Current..." Click="SaveAsTemplateBtn_Click" FontSize="11" Padding="8,3,8,3"/>
+                            </StackPanel>
+                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                                       Text="Apply replaces the currently selected tool's tech with this template. Never touches Stats, Seed, or Class unless you opt in."/>
+                            <StackPanel x:Name="TemplatesListPanel" Spacing="8"/>
                         </StackPanel>
-                        <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                   Text="Apply replaces the currently selected tool's tech with this template."/>
-                        <StackPanel x:Name="TemplatesListPanel" Spacing="8"/>
+
+                        <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="0,1,0,0" Opacity="0.5"/>
+
+                        <StackPanel Spacing="10">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Full Build Templates" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <Button Content="Save Current..." Click="SaveAsFullBuildTemplateBtn_Click" FontSize="11" Padding="8,3,8,3"/>
+                            </StackPanel>
+                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                                       Text="Also captures Base Stats alongside the tech stack - for cloning a whole build onto another tool. (Multi-Tools don't have an exposed appearance Seed on this page, unlike Ships/Freighter.)"/>
+                            <StackPanel x:Name="FullBuildTemplatesListPanel" Spacing="8"/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 

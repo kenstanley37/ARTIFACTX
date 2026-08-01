@@ -60,6 +60,7 @@ public sealed partial class ShipsPage : Page
 
         LoadShipList();
         _ = RefreshTemplatesListAsync();
+        _ = RefreshFullBuildTemplatesListAsync();
     }
 
     /// <summary>Skips the reload for edits SetStatValue just staged itself -
@@ -720,14 +721,17 @@ public sealed partial class ShipsPage : Page
         await RefreshTemplatesListAsync();
     }
 
-    /// <summary>Rebuilds the persistent Templates list, filtered to Ship-sourced
-    /// templates only - Multi-Tool templates share the same on-disk pool but
-    /// contain Weapon-usage tech that doesn't belong in a ship's grid. Called
-    /// after saving, deleting, or applying a template, and once on page load.</summary>
+    /// <summary>Rebuilds the persistent Tech Stack Templates list, filtered to
+    /// Ship-sourced, Scope=="TechStack" templates only - Multi-Tool templates
+    /// share the same on-disk pool but contain Weapon-usage tech that doesn't
+    /// belong in a ship's grid, and Full Build templates have their own
+    /// separate list below (RefreshFullBuildTemplatesListAsync) so it's
+    /// obvious which ones will touch Stats/Seed and which won't. Called after
+    /// saving, deleting, or applying a template, and once on page load.</summary>
     private async Task RefreshTemplatesListAsync()
     {
         var templates = (await LoadoutTemplateService.LoadAllAsync())
-            .Where(t => t.SourceKind == "Ship")
+            .Where(t => t.SourceKind == "Ship" && t.Scope == "TechStack")
             .ToList();
 
         TemplatesListPanel.Children.Clear();
@@ -791,6 +795,203 @@ public sealed partial class ShipsPage : Page
         }
     }
 
+    private async void SaveAsFullBuildTemplateBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0 || _techViewModel is null) return;
+
+        var sourceShip = _ships.FirstOrDefault(s => s.Index == _selectedIndex);
+        if (sourceShip is null) return;
+
+        if (!_techViewModel.Cells.Any(c => c.IsOccupied))
+        {
+            await new ContentDialog
+            {
+                Title = "Nothing to save",
+                Content = $"{sourceShip.Name} has no tech installed, so there's nothing to capture as a template.",
+                CloseButtonText = "OK",
+                XamlRoot = this.XamlRoot
+            }.ShowAsync();
+            return;
+        }
+
+        var nameBox = new TextBox { PlaceholderText = "e.g. \"Combat Hauler (Full Build)\"" };
+        var nameDialog = new ContentDialog
+        {
+            Title = "Save as Full Build Template",
+            Content = new StackPanel
+            {
+                Spacing = 8,
+                Children = { new TextBlock { Text = "Name this build (tech + stats + appearance):" }, nameBox }
+            },
+            PrimaryButtonText = "Save",
+            CloseButtonText = "Cancel",
+            XamlRoot = this.XamlRoot
+        };
+
+        if (await nameDialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+        string name = nameBox.Text?.Trim() ?? "";
+        if (string.IsNullOrEmpty(name)) return;
+
+        var template = _techViewModel.ExtractTemplate(name, sourceShip.Name, "Ship");
+        template.Scope = "FullBuild";
+        template.Stats = ExtractStatsList(_selectedIndex);
+        template.Seed = SaveSessionManager.GetValue(NmsInventoryContainer.ShipModelSeedPath(_selectedIndex))?.Value<string>();
+
+        await LoadoutTemplateService.SaveAsync(template);
+        await RefreshFullBuildTemplatesListAsync();
+    }
+
+    /// <summary>Same shape as RefreshTemplatesListAsync, filtered to Scope==
+    /// "FullBuild" instead and targeting the separate FullBuildTemplatesListPanel.</summary>
+    private async Task RefreshFullBuildTemplatesListAsync()
+    {
+        var templates = (await LoadoutTemplateService.LoadAllAsync())
+            .Where(t => t.SourceKind == "Ship" && t.Scope == "FullBuild")
+            .ToList();
+
+        FullBuildTemplatesListPanel.Children.Clear();
+
+        if (templates.Count == 0)
+        {
+            FullBuildTemplatesListPanel.Children.Add(new TextBlock
+            {
+                Text = "No full build templates saved yet.",
+                FontSize = 11,
+                Opacity = 0.6,
+                TextWrapping = TextWrapping.Wrap
+            });
+            return;
+        }
+
+        foreach (var template in templates)
+        {
+            string sourceInfo = template.SourceToolName is null ? "" : $" - from {template.SourceToolName}";
+
+            var row = new StackPanel { Spacing = 4 };
+            row.Children.Add(new TextBlock
+            {
+                Text = $"{template.Name}",
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 13,
+                TextWrapping = TextWrapping.Wrap
+            });
+            row.Children.Add(new TextBlock
+            {
+                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class, stats+seed{sourceInfo}",
+                FontSize = 10,
+                Opacity = 0.6,
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+
+            var applyButton = new Button { Content = "Apply", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            applyButton.Click += async (_, _) => await ApplyFullBuildTemplateAsync(template);
+            buttonRow.Children.Add(applyButton);
+
+            var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            deleteButton.Click += async (_, _) =>
+            {
+                await LoadoutTemplateService.DeleteAsync(template.Id);
+                await RefreshFullBuildTemplatesListAsync();
+            };
+            buttonRow.Children.Add(deleteButton);
+
+            row.Children.Add(buttonRow);
+
+            row.Children.Add(new Border
+            {
+                BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+
+            FullBuildTemplatesListPanel.Children.Add(row);
+        }
+    }
+
+    /// <summary>Reads a ship's whole stat-bonus array (@bB) as a plain key/value
+    /// list, for embedding in a Full Build template - captures every entry
+    /// generically (not just the 4 keys exposed as NumberBoxes) so nothing
+    /// present but not individually surfaced (e.g. a Living Ship's
+    /// "^ALIEN_SHIP") gets silently dropped on save.</summary>
+    private static List<NmsLoadoutStat> ExtractStatsList(int shipIndex)
+    {
+        var bonuses = SaveSessionManager.GetValue(NmsInventoryContainer.ShipStatBonusesPath(shipIndex)) as JArray;
+        var result = new List<NmsLoadoutStat>();
+        if (bonuses is null) return result;
+
+        foreach (var entry in bonuses)
+        {
+            string? key = entry["QL1"]?.Value<string>();
+            double? value = entry[">MX"]?.Value<double>();
+            if (key is not null && value is not null)
+                result.Add(new NmsLoadoutStat { Key = key, Value = value.Value });
+        }
+
+        return result;
+    }
+
+    /// <summary>Stages a Full Build template's saved stats onto the given ship -
+    /// rebuilds the whole @bB array matched by key, same "match by key, replace
+    /// whole array" pattern as SetStatValue. A key present on the target but not
+    /// in the template (or vice versa) is left untouched/dropped respectively -
+    /// this only ever adjusts values for keys both sides already agree exist.</summary>
+    private static void ApplyStatsList(int targetShipIndex, List<NmsLoadoutStat> stats)
+    {
+        if (stats.Count == 0) return;
+
+        var bonusesPath = NmsInventoryContainer.ShipStatBonusesPath(targetShipIndex);
+        var bonuses = SaveSessionManager.GetValue(bonusesPath) as JArray;
+        if (bonuses is null) return;
+
+        var statsByKey = stats.ToDictionary(s => s.Key, s => s.Value);
+
+        var updated = new JArray();
+        foreach (var entry in bonuses)
+        {
+            if (entry is JObject obj && obj["QL1"]?.Value<string>() is string key && statsByKey.TryGetValue(key, out double newValue))
+            {
+                var clone = (JObject)obj.DeepClone();
+                clone[">MX"] = newValue;
+                updated.Add(clone);
+            }
+            else
+            {
+                updated.Add(entry.DeepClone());
+            }
+        }
+
+        SaveSessionManager.StageEdit(updated, bonusesPath);
+    }
+
+    /// <summary>Applies a saved Full Build template's tech, stats, and Seed to
+    /// whichever ship is currently selected - Class only changes if the user
+    /// opts in, same as ApplyTemplateAsync.</summary>
+    private async Task ApplyFullBuildTemplateAsync(NmsLoadoutTemplate template)
+    {
+        if (_selectedIndex < 0 || _techViewModel is null) return;
+
+        var targetShip = _ships.FirstOrDefault(s => s.Index == _selectedIndex);
+        if (targetShip is null) return;
+
+        var sourcePositions = template.UnlockedPositions.Select(p => (p.X, p.Y));
+        var (confirmed, alsoMatchClass) = await ShowCopyConfirmationAsync(
+            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions, targetShip.Name, _techViewModel,
+            includesStatsAndSeed: true);
+
+        if (!confirmed) return;
+
+        _techViewModel.ApplyTemplate(template, alsoMatchClass);
+        ApplyStatsList(_selectedIndex, template.Stats);
+        if (!string.IsNullOrEmpty(template.Seed))
+            SaveSessionManager.StageEdit(template.Seed, NmsInventoryContainer.ShipModelSeedPath(_selectedIndex));
+
+        PageResetBtn.Visibility = Visibility.Visible;
+        LoadSelectedShip();
+    }
+
     /// <summary>Applies a saved template to whichever ship is currently selected
     /// in the main strip - same flow as MultiToolPage's ApplyTemplateAsync. A
     /// class change (alsoMatchClass) can change this ship's real Tech/Cargo
@@ -819,7 +1020,7 @@ public sealed partial class ShipsPage : Page
     /// helper and the two pages have no other shared base to hang it on.</summary>
     private async Task<(bool Confirmed, bool AlsoMatchClass)> ShowCopyConfirmationAsync(
         string sourceLabel, string? sourceClass, IEnumerable<(int X, int Y)> sourcePositions,
-        string targetLabel, InventoryGridViewModel targetViewModel)
+        string targetLabel, InventoryGridViewModel targetViewModel, bool includesStatsAndSeed = false)
     {
         var sourcePositionSet = sourcePositions.ToHashSet();
         var targetUnlocked = targetViewModel.Cells.Where(c => c.State != InventorySlotState.Locked).Select(c => (c.X, c.Y)).ToHashSet();
@@ -831,7 +1032,9 @@ public sealed partial class ShipsPage : Page
         panel.Children.Add(new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
-            Text = $"This replaces {targetLabel}'s entire tech loadout with {sourceLabel}."
+            Text = includesStatsAndSeed
+                ? $"This replaces {targetLabel}'s entire tech loadout, base stats, and appearance seed with {sourceLabel}."
+                : $"This replaces {targetLabel}'s entire tech loadout with {sourceLabel}."
         });
 
         if (newSlotsNeeded > 0)
@@ -860,7 +1063,7 @@ public sealed partial class ShipsPage : Page
 
         var dialog = new ContentDialog
         {
-            Title = "Confirm tech stack copy",
+            Title = includesStatsAndSeed ? "Confirm full build copy" : "Confirm tech stack copy",
             Content = panel,
             PrimaryButtonText = "Copy",
             CloseButtonText = "Cancel",

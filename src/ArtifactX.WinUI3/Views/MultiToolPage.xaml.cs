@@ -73,6 +73,7 @@ public sealed partial class MultiToolPage : Page
 
         LoadToolList();
         _ = RefreshTemplatesListAsync();
+        _ = RefreshFullBuildTemplatesListAsync();
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e)
@@ -728,14 +729,16 @@ public sealed partial class MultiToolPage : Page
         await RefreshTemplatesListAsync();
     }
 
-    /// <summary>Rebuilds the persistent Templates list. Called after saving,
+    /// <summary>Rebuilds the persistent Tech Stack Templates list (Scope==
+    /// "TechStack" only - Full Build templates have their own separate list
+    /// below, RefreshFullBuildTemplatesListAsync). Called after saving,
     /// deleting, or applying a template, and once on page load, so the list
     /// visibly reflects reality at all times rather than living behind a
     /// button the user has to remember to press.</summary>
     private async Task RefreshTemplatesListAsync()
     {
         var templates = (await LoadoutTemplateService.LoadAllAsync())
-            .Where(t => t.SourceKind == "MultiTool")
+            .Where(t => t.SourceKind == "MultiTool" && t.Scope == "TechStack")
             .ToList();
 
         TemplatesListPanel.Children.Clear();
@@ -799,6 +802,203 @@ public sealed partial class MultiToolPage : Page
         }
     }
 
+    private async void SaveAsFullBuildTemplateBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex < 0 || _techViewModel is null) return;
+
+        var sourceTool = _tools.FirstOrDefault(t => t.Index == _selectedIndex);
+        if (sourceTool is null) return;
+
+        if (!_techViewModel.Cells.Any(c => c.IsOccupied))
+        {
+            await new ContentDialog
+            {
+                Title = "Nothing to save",
+                Content = $"{sourceTool.Name} has no tech installed, so there's nothing to capture as a template.",
+                CloseButtonText = "OK",
+                XamlRoot = this.XamlRoot
+            }.ShowAsync();
+            return;
+        }
+
+        var nameBox = new TextBox { PlaceholderText = "e.g. \"PvE Rifle Build (Full Build)\"" };
+        var nameDialog = new ContentDialog
+        {
+            Title = "Save as Full Build Template",
+            Content = new StackPanel
+            {
+                Spacing = 8,
+                Children = { new TextBlock { Text = "Name this build (tech + stats):" }, nameBox }
+            },
+            PrimaryButtonText = "Save",
+            CloseButtonText = "Cancel",
+            XamlRoot = this.XamlRoot
+        };
+
+        if (await nameDialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+        string name = nameBox.Text?.Trim() ?? "";
+        if (string.IsNullOrEmpty(name)) return;
+
+        var template = _techViewModel.ExtractTemplate(name, sourceTool.Name, "MultiTool");
+        template.Scope = "FullBuild";
+        template.Stats = ExtractStatsList(_selectedIndex);
+        // No Seed here - unlike Ships/Freighter, Multi-Tools don't have a
+        // confirmed/exposed Model Seed path on this page.
+
+        await LoadoutTemplateService.SaveAsync(template);
+        await RefreshFullBuildTemplatesListAsync();
+    }
+
+    /// <summary>Same shape as RefreshTemplatesListAsync, filtered to Scope==
+    /// "FullBuild" instead and targeting the separate FullBuildTemplatesListPanel.</summary>
+    private async Task RefreshFullBuildTemplatesListAsync()
+    {
+        var templates = (await LoadoutTemplateService.LoadAllAsync())
+            .Where(t => t.SourceKind == "MultiTool" && t.Scope == "FullBuild")
+            .ToList();
+
+        FullBuildTemplatesListPanel.Children.Clear();
+
+        if (templates.Count == 0)
+        {
+            FullBuildTemplatesListPanel.Children.Add(new TextBlock
+            {
+                Text = "No full build templates saved yet.",
+                FontSize = 11,
+                Opacity = 0.6,
+                TextWrapping = TextWrapping.Wrap
+            });
+            return;
+        }
+
+        foreach (var template in templates)
+        {
+            string sourceInfo = template.SourceToolName is null ? "" : $" - from {template.SourceToolName}";
+
+            var row = new StackPanel { Spacing = 4 };
+            row.Children.Add(new TextBlock
+            {
+                Text = $"{template.Name}",
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 13,
+                TextWrapping = TextWrapping.Wrap
+            });
+            row.Children.Add(new TextBlock
+            {
+                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class, stats{sourceInfo}",
+                FontSize = 10,
+                Opacity = 0.6,
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+
+            var applyButton = new Button { Content = "Apply", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            applyButton.Click += async (_, _) => await ApplyFullBuildTemplateAsync(template);
+            buttonRow.Children.Add(applyButton);
+
+            var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            deleteButton.Click += async (_, _) =>
+            {
+                await LoadoutTemplateService.DeleteAsync(template.Id);
+                await RefreshFullBuildTemplatesListAsync();
+            };
+            buttonRow.Children.Add(deleteButton);
+
+            row.Children.Add(buttonRow);
+
+            row.Children.Add(new Border
+            {
+                BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+
+            FullBuildTemplatesListPanel.Children.Add(row);
+        }
+    }
+
+    /// <summary>Reads a tool's whole stat-bonus array (@bB, nested under its
+    /// Technology container) as a plain key/value list, for embedding in a
+    /// Full Build template - captures every entry generically (not just the 3
+    /// keys exposed as NumberBoxes) so nothing present but not individually
+    /// surfaced gets silently dropped on save.</summary>
+    private static List<NmsLoadoutStat> ExtractStatsList(int toolIndex)
+    {
+        var bonuses = SaveSessionManager.GetValue(
+            NmsInventoryContainer.MultiToolTechnologyPath(toolIndex).Append("@bB").ToArray()) as JArray;
+        var result = new List<NmsLoadoutStat>();
+        if (bonuses is null) return result;
+
+        foreach (var entry in bonuses)
+        {
+            string? key = entry["QL1"]?.Value<string>();
+            double? value = entry[">MX"]?.Value<double>();
+            if (key is not null && value is not null)
+                result.Add(new NmsLoadoutStat { Key = key, Value = value.Value });
+        }
+
+        return result;
+    }
+
+    /// <summary>Stages a Full Build template's saved stats onto the given tool -
+    /// rebuilds the whole @bB array matched by key, same "match by key, replace
+    /// whole array" pattern as SetStatValue. A key present on one side but not
+    /// the other is left untouched/dropped respectively - this only ever
+    /// adjusts values for keys both sides already agree exist.</summary>
+    private static void ApplyStatsList(int targetToolIndex, List<NmsLoadoutStat> stats)
+    {
+        if (stats.Count == 0) return;
+
+        var bonusesPath = NmsInventoryContainer.MultiToolTechnologyPath(targetToolIndex).Append("@bB").ToArray();
+        var bonuses = SaveSessionManager.GetValue(bonusesPath) as JArray;
+        if (bonuses is null) return;
+
+        var statsByKey = stats.ToDictionary(s => s.Key, s => s.Value);
+
+        var updated = new JArray();
+        foreach (var entry in bonuses)
+        {
+            if (entry is JObject obj && obj["QL1"]?.Value<string>() is string key && statsByKey.TryGetValue(key, out double newValue))
+            {
+                var clone = (JObject)obj.DeepClone();
+                clone[">MX"] = newValue;
+                updated.Add(clone);
+            }
+            else
+            {
+                updated.Add(entry.DeepClone());
+            }
+        }
+
+        SaveSessionManager.StageEdit(updated, bonusesPath);
+    }
+
+    /// <summary>Applies a saved Full Build template's tech and stats to
+    /// whichever tool is currently selected - Class only changes if the user
+    /// opts in, same as ApplyTemplateAsync.</summary>
+    private async Task ApplyFullBuildTemplateAsync(NmsLoadoutTemplate template)
+    {
+        if (_selectedIndex < 0 || _techViewModel is null) return;
+
+        var targetTool = _tools.FirstOrDefault(t => t.Index == _selectedIndex);
+        if (targetTool is null) return;
+
+        var sourcePositions = template.UnlockedPositions.Select(p => (p.X, p.Y));
+        var (confirmed, alsoMatchClass) = await ShowCopyConfirmationAsync(
+            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions, targetTool.Name, _techViewModel,
+            includesStatsAndSeed: true);
+
+        if (!confirmed) return;
+
+        _techViewModel.ApplyTemplate(template, alsoMatchClass);
+        ApplyStatsList(_selectedIndex, template.Stats);
+
+        PageResetBtn.Visibility = Visibility.Visible;
+        LoadSelectedTool();
+    }
+
     /// <summary>Applies a template to whichever tool is currently selected in
     /// the main strip - no separate "pick a target" step, since the whole point
     /// of the persistent list sitting next to the tool selector is that the
@@ -832,7 +1032,7 @@ public sealed partial class MultiToolPage : Page
     /// checkbox the user has to tick.</summary>
     private async Task<(bool Confirmed, bool AlsoMatchClass)> ShowCopyConfirmationAsync(
         string sourceLabel, string? sourceClass, IEnumerable<(int X, int Y)> sourcePositions,
-        string targetLabel, InventoryGridViewModel targetViewModel)
+        string targetLabel, InventoryGridViewModel targetViewModel, bool includesStatsAndSeed = false)
     {
         var sourcePositionSet = sourcePositions.ToHashSet();
         var targetUnlocked = targetViewModel.Cells.Where(c => c.State != InventorySlotState.Locked).Select(c => (c.X, c.Y)).ToHashSet();
@@ -844,7 +1044,9 @@ public sealed partial class MultiToolPage : Page
         panel.Children.Add(new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
-            Text = $"This replaces {targetLabel}'s entire tech loadout with {sourceLabel}."
+            Text = includesStatsAndSeed
+                ? $"This replaces {targetLabel}'s entire tech loadout and base stats with {sourceLabel}."
+                : $"This replaces {targetLabel}'s entire tech loadout with {sourceLabel}."
         });
 
         if (newSlotsNeeded > 0)
@@ -873,7 +1075,7 @@ public sealed partial class MultiToolPage : Page
 
         var dialog = new ContentDialog
         {
-            Title = "Confirm tech stack copy",
+            Title = includesStatsAndSeed ? "Confirm full build copy" : "Confirm tech stack copy",
             Content = panel,
             PrimaryButtonText = "Copy",
             CloseButtonText = "Cancel",

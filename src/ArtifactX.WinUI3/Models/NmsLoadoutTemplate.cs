@@ -33,8 +33,39 @@ public sealed class NmsLoadoutTemplate
     /// the user opts in, same as tool-to-tool copy.</summary>
     public string? SourceClass { get; set; }
 
+    /// <summary>"TechStack" (default) captures only the Technology grid, same
+    /// as this feature always worked. "FullBuild" also captures Stats + Seed
+    /// below - still deliberately never Cargo, Name, or any equip/active
+    /// state (see the Multi-Tool active-badge bug this distinction grew out
+    /// of: two tools an identical TECH STACK made them indistinguishable to
+    /// ArtifactX's own equipped-tool detection, which is a completely
+    /// separate concern from what a template itself should capture). Old
+    /// templates saved before this field existed deserialize as "TechStack",
+    /// which is exactly what they always were - no migration needed.</summary>
+    public string Scope { get; set; } = "TechStack";
+
+    /// <summary>Only meaningful when Scope == "FullBuild" - the source's
+    /// whole stat-bonus array (@bB) at save time, one entry per key (e.g.
+    /// "^SHIP_DAMAGE") so applying is a plain whole-array rebuild, matching
+    /// every page's own SetStatValue convention. Empty for "TechStack"
+    /// templates.</summary>
+    public List<NmsLoadoutStat> Stats { get; set; } = new();
+
+    /// <summary>Only meaningful when Scope == "FullBuild" - the source's
+    /// Model Seed (drives visual appearance/hull look). Deliberately never
+    /// the item's Name, or Freighter's Crew Seed (ties to a specific NPC
+    /// captain) - a Full Build template changes how the target performs and
+    /// looks, not its identity. Null for "TechStack" templates.</summary>
+    public string? Seed { get; set; }
+
     public List<NmsLoadoutTechItem> TechItems { get; set; } = new();
     public List<NmsLoadoutPosition> UnlockedPositions { get; set; } = new();
+}
+
+public sealed class NmsLoadoutStat
+{
+    public string Key { get; set; } = "";
+    public double Value { get; set; }
 }
 
 public sealed class NmsLoadoutTechItem
