@@ -31,19 +31,30 @@
                 <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
                         CornerRadius="8" Padding="16" Opacity="0.9" Width="320" HorizontalAlignment="Left">
                     <StackPanel Spacing="14">
+                        <!-- Maximum=4294967295 (uint32.MaxValue) is a REAL, confirmed
+                             ceiling here, unlike most other NumberBoxes in this app that
+                             deliberately leave no upper limit - see
+                             NmsPlayerStateData.ToDisplayValue/ToRawValue's doc comment.
+                             The game stores this as a wrapping 32-bit field; going higher
+                             than this doesn't just "unbalance" the save the way an extreme
+                             ship stat would, it silently computes a WRONG raw value on
+                             write (the wraparound math breaks down past this point - e.g.
+                             entering exactly 4294967296 would stage 0, silently zeroing a
+                             real balance). Don't remove this cap without re-deriving the
+                             math in that doc comment first. -->
                         <StackPanel Spacing="6">
                             <TextBlock Text="Units" FontSize="12" Opacity="0.7"/>
-                            <NumberBox x:Name="UnitsBox" Minimum="0" SpinButtonPlacementMode="Hidden"
+                            <NumberBox x:Name="UnitsBox" Minimum="0" Maximum="4294967295" SpinButtonPlacementMode="Hidden"
                                        ValueChanged="UnitsBox_ValueChanged" LostFocus="UnitsBox_LostFocus"/>
                         </StackPanel>
                         <StackPanel Spacing="6">
                             <TextBlock Text="Nanites" FontSize="12" Opacity="0.7"/>
-                            <NumberBox x:Name="NanitesBox" Minimum="0" SpinButtonPlacementMode="Hidden"
+                            <NumberBox x:Name="NanitesBox" Minimum="0" Maximum="4294967295" SpinButtonPlacementMode="Hidden"
                                        ValueChanged="NanitesBox_ValueChanged" LostFocus="NanitesBox_LostFocus"/>
                         </StackPanel>
                         <StackPanel Spacing="6">
                             <TextBlock Text="Quicksilver" FontSize="12" Opacity="0.7"/>
-                            <NumberBox x:Name="QuicksilverBox" Minimum="0" SpinButtonPlacementMode="Hidden"
+                            <NumberBox x:Name="QuicksilverBox" Minimum="0" Maximum="4294967295" SpinButtonPlacementMode="Hidden"
                                        ValueChanged="QuicksilverBox_ValueChanged" LostFocus="QuicksilverBox_LostFocus"/>
                         </StackPanel>
                     </StackPanel>
