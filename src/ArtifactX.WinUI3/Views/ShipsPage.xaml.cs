@@ -39,6 +39,12 @@ public sealed partial class ShipsPage : Page
     private List<ShipEntry> _ships = new();
     private bool _suppressStatChangeEvent;
 
+    // Set around SetStatValue's own StageEdit call so OnSessionOrEditsChanged
+    // can skip the reload it would otherwise trigger for that same edit - see
+    // OnSessionOrEditsChanged's doc comment for why this matters specifically
+    // on this page.
+    private bool _suppressReloadOnOwnStatEdit;
+
     // Ship-type/class -> max-slot lookups (GameId -> CapacityValue), loaded once
     // per page lifetime from the catalog - see StarshipCapacity for why these
     // numbers live in the database instead of being hardcoded here.
@@ -56,8 +62,15 @@ public sealed partial class ShipsPage : Page
         _ = RefreshTemplatesListAsync();
     }
 
-    private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
+    /// <summary>Skips the reload for edits SetStatValue just staged itself -
+    /// see its own doc comment for why. Everything else that can trigger this
+    /// event (switching save file, another page, TechGrid/CargoGrid cell
+    /// edits, Class/Name/Seed changes) still gets the normal full reload.</summary>
+    private void OnSessionOrEditsChanged(object? sender, EventArgs e)
+    {
+        if (_suppressReloadOnOwnStatEdit) return;
         DispatcherQueue.TryEnqueue(LoadShipList);
+    }
 
     /// <summary>Fix for a real reported bug (2026-08-01): "changing from
     /// Damage to Shield to Hyperdrive etc takes a couple of seconds each
@@ -426,7 +439,24 @@ public sealed partial class ShipsPage : Page
     /// FreighterPage/MultiToolPage.SetStatValue (a deeper leaf-only stage
     /// isn't seen by SaveSessionManager's staged-edit lookup, which only
     /// matches at the exact path queried). Entries this page doesn't know
-    /// about (e.g. a Living Ship's "^ALIEN_SHIP") pass through untouched.</summary>
+    /// about (e.g. a Living Ship's "^ALIEN_SHIP") pass through untouched.
+    ///
+    /// The StageEdit call is wrapped with _suppressReloadOnOwnStatEdit
+    /// (2026-08-01 fix, real reported bug: switching between Damage/Shield/
+    /// Hyperdrive/Maneuverability had a noticeable sub-second lag on this
+    /// page specifically). StageEdit fires SaveSessionManager's static
+    /// PendingEditsChanged event, which this page's own OnSessionOrEditsChanged
+    /// reacts to by reloading the WHOLE selected ship - rebuilding both the
+    /// Technology and Cargo InventoryGridViewModels (up to 10x6 + 10x12 =
+    /// 180 cells) and re-warming the catalog icon cache for every occupied
+    /// slot, none of which changed. That reload is genuinely needed for
+    /// edits that came from elsewhere (switching save file, another page,
+    /// TechGrid/CargoGrid cell edits, Class/Name/Seed changes all still go
+    /// through un-suppressed), but not for a stat box re-confirming a value
+    /// it already displays correctly - the NumberBox is already showing what
+    /// was just typed. Other pages' grids are small enough this same
+    /// redundant-reload pattern isn't noticeable; Ships' is the heaviest in
+    /// the app, which is why the lag showed up here specifically.</summary>
     private void SetStatValue(string statKey, double newValue)
     {
         if (_selectedIndex < 0 || double.IsNaN(newValue)) return;
@@ -450,7 +480,9 @@ public sealed partial class ShipsPage : Page
             }
         }
 
+        _suppressReloadOnOwnStatEdit = true;
         SaveSessionManager.StageEdit(updated, bonusesPath);
+        _suppressReloadOnOwnStatEdit = false;
     }
 
     private void DamageStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
