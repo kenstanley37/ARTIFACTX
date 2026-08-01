@@ -24,6 +24,25 @@ public sealed partial class MultiToolPage : Page
     // owned tools, but turned out to stay True on every tool that's ever been
     // equipped at least once, not just the current one - a second real-world
     // test (switching tools and re-diffing) disproved it before this shipped.
+    //
+    // Real bug found 2026-08-01: content-matching breaks down when two or more
+    // owned tools have an IDENTICAL tech loadout (same items at the same
+    // positions - trivially reachable via this page's own "Copy Tech Stack..."
+    // feature), since every matching tool then satisfies the signature check
+    // and all showed "ACTIVE" at once. Checked whether Kgt carries any OTHER
+    // field that could disambiguate: its own substructure is byte-for-byte
+    // identical in shape to a tool's OsQ sub-container (same keys, same
+    // values when loadouts match) and carries nothing from the tool's PARENT
+    // level (Name/@EL seed/model/etc) - and each tool's own identity seed
+    // (@EL) was confirmed to appear exactly once in the whole save file, only
+    // on its own entry, nowhere else. So there is no reliable secondary
+    // signal anywhere in the save to break a genuine content tie - the save
+    // format itself doesn't appear to persist one. LoadToolList below now
+    // only accepts the FIRST matching tool as active, which at least
+    // guarantees exactly one "ACTIVE" badge (correct in the overwhelmingly
+    // common case of no duplicate loadouts, and merely non-deterministic-but-
+    // not-wrong in the rare duplicate-content edge case, instead of visibly
+    // wrong).
     private sealed record ToolEntry(int Index, string Name, bool IsGameActive);
 
     private InventoryGridViewModel? _techViewModel;
@@ -131,7 +150,12 @@ public sealed partial class MultiToolPage : Page
             // negative on something that was never actually different.
             var thisOccupied = array[i]?["OsQ"]?[":No"] as JArray;
             var thisSignature = BuildOccupiedSignature(thisOccupied);
-            bool isActive = kgtSignature.Count > 0 && kgtSignature.SetEquals(thisSignature);
+
+            // _activeIndex < 0 guards against a duplicate-loadout tie (see
+            // this class's doc comment) - only the first match counts, so at
+            // most one tool is ever flagged active even if several tools'
+            // signatures all happen to equal Kgt's.
+            bool isActive = _activeIndex < 0 && kgtSignature.Count > 0 && kgtSignature.SetEquals(thisSignature);
 
             if (isActive) _activeIndex = i;
             tools.Add(new ToolEntry(i, name, isActive));
