@@ -39,6 +39,13 @@ public sealed class SaveEditSession
     /// entry regardless of how many of its elements actually differ.</summary>
     public int PendingEditCount => _pendingEdits.Count;
 
+    /// <summary>Diagnostic only - readable "a/b/c" forms of every staged
+    /// path plus its new value, for tracking down unexpected pending edits
+    /// (e.g. a page's Load method accidentally staging something it only
+    /// meant to display).</summary>
+    public IEnumerable<string> DescribePendingEdits() =>
+        _pendingEdits.Select(kv => $"{kv.Key.Replace(PathSeparator, "/")} = {kv.Value?.ToString() ?? "null"}");
+
     public JToken? GetValue(params string[] path)
     {
         string key = Join(path);

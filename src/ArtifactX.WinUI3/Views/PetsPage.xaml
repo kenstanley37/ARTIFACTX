@@ -10,37 +10,89 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <ScrollViewer>
-        <StackPanel Padding="24" Spacing="20">
-            <!-- Same row as the title, not its own row below - so the Reset
-                 button appearing/disappearing doesn't shift everything under
-                 it down (was previously its own row, added/removed vertical
-                 space each time its Visibility changed). Pinned to the far
-                 right via the "*" spacer column, and styled to stand out
-                 since it's a destructive action (discards pending edits). -->
-            <Grid>
+        <StackPanel Padding="24" Spacing="20" HorizontalAlignment="Stretch">
+
+            <!-- Title/selector on the left, Arena League pinned to the top-right
+                 (same Grid+VisualStateManager pattern as MultiToolPage's Templates
+                 panel) - drops to a full-width row under the selector once the
+                 window gets too narrow for both columns to fit comfortably. -->
+            <Grid x:Name="HeaderGrid" ColumnSpacing="24" RowSpacing="20">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*" MinWidth="320"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="Pets" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
-                <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Pet Changes" Click="PageResetBtn_Click"
-                        Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
-            </Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-            <StackPanel Spacing="20" HorizontalAlignment="Left">
-            <TextBlock Text="Owned Pets" FontSize="14" Opacity="0.8"/>
-            <ScrollViewer MaxHeight="104" VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-                <ctcontrols:WrapPanel x:Name="PetSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
-            </ScrollViewer>
+                <Border x:Name="ArenaLeagueBorder" Grid.Row="0" Grid.Column="1"
+                        BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                        CornerRadius="8" Padding="16" Opacity="0.9" Width="260" VerticalAlignment="Top">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="Arena League" FontSize="14" FontWeight="SemiBold"/>
+                        <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                                   Text="From Catalog &amp; Guide -&gt; Milestones -&gt; Arena League - save-wide, not per-pet (a different number from &quot;Holo-Arena Victories&quot; below). NOT shared with your other save slots, each of which is a fully independent file. All 4 confirmed exact against a real screenshot; &quot;Iteration: Oceanus&quot; couldn't be found in the save's stat list."/>
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Champions Defeated" Opacity="0.7" FontSize="11"/>
+                            <NumberBox x:Name="ArenaChampionsBox" HorizontalAlignment="Stretch" Minimum="0"
+                                       SpinButtonPlacementMode="Hidden" ValueChanged="ArenaChampionsBox_ValueChanged" LostFocus="ArenaChampionsBox_LostFocus"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Holo-Arena Victories" Opacity="0.7" FontSize="11"/>
+                            <NumberBox x:Name="ArenaVictoriesBox" HorizontalAlignment="Stretch" Minimum="0"
+                                       SpinButtonPlacementMode="Hidden" ValueChanged="ArenaVictoriesBox_ValueChanged" LostFocus="ArenaVictoriesBox_LostFocus"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Apex Companions" Opacity="0.7" FontSize="11"/>
+                            <NumberBox x:Name="ArenaCompanionsBox" HorizontalAlignment="Stretch" Minimum="0"
+                                       SpinButtonPlacementMode="Hidden" ValueChanged="ArenaCompanionsBox_ValueChanged" LostFocus="ArenaCompanionsBox_LostFocus"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Hatch Eggs" Opacity="0.7" FontSize="11"/>
+                            <NumberBox x:Name="ArenaEggsBox" HorizontalAlignment="Stretch" Minimum="0"
+                                       SpinButtonPlacementMode="Hidden" ValueChanged="ArenaEggsBox_ValueChanged" LostFocus="ArenaEggsBox_LostFocus"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
 
-            <!-- Wide/short instead of narrow/tall - related fields sit in
-                 rows side by side rather than stacking the whole card into
-                 one long vertical column. -->
-            <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                    CornerRadius="8" Padding="20" Opacity="0.9" Width="860">
-                <StackPanel Spacing="18">
+                <!-- Title/selector AND the per-pet detail card all live in this one
+                     column so the card's height (usually much taller than Arena
+                     League) - not Arena League's - determines how tall this row
+                     needs to be. Putting the detail card as a page-level sibling
+                     of this Grid instead (the original layout) left a big empty
+                     gap here whenever the selector alone was shorter than Arena
+                     League, since the Grid row's height was forced by the taller
+                     column regardless of which column actually needed the space. -->
+                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="20">
+                    <!-- Same row as the title, not its own row below - so the Reset
+                         button appearing/disappearing doesn't shift everything under
+                         it down. Pinned to the far right of THIS column (not the
+                         whole page - column 1 is Arena League), styled to stand out
+                         since it's a destructive action (discards pending edits). -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Companions" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Companion Changes" Click="PageResetBtn_Click"
+                                Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <TextBlock Text="Owned Companions" FontSize="14" Opacity="0.8"/>
+                    <ScrollViewer MaxHeight="150" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+                        <ctcontrols:WrapPanel x:Name="PetSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+                    </ScrollViewer>
+
+                    <!-- Wide/short instead of narrow/tall - related fields sit in
+                         rows side by side rather than stacking the whole card into
+                         one long vertical column. -->
+                    <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Opacity="0.9" Width="860" HorizontalAlignment="Left">
+                        <StackPanel Spacing="18">
                     <StackPanel Spacing="6">
                         <TextBlock Text="Name" FontSize="12" Opacity="0.7"/>
                         <TextBox x:Name="NameEditBox" Width="300" HorizontalAlignment="Left" LostFocus="NameEditBox_LostFocus"/>
@@ -223,8 +275,31 @@
                         <StackPanel x:Name="AdvancedFieldsPanel" Spacing="10"/>
                     </StackPanel>
                 </StackPanel>
-            </Border>
-            </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroup>
+                        <VisualState x:Name="HeaderWide">
+                            <VisualState.StateTriggers>
+                                <AdaptiveTrigger MinWindowWidth="950"/>
+                            </VisualState.StateTriggers>
+                        </VisualState>
+                        <VisualState x:Name="HeaderNarrow">
+                            <VisualState.StateTriggers>
+                                <AdaptiveTrigger MinWindowWidth="0"/>
+                            </VisualState.StateTriggers>
+                            <VisualState.Setters>
+                                <Setter Target="ArenaLeagueBorder.(Grid.Row)" Value="1"/>
+                                <Setter Target="ArenaLeagueBorder.(Grid.Column)" Value="0"/>
+                                <Setter Target="ArenaLeagueBorder.(Grid.ColumnSpan)" Value="2"/>
+                                <Setter Target="ArenaLeagueBorder.Width" Value="NaN"/>
+                                <Setter Target="ArenaLeagueBorder.HorizontalAlignment" Value="Stretch"/>
+                            </VisualState.Setters>
+                        </VisualState>
+                    </VisualStateGroup>
+                </VisualStateManager.VisualStateGroups>
+            </Grid>
         </StackPanel>
     </ScrollViewer>
 </Page>

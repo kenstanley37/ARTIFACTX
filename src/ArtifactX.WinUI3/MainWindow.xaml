@@ -91,7 +91,7 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
-                <NavigationViewItem x:Name="PetsNavItem" Content="Pets" Tag="Pets" Visibility="Collapsed">
+                <NavigationViewItem x:Name="PetsNavItem" Content="Companions" Tag="Pets" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE71E;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
