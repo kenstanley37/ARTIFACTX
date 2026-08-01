@@ -50,6 +50,7 @@ public sealed partial class ShipsPage : Page
 
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
+        Unloaded += Page_Unloaded;
 
         LoadShipList();
         _ = RefreshTemplatesListAsync();
@@ -57,6 +58,33 @@ public sealed partial class ShipsPage : Page
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(LoadShipList);
+
+    /// <summary>Fix for a real reported bug (2026-08-01): "changing from
+    /// Damage to Shield to Hyperdrive etc takes a couple of seconds each
+    /// time... like a memory leak." It was one - Frame.Navigate creates a
+    /// brand-new Page instance on every visit to any of this app's pages
+    /// (no NavigationCacheMode set anywhere), and EVERY page subscribes to
+    /// these two static SaveSessionManager events in its constructor with
+    /// no matching unsubscribe anywhere in the app. Since a static event
+    /// holds a strong reference to every subscriber, none of those old Page
+    /// instances could ever be garbage collected - each past visit to
+    /// EVERY page (General/Exosuit/MultiTool/Ships/Freighter/Frigate/
+    /// BaseStorage/CorvetteCache/Companions/Settlement) left a permanently
+    /// subscribed dead instance behind. Editing a single NumberBox on THIS
+    /// page fires SetStatValue -> StageEdit -> PendingEditsChanged, which
+    /// then re-ran OnSessionOrEditsChanged's full LoadShipList (rebuilding
+    /// the Technology/Cargo grids, incl. catalog icon lookups) on every one
+    /// of those accumulated dead instances too, all synchronously on the UI
+    /// thread - explaining why it got slower the more the app had been
+    /// navigated around, exactly matching the user's own "memory leak"
+    /// hypothesis. Fixed the same way on all 10 pages that had this pattern
+    /// (see Page_Unloaded on each) by unsubscribing on Unloaded, which
+    /// fires reliably when Frame.Navigate swaps a page out.</summary>
+    private void Page_Unloaded(object sender, RoutedEventArgs e)
+    {
+        SaveSessionManager.ActiveSessionChanged -= OnSessionOrEditsChanged;
+        SaveSessionManager.PendingEditsChanged -= OnSessionOrEditsChanged;
+    }
 
     /// <summary>Reads a ship's model scene path (to detect its real ship type -
     /// Hauler/Fighter/Explorer/etc.) and its current Class letter, BEFORE any

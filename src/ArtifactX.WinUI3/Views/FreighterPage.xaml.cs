@@ -56,12 +56,26 @@ public sealed partial class FreighterPage : Page
 
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
+        Unloaded += Page_Unloaded;
 
         LoadGrids();
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(LoadGrids);
+
+    /// <summary>Without this, the constructor's subscriptions above never
+    /// get released across page navigation (Frame.Navigate makes a fresh
+    /// Page instance every visit, no NavigationCacheMode set anywhere in
+    /// this app) - every past visit leaves a dead instance permanently
+    /// subscribed, re-running its full reload on every future edit
+    /// anywhere in the app. Root cause of a reported slowdown where
+    /// editing any page became multi-second after enough navigation.</summary>
+    private void Page_Unloaded(object sender, RoutedEventArgs e)
+    {
+        SaveSessionManager.ActiveSessionChanged -= OnSessionOrEditsChanged;
+        SaveSessionManager.PendingEditsChanged -= OnSessionOrEditsChanged;
+    }
 
     private async Task<Dictionary<string, int>> GetShipCapacityAsync()
     {

@@ -16,11 +16,26 @@ public sealed partial class GeneralPage : Page
 
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
+        Unloaded += Page_Unloaded;
         LoadValues();
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(LoadValues);
+
+    /// <summary>Frame.Navigate creates a fresh Page instance on every visit
+    /// (no NavigationCacheMode set anywhere in this app) - without this,
+    /// the constructor's subscriptions above would never be released, so
+    /// every past visit to this page leaves a dead instance permanently
+    /// subscribed to these static events. Confirmed as the real cause of a
+    /// reported slowdown (edits on unrelated pages taking multi-second
+    /// delays after enough navigation) - each StageEdit anywhere in the app
+    /// was re-running every accumulated dead page's full reload logic.</summary>
+    private void Page_Unloaded(object sender, RoutedEventArgs e)
+    {
+        SaveSessionManager.ActiveSessionChanged -= OnSessionOrEditsChanged;
+        SaveSessionManager.PendingEditsChanged -= OnSessionOrEditsChanged;
+    }
 
     private void LoadValues()
     {
