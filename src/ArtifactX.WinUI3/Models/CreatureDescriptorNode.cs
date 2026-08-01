@@ -22,6 +22,6 @@ public sealed class CreatureDescriptorNode
     /// reconstructs which sibling category/option came first in the game's
     /// own data, every time the catalog is rebuilt. Needed to build a
     /// correctly-ordered default osl array when swapping the top-level
-    /// archetype entry - see PetsPage.BuildDefaultDescriptorArray.</summary>
+    /// archetype entry - see CompanionsPage.BuildDefaultDescriptorArray.</summary>
     public required int SortOrder { get; init; }
 }

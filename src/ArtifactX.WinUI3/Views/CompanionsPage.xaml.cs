@@ -32,7 +32,7 @@ namespace ArtifactX.WinUI3.Views;
 /// real and stored (see NmsPetPaths.TraitsPath) - initially miscategorized
 /// as an unrelated position vector until that cross-reference caught it.
 /// </summary>
-public sealed partial class PetsPage : Page
+public sealed partial class CompanionsPage : Page
 {
     private sealed record PetEntry(int Index, string SelectorLabel);
 
@@ -77,7 +77,7 @@ public sealed partial class PetsPage : Page
     // cheap enough that avoiding any staleness risk across save switches
     // wins over the trivial saved cost of caching.
 
-    public PetsPage()
+    public CompanionsPage()
     {
         InitializeComponent();
 
