@@ -71,7 +71,9 @@ public sealed partial class MainWindow : Window
     /// button treats as important enough to ask about. Save/Discard mirrors
     /// AppTitleBar's own Save button, including staying disabled while No
     /// Man's Sky is running (SaveSessionManager.CommitAsync isn't safe to
-    /// call then either).</summary>
+    /// call then either). Also covers AccountSessionManager - a completely
+    /// separate staged-edit set (see that class's doc comment) that this
+    /// same close path would otherwise silently drop with no warning at all.</summary>
     private async void MainWindow_Closed(object sender, WindowEventArgs args)
     {
         // Saved on every entry (including the re-entrant call after a
@@ -81,19 +83,29 @@ public sealed partial class MainWindow : Window
         // its own explicit save call.
         WindowPlacementService.Save(WindowNative.GetWindowHandle(this));
 
-        if (_closeConfirmed || !SaveSessionManager.HasUnsavedChanges)
+        bool slotDirty = SaveSessionManager.HasUnsavedChanges;
+        bool accountDirty = AccountSessionManager.HasUnsavedChanges;
+
+        if (_closeConfirmed || (!slotDirty && !accountDirty))
             return;
 
         args.Handled = true;
 
         bool canSave = !GameProcessMonitorService.IsGameRunning;
 
+        string what = (slotDirty, accountDirty) switch
+        {
+            (true, true) => $"{SaveSessionManager.ActiveLabel} and your account-wide data",
+            (true, false) => SaveSessionManager.ActiveLabel!,
+            _ => "your account-wide data"
+        };
+
         var dialog = new ContentDialog
         {
             Title = "Unsaved changes",
             Content = canSave
-                ? $"You have unsaved changes to {SaveSessionManager.ActiveLabel}. Save before closing?"
-                : $"You have unsaved changes to {SaveSessionManager.ActiveLabel}. No Man's Sky is currently " +
+                ? $"You have unsaved changes to {what}. Save before closing?"
+                : $"You have unsaved changes to {what}. No Man's Sky is currently " +
                   "running, so saving is disabled right now - closing will discard these changes.",
             PrimaryButtonText = canSave ? "Save" : null,
             SecondaryButtonText = "Discard and Close",
@@ -108,7 +120,8 @@ public sealed partial class MainWindow : Window
         {
             try
             {
-                await SaveSessionManager.CommitAsync();
+                if (slotDirty) await SaveSessionManager.CommitAsync();
+                if (accountDirty) await AccountSessionManager.CommitAsync();
             }
             catch (Exception ex)
             {
@@ -168,6 +181,7 @@ public sealed partial class MainWindow : Window
                 "Companions" => typeof(CompanionsPage),
                 "Settlement" => typeof(SettlementPage),
                 "Milestones" => typeof(MilestonesPage),
+                "AccountData" => typeof(AccountDataPage),
                 "AncestrySearch" => typeof(AncestrySearchView),
                 "HGDecryption" => typeof(HGDecryptionPage),
                 _ => typeof(SaveFolderSelectPage)
@@ -198,6 +212,7 @@ public sealed partial class MainWindow : Window
         CompanionsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SettlementNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         MilestonesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        AccountDataNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ContentFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
@@ -216,6 +231,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(CompanionsPage) => "Companions",
             Type t when t == typeof(SettlementPage) => "Settlement",
             Type t when t == typeof(MilestonesPage) => "Milestones",
+            Type t when t == typeof(AccountDataPage) => "AccountData",
             Type t when t == typeof(AncestrySearchView) => "AncestrySearch",
             Type t when t == typeof(HGDecryptionPage) => "HGDecryption",
             _ => string.Empty

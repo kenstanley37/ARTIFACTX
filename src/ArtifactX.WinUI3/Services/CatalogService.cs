@@ -591,6 +591,58 @@ public static class CatalogService
         return results;
     }
 
+    /// <summary>Every catalog item that can plausibly appear in the account-wide
+    /// "unlocked items" list (technology/product/substance rows only - the
+    /// scene-path option tables like MultiToolTypes/ShipCapacity are model/slot
+    /// metadata, not player-facing unlockables, so they're excluded here).
+    /// Used by AccountDataPage to build its full browsable list up front; unlike
+    /// SearchAsync this isn't restricted by name/count, so it returns the whole
+    /// ~4,700-row set in one call for the page to filter locally.</summary>
+    public static async Task<List<CatalogUnlockableItem>> GetAllUnlockableItemsAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+
+        try
+        {
+            return await Task.Run(() => QueryAllUnlockableItems(dbPath));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetAllUnlockableItemsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    private static List<CatalogUnlockableItem> QueryAllUnlockableItems(string dbPath)
+    {
+        var results = new List<CatalogUnlockableItem>();
+
+        using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT i.GameId, COALESCE(i.NameEnglish, i.NameLowerEnglish) AS DisplayName, c.TemplateType
+            FROM Items i
+            JOIN Categories c ON c.Id = i.CategoryId
+            WHERE c.TemplateType IN ('GcProductTable','GcSubstanceTable','GcTechnologyTable','GcProceduralTechnologyTable')
+              AND (i.NameEnglish IS NOT NULL OR i.NameLowerEnglish IS NOT NULL)
+            ORDER BY DisplayName";
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            results.Add(new CatalogUnlockableItem
+            {
+                GameId = reader.GetString(0),
+                DisplayName = reader.GetString(1),
+                CategoryLabel = ElvLabelFor(reader.GetString(2))
+            });
+        }
+        return results;
+    }
+
     private static string? ResolveDbPath()
     {
         if (_pathChecked) return _dbPath;
