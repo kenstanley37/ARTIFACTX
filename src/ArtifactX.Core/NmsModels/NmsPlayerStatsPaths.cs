@@ -161,12 +161,33 @@ namespace ArtifactX.Core.NmsModels;
 ///   which maps to which guild by value alone - not exposed until someone's
 ///   save has non-zero guild standing to check against.
 ///
-/// STILL UNMAPPED: Mercenaries Guild (no screenshot provided yet) and
-/// Previous Expeditions - the latter does not look like it lives in
-/// GLOBAL_STATS at all (it's a list of named/numbered expedition completion
-/// badges in game, not a lifetime counter), so it likely needs an entirely
-/// different save structure and probably different UI than a NumberBox grid
-/// once someone tracks it down.
+/// MERCENARIES GUILD (2026-08-01, same day) - the last Guild, now fully
+/// covered: SENTINEL_KILLS-&gt;"Sentinels Destroyed" (151==151, the SAME field
+/// as Survival Milestones' "Sentinels Destroyed" - a 3rd confirmed
+/// dual-purpose field alongside MONEY and DIST_WARP above), PIRATES_KILLED
+/// -&gt;"Pirates Killed" (75==75). Same Standing/Missions Completed gap as
+/// Merchants/Explorers - both read 0 here too, not exposed for the same
+/// reason.
+///
+/// PREVIOUS EXPEDITIONS - confirmed NOT mappable the same way as everything
+/// else here. Given all 22 expedition names visible in a real screenshot
+/// (Swarm, Remnant, Breach, Corvette, Relics, Titan, The Cursed, Aquarius,
+/// Liquidators, Adrift, Omega, Voyagers, Singularity, Utopia, Polestar,
+/// Leviathan, The Blighted, Emergence, The Cartographers, Beachhead, The
+/// Pioneers, Exobiology), grepping the raw save text found NONE of them
+/// (aside from 3 single-letter-collision false positives - "SWARM"/"OMEGA"/
+/// "LEVIATHAN" each matched once, almost certainly unrelated stat ids like
+/// CARGO_SWARM/SWARM_DEBRIS rather than the expedition badge). The names are
+/// looked up client-side from a table bundled with the game, not stored in
+/// the save at all - matches EXPEDITIONS (=22 in the sample, i.e. just a
+/// count) already being a GLOBAL_STATS entry with no name attached. Whatever
+/// tracks WHICH specific expeditions are complete (if anything more granular
+/// than the count exists at all) is presumably a plain id/index list or
+/// bitmask elsewhere in vLc/6f=, not something coverable by this session's
+/// "match a screenshot's number against a GLOBAL_STATS id" technique - no
+/// screenshot NUMBER to match against, just a checklist of named badges.
+/// Finding it would need a different kind of search (structural, not
+/// value-matching) - not attempted yet.
 /// </summary>
 public static class NmsPlayerStatsPaths
 {

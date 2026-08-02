@@ -132,6 +132,13 @@ public sealed partial class MilestonesPage : Page
             new("Systems Mapped", "DIST_WARP"),
             new("Plants Cataloged", "DISC_FLORA"),
         },
+        // Same "Standing"/"Missions Completed" gap as Merchants/Explorers -
+        // both read 0 here too.
+        ["MercenariesGuild"] = new()
+        {
+            new("Sentinels Destroyed", "SENTINEL_KILLS"),
+            new("Pirates Killed", "PIRATES_KILLED"),
+        },
     };
 
     private const string DefaultCategory = "ArenaLeague";
@@ -226,7 +233,7 @@ public sealed partial class MilestonesPage : Page
             MappedCategoryNoteTxt.Text = tag switch
             {
                 "ArenaLeague" => "Save-wide, not tied to any specific companion (a different number from the per-companion \"Holo-Arena Victories\" field on the Companions page).",
-                "MerchantsGuild" or "ExplorersGuild" => "Save-wide - fields below confirmed exact against a real screenshot. Standing and Missions Completed are missing on purpose: the obvious candidates all read 0 in this save, so which one belongs to which guild can't be confirmed until someone's save has a non-zero value to check against.",
+                "MerchantsGuild" or "ExplorersGuild" or "MercenariesGuild" => "Save-wide - fields below confirmed exact against a real screenshot. Standing and Missions Completed are missing on purpose: the obvious candidates all read 0 in this save, so which one belongs to which guild can't be confirmed until someone's save has a non-zero value to check against.",
                 _ => "Save-wide - all fields below confirmed exact against a real Catalog & Guide screenshot."
             };
 
@@ -238,6 +245,9 @@ public sealed partial class MilestonesPage : Page
             MappedCategoryPanel.Visibility = Visibility.Collapsed;
             PlaceholderPanel.Visibility = Visibility.Visible;
             PlaceholderHeaderTxt.Text = Categories.First(c => c.Tag == tag).DisplayName;
+            PlaceholderNoteTxt.Text = tag == "PreviousExpeditions"
+                ? "Confirmed 2026-08-01: none of the 22 expedition names shown here (Swarm, Remnant, Breach, etc.) appear anywhere in the save's own text - they're looked up client-side from a table bundled with the game, not stored. Whatever tracks which expeditions are complete is likely a plain id/bitmask list rather than named entries, and finding it would be a different kind of search than every other mapped category here (no screenshot number to directly match against) - not investigated further yet."
+                : "This category hasn't been mapped to real save data yet. A screenshot of this category's Catalog & Guide screen (with the numbers visible) would let us find and confirm the matching stat IDs - the same way every other mapped category here was done.";
             PageResetBtn.Visibility = Visibility.Collapsed;
         }
     }

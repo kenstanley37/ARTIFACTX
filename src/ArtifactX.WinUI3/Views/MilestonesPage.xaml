@@ -23,7 +23,7 @@
             </Grid>
 
             <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="820"
-                       Text="From the in-game Catalog &amp; Guide -&gt; Milestones screen - save-wide progress tracking, not tied to any specific ship/tool/companion, and NOT shared with your other save slots (each is a fully independent file). 10 of 12 categories are mapped to real save data so far (Merchants Guild and Explorers Guild are partial - their Standing/Missions Completed fields are still ambiguous). Mercenaries Guild and Previous Expeditions aren't wired up yet."/>
+                       Text="From the in-game Catalog &amp; Guide -&gt; Milestones screen - save-wide progress tracking, not tied to any specific ship/tool/companion, and NOT shared with your other save slots (each is a fully independent file). 11 of 12 categories are mapped to real save data so far (the 3 Guilds are partial - their Standing/Missions Completed fields are still ambiguous). Previous Expeditions doesn't store expedition names in the save at all, so it can't be mapped the same way - see its placeholder for details."/>
 
             <Grid ColumnSpacing="24">
                 <Grid.ColumnDefinitions>
@@ -47,11 +47,10 @@
                 </StackPanel>
 
                 <Grid Grid.Column="1">
-                    <!-- Shown for the 11 categories with no confirmed stat mapping yet. -->
+                    <!-- Shown for the 1 category with no confirmed stat mapping yet. -->
                     <StackPanel x:Name="PlaceholderPanel" Spacing="10" HorizontalAlignment="Left" MaxWidth="600">
                         <TextBlock x:Name="PlaceholderHeaderTxt" FontSize="20" FontWeight="SemiBold"/>
-                        <TextBlock TextWrapping="Wrap" Opacity="0.7"
-                                   Text="This category hasn't been mapped to real save data yet. A screenshot of this category's Catalog &amp; Guide screen (with the numbers visible) would let us find and confirm the matching stat IDs - the same way Arena League was done."/>
+                        <TextBlock x:Name="PlaceholderNoteTxt" TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
 
                     <!-- One reusable panel for every mapped category - fields are built
