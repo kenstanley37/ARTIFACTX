@@ -12,10 +12,13 @@ namespace ArtifactX.Core.NmsModels;
 /// independently - see AccountSessionManager.ResolveAccountDataPath.
 ///
 /// Top-level shape: {"F2P": &lt;int&gt;, "B89": {...}}. B89 holds ~15 lists of
-/// raw item/content ids (no "^" prefix - these entries never carry the
-/// leading caret that per-slot save arrays use) representing different
-/// "unlocked/seen" categories, confirmed via direct inspection against a
-/// real account file:
+/// raw item/content ids representing different "unlocked/seen" categories,
+/// confirmed via direct inspection against a real account file. These DO
+/// carry the same leading "^" prefix per-slot save arrays use (an earlier
+/// note here claimed otherwise and was wrong - confirmed 2026-08-02 after
+/// that assumption made every account item read as locked in the UI; always
+/// go through CatalogService.NormalizeId when matching these against the
+/// catalog DB):
 ///   B1h (~3681 entries) - the master "everything unlocked" list; ~96% of
 ///     sampled ids cross-reference successfully against ArtifactX's own
 ///     item catalog DB (crafting/building/cosmetic items). Used here as the

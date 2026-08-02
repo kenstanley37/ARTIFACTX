@@ -28,6 +28,13 @@ public sealed partial class AccountDataPage : Page
     private static List<Models.CatalogUnlockableItem>? _catalogCache;
 
     private List<AccountItemRowViewModel>? _allItems;
+    private List<AccountItemRowViewModel> _currentlyVisibleRows = new();
+
+    // _workingIds keeps the exact raw ("^"-prefixed) strings the file itself uses, so
+    // re-staging round-trips cleanly; _workingIdSet holds the same ids normalized
+    // (CatalogService.NormalizeId - strips the leading "^") for O(1) lookup against
+    // AccountItemRowViewModel.GameId, which is already normalized since it comes
+    // straight from the catalog DB.
     private List<string> _workingIds = new();
     private HashSet<string> _workingIdSet = new(StringComparer.Ordinal);
 
@@ -39,7 +46,6 @@ public sealed partial class AccountDataPage : Page
         AccountSessionManager.PendingEditsChanged += OnPendingEditsChanged;
         Unloaded += Page_Unloaded;
 
-        CategoryFilterBox.SelectedIndex = 0;
         UnlockFilterBox.SelectedIndex = 0;
 
         _ = LoadAccountDataAsync();
@@ -80,7 +86,7 @@ public sealed partial class AccountDataPage : Page
 
         var unlockedArray = AccountSessionManager.GetValue(NmsAccountData.UnlockedItemsPath) as JArray;
         _workingIds = unlockedArray?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
-        _workingIdSet = new HashSet<string>(_workingIds, StringComparer.Ordinal);
+        _workingIdSet = new HashSet<string>(_workingIds.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
 
         _allItems = _catalogCache.Select(c => new AccountItemRowViewModel
         {
@@ -102,15 +108,21 @@ public sealed partial class AccountDataPage : Page
 
     private void Filter_Changed(object sender, SelectionChangedEventArgs e) => ApplyFilters();
 
+    private void CategoryCheck_Click(object sender, RoutedEventArgs e) => ApplyFilters();
+
     private void ApplyFilters()
     {
         if (_allItems is null) return;
 
         string query = SearchBox.Text?.Trim() ?? "";
-        string? categoryFilter = (CategoryFilterBox.SelectedItem as ComboBoxItem)?.Content as string;
         string? unlockFilter = (UnlockFilterBox.SelectedItem as ComboBoxItem)?.Content as string;
 
-        IEnumerable<AccountItemRowViewModel> filtered = _allItems;
+        var allowedCategories = new List<string>();
+        if (TechnologyCategoryCheck.IsChecked == true) allowedCategories.Add("Technology");
+        if (ProductCategoryCheck.IsChecked == true) allowedCategories.Add("Product");
+        if (SubstanceCategoryCheck.IsChecked == true) allowedCategories.Add("Substance");
+
+        IEnumerable<AccountItemRowViewModel> filtered = _allItems.Where(i => allowedCategories.Contains(i.CategoryLabel));
 
         if (!string.IsNullOrEmpty(query))
         {
@@ -119,35 +131,41 @@ public sealed partial class AccountDataPage : Page
                 i.GameId.Contains(query, StringComparison.OrdinalIgnoreCase));
         }
 
-        if (categoryFilter is "Technology" or "Product" or "Substance")
-            filtered = filtered.Where(i => i.CategoryLabel == categoryFilter);
-
         if (unlockFilter == "Unlocked Only")
             filtered = filtered.Where(i => i.IsUnlocked);
         else if (unlockFilter == "Locked Only")
             filtered = filtered.Where(i => !i.IsUnlocked);
 
-        var resultList = filtered.ToList();
-        ItemsListView.ItemsSource = resultList;
-        ResultCountTxt.Text = $"{resultList.Count:N0} of {_allItems.Count:N0} items";
+        _currentlyVisibleRows = filtered.ToList();
+        ItemsListView.ItemsSource = _currentlyVisibleRows;
+        ResultCountTxt.Text = $"{_currentlyVisibleRows.Count:N0} of {_allItems.Count:N0} items";
+    }
+
+    /// <summary>Adds/removes one row's id from the working unlock set - shared by
+    /// the per-row checkbox handler and the Unlock All/Lock All bulk actions so
+    /// both stay in sync with exactly one implementation of the raw-id bookkeeping
+    /// (see the _workingIds/_workingIdSet field comment).</summary>
+    private void SetRowUnlocked(AccountItemRowViewModel row, bool unlock)
+    {
+        row.IsUnlocked = unlock;
+
+        if (unlock)
+        {
+            if (_workingIdSet.Add(row.GameId))
+                _workingIds.Add("^" + row.GameId);
+        }
+        else
+        {
+            if (_workingIdSet.Remove(row.GameId))
+                _workingIds.RemoveAll(id => CatalogService.NormalizeId(id) == row.GameId);
+        }
     }
 
     private void ItemCheckBox_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not CheckBox cb || cb.Tag is not AccountItemRowViewModel row) return;
 
-        bool newValue = cb.IsChecked ?? false;
-        row.IsUnlocked = newValue;
-
-        if (newValue)
-        {
-            if (_workingIdSet.Add(row.GameId)) _workingIds.Add(row.GameId);
-        }
-        else
-        {
-            if (_workingIdSet.Remove(row.GameId)) _workingIds.Remove(row.GameId);
-        }
-
+        SetRowUnlocked(row, cb.IsChecked ?? false);
         AccountSessionManager.StageEdit(new JArray(_workingIds), NmsAccountData.UnlockedItemsPath);
 
         // Only re-run the filter when the active unlock filter would actually
@@ -156,6 +174,26 @@ public sealed partial class AccountDataPage : Page
         string? unlockFilter = (UnlockFilterBox.SelectedItem as ComboBoxItem)?.Content as string;
         if (unlockFilter is "Unlocked Only" or "Locked Only")
             ApplyFilters();
+    }
+
+    private void UnlockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetVisibleRows(unlock: true);
+
+    private void LockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetVisibleRows(unlock: false);
+
+    /// <summary>Scoped to whatever's currently visible (search + category checkboxes
+    /// + Unlocked/Locked filter) rather than the full ~4,700-item catalog, mirroring
+    /// NomNom's own per-section Unlock All/Lock All buttons - safer than a single
+    /// "unlock literally everything" action, and makes the filters double as a way
+    /// to target a bulk change (e.g. search "portal" then Unlock All).</summary>
+    private void BulkSetVisibleRows(bool unlock)
+    {
+        if (_currentlyVisibleRows.Count == 0) return;
+
+        foreach (var row in _currentlyVisibleRows)
+            SetRowUnlocked(row, unlock);
+
+        AccountSessionManager.StageEdit(new JArray(_workingIds), NmsAccountData.UnlockedItemsPath);
+        ApplyFilters();
     }
 
     private void UpdateEditButtons()

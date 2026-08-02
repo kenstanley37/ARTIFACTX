@@ -34,8 +34,13 @@ public static class CatalogService
     /// game's static data, so the catalog only ever has a row for the base
     /// type ("UP_SCAN0") - looking up the full suffixed id can never match,
     /// which is why every procedurally-rolled upgrade was silently falling
-    /// back to a raw-id label with no icon before this stripped it too.</summary>
-    private static string NormalizeId(string gameId)
+    /// back to a raw-id label with no icon before this stripped it too.
+    /// Public because AccountDataPage needs the exact same normalization for
+    /// accountdata.hg's B89/B1h ids, which carry the same "^" prefix despite
+    /// this project's own earlier notes claiming otherwise - confirmed by
+    /// direct inspection (2026-08-02) after that wrong assumption caused
+    /// every account item to read as locked.</summary>
+    public static string NormalizeId(string gameId)
     {
         string trimmed = gameId.TrimStart('^');
         int hashIndex = trimmed.IndexOf('#');
