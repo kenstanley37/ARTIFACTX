@@ -23,7 +23,7 @@
             </Grid>
 
             <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="820"
-                       Text="From the in-game Catalog &amp; Guide -&gt; Milestones screen - save-wide progress tracking, not tied to any specific ship/tool/companion, and NOT shared with your other save slots (each is a fully independent file). 6 of 12 categories are mapped to real save data so far (Arena League, Exploration Milestones, Survival Milestones, The Gek, The Vy'keen, The Korvax) - the rest are listed for reference but aren't wired up to anything yet."/>
+                       Text="From the in-game Catalog &amp; Guide -&gt; Milestones screen - save-wide progress tracking, not tied to any specific ship/tool/companion, and NOT shared with your other save slots (each is a fully independent file). 10 of 12 categories are mapped to real save data so far (Merchants Guild and Explorers Guild are partial - their Standing/Missions Completed fields are still ambiguous). Mercenaries Guild and Previous Expeditions aren't wired up yet."/>
 
             <Grid ColumnSpacing="24">
                 <Grid.ColumnDefinitions>

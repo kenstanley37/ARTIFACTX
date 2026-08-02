@@ -102,6 +102,36 @@ public sealed partial class MilestonesPage : Page
             new("Systems Visited", "ESEEN_SYSTEMS"),
             new("Nanite Clusters", "NANITES_EVER"),
         },
+        ["Outlaws"] = new()
+        {
+            new("Standing", "PIRATE_STAND"),
+            new("Missions Completed", "PIRATE_MISSIONS"),
+            new("Bounties Completed", "BOUNTIES"),
+        },
+        ["TheAutophage"] = new()
+        {
+            new("Standing", "BUI_STANDING"),
+            new("Missions Completed", "BDONE_MISSIONS"),
+            new("Words Learned", "BWORDS_LEARNT"),
+            new("Radiant Shards", "DRONE_SHARDS"),
+        },
+        // Merchants/Explorers Guild are partial - "Standing" and "Missions
+        // Completed" both read 0 in the screenshots that confirmed the rest
+        // of these fields, and the obvious *GUILD_STAND/*GDONE_MISSIONS
+        // candidates all read 0/None too, so there's no way to tell which
+        // candidate belongs to which guild by value alone yet.
+        ["MerchantsGuild"] = new()
+        {
+            new("Units Earned", "MONEY"),
+            new("Plants Farmed", "PLANTS_PLANTED"),
+            new("Rare Treasures", "PROC_PRODS"),
+        },
+        ["ExplorersGuild"] = new()
+        {
+            new("Rare Fauna Scanned", "RARE_SCANNED"),
+            new("Systems Mapped", "DIST_WARP"),
+            new("Plants Cataloged", "DISC_FLORA"),
+        },
     };
 
     private const string DefaultCategory = "ArenaLeague";
@@ -193,9 +223,12 @@ public sealed partial class MilestonesPage : Page
 
             var category = Categories.First(c => c.Tag == tag);
             MappedCategoryHeaderTxt.Text = category.DisplayName;
-            MappedCategoryNoteTxt.Text = tag == "ArenaLeague"
-                ? "Save-wide, not tied to any specific companion (a different number from the per-companion \"Holo-Arena Victories\" field on the Companions page)."
-                : "Save-wide - all fields below confirmed exact against a real Catalog & Guide screenshot.";
+            MappedCategoryNoteTxt.Text = tag switch
+            {
+                "ArenaLeague" => "Save-wide, not tied to any specific companion (a different number from the per-companion \"Holo-Arena Victories\" field on the Companions page).",
+                "MerchantsGuild" or "ExplorersGuild" => "Save-wide - fields below confirmed exact against a real screenshot. Standing and Missions Completed are missing on purpose: the obvious candidates all read 0 in this save, so which one belongs to which guild can't be confirmed until someone's save has a non-zero value to check against.",
+                _ => "Save-wide - all fields below confirmed exact against a real Catalog & Guide screenshot."
+            };
 
             BuildMappedCategoryFields(fields);
             LoadMappedCategoryStats();

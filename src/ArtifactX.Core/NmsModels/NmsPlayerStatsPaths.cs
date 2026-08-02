@@ -120,18 +120,53 @@ namespace ArtifactX.Core.NmsModels;
 ///   no confident candidate for the same reason as Planetary Zoology above
 ///   - not exposed. NOTE: EXP_STANDING is Korvax's standing, not "Explorers
 ///   Guild" as an earlier pass here guessed from the id text alone before
-///   any screenshot existed to check against - BUI_STANDING coincidentally
-///   also reads 15 in this same save (tied with EXP_STANDING) but the other
-///   3 Korvax fields all confirm the E-prefix specifically, and BUI_* doesn't
-///   match anything in the Milestones tree at all - what it actually is
-///   remains unknown, not exposed. The 3 Guild standings (Merchants/
-///   Mercenaries/Explorers) and the remaining Factions (Outlaws, The
-///   Autophage) and Previous Expeditions are all STILL unmapped - Previous
-///   Expeditions in particular does not look like it lives in GLOBAL_STATS
-///   at all (it's a list of named/numbered expedition completion badges in
-///   game, not a lifetime counter), so it likely needs an entirely
-///   different save structure and probably different UI than a NumberBox
-///   grid once someone tracks it down.
+///   any screenshot existed to check against.
+///
+/// OUTLAWS + THE AUTOPHAGE + PARTIAL MERCHANTS/EXPLORERS GUILD (2026-08-01,
+/// same day) - a 2nd screenshot batch resolved the BUI_* mystery from just
+/// above: it's not a coincidence or something unrelated, it's **The
+/// Autophage's** own letter prefix (a 4th race-style scheme alongside Gek/
+/// Vy'keen/Korvax's T/W/E, thematically fitting since Autophage are lore-wise
+/// "divergent Korvax" - a related-but-separate lineage). Confirmed exact:
+///   Outlaws: PIRATE_STAND-&gt;"Standing" (9==9), PIRATE_MISSIONS-&gt;"Missions
+///     Completed" (4==4), BOUNTIES-&gt;"Bounties Completed" (25==25).
+///     "Smuggling Run" and "Freighters Plundered" both read 0 in the
+///     screenshot with no confident candidate to disambiguate - not exposed
+///     (same reasoning as Planetary Zoology/Gek's Smuggling Run above).
+///   The Autophage: BUI_STANDING-&gt;"Standing" (15==15, the same value that
+///     made this look like a Korvax/EXP_STANDING coincidence before this
+///     screenshot existed - it wasn't), BDONE_MISSIONS-&gt;"Missions
+///     Completed" (3==3), BWORDS_LEARNT-&gt;"Words Learned" (140==140,
+///     confirms the B-prefix independently of Standing),
+///     DRONE_SHARDS-&gt;"Radiant Shards" (12==12, thematic fit - Autophage are
+///     robotic). "Autophage Salvage" (3 in the screenshot) ties with
+///     BDONE_MISSIONS and several unrelated stats - not exposed.
+///   Merchants Guild (partial): MONEY-&gt;"Units Earned" (1992707379==
+///     1992707379, the SAME field as Survival Milestones' "Units Accrued" -
+///     confirmed dual-purpose, not a conflict), PLANTS_PLANTED-&gt;"Plants
+///     Farmed" (18==18), PROC_PRODS-&gt;"Rare Treasures" (103==103, only
+///     candidate at that value, name doesn't obviously match but same
+///     ENEMIES_KILLED-style mismatch precedent already seen once).
+///   Explorers Guild (partial): RARE_SCANNED-&gt;"Rare Fauna Scanned"
+///     (37==37), DIST_WARP-&gt;"Systems Mapped" (123==123, the SAME field as
+///     Exploration Milestones' "Space Exploration" - confirmed dual-purpose
+///     again, off by 1 from the earlier Exploration Milestones screenshot's
+///     122, consistent with real gameplay between the two screenshots),
+///     DISC_FLORA-&gt;"Plants Cataloged" (66==66).
+///   "Standing" and "Missions Completed" for Merchants Guild and Explorers
+///   Guild both read 0 in their screenshots - TGUILD_STAND/WGUILD_STAND/
+///   EGUILD_STAND and the matching *GDONE_MISSIONS fields are the obvious
+///   structural candidates (same "T/W/E + GUILD" naming pattern, one per
+///   guild) but ALL read None/0 in this save, so there's no way to verify
+///   which maps to which guild by value alone - not exposed until someone's
+///   save has non-zero guild standing to check against.
+///
+/// STILL UNMAPPED: Mercenaries Guild (no screenshot provided yet) and
+/// Previous Expeditions - the latter does not look like it lives in
+/// GLOBAL_STATS at all (it's a list of named/numbered expedition completion
+/// badges in game, not a lifetime counter), so it likely needs an entirely
+/// different save structure and probably different UI than a NumberBox grid
+/// once someone tracks it down.
 /// </summary>
 public static class NmsPlayerStatsPaths
 {
