@@ -44,6 +44,7 @@ public sealed partial class AccountDataPage : Page
 
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         AccountSessionManager.PendingEditsChanged += OnPendingEditsChanged;
+        GameProcessMonitorService.RunningStateChanged += OnGameRunningStateChanged;
         Unloaded += Page_Unloaded;
 
         UnlockFilterBox.SelectedIndex = 0;
@@ -57,6 +58,9 @@ public sealed partial class AccountDataPage : Page
     private void OnPendingEditsChanged(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(UpdateEditButtons);
 
+    private void OnGameRunningStateChanged(object? sender, bool isRunning) =>
+        DispatcherQueue.TryEnqueue(UpdateEditButtons);
+
     /// <summary>See project_static_event_leak_fix.md - Frame.Navigate creates a
     /// brand-new Page instance every visit, so these static-service event
     /// subscriptions must be torn down here or they pile up across navigations.</summary>
@@ -64,6 +68,7 @@ public sealed partial class AccountDataPage : Page
     {
         SaveSessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
         AccountSessionManager.PendingEditsChanged -= OnPendingEditsChanged;
+        GameProcessMonitorService.RunningStateChanged -= OnGameRunningStateChanged;
     }
 
     private async Task LoadAccountDataAsync()
@@ -196,16 +201,30 @@ public sealed partial class AccountDataPage : Page
         ApplyFilters();
     }
 
+    /// <summary>Mirrors AppTitleBar's own SaveBtn gating exactly - accountdata.hg
+    /// is just as unsafe to overwrite while NMS is running as a per-slot save is
+    /// (see AccountSessionManager's doc comment), and the game rewriting it later
+    /// from its own in-memory copy after ArtifactX already wrote to it will
+    /// silently clobber the edit with no error on either side - confirmed
+    /// 2026-08-02 when a user-tested unlock never actually stuck (the on-disk
+    /// unlock list still matched the pre-edit content byte-for-byte afterward),
+    /// most likely explained by exactly this race since this gate didn't exist yet.</summary>
     private void UpdateEditButtons()
     {
         bool dirty = AccountSessionManager.HasUnsavedChanges;
-        SaveChangesBtn.IsEnabled = dirty;
+        bool gameRunning = GameProcessMonitorService.IsGameRunning;
+
+        SaveChangesBtn.IsEnabled = dirty && !gameRunning;
         DiscardChangesBtn.IsEnabled = dirty;
-        PendingEditsTxt.Text = dirty ? "Unsaved changes" : "";
+        PendingEditsTxt.Text = dirty
+            ? (gameRunning ? "Unsaved changes - close No Man's Sky to save" : "Unsaved changes")
+            : "";
     }
 
     private async void SaveChangesBtn_Click(object sender, RoutedEventArgs e)
     {
+        if (GameProcessMonitorService.IsGameRunning) return;
+
         try
         {
             await AccountSessionManager.CommitAsync();
