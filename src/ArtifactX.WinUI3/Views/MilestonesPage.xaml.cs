@@ -141,10 +141,16 @@ public sealed partial class MilestonesPage : Page
         },
     };
 
-    private const string DefaultCategory = "ArenaLeague";
+    // Static (not an instance field) so the selection survives navigating
+    // away and back - Frame.Navigate makes a fresh Page instance on every
+    // visit, so an instance field would silently reset to the top every
+    // time regardless of what the user was last looking at. Starts on the
+    // first category the very first time the page is ever opened this app
+    // session, then remembers whatever was last selected after that.
+    private static string _lastSelectedCategory = Categories[0].Tag;
 
     private readonly Dictionary<string, Button> _categoryButtons = new();
-    private string _selectedCategory = DefaultCategory;
+    private string _selectedCategory = _lastSelectedCategory;
     private bool _suppressChangeEvent;
 
     public MilestonesPage()
@@ -156,7 +162,7 @@ public sealed partial class MilestonesPage : Page
         Unloaded += Page_Unloaded;
 
         BuildCategoryList();
-        SelectCategory(DefaultCategory);
+        SelectCategory(_lastSelectedCategory);
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
@@ -221,6 +227,7 @@ public sealed partial class MilestonesPage : Page
     private void SelectCategory(string tag)
     {
         _selectedCategory = tag;
+        _lastSelectedCategory = tag;
         ApplyCategoryButtonStyles();
 
         if (MappedCategories.TryGetValue(tag, out var fields))
