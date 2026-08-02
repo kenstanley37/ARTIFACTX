@@ -63,15 +63,20 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Sets the same mental model NomNom's own "Catalog" tab gives this exact
-                     data, since that's what this list actually is - the game's own Catalog &
-                     Guide "seen/unseen" list, not a general inventory or crafting unlock. -->
+                <!-- Deliberately hedged wording - see project_account_data_page.md's
+                     2026-08-02 follow-up. NomNom's own "Catalog" tab claims this list drives
+                     the in-game Catalog & Guide -> Catalogue screen's black silhouettes, but
+                     direct testing (writing a confirmed-persisted id, then checking in-game)
+                     didn't show that effect, and the user separately confirmed that screen
+                     is actually driven by PER-SLOT save data, not accountdata.hg at all. Don't
+                     restate NomNom's claim as fact here until ArtifactX's own testing confirms
+                     what this list actually does in-game. -->
                 <Border Grid.Row="1" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
                         CornerRadius="6" Padding="12,8" Opacity="0.85">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource NmsTextSecondary}" VerticalAlignment="Top" Margin="0,2,0,0"/>
                         <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
-                                   Text="This is your account-wide Catalog - the same list NomNom's own 'Catalog' tab edits, and the black silhouettes shown for items you haven't seen yet under the game's Catalog &amp; Guide screen. Unlocking an item here only reveals it there; it doesn't add it to your inventory or grant its crafting recipe."/>
+                                   Text="This is your account-wide unlock list (accountdata.hg) - the same data NomNom's own 'Catalog' tab edits. NomNom describes it as controlling the black-silhouette items under the game's Catalog &amp; Guide screen, but ArtifactX hasn't independently confirmed that effect yet - that screen may actually be driven by per-save-slot data instead. Treat changes here as experimental until confirmed in-game."/>
                     </StackPanel>
                 </Border>
 
