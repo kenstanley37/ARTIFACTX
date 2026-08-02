@@ -61,6 +61,10 @@ public sealed partial class CataloguePage : Page
         var catalogItems = await CatalogService.GetAllUnlockableItemsAsync();
         var technologyItems = catalogItems.Where(c => c.CategoryLabel == "Technology").ToList();
 
+        // Small enough list (~370 rows) that warming every icon up front is
+        // cheap - unlike AccountDataPage's ~4,700-row list, which skips this.
+        await CatalogService.WarmCacheAsync(technologyItems.Select(c => c.GameId));
+
         var knownArray = SaveSessionManager.GetValue(NmsCataloguePaths.KnownTechnologyArrayPath) as JArray;
         _knownIds = knownArray?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
         _knownIdSet = new HashSet<string>(_knownIds.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
@@ -69,7 +73,8 @@ public sealed partial class CataloguePage : Page
         {
             GameId = c.GameId,
             DisplayName = c.DisplayName,
-            IsKnown = _knownIdSet.Contains(c.GameId)
+            IsKnown = _knownIdSet.Contains(c.GameId),
+            Icon = CatalogService.TryGet(c.GameId)?.Icon
         }).ToList();
 
         ApplyFilters();

@@ -73,11 +73,15 @@
                             <Grid Padding="4,6" ColumnSpacing="12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <CheckBox Grid.Column="0" IsChecked="{x:Bind IsKnown, Mode=OneWay}"
                                           Click="ItemCheckBox_Click" Tag="{x:Bind}" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="1" Text="{x:Bind DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                <Border Grid.Column="1" Width="32" Height="32" Background="#1A1F2E" CornerRadius="4" VerticalAlignment="Center">
+                                    <Image Source="{x:Bind Icon, Mode=OneWay}" Stretch="Uniform" Width="26" Height="26"/>
+                                </Border>
+                                <TextBlock Grid.Column="2" Text="{x:Bind DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                             </Grid>
                         </DataTemplate>
                     </ListView.ItemTemplate>
