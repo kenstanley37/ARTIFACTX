@@ -596,21 +596,30 @@ public static class CatalogService
         return results;
     }
 
+    // Cached process-wide (not per-page) - the underlying rows never change
+    // within an app session, and both AccountDataPage and CataloguePage need
+    // the same full ~4,700-row set, so caching it once here avoids each page
+    // keeping its own separate copy of the same query result.
+    private static List<CatalogUnlockableItem>? _unlockableItemsCache;
+
     /// <summary>Every catalog item that can plausibly appear in the account-wide
     /// "unlocked items" list (technology/product/substance rows only - the
     /// scene-path option tables like MultiToolTypes/ShipCapacity are model/slot
     /// metadata, not player-facing unlockables, so they're excluded here).
-    /// Used by AccountDataPage to build its full browsable list up front; unlike
-    /// SearchAsync this isn't restricted by name/count, so it returns the whole
-    /// ~4,700-row set in one call for the page to filter locally.</summary>
+    /// Used by AccountDataPage/CataloguePage to build their full browsable lists
+    /// up front; unlike SearchAsync this isn't restricted by name/count, so it
+    /// returns the whole set in one call for each page to filter locally.</summary>
     public static async Task<List<CatalogUnlockableItem>> GetAllUnlockableItemsAsync()
     {
+        if (_unlockableItemsCache is not null) return _unlockableItemsCache;
+
         string? dbPath = ResolveDbPath();
         if (dbPath is null) return new();
 
         try
         {
-            return await Task.Run(() => QueryAllUnlockableItems(dbPath));
+            _unlockableItemsCache = await Task.Run(() => QueryAllUnlockableItems(dbPath));
+            return _unlockableItemsCache;
         }
         catch (Exception ex)
         {

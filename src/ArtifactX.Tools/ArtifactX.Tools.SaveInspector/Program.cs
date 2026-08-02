@@ -26,6 +26,11 @@ switch (args[0].ToLowerInvariant())
         await SaveFieldEditService.EditUnitsAsync(args[1], args[2], newUnits);
         break;
 
+    case "add-known-tech":
+        if (args.Length < 4) { PrintUsage(); break; }
+        await SaveFieldEditService.AddToKnownTechAsync(args[1], args[2], args[3]);
+        break;
+
     default:
         PrintUsage();
         break;
@@ -37,4 +42,5 @@ void PrintUsage()
     LogService.Write("  SaveInspector inspect <path-to-file> [--full] [--extract]");
     LogService.Write("  SaveInspector roundtrip <input.hg> <output.hg>");
     LogService.Write("  SaveInspector edit-units <input.hg> <output.hg> <newUnitsValue>");
+    LogService.Write("  SaveInspector add-known-tech <input.hg> <output.hg> <rawItemId>");
 }

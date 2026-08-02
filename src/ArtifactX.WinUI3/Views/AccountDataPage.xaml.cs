@@ -21,12 +21,6 @@ namespace ArtifactX.WinUI3.Views;
 /// whether the game needs them kept in sync with B1h.</summary>
 public sealed partial class AccountDataPage : Page
 {
-    // Cached across page instances/navigations - the catalog's own rows
-    // (GameId/DisplayName/CategoryLabel) never change within an app session,
-    // only which ones are unlocked for the currently active account, so
-    // there's no reason to re-query SQLite for ~4,700 rows on every visit.
-    private static List<Models.CatalogUnlockableItem>? _catalogCache;
-
     private List<AccountItemRowViewModel>? _allItems;
     private List<AccountItemRowViewModel> _currentlyVisibleRows = new();
 
@@ -87,13 +81,13 @@ public sealed partial class AccountDataPage : Page
             return;
         }
 
-        _catalogCache ??= await CatalogService.GetAllUnlockableItemsAsync();
+        var catalogItems = await CatalogService.GetAllUnlockableItemsAsync();
 
         var unlockedArray = AccountSessionManager.GetValue(NmsAccountData.UnlockedItemsPath) as JArray;
         _workingIds = unlockedArray?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
         _workingIdSet = new HashSet<string>(_workingIds.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
 
-        _allItems = _catalogCache.Select(c => new AccountItemRowViewModel
+        _allItems = catalogItems.Select(c => new AccountItemRowViewModel
         {
             GameId = c.GameId,
             DisplayName = c.DisplayName,
