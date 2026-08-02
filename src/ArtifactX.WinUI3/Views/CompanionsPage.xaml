@@ -33,29 +33,16 @@
                 <ctcontrols:WrapPanel x:Name="CompanionSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
             </ScrollViewer>
 
-            <!-- Companion editor on the left, Arena League pinned to the
-                 top-right of it (same Grid+VisualStateManager pattern as
-                 FreighterPage's side panel) - top-aligned with the editor
-                 card, not with the title/selector above, per user request
-                 to match Freighter's layout. Drops to a full-width row under
-                 the editor once the window gets too narrow for both columns
-                 to fit comfortably. -->
-            <Grid x:Name="HeaderGrid" ColumnSpacing="24" RowSpacing="20">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" MinWidth="320"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <!-- Wide/short instead of narrow/tall - related fields sit in
-                     rows side by side rather than stacking the whole card into
-                     one long vertical column. -->
-                <Border Grid.Row="0" Grid.Column="0" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                        CornerRadius="8" Padding="20" Opacity="0.9" Width="860" HorizontalAlignment="Left">
-                        <StackPanel Spacing="18">
+            <!-- Wide/short instead of narrow/tall - related fields sit in
+                 rows side by side rather than stacking the whole card into
+                 one long vertical column. Used to share a Grid+
+                 VisualStateManager with an Arena League sidebar here - that
+                 moved to the new MilestonesPage (2026-08-01, it's a Factions
+                 milestone, not really a per-companion concern), so this is
+                 back to a single column with no sidebar to align against. -->
+            <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                    CornerRadius="8" Padding="20" Opacity="0.9" Width="860" HorizontalAlignment="Left">
+                <StackPanel Spacing="18">
                     <StackPanel Spacing="6">
                         <TextBlock Text="Name" FontSize="12" Opacity="0.7"/>
                         <TextBox x:Name="NameEditBox" Width="300" HorizontalAlignment="Left" LostFocus="NameEditBox_LostFocus"/>
@@ -238,65 +225,7 @@
                         <StackPanel x:Name="AdvancedFieldsPanel" Spacing="10"/>
                     </StackPanel>
                 </StackPanel>
-                </Border>
-
-                <Border x:Name="ArenaLeagueBorder" Grid.Row="0" Grid.Column="1"
-                        BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                        CornerRadius="8" Padding="16" Opacity="0.9" Width="260" VerticalAlignment="Top">
-                    <StackPanel Spacing="10">
-                        <TextBlock Text="Arena League" FontSize="14" FontWeight="SemiBold"/>
-                        <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                   Text="From Catalog &amp; Guide -&gt; Milestones -&gt; Arena League - save-wide, not per-pet (a different number from &quot;Holo-Arena Victories&quot; below). NOT shared with your other save slots, each of which is a fully independent file. All 5 confirmed exact against real screenshots."/>
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Champions Defeated" Opacity="0.7" FontSize="11"/>
-                            <NumberBox x:Name="ArenaChampionsBox" HorizontalAlignment="Stretch" Minimum="0"
-                                       SpinButtonPlacementMode="Hidden" ValueChanged="ArenaChampionsBox_ValueChanged" LostFocus="ArenaChampionsBox_LostFocus"/>
-                        </StackPanel>
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Holo-Arena Victories" Opacity="0.7" FontSize="11"/>
-                            <NumberBox x:Name="ArenaVictoriesBox" HorizontalAlignment="Stretch" Minimum="0"
-                                       SpinButtonPlacementMode="Hidden" ValueChanged="ArenaVictoriesBox_ValueChanged" LostFocus="ArenaVictoriesBox_LostFocus"/>
-                        </StackPanel>
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Apex Companions" Opacity="0.7" FontSize="11"/>
-                            <NumberBox x:Name="ArenaCompanionsBox" HorizontalAlignment="Stretch" Minimum="0"
-                                       SpinButtonPlacementMode="Hidden" ValueChanged="ArenaCompanionsBox_ValueChanged" LostFocus="ArenaCompanionsBox_LostFocus"/>
-                        </StackPanel>
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Hatch Eggs" Opacity="0.7" FontSize="11"/>
-                            <NumberBox x:Name="ArenaEggsBox" HorizontalAlignment="Stretch" Minimum="0"
-                                       SpinButtonPlacementMode="Hidden" ValueChanged="ArenaEggsBox_ValueChanged" LostFocus="ArenaEggsBox_LostFocus"/>
-                        </StackPanel>
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Iteration: Oceanus" Opacity="0.7" FontSize="11"/>
-                            <NumberBox x:Name="ArenaOceanusBox" HorizontalAlignment="Stretch" Minimum="0"
-                                       SpinButtonPlacementMode="Hidden" ValueChanged="ArenaOceanusBox_ValueChanged" LostFocus="ArenaOceanusBox_LostFocus"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-
-                <VisualStateManager.VisualStateGroups>
-                    <VisualStateGroup>
-                        <VisualState x:Name="HeaderWide">
-                            <VisualState.StateTriggers>
-                                <AdaptiveTrigger MinWindowWidth="950"/>
-                            </VisualState.StateTriggers>
-                        </VisualState>
-                        <VisualState x:Name="HeaderNarrow">
-                            <VisualState.StateTriggers>
-                                <AdaptiveTrigger MinWindowWidth="0"/>
-                            </VisualState.StateTriggers>
-                            <VisualState.Setters>
-                                <Setter Target="ArenaLeagueBorder.(Grid.Row)" Value="1"/>
-                                <Setter Target="ArenaLeagueBorder.(Grid.Column)" Value="0"/>
-                                <Setter Target="ArenaLeagueBorder.(Grid.ColumnSpan)" Value="2"/>
-                                <Setter Target="ArenaLeagueBorder.Width" Value="NaN"/>
-                                <Setter Target="ArenaLeagueBorder.HorizontalAlignment" Value="Stretch"/>
-                            </VisualState.Setters>
-                        </VisualState>
-                    </VisualStateGroup>
-                </VisualStateManager.VisualStateGroups>
-            </Grid>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </Page>

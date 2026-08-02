@@ -40,26 +40,6 @@ public sealed partial class CompanionsPage : Page
     private List<CompanionEntry> _companions = new();
     private bool _suppressStatChangeEvent;
 
-    // Separate from _suppressStatChangeEvent on purpose - real bug found
-    // 2026-07-31: LoadSelectedCompanion is `async` and awaits catalog fetches
-    // partway through, so it's still suspended (mid-await) when LoadCompanionList
-    // goes on to call LoadArenaLeagueStats() right after starting it. Both
-    // methods used to share _suppressStatChangeEvent, so Arena's own load
-    // (synchronous, finishes immediately) reset the SHARED flag back to
-    // false while LoadSelectedCompanion was still paused - by the time
-    // LoadSelectedCompanion resumed past its awaits and set Trust/Traits/
-    // GenesImproved/MutationProgress/HoloArenaVictories/MutationPoints,
-    // the flag was already false, so those load-time assignments got
-    // misread as real user edits and staged as 6 phantom pending changes
-    // (confirmed via a temporary diagnostic dump of the actual staged
-    // paths+values - all 6 matched exactly what had just been loaded, a
-    // pure no-op re-write). Fields set BEFORE LoadSelectedCompanion's first
-    // await (e.g. Name) were never affected, which is what pointed at the
-    // await/interleaving as the cause rather than a guard being missing
-    // outright. Two independent flags means neither load path can clobber
-    // the other's guard mid-flight.
-    private bool _suppressArenaChangeEvent;
-
     // Species archetype (XID, e.g. "RODENT") -> catalog data, loaded once per
     // page lifetime from the CreatureSpecies category - see CatalogService.
     private Dictionary<string, (string DisplayName, string Rarity, string Description)>? _creatureSpecies;
@@ -69,13 +49,6 @@ public sealed partial class CompanionsPage : Page
     // one (e.g. multiple tamed Rodents) - see CatalogService.
     // GetCreatureDescriptorTreeAsync and NmsCompanionPaths.DescriptorsPath.
     private readonly Dictionary<string, List<CreatureDescriptorNode>> _descriptorTreeCache = new();
-
-    // Save-wide (not per-pet) Arena League stats (NmsPlayerStatsPaths) - a "find by id"
-    // structure, not a fixed-index array. Resolved fresh (GLOBAL_STATS
-    // group's index, then a target stat's index within it) each time it's
-    // read or written rather than cached - a linear scan of ~457 entries is
-    // cheap enough that avoiding any staleness risk across save switches
-    // wins over the trivial saved cost of caching.
 
     public CompanionsPage()
     {
@@ -112,7 +85,6 @@ public sealed partial class CompanionsPage : Page
             _selectedIndex = -1;
             CompanionSelectorPanel.Children.Clear();
             ClearFields();
-            LoadArenaLeagueStats();
             return;
         }
 
@@ -148,93 +120,6 @@ public sealed partial class CompanionsPage : Page
 
         BuildSelectorStrip();
         LoadSelectedCompanion();
-        LoadArenaLeagueStats();
-    }
-
-    /// <summary>Finds the "GLOBAL_STATS" stat group's index within the outer
-    /// Stats array - see NmsPlayerStatsPaths' doc comment for why this can't
-    /// be a fixed constant. Returns -1 if not found (e.g. no save loaded).</summary>
-    private static int ResolveGlobalStatGroupIndex()
-    {
-        if (SaveSessionManager.GetValue(NmsPlayerStatsPaths.StatGroupsArrayPath) is not JArray groups)
-            return -1;
-
-        for (int i = 0; i < groups.Count; i++)
-        {
-            string groupId = (groups[i]?[":rc"]?.Value<string>() ?? "").TrimStart('^');
-            if (string.Equals(groupId, "GLOBAL_STATS", StringComparison.OrdinalIgnoreCase))
-                return i;
-        }
-        return -1;
-    }
-
-    /// <summary>Finds a stat's index within the given group's own Stats
-    /// list by its raw id (e.g. "PB_WINS", no "^" prefix needed). Returns
-    /// -1 if not found - some stats simply don't exist in every save (e.g.
-    /// never-touched counters may be omitted entirely rather than zeroed).</summary>
-    private static int ResolveStatIndex(int groupIndex, string statId)
-    {
-        if (groupIndex < 0) return -1;
-        if (SaveSessionManager.GetValue(NmsPlayerStatsPaths.GroupStatsArrayPath(groupIndex)) is not JArray stats)
-            return -1;
-
-        for (int i = 0; i < stats.Count; i++)
-        {
-            string id = (stats[i]?["b2n"]?.Value<string>() ?? "").TrimStart('^');
-            if (string.Equals(id, statId, StringComparison.OrdinalIgnoreCase))
-                return i;
-        }
-        return -1;
-    }
-
-    private void LoadArenaLeagueStats()
-    {
-        if (!SaveSessionManager.IsSaveLoaded)
-        {
-            ArenaChampionsBox.Value = double.NaN;
-            ArenaVictoriesBox.Value = double.NaN;
-            ArenaCompanionsBox.Value = double.NaN;
-            ArenaEggsBox.Value = double.NaN;
-            ArenaOceanusBox.Value = double.NaN;
-            return;
-        }
-
-        _suppressArenaChangeEvent = true;
-
-        int groupIndex = ResolveGlobalStatGroupIndex();
-        ArenaChampionsBox.Value = ReadArenaStat(groupIndex, "PB_BOSS_WINS");
-        ArenaVictoriesBox.Value = ReadArenaStat(groupIndex, "PB_WINS");
-        ArenaCompanionsBox.Value = ReadArenaStat(groupIndex, "PB_PETS_MAXED");
-        ArenaEggsBox.Value = ReadArenaStat(groupIndex, "EGGS_HATCHED");
-        ArenaOceanusBox.Value = ReadArenaStat(groupIndex, "PB_D_NEXUS");
-
-        _suppressArenaChangeEvent = false;
-    }
-
-    private static double ReadArenaStat(int groupIndex, string statId)
-    {
-        int statIndex = ResolveStatIndex(groupIndex, statId);
-        if (statIndex < 0) return 0; // stat not present in this save - treat as untouched/zero
-
-        return SaveSessionManager.GetValue(NmsPlayerStatsPaths.StatIntValuePath(groupIndex, statIndex))?.Value<double>() ?? 0;
-    }
-
-    /// <summary>Stages a new value for one Arena League stat by id, re-
-    /// resolving its position each time (see the class-level note on why
-    /// this isn't cached). Silently no-ops if the stat can't be found -
-    /// this can only happen for a stat that's genuinely never been touched
-    /// in this save at all, which none of the 4 exposed here should be for
-    /// an account with real Arena League progress.</summary>
-    private void SetArenaStat(string statId, double newValue)
-    {
-        if (_suppressArenaChangeEvent || double.IsNaN(newValue)) return;
-
-        int groupIndex = ResolveGlobalStatGroupIndex();
-        int statIndex = ResolveStatIndex(groupIndex, statId);
-        if (statIndex < 0) return;
-
-        SaveSessionManager.StageEdit((int)newValue, NmsPlayerStatsPaths.StatIntValuePath(groupIndex, statIndex));
-        PageResetBtn.Visibility = Visibility.Visible;
     }
 
     private void BuildSelectorStrip()
@@ -367,8 +252,7 @@ public sealed partial class CompanionsPage : Page
         HealthPointsBox.Value = points?.Count > 1 ? points[1].Value<double>() : double.NaN;
         CombatPointsBox.Value = points?.Count > 2 ? points[2].Value<double>() : double.NaN;
 
-        PageResetBtn.Visibility = SaveSessionManager.HasStagedEditsUnder(NmsCompanionPaths.CompanionPath(_selectedIndex)) ||
-            SaveSessionManager.HasStagedEditsUnder(NmsPlayerStatsPaths.StatGroupsArrayPath)
+        PageResetBtn.Visibility = SaveSessionManager.HasStagedEditsUnder(NmsCompanionPaths.CompanionPath(_selectedIndex))
             ? Visibility.Visible : Visibility.Collapsed;
 
         BuildAdvancedFieldsPanel(_selectedIndex);
@@ -946,21 +830,6 @@ public sealed partial class CompanionsPage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
-    private void ArenaChampionsBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => SetArenaStat("PB_BOSS_WINS", args.NewValue);
-    private void ArenaChampionsBox_LostFocus(object sender, RoutedEventArgs e) => SetArenaStat("PB_BOSS_WINS", ArenaChampionsBox.Value);
-
-    private void ArenaVictoriesBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => SetArenaStat("PB_WINS", args.NewValue);
-    private void ArenaVictoriesBox_LostFocus(object sender, RoutedEventArgs e) => SetArenaStat("PB_WINS", ArenaVictoriesBox.Value);
-
-    private void ArenaCompanionsBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => SetArenaStat("PB_PETS_MAXED", args.NewValue);
-    private void ArenaCompanionsBox_LostFocus(object sender, RoutedEventArgs e) => SetArenaStat("PB_PETS_MAXED", ArenaCompanionsBox.Value);
-
-    private void ArenaEggsBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => SetArenaStat("EGGS_HATCHED", args.NewValue);
-    private void ArenaEggsBox_LostFocus(object sender, RoutedEventArgs e) => SetArenaStat("EGGS_HATCHED", ArenaEggsBox.Value);
-
-    private void ArenaOceanusBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => SetArenaStat("PB_D_NEXUS", args.NewValue);
-    private void ArenaOceanusBox_LostFocus(object sender, RoutedEventArgs e) => SetArenaStat("PB_D_NEXUS", ArenaOceanusBox.Value);
-
     /// <summary>Stages one entry of the whole 3-slot mutation-points array -
     /// rebuilds and stages the WHOLE array at once, same reasoning as every
     /// other @bB-style array edit in the app (a deeper leaf-only stage isn't
@@ -1228,9 +1097,7 @@ public sealed partial class CompanionsPage : Page
     /// <summary>Scoped to just the currently selected pet's own subtree (via
     /// RevertEditsUnder) - same "current item only" scope as every other
     /// multi-item page's Reset button (e.g. Ships checks only the currently
-    /// loaded ship's ViewModels, not other owned ships) - PLUS the
-    /// save-wide Arena League stats, which aren't under any pet's own path
-    /// at all so wouldn't otherwise be covered.</summary>
+    /// loaded ship's ViewModels, not other owned ships).</summary>
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedIndex >= 0)
@@ -1238,9 +1105,6 @@ public sealed partial class CompanionsPage : Page
             SaveSessionManager.RevertEditsUnder(NmsCompanionPaths.CompanionPath(_selectedIndex));
             LoadSelectedCompanion();
         }
-
-        SaveSessionManager.RevertEditsUnder(NmsPlayerStatsPaths.StatGroupsArrayPath);
-        LoadArenaLeagueStats();
 
         PageResetBtn.Visibility = Visibility.Collapsed;
     }

@@ -103,6 +103,12 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
+                <NavigationViewItem x:Name="MilestonesNavItem" Content="Milestones" Tag="Milestones" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE9D9;" FontFamily="Segoe MDL2 Assets"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
 
                 <!-- Dev-only tools (raw JSON diffing/decryption used to reverse-engineer
                      field mappings) - collapsed in Release builds via MainWindow's
