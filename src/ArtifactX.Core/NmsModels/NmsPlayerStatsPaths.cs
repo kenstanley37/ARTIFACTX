@@ -84,6 +84,54 @@ namespace ArtifactX.Core.NmsModels;
 /// stat whose value is a plausible "victories" count (PB_CHALL_WINS/
 /// PB_LOSSES are both non-zero and track something else). Exposed as the
 /// 5th Arena League box.
+///
+/// EXPLORATION/SURVIVAL MILESTONES + THE GEK/VY'KEEN/KORVAX (2026-08-01) -
+/// confirmed exact by dumping all 457 GLOBAL_STATS entries from a real save
+/// and cross-checking every candidate against 6 real Catalog &amp; Guide
+/// screenshots (one per category). All matched exactly except where noted:
+///   Exploration Milestones: JM-&gt;"Overall Journey" (71==71),
+///     ALIENS_MET-&gt;"Alien Encounters" (90==90), WORDS_LEARNT-&gt;"Words
+///     Collected" (272==272), DIST_WARP-&gt;"Space Exploration" (122==122).
+///     "Planetary Zoology" (0/1 ecosystems) has no confident candidate - too
+///     many other 0-valued stats to disambiguate from a single screenshot;
+///     not exposed.
+///   Survival Milestones: SENTINEL_KILLS-&gt;"Sentinels Destroyed" (151==151),
+///     MONEY-&gt;"Units Accrued" (1992707379==1992707379, NOT MONEY_EVER,
+///     which is a smaller/different counter), ENEMIES_KILLED-&gt;"Ships
+///     Destroyed" (80==80, naming mismatch between the raw id and the
+///     in-game label - confirmed by value, not by name). DIST_WALKED
+///     (float, "eoL" not "&gt;vs") -&gt;"On-foot Exploration" was 119828.64 in
+///     the dump vs. 120,158 in the screenshot - not an exact match, but the
+///     ~0.3% gap is consistent with real gameplay between the dump and the
+///     screenshot being taken, not a wrong mapping (no other candidate is
+///     remotely close in magnitude for a walking-distance-shaped stat).
+///     LONGEST_LIFE_EX (float) -&gt;"Extreme Survival" matched exactly
+///     (1252.54 == 1252.5, the screenshot's own display already truncates
+///     to 1 decimal).
+///   The Gek/Vy'keen/Korvax share one underlying scheme: a per-race letter
+///   prefix (T=Gek, W=Vy'keen, E=Korvax) on STANDING/DONE_MISSIONS/
+///   WORDS_LEARNT/SEEN_SYSTEMS, e.g. TRA_STANDING/TDONE_MISSIONS/
+///   TWORDS_LEARNT/TSEEN_SYSTEMS for the Gek - all 12 (4 fields x 3 races)
+///   confirmed exact against their respective screenshots. Each race's 5th,
+///   unique field also confirmed: WALKERS_KILLED-&gt;Vy'keen "Walkers
+///   Destroyed" (2==2), NANITES_EVER-&gt;Korvax "Nanite Clusters"
+///   (26183==26183, NOT plain NANITES, which is current on-hand currency).
+///   Gek's own unique 5th field ("Smuggling Run", 0 in the screenshot) has
+///   no confident candidate for the same reason as Planetary Zoology above
+///   - not exposed. NOTE: EXP_STANDING is Korvax's standing, not "Explorers
+///   Guild" as an earlier pass here guessed from the id text alone before
+///   any screenshot existed to check against - BUI_STANDING coincidentally
+///   also reads 15 in this same save (tied with EXP_STANDING) but the other
+///   3 Korvax fields all confirm the E-prefix specifically, and BUI_* doesn't
+///   match anything in the Milestones tree at all - what it actually is
+///   remains unknown, not exposed. The 3 Guild standings (Merchants/
+///   Mercenaries/Explorers) and the remaining Factions (Outlaws, The
+///   Autophage) and Previous Expeditions are all STILL unmapped - Previous
+///   Expeditions in particular does not look like it lives in GLOBAL_STATS
+///   at all (it's a list of named/numbered expedition completion badges in
+///   game, not a lifetime counter), so it likely needs an entirely
+///   different save structure and probably different UI than a NumberBox
+///   grid once someone tracks it down.
 /// </summary>
 public static class NmsPlayerStatsPaths
 {
@@ -97,4 +145,9 @@ public static class NmsPlayerStatsPaths
         GroupPath(groupIndex).Append("gUR").Append(statIndex.ToString()).ToArray();
     public static string[] StatIdPath(int groupIndex, int statIndex) => StatPath(groupIndex, statIndex).Append("b2n").ToArray();
     public static string[] StatIntValuePath(int groupIndex, int statIndex) => StatPath(groupIndex, statIndex).Append(">MX").Append(">vs").ToArray();
+
+    /// <summary>Some stats (e.g. DIST_WALKED, LONGEST_LIFE_EX) store their
+    /// value as a float ("eoL") instead of an int ("&gt;vs") - the two are
+    /// mutually exclusive on any given entry, never both populated.</summary>
+    public static string[] StatFloatValuePath(int groupIndex, int statIndex) => StatPath(groupIndex, statIndex).Append(">MX").Append("eoL").ToArray();
 }

@@ -14,22 +14,22 @@ namespace ArtifactX.WinUI3.Views;
 
 /// <summary>
 /// Mirrors the in-game Catalog &amp; Guide -&gt; Milestones screen's own category
-/// tree (Milestones/Lifeforms/Factions, 12 categories total). Only "Arena
-/// League" is wired up to real save data so far (moved here from the
-/// Companions page 2026-08-01 - it's a Factions milestone, not really a
-/// per-companion concern) - the other 11 are real, correctly-named
-/// placeholders with no confirmed stat-ID mapping yet. Deliberately shipped
-/// this way rather than guessing at stat IDs for all 12 at once: every other
-/// page in this app got its field mappings confirmed one at a time against
-/// real screenshots (Arena League itself needed several correction rounds
-/// even for just 5 stats), and GLOBAL_STATS has 457 total entries with no
-/// decoded name table to cross-reference against - guessing broadly here
-/// would very likely ship wrong mappings, the same mistake already made and
-/// caught twice on Arena League alone.
+/// tree (Milestones/Lifeforms/Factions, 12 categories total). 6 are wired up
+/// to real save data so far (see MappedCategories below) - the rest are
+/// real, correctly-named placeholders with no confirmed stat-ID mapping yet.
+/// Shipped incrementally, one round of screenshot cross-referencing at a
+/// time, rather than guessing at all 12 up front: GLOBAL_STATS has 457 total
+/// entries with no decoded name table, and Arena League alone needed several
+/// correction rounds to get right for just 5 stats - guessing broadly would
+/// very likely ship wrong mappings, worse than shipping nothing since a
+/// wrong number silently misleads rather than obviously not existing. See
+/// NmsPlayerStatsPaths' doc comment for the exact cross-referencing done for
+/// each field below.
 /// </summary>
 public sealed partial class MilestonesPage : Page
 {
     private sealed record CategoryDef(string Tag, string DisplayName, string Group);
+    private sealed record MilestoneField(string Label, string StatId);
 
     private static readonly CategoryDef[] Categories =
     {
@@ -47,10 +47,67 @@ public sealed partial class MilestonesPage : Page
         new("TheAutophage", "The Autophage", "Factions"),
     };
 
-    private const string MappedCategory = "ArenaLeague";
+    /// <summary>Every field below is confirmed exact (or near-exact with an
+    /// explained gap) against a real Catalog &amp; Guide screenshot - see
+    /// NmsPlayerStatsPaths' doc comment for the full cross-referencing per
+    /// field, including why a couple of same-category fields (Gek's
+    /// "Smuggling Run", Exploration's "Planetary Zoology") are missing -
+    /// both show 0 in-game with too many ambiguous 0-valued candidates in
+    /// GLOBAL_STATS to confirm from a single screenshot.</summary>
+    private static readonly Dictionary<string, List<MilestoneField>> MappedCategories = new()
+    {
+        ["ArenaLeague"] = new()
+        {
+            new("Champions Defeated", "PB_BOSS_WINS"),
+            new("Holo-Arena Victories", "PB_WINS"),
+            new("Apex Companions", "PB_PETS_MAXED"),
+            new("Hatch Eggs", "EGGS_HATCHED"),
+            new("Iteration: Oceanus", "PB_D_NEXUS"),
+        },
+        ["ExplorationMilestones"] = new()
+        {
+            new("Overall Journey", "JM"),
+            new("Alien Encounters", "ALIENS_MET"),
+            new("Words Collected", "WORDS_LEARNT"),
+            new("Space Exploration", "DIST_WARP"),
+        },
+        ["SurvivalMilestones"] = new()
+        {
+            new("On-foot Exploration", "DIST_WALKED"),
+            new("Extreme Survival", "LONGEST_LIFE_EX"),
+            new("Sentinels Destroyed", "SENTINEL_KILLS"),
+            new("Units Accrued", "MONEY"),
+            new("Ships Destroyed", "ENEMIES_KILLED"),
+        },
+        ["TheGek"] = new()
+        {
+            new("Standing", "TRA_STANDING"),
+            new("Missions Completed", "TDONE_MISSIONS"),
+            new("Words Learned", "TWORDS_LEARNT"),
+            new("Systems Visited", "TSEEN_SYSTEMS"),
+        },
+        ["TheVyKeen"] = new()
+        {
+            new("Standing", "WAR_STANDING"),
+            new("Missions Completed", "WDONE_MISSIONS"),
+            new("Words Learned", "WWORDS_LEARNT"),
+            new("Systems Visited", "WSEEN_SYSTEMS"),
+            new("Walkers Destroyed", "WALKERS_KILLED"),
+        },
+        ["TheKorvax"] = new()
+        {
+            new("Standing", "EXP_STANDING"),
+            new("Missions Completed", "EDONE_MISSIONS"),
+            new("Words Learned", "EWORDS_LEARNT"),
+            new("Systems Visited", "ESEEN_SYSTEMS"),
+            new("Nanite Clusters", "NANITES_EVER"),
+        },
+    };
+
+    private const string DefaultCategory = "ArenaLeague";
 
     private readonly Dictionary<string, Button> _categoryButtons = new();
-    private string _selectedCategory = MappedCategory;
+    private string _selectedCategory = DefaultCategory;
     private bool _suppressChangeEvent;
 
     public MilestonesPage()
@@ -62,13 +119,13 @@ public sealed partial class MilestonesPage : Page
         Unloaded += Page_Unloaded;
 
         BuildCategoryList();
-        SelectCategory(MappedCategory);
+        SelectCategory(DefaultCategory);
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(() =>
         {
-            if (_selectedCategory == MappedCategory) LoadArenaLeagueStats();
+            if (MappedCategories.ContainsKey(_selectedCategory)) LoadMappedCategoryStats();
         });
 
     /// <summary>Without this, the constructor's subscriptions above never
@@ -129,22 +186,57 @@ public sealed partial class MilestonesPage : Page
         _selectedCategory = tag;
         ApplyCategoryButtonStyles();
 
-        bool isArenaLeague = tag == MappedCategory;
-        ArenaLeaguePanel.Visibility = isArenaLeague ? Visibility.Visible : Visibility.Collapsed;
-        PlaceholderPanel.Visibility = isArenaLeague ? Visibility.Collapsed : Visibility.Visible;
-
-        if (isArenaLeague)
+        if (MappedCategories.TryGetValue(tag, out var fields))
         {
-            LoadArenaLeagueStats();
+            MappedCategoryPanel.Visibility = Visibility.Visible;
+            PlaceholderPanel.Visibility = Visibility.Collapsed;
+
+            var category = Categories.First(c => c.Tag == tag);
+            MappedCategoryHeaderTxt.Text = category.DisplayName;
+            MappedCategoryNoteTxt.Text = tag == "ArenaLeague"
+                ? "Save-wide, not tied to any specific companion (a different number from the per-companion \"Holo-Arena Victories\" field on the Companions page)."
+                : "Save-wide - all fields below confirmed exact against a real Catalog & Guide screenshot.";
+
+            BuildMappedCategoryFields(fields);
+            LoadMappedCategoryStats();
         }
         else
         {
+            MappedCategoryPanel.Visibility = Visibility.Collapsed;
+            PlaceholderPanel.Visibility = Visibility.Visible;
             PlaceholderHeaderTxt.Text = Categories.First(c => c.Tag == tag).DisplayName;
             PageResetBtn.Visibility = Visibility.Collapsed;
         }
     }
 
-    // --- Arena League: moved from CompanionsPage.xaml.cs (2026-08-01) ---
+    private readonly Dictionary<string, NumberBox> _mappedFieldBoxes = new();
+
+    private void BuildMappedCategoryFields(List<MilestoneField> fields)
+    {
+        MappedCategoryFieldsPanel.Children.Clear();
+        _mappedFieldBoxes.Clear();
+
+        foreach (var field in fields)
+        {
+            var panel = new StackPanel { Spacing = 6 };
+            panel.Children.Add(new TextBlock { Text = field.Label, Opacity = 0.7, FontSize = 12 });
+
+            var box = new NumberBox
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Minimum = 0,
+                SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden
+            };
+            box.ValueChanged += (_, args) => SetStat(field.StatId, args.NewValue);
+            box.LostFocus += (_, _) => SetStat(field.StatId, box.Value);
+
+            panel.Children.Add(box);
+            MappedCategoryFieldsPanel.Children.Add(panel);
+            _mappedFieldBoxes[field.StatId] = box;
+        }
+    }
+
+    // --- Generic GLOBAL_STATS access, shared by every mapped category ---
 
     /// <summary>GcPlayerStateData.Stats (NmsPlayerStatsPaths) is a "find by
     /// id" structure, not a fixed-index array - the GLOBAL_STATS group's
@@ -186,15 +278,11 @@ public sealed partial class MilestonesPage : Page
         return -1;
     }
 
-    private void LoadArenaLeagueStats()
+    private void LoadMappedCategoryStats()
     {
         if (!SaveSessionManager.IsSaveLoaded)
         {
-            ArenaChampionsBox.Value = double.NaN;
-            ArenaVictoriesBox.Value = double.NaN;
-            ArenaCompanionsBox.Value = double.NaN;
-            ArenaEggsBox.Value = double.NaN;
-            ArenaOceanusBox.Value = double.NaN;
+            foreach (var box in _mappedFieldBoxes.Values) box.Value = double.NaN;
             PageResetBtn.Visibility = Visibility.Collapsed;
             return;
         }
@@ -202,11 +290,8 @@ public sealed partial class MilestonesPage : Page
         _suppressChangeEvent = true;
 
         int groupIndex = ResolveGlobalStatGroupIndex();
-        ArenaChampionsBox.Value = ReadArenaStat(groupIndex, "PB_BOSS_WINS");
-        ArenaVictoriesBox.Value = ReadArenaStat(groupIndex, "PB_WINS");
-        ArenaCompanionsBox.Value = ReadArenaStat(groupIndex, "PB_PETS_MAXED");
-        ArenaEggsBox.Value = ReadArenaStat(groupIndex, "EGGS_HATCHED");
-        ArenaOceanusBox.Value = ReadArenaStat(groupIndex, "PB_D_NEXUS");
+        foreach (var (statId, box) in _mappedFieldBoxes)
+            box.Value = ReadStat(groupIndex, statId);
 
         PageResetBtn.Visibility = SaveSessionManager.HasStagedEditsUnder(NmsPlayerStatsPaths.StatGroupsArrayPath)
             ? Visibility.Visible : Visibility.Collapsed;
@@ -214,21 +299,32 @@ public sealed partial class MilestonesPage : Page
         _suppressChangeEvent = false;
     }
 
-    private static double ReadArenaStat(int groupIndex, string statId)
+    /// <summary>Most stats are plain ints, but a few (e.g. DIST_WALKED,
+    /// LONGEST_LIFE_EX) store a float instead - the two are mutually
+    /// exclusive per stat, so check the int path first and only fall back
+    /// to the float path if that's null. Rounded to 2 decimals for display;
+    /// the ~0.000001-scale precision this loses is irrelevant next to
+    /// values in the thousands/millions.</summary>
+    private static double ReadStat(int groupIndex, string statId)
     {
         int statIndex = ResolveStatIndex(groupIndex, statId);
         if (statIndex < 0) return 0; // stat not present in this save - treat as untouched/zero
 
-        return SaveSessionManager.GetValue(NmsPlayerStatsPaths.StatIntValuePath(groupIndex, statIndex))?.Value<double>() ?? 0;
+        var intValue = SaveSessionManager.GetValue(NmsPlayerStatsPaths.StatIntValuePath(groupIndex, statIndex));
+        if (intValue is not null) return intValue.Value<double>();
+
+        var floatValue = SaveSessionManager.GetValue(NmsPlayerStatsPaths.StatFloatValuePath(groupIndex, statIndex));
+        return floatValue is not null ? Math.Round(floatValue.Value<double>(), 2) : 0;
     }
 
-    /// <summary>Stages a new value for one Arena League stat by id, re-
-    /// resolving its position each time (see ResolveGlobalStatGroupIndex's
-    /// doc comment on why this isn't cached). Silently no-ops if the stat
-    /// can't be found - this can only happen for a stat that's genuinely
-    /// never been touched in this save at all, which none of the 5 exposed
-    /// here should be for an account with real Arena League progress.</summary>
-    private void SetArenaStat(string statId, double newValue)
+    /// <summary>Stages a new value for one stat by id, re-resolving its
+    /// position each time (see ResolveGlobalStatGroupIndex's doc comment on
+    /// why this isn't cached). Silently no-ops if the stat can't be found -
+    /// this can only happen for a stat that's genuinely never been touched
+    /// in this save at all. Writes to whichever value type (int/float) the
+    /// stat already used, determined by which one is currently populated,
+    /// so an edited float stat stays a float and vice versa.</summary>
+    private void SetStat(string statId, double newValue)
     {
         if (_suppressChangeEvent || double.IsNaN(newValue)) return;
 
@@ -236,29 +332,19 @@ public sealed partial class MilestonesPage : Page
         int statIndex = ResolveStatIndex(groupIndex, statId);
         if (statIndex < 0) return;
 
-        SaveSessionManager.StageEdit((int)newValue, NmsPlayerStatsPaths.StatIntValuePath(groupIndex, statIndex));
+        bool isFloat = SaveSessionManager.GetValue(NmsPlayerStatsPaths.StatIntValuePath(groupIndex, statIndex)) is null;
+        if (isFloat)
+            SaveSessionManager.StageEdit(newValue, NmsPlayerStatsPaths.StatFloatValuePath(groupIndex, statIndex));
+        else
+            SaveSessionManager.StageEdit((int)newValue, NmsPlayerStatsPaths.StatIntValuePath(groupIndex, statIndex));
+
         PageResetBtn.Visibility = Visibility.Visible;
     }
-
-    private void ArenaChampionsBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => SetArenaStat("PB_BOSS_WINS", args.NewValue);
-    private void ArenaChampionsBox_LostFocus(object sender, RoutedEventArgs e) => SetArenaStat("PB_BOSS_WINS", ArenaChampionsBox.Value);
-
-    private void ArenaVictoriesBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => SetArenaStat("PB_WINS", args.NewValue);
-    private void ArenaVictoriesBox_LostFocus(object sender, RoutedEventArgs e) => SetArenaStat("PB_WINS", ArenaVictoriesBox.Value);
-
-    private void ArenaCompanionsBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => SetArenaStat("PB_PETS_MAXED", args.NewValue);
-    private void ArenaCompanionsBox_LostFocus(object sender, RoutedEventArgs e) => SetArenaStat("PB_PETS_MAXED", ArenaCompanionsBox.Value);
-
-    private void ArenaEggsBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => SetArenaStat("EGGS_HATCHED", args.NewValue);
-    private void ArenaEggsBox_LostFocus(object sender, RoutedEventArgs e) => SetArenaStat("EGGS_HATCHED", ArenaEggsBox.Value);
-
-    private void ArenaOceanusBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => SetArenaStat("PB_D_NEXUS", args.NewValue);
-    private void ArenaOceanusBox_LostFocus(object sender, RoutedEventArgs e) => SetArenaStat("PB_D_NEXUS", ArenaOceanusBox.Value);
 
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
         SaveSessionManager.RevertEditsUnder(NmsPlayerStatsPaths.StatGroupsArrayPath);
-        LoadArenaLeagueStats();
+        if (MappedCategories.ContainsKey(_selectedCategory)) LoadMappedCategoryStats();
         PageResetBtn.Visibility = Visibility.Collapsed;
     }
 }

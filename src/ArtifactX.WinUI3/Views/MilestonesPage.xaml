@@ -23,7 +23,7 @@
             </Grid>
 
             <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="820"
-                       Text="From the in-game Catalog &amp; Guide -&gt; Milestones screen - save-wide progress tracking, not tied to any specific ship/tool/companion, and NOT shared with your other save slots (each is a fully independent file). Only Arena League is mapped to real save data so far - the other 11 categories are listed for reference but aren't wired up to anything yet."/>
+                       Text="From the in-game Catalog &amp; Guide -&gt; Milestones screen - save-wide progress tracking, not tied to any specific ship/tool/companion, and NOT shared with your other save slots (each is a fully independent file). 6 of 12 categories are mapped to real save data so far (Arena League, Exploration Milestones, Survival Milestones, The Gek, The Vy'keen, The Korvax) - the rest are listed for reference but aren't wired up to anything yet."/>
 
             <Grid ColumnSpacing="24">
                 <Grid.ColumnDefinitions>
@@ -54,40 +54,17 @@
                                    Text="This category hasn't been mapped to real save data yet. A screenshot of this category's Catalog &amp; Guide screen (with the numbers visible) would let us find and confirm the matching stat IDs - the same way Arena League was done."/>
                     </StackPanel>
 
-                    <!-- The one live category, moved here from the Companions page - it's a
-                         Factions milestone, not really a per-companion concern. Same 5
-                         NumberBoxes/logic as before, just relocated. -->
-                    <Border x:Name="ArenaLeaguePanel" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                    <!-- One reusable panel for every mapped category - fields are built
+                         dynamically in code from each category's field list (see
+                         MappedCategories in the code-behind) rather than one hand-written
+                         Border per category, since 6 mapped categories x ~4-5 fields each
+                         would otherwise mean a lot of repetitive XAML. -->
+                    <Border x:Name="MappedCategoryPanel" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
                             CornerRadius="8" Padding="20" Opacity="0.9" Width="340" HorizontalAlignment="Left" Visibility="Collapsed">
                         <StackPanel Spacing="14">
-                            <TextBlock Text="Arena League" FontSize="20" FontWeight="SemiBold"/>
-                            <TextBlock FontSize="11" Opacity="0.6" TextWrapping="Wrap"
-                                       Text="Save-wide, not tied to any specific companion (a different number from the per-companion &quot;Holo-Arena Victories&quot; field on the Companions page). All 5 confirmed exact against real screenshots."/>
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Champions Defeated" Opacity="0.7" FontSize="12"/>
-                                <NumberBox x:Name="ArenaChampionsBox" HorizontalAlignment="Stretch" Minimum="0"
-                                           SpinButtonPlacementMode="Hidden" ValueChanged="ArenaChampionsBox_ValueChanged" LostFocus="ArenaChampionsBox_LostFocus"/>
-                            </StackPanel>
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Holo-Arena Victories" Opacity="0.7" FontSize="12"/>
-                                <NumberBox x:Name="ArenaVictoriesBox" HorizontalAlignment="Stretch" Minimum="0"
-                                           SpinButtonPlacementMode="Hidden" ValueChanged="ArenaVictoriesBox_ValueChanged" LostFocus="ArenaVictoriesBox_LostFocus"/>
-                            </StackPanel>
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Apex Companions" Opacity="0.7" FontSize="12"/>
-                                <NumberBox x:Name="ArenaCompanionsBox" HorizontalAlignment="Stretch" Minimum="0"
-                                           SpinButtonPlacementMode="Hidden" ValueChanged="ArenaCompanionsBox_ValueChanged" LostFocus="ArenaCompanionsBox_LostFocus"/>
-                            </StackPanel>
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Hatch Eggs" Opacity="0.7" FontSize="12"/>
-                                <NumberBox x:Name="ArenaEggsBox" HorizontalAlignment="Stretch" Minimum="0"
-                                           SpinButtonPlacementMode="Hidden" ValueChanged="ArenaEggsBox_ValueChanged" LostFocus="ArenaEggsBox_LostFocus"/>
-                            </StackPanel>
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Iteration: Oceanus" Opacity="0.7" FontSize="12"/>
-                                <NumberBox x:Name="ArenaOceanusBox" HorizontalAlignment="Stretch" Minimum="0"
-                                           SpinButtonPlacementMode="Hidden" ValueChanged="ArenaOceanusBox_ValueChanged" LostFocus="ArenaOceanusBox_LostFocus"/>
-                            </StackPanel>
+                            <TextBlock x:Name="MappedCategoryHeaderTxt" FontSize="20" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="MappedCategoryNoteTxt" FontSize="11" Opacity="0.6" TextWrapping="Wrap"/>
+                            <StackPanel x:Name="MappedCategoryFieldsPanel" Spacing="14"/>
                         </StackPanel>
                     </Border>
                 </Grid>
