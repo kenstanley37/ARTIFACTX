@@ -68,42 +68,43 @@
                             ToolTipService.ToolTip="Marks every item currently shown below as known (respects the search box and filter)"/>
                 </Grid>
 
-                <!-- Icon-tile grid, not a text list - mirrors how NMS's own inventory/
-                     catalog screens actually look, and fills the window's width far
-                     better than a single skinny column of rows did. Not virtualized
-                     (plain WrapPanel, not a virtualizing ItemsPanel), but ~370 tiles is
-                     a small enough visual tree for WinUI that this is a non-issue -
-                     the same reasoning that made icons themselves affordable here but
-                     not on AccountDataPage's ~4,700-row list (see CatalogueRowViewModel).
-                     Each tile is a single Tapped handler, not a separate CheckBox click -
-                     the CheckBox drawn on it is purely a visual indicator
-                     (IsHitTestVisible="False") to avoid the same tap bubbling and
-                     double-toggling both handlers at once. -->
+                <!-- Compact rows (checkbox + small icon + name), fixed-width so the same
+                     WrapPanel lays several out per line instead of stretching one row
+                     across the whole window - a multi-column list rather than the
+                     earlier single stretched column or the big square icon tiles (both
+                     tried first; see project_catalogue_page.md for why each didn't land).
+                     Not virtualized (plain WrapPanel, not a virtualizing ItemsPanel), but
+                     ~370 rows is a small enough visual tree for WinUI that this is a
+                     non-issue - same reasoning that made icons themselves affordable
+                     here but not on AccountDataPage's ~4,700-row list. Tapped on the
+                     whole row, not a separate CheckBox click - the CheckBox drawn on it
+                     is a non-hit-testable visual indicator only, to avoid the tap
+                     bubbling to both handlers and double-toggling. -->
                 <ScrollViewer Grid.Row="2">
                     <ItemsControl x:Name="ItemsListView">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="10"/>
+                                <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="8"/>
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="viewmodels:CatalogueRowViewModel">
-                                <Border Width="112" Height="132" CornerRadius="8" BorderThickness="2"
+                                <Border Width="320" Padding="8,6" CornerRadius="6" BorderThickness="1.5"
                                         Tapped="Tile_Tapped" Tag="{x:Bind}"
                                         BorderBrush="{x:Bind IsKnown, Mode=OneWay, Converter={StaticResource BoolToAccentBrushConverter}}"
                                         Background="{x:Bind IsKnown, Mode=OneWay, Converter={StaticResource BoolToActiveBackgroundConverter}}">
-                                    <Grid Padding="8">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="*"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-                                        <Image Grid.Row="0" Source="{x:Bind Icon, Mode=OneWay}" Width="56" Height="56"
-                                               Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        <CheckBox Grid.Row="0" IsChecked="{x:Bind IsKnown, Mode=OneWay}" IsHitTestVisible="False"
-                                                  HorizontalAlignment="Right" VerticalAlignment="Top" Margin="-6"/>
-                                        <TextBlock Grid.Row="1" Text="{x:Bind DisplayName}" FontSize="11" TextWrapping="Wrap"
-                                                   TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxLines="2"
-                                                   HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                    <Grid ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" IsChecked="{x:Bind IsKnown, Mode=OneWay}" IsHitTestVisible="False" VerticalAlignment="Center"/>
+                                        <Border Grid.Column="1" Width="28" Height="28" Background="#1A1F2E" CornerRadius="4" VerticalAlignment="Center">
+                                            <Image Source="{x:Bind Icon, Mode=OneWay}" Stretch="Uniform" Width="22" Height="22"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="2" Text="{x:Bind DisplayName}" FontSize="12"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
