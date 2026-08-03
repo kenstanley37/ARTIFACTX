@@ -83,7 +83,12 @@
                      here but not on AccountDataPage's ~4,700-row list. Tapped on the
                      whole row, not a separate CheckBox click - the CheckBox drawn on it
                      is a non-hit-testable visual indicator only, to avoid the tap
-                     bubbling to both handlers and double-toggling. -->
+                     bubbling to both handlers and double-toggling.
+                     Deliberately no colored border on Known rows (dropped
+                     BoolToAccentBrushConverter after feedback that a full solid-orange
+                     border on most of ~370 rows read as visual noise, not "modern") -
+                     the checkbox already communicates state clearly on its own; only a
+                     soft background tint (BoolToActiveBackgroundConverter) reinforces it. -->
                 <ScrollViewer Grid.Row="2">
                     <ItemsControl x:Name="ItemsListView">
                         <ItemsControl.ItemsPanel>
@@ -93,9 +98,9 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="viewmodels:CatalogueRowViewModel">
-                                <Border Width="320" Padding="8,6" CornerRadius="6" BorderThickness="1.5"
+                                <Border Width="360" Padding="10,8" CornerRadius="6" BorderThickness="1"
                                         Tapped="Tile_Tapped" Tag="{x:Bind}"
-                                        BorderBrush="{x:Bind IsKnown, Mode=OneWay, Converter={StaticResource BoolToAccentBrushConverter}}"
+                                        BorderBrush="{ThemeResource NmsTextSecondary}" Opacity="0.95"
                                         Background="{x:Bind IsKnown, Mode=OneWay, Converter={StaticResource BoolToActiveBackgroundConverter}}">
                                     <Grid ColumnSpacing="10">
                                         <Grid.ColumnDefinitions>
@@ -107,8 +112,8 @@
                                         <Border Grid.Column="1" Width="28" Height="28" Background="#1A1F2E" CornerRadius="4" VerticalAlignment="Center">
                                             <Image Source="{x:Bind Icon, Mode=OneWay}" Stretch="Uniform" Width="22" Height="22"/>
                                         </Border>
-                                        <TextBlock Grid.Column="2" Text="{x:Bind DisplayName}" FontSize="12"
-                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="2" Text="{x:Bind DisplayName}" FontSize="12" TextWrapping="Wrap"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxLines="2"/>
                                     </Grid>
                                 </Border>
                             </DataTemplate>

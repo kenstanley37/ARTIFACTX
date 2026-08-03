@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Input;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -90,7 +91,7 @@ public sealed partial class CataloguePage : Page
         _allItems = technologyItems.Select(c => new CatalogueRowViewModel
         {
             GameId = c.GameId,
-            DisplayName = c.DisplayName,
+            DisplayName = ToDisplayCase(c.DisplayName),
             IsKnown = _knownIdSet.Contains(c.GameId),
             Icon = CatalogService.TryGet(c.GameId)?.Icon
         }).ToList();
@@ -103,6 +104,13 @@ public sealed partial class CataloguePage : Page
         UpdateResetButton();
     }
 
+    /// <summary>The catalog DB's NameEnglish is the game's own raw ALL-CAPS
+    /// string ("ADVANCED EXOCRAFT LASER") - fine as a single detail-panel
+    /// title elsewhere in the app, but reads as harsh/dated across ~370 dense
+    /// tiles at once. Display-only - GameId (used for matching/staging) is
+    /// never touched by this.</summary>
+    private static string ToDisplayCase(string rawName) =>
+        CultureInfo.InvariantCulture.TextInfo.ToTitleCase(rawName.ToLowerInvariant());
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilters();
 
     private void Filter_Changed(object sender, SelectionChangedEventArgs e) => ApplyFilters();
