@@ -3,6 +3,7 @@ using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -127,11 +128,11 @@ public sealed partial class CataloguePage : Page
         }
     }
 
-    private void ItemCheckBox_Click(object sender, RoutedEventArgs e)
+    private void Tile_Tapped(object sender, TappedRoutedEventArgs e)
     {
-        if (sender is not CheckBox cb || cb.Tag is not CatalogueRowViewModel row) return;
+        if (sender is not FrameworkElement { Tag: CatalogueRowViewModel row }) return;
 
-        SetRowKnown(row, cb.IsChecked ?? false);
+        SetRowKnown(row, !row.IsKnown);
         SaveSessionManager.StageEdit(new JArray(_knownIds), NmsCataloguePaths.KnownTechnologyArrayPath);
         UpdateResetButton();
 
