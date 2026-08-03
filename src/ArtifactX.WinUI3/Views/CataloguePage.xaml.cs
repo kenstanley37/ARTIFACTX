@@ -69,6 +69,13 @@ public sealed partial class CataloguePage : Page
 
     private async Task LoadCatalogueAsync()
     {
+        // Building ~370 rows plus warming their icons takes a couple of
+        // seconds - without this, the page sits on a blank Grid until it's
+        // all done, which reads as unresponsive rather than loading.
+        ContentPanel.Visibility = Visibility.Collapsed;
+        LoadingRing.IsActive = true;
+        LoadingRing.Visibility = Visibility.Visible;
+
         var catalogItems = await CatalogService.GetAllUnlockableItemsAsync();
         var technologyItems = catalogItems.Where(c => c.CategoryLabel == "Technology").ToList();
 
@@ -87,6 +94,10 @@ public sealed partial class CataloguePage : Page
             IsKnown = _knownIdSet.Contains(c.GameId),
             Icon = CatalogService.TryGet(c.GameId)?.Icon
         }).ToList();
+
+        LoadingRing.IsActive = false;
+        LoadingRing.Visibility = Visibility.Collapsed;
+        ContentPanel.Visibility = Visibility.Visible;
 
         ApplyFilters();
         UpdateResetButton();
