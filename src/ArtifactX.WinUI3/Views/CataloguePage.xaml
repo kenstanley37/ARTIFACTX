@@ -102,13 +102,17 @@
                                         Tapped="Tile_Tapped" Tag="{x:Bind}"
                                         BorderBrush="{ThemeResource NmsTextSecondary}" Opacity="0.95"
                                         Background="{x:Bind IsKnown, Mode=OneWay, Converter={StaticResource BoolToActiveBackgroundConverter}}">
-                                    <Grid ColumnSpacing="10">
+                                    <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <CheckBox Grid.Column="0" IsChecked="{x:Bind IsKnown, Mode=OneWay}" IsHitTestVisible="False" VerticalAlignment="Center"/>
+                                        <!-- Padding/MinWidth zeroed - CheckBox's default template reserves
+                                             room for a label even with none set, which read as a much
+                                             bigger gap before the icon than the 8px ColumnSpacing alone. -->
+                                        <CheckBox Grid.Column="0" IsChecked="{x:Bind IsKnown, Mode=OneWay}" IsHitTestVisible="False"
+                                                  VerticalAlignment="Center" Padding="0" MinWidth="0"/>
                                         <Border Grid.Column="1" Width="28" Height="28" Background="#1A1F2E" CornerRadius="4" VerticalAlignment="Center">
                                             <Image Source="{x:Bind Icon, Mode=OneWay}" Stretch="Uniform" Width="22" Height="22"/>
                                         </Border>
