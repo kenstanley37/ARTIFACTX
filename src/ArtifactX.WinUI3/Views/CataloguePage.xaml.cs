@@ -36,8 +36,8 @@ public sealed partial class CataloguePage : Page
     {
         InitializeComponent();
 
-        SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
-        SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
+        SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
+        SaveSessionManager.PendingEditsChanged += OnPendingEditsChanged;
         Unloaded += Page_Unloaded;
 
         KnownFilterBox.SelectedIndex = 0;
@@ -45,16 +45,26 @@ public sealed partial class CataloguePage : Page
         _ = LoadCatalogueAsync();
     }
 
-    private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
+    private void OnActiveSessionChanged(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(() => _ = LoadCatalogueAsync());
+
+    /// <summary>Deliberately NOT a full LoadCatalogueAsync() reload, unlike a plain
+    /// per-slot page with a handful of fields - Tile_Tapped's own StageEdit call
+    /// fires this same event on every single click, and rebuilding all ~370
+    /// non-virtualized icon tiles from scratch on every tap is what caused a
+    /// real multi-second lag per click (2026-08-03) before this was split out.
+    /// The tapped tile already updates its own bound properties immediately;
+    /// only the Reset button's visibility needs to react to the edit here.</summary>
+    private void OnPendingEditsChanged(object? sender, EventArgs e) =>
+        DispatcherQueue.TryEnqueue(UpdateResetButton);
 
     /// <summary>See project_static_event_leak_fix.md - Frame.Navigate creates a
     /// brand-new Page instance every visit, so these static-service event
     /// subscriptions must be torn down here or they pile up across navigations.</summary>
     private void Page_Unloaded(object sender, RoutedEventArgs e)
     {
-        SaveSessionManager.ActiveSessionChanged -= OnSessionOrEditsChanged;
-        SaveSessionManager.PendingEditsChanged -= OnSessionOrEditsChanged;
+        SaveSessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
+        SaveSessionManager.PendingEditsChanged -= OnPendingEditsChanged;
     }
 
     private async Task LoadCatalogueAsync()
