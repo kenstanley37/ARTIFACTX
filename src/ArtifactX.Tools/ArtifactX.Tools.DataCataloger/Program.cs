@@ -315,10 +315,17 @@ if (args.Length > 1 && args[0].Equals("add-language-words", StringComparison.Ord
         ["TRA"] = "Gek",
         ["WAR"] = "Vy'keen",
         ["EXP"] = "Korvax",
-        ["BUI"] = "Autophage"
+        ["BUI"] = "Autophage",
+        // Not a race - a smaller (~262-word) special vocabulary pool with no
+        // matching WORDS_LEARNT stat anywhere in Milestones, unlike the 4
+        // real races. Lives in the exact same MF2 array/id-shape though
+        // (confirmed 2026-08-04 - a few entries like ATLAS_STATION resolve
+        // to short phrases rather than single words, but still pass the
+        // same strict id-shape filter with zero lore-noise false positives).
+        ["ATLAS"] = "Atlas"
     };
 
-    var wordPattern = new Regex(@"^(TRA|WAR|EXP|BUI)_[A-Z']+$", RegexOptions.Compiled);
+    var wordPattern = new Regex(@"^(TRA|WAR|EXP|BUI|ATLAS)_[A-Z']+$", RegexOptions.Compiled);
 
     var words = lookup
         .Where(kv => wordPattern.IsMatch(kv.Key))

@@ -13,15 +13,16 @@ using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Controls;
 
-/// <summary>Shared shell hosted by all 4 per-race language pages (Gek/Vy'keen/
-/// Korvax/Autophage) - Initialize(raceName, idPrefix) configures which race's
-/// words this instance shows/edits. All 4 races share ONE underlying save
-/// array (NmsLanguagePaths.KnownWordsArrayPath, "vLc/6f=/MF2") - this control
-/// reads the full array but only ever adds/removes entries matching its own
-/// idPrefix, re-staging the whole array (including every other race's
-/// untouched entries) on each toggle, the same "stage the whole array" pattern
-/// CataloguePage/AccountDataPage already use for their own single-race-scoped
-/// arrays.</summary>
+/// <summary>Shared shell hosted by all 5 language pages (Gek/Vy'keen/Korvax/
+/// Autophage/Atlas - the last isn't a race, just a smaller special vocabulary
+/// pool living in the same array) - Initialize(raceName, idPrefix) configures
+/// which group's words this instance shows/edits. All 5 share ONE underlying
+/// save array (NmsLanguagePaths.KnownWordsArrayPath, "vLc/6f=/MF2") - this
+/// control reads the full array but only ever adds/removes entries matching
+/// its own idPrefix, re-staging the whole array (including every other
+/// group's untouched entries) on each toggle, the same "stage the whole
+/// array" pattern CataloguePage/AccountDataPage already use for their own
+/// single-scope arrays.</summary>
 public sealed partial class LanguageWordsControl : UserControl
 {
     private string _raceName = "";
@@ -54,7 +55,7 @@ public sealed partial class LanguageWordsControl : UserControl
         _idPrefix = idPrefix;
 
         TitleTxt.Text = $"{raceName} Language";
-        InfoTxt.Text = $"This save's known {raceName} vocabulary (vLc/6f=/MF2) - confirmed real via a controlled test: marking 5 words known through NomNom grew this exact list by exactly 5 entries, matching the account's Words Learned count precisely. Names come from the game's own text table. Shares one list with the other 3 races - Reset reverts every race's unsaved changes, not just {raceName}'s. Writing through ArtifactX itself hasn't been round-trip-checked in-game yet the way the Catalogue page was - worth a quick check after your first edit here.";
+        InfoTxt.Text = $"This save's known {raceName} vocabulary (vLc/6f=/MF2) - confirmed real via a controlled test: marking 5 words known through NomNom grew this exact list by exactly 5 entries, matching the account's Words Learned count precisely. Names come from the game's own text table. Shares one list with every other language page (Gek/Vy'keen/Korvax/Autophage/Atlas) - Reset reverts every one of them's unsaved changes, not just {raceName}'s. Writing through ArtifactX itself hasn't been round-trip-checked in-game yet the way the Catalogue page was - worth a quick check after your first edit here.";
 
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         SaveSessionManager.PendingEditsChanged += OnPendingEditsChanged;

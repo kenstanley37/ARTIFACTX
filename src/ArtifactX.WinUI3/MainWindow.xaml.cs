@@ -187,6 +187,7 @@ public sealed partial class MainWindow : Window
                 "LanguageVyKeen" => typeof(VyKeenLanguagePage),
                 "LanguageKorvax" => typeof(KorvaxLanguagePage),
                 "LanguageAutophage" => typeof(AutophageLanguagePage),
+                "LanguageAtlas" => typeof(AtlasLanguagePage),
                 "AncestrySearch" => typeof(AncestrySearchView),
                 "HGDecryption" => typeof(HGDecryptionPage),
                 _ => typeof(SaveFolderSelectPage)
@@ -243,6 +244,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(VyKeenLanguagePage) => "LanguageVyKeen",
             Type t when t == typeof(KorvaxLanguagePage) => "LanguageKorvax",
             Type t when t == typeof(AutophageLanguagePage) => "LanguageAutophage",
+            Type t when t == typeof(AtlasLanguagePage) => "LanguageAtlas",
             Type t when t == typeof(AncestrySearchView) => "AncestrySearch",
             Type t when t == typeof(HGDecryptionPage) => "HGDecryption",
             _ => string.Empty

@@ -105,9 +105,11 @@
 
                 <!-- Expandable AND directly clickable - clicking "Milestones" itself
                      still navigates to MilestonesPage (SelectsOnInvoked defaults to
-                     true), the chevron just additionally exposes the 4 per-race
-                     language pages as children, matching where the user asked for
-                     these to live ("milestones is the best spot"). -->
+                     true), the chevron just additionally exposes the 5 language
+                     pages as children, matching where the user asked for these to
+                     live ("milestones is the best spot"). Atlas isn't a race, just
+                     a smaller special vocabulary pool sharing the same save array -
+                     see NmsLanguagePaths. -->
                 <NavigationViewItem x:Name="MilestonesNavItem" Content="Milestones" Tag="Milestones" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE9D9;" FontFamily="Segoe MDL2 Assets"/>
@@ -129,6 +131,11 @@
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem Content="Autophage Language" Tag="LanguageAutophage">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE8C1;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Content="Atlas Language" Tag="LanguageAtlas">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE8C1;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
