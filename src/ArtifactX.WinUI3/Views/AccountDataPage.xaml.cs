@@ -97,11 +97,18 @@ public sealed partial class AccountDataPage : Page
         _workingIds = unlockedArray?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
         _workingIdSet = new HashSet<string>(_workingIds.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
 
+        // Banner/Decal/Title expedition-reward items spell their own expedition out
+        // in their names ("PIONEERS EXPEDITION BANNER") - derived live from the
+        // catalog data itself, not a hardcoded/external list. See
+        // CatalogService.BuildExpeditionNameLookup for why only these 3 item
+        // families get this annotation, not every EXPD_ item.
+        var expeditionNames = CatalogService.BuildExpeditionNameLookup(catalogItems);
+
         var workingIdSet = _workingIdSet;
         _allItems = await Task.Run(() => catalogItems.Select(c => new AccountItemRowViewModel
         {
             GameId = c.GameId,
-            DisplayName = c.DisplayName,
+            DisplayName = CatalogService.AnnotateExpeditionInfo(c.GameId, c.DisplayName, expeditionNames),
             CategoryLabel = c.CategoryLabel,
             IsUnlocked = workingIdSet.Contains(c.GameId)
         }).ToList());

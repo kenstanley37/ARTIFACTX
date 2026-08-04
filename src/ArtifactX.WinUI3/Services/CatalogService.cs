@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Windows.Storage.Streams;
 
@@ -709,6 +710,52 @@ public static class CatalogService
             });
         }
         return results;
+    }
+
+    private static readonly Regex ExpeditionBannerPattern = new(@"^EXPD_BANNER(\d{2})$", RegexOptions.Compiled);
+    private static readonly Regex ExpeditionItemPattern = new(@"^EXPD_(?:BANNER|DECAL|TITLE)(\d{2})[A-Z]?$", RegexOptions.Compiled);
+
+    /// <summary>Derives expedition number -> theme name (1 -> "PIONEERS", 22 -> "SWARM",
+    /// etc.) from the EXPD_BANNER## item family's own display names, which spell the
+    /// expedition out directly ("PIONEERS EXPEDITION BANNER"/"SWARM BANNER" - two
+    /// naming conventions used across the game's history, both handled). Confirmed
+    /// 2026-08-04 as a reliable, self-describing source, unlike most other EXPD_ items
+    /// (backpacks/capes/ships/etc.), which have no expedition-number signal at all -
+    /// deliberately not attempted for those rather than guessing wrong. No external
+    /// API/hardcoded list involved: this is a live scan of whatever's in the catalog
+    /// DB, so a future expedition's EXPD_BANNER23 gets picked up automatically on the
+    /// next DataCataloger rebuild, no code change needed.</summary>
+    public static Dictionary<int, string> BuildExpeditionNameLookup(IEnumerable<CatalogUnlockableItem> catalogItems)
+    {
+        var result = new Dictionary<int, string>();
+        foreach (var item in catalogItems)
+        {
+            var match = ExpeditionBannerPattern.Match(item.GameId);
+            if (!match.Success) continue;
+
+            int number = int.Parse(match.Groups[1].Value);
+            string name = Regex.Replace(item.DisplayName, @"\s+BANNER$", "", RegexOptions.IgnoreCase);
+            name = Regex.Replace(name, @"\s+EXPEDITION$", "", RegexOptions.IgnoreCase).Trim();
+            result[number] = name;
+        }
+        return result;
+    }
+
+    /// <summary>If gameId is a Banner/Decal/Title item from a numbered expedition (see
+    /// BuildExpeditionNameLookup), appends "(Expedition #N: Name)" to displayName -
+    /// otherwise returns displayName unchanged. Every other EXPD_ item (the large
+    /// majority) has no reliable expedition-number signal, so is deliberately left
+    /// unannotated rather than guessing from a numeric id suffix that may not
+    /// actually correspond to expedition order for that item family.</summary>
+    public static string AnnotateExpeditionInfo(string gameId, string displayName, Dictionary<int, string> expeditionNames)
+    {
+        var match = ExpeditionItemPattern.Match(gameId);
+        if (!match.Success) return displayName;
+
+        int number = int.Parse(match.Groups[1].Value);
+        return expeditionNames.TryGetValue(number, out var name)
+            ? $"{displayName} (Expedition #{number}: {name})"
+            : displayName;
     }
 
     private static string? ResolveDbPath()
