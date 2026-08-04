@@ -35,16 +35,17 @@ public static class AccountSessionManager
     public static string? AccountDataPath => _accountDataPath;
 
     /// <summary>Derives accountdata.hg's path from whichever save slot is
-    /// currently active - one accountdata.hg lives per platform-account
-    /// folder, alongside every save slot in it, so any loaded slot points at
-    /// the same file. Returns null if no save is loaded, or if this account
-    /// genuinely has no accountdata.hg on disk.</summary>
+    /// currently active, falling back to just the active platform folder
+    /// (SaveSessionManager.ActivePlatformFolder) when no specific slot is
+    /// loaded yet - one accountdata.hg lives per platform-account folder,
+    /// alongside every save slot in it, so it never actually needs a slot
+    /// picked, only a platform. Returns null if neither is set, or if this
+    /// account genuinely has no accountdata.hg on disk.</summary>
     public static string? ResolveAccountDataPath()
     {
-        var activeSlot = SaveSessionManager.ActiveSlot;
-        if (activeSlot is null) return null;
-
-        string? folder = Path.GetDirectoryName(activeSlot.PrimaryFile.FullPath);
+        string? folder = SaveSessionManager.ActiveSlot is { } activeSlot
+            ? Path.GetDirectoryName(activeSlot.PrimaryFile.FullPath)
+            : SaveSessionManager.ActivePlatformFolder;
         if (folder is null) return null;
 
         string candidate = Path.Combine(folder, "accountdata.hg");

@@ -41,7 +41,8 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="models:SaveFolderCandidate">
                             <Expander HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                                      IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}">
+                                      IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
+                                      Tag="{x:Bind}" Expanding="PlatformExpander_Expanding">
                                 <Expander.Header>
                                     <Grid ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>

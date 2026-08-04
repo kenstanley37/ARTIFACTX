@@ -44,6 +44,17 @@
             <NavigationView.MenuItems>
                 <NavigationViewItem Content="Save Selection" Icon="Home" Tag="SaveFolderSelect" />
 
+                <!-- Account-wide, not per-slot (edits accountdata.hg directly) - lives
+                     at the top, right under Save Selection, because it only needs a
+                     platform account chosen (SaveSessionManager.HasActivePlatform),
+                     not a specific save slot loaded. See UpdateNavAvailability and
+                     SaveFolderSelectPage's Expander.Expanding handler. -->
+                <NavigationViewItem x:Name="AccountDataNavItem" Content="Account Data" Tag="AccountData" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE77B;" FontFamily="Segoe MDL2 Assets"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
                 <!-- Exosuit, Starship, Multi-Tool, etc. nav items go here once built,
                      gated behind SaveSessionManager.IsSaveLoaded the same way the
                      removed SaveHub/Inventory items were. -->
@@ -141,12 +152,6 @@
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                     </NavigationViewItem.MenuItems>
-                </NavigationViewItem>
-
-                <NavigationViewItem x:Name="AccountDataNavItem" Content="Account Data" Tag="AccountData" Visibility="Collapsed">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE77B;" FontFamily="Segoe MDL2 Assets"/>
-                    </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="CatalogueNavItem" Content="Catalogue" Tag="Catalogue" Visibility="Collapsed">

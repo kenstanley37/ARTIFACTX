@@ -203,7 +203,11 @@ public sealed partial class MainWindow : Window
     /// <summary>
     /// Toggles visibility of save-scoped nav items (Exosuit, Starship, etc., once
     /// they exist) based on whether a save is actively loaded in SaveSessionManager.
-    /// Currently a no-op - there's nothing to gate until those pages are added.
+    /// Account Data is the one exception - it edits accountdata.hg, which lives
+    /// once per platform-account folder rather than per save slot, so it only
+    /// needs a platform chosen (SaveSessionManager.HasActivePlatform), not a
+    /// specific slot loaded; a loaded slot still counts too, since that implies
+    /// a platform was chosen along the way.
     /// </summary>
     private void UpdateNavAvailability()
     {
@@ -218,8 +222,11 @@ public sealed partial class MainWindow : Window
         CompanionsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SettlementNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         MilestonesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        AccountDataNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         CatalogueNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+
+        AccountDataNavItem.Visibility = SaveSessionManager.IsSaveLoaded || SaveSessionManager.HasActivePlatform
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private void ContentFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)

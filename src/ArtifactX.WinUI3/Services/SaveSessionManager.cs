@@ -14,6 +14,7 @@ public static class SaveSessionManager
     private static SaveEditSession? _session;
     private static string[] _targetHgPaths = Array.Empty<string>();
     private static SaveSlotGroup? _activeSlot;
+    private static string? _activePlatformFolder;
     private static Dictionary<string, DateTime> _loadSnapshot = new();
 
     public static event EventHandler? ActiveSessionChanged;
@@ -30,6 +31,17 @@ public static class SaveSessionManager
     public static IEnumerable<string> DescribePendingEdits() => _session?.DescribePendingEdits() ?? Enumerable.Empty<string>();
     public static SaveSlotGroup? ActiveSlot => _activeSlot;
     public static string? ActiveLabel => _activeSlot?.ActiveLabel;
+
+    /// <summary>The platform-account folder (e.g. "...\Steam\st_76561...") the
+    /// user is currently working within - set either implicitly by loading a
+    /// slot (LoadAsync below) or explicitly via SetActivePlatform when the
+    /// user opens a platform card on SaveFolderSelectPage without picking a
+    /// specific slot yet. Exists so account-wide pages (AccountDataPage, via
+    /// AccountSessionManager.ResolveAccountDataPath) can work off just a
+    /// platform choice - accountdata.hg lives once per platform folder, not
+    /// per save slot, so it shouldn't require picking a slot first.</summary>
+    public static string? ActivePlatformFolder => _activePlatformFolder;
+    public static bool HasActivePlatform => _activePlatformFolder is not null;
 
     public static async Task LoadAsync(SaveSlotGroup slot)
     {
@@ -53,10 +65,27 @@ public static class SaveSessionManager
         _targetHgPaths = slot.Files.Select(f => f.FullPath).ToArray();
         _activeSlot = slot;
         _activeSlot.IsActive = true;
+        _activePlatformFolder = Path.GetDirectoryName(primary.FullPath);
 
         TakeSnapshot();
 
         _session.EditsChanged += OnEditsChanged;
+        ActiveSessionChanged?.Invoke(null, EventArgs.Empty);
+    }
+
+    /// <summary>Marks a platform folder as the active one without loading any
+    /// specific save slot - called when the user opens a platform card on
+    /// SaveFolderSelectPage (see SaveFolderSelectPage.xaml's Expander.Expanding
+    /// handler). Deliberately reuses ActiveSessionChanged rather than a new
+    /// event: every page that reacts to it already handles a "no slot loaded"
+    /// state gracefully (that's exactly what CloseSession also produces), so
+    /// this needs no new wiring - MainWindow's nav-visibility check and
+    /// AccountDataPage's own reload both already do the right thing.</summary>
+    public static void SetActivePlatform(string folderPath)
+    {
+        if (string.Equals(_activePlatformFolder, folderPath, StringComparison.OrdinalIgnoreCase)) return;
+
+        _activePlatformFolder = folderPath;
         ActiveSessionChanged?.Invoke(null, EventArgs.Empty);
     }
 
