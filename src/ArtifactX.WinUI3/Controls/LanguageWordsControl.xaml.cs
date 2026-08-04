@@ -30,7 +30,13 @@ public sealed partial class LanguageWordsControl : UserControl
     private List<LanguageWordRowViewModel>? _allWords;
     private List<LanguageWordRowViewModel> _currentlyVisibleRows = new();
 
-    private List<string> _fullKnownIds = new();
+    // MF2's entries are NOT plain id strings like 4kj/B1h - each is an object:
+    // {"MYl": "^TRA_ATTACK", "D;o": [8-9 booleans, semantics not fully decoded]}.
+    // _fullEntries preserves every entry's own original JObject untouched
+    // (including whatever D;o shape it already had) except for ones this
+    // control adds/removes itself; _fullKnownIdSet is just the normalized
+    // "MYl" values for O(1) lookup.
+    private List<JObject> _fullEntries = new();
     private HashSet<string> _fullKnownIdSet = new(StringComparer.Ordinal);
 
     public LanguageWordsControl()
@@ -84,8 +90,10 @@ public sealed partial class LanguageWordsControl : UserControl
         var raceWords = allCatalogWords.Where(w => w.Race == _raceName).ToList();
 
         var knownArray = SaveSessionManager.GetValue(NmsLanguagePaths.KnownWordsArrayPath) as JArray;
-        _fullKnownIds = knownArray?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
-        _fullKnownIdSet = new HashSet<string>(_fullKnownIds.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
+        _fullEntries = knownArray?.OfType<JObject>().ToList() ?? new();
+        _fullKnownIdSet = new HashSet<string>(
+            _fullEntries.Select(e => CatalogService.NormalizeId(e["MYl"]?.Value<string>() ?? "")).Where(s => s.Length > 0),
+            StringComparer.Ordinal);
 
         _allWords = raceWords.Select(w => new LanguageWordRowViewModel
         {
@@ -140,7 +148,10 @@ public sealed partial class LanguageWordsControl : UserControl
 
     /// <summary>Mutates only entries matching this control's own _idPrefix -
     /// every other race's entries in the shared array are left exactly as
-    /// they were read, and get re-staged untouched alongside this change.</summary>
+    /// they were read, and get re-staged untouched alongside this change.
+    /// A newly-added entry's "D;o" shape (8 booleans, first True) matches
+    /// exactly what NomNom itself wrote for new entries in the confirming
+    /// test - see NmsLanguagePaths' doc comment.</summary>
     private void SetRowKnown(LanguageWordRowViewModel row, bool known)
     {
         row.IsKnown = known;
@@ -148,12 +159,18 @@ public sealed partial class LanguageWordsControl : UserControl
         if (known)
         {
             if (_fullKnownIdSet.Add(row.GameId))
-                _fullKnownIds.Add("^" + row.GameId);
+            {
+                _fullEntries.Add(new JObject
+                {
+                    ["MYl"] = "^" + row.GameId,
+                    ["D;o"] = new JArray(true, false, false, false, false, false, false, false)
+                });
+            }
         }
         else
         {
             if (_fullKnownIdSet.Remove(row.GameId))
-                _fullKnownIds.RemoveAll(id => CatalogService.NormalizeId(id) == row.GameId);
+                _fullEntries.RemoveAll(e => CatalogService.NormalizeId(e["MYl"]?.Value<string>() ?? "") == row.GameId);
         }
     }
 
@@ -162,7 +179,7 @@ public sealed partial class LanguageWordsControl : UserControl
         if (sender is not FrameworkElement { Tag: LanguageWordRowViewModel row }) return;
 
         SetRowKnown(row, !row.IsKnown);
-        SaveSessionManager.StageEdit(new JArray(_fullKnownIds), NmsLanguagePaths.KnownWordsArrayPath);
+        SaveSessionManager.StageEdit(new JArray(_fullEntries), NmsLanguagePaths.KnownWordsArrayPath);
         UpdateResetButton();
 
         string? knownFilter = (KnownFilterBox.SelectedItem as ComboBoxItem)?.Content as string;
@@ -181,7 +198,7 @@ public sealed partial class LanguageWordsControl : UserControl
         foreach (var row in _currentlyVisibleRows)
             SetRowKnown(row, known);
 
-        SaveSessionManager.StageEdit(new JArray(_fullKnownIds), NmsLanguagePaths.KnownWordsArrayPath);
+        SaveSessionManager.StageEdit(new JArray(_fullEntries), NmsLanguagePaths.KnownWordsArrayPath);
         UpdateResetButton();
         ApplyFilters();
     }
