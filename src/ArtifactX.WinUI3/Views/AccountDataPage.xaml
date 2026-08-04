@@ -102,17 +102,38 @@
                             ToolTipService.ToolTip="Unlocks every item currently shown below (respects the search box, category checkboxes, and Unlocked/Locked filter)"/>
                 </Grid>
 
-                <!-- Multi-select category filter, deliberately checkboxes rather than a
-                     single-select dropdown - mirrors NomNom's own Catalog tab, which shows
-                     all 9 of its (finer) groups as checkboxes side by side rather than a
-                     one-at-a-time picker. ArtifactX only has the coarser Technology/Product/
-                     Substance split (see CatalogService.ElvLabelFor), not NomNom's 9-way one -
-                     the catalog DB doesn't currently decode the finer per-item grouping. -->
-                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="16">
-                    <TextBlock Text="Categories:" VerticalAlignment="Center" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"/>
-                    <CheckBox x:Name="TechnologyCategoryCheck" Content="Technology" IsChecked="True" Click="CategoryCheck_Click"/>
-                    <CheckBox x:Name="ProductCategoryCheck" Content="Product" IsChecked="True" Click="CategoryCheck_Click"/>
-                    <CheckBox x:Name="SubstanceCategoryCheck" Content="Substance" IsChecked="True" Click="CategoryCheck_Click"/>
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="24">
+                    <!-- Mutually exclusive, unlike Categories below - mirrors NomNom
+                         keeping Expedition/Twitch rewards in their own separate lists
+                         rather than mixed into its general Catalog tab. Both id
+                         prefixes ("EXPD_"/"TWITCH_") are Hello Games' own naming
+                         convention, confirmed present on every expedition/Twitch-drop
+                         item found in the account's real B1h list (2026-08-04) - this
+                         is a live pattern match against whatever's in the catalog DB,
+                         not a hardcoded item list, so new items a future game update
+                         adds are picked up automatically the next time DataCataloger
+                         is re-run against the updated game files. -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="Source:" VerticalAlignment="Center" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"/>
+                        <ComboBox x:Name="SourceFilterBox" Width="160" SelectionChanged="Filter_Changed">
+                            <ComboBoxItem Content="Catalog"/>
+                            <ComboBoxItem Content="Expedition Rewards"/>
+                            <ComboBoxItem Content="Twitch Rewards"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!-- Multi-select category filter, deliberately checkboxes rather than a
+                         single-select dropdown - mirrors NomNom's own Catalog tab, which shows
+                         all 9 of its (finer) groups as checkboxes side by side rather than a
+                         one-at-a-time picker. ArtifactX only has the coarser Technology/Product/
+                         Substance split (see CatalogService.ElvLabelFor), not NomNom's 9-way one -
+                         the catalog DB doesn't currently decode the finer per-item grouping. -->
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <TextBlock Text="Categories:" VerticalAlignment="Center" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"/>
+                        <CheckBox x:Name="TechnologyCategoryCheck" Content="Technology" IsChecked="True" Click="CategoryCheck_Click"/>
+                        <CheckBox x:Name="ProductCategoryCheck" Content="Product" IsChecked="True" Click="CategoryCheck_Click"/>
+                        <CheckBox x:Name="SubstanceCategoryCheck" Content="Substance" IsChecked="True" Click="CategoryCheck_Click"/>
+                    </StackPanel>
                 </StackPanel>
 
                 <ListView Grid.Row="4" x:Name="ItemsListView" SelectionMode="None">

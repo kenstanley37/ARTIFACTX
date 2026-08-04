@@ -42,6 +42,7 @@ public sealed partial class AccountDataPage : Page
         Unloaded += Page_Unloaded;
 
         UnlockFilterBox.SelectedIndex = 0;
+        SourceFilterBox.SelectedIndex = 0;
 
         _ = LoadAccountDataAsync();
     }
@@ -125,6 +126,7 @@ public sealed partial class AccountDataPage : Page
 
         string query = SearchBox.Text?.Trim() ?? "";
         string? unlockFilter = (UnlockFilterBox.SelectedItem as ComboBoxItem)?.Content as string;
+        string? sourceFilter = (SourceFilterBox.SelectedItem as ComboBoxItem)?.Content as string;
 
         var allowedCategories = new List<string>();
         if (TechnologyCategoryCheck.IsChecked == true) allowedCategories.Add("Technology");
@@ -132,6 +134,18 @@ public sealed partial class AccountDataPage : Page
         if (SubstanceCategoryCheck.IsChecked == true) allowedCategories.Add("Substance");
 
         IEnumerable<AccountItemRowViewModel> filtered = _allItems.Where(i => allowedCategories.Contains(i.CategoryLabel));
+
+        // Mutually exclusive with each other, unlike the Category checkboxes above -
+        // "Catalog" explicitly excludes Expedition/Twitch items rather than mixing
+        // them in, matching NomNom keeping those in their own separate lists.
+        if (sourceFilter == "Expedition Rewards")
+            filtered = filtered.Where(i => i.GameId.StartsWith("EXPD_", StringComparison.OrdinalIgnoreCase));
+        else if (sourceFilter == "Twitch Rewards")
+            filtered = filtered.Where(i => i.GameId.StartsWith("TWITCH_", StringComparison.OrdinalIgnoreCase));
+        else
+            filtered = filtered.Where(i =>
+                !i.GameId.StartsWith("EXPD_", StringComparison.OrdinalIgnoreCase) &&
+                !i.GameId.StartsWith("TWITCH_", StringComparison.OrdinalIgnoreCase));
 
         if (!string.IsNullOrEmpty(query))
         {
