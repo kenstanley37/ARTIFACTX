@@ -161,9 +161,9 @@
                                           Click="ItemCheckBox_Click" Tag="{x:Bind}" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="1" Text="{x:Bind DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                 <Border Grid.Column="2" Visibility="{x:Bind ExpeditionVisibility}"
-                                        BorderBrush="{ThemeResource SystemAccentColorBrush}" BorderThickness="1"
+                                        BorderBrush="{ThemeResource NmsAccentBrush}" BorderThickness="1"
                                         CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
-                                    <TextBlock Text="{x:Bind ExpeditionLabel}" FontSize="11" Foreground="{ThemeResource SystemAccentColorBrush}"/>
+                                    <TextBlock Text="{x:Bind ExpeditionLabel}" FontSize="11" Foreground="{ThemeResource NmsAccentBrush}"/>
                                 </Border>
                                 <Border Grid.Column="3" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
                                         CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
