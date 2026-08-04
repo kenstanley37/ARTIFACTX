@@ -4,7 +4,6 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
-    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
@@ -72,40 +71,55 @@
                             ToolTipService.ToolTip="Marks every word currently shown below as known (respects the search box and filter)"/>
                 </Grid>
 
-                <!-- Same compact-row-in-a-WrapPanel approach as CataloguePage, just
-                     narrower (200px, no icon box) since words are short text only.
-                     Not virtualized - up to ~1,170 rows per race, same reasoning as
-                     CataloguePage's own ~370: small enough visual tree to be a
-                     non-issue. Tapped on the whole row for the same double-toggle-
-                     avoidance reason (the CheckBox is a non-hit-testable indicator). -->
-                <ScrollViewer Grid.Row="2">
-                    <ItemsControl x:Name="ItemsListView">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="8"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="viewmodels:LanguageWordRowViewModel">
-                                <Border Width="200" Padding="10,8" CornerRadius="6" BorderThickness="1"
-                                        Tapped="Tile_Tapped" Tag="{x:Bind}"
-                                        BorderBrush="{ThemeResource NmsTextSecondary}" Opacity="0.95"
-                                        Background="{x:Bind IsKnown, Mode=OneWay, Converter={StaticResource BoolToActiveBackgroundConverter}}">
-                                    <Grid ColumnSpacing="8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <CheckBox Grid.Column="0" IsChecked="{x:Bind IsKnown, Mode=OneWay}" IsHitTestVisible="False"
-                                                  VerticalAlignment="Center" Padding="0" MinWidth="0"/>
-                                        <TextBlock Grid.Column="1" Text="{x:Bind DisplayName}" FontSize="12" TextWrapping="Wrap"
-                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxLines="2"/>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                <!-- GridView, not a plain ItemsControl+WrapPanel like CataloguePage -
+                     up to ~1,170 rows per race is well past the point where a
+                     non-virtualized panel holds up (that was fine at CataloguePage's
+                     ~370, not here - the first version of this control used the same
+                     non-virtualizing WrapPanel and caused multi-second freezes both
+                     loading and navigating away, confirmed by the user 2026-08-04).
+                     GridView's default ItemsWrapGrid panel only realizes visible
+                     tiles, so scrolling/leaving the page stays cheap regardless of
+                     total count. Fixed ItemWidth/ItemHeight are required for that
+                     virtualization to work correctly, so rows are single-line
+                     (ellipsis) here rather than CataloguePage's 2-line wrap. Tapped
+                     on the whole row for the same double-toggle-avoidance reason
+                     (the CheckBox is a non-hit-testable indicator); x:Bind rebinds
+                     correctly as GridView recycles containers during scrolling,
+                     same as any other virtualized WinUI list. -->
+                <GridView Grid.Row="2" x:Name="ItemsListView" SelectionMode="None">
+                    <GridView.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <ItemsWrapGrid Orientation="Horizontal" ItemWidth="210" ItemHeight="52"/>
+                        </ItemsPanelTemplate>
+                    </GridView.ItemsPanel>
+                    <GridView.ItemContainerStyle>
+                        <Style TargetType="GridViewItem">
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                        </Style>
+                    </GridView.ItemContainerStyle>
+                    <GridView.ItemTemplate>
+                        <DataTemplate x:DataType="viewmodels:LanguageWordRowViewModel">
+                            <Border Width="200" Height="44" Padding="10,8" CornerRadius="6" BorderThickness="1"
+                                    Tapped="Tile_Tapped" Tag="{x:Bind}"
+                                    BorderBrush="{ThemeResource NmsTextSecondary}" Opacity="0.95"
+                                    Background="{x:Bind IsKnown, Mode=OneWay, Converter={StaticResource BoolToActiveBackgroundConverter}}">
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox Grid.Column="0" IsChecked="{x:Bind IsKnown, Mode=OneWay}" IsHitTestVisible="False"
+                                              VerticalAlignment="Center" Padding="0" MinWidth="0"/>
+                                    <TextBlock Grid.Column="1" Text="{x:Bind DisplayName}" FontSize="12"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </GridView.ItemTemplate>
+                </GridView>
             </Grid>
         </Grid>
     </Grid>
