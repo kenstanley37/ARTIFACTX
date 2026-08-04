@@ -37,6 +37,14 @@ public sealed partial class SaveFolderCandidate : ObservableObject, IEquatable<S
     [ObservableProperty]
     private bool isEmptyResult;
 
+    /// <summary>True when this candidate's FolderPath matches
+    /// SaveSessionManager.ActivePlatformFolder - kept in sync by
+    /// SaveFolderSelectPage (see RefreshActivePlatformHighlight), not computed
+    /// here, since this model has no reference back to that service. Drives
+    /// the Expander's highlighted border/badge on SaveFolderSelectPage.</summary>
+    [ObservableProperty]
+    private bool isActivePlatform;
+
     /// <summary>User-given label, persisted separately (see
     /// SaveFolderSettingsService) - pure display metadata, never renames the
     /// actual folder on disk. Only offered in the UI for Manual folders, since

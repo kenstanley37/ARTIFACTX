@@ -17,7 +17,28 @@ public sealed partial class SaveFolderSelectPage : Page
     public SaveFolderSelectPage()
     {
         InitializeComponent();
-        Loaded += async (_, _) => await ViewModel.InitializeCommand.ExecuteAsync(null);
+        Loaded += async (_, _) =>
+        {
+            await ViewModel.InitializeCommand.ExecuteAsync(null);
+            RefreshActivePlatformHighlight();
+        };
+
+        SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
+        Unloaded += (_, _) => SaveSessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
+    }
+
+    private void OnActiveSessionChanged(object? sender, EventArgs e) =>
+        DispatcherQueue.TryEnqueue(RefreshActivePlatformHighlight);
+
+    /// <summary>Marks whichever candidate matches SaveSessionManager's current
+    /// platform (or slot, which implies a platform) so the XAML can highlight
+    /// it - fired on load and whenever the active session changes (a slot
+    /// loads, or a different platform card is expanded elsewhere/earlier).</summary>
+    private void RefreshActivePlatformHighlight()
+    {
+        foreach (var candidate in ViewModel.Candidates)
+            candidate.IsActivePlatform = string.Equals(
+                candidate.FolderPath, SaveSessionManager.ActivePlatformFolder, StringComparison.OrdinalIgnoreCase);
     }
 
     private async void BrowseFolderBtn_Click(object sender, RoutedEventArgs e)

@@ -61,6 +61,19 @@ public partial class SaveFolderSelectViewModel : ObservableObject
                 Candidates.Add(candidate);
             }
 
+            // Accordion behavior (see OnCandidatePropertyChanged) only kicks in on
+            // a user expanding a NEW card from here on - normalize any startup
+            // state that predates that (settings persisted before this became
+            // single-selection, or first-launch-ever defaulting every card open)
+            // down to just the first expanded one, rather than showing several
+            // open until the user happens to click something.
+            bool keptOneOpen = false;
+            foreach (var candidate in Candidates)
+            {
+                if (candidate.IsExpanded && !keptOneOpen) keptOneOpen = true;
+                else candidate.IsExpanded = false;
+            }
+
             if (Candidates.Count == 0)
                 StatusMessage = "No save folders were detected automatically. Use \"Browse for folder\" to add yours.";
         }
@@ -115,7 +128,6 @@ public partial class SaveFolderSelectViewModel : ObservableObject
             Source = SaveFolderSource.Manual,
             DetectedSaveFileCount = count,
             IsValidated = true,
-            IsExpanded = true // opens immediately so its slots are visible right away
         };
 
         if (!Candidates.Contains(candidate))
@@ -129,6 +141,11 @@ public partial class SaveFolderSelectViewModel : ObservableObject
 
         SaveFolderSettingsService.AddCustomFolder(folderPath);
         StatusMessage = null;
+
+        // Opens immediately so its slots are visible right away - set AFTER
+        // subscribing to PropertyChanged (above) so OnCandidatePropertyChanged's
+        // accordion logic collapses any other currently-open card the normal way.
+        stored.IsExpanded = true;
 
         if (!stored.HasLoadedSlots)
             await LoadSlotGroupsAsync(stored);
@@ -158,8 +175,25 @@ public partial class SaveFolderSelectViewModel : ObservableObject
 
     private void OnCandidatePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(SaveFolderCandidate.IsExpanded))
-            PersistExpandedFolders();
+        if (e.PropertyName != nameof(SaveFolderCandidate.IsExpanded)) return;
+
+        // Accordion behavior: opening one platform card closes every other -
+        // only one is realistically "the one you're working in" at a time
+        // (user feedback 2026-08-04, alongside SetActivePlatform treating
+        // "opened" as "selected" - see SaveFolderSelectPage). Guarded on
+        // IsExpanded actually being true so collapsing a card (setting it
+        // false, including the ones this loop itself collapses) doesn't
+        // recurse back into this branch.
+        if (sender is SaveFolderCandidate expanded && expanded.IsExpanded)
+        {
+            foreach (var other in Candidates)
+            {
+                if (!ReferenceEquals(other, expanded) && other.IsExpanded)
+                    other.IsExpanded = false;
+            }
+        }
+
+        PersistExpandedFolders();
     }
 
     private void PersistExpandedFolders()

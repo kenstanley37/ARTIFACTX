@@ -40,9 +40,17 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="models:SaveFolderCandidate">
+                            <!-- Highlighted border - see IsActivePlatform's doc comment - marks
+                                 whichever platform SaveSessionManager is currently working within,
+                                 not just whichever card happens to be expanded (those are almost
+                                 always the same thing now that only one card can be open at once,
+                                 but a loaded slot from an earlier visit can still be "active" while
+                                 every card starts collapsed on a fresh page load). -->
                             <Expander HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                                       IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
-                                      Tag="{x:Bind}" Expanding="PlatformExpander_Expanding">
+                                      Tag="{x:Bind}" Expanding="PlatformExpander_Expanding"
+                                      BorderBrush="{x:Bind IsActivePlatform, Mode=OneWay, Converter={StaticResource BoolToAccentBrushConverter}}"
+                                      BorderThickness="1.5">
                                 <Expander.Header>
                                     <Grid ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
@@ -53,7 +61,13 @@
                                         <SymbolIcon Grid.Column="0" Symbol="Folder"
                                                     Foreground="{ThemeResource NmsAccentBrush}" VerticalAlignment="Center"/>
                                         <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
-                                            <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}" FontWeight="SemiBold" FontSize="14"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}" FontWeight="SemiBold" FontSize="14"/>
+                                                <Border Background="{ThemeResource NmsAccentBrush}" CornerRadius="4" Padding="7,2"
+                                                        Visibility="{x:Bind IsActivePlatform, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                    <TextBlock Text="ACTIVE" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                                </Border>
+                                            </StackPanel>
                                             <TextBlock Text="{x:Bind SubText}" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4"
