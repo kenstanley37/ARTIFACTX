@@ -66,17 +66,21 @@ public sealed partial class AnimatedExpander : UserControl
         else self.BeginCollapse();
     }
 
-    /// <summary>Measures BodyHost's natural desired height - independent of
-    /// its CURRENT (collapsed, Height=0) arranged size - so the animation's
-    /// target correctly reflects whatever's actually bound right now (a
-    /// loading spinner, or the full slot grid if indexing already finished),
-    /// then animates Height from 0 up to that value.</summary>
+    /// <summary>Measures BodyContentPresenter's (NOT BodyHost's own) natural
+    /// desired height. Measuring BodyHost directly doesn't work: FrameworkElement
+    /// treats an explicitly-set Height (BodyHost's is pinned to 0 while
+    /// collapsed) as a hard override during Measure, so BodyHost would always
+    /// report DesiredSize.Height = 0 regardless of its content - the bug
+    /// behind the very first version of this fix silently animating 0 -> 0.
+    /// BodyContentPresenter has no such override, so it reports the CONTENT's
+    /// true natural height - whatever's actually bound right now (a loading
+    /// spinner, or the full slot grid if indexing already finished).</summary>
     private void BeginExpand()
     {
         double availableWidth = ActualWidth > 0 ? ActualWidth : double.PositiveInfinity;
-        BodyHost.Measure(new Size(availableWidth, double.PositiveInfinity));
+        BodyContentPresenter.Measure(new Size(availableWidth, double.PositiveInfinity));
 
-        ExpandHeightAnimation.To = BodyHost.DesiredSize.Height;
+        ExpandHeightAnimation.To = BodyContentPresenter.DesiredSize.Height;
         ExpandStoryboard.Begin();
     }
 

@@ -77,7 +77,7 @@
                  revealed rather than reflowed as Height grows. -->
             <Grid x:Name="BodyHost" Height="0" Opacity="0" Padding="16,0,16,12"
                   SizeChanged="BodyHost_SizeChanged">
-                <ContentPresenter Content="{x:Bind BodyContent, Mode=OneWay}"
+                <ContentPresenter x:Name="BodyContentPresenter" Content="{x:Bind BodyContent, Mode=OneWay}"
                                   VerticalAlignment="Top"/>
             </Grid>
         </StackPanel>
