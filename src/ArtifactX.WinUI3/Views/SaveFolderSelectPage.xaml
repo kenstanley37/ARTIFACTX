@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:ArtifactX.WinUI3.Views"
     xmlns:models="using:ArtifactX.WinUI3.Models"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -25,11 +26,12 @@
                        Text="We looked for Steam, GOG, and Microsoft Store installs automatically. Expand a platform below to pick a save, or browse for your own."/>
         </StackPanel>
 
-        <!-- One Expander per detected/added platform - each opens and closes
-             independently (not a single mutually-exclusive selection), so a
-             user with saves on more than one storefront can see all of them
-             at once. IsExpanded round-trips through SaveFolderSettingsService
-             so the layout the user left it in survives a relaunch. -->
+        <!-- One AnimatedExpander per detected/added platform - accordion-style
+             (opening one closes any other, see SaveFolderSelectViewModel's
+             OnCandidatePropertyChanged), since only one platform is realistically
+             "the one you're working in" at a time. IsExpanded round-trips through
+             SaveFolderSettingsService so the layout the user left it in survives
+             a relaunch. -->
         <Grid Grid.Row="1">
             <ScrollViewer>
                 <ItemsControl ItemsSource="{x:Bind ViewModel.Candidates}">
@@ -40,18 +42,12 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="models:SaveFolderCandidate">
-                            <!-- Highlighted border - see IsActivePlatform's doc comment - marks
-                                 whichever platform SaveSessionManager is currently working within,
-                                 not just whichever card happens to be expanded (those are almost
-                                 always the same thing now that only one card can be open at once,
-                                 but a loaded slot from an earlier visit can still be "active" while
-                                 every card starts collapsed on a fresh page load). -->
-                            <Expander HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                                      IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
-                                      Tag="{x:Bind}" Expanding="PlatformExpander_Expanding"
-                                      BorderBrush="{x:Bind IsActivePlatform, Mode=OneWay, Converter={StaticResource BoolToAccentBrushConverter}}"
-                                      BorderThickness="1.5">
-                                <Expander.Header>
+                            <!-- IsActive highlights whichever platform SaveSessionManager is
+                                 currently working within - see IsActivePlatform's doc comment. -->
+                            <controls:AnimatedExpander HorizontalAlignment="Stretch"
+                                                        IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
+                                                        IsActive="{x:Bind IsActivePlatform, Mode=OneWay}">
+                                <controls:AnimatedExpander.HeaderContent>
                                     <Grid ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
@@ -84,69 +80,71 @@
                                             </Button>
                                         </StackPanel>
                                     </Grid>
-                                </Expander.Header>
+                                </controls:AnimatedExpander.HeaderContent>
 
-                                <StackPanel Spacing="12" Padding="4,12,4,4">
-                                    <StackPanel Orientation="Horizontal" Spacing="8"
-                                                Visibility="{x:Bind IsLoadingSlots, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                        <ProgressRing IsActive="{x:Bind IsLoadingSlots, Mode=OneWay}" Width="20" Height="20"/>
-                                        <TextBlock Text="Indexing save files..." Foreground="{ThemeResource NmsTextSecondary}" VerticalAlignment="Center"/>
-                                    </StackPanel>
+                                <controls:AnimatedExpander.BodyContent>
+                                    <StackPanel Spacing="12">
+                                        <StackPanel Orientation="Horizontal" Spacing="8"
+                                                    Visibility="{x:Bind IsLoadingSlots, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <ProgressRing IsActive="{x:Bind IsLoadingSlots, Mode=OneWay}" Width="20" Height="20"/>
+                                            <TextBlock Text="Indexing save files..." Foreground="{ThemeResource NmsTextSecondary}" VerticalAlignment="Center"/>
+                                        </StackPanel>
 
-                                    <TextBlock Text="No readable save files were found in this folder."
-                                               Foreground="{ThemeResource NmsTextSecondary}" FontSize="13"
-                                               Visibility="{x:Bind IsEmptyResult, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                        <TextBlock Text="No readable save files were found in this folder."
+                                                   Foreground="{ThemeResource NmsTextSecondary}" FontSize="13"
+                                                   Visibility="{x:Bind IsEmptyResult, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-                                    <!-- Compact grid (not a tall single column) so a full
-                                         6-slot folder fits without scrolling. -->
-                                    <ItemsControl ItemsSource="{x:Bind SlotGroups}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="models:SaveSlotGroup">
-                                                <Border Tapped="SaveSlot_Tapped" Tag="{x:Bind}"
-                                                        Width="270" Padding="14" CornerRadius="10" BorderThickness="1"
-                                                        BorderBrush="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BoolToAccentBrushConverter}}"
-                                                        Background="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BoolToActiveBackgroundConverter}}">
-                                                    <StackPanel Spacing="6">
-                                                        <Grid ColumnSpacing="8">
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="*"/>
-                                                                <ColumnDefinition Width="Auto"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock Grid.Column="0" Text="{x:Bind SlotLabel}" FontWeight="Bold" FontSize="15"/>
-                                                            <Border Grid.Column="1" Background="{ThemeResource NmsAccentBrush}" CornerRadius="4" Padding="7,2"
-                                                                    Visibility="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                                <TextBlock Text="ACTIVE" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                        <!-- Compact grid (not a tall single column) so a full
+                                             6-slot folder fits without scrolling. -->
+                                        <ItemsControl ItemsSource="{x:Bind SlotGroups}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="models:SaveSlotGroup">
+                                                    <Border Tapped="SaveSlot_Tapped" Tag="{x:Bind}"
+                                                            Width="270" Padding="14" CornerRadius="10" BorderThickness="1"
+                                                            BorderBrush="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BoolToAccentBrushConverter}}"
+                                                            Background="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BoolToActiveBackgroundConverter}}">
+                                                        <StackPanel Spacing="6">
+                                                            <Grid ColumnSpacing="8">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <TextBlock Grid.Column="0" Text="{x:Bind SlotLabel}" FontWeight="Bold" FontSize="15"/>
+                                                                <Border Grid.Column="1" Background="{ThemeResource NmsAccentBrush}" CornerRadius="4" Padding="7,2"
+                                                                        Visibility="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                    <TextBlock Text="ACTIVE" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                                                </Border>
+                                                            </Grid>
+
+                                                            <TextBlock Text="{x:Bind PrimaryFile.SaveName}" FontWeight="SemiBold" FontSize="13"
+                                                                       TextTrimming="CharacterEllipsis"/>
+
+                                                            <Border Background="Transparent" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                                                                    CornerRadius="4" Padding="6,2" HorizontalAlignment="Left"
+                                                                    Visibility="{x:Bind PrimaryFile.HasKnownGameMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                <TextBlock Text="{x:Bind PrimaryFile.GameMode}" FontSize="10" FontWeight="SemiBold"
+                                                                           Foreground="{ThemeResource NmsTextSecondary}"/>
                                                             </Border>
-                                                        </Grid>
 
-                                                        <TextBlock Text="{x:Bind PrimaryFile.SaveName}" FontWeight="SemiBold" FontSize="13"
-                                                                   TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Text="{x:Bind PrimaryFile.SummaryDisplay}" FontSize="11"
+                                                                       Foreground="{ThemeResource NmsTextSecondary}" TextTrimming="CharacterEllipsis"/>
 
-                                                        <Border Background="Transparent" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                                                                CornerRadius="4" Padding="6,2" HorizontalAlignment="Left"
-                                                                Visibility="{x:Bind PrimaryFile.HasKnownGameMode, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                            <TextBlock Text="{x:Bind PrimaryFile.GameMode}" FontSize="10" FontWeight="SemiBold"
-                                                                       Foreground="{ThemeResource NmsTextSecondary}"/>
-                                                        </Border>
-
-                                                        <TextBlock Text="{x:Bind PrimaryFile.SummaryDisplay}" FontSize="11"
-                                                                   Foreground="{ThemeResource NmsTextSecondary}" TextTrimming="CharacterEllipsis"/>
-
-                                                        <TextBlock Text="+ backup copy" FontSize="10" Opacity="0.5"
-                                                                   Foreground="{ThemeResource NmsTextSecondary}"
-                                                                   Visibility="{x:Bind HasBackupCopy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                                    </StackPanel>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </StackPanel>
-                            </Expander>
+                                                            <TextBlock Text="+ backup copy" FontSize="10" Opacity="0.5"
+                                                                       Foreground="{ThemeResource NmsTextSecondary}"
+                                                                       Visibility="{x:Bind HasBackupCopy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </controls:AnimatedExpander.BodyContent>
+                            </controls:AnimatedExpander>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

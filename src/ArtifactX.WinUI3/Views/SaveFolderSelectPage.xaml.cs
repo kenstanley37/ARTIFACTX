@@ -61,17 +61,6 @@ public sealed partial class SaveFolderSelectPage : Page
         await SaveSessionManager.LoadAsync(slot);
     }
 
-    /// <summary>Opening a platform card (whether by a user click or restored
-    /// expanded state from a prior session) is treated as "working within this
-    /// platform account" even before a specific save slot is picked - lets
-    /// account-wide pages (Account Data) become available off just this,
-    /// since accountdata.hg lives once per platform folder, not per slot.</summary>
-    private void PlatformExpander_Expanding(Expander sender, ExpanderExpandingEventArgs args)
-    {
-        if (sender.Tag is SaveFolderCandidate candidate)
-            SaveSessionManager.SetActivePlatform(candidate.FolderPath);
-    }
-
     private void RemoveFolderBtn_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: SaveFolderCandidate candidate })

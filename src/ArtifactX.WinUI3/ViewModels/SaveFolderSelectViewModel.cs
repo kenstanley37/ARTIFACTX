@@ -179,11 +179,12 @@ public partial class SaveFolderSelectViewModel : ObservableObject
 
         // Accordion behavior: opening one platform card closes every other -
         // only one is realistically "the one you're working in" at a time
-        // (user feedback 2026-08-04, alongside SetActivePlatform treating
-        // "opened" as "selected" - see SaveFolderSelectPage). Guarded on
-        // IsExpanded actually being true so collapsing a card (setting it
-        // false, including the ones this loop itself collapses) doesn't
-        // recurse back into this branch.
+        // (user feedback 2026-08-04). Also treats "opened" as "selected" for
+        // account-wide pages (Account Data) that only need a platform chosen,
+        // not a specific save slot loaded - see SaveSessionManager.SetActivePlatform.
+        // Guarded on IsExpanded actually being true so collapsing a card
+        // (setting it false, including the ones this loop itself collapses)
+        // doesn't recurse back into this branch.
         if (sender is SaveFolderCandidate expanded && expanded.IsExpanded)
         {
             foreach (var other in Candidates)
@@ -191,6 +192,8 @@ public partial class SaveFolderSelectViewModel : ObservableObject
                 if (!ReferenceEquals(other, expanded) && other.IsExpanded)
                     other.IsExpanded = false;
             }
+
+            SaveSessionManager.SetActivePlatform(expanded.FolderPath);
         }
 
         PersistExpandedFolders();
