@@ -86,8 +86,17 @@ public sealed partial class LanguageWordsControl : UserControl
         LoadingRing.IsActive = true;
         LoadingRing.Visibility = Visibility.Visible;
 
+        // Forces a real dispatcher yield here, so the spinner actually gets a
+        // render pass before the work below runs. Without this, a warm-cache
+        // load (the common case - GetAllLanguageWordsAsync's cache hit path
+        // never truly awaits) plus building ~1,100-1,170 row view-models can
+        // complete in one synchronous burst on the UI thread with zero frames
+        // rendered in between, so the spinner is "on" the whole time but never
+        // visibly appears - confirmed by the user 2026-08-04 as a residual
+        // couple-second stall with no visible loading indicator.
+        await Task.Yield();
+
         var allCatalogWords = await CatalogService.GetAllLanguageWordsAsync();
-        var raceWords = allCatalogWords.Where(w => w.Race == _raceName).ToList();
 
         var knownArray = SaveSessionManager.GetValue(NmsLanguagePaths.KnownWordsArrayPath) as JArray;
         _fullEntries = knownArray?.OfType<JObject>().ToList() ?? new();
@@ -95,12 +104,21 @@ public sealed partial class LanguageWordsControl : UserControl
             _fullEntries.Select(e => CatalogService.NormalizeId(e["MYl"]?.Value<string>() ?? "")).Where(s => s.Length > 0),
             StringComparer.Ordinal);
 
-        _allWords = raceWords.Select(w => new LanguageWordRowViewModel
-        {
-            GameId = w.GameId,
-            DisplayName = ToDisplayCase(w.DisplayName),
-            IsKnown = _fullKnownIdSet.Contains(w.GameId)
-        }).ToList();
+        // The actual row-building (filter ~4,570 down to one race, construct
+        // ~1,100-1,170 ObservableObject instances) is real work, not just a
+        // rendering technicality - moved off the UI thread entirely so the
+        // spinner keeps animating smoothly for however long it takes, rather
+        // than relying on a single yielded frame to cover it.
+        string raceName = _raceName;
+        var knownIdSet = _fullKnownIdSet;
+        _allWords = await Task.Run(() => allCatalogWords
+            .Where(w => w.Race == raceName)
+            .Select(w => new LanguageWordRowViewModel
+            {
+                GameId = w.GameId,
+                DisplayName = ToDisplayCase(w.DisplayName),
+                IsKnown = knownIdSet.Contains(w.GameId)
+            }).ToList());
 
         LoadingRing.IsActive = false;
         LoadingRing.Visibility = Visibility.Collapsed;

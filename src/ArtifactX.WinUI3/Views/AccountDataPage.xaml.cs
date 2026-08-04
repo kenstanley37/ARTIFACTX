@@ -72,6 +72,15 @@ public sealed partial class AccountDataPage : Page
         LoadingRing.IsActive = true;
         LoadingRing.Visibility = Visibility.Visible;
 
+        // Forces a real dispatcher yield so the spinner gets a render pass
+        // before the work below runs - AccountSessionManager.LoadAsync and
+        // GetAllUnlockableItemsAsync both return immediately with no real
+        // await reached once already loaded/cached (revisiting this page
+        // later in the session), and this page's ~4,700-row build is the
+        // largest of the app's three catalog-backed pages - see
+        // LanguageWordsControl's identical fix for the full writeup.
+        await Task.Yield();
+
         bool loaded = await AccountSessionManager.LoadAsync();
         if (!loaded)
         {
@@ -87,13 +96,14 @@ public sealed partial class AccountDataPage : Page
         _workingIds = unlockedArray?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
         _workingIdSet = new HashSet<string>(_workingIds.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
 
-        _allItems = catalogItems.Select(c => new AccountItemRowViewModel
+        var workingIdSet = _workingIdSet;
+        _allItems = await Task.Run(() => catalogItems.Select(c => new AccountItemRowViewModel
         {
             GameId = c.GameId,
             DisplayName = c.DisplayName,
             CategoryLabel = c.CategoryLabel,
-            IsUnlocked = _workingIdSet.Contains(c.GameId)
-        }).ToList();
+            IsUnlocked = workingIdSet.Contains(c.GameId)
+        }).ToList());
 
         LoadingRing.IsActive = false;
         LoadingRing.Visibility = Visibility.Collapsed;

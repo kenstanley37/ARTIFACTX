@@ -77,6 +77,15 @@ public sealed partial class CataloguePage : Page
         LoadingRing.IsActive = true;
         LoadingRing.Visibility = Visibility.Visible;
 
+        // Forces a real dispatcher yield so the spinner gets a render pass
+        // before the work below runs - both GetAllUnlockableItemsAsync and
+        // WarmCacheAsync return immediately with no real await reached once
+        // their cache is warm (revisiting this page later in the session),
+        // so without this the spinner could be "on" the whole time yet never
+        // actually paint a frame - see LanguageWordsControl's identical fix
+        // for the full writeup of this bug.
+        await Task.Yield();
+
         var catalogItems = await CatalogService.GetAllUnlockableItemsAsync();
         var technologyItems = catalogItems.Where(c => c.CategoryLabel == "Technology").ToList();
 
