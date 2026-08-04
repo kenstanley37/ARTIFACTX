@@ -9,6 +9,19 @@
     mc:Ignorable="d"
     Height="56">
 
+    <UserControl.Resources>
+        <!-- Soft highlight pulse behind the active-save label, briefly played
+             whenever the active save actually SWITCHES to a different one
+             (not on first load, not on every edit-triggered Refresh) - see
+             AppTitleBar.xaml.cs's Refresh(). Switching saves previously gave
+             no visual feedback beyond this label's text silently changing,
+             which read as "nothing happened" (user feedback 2026-08-04). -->
+        <Storyboard x:Name="SaveSwitchFlash">
+            <DoubleAnimation Storyboard.TargetName="ActiveSaveHighlight" Storyboard.TargetProperty="Opacity"
+                              From="0.35" To="0" Duration="0:0:0.9"/>
+        </Storyboard>
+    </UserControl.Resources>
+
     <Grid x:Name="TitleBarLayout" Background="{ThemeResource NmsPaneBackgroundBrush}">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
@@ -22,8 +35,12 @@
             <TextBlock Text="ARTIFACTX"
                        Foreground="{ThemeResource NmsTextPrimary}"
                        FontWeight="SemiBold" FontSize="12" CharacterSpacing="100"/>
-            <TextBlock x:Name="ActiveSaveTxt" Text="" FontSize="12" FontWeight="SemiBold"
-                       Foreground="{ThemeResource NmsAccentBrush}" VerticalAlignment="Center"/>
+            <Grid VerticalAlignment="Center">
+                <Border x:Name="ActiveSaveHighlight" Background="{ThemeResource NmsTextPrimary}"
+                        CornerRadius="4" Opacity="0" Margin="-6,-3"/>
+                <TextBlock x:Name="ActiveSaveTxt" Text="" FontSize="12" FontWeight="SemiBold"
+                           Foreground="{ThemeResource NmsAccentBrush}" VerticalAlignment="Center"/>
+            </Grid>
         </StackPanel>
 
         <StackPanel x:Name="CurrencyDisplayRegion" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">

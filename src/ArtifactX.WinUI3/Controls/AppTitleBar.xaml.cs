@@ -11,6 +11,12 @@ public sealed partial class AppTitleBar : UserControl
 {
     private bool _isSaving;
 
+    // Tracks the previously-shown label so Refresh() can tell "the active save
+    // actually switched to a different one" apart from "Refresh ran again for
+    // some other reason" (an edit, a Save, GameProcessMonitorService ticking) -
+    // only the former should play the switch-flash animation.
+    private string? _lastActiveLabel;
+
     public AppTitleBar()
     {
         InitializeComponent();
@@ -72,10 +78,16 @@ public sealed partial class AppTitleBar : UserControl
             SaveBtn.Visibility = Visibility.Collapsed;
             ResetBtn.Visibility = Visibility.Collapsed;
             PendingChangesTxt.Visibility = Visibility.Collapsed;
+            _lastActiveLabel = null;
             return;
         }
 
-        ActiveSaveTxt.Text = $"•  {SaveSessionManager.ActiveLabel}";
+        string currentLabel = SaveSessionManager.ActiveLabel ?? "";
+        if (_lastActiveLabel is not null && currentLabel != _lastActiveLabel)
+            SaveSwitchFlash.Begin();
+        _lastActiveLabel = currentLabel;
+
+        ActiveSaveTxt.Text = $"•  {currentLabel}";
 
         // ToDisplayValue undoes the uint32 wrap the game itself writes for a
         // balance over ~2.1 billion - see its doc comment. No-op for the
