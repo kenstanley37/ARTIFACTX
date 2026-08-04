@@ -183,6 +183,10 @@ public sealed partial class MainWindow : Window
                 "Milestones" => typeof(MilestonesPage),
                 "AccountData" => typeof(AccountDataPage),
                 "Catalogue" => typeof(CataloguePage),
+                "LanguageGek" => typeof(GekLanguagePage),
+                "LanguageVyKeen" => typeof(VyKeenLanguagePage),
+                "LanguageKorvax" => typeof(KorvaxLanguagePage),
+                "LanguageAutophage" => typeof(AutophageLanguagePage),
                 "AncestrySearch" => typeof(AncestrySearchView),
                 "HGDecryption" => typeof(HGDecryptionPage),
                 _ => typeof(SaveFolderSelectPage)
@@ -235,6 +239,10 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(MilestonesPage) => "Milestones",
             Type t when t == typeof(AccountDataPage) => "AccountData",
             Type t when t == typeof(CataloguePage) => "Catalogue",
+            Type t when t == typeof(GekLanguagePage) => "LanguageGek",
+            Type t when t == typeof(VyKeenLanguagePage) => "LanguageVyKeen",
+            Type t when t == typeof(KorvaxLanguagePage) => "LanguageKorvax",
+            Type t when t == typeof(AutophageLanguagePage) => "LanguageAutophage",
             Type t when t == typeof(AncestrySearchView) => "AncestrySearch",
             Type t when t == typeof(HGDecryptionPage) => "HGDecryption",
             _ => string.Empty

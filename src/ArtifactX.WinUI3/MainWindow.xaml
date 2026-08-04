@@ -103,10 +103,37 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
+                <!-- Expandable AND directly clickable - clicking "Milestones" itself
+                     still navigates to MilestonesPage (SelectsOnInvoked defaults to
+                     true), the chevron just additionally exposes the 4 per-race
+                     language pages as children, matching where the user asked for
+                     these to live ("milestones is the best spot"). -->
                 <NavigationViewItem x:Name="MilestonesNavItem" Content="Milestones" Tag="Milestones" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE9D9;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
+                    <NavigationViewItem.MenuItems>
+                        <NavigationViewItem Content="Gek Language" Tag="LanguageGek">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE8C1;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Content="Vy'keen Language" Tag="LanguageVyKeen">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE8C1;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Content="Korvax Language" Tag="LanguageKorvax">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE8C1;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Content="Autophage Language" Tag="LanguageAutophage">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE8C1;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                    </NavigationViewItem.MenuItems>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="AccountDataNavItem" Content="Account Data" Tag="AccountData" Visibility="Collapsed">

@@ -1,6 +1,9 @@
-﻿using ArtifactX.Tools.DataCataloger.Services;
+﻿using ArtifactX.Tools.DataCataloger.Data;
+using ArtifactX.Tools.DataCataloger.Models;
+using ArtifactX.Tools.DataCataloger.Services;
 using ArtifactX.Tools.DataCataloger.Services.Interfaces;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using libMBIN;
 
 string workingFolder = Path.Combine(AppContext.BaseDirectory, "Working");
@@ -157,6 +160,210 @@ if (args.Length > 1 && args[0].Equals("grep", StringComparison.OrdinalIgnoreCase
     }
 
     ConsoleStyle.Header($"Scanned {filesScanned} MBIN files across {grepPaks.Count} PAKs, {matchesFound} matches for '{needle}'.");
+    return;
+}
+
+// "DataCataloger locid <id substring>" decodes language/nms_loc1_english.mbin
+// (the English loc table `grep` found matching alien-word ids in) via the same
+// LocalisationService.BuildEnglishLookup used for regular item names, then
+// prints every entry whose key contains the given substring - e.g. "locid TRA_"
+// dumps every Gek word's id -> English text pair in one call.
+if (args.Length > 1 && args[0].Equals("locid", StringComparison.OrdinalIgnoreCase))
+{
+    string idSubstring = args[1];
+    var locSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(locSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakDiscoveryService locPakDiscovery = new PakDiscoveryService();
+    IPakReaderService locPakReader = new PakReaderService();
+    var locExtraction = new ExtractionService();
+    var locPaks = locPakDiscovery.Discover(locSettings.NmsInstallationPath!);
+
+    bool locFound = false;
+    foreach (var pak in locPaks)
+    {
+        ArtifactX.Tools.DataCataloger.Models.PakHeader header;
+        IReadOnlyList<ArtifactX.Tools.DataCataloger.Models.PakEntry> entries;
+        try
+        {
+            header = locPakReader.ReadHeader(pak.FullPath);
+            entries = locPakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+
+        var match = entries.FirstOrDefault(e =>
+            !string.IsNullOrEmpty(e.FileName) &&
+            e.FileName.Contains("language/nms_loc1_english.mbin", StringComparison.OrdinalIgnoreCase));
+        if (match is null) continue;
+
+        locFound = true;
+        byte[]? bytes;
+        try { bytes = locExtraction.ExtractEntryBytes(pak.FullPath, match, header); }
+        catch (Exception ex) { ConsoleStyle.Error($"Extraction failed: {ex.Message}"); return; }
+        if (bytes is null || bytes.Length == 0) { ConsoleStyle.Error("Extraction returned no bytes."); return; }
+
+        NMSTemplate? template;
+        try
+        {
+            using var ms = new MemoryStream(bytes);
+            var mbin = new MBINFile(ms);
+            mbin.Load();
+            template = mbin.GetData();
+        }
+        catch (Exception ex) { ConsoleStyle.Error($"Decode failed: {ex.Message}"); return; }
+        if (template is null) { ConsoleStyle.Error("Decoded template is null."); return; }
+
+        var lookup = LocalisationService.BuildEnglishLookup(template);
+        ConsoleStyle.Header($"Loc table has {lookup.Count} total entries. Matching '{idSubstring}':");
+
+        var matches = lookup.Where(kv => kv.Key.Contains(idSubstring, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var kv in matches)
+            ConsoleStyle.Success($"  {kv.Key} = \"{kv.Value}\"");
+
+        ConsoleStyle.Header($"{matches.Count} matching entries.");
+        return;
+    }
+
+    if (!locFound)
+        ConsoleStyle.Error("Could not find language/nms_loc1_english.mbin in any PAK.");
+    return;
+}
+
+// "DataCataloger add-language-words <target-catalog-db-path>" extracts every
+// alien-language vocabulary word (the save-editable subset found at
+// vLc.6f=.MF2 - see ArtifactX's project_language_words memory) from
+// language/nms_loc1_english.mbin and writes them into an existing catalog DB
+// as a new "GcAlienLanguageWords" category, UsageCategory = race name.
+//
+// The loc table's TRA_/WAR_/EXP_/BUI_ prefixes aren't exclusively vocabulary
+// words - the SAME prefixes are reused for lore paragraphs and other UI text
+// (e.g. "EXP_1_PLAQUE_LORE_1" is a multi-sentence Korvax lore entry, not a
+// word). Confirmed by direct inspection that every REAL word id follows a
+// strict two-part shape - PREFIX_WORD, where WORD is letters/apostrophe only,
+// no digits, no extra underscores - and that shape alone (not the text value)
+// cleanly separates real words from lore noise with zero false positives
+// spot-checked. Idempotent: re-running replaces any previously-inserted
+// GcAlienLanguageWords category rather than duplicating them.
+if (args.Length > 1 && args[0].Equals("add-language-words", StringComparison.OrdinalIgnoreCase))
+{
+    string targetDbPath = args[1];
+    if (!File.Exists(targetDbPath))
+    {
+        ConsoleStyle.Error($"Target catalog DB not found: {targetDbPath}");
+        return;
+    }
+
+    var wordSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(wordSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakDiscoveryService wordPakDiscovery = new PakDiscoveryService();
+    IPakReaderService wordPakReader = new PakReaderService();
+    var wordExtraction = new ExtractionService();
+    var wordPaks = wordPakDiscovery.Discover(wordSettings.NmsInstallationPath!);
+
+    NMSTemplate? locTemplate = null;
+    foreach (var pak in wordPaks)
+    {
+        PakHeader header;
+        IReadOnlyList<PakEntry> entries;
+        try
+        {
+            header = wordPakReader.ReadHeader(pak.FullPath);
+            entries = wordPakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+
+        var match = entries.FirstOrDefault(e =>
+            !string.IsNullOrEmpty(e.FileName) &&
+            e.FileName.Contains("language/nms_loc1_english.mbin", StringComparison.OrdinalIgnoreCase));
+        if (match is null) continue;
+
+        byte[]? bytes;
+        try { bytes = wordExtraction.ExtractEntryBytes(pak.FullPath, match, header); }
+        catch (Exception ex) { ConsoleStyle.Error($"Extraction failed: {ex.Message}"); return; }
+        if (bytes is null || bytes.Length == 0) { ConsoleStyle.Error("Extraction returned no bytes."); return; }
+
+        using var ms = new MemoryStream(bytes);
+        var mbin = new MBINFile(ms);
+        mbin.Load();
+        locTemplate = mbin.GetData();
+        break;
+    }
+
+    if (locTemplate is null)
+    {
+        ConsoleStyle.Error("Could not find/decode language/nms_loc1_english.mbin in any PAK.");
+        return;
+    }
+
+    var lookup = LocalisationService.BuildEnglishLookup(locTemplate);
+    ConsoleStyle.Header($"Loc table decoded: {lookup.Count} total entries.");
+
+    var raceByPrefix = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["TRA"] = "Gek",
+        ["WAR"] = "Vy'keen",
+        ["EXP"] = "Korvax",
+        ["BUI"] = "Autophage"
+    };
+
+    var wordPattern = new Regex(@"^(TRA|WAR|EXP|BUI)_[A-Z']+$", RegexOptions.Compiled);
+
+    var words = lookup
+        .Where(kv => wordPattern.IsMatch(kv.Key))
+        .Select(kv => (GameId: kv.Key.ToUpperInvariant(), NameEnglish: kv.Value, Race: raceByPrefix[kv.Key.Split('_')[0].ToUpperInvariant()]))
+        .ToList();
+
+    var byRace = words.GroupBy(w => w.Race).ToDictionary(g => g.Key, g => g.Count());
+    ConsoleStyle.Header($"Filtered to {words.Count} real vocabulary words (excludes lore/UI-text noise sharing the same prefixes):");
+    foreach (var (race, count) in byRace)
+        ConsoleStyle.Success($"  {race}: {count}");
+
+    using var db = new CatalogDbContext(targetDbPath);
+
+    var existingCategory = db.Categories.FirstOrDefault(c => c.TemplateType == "GcAlienLanguageWords");
+    if (existingCategory != null)
+    {
+        ConsoleStyle.Info("Existing GcAlienLanguageWords category found - removing before re-inserting (idempotent re-run).");
+        var existingItems = db.Items.Where(i => i.CategoryId == existingCategory.Id);
+        db.Items.RemoveRange(existingItems);
+        db.Categories.Remove(existingCategory);
+        db.SaveChanges();
+    }
+
+    var category = new CatalogCategory
+    {
+        TemplateType = "GcAlienLanguageWords",
+        RowType = "TkLocalisationEntry",
+        SourceMbinPath = "language/nms_loc1_english.mbin"
+    };
+    db.Categories.Add(category);
+    db.SaveChanges();
+
+    foreach (var word in words)
+    {
+        db.Items.Add(new CatalogItem
+        {
+            CategoryId = category.Id,
+            GameId = word.GameId,
+            NameEnglish = word.NameEnglish,
+            UsageCategory = word.Race
+        });
+    }
+    db.SaveChanges();
+
+    ConsoleStyle.Success($"Wrote {words.Count} language word entries to {targetDbPath}.");
     return;
 }
 

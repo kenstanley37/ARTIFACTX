@@ -596,6 +596,60 @@ public static class CatalogService
         return results;
     }
 
+    private static List<LanguageWord>? _languageWordsCache;
+
+    /// <summary>Every alien-language vocabulary word across all 4 races (~4,570
+    /// total), from the GcAlienLanguageWords category DataCataloger's
+    /// `add-language-words` command extracts from language/nms_loc1_english.mbin -
+    /// see NmsLanguagePaths' doc comment for how this was confirmed real.
+    /// UsageCategory holds the race name ("Gek"/"Vy'keen"/"Korvax"/"Autophage")
+    /// directly, so no id-prefix parsing is needed by callers.</summary>
+    public static async Task<List<LanguageWord>> GetAllLanguageWordsAsync()
+    {
+        if (_languageWordsCache is not null) return _languageWordsCache;
+
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+
+        try
+        {
+            _languageWordsCache = await Task.Run(() => QueryLanguageWords(dbPath));
+            return _languageWordsCache;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetAllLanguageWordsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    private static List<LanguageWord> QueryLanguageWords(string dbPath)
+    {
+        var results = new List<LanguageWord>();
+
+        using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT i.GameId, i.NameEnglish, i.UsageCategory
+            FROM Items i
+            JOIN Categories c ON c.Id = i.CategoryId
+            WHERE c.TemplateType = 'GcAlienLanguageWords'";
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            results.Add(new LanguageWord
+            {
+                GameId = reader.GetString(0),
+                DisplayName = reader.GetString(1),
+                Race = reader.GetString(2)
+            });
+        }
+        return results;
+    }
+
     // Cached process-wide (not per-page) - the underlying rows never change
     // within an app session, and both AccountDataPage and CataloguePage need
     // the same full ~4,700-row set, so caching it once here avoids each page
