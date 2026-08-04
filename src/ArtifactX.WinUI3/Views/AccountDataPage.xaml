@@ -122,6 +122,17 @@
                         </ComboBox>
                     </StackPanel>
 
+                    <!-- Only shown when Source="Expedition Rewards" (toggled in ApplyFilters) -
+                         every other source has no rows with an ExpeditionNumber, so the
+                         filter would be a confusing no-op there. Items are populated in
+                         code-behind (PopulateExpeditionFilter) from the same live
+                         CatalogService.BuildExpeditionNameLookup data the column itself
+                         uses, never a hardcoded expedition list. -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="Expedition:" VerticalAlignment="Center" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"/>
+                        <ComboBox x:Name="ExpeditionFilterBox" Width="220" SelectionChanged="Filter_Changed" Visibility="Collapsed"/>
+                    </StackPanel>
+
                     <!-- Multi-select category filter, deliberately checkboxes rather than a
                          single-select dropdown - mirrors NomNom's own Catalog tab, which shows
                          all 9 of its (finer) groups as checkboxes side by side rather than a
@@ -144,11 +155,17 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <CheckBox Grid.Column="0" IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
                                           Click="ItemCheckBox_Click" Tag="{x:Bind}" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="1" Text="{x:Bind DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                <Border Grid.Column="2" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                                <Border Grid.Column="2" Visibility="{x:Bind ExpeditionVisibility}"
+                                        BorderBrush="{ThemeResource SystemAccentColorBrush}" BorderThickness="1"
+                                        CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind ExpeditionLabel}" FontSize="11" Foreground="{ThemeResource SystemAccentColorBrush}"/>
+                                </Border>
+                                <Border Grid.Column="3" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
                                         CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
                                     <TextBlock Text="{x:Bind CategoryLabel}" FontSize="11" Foreground="{ThemeResource NmsTextSecondary}"/>
                                 </Border>

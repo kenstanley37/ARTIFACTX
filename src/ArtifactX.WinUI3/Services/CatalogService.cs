@@ -742,20 +742,22 @@ public static class CatalogService
     }
 
     /// <summary>If gameId is a Banner/Decal/Title item from a numbered expedition (see
-    /// BuildExpeditionNameLookup), appends "(Expedition #N: Name)" to displayName -
-    /// otherwise returns displayName unchanged. Every other EXPD_ item (the large
-    /// majority) has no reliable expedition-number signal, so is deliberately left
-    /// unannotated rather than guessing from a numeric id suffix that may not
-    /// actually correspond to expedition order for that item family.</summary>
-    public static string AnnotateExpeditionInfo(string gameId, string displayName, Dictionary<int, string> expeditionNames)
+    /// BuildExpeditionNameLookup), returns its expedition number/name as data -
+    /// otherwise (null, null). Every other EXPD_ item (the large majority) has no
+    /// reliable expedition-number signal, so is deliberately left unmatched rather
+    /// than guessing from a numeric id suffix that may not actually correspond to
+    /// expedition order for that item family. Feeds AccountItemRowViewModel's
+    /// ExpeditionNumber/ExpeditionName fields directly - display formatting (column
+    /// text, filter labels) is the caller's job, not this method's.</summary>
+    public static (int? Number, string? Name) GetExpeditionInfo(string gameId, Dictionary<int, string> expeditionNames)
     {
         var match = ExpeditionItemPattern.Match(gameId);
-        if (!match.Success) return displayName;
+        if (!match.Success) return (null, null);
 
         int number = int.Parse(match.Groups[1].Value);
         return expeditionNames.TryGetValue(number, out var name)
-            ? $"{displayName} (Expedition #{number}: {name})"
-            : displayName;
+            ? (number, name)
+            : (null, null);
     }
 
     private static string? ResolveDbPath()

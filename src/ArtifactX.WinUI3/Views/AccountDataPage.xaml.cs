@@ -105,20 +105,58 @@ public sealed partial class AccountDataPage : Page
         var expeditionNames = CatalogService.BuildExpeditionNameLookup(catalogItems);
 
         var workingIdSet = _workingIdSet;
-        _allItems = await Task.Run(() => catalogItems.Select(c => new AccountItemRowViewModel
+        _allItems = await Task.Run(() => catalogItems.Select(c =>
         {
-            GameId = c.GameId,
-            DisplayName = CatalogService.AnnotateExpeditionInfo(c.GameId, c.DisplayName, expeditionNames),
-            CategoryLabel = c.CategoryLabel,
-            IsUnlocked = workingIdSet.Contains(c.GameId)
+            var (expeditionNumber, expeditionName) = CatalogService.GetExpeditionInfo(c.GameId, expeditionNames);
+            return new AccountItemRowViewModel
+            {
+                GameId = c.GameId,
+                DisplayName = c.DisplayName,
+                CategoryLabel = c.CategoryLabel,
+                ExpeditionNumber = expeditionNumber,
+                ExpeditionName = expeditionName,
+                IsUnlocked = workingIdSet.Contains(c.GameId)
+            };
         }).ToList());
 
         LoadingRing.IsActive = false;
         LoadingRing.Visibility = Visibility.Collapsed;
         ContentPanel.Visibility = Visibility.Visible;
 
+        PopulateExpeditionFilter(expeditionNames);
         ApplyFilters();
         UpdateEditButtons();
+    }
+
+    /// <summary>Rebuilds ExpeditionFilterBox's items from the same live-derived
+    /// expeditionNames lookup used for the row data itself (BuildExpeditionNameLookup) -
+    /// never a hardcoded expedition list, so a future game update's new expedition
+    /// shows up automatically after the next DataCataloger catalog rebuild. Re-run on
+    /// every load (not just once) since a different save's B1h could theoretically be
+    /// paired with a different catalog DB. Preserves the current selection by number
+    /// where it still exists, otherwise falls back to "All Expeditions".</summary>
+    private void PopulateExpeditionFilter(Dictionary<int, string> expeditionNames)
+    {
+        int? previouslySelected = (ExpeditionFilterBox.SelectedItem as ComboBoxItem)?.Tag as int?;
+
+        ExpeditionFilterBox.Items.Clear();
+        ExpeditionFilterBox.Items.Add(new ComboBoxItem { Content = "All Expeditions", Tag = null });
+        foreach (var kvp in expeditionNames.OrderBy(kvp => kvp.Key))
+            ExpeditionFilterBox.Items.Add(new ComboBoxItem { Content = $"#{kvp.Key}: {kvp.Value}", Tag = kvp.Key });
+
+        int indexToSelect = 0;
+        if (previouslySelected is int number)
+        {
+            for (int i = 0; i < ExpeditionFilterBox.Items.Count; i++)
+            {
+                if (((ComboBoxItem)ExpeditionFilterBox.Items[i]).Tag as int? == number)
+                {
+                    indexToSelect = i;
+                    break;
+                }
+            }
+        }
+        ExpeditionFilterBox.SelectedIndex = indexToSelect;
     }
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilters();
@@ -145,7 +183,8 @@ public sealed partial class AccountDataPage : Page
         // Mutually exclusive with each other, unlike the Category checkboxes above -
         // "Catalog" explicitly excludes Expedition/Twitch items rather than mixing
         // them in, matching NomNom keeping those in their own separate lists.
-        if (sourceFilter == "Expedition Rewards")
+        bool isExpeditionSource = sourceFilter == "Expedition Rewards";
+        if (isExpeditionSource)
             filtered = filtered.Where(i => i.GameId.StartsWith("EXPD_", StringComparison.OrdinalIgnoreCase));
         else if (sourceFilter == "Twitch Rewards")
             filtered = filtered.Where(i => i.GameId.StartsWith("TWITCH_", StringComparison.OrdinalIgnoreCase));
@@ -153,6 +192,13 @@ public sealed partial class AccountDataPage : Page
             filtered = filtered.Where(i =>
                 !i.GameId.StartsWith("EXPD_", StringComparison.OrdinalIgnoreCase) &&
                 !i.GameId.StartsWith("TWITCH_", StringComparison.OrdinalIgnoreCase));
+
+        // Only meaningful (and only shown - see Filter_Changed) when Source is
+        // "Expedition Rewards"; every other source has no rows with an
+        // ExpeditionNumber at all, so this filter is a no-op for them anyway.
+        ExpeditionFilterBox.Visibility = isExpeditionSource ? Visibility.Visible : Visibility.Collapsed;
+        if (isExpeditionSource && (ExpeditionFilterBox.SelectedItem as ComboBoxItem)?.Tag is int selectedExpedition)
+            filtered = filtered.Where(i => i.ExpeditionNumber == selectedExpedition);
 
         if (!string.IsNullOrEmpty(query))
         {

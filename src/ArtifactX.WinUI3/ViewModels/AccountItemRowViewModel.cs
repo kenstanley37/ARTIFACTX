@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.UI.Xaml;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
@@ -12,6 +13,16 @@ public partial class AccountItemRowViewModel : ObservableObject
     public required string GameId { get; init; }
     public required string DisplayName { get; init; }
     public required string CategoryLabel { get; init; }
+
+    /// <summary>Null for the vast majority of rows - only set for Banner/Decal/Title
+    /// Expedition Reward items, whose own names spell out which expedition they're
+    /// from (see CatalogService.BuildExpeditionNameLookup). Used both for the
+    /// Expedition column and the Expedition filter dropdown.</summary>
+    public int? ExpeditionNumber { get; init; }
+    public string? ExpeditionName { get; init; }
+
+    public string ExpeditionLabel => ExpeditionNumber is int n ? $"#{n}: {ExpeditionName}" : "";
+    public Visibility ExpeditionVisibility => ExpeditionNumber is int ? Visibility.Visible : Visibility.Collapsed;
 
     [ObservableProperty]
     private bool isUnlocked;
