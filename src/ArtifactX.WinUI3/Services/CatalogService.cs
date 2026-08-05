@@ -760,6 +760,23 @@ public static class CatalogService
             : (null, null);
     }
 
+    private static readonly Regex FishSpeciesPattern = new(@"^F_[A-Z]+_(COM|RARE|EPIC|LEG)_[A-Z0-9]+$", RegexOptions.Compiled);
+
+    /// <summary>Every real fish species catchable via GcFishTable, identified by
+    /// Hello Games' own id convention (F_&lt;biome&gt;_&lt;quality&gt;_&lt;size&gt;,
+    /// e.g. F_ALL_COM_S2 = "Mud Crab") - confirmed 2026-08-05 by cross-referencing
+    /// against a real ~100-hour save's actual fishing-record array
+    /// (NmsFishingPaths.ProductListPath): 210 of that save's 220 real entries
+    /// matched this pattern exactly, and the other 10 (F_BOTTLE, F_JELLYCHILD,
+    /// F_TRASH_1..8) are confirmed non-fish "junk catch" items, deliberately
+    /// excluded here since they're not real fishing records. No hardcoded id
+    /// list or DataCataloger changes needed - this is a live pattern match
+    /// against whatever's already in the catalog DB (GcProductTable), so a
+    /// future game update's new fish is picked up automatically on the next
+    /// DataCataloger rebuild.</summary>
+    public static List<CatalogUnlockableItem> FilterFishSpecies(IEnumerable<CatalogUnlockableItem> catalogItems) =>
+        catalogItems.Where(c => FishSpeciesPattern.IsMatch(c.GameId)).OrderBy(c => c.DisplayName).ToList();
+
     private static string? ResolveDbPath()
     {
         if (_pathChecked) return _dbPath;

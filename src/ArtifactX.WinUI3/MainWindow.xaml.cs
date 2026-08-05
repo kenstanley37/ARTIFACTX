@@ -183,6 +183,7 @@ public sealed partial class MainWindow : Window
                 "Milestones" => typeof(MilestonesPage),
                 "AccountData" => typeof(AccountDataPage),
                 "Catalogue" => typeof(CataloguePage),
+                "FishingRecords" => typeof(FishingRecordsPage),
                 "LanguageGek" => typeof(GekLanguagePage),
                 "LanguageVyKeen" => typeof(VyKeenLanguagePage),
                 "LanguageKorvax" => typeof(KorvaxLanguagePage),
@@ -223,6 +224,7 @@ public sealed partial class MainWindow : Window
         SettlementNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         MilestonesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         CatalogueNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        FishingRecordsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
 
         AccountDataNavItem.Visibility = SaveSessionManager.IsSaveLoaded || SaveSessionManager.HasActivePlatform
             ? Visibility.Visible
@@ -247,6 +249,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(MilestonesPage) => "Milestones",
             Type t when t == typeof(AccountDataPage) => "AccountData",
             Type t when t == typeof(CataloguePage) => "Catalogue",
+            Type t when t == typeof(FishingRecordsPage) => "FishingRecords",
             Type t when t == typeof(GekLanguagePage) => "LanguageGek",
             Type t when t == typeof(VyKeenLanguagePage) => "LanguageVyKeen",
             Type t when t == typeof(KorvaxLanguagePage) => "LanguageKorvax",
