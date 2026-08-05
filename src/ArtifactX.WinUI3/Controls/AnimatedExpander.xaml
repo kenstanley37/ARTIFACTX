@@ -25,6 +25,7 @@
         <Storyboard x:Name="ExpandStoryboard" Completed="ExpandStoryboard_Completed">
             <DoubleAnimation x:Name="ExpandHeightAnimation"
                               Storyboard.TargetName="BodyHost" Storyboard.TargetProperty="Height"
+                              EnableDependentAnimation="True"
                               Duration="0:0:0.45">
                 <DoubleAnimation.EasingFunction>
                     <QuadraticEase EasingMode="EaseOut"/>
@@ -38,6 +39,7 @@
 
         <Storyboard x:Name="CollapseStoryboard" Completed="CollapseStoryboard_Completed">
             <DoubleAnimation Storyboard.TargetName="BodyHost" Storyboard.TargetProperty="Height"
+                              EnableDependentAnimation="True"
                               To="0" Duration="0:0:0.4">
                 <DoubleAnimation.EasingFunction>
                     <QuadraticEase EasingMode="EaseIn"/>
