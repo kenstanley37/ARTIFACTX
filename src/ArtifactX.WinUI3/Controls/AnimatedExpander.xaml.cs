@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using System;
+using System.Diagnostics;
 using Windows.Foundation;
 
 namespace ArtifactX.WinUI3.Controls;
@@ -61,6 +62,7 @@ public sealed partial class AnimatedExpander : UserControl
     private static void OnIsExpandedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var self = (AnimatedExpander)d;
+        Debug.WriteLine($"[AnimatedExpander] OnIsExpandedChanged -> {e.NewValue}");
 
         if ((bool)e.NewValue) self.BeginExpand();
         else self.BeginCollapse();
@@ -80,7 +82,10 @@ public sealed partial class AnimatedExpander : UserControl
         double availableWidth = ActualWidth > 0 ? ActualWidth : double.PositiveInfinity;
         BodyContentPresenter.Measure(new Size(availableWidth, double.PositiveInfinity));
 
-        ExpandHeightAnimation.To = BodyContentPresenter.DesiredSize.Height;
+        double target = BodyContentPresenter.DesiredSize.Height;
+        Debug.WriteLine($"[AnimatedExpander] BeginExpand: ActualWidth={ActualWidth}, measured target height={target}, BodyHost.Height(before)={BodyHost.Height}");
+
+        ExpandHeightAnimation.To = target;
         ExpandStoryboard.Begin();
     }
 
@@ -120,5 +125,9 @@ public sealed partial class AnimatedExpander : UserControl
         };
     }
 
-    private void HeaderRoot_Tapped(object sender, TappedRoutedEventArgs e) => IsExpanded = !IsExpanded;
+    private void HeaderRoot_Tapped(object sender, TappedRoutedEventArgs e)
+    {
+        Debug.WriteLine($"[AnimatedExpander] HeaderRoot_Tapped, IsExpanded {IsExpanded} -> {!IsExpanded}");
+        IsExpanded = !IsExpanded;
+    }
 }
