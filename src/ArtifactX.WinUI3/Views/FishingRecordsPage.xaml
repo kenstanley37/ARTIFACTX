@@ -46,7 +46,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource NmsTextSecondary}" VerticalAlignment="Top" Margin="0,2,0,0"/>
                         <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
-                                   Text="This save's fishing-record checklist (the same list the in-game Catalog &amp; Guide -> Fishing Records screen shows) - 210 real, named fish species, identified by Hello Games' own id convention rather than a hand-typed list. Marking a species caught here is experimental: it writes a plausible catch count/size, but that exact value isn't guaranteed to match what a real catch would have recorded."/>
+                                   Text="This save's fishing-record checklist (the same list the in-game Catalog &amp; Guide -> Fishing Records screen shows) - 210 real, named fish species, identified by Hello Games' own id convention rather than a hand-typed list. Confirmed 2026-08-05 by direct testing: marking a species caught here made it appear fully revealed on that screen after a real save/reload, where it was previously a silhouette. The catch count/size written isn't guaranteed to match what a real catch would have recorded - only the reveal itself was confirmed."/>
                     </StackPanel>
                 </Border>
 
