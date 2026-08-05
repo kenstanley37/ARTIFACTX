@@ -91,6 +91,8 @@ public sealed partial class AccountDataPage : Page
             return;
         }
 
+        ActivePlatformTxt.Text = SaveSessionManager.ActivePlatformDisplayName ?? "";
+
         var catalogItems = await CatalogService.GetAllUnlockableItemsAsync();
 
         var unlockedArray = AccountSessionManager.GetValue(NmsAccountData.UnlockedItemsPath) as JArray;

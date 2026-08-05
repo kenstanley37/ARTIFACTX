@@ -193,7 +193,7 @@ public partial class SaveFolderSelectViewModel : ObservableObject
                     other.IsExpanded = false;
             }
 
-            SaveSessionManager.SetActivePlatform(expanded.FolderPath);
+            SaveSessionManager.SetActivePlatform(expanded.FolderPath, expanded.DisplayName);
         }
 
         PersistExpandedFolders();

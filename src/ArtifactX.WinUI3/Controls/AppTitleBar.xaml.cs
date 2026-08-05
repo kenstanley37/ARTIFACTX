@@ -71,23 +71,29 @@ public sealed partial class AppTitleBar : UserControl
     {
         bool gameRunning = GameProcessMonitorService.IsGameRunning;
 
+        // Falls back to just the platform name (e.g. "Steam", no slot) when a
+        // platform is selected but no save slot is loaded yet - Account Data
+        // is reachable in exactly that state (see SaveSessionManager.HasActivePlatform),
+        // and previously showed nothing at all here, giving no indication of
+        // which platform account's accountdata.hg was being edited.
+        string? currentLabel = SaveSessionManager.IsSaveLoaded
+            ? SaveSessionManager.ActiveLabel
+            : SaveSessionManager.ActivePlatformDisplayName;
+
+        if (currentLabel is not null && _lastActiveLabel is not null && currentLabel != _lastActiveLabel)
+            SaveSwitchFlash.Begin();
+        _lastActiveLabel = currentLabel;
+
+        ActiveSaveTxt.Text = currentLabel is not null ? $"•  {currentLabel}" : string.Empty;
+
         if (!SaveSessionManager.IsSaveLoaded)
         {
-            ActiveSaveTxt.Text = string.Empty;
             ResetDisplayTokens();
             SaveBtn.Visibility = Visibility.Collapsed;
             ResetBtn.Visibility = Visibility.Collapsed;
             PendingChangesTxt.Visibility = Visibility.Collapsed;
-            _lastActiveLabel = null;
             return;
         }
-
-        string currentLabel = SaveSessionManager.ActiveLabel ?? "";
-        if (_lastActiveLabel is not null && currentLabel != _lastActiveLabel)
-            SaveSwitchFlash.Begin();
-        _lastActiveLabel = currentLabel;
-
-        ActiveSaveTxt.Text = $"•  {currentLabel}";
 
         // ToDisplayValue undoes the uint32 wrap the game itself writes for a
         // balance over ~2.1 billion - see its doc comment. No-op for the

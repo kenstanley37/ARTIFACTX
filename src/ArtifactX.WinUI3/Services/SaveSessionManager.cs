@@ -15,6 +15,7 @@ public static class SaveSessionManager
     private static string[] _targetHgPaths = Array.Empty<string>();
     private static SaveSlotGroup? _activeSlot;
     private static string? _activePlatformFolder;
+    private static string? _activePlatformDisplayName;
     private static Dictionary<string, DateTime> _loadSnapshot = new();
 
     public static event EventHandler? ActiveSessionChanged;
@@ -43,6 +44,15 @@ public static class SaveSessionManager
     public static string? ActivePlatformFolder => _activePlatformFolder;
     public static bool HasActivePlatform => _activePlatformFolder is not null;
 
+    /// <summary>Human-readable form of ActivePlatformFolder (e.g. "Steam",
+    /// "Custom Folder", or a user-given custom name) - kept alongside the raw
+    /// path since nothing else derives a friendly label from a bare folder
+    /// path. Used by AppTitleBar and AccountDataPage so the user can tell
+    /// which platform account they're looking at even when no save slot is
+    /// loaded (SaveSlotGroup.SourceDisplayName already carries the same
+    /// value once a slot IS loaded, via LoadAsync below).</summary>
+    public static string? ActivePlatformDisplayName => _activePlatformDisplayName;
+
     public static async Task LoadAsync(SaveSlotGroup slot)
     {
         DetachCurrent();
@@ -66,6 +76,7 @@ public static class SaveSessionManager
         _activeSlot = slot;
         _activeSlot.IsActive = true;
         _activePlatformFolder = Path.GetDirectoryName(primary.FullPath);
+        _activePlatformDisplayName = slot.SourceDisplayName;
 
         TakeSnapshot();
 
@@ -81,11 +92,12 @@ public static class SaveSessionManager
     /// state gracefully (that's exactly what CloseSession also produces), so
     /// this needs no new wiring - MainWindow's nav-visibility check and
     /// AccountDataPage's own reload both already do the right thing.</summary>
-    public static void SetActivePlatform(string folderPath)
+    public static void SetActivePlatform(string folderPath, string displayName)
     {
         if (string.Equals(_activePlatformFolder, folderPath, StringComparison.OrdinalIgnoreCase)) return;
 
         _activePlatformFolder = folderPath;
+        _activePlatformDisplayName = displayName;
         ActiveSessionChanged?.Invoke(null, EventArgs.Empty);
     }
 

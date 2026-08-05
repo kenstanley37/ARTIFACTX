@@ -21,7 +21,18 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="Account Data" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <TextBlock Text="Account Data" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                <!-- This list is account-wide, not tied to any one save slot (see the
+                     warning banner below) - accountdata.hg lives once per PLATFORM
+                     account, so what matters here is which platform is active
+                     (SaveSessionManager.ActivePlatformDisplayName), not which save
+                     slot. Without this, there was no on-page indication of which
+                     account was actually being edited (user feedback 2026-08-04). -->
+                <Border Background="{ThemeResource NmsAccentBrush}" CornerRadius="4" Padding="9,3" VerticalAlignment="Center">
+                    <TextBlock x:Name="ActivePlatformTxt" Text="" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                </Border>
+            </StackPanel>
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                 <TextBlock x:Name="PendingEditsTxt" VerticalAlignment="Center" FontSize="12"
                            Foreground="{ThemeResource NmsTextSecondary}"/>
