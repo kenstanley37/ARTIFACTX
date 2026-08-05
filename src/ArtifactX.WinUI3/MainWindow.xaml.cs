@@ -23,8 +23,8 @@ public sealed partial class MainWindow : Window
     // re-prompting - Closed fires again on every Close() call, confirmed or not.
     private bool _closeConfirmed;
 
-    // Guards the disclaimer check below so it only runs once - Activated
-    // fires again on every focus change, not just the initial show.
+    // Guards the disclaimer check below so it only runs once - Content.Loaded
+    // can in principle fire more than once (e.g. a theme/resource reload).
     private bool _startupChecksDone;
 
     public AppTitleBar TitleBar => CustomTitleBar;
@@ -47,7 +47,16 @@ public sealed partial class MainWindow : Window
         WindowPlacementService.Restore(WindowNative.GetWindowHandle(this));
 
         Closed += MainWindow_Closed;
-        Activated += MainWindow_Activated;
+
+        // Content.Loaded (not Activated) - Activated depends on OS-level
+        // window-focus timing and, on a real run, never fired this dialog at
+        // all (root-caused to an unobserved exception from the old fire-and-
+        // forget "_ = ShowDisclaimerIfNeededAsync()" call swallowing whatever
+        // went wrong). Loaded fires once Content is actually in the live
+        // visual tree, which is the real precondition for XamlRoot being
+        // usable - not dependent on OS focus at all - and this method is now
+        // awaited properly with its own try/catch instead of discarded.
+        ((FrameworkElement)Content).Loaded += MainWindow_ContentLoaded;
 
         SaveSessionManager.ActiveSessionChanged += (_, _) => UpdateNavAvailability();
         UpdateNavAvailability();
@@ -71,24 +80,36 @@ public sealed partial class MainWindow : Window
         if (defaultItem != null) RootNav.SelectedItem = defaultItem;
     }
 
-    /// <summary>Activated (unlike the constructor) only fires once the window
-    /// is actually shown, guaranteeing RootNav.XamlRoot is valid for the
-    /// ContentDialog below - fires again on every focus change afterward,
-    /// hence the guard flag.</summary>
-    private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
+    /// <summary>Fires once Content is actually in the live visual tree - the
+    /// real precondition for XamlRoot being usable, unlike Activated (see the
+    /// constructor's comment on why that was the original, unreliable choice).</summary>
+    private async void MainWindow_ContentLoaded(object sender, RoutedEventArgs e)
     {
         if (_startupChecksDone) return;
         _startupChecksDone = true;
 
-        _ = ShowDisclaimerIfNeededAsync();
+        try
+        {
+            await ShowDisclaimerIfNeededAsync();
+        }
+        catch (Exception ex)
+        {
+            // This ran as a discarded "_ = ShowDisclaimerIfNeededAsync()" the
+            // first time this shipped and never showed at all - an exception
+            // here (e.g. XamlRoot not ready yet) was silently swallowed with
+            // nothing surfaced anywhere. Now properly awaited AND logged, so
+            // a repeat of that failure mode is at least visible in the
+            // Output window instead of invisible.
+            System.Diagnostics.Debug.WriteLine($"[MainWindow] Disclaimer dialog failed: {ex}");
+        }
     }
 
     /// <summary>First-launch-only warning that using this unofficial, third-party
-    /// save editor is at the user's own risk - deliberately has no Cancel/Close
-    /// button, and the Closing handler blocks ESC/any dismissal that isn't the
-    /// Accept click, so there's no way to use the app without seeing this once.
-    /// AppSettingsService persists acceptance so it never shows again after
-    /// this session.</summary>
+    /// save editor is at the user's own risk. Declining (the Close button, or
+    /// ESC - WinUI maps both to the same ContentDialogResult.None) closes the
+    /// app outright rather than letting it be dismissed and continuing
+    /// unacknowledged. AppSettingsService persists acceptance so it never
+    /// shows again once accepted.</summary>
     private async Task ShowDisclaimerIfNeededAsync()
     {
         if (AppSettingsService.HasAcceptedDisclaimer) return;
@@ -107,21 +128,25 @@ public sealed partial class MainWindow : Window
                        "restore from the Save Selection page if something goes wrong - but you are using this " +
                        "software entirely at your own risk, and its developers are not responsible for any data " +
                        "loss or other issues that result from its use.\n\n" +
-                       "By clicking \"I Understand and Accept\" below, you acknowledge and accept this."
+                       "By clicking \"I Understand and Accept\" below, you acknowledge and accept this. If you'd " +
+                       "rather not, click \"Decline\" and the app will close."
             },
             PrimaryButtonText = "I Understand and Accept",
+            CloseButtonText = "Decline",
             DefaultButton = ContentDialogButton.Primary,
-            XamlRoot = RootNav.XamlRoot
+            XamlRoot = Content.XamlRoot
         };
 
-        dialog.Closing += (_, closingArgs) =>
+        ContentDialogResult result = await dialog.ShowAsync();
+
+        if (result == ContentDialogResult.Primary)
         {
-            if (closingArgs.Result != ContentDialogResult.Primary)
-                closingArgs.Cancel = true;
-        };
-
-        await dialog.ShowAsync();
-        AppSettingsService.SetDisclaimerAccepted();
+            AppSettingsService.SetDisclaimerAccepted();
+        }
+        else
+        {
+            Close();
+        }
     }
 
     /// <summary>Blocks closing while there's a staged edit nobody's committed
