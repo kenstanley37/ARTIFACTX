@@ -4,6 +4,7 @@ using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using System;
 using System.Threading.Tasks;
+using Windows.System;
 
 namespace ArtifactX.WinUI3.Controls;
 
@@ -24,7 +25,31 @@ public sealed partial class AppTitleBar : UserControl
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
         SaveSessionManager.ExternalChangeDetected += OnExternalChangeDetected;
         GameProcessMonitorService.RunningStateChanged += OnGameRunningStateChanged;
+
+        VersionTxt.Text = $"v{AppVersionService.DisplayVersion}";
+        // No Unloaded/unsub here - AppTitleBar is created once for the
+        // lifetime of MainWindow, never re-created via Frame navigation like
+        // a Page, so this is safe the same way the subscriptions above are.
+        UpdateCheckService.Changed += OnUpdateCheckChanged;
+        RefreshUpdateBadge();
+
         Refresh();
+    }
+
+    private void OnUpdateCheckChanged(object? sender, EventArgs e) =>
+        DispatcherQueue.TryEnqueue(RefreshUpdateBadge);
+
+    private void RefreshUpdateBadge()
+    {
+        bool hasUpdate = UpdateCheckService.LastResult?.Status == UpdateCheckStatus.UpdateAvailable;
+        UpdateAvailableBtn.Visibility = hasUpdate ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private async void UpdateAvailableBtn_Click(object sender, RoutedEventArgs e)
+    {
+        string? url = UpdateCheckService.LastResult?.ReleaseUrl;
+        if (url is null) return;
+        await Launcher.LaunchUriAsync(new Uri(url));
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e)

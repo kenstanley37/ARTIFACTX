@@ -79,6 +79,8 @@ public sealed partial class MainWindow : Window
         GameProcessMonitorService.Start(DispatcherQueue);
         GameRunningBanner.Visibility = GameProcessMonitorService.IsGameRunning ? Visibility.Visible : Visibility.Collapsed;
 
+        _ = RunStartupUpdateCheckAsync();
+
         ContentFrame.Navigate(typeof(SaveFolderSelectPage));
 
         var defaultItem = FindNavItemByTag(RootNav.MenuItems, "SaveFolderSelect");
@@ -114,6 +116,23 @@ public sealed partial class MainWindow : Window
         AtlasLanguagePathIcon.Data = G(NavIconGeometries.Language);
         CataloguePathIcon.Data = G(NavIconGeometries.Catalogue);
         FishingRecordsPathIcon.Data = G(NavIconGeometries.FishingRecords);
+    }
+
+    // Fire-and-observed (not fire-and-forget) - RefreshAsync itself already
+    // catches network/parse failures internally and turns them into an
+    // Error UpdateCheckResult rather than throwing, but this still logs
+    // anything truly unexpected instead of letting it vanish silently, same
+    // discipline as ShowDisclaimerIfNeededAsync below after that bug.
+    private async Task RunStartupUpdateCheckAsync()
+    {
+        try
+        {
+            await UpdateCheckService.RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainWindow] Startup update check failed: {ex}");
+        }
     }
 
     /// <summary>Fires once Content is actually in the live visual tree - the

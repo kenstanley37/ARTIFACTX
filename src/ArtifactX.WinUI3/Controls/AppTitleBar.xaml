@@ -35,6 +35,11 @@
             <TextBlock Text="ARTIFACTX"
                        Foreground="{ThemeResource NmsTextPrimary}"
                        FontWeight="SemiBold" FontSize="12" CharacterSpacing="100"/>
+            <TextBlock x:Name="VersionTxt" Text="" FontSize="10" Opacity="0.5" VerticalAlignment="Center"/>
+            <HyperlinkButton x:Name="UpdateAvailableBtn" Padding="6,2" Visibility="Collapsed" Click="UpdateAvailableBtn_Click"
+                             ToolTipService.ToolTip="A newer version of ArtifactX is available - click to open the release page">
+                <TextBlock Text="Update available" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource NmsAccentBrush}"/>
+            </HyperlinkButton>
             <Grid VerticalAlignment="Center">
                 <Border x:Name="ActiveSaveHighlight" Background="{ThemeResource NmsTextPrimary}"
                         CornerRadius="4" Opacity="0" Margin="-6,-3"/>
