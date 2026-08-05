@@ -113,12 +113,23 @@
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="*"/>
                                                                     <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="Auto"/>
                                                                 </Grid.ColumnDefinitions>
                                                                 <TextBlock Grid.Column="0" Text="{x:Bind SlotLabel}" FontWeight="Bold" FontSize="15"/>
                                                                 <Border Grid.Column="1" Background="{ThemeResource NmsAccentBrush}" CornerRadius="4" Padding="7,2"
                                                                         Visibility="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                                     <TextBlock Text="ACTIVE" FontSize="10" FontWeight="Bold" Foreground="White"/>
                                                                 </Border>
+                                                                <!-- Every commit through ArtifactX backs this slot's files up first
+                                                                     (see BackupService) - this opens a picker over those timestamped
+                                                                     backups. Tapped is on the whole card (loads the slot); this
+                                                                     Button's own Click doesn't bubble up to that, same as the
+                                                                     platform card's Rename/Remove buttons. -->
+                                                                <Button Grid.Column="2" Click="RestoreBackupBtn_Click" Tag="{x:Bind}"
+                                                                        Background="Transparent" BorderThickness="0" Padding="4" MinWidth="0" VerticalAlignment="Center"
+                                                                        ToolTipService.ToolTip="Restore this slot from a backup">
+                                                                    <FontIcon Glyph="&#xE81C;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                                                                </Button>
                                                             </Grid>
 
                                                             <TextBlock Text="{x:Bind PrimaryFile.SaveName}" FontWeight="SemiBold" FontSize="13"

@@ -102,18 +102,18 @@ public static class AccountSessionManager
 
     /// <summary>Writes staged edits straight back to the real accountdata.hg -
     /// there's no separate per-slot .hg targets to also update (see this
-    /// class's doc comment). Backs up the file's original bytes once, before
-    /// the very first write in this app session, since a bad edit here is
-    /// riskier than a per-slot save (it affects every save on the account,
-    /// not just one) and there's no NMS-side dual-file rotation to fall back
-    /// on the way save.hg/save2.hg have for each other.</summary>
+    /// class's doc comment). Backs up the file before every write (not just
+    /// the first, unlike the single .artifactx-backup this used to make) via
+    /// the same timestamped BackupService per-slot saves use - a bad edit
+    /// here is riskier than a per-slot save (it affects every save on the
+    /// account, not just one) and there's no NMS-side dual-file rotation to
+    /// fall back on the way save.hg/save2.hg have for each other.</summary>
     public static async Task CommitAsync()
     {
         if (_session is null || _accountDataPath is null) return;
 
-        string backupPath = _accountDataPath + ".artifactx-backup";
-        if (!File.Exists(backupPath))
-            File.Copy(_accountDataPath, backupPath);
+        string platformName = SaveSessionManager.ActivePlatformDisplayName ?? "Unknown";
+        BackupService.BackupFiles(new[] { _accountDataPath }, BackupService.BuildAccountDataGroupKey(platformName));
 
         await _session.CommitAsync(Enumerable.Empty<string>());
         PendingEditsChanged?.Invoke(null, EventArgs.Empty);

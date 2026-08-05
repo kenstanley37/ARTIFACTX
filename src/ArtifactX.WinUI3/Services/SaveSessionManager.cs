@@ -129,6 +129,13 @@ public static class SaveSessionManager
     public static async Task CommitAsync()
     {
         if (_session is null || _targetHgPaths.Length == 0) return;
+
+        // Backs up whatever's currently on disk before it gets overwritten -
+        // every commit, not just the first, so the user always has a way
+        // back to the state right before any given save (see BackupService).
+        if (_activeSlot is not null && _activePlatformDisplayName is not null)
+            BackupService.BackupFiles(_targetHgPaths, BackupService.BuildSlotGroupKey(_activePlatformDisplayName, _activeSlot.SlotId));
+
         await Task.Run(() => _session.CommitAsync(_targetHgPaths));
         TakeSnapshot();
     }

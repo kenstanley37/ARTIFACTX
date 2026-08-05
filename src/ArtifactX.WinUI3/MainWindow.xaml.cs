@@ -8,6 +8,7 @@ using ArtifactX.WinUI3.Views;
 using ArtifactX.WinUI3.Views.InspectionPages;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Windows.UI;
 using WinRT.Interop;
 
@@ -21,6 +22,10 @@ public sealed partial class MainWindow : Window
     // so MainWindow_Closed lets that second attempt through instead of
     // re-prompting - Closed fires again on every Close() call, confirmed or not.
     private bool _closeConfirmed;
+
+    // Guards the disclaimer check below so it only runs once - Activated
+    // fires again on every focus change, not just the initial show.
+    private bool _startupChecksDone;
 
     public AppTitleBar TitleBar => CustomTitleBar;
 
@@ -42,6 +47,7 @@ public sealed partial class MainWindow : Window
         WindowPlacementService.Restore(WindowNative.GetWindowHandle(this));
 
         Closed += MainWindow_Closed;
+        Activated += MainWindow_Activated;
 
         SaveSessionManager.ActiveSessionChanged += (_, _) => UpdateNavAvailability();
         UpdateNavAvailability();
@@ -63,6 +69,59 @@ public sealed partial class MainWindow : Window
 
         var defaultItem = FindNavItemByTag(RootNav.MenuItems, "SaveFolderSelect");
         if (defaultItem != null) RootNav.SelectedItem = defaultItem;
+    }
+
+    /// <summary>Activated (unlike the constructor) only fires once the window
+    /// is actually shown, guaranteeing RootNav.XamlRoot is valid for the
+    /// ContentDialog below - fires again on every focus change afterward,
+    /// hence the guard flag.</summary>
+    private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
+    {
+        if (_startupChecksDone) return;
+        _startupChecksDone = true;
+
+        _ = ShowDisclaimerIfNeededAsync();
+    }
+
+    /// <summary>First-launch-only warning that using this unofficial, third-party
+    /// save editor is at the user's own risk - deliberately has no Cancel/Close
+    /// button, and the Closing handler blocks ESC/any dismissal that isn't the
+    /// Accept click, so there's no way to use the app without seeing this once.
+    /// AppSettingsService persists acceptance so it never shows again after
+    /// this session.</summary>
+    private async Task ShowDisclaimerIfNeededAsync()
+    {
+        if (AppSettingsService.HasAcceptedDisclaimer) return;
+
+        var dialog = new ContentDialog
+        {
+            Title = "Before You Continue",
+            Content = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 420,
+                Text = "ArtifactX is an unofficial, third-party save editor for No Man's Sky - it is not made by, " +
+                       "affiliated with, or endorsed by Hello Games.\n\n" +
+                       "Editing your save files carries an inherent risk of corruption or lost progress. ArtifactX " +
+                       "automatically creates a timestamped backup of a save before it overwrites it, which you can " +
+                       "restore from the Save Selection page if something goes wrong - but you are using this " +
+                       "software entirely at your own risk, and its developers are not responsible for any data " +
+                       "loss or other issues that result from its use.\n\n" +
+                       "By clicking \"I Understand and Accept\" below, you acknowledge and accept this."
+            },
+            PrimaryButtonText = "I Understand and Accept",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = RootNav.XamlRoot
+        };
+
+        dialog.Closing += (_, closingArgs) =>
+        {
+            if (closingArgs.Result != ContentDialogResult.Primary)
+                closingArgs.Cancel = true;
+        };
+
+        await dialog.ShowAsync();
+        AppSettingsService.SetDisclaimerAccepted();
     }
 
     /// <summary>Blocks closing while there's a staged edit nobody's committed
