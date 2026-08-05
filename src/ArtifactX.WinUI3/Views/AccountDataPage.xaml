@@ -170,7 +170,18 @@
                                 </Grid.ColumnDefinitions>
                                 <CheckBox Grid.Column="0" IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
                                           Click="ItemCheckBox_Click" Tag="{x:Bind}" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="1" Text="{x:Bind DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                <!-- GameId shown under every row, not just when it's ambiguous -
+                                     many base-building parts (straight/corner/cap connector
+                                     variants of the same piece) legitimately share one display
+                                     name across several distinct ids (up to 16 for some pieces),
+                                     which read as duplicate/buggy rows without this (user feedback
+                                     2026-08-05). Differing checkbox states on those rows was
+                                     already proof they're real separate items, just easy to miss. -->
+                                <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind DisplayName}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{x:Bind GameId}" FontSize="10" Foreground="{ThemeResource NmsTextSecondary}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
                                 <Border Grid.Column="2" Visibility="{x:Bind ExpeditionVisibility}"
                                         BorderBrush="{ThemeResource NmsAccentBrush}" BorderThickness="1"
                                         CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
