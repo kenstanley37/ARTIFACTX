@@ -67,12 +67,23 @@ public partial class SaveFolderSelectViewModel : ObservableObject
             // single-selection, or first-launch-ever defaulting every card open)
             // down to just the first expanded one, rather than showing several
             // open until the user happens to click something.
-            bool keptOneOpen = false;
+            SaveFolderCandidate? keptOpen = null;
             foreach (var candidate in Candidates)
             {
-                if (candidate.IsExpanded && !keptOneOpen) keptOneOpen = true;
+                if (candidate.IsExpanded && keptOpen is null) keptOpen = candidate;
                 else candidate.IsExpanded = false;
             }
+
+            // The candidate above was set IsExpanded=true via direct assignment
+            // BEFORE its PropertyChanged subscription existed (both happen in the
+            // loop two levels up), so OnCandidatePropertyChanged's SetActivePlatform
+            // call never ran for it - without this, a card restored as already-open
+            // from a prior session LOOKS active (highlighted, expanded) but
+            // SaveSessionManager doesn't actually know about it until the user
+            // manually toggles something (bug report 2026-08-05: "I have to click
+            // Custom Folder and then back to Steam to get it to show").
+            if (keptOpen is not null)
+                SaveSessionManager.SetActivePlatform(keptOpen.FolderPath, keptOpen.DisplayName);
 
             if (Candidates.Count == 0)
                 StatusMessage = "No save folders were detected automatically. Use \"Browse for folder\" to add yours.";
