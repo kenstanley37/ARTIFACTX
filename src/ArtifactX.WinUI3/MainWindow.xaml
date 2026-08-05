@@ -62,55 +62,55 @@
 
                 <NavigationViewItem x:Name="ExosuitNavItem" Content="Exosuit" Tag="Exosuit" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <PathIcon Data="{StaticResource ExosuitIconGeometry}"/>
+                        <PathIcon x:Name="ExosuitPathIcon"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="MultiToolNavItem" Content="Multi-Tool" Tag="MultiTool" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <PathIcon Data="{StaticResource MultiToolIconGeometry}"/>
+                        <PathIcon x:Name="MultiToolPathIcon"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="ShipsNavItem" Content="Starships" Tag="Ships" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <PathIcon Data="{StaticResource StarshipsIconGeometry}"/>
+                        <PathIcon x:Name="StarshipsPathIcon"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="FreighterNavItem" Content="Freighter" Tag="Freighter" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <PathIcon Data="{StaticResource FreighterIconGeometry}"/>
+                        <PathIcon x:Name="FreighterPathIcon"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="FrigateNavItem" Content="Frigates" Tag="Frigate" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <PathIcon Data="{StaticResource FrigatesIconGeometry}"/>
+                        <PathIcon x:Name="FrigatesPathIcon"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="BaseStorageNavItem" Content="Base Storage" Tag="BaseStorage" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <PathIcon Data="{StaticResource BaseStorageIconGeometry}"/>
+                        <PathIcon x:Name="BaseStoragePathIcon"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="CorvetteCacheNavItem" Content="Corvette Cache" Tag="CorvetteCache" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <PathIcon Data="{StaticResource CorvetteCacheIconGeometry}"/>
+                        <PathIcon x:Name="CorvetteCachePathIcon"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="CompanionsNavItem" Content="Companions" Tag="Companions" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <PathIcon Data="{StaticResource CompanionsIconGeometry}"/>
+                        <PathIcon x:Name="CompanionsPathIcon"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="SettlementNavItem" Content="Settlements" Tag="Settlement" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <PathIcon Data="{StaticResource SettlementsIconGeometry}"/>
+                        <PathIcon x:Name="SettlementsPathIcon"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
@@ -123,32 +123,32 @@
                      see NmsLanguagePaths. -->
                 <NavigationViewItem x:Name="MilestonesNavItem" Content="Milestones" Tag="Milestones" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <PathIcon Data="{StaticResource MilestonesIconGeometry}"/>
+                        <PathIcon x:Name="MilestonesPathIcon"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.MenuItems>
                         <NavigationViewItem Content="Gek Language" Tag="LanguageGek">
                             <NavigationViewItem.Icon>
-                                <PathIcon Data="{StaticResource LanguageIconGeometry}"/>
+                                <PathIcon x:Name="GekLanguagePathIcon"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem Content="Vy'keen Language" Tag="LanguageVyKeen">
                             <NavigationViewItem.Icon>
-                                <PathIcon Data="{StaticResource LanguageIconGeometry}"/>
+                                <PathIcon x:Name="VyKeenLanguagePathIcon"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem Content="Korvax Language" Tag="LanguageKorvax">
                             <NavigationViewItem.Icon>
-                                <PathIcon Data="{StaticResource LanguageIconGeometry}"/>
+                                <PathIcon x:Name="KorvaxLanguagePathIcon"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem Content="Autophage Language" Tag="LanguageAutophage">
                             <NavigationViewItem.Icon>
-                                <PathIcon Data="{StaticResource LanguageIconGeometry}"/>
+                                <PathIcon x:Name="AutophageLanguagePathIcon"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem Content="Atlas Language" Tag="LanguageAtlas">
                             <NavigationViewItem.Icon>
-                                <PathIcon Data="{StaticResource LanguageIconGeometry}"/>
+                                <PathIcon x:Name="AtlasLanguagePathIcon"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                     </NavigationViewItem.MenuItems>
@@ -156,13 +156,13 @@
 
                 <NavigationViewItem x:Name="CatalogueNavItem" Content="Catalogue" Tag="Catalogue" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <PathIcon Data="{StaticResource CatalogueIconGeometry}"/>
+                        <PathIcon x:Name="CataloguePathIcon"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="FishingRecordsNavItem" Content="Fishing Records" Tag="FishingRecords" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <PathIcon Data="{StaticResource FishingRecordsIconGeometry}"/>
+                        <PathIcon x:Name="FishingRecordsPathIcon"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 

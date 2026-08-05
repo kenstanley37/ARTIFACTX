@@ -2,7 +2,10 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Markup;
+using Microsoft.UI.Xaml.Media;
 using ArtifactX.WinUI3.Controls;
+using ArtifactX.WinUI3.Resources;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.Views;
 using ArtifactX.WinUI3.Views.InspectionPages;
@@ -32,6 +35,8 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
+        SetNavIconGeometries();
 
 #if !DEBUG
         // Dev-only tools for reverse-engineering raw JSON field mappings - not
@@ -78,6 +83,37 @@ public sealed partial class MainWindow : Window
 
         var defaultItem = FindNavItemByTag(RootNav.MenuItems, "SaveFolderSelect");
         if (defaultItem != null) RootNav.SelectedItem = defaultItem;
+    }
+
+    // Assigns each nav PathIcon's Data from the raw path strings in
+    // NavIconGeometries, converted via the same string->Geometry conversion
+    // XAML itself uses for a literal Data="M..." attribute. Done here in
+    // code-behind (not as XAML Geometry resources) because a keyed
+    // <Geometry x:Key="..."> resource crashed natively inside
+    // Microsoft.UI.Xaml.dll at runtime the moment PathIcon.Data resolved it
+    // via {StaticResource}, despite compiling cleanly - see
+    // project_nav_icons.md.
+    private void SetNavIconGeometries()
+    {
+        static Geometry G(string data) => (Geometry)XamlBindingHelper.ConvertValue(typeof(Geometry), data);
+
+        ExosuitPathIcon.Data = G(NavIconGeometries.Exosuit);
+        MultiToolPathIcon.Data = G(NavIconGeometries.MultiTool);
+        StarshipsPathIcon.Data = G(NavIconGeometries.Starships);
+        FreighterPathIcon.Data = G(NavIconGeometries.Freighter);
+        FrigatesPathIcon.Data = G(NavIconGeometries.Frigates);
+        BaseStoragePathIcon.Data = G(NavIconGeometries.BaseStorage);
+        CorvetteCachePathIcon.Data = G(NavIconGeometries.CorvetteCache);
+        CompanionsPathIcon.Data = G(NavIconGeometries.Companions);
+        SettlementsPathIcon.Data = G(NavIconGeometries.Settlements);
+        MilestonesPathIcon.Data = G(NavIconGeometries.Milestones);
+        GekLanguagePathIcon.Data = G(NavIconGeometries.Language);
+        VyKeenLanguagePathIcon.Data = G(NavIconGeometries.Language);
+        KorvaxLanguagePathIcon.Data = G(NavIconGeometries.Language);
+        AutophageLanguagePathIcon.Data = G(NavIconGeometries.Language);
+        AtlasLanguagePathIcon.Data = G(NavIconGeometries.Language);
+        CataloguePathIcon.Data = G(NavIconGeometries.Catalogue);
+        FishingRecordsPathIcon.Data = G(NavIconGeometries.FishingRecords);
     }
 
     /// <summary>Fires once Content is actually in the live visual tree - the
