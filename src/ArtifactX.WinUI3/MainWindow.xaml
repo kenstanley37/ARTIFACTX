@@ -62,55 +62,55 @@
 
                 <NavigationViewItem x:Name="ExosuitNavItem" Content="Exosuit" Tag="Exosuit" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE7EF;" FontFamily="Segoe MDL2 Assets"/>
+                        <FontIcon Glyph="&#x1F9D1;&#x200D;&#x1F680;" FontFamily="Segoe UI Emoji"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="MultiToolNavItem" Content="Multi-Tool" Tag="MultiTool" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE90F;" FontFamily="Segoe MDL2 Assets"/>
+                        <FontIcon Glyph="&#x1F52B;" FontFamily="Segoe UI Emoji"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="ShipsNavItem" Content="Starships" Tag="Ships" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE709;" FontFamily="Segoe MDL2 Assets"/>
+                        <FontIcon Glyph="&#x1F680;" FontFamily="Segoe UI Emoji"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="FreighterNavItem" Content="Freighter" Tag="Freighter" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE8B7;" FontFamily="Segoe MDL2 Assets"/>
+                        <FontIcon Glyph="&#x1F6A2;" FontFamily="Segoe UI Emoji"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="FrigateNavItem" Content="Frigates" Tag="Frigate" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE709;" FontFamily="Segoe MDL2 Assets"/>
+                        <FontIcon Glyph="&#x2694;" FontFamily="Segoe UI Emoji"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="BaseStorageNavItem" Content="Base Storage" Tag="BaseStorage" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE7B8;" FontFamily="Segoe MDL2 Assets"/>
+                        <FontIcon Glyph="&#x1F4E6;" FontFamily="Segoe UI Emoji"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="CorvetteCacheNavItem" Content="Corvette Cache" Tag="CorvetteCache" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE7C1;" FontFamily="Segoe MDL2 Assets"/>
+                        <FontIcon Glyph="&#x1F6A4;" FontFamily="Segoe UI Emoji"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="CompanionsNavItem" Content="Companions" Tag="Companions" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE71E;" FontFamily="Segoe MDL2 Assets"/>
+                        <FontIcon Glyph="&#x1F43E;" FontFamily="Segoe UI Emoji"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="SettlementNavItem" Content="Settlements" Tag="Settlement" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE719;" FontFamily="Segoe MDL2 Assets"/>
+                        <FontIcon Glyph="&#x1F3D8;" FontFamily="Segoe UI Emoji"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
@@ -123,32 +123,32 @@
                      see NmsLanguagePaths. -->
                 <NavigationViewItem x:Name="MilestonesNavItem" Content="Milestones" Tag="Milestones" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE9D9;" FontFamily="Segoe MDL2 Assets"/>
+                        <FontIcon Glyph="&#x1F3C6;" FontFamily="Segoe UI Emoji"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.MenuItems>
                         <NavigationViewItem Content="Gek Language" Tag="LanguageGek">
                             <NavigationViewItem.Icon>
-                                <FontIcon Glyph="&#xE8C1;" FontFamily="Segoe MDL2 Assets"/>
+                                <FontIcon Glyph="&#x1F5E3;" FontFamily="Segoe UI Emoji"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem Content="Vy'keen Language" Tag="LanguageVyKeen">
                             <NavigationViewItem.Icon>
-                                <FontIcon Glyph="&#xE8C1;" FontFamily="Segoe MDL2 Assets"/>
+                                <FontIcon Glyph="&#x1F5E3;" FontFamily="Segoe UI Emoji"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem Content="Korvax Language" Tag="LanguageKorvax">
                             <NavigationViewItem.Icon>
-                                <FontIcon Glyph="&#xE8C1;" FontFamily="Segoe MDL2 Assets"/>
+                                <FontIcon Glyph="&#x1F5E3;" FontFamily="Segoe UI Emoji"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem Content="Autophage Language" Tag="LanguageAutophage">
                             <NavigationViewItem.Icon>
-                                <FontIcon Glyph="&#xE8C1;" FontFamily="Segoe MDL2 Assets"/>
+                                <FontIcon Glyph="&#x1F5E3;" FontFamily="Segoe UI Emoji"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem Content="Atlas Language" Tag="LanguageAtlas">
                             <NavigationViewItem.Icon>
-                                <FontIcon Glyph="&#xE8C1;" FontFamily="Segoe MDL2 Assets"/>
+                                <FontIcon Glyph="&#x1F5E3;" FontFamily="Segoe UI Emoji"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                     </NavigationViewItem.MenuItems>
@@ -156,13 +156,13 @@
 
                 <NavigationViewItem x:Name="CatalogueNavItem" Content="Catalogue" Tag="Catalogue" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE8A5;" FontFamily="Segoe MDL2 Assets"/>
+                        <FontIcon Glyph="&#x1F4D6;" FontFamily="Segoe UI Emoji"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
                 <NavigationViewItem x:Name="FishingRecordsNavItem" Content="Fishing Records" Tag="FishingRecords" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE774;" FontFamily="Segoe MDL2 Assets"/>
+                        <FontIcon Glyph="&#x1F41F;" FontFamily="Segoe UI Emoji"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
