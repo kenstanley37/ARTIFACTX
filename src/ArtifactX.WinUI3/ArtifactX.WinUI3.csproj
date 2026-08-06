@@ -27,6 +27,17 @@
          distribution is ever wanted; this only changes the default. -->
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+
+    <!-- A loaded save's parsed Newtonsoft JSON tree legitimately lives on the
+         heap as ~2-3 million small objects (~150MB) for the app's whole
+         session (see project_perf_gc_tuning memory) - not a leak, just how
+         Newtonsoft.Json.Linq represents JSON (one .NET object per node).
+         Default Workstation GC has to fully stop the app for each Gen2 pass
+         over a heap that size, which is what read as "gets more sluggish the
+         longer you navigate" - Server GC parallelizes that marking phase
+         across multiple threads/heaps, shortening those pauses. Trades some
+         extra baseline memory for it, acceptable on a desktop tool like this. -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Controls\AppTitleBar.xaml" />
