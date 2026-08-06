@@ -17,6 +17,12 @@ public partial class CatalogueRowViewModel : ObservableObject
     public required string GameId { get; init; }
     public required string DisplayName { get; init; }
 
+    /// <summary>Suit/Ship/Weapon/Freighter/"All" (shared tech), or null -
+    /// drives CataloguePage's category filter, same UsageCategory values the
+    /// Exosuit/Ships/MultiTool/Freighter pages already filter their own tech
+    /// grids by.</summary>
+    public string? UsageCategory { get; init; }
+
     [ObservableProperty]
     private bool isKnown;
 

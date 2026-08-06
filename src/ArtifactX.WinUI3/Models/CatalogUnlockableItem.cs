@@ -13,4 +13,12 @@ public sealed class CatalogUnlockableItem
     public required string GameId { get; init; }
     public required string DisplayName { get; init; }
     public required string CategoryLabel { get; init; }
+
+    /// <summary>Technology-only slot signal (Suit/Ship/Weapon/Freighter/"All"
+    /// for tech usable everywhere) - the same field the Exosuit/Ships/
+    /// MultiTool/Freighter pages already filter their own tech grids by (see
+    /// each page's TechGrid.AllowedUsageCategories). Null for Product/
+    /// Substance rows, which don't carry this at all - see CatalogService's
+    /// SearchAsync comment on why the usage-category join there is optional.</summary>
+    public string? UsageCategory { get; init; }
 }

@@ -42,6 +42,7 @@ public sealed partial class CataloguePage : Page
         Unloaded += Page_Unloaded;
 
         KnownFilterBox.SelectedIndex = 0;
+        CategoryFilterBox.SelectedIndex = 0;
 
         _ = LoadCatalogueAsync();
     }
@@ -110,6 +111,7 @@ public sealed partial class CataloguePage : Page
         {
             GameId = c.GameId,
             DisplayName = ToDisplayCase(c.DisplayName),
+            UsageCategory = c.UsageCategory,
             IsKnown = knownIdSet.Contains(c.GameId),
             Icon = CatalogService.TryGet(c.GameId)?.Icon
         }).ToList());
@@ -133,12 +135,28 @@ public sealed partial class CataloguePage : Page
 
     private void Filter_Changed(object sender, SelectionChangedEventArgs e) => ApplyFilters();
 
+    // Mirrors each equipment page's own TechGrid.AllowedUsageCategories -
+    // "what would actually show up in-game if you tried to install tech on
+    // this device" (device-specific tech plus "All", the shared/universal
+    // tag) - not just an exact UsageCategory match, so a Ship-tech search
+    // here means the same thing it does on ShipsPage itself. User's stated
+    // goal: let someone browse by "what I want to put it on" even when they
+    // don't know the item's name (2026-08-05).
+    private static readonly Dictionary<string, string[]> CategoryFilterMap = new()
+    {
+        ["Suit"] = new[] { "Suit", "All" },
+        ["Ship"] = new[] { "Ship", "All" },
+        ["Multi-Tool"] = new[] { "Weapon", "All" },
+        ["Freighter"] = new[] { "Freighter", "All" },
+    };
+
     private void ApplyFilters()
     {
         if (_allItems is null) return;
 
         string query = SearchBox.Text?.Trim() ?? "";
         string? knownFilter = (KnownFilterBox.SelectedItem as ComboBoxItem)?.Content as string;
+        string? categoryFilter = (CategoryFilterBox.SelectedItem as ComboBoxItem)?.Content as string;
 
         IEnumerable<CatalogueRowViewModel> filtered = _allItems;
 
@@ -153,6 +171,9 @@ public sealed partial class CataloguePage : Page
             filtered = filtered.Where(i => i.IsKnown);
         else if (knownFilter == "Unknown Only")
             filtered = filtered.Where(i => !i.IsKnown);
+
+        if (categoryFilter is not null && CategoryFilterMap.TryGetValue(categoryFilter, out var allowedCategories))
+            filtered = filtered.Where(i => i.UsageCategory is not null && allowedCategories.Contains(i.UsageCategory));
 
         _currentlyVisibleRows = filtered.ToList();
         ItemsListView.ItemsSource = _currentlyVisibleRows;

@@ -57,18 +57,31 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <TextBox Grid.Column="0" x:Name="SearchBox" PlaceholderText="Search technology..." TextChanged="SearchBox_TextChanged"/>
-                    <ComboBox Grid.Column="1" x:Name="KnownFilterBox" Width="150" SelectionChanged="Filter_Changed">
+                    <!-- Lets someone browse by "what I want to put it on" (Ship/Suit/
+                         Multi-Tool/Freighter) even without knowing an item's name -
+                         see CataloguePage.xaml.cs's CategoryFilterMap for exactly which
+                         UsageCategory values each option matches (2026-08-05 user ask). -->
+                    <ComboBox Grid.Column="1" x:Name="CategoryFilterBox" Width="150" SelectionChanged="Filter_Changed"
+                              ToolTipService.ToolTip="Filter by which device this tech can be installed on">
+                        <ComboBoxItem Content="All Categories"/>
+                        <ComboBoxItem Content="Suit"/>
+                        <ComboBoxItem Content="Ship"/>
+                        <ComboBoxItem Content="Multi-Tool"/>
+                        <ComboBoxItem Content="Freighter"/>
+                    </ComboBox>
+                    <ComboBox Grid.Column="2" x:Name="KnownFilterBox" Width="150" SelectionChanged="Filter_Changed">
                         <ComboBoxItem Content="All Items"/>
                         <ComboBoxItem Content="Known Only"/>
                         <ComboBoxItem Content="Unknown Only"/>
                     </ComboBox>
-                    <TextBlock Grid.Column="2" x:Name="ResultCountTxt" VerticalAlignment="Center" FontSize="12"
+                    <TextBlock Grid.Column="3" x:Name="ResultCountTxt" VerticalAlignment="Center" FontSize="12"
                                Foreground="{ThemeResource NmsTextSecondary}"/>
-                    <Button Grid.Column="3" x:Name="MarkUnknownAllBtn" Content="Mark All Unknown" Click="MarkUnknownAllBtn_Click"
+                    <Button Grid.Column="4" x:Name="MarkUnknownAllBtn" Content="Mark All Unknown" Click="MarkUnknownAllBtn_Click"
                             ToolTipService.ToolTip="Marks every item currently shown below as unknown (respects the search box and filter)"/>
-                    <Button Grid.Column="4" x:Name="MarkKnownAllBtn" Content="Mark All Known" Click="MarkKnownAllBtn_Click"
+                    <Button Grid.Column="5" x:Name="MarkKnownAllBtn" Content="Mark All Known" Click="MarkKnownAllBtn_Click"
                             ToolTipService.ToolTip="Marks every item currently shown below as known (respects the search box and filter)"/>
                 </Grid>
 
