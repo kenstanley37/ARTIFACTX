@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using ArtifactX.Core;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Models;
@@ -54,6 +55,41 @@ public static class SaveFolderIndexingService
         return results;
     }
 
+    /// <summary>Reads GLOBAL_STATS' "TIME" stat (a float, in seconds) - the
+    /// save's actual lifetime play time, discovered 2026-08-06 after F2P
+    /// (NmsSaveFile.PlayTimeSeconds) turned out to read far too small for an
+    /// established character (see that property's doc comment). Mirrors
+    /// MilestonesPage's identically-shaped ResolveGlobalStatGroupIndex/
+    /// ResolveStatIndex scan, but against a plain JObject instead of
+    /// SaveSessionManager - no slot is loaded into that static session yet
+    /// during folder indexing, this runs once per file before the user has
+    /// even picked a slot. Returns 0 if the stat isn't present (e.g. a
+    /// brand-new character that hasn't accumulated it) rather than throwing -
+    /// a missing lifetime-stats entry isn't a corrupt/unreadable file.</summary>
+    private static int ReadTotalPlayTimeSeconds(JObject root)
+    {
+        if (root["vLc"]?["6f="]?["gUR"] is not JArray groups) return 0;
+
+        foreach (var group in groups)
+        {
+            string groupId = (group[":rc"]?.Value<string>() ?? "").TrimStart('^');
+            if (!string.Equals(groupId, "GLOBAL_STATS", StringComparison.OrdinalIgnoreCase)) continue;
+
+            if (group["gUR"] is not JArray stats) return 0;
+
+            foreach (var stat in stats)
+            {
+                string statId = (stat["b2n"]?.Value<string>() ?? "").TrimStart('^');
+                if (!string.Equals(statId, "TIME", StringComparison.OrdinalIgnoreCase)) continue;
+
+                double? floatValue = stat[">MX"]?["eoL"]?.Value<double?>();
+                return floatValue.HasValue ? (int)Math.Round(floatValue.Value) : 0;
+            }
+            return 0;
+        }
+        return 0;
+    }
+
     // Slot pairing: (save.hg, save2.hg) -> Slot 1, (save3.hg, save4.hg) -> Slot 2, etc.
     private static int SlotIdFor(string filePath)
     {
@@ -75,6 +111,17 @@ public static class SaveFolderIndexingService
 
             var save = JsonConvert.DeserializeObject<NmsSaveFile>(rawJson);
 
+            // Parsed separately from the typed NmsSaveFile above - GLOBAL_STATS
+            // is a variable-order "find by id" structure (see
+            // NmsPlayerStatsPaths), not a fixed JsonProperty path, so it needs
+            // the same runtime scan MilestonesPage does via SaveSessionManager -
+            // except no slot is loaded into SaveSessionManager yet at this
+            // point (this runs during the folder scan, before the user has
+            // picked a slot), so ReadTotalPlayTimeSeconds re-does that same
+            // scan directly against this file's own freshly-parsed JObject.
+            var root = JObject.Parse(rawJson.TrimEnd('\0', ' ', '\r', '\n'));
+            int totalPlayTimeSeconds = ReadTotalPlayTimeSeconds(root);
+
             return new SaveFileEntry
             {
                 FileName = fi.Name,
@@ -83,7 +130,12 @@ public static class SaveFolderIndexingService
                 LastModified = fi.LastWriteTime,
                 SaveName = save?.Header?.SaveName is { Length: > 0 } name ? name : "Unnamed Save",
                 SaveType = save?.SaveType is { Length: > 0 } type ? type : "Unknown",
-                PlayTimeSeconds = save?.PlayTimeSeconds ?? 0,
+                // Falls back to F2P (see its doc comment - likely session
+                // time, not lifetime total) only if GLOBAL_STATS' TIME stat
+                // couldn't be found at all, e.g. a brand-new character that
+                // hasn't accumulated it yet - better an approximate number
+                // than always showing 0.
+                PlayTimeSeconds = totalPlayTimeSeconds > 0 ? totalPlayTimeSeconds : save?.PlayTimeSeconds ?? 0,
                 GalaxyIndex = save?.Universe?.GalaxyIndex ?? -1,
                 GameMode = save?.Universe?.GameMode ?? "Unknown",
                 IsReadable = save is not null
