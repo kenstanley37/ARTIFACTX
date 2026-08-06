@@ -29,7 +29,7 @@
             <StackPanel Spacing="8">
                 <TextBlock Text="Save Info" FontSize="18" FontWeight="SemiBold"/>
                 <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                        CornerRadius="8" Padding="16" Opacity="0.9" Width="420" HorizontalAlignment="Left">
+                        CornerRadius="8" Padding="16" Opacity="0.9" Width="490" HorizontalAlignment="Left">
                     <StackPanel Spacing="14">
                         <StackPanel Spacing="4">
                             <TextBlock Text="Save Name" FontSize="12" Opacity="0.7"/>
@@ -63,16 +63,17 @@
                         </StackPanel>
                         <StackPanel Spacing="6">
                             <TextBlock Text="Difficulty" FontSize="12" Opacity="0.7"/>
-                            <!-- Unconfirmed whether changing just the preset
-                                 LABEL (brJ/4I:) without also touching the
-                                 ~24 individual settings under LyC/:fe
-                                 actually changes in-game difficulty behavior,
-                                 vs. just relabeling a mismatched settings
-                                 block - see project_general_page_save_info
-                                 memory. Exposed anyway since the user asked
-                                 for it, same as other unconfirmed-effect
-                                 fields elsewhere in this app, but don't
-                                 assume it works until someone checks in-game. -->
+                            <!-- Editing just the Current preset LABEL (brJ),
+                                 without touching the ~24 individual settings
+                                 under LyC/:fe, is CONFIRMED to work in-game -
+                                 user set Current=Creative here, and the
+                                 game's own Difficulty Settings screen came up
+                                 already showing "Creative" with every
+                                 individual setting correctly auto-applied to
+                                 match (2026-08-06) - the game re-derives :fe
+                                 from the label at load time rather than
+                                 requiring it to be pre-set. See
+                                 project_general_page_save_info memory. -->
                             <Grid ColumnSpacing="24">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
