@@ -16,4 +16,12 @@ public static class AppVersionService
         Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0);
 
     public static string DisplayVersion => $"{Current.Major}.{Current.Minor}.{Current.Build}";
+
+    // Manually bumped whenever ArtifactX is actually re-tested against a new
+    // No Man's Sky update - NOT detected/read from the game itself (that
+    // would tell users what's installed, not whether this app's field
+    // mappings have actually been checked against it). Shown in the title
+    // bar's info row next to the app's own version. Update this string by
+    // hand after verifying against a new NMS patch.
+    public const string VerifiedNmsUpdate = "SWARM";
 }

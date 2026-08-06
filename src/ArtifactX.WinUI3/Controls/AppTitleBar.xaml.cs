@@ -27,6 +27,7 @@ public sealed partial class AppTitleBar : UserControl
         GameProcessMonitorService.RunningStateChanged += OnGameRunningStateChanged;
 
         VersionTxt.Text = $"v{AppVersionService.DisplayVersion}";
+        NmsCompatTxt.Text = $"NMS: {AppVersionService.VerifiedNmsUpdate}";
         // No Unloaded/unsub here - AppTitleBar is created once for the
         // lifetime of MainWindow, never re-created via Frame navigation like
         // a Page, so this is safe the same way the subscriptions above are.
@@ -114,11 +115,14 @@ public sealed partial class AppTitleBar : UserControl
         if (!SaveSessionManager.IsSaveLoaded)
         {
             ResetDisplayTokens();
+            CurrencyDisplayRegion.Visibility = Visibility.Collapsed;
             SaveBtn.Visibility = Visibility.Collapsed;
             ResetBtn.Visibility = Visibility.Collapsed;
             PendingChangesTxt.Visibility = Visibility.Collapsed;
             return;
         }
+
+        CurrencyDisplayRegion.Visibility = Visibility.Visible;
 
         // ToDisplayValue undoes the uint32 wrap the game itself writes for a
         // balance over ~2.1 billion - see its doc comment. No-op for the
