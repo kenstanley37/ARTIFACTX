@@ -97,13 +97,22 @@ public sealed partial class CataloguePage : Page
         _knownIds = knownArray?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
         _knownIdSet = new HashSet<string>(_knownIds.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
 
-        _allItems = technologyItems.Select(c => new CatalogueRowViewModel
+        // Off the UI thread, same as LanguageWordsControl's identically-shaped
+        // row-building step - building ~370 ObservableObject-backed
+        // CatalogueRowViewModel instances synchronously here was a real,
+        // felt UI-thread allocation burst (2026-08-05 user report: "the
+        // catalog is killing it until it has time to process the garbage").
+        // WarmCacheAsync has already finished by this point, so reading
+        // CatalogService's cache from a background thread here is safe -
+        // nothing is still writing to it.
+        var knownIdSet = _knownIdSet;
+        _allItems = await Task.Run(() => technologyItems.Select(c => new CatalogueRowViewModel
         {
             GameId = c.GameId,
             DisplayName = ToDisplayCase(c.DisplayName),
-            IsKnown = _knownIdSet.Contains(c.GameId),
+            IsKnown = knownIdSet.Contains(c.GameId),
             Icon = CatalogService.TryGet(c.GameId)?.Icon
-        }).ToList();
+        }).ToList());
 
         LoadingRing.IsActive = false;
         LoadingRing.Visibility = Visibility.Collapsed;
