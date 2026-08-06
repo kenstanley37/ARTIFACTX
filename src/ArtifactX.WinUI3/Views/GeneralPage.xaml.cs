@@ -101,11 +101,11 @@ public sealed partial class GeneralPage : Page
             NanitesBox.Value = double.NaN;
             QuicksilverBox.Value = double.NaN;
             PageResetBtn.Visibility = Visibility.Collapsed;
-            SaveNameTxt.Text = "";
-            SummaryTxt.Text = "";
+            SaveNameBox.Text = "";
+            SummaryBox.Text = "";
             PlayTimeTxt.Text = "";
-            CurrentPresetTxt.Text = "";
-            EasiestPresetTxt.Text = "";
+            CurrentPresetBox.SelectedIndex = -1;
+            EasiestPresetBox.SelectedIndex = -1;
             HardestPresetTxt.Text = "";
             _suppressChangeEvents = false;
             return;
@@ -118,18 +118,61 @@ public sealed partial class GeneralPage : Page
         NanitesBox.Value = NmsPlayerStateData.ToDisplayValue(SaveSessionManager.GetLong(NmsPlayerStateData.NanitesPath) ?? 0);
         QuicksilverBox.Value = NmsPlayerStateData.ToDisplayValue(SaveSessionManager.GetLong(NmsPlayerStateData.QuicksilverPath) ?? 0);
 
-        SaveNameTxt.Text = SaveSessionManager.GetString(NmsSaveHeader.SaveNamePath) is { Length: > 0 } name ? name : "Unnamed Save";
-        SummaryTxt.Text = SaveSessionManager.GetString(NmsPlayerStateData.LocationDescriptionPath) ?? "Unknown";
+        SaveNameBox.Text = SaveSessionManager.GetString(NmsSaveHeader.SaveNamePath) is { Length: > 0 } name ? name : "Unnamed Save";
+        SummaryBox.Text = SaveSessionManager.GetString(NmsPlayerStateData.LocationDescriptionPath) ?? "";
         PlayTimeTxt.Text = FormatPlayTime(ReadTotalPlayTimeSeconds());
 
-        string current = SaveSessionManager.GetString(NmsPlayerStateData.GameModePath) ?? "Unknown";
+        string current = SaveSessionManager.GetString(NmsPlayerStateData.GameModePath) ?? "Normal";
         string roundedDown = SaveSessionManager.GetString(NmsPlayerStateData.RoundedDownPresetPath) ?? current;
         string easiest = SaveSessionManager.GetString(NmsPlayerStateData.EasiestUsedPresetPath) ?? current;
-        CurrentPresetTxt.Text = current;
-        EasiestPresetTxt.Text = easiest;
+        SelectComboBoxContent(CurrentPresetBox, current);
+        SelectComboBoxContent(EasiestPresetBox, easiest);
         HardestPresetTxt.Text = EstimateHardestPreset(roundedDown, easiest);
 
         _suppressChangeEvents = false;
+    }
+
+    private static void SelectComboBoxContent(ComboBox box, string content)
+    {
+        foreach (var item in box.Items)
+        {
+            if (item is ComboBoxItem { Content: string text } && string.Equals(text, content, StringComparison.OrdinalIgnoreCase))
+            {
+                box.SelectedItem = item;
+                return;
+            }
+        }
+        box.SelectedIndex = -1;
+    }
+
+    private void SaveNameBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_suppressChangeEvents || !SaveSessionManager.IsSaveLoaded) return;
+        SaveSessionManager.StageEdit(SaveNameBox.Text, NmsSaveHeader.SaveNamePath);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void SummaryBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_suppressChangeEvents || !SaveSessionManager.IsSaveLoaded) return;
+        SaveSessionManager.StageEdit(SummaryBox.Text, NmsPlayerStateData.LocationDescriptionPath);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void CurrentPresetBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressChangeEvents || !SaveSessionManager.IsSaveLoaded) return;
+        if ((CurrentPresetBox.SelectedItem as ComboBoxItem)?.Content is not string value) return;
+        SaveSessionManager.StageEdit(value, NmsPlayerStateData.GameModePath);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void EasiestPresetBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressChangeEvents || !SaveSessionManager.IsSaveLoaded) return;
+        if ((EasiestPresetBox.SelectedItem as ComboBoxItem)?.Content is not string value) return;
+        SaveSessionManager.StageEdit(value, NmsPlayerStateData.EasiestUsedPresetPath);
+        PageResetBtn.Visibility = Visibility.Visible;
     }
 
     /// <summary>Years/days/hours/minutes, since a long-played save's total
@@ -255,6 +298,10 @@ public sealed partial class GeneralPage : Page
         SaveSessionManager.RevertEdit(NmsPlayerStateData.UnitsPath);
         SaveSessionManager.RevertEdit(NmsPlayerStateData.NanitesPath);
         SaveSessionManager.RevertEdit(NmsPlayerStateData.QuicksilverPath);
+        SaveSessionManager.RevertEdit(NmsSaveHeader.SaveNamePath);
+        SaveSessionManager.RevertEdit(NmsPlayerStateData.LocationDescriptionPath);
+        SaveSessionManager.RevertEdit(NmsPlayerStateData.GameModePath);
+        SaveSessionManager.RevertEdit(NmsPlayerStateData.EasiestUsedPresetPath);
         LoadValues();
         PageResetBtn.Visibility = Visibility.Collapsed;
     }
