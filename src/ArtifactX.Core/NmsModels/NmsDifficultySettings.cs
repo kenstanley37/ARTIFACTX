@@ -7,21 +7,34 @@ namespace ArtifactX.Core.NmsModels;
 /// Unlike this file's siblings, this mapping is NOT community-documented - it's
 /// inferred from libMBIN's GcDifficultySettingsReplicatedState (four
 /// GcDifficultyPresetType fields in Index order: IsPermadeath(0), Preset(1),
-/// RoundedDownPreset(2), EasiestUsedPreset(3), HardestUsedPreset(4), IsLocked(5))
-/// and cross-checked against real save dumps, where "brJ" was consistently the
-/// first of three visible preset-shaped children under LyC (the two bools and
-/// HardestUsedPreset appear to be omitted here, matching this format's usual
-/// default-value compaction). Self-consistent across every sample checked so
-/// far, but none of those samples were a known-Permadeath or known-Survival
-/// save, so the specific label attribution (as opposed to "a preset value
-/// lives here") is unconfirmed - flag it if a slot ever shows the wrong mode.
+/// RoundedDownPreset(2), EasiestUsedPreset(3), HardestUsedPreset(4), IsLocked(5)).
+/// CONFIRMED 2026-08-06 by cross-checking real saves tagged Normal/Survival/
+/// Permadeath/Custom on the Save Selection page: brJ/qAf/4I: track together
+/// (all "Normal" on a Normal save, all "Survival" on a Survival save, all
+/// "Permadeath" on a Permadeath save) EXCEPT on the Custom save, where they
+/// genuinely diverge (brJ=Custom, qAf=Creative, 4I:=Normal) - proving these
+/// are 3 distinct tracked values, not one value read 3 different ways.
+/// IsPermadeath/HardestUsedPreset(4)/IsLocked were never observed populated
+/// in any of those 4 samples - the save format compacts/omits fields at
+/// their default, and this format's default-value compaction evidently
+/// includes these bools/HardestUsedPreset in every real sample checked so far.
 /// Keys:
-///   brJ -> Current preset (GcDifficultyPresetType, itself nested one level via "7ND")
+///   brJ -> Current preset (index 1, GcDifficultyPresetType nested via "7ND")
+///   qAf -> Rounded-down preset (index 2) - when brJ is Custom, this is the
+///          closest standard preset the game itself considers it equivalent to
+///   4I: -> Easiest used preset (index 3) - the easiest standard preset this
+///          save has ever actually been set to
 /// </summary>
 public class NmsDifficultySettings
 {
     [JsonProperty("brJ")]
     public NmsDifficultyPreset? Preset { get; set; }
+
+    [JsonProperty("qAf")]
+    public NmsDifficultyPreset? RoundedDownPreset { get; set; }
+
+    [JsonProperty("4I:")]
+    public NmsDifficultyPreset? EasiestUsedPreset { get; set; }
 
     [JsonIgnore]
     public string GameMode => Preset?.DisplayName ?? "Unknown";

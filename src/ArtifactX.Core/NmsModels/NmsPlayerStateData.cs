@@ -46,6 +46,28 @@ public class NmsPlayerStateData
     public static readonly string[] QuicksilverPath = { "vLc", "6f=", "kN;" };
     public static readonly string[] GameModePath = { "vLc", "6f=", "LyC", "brJ", "7ND" };
 
+    /// <summary>"Rounded down" version of the current preset - when the
+    /// current preset is Custom, this is the closest standard preset the
+    /// game itself considers the custom settings equivalent to (see
+    /// NmsDifficultySettings). Confirmed distinct from GameModePath by real
+    /// data: a Custom-preset save read Preset=Custom, RoundedDownPreset=
+    /// Creative, EasiestUsedPreset=Normal - three genuinely different
+    /// values on the same save (2026-08-06).</summary>
+    public static readonly string[] RoundedDownPresetPath = { "vLc", "6f=", "LyC", "qAf", "7ND" };
+
+    /// <summary>The easiest standard preset this save has ever actually been
+    /// set to - confirmed distinct from both GameModePath and
+    /// RoundedDownPresetPath (see that path's doc comment for the real-data
+    /// evidence). There's a symmetric HardestUsedPreset field per libMBIN's
+    /// GcDifficultySettingsReplicatedState, but its own JSON key has never
+    /// been observed populated in any sample checked (including
+    /// Custom/Survival/Permadeath saves, not just Normal ones) - the save
+    /// format compacts/omits it whenever unused, so it's unmapped for now.
+    /// GeneralPage estimates a "hardest used" display from
+    /// RoundedDownPresetPath/EasiestUsedPresetPath instead (per 2026-08-06
+    /// user decision) rather than leaving it blank.</summary>
+    public static readonly string[] EasiestUsedPresetPath = { "vLc", "6f=", "LyC", "4I:", "7ND" };
+
     /// <summary>Units/Nanites/Quicksilver are stored by the game itself as a
     /// signed 32-bit field that wraps to negative once the real balance
     /// exceeds int32.MaxValue (~2.1 billion) - confirmed 2026-08-01 directly

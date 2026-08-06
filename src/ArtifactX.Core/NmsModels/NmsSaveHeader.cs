@@ -40,4 +40,9 @@ public class NmsSaveHeader
 
     [JsonProperty("j3Y")]
     public NmsPlayerHazardState HazardState { get; set; }
+
+    // Full parent chain included, matching NmsPlayerStateData's own path
+    // constants - a page can reference this directly with no need to know
+    // <h0 exists as a separate step.
+    public static readonly string[] SaveNamePath = { "<h0", "Pk4" };
 }

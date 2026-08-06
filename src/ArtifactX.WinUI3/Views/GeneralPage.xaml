@@ -27,6 +27,55 @@
 
             <StackPanel Spacing="20" HorizontalAlignment="Left">
             <StackPanel Spacing="8">
+                <TextBlock Text="Save Info" FontSize="18" FontWeight="SemiBold"/>
+                <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                        CornerRadius="8" Padding="16" Opacity="0.9" Width="420" HorizontalAlignment="Left">
+                    <StackPanel Spacing="14">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Save Name" FontSize="12" Opacity="0.7"/>
+                            <TextBlock x:Name="SaveNameTxt" FontSize="14" FontWeight="SemiBold"/>
+                        </StackPanel>
+                        <StackPanel Spacing="4">
+                            <!-- "Where the player was when they saved" -
+                                 vLc/6f=/n:R, the same field the game's own
+                                 Continue screen draws its location line from. -->
+                            <TextBlock Text="Summary" FontSize="12" Opacity="0.7"/>
+                            <TextBlock x:Name="SummaryTxt" FontSize="14" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <StackPanel Spacing="4">
+                            <!-- GLOBAL_STATS' TIME stat, not F2P - see
+                                 project_playtime_field_fix memory for why. -->
+                            <TextBlock Text="Total Play Time" FontSize="12" Opacity="0.7"/>
+                            <TextBlock x:Name="PlayTimeTxt" FontSize="14"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Difficulty" FontSize="12" Opacity="0.7"/>
+                            <Grid ColumnSpacing="24">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock Text="Current" FontSize="11" Opacity="0.6"/>
+                                    <TextBlock x:Name="CurrentPresetTxt" FontSize="13" FontWeight="SemiBold"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <TextBlock Text="Easiest Used" FontSize="11" Opacity="0.6"/>
+                                    <TextBlock x:Name="EasiestPresetTxt" FontSize="13" FontWeight="SemiBold"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="2"
+                                            ToolTipService.ToolTip="Estimated - the save format doesn't track this directly (see project_playtime_field_fix memory), so this is the more severe of Current/Easiest Used rather than an exact reading">
+                                    <TextBlock Text="Hardest Used*" FontSize="11" Opacity="0.6"/>
+                                    <TextBlock x:Name="HardestPresetTxt" FontSize="13" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Spacing="8">
                 <TextBlock Text="Currency" FontSize="18" FontWeight="SemiBold"/>
                 <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
                         CornerRadius="8" Padding="16" Opacity="0.9" Width="320" HorizontalAlignment="Left">
