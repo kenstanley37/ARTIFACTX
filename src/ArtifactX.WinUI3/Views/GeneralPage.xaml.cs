@@ -293,6 +293,16 @@ public sealed partial class GeneralPage : Page
     private void QuicksilverBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => StageQuicksilver(args.NewValue);
     private void QuicksilverBox_LostFocus(object sender, RoutedEventArgs e) => StageQuicksilver(QuicksilverBox.Value);
 
+    // 4294967295 (uint32.MaxValue) - the same real, confirmed wraparound
+    // ceiling the NumberBoxes above already cap at (see that Maximum's own
+    // doc comment), independently confirmed by a reference tool's own Max
+    // button landing on the exact same number (2026-08-06). Setting .Value
+    // is enough - the existing ValueChanged handlers above stage the edit,
+    // same as if the user had typed it in.
+    private void MaxUnitsBtn_Click(object sender, RoutedEventArgs e) => UnitsBox.Value = 4294967295;
+    private void MaxNanitesBtn_Click(object sender, RoutedEventArgs e) => NanitesBox.Value = 4294967295;
+    private void MaxQuicksilverBtn_Click(object sender, RoutedEventArgs e) => QuicksilverBox.Value = 4294967295;
+
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
         SaveSessionManager.RevertEdit(NmsPlayerStateData.UnitsPath);

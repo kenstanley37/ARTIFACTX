@@ -129,18 +129,42 @@
                              math in that doc comment first. -->
                         <StackPanel Spacing="6">
                             <TextBlock Text="Units" FontSize="12" Opacity="0.7"/>
-                            <NumberBox x:Name="UnitsBox" Minimum="0" Maximum="4294967295" SpinButtonPlacementMode="Hidden"
-                                       ValueChanged="UnitsBox_ValueChanged" LostFocus="UnitsBox_LostFocus"/>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <NumberBox Grid.Column="0" x:Name="UnitsBox" Minimum="0" Maximum="4294967295" SpinButtonPlacementMode="Hidden"
+                                           ValueChanged="UnitsBox_ValueChanged" LostFocus="UnitsBox_LostFocus"/>
+                                <Button Grid.Column="1" Content="Max" Click="MaxUnitsBtn_Click" VerticalAlignment="Stretch"
+                                        ToolTipService.ToolTip="Sets to 4,294,967,295 (uint32.MaxValue) - the real ceiling this field wraps at, same value a reference tool's own Max button uses"/>
+                            </Grid>
                         </StackPanel>
                         <StackPanel Spacing="6">
                             <TextBlock Text="Nanites" FontSize="12" Opacity="0.7"/>
-                            <NumberBox x:Name="NanitesBox" Minimum="0" Maximum="4294967295" SpinButtonPlacementMode="Hidden"
-                                       ValueChanged="NanitesBox_ValueChanged" LostFocus="NanitesBox_LostFocus"/>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <NumberBox Grid.Column="0" x:Name="NanitesBox" Minimum="0" Maximum="4294967295" SpinButtonPlacementMode="Hidden"
+                                           ValueChanged="NanitesBox_ValueChanged" LostFocus="NanitesBox_LostFocus"/>
+                                <Button Grid.Column="1" Content="Max" Click="MaxNanitesBtn_Click" VerticalAlignment="Stretch"
+                                        ToolTipService.ToolTip="Sets to 4,294,967,295 (uint32.MaxValue) - the real ceiling this field wraps at, same value a reference tool's own Max button uses"/>
+                            </Grid>
                         </StackPanel>
                         <StackPanel Spacing="6">
                             <TextBlock Text="Quicksilver" FontSize="12" Opacity="0.7"/>
-                            <NumberBox x:Name="QuicksilverBox" Minimum="0" Maximum="4294967295" SpinButtonPlacementMode="Hidden"
-                                       ValueChanged="QuicksilverBox_ValueChanged" LostFocus="QuicksilverBox_LostFocus"/>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <NumberBox Grid.Column="0" x:Name="QuicksilverBox" Minimum="0" Maximum="4294967295" SpinButtonPlacementMode="Hidden"
+                                           ValueChanged="QuicksilverBox_ValueChanged" LostFocus="QuicksilverBox_LostFocus"/>
+                                <Button Grid.Column="1" Content="Max" Click="MaxQuicksilverBtn_Click" VerticalAlignment="Stretch"
+                                        ToolTipService.ToolTip="Sets to 4,294,967,295 (uint32.MaxValue) - the real ceiling this field wraps at, same value a reference tool's own Max button uses"/>
+                            </Grid>
                         </StackPanel>
                     </StackPanel>
                 </Border>
