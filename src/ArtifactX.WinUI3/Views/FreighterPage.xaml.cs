@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.Core.NmsModels;
+using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Newtonsoft.Json.Linq;
@@ -67,6 +68,8 @@ public sealed partial class FreighterPage : Page
         Unloaded += Page_Unloaded;
 
         LoadGrids();
+        _ = RefreshTemplatesListAsync();
+        _ = RefreshFullBuildTemplatesListAsync();
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e)
@@ -465,6 +468,407 @@ public sealed partial class FreighterPage : Page
         CargoScrollViewer.MaxHeight = isCollapsed ? double.PositiveInfinity : CargoCollapsedHeight;
         CargoExpandIcon.Glyph = isCollapsed ? ChevronUpGlyph : ChevronDownGlyph;
         ToolTipService.SetToolTip(CargoExpandBtn, isCollapsed ? "Collapse" : "Expand");
+    }
+
+    /// <summary>No "Copy Tech Stack..." button on this page unlike Ships/
+    /// Multi-Tool - a save only ever has one freighter, so there's no other
+    /// owned instance to copy onto. Templates (below) are the only loadout-
+    /// sharing mechanism here, since they persist across SAVES rather than
+    /// just between instances within one save - matching the user's own
+    /// stated motivation ("a user may have multi saves and want to copy the
+    /// tech stack").</summary>
+    private async void SaveAsTemplateBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_techViewModel is null) return;
+
+        if (!_techViewModel.Cells.Any(c => c.IsOccupied))
+        {
+            await new ContentDialog
+            {
+                Title = "Nothing to save",
+                Content = "Your freighter has no tech installed, so there's nothing to capture as a template.",
+                CloseButtonText = "OK",
+                XamlRoot = this.XamlRoot
+            }.ShowAsync();
+            return;
+        }
+
+        var nameBox = new TextBox { PlaceholderText = "e.g. \"Combat Hauler\"" };
+        var nameDialog = new ContentDialog
+        {
+            Title = "Save as Template",
+            Content = new StackPanel
+            {
+                Spacing = 8,
+                Children = { new TextBlock { Text = "Name this loadout:" }, nameBox }
+            },
+            PrimaryButtonText = "Save",
+            CloseButtonText = "Cancel",
+            XamlRoot = this.XamlRoot
+        };
+
+        if (await nameDialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+        string name = nameBox.Text?.Trim() ?? "";
+        if (string.IsNullOrEmpty(name)) return;
+
+        string freighterName = NameEditBox.Text?.Trim() is { Length: > 0 } n ? n : "Freighter";
+        var template = _techViewModel.ExtractTemplate(name, freighterName, "Freighter");
+        await LoadoutTemplateService.SaveAsync(template);
+
+        // No confirmation popup here on purpose - same reasoning as
+        // ShipsPage/MultiToolPage: saving a template should visibly show up
+        // in the list right away, not need a separate dialog to prove it worked.
+        await RefreshTemplatesListAsync();
+    }
+
+    /// <summary>Rebuilds the persistent Tech Stack Templates list, filtered to
+    /// Freighter-sourced, Scope=="TechStack" templates only - Ship/Multi-Tool
+    /// templates share the same on-disk pool but don't belong in this grid.
+    /// Full Build templates have their own separate list below
+    /// (RefreshFullBuildTemplatesListAsync). Called after saving, deleting, or
+    /// applying a template, and once on page load.</summary>
+    private async Task RefreshTemplatesListAsync()
+    {
+        var templates = (await LoadoutTemplateService.LoadAllAsync())
+            .Where(t => t.SourceKind == "Freighter" && t.Scope == "TechStack")
+            .ToList();
+
+        TemplatesListPanel.Children.Clear();
+
+        if (templates.Count == 0)
+        {
+            TemplatesListPanel.Children.Add(new TextBlock
+            {
+                Text = "No templates saved yet.",
+                FontSize = 11,
+                Opacity = 0.6,
+                TextWrapping = TextWrapping.Wrap
+            });
+            return;
+        }
+
+        foreach (var template in templates)
+        {
+            string sourceInfo = template.SourceToolName is null ? "" : $" - from {template.SourceToolName}";
+
+            var row = new StackPanel { Spacing = 4 };
+            row.Children.Add(new TextBlock
+            {
+                Text = $"{template.Name}",
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 13,
+                TextWrapping = TextWrapping.Wrap
+            });
+            row.Children.Add(new TextBlock
+            {
+                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class{sourceInfo}",
+                FontSize = 10,
+                Opacity = 0.6,
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+
+            var applyButton = new Button { Content = "Apply", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            applyButton.Click += async (_, _) => await ApplyTemplateAsync(template);
+            buttonRow.Children.Add(applyButton);
+
+            var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            deleteButton.Click += async (_, _) =>
+            {
+                await LoadoutTemplateService.DeleteAsync(template.Id);
+                await RefreshTemplatesListAsync();
+            };
+            buttonRow.Children.Add(deleteButton);
+
+            row.Children.Add(buttonRow);
+
+            row.Children.Add(new Border
+            {
+                BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+
+            TemplatesListPanel.Children.Add(row);
+        }
+    }
+
+    private async void SaveAsFullBuildTemplateBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_techViewModel is null) return;
+
+        if (!_techViewModel.Cells.Any(c => c.IsOccupied))
+        {
+            await new ContentDialog
+            {
+                Title = "Nothing to save",
+                Content = "Your freighter has no tech installed, so there's nothing to capture as a template.",
+                CloseButtonText = "OK",
+                XamlRoot = this.XamlRoot
+            }.ShowAsync();
+            return;
+        }
+
+        var nameBox = new TextBox { PlaceholderText = "e.g. \"Combat Hauler (Full Build)\"" };
+        var nameDialog = new ContentDialog
+        {
+            Title = "Save as Full Build Template",
+            Content = new StackPanel
+            {
+                Spacing = 8,
+                Children = { new TextBlock { Text = "Name this build (tech + stats + appearance):" }, nameBox }
+            },
+            PrimaryButtonText = "Save",
+            CloseButtonText = "Cancel",
+            XamlRoot = this.XamlRoot
+        };
+
+        if (await nameDialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+        string name = nameBox.Text?.Trim() ?? "";
+        if (string.IsNullOrEmpty(name)) return;
+
+        string freighterName = NameEditBox.Text?.Trim() is { Length: > 0 } n ? n : "Freighter";
+        var template = _techViewModel.ExtractTemplate(name, freighterName, "Freighter");
+        template.Scope = "FullBuild";
+        template.Stats = ExtractStatsList();
+        // Model Seed only (the hull's own look) - deliberately never the
+        // Crew Seed (the captain's look, a separate concept), matching
+        // NmsLoadoutTemplate.Seed's own doc comment.
+        template.Seed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>();
+
+        await LoadoutTemplateService.SaveAsync(template);
+        await RefreshFullBuildTemplatesListAsync();
+    }
+
+    /// <summary>Same shape as RefreshTemplatesListAsync, filtered to Scope==
+    /// "FullBuild" instead and targeting the separate FullBuildTemplatesListPanel.</summary>
+    private async Task RefreshFullBuildTemplatesListAsync()
+    {
+        var templates = (await LoadoutTemplateService.LoadAllAsync())
+            .Where(t => t.SourceKind == "Freighter" && t.Scope == "FullBuild")
+            .ToList();
+
+        FullBuildTemplatesListPanel.Children.Clear();
+
+        if (templates.Count == 0)
+        {
+            FullBuildTemplatesListPanel.Children.Add(new TextBlock
+            {
+                Text = "No full build templates saved yet.",
+                FontSize = 11,
+                Opacity = 0.6,
+                TextWrapping = TextWrapping.Wrap
+            });
+            return;
+        }
+
+        foreach (var template in templates)
+        {
+            string sourceInfo = template.SourceToolName is null ? "" : $" - from {template.SourceToolName}";
+
+            var row = new StackPanel { Spacing = 4 };
+            row.Children.Add(new TextBlock
+            {
+                Text = $"{template.Name}",
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 13,
+                TextWrapping = TextWrapping.Wrap
+            });
+            row.Children.Add(new TextBlock
+            {
+                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class, stats+seed{sourceInfo}",
+                FontSize = 10,
+                Opacity = 0.6,
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+
+            var applyButton = new Button { Content = "Apply", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            applyButton.Click += async (_, _) => await ApplyFullBuildTemplateAsync(template);
+            buttonRow.Children.Add(applyButton);
+
+            var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            deleteButton.Click += async (_, _) =>
+            {
+                await LoadoutTemplateService.DeleteAsync(template.Id);
+                await RefreshFullBuildTemplatesListAsync();
+            };
+            buttonRow.Children.Add(deleteButton);
+
+            row.Children.Add(buttonRow);
+
+            row.Children.Add(new Border
+            {
+                BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+
+            FullBuildTemplatesListPanel.Children.Add(row);
+        }
+    }
+
+    /// <summary>Reads the freighter's whole stat-bonus array (@bB) as a plain
+    /// key/value list, for embedding in a Full Build template - captures every
+    /// entry generically (not just the 2 keys exposed as NumberBoxes) so
+    /// nothing present but not individually surfaced gets silently dropped on
+    /// save. Only one freighter per save, so unlike ShipsPage's version this
+    /// takes no index parameter.</summary>
+    private static List<NmsLoadoutStat> ExtractStatsList()
+    {
+        var bonuses = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterStatBonusesPath) as JArray;
+        var result = new List<NmsLoadoutStat>();
+        if (bonuses is null) return result;
+
+        foreach (var entry in bonuses)
+        {
+            string? key = entry["QL1"]?.Value<string>();
+            double? value = entry[">MX"]?.Value<double>();
+            if (key is not null && value is not null)
+                result.Add(new NmsLoadoutStat { Key = key, Value = value.Value });
+        }
+
+        return result;
+    }
+
+    /// <summary>Stages a Full Build template's saved stats onto the freighter -
+    /// rebuilds the whole @bB array matched by key, same "match by key,
+    /// replace whole array" pattern as SetStatValue.</summary>
+    private static void ApplyStatsList(List<NmsLoadoutStat> stats)
+    {
+        if (stats.Count == 0) return;
+
+        var bonusesPath = NmsInventoryContainer.FreighterStatBonusesPath;
+        var bonuses = SaveSessionManager.GetValue(bonusesPath) as JArray;
+        if (bonuses is null) return;
+
+        var statsByKey = stats.ToDictionary(s => s.Key, s => s.Value);
+
+        var updated = new JArray();
+        foreach (var entry in bonuses)
+        {
+            if (entry is JObject obj && obj["QL1"]?.Value<string>() is string key && statsByKey.TryGetValue(key, out double newValue))
+            {
+                var clone = (JObject)obj.DeepClone();
+                clone[">MX"] = newValue;
+                updated.Add(clone);
+            }
+            else
+            {
+                updated.Add(entry.DeepClone());
+            }
+        }
+
+        SaveSessionManager.StageEdit(updated, bonusesPath);
+    }
+
+    /// <summary>Applies a saved Full Build template's tech, stats, and Model
+    /// Seed to the freighter - Class only changes if the user opts in, same
+    /// as ApplyTemplateAsync.</summary>
+    private async Task ApplyFullBuildTemplateAsync(NmsLoadoutTemplate template)
+    {
+        if (_techViewModel is null) return;
+
+        var sourcePositions = template.UnlockedPositions.Select(p => (p.X, p.Y));
+        var (confirmed, alsoMatchClass) = await ShowApplyConfirmationAsync(
+            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions, includesStatsAndSeed: true);
+
+        if (!confirmed) return;
+
+        _techViewModel.ApplyTemplate(template, alsoMatchClass);
+        ApplyStatsList(template.Stats);
+        if (!string.IsNullOrEmpty(template.Seed))
+            SaveSessionManager.StageEdit(template.Seed, NmsInventoryContainer.FreighterModelSeedPath);
+
+        PageResetBtn.Visibility = Visibility.Visible;
+        LoadGrids();
+    }
+
+    /// <summary>Applies a saved Tech Stack template to the freighter - same
+    /// flow as Ships/MultiTool's ApplyTemplateAsync, minus the target picker
+    /// step (only one freighter exists to apply onto). A class change
+    /// (alsoMatchClass) can change the freighter's real Tech/Cargo slot
+    /// totals (StarshipCapacity), so the grids get fully rebuilt via
+    /// LoadGrids rather than just refreshed in place.</summary>
+    private async Task ApplyTemplateAsync(NmsLoadoutTemplate template)
+    {
+        if (_techViewModel is null) return;
+
+        var sourcePositions = template.UnlockedPositions.Select(p => (p.X, p.Y));
+        var (confirmed, alsoMatchClass) = await ShowApplyConfirmationAsync(
+            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions);
+
+        if (!confirmed) return;
+
+        _techViewModel.ApplyTemplate(template, alsoMatchClass);
+        PageResetBtn.Visibility = Visibility.Visible;
+        LoadGrids();
+    }
+
+    /// <summary>Confirmation dialog for applying a template - simpler than
+    /// Ships/MultiTool's ShowCopyConfirmationAsync since a save only ever has
+    /// one freighter: no target picker, just "apply this template to your
+    /// freighter now."</summary>
+    private async Task<(bool Confirmed, bool AlsoMatchClass)> ShowApplyConfirmationAsync(
+        string sourceLabel, string? sourceClass, IEnumerable<(int X, int Y)> sourcePositions, bool includesStatsAndSeed = false)
+    {
+        if (_techViewModel is null) return (false, false);
+
+        var sourcePositionSet = sourcePositions.ToHashSet();
+        var targetUnlocked = _techViewModel.Cells.Where(c => c.State != InventorySlotState.Locked).Select(c => (c.X, c.Y)).ToHashSet();
+        int newSlotsNeeded = sourcePositionSet.Except(targetUnlocked).Count();
+
+        bool classDiffers = !string.Equals(sourceClass, _techViewModel.CurrentClass, StringComparison.OrdinalIgnoreCase);
+
+        var panel = new StackPanel { Spacing = 10 };
+        panel.Children.Add(new TextBlock
+        {
+            TextWrapping = TextWrapping.Wrap,
+            Text = includesStatsAndSeed
+                ? $"This replaces your freighter's entire tech loadout, base stats, and appearance seed with {sourceLabel}."
+                : $"This replaces your freighter's entire tech loadout with {sourceLabel}."
+        });
+
+        if (newSlotsNeeded > 0)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(Color.FromArgb(255, 230, 160, 60)),
+                Text = $"⚠ {newSlotsNeeded} slot(s) will also be unlocked on your freighter to fit this stack."
+            });
+        }
+
+        CheckBox? matchClassBox = null;
+        if (classDiffers)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(Color.FromArgb(255, 230, 160, 60)),
+                Text = $"⚠ Class differs: your freighter is currently {_techViewModel.CurrentClass ?? "unknown"}, source is {sourceClass ?? "unknown"}."
+            });
+
+            matchClassBox = new CheckBox { Content = $"Also change your freighter's class to {sourceClass} to match" };
+            panel.Children.Add(matchClassBox);
+        }
+
+        var dialog = new ContentDialog
+        {
+            Title = includesStatsAndSeed ? "Confirm full build apply" : "Confirm tech stack apply",
+            Content = panel,
+            PrimaryButtonText = "Apply",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = this.XamlRoot
+        };
+
+        bool confirmed = await dialog.ShowAsync() == ContentDialogResult.Primary;
+        return (confirmed, matchClassBox?.IsChecked == true);
     }
 
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
