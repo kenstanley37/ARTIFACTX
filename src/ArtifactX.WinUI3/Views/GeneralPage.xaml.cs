@@ -14,19 +14,6 @@ public sealed partial class GeneralPage : Page
 {
     private bool _suppressChangeEvents;
 
-    // Creative < Relaxed < Normal < Survival < Permadeath - used only to
-    // estimate "Hardest Used Preset" (see LoadValues' doc comment on why
-    // that field is estimated rather than read directly). "Custom" isn't on
-    // this scale on purpose - RoundedDownPreset is what stands in for it.
-    private static readonly Dictionary<string, int> PresetSeverity = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["Creative"] = 0,
-        ["Relaxed"] = 1,
-        ["Normal"] = 2,
-        ["Survival"] = 3,
-        ["Permadeath"] = 4,
-    };
-
     public GeneralPage()
     {
         InitializeComponent();
@@ -106,7 +93,7 @@ public sealed partial class GeneralPage : Page
             PlayTimeTxt.Text = "";
             CurrentPresetBox.SelectedIndex = -1;
             EasiestPresetBox.SelectedIndex = -1;
-            HardestPresetTxt.Text = "";
+            HardestPresetBox.SelectedIndex = -1;
             _suppressChangeEvents = false;
             return;
         }
@@ -123,11 +110,11 @@ public sealed partial class GeneralPage : Page
         PlayTimeTxt.Text = FormatPlayTime(ReadTotalPlayTimeSeconds());
 
         string current = SaveSessionManager.GetString(NmsPlayerStateData.GameModePath) ?? "Normal";
-        string roundedDown = SaveSessionManager.GetString(NmsPlayerStateData.RoundedDownPresetPath) ?? current;
         string easiest = SaveSessionManager.GetString(NmsPlayerStateData.EasiestUsedPresetPath) ?? current;
+        string hardest = SaveSessionManager.GetString(NmsPlayerStateData.HardestUsedPresetPath) ?? current;
         SelectComboBoxContent(CurrentPresetBox, current);
         SelectComboBoxContent(EasiestPresetBox, easiest);
-        HardestPresetTxt.Text = EstimateHardestPreset(roundedDown, easiest);
+        SelectComboBoxContent(HardestPresetBox, hardest);
 
         _suppressChangeEvents = false;
     }
@@ -175,6 +162,14 @@ public sealed partial class GeneralPage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
+    private void HardestPresetBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressChangeEvents || !SaveSessionManager.IsSaveLoaded) return;
+        if ((HardestPresetBox.SelectedItem as ComboBoxItem)?.Content is not string value) return;
+        SaveSessionManager.StageEdit(value, NmsPlayerStateData.HardestUsedPresetPath);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
     /// <summary>Years/days/hours/minutes, since a long-played save's total
     /// can genuinely span multiple days - a plain "Nh Nm" (fine for
     /// Save Selection's compact cards) undersells that scale here.</summary>
@@ -190,23 +185,6 @@ public sealed partial class GeneralPage : Page
         parts.Add($"{t.Hours}h");
         parts.Add($"{t.Minutes}m");
         return string.Join(" ", parts);
-    }
-
-    /// <summary>The save format never populates a dedicated "hardest used"
-    /// field in any sample checked (Normal/Survival/Permadeath/Custom saves
-    /// all omit it - see NmsPlayerStateData.EasiestUsedPresetPath's doc
-    /// comment), so this estimates it as the more severe of
-    /// RoundedDownPreset (the current setting, normalized off "Custom" onto
-    /// the standard preset scale) and EasiestUsedPreset - a real lower bound
-    /// on the true value, not necessarily exact (2026-08-06 user-approved
-    /// tradeoff: could under-report if difficulty was ever set harder and
-    /// later reverted, since that history wouldn't survive in either
-    /// input).</summary>
-    private static string EstimateHardestPreset(string roundedDownPreset, string easiestUsedPreset)
-    {
-        int roundedSeverity = PresetSeverity.GetValueOrDefault(roundedDownPreset, -1);
-        int easiestSeverity = PresetSeverity.GetValueOrDefault(easiestUsedPreset, -1);
-        return roundedSeverity >= easiestSeverity ? roundedDownPreset : easiestUsedPreset;
     }
 
     // --- GLOBAL_STATS access for the TIME stat - mirrors MilestonesPage's
@@ -312,6 +290,7 @@ public sealed partial class GeneralPage : Page
         SaveSessionManager.RevertEdit(NmsPlayerStateData.LocationDescriptionPath);
         SaveSessionManager.RevertEdit(NmsPlayerStateData.GameModePath);
         SaveSessionManager.RevertEdit(NmsPlayerStateData.EasiestUsedPresetPath);
+        SaveSessionManager.RevertEdit(NmsPlayerStateData.HardestUsedPresetPath);
         LoadValues();
         PageResetBtn.Visibility = Visibility.Collapsed;
     }

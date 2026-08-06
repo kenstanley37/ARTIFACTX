@@ -46,27 +46,36 @@ public class NmsPlayerStateData
     public static readonly string[] QuicksilverPath = { "vLc", "6f=", "kN;" };
     public static readonly string[] GameModePath = { "vLc", "6f=", "LyC", "brJ", "7ND" };
 
-    /// <summary>"Rounded down" version of the current preset - when the
-    /// current preset is Custom, this is the closest standard preset the
-    /// game itself considers the custom settings equivalent to (see
-    /// NmsDifficultySettings). Confirmed distinct from GameModePath by real
-    /// data: a Custom-preset save read Preset=Custom, RoundedDownPreset=
-    /// Creative, EasiestUsedPreset=Normal - three genuinely different
-    /// values on the same save (2026-08-06).</summary>
-    public static readonly string[] RoundedDownPresetPath = { "vLc", "6f=", "LyC", "qAf", "7ND" };
-
     /// <summary>The easiest standard preset this save has ever actually been
-    /// set to - confirmed distinct from both GameModePath and
-    /// RoundedDownPresetPath (see that path's doc comment for the real-data
-    /// evidence). There's a symmetric HardestUsedPreset field per libMBIN's
-    /// GcDifficultySettingsReplicatedState, but its own JSON key has never
-    /// been observed populated in any sample checked (including
-    /// Custom/Survival/Permadeath saves, not just Normal ones) - the save
-    /// format compacts/omits it whenever unused, so it's unmapped for now.
-    /// GeneralPage estimates a "hardest used" display from
-    /// RoundedDownPresetPath/EasiestUsedPresetPath instead (per 2026-08-06
-    /// user decision) rather than leaving it blank.</summary>
-    public static readonly string[] EasiestUsedPresetPath = { "vLc", "6f=", "LyC", "4I:", "7ND" };
+    /// set to. CONFIRMED (and this path RENAMED from an earlier wrong guess
+    /// of "RoundedDownPreset") via a controlled in-game test 2026-08-06: the
+    /// user cycled Normal -> Relaxed -> Survival -> Creative -> Normal (save
+    /// after each change), and the save file afterward read qAf=Creative -
+    /// exactly the easiest preset actually visited, even though Current
+    /// (brJ) had already reverted back to Normal by the time of that save.
+    /// Proves this field is a real historical tracker, not derived from
+    /// whatever Current happens to be right now.</summary>
+    public static readonly string[] EasiestUsedPresetPath = { "vLc", "6f=", "LyC", "qAf", "7ND" };
+
+    /// <summary>The hardest standard preset this save has ever actually been
+    /// set to. CONFIRMED (and this path RENAMED from an earlier wrong guess
+    /// of "EasiestUsedPreset") by the SAME controlled test as
+    /// EasiestUsedPresetPath above: after cycling through Survival (harder
+    /// than Normal) and back down to Creative then Normal, the save read
+    /// 4I:=Survival - exactly the hardest preset actually visited, not
+    /// Permadeath (never touched) and not Normal (the reverted-to Current).
+    /// This is libMBIN's GcDifficultySettingsReplicatedState.HardestUsedPreset.
+    /// The real mistake in the original mapping wasn't a missing/omitted
+    /// field (qAf and 4I: were present in every sample checked, before and
+    /// after this test) - it was assuming libMBIN's declared field INDEX
+    /// order (RoundedDownPreset=2, EasiestUsedPreset=3) predicted which
+    /// physical JSON key was which, with no value-based check. That guess
+    /// happened to look self-consistent on every single-save sample checked
+    /// beforehand (Slot1's brJ=Custom/qAf=Creative/4I:=Normal reads sensibly
+    /// under EITHER labeling, since both preserve the same relative
+    /// severity ordering) - it took a save where Current genuinely diverged
+    /// from BOTH tracked extremes to force an unambiguous read.</summary>
+    public static readonly string[] HardestUsedPresetPath = { "vLc", "6f=", "LyC", "4I:", "7ND" };
 
     /// <summary>Units/Nanites/Quicksilver are stored by the game itself as a
     /// signed 32-bit field that wraps to negative once the real balance

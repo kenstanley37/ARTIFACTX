@@ -8,22 +8,28 @@ namespace ArtifactX.Core.NmsModels;
 /// inferred from libMBIN's GcDifficultySettingsReplicatedState (four
 /// GcDifficultyPresetType fields in Index order: IsPermadeath(0), Preset(1),
 /// RoundedDownPreset(2), EasiestUsedPreset(3), HardestUsedPreset(4), IsLocked(5)).
-/// CONFIRMED 2026-08-06 by cross-checking real saves tagged Normal/Survival/
-/// Permadeath/Custom on the Save Selection page: brJ/qAf/4I: track together
-/// (all "Normal" on a Normal save, all "Survival" on a Survival save, all
-/// "Permadeath" on a Permadeath save) EXCEPT on the Custom save, where they
-/// genuinely diverge (brJ=Custom, qAf=Creative, 4I:=Normal) - proving these
-/// are 3 distinct tracked values, not one value read 3 different ways.
-/// IsPermadeath/HardestUsedPreset(4)/IsLocked were never observed populated
-/// in any of those 4 samples - the save format compacts/omits fields at
-/// their default, and this format's default-value compaction evidently
-/// includes these bools/HardestUsedPreset in every real sample checked so far.
+/// CONFIRMED 2026-08-06 via a controlled in-game test (see
+/// NmsPlayerStateData.EasiestUsedPresetPath/HardestUsedPresetPath for the
+/// full writeup): brJ/qAf/4I: are 3 distinct tracked values - brJ is the
+/// current preset, qAf is the EASIEST standard preset ever used, 4I: is the
+/// HARDEST standard preset ever used. An earlier version of this mapping
+/// had qAf/4I: swapped (guessed from libMBIN's declared field INDEX order
+/// with no value-based check) - that guess looked self-consistent against
+/// every single-sample save checked before the controlled test, since both
+/// labelings preserve the same relative severity ordering; only a save
+/// where Current genuinely diverged from both tracked extremes could force
+/// the correct read. IsPermadeath/RoundedDownPreset/IsLocked have never
+/// been observed as separate fields in ANY sample (Normal/Survival/
+/// Permadeath/Custom, nor the controlled Relaxed/Survival/Creative test) -
+/// RoundedDownPreset in particular may simply not be persisted to the save
+/// at all (a client-side-only computed value), rather than being
+/// compacted/omitted the way this doc comment previously assumed.
 /// Keys:
 ///   brJ -> Current preset (index 1, GcDifficultyPresetType nested via "7ND")
-///   qAf -> Rounded-down preset (index 2) - when brJ is Custom, this is the
-///          closest standard preset the game itself considers it equivalent to
-///   4I: -> Easiest used preset (index 3) - the easiest standard preset this
-///          save has ever actually been set to
+///   qAf -> Easiest used preset - the easiest standard preset this save has
+///          ever actually been set to
+///   4I: -> Hardest used preset - the hardest standard preset this save has
+///          ever actually been set to
 /// </summary>
 public class NmsDifficultySettings
 {
@@ -31,10 +37,10 @@ public class NmsDifficultySettings
     public NmsDifficultyPreset? Preset { get; set; }
 
     [JsonProperty("qAf")]
-    public NmsDifficultyPreset? RoundedDownPreset { get; set; }
+    public NmsDifficultyPreset? EasiestUsedPreset { get; set; }
 
     [JsonProperty("4I:")]
-    public NmsDifficultyPreset? EasiestUsedPreset { get; set; }
+    public NmsDifficultyPreset? HardestUsedPreset { get; set; }
 
     [JsonIgnore]
     public string GameMode => Preset?.DisplayName ?? "Unknown";

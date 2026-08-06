@@ -100,10 +100,15 @@
                                         <ComboBoxItem Content="Permadeath"/>
                                     </ComboBox>
                                 </StackPanel>
-                                <StackPanel Grid.Column="2" Spacing="2"
-                                            ToolTipService.ToolTip="Estimated, not editable - the save format doesn't track this field directly (see project_general_page_save_info memory), so there's nowhere real to write an edit to. This is the more severe of Current/Easiest Used rather than an exact reading.">
-                                    <TextBlock Text="Hardest Used*" FontSize="11" Opacity="0.6"/>
-                                    <TextBlock x:Name="HardestPresetTxt" FontSize="13" FontWeight="SemiBold" Height="32" VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="2" Spacing="2">
+                                    <TextBlock Text="Hardest Used" FontSize="11" Opacity="0.6"/>
+                                    <ComboBox x:Name="HardestPresetBox" Width="130" SelectionChanged="HardestPresetBox_SelectionChanged">
+                                        <ComboBoxItem Content="Normal"/>
+                                        <ComboBoxItem Content="Creative"/>
+                                        <ComboBoxItem Content="Relaxed"/>
+                                        <ComboBoxItem Content="Survival"/>
+                                        <ComboBoxItem Content="Permadeath"/>
+                                    </ComboBox>
                                 </StackPanel>
                             </Grid>
                         </StackPanel>
