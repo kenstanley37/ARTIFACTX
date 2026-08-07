@@ -50,11 +50,26 @@ public static class CatalogService
 
     public static async Task WarmCacheAsync(IEnumerable<string?> gameIds)
     {
+        // A cached entry with a real DisplayName but a null Icon means a PREVIOUS
+        // call found the catalog row but its BitmapImage decode failed - almost
+        // certainly a transient issue (confirmed 2026-08-06: manually re-decoded
+        // several such icons' raw PNG bytes outside the app and they were 100%
+        // valid, non-corrupt images), not a real "this item has no icon" case.
+        // Without this, that transient failure was PERMANENT for the rest of the
+        // app session - any page that warmed the same id later (even correctly,
+        // on the UI thread) would see it as "already cached" and skip retrying,
+        // which is exactly how a handful of Exocraft tech icons (VEHICLE_SCAN,
+        // EXO_RECHARGE, etc.) ended up permanently blank: CataloguePage warms
+        // EVERY Technology-category item on first visit (not filtered by
+        // UsageCategory), so a decode hiccup there poisoned the shared cache
+        // before ExocraftPage ever got a chance to load them itself. Genuinely
+        // missing catalog rows (Cache[id] itself null, e.g. UP_EXENG4) are still
+        // left alone - re-querying SQL for those every time would be pure waste.
         var toFetch = gameIds
             .Where(id => !string.IsNullOrEmpty(id))
             .Select(id => NormalizeId(id!))
             .Distinct()
-            .Where(id => !Cache.ContainsKey(id))
+            .Where(id => !Cache.TryGetValue(id, out var existing) || existing is { Icon: null })
             .ToList();
 
         Debug.WriteLine($"[CatalogService] WarmCacheAsync: {toFetch.Count} new ids to look up (of the ids passed in).");

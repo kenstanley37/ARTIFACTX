@@ -100,9 +100,6 @@ public sealed partial class ExocraftDetailControl : UserControl
         PageResetBtn.Visibility = (_techViewModel.HasLocalChanges || _cargoViewModel.HasLocalChanges)
             ? Visibility.Visible : Visibility.Collapsed;
 
-        string? scenePath = SaveSessionManager.GetValue(NmsInventoryContainer.ExocraftScenePath(_type))?.Value<string>();
-        NotBuiltBadge.Visibility = string.IsNullOrEmpty(scenePath) ? Visibility.Visible : Visibility.Collapsed;
-
         ModelSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.ExocraftModelSeedPath(_type))?.Value<string>() ?? "";
     }
 
