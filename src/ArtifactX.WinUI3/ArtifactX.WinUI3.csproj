@@ -28,6 +28,16 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
 
+    <!-- App is English-only, so restrict THIS project's own satellite
+         resource assemblies (if it ever gains any) to English. Confirmed
+         2026-08-07 this does NOT fix the ~85 non-English locale folders a
+         self-contained publish otherwise leaves at the top level - those
+         come from WindowsAppSDK's own build targets copying every
+         language's *.mui files unconditionally, a separate mechanism this
+         property has no control over. See the TrimPublishLocaleFolders
+         target near the end of this file for the actual fix. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+
     <!-- Unpackaged by default so the app runs on any PC with no install/
          sideloading step - just run the exe. Package.appxmanifest and
          EnableMsixTooling stay in place so an MSIX can still be produced
@@ -63,6 +73,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="Assets\AppIconMark.png" />
     <Content Include="Assets\SplashScreen.scale-200.png" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
     <Content Include="Assets\Square150x150Logo.scale-200.png" />
@@ -193,4 +204,29 @@
     <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
     <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
   </PropertyGroup>
+
+  <!-- A self-contained publish otherwise leaves ~85 non-English locale
+       folders (af-ZA, am-ET, ar-SA... zh-TW) at the top level of the
+       output - WindowsAppSDK's own SelfContained.targets copies every
+       language's *.mui unconditionally (Microsoft.WindowsAppSDK.
+       SelfContained.targets, "MicrosoftWindowsAppSDKFiles" item, no
+       language filter exists to set from this project's side - confirmed
+       2026-08-07, SatelliteResourceLanguages has no effect on these since
+       they're pre-built runtime content, not this project's own generated
+       satellite assemblies). Matched by shape (a locale code looks like
+       "xx-Xxxx-XX" or similar, 2-4 letters plus optional dash-groups) so
+       this stays correct if WindowsAppSDK ships new/different locales
+       later, rather than hardcoding today's ~85 names - and so it can't
+       accidentally catch a real folder like "Data" or "Microsoft.UI.Xaml",
+       neither of which fits that shape. -->
+  <Target Name="TrimPublishLocaleFolders" AfterTargets="Publish" Condition="'$(SelfContained)' == 'true' and Exists('$(PublishDir)')">
+    <ItemGroup>
+      <_PublishTopDir Include="$([System.IO.Directory]::GetDirectories('$(PublishDir)'))" />
+      <_PublishLocaleDir Include="@(_PublishTopDir)"
+                          Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Filename)', '^[a-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$'))
+                                     and '%(Filename)' != 'en-us' and '%(Filename)' != 'en-GB'" />
+    </ItemGroup>
+    <RemoveDir Directories="@(_PublishLocaleDir)" Condition="'@(_PublishLocaleDir)' != ''" />
+    <Message Importance="high" Text="TrimPublishLocaleFolders: removed @(_PublishLocaleDir->Count()) non-English locale folder(s) from $(PublishDir)." Condition="'@(_PublishLocaleDir)' != ''" />
+  </Target>
 </Project>

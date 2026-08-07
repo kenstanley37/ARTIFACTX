@@ -36,7 +36,7 @@
 
         <!-- Primary row: identity + active save + save/reset actions. -->
         <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0" Spacing="12">
-            <FontIcon Glyph="&#xE7E7;" FontFamily="Segoe MDL2 Assets" Foreground="{ThemeResource NmsAccentBrush}" FontSize="16"/>
+            <Image Source="/Assets/AppIconMark.png" Width="18" Height="18"/>
             <TextBlock Text="ARTIFACTX"
                        Foreground="{ThemeResource NmsTextPrimary}"
                        FontWeight="SemiBold" FontSize="12" CharacterSpacing="100"/>
