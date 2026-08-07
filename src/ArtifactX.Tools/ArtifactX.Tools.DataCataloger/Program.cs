@@ -471,6 +471,83 @@ if (args.Length > 1 && args[0].Equals("dumpfile", StringComparison.OrdinalIgnore
         ConsoleStyle.Error($"No file matching '{targetPath}' found in any PAK.");
 }
 
+// "DataCataloger dumptable <path-substring>" - like dumpfile, but runs the file
+// through the REAL CatalogClassifier.TryClassify/ExtractRows path (not a generic
+// depth-limited object dump) and prints EVERY row's GameId/UsageCategory/TemplateId
+// on one compact line each. dumpfile's generic dumper caps list output at 5
+// elements, which hides whatever's actually happening to rows past index 4 - this
+// shows the classifier's real per-row output for the whole table in one screen,
+// making it possible to see exactly which rows get an empty GameId (silently
+// dropped by CatalogBuildService) or an unexpected UsageCategory.
+if (args.Length > 1 && args[0].Equals("dumptable", StringComparison.OrdinalIgnoreCase))
+{
+    string targetPath = args[1];
+    var dumpTableSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(dumpTableSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakDiscoveryService dtPakDiscovery = new PakDiscoveryService();
+    IPakReaderService dtPakReader = new PakReaderService();
+    var dtExtraction = new ExtractionService();
+    var dtPaks = dtPakDiscovery.Discover(dumpTableSettings.NmsInstallationPath!);
+
+    bool dtFound = false;
+    foreach (var pak in dtPaks)
+    {
+        ArtifactX.Tools.DataCataloger.Models.PakHeader header;
+        IReadOnlyList<ArtifactX.Tools.DataCataloger.Models.PakEntry> entries;
+        try
+        {
+            header = dtPakReader.ReadHeader(pak.FullPath);
+            entries = dtPakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+
+        var match = entries.FirstOrDefault(e =>
+            !string.IsNullOrEmpty(e.FileName) &&
+            e.FileName.Contains(targetPath, StringComparison.OrdinalIgnoreCase));
+        if (match is null) continue;
+
+        dtFound = true;
+        byte[]? bytes;
+        try { bytes = dtExtraction.ExtractEntryBytes(pak.FullPath, match, header); }
+        catch (Exception ex) { ConsoleStyle.Error($"Extraction failed: {ex.Message}"); return; }
+        if (bytes is null || bytes.Length == 0) { ConsoleStyle.Error("Extraction returned no bytes."); return; }
+
+        NMSTemplate? template;
+        try
+        {
+            using var ms = new MemoryStream(bytes);
+            var mbin = new MBINFile(ms);
+            mbin.Load();
+            template = mbin.GetData();
+        }
+        catch (Exception ex) { ConsoleStyle.Error($"Decode failed: {ex.Message}"); return; }
+        if (template is null) { ConsoleStyle.Error("Decoded template is null."); return; }
+
+        if (!ArtifactX.Tools.DataCataloger.Services.CatalogClassifier.TryClassify(template, out var listField, out _))
+        {
+            ConsoleStyle.Error($"Not classifiable: {match.FileName} (top-level type {template.GetType().Name})");
+            return;
+        }
+
+        var rows = ArtifactX.Tools.DataCataloger.Services.CatalogClassifier.ExtractRows(template, listField);
+        ConsoleStyle.Header($"{match.FileName}: {rows.Count} rows");
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var r = rows[i];
+            ConsoleStyle.Success($"  [{i}] GameId='{r.GameId}' UsageCategory={r.UsageCategory ?? "(null)"} Template={r.TemplateId ?? "(null)"} NameLocKey={r.NameLocKey ?? "(null)"}");
+        }
+        return;
+    }
+
+    if (!dtFound)
+        ConsoleStyle.Error($"No file matching '{targetPath}' found in any PAK.");
+}
+
 // Reflection-based deep search through a decoded MBIN's object graph for any string
 // field (or NMSTemplate string-wrapper, e.g. ArtifactXString0x10) containing the needle.
 // Mirrors the string-extraction convention already used by CatalogClassifier/

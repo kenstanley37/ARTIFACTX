@@ -999,6 +999,31 @@ public class CatalogBuildService
             .OrderBy(i => i.GameId.Length)
             .ToList();
 
+        // Exocraft/Mech's procedural upgrade families (Template "T_EXENG"/
+        // "T_MCENG"/etc) DON'T follow the stem-prefix convention below at all -
+        // confirmed 2026-08-06 while chasing missing Exocraft page icons: e.g.
+        // Template "T_MCENG" strips to stem "MCENG", but the real base tech's
+        // GameId is "MECH_ENGINE" (doesn't start with "MCENG"), and Template
+        // "T_SUB" strips to stem "SUB", which WOULD wrongly match "SUB_ENGINE"
+        // (Humboldt Drive) even though every UP_EXSUB row's own name resolves
+        // to "Nautilon Cannon" - the real match is "SUB_GUN". Each mapping
+        // below confirmed by exact NameEnglish/NameLowerEnglish match between
+        // the procedural row and the base tech row (not guessed), same
+        // standard as the T_SCAN/T_LASER two-family case that originally
+        // shipped with this method. Checked first, before the generic
+        // stem-prefix fallback, so it doesn't disturb any family (like
+        // T_SCAN/T_LASER) the fallback already gets right.
+        var templateOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["T_MCENG"] = "MECH_ENGINE",   // Daedalus Engine
+            ["T_MCGUN"] = "MECH_GUN",      // Minotaur Cannon
+            ["T_MCLAS"] = "MECH_LASER",    // Minotaur Laser
+            ["T_EXENG"] = "VEHICLE_ENGINE",// Fusion Engine
+            ["T_EXGUN"] = "VEHICLE_GUN",   // Mounted Cannon
+            ["T_EXLAS"] = "VEHICLE_LASER", // Exocraft Mining Laser
+            ["T_SUB"] = "SUB_GUN",         // Nautilon Cannon
+        };
+
         int borrowedIcons = 0;
         foreach (var category in categories)
         {
@@ -1008,12 +1033,24 @@ public class CatalogBuildService
             {
                 if (item.Icons.Count > 0 || string.IsNullOrEmpty(item.TemplateId)) continue;
 
-                string stem = item.TemplateId.StartsWith("T_", StringComparison.OrdinalIgnoreCase)
-                    ? item.TemplateId[2..]
-                    : item.TemplateId;
+                CatalogItem? baseItem = null;
 
-                var baseItem = baseTechByGameId.FirstOrDefault(b =>
-                    b.GameId.StartsWith(stem, StringComparison.OrdinalIgnoreCase));
+                if (templateOverrides.TryGetValue(item.TemplateId, out var overrideGameId))
+                {
+                    baseItem = baseTechByGameId.FirstOrDefault(b =>
+                        string.Equals(b.GameId, overrideGameId, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (baseItem is null)
+                {
+                    string stem = item.TemplateId.StartsWith("T_", StringComparison.OrdinalIgnoreCase)
+                        ? item.TemplateId[2..]
+                        : item.TemplateId;
+
+                    baseItem = baseTechByGameId.FirstOrDefault(b =>
+                        b.GameId.StartsWith(stem, StringComparison.OrdinalIgnoreCase));
+                }
+
                 if (baseItem is null) continue;
 
                 foreach (var baseIcon in baseItem.Icons)

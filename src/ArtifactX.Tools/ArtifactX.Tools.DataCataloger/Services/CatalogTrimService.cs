@@ -29,8 +29,18 @@ public static class CatalogTrimService
         dest.Database.EnsureCreated();
         dest.ChangeTracker.AutoDetectChangesEnabled = false;
 
+        // NameLowerEnglish-only rows are real and usable too - CatalogService's
+        // own queries (both TryGet's row source and the search box) already
+        // COALESCE(NameEnglish, NameLowerEnglish), confirmed 2026-08-06 while
+        // chasing a missing Exocraft icon: GcProceduralTechnologyTable rows
+        // whose Phase 2.5 icon-borrow didn't find a base-tech match (no
+        // confirmed real icon to give them) still resolve a real name from
+        // their OWN loc data via NameLowerEnglish alone, e.g. "Minotaur
+        // Flamethrower" - this filter was silently dropping those from the
+        // shipped distribution entirely, falling all the way back to a raw,
+        // ugly internal id string in the app instead of at least a real name.
         var namedItems = source.Items
-            .Where(i => i.NameEnglish != null)
+            .Where(i => i.NameEnglish != null || i.NameLowerEnglish != null)
             .Include(i => i.Category)
             .Include(i => i.Icons)
                 .ThenInclude(a => a.IconBlob)
