@@ -202,8 +202,19 @@
   <PropertyGroup>
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
-    <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
-    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+
+    <!-- WAS conditionally true for Release - disabled 2026-08-07 after the
+         first-ever Release/portable run crashed instantly (0xc000027b inside
+         Microsoft.UI.Xaml.dll, no managed exception ever reached .NET's own
+         handler - a signature consistent with IL trimming stripping
+         reflection-based metadata WinRT/WindowsAppSDK's COM activation needs
+         at startup, a well-documented risk for WinUI3 specifically). The
+         build's own trim-analysis warnings already flagged WindowsAppSDK-
+         adjacent assemblies (Microsoft.Windows.SDK.NET, WinRT.Runtime) before
+         this was ever tested end to end. This is a desktop save-editor tool,
+         not something that needs trimming's size savings badly enough to
+         risk this failure mode - correctness wins here. -->
+    <PublishTrimmed>False</PublishTrimmed>
   </PropertyGroup>
 
   <!-- A self-contained publish otherwise leaves ~85 non-English locale
