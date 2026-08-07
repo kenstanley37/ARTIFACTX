@@ -2,6 +2,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using Velopack;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -22,6 +23,16 @@ public partial class App : Application
     /// </summary>
     public App()
     {
+        // Must run before anything else - Velopack intercepts special
+        // install/update/uninstall command-line invocations (creating
+        // shortcuts, cleaning up old versions, etc.) that only happen
+        // during those lifecycle events, never during a normal launch.
+        // There's no accessible custom Main() in this WinUI3 project (the
+        // SDK generates its own), so this constructor - already documented
+        // above as "the logical equivalent of main()" - is the earliest
+        // reachable hook.
+        VelopackApp.Build().Run();
+
         InitializeComponent();
     }
 

@@ -107,6 +107,7 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
     <PackageReference Include="Microsoft.WindowsAppSDK" />
 	  <PackageReference Include="CommunityToolkit.Mvvm" />
+	  <PackageReference Include="Velopack" />
   </ItemGroup>
   <ItemGroup>
     <!-- Direct references so these win over Microsoft.Data.Sqlite's own pin at
@@ -222,11 +223,9 @@
   <Target Name="TrimPublishLocaleFolders" AfterTargets="Publish" Condition="'$(SelfContained)' == 'true' and Exists('$(PublishDir)')">
     <ItemGroup>
       <_PublishTopDir Include="$([System.IO.Directory]::GetDirectories('$(PublishDir)'))" />
-      <_PublishLocaleDir Include="@(_PublishTopDir)"
-                          Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Filename)', '^[a-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$'))
-                                     and '%(Filename)' != 'en-us' and '%(Filename)' != 'en-GB'" />
+      <_PublishLocaleDir Include="@(_PublishTopDir)" Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Filename)', '^[a-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$'))&#xA;                                     and '%(Filename)' != 'en-us' and '%(Filename)' != 'en-GB'" />
     </ItemGroup>
     <RemoveDir Directories="@(_PublishLocaleDir)" Condition="'@(_PublishLocaleDir)' != ''" />
-    <Message Importance="high" Text="TrimPublishLocaleFolders: removed @(_PublishLocaleDir->Count()) non-English locale folder(s) from $(PublishDir)." Condition="'@(_PublishLocaleDir)' != ''" />
+    <Message Importance="high" Text="TrimPublishLocaleFolders: removed @(_PublishLocaleDir-&gt;Count()) non-English locale folder(s) from $(PublishDir)." Condition="'@(_PublishLocaleDir)' != ''" />
   </Target>
 </Project>
