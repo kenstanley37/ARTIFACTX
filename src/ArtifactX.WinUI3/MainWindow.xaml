@@ -90,6 +90,17 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
+                <!-- One page, in-page tab strip for the 7 exocraft types
+                     (ExocraftPage) - same "one page, many switchable sections"
+                     shape as MilestonesPage, not a nav parent with 7 children
+                     (2026-08-06 user correction: "We just need the tech area
+                     and the cargo area for each one on one page"). -->
+                <NavigationViewItem x:Name="ExocraftNavItem" Content="Exocraft" Tag="Exocraft" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="ExocraftPathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
                 <NavigationViewItem x:Name="BaseStorageNavItem" Content="Base Storage" Tag="BaseStorage" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
                         <PathIcon x:Name="BaseStoragePathIcon"/>

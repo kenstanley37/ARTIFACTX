@@ -116,6 +116,7 @@ public sealed partial class MainWindow : Window
         AtlasLanguagePathIcon.Data = G(NavIconGeometries.Language);
         CataloguePathIcon.Data = G(NavIconGeometries.Catalogue);
         FishingRecordsPathIcon.Data = G(NavIconGeometries.FishingRecords);
+        ExocraftPathIcon.Data = G(NavIconGeometries.Exocraft);
     }
 
     // Fire-and-observed (not fire-and-forget) - RefreshAsync itself already
@@ -323,6 +324,7 @@ public sealed partial class MainWindow : Window
                 "AccountData" => typeof(AccountDataPage),
                 "Catalogue" => typeof(CataloguePage),
                 "FishingRecords" => typeof(FishingRecordsPage),
+                "Exocraft" => typeof(ExocraftPage),
                 "LanguageGek" => typeof(GekLanguagePage),
                 "LanguageVyKeen" => typeof(VyKeenLanguagePage),
                 "LanguageKorvax" => typeof(KorvaxLanguagePage),
@@ -364,6 +366,7 @@ public sealed partial class MainWindow : Window
         MilestonesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         CatalogueNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         FishingRecordsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        ExocraftNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
 
         AccountDataNavItem.Visibility = SaveSessionManager.IsSaveLoaded || SaveSessionManager.HasActivePlatform
             ? Visibility.Visible
@@ -389,6 +392,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(AccountDataPage) => "AccountData",
             Type t when t == typeof(CataloguePage) => "Catalogue",
             Type t when t == typeof(FishingRecordsPage) => "FishingRecords",
+            Type t when t == typeof(ExocraftPage) => "Exocraft",
             Type t when t == typeof(GekLanguagePage) => "LanguageGek",
             Type t when t == typeof(VyKeenLanguagePage) => "LanguageVyKeen",
             Type t when t == typeof(KorvaxLanguagePage) => "LanguageKorvax",

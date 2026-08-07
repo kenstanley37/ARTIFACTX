@@ -167,6 +167,34 @@ public class NmsInventoryContainer
     public static string[] BaseStorageContainerPath(string containerKey) =>
         new[] { "vLc", "6f=", containerKey };
 
+    // Exocraft live in a FIXED 7-slot array, one slot per GcVehicleType.
+    // VehicleTypeEnum member - see ExocraftType's own doc comment for the full
+    // confirmation trail (libMBIN's fixed Size=0x7 declarations, cross-checked
+    // stable across 3 real saves, real names from the game's own loc strings).
+    // "Owned"/"built" = ExocraftScenePath non-empty, same signal role as
+    // Ships' NKm - unlike Ships/Multi-Tool this array's SIZE never varies and
+    // its POSITIONS never reorder, so there's no "array path + numeric index
+    // of an owned entry" concept here, just a direct type -> fixed index map.
+    public static readonly string[] ExocraftArrayPath = { "vLc", "6f=", "P;m" };
+
+    public static string[] ExocraftTechnologyPath(ExocraftType type) =>
+        new[] { "vLc", "6f=", "P;m", ((int)type).ToString(), "PMT" };
+
+    public static string[] ExocraftCargoPath(ExocraftType type) =>
+        new[] { "vLc", "6f=", "P;m", ((int)type).ToString(), ";l5" };
+
+    /// <summary>The hull's model scene path - empty string means this vehicle
+    /// type has never been built/summoned in this save. Confirmed via 3 real
+    /// saves: every one of the 7 slots always exists structurally, but NTx.93M
+    /// is empty on all 7 when nothing has been built yet.</summary>
+    public static string[] ExocraftScenePath(ExocraftType type) =>
+        new[] { "vLc", "6f=", "P;m", ((int)type).ToString(), "NTx", "93M" };
+
+    /// <summary>Same "@EL" second-element shape as every other confirmed
+    /// procedural seed in this app (Ships/Freighter hull+crew).</summary>
+    public static string[] ExocraftModelSeedPath(ExocraftType type) =>
+        new[] { "vLc", "6f=", "P;m", ((int)type).ToString(), "NTx", "@EL", "1" };
+
     /// <summary>The Corvette Workshop Cache - a single top-level sibling (not
     /// array-indexed; there's only ever one), holding the proc-gen building
     /// parts used to construct/upgrade a player's Corvette. Confirmed via real

@@ -171,6 +171,10 @@ if (args.Length > 1 && args[0].Equals("grep", StringComparison.OrdinalIgnoreCase
 if (args.Length > 1 && args[0].Equals("locid", StringComparison.OrdinalIgnoreCase))
 {
     string idSubstring = args[1];
+    // Optional 3rd arg picks a different loc table than the default loc1 -
+    // some content (e.g. later-expansion vehicle titles like Minotaur) lives
+    // in loc7/loc8/etc instead. Pass a substring like "loc8_english".
+    string locFileSubstring = args.Length > 2 ? args[2] : "language/nms_loc1_english.mbin";
     var locSettings = SettingsService.Load();
     if (!SettingsService.IsValid(locSettings))
     {
@@ -197,7 +201,7 @@ if (args.Length > 1 && args[0].Equals("locid", StringComparison.OrdinalIgnoreCas
 
         var match = entries.FirstOrDefault(e =>
             !string.IsNullOrEmpty(e.FileName) &&
-            e.FileName.Contains("language/nms_loc1_english.mbin", StringComparison.OrdinalIgnoreCase));
+            e.FileName.Contains(locFileSubstring, StringComparison.OrdinalIgnoreCase));
         if (match is null) continue;
 
         locFound = true;
