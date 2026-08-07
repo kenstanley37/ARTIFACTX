@@ -7,6 +7,14 @@
     <RootNamespace>ArtifactX.WinUI3</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
 
+    <!-- The .exe's own icon - taskbar, Alt-Tab, File Explorer, shortcuts.
+         Multi-frame: 16/24/32px use a simplified hex+X (no inner hex line,
+         no scanline, no cyan ghost offset - all of that turned to mud at
+         real taskbar sizes when tested), 48px and up use the full detailed
+         mark. Source design lives outside this repo (approved via an
+         Artifact pitch, 2026-08-07); this .ico is the only build input. -->
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
+
     <!-- Single source of truth for the app's version - AppVersionService reads
          this back via the generated AssemblyVersion. Bump this AND tag/publish
          a matching GitHub release (vX.Y.Z) for UpdateCheckService to pick up
