@@ -23,9 +23,41 @@ public partial class SaveFolderSelectViewModel : ObservableObject
     [ObservableProperty]
     private string? statusMessage;
 
+    // Survives across page navigations even though a brand-new ViewModel is
+    // constructed on every visit (Frame.Navigate, no NavigationCacheMode
+    // anywhere in this app - same pattern documented throughout this
+    // project's history). SaveFolderIndexingService's own doc comment
+    // already says candidates should be "decrypted and indexed exactly
+    // once... per app session" - that intent just wasn't actually enforced
+    // here, so every single nav back to Save Selection was silently
+    // redoing the full detect+decrypt+index pass against every candidate's
+    // save files (2026-08-07 user report). Invalidated only when it can
+    // actually go stale - NMS closing, since that's the only time save
+    // files change out from under the app - via the static hookup below.
+    private static List<SaveFolderCandidate>? _cachedCandidates;
+
+    static SaveFolderSelectViewModel()
+    {
+        GameProcessMonitorService.RunningStateChanged += (_, isRunning) =>
+        {
+            if (!isRunning) _cachedCandidates = null;
+        };
+    }
+
     [RelayCommand]
     private async Task InitializeAsync()
     {
+        if (_cachedCandidates is not null)
+        {
+            Candidates.Clear();
+            foreach (var candidate in _cachedCandidates)
+            {
+                candidate.PropertyChanged += OnCandidatePropertyChanged;
+                Candidates.Add(candidate);
+            }
+            return;
+        }
+
         IsBusy = true;
         StatusMessage = null;
 
@@ -41,7 +73,9 @@ public partial class SaveFolderSelectViewModel : ObservableObject
 
             // Every candidate gets decrypted and indexed exactly once, here, in
             // parallel, before anything is shown. Expanding a card afterward
-            // never touches disk again.
+            // never touches disk again - and, as of this cache, neither does
+            // navigating away from and back to this page within the same
+            // NMS session.
             await Task.WhenAll(allCandidates.Select(LoadSlotGroupsAsync));
 
             // Null (never persisted - first launch ever) defaults every card open,
@@ -87,11 +121,28 @@ public partial class SaveFolderSelectViewModel : ObservableObject
 
             if (Candidates.Count == 0)
                 StatusMessage = "No save folders were detected automatically. Use \"Browse for folder\" to add yours.";
+
+            _cachedCandidates = allCandidates;
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>Unsubscribes this instance's handler from every candidate it
+    /// currently tracks - required because candidates now potentially
+    /// outlive this ViewModel (see _cachedCandidates above). Without this,
+    /// every past page visit would leave its OnCandidatePropertyChanged
+    /// still attached to the shared, cached candidate objects, the same
+    /// class of leak documented in project_static_event_leak_fix - each
+    /// stale handler keeps that whole old ViewModel/Page instance alive and
+    /// fires redundantly on every future IsExpanded change. Called from the
+    /// View's Unloaded handler.</summary>
+    public void DetachCandidateHandlers()
+    {
+        foreach (var candidate in Candidates)
+            candidate.PropertyChanged -= OnCandidatePropertyChanged;
     }
 
     /// <summary>
@@ -145,6 +196,11 @@ public partial class SaveFolderSelectViewModel : ObservableObject
         {
             candidate.PropertyChanged += OnCandidatePropertyChanged;
             Candidates.Add(candidate);
+
+            // Keep the session cache in sync, or a newly-browsed folder
+            // would vanish the next time this page loads from cache instead
+            // of re-scanning the filesystem.
+            (_cachedCandidates ??= new()).Add(candidate);
         }
 
         var stored = Candidates.First(c => c.Equals(candidate));
@@ -172,6 +228,7 @@ public partial class SaveFolderSelectViewModel : ObservableObject
 
         candidate.PropertyChanged -= OnCandidatePropertyChanged;
         Candidates.Remove(candidate);
+        _cachedCandidates?.Remove(candidate);
         SaveFolderSettingsService.RemoveCustomFolder(candidate.FolderPath);
         PersistExpandedFolders();
     }

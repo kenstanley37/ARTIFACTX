@@ -27,7 +27,16 @@ public sealed partial class SaveFolderSelectPage : Page
         };
 
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
-        Unloaded += (_, _) => SaveSessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
+        Unloaded += (_, _) =>
+        {
+            SaveSessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
+
+            // Candidates now persist across page visits (see ViewModel's
+            // _cachedCandidates) - without this, every past visit's
+            // OnCandidatePropertyChanged handler would stay attached to
+            // those shared, surviving candidate objects forever.
+            ViewModel.DetachCandidateHandlers();
+        };
     }
 
     private void OnActiveSessionChanged(object? sender, EventArgs e) =>
