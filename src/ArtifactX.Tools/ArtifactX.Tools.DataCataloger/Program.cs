@@ -71,6 +71,39 @@ if (args.Length > 0 && args[0].Equals("multitool", StringComparison.OrdinalIgnor
     return;
 }
 
+// "DataCataloger listpak <pak filename substring>" - lists every entry
+// filename in the first matching PAK, no decoding. For finding the exact
+// filename of a globals file when a substring guess (e.g. "spaceshipglobals")
+// ambiguously matches multiple real files (e.g. "aispaceshipglobals" too).
+if (args.Length > 1 && args[0].Equals("listpak", StringComparison.OrdinalIgnoreCase))
+{
+    string pakSubstring = args[1];
+    var listPakSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(listPakSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakDiscoveryService listPakDiscovery = new PakDiscoveryService();
+    IPakReaderService listPakReader = new PakReaderService();
+    var listPaks = listPakDiscovery.Discover(listPakSettings.NmsInstallationPath!)
+        .Where(p => p.FileName.Contains(pakSubstring, StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    foreach (var pak in listPaks)
+    {
+        IReadOnlyList<ArtifactX.Tools.DataCataloger.Models.PakEntry> entries;
+        try { entries = listPakReader.Read(pak.FullPath); }
+        catch { continue; }
+
+        ConsoleStyle.Header($"{pak.FileName} ({entries.Count} entries):");
+        foreach (var entry in entries.OrderBy(e => e.FileName, StringComparer.OrdinalIgnoreCase))
+            ConsoleStyle.Success("  " + entry.FileName);
+    }
+    return;
+}
+
 // "DataCataloger ships" - same manifest-only listing technique as "multitool"
 // above, scoped to MODELS/COMMON/SPACECRAFT instead. Used to independently
 // discover the real set of starship .SCENE.MBIN files (base hull models, not

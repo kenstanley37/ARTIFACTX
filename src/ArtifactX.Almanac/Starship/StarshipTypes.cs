@@ -23,16 +23,29 @@ namespace ArtifactX.Almanac.Starship;
 /// MODELS/COMMON/SPACECRAFT/S-CLASS/S-CLASS_PROC.SCENE.MBIN - Solar <->
 /// "sailship", Sentinel Interceptor <-> "sentinelship").
 ///
-/// The 2 reward ships are MEDIUM confidence: their loc-table display names
+/// The reward ships are MEDIUM confidence: their loc-table display names
 /// (found via `DataCataloger locidall "_SHIP"`, scattered across
 /// loc6/7/8/9 under ids like UI_EXPD_SHIP_01_NAME_L) don't literally match
-/// any filename, but "fighterclassicgold.scene.mbin" (with matching
-/// gold-painted cockpit/engine/wing/nose PART files found ONLY alongside
-/// it) lines up with "Golden Vector", and "fighterspecialswitch.scene.mbin"
-/// (paired with "switchcockpita" parts, "switch"/NX both referencing the
-/// Nintendo Switch release) lines up with "Horizon Vector NX" - internal
-/// codenames not matching the polished display name is an already-confirmed
-/// HG pattern (see NpcRaceOptions' "NPCFOURTH" = Autophage).
+/// any filename, but each was traced via a different piece of real evidence:
+///  - "fighterclassicgold.scene.mbin" (matching gold-painted cockpit/engine/
+///    wing/nose PART files found ONLY alongside it) = "Golden Vector".
+///  - "fighterspecialswitch.scene.mbin" (paired with "switchcockpita"
+///    parts, "switch"/NX both referencing the Nintendo Switch release) =
+///    "Horizon Vector NX".
+///  - "fighters/wracerse.scene.mbin" = GcSpaceshipGlobals'
+///    HoverShipDataNamesSpecial field (`DataCataloger dumpfile
+///    gcspaceshipglobals.global.mbin`) - a real data-table reference, not
+///    just filename correlation. Matches both Starborn Runner's AND
+///    Starborn Phoenix's loc DESC text ("a localised vector field allows
+///    the craft to hover above solid planes" - near-identical wording for
+///    both) - almost certainly one shared hover-chassis file reused for
+///    both reward skins via a seed/texture choice this list can't resolve,
+///    so both names point at the same path here rather than guessing which
+///    is which. This is also the exact file this save's own Slot 1 pilot 3
+///    was already flying, independent confirmation it's a real in-use ship.
+/// Internal codenames not matching the polished display name is an
+/// already-confirmed HG pattern (see NpcRaceOptions' "NPCFOURTH" =
+/// Autophage).
 ///
 /// DELIBERATELY EXCLUDED - do not add without further confirmation:
 ///  - Hauler: no unambiguous personal-starship file found. The best
@@ -42,12 +55,18 @@ namespace ArtifactX.Almanac.Starship;
 ///    actually be the FREIGHTER (capital ship) model system, not the
 ///    personal Hauler starship type. Assigning the wrong one here could
 ///    hand a squadron pilot a capital-ship-scale model.
-///  - The other 5 reward ships seen in a reference tool's list (Utopia
-///    Speeder, Starborn Runner, Starborn Phoenix, Boundary Herald, The
-///    Wraith) - real, confirmed loc-table display names (loc8/loc9), but no
-///    matching filename was found despite targeted keyword searches. Their
-///    internal codenames are apparently unrelated to both the display name
-///    AND the expedition-reward theme words tried.
+///  - Utopia Speeder, Boundary Herald, The Wraith - real, confirmed
+///    loc-table display names (loc8/loc9), but GENUINELY EXHAUSTED as of
+///    2026-08-09: checked every "*ShipDataNames"-shaped field in
+///    GcSpaceshipGlobals (only Hover/HoverSpecial/Spook exist), and
+///    confirmed via `DataCataloger grep "Boundary Herald"` (and similarly
+///    for the others) that NO non-loc MBIN file references their display
+///    text anywhere - their model path is most likely a literal string
+///    constant in the game's own compiled reward-granting code, not present
+///    in any decodable data table. Don't re-attempt this exact search
+///    strategy expecting a different result; would need a different
+///    approach entirely (e.g. testing a real claim of one in-game and
+///    diffing the save).
 /// </summary>
 public static class StarshipTypes
 {
@@ -62,5 +81,6 @@ public static class StarshipTypes
         new StarshipTypeInfo("Corvette", "MODELS/COMMON/SPACECRAFT/CORVETTE/CORVETTE.SCENE.MBIN"),
         new StarshipTypeInfo("Golden Vector (Reward)", "MODELS/COMMON/SPACECRAFT/FIGHTERS/FIGHTERCLASSICGOLD.SCENE.MBIN"),
         new StarshipTypeInfo("Horizon Vector NX (Reward)", "MODELS/COMMON/SPACECRAFT/FIGHTERS/FIGHTERSPECIALSWITCH.SCENE.MBIN"),
+        new StarshipTypeInfo("Starborn Runner / Phoenix (Reward)", "MODELS/COMMON/SPACECRAFT/FIGHTERS/WRACERSE.SCENE.MBIN"),
     };
 }

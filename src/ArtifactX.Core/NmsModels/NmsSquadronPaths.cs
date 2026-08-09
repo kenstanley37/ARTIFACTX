@@ -43,12 +43,13 @@ namespace ArtifactX.Core.NmsModels;
 /// likely pilots can draw from the same broad AI-ship spawn tables used for
 /// every other NPC ship in the galaxy, a MUCH larger space than what's
 /// offered here. `ArtifactX.Almanac.Starship.StarshipTypes` offers only the
-/// 7 confirmed standard archetypes plus 2 confirmed reward ships,
-/// independently discovered from real .SCENE.MBIN files (not this game's
-/// actual full valid-value set) - see that class's own doc comment for
-/// what's deliberately excluded (Hauler; 5 other named reward ships) and
-/// why. The UI shows the raw current Filename alongside the picker so an
-/// out-of-list ship (like this real save's BIOFIGHTER/WRACERSE) stays
+/// 7 confirmed standard archetypes plus 3 confirmed reward-ship entries,
+/// independently discovered from real .SCENE.MBIN files and one real
+/// globals table reference (not this game's actual full valid-value set) -
+/// see that class's own doc comment for what's deliberately excluded
+/// (Hauler; Utopia Speeder; Boundary Herald; The Wraith) and why. The UI
+/// shows the raw current Filename alongside the picker so an out-of-list
+/// ship (like this real save's BIOFIGHTER) stays
 /// visible rather than looking blank or being silently overwritten.
 ///
 /// PilotRank (yDG) is a plain ushort in libMBIN - NOT typed as
