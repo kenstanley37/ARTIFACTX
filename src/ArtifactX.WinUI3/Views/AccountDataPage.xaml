@@ -75,19 +75,19 @@
                 </Border>
 
                 <!-- Deliberately hedged wording - see project_account_data_page.md's
-                     2026-08-02 follow-up. NomNom's own "Catalog" tab claims this list drives
-                     the in-game Catalog & Guide -> Catalogue screen's black silhouettes, but
-                     direct testing (writing a confirmed-persisted id, then checking in-game)
-                     didn't show that effect, and the user separately confirmed that screen
-                     is actually driven by PER-SLOT save data, not accountdata.hg at all. Don't
-                     restate NomNom's claim as fact here until ArtifactX's own testing confirms
-                     what this list actually does in-game. -->
+                     2026-08-02 follow-up. A reference tool's own "Catalog" tab claims this
+                     list drives the in-game Catalog & Guide -> Catalogue screen's black
+                     silhouettes, but direct testing (writing a confirmed-persisted id, then
+                     checking in-game) didn't show that effect, and the user separately
+                     confirmed that screen is actually driven by PER-SLOT save data, not
+                     accountdata.hg at all. Don't restate that claim as fact here until
+                     ArtifactX's own testing confirms what this list actually does in-game. -->
                 <Border Grid.Row="1" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
                         CornerRadius="6" Padding="12,8" Opacity="0.85">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource NmsTextSecondary}" VerticalAlignment="Top" Margin="0,2,0,0"/>
                         <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
-                                   Text="This is your account-wide unlock list (accountdata.hg) - the same data NomNom's own 'Catalog' tab edits. NomNom describes it as controlling the black-silhouette items under the game's Catalog &amp; Guide screen, but ArtifactX hasn't independently confirmed that effect yet - that screen may actually be driven by per-save-slot data instead. Treat changes here as experimental until confirmed in-game."/>
+                                   Text="This is your account-wide unlock list (accountdata.hg) - the same data a reference tool's own 'Catalog' tab edits. That tool describes it as controlling the black-silhouette items under the game's Catalog &amp; Guide screen, but ArtifactX hasn't independently confirmed that effect yet - that screen may actually be driven by per-save-slot data instead. Treat changes here as experimental until confirmed in-game."/>
                     </StackPanel>
                 </Border>
 
@@ -114,9 +114,10 @@
                 </Grid>
 
                 <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="24">
-                    <!-- Mutually exclusive, unlike Categories below - mirrors NomNom
-                         keeping Expedition/Twitch rewards in their own separate lists
-                         rather than mixed into its general Catalog tab. Both id
+                    <!-- Mutually exclusive, unlike Categories below - mirrors a
+                         reference tool keeping Expedition/Twitch rewards in their
+                         own separate lists rather than mixed into its general
+                         Catalog tab. Both id
                          prefixes ("EXPD_"/"TWITCH_") are Hello Games' own naming
                          convention, confirmed present on every expedition/Twitch-drop
                          item found in the account's real B1h list (2026-08-04) - this
@@ -145,11 +146,12 @@
                     </StackPanel>
 
                     <!-- Multi-select category filter, deliberately checkboxes rather than a
-                         single-select dropdown - mirrors NomNom's own Catalog tab, which shows
-                         all 9 of its (finer) groups as checkboxes side by side rather than a
-                         one-at-a-time picker. ArtifactX only has the coarser Technology/Product/
-                         Substance split (see CatalogService.ElvLabelFor), not NomNom's 9-way one -
-                         the catalog DB doesn't currently decode the finer per-item grouping. -->
+                         single-select dropdown - mirrors a reference tool's own Catalog tab,
+                         which shows all 9 of its (finer) groups as checkboxes side by side
+                         rather than a one-at-a-time picker. ArtifactX only has the coarser
+                         Technology/Product/Substance split (see CatalogService.ElvLabelFor),
+                         not that tool's 9-way one - the catalog DB doesn't currently decode
+                         the finer per-item grouping. -->
                     <StackPanel Orientation="Horizontal" Spacing="16">
                         <TextBlock Text="Categories:" VerticalAlignment="Center" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"/>
                         <CheckBox x:Name="TechnologyCategoryCheck" Content="Technology" IsChecked="True" Click="CategoryCheck_Click"/>

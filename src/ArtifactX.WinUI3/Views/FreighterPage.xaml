@@ -144,8 +144,8 @@
 
                     <!-- Name/Class/Type/Crew/Base Stats - Type and Crew Race are both
                          model scene-path swaps (bIR.93M and Sjw.93M respectively),
-                         Model Seed and Crew Seed are the matching @EL seeds NomNom
-                         shows alongside them. -->
+                         Model Seed and Crew Seed are the matching @EL seeds a
+                         reference tool shows alongside them. -->
                     <Border x:Name="FreighterInfoBorder" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
                             CornerRadius="8" Padding="16" Opacity="0.9" Width="300">
                         <StackPanel Spacing="14">

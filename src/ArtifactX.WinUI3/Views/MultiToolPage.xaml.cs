@@ -377,9 +377,9 @@ public sealed partial class MultiToolPage : Page
     }
 
     /// <summary>Stages the model scene path (NTx.93M) - the only field the visual
-    /// swap actually needs, confirmed via a real in-game test. jl; (which NomNom
-    /// writes alongside it) was tested and found to have no effect on rendering,
-    /// so it's deliberately left untouched here.</summary>
+    /// swap actually needs, confirmed via a real in-game test. jl; (which a
+    /// reference tool writes alongside it) was tested and found to have no
+    /// effect on rendering, so it's deliberately left untouched here.</summary>
     private void SetType(string scenePath)
     {
         if (_selectedIndex < 0) return;
@@ -411,7 +411,7 @@ public sealed partial class MultiToolPage : Page
     /// figures. Confirmed independent of Type/model (stayed identical across
     /// every model-swap Type we tested) - so editing them here doesn't touch
     /// which model renders, only the underlying stat rolls, exactly like
-    /// NomNom's own "Base Stats" fields.</summary>
+    /// a reference tool's own "Base Stats" fields.</summary>
     private void UpdateStatDisplay()
     {
         _suppressStatChangeEvent = true;
@@ -437,7 +437,7 @@ public sealed partial class MultiToolPage : Page
     /// queried; UpdateStatDisplay reads the array as a whole, so a deeper leaf
     /// edit was never seen by it. Same whole-array pattern :No/hl?/MMm already
     /// use for exactly this reason. No upper bound is enforced - confirmed
-    /// neither the game nor NomNom enforces one either, and these are plain
+    /// the game itself doesn't enforce one either, and these are plain
     /// floats, not structural/indexing fields, so an extreme value can
     /// unbalance a save but won't corrupt it.</summary>
     private void SetStatValue(string weaponKey, double newValue)

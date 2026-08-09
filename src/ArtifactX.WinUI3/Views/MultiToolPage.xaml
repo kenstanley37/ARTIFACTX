@@ -166,7 +166,7 @@
                             <StackPanel Spacing="6">
                                 <TextBlock Text="Base Stats" FontSize="12" Opacity="0.7"/>
                                 <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                           Text="No known upper limit - the game (and NomNom) don't enforce one. Extreme values won't corrupt your save, just unbalance it."/>
+                                           Text="No known upper limit - the game doesn't enforce one. Extreme values won't corrupt your save, just unbalance it."/>
                                 <Grid ColumnSpacing="8" RowSpacing="6">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>

@@ -6,8 +6,8 @@
 /// `DataCataloger multitool`), not from any in-game data table - none exists
 /// mapping a Type name to a model path (confirmed by searching the classified
 /// catalog, grepping raw MBIN field values, and dumping the one plausible
-/// candidate's actual structure - see project history). NomNom itself
-/// maintains its own hand-curated, version-pinned mapping for the same reason.
+/// candidate's actual structure - see project history). Other reference tools
+/// maintain their own hand-curated, version-pinned mapping for the same reason.
 ///
 /// Path is the only field that matters: an in-game test confirmed the visual
 /// swap works correctly writing ONLY the model path (NTx.93M), with no other

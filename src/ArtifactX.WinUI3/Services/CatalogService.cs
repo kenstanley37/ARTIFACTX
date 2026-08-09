@@ -280,7 +280,7 @@ public static class CatalogService
     /// Types, see CatalogBuildService for how. Confirmed real names for the
     /// three model paths actually seen in player saves: "Normal"
     /// (FREIGHTER_PROC), "Capital" (CAPITALFREIGHTER_PROC), "Dreadnought"
-    /// (PIRATEFREIGHTER) - cross-checked against NomNom.</summary>
+    /// (PIRATEFREIGHTER) - cross-checked against a reference tool.</summary>
     public static async Task<List<(string DisplayName, string ScenePath)>> GetFreighterTypesAsync() =>
         await GetScenePathOptionsAsync("FreighterTypes");
 

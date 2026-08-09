@@ -131,9 +131,9 @@ public class NmsInventoryContainer
 
     /// <summary>The freighter hull's model scene path ("Type" - Normal/Capital/
     /// Dreadnought). Confirmed via cross-referencing 3 different real
-    /// characters' saves plus NomNom (an established NMS save editor) showing
-    /// the same three options for the same freighters. "@EL"'s second element
-    /// (index 1) is NomNom's "Model Seed" - confirmed by an exact value match
+    /// characters' saves plus a reference tool showing the same three
+    /// options for the same freighters. "@EL"'s second element (index 1) is
+    /// that reference's own "Model Seed" - confirmed by an exact value match
     /// against a real save.</summary>
     public static readonly string[] FreighterTypePath = { "vLc", "6f=", "bIR", "93M" };
     public static readonly string[] FreighterModelSeedPath = { "vLc", "6f=", "bIR", "@EL", "1" };
@@ -141,16 +141,16 @@ public class NmsInventoryContainer
     /// <summary>The freighter's crew captain - a SEPARATE model reference from
     /// the hull itself (bIR above), confirmed via real save data: the
     /// captain's model path (".../NPCVYKEEN.SCENE.MBIN") and its seed
-    /// (@EL[1]) exactly matched NomNom's "Crew Race" and "Crew Seed" fields
-    /// for the same freighter.</summary>
+    /// (@EL[1]) exactly matched a reference tool's own "Crew Race" and "Crew
+    /// Seed" fields for the same freighter.</summary>
     public static readonly string[] FreighterCrewRacePath = { "vLc", "6f=", "Sjw", "93M" };
     public static readonly string[] FreighterCrewSeedPath = { "vLc", "6f=", "Sjw", "@EL", "1" };
 
     /// <summary>Freighter Technology's continuous stat bonuses array - same
     /// shape and editing pattern as Multi-Tool's OsQ.@bB (WEAPON_DAMAGE/etc.).
     /// Confirmed via real save data: holds exactly two entries keyed
-    /// "^FREI_HYPERDRIVE" and "^FREI_FLEET", matching NomNom's "Hyperdrive"
-    /// and "Fleet Coordination" Base Stats fields.</summary>
+    /// "^FREI_HYPERDRIVE" and "^FREI_FLEET", matching a reference tool's own
+    /// "Hyperdrive" and "Fleet Coordination" Base Stats fields.</summary>
     public static string[] FreighterStatBonusesPath => FreighterTechnologyPath.Append("@bB").ToArray();
 
     /// <summary>Player-placed Base Storage Containers ("Chests") - unlike every

@@ -30,7 +30,7 @@ public partial class InventoryGridViewModel : ObservableObject
 
     /// <summary>The container's rarity/quality rating (S/A/B/C) - a plain literal
     /// string at B@N.1o6, sibling of :No/hl?/etc within this same container.
-    /// Confirmed via NomNom diff: it's an independent field, not derived from any
+    /// Confirmed via a reference-tool diff: it's an independent field, not derived from any
     /// procedural seed (the top-level @EL identity hash) - so setting it directly
     /// is safe and doesn't touch appearance/stats seeding at all.</summary>
     [ObservableProperty]

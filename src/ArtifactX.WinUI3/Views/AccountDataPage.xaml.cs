@@ -184,7 +184,7 @@ public sealed partial class AccountDataPage : Page
 
         // Mutually exclusive with each other, unlike the Category checkboxes above -
         // "Catalog" explicitly excludes Expedition/Twitch items rather than mixing
-        // them in, matching NomNom keeping those in their own separate lists.
+        // them in, matching a reference tool keeping those in their own separate lists.
         bool isExpeditionSource = sourceFilter == "Expedition Rewards";
         if (isExpeditionSource)
             filtered = filtered.Where(i => i.GameId.StartsWith("EXPD_", StringComparison.OrdinalIgnoreCase));
@@ -260,7 +260,7 @@ public sealed partial class AccountDataPage : Page
 
     /// <summary>Scoped to whatever's currently visible (search + category checkboxes
     /// + Unlocked/Locked filter) rather than the full ~4,700-item catalog, mirroring
-    /// NomNom's own per-section Unlock All/Lock All buttons - safer than a single
+    /// a reference tool's own per-section Unlock All/Lock All buttons - safer than a single
     /// "unlock literally everything" action, and makes the filters double as a way
     /// to target a bulk change (e.g. search "portal" then Unlock All).</summary>
     private void BulkSetVisibleRows(bool unlock)

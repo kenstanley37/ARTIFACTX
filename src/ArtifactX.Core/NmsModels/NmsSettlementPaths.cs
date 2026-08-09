@@ -62,8 +62,8 @@ namespace ArtifactX.Core.NmsModels;
 /// value the way Production was, so their exact additive-vs-ignored status
 /// is still one notch less certain than Production/MaxPopulation's. The
 /// Perks array (see PerksPath below) was independently confirmed correct by
-/// name via NomNom (an established third-party NMS save editor) showing
-/// matching values for the same real settlement.
+/// name via a reference save editor showing matching values for the same
+/// real settlement.
 ///
 /// BugAttack (Stats[7]) - CONFIRMED 2026-07-30: setting it to a large
 /// distinctive value (1000) triggers a real in-game "biological

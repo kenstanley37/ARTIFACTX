@@ -55,7 +55,7 @@ public sealed partial class LanguageWordsControl : UserControl
         _idPrefix = idPrefix;
 
         TitleTxt.Text = $"{raceName} Language";
-        InfoTxt.Text = $"This save's known {raceName} vocabulary (vLc/6f=/MF2) - confirmed real via a controlled test: marking 5 words known through NomNom grew this exact list by exactly 5 entries, matching the account's Words Learned count precisely. Names come from the game's own text table. Shares one list with every other language page (Gek/Vy'keen/Korvax/Autophage/Atlas) - Reset reverts every one of them's unsaved changes, not just {raceName}'s. Writing through ArtifactX itself hasn't been round-trip-checked in-game yet the way the Catalogue page was - worth a quick check after your first edit here.";
+        InfoTxt.Text = $"This save's known {raceName} vocabulary (vLc/6f=/MF2) - confirmed real via a controlled test: marking 5 words known through a reference tool grew this exact list by exactly 5 entries, matching the account's Words Learned count precisely. Names come from the game's own text table. Shares one list with every other language page (Gek/Vy'keen/Korvax/Autophage/Atlas) - Reset reverts every one of them's unsaved changes, not just {raceName}'s. Writing through ArtifactX itself hasn't been round-trip-checked in-game yet the way the Catalogue page was - worth a quick check after your first edit here.";
 
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         SaveSessionManager.PendingEditsChanged += OnPendingEditsChanged;
@@ -169,8 +169,8 @@ public sealed partial class LanguageWordsControl : UserControl
     /// every other race's entries in the shared array are left exactly as
     /// they were read, and get re-staged untouched alongside this change.
     /// A newly-added entry's "D;o" shape (8 booleans, first True) matches
-    /// exactly what NomNom itself wrote for new entries in the confirming
-    /// test - see NmsLanguagePaths' doc comment.</summary>
+    /// exactly what a reference tool itself wrote for new entries in the
+    /// confirming test - see NmsLanguagePaths' doc comment.</summary>
     private void SetRowKnown(LanguageWordRowViewModel row, bool known)
     {
         row.IsKnown = known;

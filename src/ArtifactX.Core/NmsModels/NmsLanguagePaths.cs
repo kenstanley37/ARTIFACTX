@@ -7,7 +7,7 @@ namespace ArtifactX.Core.NmsModels;
 /// (NmsCataloguePaths) in the same vLc.6f= GcPlayerStateData container.
 ///
 /// Confirmed directly (2026-08-04): a controlled before/after diff (5 Gek
-/// words marked known via NomNom, then re-extracted) showed this array grow
+/// words marked known via a reference tool, then re-extracted) showed this array grow
 /// by exactly 5 entries - ^TRA_ATTACK, ^TRA_BEWARE, ^TRA_BLOOD, ^TRA_COMBAT,
 /// ^TRA_DANGER - with every entry having exactly one `True` flag in its own
 /// small metadata array (semantics of that flag not fully decoded, but

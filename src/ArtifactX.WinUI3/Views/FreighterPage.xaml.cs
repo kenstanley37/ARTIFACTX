@@ -333,7 +333,7 @@ public sealed partial class FreighterPage : Page
     /// <summary>Loads 0wS.@bB's raw continuous stat rolls (FREI_HYPERDRIVE/
     /// FREI_FLEET) into the editable NumberBoxes - same source/shape as
     /// Multi-Tool's OsQ.@bB, confirmed by real save data and cross-checked
-    /// against NomNom's "Hyperdrive"/"Fleet Coordination" Base Stats.</summary>
+    /// against a reference tool's own "Hyperdrive"/"Fleet Coordination" Base Stats.</summary>
     private void UpdateStatDisplay()
     {
         _suppressStatChangeEvent = true;

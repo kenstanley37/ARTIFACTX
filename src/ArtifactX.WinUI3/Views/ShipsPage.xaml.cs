@@ -333,7 +333,7 @@ public sealed partial class ShipsPage : Page
     }
 
     /// <summary>Rerolls the selected ship to a brand new random seed - same
-    /// idea as NomNom's own reroll, not a targeted "give me X wings" picker.
+    /// idea as a reference tool's own reroll, not a targeted "give me X wings" picker.
     /// See NmsSeedGenerator for why (shared with FreighterPage's Model
     /// Seed/Crew Seed Generate buttons, so both pages roll the same way).</summary>
     private void GenerateSeedBtn_Click(object sender, RoutedEventArgs e)

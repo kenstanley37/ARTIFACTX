@@ -118,15 +118,17 @@ public static class NmsFrigatePaths
     public static string[] InventoryClassPath(int frigateIndex) => FrigatePath(frigateIndex).Append("1o6").Append("1o6").ToArray();
 
     /// <summary>The 2nd element of ResourceSeed (SLc), i.e. just the "0x..."
-    /// hex string - matches NomNom's "Model Seed" (confirmed: NORMANDY's
-    /// SLc[1] value 0xE876443F6A0A28A6 exactly matched what NomNom showed
-    /// for that same field on the same frigate). Same "append '1' to reach
-    /// the hex sibling, ignore the leading bool" pattern already used for
-    /// Freighter's ModelSeedPath/CrewSeedPath (NmsInventoryContainer).</summary>
+    /// hex string - matches a reference tool's own "Model Seed" (confirmed:
+    /// NORMANDY's SLc[1] value 0xE876443F6A0A28A6 exactly matched what that
+    /// reference showed for the same field on the same frigate). Same
+    /// "append '1' to reach the hex sibling, ignore the leading bool"
+    /// pattern already used for Freighter's ModelSeedPath/CrewSeedPath
+    /// (NmsInventoryContainer).</summary>
     public static string[] ModelSeedPath(int frigateIndex) => FrigatePath(frigateIndex).Append("SLc").Append("1").ToArray();
 
-    /// <summary>The 2nd element of HomeSystemSeed (@ui) - matches NomNom's
-    /// "Home Seed" (confirmed: NORMANDY's @ui[1] value 0x0 exactly matched).</summary>
+    /// <summary>The 2nd element of HomeSystemSeed (@ui) - matches a
+    /// reference tool's own "Home Seed" (confirmed: NORMANDY's @ui[1] value
+    /// 0x0 exactly matched).</summary>
     public static string[] HomeSeedPath(int frigateIndex) => FrigatePath(frigateIndex).Append("@ui").Append("1").ToArray();
 
     /// <summary>The Traits array (5 raw ids per frigate in every sample seen,
@@ -138,24 +140,24 @@ public static class NmsFrigatePaths
     /// (the tier->exact-number lookup).
     ///
     /// Checked all 5 traits on the SSV Normandy SR1 (index 0) against a real
-    /// NomNom screenshot of that exact frigate: 3 of 5 matched EXACTLY,
+    /// reference screenshot of that exact frigate: 3 of 5 matched EXACTLY,
     /// including the number - NORMANDY_1 "Deep Scout Prototype (+15 Combat)",
     /// NORMANDY_2 "Tantalus Drive (+15 Exploration)", NORMANDY_3 "Mass
     /// Accelerator Cannon (+6 Combat)". The other 2 resolved the correct
-    /// trait NAME but a DIFFERENT effect description than NomNom shows:
-    /// NORMANDY_4 ("Internal Emission Sink") computed here as "+1 Stealth"
-    /// (mathematically correct per the raw FrigateStatType=Stealth/
-    /// Strength=TertiaryMedium -> StatAlteration lookup) vs. NomNom's
+    /// trait NAME but a DIFFERENT effect description than the reference
+    /// shows: NORMANDY_4 ("Internal Emission Sink") computed here as "+1
+    /// Stealth" (mathematically correct per the raw FrigateStatType=Stealth/
+    /// Strength=TertiaryMedium -> StatAlteration lookup) vs. the reference's
     /// "Silent Running Capability Enabled"; NORMANDY_5 ("Long-Range FTL
     /// Capacity") computed as "+3 Speed" (Speed/TertiaryLarge, also
-    /// mathematically correct per the same table) vs. NomNom's "+3%
-    /// Expedition Duration". Best guess: NomNom hardcodes special flavor
-    /// text for a handful of unique/named traits like these two rather than
-    /// always deriving from the generic stat-delta formula - nothing in the
-    /// decoded MBIN data suggests a different, more "correct" number exists
-    /// to find. Treat the computed description as accurate to the game's
-    /// raw data model, but not guaranteed to read exactly like NomNom's for
-    /// every trait.
+    /// mathematically correct per the same table) vs. the reference's "+3%
+    /// Expedition Duration". Best guess: that reference tool hardcodes
+    /// special flavor text for a handful of unique/named traits like these
+    /// two rather than always deriving from the generic stat-delta formula -
+    /// nothing in the decoded MBIN data suggests a different, more "correct"
+    /// number exists to find. Treat the computed description as accurate to
+    /// the game's raw data model, but not guaranteed to read exactly like
+    /// that reference tool's for every trait.
     ///
     /// Like Perks, this array is declared unbounded (List&lt;NMSString0x10&gt;
     /// in libMBIN, no Size attribute) even though every sampled frigate had

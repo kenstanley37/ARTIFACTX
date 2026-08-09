@@ -245,7 +245,7 @@ public class CatalogBuildService
         // captain is a separate model reference (Sjw.93M in the save) from the
         // freighter hull itself (bIR.93M) - confirmed by a real save showing
         // Sjw.93M = ".../NPCVYKEEN.SCENE.MBIN" with Sjw.@EL's seed exactly
-        // matching NomNom's "Crew Seed" field for the same freighter.
+        // matching a reference tool's own "Crew Seed" field for the same freighter.
         //
         // Filename rule: every NPC*.SCENE.MBIN directly under
         // player/playercharacter/, limited to the three real playable species
@@ -619,7 +619,7 @@ public class CatalogBuildService
         // A perk's StatChanges (which stat it affects and how strongly -
         // e.g. Happiness/PositiveMedium) is folded into DescriptionEnglish
         // as a plain qualitative summary ("Happiness +Medium"), NOT the
-        // exact numeric range NomNom's UI shows (e.g. "-6..-1") - that
+        // exact numeric range a reference tool's UI shows (e.g. "-6..-1") - that
         // exact range lives in a SEPARATE global table
         // (GcSettlementGlobals.PerkStatStrengthValues, one entry per Stat,
         // each itself holding a range per Strength tier) not decoded here;
@@ -733,20 +733,20 @@ public class CatalogBuildService
         //     FrigateTraitStrengthEnum - e.g. Combat's array is
         //     [-6,-4,-2,1,2,3,2,4,6,15], so Combat+Primary (index 9) = 15.
         //     Checked all 5 traits on the same real frigate (SSV Normandy
-        //     SR1) against a NomNom screenshot the user provided: 3 of 5
-        //     matched NomNom's displayed number exactly (Combat/Combat/
+        //     SR1) against a reference screenshot the user provided: 3 of 5
+        //     matched the reference's displayed number exactly (Combat/Combat/
         //     Exploration-tagged traits). The other 2 (Stealth/Speed-tagged)
-        //     resolved the right trait NAME but NomNom shows special
+        //     resolved the right trait NAME but the reference shows special
         //     flavor text ("Silent Running Capability Enabled", "+3%
         //     Expedition Duration") instead of a plain stat delta for those
-        //     two specifically - likely NomNom hardcodes a few unique
-        //     traits rather than always using the generic formula. The
+        //     two specifically - likely that reference tool hardcodes a few
+        //     unique traits rather than always using the generic formula. The
         //     computed number here is still mathematically correct per the
         //     game's own StatAlteration table either way - unlike
         //     Settlement Perks, which only got a qualitative summary
         //     because its equivalent globals table wasn't decoded, this at
-        //     least gives a real number, just not always NomNom's exact
-        //     wording.
+        //     least gives a real number, just not always matching that
+        //     reference's exact wording.
         // Deliberately using a custom TemplateType ("FrigateTraits") so
         // this doesn't collide with the generic sweep's own nameless copy
         // of frigatetraittable.mbin.
@@ -1166,8 +1166,8 @@ public class CatalogBuildService
 
     /// <summary>Turns a model path like ".../PIRATEFREIGHTER.SCENE.MBIN" into
     /// a display name. The three model paths actually confirmed in real player
-    /// saves get their real in-game names (cross-checked against NomNom, an
-    /// established NMS save editor, showing exactly "Normal"/"Capital"/
+    /// saves get their real in-game names (cross-checked against a reference
+    /// save editor, showing exactly "Normal"/"Capital"/
     /// "Dreadnought" as freighter Type options); anything else discovered by
     /// the filename rule falls back to a generic derivation (strip folder/
     /// extension/trailing "_PROC", split "FREIGHTER" out as its own word,
