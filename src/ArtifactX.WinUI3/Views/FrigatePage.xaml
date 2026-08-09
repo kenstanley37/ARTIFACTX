@@ -60,23 +60,42 @@
                         </StackPanel>
 
                         <StackPanel Orientation="Horizontal" Spacing="32">
-                            <StackPanel Spacing="6" Width="260">
+                            <!-- Grid, not a plain horizontal StackPanel - the old
+                                 version let the TextBox+Button pair size to its
+                                 natural content width (180 + spacing + the
+                                 button's own text-driven width) inside a
+                                 narrower fixed-width parent, so the button
+                                 silently overflowed/clipped instead of shrinking
+                                 to fit. An Auto column reserves exactly the
+                                 button's real width first, and both seed rows
+                                 use the identical column layout regardless of
+                                 seed length, so they line up pixel-for-pixel
+                                 with each other too (2026-08-07 user report). -->
+                            <StackPanel Spacing="6" Width="300">
                                 <TextBlock Text="Model Seed" FontSize="12" Opacity="0.7"/>
                                 <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
                                            Text="Drives the hull's procedural look, alongside Class/Type. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBox x:Name="ModelSeedEditBox" Width="180" LostFocus="ModelSeedEditBox_LostFocus"/>
-                                    <Button Content="Generate" Click="GenerateModelSeedBtn_Click"/>
-                                </StackPanel>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" x:Name="ModelSeedEditBox" Width="180" HorizontalAlignment="Left" LostFocus="ModelSeedEditBox_LostFocus"/>
+                                    <Button Grid.Column="1" Content="Generate" Click="GenerateModelSeedBtn_Click"/>
+                                </Grid>
                             </StackPanel>
-                            <StackPanel Spacing="6" Width="260">
+                            <StackPanel Spacing="6" Width="300">
                                 <TextBlock Text="Home Seed" FontSize="12" Opacity="0.7"/>
                                 <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
                                            Text="Drives which home system/name this frigate generates for itself. Paste a seed you've found elsewhere, or click Generate for a new random one."/>
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBox x:Name="HomeSeedEditBox" Width="180" LostFocus="HomeSeedEditBox_LostFocus"/>
-                                    <Button Content="Generate" Click="GenerateHomeSeedBtn_Click"/>
-                                </StackPanel>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" x:Name="HomeSeedEditBox" Width="180" HorizontalAlignment="Left" LostFocus="HomeSeedEditBox_LostFocus"/>
+                                    <Button Grid.Column="1" Content="Generate" Click="GenerateHomeSeedBtn_Click"/>
+                                </Grid>
                             </StackPanel>
                         </StackPanel>
 
