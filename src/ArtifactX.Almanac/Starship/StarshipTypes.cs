@@ -23,50 +23,57 @@ namespace ArtifactX.Almanac.Starship;
 /// MODELS/COMMON/SPACECRAFT/S-CLASS/S-CLASS_PROC.SCENE.MBIN - Solar <->
 /// "sailship", Sentinel Interceptor <-> "sentinelship").
 ///
-/// The reward ships are MEDIUM confidence: their loc-table display names
-/// (found via `DataCataloger locidall "_SHIP"`, scattered across
-/// loc6/7/8/9 under ids like UI_EXPD_SHIP_01_NAME_L) don't literally match
-/// any filename, but each was traced via a different piece of real evidence:
-///  - "fighterclassicgold.scene.mbin" (matching gold-painted cockpit/engine/
-///    wing/nose PART files found ONLY alongside it) = "Golden Vector".
-///  - "fighterspecialswitch.scene.mbin" (paired with "switchcockpita"
-///    parts, "switch"/NX both referencing the Nintendo Switch release) =
-///    "Horizon Vector NX".
-///  - "fighters/wracerse.scene.mbin" = GcSpaceshipGlobals'
-///    HoverShipDataNamesSpecial field (`DataCataloger dumpfile
-///    gcspaceshipglobals.global.mbin`) - a real data-table reference, not
-///    just filename correlation. Matches both Starborn Runner's AND
-///    Starborn Phoenix's loc DESC text ("a localised vector field allows
-///    the craft to hover above solid planes" - near-identical wording for
-///    both) - almost certainly one shared hover-chassis file reused for
-///    both reward skins via a seed/texture choice this list can't resolve,
-///    so both names point at the same path here rather than guessing which
-///    is which. This is also the exact file this save's own Slot 1 pilot 3
-///    was already flying, independent confirmation it's a real in-use ship.
-/// Internal codenames not matching the polished display name is an
-/// already-confirmed HG pattern (see NpcRaceOptions' "NPCFOURTH" =
-/// Autophage).
+/// **Reward ships - CONFIRMED directly from real owned-ship save data**
+/// (2026-08-09, user claimed all 6 in-game then shared their save's own
+/// vLc/6f=/@Cs array - each owned ship carries both its real NKm display
+/// Name AND its real NTx.93M scene path together, the most direct evidence
+/// possible, no inference needed):
+///  - Starborn Runner = fighters/wracer.scene.mbin (note: NOT the "SE"
+///    file - see Starborn Phoenix below for why that distinction matters).
+///  - Boundary Herald = fighters/spookship.scene.mbin - genuinely
+///    surprising (its loc DESC mentions a "Cursed Expedition", not
+///    Halloween) but this is straight from the save, not a guess.
+///  - The Wraith = s-class/bioparts/biofighter.scene.mbin, seed 0x0 -
+///    matches NmsInventoryContainer's own pre-existing doc comment on
+///    ModelSeedPath ("One sampled Living Ship ('The Wraith') had seed
+///    '0x0'") exactly, an independent confirmation from a completely
+///    different investigation. The Wraith is a Living Ship, not a
+///    standard archetype variant - matches its organic/tentacled look.
+///
+/// **Reward ships - inferred, MEDIUM confidence, not directly
+/// save-confirmed**:
+///  - Golden Vector = fighters/fighterclassicgold.scene.mbin - traced via
+///    gold-painted cockpit/engine/wing/nose PART files found ONLY
+///    alongside it (matching its loc DESC's "golden edition").
+///  - Horizon Vector NX = fighters/fighterspecialswitch.scene.mbin -
+///    traced via paired "switchcockpita" parts ("switch"/NX both
+///    referencing the Nintendo Switch release).
+///  - Starborn Phoenix = fighters/wracerse.scene.mbin (the "SE"/Special
+///    Edition sibling of Starborn Runner's plain wracer.scene.mbin,
+///    confirmed above) - inferred from the naming pattern once Runner's
+///    real file ruled out the original "both share one file" theory this
+///    class held before 2026-08-09. Also the exact file a Squadron pilot
+///    in this same save was independently flying (see
+///    GcSpaceshipGlobals.HoverShipDataNamesSpecial), consistent with but
+///    not equivalent to a real owned-ship confirmation for Phoenix
+///    specifically.
+/// Internal codenames not matching the polished display name (Golden
+/// Vector/Horizon Vector NX especially) is an already-confirmed HG pattern
+/// (see NpcRaceOptions' "NPCFOURTH" = Autophage).
 ///
 /// DELIBERATELY EXCLUDED - do not add without further confirmation:
 ///  - Hauler: no unambiguous personal-starship file found. The best
 ///    candidate, models/common/spacecraft/industrial/freighter_proc.scene.mbin,
-///    sits in the same folder as capitalfreighter_proc/freightersmall_proc/
-///    freightertiny_proc - naming that suggests this whole folder may
-///    actually be the FREIGHTER (capital ship) model system, not the
-///    personal Hauler starship type. Assigning the wrong one here could
-///    hand a squadron pilot a capital-ship-scale model.
-///  - Utopia Speeder, Boundary Herald, The Wraith - real, confirmed
-///    loc-table display names (loc8/loc9), but GENUINELY EXHAUSTED as of
-///    2026-08-09: checked every "*ShipDataNames"-shaped field in
-///    GcSpaceshipGlobals (only Hover/HoverSpecial/Spook exist), and
-///    confirmed via `DataCataloger grep "Boundary Herald"` (and similarly
-///    for the others) that NO non-loc MBIN file references their display
-///    text anywhere - their model path is most likely a literal string
-///    constant in the game's own compiled reward-granting code, not present
-///    in any decodable data table. Don't re-attempt this exact search
-///    strategy expecting a different result; would need a different
-///    approach entirely (e.g. testing a real claim of one in-game and
-///    diffing the save).
+///    sits in a folder now CONFIRMED to be the FREIGHTER (capital ship)
+///    model system (its full file listing is entirely hangars/cargo
+///    containers/gantries/turrets - capital-ship furniture, not a personal
+///    starship), not the personal Hauler starship type. Assigning it here
+///    could hand a squadron pilot a capital-ship-scale model.
+///  - Utopia Speeder, Iron Vulture: real, confirmed loc-table display
+///    names, not present in the one real save checked (only 7 of that
+///    save's 12 ship slots were populated, none of these two). Revisit if
+///    the user claims/registers these in a save and shares it the same way
+///    the other 3 were confirmed.
 /// </summary>
 public static class StarshipTypes
 {
@@ -81,6 +88,9 @@ public static class StarshipTypes
         new StarshipTypeInfo("Corvette", "MODELS/COMMON/SPACECRAFT/CORVETTE/CORVETTE.SCENE.MBIN"),
         new StarshipTypeInfo("Golden Vector (Reward)", "MODELS/COMMON/SPACECRAFT/FIGHTERS/FIGHTERCLASSICGOLD.SCENE.MBIN"),
         new StarshipTypeInfo("Horizon Vector NX (Reward)", "MODELS/COMMON/SPACECRAFT/FIGHTERS/FIGHTERSPECIALSWITCH.SCENE.MBIN"),
-        new StarshipTypeInfo("Starborn Runner / Phoenix (Reward)", "MODELS/COMMON/SPACECRAFT/FIGHTERS/WRACERSE.SCENE.MBIN"),
+        new StarshipTypeInfo("Starborn Runner (Reward)", "MODELS/COMMON/SPACECRAFT/FIGHTERS/WRACER.SCENE.MBIN"),
+        new StarshipTypeInfo("Starborn Phoenix (Reward)", "MODELS/COMMON/SPACECRAFT/FIGHTERS/WRACERSE.SCENE.MBIN"),
+        new StarshipTypeInfo("Boundary Herald (Reward)", "MODELS/COMMON/SPACECRAFT/FIGHTERS/SPOOKSHIP.SCENE.MBIN"),
+        new StarshipTypeInfo("The Wraith (Reward, Living Ship)", "MODELS/COMMON/SPACECRAFT/S-CLASS/BIOPARTS/BIOFIGHTER.SCENE.MBIN"),
     };
 }
