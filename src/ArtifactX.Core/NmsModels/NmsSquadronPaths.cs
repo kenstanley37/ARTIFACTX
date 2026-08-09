@@ -35,26 +35,32 @@ namespace ArtifactX.Core.NmsModels;
 /// for the 4th playable race (labeled Autophage everywhere else in this
 /// app, e.g. Language Words) - not a naming mismatch on ArtifactX's side.
 ///
-/// ShipResource.Filename, in contrast, is NOT confirmed to come from a
-/// small curated pool - the 4 real values sampled (FIGHTER_PROC,
-/// BIOFIGHTER, S-CLASS_PROC, WRACERSE, all under different ship-model
-/// subfolders) span multiple unrelated ship categories, and
-/// RandomSpaceshipResources (the field that might have held a matching
-/// squadron-specific pool) is empty in the decoded globals - most likely
-/// pilots draw from the same broad AI-ship spawn tables used for every
-/// other NPC ship in the galaxy. Deliberately NOT exposing a Ship Type
-/// picker here for that reason - Filename is shown read-only, only its Seed
-/// (paint/appearance) is editable, same restrained treatment already used
-/// for Ship/Frigate Model Seed.
+/// ShipResource.Filename is NOT confirmed to come from a small
+/// squadron-specific pool the way NPCResource is - the 4 real values
+/// sampled (FIGHTER_PROC, BIOFIGHTER, S-CLASS_PROC, WRACERSE) span multiple
+/// unrelated ship categories, and RandomSpaceshipResources (the field that
+/// might have held a matching pool) is empty in the decoded globals - most
+/// likely pilots can draw from the same broad AI-ship spawn tables used for
+/// every other NPC ship in the galaxy, a MUCH larger space than what's
+/// offered here. `ArtifactX.Almanac.Starship.StarshipTypes` offers only the
+/// 7 confirmed standard archetypes plus 2 confirmed reward ships,
+/// independently discovered from real .SCENE.MBIN files (not this game's
+/// actual full valid-value set) - see that class's own doc comment for
+/// what's deliberately excluded (Hauler; 5 other named reward ships) and
+/// why. The UI shows the raw current Filename alongside the picker so an
+/// out-of-list ship (like this real save's BIOFIGHTER/WRACERSE) stays
+/// visible rather than looking blank or being silently overwritten.
 ///
-/// PilotRank (yDG, ushort) was 3 for all 4 pilots in the one real save
-/// checked - CONFIRMED to be GcInventoryClass.InventoryClassEnum's raw
-/// value (C=0, B=1, A=2, S=3): the same save's screenshot showed an "S"
-/// badge next to the selected pilot, and PilotRank=3 for every slot in
-/// that save's JSON matches exactly. GcPlayerSquadronConfig's own
-/// PilotRankAttackDefinitions array (index-matched to this same enum) uses
-/// the literal ids "SQUADRON_C"/"SQUADRON_B"/"SQUADRON_A"/"SQUADRON_S",
-/// corroborating S as the top rank.
+/// PilotRank (yDG) is a plain ushort in libMBIN - NOT typed as
+/// GcInventoryClass.InventoryClassEnum, despite 0-3 clearly corresponding
+/// to that enum's C/B/A/S values (confirmed: the one real save checked had
+/// PilotRank=3 for every slot, and its screenshot showed an "S" badge for
+/// the selected pilot; GcPlayerSquadronConfig.PilotRankAttackDefinitions
+/// also uses the literal ids "SQUADRON_C"/"SQUADRON_B"/"SQUADRON_A"/
+/// "SQUADRON_S"). A reference tool's own Squadron editor exposes this as a
+/// raw editable number (not a 4-item picker) - shown the same way here,
+/// since nothing confirms the field is actually capped at 3. Only 0-3 have
+/// a confirmed class-badge meaning; higher values are untested.
 ///
 /// TraitsSeed (=bJ) is a plain ulong (not wrapped in a GcSeed [hasValue,
 /// hex] pair the way the two resource seeds are) - stored as a bare hex
@@ -96,8 +102,9 @@ public static class NmsSquadronPaths
     /// pattern as every other Seed in this app (e.g. Frigate's ModelSeedPath).</summary>
     public static string[] NpcSeedPath(int slotIndex) => PilotPath(slotIndex).Append(">r:").Append("@EL").Append("1").ToArray();
 
-    /// <summary>Read-only in the UI - see this class's doc comment for why
-    /// (no confirmed small pool to pick from, unlike NPCResource).</summary>
+    /// <summary>See this class's doc comment - StarshipTypes.All only
+    /// covers a partial, independently-discovered set, not this field's
+    /// real full valid-value range.</summary>
     public static string[] ShipFilenamePath(int slotIndex) => PilotPath(slotIndex).Append(":dY").Append("93M").ToArray();
 
     public static string[] ShipSeedPath(int slotIndex) => PilotPath(slotIndex).Append(":dY").Append("@EL").Append("1").ToArray();
@@ -106,8 +113,10 @@ public static class NmsSquadronPaths
     /// hex] GcSeed pair like the two resource seeds above.</summary>
     public static string[] TraitsSeedPath(int slotIndex) => PilotPath(slotIndex).Append("=bJ").ToArray();
 
-    /// <summary>GcInventoryClass.InventoryClassEnum raw value (C=0, B=1,
-    /// A=2, S=3) - see this class's doc comment for the S-badge confirmation.</summary>
+    /// <summary>Plain ushort - 0-3 confirmed to match
+    /// GcInventoryClass.InventoryClassEnum's C/B/A/S, see this class's doc
+    /// comment for the S-badge confirmation and why higher values aren't
+    /// validated against.</summary>
     public static string[] PilotRankPath(int slotIndex) => PilotPath(slotIndex).Append("yDG").ToArray();
 
     /// <summary>(Display name, raw GcFilename) pairs, sourced from

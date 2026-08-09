@@ -71,6 +71,56 @@ if (args.Length > 0 && args[0].Equals("multitool", StringComparison.OrdinalIgnor
     return;
 }
 
+// "DataCataloger ships" - same manifest-only listing technique as "multitool"
+// above, scoped to MODELS/COMMON/SPACECRAFT instead. Used to independently
+// discover the real set of starship .SCENE.MBIN files (base hull models, not
+// sub-parts) for Squadron's Ship Resource picker - not copied from any
+// external reference, same reasoning as MultiToolTypes.cs.
+if (args.Length > 0 && args[0].Equals("ships", StringComparison.OrdinalIgnoreCase))
+{
+    var shipSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(shipSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakDiscoveryService shipPakDiscovery = new PakDiscoveryService();
+    IPakReaderService shipPakReader = new PakReaderService();
+    var shipPaks = shipPakDiscovery.Discover(shipSettings.NmsInstallationPath!);
+
+    var shipMatches = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    foreach (var pak in shipPaks)
+    {
+        IReadOnlyList<ArtifactX.Tools.DataCataloger.Models.PakEntry> entries;
+        try
+        {
+            entries = shipPakReader.Read(pak.FullPath);
+        }
+        catch
+        {
+            continue;
+        }
+
+        foreach (var entry in entries)
+        {
+            if (!string.IsNullOrEmpty(entry.FileName) &&
+                entry.FileName.Contains("SPACECRAFT", StringComparison.OrdinalIgnoreCase) &&
+                entry.FileName.EndsWith(".SCENE.MBIN", StringComparison.OrdinalIgnoreCase))
+            {
+                shipMatches.Add(entry.FileName);
+            }
+        }
+    }
+
+    ConsoleStyle.Header($"Found {shipMatches.Count} spacecraft .SCENE.MBIN files:");
+    foreach (var path in shipMatches)
+        ConsoleStyle.Success("  " + path);
+
+    return;
+}
+
 // "DataCataloger grep <substring>" decodes every MBIN and deep-searches its actual
 // FIELD VALUES (not filenames) for the given substring, regardless of whether the
 // file is table-shaped or would ever be classified by CatalogClassifier. This finds
@@ -237,6 +287,157 @@ if (args.Length > 1 && args[0].Equals("locid", StringComparison.OrdinalIgnoreCas
 
     if (!locFound)
         ConsoleStyle.Error("Could not find language/nms_loc1_english.mbin in any PAK.");
+    return;
+}
+
+// "DataCataloger locval <text substring> [loc file substring]" - same as
+// locid but searches by the English VALUE instead of the id, for when a
+// display string is known (e.g. from a screenshot) but its internal id
+// isn't. Companion to `grep`, which finds WHICH loc file contains a string
+// but not its id - this is the follow-up step.
+if (args.Length > 1 && args[0].Equals("locval", StringComparison.OrdinalIgnoreCase))
+{
+    string valueSubstring = args[1];
+    string locFileSubstring2 = args.Length > 2 ? args[2] : "language/nms_loc1_english.mbin";
+    var locValSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(locValSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakDiscoveryService locValPakDiscovery = new PakDiscoveryService();
+    IPakReaderService locValPakReader = new PakReaderService();
+    var locValExtraction = new ExtractionService();
+    var locValPaks = locValPakDiscovery.Discover(locValSettings.NmsInstallationPath!);
+
+    bool locValFound = false;
+    foreach (var pak in locValPaks)
+    {
+        ArtifactX.Tools.DataCataloger.Models.PakHeader header;
+        IReadOnlyList<ArtifactX.Tools.DataCataloger.Models.PakEntry> entries;
+        try
+        {
+            header = locValPakReader.ReadHeader(pak.FullPath);
+            entries = locValPakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+
+        var match = entries.FirstOrDefault(e =>
+            !string.IsNullOrEmpty(e.FileName) &&
+            e.FileName.Contains(locFileSubstring2, StringComparison.OrdinalIgnoreCase));
+        if (match is null) continue;
+
+        locValFound = true;
+        byte[]? bytes;
+        try { bytes = locValExtraction.ExtractEntryBytes(pak.FullPath, match, header); }
+        catch (Exception ex) { ConsoleStyle.Error($"Extraction failed: {ex.Message}"); return; }
+        if (bytes is null || bytes.Length == 0) { ConsoleStyle.Error("Extraction returned no bytes."); return; }
+
+        NMSTemplate? template;
+        try
+        {
+            using var ms = new MemoryStream(bytes);
+            var mbin = new MBINFile(ms);
+            mbin.Load();
+            template = mbin.GetData();
+        }
+        catch (Exception ex) { ConsoleStyle.Error($"Decode failed: {ex.Message}"); return; }
+        if (template is null) { ConsoleStyle.Error("Decoded template is null."); return; }
+
+        var lookup = LocalisationService.BuildEnglishLookup(template);
+        ConsoleStyle.Header($"Loc table has {lookup.Count} total entries. Matching value '{valueSubstring}':");
+
+        var matches = lookup.Where(kv => kv.Value.Contains(valueSubstring, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var kv in matches)
+            ConsoleStyle.Success($"  {kv.Key} = \"{kv.Value}\"");
+
+        ConsoleStyle.Header($"{matches.Count} matching entries.");
+        return;
+    }
+
+    if (!locValFound)
+        ConsoleStyle.Error($"Could not find {locFileSubstring2} in any PAK.");
+    return;
+}
+
+// "DataCataloger locidall <id substring>" - like locid, but scans EVERY
+// english loc file (loc1/4/5/6/7/8/9/update3/etc, not just one) in a single
+// pass. Ship/vehicle reward names turned out to be scattered across
+// different loc files per-expedition (loc6 had ship 01, others are
+// elsewhere) - this avoids guessing which numbered loc file to check one at
+// a time.
+if (args.Length > 1 && args[0].Equals("locidall", StringComparison.OrdinalIgnoreCase))
+{
+    string idSubstringAll = args[1];
+    var locAllSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(locAllSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakDiscoveryService locAllPakDiscovery = new PakDiscoveryService();
+    IPakReaderService locAllPakReader = new PakReaderService();
+    var locAllExtraction = new ExtractionService();
+    var locAllPaks = locAllPakDiscovery.Discover(locAllSettings.NmsInstallationPath!);
+
+    int totalMatches = 0;
+
+    foreach (var pak in locAllPaks)
+    {
+        ArtifactX.Tools.DataCataloger.Models.PakHeader header;
+        IReadOnlyList<ArtifactX.Tools.DataCataloger.Models.PakEntry> entries;
+        try
+        {
+            header = locAllPakReader.ReadHeader(pak.FullPath);
+            entries = locAllPakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+
+        var locEntries = entries.Where(e =>
+            !string.IsNullOrEmpty(e.FileName) &&
+            e.FileName.Contains("language/nms_", StringComparison.OrdinalIgnoreCase) &&
+            e.FileName.Contains("english", StringComparison.OrdinalIgnoreCase) &&
+            !e.FileName.Contains("usenglish", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        foreach (var entry in locEntries)
+        {
+            byte[]? bytes;
+            try { bytes = locAllExtraction.ExtractEntryBytes(pak.FullPath, entry, header); }
+            catch { continue; }
+            if (bytes is null || bytes.Length == 0) continue;
+
+            NMSTemplate? template;
+            try
+            {
+                using var ms = new MemoryStream(bytes);
+                var mbin = new MBINFile(ms);
+                mbin.Load();
+                template = mbin.GetData();
+            }
+            catch { continue; }
+            if (template is null) continue;
+
+            var lookup = LocalisationService.BuildEnglishLookup(template);
+            var matches = lookup.Where(kv => kv.Key.Contains(idSubstringAll, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (matches.Count == 0) continue;
+
+            ConsoleStyle.Header($"{entry.FileName} ({matches.Count} matches):");
+            foreach (var kv in matches)
+                ConsoleStyle.Success($"  {kv.Key} = \"{kv.Value}\"");
+            totalMatches += matches.Count;
+        }
+    }
+
+    ConsoleStyle.Header($"{totalMatches} total matching entries across all loc files.");
     return;
 }
 

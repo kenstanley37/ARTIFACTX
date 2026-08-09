@@ -2,9 +2,9 @@ using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using ArtifactX.Almanac.Starship;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
-using libMBIN.NMS.GameComponents;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Linq;
@@ -29,8 +29,8 @@ public sealed partial class SquadronPage : Page
         foreach (var option in NmsSquadronPaths.NpcRaceOptions)
             RaceBox.Items.Add(new ComboBoxItem { Content = option.DisplayName, Tag = option.Filename });
 
-        foreach (var value in Enum.GetNames<GcInventoryClass.InventoryClassEnum>())
-            RankBox.Items.Add(new ComboBoxItem { Content = value });
+        foreach (var type in StarshipTypes.All)
+            ShipTypeBox.Items.Add(new ComboBoxItem { Content = type.DisplayName, Tag = type.ScenePath });
 
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
@@ -111,8 +111,11 @@ public sealed partial class SquadronPage : Page
     {
         UnlockedCheckBox.IsChecked = false;
         RaceBox.SelectedIndex = -1;
-        RankBox.SelectedIndex = -1;
+        RankBox.Value = double.NaN;
+        RankLetterTxt.Text = "";
         NpcSeedEditBox.Text = "";
+        RemoveUnlistedShipTypeItem();
+        ShipTypeBox.SelectedIndex = -1;
         ShipFilenameTxt.Text = "";
         ShipSeedEditBox.Text = "";
         TraitsSeedEditBox.Text = "";
@@ -134,12 +137,29 @@ public sealed partial class SquadronPage : Page
         RaceBox.SelectedItem = RaceBox.Items.Cast<ComboBoxItem>()
             .FirstOrDefault(item => string.Equals(item.Tag as string, npcFilename, StringComparison.OrdinalIgnoreCase));
 
-        string rank = SaveSessionManager.GetValue(NmsSquadronPaths.PilotRankPath(_selectedIndex))?.Value<string>() ?? "";
-        RankBox.SelectedItem = RankBox.Items.Cast<ComboBoxItem>()
-            .FirstOrDefault(item => string.Equals(item.Content as string, rank, StringComparison.OrdinalIgnoreCase));
+        double rank = SaveSessionManager.GetValue(NmsSquadronPaths.PilotRankPath(_selectedIndex))?.Value<double>() ?? 0;
+        RankBox.Value = rank;
+        RankLetterTxt.Text = RankLetterFor(rank);
 
         NpcSeedEditBox.Text = SaveSessionManager.GetValue(NmsSquadronPaths.NpcSeedPath(_selectedIndex))?.Value<string>() ?? "";
-        ShipFilenameTxt.Text = SaveSessionManager.GetValue(NmsSquadronPaths.ShipFilenamePath(_selectedIndex))?.Value<string>() ?? "";
+
+        string shipFilename = SaveSessionManager.GetValue(NmsSquadronPaths.ShipFilenamePath(_selectedIndex))?.Value<string>() ?? "";
+        RemoveUnlistedShipTypeItem();
+        var matchedShipType = ShipTypeBox.Items.Cast<ComboBoxItem>()
+            .FirstOrDefault(item => string.Equals(item.Tag as string, shipFilename, StringComparison.OrdinalIgnoreCase));
+        if (matchedShipType is null)
+        {
+            // Real saves commonly have ships outside the 9 confirmed types (see
+            // StarshipTypes' own doc comment on how incomplete this list still
+            // is) - a synthetic, always-first placeholder keeps the current
+            // value visible and selected without silently overwriting it the
+            // moment the dropdown renders.
+            matchedShipType = new ComboBoxItem { Content = "(Current - not in known list)", Tag = shipFilename, IsEnabled = false };
+            ShipTypeBox.Items.Insert(0, matchedShipType);
+        }
+        ShipTypeBox.SelectedItem = matchedShipType;
+        ShipFilenameTxt.Text = shipFilename;
+
         ShipSeedEditBox.Text = SaveSessionManager.GetValue(NmsSquadronPaths.ShipSeedPath(_selectedIndex))?.Value<string>() ?? "";
         TraitsSeedEditBox.Text = SaveSessionManager.GetValue(NmsSquadronPaths.TraitsSeedPath(_selectedIndex))?.Value<string>() ?? "";
 
@@ -158,6 +178,30 @@ public sealed partial class SquadronPage : Page
         BuildSelectorStrip(PilotSelectorPanel.Children.Count);
     }
 
+    /// <summary>Drops the synthetic "(Current - not in known list)" entry
+    /// LoadSelectedPilot may have inserted for the previous slot, so it
+    /// doesn't pile up as a stale, still-selectable phantom item once a
+    /// different slot (or a locked/no-save state) is shown.</summary>
+    private void RemoveUnlistedShipTypeItem()
+    {
+        var stale = ShipTypeBox.Items.Cast<ComboBoxItem>().FirstOrDefault(item => !item.IsEnabled);
+        if (stale != null) ShipTypeBox.Items.Remove(stale);
+    }
+
+    private void ShipTypeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressFieldChangeEvent || _selectedIndex < 0) return;
+
+        string newValue = (ShipTypeBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+        var path = NmsSquadronPaths.ShipFilenamePath(_selectedIndex);
+        string current = SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
+        if (string.Equals(newValue, current, StringComparison.OrdinalIgnoreCase)) return;
+
+        SaveSessionManager.StageEdit(newValue, path);
+        ShipFilenameTxt.Text = newValue;
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
     private void RaceBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_suppressFieldChangeEvent || _selectedIndex < 0) return;
@@ -171,16 +215,26 @@ public sealed partial class SquadronPage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
-    private void RankBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    /// <summary>Only 0-3 are confirmed (C/B/A/S, matching
+    /// GcInventoryClass.InventoryClassEnum's raw values) - PilotRank itself
+    /// is a plain ushort in libMBIN, not typed as that enum, so higher
+    /// values are accepted here without validation. See NmsSquadronPaths.</summary>
+    private static string RankLetterFor(double rank) => rank switch
     {
-        if (_suppressFieldChangeEvent || _selectedIndex < 0) return;
+        0 => "= C",
+        1 => "= B",
+        2 => "= A",
+        3 => "= S",
+        _ => "No confirmed class badge for this value"
+    };
 
-        string newValue = (RankBox.SelectedItem as ComboBoxItem)?.Content as string ?? "";
-        var path = NmsSquadronPaths.PilotRankPath(_selectedIndex);
-        string current = SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
-        if (newValue == current) return;
+    private void RankBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        RankLetterTxt.Text = RankLetterFor(args.NewValue);
 
-        SaveSessionManager.StageEdit(newValue, path);
+        if (_suppressFieldChangeEvent || _selectedIndex < 0 || double.IsNaN(args.NewValue)) return;
+
+        SaveSessionManager.StageEdit((int)args.NewValue, NmsSquadronPaths.PilotRankPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
