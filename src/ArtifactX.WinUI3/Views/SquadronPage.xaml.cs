@@ -221,11 +221,11 @@ public sealed partial class SquadronPage : Page
     /// values are accepted here without validation. See NmsSquadronPaths.</summary>
     private static string RankLetterFor(double rank) => rank switch
     {
-        0 => "= C",
-        1 => "= B",
-        2 => "= A",
-        3 => "= S",
-        _ => "No confirmed class badge for this value"
+        0 => "Class C",
+        1 => "Class B",
+        2 => "Class A",
+        3 => "Class S",
+        _ => "No confirmed class badge"
     };
 
     private void RankBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)

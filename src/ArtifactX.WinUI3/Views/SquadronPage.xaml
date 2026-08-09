@@ -44,61 +44,72 @@
                             </StackPanel>
                             <StackPanel Spacing="6" Width="160">
                                 <TextBlock Text="Pilot Rank" FontSize="12" Opacity="0.7"/>
-                                <NumberBox x:Name="RankBox" Width="150" HorizontalAlignment="Left" Minimum="0" SpinButtonPlacementMode="Compact"
-                                           ValueChanged="RankBox_ValueChanged"
-                                           ToolTipService.ToolTip="Raw value - 0/1/2/3 are confirmed to show as the C/B/A/S class badge next to the pilot's name in-game (0=C, 3=S). Values above 3 are untested."/>
-                                <TextBlock x:Name="RankLetterTxt" FontSize="10" Opacity="0.55"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <NumberBox x:Name="RankBox" Width="110" HorizontalAlignment="Left" Minimum="0" SpinButtonPlacementMode="Compact"
+                                               ValueChanged="RankBox_ValueChanged"
+                                               ToolTipService.ToolTip="Raw value - 0/1/2/3 are confirmed to show as the C/B/A/S class badge next to the pilot's name in-game (0=C, 3=S). Values above 3 are untested."/>
+                                    <TextBlock x:Name="RankLetterTxt" FontSize="12" Opacity="0.6" VerticalAlignment="Center"/>
+                                </StackPanel>
                             </StackPanel>
                         </StackPanel>
 
-                        <StackPanel Spacing="6" Width="300">
-                            <TextBlock Text="Pilot Appearance Seed" FontSize="12" Opacity="0.7"/>
-                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                       Text="Drives this pilot's procedural look. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
-                            <Grid ColumnSpacing="8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBox Grid.Column="0" x:Name="NpcSeedEditBox" Width="180" HorizontalAlignment="Left" LostFocus="NpcSeedEditBox_LostFocus"/>
-                                <Button Grid.Column="1" Content="Generate" Click="GenerateNpcSeedBtn_Click"/>
-                            </Grid>
-                        </StackPanel>
+                        <!-- WrapPanel, not a plain vertical StackPanel - these
+                             4 blocks used to stack in a single tall column
+                             regardless of window width, forcing a scroll even
+                             on a wide window (2026-08-09 user report). Each
+                             child keeps its own fixed Width so wrapping is
+                             predictable, same pattern as Frigate's Stats/
+                             Expedition Record WrapPanels. -->
+                        <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
+                            <StackPanel Spacing="6" Width="300">
+                                <TextBlock Text="Pilot Appearance Seed" FontSize="12" Opacity="0.7"/>
+                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" HorizontalAlignment="Left"
+                                           Text="Drives this pilot's procedural look. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" x:Name="NpcSeedEditBox" Width="180" HorizontalAlignment="Left" LostFocus="NpcSeedEditBox_LostFocus"/>
+                                    <Button Grid.Column="1" Content="Generate" Click="GenerateNpcSeedBtn_Click"/>
+                                </Grid>
+                            </StackPanel>
 
-                        <StackPanel Spacing="6" Width="220">
-                            <TextBlock Text="Ship Type" FontSize="12" Opacity="0.7"/>
-                            <ComboBox x:Name="ShipTypeBox" Width="210" HorizontalAlignment="Left" SelectionChanged="ShipTypeBox_SelectionChanged"
-                                      ToolTipService.ToolTip="Only the 7 standard archetypes plus 2 identified reward ships are offered - Hauler and 5 other named reward ships couldn't be confirmed safely. See NmsSquadronPaths for why."/>
-                            <TextBlock x:Name="ShipFilenameTxt" FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700" HorizontalAlignment="Left"/>
-                        </StackPanel>
+                            <StackPanel Spacing="6" Width="240">
+                                <TextBlock Text="Ship Type" FontSize="12" Opacity="0.7"/>
+                                <ComboBox x:Name="ShipTypeBox" Width="230" HorizontalAlignment="Left" SelectionChanged="ShipTypeBox_SelectionChanged"
+                                          ToolTipService.ToolTip="Only the 7 standard archetypes plus 2 identified reward ships are offered - Hauler and 5 other named reward ships couldn't be confirmed safely. See NmsSquadronPaths for why."/>
+                                <TextBlock x:Name="ShipFilenameTxt" FontSize="10" Opacity="0.55" TextWrapping="Wrap" HorizontalAlignment="Left"/>
+                            </StackPanel>
 
-                        <StackPanel Spacing="6" Width="300">
-                            <TextBlock Text="Ship Appearance Seed" FontSize="12" Opacity="0.7"/>
-                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                       Text="Drives this ship's procedural paint/look. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
-                            <Grid ColumnSpacing="8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBox Grid.Column="0" x:Name="ShipSeedEditBox" Width="180" HorizontalAlignment="Left" LostFocus="ShipSeedEditBox_LostFocus"/>
-                                <Button Grid.Column="1" Content="Generate" Click="GenerateShipSeedBtn_Click"/>
-                            </Grid>
-                        </StackPanel>
+                            <StackPanel Spacing="6" Width="300">
+                                <TextBlock Text="Ship Appearance Seed" FontSize="12" Opacity="0.7"/>
+                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" HorizontalAlignment="Left"
+                                           Text="Drives this ship's procedural paint/look. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" x:Name="ShipSeedEditBox" Width="180" HorizontalAlignment="Left" LostFocus="ShipSeedEditBox_LostFocus"/>
+                                    <Button Grid.Column="1" Content="Generate" Click="GenerateShipSeedBtn_Click"/>
+                                </Grid>
+                            </StackPanel>
 
-                        <StackPanel Spacing="6" Width="300">
-                            <TextBlock Text="Traits Seed" FontSize="12" Opacity="0.7"/>
-                            <controls:DevNoteTextBlock
-                                       Text="Believed to drive the pilot's generated stat ratings, Confirmed Kills, and Notes line - not verified in-game, and the word/number thresholds it maps to weren't found in any decoded game data table. Regenerating this will change how the pilot is described in-game, but ArtifactX can't preview what it changes to."/>
-                            <Grid ColumnSpacing="8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBox Grid.Column="0" x:Name="TraitsSeedEditBox" Width="180" HorizontalAlignment="Left" LostFocus="TraitsSeedEditBox_LostFocus"/>
-                                <Button Grid.Column="1" Content="Generate" Click="GenerateTraitsSeedBtn_Click"/>
-                            </Grid>
-                        </StackPanel>
+                            <StackPanel Spacing="6" Width="300">
+                                <TextBlock Text="Traits Seed" FontSize="12" Opacity="0.7"/>
+                                <controls:DevNoteTextBlock
+                                           Text="Believed to drive the pilot's generated stat ratings, Confirmed Kills, and Notes line - not verified in-game, and the word/number thresholds it maps to weren't found in any decoded game data table. Regenerating this will change how the pilot is described in-game, but ArtifactX can't preview what it changes to."/>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" x:Name="TraitsSeedEditBox" Width="180" HorizontalAlignment="Left" LostFocus="TraitsSeedEditBox_LostFocus"/>
+                                    <Button Grid.Column="1" Content="Generate" Click="GenerateTraitsSeedBtn_Click"/>
+                                </Grid>
+                            </StackPanel>
+                        </ctcontrols:WrapPanel>
                     </StackPanel>
                 </Border>
             </StackPanel>
