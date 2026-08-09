@@ -42,15 +42,14 @@ namespace ArtifactX.Core.NmsModels;
 /// might have held a matching pool) is empty in the decoded globals - most
 /// likely pilots can draw from the same broad AI-ship spawn tables used for
 /// every other NPC ship in the galaxy, a MUCH larger space than what's
-/// offered here. `ArtifactX.Almanac.Starship.StarshipTypes` offers only the
-/// 7 confirmed standard archetypes plus 6 reward-ship entries (3 directly
-/// confirmed from a real save's owned-ship data, 3 inferred) - not this
-/// game's actual full valid-value set - see that class's own doc comment
-/// for what's deliberately excluded (Hauler; Utopia Speeder; Iron Vulture)
-/// and why. The UI shows the raw current Filename alongside the picker so
-/// an out-of-list ship (like this real save's plain S-CLASS_PROC pilot)
-/// stays
-/// visible rather than looking blank or being silently overwritten.
+/// offered here. `ArtifactX.Almanac.Starship.StarshipTypes` offers 8
+/// standard archetypes plus 8 reward-ship entries (6 directly confirmed
+/// from real owned-ship save data, 2 still inferred) - not this game's
+/// actual full valid-value set - see that class's own doc comment for the
+/// 2 not yet save-confirmed and why. The UI shows the raw current Filename
+/// alongside the picker so an out-of-list ship (like this real save's
+/// plain S-CLASS_PROC pilot) stays visible rather than looking blank or
+/// being silently overwritten.
 ///
 /// PilotRank (yDG) is a plain ushort in libMBIN - NOT typed as
 /// GcInventoryClass.InventoryClassEnum, despite 0-3 clearly corresponding
