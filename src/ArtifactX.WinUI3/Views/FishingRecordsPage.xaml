@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
@@ -45,8 +46,12 @@
                         CornerRadius="6" Padding="12,8" Opacity="0.85">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource NmsTextSecondary}" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                        <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
-                                   Text="This save's fishing-record checklist (the same list the in-game Catalog &amp; Guide -> Fishing Records screen shows) - 210 real, named fish species, identified by Hello Games' own id convention rather than a hand-typed list. Confirmed 2026-08-05 by direct testing: marking a species caught here made it appear fully revealed on that screen after a real save/reload, where it was previously a silhouette. The catch count/size written isn't guaranteed to match what a real catch would have recorded - only the reveal itself was confirmed."/>
+                        <StackPanel Spacing="4">
+                            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
+                                       Text="This save's fishing-record checklist (the same list the in-game Catalog &amp; Guide -> Fishing Records screen shows) - 210 real, named fish species. The catch count/size written isn't guaranteed to match what a real catch would have recorded - only the reveal itself is confirmed to work."/>
+                            <controls:DevNoteTextBlock
+                                       Text="210 species identified by Hello Games' own id convention, not a hand-typed list. Confirmed 2026-08-05 by direct testing: marking a species caught here made it appear fully revealed on that screen after a real save/reload, where it was previously a silhouette."/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 

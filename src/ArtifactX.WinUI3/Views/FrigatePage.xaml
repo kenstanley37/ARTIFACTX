@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
@@ -22,7 +23,7 @@
                         Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
             </Grid>
 
-            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="900" HorizontalAlignment="Left"
+            <controls:DevNoteTextBlock MaxWidth="900"
                        Text="FIRST PASS, 2026-07-30 - field names below are confirmed by cross-referencing libMBIN's GcFleetFrigateSaveData AND matching all 29 frigates in a real save against 4 screenshots of the in-game Frigate List panel (Class badge, Role, and all 4 visible stats matched exactly for every one). READING is high-confidence; WRITING a new value back and reloading in-game has not been tested yet - change one field at a time and check what happens."/>
 
             <StackPanel Spacing="20" HorizontalAlignment="Stretch">
@@ -101,7 +102,7 @@
 
                         <StackPanel Spacing="8">
                             <TextBlock Text="Stats" FontSize="14" FontWeight="SemiBold"/>
-                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700" HorizontalAlignment="Left"
+                            <controls:DevNoteTextBlock MaxWidth="700"
                                        Text="Matches libMBIN's FrigateStatTypeEnum (11 members) positionally. The first 4 (Combat/Exploration/Mining/Diplomatic) are CONFIRMED against real screenshots - they're the 4 numeric columns shown on the in-game Frigate List (a &quot;-&quot; there just means exactly 0, not missing). The other 7 aren't shown on that panel - presumably used for fuel/expedition mechanics elsewhere, not yet individually confirmed."/>
                             <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="12">
                                 <StackPanel Spacing="6" Width="120">
@@ -183,7 +184,7 @@
 
                         <StackPanel Spacing="8">
                             <TextBlock Text="Traits" FontSize="14" FontWeight="SemiBold"/>
-                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700" HorizontalAlignment="Left"
+                            <controls:DevNoteTextBlock MaxWidth="700"
                                        Text="Real names and computed stat bonuses resolved from the game's own frigate traits table, e.g. &quot;Deep Scout Prototype (+15 Combat)&quot; - 3 of 5 checked against a reference screenshot of this same frigate matched exactly; 2 (Stealth/Speed-tagged ones) show the right name but a plain computed number where the reference shows special flavor text instead (e.g. &quot;+3 Speed&quot; here vs. a reference tool's own &quot;+3% Expedition Duration&quot;) - the underlying number is accurate to the game's own data table either way. Each row is one Traits array entry; &quot;(None)&quot; means that entry is empty."/>
                             <ctcontrols:WrapPanel x:Name="TraitsPanel" HorizontalSpacing="16" VerticalSpacing="16"/>
                         </StackPanel>
