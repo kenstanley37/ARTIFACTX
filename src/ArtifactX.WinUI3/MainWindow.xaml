@@ -90,6 +90,12 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
+                <NavigationViewItem x:Name="SquadronNavItem" Content="Squadron" Tag="Squadron" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="SquadronPathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
                 <!-- One page, in-page tab strip for the 7 exocraft types
                      (ExocraftPage) - same "one page, many switchable sections"
                      shape as MilestonesPage, not a nav parent with 7 children

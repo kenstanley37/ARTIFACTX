@@ -104,6 +104,7 @@ public sealed partial class MainWindow : Window
         StarshipsPathIcon.Data = G(NavIconGeometries.Starships);
         FreighterPathIcon.Data = G(NavIconGeometries.Freighter);
         FrigatesPathIcon.Data = G(NavIconGeometries.Frigates);
+        SquadronPathIcon.Data = G(NavIconGeometries.Squadron);
         BaseStoragePathIcon.Data = G(NavIconGeometries.BaseStorage);
         CorvetteCachePathIcon.Data = G(NavIconGeometries.CorvetteCache);
         CompanionsPathIcon.Data = G(NavIconGeometries.Companions);
@@ -316,6 +317,7 @@ public sealed partial class MainWindow : Window
                 "Ships" => typeof(ShipsPage),
                 "Freighter" => typeof(FreighterPage),
                 "Frigate" => typeof(FrigatePage),
+                "Squadron" => typeof(SquadronPage),
                 "BaseStorage" => typeof(BaseStoragePage),
                 "CorvetteCache" => typeof(CorvetteCachePage),
                 "Companions" => typeof(CompanionsPage),
@@ -359,6 +361,7 @@ public sealed partial class MainWindow : Window
         ShipsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         FreighterNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         FrigateNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        SquadronNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         BaseStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         CorvetteCacheNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         CompanionsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
@@ -384,6 +387,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(ShipsPage) => "Ships",
             Type t when t == typeof(FreighterPage) => "Freighter",
             Type t when t == typeof(FrigatePage) => "Frigate",
+            Type t when t == typeof(SquadronPage) => "Squadron",
             Type t when t == typeof(BaseStoragePage) => "BaseStorage",
             Type t when t == typeof(CorvetteCachePage) => "CorvetteCache",
             Type t when t == typeof(CompanionsPage) => "Companions",
