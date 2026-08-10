@@ -98,12 +98,24 @@ namespace ArtifactX.Core.NmsModels;
 /// name-generation logic itself weren't found in any decoded globals table
 /// (checked GcAISpaceshipGlobals in full).
 ///
-/// WRITING ShipFilenamePath is CONFIRMED working (2026-08-09): user set all
-/// 4 pilots' Ship Type via the UI, reloaded in-game, and the Squadron
-/// Pilots screen showed the expected ship for each slot. Other fields
-/// (NpcFilenamePath, PilotRankPath, the 3 seed paths) haven't been
-/// individually write-tested yet, though there's no structural reason to
-/// expect them to behave differently.
+/// WRITING is CONFIRMED working for 2 fields so far (2026-08-09):
+///  - ShipFilenamePath: user set all 4 pilots' Ship Type via the UI,
+///    reloaded in-game, and the Squadron Pilots screen showed the expected
+///    ship for each slot.
+///  - TraitsSeedPath: user regenerated slot 2's TraitsSeed alone (no other
+///    field touched), reloaded, and ALL of the stat categories, their
+///    values, Confirmed Kills, and Notes changed - but the pilot's Name
+///    ("Enforcer Haj") and the ship's flavor name ("Aegis of the Tawakka")
+///    did NOT change. This is a real, confirmed scope boundary, not
+///    inference: TraitsSeed drives stat categories/values/Confirmed Kills/
+///    Notes, but NOT Name or ship flavor name - those must come from some
+///    other field (NpcFilenamePath/NpcSeedPath are the remaining untested
+///    candidates; Frigate's own CustomName-when-empty is generated from
+///    ResourceSeed+Race+Class, a plausible parallel worth testing here by
+///    regenerating NpcSeedPath alone and checking whether Name changes).
+/// NpcFilenamePath, NpcSeedPath, PilotRankPath, and ShipSeedPath remain
+/// individually write-untested, though there's no structural reason to
+/// expect them to behave differently from the 2 confirmed above.
 /// </summary>
 public static class NmsSquadronPaths
 {
