@@ -68,15 +68,33 @@ namespace ArtifactX.Core.NmsModels;
 ///
 /// UNCONFIRMED / NOT reproducible here: the pilot's displayed Name (e.g.
 /// "Enforcer Sine"), their ship's flavor name (e.g. "The Dance of the
-/// Vy'keen"), the 4 qualitative stat words (Intelligence/Mechanical
-/// Aptitude/Discipline/Respect for Command - shown as "Excellent"/"Above
-/// Average"/etc.), Confirmed Kills, and the flavor Notes line (e.g. "Cannot
-/// resist gravitino balls") are NOT stored as literal strings/numbers
-/// anywhere in the save. `GcPlayerSquadronConfig.PilotRankTraitRanges`
-/// (a min/max Vector2f per rank tier) strongly suggests these are rolled
-/// from TraitsSeed + PilotRank at render time, the same "generated from a
-/// seed, not stored" pattern as Frigate's auto-generated CustomName - but
-/// the exact word-tier thresholds, the Notes flavor-text pool, and the
+/// Vy'keen"), 4 qualitative stat ratings ("Excellent"/"Above Average"/etc.),
+/// Confirmed Kills, and the flavor Notes line (e.g. "Cannot resist gravitino
+/// balls") are NOT stored as literal strings/numbers anywhere in the save.
+///
+/// The 4 stat CATEGORIES themselves are also per-pilot, not fixed - user
+/// screenshotted all 4 slots on 2026-08-09 and each pilot showed a
+/// completely different set (e.g. "Intelligence/Mechanical Aptitude/
+/// Discipline/Respect for Command" vs "Reaction Speed/Leadership Potential/
+/// Adaptability/Eyesight" vs "Starship Management/Marksmanship/Empathy/
+/// Audacity"), drawn from a pool larger than 4 with some overlap between
+/// pilots (both "Intelligence" and "Marksmanship" recurred). Since all 4
+/// pilots in that save shared the same PilotRank (3/S), Rank can't be
+/// selecting the category set - TraitsSeed is the only remaining per-pilot
+/// value that varies and isn't already accounted for by NPCResource/
+/// ShipResource, making it the only real candidate for driving category
+/// selection too, not just the values within a fixed category set as
+/// originally assumed. Two pilots independently landed on the identical
+/// Notes text ("Vanishes between missions") despite having entirely
+/// different stat categories - suggests Notes is picked from its own
+/// separate, smaller pool rather than everything being locked to one seed
+/// roll together.
+///
+/// `GcPlayerSquadronConfig.PilotRankTraitRanges` (a min/max Vector2f per
+/// rank tier) strongly suggests numeric values are rolled from TraitsSeed +
+/// PilotRank at render time, the same "generated from a seed, not stored"
+/// pattern as Frigate's auto-generated CustomName - but the stat-category
+/// pool, the word-tier thresholds, the Notes flavor-text pool, and the
 /// name-generation logic itself weren't found in any decoded globals table
 /// (checked GcAISpaceshipGlobals in full).
 ///
