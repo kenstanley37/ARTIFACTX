@@ -116,7 +116,6 @@ public sealed partial class SquadronPage : Page
         NpcSeedEditBox.Text = "";
         RemoveUnlistedShipTypeItem();
         ShipTypeBox.SelectedIndex = -1;
-        ShipFilenameTxt.Text = "";
         ShipSeedEditBox.Text = "";
         TraitsSeedEditBox.Text = "";
     }
@@ -158,7 +157,6 @@ public sealed partial class SquadronPage : Page
             ShipTypeBox.Items.Insert(0, matchedShipType);
         }
         ShipTypeBox.SelectedItem = matchedShipType;
-        ShipFilenameTxt.Text = shipFilename;
 
         ShipSeedEditBox.Text = SaveSessionManager.GetValue(NmsSquadronPaths.ShipSeedPath(_selectedIndex))?.Value<string>() ?? "";
         TraitsSeedEditBox.Text = SaveSessionManager.GetValue(NmsSquadronPaths.TraitsSeedPath(_selectedIndex))?.Value<string>() ?? "";
@@ -198,7 +196,6 @@ public sealed partial class SquadronPage : Page
         if (string.Equals(newValue, current, StringComparison.OrdinalIgnoreCase)) return;
 
         SaveSessionManager.StageEdit(newValue, path);
-        ShipFilenameTxt.Text = newValue;
         PageResetBtn.Visibility = Visibility.Visible;
     }
 

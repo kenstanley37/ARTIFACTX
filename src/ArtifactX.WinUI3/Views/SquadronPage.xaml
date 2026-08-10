@@ -34,7 +34,12 @@
                     <StackPanel Spacing="18">
                         <CheckBox x:Name="UnlockedCheckBox" Content="Slot Unlocked" Click="UnlockedCheckBox_Click"/>
 
-                        <StackPanel Orientation="Horizontal" Spacing="32">
+                        <!-- WrapPanel, not a plain horizontal StackPanel - a
+                             fixed-orientation StackPanel doesn't reflow, so
+                             Ship Type was getting squeezed/truncated instead
+                             of dropping to its own row on a narrow window
+                             (2026-08-10 user report). -->
+                        <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
                             <StackPanel Spacing="6" Width="160">
                                 <TextBlock Text="Pilot Race" FontSize="12" Opacity="0.7"/>
                                 <ComboBox x:Name="RaceBox" Width="150" HorizontalAlignment="Left" SelectionChanged="RaceBox_SelectionChanged"/>
@@ -52,22 +57,27 @@
                                 <TextBlock Text="Ship Type" FontSize="12" Opacity="0.7"/>
                                 <ComboBox x:Name="ShipTypeBox" Width="230" HorizontalAlignment="Left" SelectionChanged="ShipTypeBox_SelectionChanged"
                                           ToolTipService.ToolTip="8 standard archetypes plus 8 reward-ship entries - only Horizon Vector NX and Starborn Phoenix are still inferred rather than save-confirmed. See NmsSquadronPaths for details."/>
-                                <TextBlock x:Name="ShipFilenameTxt" FontSize="10" Opacity="0.55" TextWrapping="Wrap" HorizontalAlignment="Left"/>
                             </StackPanel>
-                        </StackPanel>
+                        </ctcontrols:WrapPanel>
 
-                        <!-- WrapPanel, not a plain vertical StackPanel - these
-                             3 blocks used to stack in a single tall column
-                             regardless of window width, forcing a scroll even
-                             on a wide window (2026-08-09 user report). Each
-                             child keeps its own fixed Width so wrapping is
-                             predictable, same pattern as Frigate's Stats/
-                             Expedition Record WrapPanels. -->
+                        <!-- Each card's label+help-text sits in its own
+                             MinHeight block so the TextBox+Generate row below
+                             lines up across all 3 cards regardless of how
+                             many lines each one's help text wraps to (2026-
+                             08-10 user report - the "Generate" buttons were
+                             landing at different heights depending on text
+                             length). Not a Grid with shared row definitions
+                             (would align perfectly but can't reflow to fewer
+                             columns on a narrow window the way WrapPanel
+                             does) - MinHeight is the tradeoff that keeps
+                             both responsiveness and alignment. -->
                         <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
                             <StackPanel Spacing="6" Width="300">
-                                <TextBlock Text="Pilot Appearance Seed" FontSize="12" Opacity="0.7"/>
-                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" HorizontalAlignment="Left"
-                                           Text="Drives this pilot's procedural look. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
+                                <StackPanel Spacing="4" MinHeight="76">
+                                    <TextBlock Text="Pilot Appearance Seed" FontSize="12" Opacity="0.7"/>
+                                    <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" HorizontalAlignment="Left"
+                                               Text="Drives this pilot's procedural look. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
+                                </StackPanel>
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -79,10 +89,12 @@
                             </StackPanel>
 
                             <StackPanel Spacing="6" Width="300">
-                                <TextBlock Text="Pilot &amp; Ship Name Seed" FontSize="12" Opacity="0.7"
-                                           ToolTipService.ToolTip="Stored under the ship's own data (ShipResource), not a separate field - renamed from &quot;Ship Appearance Seed&quot; once testing showed it drives naming, not paint."/>
-                                <TextBlock FontSize="10" Opacity="0.85" TextWrapping="Wrap" HorizontalAlignment="Left" Foreground="#FFB800"
-                                           Text="CONFIRMED in-game: rerolls the pilot's Name AND the ship's flavor name together (e.g. &quot;Enforcer Sine&quot; / &quot;The Dance of the Vy'keen&quot; became &quot;Sentinel Hunter Meiz&quot; / &quot;AC5 Kochimej&quot; from a single regenerate). Doesn't touch the ship's paint/look, stats, Confirmed Kills, or Notes. You won't see the new name until you load into the game."/>
+                                <StackPanel Spacing="4" MinHeight="76">
+                                    <TextBlock Text="Pilot &amp; Ship Name Seed" FontSize="12" Opacity="0.7"
+                                               ToolTipService.ToolTip="Stored under the ship's own data (ShipResource), not a separate field - renamed from &quot;Ship Appearance Seed&quot; once testing showed it drives naming, not paint."/>
+                                    <TextBlock FontSize="10" Opacity="0.85" TextWrapping="Wrap" HorizontalAlignment="Left"
+                                               Text="Rerolls the pilot's Name AND the ship's flavor name together."/>
+                                </StackPanel>
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -94,9 +106,11 @@
                             </StackPanel>
 
                             <StackPanel Spacing="6" Width="300">
-                                <TextBlock Text="Pilot Traits Seed" FontSize="12" Opacity="0.7"/>
-                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" HorizontalAlignment="Left"
-                                           Text="CONFIRMED in-game: drives the pilot's 4 stat categories AND their ratings (the category set itself varies per pilot, not just the values), Confirmed Kills, and the Notes line. Does NOT affect the pilot's Name or the ship's flavor name - see Pilot &amp; Ship Name Seed for that."/>
+                                <StackPanel Spacing="4" MinHeight="76">
+                                    <TextBlock Text="Pilot Traits Seed" FontSize="12" Opacity="0.7"/>
+                                    <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" HorizontalAlignment="Left"
+                                               Text="Drives the pilot's 4 stat categories AND their ratings (the category set itself varies per pilot, not just the values), Confirmed Kills, and the Notes line."/>
+                                </StackPanel>
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
