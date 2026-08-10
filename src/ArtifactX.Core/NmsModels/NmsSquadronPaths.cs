@@ -78,8 +78,14 @@ namespace ArtifactX.Core.NmsModels;
 /// seed, not stored" pattern as Frigate's auto-generated CustomName - but
 /// the exact word-tier thresholds, the Notes flavor-text pool, and the
 /// name-generation logic itself weren't found in any decoded globals table
-/// (checked GcAISpaceshipGlobals in full). Writing has not been tested
-/// in-game at all yet - this is a first pass, reading-only confidence.
+/// (checked GcAISpaceshipGlobals in full).
+///
+/// WRITING ShipFilenamePath is CONFIRMED working (2026-08-09): user set all
+/// 4 pilots' Ship Type via the UI, reloaded in-game, and the Squadron
+/// Pilots screen showed the expected ship for each slot. Other fields
+/// (NpcFilenamePath, PilotRankPath, the 3 seed paths) haven't been
+/// individually write-tested yet, though there's no structural reason to
+/// expect them to behave differently.
 /// </summary>
 public static class NmsSquadronPaths
 {
