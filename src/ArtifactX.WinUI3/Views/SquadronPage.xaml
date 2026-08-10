@@ -83,9 +83,10 @@
                             </StackPanel>
 
                             <StackPanel Spacing="6" Width="300">
-                                <TextBlock Text="Ship Appearance Seed" FontSize="12" Opacity="0.7"/>
+                                <TextBlock Text="Pilot &amp; Ship Name Seed" FontSize="12" Opacity="0.7"
+                                           ToolTipService.ToolTip="Stored under the ship's own data (ShipResource), not a separate field - renamed from &quot;Ship Appearance Seed&quot; once testing showed it drives naming, not paint."/>
                                 <TextBlock FontSize="10" Opacity="0.85" TextWrapping="Wrap" HorizontalAlignment="Left" Foreground="#FFB800"
-                                           Text="CONFIRMED in-game: this does NOT just repaint the ship - it also rerolls the pilot's Name AND the ship's flavor name together (e.g. &quot;Enforcer Sine&quot; / &quot;The Dance of the Vy'keen&quot; became &quot;Sentinel Hunter Meiz&quot; / &quot;AC5 Kochimej&quot; from a single regenerate). Stats, Confirmed Kills, and Notes are untouched. You won't see any of it until you load into the game."/>
+                                           Text="CONFIRMED in-game: rerolls the pilot's Name AND the ship's flavor name together (e.g. &quot;Enforcer Sine&quot; / &quot;The Dance of the Vy'keen&quot; became &quot;Sentinel Hunter Meiz&quot; / &quot;AC5 Kochimej&quot; from a single regenerate). Doesn't touch the ship's paint/look, stats, Confirmed Kills, or Notes. You won't see the new name until you load into the game."/>
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -99,7 +100,7 @@
                             <StackPanel Spacing="6" Width="300">
                                 <TextBlock Text="Traits Seed" FontSize="12" Opacity="0.7"/>
                                 <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" HorizontalAlignment="Left"
-                                           Text="CONFIRMED in-game: drives the pilot's 4 stat categories AND their ratings (the category set itself varies per pilot, not just the values), Confirmed Kills, and the Notes line. Does NOT affect the pilot's Name or the ship's flavor name - see Ship Appearance Seed for that."/>
+                                           Text="CONFIRMED in-game: drives the pilot's 4 stat categories AND their ratings (the category set itself varies per pilot, not just the values), Confirmed Kills, and the Notes line. Does NOT affect the pilot's Name or the ship's flavor name - see Pilot &amp; Ship Name Seed for that."/>
                                 <controls:DevNoteTextBlock
                                            Text="The word/number thresholds and the stat-category pool this maps to weren't found in any decoded game data table, so ArtifactX can't preview what a regenerate changes to ahead of time."/>
                                 <Grid ColumnSpacing="8">

@@ -71,19 +71,19 @@ namespace ArtifactX.Core.NmsModels;
 /// EVERY generated field's real source is now fully mapped via live
 /// in-game write tests (2026-08-09), each isolated to one field at a time:
 ///
-///  - **ShipSeedPath ("Ship Appearance Seed") drives BOTH the pilot's
-///    displayed Name (e.g. "Enforcer Sine" -> "Sentinel Hunter Meiz") AND
-///    the ship's flavor name (e.g. "The Dance of the Vy'keen" -> "AC5
-///    Kochimej") together** - confirmed by regenerating ONLY this field and
-///    observing both change on reload, with stat categories/values/
-///    Confirmed Kills/Notes all staying identical. This was genuinely
-///    surprising - initially assumed (by analogy with Frigate's own
-///    ResourceSeed+Race+Class -> CustomName pattern) that NpcSeedPath would
-///    be the source, and separately that this field would affect only the
-///    ship's paint/look the way every other "Appearance Seed" in this app
-///    does. Neither assumption held. The UI's help text and Generate button
-///    for this field carry a real behavioral warning as a result - clicking
-///    Generate here rerolls identity, not just paint.
+///  - **ShipSeedPath drives BOTH the pilot's displayed Name (e.g. "Enforcer
+///    Sine" -> "Sentinel Hunter Meiz") AND the ship's flavor name (e.g.
+///    "The Dance of the Vy'keen" -> "AC5 Kochimej") together** - confirmed
+///    by regenerating ONLY this field and observing both change on reload,
+///    with stat categories/values/Confirmed Kills/Notes all staying
+///    identical. This was genuinely surprising - initially assumed (by
+///    analogy with Frigate's own ResourceSeed+Race+Class -> CustomName
+///    pattern) that NpcSeedPath would be the source, and separately that
+///    this field would affect only the ship's paint/look the way every
+///    other seed field in this app does. Neither assumption held. The UI
+///    label was renamed from "Ship Appearance Seed" to "Pilot &amp; Ship
+///    Name Seed" once this was confirmed, with a real behavioral warning
+///    attached - clicking Generate here rerolls identity, not paint.
 ///  - **TraitsSeedPath drives the 4 stat CATEGORIES (not just their
 ///    values), the qualitative ratings within them, Confirmed Kills, and
 ///    the flavor Notes line** - confirmed by regenerating only this field:
