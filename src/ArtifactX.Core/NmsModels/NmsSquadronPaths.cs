@@ -106,16 +106,29 @@ namespace ArtifactX.Core.NmsModels;
 ///    field touched), reloaded, and ALL of the stat categories, their
 ///    values, Confirmed Kills, and Notes changed - but the pilot's Name
 ///    ("Enforcer Haj") and the ship's flavor name ("Aegis of the Tawakka")
-///    did NOT change. This is a real, confirmed scope boundary, not
-///    inference: TraitsSeed drives stat categories/values/Confirmed Kills/
-///    Notes, but NOT Name or ship flavor name - those must come from some
-///    other field (NpcFilenamePath/NpcSeedPath are the remaining untested
-///    candidates; Frigate's own CustomName-when-empty is generated from
-///    ResourceSeed+Race+Class, a plausible parallel worth testing here by
-///    regenerating NpcSeedPath alone and checking whether Name changes).
-/// NpcFilenamePath, NpcSeedPath, PilotRankPath, and ShipSeedPath remain
-/// individually write-untested, though there's no structural reason to
-/// expect them to behave differently from the 2 confirmed above.
+///    did NOT change. Confirmed scope boundary, not inference: TraitsSeed
+///    drives stat categories/values/Confirmed Kills/Notes, but NOT Name or
+///    ship flavor name.
+///  - NpcSeedPath: user then regenerated slot 1's Pilot Appearance Seed
+///    alone, reloaded, and the pilot's visual appearance changed (armor
+///    colour/style) - but Name ("Enforcer Sine"), ship flavor name ("The
+///    Dance of the Vy'keen"), stat categories, values, Confirmed Kills
+///    (199), and Notes ("Cannot resist gravitino balls") were all
+///    UNCHANGED from the original. This rules out the one remaining
+///    plausible candidate (the Frigate ResourceSeed+Race+Class parallel
+///    theorized after the TraitsSeed test) - NpcSeedPath only drives
+///    appearance, nothing textual.
+///
+/// With both real per-pilot seed fields now tested and ruled out, nothing
+/// in this app's editable field set appears to drive Name/ship flavor name
+/// generation - the remaining untested fields (NpcFilenamePath/Race,
+/// PilotRankPath, ShipSeedPath) are all either shared across pilots or
+/// already confirmed to affect only appearance/stats, making them poor
+/// remaining candidates too. Most likely explanation: the name is either
+/// tied to the pilot SLOT INDEX itself (a fixed identity per slot,
+/// independent of any editable data) or derived from something entirely
+/// outside this save's visible schema. Not planning further live tests on
+/// this specific question without a new concrete lead.
 /// </summary>
 public static class NmsSquadronPaths
 {
