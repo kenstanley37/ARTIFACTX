@@ -66,69 +66,63 @@ namespace ArtifactX.Core.NmsModels;
 /// hex] pair the way the two resource seeds are) - stored as a bare hex
 /// string directly in JSON.
 ///
-/// UNCONFIRMED / NOT reproducible here: the pilot's displayed Name (e.g.
-/// "Enforcer Sine"), their ship's flavor name (e.g. "The Dance of the
-/// Vy'keen"), 4 qualitative stat ratings ("Excellent"/"Above Average"/etc.),
-/// Confirmed Kills, and the flavor Notes line (e.g. "Cannot resist gravitino
-/// balls") are NOT stored as literal strings/numbers anywhere in the save.
+/// NOT reproducible/previewable here (no matching table decoded, so
+/// ArtifactX can't show what a given seed will produce ahead of time) but
+/// EVERY generated field's real source is now fully mapped via live
+/// in-game write tests (2026-08-09), each isolated to one field at a time:
 ///
-/// The 4 stat CATEGORIES themselves are also per-pilot, not fixed - user
-/// screenshotted all 4 slots on 2026-08-09 and each pilot showed a
-/// completely different set (e.g. "Intelligence/Mechanical Aptitude/
-/// Discipline/Respect for Command" vs "Reaction Speed/Leadership Potential/
-/// Adaptability/Eyesight" vs "Starship Management/Marksmanship/Empathy/
-/// Audacity"), drawn from a pool larger than 4 with some overlap between
-/// pilots (both "Intelligence" and "Marksmanship" recurred). Since all 4
-/// pilots in that save shared the same PilotRank (3/S), Rank can't be
-/// selecting the category set - TraitsSeed is the only remaining per-pilot
-/// value that varies and isn't already accounted for by NPCResource/
-/// ShipResource, making it the only real candidate for driving category
-/// selection too, not just the values within a fixed category set as
-/// originally assumed. Two pilots independently landed on the identical
-/// Notes text ("Vanishes between missions") despite having entirely
-/// different stat categories - suggests Notes is picked from its own
-/// separate, smaller pool rather than everything being locked to one seed
-/// roll together.
+///  - **ShipSeedPath ("Ship Appearance Seed") drives BOTH the pilot's
+///    displayed Name (e.g. "Enforcer Sine" -> "Sentinel Hunter Meiz") AND
+///    the ship's flavor name (e.g. "The Dance of the Vy'keen" -> "AC5
+///    Kochimej") together** - confirmed by regenerating ONLY this field and
+///    observing both change on reload, with stat categories/values/
+///    Confirmed Kills/Notes all staying identical. This was genuinely
+///    surprising - initially assumed (by analogy with Frigate's own
+///    ResourceSeed+Race+Class -> CustomName pattern) that NpcSeedPath would
+///    be the source, and separately that this field would affect only the
+///    ship's paint/look the way every other "Appearance Seed" in this app
+///    does. Neither assumption held. The UI's help text and Generate button
+///    for this field carry a real behavioral warning as a result - clicking
+///    Generate here rerolls identity, not just paint.
+///  - **TraitsSeedPath drives the 4 stat CATEGORIES (not just their
+///    values), the qualitative ratings within them, Confirmed Kills, and
+///    the flavor Notes line** - confirmed by regenerating only this field:
+///    all of the above changed, Name/ship flavor name did not. The category
+///    SET itself varies per pilot (not a fixed 4, e.g. "Intelligence/
+///    Mechanical Aptitude/Discipline/Respect for Command" vs "Reaction
+///    Speed/Leadership Potential/Adaptability/Eyesight" vs "Starship
+///    Management/Marksmanship/Empathy/Audacity", drawn from a pool larger
+///    than 4 with some overlap between pilots) - first spotted by the user
+///    screenshotting all 4 pilots in one squadron and noticing the category
+///    names themselves differed, not just their word-values. Two pilots
+///    separately landed on the identical Notes text ("Vanishes between
+///    missions") despite entirely different stat categories, suggesting
+///    Notes draws from its own smaller pool rather than one seed roll
+///    locking every text field together.
+///  - **NpcSeedPath ("Pilot Appearance Seed") drives ONLY the pilot's
+///    visual look** (confirmed: regenerating it changed armour colour/style
+///    on reload, with Name, ship flavor name, stats, and Notes all
+///    unchanged) - narrower in scope than either of the two seeds above,
+///    despite being the one most naturally guessed as the "identity" seed
+///    by analogy with other pages in this app.
+///  - **ShipFilenamePath ("Ship Type") drives the ship's model**, confirmed
+///    by setting all 4 pilots' Ship Type via the UI and seeing the expected
+///    hull on reload for each slot.
 ///
 /// `GcPlayerSquadronConfig.PilotRankTraitRanges` (a min/max Vector2f per
-/// rank tier) strongly suggests numeric values are rolled from TraitsSeed +
-/// PilotRank at render time, the same "generated from a seed, not stored"
-/// pattern as Frigate's auto-generated CustomName - but the stat-category
-/// pool, the word-tier thresholds, the Notes flavor-text pool, and the
-/// name-generation logic itself weren't found in any decoded globals table
-/// (checked GcAISpaceshipGlobals in full).
+/// rank tier) still explains WHY numeric stat values are gated by rank, but
+/// the stat-category pool, word-tier thresholds, Notes flavor-text pool,
+/// and the actual Name/ship-flavor-name generation algorithm itself were
+/// never found in any decoded globals table (checked GcAISpaceshipGlobals
+/// in full) - WHICH field drives what is now fully confirmed live, HOW the
+/// game turns a seed into specific text remains entirely opaque, the same
+/// "generated from a seed, not stored, not decodable" ceiling every other
+/// procedural name in this app hits (Frigate's own auto-generated
+/// CustomName included).
 ///
-/// WRITING is CONFIRMED working for 2 fields so far (2026-08-09):
-///  - ShipFilenamePath: user set all 4 pilots' Ship Type via the UI,
-///    reloaded in-game, and the Squadron Pilots screen showed the expected
-///    ship for each slot.
-///  - TraitsSeedPath: user regenerated slot 2's TraitsSeed alone (no other
-///    field touched), reloaded, and ALL of the stat categories, their
-///    values, Confirmed Kills, and Notes changed - but the pilot's Name
-///    ("Enforcer Haj") and the ship's flavor name ("Aegis of the Tawakka")
-///    did NOT change. Confirmed scope boundary, not inference: TraitsSeed
-///    drives stat categories/values/Confirmed Kills/Notes, but NOT Name or
-///    ship flavor name.
-///  - NpcSeedPath: user then regenerated slot 1's Pilot Appearance Seed
-///    alone, reloaded, and the pilot's visual appearance changed (armor
-///    colour/style) - but Name ("Enforcer Sine"), ship flavor name ("The
-///    Dance of the Vy'keen"), stat categories, values, Confirmed Kills
-///    (199), and Notes ("Cannot resist gravitino balls") were all
-///    UNCHANGED from the original. This rules out the one remaining
-///    plausible candidate (the Frigate ResourceSeed+Race+Class parallel
-///    theorized after the TraitsSeed test) - NpcSeedPath only drives
-///    appearance, nothing textual.
-///
-/// With both real per-pilot seed fields now tested and ruled out, nothing
-/// in this app's editable field set appears to drive Name/ship flavor name
-/// generation - the remaining untested fields (NpcFilenamePath/Race,
-/// PilotRankPath, ShipSeedPath) are all either shared across pilots or
-/// already confirmed to affect only appearance/stats, making them poor
-/// remaining candidates too. Most likely explanation: the name is either
-/// tied to the pilot SLOT INDEX itself (a fixed identity per slot,
-/// independent of any editable data) or derived from something entirely
-/// outside this save's visible schema. Not planning further live tests on
-/// this specific question without a new concrete lead.
+/// PilotRankPath has not been individually write-tested yet, though
+/// there's no structural reason to expect it to behave differently from
+/// the 4 fields confirmed above.
 /// </summary>
 public static class NmsSquadronPaths
 {
@@ -156,6 +150,12 @@ public static class NmsSquadronPaths
     /// real full valid-value range.</summary>
     public static string[] ShipFilenamePath(int slotIndex) => PilotPath(slotIndex).Append(":dY").Append("93M").ToArray();
 
+    /// <summary>CONFIRMED (2026-08-09 live write test) to drive BOTH the
+    /// pilot's displayed Name and the ship's flavor name together, NOT the
+    /// ship's paint/look the way every other "Appearance Seed" in this app
+    /// does - see this class's own doc comment for the full test. Surprising
+    /// enough that the UI's help text for this field carries an explicit
+    /// warning; don't revert that wording without re-verifying in-game.</summary>
     public static string[] ShipSeedPath(int slotIndex) => PilotPath(slotIndex).Append(":dY").Append("@EL").Append("1").ToArray();
 
     /// <summary>Plain ulong, stored as a bare hex string - NOT a [hasValue,
