@@ -4,7 +4,6 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
-    xmlns:controls="using:ArtifactX.WinUI3.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
@@ -118,8 +117,6 @@
                         <TextBlock Text="Seed" FontSize="12" Opacity="0.7"/>
                         <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
                                    Text="Drives this pet's pattern/texture (markings, scale/fur style) and, while Color Override below is off, its color too. Generate rolls a fresh value into both of this pet's active color-seed slots together (they were always found mirrored on real saves); paste a seed you've found elsewhere to set just the primary one."/>
-                        <controls:DevNoteTextBlock MaxWidth="700"
-                                   Text="Confirmed via real testing that body shape and Battle Abilities grades stay the same after a reroll either way. Whether this still affects pattern once Color Override is active is untested."/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBox x:Name="SeedEditBox" Width="220" LostFocus="SeedEditBox_LostFocus"/>
                             <Button Content="Generate" Click="GenerateSeedBtn_Click"/>
@@ -130,8 +127,6 @@
                         <TextBlock Text="Color Override Seed" FontSize="12" Opacity="0.7"/>
                         <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
                                    Text="Overrides ONLY the primary Seed's contribution to color while Active is checked, leaving pattern/texture untouched. Dormant on every wild-tamed pet until turned on - regenerating this while Active is unchecked has no visible effect. Generate activates it and rolls a fresh value; unchecking Active goes back to the primary Seed's own color."/>
-                        <controls:DevNoteTextBlock MaxWidth="700"
-                                   Text="Confirmed via real testing: isolated with the primary Seed held fixed, three separate freshly generated override hexes each rendered a clearly different color on the exact same pattern."/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <CheckBox x:Name="ColourBaseSeedActiveCheckBox" Content="Active" Click="ColourBaseSeedActiveCheckBox_Click"/>
                             <TextBox x:Name="ColourBaseSeedEditBox" Width="220" LostFocus="ColourBaseSeedEditBox_LostFocus"/>
@@ -143,8 +138,6 @@
                         <TextBlock Text="Battle Ability Seeds" FontSize="12" Opacity="0.7"/>
                         <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
                                    Text="Two co-inputs that together drive the in-game Battle Abilities badges (Combat Effectiveness/Agility/Health grades) AND the fancy auto-generated species name shown in-game - changing either one alone shifts both the name and all three badges. Distinct from the color Seed above, which does not touch either of these."/>
-                        <controls:DevNoteTextBlock MaxWidth="700"
-                                   Text="Both confirmed via real reroll-and-revert testing. A third candidate field (5L6) was also tested in isolation and confirmed NOT to be part of this roll."/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBox x:Name="BattleAbilitySeedEditBox" Width="220" LostFocus="BattleAbilitySeedEditBox_LostFocus"/>
                             <Button Content="Generate" Click="GenerateBattleAbilitySeedBtn_Click"/>
@@ -160,8 +153,6 @@
                             <TextBlock Text="Battle Ability Override" FontSize="12" Opacity="0.7"/>
                             <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
                                        Text="When Override Active is checked, the Battle Abilities badges are read directly from the Class Letters below instead of the Battle Ability Seeds above. Unchecked (the default on every wild-tamed pet) leaves the badges driven by the Seeds, and these letters sit dormant - disabled below so it's clear they don't do anything while Override Active is off, no matter what they say. Display order here is Health/Agility/Combat, NOT the Agility/Health/Combat order used above and in Genetic Profile below."/>
-                            <controls:DevNoteTextBlock MaxWidth="700"
-                                       Text="Both behaviors confirmed via real in-game testing."/>
                             <CheckBox x:Name="ClassLetterOverrideActiveCheckBox" Content="Override Active" Click="ClassLetterOverrideActiveCheckBox_Click"/>
                             <StackPanel Orientation="Horizontal" Spacing="32">
                                 <StackPanel Spacing="6" Width="160">
@@ -223,8 +214,6 @@
                             <TextBlock Text="Body-Part Descriptors (osl)" FontSize="12" Opacity="0.7"/>
                             <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="820"
                                        Text="Each row below swaps ONE part for another valid option from that same slot, leaving every other entry untouched. On some species, one row is labeled &quot;- ARCHETYPE&quot; and behaves differently - since it decides which OTHER slots even apply, changing it rebuilds every row below from scratch using a default pick for each new slot, rather than swapping in place; this specific behavior hasn't been tested in-game yet, so save and check carefully before trusting the result. Most species don't have one of these at all (their slots - e.g. Head/Body/Tail - are independent of each other, so every row there is an ordinary same-slot swap). Dropdown labels are cleaned-up versions of the game's own internal part codes (e.g. &quot;_HEAD_TURTLE&quot; shows as &quot;Turtle&quot;) - the game has no separate friendly name for these, so hover any option to see its exact raw code. Some slots (mostly small accessories) genuinely have no descriptive name at all in the game's own data, only numbered variants - those show as &quot;Variant 1&quot;, &quot;Variant 2&quot;, etc. rather than a made-up name. A row with no dropdown is a value that doesn't match any known catalog option (e.g. the trailing per-instance detail seed) and isn't editable here."/>
-                            <controls:DevNoteTextBlock MaxWidth="820"
-                                       Text="Confirmed 2026-07-28 that this pet's body composition is a recursive per-species option tree (e.g. Head/Body/Tail, some of which branch further, like Head=Alien opening its own Eyes/Antennas choices) rather than a flat list - decoded straight from the game's own creature rig files. Confirmed working via a real save+reload test (2026-07-29): swapping several rows at once (Head/Ears/Acc/Body/Back/Tail) and reloading in-game rendered every new part correctly, with no change to Species name, Rarity, Trust, Traits, Mutation Progress, Battle Abilities, or Holo-Arena Victories."/>
                             <StackPanel x:Name="DescriptorsPanel" Spacing="10"/>
                         </StackPanel>
                     </Border>
@@ -233,8 +222,6 @@
                         <TextBlock Text="Advanced Fields (Unconfirmed Purpose)" FontSize="14" FontWeight="SemiBold"/>
                         <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="820"
                                    Text="Every other raw field on this pet with no confirmed in-game effect yet - edit one at a time and check in-game what changes, if anything."/>
-                        <controls:DevNoteTextBlock MaxWidth="820"
-                                   Text="Unknown Hex (5L6) is confirmed NOT to drive the Battle Abilities badges; everything here is otherwise completely unconfirmed, including whether it does anything at all."/>
                         <StackPanel x:Name="AdvancedFieldsPanel" Spacing="10"/>
                     </StackPanel>
                 </StackPanel>

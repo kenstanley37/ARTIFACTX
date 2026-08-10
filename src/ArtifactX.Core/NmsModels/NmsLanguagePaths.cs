@@ -34,6 +34,12 @@ namespace ArtifactX.Core.NmsModels;
 /// words per race exist in the full vocabulary (Atlas's own pool is smaller,
 /// ~262); a given save's actual known subset is normally a small fraction of
 /// that (e.g. 21-140 in a real mid-progress save).
+///
+/// That 5-word diff also matched the account's own Words Learned count
+/// precisely, corroborating this is really the same list that stat tracks.
+/// WRITING through ArtifactX itself hasn't been round-trip-checked in-game
+/// the way the Catalogue page's known-technology write was - worth a quick
+/// check after a real edit here.
 /// </summary>
 public static class NmsLanguagePaths
 {

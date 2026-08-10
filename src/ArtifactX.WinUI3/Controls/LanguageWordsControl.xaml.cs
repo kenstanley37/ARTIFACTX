@@ -56,7 +56,6 @@ public sealed partial class LanguageWordsControl : UserControl
 
         TitleTxt.Text = $"{raceName} Language";
         InfoTxt.Text = $"This save's known {raceName} vocabulary. Names come from the game's own text table. Shares one list with every other language page (Gek/Vy'keen/Korvax/Autophage/Atlas) - Reset reverts every one of them's unsaved changes, not just {raceName}'s.";
-        InfoDevNoteTxt.Text = "Confirmed real via a controlled test: marking 5 words known through a reference tool grew this exact list by exactly 5 entries, matching the account's Words Learned count precisely. Writing through ArtifactX itself hasn't been round-trip-checked in-game yet the way the Catalogue page was - worth a quick check after your first edit here.";
 
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         SaveSessionManager.PendingEditsChanged += OnPendingEditsChanged;

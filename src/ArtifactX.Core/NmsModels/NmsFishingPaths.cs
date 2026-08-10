@@ -24,6 +24,12 @@ namespace ArtifactX.Core.NmsModels;
 /// list from the F_<biome>_<quality>_<size> id convention alone undercounted
 /// by ~10 against this same save's real 220 entries) is extracted into the
 /// catalog DB by DataCataloger's `add-fish-records` command.
+///
+/// WRITING confirmed (2026-08-05, real save/reload test): marking a species
+/// caught here made it appear fully revealed on the in-game Catalog &amp;
+/// Guide -&gt; Fishing Records screen, where it was previously shown as a
+/// silhouette. The catch count/size written isn't guaranteed to match what
+/// a real catch would have recorded - only the reveal itself was confirmed.
 /// </summary>
 public static class NmsFishingPaths
 {

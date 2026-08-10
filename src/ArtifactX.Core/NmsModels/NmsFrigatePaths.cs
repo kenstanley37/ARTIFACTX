@@ -162,7 +162,9 @@ public static class NmsFrigatePaths
     /// Like Perks, this array is declared unbounded (List&lt;NMSString0x10&gt;
     /// in libMBIN, no Size attribute) even though every sampled frigate had
     /// exactly 5 - don't assume that's an enforced cap without a growth test
-    /// (see Settlement Perks' own history of getting this wrong).</summary>
+    /// (see Settlement Perks' own history of getting this wrong). In the UI
+    /// each row is one array entry; an empty entry (bare "^") shows as
+    /// "(None)" in its dropdown.</summary>
     public static string[] TraitIDsPath(int frigateIndex) => FrigatePath(frigateIndex).Append("Mjm").ToArray();
 
     /// <summary>The whole 11-entry Stats array (Combat/Exploration/Mining/
