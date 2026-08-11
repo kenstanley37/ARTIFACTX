@@ -22,7 +22,21 @@
                         Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
             </Grid>
 
-            <StackPanel Spacing="20" HorizontalAlignment="Stretch">
+            <!-- Shown instead of ContentPanel when the player doesn't own a
+                 freighter yet - confirmed 2026-08-11 via a real before/after
+                 save diff (user placed one storage container and got their
+                 first freighter): the ";Du" (FleetFrigates) array already had
+                 one fully-rolled-looking entry on a save with zero real
+                 progress, but every field on it stayed byte-for-byte frozen
+                 across the diff EXCEPT Crew Race, which only changed once the
+                 freighter's own hull scene path (bIR.93M) went from empty to
+                 real - frigates are commanded from your freighter, so you
+                 can't have a real one without owning one either. -->
+            <TextBlock x:Name="NoFreighterTxt" FontSize="14" Opacity="0.7" TextWrapping="Wrap"
+                       MaxWidth="600" HorizontalAlignment="Left" Visibility="Collapsed"
+                       Text="You don't own a freighter yet, so you don't have a Frigate Fleet to manage. Buy or claim a freighter in-game, then come back here."/>
+
+            <StackPanel x:Name="ContentPanel" Spacing="20" HorizontalAlignment="Stretch">
                 <TextBlock Text="Owned Frigates" FontSize="14" Opacity="0.8"/>
                 <ScrollViewer MaxHeight="104" VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">

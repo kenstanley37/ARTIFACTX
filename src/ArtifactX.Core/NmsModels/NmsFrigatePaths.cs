@@ -7,9 +7,24 @@ namespace ArtifactX.Core.NmsModels;
 /// in-game "Frigate List" screen). Unlike Settlements' GQA array, this list
 /// (;Du, under the same vLc/6f= container as GQA/nlG) is NOT shared with
 /// other players - it's a plain, directly-owned `List&lt;GcFleetFrigateSaveData&gt;`
-/// with no ownership filter needed, confirmed at vLc/6f=/;Du by parsing a
-/// real save's full JSON and searching for the literal key (not just
-/// guessed by position).
+/// with no per-entry ownership filter needed, confirmed at vLc/6f=/;Du by
+/// parsing a real save's full JSON and searching for the literal key (not
+/// just guessed by position).
+///
+/// BUT the array itself isn't a reliable "do I have any frigates" signal on
+/// its own - confirmed 2026-08-11 via a real before/after save diff on a
+/// fresh save (see [[project_fresh_save_bug_sweep]]): a genuinely
+/// zero-progress save already had ONE fully-rolled-looking ;Du entry
+/// (real ResourceSeed/HomeSystemSeed, real Stats, one real Trait), and
+/// GcFleetFrigateSaveData has no ownership/recruited boolean field at all to
+/// gate on structurally. After the user got their first freighter in-game
+/// (a rescued PirateFreighter), that SAME entry's Crew Race changed -
+/// nothing else did (identical seeds/stats/trait/name) - while the
+/// freighter's own hull scene path (NmsInventoryContainer.FreighterTypePath,
+/// "bIR.93M") went from empty to real in the same diff window. Frigates are
+/// commanded from your freighter, so FrigatePage now gates its whole content
+/// behind the same freighter-ownership check as FreighterPage
+/// (FrigatePage.HasFreighter()) rather than trusting ;Du's mere presence.
 ///
 /// Field map CONFIRMED (2026-07-30) via exact positional cross-reference
 /// against libMBIN's GcFleetFrigateSaveData (16 fields, JSON key order

@@ -69,6 +69,12 @@ public sealed partial class FrigatePage : Page
         SaveSessionManager.PendingEditsChanged -= OnSessionOrEditsChanged;
     }
 
+    /// <summary>Same ownership check as FreighterPage's HasFreighter() - see
+    /// this page's own NoFreighterTxt comment for why FleetFrigates entries
+    /// aren't trustworthy on their own.</summary>
+    private static bool HasFreighter() =>
+        !string.IsNullOrEmpty(SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>());
+
     private void LoadFrigateList()
     {
         if (!SaveSessionManager.IsSaveLoaded)
@@ -79,6 +85,20 @@ public sealed partial class FrigatePage : Page
             ClearFields();
             return;
         }
+
+        if (!HasFreighter())
+        {
+            _frigates = new();
+            _selectedIndex = -1;
+            FrigateSelectorPanel.Children.Clear();
+            ClearFields();
+            NoFreighterTxt.Visibility = Visibility.Visible;
+            ContentPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        NoFreighterTxt.Visibility = Visibility.Collapsed;
+        ContentPanel.Visibility = Visibility.Visible;
 
         if (SaveSessionManager.GetValue(NmsFrigatePaths.FrigateArrayPath) is not JArray array)
             return;
