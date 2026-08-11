@@ -132,7 +132,7 @@
                                     <Button Content="Save Current..." Click="SaveAsFullBuildTemplateBtn_Click" FontSize="11" Padding="8,3,8,3"/>
                                 </StackPanel>
                                 <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                           Text="Also captures Base Stats alongside the tech stack - for cloning a whole build onto another tool. (Multi-Tools don't have an exposed appearance Seed on this page, unlike Ships/Freighter.)"/>
+                                           Text="Also captures Base Stats and Type alongside the tech stack - for cloning a whole build onto another tool. (Multi-Tools don't have an exposed appearance Seed on this page, unlike Ships/Freighter.)"/>
                                 <StackPanel x:Name="FullBuildTemplatesListPanel" Spacing="8"/>
                             </StackPanel>
                         </StackPanel>

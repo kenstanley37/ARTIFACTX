@@ -149,7 +149,7 @@
                                     <Button Content="Save Current..." Click="SaveAsFullBuildTemplateBtn_Click" FontSize="11" Padding="8,3,8,3"/>
                                 </StackPanel>
                                 <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                           Text="Also captures Base Stats and the appearance Seed alongside the tech stack - for cloning a whole build onto another ship. Still never touches Cargo or Name."/>
+                                           Text="Also captures Base Stats, Type, and the appearance Seed alongside the tech stack - for cloning a whole build (including which ship model it is, e.g. a reward ship) onto another ship. Still never touches Cargo or Name."/>
                                 <StackPanel x:Name="FullBuildTemplatesListPanel" Spacing="8"/>
                             </StackPanel>
                         </StackPanel>
@@ -171,6 +171,14 @@
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="Class" Opacity="0.7" VerticalAlignment="Center"/>
                                 <StackPanel x:Name="ClassSelectorPanel" Orientation="Horizontal" Spacing="6"/>
+                            </StackPanel>
+
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Type" FontSize="12" Opacity="0.7"/>
+                                <ComboBox x:Name="TypeComboBox" Width="260"
+                                          DisplayMemberPath="DisplayName"
+                                          SelectionChanged="TypeComboBox_SelectionChanged"
+                                          ToolTipService.ToolTip="8 standard archetypes plus 8 reward-ship entries - only Horizon Vector NX and Starborn Phoenix are still inferred rather than save-confirmed. See StarshipTypes for details."/>
                             </StackPanel>
 
                             <StackPanel Spacing="6">

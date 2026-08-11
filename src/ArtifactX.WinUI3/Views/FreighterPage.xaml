@@ -148,7 +148,7 @@
                                     <Button Content="Save Current..." Click="SaveAsFullBuildTemplateBtn_Click" FontSize="11" Padding="8,3,8,3"/>
                                 </StackPanel>
                                 <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                           Text="Also captures Base Stats and the hull's Model Seed alongside the tech stack - for cloning a whole build onto another save's freighter. Still never touches Cargo, Name, or Crew."/>
+                                           Text="Also captures Base Stats, Type, and the hull's Model Seed alongside the tech stack - for cloning a whole build onto another save's freighter. Still never touches Cargo, Name, or Crew."/>
                                 <StackPanel x:Name="FullBuildTemplatesListPanel" Spacing="8"/>
                             </StackPanel>
                         </StackPanel>

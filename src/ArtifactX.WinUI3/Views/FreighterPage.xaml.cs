@@ -659,6 +659,7 @@ public sealed partial class FreighterPage : Page
         // Crew Seed (the captain's look, a separate concept), matching
         // NmsLoadoutTemplate.Seed's own doc comment.
         template.Seed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>();
+        template.TypeScenePath = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>();
 
         await LoadoutTemplateService.SaveAsync(template);
         await RefreshFullBuildTemplatesListAsync();
@@ -804,6 +805,8 @@ public sealed partial class FreighterPage : Page
         ApplyStatsList(template.Stats);
         if (!string.IsNullOrEmpty(template.Seed))
             SaveSessionManager.StageEdit(template.Seed, NmsInventoryContainer.FreighterModelSeedPath);
+        if (!string.IsNullOrEmpty(template.TypeScenePath))
+            SaveSessionManager.StageEdit(template.TypeScenePath, NmsInventoryContainer.FreighterTypePath);
 
         PageResetBtn.Visibility = Visibility.Visible;
         LoadGrids();
@@ -850,7 +853,7 @@ public sealed partial class FreighterPage : Page
         {
             TextWrapping = TextWrapping.Wrap,
             Text = includesStatsAndSeed
-                ? $"This replaces your freighter's entire tech loadout, base stats, and appearance seed with {sourceLabel}."
+                ? $"This replaces your freighter's entire tech loadout, base stats, Type, and appearance seed with {sourceLabel}."
                 : $"This replaces your freighter's entire tech loadout with {sourceLabel}."
         });
 

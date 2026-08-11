@@ -58,6 +58,19 @@ public sealed class NmsLoadoutTemplate
     /// looks, not its identity. Null for "TechStack" templates.</summary>
     public string? Seed { get; set; }
 
+    /// <summary>Only meaningful when Scope == "FullBuild" - the source's
+    /// Type/model scene path (NTx.93M or equivalent). Added 2026-08-12 after
+    /// a real reported bug: applying a Ship Full Build template captured for
+    /// a reward ship (Golden Vector) restored its Tech/Stats/Seed but left
+    /// the TARGET ship's own existing model completely untouched, since
+    /// nothing on this class captured Type at all - Seed only varies the
+    /// procedural paint/details WITHIN a model, it doesn't select WHICH
+    /// model renders. Null for "TechStack" templates, or for a "FullBuild"
+    /// template saved before this field existed (no migration needed - such
+    /// a template just won't touch Type when applied, same as it always
+    /// silently didn't).</summary>
+    public string? TypeScenePath { get; set; }
+
     public List<NmsLoadoutTechItem> TechItems { get; set; } = new();
     public List<NmsLoadoutPosition> UnlockedPositions { get; set; } = new();
 }

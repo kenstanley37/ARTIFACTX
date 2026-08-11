@@ -3,6 +3,7 @@ using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using ArtifactX.Almanac.Starship;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
@@ -49,6 +50,14 @@ public sealed partial class ShipsPage : Page
     // per page lifetime from the catalog - see StarshipCapacity for why these
     // numbers live in the database instead of being hardcoded here.
     private Dictionary<string, int>? _shipCapacity;
+
+    // Type option list (which physical model this ship is - Fighter/Explorer/
+    // Golden Vector/etc.) - a page-local mutable COPY of the static
+    // StarshipTypes.All, never the shared list itself, since a synthetic
+    // "(Current - not in known list)" entry may need inserting/removing per
+    // selected ship (same pattern as SquadronPage's own Ship Type dropdown).
+    private List<StarshipTypeInfo>? _shipTypeOptions;
+    private bool _suppressTypeSelectionEvent;
 
     public ShipsPage()
     {
@@ -248,6 +257,8 @@ public sealed partial class ShipsPage : Page
 
     private async void LoadSelectedShip()
     {
+        SyncTypeComboBox();
+
         if (_selectedIndex < 0)
         {
             _techViewModel = null;
@@ -322,6 +333,70 @@ public sealed partial class ShipsPage : Page
         NameEditBox.Text = selectedShip.Name;
         SeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.ShipModelSeedPath(_selectedIndex))?.Value<string>() ?? "";
         UpdateStatDisplay();
+    }
+
+    private const string UnlistedShipTypeLabel = "(Current - not in known list)";
+
+    /// <summary>Reads the selected ship's model scene path and syncs
+    /// TypeComboBox to it - same idea as SquadronPage's own Ship Type
+    /// dropdown (synthetic "current" entry for a ship outside the known
+    /// list), but built as a fresh list every call rather than mutating a
+    /// shared one: `_shipTypeOptions` is never touched after its first
+    /// assignment, and the actual bound list (with an unlisted entry
+    /// prepended when needed) is a new object each time, so ComboBox always
+    /// sees a real reference change and re-renders reliably. Purely
+    /// synchronous, unlike MultiTool/Freighter's catalog-backed Type combos -
+    /// StarshipTypes.All is a small static in-code list, no DB round trip
+    /// needed. Added 2026-08-12 - this page never had a Type control at all
+    /// before, which was the real cause of a reported bug: applying a Full
+    /// Build template captured from a reward ship (Golden Vector) could
+    /// never actually restore its look, since nothing on this page could
+    /// write the model scene path in the first place.</summary>
+    private void SyncTypeComboBox()
+    {
+        _suppressTypeSelectionEvent = true;
+
+        _shipTypeOptions ??= StarshipTypes.All.ToList();
+
+        if (_selectedIndex < 0)
+        {
+            TypeComboBox.ItemsSource = _shipTypeOptions;
+            TypeComboBox.SelectedItem = null;
+            _suppressTypeSelectionEvent = false;
+            return;
+        }
+
+        string? currentPath = SaveSessionManager.GetValue(
+            "vLc", "6f=", "@Cs", _selectedIndex.ToString(), "NTx", "93M")?.Value<string>();
+
+        var matched = _shipTypeOptions.FirstOrDefault(t =>
+            string.Equals(t.ScenePath, currentPath, StringComparison.OrdinalIgnoreCase));
+
+        // Real saves commonly have ships outside the known list (see
+        // StarshipTypes' own doc comment on how incomplete it still is) - a
+        // synthetic, always-first placeholder keeps the current value
+        // visible and selected without silently overwriting it the moment
+        // the dropdown renders, same as SquadronPage's identical situation.
+        List<StarshipTypeInfo> boundOptions = _shipTypeOptions;
+        if (matched is null && !string.IsNullOrEmpty(currentPath))
+        {
+            matched = new StarshipTypeInfo(UnlistedShipTypeLabel, currentPath);
+            boundOptions = new List<StarshipTypeInfo> { matched }.Concat(_shipTypeOptions).ToList();
+        }
+
+        TypeComboBox.ItemsSource = boundOptions;
+        TypeComboBox.SelectedItem = matched;
+
+        _suppressTypeSelectionEvent = false;
+    }
+
+    private void TypeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressTypeSelectionEvent || _selectedIndex < 0) return;
+        if (TypeComboBox.SelectedItem is not StarshipTypeInfo type) return;
+
+        SaveSessionManager.StageEdit(type.ScenePath, "vLc", "6f=", "@Cs", _selectedIndex.ToString(), "NTx", "93M");
+        PageResetBtn.Visibility = Visibility.Visible;
     }
 
     /// <summary>Stages the seed when the field loses focus - same plain-text
@@ -846,6 +921,8 @@ public sealed partial class ShipsPage : Page
         template.Scope = "FullBuild";
         template.Stats = ExtractStatsList(_selectedIndex);
         template.Seed = SaveSessionManager.GetValue(NmsInventoryContainer.ShipModelSeedPath(_selectedIndex))?.Value<string>();
+        template.TypeScenePath = SaveSessionManager.GetValue(
+            "vLc", "6f=", "@Cs", _selectedIndex.ToString(), "NTx", "93M")?.Value<string>();
 
         await LoadoutTemplateService.SaveAsync(template);
         await RefreshFullBuildTemplatesListAsync();
@@ -996,6 +1073,8 @@ public sealed partial class ShipsPage : Page
         ApplyStatsList(_selectedIndex, template.Stats);
         if (!string.IsNullOrEmpty(template.Seed))
             SaveSessionManager.StageEdit(template.Seed, NmsInventoryContainer.ShipModelSeedPath(_selectedIndex));
+        if (!string.IsNullOrEmpty(template.TypeScenePath))
+            SaveSessionManager.StageEdit(template.TypeScenePath, "vLc", "6f=", "@Cs", _selectedIndex.ToString(), "NTx", "93M");
 
         PageResetBtn.Visibility = Visibility.Visible;
         LoadSelectedShip();
@@ -1042,7 +1121,7 @@ public sealed partial class ShipsPage : Page
         {
             TextWrapping = TextWrapping.Wrap,
             Text = includesStatsAndSeed
-                ? $"This replaces {targetLabel}'s entire tech loadout, base stats, and appearance seed with {sourceLabel}."
+                ? $"This replaces {targetLabel}'s entire tech loadout, base stats, Type, and appearance seed with {sourceLabel}."
                 : $"This replaces {targetLabel}'s entire tech loadout with {sourceLabel}."
         });
 

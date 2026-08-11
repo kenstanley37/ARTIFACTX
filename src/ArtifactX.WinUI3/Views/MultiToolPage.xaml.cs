@@ -852,6 +852,8 @@ public sealed partial class MultiToolPage : Page
         var template = _techViewModel.ExtractTemplate(name, sourceTool.Name, "MultiTool");
         template.Scope = "FullBuild";
         template.Stats = ExtractStatsList(_selectedIndex);
+        template.TypeScenePath = SaveSessionManager.GetValue(
+            "vLc", "6f=", "SuJ", _selectedIndex.ToString(), "NTx", "93M")?.Value<string>();
         // No Seed here - unlike Ships/Freighter, Multi-Tools don't have a
         // confirmed/exposed Model Seed path on this page.
 
@@ -1003,6 +1005,8 @@ public sealed partial class MultiToolPage : Page
 
         _techViewModel.ApplyTemplate(template, alsoMatchClass);
         ApplyStatsList(_selectedIndex, template.Stats);
+        if (!string.IsNullOrEmpty(template.TypeScenePath))
+            SetType(template.TypeScenePath);
 
         PageResetBtn.Visibility = Visibility.Visible;
         LoadSelectedTool();
@@ -1054,7 +1058,7 @@ public sealed partial class MultiToolPage : Page
         {
             TextWrapping = TextWrapping.Wrap,
             Text = includesStatsAndSeed
-                ? $"This replaces {targetLabel}'s entire tech loadout and base stats with {sourceLabel}."
+                ? $"This replaces {targetLabel}'s entire tech loadout, base stats, and Type with {sourceLabel}."
                 : $"This replaces {targetLabel}'s entire tech loadout with {sourceLabel}."
         });
 
