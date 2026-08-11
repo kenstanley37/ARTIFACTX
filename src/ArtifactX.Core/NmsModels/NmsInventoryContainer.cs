@@ -29,10 +29,15 @@ public class NmsInventoryContainer
     public static readonly string[] ExosuitCargoPath = { "vLc", "6f=", ";l5" };
 
     // Multi-tools live in an array (SuJ) of up to 6 slots, only some of which are
-    // owned (empty slots have NKm == ""). Each owned entry has exactly one
-    // inventory container (OsQ, WA4.rri == "Default") - confirmed against real
-    // save data; unlike ships there's no separate cargo container. "SuJ" itself
-    // is a sibling of the array of ships (@Cs), both under PlayerStateData.
+    // owned. Each owned entry has exactly one inventory container (OsQ,
+    // WA4.rri == "Default") - confirmed against real save data; unlike ships
+    // there's no separate cargo container. "SuJ" itself is a sibling of the
+    // array of ships (@Cs), both under PlayerStateData. Occupancy is NTx.93M
+    // (model scene path) non-empty, NOT NKm (Name) == "" - a brand-new save's
+    // starter tool is genuinely owned (real scene path, real seed) but hasn't
+    // had a Name written yet, so NKm=="" there too; confirmed 2026-08-10 by
+    // decrypting a save that hadn't left the starting planet, where MultiToolPage
+    // was filtering the real starter tool out entirely on the old NKm check.
     public static readonly string[] MultiToolArrayPath = { "vLc", "6f=", "SuJ" };
 
     /// <summary>Path to one owned multi-tool's Technology container. The engine's
@@ -52,12 +57,14 @@ public class NmsInventoryContainer
     public static readonly string[] MultiToolActivePath = { "vLc", "6f=", "Kgt" };
 
     // Ships live in @Cs, the sibling array to SuJ noted above - up to 12 slots,
-    // only some owned (empty slots have NKm == ""). Confirmed against real save
-    // data: each owned entry has NKm (name), NTx.93M (model scene path), PMT
-    // (Technology container, 12-key shape matching this class - B@N.1o6 Class
-    // letter confirmed), and ;l5 (Cargo container, same 12-key shape). A third
-    // container-shaped sibling, "gan", also exists per-ship but its purpose is
-    // unconfirmed (empty in every save sampled) - deliberately not exposed here.
+    // only some owned. Confirmed against real save data: each owned entry has
+    // NKm (name), NTx.93M (model scene path), PMT (Technology container,
+    // 12-key shape matching this class - B@N.1o6 Class letter confirmed), and
+    // ;l5 (Cargo container, same 12-key shape). A third container-shaped
+    // sibling, "gan", also exists per-ship but its purpose is unconfirmed
+    // (empty in every save sampled) - deliberately not exposed here.
+    // Occupancy is NTx.93M non-empty, NOT NKm == "" - see MultiToolArrayPath's
+    // comment above for why (same fresh-save bug, same fix, same date).
     public static readonly string[] ShipArrayPath = { "vLc", "6f=", "@Cs" };
 
     public static string[] ShipTechnologyPath(int shipIndex) =>

@@ -110,6 +110,7 @@ public sealed partial class SquadronPage : Page
     private void ClearFields()
     {
         UnlockedCheckBox.IsChecked = false;
+        EditableFieldsPanel.IsEnabled = false;
         RaceBox.SelectedIndex = -1;
         RankBox.Value = double.NaN;
         RankLetterTxt.Text = "";
@@ -130,7 +131,9 @@ public sealed partial class SquadronPage : Page
 
         _suppressFieldChangeEvent = true;
 
-        UnlockedCheckBox.IsChecked = SaveSessionManager.GetValue(NmsSquadronPaths.UnlockedPath(_selectedIndex))?.Value<bool>() ?? true;
+        bool unlocked = SaveSessionManager.GetValue(NmsSquadronPaths.UnlockedPath(_selectedIndex))?.Value<bool>() ?? true;
+        UnlockedCheckBox.IsChecked = unlocked;
+        EditableFieldsPanel.IsEnabled = unlocked;
 
         string npcFilename = SaveSessionManager.GetValue(NmsSquadronPaths.NpcFilenamePath(_selectedIndex))?.Value<string>() ?? "";
         RaceBox.SelectedItem = RaceBox.Items.Cast<ComboBoxItem>()
@@ -171,7 +174,9 @@ public sealed partial class SquadronPage : Page
     {
         if (_suppressFieldChangeEvent || _selectedIndex < 0) return;
 
-        SaveSessionManager.StageEdit(UnlockedCheckBox.IsChecked ?? true, NmsSquadronPaths.UnlockedPath(_selectedIndex));
+        bool unlocked = UnlockedCheckBox.IsChecked ?? true;
+        SaveSessionManager.StageEdit(unlocked, NmsSquadronPaths.UnlockedPath(_selectedIndex));
+        EditableFieldsPanel.IsEnabled = unlocked;
         PageResetBtn.Visibility = Visibility.Visible;
         BuildSelectorStrip(PilotSelectorPanel.Children.Count);
     }

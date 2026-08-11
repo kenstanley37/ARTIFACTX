@@ -156,8 +156,17 @@ public sealed partial class ShipsPage : Page
         var ships = new List<ShipEntry>();
         for (int i = 0; i < array.Count; i++)
         {
+            // Occupancy is the model scene path (NTx/93M), NOT NKm (Name) - a
+            // brand-new save's starter ship is genuinely owned (real scene
+            // path) but hasn't had a Name written yet, so NKm=="" there too;
+            // filtering on NKm silently dropped every ship on a fresh save,
+            // this one included (real bug found 2026-08-10 by testing
+            // against a save that hadn't left the starting planet).
+            string scenePath = array[i]?["NTx"]?["93M"]?.Value<string>() ?? "";
+            if (string.IsNullOrEmpty(scenePath)) continue;
+
             string name = array[i]?["NKm"]?.Value<string>() ?? "";
-            if (string.IsNullOrEmpty(name)) continue;
+            if (string.IsNullOrEmpty(name)) name = $"Starship {i + 1}";
             ships.Add(new ShipEntry(i, name, i == activeIndex));
         }
 

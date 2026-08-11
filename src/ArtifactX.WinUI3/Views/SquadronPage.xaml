@@ -34,6 +34,21 @@
                     <StackPanel Spacing="18">
                         <CheckBox x:Name="UnlockedCheckBox" Content="Slot Unlocked" Click="UnlockedCheckBox_Click"/>
 
+                        <!-- One IsEnabled toggle for the whole editable region
+                             (cascades to every descendant control) rather than
+                             disabling each field individually - a locked slot
+                             has no real pilot yet, so its Race/Rank/Ship/Seed
+                             values are meaningless leftover/default data, not
+                             something a user should be able to edit (real bug
+                             found 2026-08-10: a locked slot's fields were
+                             fully editable). -->
+                        <!-- ContentControl, not StackPanel - IsEnabled lives on
+                             Control, not Panel, and cascading it to every
+                             descendant control is the whole point here. -->
+                        <ContentControl x:Name="EditableFieldsPanel" HorizontalContentAlignment="Stretch"
+                                        IsTabStop="False">
+                        <StackPanel Spacing="18">
+
                         <!-- WrapPanel, not a plain horizontal StackPanel - a
                              fixed-orientation StackPanel doesn't reflow, so
                              Ship Type was getting squeezed/truncated instead
@@ -121,6 +136,9 @@
                                 </Grid>
                             </StackPanel>
                         </ctcontrols:WrapPanel>
+
+                        </StackPanel>
+                        </ContentControl>
                     </StackPanel>
                 </Border>
             </StackPanel>

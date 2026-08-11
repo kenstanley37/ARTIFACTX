@@ -100,9 +100,30 @@ public sealed partial class FreighterPage : Page
     private static string? GetFreighterClassLetter() =>
         SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTechnologyPath.Append("B@N").Append("1o6").ToArray())?.Value<string>();
 
+    /// <summary>The freighter hull's model scene path (bIR.93M) is empty
+    /// until the player actually owns one - confirmed 2026-08-10 against a
+    /// save that hadn't left the starting planet, where it was "" even
+    /// though the Tech/Cargo containers (0wS/8ZP) and their supercharged-slot
+    /// layout (hl?) already existed with real, non-default data. Those
+    /// containers appear to be pre-allocated by the game from the start
+    /// (same pattern as Multi-Tool/Ship's padding slots), so their mere
+    /// presence isn't a reliable ownership signal - the hull scene path is.</summary>
+    private static bool HasFreighter() =>
+        !string.IsNullOrEmpty(SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>());
+
     private async void LoadGrids()
     {
         if (!SaveSessionManager.IsSaveLoaded) return;
+
+        if (!HasFreighter())
+        {
+            NoFreighterTxt.Visibility = Visibility.Visible;
+            HeaderGrid.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        NoFreighterTxt.Visibility = Visibility.Collapsed;
+        HeaderGrid.Visibility = Visibility.Visible;
 
         string? classLetter = GetFreighterClassLetter();
         var capacity = await GetShipCapacityAsync();

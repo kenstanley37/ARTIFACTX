@@ -13,6 +13,18 @@
     <ScrollViewer>
         <StackPanel Padding="24" Spacing="20" HorizontalAlignment="Stretch">
 
+            <!-- Shown instead of HeaderGrid when the player doesn't actually
+                 own a freighter yet (bIR.93M hull scene path empty) - without
+                 this the Tech/Cargo grids and Name/Class/Type fields rendered
+                 anyway, reading a structurally-always-present-but-unowned
+                 container (real bug found 2026-08-10 on a save that hadn't
+                 left the starting planet: Freighter showed a full editable
+                 grid with real supercharged-slot data despite the player
+                 never having bought a freighter). -->
+            <TextBlock x:Name="NoFreighterTxt" FontSize="14" Opacity="0.7" TextWrapping="Wrap"
+                       MaxWidth="600" HorizontalAlignment="Left" Visibility="Collapsed"
+                       Text="You don't own a freighter yet. Buy or claim one in-game, then come back here to edit it."/>
+
             <!-- ONE Grid for the whole page body (title row + a single tall
                  content row), matching ShipsPage's structure exactly
                  (2026-08-06 user feedback: "make the other pages look like
