@@ -63,29 +63,19 @@ public sealed partial class BaseStoragePage : Page
     /// see BaseStorageContainerPath's doc comment for why this can't be a
     /// fixed path list the way Ships/Multi-Tool are.
     ///
-    /// A "Chest" marker alone isn't ownership, though - confirmed 2026-08-11
-    /// via a real before/after save diff (see [[project_fresh_save_bug_sweep]]):
-    /// a genuinely zero-progress save already had 13 such containers, none
-    /// placed, all with 0 occupied items. The user then placed one real
-    /// storage container in-game and put an item in it; re-diffing showed
-    /// exactly ONE of the 13 gained real contents (":No" went from empty to
-    /// 1 entry) - the other 12 stayed byte-for-byte frozen. So the game
-    /// pre-allocates a fixed pool of container slots up front (same pattern
-    /// as every other "padding slot" system this session found - Ships/
-    /// Multi-Tool/Freighter), and placing a real container just activates
-    /// one of them, matching the user's own in-game observation that every
-    /// placed container shares ONE combined accessible pool rather than
-    /// each being its own separate location-tied inventory.
-    ///
-    /// Occupancy (":No" non-empty) is therefore the signal used here, same
-    /// as this page's own capacity/lock display already relies on real
-    /// item data. Known limitation: a real container the player has placed
-    /// but never put anything in yet would still be hidden - there's no
-    /// separate placement flag to fall back on for that edge case, since
-    /// GcInventoryContainer doesn't expose one and Name isn't reliable
-    /// either (an untouched real container's NKm is the literal unlocalized
-    /// default "BLD_STORAGE_NAME", indistinguishable from a pre-allocated,
-    /// never-placed slot's own unrenamed default).</summary>
+    /// A "Chest" marker alone isn't ownership - confirmed 2026-08-11 via a
+    /// real before/after save diff (see [[project_fresh_save_bug_sweep]])
+    /// that a genuinely zero-progress save already had 13 such containers,
+    /// none placed, all empty. This was briefly gated on having at least one
+    /// occupied item, but reverted the same day: there's no real placement
+    /// flag anywhere in GcInventoryContainer, so that check couldn't tell a
+    /// real-but-still-empty container (a legitimate state - you can place
+    /// one and just not have put anything in it yet) from a never-placed
+    /// one, and would have silently hidden the former. Every Chest-shaped
+    /// container is shown regardless of contents; a false positive here
+    /// (an empty, never-placed slot showing up) costs the user an unused
+    /// tile, but a false negative (a real container going missing) costs
+    /// them their own items - the safer failure mode.</summary>
     private static List<ContainerEntry> DiscoverContainers()
     {
         var results = new List<ContainerEntry>();
@@ -93,18 +83,20 @@ public sealed partial class BaseStoragePage : Page
         if (SaveSessionManager.GetValue("vLc", "6f=") is not JObject playerState)
             return results;
 
+        int unnamedCount = 0;
         foreach (var prop in playerState.Properties())
         {
             if (prop.Value is not JObject obj) continue;
             if (obj["WA4"]?["rri"]?.Value<string>() != "Chest") continue;
-            if (obj[":No"] is not JArray occupied || occupied.Count == 0) continue;
 
             // "BLD_STORAGE_NAME" is the game's own literal unlocalized
             // default, not a real user-given name - treated as unnamed, same
-            // as an empty NKm.
+            // as an empty NKm. Falls back to a plain sequential label, never
+            // the raw save key (prop.Name) - that's internal plumbing a user
+            // has no way to make sense of.
             string name = obj["NKm"]?.Value<string>() ?? "";
             if (string.IsNullOrEmpty(name) || name == "BLD_STORAGE_NAME")
-                name = $"Storage ({prop.Name})";
+                name = $"Storage Container {++unnamedCount}";
 
             results.Add(new ContainerEntry(prop.Name, name));
         }

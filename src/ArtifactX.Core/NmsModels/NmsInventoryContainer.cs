@@ -176,11 +176,11 @@ public class NmsInventoryContainer
     /// (see [[project_fresh_save_bug_sweep]]) that a genuinely zero-progress
     /// save already has 13 such containers pre-allocated with 0 occupied
     /// items, same pre-allocated-pool pattern as every other array on this
-    /// class. BaseStoragePage's DiscoverContainers() additionally requires
-    /// at least one occupied item (":No" non-empty) before treating one as
-    /// real/placed - see that method's own doc comment for the full diff
-    /// evidence and its known limitation (a real, placed-but-still-empty
-    /// container is indistinguishable from an unplaced one).</summary>
+    /// class. There's no real per-container placement flag to filter on
+    /// (GcInventoryContainer doesn't expose one), so BaseStoragePage's
+    /// DiscoverContainers() deliberately shows every Chest-shaped container
+    /// regardless of contents rather than risk hiding a real, still-empty
+    /// one - see that method's own doc comment for the full reasoning.</summary>
     public static string[] BaseStorageContainerPath(string containerKey) =>
         new[] { "vLc", "6f=", containerKey };
 
