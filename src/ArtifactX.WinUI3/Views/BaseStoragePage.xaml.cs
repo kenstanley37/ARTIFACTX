@@ -65,19 +65,27 @@ public sealed partial class BaseStoragePage : Page
     ///
     /// A "Chest" marker alone isn't ownership - confirmed 2026-08-11 via a
     /// real before/after save diff (see [[project_fresh_save_bug_sweep]])
-    /// that a genuinely zero-progress save already had 13 such containers,
-    /// none placed, all empty. This was briefly gated on having at least one
-    /// occupied item, but reverted the same day: there's no real placement
-    /// flag anywhere in GcInventoryContainer, so that check couldn't tell a
-    /// real-but-still-empty container (a legitimate state - you can place
-    /// one and just not have put anything in it yet) from a never-placed
-    /// one, and would have silently hidden the former. Every Chest-shaped
-    /// container is shown regardless of contents; a false positive here
-    /// (an empty, never-placed slot showing up) costs the user an unused
-    /// tile, but a false negative (a real container going missing) costs
-    /// them their own items - the safer failure mode.</summary>
+    /// that a genuinely zero-progress save already had 13 such containers
+    /// pre-allocated from the very start, none placed, all empty. Occupied-
+    /// items and Name were both tried and rejected as filters (a real,
+    /// placed-but-still-empty container is indistinguishable from an
+    /// unplaced one on either signal) - but a controlled test nailed it
+    /// instead: the user built exactly 10 real containers in-game (renamed
+    /// BASE0-BASE9 purely so this could be verified against the raw save,
+    /// never used as the actual signal) and confirmed via extensive in-game
+    /// testing that no 11th slot is ever reachable - matching the in-game
+    /// UI itself, which numbers physical containers 0-9. Re-decrypting
+    /// showed the 10 real ones are EXACTLY the first 10 of the 13
+    /// Chest-shaped entries in the save's own property order, with the
+    /// same 3 dead entries always last - and since all 13 already existed
+    /// before any container was placed, that order reflects a fixed layout
+    /// baked into the save format itself, not play/build order. Takes only
+    /// the first 10 in that natural order; the trailing slots appear to be
+    /// permanently unreachable padding on every save, not just this one.</summary>
     private static List<ContainerEntry> DiscoverContainers()
     {
+        const int MaxRealContainers = 10;
+
         var results = new List<ContainerEntry>();
 
         if (SaveSessionManager.GetValue("vLc", "6f=") is not JObject playerState)
@@ -86,6 +94,7 @@ public sealed partial class BaseStoragePage : Page
         int unnamedCount = 0;
         foreach (var prop in playerState.Properties())
         {
+            if (results.Count >= MaxRealContainers) break;
             if (prop.Value is not JObject obj) continue;
             if (obj["WA4"]?["rri"]?.Value<string>() != "Chest") continue;
 

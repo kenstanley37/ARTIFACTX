@@ -174,13 +174,16 @@ public class NmsInventoryContainer
     ///
     /// WA4.rri=="Chest" alone isn't ownership though - confirmed 2026-08-11
     /// (see [[project_fresh_save_bug_sweep]]) that a genuinely zero-progress
-    /// save already has 13 such containers pre-allocated with 0 occupied
-    /// items, same pre-allocated-pool pattern as every other array on this
-    /// class. There's no real per-container placement flag to filter on
-    /// (GcInventoryContainer doesn't expose one), so BaseStoragePage's
-    /// DiscoverContainers() deliberately shows every Chest-shaped container
-    /// regardless of contents rather than risk hiding a real, still-empty
-    /// one - see that method's own doc comment for the full reasoning.</summary>
+    /// save already has 13 such containers pre-allocated from the start,
+    /// same pre-allocated-pool pattern as every other array on this class.
+    /// A controlled test (10 real containers built and named BASE0-BASE9
+    /// purely to verify against the raw save) showed the real 10 are always
+    /// the FIRST 10 of the 13 Chest-shaped entries in the save's own
+    /// property order, with the same trailing 3 permanently unreachable in
+    /// extensive in-game testing - matching the in-game UI's own 0-9
+    /// container numbering. BaseStoragePage's DiscoverContainers() takes
+    /// only those first 10 - see that method's own doc comment for the full
+    /// evidence trail.</summary>
     public static string[] BaseStorageContainerPath(string containerKey) =>
         new[] { "vLc", "6f=", containerKey };
 
