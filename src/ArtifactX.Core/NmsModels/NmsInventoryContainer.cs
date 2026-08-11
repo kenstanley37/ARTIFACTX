@@ -170,7 +170,17 @@ public class NmsInventoryContainer
     /// that field is the reliable structural marker WinUI3's discovery code
     /// uses to find every owned container regardless of how many exist or what
     /// they're named. Capacity is fixed (BaseStorageCapacity), not Class-based -
-    /// B@N.1o6 was uniformly "C" with no in-game way to change it.</summary>
+    /// B@N.1o6 was uniformly "C" with no in-game way to change it.
+    ///
+    /// WA4.rri=="Chest" alone isn't ownership though - confirmed 2026-08-11
+    /// (see [[project_fresh_save_bug_sweep]]) that a genuinely zero-progress
+    /// save already has 13 such containers pre-allocated with 0 occupied
+    /// items, same pre-allocated-pool pattern as every other array on this
+    /// class. BaseStoragePage's DiscoverContainers() additionally requires
+    /// at least one occupied item (":No" non-empty) before treating one as
+    /// real/placed - see that method's own doc comment for the full diff
+    /// evidence and its known limitation (a real, placed-but-still-empty
+    /// container is indistinguishable from an unplaced one).</summary>
     public static string[] BaseStorageContainerPath(string containerKey) =>
         new[] { "vLc", "6f=", containerKey };
 

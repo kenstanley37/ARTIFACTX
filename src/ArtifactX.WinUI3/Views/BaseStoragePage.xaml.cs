@@ -61,7 +61,31 @@ public sealed partial class BaseStoragePage : Page
 
     /// <summary>Scans every top-level vLc/6f= sibling for the "Chest" marker -
     /// see BaseStorageContainerPath's doc comment for why this can't be a
-    /// fixed path list the way Ships/Multi-Tool are.</summary>
+    /// fixed path list the way Ships/Multi-Tool are.
+    ///
+    /// A "Chest" marker alone isn't ownership, though - confirmed 2026-08-11
+    /// via a real before/after save diff (see [[project_fresh_save_bug_sweep]]):
+    /// a genuinely zero-progress save already had 13 such containers, none
+    /// placed, all with 0 occupied items. The user then placed one real
+    /// storage container in-game and put an item in it; re-diffing showed
+    /// exactly ONE of the 13 gained real contents (":No" went from empty to
+    /// 1 entry) - the other 12 stayed byte-for-byte frozen. So the game
+    /// pre-allocates a fixed pool of container slots up front (same pattern
+    /// as every other "padding slot" system this session found - Ships/
+    /// Multi-Tool/Freighter), and placing a real container just activates
+    /// one of them, matching the user's own in-game observation that every
+    /// placed container shares ONE combined accessible pool rather than
+    /// each being its own separate location-tied inventory.
+    ///
+    /// Occupancy (":No" non-empty) is therefore the signal used here, same
+    /// as this page's own capacity/lock display already relies on real
+    /// item data. Known limitation: a real container the player has placed
+    /// but never put anything in yet would still be hidden - there's no
+    /// separate placement flag to fall back on for that edge case, since
+    /// GcInventoryContainer doesn't expose one and Name isn't reliable
+    /// either (an untouched real container's NKm is the literal unlocalized
+    /// default "BLD_STORAGE_NAME", indistinguishable from a pre-allocated,
+    /// never-placed slot's own unrenamed default).</summary>
     private static List<ContainerEntry> DiscoverContainers()
     {
         var results = new List<ContainerEntry>();
@@ -73,9 +97,14 @@ public sealed partial class BaseStoragePage : Page
         {
             if (prop.Value is not JObject obj) continue;
             if (obj["WA4"]?["rri"]?.Value<string>() != "Chest") continue;
+            if (obj[":No"] is not JArray occupied || occupied.Count == 0) continue;
 
+            // "BLD_STORAGE_NAME" is the game's own literal unlocalized
+            // default, not a real user-given name - treated as unnamed, same
+            // as an empty NKm.
             string name = obj["NKm"]?.Value<string>() ?? "";
-            if (string.IsNullOrEmpty(name)) name = $"Storage ({prop.Name})";
+            if (string.IsNullOrEmpty(name) || name == "BLD_STORAGE_NAME")
+                name = $"Storage ({prop.Name})";
 
             results.Add(new ContainerEntry(prop.Name, name));
         }
