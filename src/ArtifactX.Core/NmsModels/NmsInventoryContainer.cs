@@ -153,12 +153,24 @@ public class NmsInventoryContainer
     public static readonly string[] FreighterCrewRacePath = { "vLc", "6f=", "Sjw", "93M" };
     public static readonly string[] FreighterCrewSeedPath = { "vLc", "6f=", "Sjw", "@EL", "1" };
 
-    /// <summary>Freighter Technology's continuous stat bonuses array - same
-    /// shape and editing pattern as Multi-Tool's OsQ.@bB (WEAPON_DAMAGE/etc.).
-    /// Confirmed via real save data: holds exactly two entries keyed
-    /// "^FREI_HYPERDRIVE" and "^FREI_FLEET", matching a reference tool's own
-    /// "Hyperdrive" and "Fleet Coordination" Base Stats fields.</summary>
-    public static string[] FreighterStatBonusesPath => FreighterTechnologyPath.Append("@bB").ToArray();
+    /// <summary>Freighter Cargo's (NOT Technology's) continuous stat bonuses
+    /// array - fixed 2026-08-12, a real bug found via a user-reported stat
+    /// mismatch. The ORIGINAL path here was FreighterTechnologyPath (0wS),
+    /// which does hold its own "^FREI_HYPERDRIVE"/"^FREI_FLEET"-keyed @bB
+    /// array too - identical key NAMES, which is exactly why the original
+    /// "confirmed... matching a reference tool's own Base Stats fields" claim
+    /// was wrong: it matched on key names alone, never checked the actual
+    /// VALUES. Editing that path silently did nothing in-game - confirmed by
+    /// the user setting both stats to 500 there, saving, reloading, and
+    /// seeing no matching change. A recursive full-save search for the exact
+    /// values a reference tool displayed (14.440342903137207,
+    /// 16.516082763671875) found them at FreighterCargoPath's own @bB
+    /// instead - an EXACT floating-point match, not a formula/approximation.
+    /// A third container, "FdP" (same 12-key shape as 0wS/8ZP, not otherwise
+    /// used by this app), mirrors 8ZP's @bB exactly - likely a live-active
+    /// mirror analogous to Multi-Tool's Kgt, not independently investigated
+    /// further since 8ZP is the one a live reference-tool read confirmed.</summary>
+    public static string[] FreighterStatBonusesPath => FreighterCargoPath.Append("@bB").ToArray();
 
     /// <summary>Player-placed Base Storage Containers ("Chests") - unlike every
     /// other container on this class, these are scattered top-level siblings
