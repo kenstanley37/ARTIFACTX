@@ -375,11 +375,11 @@ public sealed partial class MainWindow : Window
         FishingRecordsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         ExocraftNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
 
+        // Guide nests under AccountDataNavItem as a child (see that item's own
+        // XAML comment) - hiding the parent already hides it, same as
+        // Milestones' language children never getting their own individual
+        // Visibility toggle here.
         AccountDataNavItem.Visibility = SaveSessionManager.IsSaveLoaded || SaveSessionManager.HasActivePlatform
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-
-        GuideNavItem.Visibility = SaveSessionManager.IsSaveLoaded || SaveSessionManager.HasActivePlatform
             ? Visibility.Visible
             : Visibility.Collapsed;
     }

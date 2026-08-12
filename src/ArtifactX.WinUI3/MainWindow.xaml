@@ -48,20 +48,25 @@
                      at the top, right under Save Selection, because it only needs a
                      platform account chosen (SaveSessionManager.HasActivePlatform),
                      not a specific save slot loaded. See UpdateNavAvailability and
-                     SaveFolderSelectPage's Expander.Expanding handler. -->
+                     SaveFolderSelectPage's Expander.Expanding handler. Guide nests
+                     under it as a child - same hybrid pattern as Milestones/its
+                     language children below: the parent itself still navigates to
+                     AccountDataPage (SelectsOnInvoked defaults true), the chevron
+                     just additionally exposes Guide, which edits a different pair of
+                     arrays in that same accountdata.hg file (2026-08-12 user
+                     feedback: "Account data should be top level and then subpages
+                     like Guide etc"). -->
                 <NavigationViewItem x:Name="AccountDataNavItem" Content="Account Data" Tag="AccountData" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE77B;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
-                </NavigationViewItem>
-
-                <!-- Same account-wide gating as Account Data above (edits the same
-                     accountdata.hg file, just a different pair of arrays - see
-                     NmsAccountData.GuideUnlockedPath/GuideSeenPath). -->
-                <NavigationViewItem x:Name="GuideNavItem" Content="Guide" Tag="Guide" Visibility="Collapsed">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE82D;" FontFamily="Segoe MDL2 Assets"/>
-                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.MenuItems>
+                        <NavigationViewItem x:Name="GuideNavItem" Content="Guide" Tag="Guide">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE82D;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                    </NavigationViewItem.MenuItems>
                 </NavigationViewItem>
 
                 <!-- Exosuit, Starship, Multi-Tool, etc. nav items go here once built,

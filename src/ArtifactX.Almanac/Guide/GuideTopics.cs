@@ -30,6 +30,7 @@ public static class GuideTopics
         new("UI_GUIDE_TOPIC_SURVIVAL_3", "Finding Basic Resources"),
         new("UI_GUIDE_TOPIC_SLOTS", "Inventory Management"),
         new("UI_GUIDE_TOPIC_EXPLORATION_1", "Exploring on Foot"),
+        new("UI_GUIDE_TOPIC_EXPLORATION_2", "Finding Resources"),
         new("UI_GUIDE_TOPIC_TERRAIN", "The Terrain Manipulator"),
         new("UI_GUIDE_TOPIC_EXPLORATION_5", "Flying the Starship"),
         new("UI_GUIDE_TOPIC_SPACE_STATION", "Space Stations"),
