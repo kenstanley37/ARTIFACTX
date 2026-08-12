@@ -159,7 +159,7 @@
                          Model Seed and Crew Seed are the matching @EL seeds a
                          reference tool shows alongside them. -->
                     <Border x:Name="FreighterInfoBorder" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                            CornerRadius="8" Padding="16" Opacity="0.9" Width="300">
+                            CornerRadius="8" Padding="16" Opacity="0.9" Width="360">
                         <StackPanel Spacing="14">
                             <StackPanel Spacing="6">
                                 <TextBlock Text="Name" FontSize="12" Opacity="0.7"/>
@@ -179,21 +179,25 @@
                             </StackPanel>
 
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Home Seed" FontSize="12" Opacity="0.7"/>
-                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                           Text="The freighter's registered home system address, not a cosmetic seed - editing it hasn't been independently confirmed to do anything visible in-game. Paste a value you've found elsewhere, or click Generate."/>
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="Home Seed" FontSize="12" Opacity="0.7"/>
+                                    <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
+                                              ToolTipService.ToolTip="The freighter's registered home system address, not a cosmetic seed - editing it hasn't been independently confirmed to do anything visible in-game. Paste a value you've found elsewhere, or click Generate."/>
+                                </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBox x:Name="HomeSeedEditBox" Width="185" LostFocus="HomeSeedEditBox_LostFocus"/>
+                                    <TextBox x:Name="HomeSeedEditBox" Width="200" LostFocus="HomeSeedEditBox_LostFocus"/>
                                     <Button Content="Generate" Click="GenerateHomeSeedBtn_Click"/>
                                 </StackPanel>
                             </StackPanel>
 
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Model Seed" FontSize="12" Opacity="0.7"/>
-                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                           Text="Matches a reference tool's own Model Seed field, but user testing on both a Dreadnought and a Normal freighter showed no visible hull change in-game after regenerating this - unlike Crew Seed below, which is confirmed working. Editable in case that changes with further testing."/>
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="Model Seed" FontSize="12" Opacity="0.7"/>
+                                    <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
+                                              ToolTipService.ToolTip="Matches a reference tool's own Model Seed field, but user testing on both a Dreadnought and a Normal freighter showed no visible hull change in-game after regenerating this - unlike Crew Seed below, which is confirmed working. Editable in case that changes with further testing."/>
+                                </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBox x:Name="ModelSeedEditBox" Width="185" LostFocus="ModelSeedEditBox_LostFocus"/>
+                                    <TextBox x:Name="ModelSeedEditBox" Width="200" LostFocus="ModelSeedEditBox_LostFocus"/>
                                     <Button Content="Generate" Click="GenerateModelSeedBtn_Click"/>
                                 </StackPanel>
                             </StackPanel>
@@ -206,19 +210,23 @@
                             </StackPanel>
 
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Crew Seed" FontSize="12" Opacity="0.7"/>
-                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                           Text="Drives the captain's procedural look, alongside their Race. Paste a seed you've found elsewhere, or click Generate for a new random look."/>
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="Crew Seed" FontSize="12" Opacity="0.7"/>
+                                    <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
+                                              ToolTipService.ToolTip="Drives the captain's procedural look, alongside their Race. Paste a seed you've found elsewhere, or click Generate for a new random look."/>
+                                </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBox x:Name="CrewSeedEditBox" Width="185" LostFocus="CrewSeedEditBox_LostFocus"/>
+                                    <TextBox x:Name="CrewSeedEditBox" Width="200" LostFocus="CrewSeedEditBox_LostFocus"/>
                                     <Button Content="Generate" Click="GenerateCrewSeedBtn_Click"/>
                                 </StackPanel>
                             </StackPanel>
 
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Base Stats" FontSize="12" Opacity="0.7"/>
-                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                           Text="No known upper limit - the game doesn't enforce one. Extreme values won't corrupt your save, just unbalance it."/>
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="Base Stats" FontSize="12" Opacity="0.7"/>
+                                    <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
+                                              ToolTipService.ToolTip="No known upper limit - the game doesn't enforce one. Extreme values won't corrupt your save, just unbalance it."/>
+                                </StackPanel>
                                 <Grid ColumnSpacing="8" RowSpacing="6">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
