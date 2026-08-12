@@ -143,10 +143,10 @@
                                                          apart" with Spacing alone (2nd round of the same
                                                          user feedback). -->
                                                     <StackPanel Orientation="Horizontal" Spacing="4" Padding="0,2">
-                                                        <CheckBox Width="30" Padding="0" HorizontalContentAlignment="Center"
+                                                        <CheckBox Width="30" MinWidth="0" Padding="0" HorizontalContentAlignment="Center"
                                                                   IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
                                                                   Click="UnlockedCheckBox_Click" Tag="{x:Bind}"/>
-                                                        <CheckBox Width="30" Padding="0" HorizontalContentAlignment="Center"
+                                                        <CheckBox Width="30" MinWidth="0" Padding="0" HorizontalContentAlignment="Center"
                                                                   IsChecked="{x:Bind IsSeen, Mode=OneWay}"
                                                                   Click="SeenCheckBox_Click" Tag="{x:Bind}"/>
                                                         <TextBlock Text="{x:Bind DisplayName}" VerticalAlignment="Center"
