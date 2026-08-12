@@ -712,6 +712,7 @@ public static class CatalogService
             JOIN Categories c ON c.Id = i.CategoryId
             WHERE c.TemplateType IN ('GcProductTable','GcSubstanceTable','GcTechnologyTable','GcProceduralTechnologyTable')
               AND (i.NameEnglish IS NOT NULL OR i.NameLowerEnglish IS NOT NULL)
+              AND NOT (c.TemplateType = 'GcTechnologyTable' AND i.NameEnglish = 'UPGRADE MODULE' AND i.DescriptionEnglish IS NULL)
             ORDER BY DisplayName";
 
         using var reader = command.ExecuteReader();
