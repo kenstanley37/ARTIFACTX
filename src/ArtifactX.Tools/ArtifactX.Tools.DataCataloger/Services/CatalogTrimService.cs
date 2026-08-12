@@ -80,7 +80,18 @@ public static class CatalogTrimService
                 DescriptionLocKey = sourceItem.DescriptionLocKey,
                 DescriptionEnglish = sourceItem.DescriptionEnglish,
                 UsageCategory = sourceItem.UsageCategory,
-                MaxStackSize = sourceItem.MaxStackSize
+                MaxStackSize = sourceItem.MaxStackSize,
+                // Was missing from this list entirely until 2026-08-11 -
+                // every ShipCapacity/MultiToolCapacity row (real per-class
+                // Tech/Cargo slot counts) built correctly in the working
+                // catalog but silently came out NULL in every shipped
+                // distribution copy, so CatalogService.GetShipCapacityAsync/
+                // GetMultiToolCapacityAsync always returned an empty
+                // dictionary and every grid silently fell back to
+                // StarshipCapacity/MultiToolCapacity's generic fallback
+                // constants instead of the real numbers - found while
+                // investigating a user-reported Freighter stat mismatch.
+                CapacityValue = sourceItem.CapacityValue
             };
 
             foreach (var sourceIcon in sourceItem.Icons)
