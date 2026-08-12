@@ -110,21 +110,30 @@
                                         <ItemsControl ItemsSource="{x:Bind Topics}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate x:DataType="viewmodels:GuideTopicRowViewModel">
-                                                    <Grid ColumnSpacing="8" Padding="0,3">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <CheckBox Grid.Column="0" IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
+                                                    <!-- Plain horizontal StackPanel, not a Grid with a
+                                                         Width="*" column - a Star column needs a bounded
+                                                         parent width to divide up, which this row doesn't
+                                                         reliably get while nested inside a WrapPanel-hosted
+                                                         ItemsControl (WrapPanel sizes its children to their
+                                                         OWN desired size, so a Star column here measured
+                                                         against an effectively unbounded width instead of
+                                                         the card's real 320px - user feedback 2026-08-12:
+                                                         checkboxes bunched left, name text stranded far
+                                                         right with a huge gap). A StackPanel just places
+                                                         each child at its own natural width immediately
+                                                         after the last, regardless of the parent's
+                                                         measurement pass. -->
+                                                    <StackPanel Orientation="Horizontal" Spacing="8" Padding="0,3">
+                                                        <CheckBox IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
                                                                   Click="UnlockedCheckBox_Click" Tag="{x:Bind}"
                                                                   ToolTipService.ToolTip="Unlocked"/>
-                                                        <CheckBox Grid.Column="1" IsChecked="{x:Bind IsSeen, Mode=OneWay}"
+                                                        <CheckBox IsChecked="{x:Bind IsSeen, Mode=OneWay}"
                                                                   Click="SeenCheckBox_Click" Tag="{x:Bind}"
                                                                   ToolTipService.ToolTip="Seen"/>
-                                                        <TextBlock Grid.Column="2" Text="{x:Bind DisplayName}" VerticalAlignment="Center"
-                                                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
-                                                    </Grid>
+                                                        <TextBlock Text="{x:Bind DisplayName}" VerticalAlignment="Center"
+                                                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                                                   MaxWidth="190"/>
+                                                    </StackPanel>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
