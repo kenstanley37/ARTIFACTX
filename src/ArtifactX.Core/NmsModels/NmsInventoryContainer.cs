@@ -131,6 +131,29 @@ public class NmsInventoryContainer
     public static readonly string[] FreighterTechnologyPath = { "vLc", "6f=", "0wS" };
     public static readonly string[] FreighterCargoPath = { "vLc", "6f=", "8ZP" };
 
+    /// <summary>The freighter's own rarity/quality Class (S/A/B/C) badge -
+    /// fixed 2026-08-12, same root cause and same fix pattern as
+    /// FreighterStatBonusesPath: 0wS (Technology) has its own independent
+    /// B@N.1o6 field too, and it's the one this used to read/write. A user
+    /// insisted their freighter was Class B in-game while ArtifactX showed
+    /// S; checking the save directly found 0wS.B@N.1o6="S" but BOTH 8ZP
+    /// (Cargo) and a third, unused mirror container ("FdP", same 12-key
+    /// shape as 0wS/8ZP) independently agreed on "B" - two containers
+    /// against one, matching the user's own live observation. Now reads/
+    /// writes 8ZP only; 0wS's own copy is left as-is (not kept in sync) -
+    /// same treatment as FreighterStatBonusesPath, since it's already
+    /// confirmed to not affect anything the game displays.
+    ///
+    /// Residual uncertainty: the earlier (wrong) reasoning that "Storage
+    /// Space: 120 matches FREIGHTER_S_CARGO" seemed to confirm Class S was
+    /// real - it doesn't fit Class B's own FREIGHTER_B_CARGO (80) either,
+    /// so Storage Space's exact derivation still isn't fully understood
+    /// (it may include a bonus from installed Construction Module upgrades
+    /// that ArtifactX's own capacity lookup doesn't model at all) - not
+    /// chased further, since the S-vs-B question itself is what mattered
+    /// here and is now resolved with strong, multi-container evidence.</summary>
+    public static string[] FreighterClassPath => FreighterCargoPath.Append("B@N").Append("1o6").ToArray();
+
     /// <summary>The active freighter's display name - a plain string, not
     /// nested inside a container. Confirmed via real save data: renaming the
     /// freighter in-game and re-saving changed exactly this value.</summary>

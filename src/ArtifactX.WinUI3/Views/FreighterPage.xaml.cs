@@ -98,7 +98,7 @@ public sealed partial class FreighterPage : Page
     }
 
     private static string? GetFreighterClassLetter() =>
-        SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTechnologyPath.Append("B@N").Append("1o6").ToArray())?.Value<string>();
+        SaveSessionManager.GetValue(NmsInventoryContainer.FreighterClassPath)?.Value<string>();
 
     /// <summary>The freighter hull's model scene path (bIR.93M) is empty
     /// until the player actually owns one - confirmed 2026-08-10 against a
@@ -311,14 +311,21 @@ public sealed partial class FreighterPage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
+    /// <summary>Reads/writes NmsInventoryContainer.FreighterClassPath (8ZP,
+    /// Cargo) directly rather than going through _techViewModel.CurrentClass/
+    /// SetClass (tied to 0wS, Technology) the way Ships/MultiTool's own class
+    /// selectors do - see FreighterClassPath's own doc comment for why
+    /// Freighter specifically needs its own separate read/write here.</summary>
     private void BuildClassSelector()
     {
         ClassSelectorPanel.Children.Clear();
-        if (_techViewModel is null) return;
+        if (!SaveSessionManager.IsSaveLoaded) return;
+
+        string? currentClass = GetFreighterClassLetter();
 
         foreach (var letter in new[] { "S", "A", "B", "C" })
         {
-            bool isCurrent = string.Equals(_techViewModel.CurrentClass, letter, StringComparison.OrdinalIgnoreCase);
+            bool isCurrent = string.Equals(currentClass, letter, StringComparison.OrdinalIgnoreCase);
 
             var button = new Button
             {
@@ -342,7 +349,7 @@ public sealed partial class FreighterPage : Page
                 // A class change can change the freighter's real Tech/Cargo
                 // slot totals (StarshipCapacity), so both grids get fully
                 // rebuilt via LoadGrids rather than just refreshed in place.
-                _techViewModel?.SetClass(letter);
+                SaveSessionManager.StageEdit(letter, NmsInventoryContainer.FreighterClassPath);
                 PageResetBtn.Visibility = Visibility.Visible;
                 LoadGrids();
             };
@@ -807,6 +814,11 @@ public sealed partial class FreighterPage : Page
             SaveSessionManager.StageEdit(template.Seed, NmsInventoryContainer.FreighterModelSeedPath);
         if (!string.IsNullOrEmpty(template.TypeScenePath))
             SaveSessionManager.StageEdit(template.TypeScenePath, NmsInventoryContainer.FreighterTypePath);
+        // ApplyTemplate's own internal class write lands on the Technology
+        // container (0wS, inert for Class - see FreighterClassPath), so the
+        // real class write has to happen here too, same as Seed/TypeScenePath.
+        if (alsoMatchClass && !string.IsNullOrEmpty(template.SourceClass))
+            SaveSessionManager.StageEdit(template.SourceClass, NmsInventoryContainer.FreighterClassPath);
 
         PageResetBtn.Visibility = Visibility.Visible;
         LoadGrids();
@@ -829,6 +841,10 @@ public sealed partial class FreighterPage : Page
         if (!confirmed) return;
 
         _techViewModel.ApplyTemplate(template, alsoMatchClass);
+        // See ApplyFullBuildTemplateAsync - ApplyTemplate's own internal class
+        // write lands on the wrong (inert) container for Freighter.
+        if (alsoMatchClass && !string.IsNullOrEmpty(template.SourceClass))
+            SaveSessionManager.StageEdit(template.SourceClass, NmsInventoryContainer.FreighterClassPath);
         PageResetBtn.Visibility = Visibility.Visible;
         LoadGrids();
     }
@@ -846,7 +862,8 @@ public sealed partial class FreighterPage : Page
         var targetUnlocked = _techViewModel.Cells.Where(c => c.State != InventorySlotState.Locked).Select(c => (c.X, c.Y)).ToHashSet();
         int newSlotsNeeded = sourcePositionSet.Except(targetUnlocked).Count();
 
-        bool classDiffers = !string.Equals(sourceClass, _techViewModel.CurrentClass, StringComparison.OrdinalIgnoreCase);
+        string? currentClass = GetFreighterClassLetter();
+        bool classDiffers = !string.Equals(sourceClass, currentClass, StringComparison.OrdinalIgnoreCase);
 
         var panel = new StackPanel { Spacing = 10 };
         panel.Children.Add(new TextBlock
@@ -874,7 +891,7 @@ public sealed partial class FreighterPage : Page
             {
                 TextWrapping = TextWrapping.Wrap,
                 Foreground = new SolidColorBrush(Color.FromArgb(255, 230, 160, 60)),
-                Text = $"⚠ Class differs: your freighter is currently {_techViewModel.CurrentClass ?? "unknown"}, source is {sourceClass ?? "unknown"}."
+                Text = $"⚠ Class differs: your freighter is currently {currentClass ?? "unknown"}, source is {sourceClass ?? "unknown"}."
             });
 
             matchClassBox = new CheckBox { Content = $"Also change your freighter's class to {sourceClass} to match" };
