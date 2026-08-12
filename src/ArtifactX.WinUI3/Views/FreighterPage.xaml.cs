@@ -173,6 +173,7 @@ public sealed partial class FreighterPage : Page
 
         BuildClassSelector();
         NameEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterNamePath)?.Value<string>() ?? "";
+        HomeSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterHomeSeedPath)?.Value<string>() ?? "";
         ModelSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>() ?? "";
         CrewSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterCrewSeedPath)?.Value<string>() ?? "";
 
@@ -280,6 +281,22 @@ public sealed partial class FreighterPage : Page
         string newSeed = NmsSeedGenerator.GenerateRandom();
         CrewSeedEditBox.Text = newSeed;
         SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterCrewSeedPath);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>No matching Generate button - see FreighterHomeSeedPath's
+    /// doc comment for why randomizing this field isn't offered.</summary>
+    private void HomeSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (!SaveSessionManager.IsSaveLoaded) return;
+
+        string newSeed = HomeSeedEditBox.Text?.Trim() ?? "";
+        if (string.IsNullOrEmpty(newSeed)) return;
+
+        string? currentSeed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterHomeSeedPath)?.Value<string>();
+        if (newSeed == currentSeed) return;
+
+        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterHomeSeedPath);
         PageResetBtn.Visibility = Visibility.Visible;
     }
 

@@ -168,6 +168,24 @@ public class NmsInventoryContainer
     public static readonly string[] FreighterTypePath = { "vLc", "6f=", "bIR", "93M" };
     public static readonly string[] FreighterModelSeedPath = { "vLc", "6f=", "bIR", "@EL", "1" };
 
+    /// <summary>The freighter's "Home Seed" - a top-level [bool, hex] pair
+    /// directly under the freighter object (same shape as Model Seed's
+    /// bIR.@EL and Crew Seed's Sjw.@EL, but its own separate field, "kYq"),
+    /// found 2026-08-12 via a real value match against a reference tool's own
+    /// "Home Seed" field. Unlike Model/Crew Seed, this is only 12 hex digits
+    /// (48-bit) rather than 16 (64-bit) - and its decimal value was confirmed
+    /// to exactly equal this same freighter's own PersistentPlayerBase
+    /// GalacticAddress ("F?0" array, the entry whose peI.DPp is
+    /// "FreighterBase", field "oZw"). That strongly suggests "Home Seed" is
+    /// actually the freighter's registered home system address rather than a
+    /// cosmetic procedural-look seed like Model/Crew Seed - so unlike those
+    /// two, this is NOT wired into NmsSeedGenerator's random-reroll button or
+    /// into Full Build Templates: randomizing or copying a location address
+    /// onto a different save's freighter could have consequences beyond
+    /// appearance that haven't been tested. Exposed as a plain paste/copy
+    /// field only, to match what a reference tool shows.</summary>
+    public static readonly string[] FreighterHomeSeedPath = { "vLc", "6f=", "kYq", "1" };
+
     /// <summary>The freighter's crew captain - a SEPARATE model reference from
     /// the hull itself (bIR above), confirmed via real save data: the
     /// captain's model path (".../NPCVYKEEN.SCENE.MBIN") and its seed

@@ -179,6 +179,13 @@
                             </StackPanel>
 
                             <StackPanel Spacing="6">
+                                <TextBlock Text="Home Seed" FontSize="12" Opacity="0.7"/>
+                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                                           Text="The freighter's registered home system address, not a cosmetic seed - editing it hasn't been independently confirmed to do anything visible in-game. No randomize button for that reason; paste a value if you have one."/>
+                                <TextBox x:Name="HomeSeedEditBox" Width="260" LostFocus="HomeSeedEditBox_LostFocus"/>
+                            </StackPanel>
+
+                            <StackPanel Spacing="6">
                                 <TextBlock Text="Model Seed" FontSize="12" Opacity="0.7"/>
                                 <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
                                            Text="Drives the hull's procedural look, alongside its Type/Class. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
