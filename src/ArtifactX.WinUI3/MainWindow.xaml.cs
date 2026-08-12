@@ -326,6 +326,7 @@ public sealed partial class MainWindow : Window
                 "Settlement" => typeof(SettlementPage),
                 "Milestones" => typeof(MilestonesPage),
                 "AccountData" => typeof(AccountDataPage),
+                "Guide" => typeof(GuidePage),
                 "Catalogue" => typeof(CataloguePage),
                 "FishingRecords" => typeof(FishingRecordsPage),
                 "Exocraft" => typeof(ExocraftPage),
@@ -377,6 +378,10 @@ public sealed partial class MainWindow : Window
         AccountDataNavItem.Visibility = SaveSessionManager.IsSaveLoaded || SaveSessionManager.HasActivePlatform
             ? Visibility.Visible
             : Visibility.Collapsed;
+
+        GuideNavItem.Visibility = SaveSessionManager.IsSaveLoaded || SaveSessionManager.HasActivePlatform
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private void ContentFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
@@ -398,6 +403,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(SettlementPage) => "Settlement",
             Type t when t == typeof(MilestonesPage) => "Milestones",
             Type t when t == typeof(AccountDataPage) => "AccountData",
+            Type t when t == typeof(GuidePage) => "Guide",
             Type t when t == typeof(CataloguePage) => "Catalogue",
             Type t when t == typeof(FishingRecordsPage) => "FishingRecords",
             Type t when t == typeof(ExocraftPage) => "Exocraft",
