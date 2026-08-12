@@ -189,18 +189,26 @@ public class NmsInventoryContainer
     /// digits (48-bit) rather than Model/Crew Seed's 16 (64-bit), and its
     /// decimal value was confirmed to exactly equal this same freighter's own
     /// PersistentPlayerBase GalacticAddress ("F?0" array, the entry whose
-    /// peI.DPp is "FreighterBase", field "oZw") - suggesting "Home Seed" is
-    /// actually the freighter's registered home system address rather than a
-    /// cosmetic procedural-look seed. User confirmed a reference tool's own
-    /// Generate button for this field draws from the same full 64-bit range
-    /// as Model/Crew Seed regardless - the shorter digit count is just
-    /// unpadded hex formatting of a numerically small value, not a narrower
-    /// field - so NmsSeedGenerator.GenerateRandom() is used here too
+    /// peI.DPp is "FreighterBase", field "oZw") - so this field does double
+    /// duty: it's the freighter's registered home system address AND (per 2
+    /// separate user isolated-variable in-game tests, Model/Crew Seed held
+    /// byte-identical both times) CONFIRMED to drive the hull's paint/texture
+    /// pattern - each regenerate produced a visibly different color scheme
+    /// (tan+red, blue+red, green/black camo) with the hull's actual geometry
+    /// staying identical throughout. This is the opposite pairing from what
+    /// FreighterModelSeedPath's own doc comment assumed - Model Seed's 2
+    /// tests found no visible change specifically because they were only
+    /// checking the Paint screen, which turns out to be Home Seed's job, not
+    /// Model Seed's (what Model Seed actually does remains unconfirmed).
+    /// User confirmed a reference tool's own Generate button for this field
+    /// draws from the same full 64-bit range as Model/Crew Seed regardless -
+    /// the shorter digit count is just unpadded hex formatting of a
+    /// numerically small value, not a narrower field - so
+    /// NmsSeedGenerator.GenerateRandom() is used here too
     /// (GenerateHomeSeedBtn_Click in FreighterPage.xaml.cs). Still NOT wired
-    /// into Full Build Templates: copying a location address onto a
-    /// different save's freighter could have consequences beyond appearance
-    /// that haven't been tested, and templates are meant to be reusable
-    /// across saves/characters where "home system" shouldn't travel along.</summary>
+    /// into Full Build Templates as of this writing - now a good candidate
+    /// given the confirmed cosmetic effect, but left as a deliberate decision
+    /// to make explicitly rather than as a side effect of this doc update.</summary>
     public static readonly string[] FreighterHomeSeedPath = { "vLc", "6f=", "kYq", "1" };
 
     /// <summary>The freighter's crew captain - a SEPARATE model reference from

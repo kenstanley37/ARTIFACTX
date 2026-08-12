@@ -182,7 +182,7 @@
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <TextBlock Text="Home Seed" FontSize="12" Opacity="0.7"/>
                                     <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
-                                              ToolTipService.ToolTip="The freighter's registered home system address, not a cosmetic seed - editing it hasn't been independently confirmed to do anything visible in-game. Paste a value you've found elsewhere, or click Generate."/>
+                                              ToolTipService.ToolTip="Also the freighter's registered home system address, but confirmed via 2 isolated in-game tests to drive the hull's paint/texture pattern too - the shape stays the same, only the color scheme rerolls. Paste a value you've found elsewhere, or click Generate."/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBox x:Name="HomeSeedEditBox" Width="200" LostFocus="HomeSeedEditBox_LostFocus"/>
@@ -194,7 +194,7 @@
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <TextBlock Text="Model Seed" FontSize="12" Opacity="0.7"/>
                                     <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
-                                              ToolTipService.ToolTip="Matches a reference tool's own Model Seed field, but user testing on both a Dreadnought and a Normal freighter showed no visible hull change in-game after regenerating this - unlike Crew Seed below, which is confirmed working. Editable in case that changes with further testing."/>
+                                              ToolTipService.ToolTip="Matches a reference tool's own Model Seed field, but 2 in-game tests regenerating this showed no visible change on the Customisation/Paint screen - turns out that screen is actually driven by Home Seed above, not this. What Model Seed itself controls is still unconfirmed. Editable regardless."/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBox x:Name="ModelSeedEditBox" Width="200" LostFocus="ModelSeedEditBox_LostFocus"/>
