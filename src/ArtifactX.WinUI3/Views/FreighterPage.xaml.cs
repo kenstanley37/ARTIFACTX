@@ -284,8 +284,6 @@ public sealed partial class FreighterPage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
-    /// <summary>No matching Generate button - see FreighterHomeSeedPath's
-    /// doc comment for why randomizing this field isn't offered.</summary>
     private void HomeSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (!SaveSessionManager.IsSaveLoaded) return;
@@ -296,6 +294,21 @@ public sealed partial class FreighterPage : Page
         string? currentSeed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterHomeSeedPath)?.Value<string>();
         if (newSeed == currentSeed) return;
 
+        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterHomeSeedPath);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Same full 64-bit random range as Model/Crew Seed - a reference
+    /// tool's own Generate button does the same for Home Seed despite the
+    /// CURRENT value here often printing shorter (its underlying field isn't
+    /// zero-padded, so a numerically small GalacticAddress just shows fewer
+    /// hex digits).</summary>
+    private void GenerateHomeSeedBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (!SaveSessionManager.IsSaveLoaded) return;
+
+        string newSeed = NmsSeedGenerator.GenerateRandom();
+        HomeSeedEditBox.Text = newSeed;
         SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterHomeSeedPath);
         PageResetBtn.Visibility = Visibility.Visible;
     }

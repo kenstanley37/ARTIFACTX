@@ -164,7 +164,20 @@ public class NmsInventoryContainer
     /// characters' saves plus a reference tool showing the same three
     /// options for the same freighters. "@EL"'s second element (index 1) is
     /// that reference's own "Model Seed" - confirmed by an exact value match
-    /// against a real save.</summary>
+    /// against a real save.
+    ///
+    /// Residual doubt added 2026-08-12: unlike FreighterCrewSeedPath (Sjw.@EL,
+    /// independently confirmed - regenerating it visibly changed the
+    /// captain's in-game appearance), 2 separate user before/after in-game
+    /// tests of THIS seed (one on a Dreadnought-type freighter, one on Normal)
+    /// showed the freighter's exterior hull looking pixel-identical despite
+    /// the value changing and saving correctly. So while this field's VALUE
+    /// is confirmed to exact-match a reference tool's own "Model Seed"
+    /// display, whether the game actually reads it to drive hull appearance
+    /// is now in real doubt - not disproven (a reload/re-encounter trigger
+    /// neither test used might still be required), but no longer something to
+    /// assert confidently in UI copy. Left fully editable regardless, since
+    /// the write itself is correct and matches what a reference tool shows.</summary>
     public static readonly string[] FreighterTypePath = { "vLc", "6f=", "bIR", "93M" };
     public static readonly string[] FreighterModelSeedPath = { "vLc", "6f=", "bIR", "@EL", "1" };
 
@@ -172,18 +185,22 @@ public class NmsInventoryContainer
     /// directly under the freighter object (same shape as Model Seed's
     /// bIR.@EL and Crew Seed's Sjw.@EL, but its own separate field, "kYq"),
     /// found 2026-08-12 via a real value match against a reference tool's own
-    /// "Home Seed" field. Unlike Model/Crew Seed, this is only 12 hex digits
-    /// (48-bit) rather than 16 (64-bit) - and its decimal value was confirmed
-    /// to exactly equal this same freighter's own PersistentPlayerBase
-    /// GalacticAddress ("F?0" array, the entry whose peI.DPp is
-    /// "FreighterBase", field "oZw"). That strongly suggests "Home Seed" is
+    /// "Home Seed" field. Its CURRENT value happened to print as only 12 hex
+    /// digits (48-bit) rather than Model/Crew Seed's 16 (64-bit), and its
+    /// decimal value was confirmed to exactly equal this same freighter's own
+    /// PersistentPlayerBase GalacticAddress ("F?0" array, the entry whose
+    /// peI.DPp is "FreighterBase", field "oZw") - suggesting "Home Seed" is
     /// actually the freighter's registered home system address rather than a
-    /// cosmetic procedural-look seed like Model/Crew Seed - so unlike those
-    /// two, this is NOT wired into NmsSeedGenerator's random-reroll button or
-    /// into Full Build Templates: randomizing or copying a location address
-    /// onto a different save's freighter could have consequences beyond
-    /// appearance that haven't been tested. Exposed as a plain paste/copy
-    /// field only, to match what a reference tool shows.</summary>
+    /// cosmetic procedural-look seed. User confirmed a reference tool's own
+    /// Generate button for this field draws from the same full 64-bit range
+    /// as Model/Crew Seed regardless - the shorter digit count is just
+    /// unpadded hex formatting of a numerically small value, not a narrower
+    /// field - so NmsSeedGenerator.GenerateRandom() is used here too
+    /// (GenerateHomeSeedBtn_Click in FreighterPage.xaml.cs). Still NOT wired
+    /// into Full Build Templates: copying a location address onto a
+    /// different save's freighter could have consequences beyond appearance
+    /// that haven't been tested, and templates are meant to be reusable
+    /// across saves/characters where "home system" shouldn't travel along.</summary>
     public static readonly string[] FreighterHomeSeedPath = { "vLc", "6f=", "kYq", "1" };
 
     /// <summary>The freighter's crew captain - a SEPARATE model reference from

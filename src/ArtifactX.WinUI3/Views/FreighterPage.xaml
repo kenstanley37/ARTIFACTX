@@ -181,14 +181,17 @@
                             <StackPanel Spacing="6">
                                 <TextBlock Text="Home Seed" FontSize="12" Opacity="0.7"/>
                                 <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                           Text="The freighter's registered home system address, not a cosmetic seed - editing it hasn't been independently confirmed to do anything visible in-game. No randomize button for that reason; paste a value if you have one."/>
-                                <TextBox x:Name="HomeSeedEditBox" Width="260" LostFocus="HomeSeedEditBox_LostFocus"/>
+                                           Text="The freighter's registered home system address, not a cosmetic seed - editing it hasn't been independently confirmed to do anything visible in-game. Paste a value you've found elsewhere, or click Generate."/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBox x:Name="HomeSeedEditBox" Width="185" LostFocus="HomeSeedEditBox_LostFocus"/>
+                                    <Button Content="Generate" Click="GenerateHomeSeedBtn_Click"/>
+                                </StackPanel>
                             </StackPanel>
 
                             <StackPanel Spacing="6">
                                 <TextBlock Text="Model Seed" FontSize="12" Opacity="0.7"/>
                                 <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                           Text="Drives the hull's procedural look, alongside its Type/Class. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
+                                           Text="Matches a reference tool's own Model Seed field, but user testing on both a Dreadnought and a Normal freighter showed no visible hull change in-game after regenerating this - unlike Crew Seed below, which is confirmed working. Editable in case that changes with further testing."/>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBox x:Name="ModelSeedEditBox" Width="185" LostFocus="ModelSeedEditBox_LostFocus"/>
                                     <Button Content="Generate" Click="GenerateModelSeedBtn_Click"/>
