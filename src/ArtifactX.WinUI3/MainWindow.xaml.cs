@@ -103,6 +103,7 @@ public sealed partial class MainWindow : Window
         MultiToolPathIcon.Data = G(NavIconGeometries.MultiTool);
         StarshipsPathIcon.Data = G(NavIconGeometries.Starships);
         FreighterPathIcon.Data = G(NavIconGeometries.Freighter);
+        FreighterUpgradesPathIcon.Data = G(NavIconGeometries.Freighter);
         FrigatesPathIcon.Data = G(NavIconGeometries.Frigates);
         SquadronPathIcon.Data = G(NavIconGeometries.Squadron);
         BaseStoragePathIcon.Data = G(NavIconGeometries.BaseStorage);
@@ -316,6 +317,7 @@ public sealed partial class MainWindow : Window
                 "MultiTool" => typeof(MultiToolPage),
                 "Ships" => typeof(ShipsPage),
                 "Freighter" => typeof(FreighterPage),
+                "FreighterUpgrades" => typeof(FreighterUpgradesPage),
                 "Frigate" => typeof(FrigatePage),
                 "Squadron" => typeof(SquadronPage),
                 "BaseStorage" => typeof(BaseStoragePage),
@@ -360,6 +362,7 @@ public sealed partial class MainWindow : Window
         MultiToolNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         ShipsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         FreighterNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        FreighterUpgradesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         FrigateNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SquadronNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         BaseStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
@@ -386,6 +389,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(MultiToolPage) => "MultiTool",
             Type t when t == typeof(ShipsPage) => "Ships",
             Type t when t == typeof(FreighterPage) => "Freighter",
+            Type t when t == typeof(FreighterUpgradesPage) => "FreighterUpgrades",
             Type t when t == typeof(FrigatePage) => "Frigate",
             Type t when t == typeof(SquadronPage) => "Squadron",
             Type t when t == typeof(BaseStoragePage) => "BaseStorage",

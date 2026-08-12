@@ -84,6 +84,12 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
+                <NavigationViewItem x:Name="FreighterUpgradesNavItem" Content="Freighter Upgrades" Tag="FreighterUpgrades" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="FreighterUpgradesPathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
                 <NavigationViewItem x:Name="FrigateNavItem" Content="Frigates" Tag="Frigate" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
                         <PathIcon x:Name="FrigatesPathIcon"/>
