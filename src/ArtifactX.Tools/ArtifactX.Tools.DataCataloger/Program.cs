@@ -612,6 +612,170 @@ if (args.Length > 1 && args[0].Equals("add-language-words", StringComparison.Ord
     return;
 }
 
+// "DataCataloger add-guide-topics <target-catalog-db-path>" extracts the
+// in-game Guide screen's real topic-to-category grouping from
+// metadata/reality/wiki.mbin (a GcWiki: Categories[].Topics[], found
+// 2026-08-12 via `grep` on a known topic id, then `dumpfile` with bumped
+// depth/listCap since the generic dumper's 4/5 defaults were too shallow
+// to show more than placeholder "[0] [1] ..." for this shape - see
+// DumpStructure's listCap parameter). Confirmed correct: this dump's
+// output exactly matched a reference tool's own Guide tab across all 8
+// categories/57 categorized topics, screenshot-verified. Writes into the
+// existing catalog DB as a new "GcWiki" category, same pattern as
+// add-language-words - GameId=TopicID, NameEnglish=resolved topic name
+// (from language/nms_loc4_english.mbin, not loc1 - confirmed via grep
+// which loc file actually contains these ids), UsageCategory=resolved
+// category name (e.g. "Survival Basics"). ArtifactX's own GuidePage reads
+// this directly rather than a hardcoded Almanac list, so a future game
+// update's new/reordered topics get picked up automatically next time
+// this command is re-run - no code change needed on the app side.
+//
+// 2 of the 59 known UI_GUIDE_TOPIC_* loc ids (EXPLORATION_2 "Finding
+// Resources", TRADE_3A "Trading Basics") genuinely aren't in ANY
+// category's Topics list in this data - not a bug, confirmed by direct
+// inspection of the raw dump. Written with UsageCategory="Uncategorized"
+// rather than dropped, since they're still real, independently toggleable
+// ids in accountdata.hg (confirmed via the same real controlled test that
+// found this whole feature).
+if (args.Length > 1 && args[0].Equals("add-guide-topics", StringComparison.OrdinalIgnoreCase))
+{
+    string guideDbPath = args[1];
+    if (!File.Exists(guideDbPath))
+    {
+        ConsoleStyle.Error($"Target catalog DB not found: {guideDbPath}");
+        return;
+    }
+
+    var guideSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(guideSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakDiscoveryService guidePakDiscovery = new PakDiscoveryService();
+    IPakReaderService guidePakReader = new PakReaderService();
+    var guideExtraction = new ExtractionService();
+    var guidePaks = guidePakDiscovery.Discover(guideSettings.NmsInstallationPath!);
+
+    NMSTemplate? DecodeFirstMatch(string pathSubstring)
+    {
+        foreach (var pak in guidePaks)
+        {
+            PakHeader header;
+            IReadOnlyList<PakEntry> entries;
+            try
+            {
+                header = guidePakReader.ReadHeader(pak.FullPath);
+                entries = guidePakReader.Read(pak.FullPath);
+            }
+            catch { continue; }
+
+            var match = entries.FirstOrDefault(e =>
+                !string.IsNullOrEmpty(e.FileName) &&
+                e.FileName.Contains(pathSubstring, StringComparison.OrdinalIgnoreCase));
+            if (match is null) continue;
+
+            byte[]? bytes;
+            try { bytes = guideExtraction.ExtractEntryBytes(pak.FullPath, match, header); }
+            catch (Exception ex) { ConsoleStyle.Error($"Extraction failed: {ex.Message}"); return null; }
+            if (bytes is null || bytes.Length == 0) { ConsoleStyle.Error("Extraction returned no bytes."); return null; }
+
+            using var ms = new MemoryStream(bytes);
+            var mbin = new MBINFile(ms);
+            mbin.Load();
+            return mbin.GetData();
+        }
+        return null;
+    }
+
+    var guideLocTemplate = DecodeFirstMatch("language/nms_loc4_english.mbin");
+    if (guideLocTemplate is null)
+    {
+        ConsoleStyle.Error("Could not find/decode language/nms_loc4_english.mbin in any PAK.");
+        return;
+    }
+    var guideLookup = LocalisationService.BuildEnglishLookup(guideLocTemplate);
+    ConsoleStyle.Header($"Loc4 table decoded: {guideLookup.Count} total entries.");
+
+    var wikiTemplate = DecodeFirstMatch("metadata/reality/wiki.mbin");
+    if (wikiTemplate is not libMBIN.NMS.GameComponents.GcWiki wiki || wiki.Categories is null)
+    {
+        ConsoleStyle.Error("Could not find/decode metadata/reality/wiki.mbin as GcWiki in any PAK.");
+        return;
+    }
+
+    var guideRows = new List<(string GameId, string NameEnglish, string CategoryName)>();
+    var seenTopicIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    foreach (var category in wiki.Categories)
+    {
+        string categoryId = category.CategoryID?.Value ?? "";
+        string categoryName = guideLookup.TryGetValue(categoryId, out var catName) ? catName : categoryId;
+
+        if (category.Topics is null) continue;
+
+        foreach (var topic in category.Topics)
+        {
+            string topicId = topic.TopicID?.Value ?? "";
+            if (topicId.Length == 0 || !seenTopicIds.Add(topicId)) continue;
+
+            string topicName = guideLookup.TryGetValue(topicId, out var topName) ? topName : topicId;
+            guideRows.Add((topicId, topicName, categoryName));
+        }
+    }
+
+    // Every real UI_GUIDE_TOPIC_* id from the loc table that this category
+    // walk didn't find a home for - see the Uncategorized note above.
+    var uncategorizedPattern = new Regex(@"^UI_GUIDE_TOPIC_[A-Z0-9_]+$", RegexOptions.Compiled);
+    var uncategorized = guideLookup.Keys
+        .Where(id => uncategorizedPattern.IsMatch(id) && seenTopicIds.Add(id))
+        .Select(id => (GameId: id, NameEnglish: guideLookup[id], CategoryName: "Uncategorized"))
+        .ToList();
+    guideRows.AddRange(uncategorized);
+
+    var byCategory = guideRows.GroupBy(r => r.CategoryName).ToDictionary(g => g.Key, g => g.Count());
+    ConsoleStyle.Header($"Found {guideRows.Count} Guide topics across {byCategory.Count} categories:");
+    foreach (var (cat, count) in byCategory)
+        ConsoleStyle.Success($"  {cat}: {count}");
+
+    using var guideDb = new CatalogDbContext(guideDbPath);
+
+    var existingGuideCategory = guideDb.Categories.FirstOrDefault(c => c.TemplateType == "GcWiki");
+    if (existingGuideCategory != null)
+    {
+        ConsoleStyle.Info("Existing GcWiki category found - removing before re-inserting (idempotent re-run).");
+        var existingGuideItems = guideDb.Items.Where(i => i.CategoryId == existingGuideCategory.Id);
+        guideDb.Items.RemoveRange(existingGuideItems);
+        guideDb.Categories.Remove(existingGuideCategory);
+        guideDb.SaveChanges();
+    }
+
+    var guideCategory = new CatalogCategory
+    {
+        TemplateType = "GcWiki",
+        RowType = "GcWikiTopic",
+        SourceMbinPath = "metadata/reality/wiki.mbin"
+    };
+    guideDb.Categories.Add(guideCategory);
+    guideDb.SaveChanges();
+
+    foreach (var row in guideRows)
+    {
+        guideDb.Items.Add(new CatalogItem
+        {
+            CategoryId = guideCategory.Id,
+            GameId = row.GameId,
+            NameEnglish = row.NameEnglish,
+            UsageCategory = row.CategoryName
+        });
+    }
+    guideDb.SaveChanges();
+
+    ConsoleStyle.Success($"Wrote {guideRows.Count} Guide topic entries to {guideDbPath}.");
+    return;
+}
+
 // "DataCataloger dumpfile <path substring>" decodes exactly one MBIN (the first
 // entry whose path contains the given substring) and prints its full raw field
 // structure, regardless of whether CatalogClassifier would recognize it as a
@@ -624,6 +788,12 @@ if (args.Length > 1 && args[0].Equals("add-language-words", StringComparison.Ord
 if (args.Length > 1 && args[0].Equals("dumpfile", StringComparison.OrdinalIgnoreCase))
 {
     string targetPath = args[1];
+    // Optional 3rd/4th args - "dumpfile <path> [depth] [listCap]" - for
+    // shapes deeper/wider than the 4/5 defaults can show (e.g. GcWiki's
+    // Categories[].Topics[] needed depth 8/listCap 20 to see actual topic
+    // IDs instead of bare "[0] [1] ..." placeholders with nothing beneath).
+    int dumpDepth = args.Length > 2 && int.TryParse(args[2], out int d) ? d : 4;
+    int dumpListCap = args.Length > 3 && int.TryParse(args[3], out int lc) ? lc : 5;
     var dumpSettings = SettingsService.Load();
     if (!SettingsService.IsValid(dumpSettings))
     {
@@ -697,7 +867,7 @@ if (args.Length > 1 && args[0].Equals("dumpfile", StringComparison.OrdinalIgnore
         }
 
         ConsoleStyle.Success($"Top-level type: {template.GetType().Name}");
-        DumpStructure(template, depth: 4, indent: "  ", visited: new HashSet<object>(ReferenceEqualityComparer.Instance));
+        DumpStructure(template, depth: dumpDepth, indent: "  ", visited: new HashSet<object>(ReferenceEqualityComparer.Instance), listCap: dumpListCap);
         return;
     }
 
@@ -838,7 +1008,7 @@ static bool ContainsStringDeep(object? obj, string needle, int depth, HashSet<ob
 // lists capped at 5 to keep output readable for large tables. Strings (direct or
 // via the ReflectionUtil wrapper convention) are truncated; everything else shows
 // its type name so it's clear what shape a field actually is.
-static void DumpStructure(object? obj, int depth, string indent, HashSet<object> visited)
+static void DumpStructure(object? obj, int depth, string indent, HashSet<object> visited, int listCap = 5)
 {
     if (obj is null || depth <= 0) return;
 
@@ -874,13 +1044,13 @@ static void DumpStructure(object? obj, int depth, string indent, HashSet<object>
         int i = 0;
         foreach (var item in enumerable)
         {
-            if (i >= 5)
+            if (i >= listCap)
             {
-                Console.WriteLine($"{indent}... (truncated, showing first 5 elements only)");
+                Console.WriteLine($"{indent}... (truncated, showing first {listCap} elements only)");
                 break;
             }
             Console.WriteLine($"{indent}[{i}]");
-            DumpStructure(item, depth - 1, indent + "  ", visited);
+            DumpStructure(item, depth - 1, indent + "  ", visited, listCap);
             i++;
         }
         return;
@@ -906,7 +1076,7 @@ static void DumpStructure(object? obj, int depth, string indent, HashSet<object>
         }
 
         Console.WriteLine($"{indent}  {field.Name}:");
-        DumpStructure(value, depth - 1, indent + "    ", visited);
+        DumpStructure(value, depth - 1, indent + "    ", visited, listCap);
     }
 }
 

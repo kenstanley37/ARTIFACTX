@@ -11,6 +11,7 @@ public partial class GuideTopicRowViewModel : ObservableObject
 {
     public required string GameId { get; init; }
     public required string DisplayName { get; init; }
+    public required string Category { get; init; }
 
     [ObservableProperty]
     private bool isUnlocked;

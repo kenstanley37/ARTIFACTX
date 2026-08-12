@@ -1,4 +1,3 @@
-using ArtifactX.Almanac.Guide;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
@@ -81,10 +80,12 @@ public sealed partial class GuidePage : Page
         _seenFullIds = seenArray?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
         _seenIdSet = new HashSet<string>(_seenFullIds.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
 
-        _allItems = GuideTopics.All.Select(t => new GuideTopicRowViewModel
+        var topics = await CatalogService.GetGuideTopicsAsync();
+        _allItems = topics.Select(t => new GuideTopicRowViewModel
         {
             GameId = t.GameId,
             DisplayName = t.DisplayName,
+            Category = t.Category,
             IsUnlocked = _unlockedIdSet.Contains(t.GameId),
             IsSeen = _seenIdSet.Contains(t.GameId)
         }).ToList();
@@ -112,7 +113,13 @@ public sealed partial class GuidePage : Page
         }
 
         _currentlyVisibleRows = filtered.ToList();
-        ItemsListView.ItemsSource = _currentlyVisibleRows;
+
+        CategoriesItemsControl.ItemsSource = _currentlyVisibleRows
+            .GroupBy(r => r.Category)
+            .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new GuideCategoryGroupViewModel { Category = g.Key, Topics = g.ToList() })
+            .ToList();
+
         ResultCountTxt.Text = $"{_currentlyVisibleRows.Count:N0} of {_allItems.Count:N0} topics";
     }
 

@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
@@ -65,7 +66,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource NmsTextSecondary}" VerticalAlignment="Top" Margin="0,2,0,0"/>
                         <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
-                                   Text="Tracks the in-game Guide screen's per-topic Unlocked/Seen state, found via a real controlled test (confirmed 2026-08-12). No section grouping yet - the game's own topic-to-section mapping hasn't been found, so this is a flat searchable list rather than a guessed layout."/>
+                                   Text="Tracks the in-game Guide screen's per-topic Unlocked/Seen state, found via a real controlled test (confirmed 2026-08-12). Grouped by the game's own real section data (metadata/reality/wiki.mbin), extracted automatically - not a hand-copied list, so a future game update's topic changes get picked up just by re-running the cataloger."/>
                     </StackPanel>
                 </Border>
 
@@ -85,40 +86,54 @@
                             ToolTipService.ToolTip="Sets every topic currently shown below to unlocked/seen (respects the search box)"/>
                 </Grid>
 
-                <ListView Grid.Row="3" x:Name="ItemsListView" SelectionMode="None">
-                    <ListView.Header>
-                        <Grid Padding="4,4" ColumnSpacing="12">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="70"/>
-                                <ColumnDefinition Width="60"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Unlocked" FontSize="11" Foreground="{ThemeResource NmsTextSecondary}"/>
-                            <TextBlock Grid.Column="1" Text="Seen" FontSize="11" Foreground="{ThemeResource NmsTextSecondary}"/>
-                            <TextBlock Grid.Column="2" Text="Name" FontSize="11" Foreground="{ThemeResource NmsTextSecondary}"/>
-                        </Grid>
-                    </ListView.Header>
-                    <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="viewmodels:GuideTopicRowViewModel">
-                            <Grid Padding="4,6" ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="70"/>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <CheckBox Grid.Column="0" IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
-                                          Click="UnlockedCheckBox_Click" Tag="{x:Bind}" VerticalAlignment="Center"/>
-                                <CheckBox Grid.Column="1" IsChecked="{x:Bind IsSeen, Mode=OneWay}"
-                                          Click="SeenCheckBox_Click" Tag="{x:Bind}" VerticalAlignment="Center"/>
-                                <StackPanel Grid.Column="2" Spacing="0" VerticalAlignment="Center">
-                                    <TextBlock Text="{x:Bind DisplayName}" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{x:Bind GameId}" FontSize="10" Foreground="{ThemeResource NmsTextSecondary}"
-                                               TextTrimming="CharacterEllipsis"/>
-                                </StackPanel>
-                            </Grid>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
+                <!-- Cards (one per category), not a flat full-width list - user
+                     feedback 2026-08-12 ("they can be in block (cards) next to
+                     each other and responsive to app width"), same wrapping
+                     approach as Squadron/Catalogue's own responsive layouts.
+                     Built in code-behind (BuildCategoryCards) rather than a
+                     grouped ListView/CollectionViewSource - simpler to keep in
+                     sync with search filtering, which needs to hide a whole
+                     card when none of its topics match. -->
+                <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl x:Name="CategoriesItemsControl">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="16"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodels:GuideCategoryGroupViewModel">
+                                <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                                        CornerRadius="8" Padding="14" Width="320" VerticalAlignment="Top" Opacity="0.95">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{x:Bind HeaderText}" FontWeight="SemiBold" FontSize="14"/>
+                                        <ItemsControl ItemsSource="{x:Bind Topics}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="viewmodels:GuideTopicRowViewModel">
+                                                    <Grid ColumnSpacing="8" Padding="0,3">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <CheckBox Grid.Column="0" IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
+                                                                  Click="UnlockedCheckBox_Click" Tag="{x:Bind}"
+                                                                  ToolTipService.ToolTip="Unlocked"/>
+                                                        <CheckBox Grid.Column="1" IsChecked="{x:Bind IsSeen, Mode=OneWay}"
+                                                                  Click="SeenCheckBox_Click" Tag="{x:Bind}"
+                                                                  ToolTipService.ToolTip="Seen"/>
+                                                        <TextBlock Grid.Column="2" Text="{x:Bind DisplayName}" VerticalAlignment="Center"
+                                                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
             </Grid>
         </Grid>
     </Grid>

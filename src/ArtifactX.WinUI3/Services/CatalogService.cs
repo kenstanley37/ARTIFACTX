@@ -698,6 +698,60 @@ public static class CatalogService
         }
     }
 
+    private static List<GuideTopicCatalogRow>? _guideTopicsCache;
+
+    /// <summary>Every real in-game Guide topic, grouped by its real section
+    /// name - see GuideTopicCatalogRow's own doc comment. Cached process-wide
+    /// like GetAllUnlockableItemsAsync, same reasoning (GuidePage is the only
+    /// consumer today, but the underlying rows never change within a session
+    /// regardless).</summary>
+    public static async Task<List<GuideTopicCatalogRow>> GetGuideTopicsAsync()
+    {
+        if (_guideTopicsCache is not null) return _guideTopicsCache;
+
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+
+        try
+        {
+            _guideTopicsCache = await Task.Run(() => QueryGuideTopics(dbPath));
+            return _guideTopicsCache;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetGuideTopicsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    private static List<GuideTopicCatalogRow> QueryGuideTopics(string dbPath)
+    {
+        var results = new List<GuideTopicCatalogRow>();
+
+        using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT i.GameId, i.NameEnglish, i.UsageCategory
+            FROM Items i
+            JOIN Categories c ON c.Id = i.CategoryId
+            WHERE c.TemplateType = 'GcWiki'
+            ORDER BY i.UsageCategory, i.NameEnglish";
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            results.Add(new GuideTopicCatalogRow
+            {
+                GameId = reader.GetString(0),
+                DisplayName = reader.IsDBNull(1) ? reader.GetString(0) : reader.GetString(1),
+                Category = reader.IsDBNull(2) ? "Uncategorized" : reader.GetString(2)
+            });
+        }
+        return results;
+    }
+
     private static List<CatalogUnlockableItem> QueryAllUnlockableItems(string dbPath)
     {
         var results = new List<CatalogUnlockableItem>();
