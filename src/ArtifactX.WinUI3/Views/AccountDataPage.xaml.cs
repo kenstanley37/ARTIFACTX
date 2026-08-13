@@ -13,22 +13,47 @@ namespace ArtifactX.WinUI3.Views;
 
 /// <summary>Phase 1 of the account-wide unlocks editor (see
 /// project_milestones_page.md / AccountSessionManager for the scoping
-/// discussion this followed): a single flat browsable list of every catalog
-/// item the account could plausibly have unlocked (NmsAccountData.UnlockedItemsPath,
+/// discussion this followed): a browsable view of every catalog item the
+/// account could plausibly have unlocked (NmsAccountData.UnlockedItemsPath,
 /// "B89/B1h" - the master unlock list), with a checkbox to toggle each one.
-/// Only this one list is exposed - the smaller category-specific lists
+/// Only this one array is exposed - the smaller category-specific lists
 /// (blueprints/banners/base parts) are left alone since it's unconfirmed
-/// whether the game needs them kept in sync with B1h.</summary>
+/// whether the game needs them kept in sync with B1h.
+///
+/// Split into 3 independent sections (Catalog/Expedition Rewards/Twitch
+/// Rewards), each its own filtered subset of the same _allItems with its
+/// own ListView, search box, and Unlock All/Lock All - previously one list
+/// behind a single "Source" dropdown, changed 2026-08-12 per user feedback
+/// ("group our checkboxes like NomNom") to show all 3 simultaneously,
+/// matching how a reference tool keeps its own Expedition/Twitch sections
+/// visually separate rather than folded into one switchable list. The
+/// general Catalog list (~4,600 items) deliberately stays a single list
+/// with its own category-checkbox/Unlocked-Locked filtering - Expedition/
+/// Twitch are both much smaller and don't need that same filter surface.</summary>
 public sealed partial class AccountDataPage : Page
 {
     private List<AccountItemRowViewModel>? _allItems;
-    private List<AccountItemRowViewModel> _currentlyVisibleRows = new();
+
+    // Each section's own filtered SOURCE subset of _allItems (computed once
+    // per load, not per filter-pass - the EXPD_/TWITCH_ split itself never
+    // changes, only search/category/unlock filters within each do).
+    private List<AccountItemRowViewModel> _catalogSource = new();
+    private List<AccountItemRowViewModel> _expeditionSource = new();
+    private List<AccountItemRowViewModel> _twitchSource = new();
+
+    // Each section's own currently-visible rows (after its own filters),
+    // used by that section's Unlock All/Lock All to know what "visible"
+    // means for bulk actions.
+    private List<AccountItemRowViewModel> _catalogVisible = new();
+    private List<AccountItemRowViewModel> _expeditionVisible = new();
+    private List<AccountItemRowViewModel> _twitchVisible = new();
 
     // _workingIds keeps the exact raw ("^"-prefixed) strings the file itself uses, so
     // re-staging round-trips cleanly; _workingIdSet holds the same ids normalized
     // (CatalogService.NormalizeId - strips the leading "^") for O(1) lookup against
     // AccountItemRowViewModel.GameId, which is already normalized since it comes
-    // straight from the catalog DB.
+    // straight from the catalog DB. Shared across all 3 sections - they all stage
+    // into the same single B1h array regardless of which section a row is in.
     private List<string> _workingIds = new();
     private HashSet<string> _workingIdSet = new(StringComparer.Ordinal);
 
@@ -42,7 +67,6 @@ public sealed partial class AccountDataPage : Page
         Unloaded += Page_Unloaded;
 
         UnlockFilterBox.SelectedIndex = 0;
-        SourceFilterBox.SelectedIndex = 0;
 
         _ = LoadAccountDataAsync();
     }
@@ -121,12 +145,23 @@ public sealed partial class AccountDataPage : Page
             };
         }).ToList());
 
+        // Mutually exclusive - both id prefixes ("EXPD_"/"TWITCH_") are Hello
+        // Games' own naming convention, confirmed present on every expedition/
+        // Twitch-drop item found in the account's real B1h list (2026-08-04).
+        _expeditionSource = _allItems.Where(i => i.GameId.StartsWith("EXPD_", StringComparison.OrdinalIgnoreCase)).ToList();
+        _twitchSource = _allItems.Where(i => i.GameId.StartsWith("TWITCH_", StringComparison.OrdinalIgnoreCase)).ToList();
+        _catalogSource = _allItems.Where(i =>
+            !i.GameId.StartsWith("EXPD_", StringComparison.OrdinalIgnoreCase) &&
+            !i.GameId.StartsWith("TWITCH_", StringComparison.OrdinalIgnoreCase)).ToList();
+
         LoadingRing.IsActive = false;
         LoadingRing.Visibility = Visibility.Collapsed;
         ContentPanel.Visibility = Visibility.Visible;
 
         PopulateExpeditionFilter(expeditionNames);
-        ApplyFilters();
+        ApplyCatalogFilters();
+        ApplyExpeditionFilters();
+        ApplyTwitchFilters();
         UpdateEditButtons();
     }
 
@@ -161,46 +196,25 @@ public sealed partial class AccountDataPage : Page
         ExpeditionFilterBox.SelectedIndex = indexToSelect;
     }
 
-    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilters();
+    private void CatalogSearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplyCatalogFilters();
 
-    private void Filter_Changed(object sender, SelectionChangedEventArgs e) => ApplyFilters();
+    private void UnlockFilterBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => ApplyCatalogFilters();
 
-    private void CategoryCheck_Click(object sender, RoutedEventArgs e) => ApplyFilters();
+    private void CategoryCheck_Click(object sender, RoutedEventArgs e) => ApplyCatalogFilters();
 
-    private void ApplyFilters()
+    private void ApplyCatalogFilters()
     {
         if (_allItems is null) return;
 
-        string query = SearchBox.Text?.Trim() ?? "";
+        string query = CatalogSearchBox.Text?.Trim() ?? "";
         string? unlockFilter = (UnlockFilterBox.SelectedItem as ComboBoxItem)?.Content as string;
-        string? sourceFilter = (SourceFilterBox.SelectedItem as ComboBoxItem)?.Content as string;
 
         var allowedCategories = new List<string>();
         if (TechnologyCategoryCheck.IsChecked == true) allowedCategories.Add("Technology");
         if (ProductCategoryCheck.IsChecked == true) allowedCategories.Add("Product");
         if (SubstanceCategoryCheck.IsChecked == true) allowedCategories.Add("Substance");
 
-        IEnumerable<AccountItemRowViewModel> filtered = _allItems.Where(i => allowedCategories.Contains(i.CategoryLabel));
-
-        // Mutually exclusive with each other, unlike the Category checkboxes above -
-        // "Catalog" explicitly excludes Expedition/Twitch items rather than mixing
-        // them in, matching a reference tool keeping those in their own separate lists.
-        bool isExpeditionSource = sourceFilter == "Expedition Rewards";
-        if (isExpeditionSource)
-            filtered = filtered.Where(i => i.GameId.StartsWith("EXPD_", StringComparison.OrdinalIgnoreCase));
-        else if (sourceFilter == "Twitch Rewards")
-            filtered = filtered.Where(i => i.GameId.StartsWith("TWITCH_", StringComparison.OrdinalIgnoreCase));
-        else
-            filtered = filtered.Where(i =>
-                !i.GameId.StartsWith("EXPD_", StringComparison.OrdinalIgnoreCase) &&
-                !i.GameId.StartsWith("TWITCH_", StringComparison.OrdinalIgnoreCase));
-
-        // Only meaningful (and only shown - see Filter_Changed) when Source is
-        // "Expedition Rewards"; every other source has no rows with an
-        // ExpeditionNumber at all, so this filter is a no-op for them anyway.
-        ExpeditionFilterBox.Visibility = isExpeditionSource ? Visibility.Visible : Visibility.Collapsed;
-        if (isExpeditionSource && (ExpeditionFilterBox.SelectedItem as ComboBoxItem)?.Tag is int selectedExpedition)
-            filtered = filtered.Where(i => i.ExpeditionNumber == selectedExpedition);
+        IEnumerable<AccountItemRowViewModel> filtered = _catalogSource.Where(i => allowedCategories.Contains(i.CategoryLabel));
 
         if (!string.IsNullOrEmpty(query))
         {
@@ -214,9 +228,58 @@ public sealed partial class AccountDataPage : Page
         else if (unlockFilter == "Locked Only")
             filtered = filtered.Where(i => !i.IsUnlocked);
 
-        _currentlyVisibleRows = filtered.ToList();
-        ItemsListView.ItemsSource = _currentlyVisibleRows;
-        ResultCountTxt.Text = $"{_currentlyVisibleRows.Count:N0} of {_allItems.Count:N0} items";
+        _catalogVisible = filtered.ToList();
+        CatalogListView.ItemsSource = _catalogVisible;
+        CatalogResultCountTxt.Text = $"{_catalogVisible.Count:N0} of {_catalogSource.Count:N0} items";
+    }
+
+    private void ExpeditionSearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplyExpeditionFilters();
+
+    private void ExpeditionFilterBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => ApplyExpeditionFilters();
+
+    private void ApplyExpeditionFilters()
+    {
+        if (_allItems is null) return;
+
+        string query = ExpeditionSearchBox.Text?.Trim() ?? "";
+
+        IEnumerable<AccountItemRowViewModel> filtered = _expeditionSource;
+
+        if ((ExpeditionFilterBox.SelectedItem as ComboBoxItem)?.Tag is int selectedExpedition)
+            filtered = filtered.Where(i => i.ExpeditionNumber == selectedExpedition);
+
+        if (!string.IsNullOrEmpty(query))
+        {
+            filtered = filtered.Where(i =>
+                i.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                i.GameId.Contains(query, StringComparison.OrdinalIgnoreCase));
+        }
+
+        _expeditionVisible = filtered.ToList();
+        ExpeditionListView.ItemsSource = _expeditionVisible;
+        ExpeditionResultCountTxt.Text = $"{_expeditionVisible.Count:N0} of {_expeditionSource.Count:N0} items";
+    }
+
+    private void TwitchSearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplyTwitchFilters();
+
+    private void ApplyTwitchFilters()
+    {
+        if (_allItems is null) return;
+
+        string query = TwitchSearchBox.Text?.Trim() ?? "";
+
+        IEnumerable<AccountItemRowViewModel> filtered = _twitchSource;
+
+        if (!string.IsNullOrEmpty(query))
+        {
+            filtered = filtered.Where(i =>
+                i.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                i.GameId.Contains(query, StringComparison.OrdinalIgnoreCase));
+        }
+
+        _twitchVisible = filtered.ToList();
+        TwitchListView.ItemsSource = _twitchVisible;
+        TwitchResultCountTxt.Text = $"{_twitchVisible.Count:N0} of {_twitchSource.Count:N0} items";
     }
 
     /// <summary>Adds/removes one row's id from the working unlock set - shared by
@@ -239,6 +302,11 @@ public sealed partial class AccountDataPage : Page
         }
     }
 
+    /// <summary>Shared across all 3 sections' checkboxes - only the Catalog
+    /// section has an Unlocked/Locked filter that could hide/show the row just
+    /// clicked, so that's the only one worth re-running here (Expedition/Twitch
+    /// have no such filter, re-running their filters on every click would be
+    /// pure overhead for no visible effect).</summary>
     private void ItemCheckBox_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not CheckBox cb || cb.Tag is not AccountItemRowViewModel row) return;
@@ -246,32 +314,42 @@ public sealed partial class AccountDataPage : Page
         SetRowUnlocked(row, cb.IsChecked ?? false);
         AccountSessionManager.StageEdit(new JArray(_workingIds), NmsAccountData.UnlockedItemsPath);
 
-        // Only re-run the filter when the active unlock filter would actually
-        // hide/show this row - re-filtering on every click otherwise would be
-        // pure overhead for the (default) "All Items" view.
+        bool isCatalogRow =
+            !row.GameId.StartsWith("EXPD_", StringComparison.OrdinalIgnoreCase) &&
+            !row.GameId.StartsWith("TWITCH_", StringComparison.OrdinalIgnoreCase);
+
         string? unlockFilter = (UnlockFilterBox.SelectedItem as ComboBoxItem)?.Content as string;
-        if (unlockFilter is "Unlocked Only" or "Locked Only")
-            ApplyFilters();
+        if (isCatalogRow && unlockFilter is "Unlocked Only" or "Locked Only")
+            ApplyCatalogFilters();
     }
 
-    private void UnlockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetVisibleRows(unlock: true);
+    private void CatalogUnlockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(_catalogVisible, unlock: true, ApplyCatalogFilters);
 
-    private void LockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetVisibleRows(unlock: false);
+    private void CatalogLockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(_catalogVisible, unlock: false, ApplyCatalogFilters);
 
-    /// <summary>Scoped to whatever's currently visible (search + category checkboxes
-    /// + Unlocked/Locked filter) rather than the full ~4,700-item catalog, mirroring
-    /// a reference tool's own per-section Unlock All/Lock All buttons - safer than a single
-    /// "unlock literally everything" action, and makes the filters double as a way
-    /// to target a bulk change (e.g. search "portal" then Unlock All).</summary>
-    private void BulkSetVisibleRows(bool unlock)
+    private void ExpeditionUnlockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(_expeditionVisible, unlock: true, ApplyExpeditionFilters);
+
+    private void ExpeditionLockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(_expeditionVisible, unlock: false, ApplyExpeditionFilters);
+
+    private void TwitchUnlockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(_twitchVisible, unlock: true, ApplyTwitchFilters);
+
+    private void TwitchLockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(_twitchVisible, unlock: false, ApplyTwitchFilters);
+
+    /// <summary>Scoped to whatever's currently visible in ONE section (search +
+    /// that section's own filters) rather than the full ~4,700-item catalog,
+    /// mirroring a reference tool's own per-section Unlock All/Lock All buttons -
+    /// safer than a single "unlock literally everything" action, and makes the
+    /// filters double as a way to target a bulk change (e.g. search "portal"
+    /// then Unlock All).</summary>
+    private void BulkSetRows(List<AccountItemRowViewModel> visibleRows, bool unlock, Action reapplyFilters)
     {
-        if (_currentlyVisibleRows.Count == 0) return;
+        if (visibleRows.Count == 0) return;
 
-        foreach (var row in _currentlyVisibleRows)
+        foreach (var row in visibleRows)
             SetRowUnlocked(row, unlock);
 
         AccountSessionManager.StageEdit(new JArray(_workingIds), NmsAccountData.UnlockedItemsPath);
-        ApplyFilters();
+        reapplyFilters();
     }
 
     /// <summary>Mirrors AppTitleBar's own SaveBtn gating exactly - accountdata.hg
