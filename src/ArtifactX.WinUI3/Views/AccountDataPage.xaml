@@ -22,7 +22,15 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <CheckBox Grid.Column="0" IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
+                <!-- Width/MinWidth/Padding all explicit - WinUI3's default CheckBox
+                     style reserves a generous label/touch-target area even with no
+                     Content set, which otherwise pushes the Auto-width column 0 wide
+                     and strands the name text far right (same root cause already
+                     fixed once on Guide's own per-topic checkboxes - see
+                     project_guide_page.md - just never carried over to this row
+                     template, which predates that fix). -->
+                <CheckBox Grid.Column="0" Width="30" MinWidth="0" Padding="0" HorizontalContentAlignment="Center"
+                          IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
                           Click="ItemCheckBox_Click" Tag="{x:Bind}" VerticalAlignment="Center"/>
                 <!-- GameId shown under every row, not just when it's ambiguous -
                      many base-building parts (straight/corner/cap connector
