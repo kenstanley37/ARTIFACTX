@@ -186,8 +186,35 @@
                             <CheckBox x:Name="UncategorizedCategoryCheck" Content="Uncategorized" IsChecked="True" Click="CategoryCheck_Click"/>
                         </ctcontrols:WrapPanel>
 
-                        <ListView x:Name="CatalogListView" SelectionMode="None" Height="600"
-                                  ItemTemplate="{StaticResource AccountItemRowTemplate}"/>
+                        <!-- Grouped into per-category cards, not one flat list - user
+                             feedback 2026-08-13 ("I would prefer it to look like the
+                             Guide page. I don't like that everything is listed together"),
+                             same visual card language as GuidePage's own category cards.
+                             Unlike Guide, each card's item list is a real ListView (not a
+                             plain ItemsControl) with a bounded/scrollable height
+                             (CatalogCategorySectionViewModel.ListHeight) - CatalogGroup's
+                             per-category counts range from ~40 to ~1,700, far past what a
+                             non-virtualizing panel could hold at once. -->
+                        <ItemsControl x:Name="CatalogCategoriesItemsControl">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="16"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="viewmodels:CatalogCategorySectionViewModel">
+                                    <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                                            CornerRadius="8" Padding="14" Width="420" VerticalAlignment="Top" Opacity="0.95">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Text="{x:Bind Header}" FontWeight="SemiBold" FontSize="14"/>
+                                            <ListView ItemsSource="{x:Bind Items}" SelectionMode="None"
+                                                      Height="{x:Bind ListHeight}"
+                                                      ItemTemplate="{StaticResource AccountItemRowTemplate}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
 
                     <!-- Expedition Rewards - Banner/Decal/Title items whose own names spell

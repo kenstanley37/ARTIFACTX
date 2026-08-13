@@ -57,6 +57,16 @@ public sealed partial class AccountDataPage : Page
     private List<string> _workingIds = new();
     private HashSet<string> _workingIdSet = new(StringComparer.Ordinal);
 
+    // Fixed display order for the Catalog section's per-category cards - matches
+    // the Categories checkbox row's own left-to-right order, not alphabetical or
+    // count-based, so the grouping reads the same way every time regardless of
+    // which categories a given search/filter happens to leave non-empty.
+    private static readonly string[] CatalogGroupOrder =
+    {
+        "Raw Materials", "Crafted Products", "Equipment", "Constructed Technology",
+        "Construction Parts", "Trade Goods", "Curiosities", "Cooking Products", "Uncategorized"
+    };
+
     public AccountDataPage()
     {
         InitializeComponent();
@@ -236,7 +246,16 @@ public sealed partial class AccountDataPage : Page
             filtered = filtered.Where(i => !i.IsUnlocked);
 
         _catalogVisible = filtered.ToList();
-        CatalogListView.ItemsSource = _catalogVisible;
+
+        CatalogCategoriesItemsControl.ItemsSource = CatalogGroupOrder
+            .Select(group => new CatalogCategorySectionViewModel
+            {
+                Header = $"{group} ({_catalogVisible.Count(i => i.CatalogGroup == group)})",
+                Items = _catalogVisible.Where(i => i.CatalogGroup == group).ToList()
+            })
+            .Where(section => section.Items.Count > 0)
+            .ToList();
+
         CatalogResultCountTxt.Text = $"{_catalogVisible.Count:N0} of {_catalogSource.Count:N0} items";
     }
 
