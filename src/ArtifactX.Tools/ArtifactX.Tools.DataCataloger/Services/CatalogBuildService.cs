@@ -24,6 +24,20 @@ public class CatalogBuildService
         new(@"language/nms_[a-z]+\d+_(us)?english\.mbin$",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
+    // GcProductData.WikiCategory's raw enum names -> the reference-tool-style display
+    // group name shown on the Catalog page. "NotEnabled" is deliberately absent (those
+    // items aren't shown on the in-game Guide/Catalog screen at all, so CatalogGroup
+    // stays null for them - not mapped to a group of their own).
+    private static readonly Dictionary<string, string> WikiCategoryGroupNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Crafting"] = "Crafted Products",
+        ["Tech"] = "Constructed Technology",
+        ["Construction"] = "Construction Parts",
+        ["Trade"] = "Trade Goods",
+        ["Curio"] = "Curiosities",
+        ["Cooking"] = "Cooking Products",
+    };
+
     public CatalogBuildService(IPakDiscoveryService discovery, IPakReaderService pakReader, ExtractionService extraction)
     {
         _discovery = discovery;
@@ -940,6 +954,23 @@ public class CatalogBuildService
                         TemplateId = row.TemplateId,
                         UsageCategory = row.UsageCategory,
                         MaxStackSize = row.MaxStackSize,
+                        CatalogGroup = rowType.Name switch
+                        {
+                            // Neither row type has its own sub-category field (confirmed
+                            // by inspecting both classes directly), so every item of that
+                            // type maps wholesale to the one reference-tool group it fits.
+                            // GcProceduralTechnologyData (Sigma/Tau/Theta-style procedural
+                            // upgrade modules) is the same "Equipment" family as GcTechnology
+                            // proper - just generated per-instance rather than a fixed table
+                            // row - and likewise has no WikiCategory-equivalent field of its
+                            // own to read instead.
+                            "GcRealitySubstanceData" => "Raw Materials",
+                            "GcTechnology" => "Equipment",
+                            "GcProceduralTechnologyData" => "Equipment",
+                            "GcProductData" when row.WikiCategory != null &&
+                                WikiCategoryGroupNames.TryGetValue(row.WikiCategory, out var g) => g,
+                            _ => null
+                        },
                     };
 
                     foreach (var (sourceField, texturePath) in row.Icons)

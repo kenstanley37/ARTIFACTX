@@ -52,5 +52,17 @@ public class CatalogItem
     /// (real inventory stack cap) for every other row type.</summary>
     public int? CapacityValue { get; set; }
 
+    /// <summary>The reference-tool-style Catalog top-level grouping (e.g. "Raw Materials",
+    /// "Crafted Products", "Constructed Technology", "Equipment") - distinct from
+    /// UsageCategory, which means something different per row type (equipment slot for
+    /// Technology, crafting-ingredient tag for Product/Substance). For GcProductData rows
+    /// this is the row's own WikiCategory enum, mapped to its display name (rows whose
+    /// WikiCategory is "NotEnabled" - not shown on the in-game Guide/Catalog screen at all -
+    /// are left null here). GcTechnology rows map wholesale to "Equipment" and
+    /// GcRealitySubstanceData rows map wholesale to "Raw Materials", since neither row type
+    /// has an equivalent sub-category field of its own (confirmed by inspecting both classes
+    /// directly - only a "WikiEnabled" bool each). Null for every other row type.</summary>
+    public string? CatalogGroup { get; set; }
+
     public List<IconAsset> Icons { get; set; } = new();
 }

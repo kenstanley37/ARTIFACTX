@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
@@ -158,16 +159,32 @@
                         <!-- Multi-select category filter, deliberately checkboxes rather than a
                              single-select dropdown - mirrors a reference tool's own Catalog tab,
                              which shows all 9 of its (finer) groups as checkboxes side by side
-                             rather than a one-at-a-time picker. ArtifactX only has the coarser
-                             Technology/Product/Substance split (see CatalogService.ElvLabelFor),
-                             not that tool's 9-way one - the catalog DB doesn't currently decode
-                             the finer per-item grouping. -->
-                        <StackPanel Orientation="Horizontal" Spacing="16">
+                             rather than a one-at-a-time picker. Backed by CatalogItem.CatalogGroup:
+                             GcProductData's own "WikiCategory" enum (Crafting/Tech/Construction/
+                             Trade/Curio/Cooking) for 6 of these, plus GcTechnology/
+                             GcRealitySubstanceData mapped wholesale to Equipment/Raw Materials
+                             (neither has an equivalent sub-category field of its own). The
+                             reference tool's 9th group, "Portal Glyphs", has no real catalog-item
+                             backing anywhere in the game's data - every "GLYPH" match found is a
+                             loc-table UI string (UI_PORTAL_GLYPH_NAME_*), not a GcProductTable/
+                             GcSubstanceTable/GcTechnologyTable row with real name/icon/category
+                             data - so it's deliberately not represented as a checkbox here.
+                             "Uncategorized" is a safety net, not a reference-tool group: it holds
+                             the rare Product row whose own WikiCategory is "NotEnabled" (not
+                             shown on the in-game Guide/Catalog screen at all), so nothing that
+                             was visible before this split becomes invisible after it. -->
+                        <ctcontrols:WrapPanel Orientation="Horizontal" HorizontalSpacing="16" VerticalSpacing="8">
                             <TextBlock Text="Categories:" VerticalAlignment="Center" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"/>
-                            <CheckBox x:Name="TechnologyCategoryCheck" Content="Technology" IsChecked="True" Click="CategoryCheck_Click"/>
-                            <CheckBox x:Name="ProductCategoryCheck" Content="Product" IsChecked="True" Click="CategoryCheck_Click"/>
-                            <CheckBox x:Name="SubstanceCategoryCheck" Content="Substance" IsChecked="True" Click="CategoryCheck_Click"/>
-                        </StackPanel>
+                            <CheckBox x:Name="RawMaterialsCategoryCheck" Content="Raw Materials" IsChecked="True" Click="CategoryCheck_Click"/>
+                            <CheckBox x:Name="CraftedProductsCategoryCheck" Content="Crafted Products" IsChecked="True" Click="CategoryCheck_Click"/>
+                            <CheckBox x:Name="EquipmentCategoryCheck" Content="Equipment" IsChecked="True" Click="CategoryCheck_Click"/>
+                            <CheckBox x:Name="ConstructedTechnologyCategoryCheck" Content="Constructed Technology" IsChecked="True" Click="CategoryCheck_Click"/>
+                            <CheckBox x:Name="ConstructionPartsCategoryCheck" Content="Construction Parts" IsChecked="True" Click="CategoryCheck_Click"/>
+                            <CheckBox x:Name="TradeGoodsCategoryCheck" Content="Trade Goods" IsChecked="True" Click="CategoryCheck_Click"/>
+                            <CheckBox x:Name="CuriositiesCategoryCheck" Content="Curiosities" IsChecked="True" Click="CategoryCheck_Click"/>
+                            <CheckBox x:Name="CookingProductsCategoryCheck" Content="Cooking Products" IsChecked="True" Click="CategoryCheck_Click"/>
+                            <CheckBox x:Name="UncategorizedCategoryCheck" Content="Uncategorized" IsChecked="True" Click="CategoryCheck_Click"/>
+                        </ctcontrols:WrapPanel>
 
                         <ListView x:Name="CatalogListView" SelectionMode="None" Height="600"
                                   ItemTemplate="{StaticResource AccountItemRowTemplate}"/>

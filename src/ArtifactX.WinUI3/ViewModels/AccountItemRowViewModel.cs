@@ -14,6 +14,14 @@ public partial class AccountItemRowViewModel : ObservableObject
     public required string DisplayName { get; init; }
     public required string CategoryLabel { get; init; }
 
+    /// <summary>The reference-tool-style 9-way Catalog grouping (e.g. "Raw Materials",
+    /// "Crafted Products", "Equipment"), from CatalogUnlockableItem.CatalogGroup.
+    /// Always a real string here, never null - AccountDataPage substitutes
+    /// "Uncategorized" for rows the catalog DB couldn't map (mainly Product rows
+    /// whose own WikiCategory is "NotEnabled"), so every row still has SOME
+    /// category checkbox that shows it and nothing silently disappears.</summary>
+    public required string CatalogGroup { get; init; }
+
     /// <summary>Null for the vast majority of rows - only set for Banner/Decal/Title
     /// Expedition Reward items, whose own names spell out which expedition they're
     /// from (see CatalogService.BuildExpeditionNameLookup). Used both for the

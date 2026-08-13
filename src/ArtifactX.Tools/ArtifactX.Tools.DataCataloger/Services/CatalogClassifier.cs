@@ -40,6 +40,17 @@ public class ClassifiedRow
     /// its own 1o9/F9q fields already handled elsewhere).</summary>
     public int? MaxStackSize { get; set; }
 
+    /// <summary>GcProductData's own "WikiCategory" enum field (Crafting/Tech/Construction/
+    /// Trade/Curio/Cooking/NotEnabled) - the same grouping the in-game Guide/Catalog screen
+    /// uses to bucket Products into "Crafted Products"/"Constructed Technology"/etc. Distinct
+    /// from the "Category" field above (GcProductData ALSO has a plain "Category" field of
+    /// type GcRealitySubstanceCategory - a crafting-ingredient-type tag like Metal/Flora/
+    /// Exotic, unrelated to this). Raw enum name stored here (e.g. "Crafting"); CatalogBuildService
+    /// maps it to the display group name. Null for row types with no such field (Technology/
+    /// Substance don't have one - those map to their group wholesale instead, see
+    /// CatalogBuildService's CatalogGroup assignment).</summary>
+    public string? WikiCategory { get; set; }
+
     /// <summary>(field name on the row, e.g. "Icon"/"HeroIcon", DDS/PNG path referenced)</summary>
     public List<(string SourceField, string TexturePath)> Icons { get; set; } = new();
 }
@@ -181,6 +192,15 @@ public static class CatalogClassifier
 
         if (stackField != null)
             row.MaxStackSize = (int)stackField.GetValue(rowObj)!;
+
+        // Wiki category: GcProductData's "WikiCategory" field is a plain enum, not
+        // wrapped in its own NMSTemplate type like Category/StackMultiplier's siblings
+        // above - direct name+enum-type match.
+        var wikiCategoryField = type.GetFields(BindingFlags.Public | BindingFlags.Instance)
+            .FirstOrDefault(f => f.Name == "WikiCategory" && f.FieldType.IsEnum);
+
+        if (wikiCategoryField != null)
+            row.WikiCategory = wikiCategoryField.GetValue(rowObj)?.ToString();
 
         // Icon-shaped fields: any nested object exposing a "Filename" field (typically
         // TkTextureResource.Filename, itself a GcFilename - another Value-wrapped type,

@@ -81,6 +81,7 @@ public static class CatalogTrimService
                 DescriptionEnglish = sourceItem.DescriptionEnglish,
                 UsageCategory = sourceItem.UsageCategory,
                 MaxStackSize = sourceItem.MaxStackSize,
+                CatalogGroup = sourceItem.CatalogGroup,
                 // Was missing from this list entirely until 2026-08-11 -
                 // every ShipCapacity/MultiToolCapacity row (real per-class
                 // Tech/Cargo slot counts) built correctly in the working

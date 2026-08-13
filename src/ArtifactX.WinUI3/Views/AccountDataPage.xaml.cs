@@ -139,6 +139,7 @@ public sealed partial class AccountDataPage : Page
                 GameId = c.GameId,
                 DisplayName = c.DisplayName,
                 CategoryLabel = c.CategoryLabel,
+                CatalogGroup = c.CatalogGroup ?? "Uncategorized",
                 ExpeditionNumber = expeditionNumber,
                 ExpeditionName = expeditionName,
                 IsUnlocked = workingIdSet.Contains(c.GameId)
@@ -209,12 +210,18 @@ public sealed partial class AccountDataPage : Page
         string query = CatalogSearchBox.Text?.Trim() ?? "";
         string? unlockFilter = (UnlockFilterBox.SelectedItem as ComboBoxItem)?.Content as string;
 
-        var allowedCategories = new List<string>();
-        if (TechnologyCategoryCheck.IsChecked == true) allowedCategories.Add("Technology");
-        if (ProductCategoryCheck.IsChecked == true) allowedCategories.Add("Product");
-        if (SubstanceCategoryCheck.IsChecked == true) allowedCategories.Add("Substance");
+        var allowedGroups = new List<string>();
+        if (RawMaterialsCategoryCheck.IsChecked == true) allowedGroups.Add("Raw Materials");
+        if (CraftedProductsCategoryCheck.IsChecked == true) allowedGroups.Add("Crafted Products");
+        if (EquipmentCategoryCheck.IsChecked == true) allowedGroups.Add("Equipment");
+        if (ConstructedTechnologyCategoryCheck.IsChecked == true) allowedGroups.Add("Constructed Technology");
+        if (ConstructionPartsCategoryCheck.IsChecked == true) allowedGroups.Add("Construction Parts");
+        if (TradeGoodsCategoryCheck.IsChecked == true) allowedGroups.Add("Trade Goods");
+        if (CuriositiesCategoryCheck.IsChecked == true) allowedGroups.Add("Curiosities");
+        if (CookingProductsCategoryCheck.IsChecked == true) allowedGroups.Add("Cooking Products");
+        if (UncategorizedCategoryCheck.IsChecked == true) allowedGroups.Add("Uncategorized");
 
-        IEnumerable<AccountItemRowViewModel> filtered = _catalogSource.Where(i => allowedCategories.Contains(i.CategoryLabel));
+        IEnumerable<AccountItemRowViewModel> filtered = _catalogSource.Where(i => allowedGroups.Contains(i.CatalogGroup));
 
         if (!string.IsNullOrEmpty(query))
         {
