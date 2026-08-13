@@ -41,10 +41,11 @@ public sealed partial class AccountDataPage : Page
     private List<AccountItemRowViewModel> _expeditionSource = new();
     private List<AccountItemRowViewModel> _twitchSource = new();
 
-    // Each section's own currently-visible rows (after its own filters),
-    // used by that section's Unlock All/Lock All to know what "visible"
-    // means for bulk actions.
-    private List<AccountItemRowViewModel> _catalogVisible = new();
+    // Expedition/Twitch's own currently-visible rows (after their own search/
+    // expedition filters), used by their Unlock All/Lock All to know what
+    // "visible" means for bulk actions. Catalog has no such filter anymore
+    // (see RebuildCatalogCards) - its own Lock All/Unlock All just use
+    // _catalogSource directly, so it doesn't need an equivalent field.
     private List<AccountItemRowViewModel> _expeditionVisible = new();
     private List<AccountItemRowViewModel> _twitchVisible = new();
 
@@ -57,10 +58,9 @@ public sealed partial class AccountDataPage : Page
     private List<string> _workingIds = new();
     private HashSet<string> _workingIdSet = new(StringComparer.Ordinal);
 
-    // Fixed display order for the Catalog section's per-category cards - matches
-    // the Categories checkbox row's own left-to-right order, not alphabetical or
-    // count-based, so the grouping reads the same way every time regardless of
-    // which categories a given search/filter happens to leave non-empty.
+    // Fixed display order for the Catalog section's per-category cards - not
+    // alphabetical or count-based, so the grouping reads the same way every
+    // time regardless of which categories happen to be non-empty.
     private static readonly string[] CatalogGroupOrder =
     {
         "Raw Materials", "Crafted Products", "Equipment", "Constructed Technology",
@@ -75,8 +75,6 @@ public sealed partial class AccountDataPage : Page
         AccountSessionManager.PendingEditsChanged += OnPendingEditsChanged;
         GameProcessMonitorService.RunningStateChanged += OnGameRunningStateChanged;
         Unloaded += Page_Unloaded;
-
-        UnlockFilterBox.SelectedIndex = 0;
 
         _ = LoadAccountDataAsync();
     }
@@ -170,7 +168,7 @@ public sealed partial class AccountDataPage : Page
         ContentPanel.Visibility = Visibility.Visible;
 
         PopulateExpeditionFilter(expeditionNames);
-        ApplyCatalogFilters();
+        RebuildCatalogCards();
         ApplyExpeditionFilters();
         ApplyTwitchFilters();
         UpdateEditButtons();
@@ -207,56 +205,25 @@ public sealed partial class AccountDataPage : Page
         ExpeditionFilterBox.SelectedIndex = indexToSelect;
     }
 
-    private void CatalogSearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplyCatalogFilters();
-
-    private void UnlockFilterBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => ApplyCatalogFilters();
-
-    private void CategoryCheck_Click(object sender, RoutedEventArgs e) => ApplyCatalogFilters();
-
-    private void ApplyCatalogFilters()
+    /// <summary>Builds the Catalog section's cards once from the full, unfiltered
+    /// _catalogSource - no search box/category checkboxes/Unlocked-Locked filter
+    /// exist anymore (see the XAML comment above CatalogResultCountTxt for why),
+    /// so there's no per-interaction rebuild cost the way ApplyExpeditionFilters/
+    /// ApplyTwitchFilters still have for their own (much smaller) sections.</summary>
+    private void RebuildCatalogCards()
     {
         if (_allItems is null) return;
-
-        string query = CatalogSearchBox.Text?.Trim() ?? "";
-        string? unlockFilter = (UnlockFilterBox.SelectedItem as ComboBoxItem)?.Content as string;
-
-        var allowedGroups = new List<string>();
-        if (RawMaterialsCategoryCheck.IsChecked == true) allowedGroups.Add("Raw Materials");
-        if (CraftedProductsCategoryCheck.IsChecked == true) allowedGroups.Add("Crafted Products");
-        if (EquipmentCategoryCheck.IsChecked == true) allowedGroups.Add("Equipment");
-        if (ConstructedTechnologyCategoryCheck.IsChecked == true) allowedGroups.Add("Constructed Technology");
-        if (ConstructionPartsCategoryCheck.IsChecked == true) allowedGroups.Add("Construction Parts");
-        if (TradeGoodsCategoryCheck.IsChecked == true) allowedGroups.Add("Trade Goods");
-        if (CuriositiesCategoryCheck.IsChecked == true) allowedGroups.Add("Curiosities");
-        if (CookingProductsCategoryCheck.IsChecked == true) allowedGroups.Add("Cooking Products");
-        if (UncategorizedCategoryCheck.IsChecked == true) allowedGroups.Add("Uncategorized");
-
-        IEnumerable<AccountItemRowViewModel> filtered = _catalogSource.Where(i => allowedGroups.Contains(i.CatalogGroup));
-
-        if (!string.IsNullOrEmpty(query))
-        {
-            filtered = filtered.Where(i =>
-                i.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                i.GameId.Contains(query, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (unlockFilter == "Unlocked Only")
-            filtered = filtered.Where(i => i.IsUnlocked);
-        else if (unlockFilter == "Locked Only")
-            filtered = filtered.Where(i => !i.IsUnlocked);
-
-        _catalogVisible = filtered.ToList();
 
         CatalogCategoriesItemsControl.ItemsSource = CatalogGroupOrder
             .Select(group => new CatalogCategorySectionViewModel
             {
-                Header = $"{group} ({_catalogVisible.Count(i => i.CatalogGroup == group)})",
-                Items = _catalogVisible.Where(i => i.CatalogGroup == group).ToList()
+                Header = $"{group} ({_catalogSource.Count(i => i.CatalogGroup == group)})",
+                Items = _catalogSource.Where(i => i.CatalogGroup == group).ToList()
             })
             .Where(section => section.Items.Count > 0)
             .ToList();
 
-        CatalogResultCountTxt.Text = $"{_catalogVisible.Count:N0} of {_catalogSource.Count:N0} items";
+        CatalogResultCountTxt.Text = $"{_catalogSource.Count:N0} items";
     }
 
     private void ExpeditionSearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplyExpeditionFilters();
@@ -348,30 +315,21 @@ public sealed partial class AccountDataPage : Page
         }
     }
 
-    /// <summary>Shared across all 3 sections' checkboxes - only the Catalog
-    /// section has an Unlocked/Locked filter that could hide/show the row just
-    /// clicked, so that's the only one worth re-running here (Expedition/Twitch
-    /// have no such filter, re-running their filters on every click would be
-    /// pure overhead for no visible effect).</summary>
+    /// <summary>Shared across all 3 sections' checkboxes. No section has a
+    /// filter that could hide/show the row just clicked anymore (Catalog's own
+    /// Unlocked/Locked filter was removed - see RebuildCatalogCards), so this
+    /// just needs to stage the edit, not re-run any filter/rebuild.</summary>
     private void ItemCheckBox_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not CheckBox cb || cb.Tag is not AccountItemRowViewModel row) return;
 
         SetRowUnlocked(row, cb.IsChecked ?? false);
         AccountSessionManager.StageEdit(new JArray(_workingIds), NmsAccountData.UnlockedItemsPath);
-
-        bool isCatalogRow =
-            !row.GameId.StartsWith("EXPD_", StringComparison.OrdinalIgnoreCase) &&
-            !row.GameId.StartsWith("TWITCH_", StringComparison.OrdinalIgnoreCase);
-
-        string? unlockFilter = (UnlockFilterBox.SelectedItem as ComboBoxItem)?.Content as string;
-        if (isCatalogRow && unlockFilter is "Unlocked Only" or "Locked Only")
-            ApplyCatalogFilters();
     }
 
-    private void CatalogUnlockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(_catalogVisible, unlock: true, ApplyCatalogFilters);
+    private void CatalogUnlockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(_catalogSource, unlock: true, RebuildCatalogCards);
 
-    private void CatalogLockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(_catalogVisible, unlock: false, ApplyCatalogFilters);
+    private void CatalogLockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(_catalogSource, unlock: false, RebuildCatalogCards);
 
     private void ExpeditionUnlockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(_expeditionVisible, unlock: true, ApplyExpeditionFilters);
 

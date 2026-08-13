@@ -159,57 +159,29 @@
                          tab rather than folded into one dropdown-filtered list). -->
                     <StackPanel Spacing="10">
                         <TextBlock Text="Catalog" FontWeight="SemiBold" FontSize="16"/>
+
+                        <!-- No search box / category checkboxes / Unlocked-Locked filter here
+                             anymore - user feedback 2026-08-13: toggling a category checkbox
+                             rebuilt all 9 cards (up to ~1,700 items each) synchronously on the UI
+                             thread, visibly freezing the page for a couple seconds per click.
+                             "Just the cards is good enough" - removed the whole filter toolbar
+                             rather than trying to make the rebuild non-blocking, since the cards
+                             alone already give a browsable, grouped view without it. Cards are
+                             now built once per page load from the full unfiltered list
+                             (RebuildCatalogCards), not re-filtered on every interaction. -->
                         <Grid ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBox Grid.Column="0" x:Name="CatalogSearchBox" PlaceholderText="Search items..." TextChanged="CatalogSearchBox_TextChanged"/>
-                            <ComboBox Grid.Column="1" x:Name="UnlockFilterBox" Width="150" SelectionChanged="UnlockFilterBox_SelectionChanged">
-                                <ComboBoxItem Content="All Items"/>
-                                <ComboBoxItem Content="Unlocked Only"/>
-                                <ComboBoxItem Content="Locked Only"/>
-                            </ComboBox>
-                            <TextBlock Grid.Column="2" x:Name="CatalogResultCountTxt" VerticalAlignment="Center" FontSize="12"
+                            <TextBlock Grid.Column="0" x:Name="CatalogResultCountTxt" VerticalAlignment="Center" FontSize="12"
                                        Foreground="{ThemeResource NmsTextSecondary}"/>
-                            <Button Grid.Column="3" x:Name="CatalogLockAllBtn" Content="Lock All" Click="CatalogLockAllBtn_Click"
-                                    ToolTipService.ToolTip="Locks every item currently shown below (respects the search box, category checkboxes, and Unlocked/Locked filter)"/>
-                            <Button Grid.Column="4" x:Name="CatalogUnlockAllBtn" Content="Unlock All" Click="CatalogUnlockAllBtn_Click"
-                                    ToolTipService.ToolTip="Unlocks every item currently shown below (respects the search box, category checkboxes, and Unlocked/Locked filter)"/>
+                            <Button Grid.Column="1" x:Name="CatalogLockAllBtn" Content="Lock All" Click="CatalogLockAllBtn_Click"
+                                    ToolTipService.ToolTip="Locks every item in the Catalog list"/>
+                            <Button Grid.Column="2" x:Name="CatalogUnlockAllBtn" Content="Unlock All" Click="CatalogUnlockAllBtn_Click"
+                                    ToolTipService.ToolTip="Unlocks every item in the Catalog list"/>
                         </Grid>
-
-                        <!-- Multi-select category filter, deliberately checkboxes rather than a
-                             single-select dropdown - mirrors a reference tool's own Catalog tab,
-                             which shows all 9 of its (finer) groups as checkboxes side by side
-                             rather than a one-at-a-time picker. Backed by CatalogItem.CatalogGroup:
-                             GcProductData's own "WikiCategory" enum (Crafting/Tech/Construction/
-                             Trade/Curio/Cooking) for 6 of these, plus GcTechnology/
-                             GcRealitySubstanceData mapped wholesale to Equipment/Raw Materials
-                             (neither has an equivalent sub-category field of its own). The
-                             reference tool's 9th group, "Portal Glyphs", has no real catalog-item
-                             backing anywhere in the game's data - every "GLYPH" match found is a
-                             loc-table UI string (UI_PORTAL_GLYPH_NAME_*), not a GcProductTable/
-                             GcSubstanceTable/GcTechnologyTable row with real name/icon/category
-                             data - so it's deliberately not represented as a checkbox here.
-                             "Uncategorized" is a safety net, not a reference-tool group: it holds
-                             the rare Product row whose own WikiCategory is "NotEnabled" (not
-                             shown on the in-game Guide/Catalog screen at all), so nothing that
-                             was visible before this split becomes invisible after it. -->
-                        <ctcontrols:WrapPanel Orientation="Horizontal" HorizontalSpacing="16" VerticalSpacing="8">
-                            <TextBlock Text="Categories:" VerticalAlignment="Center" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"/>
-                            <CheckBox x:Name="RawMaterialsCategoryCheck" Content="Raw Materials" IsChecked="True" Click="CategoryCheck_Click"/>
-                            <CheckBox x:Name="CraftedProductsCategoryCheck" Content="Crafted Products" IsChecked="True" Click="CategoryCheck_Click"/>
-                            <CheckBox x:Name="EquipmentCategoryCheck" Content="Equipment" IsChecked="True" Click="CategoryCheck_Click"/>
-                            <CheckBox x:Name="ConstructedTechnologyCategoryCheck" Content="Constructed Technology" IsChecked="True" Click="CategoryCheck_Click"/>
-                            <CheckBox x:Name="ConstructionPartsCategoryCheck" Content="Construction Parts" IsChecked="True" Click="CategoryCheck_Click"/>
-                            <CheckBox x:Name="TradeGoodsCategoryCheck" Content="Trade Goods" IsChecked="True" Click="CategoryCheck_Click"/>
-                            <CheckBox x:Name="CuriositiesCategoryCheck" Content="Curiosities" IsChecked="True" Click="CategoryCheck_Click"/>
-                            <CheckBox x:Name="CookingProductsCategoryCheck" Content="Cooking Products" IsChecked="True" Click="CategoryCheck_Click"/>
-                            <CheckBox x:Name="UncategorizedCategoryCheck" Content="Uncategorized" IsChecked="True" Click="CategoryCheck_Click"/>
-                        </ctcontrols:WrapPanel>
 
                         <!-- Grouped into per-category cards, not one flat list - user
                              feedback 2026-08-13 ("I would prefer it to look like the
