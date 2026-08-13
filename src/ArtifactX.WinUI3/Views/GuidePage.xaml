@@ -156,6 +156,26 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
+
+                                        <!-- Invisible "ghost" rows padding this card up to the
+                                             tallest visible card's topic count - user feedback
+                                             2026-08-12 ("all containers should match the tallest
+                                             container"). Uses the EXACT same row template as a real
+                                             topic (just hidden) rather than a guessed pixel Height,
+                                             so it always matches whatever the real row height
+                                             actually renders as. See PaddingCount's own doc comment. -->
+                                        <ItemsControl ItemsSource="{x:Bind PaddingIndices}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4" Padding="0,2"
+                                                                Opacity="0" IsHitTestVisible="False">
+                                                        <CheckBox Width="30" MinWidth="0" Padding="0" IsTabStop="False"/>
+                                                        <CheckBox Width="30" MinWidth="0" Padding="0" IsTabStop="False"/>
+                                                        <TextBlock Text=" " MaxWidth="180"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>

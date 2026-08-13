@@ -623,9 +623,13 @@ if (args.Length > 1 && args[0].Equals("add-language-words", StringComparison.Ord
 // categories/57 categorized topics, screenshot-verified. Writes into the
 // existing catalog DB as a new "GcWiki" category, same pattern as
 // add-language-words - GameId=TopicID, NameEnglish=resolved topic name
-// (from language/nms_loc4_english.mbin, not loc1 - confirmed via grep
-// which loc file actually contains these ids), UsageCategory=resolved
-// category name (e.g. "Survival Basics"). ArtifactX's own GuidePage reads
+// (merged across EVERY english loc file, not just one - an initial loc4-
+// only version left 10 of the 59 ids showing as raw "UI_GUIDE_TOPIC_*"
+// text in the UI, since some topics' strings live in other numbered loc
+// files instead; same scattered-across-files behavior locidall's own doc
+// comment already describes for ship/vehicle reward names, fixed the same
+// way here), UsageCategory=resolved category name (e.g. "Survival
+// Basics"). ArtifactX's own GuidePage reads
 // this directly rather than a hardcoded Almanac list, so a future game
 // update's new/reordered topics get picked up automatically next time
 // this command is re-run - no code change needed on the app side.
@@ -689,14 +693,56 @@ if (args.Length > 1 && args[0].Equals("add-guide-topics", StringComparison.Ordin
         return null;
     }
 
-    var guideLocTemplate = DecodeFirstMatch("language/nms_loc4_english.mbin");
-    if (guideLocTemplate is null)
+    // Merged across EVERY english loc file, not just loc4 - loc4 alone was
+    // the first fix, but 10 of the 59 real topic/category ids (e.g.
+    // UI_GUIDE_TOPIC_SETTLEMENTS, UI_GUIDE_TOPIC_WORDS) turned out to live
+    // in OTHER loc files instead, surfacing as raw ids in the UI (caught by
+    // user feedback 2026-08-12 - direct violation of the standing "no raw
+    // save keys in UI" rule). Same root cause and same fix as locidall's own
+    // doc comment already describes for ship/vehicle reward names: content
+    // is scattered across numbered loc files per-category, not consolidated
+    // in one.
+    var guideLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    foreach (var pak in guidePaks)
     {
-        ConsoleStyle.Error("Could not find/decode language/nms_loc4_english.mbin in any PAK.");
-        return;
+        PakHeader header;
+        IReadOnlyList<PakEntry> entries;
+        try
+        {
+            header = guidePakReader.ReadHeader(pak.FullPath);
+            entries = guidePakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+
+        var locEntries = entries.Where(e =>
+            !string.IsNullOrEmpty(e.FileName) &&
+            e.FileName.Contains("language/nms_", StringComparison.OrdinalIgnoreCase) &&
+            e.FileName.Contains("english", StringComparison.OrdinalIgnoreCase) &&
+            !e.FileName.Contains("usenglish", StringComparison.OrdinalIgnoreCase));
+
+        foreach (var entry in locEntries)
+        {
+            byte[]? bytes;
+            try { bytes = guideExtraction.ExtractEntryBytes(pak.FullPath, entry, header); }
+            catch { continue; }
+            if (bytes is null || bytes.Length == 0) continue;
+
+            NMSTemplate? locTemplate;
+            try
+            {
+                using var ms = new MemoryStream(bytes);
+                var mbin = new MBINFile(ms);
+                mbin.Load();
+                locTemplate = mbin.GetData();
+            }
+            catch { continue; }
+            if (locTemplate is null) continue;
+
+            foreach (var kv in LocalisationService.BuildEnglishLookup(locTemplate))
+                guideLookup.TryAdd(kv.Key, kv.Value);
+        }
     }
-    var guideLookup = LocalisationService.BuildEnglishLookup(guideLocTemplate);
-    ConsoleStyle.Header($"Loc4 table decoded: {guideLookup.Count} total entries.");
+    ConsoleStyle.Header($"Merged loc tables decoded: {guideLookup.Count} total entries.");
 
     var wikiTemplate = DecodeFirstMatch("metadata/reality/wiki.mbin");
     if (wikiTemplate is not libMBIN.NMS.GameComponents.GcWiki wiki || wiki.Categories is null)

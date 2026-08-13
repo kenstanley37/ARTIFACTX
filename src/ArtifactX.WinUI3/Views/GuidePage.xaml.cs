@@ -114,10 +114,24 @@ public sealed partial class GuidePage : Page
 
         _currentlyVisibleRows = filtered.ToList();
 
-        CategoriesItemsControl.ItemsSource = _currentlyVisibleRows
+        var groups = _currentlyVisibleRows
             .GroupBy(r => r.Category)
             .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
-            .Select(g => new GuideCategoryGroupViewModel { Category = g.Key, Topics = g.ToList() })
+            .Select(g => g.ToList())
+            .ToList();
+
+        // Every card padded up to the SAME topic count (the largest card
+        // currently visible) so they render the same height - see
+        // GuideCategoryGroupViewModel.PaddingCount's own doc comment.
+        int maxCount = groups.Count > 0 ? groups.Max(g => g.Count) : 0;
+
+        CategoriesItemsControl.ItemsSource = groups
+            .Select(g => new GuideCategoryGroupViewModel
+            {
+                Category = g[0].Category,
+                Topics = g,
+                PaddingCount = maxCount - g.Count
+            })
             .ToList();
 
         ResultCountTxt.Text = $"{_currentlyVisibleRows.Count:N0} of {_allItems.Count:N0} topics";
