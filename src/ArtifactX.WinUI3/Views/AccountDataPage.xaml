@@ -47,6 +47,31 @@
                 </Border>
             </Grid>
         </DataTemplate>
+
+        <!-- Shared by all 3 sections below (Catalog/Expedition Rewards/Twitch
+             Rewards) - user feedback 2026-08-13 wanting the same "grouped into
+             cards" treatment applied consistently, not just on Catalog (Catalog
+             groups by CatalogGroup, Expedition Rewards by expedition number,
+             Twitch Rewards has no natural sub-grouping so gets exactly one
+             card). ListHeight caps each card's internal ListView height
+             (CatalogCategorySectionViewModel's own doc comment) so a huge group
+             (Construction Parts, or Expedition's ~113-item "Other Expedition
+             Items" catch-all) scrolls within its own card instead of growing
+             the card unbounded. -->
+        <ItemsPanelTemplate x:Key="CategoryCardWrapPanelTemplate">
+            <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="16"/>
+        </ItemsPanelTemplate>
+        <DataTemplate x:Key="CategoryCardTemplate" x:DataType="viewmodels:CatalogCategorySectionViewModel">
+            <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                    CornerRadius="8" Padding="14" Width="420" VerticalAlignment="Top" Opacity="0.95">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{x:Bind Header}" FontWeight="SemiBold" FontSize="14"/>
+                    <ListView ItemsSource="{x:Bind Items}" SelectionMode="None"
+                              Height="{x:Bind ListHeight}"
+                              ItemTemplate="{StaticResource AccountItemRowTemplate}"/>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
     </Page.Resources>
 
     <Grid Padding="24" RowSpacing="16">
@@ -195,26 +220,9 @@
                              (CatalogCategorySectionViewModel.ListHeight) - CatalogGroup's
                              per-category counts range from ~40 to ~1,700, far past what a
                              non-virtualizing panel could hold at once. -->
-                        <ItemsControl x:Name="CatalogCategoriesItemsControl">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="16"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="viewmodels:CatalogCategorySectionViewModel">
-                                    <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                                            CornerRadius="8" Padding="14" Width="420" VerticalAlignment="Top" Opacity="0.95">
-                                        <StackPanel Spacing="8">
-                                            <TextBlock Text="{x:Bind Header}" FontWeight="SemiBold" FontSize="14"/>
-                                            <ListView ItemsSource="{x:Bind Items}" SelectionMode="None"
-                                                      Height="{x:Bind ListHeight}"
-                                                      ItemTemplate="{StaticResource AccountItemRowTemplate}"/>
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ItemsControl x:Name="CatalogCategoriesItemsControl"
+                                      ItemsPanel="{StaticResource CategoryCardWrapPanelTemplate}"
+                                      ItemTemplate="{StaticResource CategoryCardTemplate}"/>
                     </StackPanel>
 
                     <!-- Expedition Rewards - Banner/Decal/Title items whose own names spell
@@ -242,8 +250,16 @@
                             <Button Grid.Column="4" x:Name="ExpeditionUnlockAllBtn" Content="Unlock All" Click="ExpeditionUnlockAllBtn_Click"
                                     ToolTipService.ToolTip="Unlocks every item currently shown below (respects the search box and expedition filter)"/>
                         </Grid>
-                        <ListView x:Name="ExpeditionListView" SelectionMode="None" Height="260"
-                                  ItemTemplate="{StaticResource AccountItemRowTemplate}"/>
+                        <!-- Grouped into one card per expedition number (e.g. "#19: CORVETTE"),
+                             the same real data already shown as a badge on each row
+                             (AccountItemRowTemplate's ExpeditionLabel), plus a catch-all
+                             "Other Expedition Items" card for the ~113 of 180 EXPD_ items with
+                             no expedition-number signal (backpacks/capes/ships/etc. - see
+                             CatalogService.GetExpeditionInfo's own doc comment on why only
+                             Banner/Decal/Title items resolve one at all). -->
+                        <ItemsControl x:Name="ExpeditionCategoriesItemsControl"
+                                      ItemsPanel="{StaticResource CategoryCardWrapPanelTemplate}"
+                                      ItemTemplate="{StaticResource CategoryCardTemplate}"/>
                     </StackPanel>
 
                     <!-- Twitch Rewards - same shape as Expedition Rewards above, just no
@@ -265,8 +281,14 @@
                             <Button Grid.Column="3" x:Name="TwitchUnlockAllBtn" Content="Unlock All" Click="TwitchUnlockAllBtn_Click"
                                     ToolTipService.ToolTip="Unlocks every item currently shown below (respects the search box)"/>
                         </Grid>
-                        <ListView x:Name="TwitchListView" SelectionMode="None" Height="260"
-                                  ItemTemplate="{StaticResource AccountItemRowTemplate}"/>
+                        <!-- One single card ("Twitch Drops") rather than a per-item grouping -
+                             TWITCH_ items carry no natural sub-category the way Catalog
+                             (CatalogGroup) or Expedition Rewards (expedition number) do, so
+                             this just gets the same bordered-card visual treatment as the
+                             other 2 sections without inventing a fake axis to split it by. -->
+                        <ItemsControl x:Name="TwitchCategoriesItemsControl"
+                                      ItemsPanel="{StaticResource CategoryCardWrapPanelTemplate}"
+                                      ItemTemplate="{StaticResource CategoryCardTemplate}"/>
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>

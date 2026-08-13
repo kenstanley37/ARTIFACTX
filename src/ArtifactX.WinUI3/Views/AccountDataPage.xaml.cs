@@ -282,7 +282,23 @@ public sealed partial class AccountDataPage : Page
         }
 
         _expeditionVisible = filtered.ToList();
-        ExpeditionListView.ItemsSource = _expeditionVisible;
+
+        var sections = _expeditionVisible
+            .Where(i => i.ExpeditionNumber is int)
+            .GroupBy(i => i.ExpeditionNumber!.Value)
+            .OrderBy(g => g.Key)
+            .Select(g => new CatalogCategorySectionViewModel
+            {
+                Header = $"#{g.Key}: {g.First().ExpeditionName} ({g.Count()})",
+                Items = g.ToList()
+            })
+            .ToList();
+
+        var otherItems = _expeditionVisible.Where(i => i.ExpeditionNumber is null).ToList();
+        if (otherItems.Count > 0)
+            sections.Add(new CatalogCategorySectionViewModel { Header = $"Other Expedition Items ({otherItems.Count})", Items = otherItems });
+
+        ExpeditionCategoriesItemsControl.ItemsSource = sections;
         ExpeditionResultCountTxt.Text = $"{_expeditionVisible.Count:N0} of {_expeditionSource.Count:N0} items";
     }
 
@@ -304,7 +320,11 @@ public sealed partial class AccountDataPage : Page
         }
 
         _twitchVisible = filtered.ToList();
-        TwitchListView.ItemsSource = _twitchVisible;
+
+        TwitchCategoriesItemsControl.ItemsSource = _twitchVisible.Count > 0
+            ? new List<CatalogCategorySectionViewModel> { new() { Header = $"Twitch Drops ({_twitchVisible.Count})", Items = _twitchVisible } }
+            : new List<CatalogCategorySectionViewModel>();
+
         TwitchResultCountTxt.Text = $"{_twitchVisible.Count:N0} of {_twitchSource.Count:N0} items";
     }
 
