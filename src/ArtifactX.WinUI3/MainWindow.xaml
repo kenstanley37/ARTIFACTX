@@ -48,19 +48,23 @@
                      at the top, right under Save Selection, because it only needs a
                      platform account chosen (SaveSessionManager.HasActivePlatform),
                      not a specific save slot loaded. See UpdateNavAvailability and
-                     SaveFolderSelectPage's Expander.Expanding handler. Guide nests
-                     under it as a child - same hybrid pattern as Milestones/its
-                     language children below: the parent itself still navigates to
-                     AccountDataPage (SelectsOnInvoked defaults true), the chevron
-                     just additionally exposes Guide, which edits a different pair of
-                     arrays in that same accountdata.hg file (2026-08-12 user
-                     feedback: "Account data should be top level and then subpages
-                     like Guide etc"). -->
-                <NavigationViewItem x:Name="AccountDataNavItem" Content="Account Data" Tag="AccountData" Visibility="Collapsed">
+                     SaveFolderSelectPage's Expander.Expanding handler.
+
+                     Pure folder, not itself clickable (SelectsOnInvoked="False",
+                     no Tag) - same pattern as Structural Analysis below, NOT the
+                     Milestones hybrid (parent navigates AND toggles). User feedback
+                     2026-08-12: with the parent also carrying a Tag, every click on
+                     "Account Data" both navigated AND toggled the child list open/
+                     closed at once, which read as broken/flickery. Catalog (the
+                     original account-wide unlock list, previously reachable by
+                     clicking "Account Data" itself) is now its own explicit child
+                     alongside Guide, both equally-weighted subpages. -->
+                <NavigationViewItem x:Name="AccountDataNavItem" Content="Account Data" SelectsOnInvoked="False" IsExpanded="True" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE77B;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.MenuItems>
+                        <NavigationViewItem Content="Catalog" Tag="AccountData" Icon="List"/>
                         <NavigationViewItem x:Name="GuideNavItem" Content="Guide" Tag="Guide">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE82D;" FontFamily="Segoe MDL2 Assets"/>
