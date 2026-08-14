@@ -155,18 +155,24 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
-                <!-- Expandable AND directly clickable - clicking "Milestones" itself
-                     still navigates to MilestonesPage (SelectsOnInvoked defaults to
-                     true), the chevron just additionally exposes the 5 language
-                     pages as children, matching where the user asked for these to
-                     live ("milestones is the best spot"). Atlas isn't a race, just
-                     a smaller special vocabulary pool sharing the same save array -
-                     see NmsLanguagePaths. -->
-                <NavigationViewItem x:Name="MilestonesNavItem" Content="Milestones" Tag="Milestones" Visibility="Collapsed">
+                <!-- Pure folder (SelectsOnInvoked="False", no Tag) - same pattern as
+                     Account Data/Structural Analysis, NOT the old hybrid (parent
+                     navigated AND toggled at once). User feedback 2026-08-13: "move
+                     the link away from Milestones since it is a dropdown. Like we
+                     did with Account Data" - clicking "Milestones" previously both
+                     navigated to MilestonesPage AND expanded/collapsed the 5
+                     language children on the same click. Milestones (the original
+                     save-wide progress-tracking page) is now its own explicit
+                     child, equally-weighted alongside the 5 language pages - same
+                     restructure as Account Data's own Catalog/Guide split. Atlas
+                     isn't a race, just a smaller special vocabulary pool sharing
+                     the same save array - see NmsLanguagePaths. -->
+                <NavigationViewItem x:Name="MilestonesNavItem" Content="Milestones" SelectsOnInvoked="False" IsExpanded="True" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
                         <PathIcon x:Name="MilestonesPathIcon"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.MenuItems>
+                        <NavigationViewItem Content="Milestones" Tag="Milestones" Icon="Flag"/>
                         <NavigationViewItem Content="Gek Language" Tag="LanguageGek">
                             <NavigationViewItem.Icon>
                                 <PathIcon x:Name="GekLanguagePathIcon"/>
