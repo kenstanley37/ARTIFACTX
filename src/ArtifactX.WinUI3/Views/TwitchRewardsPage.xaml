@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Page
-    x:Class="ArtifactX.WinUI3.Views.AccountDataPage"
+    x:Class="ArtifactX.WinUI3.Views.TwitchRewardsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
@@ -19,23 +19,9 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <!-- Width/MinWidth/Padding all explicit - WinUI3's default CheckBox
-                     style reserves a generous label/touch-target area even with no
-                     Content set, which otherwise pushes the Auto-width column 0 wide
-                     and strands the name text far right (same root cause already
-                     fixed once on Guide's own per-topic checkboxes - see
-                     project_guide_page.md - just never carried over to this row
-                     template, which predates that fix). -->
                 <CheckBox Grid.Column="0" Width="30" MinWidth="0" Padding="0" HorizontalContentAlignment="Center"
                           IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
                           Click="ItemCheckBox_Click" Tag="{x:Bind}" VerticalAlignment="Center"/>
-                <!-- GameId shown under every row, not just when it's ambiguous -
-                     many base-building parts (straight/corner/cap connector
-                     variants of the same piece) legitimately share one display
-                     name across several distinct ids (up to 16 for some pieces),
-                     which read as duplicate/buggy rows without this (user feedback
-                     2026-08-05). Differing checkbox states on those rows was
-                     already proof they're real separate items, just easy to miss. -->
                 <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
                     <TextBlock Text="{x:Bind DisplayName}" TextTrimming="CharacterEllipsis"/>
                     <TextBlock Text="{x:Bind GameId}" FontSize="10" Foreground="{ThemeResource NmsTextSecondary}"
@@ -82,13 +68,7 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                <TextBlock Text="Catalog" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
-                <!-- This list is account-wide, not tied to any one save slot (see the
-                     warning banner below) - accountdata.hg lives once per PLATFORM
-                     account, so what matters here is which platform is active
-                     (SaveSessionManager.ActivePlatformDisplayName), not which save
-                     slot. Without this, there was no on-page indication of which
-                     account was actually being edited (user feedback 2026-08-04). -->
+                <TextBlock Text="Twitch Rewards" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
                 <Border Background="{ThemeResource NmsAccentBrush}" CornerRadius="4" Padding="9,3" VerticalAlignment="Center">
                     <TextBlock x:Name="ActivePlatformTxt" Text="" FontSize="12" FontWeight="Bold" Foreground="White"/>
                 </Border>
@@ -96,16 +76,11 @@
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                 <TextBlock x:Name="PendingEditsTxt" VerticalAlignment="Center" FontSize="12"
                            Foreground="{ThemeResource NmsTextSecondary}"/>
-                <!-- Its own Save/Discard pair, deliberately separate from AppTitleBar's -
-                     this data isn't tied to the currently loaded save slot at all, so
-                     conflating it with the per-slot Save button would risk a user
-                     thinking a slot save also covers this (or vice versa). Note: this
-                     page, Expedition Rewards, and Twitch Rewards all edit the SAME
-                     shared accountdata.hg unlock array (see AccountSessionManager) -
-                     saving/discarding here also saves/discards any pending edits made
-                     on those other 2 pages this session, which is correct (they're not
-                     independently trackable sub-arrays, just different filtered views
-                     of the one array). -->
+                <!-- Shares the same accountdata.hg unlock array as Catalog/Expedition
+                     Rewards (see AccountSessionManager) - saving/discarding here also
+                     saves/discards any pending edits made on those other 2 pages this
+                     session, which is correct: they're not independently trackable
+                     sub-arrays, just different filtered views of the one array. -->
                 <Button x:Name="DiscardChangesBtn" Content="Discard Changes" Click="DiscardChangesBtn_Click"
                         Style="{StaticResource DangerButtonStyle}" IsEnabled="False"/>
                 <Button x:Name="SaveChangesBtn" Content="Save Changes" Click="SaveChangesBtn_Click"
@@ -133,50 +108,34 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Deliberately hedged wording - see project_account_data_page.md's
-                         2026-08-02 follow-up. A reference tool's own "Catalog" tab claims this
-                         list drives the in-game Catalog & Guide -> Catalogue screen's black
-                         silhouettes, but direct testing (writing a confirmed-persisted id, then
-                         checking in-game) didn't show that effect, and the user separately
-                         confirmed that screen is actually driven by PER-SLOT save data, not
-                         accountdata.hg at all. Don't restate that claim as fact here until
-                         ArtifactX's own testing confirms what this list actually does in-game. -->
-                    <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                            CornerRadius="6" Padding="12,8" Opacity="0.85">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource NmsTextSecondary}" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
-                                       Text="This is your account-wide unlock list (accountdata.hg) - the same data a reference tool's own 'Catalog' tab edits. That tool describes it as controlling the black-silhouette items under the game's Catalog &amp; Guide screen, but ArtifactX hasn't independently confirmed that effect yet - that screen may actually be driven by per-save-slot data instead. Treat changes here as experimental until confirmed in-game. Expedition and Twitch reward items live on their own separate pages, not here."/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- The general ~4,300-item list, everything that isn't an Expedition/
-                         Twitch reward - those moved to their own dedicated pages 2026-08-13
-                         (user feedback: "It feels like we have too much on Catalog... It's
-                         just the catalog page is a little laggy" - splitting them off means
-                         Catalog's own page load no longer also builds ~22 Expedition cards +
-                         1 Twitch card it wasn't even showing). -->
+                    <!-- The "TWITCH_" id prefix is Hello Games' own naming convention,
+                         confirmed present on every Twitch-drop item found in the
+                         account's real B1h list (2026-08-04) - a live pattern match
+                         against whatever's in the catalog DB, not a hardcoded item
+                         list. Split out of AccountDataPage into its own page
+                         2026-08-13 - user feedback: "too much on Catalog... a little
+                         laggy." -->
                     <Grid ColumnSpacing="12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" x:Name="CatalogResultCountTxt" VerticalAlignment="Center" FontSize="12"
+                        <TextBox Grid.Column="0" x:Name="SearchBox" PlaceholderText="Search Twitch rewards..." TextChanged="SearchBox_TextChanged"/>
+                        <TextBlock Grid.Column="1" x:Name="ResultCountTxt" VerticalAlignment="Center" FontSize="12"
                                    Foreground="{ThemeResource NmsTextSecondary}"/>
-                        <Button Grid.Column="1" x:Name="CatalogLockAllBtn" Content="Lock All" Click="CatalogLockAllBtn_Click"
-                                ToolTipService.ToolTip="Locks every item in the Catalog list"/>
-                        <Button Grid.Column="2" x:Name="CatalogUnlockAllBtn" Content="Unlock All" Click="CatalogUnlockAllBtn_Click"
-                                ToolTipService.ToolTip="Unlocks every item in the Catalog list"/>
+                        <Button Grid.Column="2" x:Name="LockAllBtn" Content="Lock All" Click="LockAllBtn_Click"
+                                ToolTipService.ToolTip="Locks every item currently shown below (respects the search box)"/>
+                        <Button Grid.Column="3" x:Name="UnlockAllBtn" Content="Unlock All" Click="UnlockAllBtn_Click"
+                                ToolTipService.ToolTip="Unlocks every item currently shown below (respects the search box)"/>
                     </Grid>
 
-                    <!-- Grouped into per-category cards, not one flat list - see
-                         CatalogCategorySectionViewModel.ListHeight for why each card's
-                         item list is a real ListView (not a plain ItemsControl) with a
-                         bounded/scrollable height - CatalogGroup's per-category counts
-                         range from ~40 to ~1,700, far past what a non-virtualizing panel
-                         could hold at once. -->
-                    <ItemsControl x:Name="CatalogCategoriesItemsControl"
+                    <!-- One single card ("Twitch Drops") rather than a per-item
+                         grouping - TWITCH_ items carry no natural sub-category the
+                         way Catalog (CatalogGroup) or Expedition Rewards (expedition
+                         number) do. -->
+                    <ItemsControl x:Name="CategoriesItemsControl"
                                   ItemsPanel="{StaticResource CategoryCardWrapPanelTemplate}"
                                   ItemTemplate="{StaticResource CategoryCardTemplate}"/>
                 </StackPanel>

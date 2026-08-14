@@ -70,6 +70,23 @@
                                 <FontIcon Glyph="&#xE82D;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
+                        <!-- Split out of Catalog 2026-08-13 - user feedback: "It feels
+                             like we have too much on Catalog... Like Expedition and
+                             Twitch Drops on a page by themselves. It's just the
+                             catalog page is a little laggy." Each is its own page
+                             now (ExpeditionRewardsPage/TwitchRewardsPage), not just a
+                             section on Catalog - so Catalog's own page load no longer
+                             also builds cards for reward items it wasn't even showing. -->
+                        <NavigationViewItem Content="Expedition Rewards" Tag="ExpeditionRewards">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE7C1;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Content="Twitch Rewards" Tag="TwitchRewards">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE714;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
                     </NavigationViewItem.MenuItems>
                 </NavigationViewItem>
 
