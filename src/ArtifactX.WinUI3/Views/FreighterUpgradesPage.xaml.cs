@@ -9,6 +9,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Views;
 
@@ -46,11 +47,11 @@ public sealed partial class FreighterUpgradesPage : Page
         GroupFilterBox.SelectedIndex = 0;
         UnlockedFilterBox.SelectedIndex = 0;
 
-        LoadUpgrades();
+        _ = LoadUpgradesAsync();
     }
 
     private void OnActiveSessionChanged(object? sender, EventArgs e) =>
-        DispatcherQueue.TryEnqueue(LoadUpgrades);
+        DispatcherQueue.TryEnqueue(() => _ = LoadUpgradesAsync());
 
     private void OnPendingEditsChanged(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(UpdateResetButton);
@@ -67,7 +68,7 @@ public sealed partial class FreighterUpgradesPage : Page
     private static bool HasFreighter() =>
         !string.IsNullOrEmpty(SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>());
 
-    private void LoadUpgrades()
+    private async Task LoadUpgradesAsync()
     {
         if (!SaveSessionManager.IsSaveLoaded || !HasFreighter())
         {
@@ -82,6 +83,14 @@ public sealed partial class FreighterUpgradesPage : Page
         var fullArray = SaveSessionManager.GetValue(NmsFreighterUpgradePaths.BlueprintArrayPath) as JArray;
         _fullIds = fullArray?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
         _unlockedIdSet = new HashSet<string>(_fullIds.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
+
+        // Was missing entirely until 2026-08-13 - TryGet only ever reads CatalogService's
+        // own in-memory cache, it never queries the DB itself (see its own doc comment),
+        // so every row's Icon silently came out null unless some OTHER page happened to
+        // have already warmed the same ids this session (e.g. Catalogue warming every
+        // Technology row) - user reported every tile on this page showing a placeholder
+        // with no image, confirmed as this exact gap.
+        await CatalogService.WarmCacheAsync(FreighterUpgrades.All.Select(u => u.GameId));
 
         _allItems = FreighterUpgrades.All.Select(u => new FreighterUpgradeRowViewModel
         {
@@ -183,6 +192,6 @@ public sealed partial class FreighterUpgradesPage : Page
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
         SaveSessionManager.RevertEditsUnder(NmsFreighterUpgradePaths.BlueprintArrayPath);
-        LoadUpgrades();
+        _ = LoadUpgradesAsync();
     }
 }
