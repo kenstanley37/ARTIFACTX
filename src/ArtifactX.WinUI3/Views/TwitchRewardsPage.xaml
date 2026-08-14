@@ -108,6 +108,19 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- User-provided guidance 2026-08-14: Twitch drop entitlements are
+                         normally synced online, so the game re-checks/re-syncs with
+                         Hello Games' servers on launch if connected - overwriting a
+                         local unlock made here before it ever takes effect. -->
+                    <Border Background="#332B1400" BorderBrush="#FFB800"
+                            BorderThickness="1" CornerRadius="6" Padding="12,8">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE783;" FontSize="14" Foreground="#FFB800" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#FFB800"
+                                       Text="To actually claim these Twitch rewards in-game, disconnect your PC from the internet BEFORE launching No Man's Sky, then load your save. If you're online when the game starts, it re-syncs Twitch drop entitlements from Hello Games' servers and will overwrite the unlock made here."/>
+                        </StackPanel>
+                    </Border>
+
                     <!-- The "TWITCH_" id prefix is Hello Games' own naming convention,
                          confirmed present on every Twitch-drop item found in the
                          account's real B1h list (2026-08-04) - a live pattern match
