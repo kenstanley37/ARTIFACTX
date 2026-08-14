@@ -108,19 +108,6 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- User-provided guidance 2026-08-14: Twitch drop entitlements are
-                         normally synced online, so the game re-checks/re-syncs with
-                         Hello Games' servers on launch if connected - overwriting a
-                         local unlock made here before it ever takes effect. -->
-                    <Border Background="#332B1400" BorderBrush="#FFB800"
-                            BorderThickness="1" CornerRadius="6" Padding="12,8">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <FontIcon Glyph="&#xE783;" FontSize="14" Foreground="#FFB800" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#FFB800"
-                                       Text="To actually claim these Twitch rewards in-game, disconnect your PC from the internet BEFORE launching No Man's Sky, then load your save. If you're online when the game starts, it re-syncs Twitch drop entitlements from Hello Games' servers and will overwrite the unlock made here."/>
-                        </StackPanel>
-                    </Border>
-
                     <!-- The "TWITCH_" id prefix is Hello Games' own naming convention,
                          confirmed present on every Twitch-drop item found in the
                          account's real B1h list (2026-08-04) - a live pattern match
@@ -144,13 +131,34 @@
                                 ToolTipService.ToolTip="Unlocks every item currently shown below (respects the search box)"/>
                     </Grid>
 
-                    <!-- One single card ("Twitch Drops") rather than a per-item
-                         grouping - TWITCH_ items carry no natural sub-category the
-                         way Catalog (CatalogGroup) or Expedition Rewards (expedition
-                         number) do. -->
-                    <ItemsControl x:Name="CategoriesItemsControl"
-                                  ItemsPanel="{StaticResource CategoryCardWrapPanelTemplate}"
-                                  ItemTemplate="{StaticResource CategoryCardTemplate}"/>
+                    <!-- Info card sits alongside the "Twitch Drops" reward card in the
+                         same wrap layout, rather than a banner above everything - user
+                         feedback 2026-08-14: "I don't like the banner. It seems too
+                         noisy. Let's add a card next to the rewards." Same bordered-card
+                         visual language as the reward card(s), just static text instead
+                         of a checkbox list. Twitch Rewards only ever shows 0 or 1 reward
+                         card (no natural sub-grouping), so nesting CategoriesItemsControl's
+                         own internal wrap panel inside this outer one still reflows
+                         correctly - the whole ItemsControl behaves as a single ~420px-wide
+                         flow unit next to the info card. -->
+                    <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="16">
+                        <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                                CornerRadius="8" Padding="14" Width="420" VerticalAlignment="Top" Opacity="0.95">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="How to Claim" FontWeight="SemiBold" FontSize="14"/>
+                                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
+                                           Text="Twitch drop rewards only unlock in-game if No Man's Sky is launched while your PC is offline. Disconnect from the internet before starting the game, then load your save - if you're online, the game re-syncs entitlements from Hello Games' servers on startup and overwrites the unlock made here."/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- One single card ("Twitch Drops") rather than a per-item
+                             grouping - TWITCH_ items carry no natural sub-category the
+                             way Catalog (CatalogGroup) or Expedition Rewards (expedition
+                             number) do. -->
+                        <ItemsControl x:Name="CategoriesItemsControl"
+                                      ItemsPanel="{StaticResource CategoryCardWrapPanelTemplate}"
+                                      ItemTemplate="{StaticResource CategoryCardTemplate}"/>
+                    </ctcontrols:WrapPanel>
                 </StackPanel>
             </ScrollViewer>
         </Grid>
