@@ -1,27 +1,28 @@
-using System;
 using System.Collections.Generic;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
-/// <summary>One category card on AccountDataPage's Catalog section - the same
-/// "group by category into cards" idea as GuideCategoryGroupViewModel, but for
-/// CatalogGroup's much larger, uneven per-category counts (43 Trade Goods rows
-/// vs 1,718 Construction Parts rows in the real catalog), so each card's item
-/// list is a real virtualizing ListView with a bounded/scrollable height rather
-/// than a plain unbounded ItemsControl - Guide's cards could get away with the
-/// latter because no category there ever exceeds ~9 topics.</summary>
+/// <summary>One category card on an account-wide-unlock page (Catalog/
+/// Expedition Rewards/Twitch Rewards) - the same "group by category into
+/// cards" idea as GuideCategoryGroupViewModel, but for real-world per-category
+/// counts far more uneven than Guide's (Guide never exceeds ~9 topics), so
+/// each card's item list is a real virtualizing ListView, not a plain
+/// unbounded ItemsControl.</summary>
 public sealed class CatalogCategorySectionViewModel
 {
     public required string Header { get; init; }
     public required List<AccountItemRowViewModel> Items { get; init; }
 
-    /// <summary>Caps the card's internal ListView height so a huge category
-    /// (Construction Parts) scrolls within its own card instead of growing the
-    /// whole card to thousands of pixels tall, while a small category (Trade
-    /// Goods) gets a card sized to its actual content instead of a mostly-empty
-    /// fixed-height box. ~36px/row is ListView's real rendered row height for
-    /// AccountItemRowTemplate (two stacked TextBlocks + padding), confirmed by
-    /// eye against the shipped app rather than measured precisely - close
-    /// enough that the cap only ever kicks in for genuinely long lists.</summary>
-    public double ListHeight => Math.Min(Items.Count * 36 + 8, 420);
+    /// <summary>The card's internal ListView height in pixels - settable, not
+    /// computed from Items.Count alone, since each page that builds these
+    /// decides its own sizing rule at construction time (see each page's own
+    /// card-building code): Catalog/Twitch cap every card at a fixed max
+    /// (their real per-card counts are always well past that cap anyway, so
+    /// there's no reason to try to fully fit them), while Expedition Rewards'
+    /// per-expedition cards are small enough that EVERY card gets sized to the
+    /// tallest real group currently visible, so none of them ever needs to
+    /// scroll internally at all (user feedback 2026-08-13: "make all the cards
+    /// the same height and the height needs to be enough so the scrollbar
+    /// doesn't show").</summary>
+    public required double ListHeight { get; init; }
 }

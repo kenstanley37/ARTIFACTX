@@ -137,10 +137,15 @@ public sealed partial class AccountDataPage : Page
         if (_allItems is null) return;
 
         CatalogCategoriesItemsControl.ItemsSource = CatalogGroupOrder
-            .Select(group => new CatalogCategorySectionViewModel
+            .Select(group =>
             {
-                Header = $"{group} ({_catalogSource.Count(i => i.CatalogGroup == group)})",
-                Items = _catalogSource.Where(i => i.CatalogGroup == group).ToList()
+                var items = _catalogSource.Where(i => i.CatalogGroup == group).ToList();
+                return new CatalogCategorySectionViewModel
+                {
+                    Header = $"{group} ({items.Count})",
+                    Items = items,
+                    ListHeight = Math.Min(items.Count * 36 + 8, 420)
+                };
             })
             .Where(section => section.Items.Count > 0)
             .ToList();

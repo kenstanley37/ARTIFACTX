@@ -166,20 +166,50 @@ public sealed partial class ExpeditionRewardsPage : Page
 
         _currentlyVisibleRows = filtered.ToList();
 
-        var sections = _currentlyVisibleRows
+        var numberedGroups = _currentlyVisibleRows
             .Where(i => i.ExpeditionNumber is int)
             .GroupBy(i => i.ExpeditionNumber!.Value)
             .OrderBy(g => g.Key)
+            .ToList();
+
+        // Every real per-expedition card gets the SAME height - tall enough to
+        // fit the largest one currently visible in full, so none of them ever
+        // needs to scroll internally (user feedback 2026-08-13: cards had
+        // inconsistent heights, and one with only 4 items still showed a
+        // scrollbar because the per-row pixel estimate undershot the row's
+        // real rendered height). ~48px/row (2 stacked TextBlocks + Grid
+        // padding) plus a safety margin, not measured exactly - a little
+        // extra blank space at the bottom of a shorter card is harmless; an
+        // undershoot reproduces the exact scrollbar bug being fixed here.
+        int maxNumberedCount = numberedGroups.Count > 0 ? numberedGroups.Max(g => g.Count()) : 0;
+        double sharedCardHeight = maxNumberedCount * 48 + 24;
+
+        var sections = numberedGroups
             .Select(g => new CatalogCategorySectionViewModel
             {
                 Header = $"#{g.Key}: {g.First().ExpeditionName} ({g.Count()})",
-                Items = g.ToList()
+                Items = g.ToList(),
+                ListHeight = sharedCardHeight
             })
             .ToList();
 
         var otherItems = _currentlyVisibleRows.Where(i => i.ExpeditionNumber is null).ToList();
         if (otherItems.Count > 0)
-            sections.Add(new CatalogCategorySectionViewModel { Header = $"Other Expedition Items ({otherItems.Count})", Items = otherItems });
+        {
+            // Deliberately NOT matched to sharedCardHeight - this catch-all can
+            // hold well over a hundred items (every EXPD_ item with no
+            // expedition-number signal), so giving it the same height as a
+            // 3-9 item card would force every OTHER card to also grow
+            // enormous to match it. Keeps the original capped/scrollable
+            // treatment instead - the one deliberate exception to "same
+            // height, no scrollbar."
+            sections.Add(new CatalogCategorySectionViewModel
+            {
+                Header = $"Other Expedition Items ({otherItems.Count})",
+                Items = otherItems,
+                ListHeight = Math.Min(otherItems.Count * 36 + 8, 420)
+            });
+        }
 
         CategoriesItemsControl.ItemsSource = sections;
         ResultCountTxt.Text = $"{_currentlyVisibleRows.Count:N0} of {_expeditionSource.Count:N0} items";

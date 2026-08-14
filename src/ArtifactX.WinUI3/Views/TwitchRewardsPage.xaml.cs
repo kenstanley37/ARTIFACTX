@@ -124,7 +124,12 @@ public sealed partial class TwitchRewardsPage : Page
         _currentlyVisibleRows = filtered.ToList();
 
         CategoriesItemsControl.ItemsSource = _currentlyVisibleRows.Count > 0
-            ? new List<CatalogCategorySectionViewModel> { new() { Header = $"Twitch Drops ({_currentlyVisibleRows.Count})", Items = _currentlyVisibleRows } }
+            ? new List<CatalogCategorySectionViewModel> { new()
+                {
+                    Header = $"Twitch Drops ({_currentlyVisibleRows.Count})",
+                    Items = _currentlyVisibleRows,
+                    ListHeight = Math.Min(_currentlyVisibleRows.Count * 36 + 8, 420)
+                } }
             : new List<CatalogCategorySectionViewModel>();
 
         ResultCountTxt.Text = $"{_currentlyVisibleRows.Count:N0} of {_twitchSource.Count:N0} items";
