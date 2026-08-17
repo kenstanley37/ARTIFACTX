@@ -14,7 +14,21 @@
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
-    <Grid Background="{ThemeResource NmsBackgroundBrush}">
+    <!-- RequestedTheme="Dark" forces every {ThemeResource} lookup in the whole
+         visual tree (including WinUI3's own built-in theme resources, e.g.
+         ApplicationPageBackgroundThemeBrush - used by most pages' own root
+         Background - which is NOT one of App.xaml's fixed Nms* brushes and
+         otherwise follows the OS's Settings > Personalization > Colors >
+         "Choose your default app mode" toggle) to resolve against the dark
+         theme dictionary regardless of that OS setting. Without this, a user
+         with their Windows app mode set to Light got a genuinely broken
+         split look: the nav pane stayed dark (NmsPaneBackgroundBrush is a
+         fixed color, not theme-variant), but page content areas washed out
+         light (confirmed 2026-08-14 via screenshots - toggling the OS app
+         mode to Dark and restarting fixed it, proving the app was silently
+         following that OS setting instead of its own fixed NMS dark palette,
+         which is what it's actually designed around everywhere else). -->
+    <Grid Background="{ThemeResource NmsBackgroundBrush}" RequestedTheme="Dark">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
