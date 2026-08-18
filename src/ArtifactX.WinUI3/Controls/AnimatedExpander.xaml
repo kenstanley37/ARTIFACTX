@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.AnimatedExpander"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ArtifactX.WinUI3.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!-- A hand-rolled replacement for Microsoft.UI.Xaml.Controls.Expander's
+         own expand/collapse - that control's built-in content reveal reads as
+         almost instant with no way to slow it down without fully retemplating
+         it (user feedback 2026-08-04). Animates BodyHost's actual Height
+         (0 <-> its measured natural height, via AnimatedExpander.xaml.cs's
+         BeginExpand/BeginCollapse), not just an Opacity/TranslateY fade inside
+         an already-fully-sized area - an earlier fade-only version LOOKED like
+         nothing happened, because setting Visibility=Visible alone snaps the
+         card to its full layout height instantly regardless of what's
+         animating inside it. BodyHost's Height is released back to Auto once
+         fully expanded, so later content-size changes (SaveFolderSelectPage's
+         slot grid replacing a loading spinner once indexing finishes) reflow
+         naturally without fighting a pinned Height. -->
+    <UserControl.Resources>
+        <Storyboard x:Name="ExpandStoryboard" Completed="ExpandStoryboard_Completed">
+            <DoubleAnimation x:Name="ExpandHeightAnimation"
+                              Storyboard.TargetName="BodyHost" Storyboard.TargetProperty="Height"
+                              EnableDependentAnimation="True"
+                              Duration="0:0:0.45">
+                <DoubleAnimation.EasingFunction>
+                    <QuadraticEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetName="BodyHost" Storyboard.TargetProperty="Opacity"
+                              To="1" Duration="0:0:0.45"/>
+            <DoubleAnimation Storyboard.TargetName="ChevronRotate" Storyboard.TargetProperty="Angle"
+                              To="180" Duration="0:0:0.45"/>
+        </Storyboard>
+
+        <Storyboard x:Name="CollapseStoryboard" Completed="CollapseStoryboard_Completed">
+            <DoubleAnimation Storyboard.TargetName="BodyHost" Storyboard.TargetProperty="Height"
+                              EnableDependentAnimation="True"
+                              To="0" Duration="0:0:0.4">
+                <DoubleAnimation.EasingFunction>
+                    <QuadraticEase EasingMode="EaseIn"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetName="BodyHost" Storyboard.TargetProperty="Opacity"
+                              To="0" Duration="0:0:0.4"/>
+            <DoubleAnimation Storyboard.TargetName="ChevronRotate" Storyboard.TargetProperty="Angle"
+                              To="0" Duration="0:0:0.4"/>
+        </Storyboard>
+    </UserControl.Resources>
+
+    <Border Background="{ThemeResource NmsPaneBackgroundBrush}" CornerRadius="8" BorderThickness="1.5"
+            BorderBrush="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BoolToAccentBrushConverter}}">
+        <StackPanel>
+            <Grid x:Name="HeaderRoot" Background="Transparent" Tapped="HeaderRoot_Tapped"
+                  Padding="16,12" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <ContentPresenter Grid.Column="0" Content="{x:Bind HeaderContent, Mode=OneWay}"/>
+                <FontIcon Grid.Column="1" Glyph="&#xE70D;" FontSize="12" VerticalAlignment="Center"
+                          RenderTransformOrigin="0.5,0.5">
+                    <FontIcon.RenderTransform>
+                        <RotateTransform x:Name="ChevronRotate" Angle="0"/>
+                    </FontIcon.RenderTransform>
+                </FontIcon>
+            </Grid>
+
+            <!-- Height starts at a real 0 (not Auto/NaN) so the very first
+                 expand animation has a valid numeric starting point - see
+                 BeginExpand's comment on why Auto can't be animated from
+                 directly. SizeChanged keeps Clip in sync every frame so the
+                 content (arranged at its own natural size, not squashed -
+                 see the ContentPresenter's Top alignment) is progressively
+                 revealed rather than reflowed as Height grows. -->
+            <Grid x:Name="BodyHost" Height="0" Opacity="0" Padding="16,0,16,12"
+                  SizeChanged="BodyHost_SizeChanged">
+                <ContentPresenter x:Name="BodyContentPresenter" Content="{x:Bind BodyContent, Mode=OneWay}"
+                                  VerticalAlignment="Top"/>
+            </Grid>
+        </StackPanel>
+    </Border>
+</UserControl>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="ArtifactX.WinUI3.Views.InspectionPages.HGDecryptionPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ArtifactX.WinUI3.Views.InspectionPages"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header Panel -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="Universal Raw JSON Inspector" Style="{ThemeResource TitleTextBlockStyle}"/>
+            <TextBlock Text="Decompress, decrypt, and browse raw save structures with high performance." Style="{ThemeResource BodyTextBlockStyle}" Opacity="0.7"/>
+        </StackPanel>
+
+        <!-- Command Bar Panel -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
+            <Button x:Name="SelectFileBtn" Click="SelectFileBtn_Click" Content="Choose Any File..." Style="{ThemeResource AccentButtonStyle}"/>
+            <TextBlock x:Name="TargetFileTxt" Text="No file selected" VerticalAlignment="Center" FontStyle="Italic"/>
+
+            <StackPanel x:Name="SearchPanel" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
+                <AppBarSeparator/>
+                <TextBox x:Name="SearchQueryTxt" Width="300" PlaceholderText="Search token..." TextChanged="SearchQueryTxt_TextChanged" KeyDown="SearchQueryTxt_KeyDown"/>
+
+                <!-- 📍 ADDED: Navigation controls for cycling through multiple matches -->
+                <Button Content="Previous" Click="PrevSearchBtn_Click"/>
+                <Button Content="Next" Click="NextSearchBtn_Click" Style="{ThemeResource AccentButtonStyle}"/>
+
+                <Button Content="Clear" Click="ClearSearchBtn_Click"/>
+            </StackPanel>
+
+            <ProgressRing x:Name="LoadingRing" IsActive="False" Width="24" Height="24" Margin="12,0,0,0"/>
+        </StackPanel>
+
+        <!-- 📍 HIGH PERFORMANCE VIEWPORT: WebView2 scales massive text effortlessly -->
+        <Grid Grid.Row="2" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="4" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+            <WebView2 x:Name="JsonWebView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+        </Grid>
+    </Grid>
+</Page>

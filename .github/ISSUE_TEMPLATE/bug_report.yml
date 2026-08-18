@@ -1,0 +1,34 @@
+name: Bug Report
+description: Something isn't working right
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, and what went wrong?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen instead?
+    validations:
+      required: false
+
+  - type: input
+    id: page
+    attributes:
+      label: Which page/feature?
+      description: e.g. Exosuit, Multi-Tool, Starships, Freighter, Base Storage, Corvette Cache
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or error text
+      description: Drag and drop images here, or paste any error message/stack trace.
+    validations:
+      required: false

@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="ArtifactX.WinUI3.Views.ExpeditionRewardsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Page.Resources>
+        <DataTemplate x:Key="AccountItemRowTemplate" x:DataType="viewmodels:AccountItemRowViewModel">
+            <Grid Padding="4,6" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <CheckBox Grid.Column="0" Width="30" MinWidth="0" Padding="0" HorizontalContentAlignment="Center"
+                          IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
+                          Click="ItemCheckBox_Click" Tag="{x:Bind}" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind DisplayName}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{x:Bind GameId}" FontSize="10" Foreground="{ThemeResource NmsTextSecondary}"
+                               TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+                <Border Grid.Column="2" Visibility="{x:Bind ExpeditionVisibility}"
+                        BorderBrush="{ThemeResource NmsAccentBrush}" BorderThickness="1"
+                        CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind ExpeditionLabel}" FontSize="11" Foreground="{ThemeResource NmsAccentBrush}"/>
+                </Border>
+                <Border Grid.Column="3" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                        CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind CategoryLabel}" FontSize="11" Foreground="{ThemeResource NmsTextSecondary}"/>
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <ItemsPanelTemplate x:Key="CategoryCardWrapPanelTemplate">
+            <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="16"/>
+        </ItemsPanelTemplate>
+        <DataTemplate x:Key="CategoryCardTemplate" x:DataType="viewmodels:CatalogCategorySectionViewModel">
+            <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                    CornerRadius="8" Padding="14" Width="420" VerticalAlignment="Top" Opacity="0.95">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{x:Bind Header}" FontWeight="SemiBold" FontSize="14"/>
+                    <ListView ItemsSource="{x:Bind Items}" SelectionMode="None"
+                              Height="{x:Bind ListHeight}"
+                              ItemTemplate="{StaticResource AccountItemRowTemplate}"/>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid Padding="24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <TextBlock Text="Expedition Rewards" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Border Background="{ThemeResource NmsAccentBrush}" CornerRadius="4" Padding="9,3" VerticalAlignment="Center">
+                    <TextBlock x:Name="ActivePlatformTxt" Text="" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                </Border>
+            </StackPanel>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <TextBlock x:Name="PendingEditsTxt" VerticalAlignment="Center" FontSize="12"
+                           Foreground="{ThemeResource NmsTextSecondary}"/>
+                <!-- Shares the same accountdata.hg unlock array as Catalog/Twitch
+                     Rewards (see AccountSessionManager) - saving/discarding here also
+                     saves/discards any pending edits made on those other 2 pages this
+                     session, which is correct: they're not independently trackable
+                     sub-arrays, just different filtered views of the one array. -->
+                <Button x:Name="DiscardChangesBtn" Content="Discard Changes" Click="DiscardChangesBtn_Click"
+                        Style="{StaticResource DangerButtonStyle}" IsEnabled="False"/>
+                <Button x:Name="SaveChangesBtn" Content="Save Changes" Click="SaveChangesBtn_Click"
+                        Style="{ThemeResource AccentButtonStyle}" IsEnabled="False"/>
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <TextBlock x:Name="NoAccountDataTxt" Visibility="Collapsed"
+                       Text="No accountdata.hg file was found alongside this save - this platform account may be very new, or this feature isn't supported for it yet."
+                       Foreground="{ThemeResource NmsTextSecondary}" FontSize="14" TextWrapping="Wrap"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="480" TextAlignment="Center"/>
+
+            <ProgressRing x:Name="LoadingRing" IsActive="False" Width="40" Height="40"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+            <ScrollViewer x:Name="ContentPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="16">
+                    <Border Background="#332B1400" BorderBrush="#FFB800"
+                            BorderThickness="1" CornerRadius="6" Padding="12,8">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE7BA;" FontSize="14" Foreground="#FFB800" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#FFB800"
+                                       Text="This list is account-wide, not tied to any one save slot - unlocking or locking an item anywhere below affects every save on this platform account (accountdata.hg), not just the save currently loaded. Save this separately with the button above; it does not go through the normal per-save Save button."/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Banner/Decal/Title items whose own names spell out which
+                         expedition they're from (CatalogService.BuildExpeditionNameLookup).
+                         The "EXPD_" id prefix is Hello Games' own naming convention,
+                         confirmed present on every expedition-reward item found in the
+                         account's real B1h list (2026-08-04) - a live pattern match
+                         against whatever's in the catalog DB, not a hardcoded item list.
+                         Split out of AccountDataPage into its own page 2026-08-13 - user
+                         feedback: "too much on Catalog... a little laggy." -->
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" x:Name="SearchBox" PlaceholderText="Search expedition rewards..." TextChanged="SearchBox_TextChanged"/>
+                        <ComboBox Grid.Column="1" x:Name="ExpeditionFilterBox" Width="220" SelectionChanged="ExpeditionFilterBox_SelectionChanged"/>
+                        <TextBlock Grid.Column="2" x:Name="ResultCountTxt" VerticalAlignment="Center" FontSize="12"
+                                   Foreground="{ThemeResource NmsTextSecondary}"/>
+                        <Button Grid.Column="3" x:Name="LockAllBtn" Content="Lock All" Click="LockAllBtn_Click"
+                                ToolTipService.ToolTip="Locks every item currently shown below (respects the search box and expedition filter)"/>
+                        <Button Grid.Column="4" x:Name="UnlockAllBtn" Content="Unlock All" Click="UnlockAllBtn_Click"
+                                ToolTipService.ToolTip="Unlocks every item currently shown below (respects the search box and expedition filter)"/>
+                    </Grid>
+
+                    <!-- Grouped into one card per expedition number (e.g. "#19: CORVETTE"),
+                         the same real data already shown as a badge on each row, plus a
+                         catch-all "Other Expedition Items" card for items with no
+                         expedition-number signal (backpacks/capes/ships/etc. - see
+                         CatalogService.GetExpeditionInfo's own doc comment on why only
+                         Banner/Decal/Title items resolve one at all). -->
+                    <ItemsControl x:Name="CategoriesItemsControl"
+                                  ItemsPanel="{StaticResource CategoryCardWrapPanelTemplate}"
+                                  ItemTemplate="{StaticResource CategoryCardTemplate}"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Page>

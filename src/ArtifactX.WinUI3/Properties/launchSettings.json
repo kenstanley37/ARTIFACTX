@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ArtifactX.WinUI3 (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "ArtifactX.WinUI3 (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

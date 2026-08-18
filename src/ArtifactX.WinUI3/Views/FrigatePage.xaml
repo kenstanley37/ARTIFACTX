@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="ArtifactX.WinUI3.Views.FrigatePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <ScrollViewer>
+        <StackPanel Padding="24" Spacing="20">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Frigates" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Frigate Changes" Click="PageResetBtn_Click"
+                        Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- Shown instead of ContentPanel when the player doesn't own a
+                 freighter yet - confirmed 2026-08-11 via a real before/after
+                 save diff (user placed one storage container and got their
+                 first freighter): the ";Du" (FleetFrigates) array already had
+                 one fully-rolled-looking entry on a save with zero real
+                 progress, but every field on it stayed byte-for-byte frozen
+                 across the diff EXCEPT Crew Race, which only changed once the
+                 freighter's own hull scene path (bIR.93M) went from empty to
+                 real - frigates are commanded from your freighter, so you
+                 can't have a real one without owning one either. -->
+            <TextBlock x:Name="NoFreighterTxt" FontSize="14" Opacity="0.7" TextWrapping="Wrap"
+                       MaxWidth="600" HorizontalAlignment="Left" Visibility="Collapsed"
+                       Text="You don't own a freighter yet, so you don't have a Frigate Fleet to manage. Buy or claim a freighter in-game, then come back here."/>
+
+            <StackPanel x:Name="ContentPanel" Spacing="20" HorizontalAlignment="Stretch">
+                <TextBlock Text="Owned Frigates" FontSize="14" Opacity="0.8"/>
+                <ScrollViewer MaxHeight="104" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+                    <ctcontrols:WrapPanel x:Name="FrigateSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+                </ScrollViewer>
+
+                <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                        CornerRadius="8" Padding="20" Opacity="0.9" HorizontalAlignment="Stretch">
+                    <StackPanel Spacing="18">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Name" FontSize="12" Opacity="0.7"/>
+                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700" HorizontalAlignment="Left"
+                                       Text="Leave empty for an auto-generated name (e.g. &quot;SS-2 Akeosc's Gamble&quot;) - that flavor text isn't stored in the save at all, it's generated from the frigate's class/race/seeds each time, so ArtifactX can't show or reproduce it here. Set a value to override it, same as Settlement Name."/>
+                            <TextBox x:Name="NameEditBox" Width="300" HorizontalAlignment="Left" LostFocus="NameEditBox_LostFocus"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="32">
+                            <StackPanel Spacing="6" Width="180">
+                                <TextBlock Text="Class" FontSize="12" Opacity="0.7"/>
+                                <ComboBox x:Name="FrigateClassBox" Width="170" HorizontalAlignment="Left" SelectionChanged="FrigateClassBox_SelectionChanged"
+                                          ToolTipService.ToolTip="Confirmed 2026-07-30 against 29 real frigates - drives the in-game Role pill: Combat-&gt;COMBAT, Exploration-&gt;EXPLORATION, Mining-&gt;INDUSTRIAL, Diplomacy-&gt;TRADE, Support-&gt;SUPPORT, Pirate-&gt;RAIDER, Normandy-&gt;RECON (easter egg, always &quot;SSV Normandy SR1&quot;), DeepSpace-&gt;ORGANIC, GhostShip-&gt;DOOMED. DeepSpaceCommon/Swarm untested (not seen in the sample)."/>
+                            </StackPanel>
+                            <StackPanel Spacing="6" Width="150">
+                                <TextBlock Text="Crew Race" FontSize="12" Opacity="0.7"/>
+                                <ComboBox x:Name="RaceBox" Width="140" HorizontalAlignment="Left" SelectionChanged="RaceBox_SelectionChanged"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6" Width="150">
+                                <TextBlock Text="Class Rating" FontSize="12" Opacity="0.7"/>
+                                <ComboBox x:Name="InventoryClassBox" Width="140" HorizontalAlignment="Left" SelectionChanged="InventoryClassBox_SelectionChanged"
+                                          ToolTipService.ToolTip="The S/A/B/C badge shown next to each frigate in-game."/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="32">
+                            <!-- Grid, not a plain horizontal StackPanel - the old
+                                 version let the TextBox+Button pair size to its
+                                 natural content width (180 + spacing + the
+                                 button's own text-driven width) inside a
+                                 narrower fixed-width parent, so the button
+                                 silently overflowed/clipped instead of shrinking
+                                 to fit. An Auto column reserves exactly the
+                                 button's real width first, and both seed rows
+                                 use the identical column layout regardless of
+                                 seed length, so they line up pixel-for-pixel
+                                 with each other too (2026-08-07 user report). -->
+                            <StackPanel Spacing="6" Width="300">
+                                <TextBlock Text="Model Seed" FontSize="12" Opacity="0.7"/>
+                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                                           Text="Drives the hull's procedural look, alongside Class/Type. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" x:Name="ModelSeedEditBox" Width="180" HorizontalAlignment="Left" LostFocus="ModelSeedEditBox_LostFocus"/>
+                                    <Button Grid.Column="1" Content="Generate" Click="GenerateModelSeedBtn_Click"/>
+                                </Grid>
+                            </StackPanel>
+                            <StackPanel Spacing="6" Width="300">
+                                <TextBlock Text="Home Seed" FontSize="12" Opacity="0.7"/>
+                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                                           Text="Drives which home system/name this frigate generates for itself. Paste a seed you've found elsewhere, or click Generate for a new random one."/>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" x:Name="HomeSeedEditBox" Width="180" HorizontalAlignment="Left" LostFocus="HomeSeedEditBox_LostFocus"/>
+                                    <Button Grid.Column="1" Content="Generate" Click="GenerateHomeSeedBtn_Click"/>
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Stats" FontSize="14" FontWeight="SemiBold"/>
+                            <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="12">
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Combat" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat0Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat0Box_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Exploration" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat1Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat1Box_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Mining" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat2Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat2Box_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Diplomatic" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat3Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat3Box_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Fuel Burn Rate" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat4Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat4Box_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Fuel Capacity" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat5Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat5Box_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Speed" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat6Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat6Box_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Extra Loot" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat7Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat7Box_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Repair" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat8Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat8Box_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Invulnerable" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat9Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat9Box_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Stealth" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="Stat10Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat10Box_ValueChanged"/>
+                                </StackPanel>
+                            </ctcontrols:WrapPanel>
+                        </StackPanel>
+
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Expedition Record" FontSize="14" FontWeight="SemiBold"/>
+                            <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="12">
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Expeditions" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="ExpeditionsBox" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="ExpeditionsBox_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Successes" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="SuccessesBox" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="SuccessesBox_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Failures" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="FailuresBox" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="FailuresBox_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Times Damaged" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="TimesDamagedBox" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="TimesDamagedBox_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Repairs Made" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="RepairsMadeBox" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="RepairsMadeBox_ValueChanged"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="120">
+                                    <TextBlock Text="Damage Taken" Opacity="0.7" FontSize="11"/>
+                                    <NumberBox x:Name="DamageTakenBox" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="DamageTakenBox_ValueChanged"/>
+                                </StackPanel>
+                            </ctcontrols:WrapPanel>
+                        </StackPanel>
+
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Traits" FontSize="14" FontWeight="SemiBold"/>
+                            <ctcontrols:WrapPanel x:Name="TraitsPanel" HorizontalSpacing="16" VerticalSpacing="16"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>
