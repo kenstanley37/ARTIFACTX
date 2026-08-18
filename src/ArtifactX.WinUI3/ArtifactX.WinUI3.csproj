@@ -1,0 +1,242 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>ArtifactX</AssemblyName>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>ArtifactX.WinUI3</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- The .exe's own icon - taskbar, Alt-Tab, File Explorer, shortcuts.
+         Multi-frame: 16/24/32px use a simplified hex+X (no inner hex line,
+         no scanline, no cyan ghost offset - all of that turned to mud at
+         real taskbar sizes when tested), 48px and up use the full detailed
+         mark. Source design lives outside this repo (approved via an
+         Artifact pitch, 2026-08-07); this .ico is the only build input. -->
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
+
+    <!-- Single source of truth for the app's version - AppVersionService reads
+         this back via the generated AssemblyVersion. Bump this AND tag/publish
+         a matching GitHub release (vX.Y.Z) for UpdateCheckService to pick up
+         the new version - it compares against this, not the other way around. -->
+    <Version>1.0.0</Version>
+    <Platforms>x86;x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
+    <PublishProfile>win-$(Platform).pubxml</PublishProfile>
+    <UseWinUI>true</UseWinUI>
+    <WinUISDKReferences>false</WinUISDKReferences>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <Nullable>enable</Nullable>
+
+    <!-- App is English-only, so restrict THIS project's own satellite
+         resource assemblies (if it ever gains any) to English. Confirmed
+         2026-08-07 this does NOT fix the ~85 non-English locale folders a
+         self-contained publish otherwise leaves at the top level - those
+         come from WindowsAppSDK's own build targets copying every
+         language's *.mui files unconditionally, a separate mechanism this
+         property has no control over. See the TrimPublishLocaleFolders
+         target near the end of this file for the actual fix. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+
+    <!-- Unpackaged by default so the app runs on any PC with no install/
+         sideloading step - just run the exe. Package.appxmanifest and
+         EnableMsixTooling stay in place so an MSIX can still be produced
+         later (e.g. `dotnet publish -p:WindowsPackageType=Msix`) if Store
+         distribution is ever wanted; this only changes the default. -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+
+    <!-- A loaded save's parsed Newtonsoft JSON tree legitimately lives on the
+         heap as ~2-3 million small objects (~150MB) for the app's whole
+         session (see project_perf_gc_tuning memory) - not a leak, just how
+         Newtonsoft.Json.Linq represents JSON (one .NET object per node).
+         Default Workstation GC has to fully stop the app for each Gen2 pass
+         over a heap that size, which is what read as "gets more sluggish the
+         longer you navigate" - Server GC parallelizes that marking phase
+         across multiple threads/heaps, shortening those pauses. Trades some
+         extra baseline memory for it, acceptable on a desktop tool like this. -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Controls\AppTitleBar.xaml" />
+    <None Remove="Controls\InventorySlotGrid.xaml" />
+    <None Remove="Views\AncestrySearchView.xaml" />
+    <None Remove="Views\ExosuitPage.xaml" />
+    <None Remove="Views\InspectionPages\HGDecryptionPage.xaml" />
+    <None Remove="Views\MultiToolPage.xaml" />
+    <None Remove="Views\SaveFolderSelectPage.xaml" />
+    <None Remove="Views\ShipsPage.xaml" />
+    <None Remove="Views\FreighterPage.xaml" />
+    <None Remove="Views\BaseStoragePage.xaml" />
+    <None Remove="Views\CorvetteCachePage.xaml" />
+    <None Remove="Views\PetsPage.xaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\AppIconMark.png" />
+    <Content Include="Assets\SplashScreen.scale-200.png" />
+    <Content Include="Assets\LockScreenLogo.scale-200.png" />
+    <Content Include="Assets\Square150x150Logo.scale-200.png" />
+    <Content Include="Assets\Square44x44Logo.scale-200.png" />
+    <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
+    <Content Include="Assets\StoreLogo.png" />
+    <Content Include="Assets\Wide310x150Logo.scale-200.png" />
+  </ItemGroup>
+
+	<ItemGroup>
+		<Content Include="Data\nms_catalog.sqlite" Condition="Exists('Data\nms_catalog.sqlite')">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+
+  <ItemGroup>
+    <Manifest Include="$(ApplicationManifest)" />
+  </ItemGroup>
+
+  <!--
+    Defining the "Msix" ProjectCapability here allows the Single-project MSIX Packaging
+    Tools extension to be activated for this project even if the Windows App SDK Nuget
+    package has not yet been restored.
+  -->
+  <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
+    <ProjectCapability Include="Msix" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.Primitives" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+	  <PackageReference Include="CommunityToolkit.Mvvm" />
+	  <PackageReference Include="Velopack" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Direct references so these win over Microsoft.Data.Sqlite's own pin at
+         the vulnerable 2.1.11 - see Directory.Packages.props for details. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
+    <PackageReference Include="SQLitePCLRaw.core" />
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" />
+    <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ArtifactX.Almanac\ArtifactX.Almanac.csproj" />
+    <ProjectReference Include="..\ArtifactX.Core\ArtifactX.Core.csproj" />
+    <!-- Structural type definitions only (enums, field classes) - no PAK/MBIN
+         file I/O lives in this library, so referencing it doesn't mean the UI
+         extracts game files at runtime. Used to pull real, authoritative
+         valid-value sets (e.g. GcCreatureTypes.CreatureTypeEnum) straight from
+         the same source DataCataloger uses, instead of hand-copying enum
+         lists into ArtifactX's own code where they can drift out of sync. -->
+    <ProjectReference Include="..\ArtifactX.Tools\NMS.Tools.libMBIN\NMS.Tools.libMBIN.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Views\MultiToolPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Views\ExosuitPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Views\ShipsPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Views\FreighterPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Views\BaseStoragePage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Views\CorvetteCachePage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Views\PetsPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Controls\InventorySlotGrid.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Views\AncestrySearchView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Controls\AppTitleBar.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Views\InspectionPages\HGDecryptionPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Views\SaveFolderSelectPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+
+  <!--
+    Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution
+    Explorer "Package and Publish" context menu entry to be enabled for this project even if
+    the Windows App SDK Nuget package has not yet been restored.
+  -->
+  <PropertyGroup Condition="'$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
+    <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
+  </PropertyGroup>
+
+  <!-- Publish Properties -->
+  <PropertyGroup>
+    <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
+    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
+
+    <!-- WAS conditionally true for Release - disabled 2026-08-07 after the
+         first-ever Release/portable run crashed instantly (0xc000027b inside
+         Microsoft.UI.Xaml.dll, no managed exception ever reached .NET's own
+         handler - a signature consistent with IL trimming stripping
+         reflection-based metadata WinRT/WindowsAppSDK's COM activation needs
+         at startup, a well-documented risk for WinUI3 specifically). The
+         build's own trim-analysis warnings already flagged WindowsAppSDK-
+         adjacent assemblies (Microsoft.Windows.SDK.NET, WinRT.Runtime) before
+         this was ever tested end to end. This is a desktop save-editor tool,
+         not something that needs trimming's size savings badly enough to
+         risk this failure mode - correctness wins here. -->
+    <PublishTrimmed>False</PublishTrimmed>
+  </PropertyGroup>
+
+  <!-- A self-contained publish otherwise leaves ~85 non-English locale
+       folders (af-ZA, am-ET, ar-SA... zh-TW) at the top level of the
+       output - WindowsAppSDK's own SelfContained.targets copies every
+       language's *.mui unconditionally (Microsoft.WindowsAppSDK.
+       SelfContained.targets, "MicrosoftWindowsAppSDKFiles" item, no
+       language filter exists to set from this project's side - confirmed
+       2026-08-07, SatelliteResourceLanguages has no effect on these since
+       they're pre-built runtime content, not this project's own generated
+       satellite assemblies). Matched by shape (a locale code looks like
+       "xx-Xxxx-XX" or similar, 2-4 letters plus optional dash-groups) so
+       this stays correct if WindowsAppSDK ships new/different locales
+       later, rather than hardcoding today's ~85 names - and so it can't
+       accidentally catch a real folder like "Data" or "Microsoft.UI.Xaml",
+       neither of which fits that shape. -->
+  <Target Name="TrimPublishLocaleFolders" AfterTargets="Publish" Condition="'$(SelfContained)' == 'true' and Exists('$(PublishDir)')">
+    <ItemGroup>
+      <_PublishTopDir Include="$([System.IO.Directory]::GetDirectories('$(PublishDir)'))" />
+      <_PublishLocaleDir Include="@(_PublishTopDir)" Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Filename)', '^[a-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$'))&#xA;                                     and '%(Filename)' != 'en-us' and '%(Filename)' != 'en-GB'" />
+    </ItemGroup>
+    <RemoveDir Directories="@(_PublishLocaleDir)" Condition="'@(_PublishLocaleDir)' != ''" />
+    <Message Importance="high" Text="TrimPublishLocaleFolders: removed @(_PublishLocaleDir-&gt;Count()) non-English locale folder(s) from $(PublishDir)." Condition="'@(_PublishLocaleDir)' != ''" />
+  </Target>
+</Project>

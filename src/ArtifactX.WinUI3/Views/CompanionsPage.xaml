@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="ArtifactX.WinUI3.Views.CompanionsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <ScrollViewer>
+        <StackPanel Padding="24" Spacing="20" HorizontalAlignment="Stretch">
+
+            <!-- Same row as the title, not its own row below - so the Reset
+                 button appearing/disappearing doesn't shift everything under
+                 it down. Styled to stand out since it's a destructive action
+                 (discards pending edits). -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Companions" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Companion Changes" Click="PageResetBtn_Click"
+                        Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+            </Grid>
+
+            <TextBlock Text="Owned Companions" FontSize="14" Opacity="0.8"/>
+            <ScrollViewer MaxHeight="150" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+                <ctcontrols:WrapPanel x:Name="CompanionSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+            </ScrollViewer>
+
+            <!-- Wide/short instead of narrow/tall - related fields sit in
+                 rows side by side rather than stacking the whole card into
+                 one long vertical column. Used to share a Grid+
+                 VisualStateManager with an Arena League sidebar here - that
+                 moved to the new MilestonesPage (2026-08-01, it's a Factions
+                 milestone, not really a per-companion concern), so this is
+                 back to a single column with no sidebar to align against. -->
+            <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                    CornerRadius="8" Padding="20" Opacity="0.9" Width="860" HorizontalAlignment="Left">
+                <StackPanel Spacing="18">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Name" FontSize="12" Opacity="0.7"/>
+                        <TextBox x:Name="NameEditBox" Width="300" HorizontalAlignment="Left" LostFocus="NameEditBox_LostFocus"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="32">
+                        <StackPanel Spacing="6" Width="160">
+                            <TextBlock Text="Species" FontSize="12" Opacity="0.7"/>
+                            <TextBlock x:Name="SpeciesTxt" FontSize="14"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6" Width="160">
+                            <TextBlock Text="Native Climate" FontSize="12" Opacity="0.7"/>
+                            <TextBlock x:Name="ClimateTxt" FontSize="14"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6" Width="160">
+                            <TextBlock Text="Rarity" FontSize="12" Opacity="0.7"/>
+                            <TextBlock x:Name="RarityTxt" FontSize="14"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6" Width="160">
+                            <TextBlock Text="Trust" FontSize="12" Opacity="0.7"/>
+                            <NumberBox x:Name="TrustStatBox" Width="140" HorizontalAlignment="Left"
+                                       Minimum="0" Maximum="100" SpinButtonPlacementMode="Hidden"
+                                       ValueChanged="TrustStatBox_ValueChanged" LostFocus="TrustStatBox_LostFocus"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Traits" FontSize="14" FontWeight="SemiBold"/>
+                        <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                                   Text="The 3 personality traits shown in-game (e.g. Playfulness/Gentleness/Independence) - which named trait each slot below actually is differs per pet and isn't determinable from the save, so they're labeled generically. Only magnitude is editable; each value's underlying sign (which descriptor word it picks, e.g. Placid vs its opposite) is preserved as-is."/>
+                        <StackPanel Orientation="Horizontal" Spacing="32">
+                            <StackPanel Spacing="6" Width="160">
+                                <TextBlock Text="Trait 1" Opacity="0.7"/>
+                                <NumberBox x:Name="Trait1Box" Width="140" HorizontalAlignment="Left" Minimum="0" Maximum="100"
+                                           SpinButtonPlacementMode="Hidden" ValueChanged="Trait1Box_ValueChanged"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6" Width="160">
+                                <TextBlock Text="Trait 2" Opacity="0.7"/>
+                                <NumberBox x:Name="Trait2Box" Width="140" HorizontalAlignment="Left" Minimum="0" Maximum="100"
+                                           SpinButtonPlacementMode="Hidden" ValueChanged="Trait2Box_ValueChanged"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6" Width="160">
+                                <TextBlock Text="Trait 3" Opacity="0.7"/>
+                                <NumberBox x:Name="Trait3Box" Width="140" HorizontalAlignment="Left" Minimum="0" Maximum="100"
+                                           SpinButtonPlacementMode="Hidden" ValueChanged="Trait3Box_ValueChanged"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="32">
+                        <StackPanel Spacing="6" Width="160">
+                            <TextBlock Text="Genes Improved" FontSize="12" Opacity="0.7"/>
+                            <NumberBox x:Name="GenesImprovedStatBox" Width="140" HorizontalAlignment="Left"
+                                       Minimum="0" Maximum="30" SpinButtonPlacementMode="Hidden"
+                                       ValueChanged="GenesImprovedStatBox_ValueChanged" LostFocus="GenesImprovedStatBox_LostFocus"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6" Width="160">
+                            <TextBlock Text="Mutation Progress" FontSize="12" Opacity="0.7"/>
+                            <NumberBox x:Name="MutationProgressStatBox" Width="140" HorizontalAlignment="Left"
+                                       Minimum="0" Maximum="100" SpinButtonPlacementMode="Hidden"
+                                       ValueChanged="MutationProgressStatBox_ValueChanged" LostFocus="MutationProgressStatBox_LostFocus"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6" Width="160">
+                            <TextBlock Text="Holo-Arena Victories" FontSize="12" Opacity="0.7"/>
+                            <NumberBox x:Name="VictoriesStatBox" Width="140" HorizontalAlignment="Left"
+                                       Minimum="0" SpinButtonPlacementMode="Hidden"
+                                       ValueChanged="VictoriesStatBox_ValueChanged" LostFocus="VictoriesStatBox_LostFocus"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Seed" FontSize="12" Opacity="0.7"/>
+                        <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
+                                   Text="Drives this pet's pattern/texture (markings, scale/fur style) and, while Color Override below is off, its color too. Generate rolls a fresh value into both of this pet's active color-seed slots together (they were always found mirrored on real saves); paste a seed you've found elsewhere to set just the primary one."/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="SeedEditBox" Width="220" LostFocus="SeedEditBox_LostFocus"/>
+                            <Button Content="Generate" Click="GenerateSeedBtn_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Color Override Seed" FontSize="12" Opacity="0.7"/>
+                        <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
+                                   Text="Overrides ONLY the primary Seed's contribution to color while Active is checked, leaving pattern/texture untouched. Dormant on every wild-tamed pet until turned on - regenerating this while Active is unchecked has no visible effect. Generate activates it and rolls a fresh value; unchecking Active goes back to the primary Seed's own color."/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <CheckBox x:Name="ColourBaseSeedActiveCheckBox" Content="Active" Click="ColourBaseSeedActiveCheckBox_Click"/>
+                            <TextBox x:Name="ColourBaseSeedEditBox" Width="220" LostFocus="ColourBaseSeedEditBox_LostFocus"/>
+                            <Button Content="Generate" Click="GenerateColourBaseSeedBtn_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Battle Ability Seeds" FontSize="12" Opacity="0.7"/>
+                        <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
+                                   Text="Two co-inputs that together drive the in-game Battle Abilities badges (Combat Effectiveness/Agility/Health grades) AND the fancy auto-generated species name shown in-game - changing either one alone shifts both the name and all three badges. Distinct from the color Seed above, which does not touch either of these."/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="BattleAbilitySeedEditBox" Width="220" LostFocus="BattleAbilitySeedEditBox_LostFocus"/>
+                            <Button Content="Generate" Click="GenerateBattleAbilitySeedBtn_Click"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="BattleAbilitySeed2EditBox" Width="220" LostFocus="BattleAbilitySeed2EditBox_LostFocus"/>
+                            <Button Content="Generate" Click="GenerateBattleAbilitySeed2Btn_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1" CornerRadius="6" Padding="14" Opacity="0.85">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Battle Ability Override" FontSize="12" Opacity="0.7"/>
+                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
+                                       Text="When Override Active is checked, the Battle Abilities badges are read directly from the Class Letters below instead of the Battle Ability Seeds above. Unchecked (the default on every wild-tamed pet) leaves the badges driven by the Seeds, and these letters sit dormant - disabled below so it's clear they don't do anything while Override Active is off, no matter what they say. Display order here is Health/Agility/Combat, NOT the Agility/Health/Combat order used above and in Genetic Profile below."/>
+                            <CheckBox x:Name="ClassLetterOverrideActiveCheckBox" Content="Override Active" Click="ClassLetterOverrideActiveCheckBox_Click"/>
+                            <StackPanel Orientation="Horizontal" Spacing="32">
+                                <StackPanel Spacing="6" Width="160">
+                                    <TextBlock Text="Health" Opacity="0.7"/>
+                                    <ComboBox x:Name="ClassLetterHealthBox" Width="70" HorizontalAlignment="Left" SelectionChanged="ClassLetterHealthBox_SelectionChanged">
+                                        <ComboBoxItem Content="S"/>
+                                        <ComboBoxItem Content="A"/>
+                                        <ComboBoxItem Content="B"/>
+                                        <ComboBoxItem Content="C"/>
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="160">
+                                    <TextBlock Text="Agility" Opacity="0.7"/>
+                                    <ComboBox x:Name="ClassLetterAgilityBox" Width="70" HorizontalAlignment="Left" SelectionChanged="ClassLetterAgilityBox_SelectionChanged">
+                                        <ComboBoxItem Content="S"/>
+                                        <ComboBoxItem Content="A"/>
+                                        <ComboBoxItem Content="B"/>
+                                        <ComboBoxItem Content="C"/>
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="160">
+                                    <TextBlock Text="Combat" Opacity="0.7"/>
+                                    <ComboBox x:Name="ClassLetterCombatBox" Width="70" HorizontalAlignment="Left" SelectionChanged="ClassLetterCombatBox_SelectionChanged">
+                                        <ComboBoxItem Content="S"/>
+                                        <ComboBoxItem Content="A"/>
+                                        <ComboBoxItem Content="B"/>
+                                        <ComboBoxItem Content="C"/>
+                                    </ComboBox>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Genetic Profile" FontSize="14" FontWeight="SemiBold"/>
+                        <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700"
+                                   Text="Points (max 10 each) per mutation stat. Which array slot maps to which named stat isn't independently confirmed - labeled here in the same order the game itself displays them."/>
+                        <StackPanel Orientation="Horizontal" Spacing="32">
+                            <StackPanel Spacing="6" Width="160">
+                                <TextBlock Text="Agility" Opacity="0.7"/>
+                                <NumberBox x:Name="AgilityPointsBox" Width="140" HorizontalAlignment="Left" Minimum="0" Maximum="10"
+                                           SpinButtonPlacementMode="Hidden" ValueChanged="AgilityPointsBox_ValueChanged"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6" Width="160">
+                                <TextBlock Text="Health" Opacity="0.7"/>
+                                <NumberBox x:Name="HealthPointsBox" Width="140" HorizontalAlignment="Left" Minimum="0" Maximum="10"
+                                           SpinButtonPlacementMode="Hidden" ValueChanged="HealthPointsBox_ValueChanged"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6" Width="160">
+                                <TextBlock Text="Combat" Opacity="0.7"/>
+                                <NumberBox x:Name="CombatPointsBox" Width="140" HorizontalAlignment="Left" Minimum="0" Maximum="10"
+                                           SpinButtonPlacementMode="Hidden" ValueChanged="CombatPointsBox_ValueChanged"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1" CornerRadius="6" Padding="14" Opacity="0.85">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Body-Part Descriptors (osl)" FontSize="12" Opacity="0.7"/>
+                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="820"
+                                       Text="Each row below swaps ONE part for another valid option from that same slot, leaving every other entry untouched. On some species, one row is labeled &quot;- ARCHETYPE&quot; and behaves differently - since it decides which OTHER slots even apply, changing it rebuilds every row below from scratch using a default pick for each new slot, rather than swapping in place; this specific behavior hasn't been tested in-game yet, so save and check carefully before trusting the result. Most species don't have one of these at all (their slots - e.g. Head/Body/Tail - are independent of each other, so every row there is an ordinary same-slot swap). Dropdown labels are cleaned-up versions of the game's own internal part codes (e.g. &quot;_HEAD_TURTLE&quot; shows as &quot;Turtle&quot;) - the game has no separate friendly name for these, so hover any option to see its exact raw code. Some slots (mostly small accessories) genuinely have no descriptive name at all in the game's own data, only numbered variants - those show as &quot;Variant 1&quot;, &quot;Variant 2&quot;, etc. rather than a made-up name. A row with no dropdown is a value that doesn't match any known catalog option (e.g. the trailing per-instance detail seed) and isn't editable here."/>
+                            <StackPanel x:Name="DescriptorsPanel" Spacing="10"/>
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Advanced Fields (Unconfirmed Purpose)" FontSize="14" FontWeight="SemiBold"/>
+                        <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="820"
+                                   Text="Every other raw field on this pet with no confirmed in-game effect yet - edit one at a time and check in-game what changes, if anything."/>
+                        <StackPanel x:Name="AdvancedFieldsPanel" Spacing="10"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="ArtifactX.WinUI3.Views.FreighterUpgradesPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Freighter Upgrades" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+            <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Upgrade Changes" Click="PageResetBtn_Click"
+                    Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+        </Grid>
+
+        <!-- Shown instead of ContentPanel when the player doesn't own a
+             freighter yet - same HasFreighter() check as FreighterPage/
+             FrigatePage, since this whole "Capital Ship Research" screen
+             only exists once you have one to research it on. -->
+        <TextBlock Grid.Row="1" x:Name="NoFreighterTxt" FontSize="14" Opacity="0.7" TextWrapping="Wrap"
+                   MaxWidth="600" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed"
+                   Text="You don't own a freighter yet, so there's no Capital Ship Research to manage. Buy or claim a freighter in-game, then come back here."/>
+
+        <Grid Grid.Row="1" x:Name="ContentPanel" RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                    CornerRadius="6" Padding="12,8" Opacity="0.85">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource NmsTextSecondary}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                    <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
+                               Text="Blueprints from the in-game &quot;Capital Ship Research&quot; screen - Frigate Upgrades (consumable, one-expedition boosts), Construction Modules (freighter rooms/parts), and Recolouring. The base Freighter Technology tier (Warp Shielding, Hyperdrive, etc.) is a separate system already on the Catalogue page's Freighter filter, not duplicated here. The &quot;Salvaged Frigate Module&quot; currency shown alongside these in-game isn't a special field - it's just a stack of a regular item sitting in your Freighter's Cargo, already editable there."/>
+                </StackPanel>
+            </Border>
+
+            <Grid Grid.Row="1" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0" x:Name="SearchBox" PlaceholderText="Search upgrades..." TextChanged="SearchBox_TextChanged"/>
+                <ComboBox Grid.Column="1" x:Name="GroupFilterBox" Width="170" SelectionChanged="Filter_Changed">
+                    <ComboBoxItem Content="All Groups"/>
+                    <ComboBoxItem Content="Frigate Upgrade"/>
+                    <ComboBoxItem Content="Construction Module"/>
+                    <ComboBoxItem Content="Recolouring"/>
+                </ComboBox>
+                <ComboBox Grid.Column="2" x:Name="UnlockedFilterBox" Width="150" SelectionChanged="Filter_Changed">
+                    <ComboBoxItem Content="All Items"/>
+                    <ComboBoxItem Content="Unlocked Only"/>
+                    <ComboBoxItem Content="Locked Only"/>
+                </ComboBox>
+                <TextBlock Grid.Column="3" x:Name="ResultCountTxt" VerticalAlignment="Center" FontSize="12"
+                           Foreground="{ThemeResource NmsTextSecondary}"/>
+                <Button Grid.Column="4" x:Name="MarkLockedAllBtn" Content="Lock All" Click="MarkLockedAllBtn_Click"
+                        ToolTipService.ToolTip="Locks every item currently shown below (respects the search box and filters)"/>
+                <Button Grid.Column="5" x:Name="MarkUnlockedAllBtn" Content="Unlock All" Click="MarkUnlockedAllBtn_Click"
+                        ToolTipService.ToolTip="Unlocks every item currently shown below (respects the search box and filters)"/>
+            </Grid>
+
+            <ScrollViewer Grid.Row="2">
+                <ItemsControl x:Name="ItemsListView">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="8"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="viewmodels:FreighterUpgradeRowViewModel">
+                            <Border Width="280" Padding="10,8" CornerRadius="6" BorderThickness="1"
+                                    Tapped="Tile_Tapped" Tag="{x:Bind}"
+                                    BorderBrush="{ThemeResource NmsTextSecondary}" Opacity="0.95"
+                                    Background="{x:Bind IsUnlocked, Mode=OneWay, Converter={StaticResource BoolToActiveBackgroundConverter}}">
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox Grid.Column="0" IsChecked="{x:Bind IsUnlocked, Mode=OneWay}" IsHitTestVisible="False"
+                                              VerticalAlignment="Center" Padding="0" MinWidth="0"/>
+                                    <Border Grid.Column="1" Width="28" Height="28" Background="#1A1F2E" CornerRadius="4" VerticalAlignment="Center">
+                                        <Image Source="{x:Bind Icon, Mode=OneWay}" Stretch="Uniform" Width="22" Height="22"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind DisplayName}" FontSize="12" TextWrapping="Wrap"
+                                                   TextTrimming="CharacterEllipsis" MaxLines="2"/>
+                                        <TextBlock Text="{x:Bind Group}" FontSize="9" Opacity="0.55"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Page>

@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="ArtifactX.WinUI3.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ArtifactX.WinUI3"
+    xmlns:views="using:ArtifactX.WinUI3.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="ArtifactX">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <!-- RequestedTheme="Dark" forces every {ThemeResource} lookup in the whole
+         visual tree (including WinUI3's own built-in theme resources, e.g.
+         ApplicationPageBackgroundThemeBrush - used by most pages' own root
+         Background - which is NOT one of App.xaml's fixed Nms* brushes and
+         otherwise follows the OS's Settings > Personalization > Colors >
+         "Choose your default app mode" toggle) to resolve against the dark
+         theme dictionary regardless of that OS setting. Without this, a user
+         with their Windows app mode set to Light got a genuinely broken
+         split look: the nav pane stayed dark (NmsPaneBackgroundBrush is a
+         fixed color, not theme-variant), but page content areas washed out
+         light (confirmed 2026-08-14 via screenshots - toggling the OS app
+         mode to Dark and restarting fixed it, proving the app was silently
+         following that OS setting instead of its own fixed NMS dark palette,
+         which is what it's actually designed around everywhere else). -->
+    <Grid Background="{ThemeResource NmsBackgroundBrush}" RequestedTheme="Dark">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <views:AppTitleBar x:Name="CustomTitleBar" Grid.Row="0"/>
+
+        <Border x:Name="GameRunningBanner" Grid.Row="1"
+                Background="#332B1400" BorderBrush="#FFB800"
+                BorderThickness="0,0,0,2" Padding="12,4" Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                <FontIcon Glyph="&#xE7BA;" FontSize="12" Foreground="#FFB800"/>
+                <TextBlock Text="No Man's Sky is currently running - saving is disabled to prevent data loss."
+                           FontSize="11" Foreground="#FFB800"/>
+            </StackPanel>
+        </Border>
+
+        <NavigationView x:Name="RootNav"
+                        Grid.Row="2"
+                        PaneDisplayMode="Left"
+                        IsPaneOpen="True"
+                        IsSettingsVisible="False"
+                        SelectionChanged="RootNav_SelectionChanged"
+                        Background="Transparent">
+
+            <NavigationView.MenuItems>
+                <NavigationViewItem Content="Save Selection" Icon="Home" Tag="SaveFolderSelect" />
+
+                <!-- Account-wide, not per-slot (edits accountdata.hg directly) - lives
+                     at the top, right under Save Selection, because it only needs a
+                     platform account chosen (SaveSessionManager.HasActivePlatform),
+                     not a specific save slot loaded. See UpdateNavAvailability and
+                     SaveFolderSelectPage's Expander.Expanding handler.
+
+                     Pure folder, not itself clickable (SelectsOnInvoked="False",
+                     no Tag) - same pattern as Structural Analysis below, NOT the
+                     Milestones hybrid (parent navigates AND toggles). User feedback
+                     2026-08-12: with the parent also carrying a Tag, every click on
+                     "Account Data" both navigated AND toggled the child list open/
+                     closed at once, which read as broken/flickery. Catalog (the
+                     original account-wide unlock list, previously reachable by
+                     clicking "Account Data" itself) is now its own explicit child
+                     alongside Guide, both equally-weighted subpages. -->
+                <NavigationViewItem x:Name="AccountDataNavItem" Content="Account Data" SelectsOnInvoked="False" IsExpanded="True" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE77B;" FontFamily="Segoe MDL2 Assets"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.MenuItems>
+                        <NavigationViewItem Content="Catalog" Tag="AccountData" Icon="List"/>
+                        <NavigationViewItem x:Name="GuideNavItem" Content="Guide" Tag="Guide">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE82D;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <!-- Split out of Catalog 2026-08-13 - user feedback: "It feels
+                             like we have too much on Catalog... Like Expedition and
+                             Twitch Drops on a page by themselves. It's just the
+                             catalog page is a little laggy." Each is its own page
+                             now (ExpeditionRewardsPage/TwitchRewardsPage), not just a
+                             section on Catalog - so Catalog's own page load no longer
+                             also builds cards for reward items it wasn't even showing. -->
+                        <NavigationViewItem Content="Expedition Rewards" Tag="ExpeditionRewards">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE7C1;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Content="Twitch Rewards" Tag="TwitchRewards">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE714;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                    </NavigationViewItem.MenuItems>
+                </NavigationViewItem>
+
+                <!-- Exosuit, Starship, Multi-Tool, etc. nav items go here once built,
+                     gated behind SaveSessionManager.IsSaveLoaded the same way the
+                     removed SaveHub/Inventory items were. -->
+                <NavigationViewItem x:Name="GeneralNavItem" Content="General" Tag="General" Visibility="Collapsed" Icon="Setting"/>
+
+                <NavigationViewItem x:Name="ExosuitNavItem" Content="Exosuit" Tag="Exosuit" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="ExosuitPathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <NavigationViewItem x:Name="MultiToolNavItem" Content="Multi-Tool" Tag="MultiTool" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="MultiToolPathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <NavigationViewItem x:Name="ShipsNavItem" Content="Starships" Tag="Ships" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="StarshipsPathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <NavigationViewItem x:Name="FreighterNavItem" Content="Freighter" Tag="Freighter" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="FreighterPathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <NavigationViewItem x:Name="FreighterUpgradesNavItem" Content="Freighter Upgrades" Tag="FreighterUpgrades" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="FreighterUpgradesPathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <NavigationViewItem x:Name="FrigateNavItem" Content="Frigates" Tag="Frigate" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="FrigatesPathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <NavigationViewItem x:Name="SquadronNavItem" Content="Squadron" Tag="Squadron" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="SquadronPathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <!-- One page, in-page tab strip for the 7 exocraft types
+                     (ExocraftPage) - same "one page, many switchable sections"
+                     shape as MilestonesPage, not a nav parent with 7 children
+                     (2026-08-06 user correction: "We just need the tech area
+                     and the cargo area for each one on one page"). -->
+                <NavigationViewItem x:Name="ExocraftNavItem" Content="Exocraft" Tag="Exocraft" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="ExocraftPathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <NavigationViewItem x:Name="BaseStorageNavItem" Content="Base Storage" Tag="BaseStorage" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="BaseStoragePathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <NavigationViewItem x:Name="CorvetteCacheNavItem" Content="Corvette Cache" Tag="CorvetteCache" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="CorvetteCachePathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <NavigationViewItem x:Name="CompanionsNavItem" Content="Companions" Tag="Companions" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="CompanionsPathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <NavigationViewItem x:Name="SettlementNavItem" Content="Settlements" Tag="Settlement" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="SettlementsPathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <!-- Pure folder (SelectsOnInvoked="False", no Tag) - same pattern as
+                     Account Data/Structural Analysis, NOT the old hybrid (parent
+                     navigated AND toggled at once). User feedback 2026-08-13: "move
+                     the link away from Milestones since it is a dropdown. Like we
+                     did with Account Data" - clicking "Milestones" previously both
+                     navigated to MilestonesPage AND expanded/collapsed the 5
+                     language children on the same click. Milestones (the original
+                     save-wide progress-tracking page) is now its own explicit
+                     child, equally-weighted alongside the 5 language pages - same
+                     restructure as Account Data's own Catalog/Guide split. Atlas
+                     isn't a race, just a smaller special vocabulary pool sharing
+                     the same save array - see NmsLanguagePaths. -->
+                <NavigationViewItem x:Name="MilestonesNavItem" Content="Milestones" SelectsOnInvoked="False" IsExpanded="True" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="MilestonesPathIcon"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.MenuItems>
+                        <NavigationViewItem Content="Milestones" Tag="Milestones" Icon="Flag"/>
+                        <NavigationViewItem Content="Gek Language" Tag="LanguageGek">
+                            <NavigationViewItem.Icon>
+                                <PathIcon x:Name="GekLanguagePathIcon"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Content="Vy'keen Language" Tag="LanguageVyKeen">
+                            <NavigationViewItem.Icon>
+                                <PathIcon x:Name="VyKeenLanguagePathIcon"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Content="Korvax Language" Tag="LanguageKorvax">
+                            <NavigationViewItem.Icon>
+                                <PathIcon x:Name="KorvaxLanguagePathIcon"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Content="Autophage Language" Tag="LanguageAutophage">
+                            <NavigationViewItem.Icon>
+                                <PathIcon x:Name="AutophageLanguagePathIcon"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Content="Atlas Language" Tag="LanguageAtlas">
+                            <NavigationViewItem.Icon>
+                                <PathIcon x:Name="AtlasLanguagePathIcon"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                    </NavigationViewItem.MenuItems>
+                </NavigationViewItem>
+
+                <NavigationViewItem x:Name="CatalogueNavItem" Content="Catalogue" Tag="Catalogue" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="CataloguePathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <NavigationViewItem x:Name="FishingRecordsNavItem" Content="Fishing Records" Tag="FishingRecords" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="FishingRecordsPathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+
+                <!-- Dev-only tools (raw JSON diffing/decryption used to reverse-engineer
+                     field mappings) - collapsed in Release builds via MainWindow's
+                     constructor (#if !DEBUG), never shown to a real end user. -->
+                <NavigationViewItemSeparator x:Name="StructuralAnalysisSeparator"/>
+
+                <NavigationViewItem x:Name="StructuralAnalysisNavItem" Content="Structural Analysis" SelectsOnInvoked="False" IsExpanded="True">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE946;" FontFamily="Segoe MDL2 Assets"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.MenuItems>
+                        <NavigationViewItem Content="JSON Ancestry Engine" Icon="Find" Tag="AncestrySearch" />
+                        <NavigationViewItem Content="HG File Decryption" Tag="HGDecryption">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE943;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                    </NavigationViewItem.MenuItems>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+
+            <Frame x:Name="ContentFrame" Navigated="ContentFrame_Navigated"/>
+        </NavigationView>
+    </Grid>
+</Window>

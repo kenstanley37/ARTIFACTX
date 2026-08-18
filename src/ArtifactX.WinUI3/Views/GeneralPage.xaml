@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="ArtifactX.WinUI3.Views.GeneralPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <ScrollViewer>
+        <StackPanel Padding="24" Spacing="20">
+            <!-- Reset button on the title's own row, pinned far right via the
+                 "*" spacer column, styled to stand out as a destructive
+                 action - not its own row below, which shifted the whole page
+                 down whenever it appeared. -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="General" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset General Changes" Click="PageResetBtn_Click"
+                        Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+            </Grid>
+
+            <StackPanel Spacing="20" HorizontalAlignment="Left">
+            <StackPanel Spacing="8">
+                <TextBlock Text="Save Info" FontSize="18" FontWeight="SemiBold"/>
+                <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                        CornerRadius="8" Padding="16" Opacity="0.9" Width="490" HorizontalAlignment="Left">
+                    <StackPanel Spacing="14">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Save Name" FontSize="12" Opacity="0.7"/>
+                            <TextBox x:Name="SaveNameBox" FontSize="14" LostFocus="SaveNameBox_LostFocus"/>
+                        </StackPanel>
+                        <StackPanel Spacing="4">
+                            <!-- "Where the player was when they saved" -
+                                 vLc/6f=/n:R, the same field the game's own
+                                 Continue screen draws its location line from.
+                                 Editable, but unconfirmed whether hand-editing
+                                 this actually changes anything the game reads
+                                 back (vs. just being a display string the
+                                 game itself regenerates on its own next
+                                 save) - flag if a test shows either way. -->
+                            <TextBlock Text="Summary" FontSize="12" Opacity="0.7"/>
+                            <TextBox x:Name="SummaryBox" FontSize="14" TextWrapping="Wrap" AcceptsReturn="False"
+                                     LostFocus="SummaryBox_LostFocus"/>
+                        </StackPanel>
+                        <StackPanel Spacing="4">
+                            <!-- GLOBAL_STATS' TIME stat, not F2P - see
+                                 project_playtime_field_fix memory for why.
+                                 Read-only for now - a reference tool's own
+                                 "Total Play Time" reads a DIFFERENT stat
+                                 (LONGEST_LIFE) that gives a different number
+                                 on this exact save, unresolved which concept
+                                 is really wanted here, so not wiring up an
+                                 edit until that's settled (see
+                                 project_general_page_save_info memory). -->
+                            <TextBlock Text="Total Play Time" FontSize="12" Opacity="0.7"/>
+                            <TextBlock x:Name="PlayTimeTxt" FontSize="14"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Difficulty" FontSize="12" Opacity="0.7"/>
+                            <!-- Editing just the Current preset LABEL (brJ),
+                                 without touching the ~24 individual settings
+                                 under LyC/:fe, is CONFIRMED to work in-game -
+                                 user set Current=Creative here, and the
+                                 game's own Difficulty Settings screen came up
+                                 already showing "Creative" with every
+                                 individual setting correctly auto-applied to
+                                 match (2026-08-06) - the game re-derives :fe
+                                 from the label at load time rather than
+                                 requiring it to be pre-set. See
+                                 project_general_page_save_info memory. -->
+                            <Grid ColumnSpacing="24">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock Text="Current" FontSize="11" Opacity="0.6"/>
+                                    <ComboBox x:Name="CurrentPresetBox" Width="130" SelectionChanged="CurrentPresetBox_SelectionChanged">
+                                        <ComboBoxItem Content="Normal"/>
+                                        <ComboBoxItem Content="Creative"/>
+                                        <ComboBoxItem Content="Relaxed"/>
+                                        <ComboBoxItem Content="Survival"/>
+                                        <ComboBoxItem Content="Permadeath"/>
+                                        <ComboBoxItem Content="Custom"/>
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <TextBlock Text="Easiest Used" FontSize="11" Opacity="0.6"/>
+                                    <ComboBox x:Name="EasiestPresetBox" Width="130" SelectionChanged="EasiestPresetBox_SelectionChanged">
+                                        <ComboBoxItem Content="Normal"/>
+                                        <ComboBoxItem Content="Creative"/>
+                                        <ComboBoxItem Content="Relaxed"/>
+                                        <ComboBoxItem Content="Survival"/>
+                                        <ComboBoxItem Content="Permadeath"/>
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="2">
+                                    <TextBlock Text="Hardest Used" FontSize="11" Opacity="0.6"/>
+                                    <ComboBox x:Name="HardestPresetBox" Width="130" SelectionChanged="HardestPresetBox_SelectionChanged">
+                                        <ComboBoxItem Content="Normal"/>
+                                        <ComboBoxItem Content="Creative"/>
+                                        <ComboBoxItem Content="Relaxed"/>
+                                        <ComboBoxItem Content="Survival"/>
+                                        <ComboBoxItem Content="Permadeath"/>
+                                    </ComboBox>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Spacing="8">
+                <TextBlock Text="Currency" FontSize="18" FontWeight="SemiBold"/>
+                <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                        CornerRadius="8" Padding="16" Opacity="0.9" Width="320" HorizontalAlignment="Left">
+                    <StackPanel Spacing="14">
+                        <!-- Maximum=4294967295 (uint32.MaxValue) is a REAL, confirmed
+                             ceiling here, unlike most other NumberBoxes in this app that
+                             deliberately leave no upper limit - see
+                             NmsPlayerStateData.ToDisplayValue/ToRawValue's doc comment.
+                             The game stores this as a wrapping 32-bit field; going higher
+                             than this doesn't just "unbalance" the save the way an extreme
+                             ship stat would, it silently computes a WRONG raw value on
+                             write (the wraparound math breaks down past this point - e.g.
+                             entering exactly 4294967296 would stage 0, silently zeroing a
+                             real balance). Don't remove this cap without re-deriving the
+                             math in that doc comment first. -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Units" FontSize="12" Opacity="0.7"/>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <NumberBox Grid.Column="0" x:Name="UnitsBox" Minimum="0" Maximum="4294967295" SpinButtonPlacementMode="Hidden"
+                                           ValueChanged="UnitsBox_ValueChanged" LostFocus="UnitsBox_LostFocus"/>
+                                <Button Grid.Column="1" Content="Max" Click="MaxUnitsBtn_Click" VerticalAlignment="Stretch"
+                                        ToolTipService.ToolTip="Sets to 4,294,967,295 (uint32.MaxValue) - the real ceiling this field wraps at, same value a reference tool's own Max button uses"/>
+                            </Grid>
+                        </StackPanel>
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Nanites" FontSize="12" Opacity="0.7"/>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <NumberBox Grid.Column="0" x:Name="NanitesBox" Minimum="0" Maximum="4294967295" SpinButtonPlacementMode="Hidden"
+                                           ValueChanged="NanitesBox_ValueChanged" LostFocus="NanitesBox_LostFocus"/>
+                                <Button Grid.Column="1" Content="Max" Click="MaxNanitesBtn_Click" VerticalAlignment="Stretch"
+                                        ToolTipService.ToolTip="Sets to 4,294,967,295 (uint32.MaxValue) - the real ceiling this field wraps at, same value a reference tool's own Max button uses"/>
+                            </Grid>
+                        </StackPanel>
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Quicksilver" FontSize="12" Opacity="0.7"/>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <NumberBox Grid.Column="0" x:Name="QuicksilverBox" Minimum="0" Maximum="4294967295" SpinButtonPlacementMode="Hidden"
+                                           ValueChanged="QuicksilverBox_ValueChanged" LostFocus="QuicksilverBox_LostFocus"/>
+                                <Button Grid.Column="1" Content="Max" Click="MaxQuicksilverBtn_Click" VerticalAlignment="Stretch"
+                                        ToolTipService.ToolTip="Sets to 4,294,967,295 (uint32.MaxValue) - the real ceiling this field wraps at, same value a reference tool's own Max button uses"/>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Spacing="8">
+                <TextBlock Text="About" FontSize="18" FontWeight="SemiBold"/>
+                <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                        CornerRadius="8" Padding="16" Opacity="0.9" Width="320" HorizontalAlignment="Left">
+                    <StackPanel Spacing="10">
+                        <TextBlock x:Name="VersionTxt" Text="ArtifactX" FontSize="13" FontWeight="SemiBold"/>
+                        <Button x:Name="CheckForUpdatesBtn" Content="Check for Updates" Click="CheckForUpdatesBtn_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="UpdateStatusTxt" Text="" FontSize="11" Opacity="0.75" TextWrapping="Wrap"/>
+                        <HyperlinkButton x:Name="ReleasePageLink" Content="Open release page" Visibility="Collapsed" Padding="0" Click="ReleasePageLink_Click"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

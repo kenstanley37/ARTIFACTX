@@ -54,6 +54,9 @@ BundleArtifacts/
 *.appinstaller
 *.pfx
 
+## ====== Local tool config (machine-specific paths) ======
+src/ArtifactX.Tools/ArtifactX.Tools.DataCataloger/config.json
+
 ## ====== SQLite / Local Data Layers ======
 *.db
 *.sqlite
@@ -75,5 +78,5 @@ Thumbs.db
 *.hg
 
 # External libraries (MBINCompiler, libMBIN, etc.)
-src/NMS.Tools/External/
-src/NMS.Tools/External/**
+src/ArtifactX.Tools/External/
+src/ArtifactX.Tools/External/**

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="ArtifactX.WinUI3.Views.FishingRecordsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Fishing Records" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+            <!-- No separate Save/Discard here, unlike AccountDataPage - this field is
+                 a normal per-slot save value, so it goes through the same title-bar
+                 Save/Reset button every other page in the app already uses. -->
+            <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Fishing Records Changes" Click="PageResetBtn_Click"
+                    Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <ProgressRing x:Name="LoadingRing" IsActive="False" Width="40" Height="40"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+            <Grid x:Name="ContentPanel" Visibility="Collapsed" RowSpacing="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                        CornerRadius="6" Padding="12,8" Opacity="0.85">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource NmsTextSecondary}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                        <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
+                                   Text="This save's fishing-record checklist (the same list the in-game Catalog &amp; Guide -> Fishing Records screen shows) - 210 real, named fish species. The catch count/size written isn't guaranteed to match what a real catch would have recorded - only the reveal itself is confirmed to work."/>
+                    </StackPanel>
+                </Border>
+
+                <Grid Grid.Row="1" ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0" x:Name="SearchBox" PlaceholderText="Search fish..." TextChanged="SearchBox_TextChanged"/>
+                    <ComboBox Grid.Column="1" x:Name="CaughtFilterBox" Width="150" SelectionChanged="Filter_Changed">
+                        <ComboBoxItem Content="All Items"/>
+                        <ComboBoxItem Content="Caught Only"/>
+                        <ComboBoxItem Content="Uncaught Only"/>
+                    </ComboBox>
+                    <TextBlock Grid.Column="2" x:Name="ResultCountTxt" VerticalAlignment="Center" FontSize="12"
+                               Foreground="{ThemeResource NmsTextSecondary}"/>
+                    <Button Grid.Column="3" x:Name="MarkUncaughtAllBtn" Content="Mark All Uncaught" Click="MarkUncaughtAllBtn_Click"
+                            ToolTipService.ToolTip="Marks every species currently shown below as uncaught (respects the search box and filter)"/>
+                    <Button Grid.Column="4" x:Name="MarkCaughtAllBtn" Content="Mark All Caught" Click="MarkCaughtAllBtn_Click"
+                            ToolTipService.ToolTip="Marks every species currently shown below as caught (respects the search box and filter)"/>
+                </Grid>
+
+                <!-- Same compact-row/WrapPanel pattern as CataloguePage (see its own
+                     doc comment for why: not virtualized, but ~210 rows is small
+                     enough that this is a non-issue). -->
+                <ScrollViewer Grid.Row="2">
+                    <ItemsControl x:Name="ItemsListView">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="8"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodels:FishingRecordRowViewModel">
+                                <Border Width="300" Padding="10,8" CornerRadius="6" BorderThickness="1"
+                                        Tapped="Tile_Tapped" Tag="{x:Bind}"
+                                        BorderBrush="{ThemeResource NmsTextSecondary}" Opacity="0.95"
+                                        Background="{x:Bind IsCaught, Mode=OneWay, Converter={StaticResource BoolToActiveBackgroundConverter}}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCaught, Mode=OneWay}" IsHitTestVisible="False"
+                                                  VerticalAlignment="Center" Padding="0" MinWidth="0"/>
+                                        <Border Grid.Column="1" Width="28" Height="28" Background="#1A1F2E" CornerRadius="4" VerticalAlignment="Center">
+                                            <Image Source="{x:Bind Icon, Mode=OneWay}" Stretch="Uniform" Width="22" Height="22"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="2" Text="{x:Bind DisplayName}" FontSize="12" TextWrapping="Wrap"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxLines="2"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>

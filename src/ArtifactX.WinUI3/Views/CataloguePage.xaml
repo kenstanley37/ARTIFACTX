@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="ArtifactX.WinUI3.Views.CataloguePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Catalogue" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+            <!-- No separate Save/Discard here, unlike AccountDataPage - this field is
+                 a normal per-slot save value, so it goes through the same title-bar
+                 Save/Reset button every other page in the app already uses. -->
+            <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Catalogue Changes" Click="PageResetBtn_Click"
+                    Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <ProgressRing x:Name="LoadingRing" IsActive="False" Width="40" Height="40"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+            <Grid x:Name="ContentPanel" Visibility="Collapsed" RowSpacing="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                    CornerRadius="6" Padding="12,8" Opacity="0.85">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource NmsTextSecondary}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                    <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
+                               Text="This save's known-technology list. Scoped to Technology-table items only (~370 total)."/>
+                </StackPanel>
+            </Border>
+
+                <Grid Grid.Row="1" ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0" x:Name="SearchBox" PlaceholderText="Search technology..." TextChanged="SearchBox_TextChanged"/>
+                    <!-- Lets someone browse by "what I want to put it on" (Ship/Suit/
+                         Multi-Tool/Freighter) even without knowing an item's name -
+                         see CataloguePage.xaml.cs's CategoryFilterMap for exactly which
+                         UsageCategory values each option matches (2026-08-05 user ask). -->
+                    <ComboBox Grid.Column="1" x:Name="CategoryFilterBox" Width="150" SelectionChanged="Filter_Changed"
+                              ToolTipService.ToolTip="Filter by which device this tech can be installed on">
+                        <ComboBoxItem Content="All Categories"/>
+                        <ComboBoxItem Content="Suit"/>
+                        <ComboBoxItem Content="Ship"/>
+                        <ComboBoxItem Content="Multi-Tool"/>
+                        <ComboBoxItem Content="Freighter"/>
+                    </ComboBox>
+                    <ComboBox Grid.Column="2" x:Name="KnownFilterBox" Width="150" SelectionChanged="Filter_Changed">
+                        <ComboBoxItem Content="All Items"/>
+                        <ComboBoxItem Content="Known Only"/>
+                        <ComboBoxItem Content="Unknown Only"/>
+                    </ComboBox>
+                    <TextBlock Grid.Column="3" x:Name="ResultCountTxt" VerticalAlignment="Center" FontSize="12"
+                               Foreground="{ThemeResource NmsTextSecondary}"/>
+                    <Button Grid.Column="4" x:Name="MarkUnknownAllBtn" Content="Mark All Unknown" Click="MarkUnknownAllBtn_Click"
+                            ToolTipService.ToolTip="Marks every item currently shown below as unknown (respects the search box and filter)"/>
+                    <Button Grid.Column="5" x:Name="MarkKnownAllBtn" Content="Mark All Known" Click="MarkKnownAllBtn_Click"
+                            ToolTipService.ToolTip="Marks every item currently shown below as known (respects the search box and filter)"/>
+                </Grid>
+
+                <!-- Compact rows (checkbox + small icon + name), fixed-width so the same
+                     WrapPanel lays several out per line instead of stretching one row
+                     across the whole window - a multi-column list rather than the
+                     earlier single stretched column or the big square icon tiles (both
+                     tried first; see project_catalogue_page.md for why each didn't land).
+                     Not virtualized (plain WrapPanel, not a virtualizing ItemsPanel), but
+                     ~370 rows is a small enough visual tree for WinUI that this is a
+                     non-issue - same reasoning that made icons themselves affordable
+                     here but not on AccountDataPage's ~4,700-row list. Tapped on the
+                     whole row, not a separate CheckBox click - the CheckBox drawn on it
+                     is a non-hit-testable visual indicator only, to avoid the tap
+                     bubbling to both handlers and double-toggling.
+                     Deliberately no colored border on Known rows (dropped
+                     BoolToAccentBrushConverter after feedback that a full solid-orange
+                     border on most of ~370 rows read as visual noise, not "modern") -
+                     the checkbox already communicates state clearly on its own; only a
+                     soft background tint (BoolToActiveBackgroundConverter) reinforces it. -->
+                <ScrollViewer Grid.Row="2">
+                    <ItemsControl x:Name="ItemsListView">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="8"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodels:CatalogueRowViewModel">
+                                <Border Width="360" Padding="10,8" CornerRadius="6" BorderThickness="1"
+                                        Tapped="Tile_Tapped" Tag="{x:Bind}"
+                                        BorderBrush="{ThemeResource NmsTextSecondary}" Opacity="0.95"
+                                        Background="{x:Bind IsKnown, Mode=OneWay, Converter={StaticResource BoolToActiveBackgroundConverter}}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <!-- Padding/MinWidth zeroed - CheckBox's default template reserves
+                                             room for a label even with none set, which read as a much
+                                             bigger gap before the icon than the 8px ColumnSpacing alone. -->
+                                        <CheckBox Grid.Column="0" IsChecked="{x:Bind IsKnown, Mode=OneWay}" IsHitTestVisible="False"
+                                                  VerticalAlignment="Center" Padding="0" MinWidth="0"/>
+                                        <Border Grid.Column="1" Width="28" Height="28" Background="#1A1F2E" CornerRadius="4" VerticalAlignment="Center">
+                                            <Image Source="{x:Bind Icon, Mode=OneWay}" Stretch="Uniform" Width="22" Height="22"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="2" Text="{x:Bind DisplayName}" FontSize="12" TextWrapping="Wrap"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxLines="2"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>

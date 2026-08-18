@@ -4,9 +4,9 @@
     <File Path="docs/CONTRIBUTING.md" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/NMS.Core/NMS.Core.csproj" />
-    <Project Path="src/NMS.Data/NMS.Data.csproj" />
-    <Project Path="src/NMS.WinUI3/NMS.WinUI3.csproj" Id="62ead7dc-3cf1-4a0a-b434-b11346199274">
+    <Project Path="src/ArtifactX.Almanac/ArtifactX.Almanac.csproj" Id="68d99de1-f1fd-4a68-981f-378ce661b134" />
+    <Project Path="src/ArtifactX.Core/ArtifactX.Core.csproj" />
+    <Project Path="src/ArtifactX.WinUI3/ArtifactX.WinUI3.csproj" Id="62ead7dc-3cf1-4a0a-b434-b11346199274">
       <Platform Solution="*|ARM64" Project="ARM64" />
       <Platform Solution="*|x64" Project="x64" />
       <Platform Solution="*|x86" Project="x86" />
@@ -18,8 +18,9 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Folder Name="/src/NMS.Tools/">
-    <Project Path="src/NMS.Tools/NMS.Tools.DataCataloger/NMS.Tools.DataCataloger.csproj" Id="68f90931-a070-48aa-b4a0-c6db1a447b0a" />
-    <Project Path="src/NMS.Tools/NMS.Tools.libMBIN/NMS.Tools.libMBIN.csproj" Id="fdb6b12e-3db6-4809-a673-4906fadd64bb" />
+  <Folder Name="/src/ArtifactX.Tools/">
+    <Project Path="src/ArtifactX.Tools/ArtifactX.Tools.SaveInspector/ArtifactX.Tools.SaveInspector.csproj" Id="f11f227a-29ea-4d61-9908-1601f2d48c2b" />
+    <Project Path="src/ArtifactX.Tools/ArtifactX.Tools.DataCataloger/ArtifactX.Tools.DataCataloger.csproj" Id="68f90931-a070-48aa-b4a0-c6db1a447b0a" />
+    <Project Path="src/ArtifactX.Tools/NMS.Tools.libMBIN/NMS.Tools.libMBIN.csproj" Id="fdb6b12e-3db6-4809-a673-4906fadd64bb" />
   </Folder>
 </Solution>
