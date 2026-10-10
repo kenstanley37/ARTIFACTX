@@ -144,6 +144,16 @@ public partial class InventoryGridViewModel : ObservableObject
         Load();
     }
 
+    /// <summary>Re-locks an EMPTY slot. Occupied slots are refused - an item
+    /// left in a locked slot is unusable in-game and risks being dropped.</summary>
+    public void LockSlot(int x, int y)
+    {
+        if (Cells.Any(c => c.IsOccupied && c.X == x && c.Y == y)) return;
+        if (!_unlockedSet.Remove((x, y))) return;
+        StageUnlockedPositions();
+        Load();
+    }
+
     public void UnlockAll()
     {
         bool changed = false;

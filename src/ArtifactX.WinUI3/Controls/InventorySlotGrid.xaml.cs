@@ -371,6 +371,15 @@ public sealed partial class InventorySlotGrid : UserControl
             flyout.Items.Add(superchargeItem);
         }
 
+        var lockItem = new MenuFlyoutItem { Text = "Lock this slot" };
+        lockItem.Click += (_, _) =>
+        {
+            ViewModel?.LockSlot(cell.X, cell.Y);
+            Refresh();
+            CellChanged?.Invoke(this, EventArgs.Empty);
+        };
+        flyout.Items.Add(lockItem);
+
         return flyout;
     }
 
