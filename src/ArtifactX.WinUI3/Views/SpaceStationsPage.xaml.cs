@@ -26,9 +26,6 @@ public sealed partial class SpaceStationsPage : Page
     private ulong? _currentSystemAddress;
     private int _currentGroupIndex = -1;
     private JObject? _currentGroup;
-    // Static so Reset still knows this page staged the Units change after
-    // navigating away and back; cleared once that edit is saved or reverted.
-    private static bool _stagedUnitsEdit;
 
     public SpaceStationsPage()
     {
@@ -129,7 +126,6 @@ public sealed partial class SpaceStationsPage : Page
         RaceStandingTxt.Text = $"{race.Value} / {S.RaceStandingRequired}";
         GuildStandingTxt.Text = $"{guild.Value} / {S.GuildStandingRequired}";
         ContractsTxt.Text = $"{S.ReadStat(_currentGroup, S.SalvageContractsStatId)} / {S.SalvageContractsRequired}";
-        UnitsTxt.Text = $"{CurrentUnits():N0} / {S.UnitsDonationRequired:N0}";
     }
 
     /// <summary>The race/guild with the most standing in this system - the
@@ -196,7 +192,7 @@ public sealed partial class SpaceStationsPage : Page
     }
 
     /// <summary>Replicates the in-game takeover (see NmsSpaceStationPaths for
-    /// the diff it's based on): requirements, Units donation, the F?0 station
+    /// the diff it's based on): requirements, the F?0 station
     /// record, ^STATIONS_OWNED + 1, and the marker's ownership stamp.</summary>
     private void ClaimStationBtn_Click(object sender, RoutedEventArgs e)
     {
@@ -214,14 +210,8 @@ public sealed partial class SpaceStationsPage : Page
 
         MeetRequirements();
 
-        // The game deducts the donation on takeover; only do the same if the
-        // player can actually afford it rather than wrapping the balance.
-        long units = CurrentUnits();
-        if (units >= S.UnitsDonationRequired)
-        {
-            SaveSessionManager.StageEdit(new JValue(NmsPlayerStateData.ToRawValue(units - S.UnitsDonationRequired)), NmsPlayerStateData.UnitsPath);
-            _stagedUnitsEdit = true;
-        }
+        // The game deducts a 1,000,000,000 Units donation on takeover - deliberately
+        // NOT replicated here (user decision 2026-10-09: claiming shouldn't cost Units).
 
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         SaveSessionManager.StageEdit(S.CreateClaimedStationRecord(address, stationName, owner, now), S.BasePath(BaseCount()));
@@ -267,12 +257,6 @@ public sealed partial class SpaceStationsPage : Page
         if (_currentSystemAddress is ulong address && FindStationMarkerIndex(address, out _) is int marker and >= 0)
             SaveSessionManager.RevertEditsUnder(S.MarkerOwnershipStampPath(marker));
 
-        if (_stagedUnitsEdit)
-        {
-            SaveSessionManager.RevertEditsUnder(NmsPlayerStateData.UnitsPath);
-            _stagedUnitsEdit = false;
-        }
-
         LoadPage();
     }
 
@@ -294,12 +278,8 @@ public sealed partial class SpaceStationsPage : Page
 
     private void UpdateResetButton()
     {
-        if (_stagedUnitsEdit && !SaveSessionManager.HasStagedEditsUnder(NmsPlayerStateData.UnitsPath))
-            _stagedUnitsEdit = false;
-
         bool hasEdits = (_currentGroupIndex >= 0 && SaveSessionManager.HasStagedEditsUnder(S.StatGroupPath(_currentGroupIndex)))
-            || SaveSessionManager.HasStagedEditsUnder(S.BasePath(BaseCount()))
-            || _stagedUnitsEdit;
+            || SaveSessionManager.HasStagedEditsUnder(S.BasePath(BaseCount()));
         PageResetBtn.Visibility = hasEdits ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -374,9 +354,6 @@ public sealed partial class SpaceStationsPage : Page
 
         return null;
     }
-
-    private static long CurrentUnits() =>
-        NmsPlayerStateData.ToDisplayValue(SaveSessionManager.GetLong(NmsPlayerStateData.UnitsPath) ?? 0);
 
     /// <summary>Every ^SYSTEM_STATS group, read through any staged edit so the
     /// page reflects pending changes - plus a staged-but-not-yet-committed new

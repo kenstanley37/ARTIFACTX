@@ -21,6 +21,28 @@
                         Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
             </Grid>
 
+            <!-- Same bordered info-card style as Twitch Rewards' "How to Claim"
+                 card (user preferred a card over a noisier banner there). -->
+            <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                    CornerRadius="8" Padding="20" Opacity="0.95">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="How to Claim a Station" FontSize="14" FontWeight="SemiBold"/>
+                    <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}">
+                        <Run Text="1.  In-game, fly to the station you want and dock inside it."/>
+                        <LineBreak/>
+                        <Run Text="2.  While still docked, save the game, then quit to the main menu (or close the game)."/>
+                        <LineBreak/>
+                        <Run Text="3.  Load that save in ArtifactX. The station's name should appear under Current Station below."/>
+                        <LineBreak/>
+                        <Run Text="4.  Press Claim Station, then Save."/>
+                        <LineBreak/>
+                        <Run Text="5.  Load the save in-game. The Station Core now offers Manage Station."/>
+                    </TextBlock>
+                    <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
+                               Text="Claim Station works on the station in the system you saved in and meets every requirement for you. Unlike the in-game takeover, it doesn't charge the 1,000,000,000 Units donation."/>
+                </StackPanel>
+            </Border>
+
             <!-- Current system's station + its directorship requirements -->
             <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
                     CornerRadius="8" Padding="20" Opacity="0.9">
@@ -39,7 +61,7 @@
                         <Button Grid.Column="1" x:Name="ClaimStationBtn" Content="Claim Station"
                                 Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Top"
                                 Click="ClaimStationBtn_Click"
-                                ToolTipService.ToolTip="Makes you director of this station, exactly as the in-game takeover does: meets the requirements, pays the 1,000,000,000 Units donation (if you have it), and adds the station to your bases."/>
+                                ToolTipService.ToolTip="Makes you director of this station: meets the requirements and adds the station to your bases, without charging the Units donation."/>
                     </Grid>
 
                     <StackPanel x:Name="RequirementsPanel" Spacing="12">
@@ -56,10 +78,6 @@
                             <StackPanel Spacing="4" MinWidth="180">
                                 <TextBlock Text="Salvage Contracts Completed" FontSize="12" Opacity="0.7"/>
                                 <TextBlock x:Name="ContractsTxt" FontSize="16"/>
-                            </StackPanel>
-                            <StackPanel Spacing="4" MinWidth="180">
-                                <TextBlock Text="Units &quot;Donation&quot;" FontSize="12" Opacity="0.7"/>
-                                <TextBlock x:Name="UnitsTxt" FontSize="16"/>
                             </StackPanel>
                         </ctcontrols:WrapPanel>
 
