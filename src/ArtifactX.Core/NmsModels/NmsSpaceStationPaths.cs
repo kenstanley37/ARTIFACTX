@@ -21,7 +21,8 @@ namespace ArtifactX.Core.NmsModels;
 ///      record is embedded as PlayerSpaceStationTemplate.json (owner, address,
 ///      name and timestamps blanked; filled in at claim time);
 ///   2. ^GLOBAL_STATS ^STATIONS_OWNED + 1;
-///   3. Units - 1,000,000,000 (the "donation");
+///   3. Units - 1,000,000,000 (the "donation") - NOT replicated by ArtifactX
+///      (user decision: claiming shouldn't cost Units);
 ///   4. the station's nlG marker 6H2.8?J set to a 4 x uint32 value that is
 ///      identical on every owned station's marker (zeros when unowned) -
 ///      a per-player ownership stamp, copied from an existing owned marker.
