@@ -364,15 +364,9 @@ public sealed partial class FreighterPage : Page
                     Text = letter,
                     FontWeight = isCurrent ? FontWeights.Bold : FontWeights.Normal
                 },
-                Padding = new Thickness(14, 4, 14, 4),
-                BorderThickness = new Thickness(isCurrent ? 2 : 1),
-                BorderBrush = new SolidColorBrush(isCurrent
-                    ? Color.FromArgb(255, 255, 157, 0)
-                    : Color.FromArgb(255, 90, 98, 112)),
-                Background = new SolidColorBrush(isCurrent
-                    ? Color.FromArgb(60, 255, 157, 0)
-                    : Color.FromArgb(20, 255, 255, 255))
+                Padding = new Thickness(14, 4, 14, 4)
             };
+            ThemeResources.StyleChoiceButton(button, isCurrent);
 
             button.Click += (_, _) =>
             {
@@ -644,7 +638,7 @@ public sealed partial class FreighterPage : Page
 
             row.Children.Add(new Border
             {
-                BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 Margin = new Thickness(0, 4, 0, 0)
             });
@@ -762,7 +756,7 @@ public sealed partial class FreighterPage : Page
 
             row.Children.Add(new Border
             {
-                BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 Margin = new Thickness(0, 4, 0, 0)
             });
@@ -909,7 +903,7 @@ public sealed partial class FreighterPage : Page
             panel.Children.Add(new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = new SolidColorBrush(Color.FromArgb(255, 230, 160, 60)),
+                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
                 Text = $"⚠ {newSlotsNeeded} slot(s) will also be unlocked on your freighter to fit this stack."
             });
         }
@@ -920,7 +914,7 @@ public sealed partial class FreighterPage : Page
             panel.Children.Add(new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = new SolidColorBrush(Color.FromArgb(255, 230, 160, 60)),
+                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
                 Text = $"⚠ Class differs: your freighter is currently {currentClass ?? "unknown"}, source is {sourceClass ?? "unknown"}."
             });
 
