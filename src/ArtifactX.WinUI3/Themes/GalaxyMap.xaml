@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Galaxy Map" theme - darker and starrier, glassy panels with gold
+     highlights and softly rounded corners. Same keys as StationCore.xaml. -->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <SolidColorBrush x:Key="ThemeVoidBrush" Color="#04050B"/>
+    <SolidColorBrush x:Key="ThemePanelBrush" Color="#9E14182C"/>
+    <SolidColorBrush x:Key="ThemePanelAltBrush" Color="#B31E223A"/>
+    <SolidColorBrush x:Key="ThemeLineBrush" Color="#47FFC62E"/>
+    <SolidColorBrush x:Key="ThemeAccentBrush" Color="#FFC62E"/>
+    <SolidColorBrush x:Key="ThemeAccentAltBrush" Color="#FF9D3D"/>
+    <SolidColorBrush x:Key="ThemeDoneBrush" Color="#7EF0C2"/>
+    <SolidColorBrush x:Key="ThemeTextBrush" Color="#ECEAF2"/>
+    <SolidColorBrush x:Key="ThemeTextDimBrush" Color="#A49FB5"/>
+    <SolidColorBrush x:Key="ThemeTextFaintBrush" Color="#6E6982"/>
+    <SolidColorBrush x:Key="ThemeOnAccentBrush" Color="#04050B"/>
+    <SolidColorBrush x:Key="ThemeBandTextBrush" Color="#FFC62E"/>
+    <SolidColorBrush x:Key="ThemeTrackBrush" Color="#1AECEAF2"/>
+
+    <LinearGradientBrush x:Key="ThemeBandBrush" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#24FFC62E" Offset="0"/>
+        <GradientStop Color="#0AFF9D3D" Offset="1"/>
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="ThemeHeroOverlayBrush" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#F204050B" Offset="0.05"/>
+        <GradientStop Color="#8004050B" Offset="0.55"/>
+        <GradientStop Color="#D904050B" Offset="1"/>
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="ThemeTileFadeBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#0004050B" Offset="0.35"/>
+        <GradientStop Color="#EB04050B" Offset="1"/>
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="ThemePageBackdropBrush" StartPoint="1,0" EndPoint="0,1">
+        <GradientStop Color="#2A1A08" Offset="0"/>
+        <GradientStop Color="#04050B" Offset="0.45"/>
+        <GradientStop Color="#120D30" Offset="1"/>
+    </LinearGradientBrush>
+
+    <CornerRadius x:Key="ThemeCardCornerRadius">4</CornerRadius>
+    <FontFamily x:Key="ThemeDisplayFont">/Assets/Fonts/Exo2-Variable.ttf#Exo 2</FontFamily>
+    <FontFamily x:Key="ThemeBodyFont">/Assets/Fonts/TitilliumWeb-Regular.ttf#Titillium Web</FontFamily>
+</ResourceDictionary>

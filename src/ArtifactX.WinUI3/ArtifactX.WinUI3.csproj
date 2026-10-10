@@ -74,6 +74,9 @@
 
   <ItemGroup>
     <Content Include="Assets\AppIconMark.png" />
+    <!-- Open Font License fonts for the visual themes (licences alongside). -->
+    <Content Include="Assets\Fonts\*.ttf" />
+    <Content Include="Assets\Fonts\*.txt" />
     <Content Include="Assets\SplashScreen.scale-200.png" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
     <Content Include="Assets\Square150x150Logo.scale-200.png" />

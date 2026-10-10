@@ -14,6 +14,7 @@ namespace ArtifactX.WinUI3.Services;
 public static class AppSettingsService
 {
     private const string DisclaimerAcceptedKey = "DisclaimerAccepted";
+    private const string ThemeIdKey = "Theme";
 
     private static readonly string SettingsFilePath = Path.Combine(LocalAppDataPaths.RootFolder, "app-settings.json");
 
@@ -56,6 +57,13 @@ public static class AppSettingsService
         LoadSettings().TryGetValue(DisclaimerAcceptedKey, out var value) && value == "true";
 
     public static void SetDisclaimerAccepted() => SetSetting(DisclaimerAcceptedKey, "true");
+
+    /// <summary>Id of the user's chosen visual theme (see ThemeService), or
+    /// null if they've never picked one.</summary>
+    public static string? ThemeId =>
+        LoadSettings().TryGetValue(ThemeIdKey, out var value) ? value : null;
+
+    public static void SetThemeId(string themeId) => SetSetting(ThemeIdKey, themeId);
 }
 
 [JsonSerializable(typeof(Dictionary<string, string>))]

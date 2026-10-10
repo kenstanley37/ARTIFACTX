@@ -37,6 +37,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
 
         SetNavIconGeometries();
+        ThemeService.ThemeChanged += (_, _) => ReloadCurrentPage();
 
 #if !DEBUG
         // Dev-only tools for reverse-engineering raw JSON field mappings - not
@@ -285,6 +286,19 @@ public sealed partial class MainWindow : Window
 
         _closeConfirmed = true;
         Close();
+    }
+
+    /// <summary>Re-creates the current page so it picks up a newly applied
+    /// theme - already-built elements keep the old theme's brushes. Removes
+    /// the extra back-stack entry so Back still goes where the user expects.</summary>
+    private void ReloadCurrentPage()
+    {
+        var pageType = ContentFrame.CurrentSourcePageType;
+        if (pageType is null) return;
+
+        ContentFrame.Navigate(pageType);
+        if (ContentFrame.BackStackDepth > 0)
+            ContentFrame.BackStack.RemoveAt(ContentFrame.BackStackDepth - 1);
     }
 
     private void InitializeCustomTitleBar()

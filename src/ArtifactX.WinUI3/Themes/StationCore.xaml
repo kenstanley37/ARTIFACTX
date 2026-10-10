@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Station Core" theme - close to the game's own menus: purple-to-blue
+     header bands, cyan highlights, square corners. Every theme file must
+     define exactly the same keys (see ThemeStyles.xaml for how they're used,
+     and ThemeService for how the active one is swapped). -->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <SolidColorBrush x:Key="ThemeVoidBrush" Color="#070912"/>
+    <SolidColorBrush x:Key="ThemePanelBrush" Color="#10142A"/>
+    <SolidColorBrush x:Key="ThemePanelAltBrush" Color="#161B38"/>
+    <SolidColorBrush x:Key="ThemeLineBrush" Color="#2A3160"/>
+    <SolidColorBrush x:Key="ThemeAccentBrush" Color="#39D0FF"/>
+    <SolidColorBrush x:Key="ThemeAccentAltBrush" Color="#7C4DFF"/>
+    <SolidColorBrush x:Key="ThemeDoneBrush" Color="#FFC62E"/>
+    <SolidColorBrush x:Key="ThemeTextBrush" Color="#E9ECF6"/>
+    <SolidColorBrush x:Key="ThemeTextDimBrush" Color="#9AA3BF"/>
+    <SolidColorBrush x:Key="ThemeTextFaintBrush" Color="#67708D"/>
+    <SolidColorBrush x:Key="ThemeOnAccentBrush" Color="#070912"/>
+    <SolidColorBrush x:Key="ThemeBandTextBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="ThemeTrackBrush" Color="#1FE9ECF6"/>
+
+    <LinearGradientBrush x:Key="ThemeBandBrush" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#5B2BB8" Offset="0"/>
+        <GradientStop Color="#2350D8" Offset="1"/>
+    </LinearGradientBrush>
+
+    <!-- Darkens the left of a hero screenshot so its text stays readable. -->
+    <LinearGradientBrush x:Key="ThemeHeroOverlayBrush" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#F2070912" Offset="0.05"/>
+        <GradientStop Color="#8C070912" Offset="0.55"/>
+        <GradientStop Color="#D9070912" Offset="1"/>
+    </LinearGradientBrush>
+
+    <!-- Bottom fade on image tiles, behind the tile's name. -->
+    <LinearGradientBrush x:Key="ThemeTileFadeBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#00040510" Offset="0.35"/>
+        <GradientStop Color="#EB040510" Offset="1"/>
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="ThemePageBackdropBrush" StartPoint="1,0" EndPoint="0,1">
+        <GradientStop Color="#1E1440" Offset="0"/>
+        <GradientStop Color="#070912" Offset="0.45"/>
+        <GradientStop Color="#071322" Offset="1"/>
+    </LinearGradientBrush>
+
+    <CornerRadius x:Key="ThemeCardCornerRadius">0</CornerRadius>
+    <FontFamily x:Key="ThemeDisplayFont">/Assets/Fonts/Exo2-Variable.ttf#Exo 2</FontFamily>
+    <FontFamily x:Key="ThemeBodyFont">/Assets/Fonts/TitilliumWeb-Regular.ttf#Titillium Web</FontFamily>
+</ResourceDictionary>

@@ -1,7 +1,11 @@
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
+using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.UI.Xaml.Shapes;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -9,7 +13,6 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
-using Microsoft.UI.Xaml.Media.Imaging;
 using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
 
 namespace ArtifactX.WinUI3.Views;
@@ -18,7 +21,8 @@ namespace ArtifactX.WinUI3.Views;
 /// Space station directorship: shows the station in the player's current
 /// system with its claim progress, claims it in one click, and lists owned
 /// stations and claims in progress. See <see cref="NmsSpaceStationPaths"/>
-/// for the confirmed save mapping.
+/// for the confirmed save mapping. Pilot page for the theme system - every
+/// colour comes from the active theme's Theme* keys (see ThemeService).
 /// </summary>
 public sealed partial class SpaceStationsPage : Page
 {
@@ -31,12 +35,27 @@ public sealed partial class SpaceStationsPage : Page
     // despite having no DDS header - raw pixels only (confirmed 2026-10-10).
     private const int ScreenshotWidth = 640;
     private const int ScreenshotHeight = 360;
+    private const double TileWidth = 224;
+    private const double TileHeight = 126;
+
+    private static readonly string[] HowToStepTexts =
+    {
+        "In-game, fly to the station and dock inside it.",
+        "Save while docked, then quit to the main menu (or close the game).",
+        "Load that save in ArtifactX. The station appears under Current Station.",
+        "Press Claim Station, then Save.",
+        "Load the save in-game. The Station Core now offers Manage Station.",
+    };
 
     // Static so the selected station survives navigating away and back.
     private static ulong? _selectedStationAddress;
     private List<OwnedStation> _owned = new();
-    private bool _suppressStationSelection;
     private int _detailsVersion;
+    private int _heroVersion;
+
+    // Decoded screenshots per address for this page's lifetime - LoadPage runs
+    // on every edit, and re-reading ~900 KB per tile each time would be wasteful.
+    private readonly Dictionary<ulong, Task<WriteableBitmap?>> _screenshots = new();
 
     // Portal glyph images (PORTALSYMBOL_0..F) come from the catalog DB - see
     // DataCataloger's add-station-assets. Galaxy names: NmsGalaxyNames.
@@ -52,6 +71,7 @@ public sealed partial class SpaceStationsPage : Page
     public SpaceStationsPage()
     {
         InitializeComponent();
+        BuildHowToSteps();
 
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionChanged;
@@ -61,6 +81,9 @@ public sealed partial class SpaceStationsPage : Page
         LoadPage();
     }
 
+    private static Brush ThemeBrush(string key) => (Brush)Application.Current.Resources[key];
+    private static FontFamily ThemeFont(string key) => (FontFamily)Application.Current.Resources[key];
+
     private void OnSessionChanged(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(LoadPage);
 
@@ -68,6 +91,7 @@ public sealed partial class SpaceStationsPage : Page
         DispatcherQueue.TryEnqueue(() =>
         {
             StationDetailsCard.MinHeight = 0; // different save, different stations
+            _screenshots.Clear();
             LoadPage();
         });
 
@@ -120,9 +144,12 @@ public sealed partial class SpaceStationsPage : Page
         CurrentStationNameTxt.Text = "No save loaded";
         CurrentLocationTxt.Text = string.Empty;
         CurrentStatusTxt.Text = "Load a save to view and edit space stations.";
-        ClaimStationBtn.IsEnabled = false;
+        DirectorBadge.Visibility = Visibility.Collapsed;
+        ClaimStationBtn.Visibility = Visibility.Collapsed;
+        HeroShot.Source = null;
         RequirementsPanel.Visibility = Visibility.Collapsed;
-        OwnedStationsList.Items.Clear();
+        OwnedTilesPanel.Children.Clear();
+        OwnedHeaderTxt.Text = string.Empty;
         StationDetailsCard.Visibility = Visibility.Collapsed;
         InProgressSection.Visibility = Visibility.Collapsed;
         InProgressPanel.Children.Clear();
@@ -137,36 +164,72 @@ public sealed partial class SpaceStationsPage : Page
         {
             CurrentStationNameTxt.Text = "Unknown location";
             CurrentStatusTxt.Text = "This save's current system couldn't be read.";
-            ClaimStationBtn.IsEnabled = false;
+            DirectorBadge.Visibility = Visibility.Collapsed;
+            ClaimStationBtn.Visibility = Visibility.Collapsed;
             RequirementsPanel.Visibility = Visibility.Collapsed;
             return;
         }
 
         RequirementsPanel.Visibility = Visibility.Visible;
-        CurrentStationNameTxt.Text = stationNames.TryGetValue(address, out var name) ? name : "No station recorded in this system";
+        bool hasStation = stationNames.TryGetValue(address, out var name);
+        CurrentStationNameTxt.Text = hasStation ? name! : "No station recorded in this system";
 
         ShowRequirementValues();
 
         bool isOwned = ownedSystems.Contains(address);
         bool claimPending = SaveSessionManager.HasStagedEditsUnder(S.BasePath(BaseCount()));
 
-        ClaimStationBtn.IsEnabled = !isOwned && stationNames.ContainsKey(address);
+        DirectorBadge.Visibility = isOwned ? Visibility.Visible : Visibility.Collapsed;
+        ClaimStationBtn.Visibility = isOwned ? Visibility.Collapsed : Visibility.Visible;
+        ClaimStationBtn.IsEnabled = hasStation;
         CurrentStatusTxt.Text = claimPending
             ? "Station claimed. Save your changes to write it to the save file."
             : isOwned
-                ? "You are the director of this station."
-                : !stationNames.ContainsKey(address)
+                ? string.Empty
+                : !hasStation
                     ? "No station is recorded in this system yet - dock at it in-game first."
                     : "Claim Station meets every requirement and makes you director, just like the in-game takeover.";
+        CurrentStatusTxt.Visibility = string.IsNullOrEmpty(CurrentStatusTxt.Text) ? Visibility.Collapsed : Visibility.Visible;
+
+        _ = ShowHeroScreenshotAsync(address, hasStation ? name! : string.Empty);
+    }
+
+    /// <summary>The game only caches screenshots of the player's own bases, so
+    /// an unclaimed station shows the plain panel behind the overlay.</summary>
+    private async Task ShowHeroScreenshotAsync(ulong address, string name)
+    {
+        int version = ++_heroVersion;
+        var bitmap = await GetScreenshotAsync(address, name);
+        if (version == _heroVersion)
+            HeroShot.Source = bitmap;
     }
 
     private void ShowRequirementValues()
     {
         var race = Best(S.RaceStats, _currentGroup);
         var guild = Best(S.GuildStats, _currentGroup);
+        int contracts = S.ReadStat(_currentGroup, S.SalvageContractsStatId);
+
         RaceStandingTxt.Text = $"{race.Value} / {S.RaceStandingRequired}";
         GuildStandingTxt.Text = $"{guild.Value} / {S.GuildStandingRequired}";
-        ContractsTxt.Text = $"{S.ReadStat(_currentGroup, S.SalvageContractsStatId)} / {S.SalvageContractsRequired}";
+        ContractsTxt.Text = $"{contracts} / {S.SalvageContractsRequired}";
+
+        SetMeter(RaceBar, race.Value, S.RaceStandingRequired);
+        SetMeter(GuildBar, guild.Value, S.GuildStandingRequired);
+        SetMeter(ContractsBar, contracts, S.SalvageContractsRequired);
+    }
+
+    /// <summary>Fills a bar Grid to value/required, gold (the theme's "done"
+    /// colour) once the requirement is met.</summary>
+    private static void SetMeter(Grid bar, int value, int required)
+    {
+        double ratio = required <= 0 ? 0 : Math.Clamp((double)value / required, 0, 1);
+        bar.Children.Clear();
+        bar.ColumnDefinitions.Clear();
+        bar.Background = ThemeBrush("ThemeTrackBrush");
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ratio, GridUnitType.Star) });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1 - ratio, GridUnitType.Star) });
+        bar.Children.Add(new Border { Background = ThemeBrush(ratio >= 1 ? "ThemeDoneBrush" : "ThemeAccentBrush") });
     }
 
     /// <summary>The race/guild with the most standing in this system - the
@@ -178,47 +241,136 @@ public sealed partial class SpaceStationsPage : Page
         return best.Value > 0 ? best : (null, 0);
     }
 
+    private void BuildHowToSteps()
+    {
+        for (int i = 0; i < HowToStepTexts.Length; i++)
+        {
+            var step = new StackPanel { Spacing = 4, Width = 190, Padding = new Thickness(12), Background = ThemeBrush("ThemePanelAltBrush") };
+            step.Children.Add(new Border { Height = 2, Background = ThemeBrush("ThemeAccentBrush"), Margin = new Thickness(-12, -12, -12, 6) });
+            step.Children.Add(new TextBlock
+            {
+                Text = (i + 1).ToString(),
+                FontFamily = ThemeFont("ThemeDisplayFont"),
+                FontWeight = FontWeights.Bold,
+                FontSize = 22,
+                Foreground = ThemeBrush("ThemeAccentBrush"),
+            });
+            step.Children.Add(new TextBlock
+            {
+                Text = HowToStepTexts[i],
+                FontSize = 13,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = ThemeBrush("ThemeTextDimBrush"),
+            });
+            HowToSteps.Children.Add(step);
+        }
+    }
+
+    private void HowToToggle_Click(object sender, RoutedEventArgs e)
+    {
+        bool open = HowToSteps.Visibility != Visibility.Visible;
+        HowToSteps.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+        HowToGlyph.Text = open ? "–" : "+";
+    }
+
     private void ShowOwnedStations(List<OwnedStation> owned)
     {
         _owned = owned;
-        OwnedHeaderTxt.Text = $"Stations You Direct ({owned.Count})";
-
-        _suppressStationSelection = true;
-        OwnedStationsList.Items.Clear();
-        foreach (var station in owned)
-        {
-            OwnedStationsList.Items.Add(new ListViewItem
-            {
-                Content = CreateRow(station.Name, station.Address == _currentSystemAddress ? "Current system" : null),
-                Tag = station.Address,
-            });
-        }
+        OwnedHeaderTxt.Text = owned.Count == 1 ? "1 station" : $"{owned.Count} stations";
 
         // Keep the previous pick; otherwise default to the station in the
         // current system, else the first one.
         ulong? target = owned.Any(o => o.Address == _selectedStationAddress) ? _selectedStationAddress
             : owned.Any(o => o.Address == _currentSystemAddress) ? _currentSystemAddress
             : owned.FirstOrDefault()?.Address;
-        int index = owned.FindIndex(o => o.Address == target);
-        OwnedStationsList.SelectedIndex = index;
-        _suppressStationSelection = false;
+        _selectedStationAddress = target;
 
-        if (index >= 0)
-            _ = ShowStationDetailsAsync(owned[index]);
-        else
+        OwnedTilesPanel.Children.Clear();
+        if (owned.Count == 0)
+        {
+            OwnedTilesPanel.Children.Add(new TextBlock { Text = "None yet. Claim the station you're docked at above.", Foreground = ThemeBrush("ThemeTextDimBrush") });
             StationDetailsCard.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        foreach (var station in owned)
+            OwnedTilesPanel.Children.Add(CreateStationTile(station));
+
+        var selected = owned.FirstOrDefault(o => o.Address == target);
+        if (selected is not null)
+            _ = ShowStationDetailsAsync(selected);
     }
 
-    private void OwnedStationsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    /// <summary>Screenshot tile: image, bottom fade, name, optional "CURRENT"
+    /// badge. The selected tile gets the accent border.</summary>
+    private Button CreateStationTile(OwnedStation station)
     {
-        if (_suppressStationSelection || OwnedStationsList.SelectedItem is not ListViewItem { Tag: ulong address }) return;
+        bool isSelected = station.Address == _selectedStationAddress;
+        var image = new Image { Stretch = Stretch.UniformToFill };
+        var content = new Grid { Width = TileWidth, Height = TileHeight, Background = ThemeBrush("ThemePanelAltBrush") };
+        content.Children.Add(image);
+        content.Children.Add(new Rectangle { Fill = ThemeBrush("ThemeTileFadeBrush") });
+        content.Children.Add(new TextBlock
+        {
+            Text = station.Name,
+            FontFamily = ThemeFont("ThemeDisplayFont"),
+            FontWeight = FontWeights.SemiBold,
+            FontSize = 14,
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = ThemeBrush("ThemeTextBrush"),
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(10, 0, 10, 8),
+        });
+        if (station.Address == _currentSystemAddress)
+        {
+            content.Children.Add(new Border
+            {
+                Background = ThemeBrush("ThemeDoneBrush"),
+                Padding = new Thickness(7, 3, 7, 3),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(8),
+                Child = new TextBlock
+                {
+                    Text = "CURRENT",
+                    FontFamily = ThemeFont("ThemeDisplayFont"),
+                    FontWeight = FontWeights.Bold,
+                    FontSize = 10,
+                    CharacterSpacing = 200,
+                    Foreground = ThemeBrush("ThemeOnAccentBrush"),
+                },
+            });
+        }
 
-        var station = _owned.FirstOrDefault(o => o.Address == address);
-        if (station is null) return;
-
-        _selectedStationAddress = address;
-        _ = ShowStationDetailsAsync(station);
+        var tile = new Button
+        {
+            Content = content,
+            Padding = new Thickness(0),
+            Background = ThemeBrush("ThemePanelAltBrush"),
+            BorderBrush = ThemeBrush(isSelected ? "ThemeAccentBrush" : "ThemeLineBrush"),
+            BorderThickness = new Thickness(isSelected ? 2 : 1),
+            CornerRadius = (CornerRadius)Application.Current.Resources["ThemeCardCornerRadius"],
+            Tag = station.Address,
+        };
+        ToolTipService.SetToolTip(tile, station.Name);
+        tile.Click += (_, _) =>
+        {
+            if (_selectedStationAddress == station.Address) return;
+            _selectedStationAddress = station.Address;
+            foreach (var other in OwnedTilesPanel.Children.OfType<Button>())
+            {
+                bool on = other.Tag is ulong a && a == station.Address;
+                other.BorderBrush = ThemeBrush(on ? "ThemeAccentBrush" : "ThemeLineBrush");
+                other.BorderThickness = new Thickness(on ? 2 : 1);
+            }
+            _ = ShowStationDetailsAsync(station);
+        };
+        _ = SetTileImageAsync(image, station);
+        return tile;
     }
+
+    private async Task SetTileImageAsync(Image image, OwnedStation station) =>
+        image.Source = await GetScreenshotAsync(station.Address, station.Name);
 
     private static Task WarmStationAssetsAsync() =>
         _stationAssetsWarmup ??= CatalogService.WarmCacheAsync(
@@ -228,7 +380,7 @@ public sealed partial class SpaceStationsPage : Page
     {
         int version = ++_detailsVersion;
         StationDetailsCard.Visibility = Visibility.Visible;
-        DetailNameTxt.Text = station.Name;
+        DetailNameTxt.Text = station.Name.ToUpperInvariant();
 
         try
         {
@@ -246,52 +398,189 @@ public sealed partial class SpaceStationsPage : Page
         ulong address = station.Address;
         ShowPortalGlyphs(address);
 
+        // Galaxy
         int galaxy = S.GalaxyNumber(address);
-        AddFactSection("Location", new[]
+        var galaxyLine = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        galaxyLine.Children.Add(new TextBlock
         {
-            ("Galaxy", NmsGalaxyNames.ForNumber(galaxy) is string galaxyName
-                ? $"{galaxyName} (Galaxy {galaxy})"
-                : $"Galaxy {galaxy}"),
+            Text = NmsGalaxyNames.ForNumber(galaxy) ?? $"Galaxy {galaxy}",
+            FontFamily = ThemeFont("ThemeDisplayFont"),
+            FontWeight = FontWeights.Bold,
+            FontSize = 24,
+            Foreground = ThemeBrush("ThemeTextBrush"),
         });
+        if (NmsGalaxyNames.ForNumber(galaxy) is not null)
+            galaxyLine.Children.Add(new TextBlock { Text = $"Galaxy {galaxy}", VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 4), Foreground = ThemeBrush("ThemeTextDimBrush") });
+        AddFactSection("GALAXY", galaxyLine);
 
-        var history = new List<(string, string)>();
-        if (station.Record["3?K"]?["3I1"]?.Value<long>() is long claimed and > 0)
-            history.Add(("Claimed", FormatTimestamp(claimed)));
-
+        // History: discovered -> claimed
         var discoveries = ReadDiscoveriesInSystem(address);
         var systemRecord = discoveries.FirstOrDefault(d => d["8P3"]?["<Dn"]?.Value<string>() == "SolarSystem");
-        if (systemRecord?["ksu"] is JObject discoverer)
+        long discoveredAt = systemRecord?["ksu"]?["3I1"]?.Value<long>() ?? 0;
+        string discoverer = systemRecord?["ksu"]?["V?:"]?.Value<string>() ?? string.Empty;
+        long claimedAt = station.Record["3?K"]?["3I1"]?.Value<long>() ?? 0;
+        var timeline = new Grid { ColumnSpacing = 12 };
+        timeline.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        timeline.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 24 });
+        timeline.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var discoveredText = TimelinePoint("Discovered", discoveredAt, discoverer);
+        var arrow = new Rectangle { Height = 1, VerticalAlignment = VerticalAlignment.Center, Fill = ThemeBrush("ThemeAccentBrush"), Opacity = 0.6 };
+        var claimedText = TimelinePoint("Claimed", claimedAt, null);
+        Grid.SetColumn(arrow, 1);
+        Grid.SetColumn(claimedText, 2);
+        timeline.Children.Add(discoveredText);
+        timeline.Children.Add(arrow);
+        timeline.Children.Add(claimedText);
+        AddFactSection("HISTORY", timeline);
+
+        // Discoveries as count chips
+        var chips = SummarizeDiscoveries(discoveries);
+        if (chips.Count > 0)
         {
-            string by = discoverer["V?:"]?.Value<string>() ?? string.Empty;
-            string when = FormatTimestamp(discoverer["3I1"]?.Value<long>() ?? 0);
-            history.Add(("System discovered", string.IsNullOrEmpty(by) ? when : $"{when} by {by}"));
+            var chipPanel = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 8, VerticalSpacing = 8 };
+            foreach (var (count, label) in chips)
+                chipPanel.Children.Add(CreateChip(count, label));
+            AddFactSection("YOUR DISCOVERIES HERE", chipPanel);
         }
-        AddFactSection("History", history);
 
-        string? discoverySummary = SummarizeDiscoveries(discoveries);
-        if (discoverySummary is not null)
-            AddFactSection("Your Discoveries Here", new[] { ("Found", discoverySummary) });
-
+        // Local standing as bars with a tick at the claim requirement
         var group = ReadSystemStats(SaveSessionManager.GetValue(S.StatGroupsPath) as JArray)
             .FirstOrDefault(g => g.Address == address)?.Group;
-        var standings = S.RaceStats.Select(r => (Label: $"{r.Name} standing", Value: S.ReadStat(group, r.StatId)))
-            .Concat(S.GuildStats.Select(g => (Label: $"{g.Name} standing", Value: S.ReadStat(group, g.StatId))))
-            .Append((Label: "Salvage contracts", Value: S.ReadStat(group, S.SalvageContractsStatId)))
+        var standings = S.RaceStats.Select(r => (Label: r.Name, Value: S.ReadStat(group, r.StatId), Required: S.RaceStandingRequired))
+            .Concat(S.GuildStats.Select(g => (Label: g.Name, Value: S.ReadStat(group, g.StatId), Required: S.GuildStandingRequired)))
+            .Append((Label: "Salvage contracts", Value: S.ReadStat(group, S.SalvageContractsStatId), Required: S.SalvageContractsRequired))
             .Where(s => s.Value > 0)
-            .Select(s => (s.Label, s.Value.ToString("N0")))
             .ToList();
-        AddFactSection("Local Standing", standings);
+        if (standings.Count > 0)
+        {
+            var bars = new StackPanel { Spacing = 9 };
+            foreach (var (label, value, required) in standings)
+                bars.Children.Add(CreateStandingRow(label, value, required));
+            bars.Children.Add(new TextBlock { Text = "Tick marks show the claim requirement.", FontSize = 12, Foreground = ThemeBrush("ThemeTextFaintBrush") });
+            AddFactSection("LOCAL STANDING", bars);
+        }
 
-        AddFactSection("Other Bases in This System", ReadOtherBasesInSystem(address, station.Record));
-
+        // Small facts row
+        var mini = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 24, VerticalSpacing = 6 };
         if (station.Record["@ZJ"] is JArray parts)
-            AddFactSection("Station", new[] { ("Parts placed", parts.Count.ToString("N0")) });
+            mini.Children.Add(MiniFact("Parts placed", parts.Count.ToString("N0")));
+        var otherBases = ReadOtherBasesInSystem(address, station.Record);
+        mini.Children.Add(MiniFact("Other bases here", otherBases.Count == 0 ? "None" : string.Join(", ", otherBases.Select(b => b.Item2))));
+        DetailFactsPanel.Children.Add(mini);
 
-        await LoadScreenshotAsync(station, version);
+        DetailScreenshot.Source = null;
+        DetailNoScreenshotTxt.Visibility = Visibility.Collapsed;
+        var bitmap = await GetScreenshotAsync(station.Address, station.Name);
+        if (version != _detailsVersion) return;
+        DetailScreenshot.Source = bitmap;
+        DetailNoScreenshotTxt.Visibility = bitmap is null ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>One glyph image per hex digit of the portal address. Falls back
-    /// to the plain code if the catalog predates add-station-assets.</summary>
+    private void AddFactSection(string title, UIElement body)
+    {
+        var section = new StackPanel { Spacing = 8 };
+        section.Children.Add(new TextBlock
+        {
+            Text = title,
+            FontFamily = ThemeFont("ThemeDisplayFont"),
+            FontWeight = FontWeights.SemiBold,
+            FontSize = 12,
+            CharacterSpacing = 260,
+            Foreground = ThemeBrush("ThemeAccentBrush"),
+        });
+        section.Children.Add(body);
+        DetailFactsPanel.Children.Add(section);
+    }
+
+    private static StackPanel TimelinePoint(string label, long unixSeconds, string? by)
+    {
+        var point = new StackPanel { Spacing = 0 };
+        point.Children.Add(new TextBlock { Text = label, FontSize = 12, Foreground = ThemeBrush("ThemeTextDimBrush") });
+        point.Children.Add(new TextBlock { Text = FormatTimestamp(unixSeconds), FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = ThemeBrush("ThemeTextBrush") });
+        if (!string.IsNullOrEmpty(by))
+            point.Children.Add(new TextBlock { Text = $"by {by}", FontSize = 12, Foreground = ThemeBrush("ThemeTextDimBrush") });
+        return point;
+    }
+
+    private static Border CreateChip(int count, string label)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        row.Children.Add(new TextBlock
+        {
+            Text = count.ToString("N0"),
+            FontFamily = ThemeFont("ThemeDisplayFont"),
+            FontWeight = FontWeights.Bold,
+            FontSize = 18,
+            Foreground = ThemeBrush("ThemeAccentBrush"),
+        });
+        row.Children.Add(new TextBlock { Text = label, FontSize = 14, VerticalAlignment = VerticalAlignment.Center, Foreground = ThemeBrush("ThemeTextBrush") });
+        return new Border
+        {
+            Child = row,
+            Padding = new Thickness(12, 5, 12, 5),
+            Background = ThemeBrush("ThemePanelAltBrush"),
+            BorderBrush = ThemeBrush("ThemeLineBrush"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = (CornerRadius)Application.Current.Resources["ThemeCardCornerRadius"],
+        };
+    }
+
+    /// <summary>Label | bar (scaled so the requirement sits at ~60%, with a
+    /// tick there) | value. Gold once the requirement is met.</summary>
+    private static Grid CreateStandingRow(string label, int value, int required)
+    {
+        double max = Math.Max(required * 1.6, value);
+        var row = new Grid { ColumnSpacing = 12 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+
+        row.Children.Add(new TextBlock { Text = label, FontSize = 14, VerticalAlignment = VerticalAlignment.Center, Foreground = ThemeBrush("ThemeTextBrush") });
+
+        var track = new Grid { Height = 6, VerticalAlignment = VerticalAlignment.Center, Background = ThemeBrush("ThemeTrackBrush") };
+        track.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(value / max, GridUnitType.Star) });
+        track.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1 - value / max, GridUnitType.Star) });
+        track.Children.Add(new Border { Background = ThemeBrush(value >= required ? "ThemeDoneBrush" : "ThemeAccentAltBrush") });
+
+        // Tick at the requirement: a second grid split at required/max.
+        var tickHost = new Grid { Height = 14, VerticalAlignment = VerticalAlignment.Center };
+        tickHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(required / max, GridUnitType.Star) });
+        tickHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1 - required / max, GridUnitType.Star) });
+        var tick = new Rectangle { Width = 2, HorizontalAlignment = HorizontalAlignment.Left, Fill = ThemeBrush("ThemeTextDimBrush") };
+        Grid.SetColumn(tick, 1);
+        tickHost.Children.Add(tick);
+
+        var barCell = new Grid();
+        barCell.Children.Add(track);
+        barCell.Children.Add(tickHost);
+        Grid.SetColumn(barCell, 1);
+        row.Children.Add(barCell);
+
+        var number = new TextBlock
+        {
+            Text = value.ToString("N0"),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            FontFamily = ThemeFont("ThemeDisplayFont"),
+            FontWeight = FontWeights.SemiBold,
+            Foreground = ThemeBrush("ThemeTextBrush"),
+        };
+        Grid.SetColumn(number, 2);
+        row.Children.Add(number);
+        return row;
+    }
+
+    private static StackPanel MiniFact(string label, string value)
+    {
+        var fact = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        fact.Children.Add(new TextBlock { Text = label, FontSize = 14, Foreground = ThemeBrush("ThemeTextDimBrush") });
+        fact.Children.Add(new TextBlock { Text = value, FontSize = 14, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Foreground = ThemeBrush("ThemeTextBrush") });
+        return fact;
+    }
+
+    /// <summary>One glyph tile per hex digit of the portal address; the first
+    /// (planet) glyph is outlined. Falls back to the plain code if the catalog
+    /// predates add-station-assets.</summary>
     private void ShowPortalGlyphs(ulong address)
     {
         string code = S.PortalAddress(address);
@@ -301,41 +590,22 @@ public sealed partial class SpaceStationsPage : Page
         var icons = code.Select(c => CatalogService.TryGet($"PORTALSYMBOL_{c}")?.Icon).ToList();
         if (icons.Any(i => i is null))
         {
-            PortalGlyphsPanel.Children.Add(new TextBlock { Text = code, FontSize = 16, IsTextSelectionEnabled = true });
+            PortalGlyphsPanel.Children.Add(new TextBlock { Text = code, FontSize = 16, IsTextSelectionEnabled = true, Foreground = ThemeBrush("ThemeTextBrush") });
             return;
         }
 
-        foreach (var icon in icons)
-            PortalGlyphsPanel.Children.Add(new Image { Source = icon, Width = 29, Height = 29 });
-    }
-
-    private void AddFactSection(string title, IEnumerable<(string Label, string Value)> facts)
-    {
-        var list = facts.ToList();
-        if (list.Count == 0) return;
-
-        var section = new StackPanel { Spacing = 4 };
-        section.Children.Add(new TextBlock { Text = title, FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        foreach (var (label, value) in list)
+        for (int i = 0; i < icons.Count; i++)
         {
-            var row = new Grid { ColumnSpacing = 12 };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-            var labelText = new TextBlock
+            PortalGlyphsPanel.Children.Add(new Border
             {
-                Text = label,
-                FontSize = 12,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["NmsTextSecondary"],
-            };
-            var valueText = new TextBlock { Text = value, FontSize = 13, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
-            Grid.SetColumn(valueText, 1);
-            row.Children.Add(labelText);
-            row.Children.Add(valueText);
-            section.Children.Add(row);
+                Width = 30,
+                Height = 30,
+                Background = ThemeBrush("ThemePanelAltBrush"),
+                BorderBrush = i == 0 ? ThemeBrush("ThemeAccentBrush") : null,
+                BorderThickness = new Thickness(i == 0 ? 1 : 0),
+                Child = new Image { Source = icons[i], Width = 24, Height = 24 },
+            });
         }
-        DetailFactsPanel.Children.Add(section);
     }
 
     private static string FormatTimestamp(long unixSeconds) =>
@@ -350,9 +620,9 @@ public sealed partial class SpaceStationsPage : Page
             .ToList();
     }
 
-    /// <summary>"6 planets · 3 fauna · 2 flora" - only discovery types with a
-    /// plain-English name; planets counted by distinct planet index.</summary>
-    private static string? SummarizeDiscoveries(List<JObject> discoveries)
+    /// <summary>(count, label) pairs for discovery types with a plain-English
+    /// name; planets counted by distinct planet index.</summary>
+    private static List<(int Count, string Label)> SummarizeDiscoveries(List<JObject> discoveries)
     {
         int CountOf(string type) => discoveries.Count(d => d["8P3"]?["<Dn"]?.Value<string>() == type);
 
@@ -362,13 +632,12 @@ public sealed partial class SpaceStationsPage : Page
             .Distinct()
             .Count();
 
-        var parts = new List<string>();
-        if (planets > 0) parts.Add(planets == 1 ? "1 planet" : $"{planets} planets");
-        if (CountOf("Animal") is int fauna and > 0) parts.Add($"{fauna} fauna");
-        if (CountOf("Flora") is int flora and > 0) parts.Add($"{flora} flora");
-        if (CountOf("Mineral") is int minerals and > 0) parts.Add(minerals == 1 ? "1 mineral" : $"{minerals} minerals");
-
-        return parts.Count > 0 ? string.Join("  ·  ", parts) : null;
+        var result = new List<(int, string)>();
+        if (planets > 0) result.Add((planets, planets == 1 ? "planet" : "planets"));
+        if (CountOf("Animal") is int fauna and > 0) result.Add((fauna, "fauna"));
+        if (CountOf("Flora") is int flora and > 0) result.Add((flora, "flora"));
+        if (CountOf("Mineral") is int minerals and > 0) result.Add((minerals, minerals == 1 ? "mineral" : "minerals"));
+        return result;
     }
 
     /// <summary>Planet bases and space bases sharing the station's system.
@@ -397,43 +666,45 @@ public sealed partial class SpaceStationsPage : Page
         return result;
     }
 
-    private async Task LoadScreenshotAsync(OwnedStation station, int version)
+    /// <summary>Cached per address for the page's lifetime; null when the game
+    /// has no screenshot for that address.</summary>
+    private Task<WriteableBitmap?> GetScreenshotAsync(ulong address, string name)
     {
-        DetailScreenshot.Source = null;
-        DetailNoScreenshotTxt.Visibility = Visibility.Collapsed;
-
-        string? platformFolder = SaveSessionManager.ActivePlatformFolder;
-        byte[]? pixels = await Task.Run(() => ReadScreenshotPixels(platformFolder, station));
-        if (version != _detailsVersion) return; // a newer selection won
-
-        if (pixels is null)
+        if (!_screenshots.TryGetValue(address, out var task))
         {
-            DetailNoScreenshotTxt.Visibility = Visibility.Visible;
-            return;
+            task = LoadScreenshotAsync(SaveSessionManager.ActivePlatformFolder, address, name);
+            _screenshots[address] = task;
         }
+        return task;
+    }
+
+    private static async Task<WriteableBitmap?> LoadScreenshotAsync(string? platformFolder, ulong address, string name)
+    {
+        byte[]? pixels = await Task.Run(() => ReadScreenshotPixels(platformFolder, address, name));
+        if (pixels is null) return null;
 
         var bitmap = new WriteableBitmap(ScreenshotWidth, ScreenshotHeight);
         using (var stream = bitmap.PixelBuffer.AsStream())
             await stream.WriteAsync(pixels);
         bitmap.Invalidate();
-        DetailScreenshot.Source = bitmap;
+        return bitmap;
     }
 
-    /// <summary>Newest cached screenshot for this station's address (renamed
-    /// stations keep their old files too, so an exact-name match wins), with
-    /// the game's RGBA pixels swapped to the BGRA order WriteableBitmap wants.</summary>
-    private static byte[]? ReadScreenshotPixels(string? platformFolder, OwnedStation station)
+    /// <summary>Newest cached screenshot for this address (renamed stations
+    /// keep their old files too, so an exact-name match wins), with the game's
+    /// RGBA pixels swapped to the BGRA order WriteableBitmap wants.</summary>
+    private static byte[]? ReadScreenshotPixels(string? platformFolder, ulong address, string name)
     {
         try
         {
             if (platformFolder is null) return null;
-            string cacheFolder = Path.Combine(platformFolder, "cache");
+            string cacheFolder = System.IO.Path.Combine(platformFolder, "cache");
             if (!Directory.Exists(cacheFolder)) return null;
 
             var newest = new DirectoryInfo(cacheFolder)
-                .GetFiles($"{station.Address:x16}.*.DDS")
+                .GetFiles($"{address:x16}.*.DDS")
                 .Where(f => f.Length == ScreenshotWidth * ScreenshotHeight * 4)
-                .OrderByDescending(f => f.Name.Contains($".{station.Name}.", StringComparison.Ordinal))
+                .OrderByDescending(f => name.Length > 0 && f.Name.Contains($".{name}.", StringComparison.Ordinal))
                 .ThenByDescending(f => f.LastWriteTimeUtc)
                 .FirstOrDefault();
             if (newest is null) return null;
@@ -478,7 +749,7 @@ public sealed partial class SpaceStationsPage : Page
                 Text = detail,
                 FontSize = 12,
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["NmsTextSecondary"],
+                Foreground = ThemeBrush("ThemeTextDimBrush"),
             });
         }
         return row;
