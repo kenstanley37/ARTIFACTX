@@ -218,15 +218,9 @@ public sealed partial class MultiToolPage : Page
             var button = new Button
             {
                 Content = BuildButtonContent(tool, isSelected),
-                Padding = new Thickness(12, 6, 12, 6),
-                BorderThickness = new Thickness(isSelected ? 2 : 1),
-                BorderBrush = new SolidColorBrush(isSelected
-                    ? Color.FromArgb(255, 255, 157, 0)   // selected - accent orange
-                    : Color.FromArgb(255, 90, 98, 112)),  // unselected - neutral
-                Background = new SolidColorBrush(isSelected
-                    ? Color.FromArgb(60, 255, 157, 0)
-                    : Color.FromArgb(20, 255, 255, 255))
+                Padding = new Thickness(12, 6, 12, 6)
             };
+            ThemeResources.StyleChoiceButton(button, isSelected);
 
             button.Click += (_, _) =>
             {
@@ -257,11 +251,19 @@ public sealed partial class MultiToolPage : Page
         {
             panel.Children.Add(new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(255, 60, 200, 90)),
-                CornerRadius = new CornerRadius(4),
+                Background = ThemeResources.Brush("ThemeDoneBrush"),
+                CornerRadius = ThemeResources.CardCornerRadius,
                 Padding = new Thickness(6, 1, 6, 1),
                 VerticalAlignment = VerticalAlignment.Center,
-                Child = new TextBlock { Text = "ACTIVE", FontSize = 10, FontWeight = FontWeights.Bold }
+                Child = new TextBlock
+                {
+                    Text = "ACTIVE",
+                    FontSize = 10,
+                    FontWeight = FontWeights.Bold,
+                    FontFamily = ThemeResources.Font("ThemeDisplayFont"),
+                    CharacterSpacing = 120,
+                    Foreground = ThemeResources.Brush("ThemeOnAccentBrush"),
+                }
             });
         }
 
@@ -275,11 +277,11 @@ public sealed partial class MultiToolPage : Page
             _techViewModel = null;
             TechGrid.ViewModel = null;
             TechGrid.Refresh();
-            TechHeaderTxt.Text = "Technology";
+            TechHeaderTxt.Text = "TECHNOLOGY";
             ClassSelectorPanel.Children.Clear();
             NameEditBox.Text = "";
             SelectedToolClassTxt.Text = "—";
-            SelectedToolClassBadge.Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255));
+            SelectedToolClassBadge.Background = ThemeResources.Brush("ThemePanelAltBrush");
             DamageStatBox.Value = double.NaN;
             MiningStatBox.Value = double.NaN;
             ScannerStatBox.Value = double.NaN;
@@ -321,7 +323,7 @@ public sealed partial class MultiToolPage : Page
 
         TechGrid.Refresh();
 
-        TechHeaderTxt.Text = $"Technology - {selectedTool.Name}";
+        TechHeaderTxt.Text = $"TECHNOLOGY  —  {selectedTool.Name.ToUpperInvariant()}";
         PageResetBtn.Visibility = _techViewModel.HasLocalChanges ? Visibility.Visible : Visibility.Collapsed;
 
         BuildClassSelector();
@@ -409,9 +411,11 @@ public sealed partial class MultiToolPage : Page
             "A" => Color.FromArgb(255, 130, 80, 200),
             "B" => Color.FromArgb(255, 60, 110, 200),
             "C" => Color.FromArgb(255, 60, 150, 90),
-            _ => Color.FromArgb(60, 255, 255, 255)
+            _ => Colors.Transparent
         };
-        SelectedToolClassBadge.Background = new SolidColorBrush(badgeColor);
+        SelectedToolClassBadge.Background = badgeColor == Colors.Transparent
+            ? ThemeResources.Brush("ThemePanelAltBrush")
+            : new SolidColorBrush(badgeColor);
     }
 
     /// <summary>Loads OsQ.@bB's raw continuous stat rolls (WEAPON_DAMAGE/
@@ -576,15 +580,9 @@ public sealed partial class MultiToolPage : Page
                     Text = letter,
                     FontWeight = isCurrent ? FontWeights.Bold : FontWeights.Normal
                 },
-                Padding = new Thickness(14, 4, 14, 4),
-                BorderThickness = new Thickness(isCurrent ? 2 : 1),
-                BorderBrush = new SolidColorBrush(isCurrent
-                    ? Color.FromArgb(255, 255, 157, 0)
-                    : Color.FromArgb(255, 90, 98, 112)),
-                Background = new SolidColorBrush(isCurrent
-                    ? Color.FromArgb(60, 255, 157, 0)
-                    : Color.FromArgb(20, 255, 255, 255))
+                Padding = new Thickness(14, 4, 14, 4)
             };
+            ThemeResources.StyleChoiceButton(button, isCurrent);
 
             button.Click += (_, _) =>
             {
@@ -802,7 +800,7 @@ public sealed partial class MultiToolPage : Page
 
             row.Children.Add(new Border
             {
-                BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 Margin = new Thickness(0, 4, 0, 0)
             });
@@ -921,7 +919,7 @@ public sealed partial class MultiToolPage : Page
 
             row.Children.Add(new Border
             {
-                BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 Margin = new Thickness(0, 4, 0, 0)
             });
@@ -1067,7 +1065,7 @@ public sealed partial class MultiToolPage : Page
             panel.Children.Add(new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = new SolidColorBrush(Color.FromArgb(255, 230, 160, 60)),
+                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
                 Text = $"\u26A0 {newSlotsNeeded} slot(s) will also be unlocked on {targetLabel} to fit this stack."
             });
         }
@@ -1078,7 +1076,7 @@ public sealed partial class MultiToolPage : Page
             panel.Children.Add(new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = new SolidColorBrush(Color.FromArgb(255, 230, 160, 60)),
+                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
                 Text = $"\u26A0 Class differs: {targetLabel} is currently {targetViewModel.CurrentClass ?? "unknown"}, source is {sourceClass ?? "unknown"}."
             });
 

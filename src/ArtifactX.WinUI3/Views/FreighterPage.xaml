@@ -13,6 +13,32 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <ScrollViewer>
+        <!-- On the page's root element: AdaptiveTriggers attached to a nested
+             Grid never fired (2026-10-10 - the narrow layout never applied). -->
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup>
+                <VisualState x:Name="HeaderWide">
+                    <VisualState.StateTriggers>
+                        <!-- WINDOW width, which includes the ~320px nav pane: two columns
+                             need nav + grid card (~720) + sidebar (~340) + gaps/padding.
+                             950 left the sidebar clipped beside the grid (2026-10-10). -->
+                        <AdaptiveTrigger MinWindowWidth="1440"/>
+                    </VisualState.StateTriggers>
+                </VisualState>
+                <VisualState x:Name="HeaderNarrow">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0"/>
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="SidebarPanel.(Grid.Row)" Value="2"/>
+                        <Setter Target="SidebarPanel.(Grid.Column)" Value="0"/>
+                        <Setter Target="SidebarPanel.(Grid.ColumnSpan)" Value="2"/>
+                        <Setter Target="TemplatesBorder.Width" Value="NaN"/>
+                        <Setter Target="FreighterInfoBorder.Width" Value="NaN"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
         <StackPanel Padding="28,26,28,40" Spacing="22" HorizontalAlignment="Stretch">
 
             <!-- Shown instead of HeaderGrid when the player doesn't actually
@@ -254,27 +280,6 @@
                     </Border>
                 </StackPanel>
 
-                <VisualStateManager.VisualStateGroups>
-                    <VisualStateGroup>
-                        <VisualState x:Name="HeaderWide">
-                            <VisualState.StateTriggers>
-                                <AdaptiveTrigger MinWindowWidth="950"/>
-                            </VisualState.StateTriggers>
-                        </VisualState>
-                        <VisualState x:Name="HeaderNarrow">
-                            <VisualState.StateTriggers>
-                                <AdaptiveTrigger MinWindowWidth="0"/>
-                            </VisualState.StateTriggers>
-                            <VisualState.Setters>
-                                <Setter Target="SidebarPanel.(Grid.Row)" Value="2"/>
-                                <Setter Target="SidebarPanel.(Grid.Column)" Value="0"/>
-                                <Setter Target="SidebarPanel.(Grid.ColumnSpan)" Value="2"/>
-                                <Setter Target="TemplatesBorder.Width" Value="NaN"/>
-                                <Setter Target="FreighterInfoBorder.Width" Value="NaN"/>
-                            </VisualState.Setters>
-                        </VisualState>
-                    </VisualStateGroup>
-                </VisualStateManager.VisualStateGroups>
             </Grid>
         </StackPanel>
     </ScrollViewer>
