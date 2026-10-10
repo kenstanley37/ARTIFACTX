@@ -726,18 +726,15 @@ if (args.Length > 1 && args[0].Equals("add-broken-tech-flag", StringComparison.O
     return;
 }
 
-// "DataCataloger add-station-assets <target-catalog-db-path>" adds what the
-// app's Space Stations page needs to describe a system in game terms:
+// "DataCataloger add-station-assets <target-catalog-db-path>" adds the portal
+// glyph images the app's Space Stations page uses:
 //   - "PortalGlyphs": 16 items PORTALSYMBOL_0..PORTALSYMBOL_F, each with the
 //     game's own glyph texture (textures/ui/frontend/icons/update3/
 //     portalsymbol.<hex>.dds) as its icon - a portal address is 12 hex digits,
 //     one glyph per digit.
-//   - "GalaxyNames": GALAXY_1..GALAXY_10. Only these ten have names anywhere
-//     in the game's text (confirmed 2026-10-10); galaxies 11-256 are named by
-//     the game at runtime, so the app falls back to "Galaxy N" for those.
-//     1-5 use the full names (MAIN_GALAXY = "Euclid Galaxy", SECOND_GALAXY =
-//     "Hilbert Dimension"...; a trailing " Galaxy" dropped), 6-10 come from
-//     the player titles (UI_PLAYER_TITLE_REALITY10 = "%NAME% of Eissentam").
+// Galaxy names are NOT here: the game's text only names galaxies 1-10, so the
+// app uses ArtifactX.Core's hand-recorded NmsGalaxyNames (all 256) instead.
+// Re-running also removes the "GalaxyNames" category an earlier version wrote.
 // Same patch-in-place pattern as add-guide-topics; idempotent.
 if (args.Length > 1 && args[0].Equals("add-station-assets", StringComparison.OrdinalIgnoreCase))
 {
@@ -758,7 +755,6 @@ if (args.Length > 1 && args[0].Equals("add-station-assets", StringComparison.Ord
     IPakReaderService assetsPakReader = new PakReaderService();
     var assetsExtraction = new ExtractionService();
     var assetsIndex = new GlobalFileIndexService();
-    var assetsLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
     foreach (var pak in new PakDiscoveryService().Discover(assetsSettings.NmsInstallationPath!))
     {
@@ -772,26 +768,6 @@ if (args.Length > 1 && args[0].Equals("add-station-assets", StringComparison.Ord
         catch { continue; }
 
         assetsIndex.Add(pak.FullPath, header, entries);
-
-        foreach (var entry in entries.Where(e =>
-                     !string.IsNullOrEmpty(e.FileName) &&
-                     e.FileName.Contains("language/nms_", StringComparison.OrdinalIgnoreCase) &&
-                     e.FileName.Contains("english", StringComparison.OrdinalIgnoreCase) &&
-                     !e.FileName.Contains("usenglish", StringComparison.OrdinalIgnoreCase)))
-        {
-            try
-            {
-                byte[]? bytes = assetsExtraction.ExtractEntryBytes(pak.FullPath, entry, header);
-                if (bytes is null || bytes.Length == 0) continue;
-                using var ms = new MemoryStream(bytes);
-                var mbin = new MBINFile(ms);
-                mbin.Load();
-                if (mbin.GetData() is NMSTemplate locTemplate)
-                    foreach (var kv in LocalisationService.BuildEnglishLookup(locTemplate))
-                        assetsLookup.TryAdd(kv.Key, kv.Value);
-            }
-            catch { }
-        }
     }
 
     // Glyphs
@@ -810,23 +786,7 @@ if (args.Length > 1 && args[0].Equals("add-station-assets", StringComparison.Ord
         glyphs.Add(($"PORTALSYMBOL_{hex.ToUpperInvariant()}", $"Glyph {digit + 1}", texturePath, png));
     }
 
-    // Galaxy names
-    string[] ordinalKeys = { "MAIN_GALAXY", "SECOND_GALAXY", "THIRD_GALAXY", "FOURTH_GALAXY", "FIFTH_GALAXY" };
-    var galaxies = new List<(string GameId, string Name)>();
-    for (int n = 1; n <= 10; n++)
-    {
-        string? name = null;
-        if (n <= ordinalKeys.Length && assetsLookup.TryGetValue(ordinalKeys[n - 1], out var full))
-            name = full.EndsWith(" Galaxy", StringComparison.Ordinal) ? full[..^" Galaxy".Length] : full;
-        else if (assetsLookup.TryGetValue($"UI_PLAYER_TITLE_REALITY{n}", out var title) && title.StartsWith("%NAME% of ", StringComparison.Ordinal))
-            name = title["%NAME% of ".Length..];
-
-        if (!string.IsNullOrWhiteSpace(name))
-            galaxies.Add(($"GALAXY_{n}", name));
-    }
-    ConsoleStyle.Header($"Extracted {glyphs.Count} portal glyphs and {galaxies.Count} galaxy names.");
-    foreach (var (_, name) in galaxies)
-        ConsoleStyle.Success($"  {name}");
+    ConsoleStyle.Header($"Extracted {glyphs.Count} portal glyphs.");
 
     using var assetsDb = new CatalogDbContext(assetsDbPath);
 
@@ -868,20 +828,10 @@ if (args.Length > 1 && args[0].Equals("add-station-assets", StringComparison.Ord
         });
     }
 
-    var galaxyCategory = new CatalogCategory
-    {
-        TemplateType = "GalaxyNames",
-        RowType = "GalaxyName",
-        SourceMbinPath = "language/nms_loc*_english.mbin"
-    };
-    foreach (var (gameId, name) in galaxies)
-        galaxyCategory.Items.Add(new CatalogItem { GameId = gameId, NameEnglish = name });
-
     assetsDb.Categories.Add(glyphCategory);
-    assetsDb.Categories.Add(galaxyCategory);
     assetsDb.SaveChanges();
 
-    ConsoleStyle.Success($"Wrote {glyphs.Count} glyphs and {galaxies.Count} galaxy names to {assetsDbPath}.");
+    ConsoleStyle.Success($"Wrote {glyphs.Count} glyphs to {assetsDbPath}.");
     return;
 }
 
