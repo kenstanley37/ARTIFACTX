@@ -1056,6 +1056,10 @@ public class CatalogBuildService
             ["T_SUB"] = "SUB_GUN",         // Nautilon Cannon
         };
 
+        var templateRowsByGameId = baseTechByGameId
+            .GroupBy(i => i.GameId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
         int borrowedIcons = 0;
         foreach (var category in categories)
         {
@@ -1083,7 +1087,23 @@ public class CatalogBuildService
                         b.GameId.StartsWith(stem, StringComparison.OrdinalIgnoreCase));
                 }
 
-                if (baseItem is null) continue;
+                if (baseItem is null)
+                {
+                    // Last resort: the family's own template row in the technology
+                    // table (e.g. GameId "T_HOTPROT"), which carries the game's module
+                    // icon ("RENDER.PROTECTHEAT", "RENDER.PROTECTGENERICMOD"...). Its
+                    // name is a generic "UPGRADE MODULE" placeholder, so only the icon
+                    // is borrowed - the row keeps its own resolved name. Added
+                    // 2026-10-10 for the Exosuit hazard families (T_HOTPROT/T_COLDPROT/
+                    // T_RAD/T_TOX/T_UNW/T_HAZ), whose template stems match no base tech.
+                    var templateRow = templateRowsByGameId.GetValueOrDefault(item.TemplateId);
+                    if (templateRow is null) continue;
+
+                    foreach (var templateIcon in templateRow.Icons)
+                        item.Icons.Add(new IconAsset { SourceField = $"TemplateRow->{templateIcon.SourceField}", IconBlob = templateIcon.IconBlob });
+                    borrowedIcons += templateRow.Icons.Count;
+                    continue;
+                }
 
                 foreach (var baseIcon in baseItem.Icons)
                     item.Icons.Add(new IconAsset { SourceField = $"Template->{baseIcon.SourceField}", IconBlob = baseIcon.IconBlob });

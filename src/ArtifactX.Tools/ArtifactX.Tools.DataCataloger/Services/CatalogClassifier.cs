@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using System.Text.RegularExpressions;
 using libMBIN;
 
 namespace ArtifactX.Tools.DataCataloger.Services;
@@ -60,6 +61,10 @@ public class ClassifiedRow
 
 public static class CatalogClassifier
 {
+    /// <summary>NameLower loc-key shape: "..._NAME_L", or "..._NAME_<WORD>_L"
+    /// (e.g. "UI_HOT_NAME_CORE_L").</summary>
+    private static readonly Regex NameLowerKeyShape = new(@"_NAME(_[A-Z0-9]+)?_L$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     /// <summary>
     /// A decoded MBIN is treated as a catalog table if it has a public List&lt;T&gt; OR T[]
     /// field whose element type T is itself an NMSTemplate-derived class with an "ID"/"Id"
@@ -145,7 +150,11 @@ public static class CatalogClassifier
 
             if (fieldName.Contains("namelower"))
             {
-                if (value.EndsWith("_NAME_L", StringComparison.OrdinalIgnoreCase))
+                // Also "_NAME_<WORD>_L" - the Exosuit hazard upgrade modules use
+                // e.g. "UI_HOT_NAME_CORE_L" ("Thermal Protection"); requiring a
+                // bare "_NAME_L" left them nameless, so the trim dropped them and
+                // inventory slots showed raw ids like "UP_HOT3#88679" (2026-10-10).
+                if (NameLowerKeyShape.IsMatch(value))
                     bestNameLower ??= value;
             }
             else if (fieldName.Contains("name"))
