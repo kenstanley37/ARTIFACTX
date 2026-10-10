@@ -157,7 +157,14 @@ public sealed class SaveEditSession
 
         string lastSegment = path[^1];
         if (current is JArray lastArr && int.TryParse(lastSegment, out int lastIdx))
-            lastArr[lastIdx] = value;
+        {
+            // Index == Count appends - used when a page stages a brand-new
+            // entry the game creates lazily (e.g. a ^SYSTEM_STATS group).
+            if (lastIdx == lastArr.Count)
+                lastArr.Add(value);
+            else
+                lastArr[lastIdx] = value;
+        }
         else
             ((JObject)current)[lastSegment] = value;
     }

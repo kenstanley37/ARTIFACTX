@@ -13,4 +13,9 @@
     <PackageReference Include="System.Text.Json" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="NmsModels\Templates\PlayerSpaceStationTemplate.json"
+                      LogicalName="ArtifactX.Core.PlayerSpaceStationTemplate.json" />
+  </ItemGroup>
+
 </Project>
