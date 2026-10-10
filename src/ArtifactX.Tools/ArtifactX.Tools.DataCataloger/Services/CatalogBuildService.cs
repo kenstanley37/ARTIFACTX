@@ -159,7 +159,12 @@ public class CatalogBuildService
 
                 string upperPath = entry.FileName.ToUpperInvariant();
                 if (!upperPath.Contains("WEAPONS/MULTITOOL/")) continue;
-                if (!upperPath.EndsWith("MULTITOOL.SCENE.MBIN")) continue;
+                // "MULTITOOL" anywhere in the file name, not just as a suffix - staff
+                // variants are STAFFMULTITOOLRUIN/BONE/ATLAS and SENTINELMULTITOOLB,
+                // which a suffix rule skipped (2026-10-10: two real staffs showed an
+                // empty Type box).
+                string modelFile = upperPath[(upperPath.LastIndexOf('/') + 1)..];
+                if (!modelFile.EndsWith(".SCENE.MBIN") || !modelFile.Contains("MULTITOOL")) continue;
                 if (upperPath.Contains("NPC")) continue;
                 if (upperPath.Contains("SWITCH")) continue;
                 if (!seenModelPaths.Add(upperPath)) continue;
