@@ -612,6 +612,120 @@ if (args.Length > 1 && args[0].Equals("add-language-words", StringComparison.Ord
     return;
 }
 
+// "DataCataloger add-broken-tech-flag <target-catalog-db-path>" marks every
+// GcTechnology row whose game-data "BrokenSlotTech" flag is set (the damaged-
+// slot placeholders - Hull Fracture, Short Circuit, etc. - drawn red in-game)
+// in an EXISTING catalog DB, adding the Items.IsBrokenSlotTech column first if
+// the DB predates it. Same "patch the shipped DB in place" pattern as
+// add-language-words/add-guide-topics, so their already-merged rows survive
+// without a full rebuild; fresh full builds get the flag via CatalogClassifier
+// directly. Idempotent - safe to re-run after a game update.
+//
+// Found 2026-10-10 investigating a user save whose Install Technology menu was
+// cluttered with useless red entries: a "Mark All Known" bulk edit had taught
+// it all 36 BrokenSlotTech rows, which a healthy save never knows.
+if (args.Length > 1 && args[0].Equals("add-broken-tech-flag", StringComparison.OrdinalIgnoreCase))
+{
+    string brokenDbPath = args[1];
+    if (!File.Exists(brokenDbPath))
+    {
+        ConsoleStyle.Error($"Target catalog DB not found: {brokenDbPath}");
+        return;
+    }
+
+    var brokenSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(brokenSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakReaderService brokenPakReader = new PakReaderService();
+    var brokenExtraction = new ExtractionService();
+    libMBIN.NMS.GameComponents.GcTechnologyTable? techTable = null;
+
+    foreach (var pak in new PakDiscoveryService().Discover(brokenSettings.NmsInstallationPath!))
+    {
+        PakHeader header;
+        IReadOnlyList<PakEntry> entries;
+        try
+        {
+            header = brokenPakReader.ReadHeader(pak.FullPath);
+            entries = brokenPakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+
+        var match = entries.FirstOrDefault(e =>
+            !string.IsNullOrEmpty(e.FileName) &&
+            e.FileName.Contains("nms_reality_gctechnologytable.mbin", StringComparison.OrdinalIgnoreCase));
+        if (match is null) continue;
+
+        byte[]? bytes = brokenExtraction.ExtractEntryBytes(pak.FullPath, match, header);
+        if (bytes is null || bytes.Length == 0) break;
+
+        using var ms = new MemoryStream(bytes);
+        var mbin = new MBINFile(ms);
+        mbin.Load();
+        techTable = mbin.GetData() as libMBIN.NMS.GameComponents.GcTechnologyTable;
+        break;
+    }
+
+    if (techTable?.Table is null)
+    {
+        ConsoleStyle.Error("Could not find/decode the technology table (nms_reality_gctechnologytable.mbin) in any PAK.");
+        return;
+    }
+
+    var brokenIds = techTable.Table
+        .Where(t => t.BrokenSlotTech && !string.IsNullOrEmpty(t.ID?.Value))
+        .Select(t => t.ID.Value)
+        .ToList();
+    ConsoleStyle.Header($"Found {brokenIds.Count} BrokenSlotTech technologies in game data.");
+
+    using var brokenConnection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={brokenDbPath}");
+    brokenConnection.Open();
+
+    using (var check = brokenConnection.CreateCommand())
+    {
+        check.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Items') WHERE name = 'IsBrokenSlotTech'";
+        if (Convert.ToInt64(check.ExecuteScalar()) == 0)
+        {
+            using var alter = brokenConnection.CreateCommand();
+            alter.CommandText = "ALTER TABLE Items ADD COLUMN IsBrokenSlotTech INTEGER NOT NULL DEFAULT 0";
+            alter.ExecuteNonQuery();
+            ConsoleStyle.Info("Added Items.IsBrokenSlotTech column.");
+        }
+    }
+
+    using var brokenTx = brokenConnection.BeginTransaction();
+    using (var reset = brokenConnection.CreateCommand())
+    {
+        reset.Transaction = brokenTx;
+        reset.CommandText = "UPDATE Items SET IsBrokenSlotTech = 0";
+        reset.ExecuteNonQuery();
+    }
+
+    int marked = 0;
+    using (var update = brokenConnection.CreateCommand())
+    {
+        update.Transaction = brokenTx;
+        update.CommandText = @"
+            UPDATE Items SET IsBrokenSlotTech = 1
+            WHERE GameId = $id
+              AND CategoryId IN (SELECT Id FROM Categories WHERE TemplateType = 'GcTechnologyTable')";
+        var idParam = update.Parameters.Add("$id", Microsoft.Data.Sqlite.SqliteType.Text);
+        foreach (var id in brokenIds)
+        {
+            idParam.Value = id;
+            marked += update.ExecuteNonQuery();
+        }
+    }
+    brokenTx.Commit();
+
+    ConsoleStyle.Success($"Marked {marked} catalog rows as BrokenSlotTech in {brokenDbPath}.");
+    return;
+}
+
 // "DataCataloger add-guide-topics <target-catalog-db-path>" extracts the
 // in-game Guide screen's real topic-to-category grouping from
 // metadata/reality/wiki.mbin (a GcWiki: Categories[].Topics[], found

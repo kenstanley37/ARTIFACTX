@@ -51,6 +51,9 @@ public class ClassifiedRow
     /// CatalogBuildService's CatalogGroup assignment).</summary>
     public string? WikiCategory { get; set; }
 
+    /// <summary>GcTechnology's "BrokenSlotTech" bool - see CatalogItem.IsBrokenSlotTech.</summary>
+    public bool IsBrokenSlotTech { get; set; }
+
     /// <summary>(field name on the row, e.g. "Icon"/"HeroIcon", DDS/PNG path referenced)</summary>
     public List<(string SourceField, string TexturePath)> Icons { get; set; } = new();
 }
@@ -201,6 +204,12 @@ public static class CatalogClassifier
 
         if (wikiCategoryField != null)
             row.WikiCategory = wikiCategoryField.GetValue(rowObj)?.ToString();
+
+        var brokenSlotField = type.GetFields(BindingFlags.Public | BindingFlags.Instance)
+            .FirstOrDefault(f => f.Name == "BrokenSlotTech" && f.FieldType == typeof(bool));
+
+        if (brokenSlotField != null)
+            row.IsBrokenSlotTech = (bool)brokenSlotField.GetValue(rowObj)!;
 
         // Icon-shaped fields: any nested object exposing a "Filename" field (typically
         // TkTextureResource.Filename, itself a GcFilename - another Value-wrapped type,

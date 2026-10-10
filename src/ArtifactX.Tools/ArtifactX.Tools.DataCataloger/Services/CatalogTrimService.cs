@@ -82,6 +82,7 @@ public static class CatalogTrimService
                 UsageCategory = sourceItem.UsageCategory,
                 MaxStackSize = sourceItem.MaxStackSize,
                 CatalogGroup = sourceItem.CatalogGroup,
+                IsBrokenSlotTech = sourceItem.IsBrokenSlotTech,
                 // Was missing from this list entirely until 2026-08-11 -
                 // every ShipCapacity/MultiToolCapacity row (real per-class
                 // Tech/Cargo slot counts) built correctly in the working
