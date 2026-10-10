@@ -30,6 +30,11 @@
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="Contents" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 <Button Content="Max All Qty" Click="MaxAllQtyBtn_Click"/>
+                <Button Content="Merge Duplicates" Click="MergeDuplicatesBtn_Click"
+                        ToolTipService.ToolTip="Combines repeated items into one stack each (up to the item's max) and frees the other slots."/>
+                <Button Content="Sort" Click="SortBtn_Click"
+                        ToolTipService.ToolTip="Groups items by kind and name, packed from the top-left, so identical items sit together."/>
+                <TextBlock x:Name="TidyResultTxt" VerticalAlignment="Center" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"/>
             </StackPanel>
             <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
                     CornerRadius="6" HorizontalAlignment="Left" Opacity="0.9">

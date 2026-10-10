@@ -94,6 +94,24 @@ public sealed partial class CorvetteCachePage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
+    private void MergeDuplicatesBtn_Click(object sender, RoutedEventArgs e)
+    {
+        int freed = _viewModel.MergeDuplicates();
+        TidyResultTxt.Text = freed == 0 ? "No duplicates found." : $"Merged duplicates - {freed} slot{(freed == 1 ? "" : "s")} freed.";
+        if (freed == 0) return;
+        CacheGrid.Refresh();
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void SortBtn_Click(object sender, RoutedEventArgs e)
+    {
+        bool moved = _viewModel.SortItems();
+        TidyResultTxt.Text = moved ? "Sorted." : "Already sorted.";
+        if (!moved) return;
+        CacheGrid.Refresh();
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
         _viewModel.Revert();
