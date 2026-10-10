@@ -492,6 +492,13 @@ public sealed partial class FreighterPage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
+    private void SortCargo_Click(object sender, RoutedEventArgs e)
+    {
+        if (_cargoViewModel?.SortItems() != true) return;
+        CargoGrid.Refresh();
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
     private void SuperchargeAllTech_Click(object sender, RoutedEventArgs e)
     {
         _techViewModel?.SuperchargeAll();
