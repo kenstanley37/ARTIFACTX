@@ -146,7 +146,7 @@ public sealed partial class SpaceStationsPage : Page
         CurrentStatusTxt.Text = "Load a save to view and edit space stations.";
         DirectorBadge.Visibility = Visibility.Collapsed;
         ClaimStationBtn.Visibility = Visibility.Collapsed;
-        HeroShot.Source = null;
+        HeroGrid.Background = null;
         RequirementsPanel.Visibility = Visibility.Collapsed;
         OwnedTilesPanel.Children.Clear();
         OwnedHeaderTxt.Text = string.Empty;
@@ -200,8 +200,11 @@ public sealed partial class SpaceStationsPage : Page
     {
         int version = ++_heroVersion;
         var bitmap = await GetScreenshotAsync(address, name);
-        if (version == _heroVersion)
-            HeroShot.Source = bitmap;
+        if (version != _heroVersion) return;
+
+        HeroGrid.Background = bitmap is null
+            ? null
+            : new ImageBrush { ImageSource = bitmap, Stretch = Stretch.UniformToFill, Opacity = 0.55 };
     }
 
     private void ShowRequirementValues()

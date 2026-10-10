@@ -29,8 +29,10 @@
                      requirement meters on the right. -->
                 <Border Style="{StaticResource ThemeCardStyle}">
                     <StackPanel>
-                        <Grid MinHeight="240">
-                            <Image x:Name="HeroShot" Stretch="UniformToFill" Opacity="0.55"/>
+                        <!-- The screenshot is painted as this grid's Background (an ImageBrush set
+                             in code), not an Image element - an Image measures at its own 16:9 size
+                             for the full card width and made the card ~860px tall (user report). -->
+                        <Grid x:Name="HeroGrid" MinHeight="240">
                             <Rectangle Fill="{ThemeResource ThemeHeroOverlayBrush}"/>
                             <ctcontrols:WrapPanel Padding="26,24" HorizontalSpacing="40" VerticalSpacing="20">
                                 <StackPanel Spacing="6" MinWidth="320" MaxWidth="520">
