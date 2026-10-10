@@ -48,6 +48,29 @@
     <CornerRadius x:Key="ThemeCardCornerRadius">0</CornerRadius>
     <FontFamily x:Key="ThemeDisplayFont">/Assets/Fonts/Exo2-Variable.ttf#Exo 2</FontFamily>
     <FontFamily x:Key="ThemeBodyFont">/Assets/Fonts/TitilliumWeb-Regular.ttf#Titillium Web</FontFamily>
+    <!-- Inventory slots (InventorySlotGrid), colour-coded by what the slot holds
+         like the game's own inventory: technology / product / substance. -->
+    <LinearGradientBrush x:Key="ThemeSlotTechBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#D9433197" Offset="0"/>
+        <GradientStop Color="#D91C2F86" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="ThemeSlotProductBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#D9875014" Offset="0"/>
+        <GradientStop Color="#D94A2A08" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="ThemeSlotSubstanceBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#D9136466" Offset="0"/>
+        <GradientStop Color="#D90A3536" Offset="1"/>
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="ThemeSlotEmptyBrush" Color="#1AFFFFFF"/>
+    <SolidColorBrush x:Key="ThemeSlotLockedBrush" Color="#59000000"/>
+    <SolidColorBrush x:Key="ThemeSlotBorderBrush" Color="#3A4378"/>
+    <SolidColorBrush x:Key="ThemeSlotLockedBorderBrush" Color="#8C5A3C3C"/>
+    <SolidColorBrush x:Key="ThemeSlotLabelBackgroundBrush" Color="#B3000000"/>
+    <SolidColorBrush x:Key="ThemeSuperchargedBrush" Color="#FFB21E"/>
+    <SolidColorBrush x:Key="ThemeDamagedBrush" Color="#FF3B3B"/>
+    <CornerRadius x:Key="ThemeSlotCornerRadius">2</CornerRadius>
+
     <!-- App frame: title bar + nav pane share the opaque chrome colour. -->
     <SolidColorBrush x:Key="ThemeChromeBrush" Color="#0C1024"/>
 
