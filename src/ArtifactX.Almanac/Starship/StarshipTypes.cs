@@ -94,7 +94,12 @@ public static class StarshipTypes
         new StarshipTypeInfo("Shuttle", "MODELS/COMMON/SPACECRAFT/SHUTTLE/SHUTTLE_PROC.SCENE.MBIN"),
         new StarshipTypeInfo("Solar", "MODELS/COMMON/SPACECRAFT/SAILSHIP/SAILSHIP_PROC.SCENE.MBIN"),
         new StarshipTypeInfo("Sentinel Interceptor", "MODELS/COMMON/SPACECRAFT/SENTINELSHIP/SENTINELSHIP_PROC.SCENE.MBIN"),
-        new StarshipTypeInfo("Corvette", "MODELS/COMMON/SPACECRAFT/CORVETTE/CORVETTE.SCENE.MBIN"),
+        // Player-built Corvettes use the BIGGS model ("Biggs" is the game's internal
+        // name for Corvettes) - confirmed on all 3 Corvettes in a real save
+        // 2026-10-10. The earlier CORVETTE/CORVETTE.SCENE.MBIN guess does exist in
+        // the game files but no real ship uses it, so Corvettes showed as
+        // "(Current - not in known list)".
+        new StarshipTypeInfo("Corvette", "MODELS/COMMON/SPACECRAFT/BIGGS/BIGGS.SCENE.MBIN"),
         new StarshipTypeInfo("Golden Vector (Reward)", "MODELS/COMMON/SPACECRAFT/FIGHTERS/FIGHTERCLASSICGOLD.SCENE.MBIN"),
         new StarshipTypeInfo("Horizon Vector NX (Reward)", "MODELS/COMMON/SPACECRAFT/FIGHTERS/FIGHTERSPECIALSWITCH.SCENE.MBIN"),
         new StarshipTypeInfo("Starborn Runner (Reward)", "MODELS/COMMON/SPACECRAFT/FIGHTERS/WRACER.SCENE.MBIN"),
@@ -103,5 +108,7 @@ public static class StarshipTypes
         new StarshipTypeInfo("The Wraith (Reward, Living Ship)", "MODELS/COMMON/SPACECRAFT/S-CLASS/BIOPARTS/BIOFIGHTER.SCENE.MBIN"),
         new StarshipTypeInfo("Iron Vulture (Reward)", "MODELS/COMMON/SPACECRAFT/DROPSHIPS/DROPSHIP_PROC.SCENE.MBIN"),
         new StarshipTypeInfo("Utopia Speeder (Reward)", "MODELS/COMMON/SPACECRAFT/FIGHTERS/VRSPEEDER.SCENE.MBIN"),
+        // Confirmed in a real save 2026-10-10 (ship named "Vintage Interceptor").
+        new StarshipTypeInfo("Vintage Interceptor (Reward)", "MODELS/COMMON/SPACECRAFT/FIGHTERS/VINTAGEINTERCEPTOR.SCENE.MBIN"),
     };
 }
