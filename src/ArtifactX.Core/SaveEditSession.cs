@@ -161,7 +161,7 @@ public sealed class SaveEditSession
             // Index == Count appends - used when a page stages a brand-new
             // entry the game creates lazily (e.g. a ^SYSTEM_STATS group).
             if (lastIdx == lastArr.Count)
-                lastArr.Add(value);
+                lastArr.Add(value ?? JValue.CreateNull());
             else
                 lastArr[lastIdx] = value;
         }

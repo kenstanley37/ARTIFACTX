@@ -134,12 +134,12 @@ public static class NmsSpaceStationPaths
     /// [planet:4][system:12][galaxy:8][Y:8][Z:12][X:12]. Verified against
     /// F?0 oZw and ^SYSTEM_STATS 2Ak values (e.g. Oskrem-Tat = 0x1D09E8F80732).</summary>
     public static ulong PackAddress(int galaxy, int x, int y, int z, int systemIndex, int planet = 0) =>
-        ((ulong)(planet & 0xF) << 52)
-        | ((ulong)(systemIndex & 0xFFF) << 40)
-        | ((ulong)(galaxy & 0xFF) << 32)
-        | ((ulong)(y & 0xFF) << 24)
-        | ((ulong)(z & 0xFFF) << 12)
-        | (ulong)(x & 0xFFF);
+        ((ulong)(uint)(planet & 0xF) << 52)
+        | ((ulong)(uint)(systemIndex & 0xFFF) << 40)
+        | ((ulong)(uint)(galaxy & 0xFF) << 32)
+        | ((ulong)(uint)(y & 0xFF) << 24)
+        | ((ulong)(uint)(z & 0xFFF) << 12)
+        | (ulong)(uint)(x & 0xFFF);
 
     /// <summary>Drops the planet nibble so any address in a system compares
     /// equal to that system's ^SYSTEM_STATS key.</summary>
