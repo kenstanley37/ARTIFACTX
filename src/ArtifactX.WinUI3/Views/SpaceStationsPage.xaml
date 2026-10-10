@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="ArtifactX.WinUI3.Views.SpaceStationsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <ScrollViewer>
+        <StackPanel Padding="24" Spacing="20">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Space Stations" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" x:Name="PageResetBtn" Content="Reset Station Changes" Click="PageResetBtn_Click"
+                        Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- Current system's station + its directorship requirements -->
+            <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                    CornerRadius="8" Padding="20" Opacity="0.9">
+                <StackPanel Spacing="18">
+                    <Grid ColumnSpacing="16" RowSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Current Station" FontSize="12" Opacity="0.7"/>
+                            <TextBlock x:Name="CurrentStationNameTxt" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="CurrentLocationTxt" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="CurrentStatusTxt" FontSize="13" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" x:Name="ClaimStationBtn" Content="Claim Station"
+                                Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Top"
+                                Click="ClaimStationBtn_Click"
+                                ToolTipService.ToolTip="Makes you director of this station, exactly as the in-game takeover does: meets the requirements, pays the 1,000,000,000 Units donation (if you have it), and adds the station to your bases."/>
+                    </Grid>
+
+                    <StackPanel x:Name="RequirementsPanel" Spacing="12">
+                        <TextBlock Text="Directorship Requirements" FontSize="14" FontWeight="SemiBold"/>
+                        <ctcontrols:WrapPanel HorizontalSpacing="40" VerticalSpacing="16">
+                            <StackPanel Spacing="4" MinWidth="180">
+                                <TextBlock Text="Local Race Standing" FontSize="12" Opacity="0.7"/>
+                                <TextBlock x:Name="RaceStandingTxt" FontSize="16"/>
+                            </StackPanel>
+                            <StackPanel Spacing="4" MinWidth="180">
+                                <TextBlock Text="Local Guild Standing" FontSize="12" Opacity="0.7"/>
+                                <TextBlock x:Name="GuildStandingTxt" FontSize="16"/>
+                            </StackPanel>
+                            <StackPanel Spacing="4" MinWidth="180">
+                                <TextBlock Text="Salvage Contracts Completed" FontSize="12" Opacity="0.7"/>
+                                <TextBlock x:Name="ContractsTxt" FontSize="16"/>
+                            </StackPanel>
+                            <StackPanel Spacing="4" MinWidth="180">
+                                <TextBlock Text="Units &quot;Donation&quot;" FontSize="12" Opacity="0.7"/>
+                                <TextBlock x:Name="UnitsTxt" FontSize="16"/>
+                            </StackPanel>
+                        </ctcontrols:WrapPanel>
+
+                        <TextBlock FontSize="12" Foreground="{ThemeResource NmsTextSecondary}" TextWrapping="Wrap"
+                                   Text="Each station asks for standing with one race and one guild, which the save doesn't record. Claim Station meets the requirement for all of them, so it works for any station."/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <ctcontrols:WrapPanel HorizontalSpacing="20" VerticalSpacing="20">
+                <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                        CornerRadius="8" Padding="20" Opacity="0.9" Width="420">
+                    <StackPanel Spacing="10">
+                        <TextBlock x:Name="OwnedHeaderTxt" Text="Stations You Direct" FontSize="14" FontWeight="SemiBold"/>
+                        <StackPanel x:Name="OwnedStationsPanel" Spacing="8"/>
+                    </StackPanel>
+                </Border>
+
+                <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                        CornerRadius="8" Padding="20" Opacity="0.9" Width="420">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="Claims In Progress" FontSize="14" FontWeight="SemiBold"/>
+                        <StackPanel x:Name="InProgressPanel" Spacing="8"/>
+                    </StackPanel>
+                </Border>
+            </ctcontrols:WrapPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>
