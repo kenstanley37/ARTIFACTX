@@ -1,22 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml), same card pattern as the
+     other equipment pages. -->
 <UserControl
     x:Class="ArtifactX.WinUI3.Controls.ExocraftDetailControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
     <ScrollViewer>
-        <StackPanel Padding="24" Spacing="20" HorizontalAlignment="Stretch">
+        <!-- On the control's root element: AdaptiveTriggers attached to a nested
+             Grid never fire (same fix as the equipment pages, 2026-10-10). Window
+             width includes the ~320px nav pane. -->
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup>
+                <VisualState x:Name="HeaderWide">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="1440"/>
+                    </VisualState.StateTriggers>
+                </VisualState>
+                <VisualState x:Name="HeaderNarrow">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0"/>
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="SidebarPanel.(Grid.Row)" Value="2"/>
+                        <Setter Target="SidebarPanel.(Grid.Column)" Value="0"/>
+                        <Setter Target="SidebarPanel.(Grid.ColumnSpan)" Value="2"/>
+                        <Setter Target="SeedInfoBorder.Width" Value="NaN"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
 
-            <!-- ONE Grid for the whole body (title row + a single tall content
-                 row), matching the ShipsPage/FreighterPage/MultiToolPage
-                 pattern - Tech+Cargo (Column 0) and the Model Seed sidebar
-                 (Column 1) both live in the SAME Grid row, so the row's
-                 height is driven by whichever column is taller. -->
-            <Grid x:Name="HeaderGrid" ColumnSpacing="24" RowSpacing="20">
+        <StackPanel Padding="28,22,28,40" Spacing="22" HorizontalAlignment="Stretch">
+
+            <!-- ONE Grid for the whole body, matching the equipment pages - Tech+Cargo
+                 (Column 0) and the Model Seed sidebar (Column 1) share a row. -->
+            <Grid x:Name="HeaderGrid" ColumnSpacing="24" RowSpacing="22">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" MinWidth="320"/>
                     <ColumnDefinition Width="Auto"/>
@@ -33,100 +57,92 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" x:Name="TitleTxt" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="0" x:Name="TitleTxt" Style="{StaticResource ThemeHeadingStyle}" FontSize="24" VerticalAlignment="Center"/>
                     <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Changes" Click="PageResetBtn_Click"
                             Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
                 </Grid>
 
-                <StackPanel Grid.Row="1" Grid.Column="0" Spacing="20">
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="Technology" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
-                        <Button Content="Supercharge All Slots" Click="SuperchargeAllTech_Click"/>
-                        <Button Content="Repair All Slots" Click="RepairAllTech_Click"/>
-                    </StackPanel>
-                    <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                            CornerRadius="6" HorizontalAlignment="Left" Opacity="0.9">
-                        <Grid>
-                            <ScrollViewer x:Name="TechScrollViewer" Padding="8,32,8,8" MaxHeight="232" VerticalScrollBarVisibility="Auto"
-                                          HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
-                                <controls:InventorySlotGrid x:Name="TechGrid"/>
-                            </ScrollViewer>
-                            <Button x:Name="TechExpandBtn" Click="TechExpandBtn_Click"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"
-                                    Padding="6" Background="Transparent" BorderThickness="0"
-                                    ToolTipService.ToolTip="Expand">
-                                <FontIcon x:Name="TechExpandIcon" Glyph="&#xE70D;" FontSize="12"/>
-                            </Button>
-                        </Grid>
+                <StackPanel Grid.Row="1" Grid.Column="0" Spacing="22">
+                    <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left">
+                        <StackPanel>
+                            <Border Style="{StaticResource ThemeBandStyle}">
+                                <TextBlock Text="TECHNOLOGY" Style="{StaticResource ThemeBandTextStyle}"/>
+                            </Border>
+                            <StackPanel Padding="14,12,14,14" Spacing="10">
+                                <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
+                                    <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
+                                    <Button Content="Supercharge All Slots" Click="SuperchargeAllTech_Click"/>
+                                    <Button Content="Repair All Slots" Click="RepairAllTech_Click"/>
+                                </ctcontrols:WrapPanel>
+                                <Grid>
+                                    <ScrollViewer x:Name="TechScrollViewer" Padding="0,28,0,0" MaxHeight="232" VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
+                                        <controls:InventorySlotGrid x:Name="TechGrid"/>
+                                    </ScrollViewer>
+                                    <Button x:Name="TechExpandBtn" Click="TechExpandBtn_Click"
+                                            HorizontalAlignment="Right" VerticalAlignment="Top"
+                                            Padding="6" Background="Transparent" BorderThickness="0"
+                                            ToolTipService.ToolTip="Expand">
+                                        <FontIcon x:Name="TechExpandIcon" Glyph="&#xE70D;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
                     </Border>
 
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="Cargo" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        <Button Content="Unlock All Slots" Click="UnlockAllCargo_Click"/>
-                        <Button Content="Max All Qty" Click="MaxAllQtyCargo_Click"/>
-                        <Button Content="Sort" Click="SortCargo_Click"
-                                ToolTipService.ToolTip="Groups items by kind and name, packed from the top-left, so identical items sit together."/>
-                    </StackPanel>
-                    <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                            CornerRadius="6" HorizontalAlignment="Left" Opacity="0.9">
-                        <Grid>
-                            <ScrollViewer x:Name="CargoScrollViewer" Padding="8,32,8,8" MaxHeight="368" VerticalScrollBarVisibility="Auto"
-                                          HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
-                                <controls:InventorySlotGrid x:Name="CargoGrid"/>
-                            </ScrollViewer>
-                            <Button x:Name="CargoExpandBtn" Click="CargoExpandBtn_Click"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"
-                                    Padding="6" Background="Transparent" BorderThickness="0"
-                                    ToolTipService.ToolTip="Expand">
-                                <FontIcon x:Name="CargoExpandIcon" Glyph="&#xE70D;" FontSize="12"/>
-                            </Button>
-                        </Grid>
-                    </Border>
-                </StackPanel>
-
-                <StackPanel x:Name="SidebarPanel" Grid.Row="1" Grid.Column="1" Spacing="20" VerticalAlignment="Top">
-                    <!-- Model Seed only - unlike Ships/Freighter there's no
-                         Name/Class/Type/Crew to edit here: exocraft aren't
-                         renameable in-game (no confirmed NKm-write path,
-                         unlike Ships/Freighter/Multi-Tool which all have a
-                         real in-game rename option), and Type/Class are
-                         fixed by which of the 7 pages this is - there's
-                         nothing left to swap. -->
-                    <Border x:Name="SeedInfoBorder" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                            CornerRadius="8" Padding="16" Opacity="0.9" Width="300">
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Model Seed" FontSize="12" Opacity="0.7"/>
-                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                       Text="Drives this vehicle's procedural paint/look. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBox x:Name="ModelSeedEditBox" Width="185" LostFocus="ModelSeedEditBox_LostFocus"/>
-                                <Button Content="Generate" Click="GenerateModelSeedBtn_Click"/>
+                    <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left">
+                        <StackPanel>
+                            <Border Style="{StaticResource ThemeBandStyle}">
+                                <TextBlock Text="CARGO" Style="{StaticResource ThemeBandTextStyle}"/>
+                            </Border>
+                            <StackPanel Padding="14,12,14,14" Spacing="10">
+                                <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
+                                    <Button Content="Unlock All Slots" Click="UnlockAllCargo_Click"/>
+                                    <Button Content="Max All Qty" Click="MaxAllQtyCargo_Click"/>
+                                    <Button Content="Sort" Click="SortCargo_Click"
+                                            ToolTipService.ToolTip="Groups items by kind and name, packed from the top-left, so identical items sit together."/>
+                                </ctcontrols:WrapPanel>
+                                <Grid>
+                                    <ScrollViewer x:Name="CargoScrollViewer" Padding="0,28,0,0" MaxHeight="368" VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
+                                        <controls:InventorySlotGrid x:Name="CargoGrid"/>
+                                    </ScrollViewer>
+                                    <Button x:Name="CargoExpandBtn" Click="CargoExpandBtn_Click"
+                                            HorizontalAlignment="Right" VerticalAlignment="Top"
+                                            Padding="6" Background="Transparent" BorderThickness="0"
+                                            ToolTipService.ToolTip="Expand">
+                                        <FontIcon x:Name="CargoExpandIcon" Glyph="&#xE70D;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                    </Button>
+                                </Grid>
                             </StackPanel>
                         </StackPanel>
                     </Border>
                 </StackPanel>
 
-                <VisualStateManager.VisualStateGroups>
-                    <VisualStateGroup>
-                        <VisualState x:Name="HeaderWide">
-                            <VisualState.StateTriggers>
-                                <AdaptiveTrigger MinWindowWidth="950"/>
-                            </VisualState.StateTriggers>
-                        </VisualState>
-                        <VisualState x:Name="HeaderNarrow">
-                            <VisualState.StateTriggers>
-                                <AdaptiveTrigger MinWindowWidth="0"/>
-                            </VisualState.StateTriggers>
-                            <VisualState.Setters>
-                                <Setter Target="SidebarPanel.(Grid.Row)" Value="2"/>
-                                <Setter Target="SidebarPanel.(Grid.Column)" Value="0"/>
-                                <Setter Target="SidebarPanel.(Grid.ColumnSpan)" Value="2"/>
-                                <Setter Target="SeedInfoBorder.Width" Value="NaN"/>
-                            </VisualState.Setters>
-                        </VisualState>
-                    </VisualStateGroup>
-                </VisualStateManager.VisualStateGroups>
+                <!-- Model Seed only - exocraft aren't renameable in-game and their
+                     Type/Class are fixed by which vehicle this is. -->
+                <StackPanel x:Name="SidebarPanel" Grid.Row="1" Grid.Column="1" Spacing="22" VerticalAlignment="Top">
+                    <Border x:Name="SeedInfoBorder" Style="{StaticResource ThemeCardStyle}" Width="320">
+                        <StackPanel>
+                            <Border Style="{StaticResource ThemeBandStyle}">
+                                <TextBlock Text="APPEARANCE" Style="{StaticResource ThemeBandTextStyle}"/>
+                            </Border>
+                            <StackPanel Padding="18,14,18,18" Spacing="8">
+                                <TextBlock Text="MODEL SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                           Text="Drives this vehicle's paint and look. Paste a seed you've found elsewhere, or Generate a new random look - you'll see it next time you load the game."/>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="ModelSeedEditBox" LostFocus="ModelSeedEditBox_LostFocus"/>
+                                    <Button Grid.Column="1" Content="Generate" Click="GenerateModelSeedBtn_Click"/>
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
             </Grid>
         </StackPanel>
     </ScrollViewer>
