@@ -326,7 +326,8 @@ public sealed partial class SpaceStationsPage : Page
     /// <summary>The 4 x uint32 stamp the game writes on an owned station's
     /// marker - identical across all of a player's stations, so it's copied
     /// from any marker that already carries one. Null on a first-ever claim,
-    /// in which case the marker is left as-is.</summary>
+    /// in which case the marker is left as-is - CONFIRMED fine in-game
+    /// 2026-10-09 (first claim on a fresh Slot 5 still showed Manage Station).</summary>
     private static JArray? FindOwnershipStamp()
     {
         if (SaveSessionManager.GetValue(S.MarkersPath) is not JArray markers) return null;
