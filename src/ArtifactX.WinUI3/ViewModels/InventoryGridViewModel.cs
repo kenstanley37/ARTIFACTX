@@ -246,6 +246,76 @@ public partial class InventoryGridViewModel : ObservableObject
         Load();
     }
 
+    /// <summary>Collapses every item that appears in more than one slot into a
+    /// single stack, kept at that item's first slot (reading order). The kept
+    /// stack's amount is the combined total, capped at the item's own max -
+    /// one full stack is plenty, and more can always be duplicated. A working
+    /// copy is preferred over a damaged one. Returns how many slots were freed.</summary>
+    public int MergeDuplicates()
+    {
+        var occupied = Cells.Where(c => c.IsOccupied).OrderBy(c => c.Y).ThenBy(c => c.X).ToList();
+        var merged = new List<(int X, int Y, string? ItemId, int Amount, int MaxAmount, string? CategoryLabel, bool IsFunctional, double MalfunctionSeverity)>();
+        int freed = 0;
+
+        foreach (var group in occupied.GroupBy(c => c.ItemId))
+        {
+            var cells = group.ToList();
+            var first = cells[0];
+            if (cells.Count == 1)
+            {
+                merged.Add((first.X, first.Y, first.ItemId, first.Amount, first.MaxAmount, first.CategoryLabel, first.IsFunctional, first.MalfunctionSeverity));
+                continue;
+            }
+
+            var best = cells.FirstOrDefault(c => c.IsFunctional && c.MalfunctionSeverity <= 0) ?? first;
+            int max = cells.Max(c => c.MaxAmount);
+            long total = cells.Sum(c => (long)c.Amount);
+            int amount = max > 0 ? (int)System.Math.Min(total, max) : (int)System.Math.Min(total, int.MaxValue);
+
+            merged.Add((first.X, first.Y, first.ItemId, amount, max, first.CategoryLabel, best.IsFunctional, best.MalfunctionSeverity));
+            freed += cells.Count - 1;
+        }
+
+        if (freed == 0) return 0;
+        StageWholeArray(merged);
+        Load();
+        return freed;
+    }
+
+    /// <summary>Re-packs every item into the unlocked slots in reading order,
+    /// grouped by kind (technology, product, substance) and then by name, so
+    /// identical items end up next to each other. Returns false when nothing
+    /// moved.</summary>
+    public bool SortItems()
+    {
+        var occupied = Cells.Where(c => c.IsOccupied).ToList();
+        if (occupied.Count == 0) return false;
+
+        static int KindOrder(string? category) => category switch
+        {
+            "Technology" => 0,
+            "Product" => 1,
+            "Substance" => 2,
+            _ => 3,
+        };
+
+        var sorted = occupied
+            .OrderBy(c => KindOrder(c.CategoryLabel))
+            .ThenBy(c => CatalogService.TryGet(c.ItemId)?.DisplayName ?? c.ItemId, System.StringComparer.OrdinalIgnoreCase)
+            .ThenBy(c => c.ItemId, System.StringComparer.Ordinal)
+            .ThenByDescending(c => c.Amount)
+            .ToList();
+        var slots = _unlockedSet.OrderBy(p => p.Y).ThenBy(p => p.X).ToList();
+        if (slots.Count < sorted.Count) return false;
+
+        var entries = sorted.Select((c, i) => (slots[i].X, slots[i].Y, c.ItemId, c.Amount, c.MaxAmount, c.CategoryLabel, c.IsFunctional, c.MalfunctionSeverity)).ToList();
+        if (entries.Zip(sorted).All(t => t.First.X == t.Second.X && t.First.Y == t.Second.Y)) return false;
+
+        StageWholeArray(entries);
+        Load();
+        return true;
+    }
+
     /// <summary>Sets this container's rarity/quality class (S/A/B/C). A plain
     /// single-letter string write - confirmed independent of the identity seed
     /// (@EL), so this can't corrupt or desync the item's appearance/stats.</summary>
