@@ -129,6 +129,10 @@ public sealed partial class SpaceStationsPage : Page
         _currentGroupIndex = current?.Index ?? groups?.Count ?? -1;
         _currentGroup = current?.Group;
 
+        if (_currentSystemAddress is ulong here && !stationNames.ContainsKey(here)
+            && current is not null && TryStationNameFromLocation(out string? docked))
+            stationNames[here] = docked;
+
         ShowCurrentStation(stationNames, ownedSystems);
         ShowOwnedStations(owned);
         ShowInProgress(systemStats, stationNames, ownedSystems);
@@ -765,11 +769,17 @@ public sealed partial class SpaceStationsPage : Page
     {
         if (!SaveSessionManager.IsSaveLoaded || _currentSystemAddress is not ulong address) return;
 
+        // The marker can lag behind docking (the game writes it later), so fall
+        // back to the "Aboard <station>" location line - see TryStationNameFromLocation.
         int markerIndex = FindStationMarkerIndex(address, out string stationName);
+        bool hasStatsGroup = ReadSystemStats(SaveSessionManager.GetValue(S.StatGroupsPath) as JArray).Any(g => g.Address == address);
+        if (markerIndex < 0 && hasStatsGroup && TryStationNameFromLocation(out string? docked))
+            stationName = docked;
+
         JObject? owner = FindOwnerBlock();
-        if (markerIndex < 0 || owner is null)
+        if (string.IsNullOrEmpty(stationName) || owner is null)
         {
-            CurrentStatusTxt.Text = markerIndex < 0
+            CurrentStatusTxt.Text = string.IsNullOrEmpty(stationName)
                 ? "No station is recorded in this system yet - dock at it in-game first."
                 : "Couldn't find your player details on any existing base to sign the station with.";
             return;
@@ -789,8 +799,31 @@ public sealed partial class SpaceStationsPage : Page
             SaveSessionManager.StageEdit((int)(SaveSessionManager.GetLong(path) ?? 0) + 1, path);
         }
 
-        if (FindOwnershipStamp() is JArray stamp)
+        // No marker yet = nothing to stamp; a first-ever claim without a stamp
+        // was confirmed fine in-game (2026-10-09), so the claim still works.
+        if (markerIndex >= 0 && FindOwnershipStamp() is JArray stamp)
             SaveSessionManager.StageEdit(stamp.DeepClone(), S.MarkerOwnershipStampPath(markerIndex));
+    }
+
+    /// <summary>The game writes a station's map marker (nlG) and its
+    /// "SpaceStation" discovery some time after docking - a fresh save made
+    /// while docked had neither (Hybelosso Station Major, 2026-10-10). What it
+    /// does have straight away: the location line "Aboard &lt;station name&gt;"
+    /// and an (empty) ^SYSTEM_STATS group for the system - callers must check
+    /// that group exists too. "Aboard the Space Anomaly" is excluded: station
+    /// names never start with "the".</summary>
+    private static bool TryStationNameFromLocation([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? stationName)
+    {
+        const string prefix = "Aboard ";
+        stationName = null;
+        string location = SaveSessionManager.GetValue(S.LocationDescriptionPath)?.Value<string>() ?? string.Empty;
+        if (!location.StartsWith(prefix, StringComparison.Ordinal)) return false;
+
+        string name = location[prefix.Length..].Trim();
+        if (name.Length == 0 || name.StartsWith("the ", StringComparison.OrdinalIgnoreCase)) return false;
+
+        stationName = name;
+        return true;
     }
 
     private void MeetRequirements()
