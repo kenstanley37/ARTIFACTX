@@ -252,6 +252,13 @@ public sealed partial class BaseStoragePage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
+    private void SortBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_gridViewModel?.SortItems() != true) return;
+        StorageGrid.Refresh();
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
         _gridViewModel?.Revert();

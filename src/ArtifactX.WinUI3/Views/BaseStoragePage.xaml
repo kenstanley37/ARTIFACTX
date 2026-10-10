@@ -46,6 +46,8 @@
                 <TextBlock x:Name="GridHeaderTxt" Text="Contents" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 <Button Content="Unlock All Slots" Click="UnlockAllBtn_Click"/>
                 <Button Content="Max All Qty" Click="MaxAllQtyBtn_Click"/>
+                <Button Content="Sort" Click="SortBtn_Click"
+                        ToolTipService.ToolTip="Groups items by kind and name, packed from the top-left, so identical items sit together."/>
             </StackPanel>
             <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
                     CornerRadius="6" Padding="8" HorizontalAlignment="Left" VerticalAlignment="Top" Opacity="0.9">
