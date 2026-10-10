@@ -53,9 +53,10 @@ public sealed partial class SpaceStationsPage : Page
     {
         InitializeComponent();
 
-        SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
+        SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionChanged;
         Unloaded += Page_Unloaded;
+        StationDetailsCard.SizeChanged += StationDetailsCard_SizeChanged;
 
         LoadPage();
     }
@@ -63,9 +64,25 @@ public sealed partial class SpaceStationsPage : Page
     private void OnSessionChanged(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(LoadPage);
 
+    private void OnActiveSessionChanged(object? sender, EventArgs e) =>
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            StationDetailsCard.MinHeight = 0; // different save, different stations
+            LoadPage();
+        });
+
+    /// <summary>Grow-only height: each station has a different number of fact
+    /// rows, and a card that shrinks while the page is scrolled down made the
+    /// whole page jump on every selection (user report 2026-10-10).</summary>
+    private void StationDetailsCard_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (e.NewSize.Height > StationDetailsCard.MinHeight)
+            StationDetailsCard.MinHeight = e.NewSize.Height;
+    }
+
     private void Page_Unloaded(object sender, RoutedEventArgs e)
     {
-        SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
+        SaveSessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
         SaveSessionManager.PendingEditsChanged -= OnSessionChanged;
     }
 
