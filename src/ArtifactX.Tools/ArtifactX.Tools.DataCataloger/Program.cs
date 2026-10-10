@@ -726,6 +726,165 @@ if (args.Length > 1 && args[0].Equals("add-broken-tech-flag", StringComparison.O
     return;
 }
 
+// "DataCataloger add-station-assets <target-catalog-db-path>" adds what the
+// app's Space Stations page needs to describe a system in game terms:
+//   - "PortalGlyphs": 16 items PORTALSYMBOL_0..PORTALSYMBOL_F, each with the
+//     game's own glyph texture (textures/ui/frontend/icons/update3/
+//     portalsymbol.<hex>.dds) as its icon - a portal address is 12 hex digits,
+//     one glyph per digit.
+//   - "GalaxyNames": GALAXY_1..GALAXY_10. Only these ten have names anywhere
+//     in the game's text (confirmed 2026-10-10); galaxies 11-256 are named by
+//     the game at runtime, so the app falls back to "Galaxy N" for those.
+//     1-5 use the full names (MAIN_GALAXY = "Euclid Galaxy", SECOND_GALAXY =
+//     "Hilbert Dimension"...; a trailing " Galaxy" dropped), 6-10 come from
+//     the player titles (UI_PLAYER_TITLE_REALITY10 = "%NAME% of Eissentam").
+// Same patch-in-place pattern as add-guide-topics; idempotent.
+if (args.Length > 1 && args[0].Equals("add-station-assets", StringComparison.OrdinalIgnoreCase))
+{
+    string assetsDbPath = args[1];
+    if (!File.Exists(assetsDbPath))
+    {
+        ConsoleStyle.Error($"Target catalog DB not found: {assetsDbPath}");
+        return;
+    }
+
+    var assetsSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(assetsSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakReaderService assetsPakReader = new PakReaderService();
+    var assetsExtraction = new ExtractionService();
+    var assetsIndex = new GlobalFileIndexService();
+    var assetsLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    foreach (var pak in new PakDiscoveryService().Discover(assetsSettings.NmsInstallationPath!))
+    {
+        PakHeader header;
+        IReadOnlyList<PakEntry> entries;
+        try
+        {
+            header = assetsPakReader.ReadHeader(pak.FullPath);
+            entries = assetsPakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+
+        assetsIndex.Add(pak.FullPath, header, entries);
+
+        foreach (var entry in entries.Where(e =>
+                     !string.IsNullOrEmpty(e.FileName) &&
+                     e.FileName.Contains("language/nms_", StringComparison.OrdinalIgnoreCase) &&
+                     e.FileName.Contains("english", StringComparison.OrdinalIgnoreCase) &&
+                     !e.FileName.Contains("usenglish", StringComparison.OrdinalIgnoreCase)))
+        {
+            try
+            {
+                byte[]? bytes = assetsExtraction.ExtractEntryBytes(pak.FullPath, entry, header);
+                if (bytes is null || bytes.Length == 0) continue;
+                using var ms = new MemoryStream(bytes);
+                var mbin = new MBINFile(ms);
+                mbin.Load();
+                if (mbin.GetData() is NMSTemplate locTemplate)
+                    foreach (var kv in LocalisationService.BuildEnglishLookup(locTemplate))
+                        assetsLookup.TryAdd(kv.Key, kv.Value);
+            }
+            catch { }
+        }
+    }
+
+    // Glyphs
+    var iconService = new IconExtractionService(assetsExtraction, assetsIndex, targetSize: 128);
+    var glyphs = new List<(string GameId, string Name, string TexturePath, byte[] Png)>();
+    for (int digit = 0; digit < 16; digit++)
+    {
+        string hex = digit.ToString("x");
+        string texturePath = $"textures/ui/frontend/icons/update3/portalsymbol.{hex}.dds";
+        byte[]? png = iconService.ExtractAndConvert(texturePath);
+        if (png is null)
+        {
+            ConsoleStyle.Error($"Could not extract {texturePath} - aborting so the DB isn't left half-updated.");
+            return;
+        }
+        glyphs.Add(($"PORTALSYMBOL_{hex.ToUpperInvariant()}", $"Glyph {digit + 1}", texturePath, png));
+    }
+
+    // Galaxy names
+    string[] ordinalKeys = { "MAIN_GALAXY", "SECOND_GALAXY", "THIRD_GALAXY", "FOURTH_GALAXY", "FIFTH_GALAXY" };
+    var galaxies = new List<(string GameId, string Name)>();
+    for (int n = 1; n <= 10; n++)
+    {
+        string? name = null;
+        if (n <= ordinalKeys.Length && assetsLookup.TryGetValue(ordinalKeys[n - 1], out var full))
+            name = full.EndsWith(" Galaxy", StringComparison.Ordinal) ? full[..^" Galaxy".Length] : full;
+        else if (assetsLookup.TryGetValue($"UI_PLAYER_TITLE_REALITY{n}", out var title) && title.StartsWith("%NAME% of ", StringComparison.Ordinal))
+            name = title["%NAME% of ".Length..];
+
+        if (!string.IsNullOrWhiteSpace(name))
+            galaxies.Add(($"GALAXY_{n}", name));
+    }
+    ConsoleStyle.Header($"Extracted {glyphs.Count} portal glyphs and {galaxies.Count} galaxy names.");
+    foreach (var (_, name) in galaxies)
+        ConsoleStyle.Success($"  {name}");
+
+    using var assetsDb = new CatalogDbContext(assetsDbPath);
+
+    foreach (string templateType in new[] { "PortalGlyphs", "GalaxyNames" })
+    {
+        var existing = assetsDb.Categories.FirstOrDefault(c => c.TemplateType == templateType);
+        if (existing is null) continue;
+
+        var itemIds = assetsDb.Items.Where(i => i.CategoryId == existing.Id).Select(i => i.Id).ToList();
+        var oldIcons = assetsDb.Set<IconAsset>().Where(a => itemIds.Contains(a.ItemId)).ToList();
+        var oldBlobIds = oldIcons.Select(a => a.IconBlobId).ToList();
+        assetsDb.RemoveRange(oldIcons);
+        assetsDb.RemoveRange(assetsDb.Set<IconBlob>().Where(b => oldBlobIds.Contains(b.Id)));
+        assetsDb.Items.RemoveRange(assetsDb.Items.Where(i => i.CategoryId == existing.Id));
+        assetsDb.Categories.Remove(existing);
+        assetsDb.SaveChanges();
+    }
+
+    var glyphCategory = new CatalogCategory
+    {
+        TemplateType = "PortalGlyphs",
+        RowType = "PortalGlyph",
+        SourceMbinPath = "textures/ui/frontend/icons/update3/portalsymbol.*.dds"
+    };
+    foreach (var glyph in glyphs)
+    {
+        glyphCategory.Items.Add(new CatalogItem
+        {
+            GameId = glyph.GameId,
+            NameEnglish = glyph.Name,
+            Icons =
+            {
+                new IconAsset
+                {
+                    SourceField = "Icon",
+                    IconBlob = new IconBlob { SourceDdsPath = glyph.TexturePath, PngData = glyph.Png }
+                }
+            }
+        });
+    }
+
+    var galaxyCategory = new CatalogCategory
+    {
+        TemplateType = "GalaxyNames",
+        RowType = "GalaxyName",
+        SourceMbinPath = "language/nms_loc*_english.mbin"
+    };
+    foreach (var (gameId, name) in galaxies)
+        galaxyCategory.Items.Add(new CatalogItem { GameId = gameId, NameEnglish = name });
+
+    assetsDb.Categories.Add(glyphCategory);
+    assetsDb.Categories.Add(galaxyCategory);
+    assetsDb.SaveChanges();
+
+    ConsoleStyle.Success($"Wrote {glyphs.Count} glyphs and {galaxies.Count} galaxy names to {assetsDbPath}.");
+    return;
+}
+
 // "DataCataloger add-guide-topics <target-catalog-db-path>" extracts the
 // in-game Guide screen's real topic-to-category grouping from
 // metadata/reality/wiki.mbin (a GcWiki: Categories[].Topics[], found

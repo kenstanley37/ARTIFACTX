@@ -84,26 +84,67 @@
                         <TextBlock FontSize="12" Foreground="{ThemeResource NmsTextSecondary}" TextWrapping="Wrap"
                                    Text="Each station asks for standing with one race and one guild, which the save doesn't record. Claim Station meets the requirement for all of them, so it works for any station."/>
                     </StackPanel>
-                </StackPanel>
-            </Border>
 
-            <ctcontrols:WrapPanel HorizontalSpacing="20" VerticalSpacing="20">
-                <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                        CornerRadius="8" Padding="20" Opacity="0.9" Width="420">
-                    <StackPanel Spacing="10">
-                        <TextBlock x:Name="OwnedHeaderTxt" Text="Stations You Direct" FontSize="14" FontWeight="SemiBold"/>
-                        <StackPanel x:Name="OwnedStationsPanel" Spacing="8"/>
-                    </StackPanel>
-                </Border>
-
-                <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                        CornerRadius="8" Padding="20" Opacity="0.9" Width="420">
-                    <StackPanel Spacing="10">
+                    <!-- Other systems where the player has started earning standing - shown
+                         only when there are any (user asked 2026-10-10 to fold this into the
+                         Current Station card rather than keep a mostly-empty card of its own). -->
+                    <StackPanel x:Name="InProgressSection" Spacing="8" Visibility="Collapsed">
                         <TextBlock Text="Claims In Progress" FontSize="14" FontWeight="SemiBold"/>
                         <StackPanel x:Name="InProgressPanel" Spacing="8"/>
                     </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Grid ColumnSpacing="20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="360"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                        CornerRadius="8" Padding="20" Opacity="0.9" VerticalAlignment="Top">
+                    <StackPanel Spacing="10">
+                        <TextBlock x:Name="OwnedHeaderTxt" Text="Stations You Direct" FontSize="14" FontWeight="SemiBold"/>
+                        <TextBlock Text="Select a station to see its details." FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"/>
+                        <ListView x:Name="OwnedStationsList" SelectionMode="Single" Margin="-12,0"
+                                  SelectionChanged="OwnedStationsList_SelectionChanged"/>
+                    </StackPanel>
                 </Border>
-            </ctcontrols:WrapPanel>
+
+                <!-- Details for the station selected on the left. Facts are built in
+                     code (ShowStationDetails) since which sections appear depends on
+                     what the save actually holds for that system. -->
+                <Border Grid.Column="1" x:Name="StationDetailsCard" Visibility="Collapsed" VerticalAlignment="Top"
+                        BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1" CornerRadius="8" Padding="20" Opacity="0.95">
+                    <StackPanel Spacing="16">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="Station Details" FontSize="12" Opacity="0.7"/>
+                            <TextBlock x:Name="DetailNameTxt" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="16">
+                            <StackPanel Spacing="12" Width="384">
+                                <Border Height="216" CornerRadius="6" Background="#1A1F2E">
+                                    <Grid>
+                                        <Image x:Name="DetailScreenshot" Stretch="UniformToFill"/>
+                                        <TextBlock x:Name="DetailNoScreenshotTxt" Text="No screenshot cached for this station"
+                                                   FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Portal Address" FontSize="14" FontWeight="SemiBold"/>
+                                    <Border x:Name="PortalGlyphsBorder" CornerRadius="6" Background="#1A1F2E" Padding="6,8">
+                                        <StackPanel x:Name="PortalGlyphsPanel" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Dial at any portal to travel to this system (first glyph = planet 1)."
+                                               FontSize="11" Foreground="{ThemeResource NmsTextSecondary}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel x:Name="DetailFactsPanel" Spacing="14" MinWidth="320"/>
+                        </ctcontrols:WrapPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
         </StackPanel>
     </ScrollViewer>
 </Page>

@@ -5,7 +5,11 @@ using Microsoft.UI.Xaml.Controls;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
+using System.Threading.Tasks;
+using Microsoft.UI.Xaml.Media.Imaging;
 using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
 
 namespace ArtifactX.WinUI3.Views;
@@ -19,6 +23,24 @@ namespace ArtifactX.WinUI3.Views;
 public sealed partial class SpaceStationsPage : Page
 {
     private sealed record SystemStats(int Index, ulong Address, JObject Group);
+
+    private sealed record OwnedStation(string Name, ulong Address, JObject Record);
+
+    // The game caches a 640x360 RGBA screenshot per base/station in the
+    // platform folder's cache/ dir, named "<16-hex address>.Normal.<name>.<uid>.DDS"
+    // despite having no DDS header - raw pixels only (confirmed 2026-10-10).
+    private const int ScreenshotWidth = 640;
+    private const int ScreenshotHeight = 360;
+
+    // Static so the selected station survives navigating away and back.
+    private static ulong? _selectedStationAddress;
+    private List<OwnedStation> _owned = new();
+    private bool _suppressStationSelection;
+    private int _detailsVersion;
+
+    // Portal glyph images (PORTALSYMBOL_0..F) and galaxy names (GALAXY_1..10)
+    // come from the catalog DB - see DataCataloger's add-station-assets.
+    private static Task? _stationAssetsWarmup;
 
     // Resolved on every LoadPage. _currentGroupIndex is where the current
     // system's ^SYSTEM_STATS group lives - or, if the game hasn't created it
@@ -83,7 +105,9 @@ public sealed partial class SpaceStationsPage : Page
         CurrentStatusTxt.Text = "Load a save to view and edit space stations.";
         ClaimStationBtn.IsEnabled = false;
         RequirementsPanel.Visibility = Visibility.Collapsed;
-        OwnedStationsPanel.Children.Clear();
+        OwnedStationsList.Items.Clear();
+        StationDetailsCard.Visibility = Visibility.Collapsed;
+        InProgressSection.Visibility = Visibility.Collapsed;
         InProgressPanel.Children.Clear();
         PageResetBtn.Visibility = Visibility.Collapsed;
     }
@@ -137,19 +161,276 @@ public sealed partial class SpaceStationsPage : Page
         return best.Value > 0 ? best : (null, 0);
     }
 
-    private void ShowOwnedStations(List<(string Name, ulong Address)> owned)
+    private void ShowOwnedStations(List<OwnedStation> owned)
     {
+        _owned = owned;
         OwnedHeaderTxt.Text = $"Stations You Direct ({owned.Count})";
-        OwnedStationsPanel.Children.Clear();
 
-        if (owned.Count == 0)
+        _suppressStationSelection = true;
+        OwnedStationsList.Items.Clear();
+        foreach (var station in owned)
         {
-            OwnedStationsPanel.Children.Add(CreateRow("None yet", null));
+            OwnedStationsList.Items.Add(new ListViewItem
+            {
+                Content = CreateRow(station.Name, station.Address == _currentSystemAddress ? "Current system" : null),
+                Tag = station.Address,
+            });
+        }
+
+        // Keep the previous pick; otherwise default to the station in the
+        // current system, else the first one.
+        ulong? target = owned.Any(o => o.Address == _selectedStationAddress) ? _selectedStationAddress
+            : owned.Any(o => o.Address == _currentSystemAddress) ? _currentSystemAddress
+            : owned.FirstOrDefault()?.Address;
+        int index = owned.FindIndex(o => o.Address == target);
+        OwnedStationsList.SelectedIndex = index;
+        _suppressStationSelection = false;
+
+        if (index >= 0)
+            _ = ShowStationDetailsAsync(owned[index]);
+        else
+            StationDetailsCard.Visibility = Visibility.Collapsed;
+    }
+
+    private void OwnedStationsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressStationSelection || OwnedStationsList.SelectedItem is not ListViewItem { Tag: ulong address }) return;
+
+        var station = _owned.FirstOrDefault(o => o.Address == address);
+        if (station is null) return;
+
+        _selectedStationAddress = address;
+        _ = ShowStationDetailsAsync(station);
+    }
+
+    private static Task WarmStationAssetsAsync() =>
+        _stationAssetsWarmup ??= CatalogService.WarmCacheAsync(
+            Enumerable.Range(0, 16).Select(d => $"PORTALSYMBOL_{d:X}")
+                .Concat(Enumerable.Range(1, 10).Select(n => $"GALAXY_{n}")));
+
+    private async Task ShowStationDetailsAsync(OwnedStation station)
+    {
+        int version = ++_detailsVersion;
+        StationDetailsCard.Visibility = Visibility.Visible;
+        DetailNameTxt.Text = station.Name;
+
+        try
+        {
+            await WarmStationAssetsAsync();
+        }
+        catch (Exception)
+        {
+            // Don't cache a failed lookup forever - retry on the next selection.
+            // Glyphs/galaxy name fall back to plain text below meanwhile.
+            _stationAssetsWarmup = null;
+        }
+        if (version != _detailsVersion) return; // a newer selection won
+
+        DetailFactsPanel.Children.Clear();
+        ulong address = station.Address;
+        ShowPortalGlyphs(address);
+
+        int galaxy = S.GalaxyNumber(address);
+        AddFactSection("Location", new[]
+        {
+            ("Galaxy", CatalogService.TryGet($"GALAXY_{galaxy}")?.DisplayName is string galaxyName
+                ? $"{galaxyName} (Galaxy {galaxy})"
+                : $"Galaxy {galaxy}"),
+        });
+
+        var history = new List<(string, string)>();
+        if (station.Record["3?K"]?["3I1"]?.Value<long>() is long claimed and > 0)
+            history.Add(("Claimed", FormatTimestamp(claimed)));
+
+        var discoveries = ReadDiscoveriesInSystem(address);
+        var systemRecord = discoveries.FirstOrDefault(d => d["8P3"]?["<Dn"]?.Value<string>() == "SolarSystem");
+        if (systemRecord?["ksu"] is JObject discoverer)
+        {
+            string by = discoverer["V?:"]?.Value<string>() ?? string.Empty;
+            string when = FormatTimestamp(discoverer["3I1"]?.Value<long>() ?? 0);
+            history.Add(("System discovered", string.IsNullOrEmpty(by) ? when : $"{when} by {by}"));
+        }
+        AddFactSection("History", history);
+
+        string? discoverySummary = SummarizeDiscoveries(discoveries);
+        if (discoverySummary is not null)
+            AddFactSection("Your Discoveries Here", new[] { ("Found", discoverySummary) });
+
+        var group = ReadSystemStats(SaveSessionManager.GetValue(S.StatGroupsPath) as JArray)
+            .FirstOrDefault(g => g.Address == address)?.Group;
+        var standings = S.RaceStats.Select(r => (Label: $"{r.Name} standing", Value: S.ReadStat(group, r.StatId)))
+            .Concat(S.GuildStats.Select(g => (Label: $"{g.Name} standing", Value: S.ReadStat(group, g.StatId))))
+            .Append((Label: "Salvage contracts", Value: S.ReadStat(group, S.SalvageContractsStatId)))
+            .Where(s => s.Value > 0)
+            .Select(s => (s.Label, s.Value.ToString("N0")))
+            .ToList();
+        AddFactSection("Local Standing", standings);
+
+        AddFactSection("Other Bases in This System", ReadOtherBasesInSystem(address, station.Record));
+
+        if (station.Record["@ZJ"] is JArray parts)
+            AddFactSection("Station", new[] { ("Parts placed", parts.Count.ToString("N0")) });
+
+        await LoadScreenshotAsync(station, version);
+    }
+
+    /// <summary>One glyph image per hex digit of the portal address. Falls back
+    /// to the plain code if the catalog predates add-station-assets.</summary>
+    private void ShowPortalGlyphs(ulong address)
+    {
+        string code = S.PortalAddress(address);
+        PortalGlyphsPanel.Children.Clear();
+        ToolTipService.SetToolTip(PortalGlyphsBorder, $"Portal code {code}");
+
+        var icons = code.Select(c => CatalogService.TryGet($"PORTALSYMBOL_{c}")?.Icon).ToList();
+        if (icons.Any(i => i is null))
+        {
+            PortalGlyphsPanel.Children.Add(new TextBlock { Text = code, FontSize = 16, IsTextSelectionEnabled = true });
             return;
         }
 
-        foreach (var (name, address) in owned)
-            OwnedStationsPanel.Children.Add(CreateRow(name, address == _currentSystemAddress ? "Current system" : null));
+        foreach (var icon in icons)
+            PortalGlyphsPanel.Children.Add(new Image { Source = icon, Width = 29, Height = 29 });
+    }
+
+    private void AddFactSection(string title, IEnumerable<(string Label, string Value)> facts)
+    {
+        var list = facts.ToList();
+        if (list.Count == 0) return;
+
+        var section = new StackPanel { Spacing = 4 };
+        section.Children.Add(new TextBlock { Text = title, FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        foreach (var (label, value) in list)
+        {
+            var row = new Grid { ColumnSpacing = 12 };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var labelText = new TextBlock
+            {
+                Text = label,
+                FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["NmsTextSecondary"],
+            };
+            var valueText = new TextBlock { Text = value, FontSize = 13, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
+            Grid.SetColumn(valueText, 1);
+            row.Children.Add(labelText);
+            row.Children.Add(valueText);
+            section.Children.Add(row);
+        }
+        DetailFactsPanel.Children.Add(section);
+    }
+
+    private static string FormatTimestamp(long unixSeconds) =>
+        unixSeconds > 0 ? DateTimeOffset.FromUnixTimeSeconds(unixSeconds).LocalDateTime.ToString("g") : "Unknown";
+
+    private static List<JObject> ReadDiscoveriesInSystem(ulong systemAddress)
+    {
+        if (SaveSessionManager.GetValue(S.DiscoveriesPath) is not JArray records) return new();
+
+        return records.OfType<JObject>()
+            .Where(r => S.ParsePackedAddress(r["8P3"]?["5L6"]) is ulong a && S.ToSystemAddress(a) == systemAddress)
+            .ToList();
+    }
+
+    /// <summary>"6 planets · 3 fauna · 2 flora" - only discovery types with a
+    /// plain-English name; planets counted by distinct planet index.</summary>
+    private static string? SummarizeDiscoveries(List<JObject> discoveries)
+    {
+        int CountOf(string type) => discoveries.Count(d => d["8P3"]?["<Dn"]?.Value<string>() == type);
+
+        int planets = discoveries
+            .Where(d => d["8P3"]?["<Dn"]?.Value<string>() == "Planet")
+            .Select(d => S.ParsePackedAddress(d["8P3"]?["5L6"]) is ulong a ? a >> 52 : 0)
+            .Distinct()
+            .Count();
+
+        var parts = new List<string>();
+        if (planets > 0) parts.Add(planets == 1 ? "1 planet" : $"{planets} planets");
+        if (CountOf("Animal") is int fauna and > 0) parts.Add($"{fauna} fauna");
+        if (CountOf("Flora") is int flora and > 0) parts.Add($"{flora} flora");
+        if (CountOf("Mineral") is int minerals and > 0) parts.Add(minerals == 1 ? "1 mineral" : $"{minerals} minerals");
+
+        return parts.Count > 0 ? string.Join("  ·  ", parts) : null;
+    }
+
+    /// <summary>Planet bases and space bases sharing the station's system.
+    /// Freighter and ship-dock records also carry an address but just follow
+    /// the player around, so they're left out.</summary>
+    private static List<(string, string)> ReadOtherBasesInSystem(ulong systemAddress, JObject station)
+    {
+        var result = new List<(string, string)>();
+        if (SaveSessionManager.GetValue(S.BasesPath) is not JArray bases) return result;
+
+        foreach (var record in bases.OfType<JObject>())
+        {
+            if (ReferenceEquals(record, station)) continue;
+            string? kind = record["peI"]?["DPp"]?.Value<string>() switch
+            {
+                "HomePlanetBase" => "Planet base",
+                "PlayerSpaceBase" => "Space base",
+                _ => null,
+            };
+            if (kind is null) continue;
+            if (S.ParsePackedAddress(record["oZw"]) is not ulong a || S.ToSystemAddress(a) != systemAddress) continue;
+
+            string name = record["NKm"]?.Value<string>() ?? string.Empty;
+            result.Add((kind, string.IsNullOrWhiteSpace(name) ? "Unnamed" : name));
+        }
+        return result;
+    }
+
+    private async Task LoadScreenshotAsync(OwnedStation station, int version)
+    {
+        DetailScreenshot.Source = null;
+        DetailNoScreenshotTxt.Visibility = Visibility.Collapsed;
+
+        string? platformFolder = SaveSessionManager.ActivePlatformFolder;
+        byte[]? pixels = await Task.Run(() => ReadScreenshotPixels(platformFolder, station));
+        if (version != _detailsVersion) return; // a newer selection won
+
+        if (pixels is null)
+        {
+            DetailNoScreenshotTxt.Visibility = Visibility.Visible;
+            return;
+        }
+
+        var bitmap = new WriteableBitmap(ScreenshotWidth, ScreenshotHeight);
+        using (var stream = bitmap.PixelBuffer.AsStream())
+            await stream.WriteAsync(pixels);
+        bitmap.Invalidate();
+        DetailScreenshot.Source = bitmap;
+    }
+
+    /// <summary>Newest cached screenshot for this station's address (renamed
+    /// stations keep their old files too, so an exact-name match wins), with
+    /// the game's RGBA pixels swapped to the BGRA order WriteableBitmap wants.</summary>
+    private static byte[]? ReadScreenshotPixels(string? platformFolder, OwnedStation station)
+    {
+        try
+        {
+            if (platformFolder is null) return null;
+            string cacheFolder = Path.Combine(platformFolder, "cache");
+            if (!Directory.Exists(cacheFolder)) return null;
+
+            var newest = new DirectoryInfo(cacheFolder)
+                .GetFiles($"{station.Address:x16}.*.DDS")
+                .Where(f => f.Length == ScreenshotWidth * ScreenshotHeight * 4)
+                .OrderByDescending(f => f.Name.Contains($".{station.Name}.", StringComparison.Ordinal))
+                .ThenByDescending(f => f.LastWriteTimeUtc)
+                .FirstOrDefault();
+            if (newest is null) return null;
+
+            byte[] pixels = File.ReadAllBytes(newest.FullName);
+            for (int i = 0; i < pixels.Length; i += 4)
+                (pixels[i], pixels[i + 2]) = (pixels[i + 2], pixels[i]);
+            return pixels;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     private void ShowInProgress(List<SystemStats> systemStats, Dictionary<ulong, string> stationNames, HashSet<ulong> ownedSystems)
@@ -160,11 +441,7 @@ public sealed partial class SpaceStationsPage : Page
             .Where(s => !ownedSystems.Contains(s.Address) && HasAnyProgress(s.Group))
             .ToList();
 
-        if (rows.Count == 0)
-        {
-            InProgressPanel.Children.Add(CreateRow("None", null));
-            return;
-        }
+        InProgressSection.Visibility = rows.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
         foreach (var stats in rows)
         {
@@ -394,9 +671,9 @@ public sealed partial class SpaceStationsPage : Page
         return names;
     }
 
-    private static List<(string Name, ulong Address)> ReadOwnedStations()
+    private static List<OwnedStation> ReadOwnedStations()
     {
-        var owned = new List<(string, ulong)>();
+        var owned = new List<OwnedStation>();
         int count = BaseCount();
 
         // <= count picks up a claim staged at the append slot but not yet saved.
@@ -407,7 +684,7 @@ public sealed partial class SpaceStationsPage : Page
             if (S.ParsePackedAddress(record["oZw"]) is not ulong address) continue;
 
             string name = record["NKm"]?.Value<string>() ?? string.Empty;
-            owned.Add((string.IsNullOrWhiteSpace(name) ? $"Station {owned.Count + 1}" : name, S.ToSystemAddress(address)));
+            owned.Add(new OwnedStation(string.IsNullOrWhiteSpace(name) ? $"Station {owned.Count + 1}" : name, S.ToSystemAddress(address), record));
         }
 
         return owned;
