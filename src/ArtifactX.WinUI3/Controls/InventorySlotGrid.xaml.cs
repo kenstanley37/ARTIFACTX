@@ -94,10 +94,12 @@ public sealed partial class InventorySlotGrid : UserControl
             {
                 Width = CellSize,
                 Height = CellSize,
-                CornerRadius = new CornerRadius(6),
+                CornerRadius = (CornerRadius)Application.Current.Resources["ThemeSlotCornerRadius"],
                 BorderThickness = new Thickness(isDamaged ? 3 : cell.IsSupercharged ? 2 : 1),
-                Background = new SolidColorBrush(BackgroundFor(cell.State)),
-                BorderBrush = new SolidColorBrush(isDamaged ? DamagedColor : cell.IsSupercharged ? SuperchargedColor : BorderFor(cell.State))
+                Background = BackgroundFor(cell),
+                BorderBrush = isDamaged ? ThemeBrush("ThemeDamagedBrush")
+                    : cell.IsSupercharged ? ThemeBrush("ThemeSuperchargedBrush")
+                    : BorderFor(cell.State)
             };
 
             Canvas.SetLeft(border, cell.PixelX);
@@ -120,12 +122,13 @@ public sealed partial class InventorySlotGrid : UserControl
 
                 var nameLabel = new Border
                 {
-                    Background = new SolidColorBrush(Color.FromArgb(170, 0, 0, 0)),
+                    Background = ThemeBrush("ThemeSlotLabelBackgroundBrush"),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Top,
                     Child = new TextBlock
                     {
                         Text = entry?.DisplayName ?? cell.ShortLabel,
+                        FontFamily = (FontFamily)Application.Current.Resources["ThemeBodyFont"],
                         FontSize = 8,
                         TextWrapping = TextWrapping.Wrap,
                         TextTrimming = TextTrimming.CharacterEllipsis,
@@ -137,12 +140,13 @@ public sealed partial class InventorySlotGrid : UserControl
 
                 var amountLabel = new Border
                 {
-                    Background = new SolidColorBrush(Color.FromArgb(170, 0, 0, 0)),
+                    Background = ThemeBrush("ThemeSlotLabelBackgroundBrush"),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Bottom,
                     Child = new TextBlock
                     {
                         Text = cell.DisplayText,
+                        FontFamily = (FontFamily)Application.Current.Resources["ThemeDisplayFont"],
                         FontSize = 10,
                         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                         TextAlignment = TextAlignment.Center
@@ -513,21 +517,30 @@ public sealed partial class InventorySlotGrid : UserControl
         border.Child = wrapper;
     }
 
-    private static readonly Color SuperchargedColor = Color.FromArgb(255, 255, 196, 0);
-    private static readonly Color DamagedColor = Color.FromArgb(255, 220, 50, 50);
+    // Slot colours come from the active theme (Themes/*.xaml, ThemeSlot* keys);
+    // the page is re-created on a theme change, which re-runs Refresh().
+    private static Brush ThemeBrush(string key) => (Brush)Application.Current.Resources[key];
 
-    private static Color BackgroundFor(InventorySlotState state) => state switch
+    /// <summary>Occupied slots are colour-coded by what they hold, like the
+    /// game's inventory: technology, product or substance (the save's own
+    /// per-slot "elv" category).</summary>
+    private static Brush BackgroundFor(InventorySlotViewModel cell) => cell.State switch
     {
-        InventorySlotState.Occupied => Color.FromArgb(60, 255, 157, 0),
-        InventorySlotState.UnlockedEmpty => Color.FromArgb(15, 255, 255, 255),
-        InventorySlotState.Locked => Color.FromArgb(50, 20, 20, 20),
-        _ => Colors.Transparent
+        InventorySlotState.Occupied => cell.CategoryLabel switch
+        {
+            "Technology" => ThemeBrush("ThemeSlotTechBrush"),
+            "Substance" => ThemeBrush("ThemeSlotSubstanceBrush"),
+            _ => ThemeBrush("ThemeSlotProductBrush"),
+        },
+        InventorySlotState.UnlockedEmpty => ThemeBrush("ThemeSlotEmptyBrush"),
+        InventorySlotState.Locked => ThemeBrush("ThemeSlotLockedBrush"),
+        _ => new SolidColorBrush(Colors.Transparent)
     };
 
-    private static Color BorderFor(InventorySlotState state) => state switch
+    private static Brush BorderFor(InventorySlotState state) => state switch
     {
-        InventorySlotState.Locked => Color.FromArgb(140, 90, 60, 60),
-        _ => Color.FromArgb(255, 90, 98, 112)
+        InventorySlotState.Locked => ThemeBrush("ThemeSlotLockedBorderBrush"),
+        _ => ThemeBrush("ThemeSlotBorderBrush")
     };
 
 
