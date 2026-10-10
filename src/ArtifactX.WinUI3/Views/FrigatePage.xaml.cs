@@ -136,15 +136,9 @@ public sealed partial class FrigatePage : Page
                     Text = frigate.SelectorLabel,
                     FontWeight = isSelected ? FontWeights.SemiBold : FontWeights.Normal
                 },
-                Padding = new Thickness(12, 6, 12, 6),
-                BorderThickness = new Thickness(isSelected ? 2 : 1),
-                BorderBrush = new SolidColorBrush(isSelected
-                    ? Color.FromArgb(255, 255, 157, 0)
-                    : Color.FromArgb(255, 90, 98, 112)),
-                Background = new SolidColorBrush(isSelected
-                    ? Color.FromArgb(60, 255, 157, 0)
-                    : Color.FromArgb(20, 255, 255, 255))
+                Padding = new Thickness(12, 6, 12, 6)
             };
+            ThemeResources.StyleChoiceButton(button, isSelected);
 
             button.Click += (_, _) =>
             {
@@ -251,12 +245,14 @@ public sealed partial class FrigatePage : Page
 
     private static readonly SolidColorBrush NegativeTraitBrush = new(Color.FromArgb(255, 0xE0, 0x4C, 0x3D));
     private static readonly SolidColorBrush PositiveTraitBrush = new(Color.FromArgb(255, 0x3D, 0xC4, 0x77));
-    private static readonly SolidColorBrush NeutralTraitBrush = new(Color.FromArgb(255, 0x8A, 0x96, 0xA8));
-    private static readonly SolidColorBrush CardBorderBrush = new(Color.FromArgb(255, 90, 98, 112));
-    private static readonly SolidColorBrush CardBackgroundBrush = new(Color.FromArgb(18, 255, 255, 255));
+    // Positive/negative trait colours are meaning (good/bad), not decoration,
+    // so they stay fixed; neutral and the trait card chrome follow the theme.
+    private static Brush NeutralTraitBrush => ThemeResources.Brush("ThemeTextDimBrush");
+    private static Brush CardBorderBrush => ThemeResources.Brush("ThemeLineBrush");
+    private static Brush CardBackgroundBrush => ThemeResources.Brush("ThemePanelAltBrush");
     private const int TraitsPerCard = 6;
 
-    private static SolidColorBrush TraitSignBrush(string? category) => category?.ToLowerInvariant() switch
+    private static Brush TraitSignBrush(string? category) => category?.ToLowerInvariant() switch
     {
         "negative" => NegativeTraitBrush,
         "positive" => PositiveTraitBrush,
