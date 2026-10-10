@@ -44,4 +44,18 @@
     <CornerRadius x:Key="ThemeCardCornerRadius">4</CornerRadius>
     <FontFamily x:Key="ThemeDisplayFont">/Assets/Fonts/Exo2-Variable.ttf#Exo 2</FontFamily>
     <FontFamily x:Key="ThemeBodyFont">/Assets/Fonts/TitilliumWeb-Regular.ttf#Titillium Web</FontFamily>
+    <!-- App frame: title bar + nav pane share the opaque chrome colour. -->
+    <SolidColorBrush x:Key="ThemeChromeBrush" Color="#08090F"/>
+
+    <!-- WinUI built-in keys, overridden so the whole frame follows the theme.
+         Plain keys in this later-merged dictionary win over XamlControlsResources'
+         own theme dictionaries; App.xaml must NOT redefine them at its root,
+         since root keys beat every merged dictionary. Most pages paint their
+         root with ApplicationPageBackgroundThemeBrush, so this gives every page
+         the theme's backdrop without touching the page. -->
+    <StaticResource x:Key="ApplicationPageBackgroundThemeBrush" ResourceKey="ThemePageBackdropBrush"/>
+    <StaticResource x:Key="NavigationViewDefaultPaneBackground" ResourceKey="ThemeChromeBrush"/>
+    <StaticResource x:Key="NavigationViewExpandedPaneBackground" ResourceKey="ThemeChromeBrush"/>
+    <StaticResource x:Key="NavigationViewTopPaneBackground" ResourceKey="ThemeChromeBrush"/>
+    <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="#FFC62E"/>
 </ResourceDictionary>

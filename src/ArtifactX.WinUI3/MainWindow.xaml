@@ -28,7 +28,7 @@
          mode to Dark and restarting fixed it, proving the app was silently
          following that OS setting instead of its own fixed NMS dark palette,
          which is what it's actually designed around everywhere else). -->
-    <Grid Background="{ThemeResource NmsBackgroundBrush}" RequestedTheme="Dark">
+    <Grid x:Name="RootGrid" Background="{ThemeResource ThemeVoidBrush}" RequestedTheme="Dark">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>

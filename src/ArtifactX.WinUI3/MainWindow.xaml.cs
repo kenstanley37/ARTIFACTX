@@ -37,7 +37,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
 
         SetNavIconGeometries();
-        ThemeService.ThemeChanged += (_, _) => ReloadCurrentPage();
+        ThemeService.ThemeChanged += (_, _) => ApplyThemeToFrame();
 
 #if !DEBUG
         // Dev-only tools for reverse-engineering raw JSON field mappings - not
@@ -286,6 +286,18 @@ public sealed partial class MainWindow : Window
 
         _closeConfirmed = true;
         Close();
+    }
+
+    /// <summary>Frame elements (title bar, nav pane) live for the whole session,
+    /// so a swapped theme dictionary alone doesn't reach them. Flipping
+    /// RequestedTheme forces every {ThemeResource} in the tree to re-resolve
+    /// against the new dictionary; it's flipped straight back to Dark in the
+    /// same call, so no light frame is ever rendered.</summary>
+    private void ApplyThemeToFrame()
+    {
+        RootGrid.RequestedTheme = ElementTheme.Light;
+        RootGrid.RequestedTheme = ElementTheme.Dark;
+        ReloadCurrentPage();
     }
 
     /// <summary>Re-creates the current page so it picks up a newly applied
