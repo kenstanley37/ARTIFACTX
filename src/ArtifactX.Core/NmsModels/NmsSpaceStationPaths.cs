@@ -142,6 +142,24 @@ public static class NmsSpaceStationPaths
         | ((ulong)(uint)(z & 0xFFF) << 12)
         | (ulong)(uint)(x & 0xFFF);
 
+    /// <summary>Discovery records (fDu/ETO/OsQ/?fB): each entry's 8P3.5L6 is a
+    /// packed address, 8P3.&lt;Dn its type (SolarSystem/Planet/Animal/...),
+    /// ksu.3I1 the discovery time and ksu.V?: the discoverer's name.</summary>
+    public static readonly string[] DiscoveriesPath = { "fDu", "ETO", "OsQ", "?fB" };
+
+    /// <summary>1-based galaxy number, as the game counts them (Euclid = 1).
+    /// Only galaxies 1-10 have names in the game's text files (catalog items
+    /// GALAXY_1..GALAXY_10, see DataCataloger add-station-assets); the rest
+    /// are named by the game at runtime, so ArtifactX shows "Galaxy N".</summary>
+    public static int GalaxyNumber(ulong address) => (int)((address >> 32) & 0xFF) + 1;
+
+    /// <summary>12-glyph portal address as hex digits: P SSS YY ZZZ XXX. The
+    /// coordinate digits are the address's own stored bits (portal X equals
+    /// galactic X + 0x801, which wraps back to the raw 12-bit value).</summary>
+    public static string PortalAddress(ulong address, int planet = 1) =>
+        string.Create(CultureInfo.InvariantCulture,
+            $"{planet & 0xF:X1}{(address >> 40) & 0xFFF:X3}{(address >> 24) & 0xFF:X2}{(address >> 12) & 0xFFF:X3}{address & 0xFFF:X3}");
+
     /// <summary>Drops the planet nibble so any address in a system compares
     /// equal to that system's ^SYSTEM_STATS key.</summary>
     public static ulong ToSystemAddress(ulong address) => address & ~(0xFUL << 52);
