@@ -37,7 +37,8 @@ namespace ArtifactX.Core.NmsModels;
 /// standing 30, %FACTIONNAME% guild standing 15, salvage contracts 5, and a
 /// 1,000,000,000 Units "donation". Which race and guild a system uses isn't
 /// stored in the save (CONFIRMED to vary: Asbesla = Gek + Mercenaries, Higashi
-/// = Vy'keen + Explorers), so claiming raises all three races and guilds.
+/// = Vy'keen + Explorers, Africa = Vy'keen + Merchants), so claiming raises
+/// all three races and guilds.
 /// </summary>
 public static class NmsSpaceStationPaths
 {
