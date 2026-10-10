@@ -1,4 +1,5 @@
 using Microsoft.UI.Text;
+using ArtifactX.WinUI3.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -54,15 +55,9 @@ public sealed partial class ExocraftPage : Page
                     Text = ExocraftCapacity.DisplayName(type),
                     FontWeight = isCurrent ? FontWeights.Bold : FontWeights.Normal
                 },
-                Padding = new Thickness(16, 6, 16, 6),
-                BorderThickness = new Thickness(isCurrent ? 2 : 1),
-                BorderBrush = new SolidColorBrush(isCurrent
-                    ? Color.FromArgb(255, 255, 157, 0)
-                    : Color.FromArgb(255, 90, 98, 112)),
-                Background = new SolidColorBrush(isCurrent
-                    ? Color.FromArgb(60, 255, 157, 0)
-                    : Color.FromArgb(20, 255, 255, 255))
+                Padding = new Thickness(16, 6, 16, 6)
             };
+            ThemeResources.StyleChoiceButton(button, isCurrent);
 
             button.Click += TabButton_Click;
             TabPanel.Children.Add(button);

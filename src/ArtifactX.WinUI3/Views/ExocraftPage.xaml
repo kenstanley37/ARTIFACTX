@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). -->
 <Page
     x:Class="ArtifactX.WinUI3.Views.ExocraftPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -16,26 +17,31 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Padding="24,24,24,0" Spacing="16">
-            <TextBlock Text="Exocraft" FontSize="26" FontWeight="Bold"/>
-            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="820"
-                       Text="All 7 exocraft slots always exist in a save, whether or not you've built that vehicle yet - pick one below to edit its Technology, Cargo, and paint Seed."/>
+        <StackPanel Grid.Row="0" Padding="28,26,28,0" Spacing="22">
+            <TextBlock Text="EXOCRAFT" Style="{StaticResource ThemePageTitleStyle}"/>
 
-            <!-- Tab strip - built in code from ExocraftType, same pill-button
-                 visual language as the Class selectors on Ships/Freighter
-                 (Border+TextBlock, bold/accent-highlighted when active). -->
-            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" HorizontalScrollMode="Auto">
-                <ctcontrols:WrapPanel x:Name="TabPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
-            </ScrollViewer>
+            <!-- Vehicle picker - built in code from ExocraftType, same choice-button
+                 style as the ship/tool pickers. All 7 slots always exist in a save,
+                 built or not. -->
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="VEHICLES" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <StackPanel Padding="18,14,18,16" Spacing="10">
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                   Text="All 7 exocraft exist in every save, whether or not you've built them yet. Pick one to edit its Technology, Cargo and paint Seed."/>
+                        <ctcontrols:WrapPanel x:Name="TabPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
         </StackPanel>
 
         <!-- One ExocraftDetailControl at a time lives here - swapped (not
              all 7 pre-built) so switching tabs doesn't eagerly load every
-             vehicle's Tech/Cargo grids up front, matching the perf lesson
-             from project_perf_gc_tuning (CataloguePage's synchronous-build
-             sluggishness). The outgoing control's Unloaded event fires when
-             it's removed from ContentHost.Children, cleanly unsubscribing
-             its SaveSessionManager handlers before the new one is added. -->
-        <Grid Grid.Row="1" x:Name="ContentHost" Padding="0,20,0,0"/>
+             vehicle's Tech/Cargo grids up front (project_perf_gc_tuning).
+             The outgoing control's Unloaded event fires when it's removed
+             from ContentHost.Children, unsubscribing its handlers. -->
+        <Grid Grid.Row="1" x:Name="ContentHost"/>
     </Grid>
 </Page>
