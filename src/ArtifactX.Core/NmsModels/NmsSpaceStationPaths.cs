@@ -147,10 +147,8 @@ public static class NmsSpaceStationPaths
     /// ksu.3I1 the discovery time and ksu.V?: the discoverer's name.</summary>
     public static readonly string[] DiscoveriesPath = { "fDu", "ETO", "OsQ", "?fB" };
 
-    /// <summary>1-based galaxy number, as the game counts them (Euclid = 1).
-    /// Only galaxies 1-10 have names in the game's text files (catalog items
-    /// GALAXY_1..GALAXY_10, see DataCataloger add-station-assets); the rest
-    /// are named by the game at runtime, so ArtifactX shows "Galaxy N".</summary>
+    /// <summary>1-based galaxy number, as the game counts them (Euclid = 1) -
+    /// see NmsGalaxyNames for the matching name.</summary>
     public static int GalaxyNumber(ulong address) => (int)((address >> 32) & 0xFF) + 1;
 
     /// <summary>12-glyph portal address as hex digits: P SSS YY ZZZ XXX. The

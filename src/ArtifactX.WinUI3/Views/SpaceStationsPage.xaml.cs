@@ -38,8 +38,8 @@ public sealed partial class SpaceStationsPage : Page
     private bool _suppressStationSelection;
     private int _detailsVersion;
 
-    // Portal glyph images (PORTALSYMBOL_0..F) and galaxy names (GALAXY_1..10)
-    // come from the catalog DB - see DataCataloger's add-station-assets.
+    // Portal glyph images (PORTALSYMBOL_0..F) come from the catalog DB - see
+    // DataCataloger's add-station-assets. Galaxy names: NmsGalaxyNames.
     private static Task? _stationAssetsWarmup;
 
     // Resolved on every LoadPage. _currentGroupIndex is where the current
@@ -205,8 +205,7 @@ public sealed partial class SpaceStationsPage : Page
 
     private static Task WarmStationAssetsAsync() =>
         _stationAssetsWarmup ??= CatalogService.WarmCacheAsync(
-            Enumerable.Range(0, 16).Select(d => $"PORTALSYMBOL_{d:X}")
-                .Concat(Enumerable.Range(1, 10).Select(n => $"GALAXY_{n}")));
+            Enumerable.Range(0, 16).Select(d => $"PORTALSYMBOL_{d:X}"));
 
     private async Task ShowStationDetailsAsync(OwnedStation station)
     {
@@ -221,7 +220,7 @@ public sealed partial class SpaceStationsPage : Page
         catch (Exception)
         {
             // Don't cache a failed lookup forever - retry on the next selection.
-            // Glyphs/galaxy name fall back to plain text below meanwhile.
+            // Glyphs fall back to the plain portal code meanwhile.
             _stationAssetsWarmup = null;
         }
         if (version != _detailsVersion) return; // a newer selection won
@@ -233,7 +232,7 @@ public sealed partial class SpaceStationsPage : Page
         int galaxy = S.GalaxyNumber(address);
         AddFactSection("Location", new[]
         {
-            ("Galaxy", CatalogService.TryGet($"GALAXY_{galaxy}")?.DisplayName is string galaxyName
+            ("Galaxy", NmsGalaxyNames.ForNumber(galaxy) is string galaxyName
                 ? $"{galaxyName} (Galaxy {galaxy})"
                 : $"Galaxy {galaxy}"),
         });
