@@ -73,7 +73,7 @@
                      original account-wide unlock list, previously reachable by
                      clicking "Account Data" itself) is now its own explicit child
                      alongside Guide, both equally-weighted subpages. -->
-                <NavigationViewItem x:Name="AccountDataNavItem" Content="Account Data" SelectsOnInvoked="False" IsExpanded="True" Visibility="Collapsed">
+                <NavigationViewItem x:Name="AccountDataNavItem" Content="Account Data" SelectsOnInvoked="False" IsExpanded="False" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE77B;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
@@ -204,7 +204,7 @@
                      restructure as Account Data's own Catalog/Guide split. Atlas
                      isn't a race, just a smaller special vocabulary pool sharing
                      the same save array - see NmsLanguagePaths. -->
-                <NavigationViewItem x:Name="MilestonesNavItem" Content="Milestones" SelectsOnInvoked="False" IsExpanded="True" Visibility="Collapsed">
+                <NavigationViewItem x:Name="MilestonesNavItem" Content="Milestones" SelectsOnInvoked="False" IsExpanded="False" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
                         <PathIcon x:Name="MilestonesPathIcon"/>
                     </NavigationViewItem.Icon>
@@ -256,7 +256,7 @@
                      constructor (#if !DEBUG), never shown to a real end user. -->
                 <NavigationViewItemSeparator x:Name="StructuralAnalysisSeparator"/>
 
-                <NavigationViewItem x:Name="StructuralAnalysisNavItem" Content="Structural Analysis" SelectsOnInvoked="False" IsExpanded="True">
+                <NavigationViewItem x:Name="StructuralAnalysisNavItem" Content="Structural Analysis" SelectsOnInvoked="False" IsExpanded="False">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE946;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
