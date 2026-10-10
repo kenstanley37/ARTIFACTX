@@ -127,7 +127,9 @@ public sealed partial class InventorySlotGrid : UserControl
                     VerticalAlignment = VerticalAlignment.Top,
                     Child = new TextBlock
                     {
-                        Text = entry?.DisplayName ?? cell.ShortLabel,
+                        // Upper-cased like the game's own slot labels - some catalog rows only
+                        // have the mixed-case NameLower ("Thermal Protection").
+                        Text = (entry?.DisplayName ?? cell.ShortLabel).ToUpperInvariant(),
                         FontFamily = (FontFamily)Application.Current.Resources["ThemeBodyFont"],
                         FontSize = 8,
                         TextWrapping = TextWrapping.Wrap,
