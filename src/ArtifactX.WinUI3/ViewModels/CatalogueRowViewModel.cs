@@ -23,6 +23,10 @@ public partial class CatalogueRowViewModel : ObservableObject
     /// grids by.</summary>
     public string? UsageCategory { get; init; }
 
+    /// <summary>Damaged-slot placeholder (Hull Fracture etc.) - drawn red, like
+    /// in-game, and skipped by "Mark All Known" so it can't be re-taught.</summary>
+    public bool IsBrokenSlotTech { get; init; }
+
     [ObservableProperty]
     private bool isKnown;
 

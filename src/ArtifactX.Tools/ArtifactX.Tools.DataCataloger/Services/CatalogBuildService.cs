@@ -971,6 +971,7 @@ public class CatalogBuildService
                                 WikiCategoryGroupNames.TryGetValue(row.WikiCategory, out var g) => g,
                             _ => null
                         },
+                        IsBrokenSlotTech = row.IsBrokenSlotTech,
                     };
 
                     foreach (var (sourceField, texturePath) in row.Icons)

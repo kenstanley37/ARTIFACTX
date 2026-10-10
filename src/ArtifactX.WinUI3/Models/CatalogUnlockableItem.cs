@@ -29,4 +29,9 @@ public sealed class CatalogUnlockableItem
     /// rows whose own WikiCategory is "NotEnabled", i.e. not shown on the
     /// in-game Guide/Catalog screen at all).</summary>
     public string? CatalogGroup { get; init; }
+
+    /// <summary>The game's own "BrokenSlotTech" flag (damaged-slot placeholders
+    /// like Hull Fracture, drawn red in-game) - see the DataCataloger
+    /// add-broken-tech-flag command. Never legitimately learned.</summary>
+    public bool IsBrokenSlotTech { get; init; }
 }

@@ -64,5 +64,13 @@ public class CatalogItem
     /// directly - only a "WikiEnabled" bool each). Null for every other row type.</summary>
     public string? CatalogGroup { get; set; }
 
+    /// <summary>GcTechnology's own "BrokenSlotTech" flag - the game's damaged-slot
+    /// placeholders (Hull Fracture, Short Circuit, etc., 36 rows as of 2026-10-10)
+    /// that only exist pre-installed on crashed ships/broken Multi-Tools and are
+    /// drawn red in-game. Never legitimately learned; a save that "knows" them
+    /// shows them as useless red entries in the Install Technology menu.
+    /// False for every non-GcTechnology row.</summary>
+    public bool IsBrokenSlotTech { get; set; }
+
     public List<IconAsset> Icons { get; set; } = new();
 }

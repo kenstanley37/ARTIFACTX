@@ -761,7 +761,7 @@ public static class CatalogService
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT i.GameId, COALESCE(i.NameEnglish, i.NameLowerEnglish) AS DisplayName, c.TemplateType, i.UsageCategory, i.CatalogGroup
+            SELECT i.GameId, COALESCE(i.NameEnglish, i.NameLowerEnglish) AS DisplayName, c.TemplateType, i.UsageCategory, i.CatalogGroup, i.IsBrokenSlotTech
             FROM Items i
             JOIN Categories c ON c.Id = i.CategoryId
             WHERE c.TemplateType IN ('GcProductTable','GcSubstanceTable','GcTechnologyTable','GcProceduralTechnologyTable')
@@ -778,7 +778,8 @@ public static class CatalogService
                 DisplayName = reader.GetString(1),
                 CategoryLabel = ElvLabelFor(reader.GetString(2)),
                 UsageCategory = reader.IsDBNull(3) ? null : reader.GetString(3),
-                CatalogGroup = reader.IsDBNull(4) ? null : reader.GetString(4)
+                CatalogGroup = reader.IsDBNull(4) ? null : reader.GetString(4),
+                IsBrokenSlotTech = reader.GetBoolean(5)
             });
         }
         return results;
