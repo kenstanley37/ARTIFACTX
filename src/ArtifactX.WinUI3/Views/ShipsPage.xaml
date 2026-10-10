@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml): every card, band, label and
+     colour comes from the active theme's Theme* keys. -->
 <Page
     x:Class="ArtifactX.WinUI3.Views.ShipsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -11,26 +13,18 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <ScrollViewer>
-        <StackPanel Padding="24" Spacing="20" HorizontalAlignment="Stretch">
+        <StackPanel Padding="28,26,28,40" Spacing="22" HorizontalAlignment="Stretch">
 
             <!-- ONE Grid for the whole page body (title row + a single tall
                  content row) rather than two stacked Grids - a real gap bug
                  (2026-08-01) showed up between the selector and "Technology"
                  once the Templates panel grew a 2nd section (Full Build) and
-                 got taller than the title+selector column: with title+
-                 selector+Templates in their own separate Grid ABOVE this one,
-                 that Grid's own outer height was forced to match whichever
-                 column was taller (Templates), pushing this WHOLE next Grid
-                 down by the difference even though the selector's own visible
-                 content ended much higher up. Fix (same root cause/fix as
-                 CompanionsPage's Arena League gap): put every left-column
-                 element (selector, Technology, Cargo) in ONE StackPanel and
-                 every right-column element (Templates, Name/Class/Seed/Stats)
-                 in another, both in the SAME Grid row - so the row's height
-                 is driven by column 0 (always the taller side), and column 1
-                 just renders top-aligned within it with no effect on
-                 anything after it, since this is the Grid's last row. -->
-            <Grid x:Name="HeaderGrid" ColumnSpacing="24" RowSpacing="20">
+                 got taller than the title+selector column. Every left-column
+                 element (selector, Technology, Cargo) lives in ONE StackPanel and
+                 every right-column element (Templates, Ship Details) in another,
+                 both in the SAME Grid row - so the row's height is driven by
+                 column 0, and column 1 renders top-aligned within it. -->
+            <Grid x:Name="HeaderGrid" ColumnSpacing="24" RowSpacing="22">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" MinWidth="320"/>
                     <ColumnDefinition Width="Auto"/>
@@ -41,180 +35,188 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Reset button pinned far right of THIS row (not tied to
-                     either column below), styled to stand out as a
-                     destructive action - its own row so it appearing/
-                     disappearing never shifts the selector or Templates. -->
+                <!-- Reset button pinned far right of THIS row, in its own row so it
+                     appearing/disappearing never shifts the cards below. -->
                 <Grid Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Starships" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="0" Text="STARSHIPS" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
                     <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Starship Changes" Click="PageResetBtn_Click"
                             Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
                 </Grid>
 
-                <StackPanel Grid.Row="1" Grid.Column="0" Spacing="20">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="Owned Starships" FontSize="14" Opacity="0.8"/>
-                        <!-- Same bounded/scrollable pattern as Multi-Tool's selector - a save
-                             with many ships stays just as usable as one with a couple. -->
-                        <ScrollViewer MaxHeight="104" VerticalScrollBarVisibility="Auto"
-                                      HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-                            <ctcontrols:WrapPanel x:Name="ShipSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
-                        </ScrollViewer>
-                    </StackPanel>
-
-                    <StackPanel Spacing="8">
-                        <TextBlock x:Name="TechHeaderTxt" Text="Technology" FontSize="18" FontWeight="SemiBold"/>
-                        <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
-                            <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
-                            <Button Content="Supercharge All Slots" Click="SuperchargeAllTech_Click"/>
-                            <Button Content="Repair All Slots" Click="RepairAllTech_Click"/>
-                            <Button Content="Copy Tech Stack..." Click="CopyTechStackBtn_Click"/>
-                        </ctcontrols:WrapPanel>
-                    </StackPanel>
-
-                    <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                            CornerRadius="6" HorizontalAlignment="Left" Opacity="0.9">
-                        <Grid>
-                            <ScrollViewer x:Name="TechScrollViewer" Padding="8,32,8,8" MaxHeight="232" VerticalScrollBarVisibility="Auto"
-                                          HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
-                                <controls:InventorySlotGrid x:Name="TechGrid"/>
+                <StackPanel Grid.Row="1" Grid.Column="0" Spacing="22">
+                    <Border Style="{StaticResource ThemeCardStyle}">
+                        <StackPanel>
+                            <Border Style="{StaticResource ThemeBandStyle}">
+                                <TextBlock Text="OWNED STARSHIPS" Style="{StaticResource ThemeBandTextStyle}"/>
+                            </Border>
+                            <!-- Bounded/scrollable so a save with many ships stays usable. -->
+                            <ScrollViewer MaxHeight="120" Padding="18,14,18,16" VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+                                <ctcontrols:WrapPanel x:Name="ShipSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
                             </ScrollViewer>
-                            <Button x:Name="TechExpandBtn" Click="TechExpandBtn_Click"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"
-                                    Padding="6" Background="Transparent" BorderThickness="0"
-                                    ToolTipService.ToolTip="Expand">
-                                <FontIcon x:Name="TechExpandIcon" Glyph="&#xE70D;" FontSize="12"/>
-                            </Button>
-                        </Grid>
+                        </StackPanel>
                     </Border>
 
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="Cargo" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        <Button Content="Unlock All Slots" Click="UnlockAllCargo_Click"/>
-                        <Button Content="Max All Qty" Click="MaxAllQtyCargo_Click"/>
-                    </StackPanel>
-                    <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                            CornerRadius="6" HorizontalAlignment="Left" Opacity="0.9">
-                        <Grid>
-                            <ScrollViewer x:Name="CargoScrollViewer" Padding="8,32,8,8" MaxHeight="368" VerticalScrollBarVisibility="Auto"
-                                          HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
-                                <controls:InventorySlotGrid x:Name="CargoGrid"/>
-                            </ScrollViewer>
-                            <Button x:Name="CargoExpandBtn" Click="CargoExpandBtn_Click"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"
-                                    Padding="6" Background="Transparent" BorderThickness="0"
-                                    ToolTipService.ToolTip="Expand">
-                                <FontIcon x:Name="CargoExpandIcon" Glyph="&#xE70D;" FontSize="12"/>
-                            </Button>
-                        </Grid>
-                    </Border>
-                </StackPanel>
-
-                <!-- SidebarPanel is one named unit (Templates + Name/Class/Seed/
-                     Stats together) so the narrow-mode VisualState below can
-                     move the whole thing to its own full-width row at once,
-                     same trick TemplatesBorder alone used before this file's
-                     gap fix merged the two side panels into one column. -->
-                <StackPanel x:Name="SidebarPanel" Grid.Row="1" Grid.Column="1" Spacing="20" VerticalAlignment="Top">
-                    <Border x:Name="TemplatesBorder"
-                            BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                            CornerRadius="8" Padding="16" Opacity="0.9" Width="300">
-                        <StackPanel Spacing="18">
-                            <!-- Two separate domains on purpose - a Tech Stack template never
-                                 touches Stats/Seed/Cargo/Name, a Full Build template also
-                                 carries Stats + Seed (still never Cargo/Name/equip state).
-                                 Kept as two clearly separate lists rather than one merged list
-                                 with a type tag, so it's obvious at a glance what a given
-                                 template will and won't touch before applying it. -->
-                            <StackPanel Spacing="10">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="Tech Stack Templates" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <Button Content="Save Current..." Click="SaveAsTemplateBtn_Click" FontSize="11" Padding="8,3,8,3"/>
-                                </StackPanel>
-                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                           Text="Apply replaces the currently selected ship's tech with this template. Never touches Stats, Seed, Cargo, or Class unless you opt in."/>
-                                <StackPanel x:Name="TemplatesListPanel" Spacing="8"/>
-                            </StackPanel>
-
-                            <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="0,1,0,0" Opacity="0.5"/>
-
-                            <StackPanel Spacing="10">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="Full Build Templates" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <Button Content="Save Current..." Click="SaveAsFullBuildTemplateBtn_Click" FontSize="11" Padding="8,3,8,3"/>
-                                </StackPanel>
-                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                           Text="Also captures Base Stats, Type, and the appearance Seed alongside the tech stack - for cloning a whole build (including which ship model it is, e.g. a reward ship) onto another ship. Still never touches Cargo or Name."/>
-                                <StackPanel x:Name="FullBuildTemplatesListPanel" Spacing="8"/>
+                    <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left">
+                        <StackPanel>
+                            <Border Style="{StaticResource ThemeBandStyle}">
+                                <TextBlock x:Name="TechHeaderTxt" Text="TECHNOLOGY" Style="{StaticResource ThemeBandTextStyle}"/>
+                            </Border>
+                            <StackPanel Padding="14,12,14,14" Spacing="10">
+                                <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
+                                    <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
+                                    <Button Content="Supercharge All Slots" Click="SuperchargeAllTech_Click"/>
+                                    <Button Content="Repair All Slots" Click="RepairAllTech_Click"/>
+                                    <Button Content="Copy Tech Stack..." Click="CopyTechStackBtn_Click"/>
+                                </ctcontrols:WrapPanel>
+                                <Grid>
+                                    <ScrollViewer x:Name="TechScrollViewer" Padding="0,28,0,0" MaxHeight="232" VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
+                                        <controls:InventorySlotGrid x:Name="TechGrid"/>
+                                    </ScrollViewer>
+                                    <Button x:Name="TechExpandBtn" Click="TechExpandBtn_Click"
+                                            HorizontalAlignment="Right" VerticalAlignment="Top"
+                                            Padding="6" Background="Transparent" BorderThickness="0"
+                                            ToolTipService.ToolTip="Expand">
+                                        <FontIcon x:Name="TechExpandIcon" Glyph="&#xE70D;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                    </Button>
+                                </Grid>
                             </StackPanel>
                         </StackPanel>
                     </Border>
 
-                    <!-- Name/Class/Base Stats - used to be aligned level with the
-                         Tech GRID border specifically via its own Grid row; now
-                         just stacks under Templates instead, simpler and close
-                         enough visually, and it no longer needs to solve the
-                         gap problem the old split existed for. -->
-                    <Border x:Name="ShipInfoBorder" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                            CornerRadius="8" Padding="16" Opacity="0.9" Width="300">
-                        <StackPanel Spacing="14">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Name" FontSize="12" Opacity="0.7"/>
-                                <TextBox x:Name="NameEditBox" Width="260" LostFocus="NameEditBox_LostFocus"/>
-                            </StackPanel>
-
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Class" Opacity="0.7" VerticalAlignment="Center"/>
-                                <StackPanel x:Name="ClassSelectorPanel" Orientation="Horizontal" Spacing="6"/>
-                            </StackPanel>
-
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Type" FontSize="12" Opacity="0.7"/>
-                                <ComboBox x:Name="TypeComboBox" Width="260"
-                                          DisplayMemberPath="DisplayName"
-                                          SelectionChanged="TypeComboBox_SelectionChanged"
-                                          ToolTipService.ToolTip="8 standard archetypes plus 8 reward-ship entries - only Horizon Vector NX and Starborn Phoenix are still inferred rather than save-confirmed. See StarshipTypes for details."/>
-                            </StackPanel>
-
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Seed" FontSize="12" Opacity="0.7"/>
-                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                           Text="Drives this ship's procedural look, alongside its Class/model. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
+                    <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left">
+                        <StackPanel>
+                            <Border Style="{StaticResource ThemeBandStyle}">
+                                <TextBlock Text="CARGO" Style="{StaticResource ThemeBandTextStyle}"/>
+                            </Border>
+                            <StackPanel Padding="14,12,14,14" Spacing="10">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBox x:Name="SeedEditBox" Width="185" LostFocus="SeedEditBox_LostFocus"/>
-                                    <Button Content="Generate" Click="GenerateSeedBtn_Click"/>
+                                    <Button Content="Unlock All Slots" Click="UnlockAllCargo_Click"/>
+                                    <Button Content="Max All Qty" Click="MaxAllQtyCargo_Click"/>
+                                </StackPanel>
+                                <Grid>
+                                    <ScrollViewer x:Name="CargoScrollViewer" Padding="0,28,0,0" MaxHeight="368" VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
+                                        <controls:InventorySlotGrid x:Name="CargoGrid"/>
+                                    </ScrollViewer>
+                                    <Button x:Name="CargoExpandBtn" Click="CargoExpandBtn_Click"
+                                            HorizontalAlignment="Right" VerticalAlignment="Top"
+                                            Padding="6" Background="Transparent" BorderThickness="0"
+                                            ToolTipService.ToolTip="Expand">
+                                        <FontIcon x:Name="CargoExpandIcon" Glyph="&#xE70D;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- SidebarPanel is one named unit (Templates + Ship Details) so the
+                     narrow-mode VisualState below can move it to its own row at once. -->
+                <StackPanel x:Name="SidebarPanel" Grid.Row="1" Grid.Column="1" Spacing="22" VerticalAlignment="Top">
+                    <Border x:Name="TemplatesBorder" Style="{StaticResource ThemeCardStyle}" Width="320">
+                        <StackPanel>
+                            <Border Style="{StaticResource ThemeBandStyle}">
+                                <TextBlock Text="TEMPLATES" Style="{StaticResource ThemeBandTextStyle}"/>
+                            </Border>
+                            <!-- Two separate domains on purpose - a Tech Stack template never
+                                 touches Stats/Seed/Cargo/Name, a Full Build template also
+                                 carries Stats + Seed (still never Cargo/Name/equip state). -->
+                            <StackPanel Padding="18,14,18,18" Spacing="18">
+                                <StackPanel Spacing="8">
+                                    <Grid>
+                                        <TextBlock Text="TECH STACK" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
+                                        <Button Content="Save Current..." Click="SaveAsTemplateBtn_Click" FontSize="11" Padding="8,3,8,3" HorizontalAlignment="Right"/>
+                                    </Grid>
+                                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                               Text="Apply replaces the selected ship's tech with this template. Never touches Stats, Seed, Cargo, or Class unless you opt in."/>
+                                    <StackPanel x:Name="TemplatesListPanel" Spacing="8"/>
+                                </StackPanel>
+
+                                <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="0,1,0,0"/>
+
+                                <StackPanel Spacing="8">
+                                    <Grid>
+                                        <TextBlock Text="FULL BUILD" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
+                                        <Button Content="Save Current..." Click="SaveAsFullBuildTemplateBtn_Click" FontSize="11" Padding="8,3,8,3" HorizontalAlignment="Right"/>
+                                    </Grid>
+                                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                               Text="Also captures Base Stats, Type, and the appearance Seed - for cloning a whole build (including the ship model, e.g. a reward ship) onto another ship. Never touches Cargo or Name."/>
+                                    <StackPanel x:Name="FullBuildTemplatesListPanel" Spacing="8"/>
                                 </StackPanel>
                             </StackPanel>
+                        </StackPanel>
+                    </Border>
 
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Base Stats" FontSize="12" Opacity="0.7"/>
-                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                                           Text="These are the ship's own rolled bonus stats - changing Class above does not change them by itself. No known upper limit; extreme values won't corrupt your save, just unbalance it."/>
-                                <Grid ColumnSpacing="8" RowSpacing="6">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="140"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Damage" VerticalAlignment="Center"/>
-                                    <NumberBox Grid.Row="0" Grid.Column="1" x:Name="DamageStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="DamageStatBox_ValueChanged" LostFocus="DamageStatBox_LostFocus"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Shield" VerticalAlignment="Center"/>
-                                    <NumberBox Grid.Row="1" Grid.Column="1" x:Name="ShieldStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="ShieldStatBox_ValueChanged" LostFocus="ShieldStatBox_LostFocus"/>
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Hyperdrive" VerticalAlignment="Center"/>
-                                    <NumberBox Grid.Row="2" Grid.Column="1" x:Name="HyperdriveStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="HyperdriveStatBox_ValueChanged" LostFocus="HyperdriveStatBox_LostFocus"/>
-                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Maneuverability" VerticalAlignment="Center"/>
-                                    <NumberBox Grid.Row="3" Grid.Column="1" x:Name="AgileStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="AgileStatBox_ValueChanged" LostFocus="AgileStatBox_LostFocus"/>
-                                </Grid>
+                    <Border x:Name="ShipInfoBorder" Style="{StaticResource ThemeCardStyle}" Width="320">
+                        <StackPanel>
+                            <Border Style="{StaticResource ThemeBandStyle}">
+                                <TextBlock Text="SHIP DETAILS" Style="{StaticResource ThemeBandTextStyle}"/>
+                            </Border>
+                            <StackPanel Padding="18,14,18,18" Spacing="16">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <TextBox x:Name="NameEditBox" LostFocus="NameEditBox_LostFocus"/>
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <StackPanel x:Name="ClassSelectorPanel" Orientation="Horizontal" Spacing="6"/>
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <ComboBox x:Name="TypeComboBox" HorizontalAlignment="Stretch"
+                                              DisplayMemberPath="DisplayName"
+                                              SelectionChanged="TypeComboBox_SelectionChanged"
+                                              ToolTipService.ToolTip="The ship's model. Changing it swaps the hull you fly in-game."/>
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                               Text="Drives this ship's procedural look, alongside its Class and model. Paste a seed you've found elsewhere, or Generate a new random look - you'll see it next time you load the game."/>
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="SeedEditBox" LostFocus="SeedEditBox_LostFocus"/>
+                                        <Button Grid.Column="1" Content="Generate" Click="GenerateSeedBtn_Click"/>
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                               Text="The ship's own rolled bonus stats - changing Class doesn't change them by itself. No known upper limit; extreme values won't corrupt your save, just unbalance it."/>
+                                    <Grid ColumnSpacing="10" RowSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="140"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Damage" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
+                                        <NumberBox Grid.Row="0" Grid.Column="1" x:Name="DamageStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="DamageStatBox_ValueChanged" LostFocus="DamageStatBox_LostFocus"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Shield" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
+                                        <NumberBox Grid.Row="1" Grid.Column="1" x:Name="ShieldStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="ShieldStatBox_ValueChanged" LostFocus="ShieldStatBox_LostFocus"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Hyperdrive" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
+                                        <NumberBox Grid.Row="2" Grid.Column="1" x:Name="HyperdriveStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="HyperdriveStatBox_ValueChanged" LostFocus="HyperdriveStatBox_LostFocus"/>
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Maneuverability" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
+                                        <NumberBox Grid.Row="3" Grid.Column="1" x:Name="AgileStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="AgileStatBox_ValueChanged" LostFocus="AgileStatBox_LostFocus"/>
+                                    </Grid>
+                                </StackPanel>
                             </StackPanel>
                         </StackPanel>
                     </Border>

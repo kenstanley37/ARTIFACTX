@@ -17,6 +17,9 @@
     <SolidColorBrush x:Key="ThemeTextFaintBrush" Color="#6E6982"/>
     <SolidColorBrush x:Key="ThemeOnAccentBrush" Color="#04050B"/>
     <SolidColorBrush x:Key="ThemeBandTextBrush" Color="#FFC62E"/>
+    <!-- Fill behind a selected choice button (ship picker, Class S/A/B/C...). -->
+    <SolidColorBrush x:Key="ThemeSelectedFillBrush" Color="#33FFC62E"/>
+    <SolidColorBrush x:Key="ThemeWarningBrush" Color="#FFB454"/>
     <SolidColorBrush x:Key="ThemeTrackBrush" Color="#1AECEAF2"/>
 
     <LinearGradientBrush x:Key="ThemeBandBrush" StartPoint="0,0" EndPoint="1,0">
