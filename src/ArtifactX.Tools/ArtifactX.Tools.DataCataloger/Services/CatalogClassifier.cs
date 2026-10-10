@@ -55,6 +55,11 @@ public class ClassifiedRow
     /// <summary>GcTechnology's "BrokenSlotTech" bool - see CatalogItem.IsBrokenSlotTech.</summary>
     public bool IsBrokenSlotTech { get; set; }
 
+    /// <summary>The row's raw "Group" string (a loc key on procedural upgrade
+    /// modules, e.g. "BIGGS_INVENTORY" = "cargo systems"). Used by
+    /// CatalogBuildService only as a last-resort name.</summary>
+    public string? GroupLocKey { get; set; }
+
     /// <summary>(field name on the row, e.g. "Icon"/"HeroIcon", DDS/PNG path referenced)</summary>
     public List<(string SourceField, string TexturePath)> Icons { get; set; } = new();
 }
@@ -171,6 +176,10 @@ public static class CatalogClassifier
             else if (fieldName == "template")
             {
                 template ??= value;
+            }
+            else if (fieldName == "group")
+            {
+                row.GroupLocKey ??= value;
             }
         }
 

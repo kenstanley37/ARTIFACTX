@@ -974,6 +974,19 @@ public class CatalogBuildService
                         IsBrokenSlotTech = row.IsBrokenSlotTech,
                     };
 
+                    // Some Corvette upgrade modules (CV_FIT*/CV_INV*/CV_SCI*/CV_TRA*)
+                    // point at name keys the game never defines (UT_CR_FIGHT_NAME...),
+                    // so they'd be dropped and show raw ids. Their Group key does
+                    // resolve ("BIGGS_INVENTORY" = "cargo systems") and is what the
+                    // module is "linked to" in the game's own text - use it, title-cased.
+                    if (rowType.Name == "GcProceduralTechnologyData"
+                        && item.NameEnglish is null && item.NameLowerEnglish is null
+                        && row.GroupLocKey != null && englishLookup.TryGetValue(row.GroupLocKey, out var groupName)
+                        && !string.IsNullOrWhiteSpace(groupName))
+                    {
+                        item.NameLowerEnglish = System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(groupName.Trim());
+                    }
+
                     foreach (var (sourceField, texturePath) in row.Icons)
                     {
                         if (!iconBlobCache.TryGetValue(texturePath, out var blob))
