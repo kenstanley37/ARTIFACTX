@@ -186,6 +186,12 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
+                <NavigationViewItem x:Name="SpaceStationsNavItem" Content="Space Stations" Tag="SpaceStations" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="SpaceStationsPathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
                 <!-- Pure folder (SelectsOnInvoked="False", no Tag) - same pattern as
                      Account Data/Structural Analysis, NOT the old hybrid (parent
                      navigated AND toggled at once). User feedback 2026-08-13: "move
