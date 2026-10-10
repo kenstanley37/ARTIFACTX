@@ -31,8 +31,8 @@
             <SolidColorBrush x:Key="NmsTextSecondary" Color="#8A96A8" />
             <SolidColorBrush x:Key="NmsDangerBrush" Color="#C42B1C" />
 
-            <StaticResource x:Key="NavigationViewTopPaneBackground" ResourceKey="NmsPaneBackgroundBrush" />
-            <StaticResource x:Key="NavigationViewDefaultPaneBackground" ResourceKey="NmsPaneBackgroundBrush" />
+            <!-- NavigationView pane backgrounds come from the active theme
+                 (Themes/*.xaml) - don't redefine them here, root keys would win. -->
 
             <!-- Every page's "Reset X Changes" button uses this - a plain
                  default-styled button blended into the background too easily,
