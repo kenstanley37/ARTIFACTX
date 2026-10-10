@@ -2,6 +2,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using ArtifactX.WinUI3.Services;
 using Velopack;
 
 // To learn more about WinUI, the WinUI project structure,
@@ -46,7 +47,7 @@ public partial class App : Application
         //await ArtifactX.Data.DatabaseInitializer.InitializeAsync();
 
         DeleteWorkingFolder();
-
+        ThemeService.ApplySaved();
 
         _window = new MainWindow();
         MainWindowInstance = (MainWindow)_window;

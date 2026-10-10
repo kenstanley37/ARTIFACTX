@@ -69,6 +69,12 @@
         <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0" Spacing="10">
             <TextBlock x:Name="VersionTxt" Text="" FontSize="10" Opacity="0.5" VerticalAlignment="Center"/>
             <TextBlock x:Name="NmsCompatTxt" Text="" FontSize="10" Opacity="0.5" VerticalAlignment="Center"/>
+            <!-- Same slim link style as "Update available" so the info row keeps its
+                 height; opens a menu of ThemeService.Themes. -->
+            <HyperlinkButton x:Name="ThemeBtn" Padding="6,0" Click="ThemeBtn_Click"
+                             ToolTipService.ToolTip="Change the app's look">
+                <TextBlock x:Name="ThemeBtnTxt" FontSize="10" Opacity="0.8"/>
+            </HyperlinkButton>
             <HyperlinkButton x:Name="UpdateAvailableBtn" Padding="6,0" Visibility="Collapsed" Click="UpdateAvailableBtn_Click"
                              ToolTipService.ToolTip="A newer version of ArtifactX is available - click to open the release page">
                 <TextBlock Text="Update available" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource NmsAccentBrush}"/>

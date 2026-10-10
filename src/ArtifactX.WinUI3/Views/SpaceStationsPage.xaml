@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Pilot page for the theme system: every colour, font and corner comes from
+     the active theme's Theme* keys (Themes/*.xaml) via ThemeStyles.xaml, so the
+     same markup renders as Station Core or Galaxy Map. -->
 <Page
     x:Class="ArtifactX.WinUI3.Views.SpaceStationsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -7,144 +10,153 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    Background="{ThemeResource ThemeVoidBrush}">
 
-    <ScrollViewer>
-        <StackPanel Padding="24" Spacing="20">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="Space Stations" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
-                <Button Grid.Column="1" x:Name="PageResetBtn" Content="Reset Station Changes" Click="PageResetBtn_Click"
-                        Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
-            </Grid>
+    <Grid Background="{ThemeResource ThemePageBackdropBrush}">
+        <ScrollViewer>
+            <StackPanel Padding="28,26,28,40" Spacing="22">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="SPACE STATIONS" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" x:Name="PageResetBtn" Content="Reset Station Changes" Click="PageResetBtn_Click"
+                            Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+                </Grid>
 
-            <!-- Same bordered info-card style as Twitch Rewards' "How to Claim"
-                 card (user preferred a card over a noisier banner there). -->
-            <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                    CornerRadius="8" Padding="20" Opacity="0.95">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="How to Claim a Station" FontSize="14" FontWeight="SemiBold"/>
-                    <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}">
-                        <Run Text="1.  In-game, fly to the station you want and dock inside it."/>
-                        <LineBreak/>
-                        <Run Text="2.  While still docked, save the game, then quit to the main menu (or close the game)."/>
-                        <LineBreak/>
-                        <Run Text="3.  Load that save in ArtifactX. The station's name should appear under Current Station below."/>
-                        <LineBreak/>
-                        <Run Text="4.  Press Claim Station, then Save."/>
-                        <LineBreak/>
-                        <Run Text="5.  Load the save in-game. The Station Core now offers Manage Station."/>
-                    </TextBlock>
-                    <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
-                               Text="Claim Station works on the station in the system you saved in and meets every requirement for you. Unlike the in-game takeover, it doesn't charge the 1,000,000,000 Units donation."/>
-                </StackPanel>
-            </Border>
-
-            <!-- Current system's station + its directorship requirements -->
-            <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                    CornerRadius="8" Padding="20" Opacity="0.9">
-                <StackPanel Spacing="18">
-                    <Grid ColumnSpacing="16" RowSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="Current Station" FontSize="12" Opacity="0.7"/>
-                            <TextBlock x:Name="CurrentStationNameTxt" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                            <TextBlock x:Name="CurrentLocationTxt" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}" TextWrapping="Wrap"/>
-                            <TextBlock x:Name="CurrentStatusTxt" FontSize="13" Margin="0,6,0,0" TextWrapping="Wrap"/>
-                        </StackPanel>
-                        <Button Grid.Column="1" x:Name="ClaimStationBtn" Content="Claim Station"
-                                Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Top"
-                                Click="ClaimStationBtn_Click"
-                                ToolTipService.ToolTip="Makes you director of this station: meets the requirements and adds the station to your bases, without charging the Units donation."/>
-                    </Grid>
-
-                    <StackPanel x:Name="RequirementsPanel" Spacing="12">
-                        <TextBlock Text="Directorship Requirements" FontSize="14" FontWeight="SemiBold"/>
-                        <ctcontrols:WrapPanel HorizontalSpacing="40" VerticalSpacing="16">
-                            <StackPanel Spacing="4" MinWidth="180">
-                                <TextBlock Text="Local Race Standing" FontSize="12" Opacity="0.7"/>
-                                <TextBlock x:Name="RaceStandingTxt" FontSize="16"/>
-                            </StackPanel>
-                            <StackPanel Spacing="4" MinWidth="180">
-                                <TextBlock Text="Local Guild Standing" FontSize="12" Opacity="0.7"/>
-                                <TextBlock x:Name="GuildStandingTxt" FontSize="16"/>
-                            </StackPanel>
-                            <StackPanel Spacing="4" MinWidth="180">
-                                <TextBlock Text="Salvage Contracts Completed" FontSize="12" Opacity="0.7"/>
-                                <TextBlock x:Name="ContractsTxt" FontSize="16"/>
-                            </StackPanel>
-                        </ctcontrols:WrapPanel>
-
-                        <TextBlock FontSize="12" Foreground="{ThemeResource NmsTextSecondary}" TextWrapping="Wrap"
-                                   Text="Each station asks for standing with one race and one guild, which the save doesn't record. Claim Station meets the requirement for all of them, so it works for any station."/>
-                    </StackPanel>
-
-                    <!-- Other systems where the player has started earning standing - shown
-                         only when there are any (user asked 2026-10-10 to fold this into the
-                         Current Station card rather than keep a mostly-empty card of its own). -->
-                    <StackPanel x:Name="InProgressSection" Spacing="8" Visibility="Collapsed">
-                        <TextBlock Text="Claims In Progress" FontSize="14" FontWeight="SemiBold"/>
-                        <StackPanel x:Name="InProgressPanel" Spacing="8"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <Grid ColumnSpacing="20">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="360"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-
-                <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                        CornerRadius="8" Padding="20" Opacity="0.9" VerticalAlignment="Top">
-                    <StackPanel Spacing="10">
-                        <TextBlock x:Name="OwnedHeaderTxt" Text="Stations You Direct" FontSize="14" FontWeight="SemiBold"/>
-                        <TextBlock Text="Select a station to see its details." FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"/>
-                        <ListView x:Name="OwnedStationsList" SelectionMode="Single" Margin="-12,0"
-                                  SelectionChanged="OwnedStationsList_SelectionChanged"/>
-                    </StackPanel>
-                </Border>
-
-                <!-- Details for the station selected on the left. Facts are built in
-                     code (ShowStationDetails) since which sections appear depends on
-                     what the save actually holds for that system. -->
-                <Border Grid.Column="1" x:Name="StationDetailsCard" Visibility="Collapsed" VerticalAlignment="Top"
-                        BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1" CornerRadius="8" Padding="20" Opacity="0.95">
-                    <StackPanel Spacing="16">
-                        <StackPanel Spacing="2">
-                            <TextBlock Text="Station Details" FontSize="12" Opacity="0.7"/>
-                            <TextBlock x:Name="DetailNameTxt" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                        </StackPanel>
-                        <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="16">
-                            <StackPanel Spacing="12" Width="384">
-                                <Border Height="216" CornerRadius="6" Background="#1A1F2E">
-                                    <Grid>
-                                        <Image x:Name="DetailScreenshot" Stretch="UniformToFill"/>
-                                        <TextBlock x:Name="DetailNoScreenshotTxt" Text="No screenshot cached for this station"
-                                                   FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Grid>
-                                </Border>
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="Portal Address" FontSize="14" FontWeight="SemiBold"/>
-                                    <Border x:Name="PortalGlyphsBorder" CornerRadius="6" Background="#1A1F2E" Padding="6,8">
-                                        <StackPanel x:Name="PortalGlyphsPanel" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center"/>
+                <!-- Current station: its own screenshot as the backdrop, name on the left,
+                     requirement meters on the right. -->
+                <Border Style="{StaticResource ThemeCardStyle}">
+                    <StackPanel>
+                        <Grid MinHeight="240">
+                            <Image x:Name="HeroShot" Stretch="UniformToFill" Opacity="0.55"/>
+                            <Rectangle Fill="{ThemeResource ThemeHeroOverlayBrush}"/>
+                            <ctcontrols:WrapPanel Padding="26,24" HorizontalSpacing="40" VerticalSpacing="20">
+                                <StackPanel Spacing="6" MinWidth="320" MaxWidth="520">
+                                    <TextBlock Text="CURRENT STATION" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <TextBlock x:Name="CurrentStationNameTxt" Style="{StaticResource ThemeHeadingStyle}"/>
+                                    <TextBlock x:Name="CurrentLocationTxt" Style="{StaticResource ThemeDimTextStyle}"/>
+                                    <Border x:Name="DirectorBadge" Visibility="Collapsed" HorizontalAlignment="Left" Margin="0,10,0,0"
+                                            Background="{ThemeResource ThemeDoneBrush}" Padding="14,7" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                                        <TextBlock Text="◆  YOU ARE THE DIRECTOR" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold"
+                                                   FontSize="12" CharacterSpacing="160" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
                                     </Border>
-                                    <TextBlock Text="Dial at any portal to travel to this system (first glyph = planet 1)."
-                                               FontSize="11" Foreground="{ThemeResource NmsTextSecondary}" TextWrapping="Wrap"/>
+                                    <TextBlock x:Name="CurrentStatusTxt" Style="{StaticResource ThemeDimTextStyle}" Margin="0,6,0,0"/>
+                                    <Button x:Name="ClaimStationBtn" Content="CLAIM STATION" Style="{StaticResource ThemeAccentButtonStyle}"
+                                            Click="ClaimStationBtn_Click" Margin="0,8,0,0"
+                                            ToolTipService.ToolTip="Makes you director of this station: meets the requirements and adds the station to your bases, without charging the Units donation."/>
                                 </StackPanel>
+
+                                <StackPanel x:Name="RequirementsPanel" Spacing="14" MinWidth="320" MaxWidth="460">
+                                    <TextBlock Text="DIRECTORSHIP REQUIREMENTS" Style="{StaticResource ThemeEyebrowStyle}"
+                                               Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                                    <Grid ColumnSpacing="12" RowSpacing="4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="30"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Race: shield -->
+                                        <Path Grid.RowSpan="2" Width="24" Height="24" Stretch="Uniform" Stroke="{ThemeResource ThemeAccentBrush}" StrokeThickness="2"
+                                              Data="M16,3 L27,9 L27,17 C27,23 22,27 16,29 C10,27 5,23 5,17 L5,9 Z"/>
+                                        <TextBlock Grid.Column="1" Text="Local race standing" Style="{StaticResource ThemeBodyTextStyle}"/>
+                                        <TextBlock Grid.Column="2" x:Name="RaceStandingTxt" Style="{StaticResource ThemeNumberStyle}"/>
+                                        <Grid Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" x:Name="RaceBar" Height="6" Margin="0,0,0,10"/>
+
+                                        <!-- Guild: banner -->
+                                        <Path Grid.Row="2" Grid.RowSpan="2" Width="24" Height="24" Stretch="Uniform" Stroke="{ThemeResource ThemeAccentBrush}" StrokeThickness="2"
+                                              Data="M5,6 L27,6 L24,23 L16,29 L8,23 Z M11,12 L21,12 M11,17 L21,17"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="Local guild standing" Style="{StaticResource ThemeBodyTextStyle}"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="2" x:Name="GuildStandingTxt" Style="{StaticResource ThemeNumberStyle}"/>
+                                        <Grid Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" x:Name="GuildBar" Height="6" Margin="0,0,0,10"/>
+
+                                        <!-- Contracts: ringed planet -->
+                                        <Path Grid.Row="4" Grid.RowSpan="2" Width="24" Height="24" Stretch="Uniform" Stroke="{ThemeResource ThemeAccentBrush}" StrokeThickness="2"
+                                              Data="M23,16 A7,7 0 1 1 9,16 A7,7 0 1 1 23,16 Z M2,20 C6,26 26,14 30,12"/>
+                                        <TextBlock Grid.Row="4" Grid.Column="1" Text="Salvage contracts" Style="{StaticResource ThemeBodyTextStyle}"/>
+                                        <TextBlock Grid.Row="4" Grid.Column="2" x:Name="ContractsTxt" Style="{StaticResource ThemeNumberStyle}"/>
+                                        <Grid Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" x:Name="ContractsBar" Height="6"/>
+                                    </Grid>
+                                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                               Text="Each station asks for one race and one guild, which the save doesn't record. Claim Station meets all of them."/>
+                                </StackPanel>
+                            </ctcontrols:WrapPanel>
+                        </Grid>
+
+                        <!-- Other systems where standing has been earned - only when any. -->
+                        <StackPanel x:Name="InProgressSection" Visibility="Collapsed" Spacing="8" Padding="26,16,26,20"
+                                    Background="{ThemeResource ThemePanelAltBrush}">
+                            <TextBlock Text="CLAIMS IN PROGRESS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                            <StackPanel x:Name="InProgressPanel" Spacing="8"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- How to claim: collapsed by default, a real 5-step sequence. -->
+                <Border Style="{StaticResource ThemeCardStyle}">
+                    <StackPanel>
+                        <Button x:Name="HowToToggle" Click="HowToToggle_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                Background="Transparent" BorderThickness="0" Padding="18,12">
+                            <Grid>
+                                <TextBlock Text="HOW TO CLAIM A STATION" Style="{StaticResource ThemeBandTextStyle}"
+                                           Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                                <TextBlock x:Name="HowToGlyph" Text="+" HorizontalAlignment="Right" FontSize="18"
+                                           Foreground="{ThemeResource ThemeAccentBrush}"/>
+                            </Grid>
+                        </Button>
+                        <ctcontrols:WrapPanel x:Name="HowToSteps" Visibility="Collapsed" Padding="18,4,18,18" HorizontalSpacing="10" VerticalSpacing="10"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource ThemeCardStyle}">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <Grid>
+                                <TextBlock Text="STATIONS YOU DIRECT" Style="{StaticResource ThemeBandTextStyle}"/>
+                                <TextBlock x:Name="OwnedHeaderTxt" HorizontalAlignment="Right" Style="{StaticResource ThemeDimTextStyle}"/>
+                            </Grid>
+                        </Border>
+                        <ctcontrols:WrapPanel x:Name="OwnedTilesPanel" Padding="18,16,18,18" HorizontalSpacing="12" VerticalSpacing="12"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Details for the selected tile. Facts are built in code since which
+                     sections appear depends on what the save holds for that system. -->
+                <Border x:Name="StationDetailsCard" Visibility="Collapsed" Style="{StaticResource ThemeCardStyle}">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <Grid>
+                                <TextBlock x:Name="DetailNameTxt" Style="{StaticResource ThemeBandTextStyle}" CharacterSpacing="60" FontSize="15"/>
+                                <TextBlock Text="Station details" HorizontalAlignment="Right" Style="{StaticResource ThemeDimTextStyle}"/>
+                            </Grid>
+                        </Border>
+                        <ctcontrols:WrapPanel Padding="22,20,22,24" HorizontalSpacing="30" VerticalSpacing="20">
+                            <StackPanel Width="440" Spacing="10">
+                                <Grid Height="248" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                                      Background="{ThemeResource ThemePanelAltBrush}">
+                                    <Image x:Name="DetailScreenshot" Stretch="UniformToFill"/>
+                                    <TextBlock x:Name="DetailNoScreenshotTxt" Text="No screenshot cached for this station"
+                                               Style="{StaticResource ThemeDimTextStyle}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Grid>
+                                <TextBlock Text="PORTAL ADDRESS" Style="{StaticResource ThemeEyebrowStyle}"
+                                           Foreground="{ThemeResource ThemeTextDimBrush}" Margin="0,8,0,0"/>
+                                <Border x:Name="PortalGlyphsBorder" Padding="6" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                                        Background="{ThemeResource ThemeVoidBrush}">
+                                    <StackPanel x:Name="PortalGlyphsPanel" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                           Text="Dial at any portal to reach this system. The highlighted first glyph picks planet 1."/>
                             </StackPanel>
-                            <StackPanel x:Name="DetailFactsPanel" Spacing="14" MinWidth="320"/>
+                            <StackPanel x:Name="DetailFactsPanel" Spacing="20" MinWidth="340" MaxWidth="560"/>
                         </ctcontrols:WrapPanel>
                     </StackPanel>
                 </Border>
-            </Grid>
-        </StackPanel>
-    </ScrollViewer>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
 </Page>

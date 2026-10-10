@@ -9,7 +9,11 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
-                <!-- Other merged dictionaries here -->
+                <!-- Active visual theme - ThemeService swaps this one entry for the
+                     user's pick at startup and on change. Must come before
+                     ThemeStyles, which is built from its Theme* keys. -->
+                <ResourceDictionary Source="ms-appx:///Themes/StationCore.xaml" />
+                <ResourceDictionary Source="ms-appx:///Themes/ThemeStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
@@ -44,6 +48,21 @@
                 <Setter Property="Background" Value="{StaticResource NmsDangerBrush}"/>
                 <Setter Property="Foreground" Value="White"/>
                 <Setter Property="BorderBrush" Value="{StaticResource NmsDangerBrush}"/>
+            </Style>
+
+            <!-- Solid accent call-to-action (e.g. Claim Station), built from the active
+                 theme's keys. Lives here rather than Themes/ThemeStyles.xaml because a
+                 BasedOn StaticResource to XamlControlsResources' DefaultButtonStyle is
+                 only reliable from the app's root dictionary (same as DangerButtonStyle). -->
+            <Style x:Key="ThemeAccentButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                <Setter Property="Background" Value="{ThemeResource ThemeAccentBrush}"/>
+                <Setter Property="Foreground" Value="{ThemeResource ThemeOnAccentBrush}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="CornerRadius" Value="{ThemeResource ThemeCardCornerRadius}"/>
+                <Setter Property="Padding" Value="20,10"/>
+                <Setter Property="FontFamily" Value="{ThemeResource ThemeDisplayFont}"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="CharacterSpacing" Value="180"/>
             </Style>
 
         </ResourceDictionary>

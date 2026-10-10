@@ -33,8 +33,30 @@ public sealed partial class AppTitleBar : UserControl
         // a Page, so this is safe the same way the subscriptions above are.
         UpdateCheckService.Changed += OnUpdateCheckChanged;
         RefreshUpdateBadge();
+        ThemeBtnTxt.Text = $"Theme: {ThemeService.Current.DisplayName}";
 
         Refresh();
+    }
+
+    private void ThemeBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var menu = new MenuFlyout();
+        foreach (var theme in ThemeService.Themes)
+        {
+            var item = new RadioMenuFlyoutItem
+            {
+                Text = theme.DisplayName,
+                GroupName = "Theme",
+                IsChecked = theme == ThemeService.Current,
+            };
+            item.Click += (_, _) =>
+            {
+                ThemeService.Apply(theme.Id);
+                ThemeBtnTxt.Text = $"Theme: {ThemeService.Current.DisplayName}";
+            };
+            menu.Items.Add(item);
+        }
+        menu.ShowAt(ThemeBtn);
     }
 
     private void OnUpdateCheckChanged(object? sender, EventArgs e) =>
