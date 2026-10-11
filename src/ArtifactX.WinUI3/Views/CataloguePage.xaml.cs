@@ -247,8 +247,9 @@ public sealed partial class CataloguePage : Page
     }
 
     private static readonly Brush BrokenBrush = (Brush)Application.Current.Resources["NmsDangerBrush"];
-    private static readonly Brush DefaultTileBorderBrush = (Brush)Application.Current.Resources["NmsTextSecondary"];
-    private static readonly Brush DefaultIconBackground = new SolidColorBrush(ColorHelper.FromArgb(0xFF, 0x1A, 0x1F, 0x2E));
+    // Read per call, not cached: the page is re-created on a theme change.
+    private static Brush DefaultTileBorderBrush => ThemeResources.Brush("ThemeLineBrush");
+    private static Brush DefaultIconBackground => ThemeResources.Brush("ThemeVoidBrush");
 
     // x:Bind function targets - run on the UI thread at bind time, unlike the
     // row VMs themselves, which are built on a background thread (brushes
