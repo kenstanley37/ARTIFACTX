@@ -16,9 +16,26 @@ public sealed class SystemNote
     public string Conflict { get; set; } = "";
     public string Race { get; set; } = "";
     public string Text { get; set; } = "";
+    public string StarClass { get; set; } = "";
+    public bool Water { get; set; }
+    public bool Dissonant { get; set; }
+
+    /// <summary>Moon count as the game's Discoveries screen shows it ("4 PLANETS / 2 MOONS"); null = not recorded.</summary>
+    public int? Moons { get; set; }
+
+    /// <summary>Free-form notes, one per line item. (Older notes kept a single
+    /// <see cref="Text"/>; it's moved in here when notes are loaded.)</summary>
+    public List<string> Notes { get; set; } = new();
 
     [JsonIgnore]
-    public bool IsEmpty => StarColour == "" && Economy == "" && Wealth == "" && Conflict == "" && Race == "" && Text == "";
+    public bool IsEmpty => StarColour == "" && Economy == "" && Wealth == "" && Conflict == "" && Race == ""
+        && Text == "" && StarClass == "" && !Water && !Dissonant && Moons is null && Notes.Count == 0;
+
+    /// <summary>Whether a body is a moon. The save doesn't mark moons, but
+    /// checked against 4 real systems (2026-10-11) moons are always the bodies
+    /// right after planet 1: one moon = planet 2, two moons = planets 2 and 3.
+    /// So with the player's recorded moon count, planets 2..(1 + Moons) are moons.</summary>
+    public bool IsMoon(int planetIndex) => Moons is int moons && planetIndex >= 2 && planetIndex <= 1 + moons;
 }
 
 /// <summary>
@@ -38,6 +55,21 @@ public static class SystemNotesService
     // player picked, and CategoryOf maps it back to its category for filtering.
     public static readonly string[] StarColours = { "Yellow", "Red", "Green", "Blue", "Purple" };
     public static readonly string[] Races = { "Gek", "Korvax", "Vy'keen", "Autophage", "None (uncharted)" };
+
+    /// <summary>Star colour from a spectral class as the Galaxy Map shows it
+    /// (e.g. "G7", "F5p", "K8pf", "E7", "X1"): the first letter decides it.
+    /// Confirmed on real systems for G/F (yellow), K (red), E (green) and X
+    /// (purple); O/B blue, M red and Y purple follow the same convention.</summary>
+    public static string? ColourForClass(string? starClass) =>
+        string.IsNullOrWhiteSpace(starClass) ? null : char.ToUpperInvariant(starClass.Trim()[0]) switch
+        {
+            'O' or 'B' => "Blue",
+            'F' or 'G' => "Yellow",
+            'K' or 'M' => "Red",
+            'E' => "Green",
+            'X' or 'Y' => "Purple",
+            _ => null,
+        };
 
     /// <summary>Economy values with no in-game word list of their own.</summary>
     public static readonly string[] EconomyExtras = { "Pirate controlled", "Abandoned (no economy)" };
@@ -94,7 +126,13 @@ public static class SystemNotesService
             {
                 System.Diagnostics.Debug.WriteLine($"[SystemNotesService] Couldn't read notes: {ex.Message}");
             }
-            return _notes ??= new Dictionary<string, SystemNote>();
+            _notes ??= new Dictionary<string, SystemNote>();
+            foreach (var note in _notes.Values)
+            {
+                if (note.Text.Length > 0 && note.Notes.Count == 0) note.Notes.Add(note.Text);
+                note.Text = "";
+            }
+            return _notes;
         }
     }
 

@@ -14,7 +14,19 @@
 
     <ScrollViewer>
         <StackPanel Padding="28,26,28,40" Spacing="22">
-            <TextBlock Text="PLANETS" Style="{StaticResource ThemePageTitleStyle}"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="PLANETS" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
+                <!-- Live follow: the page re-reads the save whenever the game writes it. -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
+                            ToolTipService.ToolTip="This page follows your game: each time No Man's Sky saves, it shows your new location and discoveries. It only reads the save; it never changes it.">
+                    <Ellipse Width="8" Height="8" Fill="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="LiveStatusTxt" Text="Following your game" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                </StackPanel>
+            </Grid>
 
             <!-- Current system: animated orbit view + one tile per known planet. -->
             <Border Style="{StaticResource ThemeCardStyle}">
@@ -22,7 +34,7 @@
                     <Border Style="{StaticResource ThemeBandStyle}">
                         <TextBlock Text="CURRENT SYSTEM" Style="{StaticResource ThemeBandTextStyle}"/>
                     </Border>
-                    <StackPanel Padding="20,16,20,20" Spacing="18">
+                    <StackPanel x:Name="CurrentSystemBody" Padding="20,16,20,20" Spacing="18">
                         <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
                             <!-- Orbit spacing, planet sizes and the star's colour are
                                  decorative: the save stores none of them. -->
@@ -62,14 +74,35 @@
                                 <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                            Text="The game doesn't save these, so record what it shows in the system's info panel (Discoveries, or the Galaxy Map), picking the exact word the game uses. Notes are kept by ArtifactX on this PC, never in your save, and become filters in the Planet Finder below."/>
                                 <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="10">
+                                    <TextBox x:Name="NoteClassBox" Header="Star class" Width="110" PlaceholderText="e.g. G7"
+                                             TextChanged="NoteClassBox_TextChanged" LostFocus="NoteTextBox_LostFocus"
+                                             ToolTipService.ToolTip="As shown on the Galaxy Map after the distance (e.g. 24 LY // G7). Its first letter fills in the star colour."/>
                                     <ComboBox x:Name="NoteStarBox" Header="Star colour" Width="170" SelectionChanged="NoteField_Changed"/>
                                     <ComboBox x:Name="NoteEconomyBox" Header="Economy" Width="250" SelectionChanged="NoteField_Changed"/>
                                     <ComboBox x:Name="NoteWealthBox" Header="Wealth" Width="230" SelectionChanged="NoteField_Changed"/>
                                     <ComboBox x:Name="NoteConflictBox" Header="Conflict" Width="200" SelectionChanged="NoteField_Changed"/>
                                     <ComboBox x:Name="NoteRaceBox" Header="Dominant race" Width="170" SelectionChanged="NoteField_Changed"/>
-                                    <TextBox x:Name="NoteTextBox" Header="Note" Width="300" PlaceholderText="e.g. S-class ships, crashed freighter"
-                                             LostFocus="NoteTextBox_LostFocus"/>
+                                    <CheckBox x:Name="NoteWaterBox" Content="Water" Click="NoteCheck_Click" VerticalAlignment="Bottom"
+                                              ToolTipService.ToolTip="The Galaxy Map shows &quot;// Water&quot; after the star class - in every system checked so far that meant a water world with Salt to harvest"/>
+                                    <CheckBox x:Name="NoteDissonantBox" Content="Dissonant" Click="NoteCheck_Click" VerticalAlignment="Bottom"
+                                              ToolTipService.ToolTip="The Galaxy Map shows &quot;// Dissonant&quot; - systems with Autophage and corrupted sentinels"/>
+                                    <ComboBox x:Name="NoteMoonsBox" Header="Moons" Width="140" SelectionChanged="NoteField_Changed"
+                                              ToolTipService.ToolTip="From the Discoveries screen, e.g. &quot;4 PLANETS / 2 MOONS&quot;. Marks which bodies below are moons."/>
                                 </ctcontrols:WrapPanel>
+
+                                <StackPanel Spacing="6" Margin="0,4,0,0">
+                                    <TextBlock Text="NOTES" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <StackPanel x:Name="NotesListPanel" Spacing="6"/>
+                                    <Grid ColumnSpacing="8" MaxWidth="640" HorizontalAlignment="Left">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="NewNoteBox" MinWidth="380" PlaceholderText="e.g. S-class ships, crashed freighter on planet 3"
+                                                 KeyDown="NewNoteBox_KeyDown"/>
+                                        <Button Grid.Column="1" Content="Add note" Click="AddNote_Click"/>
+                                    </Grid>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 
@@ -129,6 +162,13 @@
                             <ComboBox x:Name="WealthFilterBox" Header="Wealth (your notes)" Width="180" SelectionChanged="Filter_Changed"/>
                             <ComboBox x:Name="ConflictFilterBox" Header="Conflict (your notes)" Width="180" SelectionChanged="Filter_Changed"/>
                             <ComboBox x:Name="RaceFilterBox" Header="Race (your notes)" Width="180" SelectionChanged="Filter_Changed"/>
+                            <CheckBox x:Name="WaterFilterBox" Content="Water (your notes)" Click="Filter_Click" VerticalAlignment="Bottom"/>
+                            <CheckBox x:Name="DissonantFilterBox" Content="Dissonant (your notes)" Click="Filter_Click" VerticalAlignment="Bottom"/>
+                            <ComboBox x:Name="BodiesFilterBox" Header="Planets / moons (your notes)" Width="220" SelectionChanged="Filter_Changed">
+                                <ComboBoxItem Content="Planets and moons"/>
+                                <ComboBoxItem Content="Planets only"/>
+                                <ComboBoxItem Content="Moons only"/>
+                            </ComboBox>
                         </ctcontrols:WrapPanel>
                         <TextBlock x:Name="FinderStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Visibility="Collapsed"/>
                         <!-- Bounded height so the ListView virtualizes inside the page's
