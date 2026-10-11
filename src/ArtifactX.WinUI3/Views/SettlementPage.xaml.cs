@@ -117,15 +117,9 @@ public sealed partial class SettlementPage : Page
                     Text = settlement.SelectorLabel,
                     FontWeight = isSelected ? FontWeights.SemiBold : FontWeights.Normal
                 },
-                Padding = new Thickness(12, 6, 12, 6),
-                BorderThickness = new Thickness(isSelected ? 2 : 1),
-                BorderBrush = new SolidColorBrush(isSelected
-                    ? Color.FromArgb(255, 255, 157, 0)
-                    : Color.FromArgb(255, 90, 98, 112)),
-                Background = new SolidColorBrush(isSelected
-                    ? Color.FromArgb(60, 255, 157, 0)
-                    : Color.FromArgb(20, 255, 255, 255))
+                Padding = new Thickness(12, 6, 12, 6)
             };
+            ThemeResources.StyleChoiceButton(button, isSelected);
 
             button.Click += (_, _) =>
             {
@@ -201,7 +195,7 @@ public sealed partial class SettlementPage : Page
         Text = text,
         Width = 90,
         VerticalAlignment = VerticalAlignment.Center,
-        Opacity = 0.8,
+        Foreground = ThemeResources.Brush("ThemeTextDimBrush"),
         FontSize = 12
     };
 
@@ -234,14 +228,16 @@ public sealed partial class SettlementPage : Page
 
     private static readonly SolidColorBrush NegativePerkBrush = new(Color.FromArgb(255, 0xE0, 0x4C, 0x3D));
     private static readonly SolidColorBrush PositivePerkBrush = new(Color.FromArgb(255, 0x3D, 0xC4, 0x77));
-    private static readonly SolidColorBrush NeutralPerkBrush = new(Color.FromArgb(255, 0x8A, 0x96, 0xA8));
+    // Positive/negative perk colours are meaning (good/bad), not decoration,
+    // so they stay fixed; neutral and the perk card chrome follow the theme.
+    private static Brush NeutralPerkBrush => ThemeResources.Brush("ThemeTextDimBrush");
 
     /// <summary>Red for a Negative-flagged perk, green for Positive,
     /// neutral gray for "(None)"/unrecognized - Category always starts
     /// with "Negative"/"Positive" (see CatalogBuildService's Phase 1.8;
     /// the other flags like Blessing/Job/Starter/Proc are appended after,
     /// never first) so a simple StartsWith check is enough.</summary>
-    private static SolidColorBrush PerkSignBrush(string? category) => category switch
+    private static Brush PerkSignBrush(string? category) => category switch
     {
         null or "" => NeutralPerkBrush,
         _ when category.StartsWith("Negative", StringComparison.OrdinalIgnoreCase) => NegativePerkBrush,
@@ -249,8 +245,8 @@ public sealed partial class SettlementPage : Page
         _ => NeutralPerkBrush
     };
 
-    private static readonly SolidColorBrush CardBorderBrush = new(Color.FromArgb(255, 90, 98, 112));
-    private static readonly SolidColorBrush CardBackgroundBrush = new(Color.FromArgb(18, 255, 255, 255));
+    private static Brush CardBorderBrush => ThemeResources.Brush("ThemeLineBrush");
+    private static Brush CardBackgroundBrush => ThemeResources.Brush("ThemePanelAltBrush");
     private const int PerksPerCard = 6;
 
     /// <summary>One dropdown per Perks (OEf) array slot, each offering
@@ -311,7 +307,7 @@ public sealed partial class SettlementPage : Page
             string baseId = hashIdx >= 0 ? stripped[..hashIdx] : stripped;
 
             var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-            row.Children.Add(FieldLabel($"Buff {i + 1}"));
+            row.Children.Add(FieldLabel($"Feature {i + 1}"));
 
             var swatch = new Border
             {
