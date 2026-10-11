@@ -14,18 +14,96 @@
 
     <Page.Resources>
         <DataTemplate x:Key="RecipeItemTemplate" x:DataType="viewmodels:RecipeItemViewModel">
-            <Button Click="Item_Click" Tag="{x:Bind ItemId}" Padding="6,3" Background="{ThemeResource ThemeVoidBrush}"
-                    BorderBrush="{ThemeResource ThemeLineBrush}" ToolTipService.ToolTip="Show recipes for this item">
+            <Button Click="Item_Click" Tag="{x:Bind ItemId}" Padding="6,1" MinHeight="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                    Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
+                    ToolTipService.ToolTip="{x:Bind Label}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                    <Image Source="{x:Bind Icon}" Width="26" Height="26"/>
-                    <TextBlock Text="{x:Bind Label}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" VerticalAlignment="Center"/>
+                    <Image Source="{x:Bind Icon}" Width="22" Height="22"/>
+                    <TextBlock Text="{x:Bind Label}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" VerticalAlignment="Center"
+                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxWidth="220"/>
                 </StackPanel>
             </Button>
+        </DataTemplate>
+
+                <DataTemplate x:Key="RecipeCardTemplate" x:DataType="viewmodels:RecipeRowViewModel">
+                    <Border BorderBrush="{x:Bind CardBorder, Mode=OneWay}" BorderThickness="{x:Bind CardBorderThickness, Mode=OneWay}"
+                            Background="{ThemeResource ThemePanelAltBrush}" Width="290" Height="200"
+                            CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="10,8">
+                        <Grid RowSpacing="3">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid ColumnSpacing="6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Spacing="1">
+                                    <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeEyebrowStyle}" FontSize="11"
+                                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                                    <TextBlock Text="{x:Bind Station}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Click="Pin_Click" Tag="{x:Bind RecipeId}" Padding="6,4" VerticalAlignment="Top"
+                                        Background="Transparent" BorderThickness="0"
+                                        ToolTipService.ToolTip="{x:Bind PinTip, Mode=OneWay}">
+                                    <FontIcon Glyph="{x:Bind PinGlyph, Mode=OneWay}" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                </Button>
+                            </Grid>
+                            <ItemsControl Grid.Row="1" ItemsSource="{x:Bind Ingredients}" ItemTemplate="{StaticResource RecipeItemTemplate}"
+                                          VerticalAlignment="Top" Margin="0,2,0,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Spacing="3"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                            <TextBlock Grid.Row="2" Text="↓" FontSize="14" LineHeight="14" HorizontalAlignment="Center" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                            <Border Grid.Row="3" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="1"
+                                    CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                                <ContentPresenter Content="{x:Bind Result}" ContentTemplate="{StaticResource RecipeItemTemplate}"
+                                                  HorizontalContentAlignment="Stretch"/>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+
+        <!-- Compact pinned tile: result + ingredients on two lines, so many pins fit. -->
+        <DataTemplate x:Key="PinnedTileTemplate" x:DataType="viewmodels:RecipeRowViewModel">
+            <Border Width="300" BorderBrush="{x:Bind TileBorder, Mode=OneWay}" BorderThickness="{x:Bind TileBorderThickness, Mode=OneWay}"
+                    Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="8,6"
+                    Tapped="PinnedTile_Tapped" Tag="{x:Bind RecipeId}"
+                    ToolTipService.ToolTip="Show this recipe in the list">
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Click="Item_Click" Tag="{x:Bind Result.ItemId}" Padding="2" Background="{ThemeResource ThemeVoidBrush}" BorderThickness="0"
+                            ToolTipService.ToolTip="Show recipes for this item">
+                        <Image Source="{x:Bind Result.Icon}" Width="30" Height="30"/>
+                    </Button>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                        <TextBlock Text="{x:Bind Result.Label}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                        <TextBlock Text="{x:Bind IngredientsText}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"
+                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind IngredientsText}"/>
+                    </StackPanel>
+                    <Button Grid.Column="2" Click="Pin_Click" Tag="{x:Bind RecipeId}" Padding="6,4" VerticalAlignment="Center"
+                            Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Unpin this recipe">
+                        <FontIcon Glyph="&#xE841;" FontSize="13" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                    </Button>
+                </Grid>
+            </Border>
         </DataTemplate>
     </Page.Resources>
 
     <Grid Padding="28,26,28,24" RowSpacing="18">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -51,6 +129,8 @@
         <ctcontrols:WrapPanel Grid.Row="2" HorizontalSpacing="14" VerticalSpacing="10">
             <AutoSuggestBox x:Name="SearchBox" Header="Item" Width="320" PlaceholderText="e.g. Chromatic Metal, Sodium Nitrate"
                             TextChanged="SearchBox_TextChanged" SuggestionChosen="SearchBox_SuggestionChosen" QueryIcon="Find"/>
+            <ComboBox x:Name="TypeBox" Header="Makes" Width="300" SelectionChanged="Filter_Changed"
+                      ToolTipService.ToolTip="Narrow the list by what the recipe makes - handy when you can't remember an item's name"/>
             <ComboBox x:Name="ModeBox" Header="Show" Width="230" SelectionChanged="Filter_Changed">
                 <ComboBoxItem Content="How to make it"/>
                 <ComboBoxItem Content="What it's used in"/>
@@ -65,42 +145,44 @@
                 <ComboBoxItem Content="1 (Portable Refiner)"/>
                 <ComboBoxItem Content="Up to 2 (Medium Refiner)"/>
             </ComboBox>
+            <CheckBox x:Name="PinnedOnlyBox" Content="Pinned only" Click="PinnedOnly_Click" VerticalAlignment="Bottom"/>
             <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
         </ctcontrols:WrapPanel>
 
-        <ListView Grid.Row="3" x:Name="RecipesList" SelectionMode="None">
-            <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem">
+        <!-- Pinned recipes: always shown, whatever the filters, so a recipe you're
+             working through stays one glance away while you alt-tab to the game. -->
+        <StackPanel Grid.Row="3" x:Name="PinnedPanel" Spacing="6" Visibility="Collapsed">
+            <TextBlock x:Name="PinnedHeaderTxt" Style="{StaticResource ThemeEyebrowStyle}"/>
+            <!-- About three rows of tiles; more pins scroll inside. -->
+            <ScrollViewer MaxHeight="170" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl x:Name="PinnedList" ItemTemplate="{StaticResource PinnedTileTemplate}" Margin="0,0,0,8">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </ScrollViewer>
+        </StackPanel>
+
+        <!-- Uniform cards in a virtualizing grid (only cards on screen are created):
+             fixed ItemWidth/ItemHeight keep every card the same size, room for the
+             largest recipe (3 ingredients). -->
+        <GridView Grid.Row="4" x:Name="RecipesList" SelectionMode="None" IsItemClickEnabled="False" ItemTemplate="{StaticResource RecipeCardTemplate}">
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsWrapGrid Orientation="Horizontal" ItemWidth="300" ItemHeight="210"/>
+                </ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+            <GridView.ItemContainerStyle>
+                <Style TargetType="GridViewItem">
                     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="VerticalContentAlignment" Value="Stretch"/>
                     <Setter Property="Padding" Value="0"/>
-                    <Setter Property="Margin" Value="0,0,0,8"/>
+                    <Setter Property="Margin" Value="0,0,10,10"/>
                 </Style>
-            </ListView.ItemContainerStyle>
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="viewmodels:RecipeRowViewModel">
-                    <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                            Background="{ThemeResource ThemePanelAltBrush}"
-                            CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
-                        <StackPanel Spacing="6">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                <TextBlock Text="{x:Bind Station}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center"/>
-                            </StackPanel>
-                            <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="6">
-                                <ItemsControl ItemsSource="{x:Bind Ingredients}" ItemTemplate="{StaticResource RecipeItemTemplate}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal" Spacing="6"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                </ItemsControl>
-                                <TextBlock Text="→" FontSize="20" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center" Margin="4,0"/>
-                                <ContentPresenter Content="{x:Bind Result}" ContentTemplate="{StaticResource RecipeItemTemplate}"/>
-                            </ctcontrols:WrapPanel>
-                        </StackPanel>
-                    </Border>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+            </GridView.ItemContainerStyle>
+
+        </GridView>
     </Grid>
 </Page>
