@@ -16,4 +16,5 @@ public sealed class PlanetRowViewModel
     public required string PortalCode { get; init; }
     public required List<ImageSource> Glyphs { get; init; }
     public required string DiscoveredLabel { get; init; }
+    public required string DistanceLabel { get; init; }
 }
