@@ -37,6 +37,8 @@ public sealed partial class PlanetsPage : Page
     private List<KnownPlanet> _otherSaves = new();
     private List<KnownPlanet> _allPlanets = new();
     private ulong? _currentSystem;
+    private bool _suppressNoteEvents;
+    private const string NotRecorded = "Not recorded";
     private int _loadVersion;
     private readonly List<Storyboard> _orbitAnimations = new();
     private bool _suppressFilterEvents;
@@ -72,6 +74,7 @@ public sealed partial class PlanetsPage : Page
         _glyphWarmup ??= CatalogService.WarmCacheAsync(Enumerable.Range(0, 16).Select(d => $"PORTALSYMBOL_{d:X}"));
         await _glyphWarmup;
 
+        await EnsureChoicesAsync();
         int version = ++_loadVersion;
         var discoveries = SaveSessionManager.GetValue(S.DiscoveriesPath) as JArray;
         _thisSave = NmsPlanets.ReadAll(discoveries);
@@ -80,6 +83,7 @@ public sealed partial class PlanetsPage : Page
         var counts = NmsPlanets.CountDiscoveries(discoveries);
 
         BuildCurrentSystem(counts);
+        LoadSystemNote();
         RefreshFinder();
         await LoadOtherSavesAsync(version);
     }
@@ -385,6 +389,122 @@ public sealed partial class PlanetsPage : Page
              : $"{span.Seconds}s";
     }
 
+    // ---------------------------------------------------------------- system notes
+
+    private static Task<List<(string Word, string Group, string Tier)>>? _descriptorsLoad;
+    private bool _choicesFilled;
+
+    /// <summary>Fills the note and filter dropdowns once per page. Economy,
+    /// wealth and conflict list the game's own words with their category, e.g.
+    /// "Mathematical (Scientific)"; their filters list the categories.</summary>
+    private async Task EnsureChoicesAsync()
+    {
+        if (_choicesFilled) return;
+        _descriptorsLoad ??= CatalogService.GetSystemDescriptorsAsync();
+        var descriptors = await _descriptorsLoad;
+        SystemNotesService.SetDescriptors(descriptors);
+
+        IEnumerable<(string Label, string Value)> Words(string group) => descriptors
+            .Where(d => d.Group == group)
+            .Select(d => (Label: $"{d.Word} ({SystemNotesService.TierName(group, d.Tier)})", Value: d.Word))
+            .OrderBy(x => x.Label, StringComparer.CurrentCultureIgnoreCase);
+        IEnumerable<(string Label, string Value)> Categories(string group) => descriptors
+            .Where(d => d.Group == group)
+            .Select(d => SystemNotesService.TierName(group, d.Tier))
+            .Distinct()
+            .Select(c => (c, c));
+        static IEnumerable<(string Label, string Value)> Plain(IEnumerable<string> values) => values.Select(v => (v, v));
+
+        _suppressNoteEvents = true;
+        FillChoices(NoteStarBox, NotRecorded, Plain(SystemNotesService.StarColours));
+        FillChoices(NoteEconomyBox, NotRecorded, Words("Economy").Concat(Plain(SystemNotesService.EconomyExtras)));
+        FillChoices(NoteWealthBox, NotRecorded, Words("Wealth"));
+        FillChoices(NoteConflictBox, NotRecorded, Words("Conflict"));
+        FillChoices(NoteRaceBox, NotRecorded, Plain(SystemNotesService.Races));
+        _suppressNoteEvents = false;
+
+        _suppressFilterEvents = true;
+        FillChoices(StarFilterBox, "Any", Plain(SystemNotesService.StarColours));
+        FillChoices(EconomyFilterBox, "Any", Categories("Economy").Concat(Plain(SystemNotesService.EconomyExtras)));
+        FillChoices(WealthFilterBox, "Any", Categories("Wealth"));
+        FillChoices(ConflictFilterBox, "Any", Categories("Conflict"));
+        FillChoices(RaceFilterBox, "Any", Plain(SystemNotesService.Races));
+        _suppressFilterEvents = false;
+
+        _choicesFilled = true;
+    }
+
+    private static void FillChoices(ComboBox box, string first, IEnumerable<(string Label, string Value)> options)
+    {
+        box.Items.Clear();
+        box.Items.Add(new ComboBoxItem { Content = first, Tag = "" });
+        foreach (var (label, value) in options)
+            box.Items.Add(new ComboBoxItem { Content = label, Tag = value });
+        box.SelectedIndex = 0;
+    }
+
+    private static void SelectChoice(ComboBox box, string value) =>
+        box.SelectedItem = box.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == value) ?? box.Items.FirstOrDefault();
+
+    private static string ChosenValue(ComboBox box) => (box.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+
+    private void LoadSystemNote()
+    {
+        SystemNotesPanel.Visibility = _currentSystem is null ? Visibility.Collapsed : Visibility.Visible;
+        var note = _currentSystem is ulong system ? SystemNotesService.Get(system) : null;
+
+        _suppressNoteEvents = true;
+        SelectChoice(NoteStarBox, note?.StarColour ?? "");
+        SelectChoice(NoteEconomyBox, note?.Economy ?? "");
+        SelectChoice(NoteWealthBox, note?.Wealth ?? "");
+        SelectChoice(NoteConflictBox, note?.Conflict ?? "");
+        SelectChoice(NoteRaceBox, note?.Race ?? "");
+        NoteTextBox.Text = note?.Text ?? "";
+        _suppressNoteEvents = false;
+    }
+
+    private void SaveSystemNote()
+    {
+        if (_suppressNoteEvents || _currentSystem is not ulong system) return;
+
+        SystemNotesService.Save(system, new SystemNote
+        {
+            StarColour = ChosenValue(NoteStarBox),
+            Economy = ChosenValue(NoteEconomyBox),
+            Wealth = ChosenValue(NoteWealthBox),
+            Conflict = ChosenValue(NoteConflictBox),
+            Race = ChosenValue(NoteRaceBox),
+            Text = NoteTextBox.Text.Trim(),
+        });
+        ApplyFilters();
+    }
+
+    private void NoteField_Changed(object sender, SelectionChangedEventArgs e) => SaveSystemNote();
+
+    private void NoteTextBox_LostFocus(object sender, RoutedEventArgs e) => SaveSystemNote();
+
+    /// <summary>"Opulent (High ★★★ wealth)" - the game's word plus its category.</summary>
+    private static string Described(string group, string word, string suffix)
+    {
+        string category = SystemNotesService.CategoryOf(group, word);
+        string label = suffix.Length > 0 ? $"{category} {suffix}" : category;
+        return category == word ? word : $"{word} ({label})";
+    }
+
+    /// <summary>"Yellow star · Mathematical (Scientific) · Opulent (High ★★★ wealth) · ...", or "".</summary>
+    private static string NoteSummary(SystemNote? note)
+    {
+        if (note is null) return "";
+        var parts = new List<string>();
+        if (note.StarColour != "") parts.Add($"{note.StarColour} star");
+        if (note.Economy != "") parts.Add(Described("Economy", note.Economy, ""));
+        if (note.Wealth != "") parts.Add(Described("Wealth", note.Wealth, "wealth"));
+        if (note.Conflict != "") parts.Add(Described("Conflict", note.Conflict, "conflict"));
+        if (note.Race != "") parts.Add(note.Race);
+        if (note.Text != "") parts.Add(note.Text);
+        return string.Join(" · ", parts);
+    }
+
     // ---------------------------------------------------------------- finder
 
     private void BuildFilterChoices()
@@ -428,12 +548,21 @@ public sealed partial class PlanetsPage : Page
         bool ringsOnly = RingsOnlyBox.IsChecked == true;
         bool mineOnly = MineOnlyBox.IsChecked == true;
         bool nearestFirst = SortBox.SelectedIndex != 1;
+        string star = ChosenValue(StarFilterBox), economy = ChosenValue(EconomyFilterBox), wealth = ChosenValue(WealthFilterBox);
+        string conflict = ChosenValue(ConflictFilterBox), race = ChosenValue(RaceFilterBox);
+        bool noteFilter = star != "" || economy != "" || wealth != "" || conflict != "" || race != "";
 
         var filtered = _allPlanets
             .Where(p => type < 0 || p.BiomeIndex == type)
             .Where(p => galaxy < 0 || p.Galaxy == galaxy)
             .Where(p => !ringsOnly || p.HasRings)
             .Where(p => !mineOnly || p.DiscoveredHere)
+            .Where(p => !noteFilter || SystemNotesService.Get(p.SystemAddress) is { } n
+                && (star == "" || n.StarColour == star)
+                && (economy == "" || SystemNotesService.CategoryOf("Economy", n.Economy) == economy)
+                && (wealth == "" || SystemNotesService.CategoryOf("Wealth", n.Wealth) == wealth)
+                && (conflict == "" || SystemNotesService.CategoryOf("Conflict", n.Conflict) == conflict)
+                && (race == "" || n.Race == race))
             .Select(p => (Planet: p, Distance: _currentSystem is ulong here ? NmsPlanets.DistanceLightYears(here, p.SystemAddress) : null));
 
         // Nearest first: same-galaxy planets by distance, other galaxies after.
@@ -447,8 +576,13 @@ public sealed partial class PlanetsPage : Page
         ResultCountTxt.Text = $"{matches.Count:N0} of {_allPlanets.Count:N0} planets";
     }
 
-    private PlanetRowViewModel ToRow(KnownPlanet planet, double? distance) => new()
+    private PlanetRowViewModel ToRow(KnownPlanet planet, double? distance)
     {
+        string notes = NoteSummary(SystemNotesService.Get(planet.SystemAddress));
+        return new()
+        {
+        NotesLabel = notes,
+        NotesVisibility = notes.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
         DistanceLabel = DistanceText(planet, distance),
         TypeLabel = planet.TypeName,
         Swatch = new SolidColorBrush(ParseColour(NmsPlanets.TypeColour(planet.BiomeIndex))),
@@ -459,7 +593,8 @@ public sealed partial class PlanetsPage : Page
         PortalCode = planet.PortalCode,
         Glyphs = GlyphsFor(planet.PortalCode),
         DiscoveredLabel = $"{(planet.DiscoveredHere ? "You" : planet.Discoverer)} · {FormatDate(planet.DiscoveredUnixSeconds)}",
-    };
+        };
+    }
 
     private string DistanceText(KnownPlanet planet, double? distance)
     {

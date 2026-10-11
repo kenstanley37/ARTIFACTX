@@ -52,6 +52,27 @@
                             </StackPanel>
                         </ctcontrols:WrapPanel>
 
+                        <!-- Player-entered notes (SystemNotesService) - saved in ArtifactX's own
+                             settings, never the save, since the game doesn't store these. -->
+                        <Border x:Name="SystemNotesPanel" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                                Background="{ThemeResource ThemePanelAltBrush}"
+                                CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,12,16,14">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="YOUR NOTES ON THIS SYSTEM" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                           Text="The game doesn't save these, so record what it shows in the system's info panel (Discoveries, or the Galaxy Map), picking the exact word the game uses. Notes are kept by ArtifactX on this PC, never in your save, and become filters in the Planet Finder below."/>
+                                <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="10">
+                                    <ComboBox x:Name="NoteStarBox" Header="Star colour" Width="170" SelectionChanged="NoteField_Changed"/>
+                                    <ComboBox x:Name="NoteEconomyBox" Header="Economy" Width="250" SelectionChanged="NoteField_Changed"/>
+                                    <ComboBox x:Name="NoteWealthBox" Header="Wealth" Width="230" SelectionChanged="NoteField_Changed"/>
+                                    <ComboBox x:Name="NoteConflictBox" Header="Conflict" Width="200" SelectionChanged="NoteField_Changed"/>
+                                    <ComboBox x:Name="NoteRaceBox" Header="Dominant race" Width="170" SelectionChanged="NoteField_Changed"/>
+                                    <TextBox x:Name="NoteTextBox" Header="Note" Width="300" PlaceholderText="e.g. S-class ships, crashed freighter"
+                                             LostFocus="NoteTextBox_LostFocus"/>
+                                </ctcontrols:WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <TextBlock x:Name="NoSystemPlanetsTxt" Style="{StaticResource ThemeDimTextStyle}" Visibility="Collapsed"
                                    Text="No planets in this system are in your discoveries yet. Scan or land on one in-game, then save."/>
                         <ctcontrols:WrapPanel x:Name="CurrentPlanetsPanel" HorizontalSpacing="14" VerticalSpacing="14"/>
@@ -102,6 +123,13 @@
                                        VerticalAlignment="Bottom" Margin="0,0,0,8"/>
                         </ctcontrols:WrapPanel>
 
+                        <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
+                            <ComboBox x:Name="StarFilterBox" Header="Star colour (your notes)" Width="200" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="EconomyFilterBox" Header="Economy (your notes)" Width="200" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="WealthFilterBox" Header="Wealth (your notes)" Width="180" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="ConflictFilterBox" Header="Conflict (your notes)" Width="180" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="RaceFilterBox" Header="Race (your notes)" Width="180" SelectionChanged="Filter_Changed"/>
+                        </ctcontrols:WrapPanel>
                         <TextBlock x:Name="FinderStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Visibility="Collapsed"/>
                         <!-- Bounded height so the ListView virtualizes inside the page's
                              ScrollViewer (an unbounded one would realize every row). -->
@@ -140,6 +168,8 @@
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                                                 <TextBlock Text="{x:Bind TypeLabel}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold"/>
                                                 <TextBlock Text="{x:Bind LocationLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                                <TextBlock Text="{x:Bind NotesLabel}" Visibility="{x:Bind NotesVisibility}" FontSize="12"
+                                                           Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
                                             </StackPanel>
 
                                             <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="3">

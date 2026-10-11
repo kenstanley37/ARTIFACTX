@@ -494,6 +494,42 @@ public static class CatalogService
         return stripped;
     }
 
+    /// <summary>The words the game uses for a system's economy, wealth and
+    /// conflict (catalog category "SystemDescriptors", DataCataloger
+    /// add-system-descriptors): (Word, Group = Economy/Wealth/Conflict, Tier
+    /// e.g. SCIENCE/HIGH). Empty if the catalog predates that command.</summary>
+    public static async Task<List<(string Word, string Group, string Tier)>> GetSystemDescriptorsAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new List<(string, string, string)>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.NameEnglish, i.UsageCategory, i.DescriptionEnglish
+                    FROM Items i
+                    JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'SystemDescriptors'
+                    ORDER BY i.Id";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                    results.Add((reader.GetString(0), reader.IsDBNull(1) ? "" : reader.GetString(1), reader.IsDBNull(2) ? "" : reader.GetString(2)));
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetSystemDescriptorsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
     /// <summary>Freighter Recolouring blueprints (catalog category
     /// "FreighterPaints", DataCataloger add-freighter-paints): blueprint id,
     /// in-game name, and the paint colour as "#RRGGBB". Empty if the catalog

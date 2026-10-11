@@ -17,4 +17,6 @@ public sealed class PlanetRowViewModel
     public required List<ImageSource> Glyphs { get; init; }
     public required string DiscoveredLabel { get; init; }
     public required string DistanceLabel { get; init; }
+    public required string NotesLabel { get; init; }
+    public required Visibility NotesVisibility { get; init; }
 }
