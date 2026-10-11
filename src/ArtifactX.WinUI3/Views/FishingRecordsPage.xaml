@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). -->
 <Page
     x:Class="ArtifactX.WinUI3.Views.FishingRecordsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -10,7 +11,7 @@
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Grid Padding="24" RowSpacing="16">
+    <Grid Padding="28,26,28,24" RowSpacing="18">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -22,7 +23,7 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="Fishing Records" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="0" Text="FISHING RECORDS" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
             <!-- No separate Save/Discard here, unlike AccountDataPage - this field is
                  a normal per-slot save value, so it goes through the same title-bar
                  Save/Reset button every other page in the app already uses. -->
@@ -41,13 +42,21 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                        CornerRadius="6" Padding="12,8" Opacity="0.85">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource NmsTextSecondary}" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                        <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
-                                   Text="This save's fishing-record checklist (the same list the in-game Catalog &amp; Guide -> Fishing Records screen shows) - 210 real, named fish species. The catch count/size written isn't guaranteed to match what a real catch would have recorded - only the reveal itself is confirmed to work."/>
-                    </StackPanel>
+                <!-- Only the reveal itself is confirmed in-game; the catch count/size
+                     written for a newly caught fish isn't guaranteed to match what a
+                     real catch would record. -->
+                <Border Grid.Row="0" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                        Background="{ThemeResource ThemePanelAltBrush}"
+                        CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"
+                                   Text="All 210 fish from the in-game Catalog &amp; Guide &gt; Fishing Records screen. Click a fish to mark it caught or uncaught. A fish marked caught here gets a stand-in catch size, not one from a real catch."/>
+                    </Grid>
                 </Border>
 
                 <Grid Grid.Row="1" ColumnSpacing="12">
@@ -65,7 +74,7 @@
                         <ComboBoxItem Content="Uncaught Only"/>
                     </ComboBox>
                     <TextBlock Grid.Column="2" x:Name="ResultCountTxt" VerticalAlignment="Center" FontSize="12"
-                               Foreground="{ThemeResource NmsTextSecondary}"/>
+                               Foreground="{ThemeResource ThemeTextDimBrush}"/>
                     <Button Grid.Column="3" x:Name="MarkUncaughtAllBtn" Content="Mark All Uncaught" Click="MarkUncaughtAllBtn_Click"
                             ToolTipService.ToolTip="Marks every species currently shown below as uncaught (respects the search box and filter)"/>
                     <Button Grid.Column="4" x:Name="MarkCaughtAllBtn" Content="Mark All Caught" Click="MarkCaughtAllBtn_Click"
@@ -84,9 +93,9 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="viewmodels:FishingRecordRowViewModel">
-                                <Border Width="300" Padding="10,8" CornerRadius="6" BorderThickness="1"
+                                <Border Width="300" Padding="10,8" CornerRadius="{ThemeResource ThemeCardCornerRadius}" BorderThickness="1"
                                         Tapped="Tile_Tapped" Tag="{x:Bind}"
-                                        BorderBrush="{ThemeResource NmsTextSecondary}" Opacity="0.95"
+                                        BorderBrush="{ThemeResource ThemeLineBrush}"
                                         Background="{x:Bind IsCaught, Mode=OneWay, Converter={StaticResource BoolToActiveBackgroundConverter}}">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
@@ -96,10 +105,10 @@
                                         </Grid.ColumnDefinitions>
                                         <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCaught, Mode=OneWay}" IsHitTestVisible="False"
                                                   VerticalAlignment="Center" Padding="0" MinWidth="0"/>
-                                        <Border Grid.Column="1" Width="28" Height="28" Background="#1A1F2E" CornerRadius="4" VerticalAlignment="Center">
+                                        <Border Grid.Column="1" Width="28" Height="28" Background="{ThemeResource ThemeVoidBrush}" CornerRadius="4" VerticalAlignment="Center">
                                             <Image Source="{x:Bind Icon, Mode=OneWay}" Stretch="Uniform" Width="22" Height="22"/>
                                         </Border>
-                                        <TextBlock Grid.Column="2" Text="{x:Bind DisplayName}" FontSize="12" TextWrapping="Wrap"
+                                        <TextBlock Grid.Column="2" Text="{x:Bind DisplayName}" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"
                                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxLines="2"/>
                                     </Grid>
                                 </Border>
