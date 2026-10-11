@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). -->
 <Page
     x:Class="ArtifactX.WinUI3.Views.ExpeditionRewardsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -23,18 +24,18 @@
                           IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
                           Click="ItemCheckBox_Click" Tag="{x:Bind}" VerticalAlignment="Center"/>
                 <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind DisplayName}" TextTrimming="CharacterEllipsis"/>
-                    <TextBlock Text="{x:Bind GameId}" FontSize="10" Foreground="{ThemeResource NmsTextSecondary}"
+                    <TextBlock Text="{x:Bind DisplayName}" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource ThemeTextBrush}"/>
+                    <TextBlock Text="{x:Bind GameId}" FontSize="10" Foreground="{ThemeResource ThemeTextFaintBrush}"
                                TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
                 <Border Grid.Column="2" Visibility="{x:Bind ExpeditionVisibility}"
-                        BorderBrush="{ThemeResource NmsAccentBrush}" BorderThickness="1"
+                        BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="1"
                         CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind ExpeditionLabel}" FontSize="11" Foreground="{ThemeResource NmsAccentBrush}"/>
+                    <TextBlock Text="{x:Bind ExpeditionLabel}" FontSize="11" Foreground="{ThemeResource ThemeAccentBrush}"/>
                 </Border>
-                <Border Grid.Column="3" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                <Border Grid.Column="3" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                         CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind CategoryLabel}" FontSize="11" Foreground="{ThemeResource NmsTextSecondary}"/>
+                    <TextBlock Text="{x:Bind CategoryLabel}" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}"/>
                 </Border>
             </Grid>
         </DataTemplate>
@@ -43,11 +44,12 @@
             <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="16"/>
         </ItemsPanelTemplate>
         <DataTemplate x:Key="CategoryCardTemplate" x:DataType="viewmodels:CatalogCategorySectionViewModel">
-            <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                    CornerRadius="8" Padding="14" Width="420" VerticalAlignment="Top" Opacity="0.95">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="{x:Bind Header}" FontWeight="SemiBold" FontSize="14"/>
-                    <ListView ItemsSource="{x:Bind Items}" SelectionMode="None"
+            <Border Style="{StaticResource ThemeCardStyle}" Width="420" VerticalAlignment="Top">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="{x:Bind HeaderUpper}" Style="{StaticResource ThemeBandTextStyle}" TextTrimming="CharacterEllipsis"/>
+                    </Border>
+                    <ListView ItemsSource="{x:Bind Items}" SelectionMode="None" Margin="6,8,6,8"
                               Height="{x:Bind ListHeight}"
                               ItemTemplate="{StaticResource AccountItemRowTemplate}"/>
                 </StackPanel>
@@ -55,7 +57,7 @@
         </DataTemplate>
     </Page.Resources>
 
-    <Grid Padding="24" RowSpacing="16">
+    <Grid Padding="28,26,28,24" RowSpacing="18">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -68,14 +70,14 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                <TextBlock Text="Expedition Rewards" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
-                <Border Background="{ThemeResource NmsAccentBrush}" CornerRadius="4" Padding="9,3" VerticalAlignment="Center">
-                    <TextBlock x:Name="ActivePlatformTxt" Text="" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="EXPEDITION REWARDS" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
+                <Border Background="{ThemeResource ThemeAccentBrush}" CornerRadius="4" Padding="9,3" VerticalAlignment="Center">
+                    <TextBlock x:Name="ActivePlatformTxt" Text="" FontSize="12" FontWeight="Bold" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
                 </Border>
             </StackPanel>
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                 <TextBlock x:Name="PendingEditsTxt" VerticalAlignment="Center" FontSize="12"
-                           Foreground="{ThemeResource NmsTextSecondary}"/>
+                           Foreground="{ThemeResource ThemeTextDimBrush}"/>
                 <!-- Shares the same accountdata.hg unlock array as Catalog/Twitch
                      Rewards (see AccountSessionManager) - saving/discarding here also
                      saves/discards any pending edits made on those other 2 pages this
@@ -84,14 +86,14 @@
                 <Button x:Name="DiscardChangesBtn" Content="Discard Changes" Click="DiscardChangesBtn_Click"
                         Style="{StaticResource DangerButtonStyle}" IsEnabled="False"/>
                 <Button x:Name="SaveChangesBtn" Content="Save Changes" Click="SaveChangesBtn_Click"
-                        Style="{ThemeResource AccentButtonStyle}" IsEnabled="False"/>
+                        Style="{StaticResource ThemeAccentButtonStyle}" IsEnabled="False"/>
             </StackPanel>
         </Grid>
 
         <Grid Grid.Row="1">
             <TextBlock x:Name="NoAccountDataTxt" Visibility="Collapsed"
                        Text="No accountdata.hg file was found alongside this save - this platform account may be very new, or this feature isn't supported for it yet."
-                       Foreground="{ThemeResource NmsTextSecondary}" FontSize="14" TextWrapping="Wrap"
+                       Foreground="{ThemeResource ThemeTextDimBrush}" FontSize="14" TextWrapping="Wrap"
                        HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="480" TextAlignment="Center"/>
 
             <ProgressRing x:Name="LoadingRing" IsActive="False" Width="40" Height="40"
@@ -99,13 +101,17 @@
 
             <ScrollViewer x:Name="ContentPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                 <StackPanel Spacing="16">
-                    <Border Background="#332B1400" BorderBrush="#FFB800"
-                            BorderThickness="1" CornerRadius="6" Padding="12,8">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <FontIcon Glyph="&#xE7BA;" FontSize="14" Foreground="#FFB800" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#FFB800"
-                                       Text="This list is account-wide, not tied to any one save slot - unlocking or locking an item anywhere below affects every save on this platform account (accountdata.hg), not just the save currently loaded. Save this separately with the button above; it does not go through the normal per-save Save button."/>
-                        </StackPanel>
+                    <Border Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
+                            BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE7BA;" FontSize="14" Foreground="{ThemeResource ThemeWarningBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                            <TextBlock Grid.Column="1" TextWrapping="Wrap" FontSize="13" Foreground="{ThemeResource ThemeWarningBrush}"
+                                       Text="This list is shared by every save on this platform account, not just the save that's loaded. Save it with the Save Changes button above; the normal Save button doesn't cover it."/>
+                        </Grid>
                     </Border>
 
                     <!-- Banner/Decal/Title items whose own names spell out which
@@ -127,7 +133,7 @@
                         <TextBox Grid.Column="0" x:Name="SearchBox" PlaceholderText="Search expedition rewards..." TextChanged="SearchBox_TextChanged"/>
                         <ComboBox Grid.Column="1" x:Name="ExpeditionFilterBox" Width="220" SelectionChanged="ExpeditionFilterBox_SelectionChanged"/>
                         <TextBlock Grid.Column="2" x:Name="ResultCountTxt" VerticalAlignment="Center" FontSize="12"
-                                   Foreground="{ThemeResource NmsTextSecondary}"/>
+                                   Foreground="{ThemeResource ThemeTextDimBrush}"/>
                         <Button Grid.Column="3" x:Name="LockAllBtn" Content="Lock All" Click="LockAllBtn_Click"
                                 ToolTipService.ToolTip="Locks every item currently shown below (respects the search box and expedition filter)"/>
                         <Button Grid.Column="4" x:Name="UnlockAllBtn" Content="Unlock All" Click="UnlockAllBtn_Click"
