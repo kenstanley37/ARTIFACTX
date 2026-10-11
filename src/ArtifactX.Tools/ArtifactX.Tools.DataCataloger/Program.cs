@@ -1305,6 +1305,289 @@ if (args.Length > 1 && args[0].Equals("add-system-descriptors", StringComparison
     return;
 }
 
+// "DataCataloger add-recipes <target-catalog-db-path>" adds every refiner and
+// cooking recipe from metadata/reality/tables/nms_reality_gcrecipetable.mbin
+// (GcRecipeTable: Id, RecipeName/RecipeType loc keys, Result + Ingredients
+// [{Id, Amount, Type}], TimeToMake, Cooking) as category "Recipes". Stored as
+// ordinary catalog items so they survive `trim` with no schema change:
+// GameId = recipe id, NameEnglish = resolved recipe name, UsageCategory =
+// "Refiner"/"Cooking", DescriptionEnglish = compact JSON
+// {"type","result":[id,amount],"ingredients":[[id,amount],...],"time"} - ids
+// are item GameIds (products/substances), resolved to names/icons by the app
+// through the normal catalog lookup. Added 2026-10-11 for the Recipes tool;
+// same patch-in-place pattern as add-guide-topics; idempotent.
+if (args.Length > 1 && args[0].Equals("add-recipes", StringComparison.OrdinalIgnoreCase))
+{
+    string recipeDbPath = args[1];
+    if (!File.Exists(recipeDbPath))
+    {
+        ConsoleStyle.Error($"Target catalog DB not found: {recipeDbPath}");
+        return;
+    }
+
+    var recipeSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(recipeSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakReaderService recipePakReader = new PakReaderService();
+    var recipeExtraction = new ExtractionService();
+    libMBIN.NMS.GameComponents.GcRecipeTable? recipeTable = null;
+    var recipeLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    foreach (var pak in new PakDiscoveryService().Discover(recipeSettings.NmsInstallationPath!))
+    {
+        PakHeader header;
+        IReadOnlyList<PakEntry> entries;
+        try
+        {
+            header = recipePakReader.ReadHeader(pak.FullPath);
+            entries = recipePakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+
+        var wanted = entries.Where(e =>
+            !string.IsNullOrEmpty(e.FileName) &&
+            ((e.FileName.Contains("language/nms_", StringComparison.OrdinalIgnoreCase) &&
+              e.FileName.Contains("english", StringComparison.OrdinalIgnoreCase) &&
+              !e.FileName.Contains("usenglish", StringComparison.OrdinalIgnoreCase)) ||
+             (recipeTable is null && e.FileName.Contains("nms_reality_gcrecipetable.mbin", StringComparison.OrdinalIgnoreCase))));
+
+        foreach (var entry in wanted)
+        {
+            byte[]? bytes;
+            try { bytes = recipeExtraction.ExtractEntryBytes(pak.FullPath, entry, header); }
+            catch { continue; }
+            if (bytes is null || bytes.Length == 0) continue;
+
+            NMSTemplate? template;
+            try
+            {
+                using var ms = new MemoryStream(bytes);
+                var mbin = new MBINFile(ms);
+                mbin.Load();
+                template = mbin.GetData();
+            }
+            catch { continue; }
+
+            if (template is libMBIN.NMS.GameComponents.GcRecipeTable table)
+                recipeTable = table;
+            else if (template is not null)
+                foreach (var kv in LocalisationService.BuildEnglishLookup(template))
+                    recipeLookup.TryAdd(kv.Key, kv.Value);
+        }
+    }
+
+    if (recipeTable?.Table is null)
+    {
+        ConsoleStyle.Error("Could not find/decode nms_reality_gcrecipetable.mbin in any PAK.");
+        return;
+    }
+
+    string Loc(string? id) => id is { Length: > 0 } && recipeLookup.TryGetValue(id, out var text) ? text : id ?? "";
+    var recipes = new List<CatalogItem>();
+    foreach (var r in recipeTable.Table)
+    {
+        string id = r.Id?.Value ?? "";
+        string resultId = r.Result?.Id?.Value ?? "";
+        var ingredients = (r.Ingredients ?? new()).Where(i => !string.IsNullOrEmpty(i.Id?.Value)).ToList();
+        if (id.Length == 0 || resultId.Length == 0 || ingredients.Count == 0) continue;
+
+        var payload = new System.Text.Json.Nodes.JsonObject
+        {
+            ["type"] = Loc(r.RecipeType?.Value),
+            ["result"] = new System.Text.Json.Nodes.JsonArray(resultId, r.Result!.Amount),
+            ["ingredients"] = new System.Text.Json.Nodes.JsonArray(ingredients
+                .Select(i => (System.Text.Json.Nodes.JsonNode)new System.Text.Json.Nodes.JsonArray(i.Id.Value, i.Amount)).ToArray()),
+            ["time"] = r.TimeToMake,
+        };
+
+        recipes.Add(new CatalogItem
+        {
+            GameId = id,
+            NameEnglish = Loc(r.RecipeName?.Value),
+            UsageCategory = r.Cooking ? "Cooking" : "Refiner",
+            DescriptionEnglish = payload.ToJsonString(),
+        });
+    }
+
+    ConsoleStyle.Header($"Found {recipes.Count} recipes ({recipes.Count(r => r.UsageCategory == "Cooking")} cooking, {recipes.Count(r => r.UsageCategory == "Refiner")} refiner).");
+    foreach (var sample in recipes.Take(5))
+        ConsoleStyle.Success($"  {sample.GameId} {sample.UsageCategory} '{sample.NameEnglish}' {sample.DescriptionEnglish}");
+
+    using var recipeDb = new CatalogDbContext(recipeDbPath);
+    var existingRecipeCategory = recipeDb.Categories.FirstOrDefault(c => c.TemplateType == "Recipes");
+    if (existingRecipeCategory != null)
+    {
+        recipeDb.Items.RemoveRange(recipeDb.Items.Where(i => i.CategoryId == existingRecipeCategory.Id));
+        recipeDb.Categories.Remove(existingRecipeCategory);
+        recipeDb.SaveChanges();
+    }
+
+    var recipeCategory = new CatalogCategory
+    {
+        TemplateType = "Recipes",
+        RowType = "GcRefinerRecipe",
+        SourceMbinPath = "metadata/reality/tables/nms_reality_gcrecipetable.mbin"
+    };
+    recipeDb.Categories.Add(recipeCategory);
+    recipeDb.SaveChanges();
+
+    foreach (var recipe in recipes) recipe.CategoryId = recipeCategory.Id;
+    recipeDb.Items.AddRange(recipes);
+    recipeDb.SaveChanges();
+
+    ConsoleStyle.Success($"Wrote {recipes.Count} recipes to {recipeDbPath}.");
+    return;
+}
+
+// "DataCataloger add-item-values <target-catalog-db-path>" adds the base Units
+// value and trade data of every product and substance (GcProductTable /
+// GcRealitySubstanceTable: BaseValue, TradeCategory, Legality, Rarity) as
+// category "ItemValues". GameId = "VALUE:" + item id (prefixed so it never
+// collides with the item's own catalog row in id lookups), NameEnglish =
+// readable name, UsageCategory = TradeCategory (Mineral, Tech, Commodity,
+// Component, Alloy, Exotic, Energy, None, SpecialShop), DescriptionEnglish =
+// JSON {"id","value","legality","rarity","kind"}. Added 2026-10-11 for the
+// Item Values tool; idempotent, same patch-in-place pattern as add-recipes.
+if (args.Length > 1 && args[0].Equals("add-item-values", StringComparison.OrdinalIgnoreCase))
+{
+    string valueDbPath = args[1];
+    if (!File.Exists(valueDbPath))
+    {
+        ConsoleStyle.Error($"Target catalog DB not found: {valueDbPath}");
+        return;
+    }
+
+    var valueSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(valueSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakReaderService valuePakReader = new PakReaderService();
+    var valueExtraction = new ExtractionService();
+    libMBIN.NMS.GameComponents.GcProductTable? productTable = null;
+    libMBIN.NMS.GameComponents.GcSubstanceTable? substanceTable = null;
+    var valueLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    foreach (var pak in new PakDiscoveryService().Discover(valueSettings.NmsInstallationPath!))
+    {
+        PakHeader header;
+        IReadOnlyList<PakEntry> entries;
+        try
+        {
+            header = valuePakReader.ReadHeader(pak.FullPath);
+            entries = valuePakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+
+        var wanted = entries.Where(e =>
+            !string.IsNullOrEmpty(e.FileName) &&
+            ((e.FileName.Contains("language/nms_", StringComparison.OrdinalIgnoreCase) &&
+              e.FileName.Contains("english", StringComparison.OrdinalIgnoreCase) &&
+              !e.FileName.Contains("usenglish", StringComparison.OrdinalIgnoreCase)) ||
+             e.FileName.EndsWith("nms_reality_gcproducttable.mbin", StringComparison.OrdinalIgnoreCase) ||
+             e.FileName.EndsWith("nms_reality_gcsubstancetable.mbin", StringComparison.OrdinalIgnoreCase)));
+
+        foreach (var entry in wanted)
+        {
+            byte[]? bytes;
+            try { bytes = valueExtraction.ExtractEntryBytes(pak.FullPath, entry, header); }
+            catch { continue; }
+            if (bytes is null || bytes.Length == 0) continue;
+
+            NMSTemplate? template;
+            try
+            {
+                using var ms = new MemoryStream(bytes);
+                var mbin = new MBINFile(ms);
+                mbin.Load();
+                template = mbin.GetData();
+            }
+            catch { continue; }
+
+            switch (template)
+            {
+                case libMBIN.NMS.GameComponents.GcProductTable p: productTable ??= p; break;
+                case libMBIN.NMS.GameComponents.GcSubstanceTable t: substanceTable ??= t; break;
+                case not null:
+                    foreach (var kv in LocalisationService.BuildEnglishLookup(template))
+                        valueLookup.TryAdd(kv.Key, kv.Value);
+                    break;
+            }
+        }
+    }
+
+    if (productTable?.Table is null || substanceTable?.Table is null)
+    {
+        ConsoleStyle.Error("Could not find/decode the product and substance tables.");
+        return;
+    }
+
+    string Name(string? lowerKey, string? key)
+    {
+        if (lowerKey is { Length: > 0 } && valueLookup.TryGetValue(lowerKey, out var lower)) return lower;
+        return key is { Length: > 0 } && valueLookup.TryGetValue(key, out var upper) ? upper : "";
+    }
+
+    var valueItems = new List<CatalogItem>();
+    void Add(string id, string name, int value, string trade, string legality, string rarity, string kind)
+    {
+        if (id.Length == 0 || name.Length == 0) return;
+        var payload = new System.Text.Json.Nodes.JsonObject
+        {
+            ["id"] = id, ["value"] = value, ["legality"] = legality, ["rarity"] = rarity, ["kind"] = kind,
+        };
+        valueItems.Add(new CatalogItem
+        {
+            GameId = "VALUE:" + id,
+            NameEnglish = name,
+            UsageCategory = trade,
+            DescriptionEnglish = payload.ToJsonString(),
+        });
+    }
+
+    foreach (var p in productTable.Table)
+        Add(p.ID?.Value ?? "", Name(p.NameLower?.Value, p.Name?.Value), p.BaseValue,
+            p.TradeCategory?.TradeCategory.ToString() ?? "None", p.Legality?.Legality.ToString() ?? "", p.Rarity?.Rarity.ToString() ?? "", "Product");
+    foreach (var t in substanceTable.Table)
+        Add(t.ID?.Value ?? "", Name(t.NameLower?.Value, t.Name?.Value), t.BaseValue,
+            t.TradeCategory?.TradeCategory.ToString() ?? "None", t.Legality?.Legality.ToString() ?? "", t.Rarity?.Rarity.ToString() ?? "", "Substance");
+
+    ConsoleStyle.Header($"Found {valueItems.Count} items with values.");
+    foreach (var g in valueItems.GroupBy(i => i.UsageCategory))
+        ConsoleStyle.Success($"  {g.Key}: {g.Count()}");
+
+    using var valueDb = new CatalogDbContext(valueDbPath);
+    var existingValueCategory = valueDb.Categories.FirstOrDefault(c => c.TemplateType == "ItemValues");
+    if (existingValueCategory != null)
+    {
+        valueDb.Items.RemoveRange(valueDb.Items.Where(i => i.CategoryId == existingValueCategory.Id));
+        valueDb.Categories.Remove(existingValueCategory);
+        valueDb.SaveChanges();
+    }
+
+    var valueCategory = new CatalogCategory
+    {
+        TemplateType = "ItemValues",
+        RowType = "BaseValue",
+        SourceMbinPath = "metadata/reality/tables/nms_reality_gcproducttable.mbin + gcsubstancetable.mbin"
+    };
+    valueDb.Categories.Add(valueCategory);
+    valueDb.SaveChanges();
+
+    foreach (var item in valueItems) item.CategoryId = valueCategory.Id;
+    valueDb.Items.AddRange(valueItems);
+    valueDb.SaveChanges();
+
+    ConsoleStyle.Success($"Wrote {valueItems.Count} item values to {valueDbPath}.");
+    return;
+}
+
 // "DataCataloger dumpfile <path substring>" decodes exactly one MBIN (the first
 // entry whose path contains the given substring) and prints its full raw field
 // structure, regardless of whether CatalogClassifier would recognize it as a

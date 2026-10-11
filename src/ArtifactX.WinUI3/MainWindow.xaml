@@ -269,6 +269,16 @@
                                 <FontIcon Glyph="&#xE7B7;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
+                        <NavigationViewItem Content="Recipes" Tag="Recipes">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE8F1;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Content="Item Values" Tag="ItemValues">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE8EC;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
                         <NavigationViewItem Content="Bases" Tag="Bases">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE80F;" FontFamily="Segoe MDL2 Assets"/>
