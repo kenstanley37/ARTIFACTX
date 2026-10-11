@@ -206,7 +206,9 @@
                                        VerticalAlignment="Bottom" Margin="0,0,0,8"/>
                         </ctcontrols:WrapPanel>
 
-                        <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
+                        <TextBlock x:Name="NoNoteFiltersTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Visibility="Collapsed"
+                                   Text="Record a system's star colour, economy and so on in Your notes on this system, and filters for them appear here."/>
+                        <ctcontrols:WrapPanel x:Name="NoteFiltersPanel" HorizontalSpacing="14" VerticalSpacing="10">
                             <ComboBox x:Name="StarFilterBox" Header="Star colour (your notes)" Width="200" SelectionChanged="Filter_Changed"/>
                             <ComboBox x:Name="EconomyFilterBox" Header="Economy (your notes)" Width="200" SelectionChanged="Filter_Changed"/>
                             <ComboBox x:Name="WealthFilterBox" Header="Wealth (your notes)" Width="180" SelectionChanged="Filter_Changed"/>
