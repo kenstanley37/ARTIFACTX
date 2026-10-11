@@ -52,7 +52,7 @@
         </Storyboard>
     </UserControl.Resources>
 
-    <Border Background="{ThemeResource NmsPaneBackgroundBrush}" CornerRadius="8" BorderThickness="1.5"
+    <Border Background="{ThemeResource ThemePanelBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" BorderThickness="1.5"
             BorderBrush="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BoolToAccentBrushConverter}}">
         <StackPanel>
             <Grid x:Name="HeaderRoot" Background="Transparent" Tapped="HeaderRoot_Tapped"
@@ -62,7 +62,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <ContentPresenter Grid.Column="0" Content="{x:Bind HeaderContent, Mode=OneWay}"/>
-                <FontIcon Grid.Column="1" Glyph="&#xE70D;" FontSize="12" VerticalAlignment="Center"
+                <FontIcon Grid.Column="1" Glyph="&#xE70D;" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource ThemeTextDimBrush}"
                           RenderTransformOrigin="0.5,0.5">
                     <FontIcon.RenderTransform>
                         <RotateTransform x:Name="ChevronRotate" Angle="0"/>
