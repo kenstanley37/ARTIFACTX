@@ -123,7 +123,12 @@
                                 <TextBlock x:Name="OwnedHeaderTxt" HorizontalAlignment="Right" Style="{StaticResource ThemeDimTextStyle}"/>
                             </Grid>
                         </Border>
-                        <ctcontrols:WrapPanel x:Name="OwnedTilesPanel" Padding="18,16,18,18" HorizontalSpacing="12" VerticalSpacing="12"/>
+                        <!-- Capped at two rows of tiles (126px + 12px gap) and scrolls inside,
+                             so a long station list doesn't push the details card far down the
+                             page (user report 2026-10-11). -->
+                        <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <ctcontrols:WrapPanel x:Name="OwnedTilesPanel" Padding="18,16,18,18" HorizontalSpacing="12" VerticalSpacing="12"/>
+                        </ScrollViewer>
                     </StackPanel>
                 </Border>
 
