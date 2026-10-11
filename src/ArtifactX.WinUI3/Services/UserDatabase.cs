@@ -164,6 +164,53 @@ public static class UserDatabase
         }
     }
 
+    /// <summary>Writes a consistent copy of user.db to <paramref name="target"/>.</summary>
+    public static void ExportTo(string target)
+    {
+        EnsureInitialized();
+        if (File.Exists(target)) File.Delete(target);
+        using var connection = new SqliteConnection($"Data Source={FilePath}");
+        connection.Open();
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "VACUUM INTO $target;";
+        cmd.Parameters.AddWithValue("$target", target);
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>Replaces user.db with an exported copy. Checks it really is an
+    /// ArtifactX user database first, backs up the current file, then upgrades
+    /// the imported one to this app's schema (additive steps only). Returns an
+    /// error message, or null on success.</summary>
+    public static string? ImportFrom(string source)
+    {
+        try
+        {
+            using (var check = new SqliteConnection($"Data Source={source};Mode=ReadOnly"))
+            {
+                check.Open();
+                if (Convert.ToInt32(Scalar(check, "PRAGMA user_version;"), CultureInfo.InvariantCulture) < 1
+                    || Convert.ToInt32(Scalar(check, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'systems';"), CultureInfo.InvariantCulture) == 0)
+                    return "That file isn't an ArtifactX data export.";
+            }
+        }
+        catch (Exception ex)
+        {
+            return $"Couldn't read that file: {ex.Message}";
+        }
+
+        lock (InitLock)
+        {
+            Backup("before-import");
+            SqliteConnection.ClearAllPools(); // release pooled handles so the file can be replaced
+            foreach (var extra in new[] { FilePath + "-wal", FilePath + "-shm" })
+                if (File.Exists(extra)) File.Delete(extra);
+            File.Copy(source, FilePath, overwrite: true);
+            _initialized = false;
+        }
+        EnsureInitialized();
+        return null;
+    }
+
     public static void Execute(SqliteConnection connection, string sql, SqliteTransaction? tx = null)
     {
         using var cmd = connection.CreateCommand();

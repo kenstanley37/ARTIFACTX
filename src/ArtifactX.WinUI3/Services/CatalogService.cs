@@ -494,6 +494,125 @@ public static class CatalogService
         return stripped;
     }
 
+    /// <summary>Readable item names (the catalog's proper-case NameLowerEnglish,
+    /// e.g. "Magnetized Ferrite", falling back to the upper-case name) for
+    /// products and substances, keyed by GameId.</summary>
+    public static async Task<Dictionary<string, string>> GetItemNamesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.GameId, COALESCE(i.NameLowerEnglish, i.NameEnglish)
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType IN ('GcProductTable', 'GcSubstanceTable')
+                      AND COALESCE(i.NameLowerEnglish, i.NameEnglish) IS NOT NULL";
+                using var reader = command.ExecuteReader();
+                while (reader.Read()) names.TryAdd(reader.GetString(0), reader.GetString(1));
+                return names;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetItemNamesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>Base Units value and trade category of every product and
+    /// substance (catalog category "ItemValues", DataCataloger add-item-values).</summary>
+    public static async Task<List<ItemValueInfo>> GetItemValuesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new List<ItemValueInfo>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.NameEnglish, i.UsageCategory, i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'ItemValues'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    if (reader.IsDBNull(2)) continue;
+                    using var json = System.Text.Json.JsonDocument.Parse(reader.GetString(2));
+                    var root = json.RootElement;
+                    results.Add(new ItemValueInfo(
+                        root.GetProperty("id").GetString() ?? "",
+                        reader.GetString(0),
+                        reader.IsDBNull(1) ? "None" : reader.GetString(1),
+                        root.GetProperty("value").GetInt64(),
+                        root.GetProperty("legality").GetString() ?? "",
+                        root.GetProperty("kind").GetString() ?? ""));
+                }
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetItemValuesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>Every refiner and cooking recipe (catalog category "Recipes",
+    /// DataCataloger add-recipes). Empty if the catalog predates that command.</summary>
+    public static async Task<List<RecipeInfo>> GetRecipesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new List<RecipeInfo>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.GameId, i.NameEnglish, i.UsageCategory, i.DescriptionEnglish
+                    FROM Items i
+                    JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'Recipes'
+                    ORDER BY i.Id";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    if (reader.IsDBNull(3)) continue;
+                    using var json = System.Text.Json.JsonDocument.Parse(reader.GetString(3));
+                    var root = json.RootElement;
+                    static (string Id, int Amount) Pair(System.Text.Json.JsonElement e) => (e[0].GetString() ?? "", e[1].GetInt32());
+                    results.Add(new RecipeInfo(
+                        reader.GetString(0),
+                        reader.IsDBNull(1) ? "" : reader.GetString(1),
+                        reader.IsDBNull(2) ? "" : reader.GetString(2),
+                        Pair(root.GetProperty("result")),
+                        root.GetProperty("ingredients").EnumerateArray().Select(Pair).ToList()));
+                }
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetRecipesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
     /// <summary>The words the game uses for a system's economy, wealth and
     /// conflict (catalog category "SystemDescriptors", DataCataloger
     /// add-system-descriptors): (Word, Group = Economy/Wealth/Conflict, Tier
@@ -992,3 +1111,11 @@ public static class CatalogService
         return _dbPath;
     }
 }
+
+/// <summary>One refiner/cooking recipe: Kind is "Refiner" or "Cooking"; ids are item GameIds.</summary>
+public sealed record RecipeInfo(string Id, string Name, string Kind, (string Id, int Amount) Result, List<(string Id, int Amount)> Ingredients);
+
+/// <summary>An item's base Units value. TradeCategory is the game's own
+/// (Mineral, Tech, Commodity, Component, Alloy, Exotic, Energy, None, SpecialShop);
+/// Kind is "Product" or "Substance".</summary>
+public sealed record ItemValueInfo(string Id, string Name, string TradeCategory, long Value, string Legality, string Kind);

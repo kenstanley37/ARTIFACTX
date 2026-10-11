@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). Read-only Tools page:
+     base Units values from the game's product and substance tables. -->
+<Page
+    x:Class="ArtifactX.WinUI3.Views.ItemValuesPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="28,26,28,24" RowSpacing="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="ITEM VALUES" Style="{StaticResource ThemePageTitleStyle}"/>
+
+        <Border Grid.Row="1" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                Background="{ThemeResource ThemePanelAltBrush}"
+                CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
+            <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                <TextBlock Grid.Column="1" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"
+                           Text="Base value of every item, from the game's own tables. Actual prices vary: stations pay more or less depending on the system's economy, and trade goods sell best in a system whose economy wants them. Use Trade goods to see what each economy type deals in."/>
+            </Grid>
+        </Border>
+
+        <ctcontrols:WrapPanel Grid.Row="2" HorizontalSpacing="14" VerticalSpacing="10">
+            <TextBox x:Name="SearchBox" Header="Search" Width="280" PlaceholderText="e.g. Stasis Device" TextChanged="SearchBox_TextChanged"/>
+            <ComboBox x:Name="KindBox" Header="Show" Width="260" SelectionChanged="Filter_Changed">
+                <ComboBoxItem Content="All items"/>
+                <ComboBoxItem Content="Products (crafted)"/>
+                <ComboBoxItem Content="Substances (raw)"/>
+                <ComboBoxItem Content="Trade goods (by economy)"/>
+            </ComboBox>
+            <ComboBox x:Name="EconomyBox" Header="Economy" Width="240" SelectionChanged="Filter_Changed"/>
+            <CheckBox x:Name="HideZeroBox" Content="Hide items with no value" IsChecked="True" Click="Filter_Click" VerticalAlignment="Bottom"/>
+            <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
+        </ctcontrols:WrapPanel>
+
+        <ListView Grid.Row="3" x:Name="ItemsList" SelectionMode="None">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Margin" Value="0,0,0,6"/>
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="viewmodels:ItemValueRowViewModel">
+                    <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                            Background="{ThemeResource ThemePanelAltBrush}"
+                            CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,8">
+                        <Grid ColumnSpacing="14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="36"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Width="34" Height="34" Background="{ThemeResource ThemeVoidBrush}">
+                                <Image Source="{x:Bind Icon}" Width="30" Height="30"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold"/>
+                                <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="2" Text="{x:Bind Value}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold"
+                                       FontSize="16" Foreground="{ThemeResource ThemeTextBrush}" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+</Page>

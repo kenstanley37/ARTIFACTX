@@ -146,6 +146,12 @@ public static class SystemNotesService
 
     public static int Count => Notes.Count;
 
+    /// <summary>Drops the in-memory copy so the next read comes from user.db (after an import).</summary>
+    public static void Reload()
+    {
+        lock (Lock) _notes = null;
+    }
+
     /// <summary>Every recorded system's notes (for building search filters).</summary>
     public static IReadOnlyList<SystemNote> All
     {
