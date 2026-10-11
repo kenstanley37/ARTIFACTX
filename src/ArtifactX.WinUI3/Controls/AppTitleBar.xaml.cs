@@ -132,7 +132,9 @@ public sealed partial class AppTitleBar : UserControl
             SaveSwitchFlash.Begin();
         _lastActiveLabel = currentLabel;
 
-        ActiveSaveTxt.Text = currentLabel is not null ? $"•  {currentLabel}" : string.Empty;
+        ActiveSaveTxt.Text = currentLabel is null
+            ? string.Empty
+            : SaveSessionManager.IsExpeditionActive ? $"•  {currentLabel} (Expedition)" : $"•  {currentLabel}";
 
         if (!SaveSessionManager.IsSaveLoaded)
         {
