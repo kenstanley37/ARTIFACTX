@@ -86,6 +86,18 @@ public static class UserDatabase
         CREATE INDEX ix_system_notes_system ON system_notes(system_address);
         CREATE INDEX ix_systems_galaxy ON systems(galaxy);
         """,
+
+        // 2 - recipes pinned on the Recipes page (2026-10-11).
+        """
+        CREATE TABLE pinned_recipes (
+            recipe_id  TEXT PRIMARY KEY,
+            pinned_at  TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            source     TEXT NOT NULL DEFAULT 'user',
+            synced_at  TEXT NULL,
+            deleted    INTEGER NOT NULL DEFAULT 0
+        );
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;

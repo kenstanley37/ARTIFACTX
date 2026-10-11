@@ -89,7 +89,11 @@ public sealed partial class GeneralPage : Page
 
         string path = file.Path;
         string? error = await Task.Run(() => UserDatabase.ImportFrom(path));
-        if (error is null) SystemNotesService.Reload();
+        if (error is null)
+        {
+            SystemNotesService.Reload();
+            PinnedRecipesService.Reload();
+        }
         UserDataStatusTxt.Text = error ?? $"Imported {file.Name}. Your previous data was backed up.";
     }
 

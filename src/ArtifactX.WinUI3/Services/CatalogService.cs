@@ -568,6 +568,57 @@ public static class CatalogService
         }
     }
 
+    /// <summary>A plain-English item type for each product/substance, for the
+    /// Recipes page's type filter: from the catalog's CatalogGroup (the game's
+    /// own "Cooking Products"/"Crafted Products"/"Raw Materials" grouping) and,
+    /// for raw substances, their material category (UsageCategory: Fuel, Metal,
+    /// Catalyst, Stellar, Earth, Exotic, Flora, Special).</summary>
+    public static async Task<Dictionary<string, string>> GetItemTypesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var types = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.GameId, c.TemplateType, i.CatalogGroup, i.UsageCategory
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType IN ('GcProductTable', 'GcSubstanceTable')";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    string group = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                    string usage = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                    string type = reader.GetString(1) == "GcSubstanceTable"
+                        ? usage switch
+                        {
+                            "Fuel" => "Fuels (Carbon, Oxygen)",
+                            "Metal" => "Ferrite and silicates",
+                            "Catalyst" => "Catalysts (Sodium)",
+                            "Stellar" => "Stellar metals (Copper, Indium...)",
+                            "Earth" => "Earth elements (Cobalt, Salt, Pyrite...)",
+                            "Exotic" => "Precious metals (Gold, Silver, Platinum)",
+                            "Flora" => "Plants (Solanium, Star Bulb...)",
+                            _ => "Special (Chromatic Metal, gases...)",
+                        }
+                        : group == "Cooking Products" ? "Cooked food" : "Crafted products";
+                    types.TryAdd(reader.GetString(0), type);
+                }
+                return types;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetItemTypesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
     /// <summary>Every refiner and cooking recipe (catalog category "Recipes",
     /// DataCataloger add-recipes). Empty if the catalog predates that command.</summary>
     public static async Task<List<RecipeInfo>> GetRecipesAsync()
