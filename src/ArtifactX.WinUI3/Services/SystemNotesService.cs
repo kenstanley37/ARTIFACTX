@@ -27,9 +27,17 @@ public sealed class SystemNote
     /// <see cref="Text"/>; it's moved in here when notes are loaded.)</summary>
     public List<string> Notes { get; set; } = new();
 
+    /// <summary>Names the game showed - learned from the save's "where you
+    /// saved" line as you play (PlanetsPage), or typed by the player. Planet
+    /// names are keyed by planet number ("1".."6").</summary>
+    public string SystemName { get; set; } = "";
+    public string StationName { get; set; } = "";
+    public Dictionary<string, string> PlanetNames { get; set; } = new();
+
     [JsonIgnore]
     public bool IsEmpty => StarColour == "" && Economy == "" && Wealth == "" && Conflict == "" && Race == ""
-        && Text == "" && StarClass == "" && !Water && !Dissonant && Moons is null && Notes.Count == 0;
+        && Text == "" && StarClass == "" && !Water && !Dissonant && Moons is null && Notes.Count == 0
+        && SystemName == "" && StationName == "" && PlanetNames.Count == 0;
 
     /// <summary>Whether a body is a moon. The save doesn't mark moons, but
     /// checked against 4 real systems (2026-10-11) moons are always the bodies
@@ -54,7 +62,7 @@ public static class SystemNotesService
     // words instead (catalog "SystemDescriptors"); a note stores the word the
     // player picked, and CategoryOf maps it back to its category for filtering.
     public static readonly string[] StarColours = { "Yellow", "Red", "Green", "Blue", "Purple" };
-    public static readonly string[] Races = { "Gek", "Korvax", "Vy'keen", "Autophage", "None (uncharted)" };
+    public static readonly string[] Races = { "Gek", "Korvax", "Vy'keen", "Autophage", "Evacuated (no station)", "None (uncharted)" };
 
     /// <summary>Star colour from a spectral class as the Galaxy Map shows it
     /// (e.g. "G7", "F5p", "K8pf", "E7", "X1"): the first letter decides it.

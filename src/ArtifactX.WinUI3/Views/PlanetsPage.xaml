@@ -24,9 +24,39 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
                             ToolTipService.ToolTip="This page follows your game: each time No Man's Sky saves, it shows your new location and discoveries. It only reads the save; it never changes it.">
                     <Ellipse Width="8" Height="8" Fill="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="LiveStatusTxt" Text="Following your game" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                    <TextBlock x:Name="LiveStatusTxt" Text="Following your game" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center"/>
+                    <HyperlinkButton x:Name="ShowLiveHelpLink" Content="How it works" Click="ShowLiveHelp_Click" Padding="4,0" FontSize="12" Visibility="Collapsed"/>
                 </StackPanel>
             </Grid>
+
+            <!-- How live follow works - dismissible; reopened from the status link. -->
+            <Border x:Name="LiveHelpPanel" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                    Background="{ThemeResource ThemePanelAltBrush}"
+                    CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,12,16,14">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE946;" FontSize="16" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                        <TextBlock Text="PLAY WITH THIS PAGE OPEN" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13"
+                                   Text="Keep ArtifactX open on this page while you play (a second monitor or Alt+Tab works well). It updates every time No Man's Sky saves - it only reads your save, never changes it."/>
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap">
+                            <Run Text="•  The game saves when you get out of your ship, use a save point, or on autosave. Warping alone doesn't save, so after a jump, hop out of your ship (or save) to see the new system."/>
+                            <LineBreak/>
+                            <Run Text="•  Saving in your ship in space records the system's name; saving on a planet records that planet's name. Saves on your freighter or a station don't include the system name - type it in the System name box instead."/>
+                            <LineBreak/>
+                            <Run Text="•  Scan planets and creatures, then save, to see your discovery counts go up."/>
+                            <LineBreak/>
+                            <Run Text="•  Fill in the notes (star class, economy, moons...) while the game's system info is on screen. Notes save as you type and work while the game is running."/>
+                        </TextBlock>
+                    </StackPanel>
+                    <Button Grid.Column="2" Content="Got it" Click="HideLiveHelp_Click" VerticalAlignment="Top"/>
+                </Grid>
+            </Border>
 
             <!-- Current system: animated orbit view + one tile per known planet. -->
             <Border Style="{StaticResource ThemeCardStyle}">
@@ -34,6 +64,7 @@
                     <Border Style="{StaticResource ThemeBandStyle}">
                         <TextBlock Text="CURRENT SYSTEM" Style="{StaticResource ThemeBandTextStyle}"/>
                     </Border>
+                    <Grid>
                     <StackPanel x:Name="CurrentSystemBody" Padding="20,16,20,20" Spacing="18">
                         <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
                             <!-- Orbit spacing, planet sizes and the star's colour are
@@ -47,6 +78,7 @@
                                 <TextBlock Text="LOCATION" Style="{StaticResource ThemeEyebrowStyle}"/>
                                 <TextBlock x:Name="SystemHeadingTxt" Style="{StaticResource ThemeHeadingStyle}" FontSize="24"/>
                                 <TextBlock x:Name="SystemSubTxt" Style="{StaticResource ThemeDimTextStyle}"/>
+                                <TextBlock x:Name="SystemStationTxt" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" Visibility="Collapsed"/>
                                 <StackPanel Spacing="6" Margin="0,6,0,0">
                                     <TextBlock Text="SYSTEM PORTAL ADDRESS" Style="{StaticResource ThemeEyebrowStyle}"/>
                                     <StackPanel x:Name="SystemGlyphsPanel" Orientation="Horizontal" Spacing="3"/>
@@ -74,6 +106,9 @@
                                 <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                            Text="The game doesn't save these, so record what it shows in the system's info panel (Discoveries, or the Galaxy Map), picking the exact word the game uses. Notes are kept by ArtifactX on this PC, never in your save, and become filters in the Planet Finder below."/>
                                 <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="10">
+                                    <TextBox x:Name="NoteSystemNameBox" Header="System name" Width="200" PlaceholderText="Learned when you save here"
+                                             LostFocus="NoteTextBox_LostFocus"
+                                             ToolTipService.ToolTip="Filled in automatically when you save in space in this system (the save records &quot;In the ... system&quot;). You can also type it."/>
                                     <TextBox x:Name="NoteClassBox" Header="Star class" Width="110" PlaceholderText="e.g. G7"
                                              TextChanged="NoteClassBox_TextChanged" LostFocus="NoteTextBox_LostFocus"
                                              ToolTipService.ToolTip="As shown on the Galaxy Map after the distance (e.g. 24 LY // G7). Its first letter fills in the star colour."/>
@@ -110,6 +145,19 @@
                                    Text="No planets in this system are in your discoveries yet. Scan or land on one in-game, then save."/>
                         <ctcontrols:WrapPanel x:Name="CurrentPlanetsPanel" HorizontalSpacing="14" VerticalSpacing="14"/>
                     </StackPanel>
+
+                    <!-- Shown briefly when live follow sees you arrive in a new system. -->
+                    <Border x:Name="SystemChangeOverlay" Visibility="Collapsed" IsHitTestVisible="False"
+                            HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,150,0,0" Padding="34,18"
+                            Background="{ThemeResource ThemeAccentBrush}" BorderBrush="{ThemeResource ThemeTextBrush}" BorderThickness="2"
+                            CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                        <StackPanel Spacing="4" HorizontalAlignment="Center">
+                            <TextBlock Text="SYSTEM CHANGE DETECTED" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="Bold" FontSize="22"
+                                       CharacterSpacing="160" Foreground="{ThemeResource ThemeOnAccentBrush}" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="SystemChangeDetailTxt" FontSize="14" Foreground="{ThemeResource ThemeOnAccentBrush}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    </Grid>
                 </StackPanel>
             </Border>
 

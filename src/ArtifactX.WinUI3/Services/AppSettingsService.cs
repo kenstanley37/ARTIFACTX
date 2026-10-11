@@ -64,6 +64,11 @@ public static class AppSettingsService
         LoadSettings().TryGetValue(ThemeIdKey, out var value) ? value : null;
 
     public static void SetThemeId(string themeId) => SetSetting(ThemeIdKey, themeId);
+
+    /// <summary>Simple on/off flags for one-time UI hints (e.g. a dismissed tip).</summary>
+    public static bool GetFlag(string key) => LoadSettings().TryGetValue(key, out var value) && value == "true";
+
+    public static void SetFlag(string key, bool value) => SetSetting(key, value ? "true" : "false");
 }
 
 [JsonSerializable(typeof(Dictionary<string, string>))]
