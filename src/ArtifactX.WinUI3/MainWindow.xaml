@@ -192,12 +192,6 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
-                <NavigationViewItem x:Name="PlanetsNavItem" Content="Planets" Tag="Planets" Visibility="Collapsed">
-                    <NavigationViewItem.Icon>
-                        <PathIcon x:Name="PlanetsPathIcon"/>
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-
                 <!-- Pure folder (SelectsOnInvoked="False", no Tag) - same pattern as
                      Account Data/Structural Analysis, NOT the old hybrid (parent
                      navigated AND toggled at once). User feedback 2026-08-13: "move
@@ -254,6 +248,28 @@
                     <NavigationViewItem.Icon>
                         <PathIcon x:Name="FishingRecordsPathIcon"/>
                     </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <!-- Tools: features that help you play but never change the save
+                     (planet finder, future galaxy tools). Pure folder, same pattern
+                     as Milestones/Account Data. -->
+                <NavigationViewItemSeparator x:Name="ToolsSeparator" Visibility="Collapsed"/>
+                <NavigationViewItem x:Name="ToolsNavItem" Content="Tools" SelectsOnInvoked="False" IsExpanded="False" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE90F;" FontFamily="Segoe MDL2 Assets"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.MenuItems>
+                        <NavigationViewItem x:Name="PlanetsNavItem" Content="Planets" Tag="Planets">
+                            <NavigationViewItem.Icon>
+                                <PathIcon x:Name="PlanetsPathIcon"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Content="Bases" Tag="Bases">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE80F;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                    </NavigationViewItem.MenuItems>
                 </NavigationViewItem>
 
 
