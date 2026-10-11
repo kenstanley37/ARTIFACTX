@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -117,30 +118,24 @@ public static class SystemNotesService
     public static string CategoryOf(string group, string word) =>
         _categories.TryGetValue((group, word), out var category) ? category : word;
 
-    private static readonly string FilePath = Path.Combine(LocalAppDataPaths.RootFolder, "system-notes.json");
+    // Storage: user.db (UserDatabase) - tables systems, planet_names and
+    // system_notes. Everything is also held in memory, since the finder looks
+    // notes up for thousands of planets per refresh; writes go through to the DB.
+    private static readonly string LegacyJsonPath = Path.Combine(LocalAppDataPaths.RootFolder, "system-notes.json");
+    private static readonly object Lock = new();
     private static Dictionary<string, SystemNote>? _notes;
 
     private static Dictionary<string, SystemNote> Notes
     {
         get
         {
-            if (_notes is not null) return _notes;
-            try
+            lock (Lock)
             {
-                if (File.Exists(FilePath))
-                    _notes = JsonSerializer.Deserialize(File.ReadAllText(FilePath), SystemNotesJsonContext.Default.DictionaryStringSystemNote);
+                if (_notes is not null) return _notes;
+                ImportLegacyJsonOnce();
+                _notes = LoadAll();
+                return _notes;
             }
-            catch (Exception ex) when (ex is JsonException or IOException)
-            {
-                System.Diagnostics.Debug.WriteLine($"[SystemNotesService] Couldn't read notes: {ex.Message}");
-            }
-            _notes ??= new Dictionary<string, SystemNote>();
-            foreach (var note in _notes.Values)
-            {
-                if (note.Text.Length > 0 && note.Notes.Count == 0) note.Notes.Add(note.Text);
-                note.Text = "";
-            }
-            return _notes;
         }
     }
 
@@ -151,18 +146,234 @@ public static class SystemNotesService
 
     public static int Count => Notes.Count;
 
-    public static void Save(ulong systemAddress, SystemNote note)
+    /// <param name="source">"user" when typed on a page, "save" when learned from a save.</param>
+    public static void Save(ulong systemAddress, SystemNote note, string source = "user")
     {
-        if (note.IsEmpty) Notes.Remove(Key(systemAddress));
-        else Notes[Key(systemAddress)] = note;
+        string key = Key(systemAddress);
+        lock (Lock)
+        {
+            if (note.IsEmpty) Notes.Remove(key);
+            else Notes[key] = note;
+        }
 
         try
         {
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(Notes, SystemNotesJsonContext.Default.DictionaryStringSystemNote));
+            using var connection = UserDatabase.Open();
+            using var tx = connection.BeginTransaction();
+            Write(connection, tx, key, NmsGalaxy(systemAddress), note, source);
+            tx.Commit();
         }
-        catch (IOException ex)
+        catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[SystemNotesService] Couldn't save notes: {ex.Message}");
+        }
+    }
+
+    private static int NmsGalaxy(ulong address) => (int)((address >> 32) & 0xFF) + 1;
+
+    // ---------------------------------------------------------------- database
+
+    private static Dictionary<string, SystemNote> LoadAll()
+    {
+        var result = new Dictionary<string, SystemNote>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            using var connection = UserDatabase.Open();
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.CommandText = @"SELECT address, name, station, star_class, star_colour, economy, wealth, conflict,
+                                           race, moons, water, dissonant
+                                    FROM systems WHERE deleted = 0";
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                {
+                    result[r.GetString(0)] = new SystemNote
+                    {
+                        SystemName = r.GetString(1), StationName = r.GetString(2), StarClass = r.GetString(3),
+                        StarColour = r.GetString(4), Economy = r.GetString(5), Wealth = r.GetString(6),
+                        Conflict = r.GetString(7), Race = r.GetString(8),
+                        Moons = r.IsDBNull(9) ? null : r.GetInt32(9),
+                        Water = r.GetInt64(10) != 0, Dissonant = r.GetInt64(11) != 0,
+                    };
+                }
+            }
+
+            SystemNote For(string address) => result.TryGetValue(address, out var n) ? n : result[address] = new SystemNote();
+
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.CommandText = "SELECT system_address, planet_index, name FROM planet_names WHERE deleted = 0";
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                    For(r.GetString(0)).PlanetNames[r.GetInt32(1).ToString(CultureInfo.InvariantCulture)] = r.GetString(2);
+            }
+
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.CommandText = "SELECT system_address, text FROM system_notes WHERE deleted = 0 ORDER BY created_at, rowid";
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                    For(r.GetString(0)).Notes.Add(r.GetString(1));
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[SystemNotesService] Couldn't read user.db: {ex.Message}");
+        }
+        return result;
+    }
+
+    /// <summary>Upserts one system's row, planet names and notes list. Rows are
+    /// never deleted: removed planet names / notes and emptied systems are
+    /// marked deleted = 1 (see UserDatabase's sync columns).</summary>
+    private static void Write(Microsoft.Data.Sqlite.SqliteConnection c, Microsoft.Data.Sqlite.SqliteTransaction tx,
+        string key, int galaxy, SystemNote note, string source)
+    {
+        string now = UserDatabase.Now();
+
+        using (var cmd = c.CreateCommand())
+        {
+            cmd.Transaction = tx;
+            cmd.CommandText = @"
+                INSERT INTO systems (address, galaxy, name, station, star_class, star_colour, economy, wealth, conflict,
+                                     race, moons, water, dissonant, updated_at, source, synced_at, deleted)
+                VALUES ($a, $g, $name, $station, $class, $colour, $economy, $wealth, $conflict,
+                        $race, $moons, $water, $dissonant, $now, $source, NULL, $deleted)
+                ON CONFLICT(address) DO UPDATE SET
+                    galaxy = $g, name = $name, station = $station, star_class = $class, star_colour = $colour,
+                    economy = $economy, wealth = $wealth, conflict = $conflict, race = $race, moons = $moons,
+                    water = $water, dissonant = $dissonant, updated_at = $now, source = $source,
+                    synced_at = NULL, deleted = $deleted";
+            cmd.Parameters.AddWithValue("$a", key);
+            cmd.Parameters.AddWithValue("$g", galaxy);
+            cmd.Parameters.AddWithValue("$name", note.SystemName);
+            cmd.Parameters.AddWithValue("$station", note.StationName);
+            cmd.Parameters.AddWithValue("$class", note.StarClass);
+            cmd.Parameters.AddWithValue("$colour", note.StarColour);
+            cmd.Parameters.AddWithValue("$economy", note.Economy);
+            cmd.Parameters.AddWithValue("$wealth", note.Wealth);
+            cmd.Parameters.AddWithValue("$conflict", note.Conflict);
+            cmd.Parameters.AddWithValue("$race", note.Race);
+            cmd.Parameters.AddWithValue("$moons", note.Moons is int m ? m : DBNull.Value);
+            cmd.Parameters.AddWithValue("$water", note.Water ? 1 : 0);
+            cmd.Parameters.AddWithValue("$dissonant", note.Dissonant ? 1 : 0);
+            cmd.Parameters.AddWithValue("$now", now);
+            cmd.Parameters.AddWithValue("$source", source);
+            cmd.Parameters.AddWithValue("$deleted", note.IsEmpty ? 1 : 0);
+            cmd.ExecuteNonQuery();
+        }
+
+        // Planet names: upsert the current ones, soft-delete any that are gone.
+        var existingNames = new Dictionary<int, string>();
+        using (var cmd = c.CreateCommand())
+        {
+            cmd.Transaction = tx;
+            cmd.CommandText = "SELECT planet_index, name FROM planet_names WHERE system_address = $a AND deleted = 0";
+            cmd.Parameters.AddWithValue("$a", key);
+            using var r = cmd.ExecuteReader();
+            while (r.Read()) existingNames[r.GetInt32(0)] = r.GetString(1);
+        }
+        foreach (var (indexText, name) in note.PlanetNames)
+        {
+            if (!int.TryParse(indexText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int index)) continue;
+            if (existingNames.TryGetValue(index, out var old) && old == name) continue;
+            using var cmd = c.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = @"
+                INSERT INTO planet_names (system_address, planet_index, name, updated_at, source, synced_at, deleted)
+                VALUES ($a, $i, $name, $now, $source, NULL, 0)
+                ON CONFLICT(system_address, planet_index) DO UPDATE SET
+                    name = $name, updated_at = $now, source = $source, synced_at = NULL, deleted = 0";
+            cmd.Parameters.AddWithValue("$a", key);
+            cmd.Parameters.AddWithValue("$i", index);
+            cmd.Parameters.AddWithValue("$name", name);
+            cmd.Parameters.AddWithValue("$now", now);
+            cmd.Parameters.AddWithValue("$source", source);
+            cmd.ExecuteNonQuery();
+        }
+        foreach (int gone in existingNames.Keys.Where(i => !note.PlanetNames.ContainsKey(i.ToString(CultureInfo.InvariantCulture))))
+        {
+            using var cmd = c.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = "UPDATE planet_names SET deleted = 1, updated_at = $now, synced_at = NULL WHERE system_address = $a AND planet_index = $i";
+            cmd.Parameters.AddWithValue("$a", key);
+            cmd.Parameters.AddWithValue("$i", gone);
+            cmd.Parameters.AddWithValue("$now", now);
+            cmd.ExecuteNonQuery();
+        }
+
+        // Notes list: keep rows whose text is still present (matched in order,
+        // duplicates allowed), soft-delete the rest, insert the new ones.
+        var existingNotes = new List<(string Id, string Text)>();
+        using (var cmd = c.CreateCommand())
+        {
+            cmd.Transaction = tx;
+            cmd.CommandText = "SELECT id, text FROM system_notes WHERE system_address = $a AND deleted = 0 ORDER BY created_at, rowid";
+            cmd.Parameters.AddWithValue("$a", key);
+            using var r = cmd.ExecuteReader();
+            while (r.Read()) existingNotes.Add((r.GetString(0), r.GetString(1)));
+        }
+        var unmatched = existingNotes.ToList();
+        var toInsert = new List<string>();
+        foreach (var text in note.Notes)
+        {
+            int match = unmatched.FindIndex(n => n.Text == text);
+            if (match >= 0) unmatched.RemoveAt(match);
+            else toInsert.Add(text);
+        }
+        foreach (var (id, _) in unmatched)
+        {
+            using var cmd = c.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = "UPDATE system_notes SET deleted = 1, updated_at = $now, synced_at = NULL WHERE id = $id";
+            cmd.Parameters.AddWithValue("$id", id);
+            cmd.Parameters.AddWithValue("$now", now);
+            cmd.ExecuteNonQuery();
+        }
+        foreach (var text in toInsert)
+        {
+            using var cmd = c.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = @"INSERT INTO system_notes (id, system_address, text, created_at, updated_at, source, synced_at, deleted)
+                                VALUES ($id, $a, $text, $now, $now, $source, NULL, 0)";
+            cmd.Parameters.AddWithValue("$id", Guid.NewGuid().ToString("N"));
+            cmd.Parameters.AddWithValue("$a", key);
+            cmd.Parameters.AddWithValue("$text", text);
+            cmd.Parameters.AddWithValue("$now", now);
+            cmd.Parameters.AddWithValue("$source", source);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>Moves notes from the original system-notes.json (before user.db
+    /// existed) into the database, once. The JSON file is then renamed to
+    /// system-notes.json.imported - kept, never deleted, in case it's needed.</summary>
+    private static void ImportLegacyJsonOnce()
+    {
+        if (!File.Exists(LegacyJsonPath)) return;
+        try
+        {
+            var legacy = JsonSerializer.Deserialize(File.ReadAllText(LegacyJsonPath), SystemNotesJsonContext.Default.DictionaryStringSystemNote)
+                ?? new Dictionary<string, SystemNote>();
+
+            using (var connection = UserDatabase.Open())
+            using (var tx = connection.BeginTransaction())
+            {
+                foreach (var (key, note) in legacy)
+                {
+                    if (note.Text.Length > 0 && note.Notes.Count == 0) note.Notes.Add(note.Text);
+                    note.Text = "";
+                    if (note.IsEmpty || !ulong.TryParse(key, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out ulong address)) continue;
+                    Write(connection, tx, key.ToUpperInvariant(), NmsGalaxy(address), note, "user");
+                }
+                tx.Commit();
+            }
+
+            File.Move(LegacyJsonPath, LegacyJsonPath + ".imported", overwrite: true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[SystemNotesService] Couldn't import system-notes.json: {ex.Message}");
         }
     }
 }
@@ -212,7 +423,7 @@ public static class SystemNameLearner
             }
         }
 
-        if (changed) SystemNotesService.Save(address, note);
+        if (changed) SystemNotesService.Save(address, note, source: "save");
         return changed;
     }
 }
