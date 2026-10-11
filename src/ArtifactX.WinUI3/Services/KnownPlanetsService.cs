@@ -102,8 +102,9 @@ public static class KnownPlanetsService
 /// <summary>What PlanetsPage needs from one save: the player's location
 /// (yhJ), stat groups (per-planet ^PLANET_STATS), the discovery list, the
 /// "where you saved" line (n:R, e.g. "In the Plyimed system") and the map
-/// markers (nlG - named space stations and bases).</summary>
-public sealed record PlanetSnapshot(JToken? Universe, JArray? StatGroups, JArray? Discoveries, string? Summary = null, JArray? Markers = null, JArray? Bases = null);
+/// markers (nlG - named space stations and bases), plus the bases (F?0)
+/// and fishing records (bTf, see NmsFishingPaths) for other Tools pages.</summary>
+public sealed record PlanetSnapshot(JToken? Universe, JArray? StatGroups, JArray? Discoveries, string? Summary = null, JArray? Markers = null, JArray? Bases = null, JToken? Fishing = null);
 
 public static class LiveSaveReader
 {
@@ -122,7 +123,7 @@ public static class LiveSaveReader
                 && root[NmsSaveContext.ExpeditionRootKey]?["6f="] is JObject;
             var player = root[expedition ? NmsSaveContext.ExpeditionRootKey : NmsSaveContext.MainRootKey]?["6f="];
             return new PlanetSnapshot(player?["yhJ"], player?["gUR"] as JArray, root["fDu"]?["ETO"]?["OsQ"]?["?fB"] as JArray,
-                player?["n:R"]?.Value<string>(), player?["nlG"] as JArray, player?["F?0"] as JArray);
+                player?["n:R"]?.Value<string>(), player?["nlG"] as JArray, player?["F?0"] as JArray, player?["bTf"]);
         }
         catch (Exception ex)
         {
@@ -157,7 +158,8 @@ public sealed class LiveSaveWatcher : IDisposable
         SaveSessionManager.GetValue(NmsSpaceStationPaths.DiscoveriesPath) as JArray,
         SaveSessionManager.GetValue(NmsSpaceStationPaths.LocationDescriptionPath)?.Value<string>(),
         SaveSessionManager.GetValue(NmsSpaceStationPaths.MarkersPath) as JArray,
-        SaveSessionManager.GetValue("vLc", "6f=", "F?0") as JArray);
+        SaveSessionManager.GetValue("vLc", "6f=", "F?0") as JArray,
+        SaveSessionManager.GetValue(NmsFishingPaths.RecordContainerPath));
 
     public void Start()
     {

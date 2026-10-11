@@ -121,6 +121,7 @@ public sealed partial class MainWindow : Window
         AtlasLanguagePathIcon.Data = G(NavIconGeometries.Language);
         CataloguePathIcon.Data = G(NavIconGeometries.Catalogue);
         FishingRecordsPathIcon.Data = G(NavIconGeometries.FishingRecords);
+        FishingPathIcon.Data = G(NavIconGeometries.FishingRecords);
         ExocraftPathIcon.Data = G(NavIconGeometries.Exocraft);
     }
 
@@ -355,6 +356,8 @@ public sealed partial class MainWindow : Window
                 "SpaceStations" => typeof(SpaceStationsPage),
                 "Planets" => typeof(PlanetsPage),
                 "Bases" => typeof(BasesPage),
+                "Finds" => typeof(FindsPage),
+                "Fishing" => typeof(FishingPage),
                 "Recipes" => typeof(RecipesPage),
                 "ItemValues" => typeof(ItemValuesPage),
                 "NearCore" => typeof(NearCorePage),
@@ -445,6 +448,8 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(SpaceStationsPage) => "SpaceStations",
             Type t when t == typeof(PlanetsPage) => "Planets",
             Type t when t == typeof(BasesPage) => "Bases",
+            Type t when t == typeof(FindsPage) => "Finds",
+            Type t when t == typeof(FishingPage) => "Fishing",
             Type t when t == typeof(RecipesPage) => "Recipes",
             Type t when t == typeof(ItemValuesPage) => "ItemValues",
             Type t when t == typeof(NearCorePage) => "NearCore",

@@ -98,6 +98,28 @@ public static class UserDatabase
             deleted    INTEGER NOT NULL DEFAULT 0
         );
         """,
+
+        // 3 - the Finds page: player-recorded finds with portal addresses (2026-10-11).
+        """
+        CREATE TABLE finds (
+            id          TEXT PRIMARY KEY,
+            type        TEXT NOT NULL,
+            title       TEXT NOT NULL DEFAULT '',
+            portal_code TEXT NOT NULL DEFAULT '',
+            galaxy      INTEGER NOT NULL DEFAULT 1,
+            class       TEXT NOT NULL DEFAULT '',
+            subtype     TEXT NOT NULL DEFAULT '',
+            items       TEXT NOT NULL DEFAULT '',
+            location    TEXT NOT NULL DEFAULT '',
+            notes       TEXT NOT NULL DEFAULT '',
+            created_at  TEXT NOT NULL,
+            updated_at  TEXT NOT NULL,
+            source      TEXT NOT NULL DEFAULT 'user',
+            synced_at   TEXT NULL,
+            deleted     INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX ix_finds_type ON finds(type);
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;

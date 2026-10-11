@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). Read-only Tools page: which
+     fish live on the planet you're on (the game's fish table, DataCataloger
+     add-fish) and which of them you've caught (the save's fishing records). -->
+<Page
+    x:Class="ArtifactX.WinUI3.Views.FishingPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="28,26,28,24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="FISHING" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
+                        ToolTipService.ToolTip="This page follows your game: save on a planet and it shows that planet's fish, and your catches update too. It only reads the save.">
+                <Ellipse Width="8" Height="8" Fill="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="LiveStatusTxt" Text="Following your game" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+            </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="1" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                Background="{ThemeResource ThemePanelAltBrush}"
+                CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
+            <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                <TextBlock Grid.Column="1" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
+                           Text="Which fish can bite depends on the planet's type: every type has its own fish, plus a set that lives on any planet with water. Some only bite by day or by night, and some only during a storm. Click a fish to see the planets you've discovered where it lives. This list comes from the game's own fish table; caught counts come from your save."/>
+            </Grid>
+        </Border>
+
+        <!-- Where the player is right now, and how much of this planet's list is done. -->
+        <Border Grid.Row="2" x:Name="HerePanel" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <FontIcon Glyph="&#xE81D;" FontSize="16" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Spacing="2">
+                    <TextBlock Text="YOU ARE HERE" Style="{StaticResource ThemeEyebrowStyle}" FontSize="10"/>
+                    <TextBlock x:Name="HereTitleTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="HerePlaceTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" x:Name="HereProgressPanel" VerticalAlignment="Center" HorizontalAlignment="Right" Spacing="0">
+                    <TextBlock x:Name="HereProgressTxt" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold" FontSize="22"
+                               Foreground="{ThemeResource ThemeAccentBrush}" HorizontalAlignment="Right"/>
+                    <TextBlock Text="caught here" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" HorizontalAlignment="Right"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <ctcontrols:WrapPanel Grid.Row="3" HorizontalSpacing="14" VerticalSpacing="10">
+            <ComboBox x:Name="PlanetTypeBox" Header="Planet type" Width="240" SelectionChanged="Filter_Changed"/>
+            <ComboBox x:Name="ShowBox" Header="Show" Width="200" SelectionChanged="Filter_Changed"/>
+            <ComboBox x:Name="TimeBox" Header="Time of day" Width="180" SelectionChanged="Filter_Changed"/>
+            <ComboBox x:Name="RarityBox" Header="Rarity" Width="170" SelectionChanged="Filter_Changed"/>
+            <TextBox x:Name="SearchBox" Header="Search" Width="220" PlaceholderText="Fish name" TextChanged="Search_TextChanged"/>
+            <CheckBox x:Name="AnywhereBox" Content="Include fish found on any planet" IsChecked="True" Click="Filter_Click" VerticalAlignment="Bottom"/>
+            <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
+        </ctcontrols:WrapPanel>
+
+        <Grid Grid.Row="4" ColumnSpacing="14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+        <GridView x:Name="FishList" SelectionMode="None" IsItemClickEnabled="True" ItemClick="FishList_ItemClick">
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsWrapGrid Orientation="Horizontal" ItemWidth="300" ItemHeight="150"/>
+                </ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+            <GridView.ItemContainerStyle>
+                <Style TargetType="GridViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Margin" Value="0,0,10,10"/>
+                </Style>
+            </GridView.ItemContainerStyle>
+            <GridView.ItemTemplate>
+                <DataTemplate x:DataType="viewmodels:FishCardViewModel">
+                    <Border Width="290" Height="140" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                            Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,10">
+                        <Grid RowSpacing="4">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid ColumnSpacing="10" Opacity="{x:Bind CardOpacity}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Width="52" Height="52" Background="{ThemeResource ThemeVoidBrush}" VerticalAlignment="Top">
+                                    <Image Source="{x:Bind Icon}" Width="46" Height="46"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <Border Background="{x:Bind RarityBrush}" CornerRadius="4" Padding="6,0" HorizontalAlignment="Left">
+                                        <TextBlock Text="{x:Bind Rarity}" FontSize="10" FontWeight="Bold" Foreground="White" CharacterSpacing="60"/>
+                                    </Border>
+                                    <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="14"
+                                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Name}"/>
+                                    <TextBlock Text="{x:Bind Traits}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Traits}"/>
+                                    <TextBlock Text="{x:Bind Habitat}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Habitat}"/>
+                                </StackPanel>
+                            </Grid>
+                            <StackPanel Grid.Row="1" Spacing="0">
+                                <TextBlock Text="{x:Bind Caught}" Foreground="{x:Bind CaughtBrush}" FontSize="12" FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                                <TextBlock Text="{x:Bind Spots}" Visibility="{x:Bind SpotsVisibility}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"
+                                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Spots}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </GridView.ItemTemplate>
+        </GridView>
+
+            <!-- Where to catch it: known planets of the clicked fish's types. -->
+            <Border Grid.Column="1" x:Name="WherePanel" Visibility="Collapsed" Width="440"
+                    BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                    Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,12">
+                <Grid RowSpacing="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Width="44" Height="44" Background="{ThemeResource ThemeVoidBrush}" VerticalAlignment="Top">
+                            <Image x:Name="WhereIcon" Width="40" Height="40"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="1">
+                            <TextBlock Text="WHERE TO CATCH" Style="{StaticResource ThemeEyebrowStyle}" FontSize="10"/>
+                            <TextBlock x:Name="WhereNameTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="15" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="WhereHabitatTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <Button Grid.Column="2" Click="WhereClose_Click" Padding="6,4" Background="Transparent" BorderThickness="0"
+                                VerticalAlignment="Top" ToolTipService.ToolTip="Close">
+                            <FontIcon Glyph="&#xE711;" FontSize="12"/>
+                        </Button>
+                    </Grid>
+                    <CheckBox Grid.Row="1" x:Name="OtherSlotsBox" Content="Include planets from my other save slots" IsChecked="True" Click="OtherSlots_Click"/>
+                    <TextBlock Grid.Row="2" x:Name="WhereCountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                    <ListView Grid.Row="3" x:Name="WhereList" SelectionMode="None" IsItemClickEnabled="False" Padding="0">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0,0,0,8"/>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodels:FishPlanetRowViewModel">
+                                <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Background="{ThemeResource ThemePanelBrush}"
+                                        CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="10,8">
+                                    <StackPanel Spacing="3">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Ellipse Width="10" Height="10" Fill="{x:Bind Swatch}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{x:Bind Title}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="13"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{x:Bind BaseText}" Visibility="{x:Bind BaseVisibility}" Foreground="{ThemeResource ThemeDoneBrush}"
+                                                   FontSize="12" TextWrapping="Wrap"/>
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <ItemsControl ItemsSource="{x:Bind Glyphs}" VerticalAlignment="Center">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <StackPanel Orientation="Horizontal" Spacing="1"/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="ImageSource">
+                                                        <Border Width="20" Height="20" Background="{ThemeResource ThemeVoidBrush}">
+                                                            <Image Source="{x:Bind}" Width="17" Height="17"/>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <Button Grid.Column="1" Content="Copy" Tag="{x:Bind PortalCode}" Click="CopyCode_Click" Padding="8,2"
+                                                    ToolTipService.ToolTip="{x:Bind PortalCode}"/>
+                                        </Grid>
+                                        <TextBlock Text="{x:Bind Distance}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

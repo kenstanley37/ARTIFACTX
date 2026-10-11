@@ -73,6 +73,16 @@ public static partial class NmsPortalCode
             $"{(x + 0x7FF) & 0xFFF:X4}:{(y + 0x7F) & 0xFF:X4}:{(z + 0x7FF) & 0xFFF:X4}:{system:X4}");
     }
 
+    /// <summary>Packed galactic address for a portal code in a galaxy (1-based,
+    /// Euclid = 1) - the inverse of NmsSpaceStationPaths.PortalAddress. A
+    /// portal code doesn't say which galaxy it's in, so the galaxy is separate.</summary>
+    public static ulong ToAddress(string code, int galaxy)
+    {
+        ulong Hex(int start, int length) => ulong.Parse(code.AsSpan(start, length), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        return (Hex(0, 1) << 52) | (Hex(1, 3) << 40) | ((ulong)((galaxy - 1) & 0xFF) << 32)
+             | (Hex(4, 2) << 24) | (Hex(6, 3) << 12) | Hex(9, 3);
+    }
+
     [GeneratedRegex(@"[\s\-_.]")]
     private static partial Regex SeparatorRegex();
 }
