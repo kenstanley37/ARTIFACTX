@@ -47,12 +47,42 @@
             </Grid>
         </Border>
 
-        <ctcontrols:WrapPanel Grid.Row="2" HorizontalSpacing="14" VerticalSpacing="10">
+        <StackPanel Grid.Row="2" Spacing="12">
+        <!-- Where you are now, always visible above the list. -->
+        <Border x:Name="HereCard" Visibility="Collapsed" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="2"
+                Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,10">
+            <Grid ColumnSpacing="14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Border Background="{ThemeResource ThemeAccentBrush}" CornerRadius="4" Padding="8,3" VerticalAlignment="Center">
+                    <TextBlock Text="YOU ARE HERE" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
+                </Border>
+                <TextBlock Grid.Column="1" x:Name="HereTxt" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
+                <Button Grid.Column="2" Content="Show in list" Click="ShowHere_Click" Padding="10,3"/>
+            </Grid>
+        </Border>
+
+        <ctcontrols:WrapPanel HorizontalSpacing="18" VerticalSpacing="10">
             <ComboBox x:Name="GalaxyFilterBox" Header="Galaxy" Width="240" SelectionChanged="Filter_Changed"/>
+            <ComboBox x:Name="SortBox" Header="Sort" Width="220" SelectionChanged="Filter_Changed">
+                <ComboBoxItem Content="Closest to the core"/>
+                <ComboBoxItem Content="Closest to you"/>
+                <ComboBoxItem Content="Most planets known"/>
+            </ComboBox>
+            <StackPanel Spacing="2" Width="300">
+                <TextBlock x:Name="RangeLabelTxt" Text="Within any distance of the core" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
+                <Slider x:Name="RangeSlider" Minimum="0" Maximum="7" StepFrequency="1" TickFrequency="1" TickPlacement="BottomRight"
+                        Value="7" ValueChanged="RangeSlider_ValueChanged" IsThumbToolTipEnabled="False"
+                        ToolTipService.ToolTip="Only show systems this close to their galaxy's core"/>
+            </StackPanel>
             <CheckBox x:Name="MineOnlyBox" Content="Discovered by you" Click="Filter_Click" VerticalAlignment="Bottom"/>
             <CheckBox x:Name="AllSlotsBox" Content="Include my other save slots" IsChecked="True" Click="AllSlotsBox_Click" VerticalAlignment="Bottom"/>
             <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
         </ctcontrols:WrapPanel>
+        </StackPanel>
 
         <ListView Grid.Row="3" x:Name="SystemsList" SelectionMode="None">
             <ListView.ItemContainerStyle>
@@ -64,7 +94,7 @@
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="viewmodels:CoreSystemRowViewModel">
-                    <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                    <Border BorderBrush="{x:Bind RowBorder}" BorderThickness="{x:Bind RowBorderThickness}"
                             Background="{ThemeResource ThemePanelAltBrush}"
                             CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
                         <Grid ColumnSpacing="14">
@@ -79,7 +109,12 @@
                             <TextBlock Text="{x:Bind Rank}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="Bold" FontSize="16"
                                        Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                                <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                                    <Border Visibility="{x:Bind HereVisibility}" Background="{ThemeResource ThemeAccentBrush}" CornerRadius="4" Padding="6,1" VerticalAlignment="Center">
+                                        <TextBlock Text="YOU ARE HERE" FontSize="10" FontWeight="Bold" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
+                                    </Border>
+                                </StackPanel>
                                 <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
                                 <TextBlock Text="{x:Bind NotesLabel}" Visibility="{x:Bind NotesVisibility}" FontSize="12"
                                            Foreground="{ThemeResource ThemeAccentBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>

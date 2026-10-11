@@ -34,6 +34,9 @@ public sealed partial class NearCorePage : Page
     public NearCorePage()
     {
         InitializeComponent();
+        _suppressFilterEvents = true;
+        SortBox.SelectedIndex = 0;
+        _suppressFilterEvents = false;
         _live = new LiveSaveWatcher(DispatcherQueue);
         _live.SnapshotRead += OnLiveSnapshot;
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
@@ -125,22 +128,72 @@ public sealed partial class NearCorePage : Page
         Apply(systems);
     }
 
+    // Slider stops for "within N ly of the core"; the last one means no limit.
+    private static readonly double[] RangeSteps = { 5_000, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000, double.MaxValue };
+
+    private double MaxCoreDistance => RangeSteps[Math.Clamp((int)Math.Round(RangeSlider.Value), 0, RangeSteps.Length - 1)];
+
+    private double FromYou(KnownSystem s) =>
+        _here is ulong h ? NmsPlanets.DistanceLightYears(h, s.SystemAddress) ?? double.MaxValue : double.MaxValue;
+
     private void Apply(List<KnownSystem>? systems = null)
     {
         systems ??= AllSystems();
         int galaxy = (GalaxyFilterBox.SelectedItem as ComboBoxItem)?.Tag as int? ?? -1;
         bool mineOnly = MineOnlyBox.IsChecked == true;
+        double maxCore = MaxCoreDistance;
 
-        var rows = systems
+        var filtered = systems
             .Where(s => galaxy < 0 || s.Galaxy == galaxy)
             .Where(s => !mineOnly || s.DiscoveredHere)
-            .OrderBy(s => s.DistanceToCore)
-            .ThenBy(s => _here is ulong h ? NmsPlanets.DistanceLightYears(h, s.SystemAddress) ?? double.MaxValue : 0)
-            .Select((s, i) => ToRow(s, i + 1))
-            .ToList();
+            .Where(s => s.DistanceToCore <= maxCore);
+
+        // Ties are common near the core (the save positions systems in 400 ly
+        // regions), so each sort falls back to the other distance.
+        var ordered = SortBox.SelectedIndex switch
+        {
+            1 => filtered.OrderBy(FromYou).ThenBy(s => s.DistanceToCore),
+            2 => filtered.OrderByDescending(s => s.PlanetCount).ThenBy(s => s.DistanceToCore),
+            _ => filtered.OrderBy(s => s.DistanceToCore).ThenBy(FromYou),
+        };
+        var rows = ordered.Select((s, i) => ToRow(s, i + 1)).ToList();
 
         SystemsList.ItemsSource = rows;
         CountTxt.Text = $"{rows.Count:N0} systems";
+        UpdateHereCard(systems);
+    }
+
+    /// <summary>The "YOU ARE HERE" strip above the list: your system and where
+    /// it ranks among the systems shown.</summary>
+    private void UpdateHereCard(List<KnownSystem> systems)
+    {
+        var here = _here is ulong h ? systems.FirstOrDefault(s => s.SystemAddress == h) : null;
+        if (here is null)
+        {
+            HereCard.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        string name = SystemNotesService.Get(here.SystemAddress)?.SystemName is { Length: > 0 } n ? n : "Unnamed system";
+        int rank = (SystemsList.ItemsSource as List<CoreSystemRowViewModel>)?.FindIndex(r => r.HereVisibility == Visibility.Visible) ?? -1;
+        string rankText = rank >= 0 ? $" · #{rank + 1} in this list" : " · not in this list (check the filters)";
+        HereTxt.Text = $"{name} · {here.DistanceToCore:N0} ly from the galaxy core{rankText}";
+        HereCard.Visibility = Visibility.Visible;
+    }
+
+    private void ShowHere_Click(object sender, RoutedEventArgs e)
+    {
+        if (SystemsList.ItemsSource is not List<CoreSystemRowViewModel> rows) return;
+        var row = rows.FirstOrDefault(r => r.HereVisibility == Visibility.Visible);
+        if (row is not null) SystemsList.ScrollIntoView(row, ScrollIntoViewAlignment.Leading);
+    }
+
+    private void RangeSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        if (RangeLabelTxt is null) return;
+        double max = MaxCoreDistance;
+        RangeLabelTxt.Text = max == double.MaxValue ? "Within any distance of the core" : $"Within {max:N0} ly of the core";
+        if (!_suppressFilterEvents && SystemsList is not null) Apply();
     }
 
     private CoreSystemRowViewModel ToRow(KnownSystem system, int rank)
@@ -151,7 +204,8 @@ public sealed partial class NearCorePage : Page
         string who = system.DiscoveredHere ? "found by you" : "found by another player";
         string source = system.Source.Length > 0 ? $" · {system.Source}" : "";
 
-        string fromYou = _here is ulong here && here == system.SystemAddress ? "The system you're in"
+        bool isHere = _here is ulong hereAddress && hereAddress == system.SystemAddress;
+        string fromYou = isHere ? "The system you're in"
             : (_here is ulong h ? NmsPlanets.DistanceLightYears(h, system.SystemAddress) : null) switch
             {
                 null => "In a different galaxy from you",
@@ -173,6 +227,9 @@ public sealed partial class NearCorePage : Page
             Glyphs = GlyphsFor(code),
             NotesLabel = notes,
             NotesVisibility = notes.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
+            RowBorder = ThemeResources.Brush(isHere ? "ThemeAccentBrush" : "ThemeLineBrush"),
+            RowBorderThickness = new Thickness(isHere ? 2 : 1),
+            HereVisibility = isHere ? Visibility.Visible : Visibility.Collapsed,
         };
     }
 
