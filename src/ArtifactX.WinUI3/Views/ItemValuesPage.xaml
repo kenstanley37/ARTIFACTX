@@ -45,42 +45,62 @@
                 <ComboBoxItem Content="Trade goods (by economy)"/>
             </ComboBox>
             <ComboBox x:Name="EconomyBox" Header="Economy" Width="240" SelectionChanged="Filter_Changed"/>
+            <ComboBox x:Name="SortBox" Header="Sort" Width="200" SelectionChanged="Filter_Changed">
+                <ComboBoxItem Content="Highest value first"/>
+                <ComboBoxItem Content="Lowest value first"/>
+                <ComboBoxItem Content="Name (A to Z)"/>
+                <ComboBoxItem Content="Name (Z to A)"/>
+            </ComboBox>
             <CheckBox x:Name="HideZeroBox" Content="Hide items with no value" IsChecked="True" Click="Filter_Click" VerticalAlignment="Bottom"/>
             <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
         </ctcontrols:WrapPanel>
 
-        <ListView Grid.Row="3" x:Name="ItemsList" SelectionMode="None">
-            <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem">
+        <!-- Uniform cards in a virtualizing grid, same pattern as the Recipes page. -->
+        <GridView Grid.Row="3" x:Name="ItemsList" SelectionMode="None" IsItemClickEnabled="False">
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsWrapGrid Orientation="Horizontal" ItemWidth="250" ItemHeight="150"/>
+                </ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+            <GridView.ItemContainerStyle>
+                <Style TargetType="GridViewItem">
                     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="VerticalContentAlignment" Value="Stretch"/>
                     <Setter Property="Padding" Value="0"/>
-                    <Setter Property="Margin" Value="0,0,0,6"/>
+                    <Setter Property="Margin" Value="0,0,10,10"/>
                 </Style>
-            </ListView.ItemContainerStyle>
-            <ListView.ItemTemplate>
+            </GridView.ItemContainerStyle>
+            <GridView.ItemTemplate>
                 <DataTemplate x:DataType="viewmodels:ItemValueRowViewModel">
-                    <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                    <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Width="240" Height="140"
                             Background="{ThemeResource ThemePanelAltBrush}"
-                            CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,8">
-                        <Grid ColumnSpacing="14">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="36"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Border Width="34" Height="34" Background="{ThemeResource ThemeVoidBrush}">
-                                <Image Source="{x:Bind Icon}" Width="30" Height="30"/>
-                            </Border>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
-                                <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold"/>
-                                <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                            </StackPanel>
-                            <TextBlock Grid.Column="2" Text="{x:Bind Value}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold"
-                                       FontSize="16" Foreground="{ThemeResource ThemeTextBrush}" VerticalAlignment="Center"/>
+                            CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,10">
+                        <Grid RowSpacing="6">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Width="44" Height="44" Background="{ThemeResource ThemeVoidBrush}" VerticalAlignment="Top">
+                                    <Image Source="{x:Bind Icon}" Width="38" Height="38"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="14"
+                                               MaxLines="2" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Name}"/>
+                                    <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"
+                                               MaxLines="3" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Detail}"/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Grid.Row="1" Text="{x:Bind Value}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold"
+                                       FontSize="18" Foreground="{ThemeResource ThemeAccentBrush}" HorizontalAlignment="Right"/>
                         </Grid>
                     </Border>
                 </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+            </GridView.ItemTemplate>
+        </GridView>
     </Grid>
 </Page>
