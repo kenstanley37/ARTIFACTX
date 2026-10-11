@@ -264,6 +264,11 @@
                                 <PathIcon x:Name="PlanetsPathIcon"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
+                        <NavigationViewItem Content="Near Core" Tag="NearCore">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE7B7;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
                         <NavigationViewItem Content="Bases" Tag="Bases">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE80F;" FontFamily="Segoe MDL2 Assets"/>

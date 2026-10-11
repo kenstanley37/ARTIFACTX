@@ -24,14 +24,29 @@ public sealed partial class BasesPage : Page
 {
     private static readonly string[] BasesPath = { "vLc", "6f=", "F?0" };
     private List<BaseRowViewModel> _rows = new();
+    private readonly LiveSaveWatcher _live;
+    private string _lastKey = "";
 
     public BasesPage()
     {
         InitializeComponent();
         SortBox.SelectedIndex = 0;
+        _live = new LiveSaveWatcher(DispatcherQueue);
+        _live.SnapshotRead += OnLiveSnapshot;
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
-        Unloaded += (_, _) => SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
+        Unloaded += (_, _) =>
+        {
+            SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
+            _live.SnapshotRead -= OnLiveSnapshot;
+            _live.Dispose();
+        };
         _ = LoadAsync();
+    }
+
+    private void OnLiveSnapshot(PlanetSnapshot snapshot)
+    {
+        LiveStatusTxt.Text = $"Following your game · updated {DateTime.Now:t}";
+        Build(snapshot);
     }
 
     private void OnSessionChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() => _ = LoadAsync());
@@ -40,13 +55,25 @@ public sealed partial class BasesPage : Page
     {
         if (!SaveSessionManager.IsSaveLoaded) return;
         await CatalogService.WarmCacheAsync(Enumerable.Range(0, 16).Select(d => $"PORTALSYMBOL_{d:X}"));
+        _lastKey = "";
+        Build(LiveSaveWatcher.FromSession());
+        _live.Start();
+    }
 
-        var planets = NmsPlanets.ReadAll(SaveSessionManager.GetValue(S.DiscoveriesPath) as JArray)
+    /// <summary>Builds the rows from a snapshot; skipped when neither your
+    /// position nor the base list changed, so the list doesn't reset.</summary>
+    private void Build(PlanetSnapshot snapshot)
+    {
+        ulong? here = S.ReadSystemAddress(snapshot.Universe);
+        string key = $"{here}|{snapshot.Bases?.Count}|{string.Join(",", snapshot.Bases?.OfType<JObject>().Select(b => b["NKm"]?.Value<string>()) ?? Enumerable.Empty<string?>())}";
+        if (key == _lastKey) return;
+        _lastKey = key;
+
+        var planets = NmsPlanets.ReadAll(snapshot.Discoveries)
             .GroupBy(p => p.Address).ToDictionary(g => g.Key, g => g.First());
-        ulong? here = S.ReadSystemAddress(SaveSessionManager.GetValue(S.CurrentUniverseAddressPath));
 
         _rows = new();
-        if (SaveSessionManager.GetValue(BasesPath) is JArray bases)
+        if (snapshot.Bases is JArray bases)
         {
             foreach (var b in bases.OfType<JObject>())
             {
