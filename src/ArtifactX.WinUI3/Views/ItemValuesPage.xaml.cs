@@ -36,6 +36,7 @@ public sealed partial class ItemValuesPage : Page
     {
         InitializeComponent();
         KindBox.SelectedIndex = 0;
+        SortBox.SelectedIndex = 0;
         EconomyBox.Items.Add(new ComboBoxItem { Content = "Any economy", Tag = "" });
         foreach (var (category, economy) in Economies)
             EconomyBox.Items.Add(new ComboBoxItem { Content = economy, Tag = category });
@@ -68,7 +69,7 @@ public sealed partial class ItemValuesPage : Page
         string economy = (EconomyBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
         bool hideZero = HideZeroBox.IsChecked == true;
 
-        var rows = _items
+        var filtered = _items
             .Where(i => text.Length == 0 || i.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase))
             .Where(i => kind switch
             {
@@ -78,11 +79,16 @@ public sealed partial class ItemValuesPage : Page
                 _ => true,
             })
             .Where(i => economy.Length == 0 || i.TradeCategory == economy)
-            .Where(i => !hideZero || i.Value > 0)
-            .OrderByDescending(i => i.Value)
-            .ThenBy(i => i.Name, StringComparer.CurrentCultureIgnoreCase)
-            .Select(ToRow)
-            .ToList();
+            .Where(i => !hideZero || i.Value > 0);
+
+        var byName = StringComparer.CurrentCultureIgnoreCase;
+        var rows = (SortBox.SelectedIndex switch
+        {
+            1 => filtered.OrderBy(i => i.Value).ThenBy(i => i.Name, byName),
+            2 => filtered.OrderBy(i => i.Name, byName),
+            3 => filtered.OrderByDescending(i => i.Name, byName),
+            _ => filtered.OrderByDescending(i => i.Value).ThenBy(i => i.Name, byName),
+        }).Select(ToRow).ToList();
 
         ItemsList.ItemsSource = rows;
         CountTxt.Text = $"{rows.Count:N0} of {_items.Count:N0} items";
