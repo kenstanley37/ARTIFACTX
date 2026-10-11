@@ -24,6 +24,15 @@ public sealed record KnownPlanet(
     public string Source { get; init; } = "";
 }
 
+/// <summary>One star system the save knows about: every discovery record
+/// (planet, creature, plant, mineral, the system itself...) carries its
+/// system's full address, so a system is known from any one of them.</summary>
+public sealed record KnownSystem(ulong SystemAddress, int Galaxy, int PlanetCount, bool DiscoveredHere, long LatestUnixSeconds)
+{
+    public double DistanceToCore => NmsPlanets.DistanceToCoreLightYears(SystemAddress);
+    public string Source { get; init; } = "";
+}
+
 /// <summary>Per-planet discovery tallies, counted from the discovery records
 /// (the game itself counts records, not the ^PLANET_STATS counters - confirmed
 /// 2026-10-11: setting Cholton's ^DISC_CREATURES to 6 changed nothing in-game).</summary>
@@ -137,6 +146,32 @@ public static class NmsPlanets
         static int Signed(ulong value, int bits) => (int)((long)(value << (64 - bits)) >> (64 - bits));
         double x = Signed(address & 0xFFF, 12), y = Signed((address >> 24) & 0xFF, 8), z = Signed((address >> 12) & 0xFFF, 12);
         return System.Math.Sqrt(x * x + y * y + z * z) * 400;
+    }
+
+    /// <summary>Every distinct system in the discovery list. Records with an
+    /// all-zero address (no coordinates, no system index) are skipped - two
+    /// such placeholder records exist in real saves.</summary>
+    public static List<KnownSystem> ReadSystems(JArray? discoveries)
+    {
+        var bySystem = new Dictionary<ulong, (HashSet<int> Planets, bool Mine, long Latest)>();
+        if (discoveries is null) return new();
+
+        foreach (var record in discoveries.OfType<JObject>())
+        {
+            if (NmsSpaceStationPaths.ParsePackedAddress(record["8P3"]?["5L6"]) is not ulong address) continue;
+            ulong system = NmsSpaceStationPaths.ToSystemAddress(address);
+            if ((system & 0xFFF_0000_FFFF_FFFFUL) == 0) continue;
+
+            bySystem.TryGetValue(system, out var entry);
+            entry.Planets ??= new HashSet<int>();
+            if (record["8P3"]?["<Dn"]?.Value<string>() == "Planet") entry.Planets.Add((int)((address >> 52) & 0xF));
+            entry.Mine |= !string.IsNullOrEmpty(record["ksu"]?["f5Q"]?.Value<string>());
+            entry.Latest = System.Math.Max(entry.Latest, record["ksu"]?["3I1"]?.Value<long>() ?? 0);
+            bySystem[system] = entry;
+        }
+
+        return bySystem.Select(kv => new KnownSystem(kv.Key, NmsSpaceStationPaths.GalaxyNumber(kv.Key),
+            kv.Value.Planets.Count, kv.Value.Mine, kv.Value.Latest)).ToList();
     }
 
     /// <summary>Fauna/flora/mineral record counts per planet address.</summary>

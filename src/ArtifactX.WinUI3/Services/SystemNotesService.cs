@@ -167,6 +167,56 @@ public static class SystemNotesService
     }
 }
 
+/// <summary>
+/// Records names from the save's "where you saved" line (n:R) into the system
+/// notes: "In the X system" (system name - only written when the game saves
+/// while you're in your ship in space), "On Planet (X)" (the planet you're on)
+/// or "Aboard X" (the system's space station; "Aboard the Space Anomaly" etc.
+/// are skipped). Called by every live-following Tools page, so names are
+/// learned whichever of them is open.
+/// </summary>
+public static class SystemNameLearner
+{
+    private static readonly System.Text.RegularExpressions.Regex InSystemRegex = new(@"^In the (.+) system$");
+    private static readonly System.Text.RegularExpressions.Regex OnPlanetRegex = new(@"^On Planet \((.+)\)$");
+
+    /// <summary>Returns whether anything new was stored.</summary>
+    public static bool Learn(ulong? system, int planet, string? summary)
+    {
+        if (system is not ulong address) return false;
+        string line = (summary ?? "").Trim();
+        var note = SystemNotesService.Get(address) ?? new SystemNote();
+        bool changed = false;
+
+        if (InSystemRegex.Match(line) is { Success: true } inSystem && note.SystemName != inSystem.Groups[1].Value)
+        {
+            note.SystemName = inSystem.Groups[1].Value;
+            changed = true;
+        }
+        else if (OnPlanetRegex.Match(line) is { Success: true } onPlanet && planet > 0)
+        {
+            string key = planet.ToString(CultureInfo.InvariantCulture);
+            if (!note.PlanetNames.TryGetValue(key, out var known) || known != onPlanet.Groups[1].Value)
+            {
+                note.PlanetNames[key] = onPlanet.Groups[1].Value;
+                changed = true;
+            }
+        }
+        else if (planet == 0 && line.StartsWith("Aboard ", StringComparison.Ordinal))
+        {
+            string station = line["Aboard ".Length..].Trim();
+            if (station.Length > 0 && !station.StartsWith("the ", StringComparison.OrdinalIgnoreCase) && note.StationName != station)
+            {
+                note.StationName = station;
+                changed = true;
+            }
+        }
+
+        if (changed) SystemNotesService.Save(address, note);
+        return changed;
+    }
+}
+
 [JsonSerializable(typeof(Dictionary<string, SystemNote>))]
 [JsonSourceGenerationOptions(WriteIndented = true)]
 internal partial class SystemNotesJsonContext : JsonSerializerContext { }

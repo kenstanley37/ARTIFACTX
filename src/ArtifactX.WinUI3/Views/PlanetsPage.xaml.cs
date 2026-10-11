@@ -198,47 +198,13 @@ public sealed partial class PlanetsPage : Page
         if (!live || systemChanged || planetsChanged) RefreshFinder();
     }
 
-    private static readonly System.Text.RegularExpressions.Regex InSystemRegex = new(@"^In the (.+) system$");
-    private static readonly System.Text.RegularExpressions.Regex OnPlanetRegex = new(@"^On Planet \((.+)\)$");
 
     /// <summary>Records the name the save's "where you saved" line gives for
     /// where you are now: "In the X system" (system), "On Planet (X)" (the
     /// planet you're on) or "Aboard X" (the system's space station; "Aboard the
     /// Space Anomaly" etc. are skipped). Returns whether anything new was stored.</summary>
-    private bool LearnNames(PlanetSnapshot snapshot)
-    {
-        if (_currentSystem is not ulong system) return false;
-        string summary = (snapshot.Summary ?? "").Trim();
-        var note = SystemNotesService.Get(system) ?? new SystemNote();
-        bool changed = false;
-
-        if (InSystemRegex.Match(summary) is { Success: true } inSystem && note.SystemName != inSystem.Groups[1].Value)
-        {
-            note.SystemName = inSystem.Groups[1].Value;
-            changed = true;
-        }
-        else if (OnPlanetRegex.Match(summary) is { Success: true } onPlanet && _currentPlanet > 0)
-        {
-            string key = _currentPlanet.ToString(CultureInfo.InvariantCulture);
-            if (!note.PlanetNames.TryGetValue(key, out var known) || known != onPlanet.Groups[1].Value)
-            {
-                note.PlanetNames[key] = onPlanet.Groups[1].Value;
-                changed = true;
-            }
-        }
-        else if (_currentPlanet == 0 && summary.StartsWith("Aboard ", StringComparison.Ordinal))
-        {
-            string station = summary["Aboard ".Length..].Trim();
-            if (station.Length > 0 && !station.StartsWith("the ", StringComparison.OrdinalIgnoreCase) && note.StationName != station)
-            {
-                note.StationName = station;
-                changed = true;
-            }
-        }
-
-        if (changed) SystemNotesService.Save(system, note);
-        return changed;
-    }
+    private bool LearnNames(PlanetSnapshot snapshot) =>
+        SystemNameLearner.Learn(_currentSystem, _currentPlanet, snapshot.Summary);
 
     private void RefreshNameBox()
     {
