@@ -80,3 +80,33 @@ public static class KnownPlanetsService
         return planets;
     }
 }
+
+/// <summary>What PlanetsPage needs from one save: the player's location
+/// (yhJ), stat groups (per-planet ^PLANET_STATS) and the discovery list.</summary>
+public sealed record PlanetSnapshot(JToken? Universe, JArray? StatGroups, JArray? Discoveries);
+
+public static class LiveSaveReader
+{
+    /// <summary>Decrypts a save straight from disk for PlanetsPage's live
+    /// follow, using whichever character is active (main game, or the
+    /// expedition root when XTp is "Season" - same rule as
+    /// SaveSessionManager). Read-only; returns null if the file can't be read
+    /// yet (e.g. the game is still writing it).</summary>
+    public static Task<PlanetSnapshot?> ReadAsync(string path) => Task.Run(async () =>
+    {
+        try
+        {
+            string json = await SaveStreamProcessor.ExtractRawJsonAsync(path);
+            var root = JObject.Parse(json.TrimEnd('\0'));
+            bool expedition = root[NmsSaveContext.ActiveContextKey]?.Value<string>() == NmsSaveContext.ExpeditionContextValue
+                && root[NmsSaveContext.ExpeditionRootKey]?["6f="] is JObject;
+            var player = root[expedition ? NmsSaveContext.ExpeditionRootKey : NmsSaveContext.MainRootKey]?["6f="];
+            return new PlanetSnapshot(player?["yhJ"], player?["gUR"] as JArray, root["fDu"]?["ETO"]?["OsQ"]?["?fB"] as JArray);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[LiveSaveReader] Couldn't read {Path.GetFileName(path)}: {ex.Message}");
+            return (PlanetSnapshot?)null;
+        }
+    });
+}

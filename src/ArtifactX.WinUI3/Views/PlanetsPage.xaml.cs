@@ -12,6 +12,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
@@ -43,6 +44,20 @@ public sealed partial class PlanetsPage : Page
     private readonly List<Storyboard> _orbitAnimations = new();
     private bool _suppressFilterEvents;
 
+    // The save data the page is currently showing: from the loaded session at
+    // first, then from the newest save file each time the game writes it.
+    private PlanetSnapshot _snapshot = new(null, null, null);
+    private Dictionary<ulong, PlanetDiscoveryCounts> _lastCounts = new();
+    private List<string> _noteList = new();
+    private int _currentPlanet;
+
+    // Per planet tile in the current system, the two text lines that change as
+    // you play - updated in place so the page doesn't redraw (no blink).
+    private readonly Dictionary<ulong, (TextBlock Discovered, TextBlock Visit)> _tileText = new();
+
+    private FileSystemWatcher? _saveWatcher;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _liveTimer;
+
     public PlanetsPage()
     {
         InitializeComponent();
@@ -50,6 +65,7 @@ public sealed partial class PlanetsPage : Page
         // mid-InitializeComponent, before the checkboxes below it exist.
         _suppressFilterEvents = true;
         SortBox.SelectedIndex = 0;
+        BodiesFilterBox.SelectedIndex = 0;
         _suppressFilterEvents = false;
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         Unloaded += Page_Unloaded;
@@ -63,6 +79,146 @@ public sealed partial class PlanetsPage : Page
     {
         SaveSessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
         StopOrbitAnimations();
+        StopWatching();
+    }
+
+    // ---------------------------------------------------------------- live follow
+
+    /// <summary>Watches the loaded slot's save files. The game writes a save in
+    /// several steps, so changes are batched: the page reads the newest file
+    /// 2.5s after the last write. Never touches SaveSessionManager's session, so
+    /// unsaved edits on other pages are unaffected.</summary>
+    private void StartWatching()
+    {
+        StopWatching();
+        if (SaveSessionManager.ActivePlatformFolder is not string folder || !Directory.Exists(folder)) return;
+
+        _liveTimer = DispatcherQueue.CreateTimer();
+        _liveTimer.Interval = TimeSpan.FromSeconds(2.5);
+        _liveTimer.IsRepeating = false;
+        _liveTimer.Tick += (_, _) => _ = LiveRefreshAsync(retry: true);
+
+        _saveWatcher = new FileSystemWatcher(folder, "save*.hg")
+        {
+            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size,
+        };
+        _saveWatcher.Changed += OnSaveFileWritten;
+        _saveWatcher.Created += OnSaveFileWritten;
+        _saveWatcher.Renamed += OnSaveFileWritten;
+        _saveWatcher.EnableRaisingEvents = true;
+    }
+
+    private void StopWatching()
+    {
+        if (_saveWatcher is not null)
+        {
+            _saveWatcher.EnableRaisingEvents = false;
+            _saveWatcher.Changed -= OnSaveFileWritten;
+            _saveWatcher.Created -= OnSaveFileWritten;
+            _saveWatcher.Renamed -= OnSaveFileWritten;
+            _saveWatcher.Dispose();
+            _saveWatcher = null;
+        }
+        _liveTimer?.Stop();
+        _liveTimer = null;
+    }
+
+    private void OnSaveFileWritten(object sender, FileSystemEventArgs e)
+    {
+        var slot = SaveSessionManager.ActiveSlot;
+        if (slot is null || !slot.Files.Any(f => string.Equals(f.FullPath, e.FullPath, StringComparison.OrdinalIgnoreCase))) return;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            _liveTimer?.Stop();
+            _liveTimer?.Start();
+        });
+    }
+
+    private async Task LiveRefreshAsync(bool retry)
+    {
+        if (SaveSessionManager.ActiveSlot is not { } slot) return;
+        string newest = slot.Files.Select(f => f.FullPath).Where(File.Exists)
+            .OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault() ?? "";
+        if (newest.Length == 0) return;
+
+        var snapshot = await LiveSaveReader.ReadAsync(newest);
+        if (snapshot is null)
+        {
+            // Probably caught mid-write - try once more a moment later.
+            if (retry) { await Task.Delay(3000); await LiveRefreshAsync(retry: false); }
+            return;
+        }
+
+        ApplySnapshot(snapshot, live: true);
+        LiveStatusTxt.Text = $"Following your game · updated {DateTime.Now:t}";
+    }
+
+    /// <summary>Shows a snapshot, redrawing only what changed: a new system
+    /// rebuilds the Current System card (with a short fade), landing on another
+    /// planet rebuilds its tiles, and new discoveries just update the numbers.</summary>
+    private void ApplySnapshot(PlanetSnapshot snapshot, bool live)
+    {
+        ulong? newSystem = S.ReadSystemAddress(snapshot.Universe);
+        int newPlanet = snapshot.Universe?["oZw"]?["jsv"]?.Value<int>() ?? 0;
+        var newPlanets = NmsPlanets.ReadAll(snapshot.Discoveries);
+
+        bool systemChanged = !live || newSystem != _currentSystem;
+        bool planetsChanged = newPlanets.Count != _thisSave.Count;
+        bool layoutChanged = systemChanged || newPlanet != _currentPlanet
+            || newPlanets.Count(p => p.SystemAddress == newSystem) != _thisSave.Count(p => p.SystemAddress == newSystem);
+
+        if (live && systemChanged)
+        {
+            CommitPendingNote(); // keep anything typed for the old system
+            SaveSystemNote();
+        }
+
+        _snapshot = snapshot;
+        _thisSave = newPlanets;
+        _currentSystem = newSystem;
+        _currentPlanet = newPlanet;
+        var counts = NmsPlanets.CountDiscoveries(snapshot.Discoveries);
+        _lastCounts = counts;
+
+        if (layoutChanged)
+        {
+            BuildCurrentSystem(counts);
+            if (systemChanged) LoadSystemNote();
+            if (live && systemChanged) FadeInCurrentSystem();
+        }
+        else
+        {
+            UpdateTileText(counts);
+        }
+
+        if (!live || systemChanged || planetsChanged) RefreshFinder();
+    }
+
+    private void UpdateTileText(Dictionary<ulong, PlanetDiscoveryCounts> counts)
+    {
+        foreach (var (address, lines) in _tileText)
+        {
+            counts.TryGetValue(address, out var tally);
+            string discovered = DiscoveredText(tally);
+            string visit = VisitText(ReadPlanetStats(address));
+            if (lines.Discovered.Text != discovered) lines.Discovered.Text = discovered;
+            if (lines.Visit.Text != visit)
+            {
+                lines.Visit.Text = visit;
+                lines.Visit.Visibility = visit.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            }
+        }
+    }
+
+    private void FadeInCurrentSystem()
+    {
+        if (!new Windows.UI.ViewManagement.UISettings().AnimationsEnabled) return;
+        var fade = new DoubleAnimation { From = 0.15, To = 1, Duration = TimeSpan.FromMilliseconds(450) };
+        Storyboard.SetTarget(fade, CurrentSystemBody);
+        Storyboard.SetTargetProperty(fade, "Opacity");
+        var storyboard = new Storyboard();
+        storyboard.Children.Add(fade);
+        storyboard.Begin();
     }
 
     private static Brush ThemeBrush(string key) => ThemeResources.Brush(key);
@@ -76,15 +232,12 @@ public sealed partial class PlanetsPage : Page
 
         await EnsureChoicesAsync();
         int version = ++_loadVersion;
-        var discoveries = SaveSessionManager.GetValue(S.DiscoveriesPath) as JArray;
-        _thisSave = NmsPlanets.ReadAll(discoveries);
         _otherSaves = new();
-        _currentSystem = S.ReadSystemAddress(SaveSessionManager.GetValue(S.CurrentUniverseAddressPath));
-        var counts = NmsPlanets.CountDiscoveries(discoveries);
-
-        BuildCurrentSystem(counts);
-        LoadSystemNote();
-        RefreshFinder();
+        ApplySnapshot(new PlanetSnapshot(
+            SaveSessionManager.GetValue(S.CurrentUniverseAddressPath),
+            SaveSessionManager.GetValue(NmsPlayerStatsPaths.StatGroupsArrayPath) as JArray,
+            SaveSessionManager.GetValue(S.DiscoveriesPath) as JArray), live: false);
+        StartWatching();
         await LoadOtherSavesAsync(version);
     }
 
@@ -122,11 +275,11 @@ public sealed partial class PlanetsPage : Page
 
     private void BuildCurrentSystem(Dictionary<ulong, PlanetDiscoveryCounts> counts)
     {
-        var universeAddress = SaveSessionManager.GetValue(S.CurrentUniverseAddressPath);
-        ulong? systemAddress = S.ReadSystemAddress(universeAddress);
-        int currentPlanet = universeAddress?["oZw"]?["jsv"]?.Value<int>() ?? 0;
+        ulong? systemAddress = _currentSystem;
+        int currentPlanet = _currentPlanet;
 
         CurrentPlanetsPanel.Children.Clear();
+        _tileText.Clear();
         StopOrbitAnimations();
         SystemCanvas.Children.Clear();
 
@@ -142,12 +295,15 @@ public sealed partial class PlanetsPage : Page
         SystemHeadingTxt.Text = $"{NmsGalaxyNames.ForNumber(galaxy) ?? "Galaxy"} · Galaxy {galaxy}";
 
         var planets = _thisSave.Where(p => p.SystemAddress == system).OrderBy(p => p.PlanetIndex).ToList();
-        SystemSubTxt.Text = (planets.Count, currentPlanet) switch
-        {
-            (0, _) => "No planets discovered here yet",
-            (_, 0) => $"{planets.Count} known planet{(planets.Count == 1 ? "" : "s")} · you're in space",
-            _ => $"{planets.Count} known planet{(planets.Count == 1 ? "" : "s")} · you're on planet {currentPlanet}",
-        };
+        var note = SystemNotesService.Get(system);
+        int moonCount = planets.Count(p => note?.IsMoon(p.PlanetIndex) == true);
+        string bodies = moonCount > 0
+            ? $"{planets.Count - moonCount} planet{(planets.Count - moonCount == 1 ? "" : "s")} · {moonCount} moon{(moonCount == 1 ? "" : "s")}"
+            : $"{planets.Count} known planet{(planets.Count == 1 ? "" : "s")}";
+        string where = currentPlanet == 0 ? "you're in space"
+            : note?.IsMoon(currentPlanet) == true ? "you're on a moon"
+            : $"you're on planet {currentPlanet}";
+        SystemSubTxt.Text = planets.Count == 0 ? "No planets discovered here yet" : $"{bodies} · {where}";
 
         string systemCode = S.PortalAddress(system, 0);
         SystemCodeTxt.Text = systemCode;
@@ -156,21 +312,27 @@ public sealed partial class PlanetsPage : Page
         foreach (var glyph in GlyphsFor(systemCode))
             SystemGlyphsPanel.Children.Add(GlyphTile(glyph, 28));
 
-        DrawSystem(planets, currentPlanet);
+        DrawSystem(planets, currentPlanet, note);
 
         NoSystemPlanetsTxt.Visibility = planets.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         foreach (var planet in planets)
         {
             counts.TryGetValue(planet.Address, out var tally);
-            CurrentPlanetsPanel.Children.Add(BuildPlanetTile(planet, tally, ReadPlanetStats(planet.Address), planet.PlanetIndex == currentPlanet));
+            CurrentPlanetsPanel.Children.Add(BuildPlanetTile(planet, tally, ReadPlanetStats(planet.Address), planet.PlanetIndex == currentPlanet,
+                note?.IsMoon(planet.PlanetIndex) == true));
         }
     }
 
     /// <summary>The star plus one orbit per known planet. Orbits turn slowly
     /// (outer planets slower); nothing animates when Windows' "Animation
     /// effects" setting is off.</summary>
-    private void DrawSystem(List<KnownPlanet> planets, int currentPlanet)
+    private void DrawSystem(List<KnownPlanet> allBodies, int currentPlanet, SystemNote? note)
     {
+        // Moons orbit planet 1 (see SystemNote.IsMoon) rather than the star -
+        // unless planet 1 isn't known yet, then they're drawn like planets.
+        var hostPlanet = allBodies.FirstOrDefault(p => p.PlanetIndex == 1);
+        var moons = hostPlanet is null ? new List<KnownPlanet>() : allBodies.Where(p => note?.IsMoon(p.PlanetIndex) == true).ToList();
+        var planets = allBodies.Except(moons).ToList();
         const double centre = 180;
         bool animate = new Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
 
@@ -206,7 +368,9 @@ public sealed partial class PlanetsPage : Page
             Place(orbit, centre, centre);
 
             double size = here ? 22 : 16;
-            var body = PlanetDrawing(planet, size, here);
+            FrameworkElement body = PlanetDrawing(planet, size, here);
+            if (planet == hostPlanet && moons.Count > 0)
+                body = WithMoons((Grid)body, moons, currentPlanet, animate);
 
             // The arm spins around the star; the body counter-spins so its ring keeps its tilt.
             var arm = new Grid { Width = radius * 2, Height = radius * 2 };
@@ -232,6 +396,59 @@ public sealed partial class PlanetsPage : Page
             storyboard.Begin();
             _orbitAnimations.Add(storyboard);
         }
+    }
+
+    /// <summary>Planet 1's drawing with its moons circling it on small orbits.</summary>
+    private Grid WithMoons(Grid planetDrawing, List<KnownPlanet> moons, int currentPlanet, bool animate)
+    {
+        double extent = 34 + moons.Count * 16;
+        var system = new Grid { Width = extent, Height = extent };
+        planetDrawing.HorizontalAlignment = HorizontalAlignment.Center;
+        planetDrawing.VerticalAlignment = VerticalAlignment.Center;
+        system.Children.Add(planetDrawing);
+
+        for (int k = 0; k < moons.Count; k++)
+        {
+            var moon = moons[k];
+            bool here = moon.PlanetIndex == currentPlanet;
+            double orbitRadius = 15 + (k + 1) * 8;
+            double size = here ? 9 : 7;
+
+            var path = new Ellipse
+            {
+                Width = orbitRadius * 2, Height = orbitRadius * 2,
+                Stroke = ThemeBrush("ThemeLineBrush"), StrokeThickness = 0.8, Opacity = 0.5,
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+            };
+            system.Children.Add(path);
+
+            var arm = new Grid
+            {
+                Width = orbitRadius * 2, Height = orbitRadius * 2,
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                RenderTransformOrigin = new Windows.Foundation.Point(0.5, 0.5),
+            };
+            arm.Children.Add(new Ellipse
+            {
+                Width = size, Height = size,
+                Fill = new SolidColorBrush(ParseColour(NmsPlanets.TypeColour(moon.BiomeIndex))),
+                Stroke = here ? ThemeBrush("ThemeAccentBrush") : null,
+                StrokeThickness = here ? 1.5 : 0,
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, -size / 2, 0, 0),
+            });
+            double start = (moon.PlanetIndex * 113) % 360;
+            var turn = new RotateTransform { Angle = start };
+            arm.RenderTransform = turn;
+            system.Children.Add(arm);
+
+            if (!animate) continue;
+            var storyboard = new Storyboard { RepeatBehavior = RepeatBehavior.Forever };
+            storyboard.Children.Add(Spin(turn, start, start + 360, 9 + k * 5));
+            storyboard.Begin();
+            _orbitAnimations.Add(storyboard);
+        }
+        return system;
     }
 
     private static DoubleAnimation Spin(RotateTransform target, double from, double to, double seconds)
@@ -280,7 +497,7 @@ public sealed partial class PlanetsPage : Page
         return grid;
     }
 
-    private Border BuildPlanetTile(KnownPlanet planet, PlanetDiscoveryCounts? tally, Dictionary<string, double> stats, bool here)
+    private Border BuildPlanetTile(KnownPlanet planet, PlanetDiscoveryCounts? tally, Dictionary<string, double> stats, bool here, bool isMoon)
     {
         var stack = new StackPanel { Spacing = 8 };
 
@@ -293,7 +510,7 @@ public sealed partial class PlanetsPage : Page
         var names = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
         names.Children.Add(new TextBlock
         {
-            Text = $"PLANET {planet.PlanetIndex}",
+            Text = isMoon ? "MOON" : $"PLANET {planet.PlanetIndex}",
             Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"],
         });
         names.Children.Add(new TextBlock
@@ -318,18 +535,13 @@ public sealed partial class PlanetsPage : Page
             });
         }
 
-        var t = tally ?? new PlanetDiscoveryCounts(0, 0, 0);
-        stack.Children.Add(DimLine($"Discovered: {t.Fauna} fauna · {t.Flora} flora · {t.Minerals} minerals"));
-
-        // ^TIME / ^DIST_WALKED units assumed seconds / metres (Cholton: 199 and 85
-        // after a few minutes on foot).
-        var visit = new List<string>();
-        if (stats.TryGetValue("^TIME", out double secondsHere) && secondsHere >= 1)
-            visit.Add($"{FormatDuration(secondsHere)} here");
-        if (stats.TryGetValue("^DIST_WALKED", out double walked) && walked >= 1)
-            visit.Add($"{walked:N0} m walked");
-        if (visit.Count > 0)
-            stack.Children.Add(DimLine(string.Join(" · ", visit)));
+        var discoveredLine = DimLine(DiscoveredText(tally));
+        stack.Children.Add(discoveredLine);
+        string visitText = VisitText(stats);
+        var visitLine = DimLine(visitText);
+        visitLine.Visibility = visitText.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        stack.Children.Add(visitLine);
+        _tileText[planet.Address] = (discoveredLine, visitLine);
 
         stack.Children.Add(DimLine($"Found by {(planet.DiscoveredHere ? "you" : planet.Discoverer)}"));
 
@@ -354,6 +566,24 @@ public sealed partial class PlanetsPage : Page
         };
     }
 
+    private static string DiscoveredText(PlanetDiscoveryCounts? tally)
+    {
+        var t = tally ?? new PlanetDiscoveryCounts(0, 0, 0);
+        return $"Discovered: {t.Fauna} fauna · {t.Flora} flora · {t.Minerals} minerals";
+    }
+
+    // ^TIME / ^DIST_WALKED units assumed seconds / metres (Cholton: 199 and 85
+    // after a few minutes on foot).
+    private static string VisitText(Dictionary<string, double> stats)
+    {
+        var visit = new List<string>();
+        if (stats.TryGetValue("^TIME", out double secondsHere) && secondsHere >= 1)
+            visit.Add($"{FormatDuration(secondsHere)} here");
+        if (stats.TryGetValue("^DIST_WALKED", out double walked) && walked >= 1)
+            visit.Add($"{walked:N0} m walked");
+        return string.Join(" · ", visit);
+    }
+
     private static TextBlock DimLine(string text) => new()
     {
         Text = text,
@@ -362,10 +592,10 @@ public sealed partial class PlanetsPage : Page
     };
 
     /// <summary>Numeric ^PLANET_STATS values for one planet (int ">vs" or float "eoL").</summary>
-    private static Dictionary<string, double> ReadPlanetStats(ulong planetAddress)
+    private Dictionary<string, double> ReadPlanetStats(ulong planetAddress)
     {
         var result = new Dictionary<string, double>();
-        if (SaveSessionManager.GetValue(NmsPlayerStatsPaths.StatGroupsArrayPath) is not JArray groups) return result;
+        if (_snapshot.StatGroups is not JArray groups) return result;
 
         var group = groups.OfType<JObject>().FirstOrDefault(g =>
             g[":rc"]?.Value<string>() == "^PLANET_STATS" && S.ParsePackedAddress(g["2Ak"]) == planetAddress);
@@ -421,6 +651,7 @@ public sealed partial class PlanetsPage : Page
         FillChoices(NoteWealthBox, NotRecorded, Words("Wealth"));
         FillChoices(NoteConflictBox, NotRecorded, Words("Conflict"));
         FillChoices(NoteRaceBox, NotRecorded, Plain(SystemNotesService.Races));
+        FillChoices(NoteMoonsBox, NotRecorded, Plain(new[] { "0", "1", "2", "3" }));
         _suppressNoteEvents = false;
 
         _suppressFilterEvents = true;
@@ -459,7 +690,13 @@ public sealed partial class PlanetsPage : Page
         SelectChoice(NoteWealthBox, note?.Wealth ?? "");
         SelectChoice(NoteConflictBox, note?.Conflict ?? "");
         SelectChoice(NoteRaceBox, note?.Race ?? "");
-        NoteTextBox.Text = note?.Text ?? "";
+        SelectChoice(NoteMoonsBox, note?.Moons?.ToString(CultureInfo.InvariantCulture) ?? "");
+        _noteList = note?.Notes.ToList() ?? new();
+        NewNoteBox.Text = "";
+        RenderNotes();
+        NoteClassBox.Text = note?.StarClass ?? "";
+        NoteWaterBox.IsChecked = note?.Water == true;
+        NoteDissonantBox.IsChecked = note?.Dissonant == true;
         _suppressNoteEvents = false;
     }
 
@@ -474,14 +711,95 @@ public sealed partial class PlanetsPage : Page
             Wealth = ChosenValue(NoteWealthBox),
             Conflict = ChosenValue(NoteConflictBox),
             Race = ChosenValue(NoteRaceBox),
-            Text = NoteTextBox.Text.Trim(),
+            Moons = int.TryParse(ChosenValue(NoteMoonsBox), out int moons) ? moons : null,
+            Notes = _noteList.ToList(),
+            StarClass = NoteClassBox.Text.Trim(),
+            Water = NoteWaterBox.IsChecked == true,
+            Dissonant = NoteDissonantBox.IsChecked == true,
         });
         ApplyFilters();
     }
 
-    private void NoteField_Changed(object sender, SelectionChangedEventArgs e) => SaveSystemNote();
+    private void NoteField_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressNoteEvents) return;
+        SaveSystemNote();
+        if (sender == NoteMoonsBox) BuildCurrentSystem(_lastCounts); // moons change the drawing and tiles
+    }
+
+    // ---- notes list
+
+    private void RenderNotes()
+    {
+        NotesListPanel.Children.Clear();
+        for (int i = 0; i < _noteList.Count; i++)
+        {
+            int index = i;
+            var row = new Grid { ColumnSpacing = 10, MaxWidth = 640, HorizontalAlignment = HorizontalAlignment.Left };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            row.Children.Add(new TextBlock { Text = "•", Foreground = ThemeBrush("ThemeAccentBrush"), VerticalAlignment = VerticalAlignment.Top });
+            var text = new TextBlock
+            {
+                Text = _noteList[i],
+                Style = (Style)Application.Current.Resources["ThemeBodyTextStyle"],
+                FontSize = 13,
+                IsTextSelectionEnabled = true,
+            };
+            Grid.SetColumn(text, 1);
+            row.Children.Add(text);
+
+            var remove = new Button { Content = "Remove", Padding = new Thickness(8, 2, 8, 2), VerticalAlignment = VerticalAlignment.Top };
+            remove.Click += (_, _) =>
+            {
+                _noteList.RemoveAt(index);
+                RenderNotes();
+                SaveSystemNote();
+            };
+            Grid.SetColumn(remove, 2);
+            row.Children.Add(remove);
+
+            NotesListPanel.Children.Add(row);
+        }
+    }
+
+    /// <summary>Adds whatever is typed in the new-note box; returns whether it added one.</summary>
+    private bool CommitPendingNote()
+    {
+        string text = NewNoteBox.Text.Trim();
+        if (text.Length == 0) return false;
+        _noteList.Add(text);
+        NewNoteBox.Text = "";
+        RenderNotes();
+        return true;
+    }
+
+    private void AddNote_Click(object sender, RoutedEventArgs e)
+    {
+        if (CommitPendingNote()) SaveSystemNote();
+        NewNoteBox.Focus(FocusState.Programmatic);
+    }
+
+    private void NewNoteBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key != Windows.System.VirtualKey.Enter) return;
+        e.Handled = true;
+        if (CommitPendingNote()) SaveSystemNote();
+    }
 
     private void NoteTextBox_LostFocus(object sender, RoutedEventArgs e) => SaveSystemNote();
+
+    private void NoteCheck_Click(object sender, RoutedEventArgs e) => SaveSystemNote();
+
+    /// <summary>Typing a star class fills in its colour (the colour change saves the note).</summary>
+    private void NoteClassBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_suppressNoteEvents) return;
+        if (SystemNotesService.ColourForClass(NoteClassBox.Text) is string colour && ChosenValue(NoteStarBox) != colour)
+            SelectChoice(NoteStarBox, colour);
+    }
 
     /// <summary>"Opulent (High ★★★ wealth)" - the game's word plus its category.</summary>
     private static string Described(string group, string word, string suffix)
@@ -496,12 +814,16 @@ public sealed partial class PlanetsPage : Page
     {
         if (note is null) return "";
         var parts = new List<string>();
-        if (note.StarColour != "") parts.Add($"{note.StarColour} star");
+        if (note.StarColour != "") parts.Add(note.StarClass != "" ? $"{note.StarColour} star ({note.StarClass})" : $"{note.StarColour} star");
+        else if (note.StarClass != "") parts.Add($"Class {note.StarClass}");
         if (note.Economy != "") parts.Add(Described("Economy", note.Economy, ""));
         if (note.Wealth != "") parts.Add(Described("Wealth", note.Wealth, "wealth"));
         if (note.Conflict != "") parts.Add(Described("Conflict", note.Conflict, "conflict"));
         if (note.Race != "") parts.Add(note.Race);
-        if (note.Text != "") parts.Add(note.Text);
+        if (note.Water) parts.Add("Water");
+        if (note.Dissonant) parts.Add("Dissonant");
+        if (note.Moons is int moons) parts.Add(moons == 1 ? "1 moon" : $"{moons} moons");
+        parts.AddRange(note.Notes);
         return string.Join(" · ", parts);
     }
 
@@ -550,7 +872,9 @@ public sealed partial class PlanetsPage : Page
         bool nearestFirst = SortBox.SelectedIndex != 1;
         string star = ChosenValue(StarFilterBox), economy = ChosenValue(EconomyFilterBox), wealth = ChosenValue(WealthFilterBox);
         string conflict = ChosenValue(ConflictFilterBox), race = ChosenValue(RaceFilterBox);
-        bool noteFilter = star != "" || economy != "" || wealth != "" || conflict != "" || race != "";
+        bool water = WaterFilterBox.IsChecked == true, dissonant = DissonantFilterBox.IsChecked == true;
+        int bodies = BodiesFilterBox.SelectedIndex; // 0 all, 1 planets only, 2 moons only
+        bool noteFilter = star != "" || economy != "" || wealth != "" || conflict != "" || race != "" || water || dissonant;
 
         var filtered = _allPlanets
             .Where(p => type < 0 || p.BiomeIndex == type)
@@ -562,7 +886,14 @@ public sealed partial class PlanetsPage : Page
                 && (economy == "" || SystemNotesService.CategoryOf("Economy", n.Economy) == economy)
                 && (wealth == "" || SystemNotesService.CategoryOf("Wealth", n.Wealth) == wealth)
                 && (conflict == "" || SystemNotesService.CategoryOf("Conflict", n.Conflict) == conflict)
-                && (race == "" || n.Race == race))
+                && (race == "" || n.Race == race)
+                && (!water || n.Water) && (!dissonant || n.Dissonant))
+            .Where(p => bodies switch
+            {
+                1 => SystemNotesService.Get(p.SystemAddress)?.IsMoon(p.PlanetIndex) != true,
+                2 => SystemNotesService.Get(p.SystemAddress)?.IsMoon(p.PlanetIndex) == true,
+                _ => true,
+            })
             .Select(p => (Planet: p, Distance: _currentSystem is ulong here ? NmsPlanets.DistanceLightYears(here, p.SystemAddress) : null));
 
         // Nearest first: same-galaxy planets by distance, other galaxies after.
@@ -588,13 +919,16 @@ public sealed partial class PlanetsPage : Page
         Swatch = new SolidColorBrush(ParseColour(NmsPlanets.TypeColour(planet.BiomeIndex))),
         RingVisibility = planet.HasRings ? Visibility.Visible : Visibility.Collapsed,
         LocationLabel = planet.Source.Length > 0
-            ? $"{GalaxyLabel(planet.Galaxy)} · planet {planet.PlanetIndex} · {planet.Source}"
-            : $"{GalaxyLabel(planet.Galaxy)} · planet {planet.PlanetIndex}",
+            ? $"{GalaxyLabel(planet.Galaxy)} · {BodyLabel(planet)} · {planet.Source}"
+            : $"{GalaxyLabel(planet.Galaxy)} · {BodyLabel(planet)}",
         PortalCode = planet.PortalCode,
         Glyphs = GlyphsFor(planet.PortalCode),
         DiscoveredLabel = $"{(planet.DiscoveredHere ? "You" : planet.Discoverer)} · {FormatDate(planet.DiscoveredUnixSeconds)}",
         };
     }
+
+    private static string BodyLabel(KnownPlanet planet) =>
+        SystemNotesService.Get(planet.SystemAddress)?.IsMoon(planet.PlanetIndex) == true ? "moon" : $"planet {planet.PlanetIndex}";
 
     private string DistanceText(KnownPlanet planet, double? distance)
     {
