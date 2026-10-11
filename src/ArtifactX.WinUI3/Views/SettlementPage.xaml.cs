@@ -245,6 +245,12 @@ public sealed partial class SettlementPage : Page
         _ => NeutralPerkBrush
     };
 
+    /// <summary>Category flags minus "Proc" - those perks' names already say
+    /// "(random name)" (see CatalogService.ReadablePerkName).</summary>
+    private static string DisplayCategory(string category) => string.Join(", ",
+        category.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Where(flag => !flag.Equals("Proc", StringComparison.OrdinalIgnoreCase)));
+
     private static Brush CardBorderBrush => ThemeResources.Brush("ThemeLineBrush");
     private static Brush CardBackgroundBrush => ThemeResources.Brush("ThemePanelAltBrush");
     private const int PerksPerCard = 6;
@@ -317,14 +323,14 @@ public sealed partial class SettlementPage : Page
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            var box = new ComboBox { Width = 340 };
+            var box = new ComboBox { Width = 400 };
             var noneItem = new ComboBoxItem { Content = "(None)", Tag = "", Foreground = NeutralPerkBrush };
             box.Items.Add(noneItem);
             foreach (var kv in sortedPerks)
             {
                 var item = new ComboBoxItem
                 {
-                    Content = $"{kv.Value.DisplayName} ({kv.Value.Category})",
+                    Content = $"{kv.Value.DisplayName} ({DisplayCategory(kv.Value.Category)})",
                     Tag = kv.Key,
                     Foreground = PerkSignBrush(kv.Value.Category)
                 };
