@@ -29,13 +29,26 @@ public sealed partial class PlanetsPage : Page
 {
     private static Task? _glyphWarmup;
 
+    // _thisSave: the loaded save's planets. _otherSaves: every other slot in
+    // the same folder (KnownPlanetsService). _allPlanets is what the finder
+    // searches - the two merged (loaded save wins on duplicates) or just
+    // _thisSave, depending on "Include my other save slots".
+    private List<KnownPlanet> _thisSave = new();
+    private List<KnownPlanet> _otherSaves = new();
     private List<KnownPlanet> _allPlanets = new();
+    private ulong? _currentSystem;
+    private int _loadVersion;
     private readonly List<Storyboard> _orbitAnimations = new();
     private bool _suppressFilterEvents;
 
     public PlanetsPage()
     {
         InitializeComponent();
+        // Set here, not in XAML: a XAML SelectedIndex fires SelectionChanged
+        // mid-InitializeComponent, before the checkboxes below it exist.
+        _suppressFilterEvents = true;
+        SortBox.SelectedIndex = 0;
+        _suppressFilterEvents = false;
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         Unloaded += Page_Unloaded;
         _ = LoadPageAsync();
@@ -59,11 +72,44 @@ public sealed partial class PlanetsPage : Page
         _glyphWarmup ??= CatalogService.WarmCacheAsync(Enumerable.Range(0, 16).Select(d => $"PORTALSYMBOL_{d:X}"));
         await _glyphWarmup;
 
+        int version = ++_loadVersion;
         var discoveries = SaveSessionManager.GetValue(S.DiscoveriesPath) as JArray;
-        _allPlanets = NmsPlanets.ReadAll(discoveries);
+        _thisSave = NmsPlanets.ReadAll(discoveries);
+        _otherSaves = new();
+        _currentSystem = S.ReadSystemAddress(SaveSessionManager.GetValue(S.CurrentUniverseAddressPath));
         var counts = NmsPlanets.CountDiscoveries(discoveries);
 
         BuildCurrentSystem(counts);
+        RefreshFinder();
+        await LoadOtherSavesAsync(version);
+    }
+
+    private async Task LoadOtherSavesAsync(int version)
+    {
+        if (AllSlotsBox.IsChecked != true || _otherSaves.Count > 0) return;
+        if (SaveSessionManager.ActivePlatformFolder is not string folder || SaveSessionManager.ActiveSlot is not { } slot) return;
+
+        FinderStatusTxt.Text = "Reading your other save slots...";
+        FinderStatusTxt.Visibility = Visibility.Visible;
+        var others = await KnownPlanetsService.ReadOtherSlotsAsync(folder, slot.SlotId);
+        if (version != _loadVersion) return; // a newer load started meanwhile
+
+        _otherSaves = others;
+        FinderStatusTxt.Visibility = Visibility.Collapsed;
+        RefreshFinder();
+    }
+
+    private async void AllSlotsBox_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshFinder();
+        await LoadOtherSavesAsync(_loadVersion);
+    }
+
+    private void RefreshFinder()
+    {
+        _allPlanets = AllSlotsBox.IsChecked == true
+            ? _thisSave.Concat(_otherSaves).GroupBy(p => p.Address).Select(g => g.First()).ToList()
+            : _thisSave;
         BuildFilterChoices();
         ApplyFilters();
     }
@@ -91,7 +137,7 @@ public sealed partial class PlanetsPage : Page
         int galaxy = S.GalaxyNumber(system);
         SystemHeadingTxt.Text = $"{NmsGalaxyNames.ForNumber(galaxy) ?? "Galaxy"} · Galaxy {galaxy}";
 
-        var planets = _allPlanets.Where(p => p.SystemAddress == system).OrderBy(p => p.PlanetIndex).ToList();
+        var planets = _thisSave.Where(p => p.SystemAddress == system).OrderBy(p => p.PlanetIndex).ToList();
         SystemSubTxt.Text = (planets.Count, currentPlanet) switch
         {
             (0, _) => "No planets discovered here yet",
@@ -344,6 +390,8 @@ public sealed partial class PlanetsPage : Page
     private void BuildFilterChoices()
     {
         _suppressFilterEvents = true;
+        int previousType = (TypeFilterBox.SelectedItem as ComboBoxItem)?.Tag as int? ?? -1;
+        int previousGalaxy = (GalaxyFilterBox.SelectedItem as ComboBoxItem)?.Tag as int? ?? -1;
 
         TypeFilterBox.Items.Clear();
         TypeFilterBox.Items.Add(new ComboBoxItem { Content = $"All types ({_allPlanets.Count})", Tag = -1 });
@@ -353,13 +401,15 @@ public sealed partial class PlanetsPage : Page
             if (count > 0)
                 TypeFilterBox.Items.Add(new ComboBoxItem { Content = $"{NmsPlanets.TypeName(type)} ({count})", Tag = type });
         }
-        TypeFilterBox.SelectedIndex = 0;
+        TypeFilterBox.SelectedItem = TypeFilterBox.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (int)i.Tag == previousType)
+            ?? TypeFilterBox.Items[0];
 
         GalaxyFilterBox.Items.Clear();
         GalaxyFilterBox.Items.Add(new ComboBoxItem { Content = "All galaxies", Tag = -1 });
         foreach (var galaxy in _allPlanets.GroupBy(p => p.Galaxy).OrderBy(g => g.Key))
             GalaxyFilterBox.Items.Add(new ComboBoxItem { Content = $"{GalaxyLabel(galaxy.Key)} ({galaxy.Count()})", Tag = galaxy.Key });
-        GalaxyFilterBox.SelectedIndex = 0;
+        GalaxyFilterBox.SelectedItem = GalaxyFilterBox.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (int)i.Tag == previousGalaxy)
+            ?? GalaxyFilterBox.Items[0];
 
         _suppressFilterEvents = false;
     }
@@ -377,30 +427,50 @@ public sealed partial class PlanetsPage : Page
         int galaxy = (GalaxyFilterBox.SelectedItem as ComboBoxItem)?.Tag as int? ?? -1;
         bool ringsOnly = RingsOnlyBox.IsChecked == true;
         bool mineOnly = MineOnlyBox.IsChecked == true;
+        bool nearestFirst = SortBox.SelectedIndex != 1;
 
-        var matches = _allPlanets
+        var filtered = _allPlanets
             .Where(p => type < 0 || p.BiomeIndex == type)
             .Where(p => galaxy < 0 || p.Galaxy == galaxy)
             .Where(p => !ringsOnly || p.HasRings)
             .Where(p => !mineOnly || p.DiscoveredHere)
-            .OrderByDescending(p => p.DiscoveredUnixSeconds)
-            .Select(ToRow)
-            .ToList();
+            .Select(p => (Planet: p, Distance: _currentSystem is ulong here ? NmsPlanets.DistanceLightYears(here, p.SystemAddress) : null));
+
+        // Nearest first: same-galaxy planets by distance, other galaxies after.
+        var ordered = nearestFirst
+            ? filtered.OrderBy(x => x.Distance ?? double.MaxValue).ThenByDescending(x => x.Planet.DiscoveredUnixSeconds)
+            : filtered.OrderByDescending(x => x.Planet.DiscoveredUnixSeconds);
+
+        var matches = ordered.Select(x => ToRow(x.Planet, x.Distance)).ToList();
 
         ResultsList.ItemsSource = matches;
         ResultCountTxt.Text = $"{matches.Count:N0} of {_allPlanets.Count:N0} planets";
     }
 
-    private static PlanetRowViewModel ToRow(KnownPlanet planet) => new()
+    private PlanetRowViewModel ToRow(KnownPlanet planet, double? distance) => new()
     {
+        DistanceLabel = DistanceText(planet, distance),
         TypeLabel = planet.TypeName,
         Swatch = new SolidColorBrush(ParseColour(NmsPlanets.TypeColour(planet.BiomeIndex))),
         RingVisibility = planet.HasRings ? Visibility.Visible : Visibility.Collapsed,
-        LocationLabel = $"{GalaxyLabel(planet.Galaxy)} · planet {planet.PlanetIndex}",
+        LocationLabel = planet.Source.Length > 0
+            ? $"{GalaxyLabel(planet.Galaxy)} · planet {planet.PlanetIndex} · {planet.Source}"
+            : $"{GalaxyLabel(planet.Galaxy)} · planet {planet.PlanetIndex}",
         PortalCode = planet.PortalCode,
         Glyphs = GlyphsFor(planet.PortalCode),
         DiscoveredLabel = $"{(planet.DiscoveredHere ? "You" : planet.Discoverer)} · {FormatDate(planet.DiscoveredUnixSeconds)}",
     };
+
+    private string DistanceText(KnownPlanet planet, double? distance)
+    {
+        if (_currentSystem is ulong here && planet.SystemAddress == here) return "This system";
+        return distance switch
+        {
+            null => "Another galaxy",
+            < 1 => "Same region (under 400 ly)",
+            double ly => $"About {ly:N0} ly away",
+        };
+    }
 
     // ---------------------------------------------------------------- shared helpers
 

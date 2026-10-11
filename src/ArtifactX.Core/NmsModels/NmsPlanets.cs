@@ -18,6 +18,10 @@ public sealed record KnownPlanet(
     public ulong SystemAddress => NmsSpaceStationPaths.ToSystemAddress(Address);
     public string PortalCode => NmsSpaceStationPaths.PortalAddress(Address, PlanetIndex);
     public string TypeName => NmsPlanets.TypeName(BiomeIndex);
+
+    /// <summary>Where this planet was read from, e.g. "Slot 3" - set by
+    /// callers that merge several saves; empty for the loaded save.</summary>
+    public string Source { get; init; } = "";
 }
 
 /// <summary>Per-planet discovery tallies, counted from the discovery records
@@ -104,6 +108,24 @@ public static class NmsPlanets
         }
 
         return byAddress.Values.ToList();
+    }
+
+    /// <summary>Approximate distance in light-years between two systems, or
+    /// null when they're in different galaxies. Uses the community rule of
+    /// 400 ly per region step along each axis (the address's X/Z are signed
+    /// 12-bit, Y signed 8-bit); systems in the same region read as 0.</summary>
+    public static double? DistanceLightYears(ulong from, ulong to)
+    {
+        if (NmsSpaceStationPaths.GalaxyNumber(from) != NmsSpaceStationPaths.GalaxyNumber(to)) return null;
+
+        static int Signed(ulong value, int bits) => (int)((long)(value << (64 - bits)) >> (64 - bits));
+        static (int X, int Y, int Z) Region(ulong a) =>
+            (Signed(a & 0xFFF, 12), Signed((a >> 24) & 0xFF, 8), Signed((a >> 12) & 0xFFF, 12));
+
+        var (x1, y1, z1) = Region(from);
+        var (x2, y2, z2) = Region(to);
+        double dx = x2 - x1, dy = y2 - y1, dz = z2 - z1;
+        return System.Math.Sqrt(dx * dx + dy * dy + dz * dz) * 400;
     }
 
     /// <summary>Fauna/flora/mineral record counts per planet address.</summary>

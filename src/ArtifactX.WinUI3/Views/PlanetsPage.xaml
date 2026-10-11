@@ -87,16 +87,22 @@
                     </Border>
                     <StackPanel Padding="20,16,20,20" Spacing="14">
                         <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13"
-                                   Text="Every planet in this save's discoveries, including ones other players found that the game downloaded for you. Pick a type to find one, then dial its portal address at any portal."/>
+                                   Text="Every planet in your saves' discoveries, including ones other players found that the game downloaded for you. Pick a type to find the nearest one, then dial its portal address at any portal. Distances are approximate, measured from where this save is now."/>
                         <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
                             <ComboBox x:Name="TypeFilterBox" Width="220" SelectionChanged="Filter_Changed" Header="Planet type"/>
                             <ComboBox x:Name="GalaxyFilterBox" Width="220" SelectionChanged="Filter_Changed" Header="Galaxy"/>
+                            <ComboBox x:Name="SortBox" Width="180" SelectionChanged="Filter_Changed" Header="Sort">
+                                <ComboBoxItem Content="Nearest first"/>
+                                <ComboBoxItem Content="Newest first"/>
+                            </ComboBox>
                             <CheckBox x:Name="RingsOnlyBox" Content="Rings only" Click="Filter_Click" VerticalAlignment="Bottom"/>
-                            <CheckBox x:Name="MineOnlyBox" Content="Discovered on this save" Click="Filter_Click" VerticalAlignment="Bottom"/>
+                            <CheckBox x:Name="MineOnlyBox" Content="Discovered by you" Click="Filter_Click" VerticalAlignment="Bottom"/>
+                            <CheckBox x:Name="AllSlotsBox" Content="Include my other save slots" IsChecked="True" Click="AllSlotsBox_Click" VerticalAlignment="Bottom"/>
                             <TextBlock x:Name="ResultCountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                        VerticalAlignment="Bottom" Margin="0,0,0,8"/>
                         </ctcontrols:WrapPanel>
 
+                        <TextBlock x:Name="FinderStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Visibility="Collapsed"/>
                         <!-- Bounded height so the ListView virtualizes inside the page's
                              ScrollViewer (an unbounded one would realize every row). -->
                         <ListView x:Name="ResultsList" SelectionMode="None" MaxHeight="640">
@@ -155,8 +161,12 @@
                                                            IsTextSelectionEnabled="True" CharacterSpacing="80"/>
                                             </StackPanel>
 
-                                            <TextBlock Grid.Column="3" Text="{x:Bind DiscoveredLabel}" Style="{StaticResource ThemeDimTextStyle}"
-                                                       FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                                            <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="2">
+                                                <TextBlock Text="{x:Bind DistanceLabel}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"
+                                                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                                                <TextBlock Text="{x:Bind DiscoveredLabel}" Style="{StaticResource ThemeDimTextStyle}"
+                                                           FontSize="12" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                                            </StackPanel>
 
                                             <Button Grid.Column="4" Content="Copy" Tag="{x:Bind PortalCode}" Click="CopyCode_Click"
                                                     VerticalAlignment="Center" Padding="10,3"
