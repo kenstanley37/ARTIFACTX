@@ -113,5 +113,10 @@ public static class FreighterUpgrades
         new FreighterUpgradeInfo("FRE_ROOM_TECH", "Technology Room (Expansion)", "Construction Module"),
         new FreighterUpgradeInfo("FRE_ROOM_TELEPO", "Teleport Chamber", "Construction Module"),
         new FreighterUpgradeInfo("FRE_ROOM_VEHICL", "Orbital Exocraft Materializer", "Construction Module"),
+        // Newer-update parts, found 2026-10-10 in a real save's eZ< list but
+        // missing here; names from the catalog's own GcProductTable rows.
+        new FreighterUpgradeInfo("FRE_CORR_B", "Freighter Passageway", "Construction Module"),
+        new FreighterUpgradeInfo("FRE_ROOM_B", "Commercial Room (Expansion)", "Construction Module"),
+        new FreighterUpgradeInfo("FRE_CORR_STA_B", "Steel Staircase", "Construction Module"),
     };
 }
