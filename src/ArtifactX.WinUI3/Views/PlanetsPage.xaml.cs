@@ -48,6 +48,7 @@ public sealed partial class PlanetsPage : Page
     // first, then from the newest save file each time the game writes it.
     private PlanetSnapshot _snapshot = new(null, null, null);
     private Dictionary<ulong, PlanetDiscoveryCounts> _lastCounts = new();
+    private Dictionary<int, List<string>> _baseNames = new();
     private List<string> _noteList = new();
     private int _currentPlanet;
 
@@ -67,6 +68,7 @@ public sealed partial class PlanetsPage : Page
         SortBox.SelectedIndex = 0;
         BodiesFilterBox.SelectedIndex = 0;
         _suppressFilterEvents = false;
+        SetLiveHelpVisible(!AppSettingsService.GetFlag(LiveHelpHiddenKey));
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         Unloaded += Page_Unloaded;
         _ = LoadPageAsync();
@@ -179,6 +181,8 @@ public sealed partial class PlanetsPage : Page
         _currentPlanet = newPlanet;
         var counts = NmsPlanets.CountDiscoveries(snapshot.Discoveries);
         _lastCounts = counts;
+        bool learned = LearnNames(snapshot);
+        if (learned && !systemChanged) { layoutChanged = true; RefreshNameBox(); }
 
         if (layoutChanged)
         {
@@ -192,6 +196,84 @@ public sealed partial class PlanetsPage : Page
         }
 
         if (!live || systemChanged || planetsChanged) RefreshFinder();
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex InSystemRegex = new(@"^In the (.+) system$");
+    private static readonly System.Text.RegularExpressions.Regex OnPlanetRegex = new(@"^On Planet \((.+)\)$");
+
+    /// <summary>Records the name the save's "where you saved" line gives for
+    /// where you are now: "In the X system" (system), "On Planet (X)" (the
+    /// planet you're on) or "Aboard X" (the system's space station; "Aboard the
+    /// Space Anomaly" etc. are skipped). Returns whether anything new was stored.</summary>
+    private bool LearnNames(PlanetSnapshot snapshot)
+    {
+        if (_currentSystem is not ulong system) return false;
+        string summary = (snapshot.Summary ?? "").Trim();
+        var note = SystemNotesService.Get(system) ?? new SystemNote();
+        bool changed = false;
+
+        if (InSystemRegex.Match(summary) is { Success: true } inSystem && note.SystemName != inSystem.Groups[1].Value)
+        {
+            note.SystemName = inSystem.Groups[1].Value;
+            changed = true;
+        }
+        else if (OnPlanetRegex.Match(summary) is { Success: true } onPlanet && _currentPlanet > 0)
+        {
+            string key = _currentPlanet.ToString(CultureInfo.InvariantCulture);
+            if (!note.PlanetNames.TryGetValue(key, out var known) || known != onPlanet.Groups[1].Value)
+            {
+                note.PlanetNames[key] = onPlanet.Groups[1].Value;
+                changed = true;
+            }
+        }
+        else if (_currentPlanet == 0 && summary.StartsWith("Aboard ", StringComparison.Ordinal))
+        {
+            string station = summary["Aboard ".Length..].Trim();
+            if (station.Length > 0 && !station.StartsWith("the ", StringComparison.OrdinalIgnoreCase) && note.StationName != station)
+            {
+                note.StationName = station;
+                changed = true;
+            }
+        }
+
+        if (changed) SystemNotesService.Save(system, note);
+        return changed;
+    }
+
+    private void RefreshNameBox()
+    {
+        if (_currentSystem is not ulong system) return;
+        _suppressNoteEvents = true;
+        NoteSystemNameBox.Text = SystemNotesService.Get(system)?.SystemName ?? "";
+        _suppressNoteEvents = false;
+    }
+
+    /// <summary>Named map markers in a system: its space station, and your
+    /// bases by planet number.</summary>
+    private (string Station, Dictionary<int, List<string>> Bases) ReadMarkers(ulong system)
+    {
+        string station = "";
+        var bases = new Dictionary<int, List<string>>();
+        if (_snapshot.Markers is not JArray markers) return (station, bases);
+
+        foreach (var marker in markers.OfType<JObject>())
+        {
+            if (S.ReadSystemAddress(marker["yhJ"]) != system) continue;
+            string name = marker["NKm"]?.Value<string>() ?? "";
+            if (name.Length == 0) continue;
+            switch (marker["iAF"]?.Value<string>())
+            {
+                case "Spacestation":
+                    station = name;
+                    break;
+                case "Base":
+                    int planet = marker["yhJ"]?["oZw"]?["jsv"]?.Value<int>() ?? 0;
+                    if (!bases.TryGetValue(planet, out var list)) bases[planet] = list = new();
+                    list.Add(name);
+                    break;
+            }
+        }
+        return (station, bases);
     }
 
     private void UpdateTileText(Dictionary<ulong, PlanetDiscoveryCounts> counts)
@@ -210,8 +292,64 @@ public sealed partial class PlanetsPage : Page
         }
     }
 
+    private const string LiveHelpHiddenKey = "PlanetsLiveHelpHidden";
+
+    private void SetLiveHelpVisible(bool visible)
+    {
+        LiveHelpPanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        ShowLiveHelpLink.Visibility = visible ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void HideLiveHelp_Click(object sender, RoutedEventArgs e)
+    {
+        AppSettingsService.SetFlag(LiveHelpHiddenKey, true);
+        SetLiveHelpVisible(false);
+    }
+
+    private void ShowLiveHelp_Click(object sender, RoutedEventArgs e)
+    {
+        AppSettingsService.SetFlag(LiveHelpHiddenKey, false);
+        SetLiveHelpVisible(true);
+    }
+
+    private Storyboard? _overlayStoryboard;
+
+    /// <summary>A bold banner over the Current System card for a few seconds
+    /// after live follow sees a new system, so the switch can't be missed.</summary>
+    private void ShowSystemChangeBanner()
+    {
+        SystemChangeDetailTxt.Text = $"{SystemHeadingTxt.Text} · {SystemSubTxt.Text}";
+        SystemChangeOverlay.Visibility = Visibility.Visible;
+        _overlayStoryboard?.Stop();
+
+        if (!new Windows.UI.ViewManagement.UISettings().AnimationsEnabled)
+        {
+            SystemChangeOverlay.Opacity = 1;
+            var hide = DispatcherQueue.CreateTimer();
+            hide.Interval = TimeSpan.FromSeconds(4);
+            hide.IsRepeating = false;
+            hide.Tick += (_, _) => SystemChangeOverlay.Visibility = Visibility.Collapsed;
+            hide.Start();
+            return;
+        }
+
+        // Pop in, hold ~2.5s, then fade out over 1.5s.
+        var fade = new DoubleAnimationUsingKeyFrames();
+        fade.KeyFrames.Add(new LinearDoubleKeyFrame { KeyTime = TimeSpan.Zero, Value = 0 });
+        fade.KeyFrames.Add(new LinearDoubleKeyFrame { KeyTime = TimeSpan.FromMilliseconds(250), Value = 1 });
+        fade.KeyFrames.Add(new LinearDoubleKeyFrame { KeyTime = TimeSpan.FromMilliseconds(2750), Value = 1 });
+        fade.KeyFrames.Add(new LinearDoubleKeyFrame { KeyTime = TimeSpan.FromMilliseconds(4250), Value = 0 });
+        Storyboard.SetTarget(fade, SystemChangeOverlay);
+        Storyboard.SetTargetProperty(fade, "Opacity");
+        _overlayStoryboard = new Storyboard();
+        _overlayStoryboard.Children.Add(fade);
+        _overlayStoryboard.Completed += (_, _) => SystemChangeOverlay.Visibility = Visibility.Collapsed;
+        _overlayStoryboard.Begin();
+    }
+
     private void FadeInCurrentSystem()
     {
+        ShowSystemChangeBanner();
         if (!new Windows.UI.ViewManagement.UISettings().AnimationsEnabled) return;
         var fade = new DoubleAnimation { From = 0.15, To = 1, Duration = TimeSpan.FromMilliseconds(450) };
         Storyboard.SetTarget(fade, CurrentSystemBody);
@@ -236,7 +374,9 @@ public sealed partial class PlanetsPage : Page
         ApplySnapshot(new PlanetSnapshot(
             SaveSessionManager.GetValue(S.CurrentUniverseAddressPath),
             SaveSessionManager.GetValue(NmsPlayerStatsPaths.StatGroupsArrayPath) as JArray,
-            SaveSessionManager.GetValue(S.DiscoveriesPath) as JArray), live: false);
+            SaveSessionManager.GetValue(S.DiscoveriesPath) as JArray,
+            SaveSessionManager.GetValue(S.LocationDescriptionPath)?.Value<string>(),
+            SaveSessionManager.GetValue(S.MarkersPath) as JArray), live: false);
         StartWatching();
         await LoadOtherSavesAsync(version);
     }
@@ -292,7 +432,13 @@ public sealed partial class PlanetsPage : Page
         }
 
         int galaxy = S.GalaxyNumber(system);
-        SystemHeadingTxt.Text = $"{NmsGalaxyNames.ForNumber(galaxy) ?? "Galaxy"} · Galaxy {galaxy}";
+        var systemNote = SystemNotesService.Get(system);
+        var (markerStation, bases) = ReadMarkers(system);
+        _baseNames = bases;
+        SystemHeadingTxt.Text = systemNote?.SystemName is { Length: > 0 } systemName ? systemName : "Unnamed system";
+        string station = markerStation.Length > 0 ? markerStation : systemNote?.StationName ?? "";
+        SystemStationTxt.Text = $"Space station: {station}";
+        SystemStationTxt.Visibility = station.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
         var planets = _thisSave.Where(p => p.SystemAddress == system).OrderBy(p => p.PlanetIndex).ToList();
         var note = SystemNotesService.Get(system);
@@ -303,7 +449,8 @@ public sealed partial class PlanetsPage : Page
         string where = currentPlanet == 0 ? "you're in space"
             : note?.IsMoon(currentPlanet) == true ? "you're on a moon"
             : $"you're on planet {currentPlanet}";
-        SystemSubTxt.Text = planets.Count == 0 ? "No planets discovered here yet" : $"{bodies} · {where}";
+        string galaxyText = $"{NmsGalaxyNames.ForNumber(galaxy) ?? "Galaxy"} ({galaxy})";
+        SystemSubTxt.Text = planets.Count == 0 ? $"{galaxyText} · no planets discovered here yet" : $"{galaxyText} · {bodies} · {where}";
 
         string systemCode = S.PortalAddress(system, 0);
         SystemCodeTxt.Text = systemCode;
@@ -513,12 +660,17 @@ public sealed partial class PlanetsPage : Page
             Text = isMoon ? "MOON" : $"PLANET {planet.PlanetIndex}",
             Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"],
         });
+        string typeText = planet.HasRings ? $"{planet.TypeName} · rings" : planet.TypeName;
+        string? planetName = null;
+        SystemNotesService.Get(planet.SystemAddress)?.PlanetNames.TryGetValue(planet.PlanetIndex.ToString(CultureInfo.InvariantCulture), out planetName);
         names.Children.Add(new TextBlock
         {
-            Text = planet.HasRings ? $"{planet.TypeName} · rings" : planet.TypeName,
+            Text = planetName ?? typeText,
             Style = (Style)Application.Current.Resources["ThemeBodyTextStyle"],
             FontWeight = FontWeights.SemiBold,
         });
+        if (planetName is not null)
+            names.Children.Add(DimLine(typeText));
         Grid.SetColumn(names, 1);
         header.Children.Add(names);
         stack.Children.Add(header);
@@ -543,6 +695,8 @@ public sealed partial class PlanetsPage : Page
         stack.Children.Add(visitLine);
         _tileText[planet.Address] = (discoveredLine, visitLine);
 
+        if (_baseNames.TryGetValue(planet.PlanetIndex, out var baseNames))
+            stack.Children.Add(DimLine(baseNames.Count == 1 ? $"Your base: {baseNames[0]}" : $"Your bases: {string.Join(", ", baseNames)}"));
         stack.Children.Add(DimLine($"Found by {(planet.DiscoveredHere ? "you" : planet.Discoverer)}"));
 
         var glyphRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
@@ -695,6 +849,7 @@ public sealed partial class PlanetsPage : Page
         NewNoteBox.Text = "";
         RenderNotes();
         NoteClassBox.Text = note?.StarClass ?? "";
+        NoteSystemNameBox.Text = note?.SystemName ?? "";
         NoteWaterBox.IsChecked = note?.Water == true;
         NoteDissonantBox.IsChecked = note?.Dissonant == true;
         _suppressNoteEvents = false;
@@ -704,8 +859,12 @@ public sealed partial class PlanetsPage : Page
     {
         if (_suppressNoteEvents || _currentSystem is not ulong system) return;
 
+        var existing = SystemNotesService.Get(system);
         SystemNotesService.Save(system, new SystemNote
         {
+            SystemName = NoteSystemNameBox.Text.Trim(),
+            StationName = existing?.StationName ?? "",
+            PlanetNames = existing?.PlanetNames ?? new(),
             StarColour = ChosenValue(NoteStarBox),
             Economy = ChosenValue(NoteEconomyBox),
             Wealth = ChosenValue(NoteWealthBox),
@@ -927,8 +1086,14 @@ public sealed partial class PlanetsPage : Page
         };
     }
 
-    private static string BodyLabel(KnownPlanet planet) =>
-        SystemNotesService.Get(planet.SystemAddress)?.IsMoon(planet.PlanetIndex) == true ? "moon" : $"planet {planet.PlanetIndex}";
+    private static string BodyLabel(KnownPlanet planet)
+    {
+        var note = SystemNotesService.Get(planet.SystemAddress);
+        string body = note?.IsMoon(planet.PlanetIndex) == true ? "moon" : $"planet {planet.PlanetIndex}";
+        if (note?.PlanetNames.TryGetValue(planet.PlanetIndex.ToString(CultureInfo.InvariantCulture), out var planetName) == true)
+            body = $"{planetName} ({body})";
+        return note?.SystemName is { Length: > 0 } systemName ? $"{systemName} · {body}" : body;
+    }
 
     private string DistanceText(KnownPlanet planet, double? distance)
     {

@@ -82,8 +82,10 @@ public static class KnownPlanetsService
 }
 
 /// <summary>What PlanetsPage needs from one save: the player's location
-/// (yhJ), stat groups (per-planet ^PLANET_STATS) and the discovery list.</summary>
-public sealed record PlanetSnapshot(JToken? Universe, JArray? StatGroups, JArray? Discoveries);
+/// (yhJ), stat groups (per-planet ^PLANET_STATS), the discovery list, the
+/// "where you saved" line (n:R, e.g. "In the Plyimed system") and the map
+/// markers (nlG - named space stations and bases).</summary>
+public sealed record PlanetSnapshot(JToken? Universe, JArray? StatGroups, JArray? Discoveries, string? Summary = null, JArray? Markers = null);
 
 public static class LiveSaveReader
 {
@@ -101,7 +103,8 @@ public static class LiveSaveReader
             bool expedition = root[NmsSaveContext.ActiveContextKey]?.Value<string>() == NmsSaveContext.ExpeditionContextValue
                 && root[NmsSaveContext.ExpeditionRootKey]?["6f="] is JObject;
             var player = root[expedition ? NmsSaveContext.ExpeditionRootKey : NmsSaveContext.MainRootKey]?["6f="];
-            return new PlanetSnapshot(player?["yhJ"], player?["gUR"] as JArray, root["fDu"]?["ETO"]?["OsQ"]?["?fB"] as JArray);
+            return new PlanetSnapshot(player?["yhJ"], player?["gUR"] as JArray, root["fDu"]?["ETO"]?["OsQ"]?["?fB"] as JArray,
+                player?["n:R"]?.Value<string>(), player?["nlG"] as JArray);
         }
         catch (Exception ex)
         {
