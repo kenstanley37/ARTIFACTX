@@ -371,6 +371,8 @@ public sealed partial class SpaceStationsPage : Page
                 other.BorderThickness = new Thickness(on ? 2 : 1);
             }
             _ = ShowStationDetailsAsync(station);
+            // Scroll the page so the details card's top is in view.
+            StationDetailsCard.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0, AnimationDesired = true });
         };
         _ = SetTileImageAsync(image, station);
         return tile;
