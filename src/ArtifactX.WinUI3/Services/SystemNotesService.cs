@@ -146,6 +146,12 @@ public static class SystemNotesService
 
     public static int Count => Notes.Count;
 
+    /// <summary>Every recorded system's notes (for building search filters).</summary>
+    public static IReadOnlyList<SystemNote> All
+    {
+        get { lock (Lock) return Notes.Values.ToList(); }
+    }
+
     /// <param name="source">"user" when typed on a page, "save" when learned from a save.</param>
     public static void Save(ulong systemAddress, SystemNote note, string source = "user")
     {

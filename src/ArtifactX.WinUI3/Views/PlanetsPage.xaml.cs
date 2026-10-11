@@ -759,11 +759,6 @@ public sealed partial class PlanetsPage : Page
             .Where(d => d.Group == group)
             .Select(d => (Label: $"{d.Word} ({SystemNotesService.TierName(group, d.Tier)})", Value: d.Word))
             .OrderBy(x => x.Label, StringComparer.CurrentCultureIgnoreCase);
-        IEnumerable<(string Label, string Value)> Categories(string group) => descriptors
-            .Where(d => d.Group == group)
-            .Select(d => SystemNotesService.TierName(group, d.Tier))
-            .Distinct()
-            .Select(c => (c, c));
         static IEnumerable<(string Label, string Value)> Plain(IEnumerable<string> values) => values.Select(v => (v, v));
 
         _suppressNoteEvents = true;
@@ -775,15 +770,58 @@ public sealed partial class PlanetsPage : Page
         FillChoices(NoteMoonsBox, NotRecorded, Plain(new[] { "0", "1", "2", "3" }));
         _suppressNoteEvents = false;
 
-        _suppressFilterEvents = true;
-        FillChoices(StarFilterBox, "Any", Plain(SystemNotesService.StarColours));
-        FillChoices(EconomyFilterBox, "Any", Categories("Economy").Concat(Plain(SystemNotesService.EconomyExtras)));
-        FillChoices(WealthFilterBox, "Any", Categories("Wealth"));
-        FillChoices(ConflictFilterBox, "Any", Categories("Conflict"));
-        FillChoices(RaceFilterBox, "Any", Plain(SystemNotesService.Races));
-        _suppressFilterEvents = false;
-
         _choicesFilled = true;
+        RefreshNoteFilters();
+    }
+
+    /// <summary>The "(your notes)" search filters list only values you've
+    /// actually recorded, with how many systems have each - unlike the note
+    /// entry dropdowns, which list every possible word. A filter with nothing
+    /// recorded is hidden, and the current selection is kept where possible.</summary>
+    private void RefreshNoteFilters()
+    {
+        var notes = SystemNotesService.All;
+
+        IEnumerable<(string Label, string Value)> Recorded(Func<SystemNote, string> value, Func<string, string>? category = null)
+        {
+            category ??= v => v;
+            return notes.Select(value).Where(v => v.Length > 0).Select(category)
+                .GroupBy(c => c)
+                .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase)
+                .Select(g => (Label: $"{g.Key} ({g.Count()})", Value: g.Key));
+        }
+
+        _suppressFilterEvents = true;
+        Refill(StarFilterBox, Recorded(n => n.StarColour));
+        Refill(EconomyFilterBox, Recorded(n => n.Economy, w => SystemNotesService.CategoryOf("Economy", w)));
+        Refill(WealthFilterBox, Recorded(n => n.Wealth, w => SystemNotesService.CategoryOf("Wealth", w)));
+        Refill(ConflictFilterBox, Recorded(n => n.Conflict, w => SystemNotesService.CategoryOf("Conflict", w)));
+        Refill(RaceFilterBox, Recorded(n => n.Race));
+
+        int water = notes.Count(n => n.Water), dissonant = notes.Count(n => n.Dissonant), moons = notes.Count(n => n.Moons is not null);
+        WaterFilterBox.Content = $"Water ({water})";
+        WaterFilterBox.Visibility = water > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (water == 0) WaterFilterBox.IsChecked = false;
+        DissonantFilterBox.Content = $"Dissonant ({dissonant})";
+        DissonantFilterBox.Visibility = dissonant > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (dissonant == 0) DissonantFilterBox.IsChecked = false;
+        BodiesFilterBox.Visibility = moons > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (moons == 0) BodiesFilterBox.SelectedIndex = 0;
+
+        bool any = new[] { StarFilterBox, EconomyFilterBox, WealthFilterBox, ConflictFilterBox, RaceFilterBox }.Any(b => b.Visibility == Visibility.Visible)
+            || water > 0 || dissonant > 0 || moons > 0;
+        NoteFiltersPanel.Visibility = any ? Visibility.Visible : Visibility.Collapsed;
+        NoNoteFiltersTxt.Visibility = any ? Visibility.Collapsed : Visibility.Visible;
+        _suppressFilterEvents = false;
+    }
+
+    private static void Refill(ComboBox box, IEnumerable<(string Label, string Value)> options)
+    {
+        string previous = ChosenValue(box);
+        var list = options.ToList();
+        FillChoices(box, "Any", list);
+        if (previous.Length > 0 && list.Any(o => o.Value == previous)) SelectChoice(box, previous);
+        box.Visibility = list.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private static void FillChoices(ComboBox box, string first, IEnumerable<(string Label, string Value)> options)
@@ -843,6 +881,7 @@ public sealed partial class PlanetsPage : Page
             Water = NoteWaterBox.IsChecked == true,
             Dissonant = NoteDissonantBox.IsChecked == true,
         });
+        RefreshNoteFilters();
         ApplyFilters();
     }
 
