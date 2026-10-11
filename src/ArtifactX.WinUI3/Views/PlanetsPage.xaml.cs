@@ -451,6 +451,7 @@ public sealed partial class PlanetsPage : Page
             : $"you're on planet {currentPlanet}";
         string galaxyText = $"{NmsGalaxyNames.ForNumber(galaxy) ?? "Galaxy"} ({galaxy})";
         SystemSubTxt.Text = planets.Count == 0 ? $"{galaxyText} · no planets discovered here yet" : $"{galaxyText} · {bodies} · {where}";
+        SystemSubTxt.Text += $" · about {NmsPlanets.DistanceToCoreLightYears(system):N0} ly from the galaxy core";
 
         string systemCode = S.PortalAddress(system, 0);
         SystemCodeTxt.Text = systemCode;
@@ -1028,7 +1029,7 @@ public sealed partial class PlanetsPage : Page
         int galaxy = (GalaxyFilterBox.SelectedItem as ComboBoxItem)?.Tag as int? ?? -1;
         bool ringsOnly = RingsOnlyBox.IsChecked == true;
         bool mineOnly = MineOnlyBox.IsChecked == true;
-        bool nearestFirst = SortBox.SelectedIndex != 1;
+        int sort = Math.Max(0, SortBox.SelectedIndex); // 0 nearest, 1 newest, 2 furthest from core, 3 nearest to core
         string star = ChosenValue(StarFilterBox), economy = ChosenValue(EconomyFilterBox), wealth = ChosenValue(WealthFilterBox);
         string conflict = ChosenValue(ConflictFilterBox), race = ChosenValue(RaceFilterBox);
         bool water = WaterFilterBox.IsChecked == true, dissonant = DissonantFilterBox.IsChecked == true;
@@ -1056,9 +1057,13 @@ public sealed partial class PlanetsPage : Page
             .Select(p => (Planet: p, Distance: _currentSystem is ulong here ? NmsPlanets.DistanceLightYears(here, p.SystemAddress) : null));
 
         // Nearest first: same-galaxy planets by distance, other galaxies after.
-        var ordered = nearestFirst
-            ? filtered.OrderBy(x => x.Distance ?? double.MaxValue).ThenByDescending(x => x.Planet.DiscoveredUnixSeconds)
-            : filtered.OrderByDescending(x => x.Planet.DiscoveredUnixSeconds);
+        var ordered = sort switch
+        {
+            1 => filtered.OrderByDescending(x => x.Planet.DiscoveredUnixSeconds),
+            2 => filtered.OrderByDescending(x => NmsPlanets.DistanceToCoreLightYears(x.Planet.Address)),
+            3 => filtered.OrderBy(x => NmsPlanets.DistanceToCoreLightYears(x.Planet.Address)),
+            _ => filtered.OrderBy(x => x.Distance ?? double.MaxValue).ThenByDescending(x => x.Planet.DiscoveredUnixSeconds),
+        };
 
         var matches = ordered.Select(x => ToRow(x.Planet, x.Distance)).ToList();
 
@@ -1097,13 +1102,15 @@ public sealed partial class PlanetsPage : Page
 
     private string DistanceText(KnownPlanet planet, double? distance)
     {
-        if (_currentSystem is ulong here && planet.SystemAddress == here) return "This system";
-        return distance switch
+        string core = $"{NmsPlanets.DistanceToCoreLightYears(planet.Address):N0} ly from the galaxy core";
+        if (_currentSystem is ulong here && planet.SystemAddress == here) return $"In the system you're in · {core}";
+        string away = distance switch
         {
-            null => "Another galaxy",
-            < 1 => "Same region (under 400 ly)",
-            double ly => $"About {ly:N0} ly away",
+            null => "In a different galaxy from you",
+            < 1 => "Under 400 ly from you",
+            double ly => $"About {ly:N0} ly from you",
         };
+        return $"{away} · {core}";
     }
 
     // ---------------------------------------------------------------- shared helpers

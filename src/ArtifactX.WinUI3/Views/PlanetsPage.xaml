@@ -194,8 +194,10 @@
                             <ComboBox x:Name="TypeFilterBox" Width="220" SelectionChanged="Filter_Changed" Header="Planet type"/>
                             <ComboBox x:Name="GalaxyFilterBox" Width="220" SelectionChanged="Filter_Changed" Header="Galaxy"/>
                             <ComboBox x:Name="SortBox" Width="180" SelectionChanged="Filter_Changed" Header="Sort">
-                                <ComboBoxItem Content="Nearest first"/>
+                                <ComboBoxItem Content="Nearest to you first"/>
                                 <ComboBoxItem Content="Newest first"/>
+                                <ComboBoxItem Content="Furthest from galaxy core"/>
+                                <ComboBoxItem Content="Nearest to galaxy core"/>
                             </ComboBox>
                             <CheckBox x:Name="RingsOnlyBox" Content="Rings only" Click="Filter_Click" VerticalAlignment="Bottom"/>
                             <CheckBox x:Name="MineOnlyBox" Content="Discovered by you" Click="Filter_Click" VerticalAlignment="Bottom"/>
