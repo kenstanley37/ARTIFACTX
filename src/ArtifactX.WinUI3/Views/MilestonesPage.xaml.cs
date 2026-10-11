@@ -1,4 +1,5 @@
 using Microsoft.UI;
+using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -214,13 +215,8 @@ public sealed partial class MilestonesPage : Page
         foreach (var (tag, button) in _categoryButtons)
         {
             bool isSelected = tag == _selectedCategory;
-            button.BorderBrush = new SolidColorBrush(isSelected
-                ? Color.FromArgb(255, 255, 157, 0)
-                : Color.FromArgb(90, 90, 98, 112));
-            button.BorderThickness = new Thickness(isSelected ? 2 : 1);
-            button.Background = new SolidColorBrush(isSelected
-                ? Color.FromArgb(60, 255, 157, 0)
-                : Color.FromArgb(20, 255, 255, 255));
+            ThemeResources.StyleChoiceButton(button, isSelected);
+            button.FontWeight = isSelected ? FontWeights.SemiBold : FontWeights.Normal;
         }
     }
 
@@ -236,13 +232,19 @@ public sealed partial class MilestonesPage : Page
             PlaceholderPanel.Visibility = Visibility.Collapsed;
 
             var category = Categories.First(c => c.Tag == tag);
-            MappedCategoryHeaderTxt.Text = category.DisplayName;
+            MappedCategoryHeaderTxt.Text = category.DisplayName.ToUpperInvariant();
+            // Every mapped field was confirmed exact against a real Catalog & Guide
+            // screenshot. Guilds: Standing and Missions Completed are left out on
+            // purpose - the obvious candidate stats all read 0 in the test save, so
+            // which belongs to which guild can't be confirmed until a save with a
+            // non-zero value turns up.
             MappedCategoryNoteTxt.Text = tag switch
             {
-                "ArenaLeague" => "Save-wide, not tied to any specific companion (a different number from the per-companion \"Holo-Arena Victories\" field on the Companions page).",
-                "MerchantsGuild" or "ExplorersGuild" or "MercenariesGuild" => "Save-wide - fields below confirmed exact against a real screenshot. Standing and Missions Completed are missing on purpose: the obvious candidates all read 0 in this save, so which one belongs to which guild can't be confirmed until someone's save has a non-zero value to check against.",
-                _ => "Save-wide - all fields below confirmed exact against a real Catalog & Guide screenshot."
+                "ArenaLeague" => "Not tied to one companion. This is a different number from each companion's \"Holo-Arena Victories\" on the Companions page.",
+                "MerchantsGuild" or "ExplorersGuild" or "MercenariesGuild" => "Standing and Missions Completed can't be edited here yet.",
+                _ => ""
             };
+            MappedCategoryNoteTxt.Visibility = MappedCategoryNoteTxt.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
             BuildMappedCategoryFields(fields);
             LoadMappedCategoryStats();
@@ -251,10 +253,17 @@ public sealed partial class MilestonesPage : Page
         {
             MappedCategoryPanel.Visibility = Visibility.Collapsed;
             PlaceholderPanel.Visibility = Visibility.Visible;
-            PlaceholderHeaderTxt.Text = Categories.First(c => c.Tag == tag).DisplayName;
+            PlaceholderHeaderTxt.Text = Categories.First(c => c.Tag == tag).DisplayName.ToUpperInvariant();
+            // Previous Expeditions (checked 2026-08-01): none of the 22 expedition
+            // names (Swarm, Remnant, Breach...) appear anywhere in the save's text -
+            // the game looks them up from its own bundled table. Completion is likely
+            // a plain id/bitmask list, which needs a structural search rather than
+            // the screenshot value-match every other category used. Any other
+            // unmapped category needs a Catalog & Guide screenshot with numbers
+            // visible to find its stat ids.
             PlaceholderNoteTxt.Text = tag == "PreviousExpeditions"
-                ? "Confirmed 2026-08-01: none of the 22 expedition names shown here (Swarm, Remnant, Breach, etc.) appear anywhere in the save's own text - they're looked up client-side from a table bundled with the game, not stored. Whatever tracks which expeditions are complete is likely a plain id/bitmask list rather than named entries, and finding it would be a different kind of search than every other mapped category here (no screenshot number to directly match against) - not investigated further yet."
-                : "This category hasn't been mapped to real save data yet. A screenshot of this category's Catalog & Guide screen (with the numbers visible) would let us find and confirm the matching stat IDs - the same way every other mapped category here was done.";
+                ? "Your save doesn't store expedition names, so this list can't be edited here yet."
+                : "This category can't be edited here yet.";
             PageResetBtn.Visibility = Visibility.Collapsed;
         }
     }
@@ -269,7 +278,7 @@ public sealed partial class MilestonesPage : Page
         foreach (var field in fields)
         {
             var panel = new StackPanel { Spacing = 6 };
-            panel.Children.Add(new TextBlock { Text = field.Label, Opacity = 0.7, FontSize = 12 });
+            panel.Children.Add(new TextBlock { Text = field.Label.ToUpperInvariant(), Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] });
 
             var box = new NumberBox
             {
