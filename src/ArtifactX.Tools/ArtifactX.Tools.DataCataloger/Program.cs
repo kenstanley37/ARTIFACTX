@@ -1187,6 +1187,124 @@ if (args.Length > 1 && args[0].Equals("add-freighter-paints", StringComparison.O
     return;
 }
 
+// "DataCataloger add-system-descriptors <target-catalog-db-path>" adds the
+// words the game uses to describe a star system's economy, wealth and
+// conflict (system info panel / Galaxy Map), e.g. "Mathematical", "Opulent",
+// "Formidable". Each is a loc string named for its category:
+//   UI_ECON_CLASS_<TRADE|MINING|MANUFACT|TECH|SCIENCE|POWER|ALLOY>_<n>
+//   UI_ECON_LEVEL_<LOW|MED|HIGH>_<n>        (wealth)
+//   UI_CONFLICT_LEVEL_<LOW|MED|HIGH>_<n>
+// found 2026-10-11 via `locval` on words from a user screenshot (they live in
+// nms_update3_english). Written as category "SystemDescriptors": GameId = loc
+// id, NameEnglish = the word, UsageCategory = Economy/Wealth/Conflict,
+// DescriptionEnglish = the tier (TRADE, HIGH...). ArtifactX's Planets page uses
+// these so players can pick the exact word the game shows them. Same
+// patch-in-place pattern as add-guide-topics; idempotent.
+if (args.Length > 1 && args[0].Equals("add-system-descriptors", StringComparison.OrdinalIgnoreCase))
+{
+    string descDbPath = args[1];
+    if (!File.Exists(descDbPath))
+    {
+        ConsoleStyle.Error($"Target catalog DB not found: {descDbPath}");
+        return;
+    }
+
+    var descSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(descSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakReaderService descPakReader = new PakReaderService();
+    var descExtraction = new ExtractionService();
+    var descLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    foreach (var pak in new PakDiscoveryService().Discover(descSettings.NmsInstallationPath!))
+    {
+        PakHeader header;
+        IReadOnlyList<PakEntry> entries;
+        try
+        {
+            header = descPakReader.ReadHeader(pak.FullPath);
+            entries = descPakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+
+        foreach (var entry in entries.Where(e =>
+                     !string.IsNullOrEmpty(e.FileName) &&
+                     e.FileName.Contains("language/nms_", StringComparison.OrdinalIgnoreCase) &&
+                     e.FileName.Contains("english", StringComparison.OrdinalIgnoreCase) &&
+                     !e.FileName.Contains("usenglish", StringComparison.OrdinalIgnoreCase)))
+        {
+            byte[]? bytes;
+            try { bytes = descExtraction.ExtractEntryBytes(pak.FullPath, entry, header); }
+            catch { continue; }
+            if (bytes is null || bytes.Length == 0) continue;
+
+            NMSTemplate? locTemplate;
+            try
+            {
+                using var ms = new MemoryStream(bytes);
+                var mbin = new MBINFile(ms);
+                mbin.Load();
+                locTemplate = mbin.GetData();
+            }
+            catch { continue; }
+            if (locTemplate is null) continue;
+
+            foreach (var kv in LocalisationService.BuildEnglishLookup(locTemplate))
+                descLookup.TryAdd(kv.Key, kv.Value);
+        }
+    }
+
+    var descPattern = new Regex(@"^UI_(ECON_CLASS|ECON_LEVEL|CONFLICT_LEVEL)_([A-Z]+)_\d+$", RegexOptions.Compiled);
+    var descriptors = descLookup
+        .Select(kv => (Id: kv.Key, Word: kv.Value, Match: descPattern.Match(kv.Key)))
+        .Where(x => x.Match.Success && !string.IsNullOrWhiteSpace(x.Word))
+        .Select(x => (x.Id, x.Word,
+            Group: x.Match.Groups[1].Value switch { "ECON_CLASS" => "Economy", "ECON_LEVEL" => "Wealth", _ => "Conflict" },
+            Tier: x.Match.Groups[2].Value))
+        .OrderBy(x => x.Group).ThenBy(x => x.Tier).ThenBy(x => x.Id, StringComparer.Ordinal)
+        .ToList();
+
+    foreach (var group in descriptors.GroupBy(d => (d.Group, d.Tier)))
+        ConsoleStyle.Success($"  {group.Key.Group}/{group.Key.Tier}: {string.Join(", ", group.Select(d => d.Word))}");
+
+    using var descDb = new CatalogDbContext(descDbPath);
+    var existingDescCategory = descDb.Categories.FirstOrDefault(c => c.TemplateType == "SystemDescriptors");
+    if (existingDescCategory != null)
+    {
+        descDb.Items.RemoveRange(descDb.Items.Where(i => i.CategoryId == existingDescCategory.Id));
+        descDb.Categories.Remove(existingDescCategory);
+        descDb.SaveChanges();
+    }
+
+    var descCategory = new CatalogCategory
+    {
+        TemplateType = "SystemDescriptors",
+        RowType = "LocString",
+        SourceMbinPath = "language/nms_*_english.mbin"
+    };
+    descDb.Categories.Add(descCategory);
+    descDb.SaveChanges();
+
+    foreach (var d in descriptors)
+    {
+        descDb.Items.Add(new CatalogItem
+        {
+            CategoryId = descCategory.Id,
+            GameId = d.Id,
+            NameEnglish = d.Word,
+            DescriptionEnglish = d.Tier,
+            UsageCategory = d.Group
+        });
+    }
+    descDb.SaveChanges();
+
+    ConsoleStyle.Success($"Wrote {descriptors.Count} system descriptor words to {descDbPath}.");
+    return;
+}
+
 // "DataCataloger dumpfile <path substring>" decodes exactly one MBIN (the first
 // entry whose path contains the given substring) and prints its full raw field
 // structure, regardless of whether CatalogClassifier would recognize it as a
