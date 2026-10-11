@@ -108,7 +108,10 @@
                                     <CheckBox Grid.Column="0" IsChecked="{x:Bind IsUnlocked, Mode=OneWay}" IsHitTestVisible="False"
                                               VerticalAlignment="Center" Padding="0" MinWidth="0"/>
                                     <Border Grid.Column="1" Width="28" Height="28" Background="{ThemeResource ThemeVoidBrush}" CornerRadius="4" VerticalAlignment="Center">
-                                        <Image Source="{x:Bind Icon, Mode=OneWay}" Stretch="Uniform" Width="22" Height="22"/>
+                                        <Grid>
+                                            <Border Width="20" Height="20" CornerRadius="10" Background="{x:Bind Swatch}"/>
+                                            <Image Source="{x:Bind Icon, Mode=OneWay}" Stretch="Uniform" Width="22" Height="22"/>
+                                        </Grid>
                                     </Border>
                                     <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                         <TextBlock Text="{x:Bind DisplayName}" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"
