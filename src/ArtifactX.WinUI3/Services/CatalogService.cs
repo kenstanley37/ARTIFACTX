@@ -4,6 +4,7 @@ using ArtifactX.WinUI3.Models;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -430,13 +431,67 @@ public static class CatalogService
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
+            string name = reader.GetString(1);
+            string description = reader.IsDBNull(2) ? "" : reader.GetString(2);
             results[reader.GetString(0)] = (
-                reader.GetString(1),
-                reader.IsDBNull(2) ? "" : reader.GetString(2),
+                ReadablePerkName(name, description),
+                StripPerkPlaceholders(description),
                 reader.IsDBNull(3) ? "" : reader.GetString(3));
         }
 
         return results;
+    }
+
+    private static readonly Regex PerkPlaceholderRegex = new(@"%([A-Z_]+)%", RegexOptions.Compiled);
+
+    // Placeholder words too clipped to read on their own. Presentation only -
+    // the placeholder tokens themselves still come from the catalog.
+    private static readonly Dictionary<string, string> PerkTypeWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["SENT"] = "Sentinel",
+        ["POP"] = "Population",
+        ["PROD"] = "Production",
+        ["JOBLEVEL"] = "Job",
+        ["GREEK"] = "Building",
+    };
+
+    /// <summary>"Proc" perks (17 of 90) have names the game assembles per
+    /// settlement from word lists ("%BAR_ADJ% %BAR%", "Blessed by the
+    /// %BLESSING%"), picked by the "#NNNNN" roll suffix stored with each perk -
+    /// not reproducible here, so the real in-game name can't be shown. Stand-in
+    /// (user's choice 2026-10-10): keep any literal words with "…" for the
+    /// placeholder; a name that's ALL placeholder becomes "Type: effect", the
+    /// type word taken from the last placeholder so the four "Increases
+    /// productivity" perks (Shop/Factory/Facility/Production) stay distinct.</summary>
+    private static string ReadablePerkName(string name, string description)
+    {
+        if (!name.Contains('%')) return name;
+
+        string literal = PerkPlaceholderRegex.Replace(name, "").Trim();
+        if (literal.Length > 0)
+            return $"{PerkPlaceholderRegex.Replace(name, "…")} (random name)";
+
+        string lastToken = PerkPlaceholderRegex.Matches(name)[^1].Groups[1].Value;
+        string typeWord = PerkTypeWords.TryGetValue(lastToken, out var mapped)
+            ? mapped
+            : CultureInfo.InvariantCulture.TextInfo.ToTitleCase(lastToken.Replace('_', ' ').ToLowerInvariant());
+
+        string effect = StripPerkPlaceholders(description);
+        int paren = effect.IndexOf(" (", StringComparison.Ordinal);
+        if (paren > 0) effect = effect[..paren];
+
+        return effect.Length > 0 ? $"{typeWord}: {effect} (random name)" : $"{typeWord} (random name)";
+    }
+
+    /// <summary>Drops placeholder tokens from a perk description - e.g.
+    /// PROC_JOB's "%JOB_STAT% (Production +Wide)" becomes "Production +Wide".</summary>
+    private static string StripPerkPlaceholders(string description)
+    {
+        if (!description.Contains('%')) return description;
+        string stripped = PerkPlaceholderRegex.Replace(description, "").Trim();
+        if (stripped.StartsWith('(') && stripped.EndsWith(')'))
+            stripped = stripped[1..^1];
+        return stripped;
     }
 
     /// <summary>Frigate trait id -> (DisplayName, formatted description with the
