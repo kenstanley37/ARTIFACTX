@@ -101,8 +101,32 @@ public sealed partial class FreighterUpgradesPage : Page
             Icon = CatalogService.TryGet(u.GameId)?.Icon
         }).ToList();
 
+        // Recolouring paints come from the catalog with their real colours, not
+        // from the Almanac list (see FreighterUpgrades' doc comment).
+        foreach (var (gameId, name, hex) in await CatalogService.GetFreighterPaintsAsync())
+        {
+            _allItems.Add(new FreighterUpgradeRowViewModel
+            {
+                GameId = gameId,
+                DisplayName = name,
+                Group = "Recolouring",
+                IsUnlocked = _unlockedIdSet.Contains(gameId),
+                Swatch = TryParseHex(hex, out var colour) ? new Microsoft.UI.Xaml.Media.SolidColorBrush(colour) : null
+            });
+        }
+
         ApplyFilters();
         UpdateResetButton();
+    }
+
+    private static bool TryParseHex(string hex, out Windows.UI.Color colour)
+    {
+        colour = default;
+        if (hex.Length != 7 || hex[0] != '#' ||
+            !uint.TryParse(hex.AsSpan(1), System.Globalization.NumberStyles.HexNumber, null, out uint rgb))
+            return false;
+        colour = Windows.UI.Color.FromArgb(255, (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb);
+        return true;
     }
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilters();

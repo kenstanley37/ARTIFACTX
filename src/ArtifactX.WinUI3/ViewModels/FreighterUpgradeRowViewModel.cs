@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace ArtifactX.WinUI3.ViewModels;
@@ -7,9 +8,9 @@ namespace ArtifactX.WinUI3.ViewModels;
 /// curated ArtifactX.Almanac.Freighter.FreighterUpgradeInfo entry with
 /// whether the currently loaded save has it in the blueprint-unlock array
 /// (NmsFreighterUpgradePaths.BlueprintArrayPath). Icon comes from the
-/// shipped catalog DB when available - the 10 "Recolouring" entries aren't
-/// in it at all (see FreighterUpgrades' own doc comment), so Icon is null
-/// for those and the tile just shows its DisplayName with no image.</summary>
+/// shipped catalog DB when available. The 10 "Recolouring" paints have no
+/// icon; they carry their real paint colour as Swatch instead (catalog
+/// "FreighterPaints").</summary>
 public partial class FreighterUpgradeRowViewModel : ObservableObject
 {
     public required string GameId { get; init; }
@@ -21,4 +22,7 @@ public partial class FreighterUpgradeRowViewModel : ObservableObject
 
     [ObservableProperty]
     private BitmapImage? icon;
+
+    /// <summary>Paint colour drawn in place of an icon (Recolouring only).</summary>
+    public Brush? Swatch { get; init; }
 }

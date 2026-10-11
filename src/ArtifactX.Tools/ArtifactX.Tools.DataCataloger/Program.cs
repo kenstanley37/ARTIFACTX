@@ -1045,6 +1045,148 @@ if (args.Length > 1 && args[0].Equals("add-guide-topics", StringComparison.Ordin
     return;
 }
 
+// "DataCataloger add-freighter-paints <target-catalog-db-path>" adds the
+// freighter Recolouring blueprints (Freighter Upgrades page) from the game's
+// own metadata/gamestate/playerdata/customisationcolourpalettes.mbin: the
+// palette with ID "FREIGHTER" lists, per colour, ExtraData.ProductToUnlock
+// (the blueprint id stored in the save) and TipText (its loc name). Entries
+// 0-9 are the 10 base colours; 10-19 are dark variants unlocked by the SAME
+// 10 products, so only the first occurrence of each product is kept.
+// Written as category "FreighterPaints": GameId = product id, NameEnglish =
+// resolved TipText, DescriptionEnglish = the colour as "#RRGGBB" (drawn as
+// the tile's swatch - these blueprints have no icon of their own).
+// Added 2026-10-10 replacing a hand-typed Almanac list that had the cyan
+// paint as FREIGHT_TURQUOISE; the real id (confirmed in a user save) is
+// FREIGHT_CYAN. Same patch-in-place pattern as add-guide-topics; idempotent.
+if (args.Length > 1 && args[0].Equals("add-freighter-paints", StringComparison.OrdinalIgnoreCase))
+{
+    string paintDbPath = args[1];
+    if (!File.Exists(paintDbPath))
+    {
+        ConsoleStyle.Error($"Target catalog DB not found: {paintDbPath}");
+        return;
+    }
+
+    var paintSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(paintSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakReaderService paintPakReader = new PakReaderService();
+    var paintExtraction = new ExtractionService();
+    var paintPaks = new PakDiscoveryService().Discover(paintSettings.NmsInstallationPath!);
+
+    libMBIN.NMS.GameComponents.GcCustomisationColourPalettes? palettes = null;
+    var paintLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    foreach (var pak in paintPaks)
+    {
+        PakHeader header;
+        IReadOnlyList<PakEntry> entries;
+        try
+        {
+            header = paintPakReader.ReadHeader(pak.FullPath);
+            entries = paintPakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+
+        // Loc names scatter across numbered english files (see add-guide-topics).
+        var wanted = entries.Where(e =>
+            !string.IsNullOrEmpty(e.FileName) &&
+            ((e.FileName.Contains("language/nms_", StringComparison.OrdinalIgnoreCase) &&
+              e.FileName.Contains("english", StringComparison.OrdinalIgnoreCase) &&
+              !e.FileName.Contains("usenglish", StringComparison.OrdinalIgnoreCase)) ||
+             (palettes is null && e.FileName.Contains("customisationcolourpalettes.mbin", StringComparison.OrdinalIgnoreCase))));
+
+        foreach (var entry in wanted)
+        {
+            byte[]? bytes;
+            try { bytes = paintExtraction.ExtractEntryBytes(pak.FullPath, entry, header); }
+            catch { continue; }
+            if (bytes is null || bytes.Length == 0) continue;
+
+            NMSTemplate? template;
+            try
+            {
+                using var ms = new MemoryStream(bytes);
+                var mbin = new MBINFile(ms);
+                mbin.Load();
+                template = mbin.GetData();
+            }
+            catch { continue; }
+
+            if (template is libMBIN.NMS.GameComponents.GcCustomisationColourPalettes p)
+                palettes = p;
+            else if (template is not null)
+                foreach (var kv in LocalisationService.BuildEnglishLookup(template))
+                    paintLookup.TryAdd(kv.Key, kv.Value);
+        }
+    }
+
+    var freighterPalette = palettes?.Palettes?.FirstOrDefault(p => p.ID?.Value == "FREIGHTER");
+    if (freighterPalette?.ExtraData?.ProductToUnlock is null || freighterPalette.PaletteData?.Colours is null)
+    {
+        ConsoleStyle.Error("Could not find the FREIGHTER palette in customisationcolourpalettes.mbin.");
+        return;
+    }
+
+    var products = freighterPalette.ExtraData.ProductToUnlock;
+    var tips = freighterPalette.ExtraData.TipText;
+    var colours = freighterPalette.PaletteData.Colours;
+    var paints = new List<(string GameId, string Name, string Hex)>();
+    var seenPaints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    for (int i = 0; i < products.Count && i < colours.Length; i++)
+    {
+        string id = products[i]?.Value ?? "";
+        if (id.Length == 0 || !seenPaints.Add(id)) continue;
+
+        string tipId = tips is not null && i < tips.Count ? tips[i]?.Value ?? "" : "";
+        string name = paintLookup.TryGetValue(tipId, out var resolved) ? resolved : id;
+        var c = colours[i];
+        static int Channel(float v) => (int)Math.Round(Math.Clamp(v, 0f, 1f) * 255);
+        paints.Add((id, name, $"#{Channel(c.R):X2}{Channel(c.G):X2}{Channel(c.B):X2}"));
+    }
+
+    ConsoleStyle.Header($"Found {paints.Count} freighter paints:");
+    foreach (var paint in paints)
+        ConsoleStyle.Success($"  {paint.GameId} = {paint.Name} {paint.Hex}");
+
+    using var paintDb = new CatalogDbContext(paintDbPath);
+    var existingPaintCategory = paintDb.Categories.FirstOrDefault(c => c.TemplateType == "FreighterPaints");
+    if (existingPaintCategory != null)
+    {
+        paintDb.Items.RemoveRange(paintDb.Items.Where(i => i.CategoryId == existingPaintCategory.Id));
+        paintDb.Categories.Remove(existingPaintCategory);
+        paintDb.SaveChanges();
+    }
+
+    var paintCategory = new CatalogCategory
+    {
+        TemplateType = "FreighterPaints",
+        RowType = "GcCustomisationColourPalette",
+        SourceMbinPath = "metadata/gamestate/playerdata/customisationcolourpalettes.mbin"
+    };
+    paintDb.Categories.Add(paintCategory);
+    paintDb.SaveChanges();
+
+    foreach (var paint in paints)
+    {
+        paintDb.Items.Add(new CatalogItem
+        {
+            CategoryId = paintCategory.Id,
+            GameId = paint.GameId,
+            NameEnglish = paint.Name,
+            DescriptionEnglish = paint.Hex,
+            UsageCategory = "Recolouring"
+        });
+    }
+    paintDb.SaveChanges();
+
+    ConsoleStyle.Success($"Wrote {paints.Count} freighter paint entries to {paintDbPath}.");
+    return;
+}
+
 // "DataCataloger dumpfile <path substring>" decodes exactly one MBIN (the first
 // entry whose path contains the given substring) and prints its full raw field
 // structure, regardless of whether CatalogClassifier would recognize it as a
