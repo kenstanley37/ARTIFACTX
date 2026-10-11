@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). -->
 <Page
     x:Class="ArtifactX.WinUI3.Views.SaveFolderSelectPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -12,7 +13,7 @@
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Grid Padding="40" RowSpacing="16">
+    <Grid Padding="28,26,28,24" RowSpacing="18">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -20,9 +21,9 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <StackPanel Grid.Row="0" Spacing="4">
-            <TextBlock Text="Select Your No Man's Sky Save Folder" FontSize="22" FontWeight="Bold"/>
-            <TextBlock TextWrapping="Wrap" FontSize="14" Foreground="{ThemeResource NmsTextSecondary}"
+        <StackPanel Grid.Row="0" Spacing="8">
+            <TextBlock Text="SAVE SELECTION" Style="{StaticResource ThemePageTitleStyle}"/>
+            <TextBlock Style="{StaticResource ThemeDimTextStyle}"
                        Text="We looked for Steam, GOG, and Microsoft Store installs automatically. Expand a platform below to pick a save, or browse for your own."/>
         </StackPanel>
 
@@ -55,16 +56,16 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <SymbolIcon Grid.Column="0" Symbol="Folder"
-                                                    Foreground="{ThemeResource NmsAccentBrush}" VerticalAlignment="Center"/>
+                                                    Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
                                         <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}" FontWeight="SemiBold" FontSize="14"/>
-                                                <Border Background="{ThemeResource NmsAccentBrush}" CornerRadius="4" Padding="7,2"
+                                                <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold" FontSize="15" Foreground="{ThemeResource ThemeTextBrush}"/>
+                                                <Border Background="{ThemeResource ThemeAccentBrush}" CornerRadius="4" Padding="7,2"
                                                         Visibility="{x:Bind IsActivePlatform, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                    <TextBlock Text="ACTIVE" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                                    <TextBlock Text="ACTIVE" FontSize="10" FontWeight="Bold" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
                                                 </Border>
                                             </StackPanel>
-                                            <TextBlock Text="{x:Bind SubText}" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"/>
+                                            <TextBlock Text="{x:Bind SubText}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4"
                                                     Visibility="{x:Bind CanRemove, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -87,11 +88,11 @@
                                         <StackPanel Orientation="Horizontal" Spacing="8"
                                                     Visibility="{x:Bind IsLoadingSlots, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
                                             <ProgressRing IsActive="{x:Bind IsLoadingSlots, Mode=OneWay}" Width="20" Height="20"/>
-                                            <TextBlock Text="Indexing save files..." Foreground="{ThemeResource NmsTextSecondary}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Indexing save files..." Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
                                         </StackPanel>
 
                                         <TextBlock Text="No readable save files were found in this folder."
-                                                   Foreground="{ThemeResource NmsTextSecondary}" FontSize="13"
+                                                   Foreground="{ThemeResource ThemeTextDimBrush}" FontSize="13"
                                                    Visibility="{x:Bind IsEmptyResult, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
                                         <!-- Compact grid (not a tall single column) so a full
@@ -105,7 +106,7 @@
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate x:DataType="models:SaveSlotGroup">
                                                     <Border Tapped="SaveSlot_Tapped" Tag="{x:Bind}"
-                                                            Width="270" Padding="14" CornerRadius="10" BorderThickness="1"
+                                                            Width="270" Padding="14" CornerRadius="{ThemeResource ThemeCardCornerRadius}" BorderThickness="1"
                                                             BorderBrush="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BoolToAccentBrushConverter}}"
                                                             Background="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BoolToActiveBackgroundConverter}}">
                                                         <StackPanel Spacing="6">
@@ -115,10 +116,10 @@
                                                                     <ColumnDefinition Width="Auto"/>
                                                                     <ColumnDefinition Width="Auto"/>
                                                                 </Grid.ColumnDefinitions>
-                                                                <TextBlock Grid.Column="0" Text="{x:Bind SlotLabel}" FontWeight="Bold" FontSize="15"/>
-                                                                <Border Grid.Column="1" Background="{ThemeResource NmsAccentBrush}" CornerRadius="4" Padding="7,2"
+                                                                <TextBlock Grid.Column="0" Text="{x:Bind SlotLabel}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="Bold" FontSize="15" Foreground="{ThemeResource ThemeTextBrush}"/>
+                                                                <Border Grid.Column="1" Background="{ThemeResource ThemeAccentBrush}" CornerRadius="4" Padding="7,2"
                                                                         Visibility="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                                    <TextBlock Text="ACTIVE" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                                                    <TextBlock Text="ACTIVE" FontSize="10" FontWeight="Bold" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
                                                                 </Border>
                                                                 <!-- Every commit through ArtifactX backs this slot's files up first
                                                                      (see BackupService) - this opens a picker over those timestamped
@@ -132,21 +133,21 @@
                                                                 </Button>
                                                             </Grid>
 
-                                                            <TextBlock Text="{x:Bind PrimaryFile.SaveName}" FontWeight="SemiBold" FontSize="13"
+                                                            <TextBlock Text="{x:Bind PrimaryFile.SaveName}" FontWeight="SemiBold" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}"
                                                                        TextTrimming="CharacterEllipsis"/>
 
-                                                            <Border Background="Transparent" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                                                            <Border Background="Transparent" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                                                                     CornerRadius="4" Padding="6,2" HorizontalAlignment="Left"
                                                                     Visibility="{x:Bind PrimaryFile.HasKnownGameMode, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                                 <TextBlock Text="{x:Bind PrimaryFile.GameMode}" FontSize="10" FontWeight="SemiBold"
-                                                                           Foreground="{ThemeResource NmsTextSecondary}"/>
+                                                                           Foreground="{ThemeResource ThemeTextDimBrush}"/>
                                                             </Border>
 
                                                             <TextBlock Text="{x:Bind PrimaryFile.SummaryDisplay}" FontSize="11"
-                                                                       Foreground="{ThemeResource NmsTextSecondary}" TextTrimming="CharacterEllipsis"/>
+                                                                       Foreground="{ThemeResource ThemeTextDimBrush}" TextTrimming="CharacterEllipsis"/>
 
-                                                            <TextBlock Text="+ backup copy" FontSize="10" Opacity="0.5"
-                                                                       Foreground="{ThemeResource NmsTextSecondary}"
+                                                            <TextBlock Text="+ backup copy" FontSize="10"
+                                                                       Foreground="{ThemeResource ThemeTextFaintBrush}"
                                                                        Visibility="{x:Bind HasBackupCopy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                                         </StackPanel>
                                                     </Border>
@@ -165,7 +166,7 @@
                         Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <ProgressRing IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" Width="40" Height="40" HorizontalAlignment="Center"/>
                 <TextBlock Text="Indexing your save folders — this only happens once per launch."
-                           FontSize="13" Foreground="{ThemeResource NmsTextSecondary}"/>
+                           FontSize="13" Foreground="{ThemeResource ThemeTextDimBrush}"/>
             </StackPanel>
         </Grid>
 
