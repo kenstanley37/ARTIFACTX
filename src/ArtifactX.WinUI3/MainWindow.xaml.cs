@@ -112,6 +112,7 @@ public sealed partial class MainWindow : Window
         CompanionsPathIcon.Data = G(NavIconGeometries.Companions);
         SettlementsPathIcon.Data = G(NavIconGeometries.Settlements);
         SpaceStationsPathIcon.Data = G(NavIconGeometries.SpaceStations);
+        PlanetsPathIcon.Data = G(NavIconGeometries.Planets);
         MilestonesPathIcon.Data = G(NavIconGeometries.Milestones);
         GekLanguagePathIcon.Data = G(NavIconGeometries.Language);
         VyKeenLanguagePathIcon.Data = G(NavIconGeometries.Language);
@@ -352,6 +353,7 @@ public sealed partial class MainWindow : Window
                 "Companions" => typeof(CompanionsPage),
                 "Settlement" => typeof(SettlementPage),
                 "SpaceStations" => typeof(SpaceStationsPage),
+                "Planets" => typeof(PlanetsPage),
                 "Milestones" => typeof(MilestonesPage),
                 "AccountData" => typeof(AccountDataPage),
                 "Guide" => typeof(GuidePage),
@@ -401,6 +403,7 @@ public sealed partial class MainWindow : Window
         CompanionsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SettlementNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SpaceStationsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        PlanetsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         MilestonesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         CatalogueNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         FishingRecordsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
@@ -433,6 +436,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(CompanionsPage) => "Companions",
             Type t when t == typeof(SettlementPage) => "Settlement",
             Type t when t == typeof(SpaceStationsPage) => "SpaceStations",
+            Type t when t == typeof(PlanetsPage) => "Planets",
             Type t when t == typeof(MilestonesPage) => "Milestones",
             Type t when t == typeof(AccountDataPage) => "AccountData",
             Type t when t == typeof(GuidePage) => "Guide",

@@ -192,6 +192,12 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
 
+                <NavigationViewItem x:Name="PlanetsNavItem" Content="Planets" Tag="Planets" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <PathIcon x:Name="PlanetsPathIcon"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
                 <!-- Pure folder (SelectsOnInvoked="False", no Tag) - same pattern as
                      Account Data/Structural Analysis, NOT the old hybrid (parent
                      navigated AND toggled at once). User feedback 2026-08-13: "move
