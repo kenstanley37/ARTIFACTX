@@ -568,6 +568,51 @@ public static class CatalogService
         }
     }
 
+    /// <summary>Where and when each fish can be caught (catalog category
+    /// "Fish", DataCataloger add-fish, from the game's GcFishTable). Biomes are
+    /// GcBiomeType indexes - the same numbering as a planet's type in the
+    /// save's discovery records; 16 means every planet.</summary>
+    public static async Task<List<FishInfo>> GetFishAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new List<FishInfo>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'Fish'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    if (reader.IsDBNull(0)) continue;
+                    using var json = System.Text.Json.JsonDocument.Parse(reader.GetString(0));
+                    var root = json.RootElement;
+                    results.Add(new FishInfo(
+                        root.GetProperty("id").GetString() ?? "",
+                        root.GetProperty("quality").GetString() ?? "",
+                        root.GetProperty("size").GetString() ?? "",
+                        root.GetProperty("time").GetString() ?? "",
+                        root.GetProperty("storm").GetBoolean(),
+                        root.GetProperty("mission").GetBoolean(),
+                        root.GetProperty("biomes").EnumerateArray().Select(b => b.GetInt32()).ToArray()));
+                }
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetFishAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
     /// <summary>A plain-English item type for each product/substance, for the
     /// Recipes page's type filter: from the catalog's CatalogGroup (the game's
     /// own "Cooking Products"/"Crafted Products"/"Raw Materials" grouping) and,
@@ -1147,6 +1192,9 @@ public static class CatalogService
     public static List<CatalogUnlockableItem> FilterFishSpecies(IEnumerable<CatalogUnlockableItem> catalogItems) =>
         catalogItems.Where(c => FishSpeciesPattern.IsMatch(c.GameId)).OrderBy(c => c.DisplayName).ToList();
 
+    /// <summary>Same rule as FilterFishSpecies, for a single id.</summary>
+    public static bool IsFishSpecies(string gameId) => FishSpeciesPattern.IsMatch(gameId);
+
     private static string? ResolveDbPath()
     {
         if (_pathChecked) return _dbPath;
@@ -1169,4 +1217,10 @@ public sealed record RecipeInfo(string Id, string Name, string Kind, (string Id,
 /// <summary>An item's base Units value. TradeCategory is the game's own
 /// (Mineral, Tech, Commodity, Component, Alloy, Exotic, Energy, None, SpecialShop);
 /// Kind is "Product" or "Substance".</summary>
+public sealed record FishInfo(string Id, string Quality, string Size, string Time, bool NeedsStorm, bool NeedsMission, int[] Biomes)
+{
+    public const int AnyPlanet = 16;
+    public bool LivesOn(int biome) => Biomes.Contains(AnyPlanet) || Biomes.Contains(biome);
+}
+
 public sealed record ItemValueInfo(string Id, string Name, string TradeCategory, long Value, string Legality, string Kind);

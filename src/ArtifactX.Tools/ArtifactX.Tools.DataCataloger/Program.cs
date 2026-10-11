@@ -1443,6 +1443,132 @@ if (args.Length > 1 && args[0].Equals("add-recipes", StringComparison.OrdinalIgn
     return;
 }
 
+// "DataCataloger add-fish <target-catalog-db-path>" adds where/when every fish
+// can be caught, from the game's GcFishTable (found by type, not by path):
+// ProductID, Quality, Size, Time (Day/Night/Both), Biome (bool[17] in
+// GcBiomeType order - the same order as a planet's biome in the save's
+// discovery records), NeedsStorm, RequiresMissionActive. Category "Fish";
+// GameId = "FISH:" + product id (prefixed so it never collides with the fish
+// item's own catalog row), NameEnglish = product id (only so the row survives
+// `trim` - the app names fish through the normal item lookup),
+// DescriptionEnglish = JSON {"id","quality","size","time","storm","mission",
+// "biomes":[indexes]}. Added 2026-10-11 for the Fishing tool; idempotent.
+if (args.Length > 1 && args[0].Equals("add-fish", StringComparison.OrdinalIgnoreCase))
+{
+    string fishDbPath = args[1];
+    if (!File.Exists(fishDbPath))
+    {
+        ConsoleStyle.Error($"Target catalog DB not found: {fishDbPath}");
+        return;
+    }
+
+    var fishSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(fishSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakReaderService fishPakReader = new PakReaderService();
+    var fishExtraction = new ExtractionService();
+    libMBIN.NMS.GameComponents.GcFishTable? fishTable = null;
+    string fishSource = "";
+
+    foreach (var pak in new PakDiscoveryService().Discover(fishSettings.NmsInstallationPath!))
+    {
+        if (fishTable is not null) break;
+        PakHeader header;
+        IReadOnlyList<PakEntry> entries;
+        try
+        {
+            header = fishPakReader.ReadHeader(pak.FullPath);
+            entries = fishPakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+
+        foreach (var entry in entries.Where(e => !string.IsNullOrEmpty(e.FileName)
+                     && e.FileName.EndsWith(".mbin", StringComparison.OrdinalIgnoreCase)
+                     && e.FileName.Contains("fish", StringComparison.OrdinalIgnoreCase)))
+        {
+            byte[]? bytes;
+            try { bytes = fishExtraction.ExtractEntryBytes(pak.FullPath, entry, header); }
+            catch { continue; }
+            if (bytes is null || bytes.Length == 0) continue;
+
+            try
+            {
+                using var ms = new MemoryStream(bytes);
+                var mbin = new MBINFile(ms);
+                mbin.Load();
+                if (mbin.GetData() is libMBIN.NMS.GameComponents.GcFishTable table)
+                {
+                    fishTable = table;
+                    fishSource = entry.FileName!;
+                    break;
+                }
+            }
+            catch { continue; }
+        }
+    }
+
+    if (fishTable?.Fish is null)
+    {
+        ConsoleStyle.Error("Could not find/decode a GcFishTable in any PAK.");
+        return;
+    }
+
+    var fishRows = new List<CatalogItem>();
+    foreach (var f in fishTable.Fish)
+    {
+        string id = f.ProductID?.Value ?? "";
+        if (id.Length == 0) continue;
+        var biomes = new System.Text.Json.Nodes.JsonArray();
+        for (int i = 0; i < (f.Biome?.Length ?? 0); i++)
+            if (f.Biome![i]) biomes.Add(i);
+        var payload = new System.Text.Json.Nodes.JsonObject
+        {
+            ["id"] = id,
+            ["quality"] = f.Quality?.ItemQuality.ToString() ?? "",
+            ["size"] = f.Size?.FishSize.ToString() ?? "",
+            ["time"] = f.Time?.FishingTime.ToString() ?? "",
+            ["storm"] = f.NeedsStorm,
+            ["mission"] = !string.IsNullOrEmpty(f.RequiresMissionActive?.Value),
+            ["biomes"] = biomes,
+        };
+        fishRows.Add(new CatalogItem
+        {
+            GameId = "FISH:" + id,
+            NameEnglish = id,
+            UsageCategory = f.Quality?.ItemQuality.ToString() ?? "",
+            DescriptionEnglish = payload.ToJsonString(),
+        });
+    }
+
+    ConsoleStyle.Header($"Found {fishRows.Count} fish in {fishSource}.");
+    foreach (var sample in fishRows.Take(5))
+        ConsoleStyle.Success($"  {sample.GameId} {sample.DescriptionEnglish}");
+
+    using var fishDb = new CatalogDbContext(fishDbPath);
+    var existingFishCategory = fishDb.Categories.FirstOrDefault(c => c.TemplateType == "Fish");
+    if (existingFishCategory != null)
+    {
+        fishDb.Items.RemoveRange(fishDb.Items.Where(i => i.CategoryId == existingFishCategory.Id));
+        fishDb.Categories.Remove(existingFishCategory);
+        fishDb.SaveChanges();
+    }
+
+    var fishCategory = new CatalogCategory { TemplateType = "Fish", RowType = "GcFishData", SourceMbinPath = fishSource };
+    fishDb.Categories.Add(fishCategory);
+    fishDb.SaveChanges();
+
+    foreach (var row in fishRows) row.CategoryId = fishCategory.Id;
+    fishDb.Items.AddRange(fishRows);
+    fishDb.SaveChanges();
+
+    ConsoleStyle.Success($"Wrote {fishRows.Count} fish to {fishDbPath}.");
+    return;
+}
+
 // "DataCataloger add-item-values <target-catalog-db-path>" adds the base Units
 // value and trade data of every product and substance (GcProductTable /
 // GcRealitySubstanceTable: BaseValue, TradeCategory, Legality, Rarity) as
