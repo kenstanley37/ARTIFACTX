@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). -->
 <Page
     x:Class="ArtifactX.WinUI3.Views.GuidePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -10,7 +11,7 @@
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Grid Padding="24" RowSpacing="16">
+    <Grid Padding="28,26,28,24" RowSpacing="18">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -23,25 +24,25 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                <TextBlock Text="Guide" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
-                <Border Background="{ThemeResource NmsAccentBrush}" CornerRadius="4" Padding="9,3" VerticalAlignment="Center">
-                    <TextBlock x:Name="ActivePlatformTxt" Text="" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="GUIDE" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
+                <Border Background="{ThemeResource ThemeAccentBrush}" CornerRadius="4" Padding="9,3" VerticalAlignment="Center">
+                    <TextBlock x:Name="ActivePlatformTxt" Text="" FontSize="12" FontWeight="Bold" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
                 </Border>
             </StackPanel>
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                 <TextBlock x:Name="PendingEditsTxt" VerticalAlignment="Center" FontSize="12"
-                           Foreground="{ThemeResource NmsTextSecondary}"/>
+                           Foreground="{ThemeResource ThemeTextDimBrush}"/>
                 <Button x:Name="DiscardChangesBtn" Content="Discard Changes" Click="DiscardChangesBtn_Click"
                         Style="{StaticResource DangerButtonStyle}" IsEnabled="False"/>
                 <Button x:Name="SaveChangesBtn" Content="Save Changes" Click="SaveChangesBtn_Click"
-                        Style="{ThemeResource AccentButtonStyle}" IsEnabled="False"/>
+                        Style="{StaticResource ThemeAccentButtonStyle}" IsEnabled="False"/>
             </StackPanel>
         </Grid>
 
         <Grid Grid.Row="1">
             <TextBlock x:Name="NoAccountDataTxt" Visibility="Collapsed"
                        Text="No accountdata.hg file was found alongside this save - this platform account may be very new, or this feature isn't supported for it yet."
-                       Foreground="{ThemeResource NmsTextSecondary}" FontSize="14" TextWrapping="Wrap"
+                       Foreground="{ThemeResource ThemeTextDimBrush}" FontSize="14" TextWrapping="Wrap"
                        HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="480" TextAlignment="Center"/>
 
             <Grid x:Name="ContentPanel" Visibility="Collapsed" RowSpacing="12">
@@ -52,22 +53,36 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Background="#332B1400" BorderBrush="#FFB800"
-                        BorderThickness="1" CornerRadius="6" Padding="12,8">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE7BA;" FontSize="14" Foreground="#FFB800" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                        <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#FFB800"
-                                   Text="This list is account-wide, not tied to any one save slot - toggling a topic here affects every save on this platform account (accountdata.hg), not just the save currently loaded. Save this separately with the button above; it does not go through the normal per-save Save button."/>
-                    </StackPanel>
+                <Border Grid.Row="0" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
+                        BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Glyph="&#xE7BA;" FontSize="14" Foreground="{ThemeResource ThemeWarningBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                        <TextBlock Grid.Column="1" TextWrapping="Wrap" FontSize="13" Foreground="{ThemeResource ThemeWarningBrush}"
+                                   Text="This list is shared by every save on this platform account, not just the save that's loaded. Save it with the Save Changes button above; the normal Save button doesn't cover it."/>
+                    </Grid>
                 </Border>
 
-                <Border Grid.Row="1" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                        CornerRadius="6" Padding="12,8" Opacity="0.85">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource NmsTextSecondary}" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                        <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
-                                   Text="Tracks the in-game Guide screen's per-topic Unlocked/Seen state, found via a real controlled test (confirmed 2026-08-12). Grouped by the game's own real section data (metadata/reality/wiki.mbin), extracted automatically - not a hand-copied list, so a future game update's topic changes get picked up just by re-running the cataloger."/>
-                    </StackPanel>
+                <!-- Per-topic Unlocked/Seen state in accountdata.hg, found via a real
+                     controlled test (confirmed 2026-08-12). Grouping comes from the
+                     game's own section data (metadata/reality/wiki.mbin), extracted by
+                     DataCataloger's add-guide-topics - not a hand-copied list, so a game
+                     update's topic changes are picked up by re-running the cataloger. -->
+                <Border Grid.Row="1" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                        Background="{ThemeResource ThemePanelAltBrush}"
+                        CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"
+                                   Text="The topics on the in-game Guide screen, grouped the way the game groups them. Unlock makes a topic available; Seen clears its &quot;new&quot; marker."/>
+                    </Grid>
                 </Border>
 
                 <Grid Grid.Row="2" ColumnSpacing="12">
@@ -79,7 +94,7 @@
                     </Grid.ColumnDefinitions>
                     <TextBox Grid.Column="0" x:Name="SearchBox" PlaceholderText="Search topics..." TextChanged="SearchBox_TextChanged"/>
                     <TextBlock Grid.Column="1" x:Name="ResultCountTxt" VerticalAlignment="Center" FontSize="12"
-                               Foreground="{ThemeResource NmsTextSecondary}"/>
+                               Foreground="{ThemeResource ThemeTextDimBrush}"/>
                     <Button Grid.Column="2" x:Name="MarkAllUnknownBtn" Content="Mark All Unknown" Click="MarkAllUnknownBtn_Click"
                             ToolTipService.ToolTip="Sets every topic currently shown below to locked/unseen (respects the search box)"/>
                     <Button Grid.Column="3" x:Name="MarkAllKnownBtn" Content="Mark All Known" Click="MarkAllKnownBtn_Click"
@@ -103,10 +118,12 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="viewmodels:GuideCategoryGroupViewModel">
-                                <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                                        CornerRadius="8" Padding="14" Width="320" VerticalAlignment="Top" Opacity="0.95">
-                                    <StackPanel Spacing="6">
-                                        <TextBlock Text="{x:Bind HeaderText}" FontWeight="SemiBold" FontSize="14"/>
+                                <Border Style="{StaticResource ThemeCardStyle}" Width="320" VerticalAlignment="Top">
+                                  <StackPanel>
+                                    <Border Style="{StaticResource ThemeBandStyle}">
+                                        <TextBlock Text="{x:Bind HeaderUpper}" Style="{StaticResource ThemeBandTextStyle}" TextTrimming="CharacterEllipsis"/>
+                                    </Border>
+                                    <StackPanel Spacing="6" Padding="14,10,14,14">
 
                                         <!-- Persistent column labels, not hover-only tooltips - user
                                              feedback 2026-08-12: "no one is going to know what the
@@ -115,9 +132,9 @@
                                              own column regardless of window width. -->
                                         <StackPanel Orientation="Horizontal" Spacing="4">
                                             <TextBlock Text="Unlock" Width="30" FontSize="9" TextAlignment="Center"
-                                                       Foreground="{ThemeResource NmsTextSecondary}"/>
+                                                       Foreground="{ThemeResource ThemeAccentBrush}"/>
                                             <TextBlock Text="Seen" Width="30" FontSize="9" TextAlignment="Center"
-                                                       Foreground="{ThemeResource NmsTextSecondary}"/>
+                                                       Foreground="{ThemeResource ThemeAccentBrush}"/>
                                         </StackPanel>
 
                                         <ItemsControl ItemsSource="{x:Bind Topics}">
@@ -149,7 +166,7 @@
                                                         <CheckBox Width="30" MinWidth="0" Padding="0" HorizontalContentAlignment="Center"
                                                                   IsChecked="{x:Bind IsSeen, Mode=OneWay}"
                                                                   Click="SeenCheckBox_Click" Tag="{x:Bind}"/>
-                                                        <TextBlock Text="{x:Bind DisplayName}" VerticalAlignment="Center"
+                                                        <TextBlock Text="{x:Bind DisplayName}" VerticalAlignment="Center" Foreground="{ThemeResource ThemeTextBrush}"
                                                                    TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                                                                    MaxWidth="180"/>
                                                     </StackPanel>
@@ -177,6 +194,7 @@
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                     </StackPanel>
+                                  </StackPanel>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

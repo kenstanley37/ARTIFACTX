@@ -25,4 +25,7 @@ public sealed class GuideCategoryGroupViewModel
     public IEnumerable<int> PaddingIndices => Enumerable.Range(0, PaddingCount);
 
     public string HeaderText => $"{Category} ({Topics.Count})";
+
+    /// <summary>HeaderText in capitals for the themed card band.</summary>
+    public string HeaderUpper => HeaderText.ToUpperInvariant();
 }
