@@ -120,10 +120,33 @@ public sealed partial class ShipsPage : Page
             "vLc", "6f=", "@Cs", shipIndex.ToString(), "NTx", "93M")?.Value<string>();
         var type = StarshipCapacity.DetectShipType(scenePath);
 
-        var classPath = NmsInventoryContainer.ShipTechnologyPath(shipIndex).Append("B@N").Append("1o6").ToArray();
-        string? classLetter = SaveSessionManager.GetValue(classPath)?.Value<string>();
+        return (type, ReadShipClass(shipIndex));
+    }
 
-        return (type, classLetter);
+    /// <summary>A ship stores its Class letter on BOTH inventories (PMT and
+    /// ;l5, each B@N.1o6) and the game reads the Cargo one: found 2026-10-10
+    /// when an S-class edit written only to Technology still showed C in-game
+    /// (save had PMT=S, ;l5=C; every untouched ship has the two matching).
+    /// Every class-changing action here writes Technology via its grid view
+    /// model, so this copies that letter onto Cargo afterwards. Only called
+    /// from those actions, never on load, so it never stages an unasked edit.
+    /// ReadShipClass shows the Cargo copy (Technology only as a fallback) so
+    /// the page matches what the game displays.</summary>
+    private static string? ReadShipClass(int shipIndex)
+    {
+        if (shipIndex < 0) return null;
+        return SaveSessionManager.GetValue(NmsInventoryContainer.ShipCargoPath(shipIndex).Append("B@N").Append("1o6").ToArray())?.Value<string>()
+            ?? SaveSessionManager.GetValue(NmsInventoryContainer.ShipTechnologyPath(shipIndex).Append("B@N").Append("1o6").ToArray())?.Value<string>();
+    }
+
+    private static void SyncCargoClass(int shipIndex)
+    {
+        if (shipIndex < 0) return;
+        string? techClass = SaveSessionManager.GetValue(
+            NmsInventoryContainer.ShipTechnologyPath(shipIndex).Append("B@N").Append("1o6").ToArray())?.Value<string>();
+        var cargoClassPath = NmsInventoryContainer.ShipCargoPath(shipIndex).Append("B@N").Append("1o6").ToArray();
+        if (string.IsNullOrEmpty(techClass) || SaveSessionManager.GetValue(cargoClassPath)?.Value<string>() == techClass) return;
+        SaveSessionManager.StageEdit(techClass, cargoClassPath);
     }
 
     private async Task<Dictionary<string, int>> GetShipCapacityAsync()
@@ -462,7 +485,7 @@ public sealed partial class ShipsPage : Page
 
         foreach (var letter in new[] { "S", "A", "B", "C" })
         {
-            bool isCurrent = string.Equals(_techViewModel.CurrentClass, letter, StringComparison.OrdinalIgnoreCase);
+            bool isCurrent = string.Equals(ReadShipClass(_selectedIndex), letter, StringComparison.OrdinalIgnoreCase);
 
             var button = new Button
             {
@@ -481,6 +504,7 @@ public sealed partial class ShipsPage : Page
                 // totals (StarshipCapacity), so both grids get fully rebuilt via
                 // LoadSelectedShip rather than just refreshed in place.
                 _techViewModel?.SetClass(letter);
+                SyncCargoClass(_selectedIndex);
                 PageResetBtn.Visibility = Visibility.Visible;
                 LoadSelectedShip();
             };
@@ -751,11 +775,12 @@ public sealed partial class ShipsPage : Page
 
         var sourcePositions = _techViewModel.Cells.Where(c => c.IsOccupied).Select(c => (c.X, c.Y));
         var (confirmed, alsoMatchClass) = await ShowCopyConfirmationAsync(
-            $"a copy of {sourceShip.Name}'s", _techViewModel.CurrentClass, sourcePositions, targetShip.Name, targetViewModel);
+            $"a copy of {sourceShip.Name}'s", ReadShipClass(sourceShip.Index), sourcePositions, targetShip.Name, targetViewModel);
 
         if (!confirmed) return;
 
         targetViewModel.CopyTechStackFrom(_techViewModel, alsoMatchClass);
+        SyncCargoClass(targetShip.Index);
 
         PageResetBtn.Visibility = Visibility.Visible;
         LoadShipList();
@@ -1073,6 +1098,7 @@ public sealed partial class ShipsPage : Page
         if (!confirmed) return;
 
         _techViewModel.ApplyTemplate(template, alsoMatchClass);
+        SyncCargoClass(_selectedIndex);
         ApplyStatsList(_selectedIndex, template.Stats);
         if (!string.IsNullOrEmpty(template.Seed))
             SaveSessionManager.StageEdit(template.Seed, NmsInventoryContainer.ShipModelSeedPath(_selectedIndex));
@@ -1102,6 +1128,7 @@ public sealed partial class ShipsPage : Page
         if (!confirmed) return;
 
         _techViewModel.ApplyTemplate(template, alsoMatchClass);
+        SyncCargoClass(_selectedIndex);
         PageResetBtn.Visibility = Visibility.Visible;
         LoadSelectedShip();
     }
