@@ -48,9 +48,9 @@ public sealed partial class GeneralPage : Page
     {
         var picker = new Windows.Storage.Pickers.FileSavePicker
         {
-            SuggestedFileName = $"ArtifactX data {DateTime.Now:yyyy-MM-dd}",
+            SuggestedFileName = $"ArtifactX backup {DateTime.Now:yyyy-MM-dd}",
         };
-        picker.FileTypeChoices.Add("ArtifactX data", new List<string> { ".db" });
+        picker.FileTypeChoices.Add("ArtifactX backup", new List<string> { ".artifactx" });
         WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindowInstance));
 
         var file = await picker.PickSaveFileAsync();
@@ -59,7 +59,7 @@ public sealed partial class GeneralPage : Page
         {
             string path = file.Path;
             await Task.Run(() => UserDatabase.ExportTo(path));
-            UserDataStatusTxt.Text = $"Exported to {file.Name}.";
+            UserDataStatusTxt.Text = $"Backed up to {file.Name}.";
         }
         catch (Exception ex)
         {
@@ -70,7 +70,8 @@ public sealed partial class GeneralPage : Page
     private async void ImportUserData_Click(object sender, RoutedEventArgs e)
     {
         var picker = new Windows.Storage.Pickers.FileOpenPicker();
-        picker.FileTypeFilter.Add(".db");
+        picker.FileTypeFilter.Add(".artifactx");
+        picker.FileTypeFilter.Add(".db"); // exports made before 2026-10-12
         WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindowInstance));
 
         var file = await picker.PickSingleFileAsync();
@@ -78,8 +79,9 @@ public sealed partial class GeneralPage : Page
 
         var confirm = new ContentDialog
         {
-            Title = "Replace your ArtifactX data?",
-            Content = "Your current system notes and learned names will be replaced by the ones in this file. A backup of your current data is saved first, in the Backups folder.",
+            Title = "Restore your ArtifactX data?",
+            Content = "Everything ArtifactX keeps for you (templates, settings, nicknames, notes, finds and the rest) will be replaced by what's in this backup. "
+                + "This PC's window position and save-folder list stay as they are. Your current data is backed up first, in the Backups folder.",
             PrimaryButtonText = "Replace",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Close,
@@ -97,8 +99,10 @@ public sealed partial class GeneralPage : Page
             PlanetWaterService.Reload();
             GuidesService.Reload();
             HiddenStationsService.Reload();
+            if (AppSettingsService.ThemeId is { Length: > 0 } theme && theme != ThemeService.Current.Id)
+                ThemeService.Apply(theme);
         }
-        UserDataStatusTxt.Text = error ?? $"Imported {file.Name}. Your previous data was backed up.";
+        UserDataStatusTxt.Text = error ?? $"Restored {file.Name}. Your previous data was backed up first. Reopen a page to see restored templates.";
     }
 
     private async void CheckForUpdatesBtn_Click(object sender, RoutedEventArgs e)

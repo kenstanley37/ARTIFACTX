@@ -25,7 +25,7 @@ public static class LocalAppDataPaths
     public static string RootFolder => RootLazy.Value;
 
     /// <summary>Returns (and ensures the existence of) a named subfolder under
-    /// the app's local data root, e.g. "Loadouts".</summary>
+    /// the app's local data root, e.g. "Backups".</summary>
     public static string GetSubfolder(string name)
     {
         string path = Path.Combine(RootFolder, name);

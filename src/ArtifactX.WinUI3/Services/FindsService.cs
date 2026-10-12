@@ -101,9 +101,9 @@ public static class FindsService
             using var cmd = connection.CreateCommand();
             cmd.CommandText = @"
                 INSERT INTO finds (id, type, title, portal_code, galaxy, class, subtype, items, location, notes,
-                                   created_at, updated_at, source, synced_at, deleted)
+                                   created_at, updated_at, source, synced_at, deleted, added_by)
                 VALUES ($id, $type, $title, $code, $galaxy, $class, $subtype, $items, $location, $notes,
-                        $created, $now, 'user', NULL, 0)
+                        $created, $now, 'user', NULL, 0, $added_by)
                 ON CONFLICT(id) DO UPDATE SET
                     type = $type, title = $title, portal_code = $code, galaxy = $galaxy, class = $class,
                     subtype = $subtype, items = $items, location = $location, notes = $notes,
@@ -120,6 +120,7 @@ public static class FindsService
             cmd.Parameters.AddWithValue("$notes", saved.Notes);
             cmd.Parameters.AddWithValue("$created", saved.CreatedAt);
             cmd.Parameters.AddWithValue("$now", now);
+            cmd.Parameters.AddWithValue("$added_by", GameAccountsService.ActiveKey);
             cmd.ExecuteNonQuery();
         }
         catch (Exception ex)

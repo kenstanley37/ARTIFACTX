@@ -329,6 +329,11 @@ public partial class SaveFolderSelectViewModel : ObservableObject
 
             candidate.IsEmptyResult = candidate.SlotGroups.Count == 0;
             candidate.NotifySlotsChanged();
+
+            // Every account found is linked to the player's profile in user.db,
+            // with the name the game knows them by (see GameAccountsService).
+            if (!candidate.IsDevTest)
+                GameAccountsService.Seen(candidate.FolderPath, candidate.PlatformName, candidate.AccountId, candidate.PlayerName);
         }
         catch (Exception ex)
         {

@@ -175,10 +175,10 @@
                             </Border>
                             <StackPanel Padding="18,14,18,18" Spacing="10">
                                 <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                           Text="Your system notes and the names ArtifactX has learned are stored on this PC, separate from your saves. Export them to back them up or move them to another PC."/>
+                                           Text="Everything ArtifactX keeps for you - templates, settings, account nicknames, system notes and learned names, finds, guides, pins and planet marks - is in one file on this PC, separate from your game saves. Back it up, or restore it on another PC (that PC keeps its own window position and folder list)."/>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Button Content="Export..." Click="ExportUserData_Click"/>
-                                    <Button Content="Import..." Click="ImportUserData_Click"/>
+                                    <Button Content="Back up everything..." Click="ExportUserData_Click"/>
+                                    <Button Content="Restore from a backup..." Click="ImportUserData_Click"/>
                                 </StackPanel>
                                 <TextBlock x:Name="UserDataStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                             </StackPanel>

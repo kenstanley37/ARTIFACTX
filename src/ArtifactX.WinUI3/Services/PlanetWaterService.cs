@@ -65,14 +65,15 @@ public static class PlanetWaterService
             using var connection = UserDatabase.Open();
             using var cmd = connection.CreateCommand();
             cmd.CommandText = @"
-                INSERT INTO planet_water (system_address, planet_index, has_water, updated_at, source, synced_at, deleted)
-                VALUES ($system, $planet, $has, $now, 'user', NULL, $deleted)
+                INSERT INTO planet_water (system_address, planet_index, has_water, updated_at, source, synced_at, deleted, added_by)
+                VALUES ($system, $planet, $has, $now, 'user', NULL, $deleted, $added_by)
                 ON CONFLICT(system_address, planet_index) DO UPDATE SET
                     has_water = $has, updated_at = $now, synced_at = NULL, deleted = $deleted";
             cmd.Parameters.AddWithValue("$system", systemAddress.ToString("X", CultureInfo.InvariantCulture));
             cmd.Parameters.AddWithValue("$planet", planet);
             cmd.Parameters.AddWithValue("$has", hasWater == true ? 1 : 0);
             cmd.Parameters.AddWithValue("$now", UserDatabase.Now());
+            cmd.Parameters.AddWithValue("$added_by", GameAccountsService.ActiveKey);
             cmd.Parameters.AddWithValue("$deleted", hasWater is null ? 1 : 0);
             cmd.ExecuteNonQuery();
         }

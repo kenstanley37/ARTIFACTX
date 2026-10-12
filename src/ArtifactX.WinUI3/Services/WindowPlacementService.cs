@@ -14,7 +14,8 @@ namespace ArtifactX.WinUI3.Services;
 /// window's CURRENT bounds - while maximized, there's no way to read the
 /// underlying "restored" size/position back out of AppWindow, whereas
 /// GetWindowPlacement gives that for free (rcNormalPosition) regardless of
-/// the window's current show state. Persisted via LocalAppDataPaths (plain
+/// the window's current show state. Persisted in user.db's device settings
+/// (this PC only); before 2026-10-12 a JSON file via LocalAppDataPaths (plain
 /// System.IO), not Windows.Storage.ApplicationData - see that class for why.
 ///
 /// Monitor validation uses the Win32 MonitorFromRect API rather than the
@@ -29,7 +30,9 @@ namespace ArtifactX.WinUI3.Services;
 /// </summary>
 public static class WindowPlacementService
 {
-    private static readonly string StateFilePath = Path.Combine(LocalAppDataPaths.RootFolder, "windowstate.json");
+    /// <summary>This PC only (device_settings), never carried to another PC by a
+    /// restore - screen layouts differ. Was windowstate.json until 2026-10-12.</summary>
+    private const string StateKey = "WindowState";
 
     private const int SW_SHOWNORMAL = 1;
     private const int SW_SHOWMAXIMIZED = 3;
@@ -87,7 +90,7 @@ public static class WindowPlacementService
 
         try
         {
-            File.WriteAllText(StateFilePath, JsonSerializer.Serialize(state, WindowStateJsonContext.Default.SavedWindowState));
+            SettingsStore.Set(SettingsStore.Scope.Device, StateKey, JsonSerializer.Serialize(state, WindowStateJsonContext.Default.SavedWindowState));
         }
         catch
         {
@@ -100,8 +103,8 @@ public static class WindowPlacementService
         SavedWindowState? state;
         try
         {
-            if (!File.Exists(StateFilePath)) return; // first launch ever - let Windows use its own default placement
-            state = JsonSerializer.Deserialize(File.ReadAllText(StateFilePath), WindowStateJsonContext.Default.SavedWindowState);
+            if (SettingsStore.Get(SettingsStore.Scope.Device, StateKey) is not { Length: > 0 } json) return; // first launch ever - let Windows use its own default placement
+            state = JsonSerializer.Deserialize(json, WindowStateJsonContext.Default.SavedWindowState);
         }
         catch
         {

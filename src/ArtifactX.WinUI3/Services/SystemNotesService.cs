@@ -248,9 +248,9 @@ public static class SystemNotesService
             cmd.Transaction = tx;
             cmd.CommandText = @"
                 INSERT INTO systems (address, galaxy, name, station, star_class, star_colour, economy, wealth, conflict,
-                                     race, moons, water, dissonant, updated_at, source, synced_at, deleted)
+                                     race, moons, water, dissonant, updated_at, source, synced_at, deleted, added_by)
                 VALUES ($a, $g, $name, $station, $class, $colour, $economy, $wealth, $conflict,
-                        $race, $moons, $water, $dissonant, $now, $source, NULL, $deleted)
+                        $race, $moons, $water, $dissonant, $now, $source, NULL, $deleted, $added_by)
                 ON CONFLICT(address) DO UPDATE SET
                     galaxy = $g, name = $name, station = $station, star_class = $class, star_colour = $colour,
                     economy = $economy, wealth = $wealth, conflict = $conflict, race = $race, moons = $moons,
@@ -270,6 +270,7 @@ public static class SystemNotesService
             cmd.Parameters.AddWithValue("$water", note.Water ? 1 : 0);
             cmd.Parameters.AddWithValue("$dissonant", note.Dissonant ? 1 : 0);
             cmd.Parameters.AddWithValue("$now", now);
+            cmd.Parameters.AddWithValue("$added_by", GameAccountsService.ActiveKey);
             cmd.Parameters.AddWithValue("$source", source);
             cmd.Parameters.AddWithValue("$deleted", note.IsEmpty ? 1 : 0);
             cmd.ExecuteNonQuery();
@@ -292,14 +293,15 @@ public static class SystemNotesService
             using var cmd = c.CreateCommand();
             cmd.Transaction = tx;
             cmd.CommandText = @"
-                INSERT INTO planet_names (system_address, planet_index, name, updated_at, source, synced_at, deleted)
-                VALUES ($a, $i, $name, $now, $source, NULL, 0)
+                INSERT INTO planet_names (system_address, planet_index, name, updated_at, source, synced_at, deleted, added_by)
+                VALUES ($a, $i, $name, $now, $source, NULL, 0, $added_by)
                 ON CONFLICT(system_address, planet_index) DO UPDATE SET
                     name = $name, updated_at = $now, source = $source, synced_at = NULL, deleted = 0";
             cmd.Parameters.AddWithValue("$a", key);
             cmd.Parameters.AddWithValue("$i", index);
             cmd.Parameters.AddWithValue("$name", name);
             cmd.Parameters.AddWithValue("$now", now);
+            cmd.Parameters.AddWithValue("$added_by", GameAccountsService.ActiveKey);
             cmd.Parameters.AddWithValue("$source", source);
             cmd.ExecuteNonQuery();
         }
@@ -346,12 +348,13 @@ public static class SystemNotesService
         {
             using var cmd = c.CreateCommand();
             cmd.Transaction = tx;
-            cmd.CommandText = @"INSERT INTO system_notes (id, system_address, text, created_at, updated_at, source, synced_at, deleted)
-                                VALUES ($id, $a, $text, $now, $now, $source, NULL, 0)";
+            cmd.CommandText = @"INSERT INTO system_notes (id, system_address, text, created_at, updated_at, source, synced_at, deleted, added_by)
+                                VALUES ($id, $a, $text, $now, $now, $source, NULL, 0, $added_by)";
             cmd.Parameters.AddWithValue("$id", Guid.NewGuid().ToString("N"));
             cmd.Parameters.AddWithValue("$a", key);
             cmd.Parameters.AddWithValue("$text", text);
             cmd.Parameters.AddWithValue("$now", now);
+            cmd.Parameters.AddWithValue("$added_by", GameAccountsService.ActiveKey);
             cmd.Parameters.AddWithValue("$source", source);
             cmd.ExecuteNonQuery();
         }

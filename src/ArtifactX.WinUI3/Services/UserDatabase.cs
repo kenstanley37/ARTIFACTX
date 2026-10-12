@@ -167,6 +167,99 @@ public static class UserDatabase
             deleted        INTEGER NOT NULL DEFAULT 0
         );
         """,
+        // 7 - everything in one file, owned by a profile (2026-10-12). See
+        // ProfileService / GameAccountsService / SettingsStore / LegacyDataImporter.
+        //  profiles       - the person (later their ArtifactX account). profile_id ''
+        //                   everywhere means this PC's primary profile, so no
+        //                   existing row has to be rewritten (rule 2).
+        //  game_accounts  - Steam/GOG/Xbox/folder accounts seen in Save Selection,
+        //                   keyed "steam:<SteamID64>", "gog:<id>", "folder:<hash>".
+        //  settings       - the profile's own choices (theme, glyph size...).
+        //  device_settings- this PC only (window position, folder paths); skipped
+        //                   when a backup is restored on another PC.
+        //  templates      - Loadout templates (were Loadouts\*.json), payload = JSON.
+        //  hidden_station_claims - hide a claim per account + save slot (the old
+        //                   hidden_stations hid it on every save; its rows still
+        //                   count as "hidden everywhere").
+        //  profile_id / added_by on existing tables: who owns a row, and which
+        //                   game account a fact came from (credit, later).
+        """
+        CREATE TABLE profiles (
+            id          TEXT PRIMARY KEY,
+            name        TEXT NOT NULL DEFAULT '',
+            created_at  TEXT NOT NULL,
+            updated_at  TEXT NOT NULL,
+            source      TEXT NOT NULL DEFAULT 'user',
+            synced_at   TEXT NULL,
+            deleted     INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE game_accounts (
+            id            TEXT PRIMARY KEY,
+            profile_id    TEXT NOT NULL DEFAULT '',
+            platform      TEXT NOT NULL DEFAULT '',
+            account_id    TEXT NOT NULL DEFAULT '',
+            display_name  TEXT NOT NULL DEFAULT '',
+            nickname      TEXT NOT NULL DEFAULT '',
+            first_seen_at TEXT NOT NULL,
+            last_seen_at  TEXT NOT NULL,
+            updated_at    TEXT NOT NULL,
+            source        TEXT NOT NULL DEFAULT 'save',
+            synced_at     TEXT NULL,
+            deleted       INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE settings (
+            profile_id  TEXT NOT NULL DEFAULT '',
+            key         TEXT NOT NULL,
+            value       TEXT NOT NULL DEFAULT '',
+            updated_at  TEXT NOT NULL,
+            source      TEXT NOT NULL DEFAULT 'user',
+            synced_at   TEXT NULL,
+            deleted     INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (profile_id, key)
+        );
+        CREATE TABLE device_settings (
+            key         TEXT PRIMARY KEY,
+            value       TEXT NOT NULL DEFAULT '',
+            updated_at  TEXT NOT NULL
+        );
+        CREATE TABLE templates (
+            id          TEXT PRIMARY KEY,
+            profile_id  TEXT NOT NULL DEFAULT '',
+            kind        TEXT NOT NULL DEFAULT '',
+            scope       TEXT NOT NULL DEFAULT '',
+            name        TEXT NOT NULL DEFAULT '',
+            payload     TEXT NOT NULL,
+            created_at  TEXT NOT NULL,
+            updated_at  TEXT NOT NULL,
+            source      TEXT NOT NULL DEFAULT 'user',
+            synced_at   TEXT NULL,
+            deleted     INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE hidden_station_claims (
+            game_account_id TEXT NOT NULL,
+            slot            INTEGER NOT NULL,
+            system_address  TEXT NOT NULL,
+            hidden_at       TEXT NOT NULL,
+            updated_at      TEXT NOT NULL,
+            source          TEXT NOT NULL DEFAULT 'user',
+            synced_at       TEXT NULL,
+            deleted         INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (game_account_id, slot, system_address)
+        );
+        ALTER TABLE systems         ADD COLUMN profile_id TEXT NOT NULL DEFAULT '';
+        ALTER TABLE systems         ADD COLUMN added_by   TEXT NOT NULL DEFAULT '';
+        ALTER TABLE planet_names    ADD COLUMN profile_id TEXT NOT NULL DEFAULT '';
+        ALTER TABLE planet_names    ADD COLUMN added_by   TEXT NOT NULL DEFAULT '';
+        ALTER TABLE system_notes    ADD COLUMN profile_id TEXT NOT NULL DEFAULT '';
+        ALTER TABLE system_notes    ADD COLUMN added_by   TEXT NOT NULL DEFAULT '';
+        ALTER TABLE planet_water    ADD COLUMN profile_id TEXT NOT NULL DEFAULT '';
+        ALTER TABLE planet_water    ADD COLUMN added_by   TEXT NOT NULL DEFAULT '';
+        ALTER TABLE finds           ADD COLUMN profile_id TEXT NOT NULL DEFAULT '';
+        ALTER TABLE finds           ADD COLUMN added_by   TEXT NOT NULL DEFAULT '';
+        ALTER TABLE guides          ADD COLUMN profile_id TEXT NOT NULL DEFAULT '';
+        ALTER TABLE pinned_recipes  ADD COLUMN profile_id TEXT NOT NULL DEFAULT '';
+        ALTER TABLE hidden_stations ADD COLUMN profile_id TEXT NOT NULL DEFAULT '';
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;
@@ -279,6 +372,22 @@ public static class UserDatabase
             return $"Couldn't read that file: {ex.Message}";
         }
 
+        // This PC's own settings (window position, folder paths) stay this PC's:
+        // a backup made elsewhere carries that PC's, which mean nothing here.
+        var deviceSettings = new List<(string Key, string Value, string UpdatedAt)>();
+        try
+        {
+            using var connection = Open();
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = "SELECT key, value, updated_at FROM device_settings";
+            using var r = cmd.ExecuteReader();
+            while (r.Read()) deviceSettings.Add((r.GetString(0), r.GetString(1), r.GetString(2)));
+        }
+        catch (SqliteException)
+        {
+            // An older file without device_settings - nothing to keep.
+        }
+
         lock (InitLock)
         {
             Backup("before-import");
@@ -289,6 +398,29 @@ public static class UserDatabase
             _initialized = false;
         }
         EnsureInitialized();
+
+        using (var connection = Open())
+        using (var tx = connection.BeginTransaction())
+        {
+            Execute(connection, "DELETE FROM device_settings;", tx);
+            foreach (var (key, value, updatedAt) in deviceSettings)
+            {
+                using var cmd = connection.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = "INSERT INTO device_settings (key, value, updated_at) VALUES ($key, $value, $at)";
+                cmd.Parameters.AddWithValue("$key", key);
+                cmd.Parameters.AddWithValue("$value", value);
+                cmd.Parameters.AddWithValue("$at", updatedAt);
+                cmd.ExecuteNonQuery();
+            }
+            tx.Commit();
+        }
+
+        // Everything cached from the old file is stale now.
+        SettingsStore.Reload();
+        GameAccountsService.Reload();
+        ProfileService.Reload();
+        HiddenStationsService.Reload();
         return null;
     }
 
