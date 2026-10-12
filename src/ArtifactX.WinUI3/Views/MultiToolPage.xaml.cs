@@ -870,8 +870,7 @@ public sealed partial class MultiToolPage : Page
         template.Stats = ExtractStatsList(_selectedIndex);
         template.TypeScenePath = SaveSessionManager.GetValue(
             "vLc", "6f=", "SuJ", _selectedIndex.ToString(), "NTx", "93M")?.Value<string>();
-        // No Seed here - unlike Ships/Freighter, Multi-Tools don't have a
-        // confirmed/exposed Model Seed path on this page.
+        NewFromTemplateService.CaptureMultiTool(template, _selectedIndex);
 
         await LoadoutTemplateService.SaveAsync(template);
         await RefreshFullBuildTemplatesListAsync();
@@ -921,9 +920,10 @@ public sealed partial class MultiToolPage : Page
 
             var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 
-            var applyButton = new Button { Content = "Apply", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            applyButton.Click += async (_, _) => await ApplyFullBuildTemplateAsync(template);
-            buttonRow.Children.Add(applyButton);
+            var addButton = new Button { Content = "Add as new", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            ToolTipService.SetToolTip(addButton, "Add this whole build as a new Multi-Tool in an empty slot. Your other Multi-Tools aren't changed.");
+            addButton.Click += async (_, _) => await AddAsNewAsync(template);
+            buttonRow.Children.Add(addButton);
 
             var shareButton = new Button { Content = "Share...", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
             ToolTipService.SetToolTip(shareButton, "Save this template as a file - to give to a friend, or to keep as a backup");
@@ -974,63 +974,50 @@ public sealed partial class MultiToolPage : Page
         return result;
     }
 
-    /// <summary>Stages a Full Build template's saved stats onto the given tool -
-    /// rebuilds the whole @bB array matched by key, same "match by key, replace
-    /// whole array" pattern as SetStatValue. A key present on one side but not
-    /// the other is left untouched/dropped respectively - this only ever
-    /// adjusts values for keys both sides already agree exist.</summary>
-    private static void ApplyStatsList(int targetToolIndex, List<NmsLoadoutStat> stats)
+    /// <summary>Full Build templates add a whole new Multi-Tool in the first
+    /// empty slot (NewFromTemplateService) - the Multi-Tools you have are never
+    /// changed. Tech Stack templates are the ones that Apply onto the selected one.</summary>
+    private async Task AddAsNewAsync(NmsLoadoutTemplate template)
     {
-        if (stats.Count == 0) return;
-
-        var bonusesPath = NmsInventoryContainer.MultiToolTechnologyPath(targetToolIndex).Append("@bB").ToArray();
-        var bonuses = SaveSessionManager.GetValue(bonusesPath) as JArray;
-        if (bonuses is null) return;
-
-        var statsByKey = stats.ToDictionary(s => s.Key, s => s.Value);
-
-        var updated = new JArray();
-        foreach (var entry in bonuses)
+        int total = NewFromTemplateService.MultiToolSlotCount;
+        int skeleton = _tools.FirstOrDefault(x => x.Index == _selectedIndex)?.Index ?? _tools.FirstOrDefault()?.Index ?? -1;
+        if (skeleton < 0 || NewFromTemplateService.FirstEmptyMultiToolSlot() is not int slot)
         {
-            if (entry is JObject obj && obj["QL1"]?.Value<string>() is string key && statsByKey.TryGetValue(key, out double newValue))
+            await new ContentDialog
             {
-                var clone = (JObject)obj.DeepClone();
-                clone[">MX"] = newValue;
-                updated.Add(clone);
-            }
-            else
-            {
-                updated.Add(entry.DeepClone());
-            }
+                Title = "No room for another Multi-Tool",
+                Content = new TextBlock
+                {
+                    TextWrapping = TextWrapping.Wrap,
+                    Text = skeleton < 0
+                        ? "This save doesn't have a Multi-Tool yet. Get one in game first, then add builds here."
+                        : $"All {total} Multi-Tool slots are in use. Sell or scrap one in game, then try again."
+                },
+                CloseButtonText = "OK",
+                XamlRoot = this.XamlRoot
+            }.ShowAsync();
+            return;
         }
 
-        SaveSessionManager.StageEdit(updated, bonusesPath);
-    }
+        var confirm = new ContentDialog
+        {
+            Title = $"Add \"{template.Name}\" as a new Multi-Tool?",
+            Content = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Text = $"It goes in empty slot {slot + 1} of {total} with this build's tech, class, stats and look. "
+                    + "Your other Multi-Tools aren't changed. Nothing is written to your save until you Save."
+            },
+            PrimaryButtonText = "Add",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = this.XamlRoot
+        };
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
 
-    /// <summary>Applies a saved Full Build template's tech and stats to
-    /// whichever tool is currently selected - Class only changes if the user
-    /// opts in, same as ApplyTemplateAsync.</summary>
-    private async Task ApplyFullBuildTemplateAsync(NmsLoadoutTemplate template)
-    {
-        if (_selectedIndex < 0 || _techViewModel is null) return;
-
-        var targetTool = _tools.FirstOrDefault(t => t.Index == _selectedIndex);
-        if (targetTool is null) return;
-
-        var sourcePositions = template.UnlockedPositions.Select(p => (p.X, p.Y));
-        var (confirmed, alsoMatchClass) = await ShowCopyConfirmationAsync(
-            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions, targetTool.Name, _techViewModel,
-            includesStatsAndSeed: true);
-
-        if (!confirmed) return;
-
-        _techViewModel.ApplyTemplate(template, alsoMatchClass);
-        ApplyStatsList(_selectedIndex, template.Stats);
-        if (!string.IsNullOrEmpty(template.TypeScenePath))
-            SetType(template.TypeScenePath);
-
-        PageResetBtn.Visibility = Visibility.Visible;
-        LoadSelectedTool();
+        if (NewFromTemplateService.AddMultiTool(template, skeleton) is not int added) return;
+        _selectedIndex = added;
+        LoadToolList();
     }
 
     /// <summary>Applies a template to whichever tool is currently selected in
@@ -1066,7 +1053,7 @@ public sealed partial class MultiToolPage : Page
     /// checkbox the user has to tick.</summary>
     private async Task<(bool Confirmed, bool AlsoMatchClass)> ShowCopyConfirmationAsync(
         string sourceLabel, string? sourceClass, IEnumerable<(int X, int Y)> sourcePositions,
-        string targetLabel, InventoryGridViewModel targetViewModel, bool includesStatsAndSeed = false)
+        string targetLabel, InventoryGridViewModel targetViewModel)
     {
         var sourcePositionSet = sourcePositions.ToHashSet();
         var targetUnlocked = targetViewModel.Cells.Where(c => c.State != InventorySlotState.Locked).Select(c => (c.X, c.Y)).ToHashSet();
@@ -1078,9 +1065,7 @@ public sealed partial class MultiToolPage : Page
         panel.Children.Add(new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
-            Text = includesStatsAndSeed
-                ? $"This replaces {targetLabel}'s entire tech loadout, base stats, and Type with {sourceLabel}."
-                : $"This replaces {targetLabel}'s entire tech loadout with {sourceLabel}."
+            Text = $"This replaces {targetLabel}'s entire tech loadout with {sourceLabel}."
         });
 
         if (newSlotsNeeded > 0)
@@ -1109,7 +1094,7 @@ public sealed partial class MultiToolPage : Page
 
         var dialog = new ContentDialog
         {
-            Title = includesStatsAndSeed ? "Confirm full build copy" : "Confirm tech stack copy",
+            Title = "Confirm tech stack copy",
             Content = panel,
             PrimaryButtonText = "Copy",
             CloseButtonText = "Cancel",
