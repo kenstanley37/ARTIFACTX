@@ -86,6 +86,13 @@ public static class NmsPlanets
     /// <summary>Real planet types that can actually occur (excludes Test).</summary>
     public static IEnumerable<int> SelectableTypes => Enumerable.Range(0, TypeNames.Length).Where(i => i != 11);
 
+    /// <summary>Types that always have water: Swamp and Water World. The save has
+    /// no water flag for other planets (checked 2026-10-12: across 2,612 planets
+    /// on every slot, bEr's flags only ever use the biome bits, bit 16 = rings
+    /// and bit 17 on 3 Frozen/Scorched worlds), and the system generator doesn't
+    /// cover terrain, so for every other type water is unknown.</summary>
+    public static bool AlwaysHasWater(int biome) => biome is 12 or 14;
+
     /// <summary>Every distinct planet in the discovery list, newest record wins
     /// when a planet appears twice.</summary>
     public static List<KnownPlanet> ReadAll(JArray? discoveries)
