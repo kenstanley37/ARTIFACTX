@@ -189,10 +189,10 @@
                                                TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Title}"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Top">
-                                    <Button Click="Edit_Click" Tag="{x:Bind Id}" Padding="6,4" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Edit">
+                                    <Button Click="Edit_Click" Tag="{x:Bind Id}" Padding="6,4" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Edit" AutomationProperties.Name="Edit">
                                         <FontIcon Glyph="&#xE70F;" FontSize="13"/>
                                     </Button>
-                                    <Button Click="Delete_Click" Tag="{x:Bind Id}" Padding="6,4" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Delete">
+                                    <Button Click="Delete_Click" Tag="{x:Bind Id}" Padding="6,4" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Delete" AutomationProperties.Name="Delete">
                                         <FontIcon Glyph="&#xE74D;" FontSize="13"/>
                                     </Button>
                                 </StackPanel>

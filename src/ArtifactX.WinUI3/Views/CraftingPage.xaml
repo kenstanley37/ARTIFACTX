@@ -80,6 +80,8 @@
                             <TextBlock Text="WHAT IT TAKES" Style="{StaticResource ThemeEyebrowStyle}" FontSize="10"/>
                             <TextBlock x:Name="TargetNameTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="17" TextWrapping="Wrap"/>
                             <TextBlock x:Name="TargetKindTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                            <!-- Videos saved on the Guides page that are tagged with this item. -->
+                            <ctcontrols:WrapPanel x:Name="TargetGuidesPanel" HorizontalSpacing="4" VerticalSpacing="0" Visibility="Collapsed"/>
                         </StackPanel>
                     </Grid>
                     <ListView Grid.Row="1" x:Name="TreeList" SelectionMode="None" IsItemClickEnabled="True" ItemClick="TreeList_ItemClick">

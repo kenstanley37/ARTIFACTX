@@ -177,10 +177,37 @@ public sealed partial class CraftingPage : Page
         RawList.ItemsSource = _raw;
         RawSummaryTxt.Text = $"{_raw.Count} material{(_raw.Count == 1 ? "" : "s")}, {raw.Values.Sum():N0} units in all, counted from scratch - anything you already carry comes off these totals.";
 
+        ShowGuides(id);
         BackBtn.Visibility = _history.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         if (_history.Count > 0) BackTxt.Text = $"Back to {NameOf(_history.Peek())}";
         EmptyTxt.Visibility = Visibility.Collapsed;
         ResultGrid.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>"Your guides:" links for videos tagged with this item (Guides page).</summary>
+    private void ShowGuides(string id)
+    {
+        TargetGuidesPanel.Children.Clear();
+        var guides = GuidesService.About(id);
+        TargetGuidesPanel.Visibility = guides.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (guides.Count == 0) return;
+        TargetGuidesPanel.Children.Add(new TextBlock
+        {
+            Text = "Your guides:", FontSize = 12, VerticalAlignment = VerticalAlignment.Center,
+            Foreground = ThemeResources.Brush("ThemeTextDimBrush"),
+        });
+        foreach (var guide in guides)
+        {
+            var link = new HyperlinkButton
+            {
+                Content = guide.Creator.Length > 0 ? $"{guide.Title} ({guide.Creator})" : guide.Title,
+                FontSize = 12, Padding = new Thickness(4, 0, 4, 0),
+            };
+            ToolTipService.SetToolTip(link, $"Watch on {guide.Platform} in your browser");
+            string url = guide.Url;
+            link.Click += async (_, _) => await GuidesPage.OpenAsync(url);
+            TargetGuidesPanel.Children.Add(link);
+        }
     }
 
     private async void ExportCsv_Click(object sender, RoutedEventArgs e)
