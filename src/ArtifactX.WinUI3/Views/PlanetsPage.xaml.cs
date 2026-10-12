@@ -71,6 +71,7 @@ public sealed partial class PlanetsPage : Page
         SetLiveHelpVisible(!AppSettingsService.GetFlag(LiveHelpHiddenKey));
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         Unloaded += Page_Unloaded;
+        JumpPlanner.RangeChanged += ApplyFilters;
         _ = LoadPageAsync();
     }
 
@@ -80,6 +81,7 @@ public sealed partial class PlanetsPage : Page
     private void Page_Unloaded(object sender, RoutedEventArgs e)
     {
         SaveSessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
+        JumpPlanner.RangeChanged -= ApplyFilters;
         StopOrbitAnimations();
         StopWatching();
     }
@@ -1112,8 +1114,8 @@ public sealed partial class PlanetsPage : Page
         string away = distance switch
         {
             null => "In a different galaxy from you",
-            < 1 => "Under 400 ly from you",
-            double ly => $"About {ly:N0} ly from you",
+            < 1 => JumpPlanner.WithJumps("Under 400 ly from you", 1),
+            double ly => JumpPlanner.WithJumps($"About {ly:N0} ly from you", ly),
         };
         return $"{away} · {core}";
     }

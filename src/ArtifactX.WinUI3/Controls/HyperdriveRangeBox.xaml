@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The player's hyperdrive range for jump estimates (JumpPlanner). One shared
+     app setting, so setting it on any Tools page sets it everywhere. -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.HyperdriveRangeBox"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <NumberBox x:Name="RangeBox" Header="Hyperdrive range (ly)" Width="170" Minimum="0" Maximum="100000"
+               PlaceholderText="e.g. 1154" SpinButtonPlacementMode="Hidden" ValueChanged="RangeBox_ValueChanged"
+               ToolTipService.ToolTip="Your ship's Hyperdrive Range from its stats screen. Distances then also show about how many jumps they take. Leave empty to hide jump counts."/>
+</UserControl>

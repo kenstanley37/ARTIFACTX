@@ -15,6 +15,7 @@ public static class AppSettingsService
 {
     private const string DisclaimerAcceptedKey = "DisclaimerAccepted";
     private const string ThemeIdKey = "Theme";
+    private const string HyperdriveRangeKey = "HyperdriveRange";
 
     private static readonly string SettingsFilePath = Path.Combine(LocalAppDataPaths.RootFolder, "app-settings.json");
 
@@ -64,6 +65,16 @@ public static class AppSettingsService
         LoadSettings().TryGetValue(ThemeIdKey, out var value) ? value : null;
 
     public static void SetThemeId(string themeId) => SetSetting(ThemeIdKey, themeId);
+
+    /// <summary>The player's hyperdrive range in light years for jump estimates
+    /// (see JumpPlanner), or null if never set.</summary>
+    public static double? HyperdriveRange =>
+        LoadSettings().TryGetValue(HyperdriveRangeKey, out var value)
+        && double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double range)
+        && range >= 1 ? range : null;
+
+    public static void SetHyperdriveRange(double? range) =>
+        SetSetting(HyperdriveRangeKey, range is double r ? r.ToString(System.Globalization.CultureInfo.InvariantCulture) : "");
 
     /// <summary>Simple on/off flags for one-time UI hints (e.g. a dismissed tip).</summary>
     public static bool GetFlag(string key) => LoadSettings().TryGetValue(key, out var value) && value == "true";
