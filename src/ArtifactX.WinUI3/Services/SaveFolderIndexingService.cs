@@ -33,7 +33,7 @@ public static class SaveFolderIndexingService
             .ToArray();
 
         var slotFiles = hgFiles.GroupBy(SlotIdFor).OrderBy(g => g.Key);
-        var results = new List<SaveSlotGroup>();
+        var indexed = new List<(int SlotId, List<SaveFileEntry> Files)>();
 
         foreach (var group in slotFiles)
         {
@@ -43,16 +43,24 @@ public static class SaveFolderIndexingService
             var entries = new List<SaveFileEntry>();
             foreach (var filePath in group.OrderBy(Path.GetFileName))
                 entries.Add(await IndexFileAsync(filePath, slotDir));
-
-            results.Add(new SaveSlotGroup
-            {
-                SlotId = group.Key,
-                Files = entries,
-                SourceDisplayName = candidate.DisplayName
-            });
+            indexed.Add((group.Key, entries));
         }
 
-        return results;
+        // No Steam name (another platform, or Steam doesn't list the account):
+        // use the player name from the newest save, so the card says who plays here.
+        if (string.IsNullOrWhiteSpace(candidate.PlayerName))
+            candidate.PlayerName = indexed.SelectMany(g => g.Files)
+                .Where(f => !string.IsNullOrWhiteSpace(f.PlayerName))
+                .OrderByDescending(f => f.LastModified)
+                .Select(f => f.PlayerName)
+                .FirstOrDefault();
+
+        return indexed.Select(g => new SaveSlotGroup
+        {
+            SlotId = g.SlotId,
+            Files = g.Files,
+            SourceDisplayName = candidate.DisplayName
+        }).ToList();
     }
 
     /// <summary>Reads GLOBAL_STATS' "TIME" stat (a float, in seconds) - the
@@ -91,6 +99,25 @@ public static class SaveFolderIndexingService
     }
 
     // Slot pairing: (save.hg, save2.hg) -> Slot 1, (save3.hg, save4.hg) -> Slot 2, etc.
+    /// <summary>The player's own name: the discoverer name (ksu V?:) on their
+    /// newest own discovery - one with an owner id (f5Q); records downloaded
+    /// from other players have none (see NmsPlanets).</summary>
+    private static string? ReadPlayerName(JObject root)
+    {
+        if (root["fDu"]?["ETO"]?["OsQ"]?["?fB"] is not JArray discoveries) return null;
+        string? name = null;
+        long newest = long.MinValue;
+        foreach (var record in discoveries)
+        {
+            if (record["ksu"] is not JObject owner || string.IsNullOrEmpty(owner["f5Q"]?.Value<string>())) continue;
+            long time = owner["3I1"]?.Type == JTokenType.Integer ? owner["3I1"]!.Value<long>() : 0;
+            if (time < newest || owner["V?:"]?.Value<string>() is not { Length: > 0 } candidate) continue;
+            newest = time;
+            name = candidate;
+        }
+        return name;
+    }
+
     private static int SlotIdFor(string filePath)
     {
         string name = Path.GetFileNameWithoutExtension(filePath);
@@ -121,6 +148,7 @@ public static class SaveFolderIndexingService
             // scan directly against this file's own freshly-parsed JObject.
             var root = JObject.Parse(rawJson.TrimEnd('\0', ' ', '\r', '\n'));
             int totalPlayTimeSeconds = ReadTotalPlayTimeSeconds(root);
+            string? playerName = ReadPlayerName(root);
 
             return new SaveFileEntry
             {
@@ -138,6 +166,7 @@ public static class SaveFolderIndexingService
                 PlayTimeSeconds = totalPlayTimeSeconds > 0 ? totalPlayTimeSeconds : save?.PlayTimeSeconds ?? 0,
                 GalaxyIndex = save?.Universe?.GalaxyIndex ?? -1,
                 GameMode = save?.Universe?.GameMode ?? "Unknown",
+                PlayerName = playerName,
                 IsReadable = save is not null
             };
         }

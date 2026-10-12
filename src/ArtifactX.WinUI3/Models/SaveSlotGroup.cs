@@ -25,7 +25,7 @@ public sealed partial class SaveSlotGroup : ObservableObject
     public System.DateTime LastWriteUtc => Files.Max(f => File.Exists(f.FullPath) ? File.GetLastWriteTimeUtc(f.FullPath) : System.DateTime.MinValue);
 
     public string SlotLabel => $"Slot {SlotId}";
-    public string ActiveLabel => $"{SourceDisplayName} - {SlotLabel}";
+    public string ActiveLabel => $"{SourceDisplayName} · {SlotLabel}";
 
     /// <summary>The file the game would actually load for this slot - the
     /// most recently written of NMS's own rotating pair (e.g. save.hg/

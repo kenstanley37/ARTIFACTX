@@ -158,7 +158,7 @@ public static class SaveSessionManager
         // every commit, not just the first, so the user always has a way
         // back to the state right before any given save (see BackupService).
         if (_activeSlot is not null && _activePlatformDisplayName is not null)
-            BackupService.BackupFiles(_targetHgPaths, BackupService.BuildSlotGroupKey(_activePlatformDisplayName, _activeSlot.SlotId));
+            BackupService.BackupFiles(_targetHgPaths, BackupService.BuildSlotGroupKey(_activePlatformFolder ?? "", _activeSlot.SlotId));
 
         await Task.Run(() => _session.CommitAsync(_targetHgPaths));
         TakeSnapshot();

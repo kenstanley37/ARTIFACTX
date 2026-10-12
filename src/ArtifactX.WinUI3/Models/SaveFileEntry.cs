@@ -14,6 +14,9 @@ public sealed class SaveFileEntry
     public int GalaxyIndex { get; init; } = -1;
     public bool IsReadable { get; init; } = true;
     public string GameMode { get; init; } = "Unknown";
+    /// <summary>The player's own name as the save records it (newest of their
+    /// discoveries), or null.</summary>
+    public string? PlayerName { get; init; }
 
     public bool HasKnownGameMode => IsReadable && GameMode != "Unknown";
 

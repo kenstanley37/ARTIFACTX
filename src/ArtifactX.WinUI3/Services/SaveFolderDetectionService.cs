@@ -21,20 +21,10 @@ public static class SaveFolderDetectionService
 
         // Steam and GOG share the same HelloGames\NMS root; the leaf folder prefix
         // ("st_" / "gog_") tells them apart.
-        string helloGamesRoot = Path.Combine(appData, "HelloGames", "NMS");
-        if (Directory.Exists(helloGamesRoot))
-        {
-            foreach (var dir in Directory.GetDirectories(helloGamesRoot))
-            {
-                string leaf = Path.GetFileName(dir);
-                SaveFolderSource? source = leaf.StartsWith("st_", StringComparison.OrdinalIgnoreCase) ? SaveFolderSource.Steam
-                    : leaf.StartsWith("gog_", StringComparison.OrdinalIgnoreCase) ? SaveFolderSource.Gog
-                    : null;
-
-                if (source is not null)
-                    found.Add(BuildCandidate(dir, source.Value));
-            }
-        }
+        AddAccountFolders(found, Path.Combine(appData, "HelloGames", "NMS"), isDevTest: false);
+#if DEBUG
+        AddAccountFolders(found, DevTestRoot, isDevTest: true);
+#endif
 
         // Microsoft Store / Xbox: saves live in an opaque per-app container.
         // We can find the folder but can't validate its contents (see model SubText).
@@ -58,6 +48,42 @@ public static class SaveFolderDetectionService
         }
 
         return found;
+    }
+
+    /// <summary>Debug builds also scan this folder, so Save Selection can be
+    /// tried with several accounts: put copies of an account folder here under
+    /// made-up names (st_76561198000000001, gog_12345678...). It's outside both
+    /// the repository and the game's own save folder, so test copies never get
+    /// committed or uploaded by Steam Cloud.</summary>
+    public static string DevTestRoot =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ArtifactX", "DevFakeAccounts");
+
+    /// <summary>Steam and GOG keep one folder per game account under the same
+    /// HelloGames\NMS root, named st_&lt;SteamID64&gt; / gog_&lt;id&gt;.</summary>
+    private static void AddAccountFolders(List<SaveFolderCandidate> found, string root, bool isDevTest)
+    {
+        if (!Directory.Exists(root)) return;
+        foreach (var dir in Directory.GetDirectories(root))
+        {
+            string leaf = Path.GetFileName(dir);
+            SaveFolderSource? source = leaf.StartsWith("st_", StringComparison.OrdinalIgnoreCase) ? SaveFolderSource.Steam
+                : leaf.StartsWith("gog_", StringComparison.OrdinalIgnoreCase) ? SaveFolderSource.Gog
+                : null;
+            if (source is null) continue;
+
+            string accountId = leaf[(leaf.IndexOf('_') + 1)..];
+            found.Add(new SaveFolderCandidate
+            {
+                FolderPath = dir,
+                Source = source.Value,
+                AccountId = accountId,
+                IsDevTest = isDevTest,
+                DetectedSaveFileCount = CountSaveFiles(dir),
+                IsValidated = CountSaveFiles(dir) > 0,
+                PlayerName = source == SaveFolderSource.Steam ? SteamAccountsService.PersonaName(accountId) : null,
+                AvatarPath = source == SaveFolderSource.Steam ? SteamAccountsService.AvatarPath(accountId) : null,
+            });
+        }
     }
 
     public static SaveFolderCandidate BuildCandidate(string path, SaveFolderSource source) =>
