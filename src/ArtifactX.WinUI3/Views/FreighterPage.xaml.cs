@@ -587,6 +587,19 @@ public sealed partial class FreighterPage : Page
     /// Full Build templates have their own separate list below
     /// (RefreshFullBuildTemplatesListAsync). Called after saving, deleting, or
     /// applying a template, and once on page load.</summary>
+    /// <summary>Imports a template file someone shared (TemplateSharingService checks it first).</summary>
+    private async void ImportTemplateBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var result = await TemplateSharingService.ImportAsync("Freighter");
+        if (result is not { } r) return;
+        ImportTemplateStatusTxt.Text = r.Message;
+        ImportTemplateStatusTxt.Foreground = ThemeResources.Brush(r.Ok ? "ThemeDoneBrush" : "ThemeWarningBrush");
+        ImportTemplateStatusTxt.Visibility = Visibility.Visible;
+        if (!r.Ok) return;
+        await RefreshTemplatesListAsync();
+        await RefreshFullBuildTemplatesListAsync();
+    }
+
     private async Task RefreshTemplatesListAsync()
     {
         var templates = (await LoadoutTemplateService.LoadAllAsync())
@@ -632,6 +645,11 @@ public sealed partial class FreighterPage : Page
             var applyButton = new Button { Content = "Apply", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
             applyButton.Click += async (_, _) => await ApplyTemplateAsync(template);
             buttonRow.Children.Add(applyButton);
+
+            var shareButton = new Button { Content = "Share...", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            ToolTipService.SetToolTip(shareButton, "Save this template as a file - to give to a friend, or to keep as a backup");
+            shareButton.Click += async (_, _) => await TemplateSharingService.ExportAsync(shareButton, template);
+            buttonRow.Children.Add(shareButton);
 
             var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
             deleteButton.Click += async (_, _) =>
@@ -750,6 +768,11 @@ public sealed partial class FreighterPage : Page
             var applyButton = new Button { Content = "Apply", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
             applyButton.Click += async (_, _) => await ApplyFullBuildTemplateAsync(template);
             buttonRow.Children.Add(applyButton);
+
+            var shareButton = new Button { Content = "Share...", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            ToolTipService.SetToolTip(shareButton, "Save this template as a file - to give to a friend, or to keep as a backup");
+            shareButton.Click += async (_, _) => await TemplateSharingService.ExportAsync(shareButton, template);
+            buttonRow.Children.Add(shareButton);
 
             var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
             deleteButton.Click += async (_, _) =>

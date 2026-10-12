@@ -146,6 +146,12 @@
                             <!-- Tech Stack never touches Stats/Seed/Cargo/Name; Full Build also
                                  carries Stats + Model Seed (never Cargo/Name/Crew). -->
                             <StackPanel Padding="18,14,18,18" Spacing="18">
+                                <!-- Templates other players shared as files (Share... on any template). -->
+                                <StackPanel Spacing="6">
+                                    <Button Content="Import a template file..." Click="ImportTemplateBtn_Click" FontSize="12" Padding="10,4,10,4"
+                                            ToolTipService.ToolTip="Add a template someone shared with you. Your save only changes when you click Apply."/>
+                                    <TextBlock x:Name="ImportTemplateStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"/>
+                                </StackPanel>
                                 <StackPanel Spacing="8">
                                     <Grid>
                                         <TextBlock Text="TECH STACK" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
