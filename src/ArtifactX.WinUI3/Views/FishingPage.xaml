@@ -104,14 +104,14 @@
             </GridView.ItemContainerStyle>
             <GridView.ItemTemplate>
                 <DataTemplate x:DataType="viewmodels:FishCardViewModel">
-                    <Border Width="290" Height="140" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                            Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,10">
+                    <Border Width="290" Height="140" BorderBrush="{x:Bind CardBorder, Mode=OneWay}" BorderThickness="2"
+                            Background="{x:Bind CardBackground, Mode=OneWay}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,10">
                         <Grid RowSpacing="4">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            <Grid ColumnSpacing="10" Opacity="{x:Bind CardOpacity}">
+                            <Grid ColumnSpacing="10" Opacity="{x:Bind CardOpacity, Mode=OneWay}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
@@ -132,10 +132,10 @@
                                 </StackPanel>
                             </Grid>
                             <StackPanel Grid.Row="1" Spacing="0">
-                                <TextBlock Text="{x:Bind Caught}" Foreground="{x:Bind CaughtBrush}" FontSize="12" FontWeight="SemiBold"
+                                <TextBlock Text="{x:Bind Caught, Mode=OneWay}" Foreground="{x:Bind CaughtBrush, Mode=OneWay}" FontSize="12" FontWeight="SemiBold"
                                            TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
-                                <TextBlock Text="{x:Bind Spots}" Visibility="{x:Bind SpotsVisibility}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"
-                                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Spots}"/>
+                                <TextBlock Text="{x:Bind Spots, Mode=OneWay}" Visibility="{x:Bind SpotsVisibility, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"
+                                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Spots, Mode=OneWay}"/>
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -173,7 +173,10 @@
                             <FontIcon Glyph="&#xE711;" FontSize="12"/>
                         </Button>
                     </Grid>
-                    <CheckBox Grid.Row="1" x:Name="OtherSlotsBox" Content="Include planets from my other save slots" IsChecked="True" Click="OtherSlots_Click"/>
+                    <StackPanel Grid.Row="1" Spacing="0">
+                        <CheckBox x:Name="OtherSlotsBox" Content="Include planets from my other save slots" IsChecked="True" Click="OtherSlots_Click"/>
+                        <CheckBox x:Name="ShowDryBox" Content="Show planets I marked as having no water" IsChecked="False" Click="ShowDry_Click"/>
+                    </StackPanel>
                     <TextBlock Grid.Row="2" x:Name="WhereCountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                     <ListView Grid.Row="3" x:Name="WhereList" SelectionMode="None" IsItemClickEnabled="False" Padding="0">
                         <ListView.ItemContainerStyle>
@@ -185,17 +188,32 @@
                         </ListView.ItemContainerStyle>
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="viewmodels:FishPlanetRowViewModel">
-                                <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Background="{ThemeResource ThemePanelBrush}"
+                                <Border BorderBrush="{x:Bind CardBorder}" BorderThickness="1" Background="{ThemeResource ThemePanelBrush}"
                                         CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="10,8">
                                     <StackPanel Spacing="3">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <Ellipse Width="10" Height="10" Fill="{x:Bind Swatch}" VerticalAlignment="Center"/>
-                                            <TextBlock Text="{x:Bind Title}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="13"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                        </StackPanel>
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <Ellipse Width="10" Height="10" Fill="{x:Bind Swatch}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{x:Bind Title}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="13"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Content="{x:Bind MarkText}" Tag="{x:Bind MarkKey}" Click="Mark_Click" Padding="8,2" FontSize="12"
+                                                    ToolTipService.ToolTip="Mark (or unmark) this planet as a place you've caught this fish. Saved as a Fishing spot on the Finds page."/>
+                                            <Button Grid.Column="2" Content="{x:Bind WaterButtonText}" Tag="{x:Bind WaterKey}" Click="Water_Click" Padding="8,2" FontSize="12"
+                                                    ToolTipService.ToolTip="Went there and found no water to fish in? Mark it and it leaves every fish's list. Click again to undo."/>
+                                        </Grid>
                                         <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{x:Bind SpotText}" Visibility="{x:Bind SpotVisibility}" Foreground="{ThemeResource ThemeAccentBrush}"
+                                                   FontSize="12" TextWrapping="Wrap"/>
                                         <TextBlock Text="{x:Bind BaseText}" Visibility="{x:Bind BaseVisibility}" Foreground="{ThemeResource ThemeDoneBrush}"
                                                    FontSize="12" TextWrapping="Wrap"/>
+                                        <TextBlock Text="You marked this planet as having no water" Visibility="{x:Bind NoWaterVisibility}"
+                                                   Foreground="{ThemeResource ThemeWarningBrush}" FontSize="12" TextWrapping="Wrap"/>
                                         <Grid ColumnSpacing="8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>

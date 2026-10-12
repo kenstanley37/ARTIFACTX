@@ -115,18 +115,26 @@
                                                                     <ColumnDefinition Width="*"/>
                                                                     <ColumnDefinition Width="Auto"/>
                                                                     <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="Auto"/>
                                                                 </Grid.ColumnDefinitions>
                                                                 <TextBlock Grid.Column="0" Text="{x:Bind SlotLabel}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="Bold" FontSize="15" Foreground="{ThemeResource ThemeTextBrush}"/>
                                                                 <Border Grid.Column="1" Background="{ThemeResource ThemeAccentBrush}" CornerRadius="4" Padding="7,2"
                                                                         Visibility="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                                     <TextBlock Text="ACTIVE" FontSize="10" FontWeight="Bold" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
                                                                 </Border>
+                                                                <!-- The slot the game saved to last in this folder (usually the one being played). -->
+                                                                <Border Grid.Column="2" BorderBrush="{ThemeResource ThemeDoneBrush}" BorderThickness="1" CornerRadius="4" Padding="6,1"
+                                                                        VerticalAlignment="Center"
+                                                                        Visibility="{x:Bind IsLatest, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                                        ToolTipService.ToolTip="The game saved to this slot most recently - usually the one you're playing.">
+                                                                    <TextBlock Text="MOST RECENT" FontSize="10" FontWeight="Bold" Foreground="{ThemeResource ThemeDoneBrush}"/>
+                                                                </Border>
                                                                 <!-- Every commit through ArtifactX backs this slot's files up first
                                                                      (see BackupService) - this opens a picker over those timestamped
                                                                      backups. Tapped is on the whole card (loads the slot); this
                                                                      Button's own Click doesn't bubble up to that, same as the
                                                                      platform card's Rename/Remove buttons. -->
-                                                                <Button Grid.Column="2" Click="RestoreBackupBtn_Click" Tag="{x:Bind}"
+                                                                <Button Grid.Column="3" Click="RestoreBackupBtn_Click" Tag="{x:Bind}"
                                                                         Background="Transparent" BorderThickness="0" Padding="4" MinWidth="0" VerticalAlignment="Center"
                                                                         ToolTipService.ToolTip="Restore this slot from a backup">
                                                                     <FontIcon Glyph="&#xE81C;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>

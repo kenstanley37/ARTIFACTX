@@ -55,6 +55,7 @@ public partial class SaveFolderSelectViewModel : ObservableObject
                 candidate.PropertyChanged += OnCandidatePropertyChanged;
                 Candidates.Add(candidate);
             }
+            MarkLatest(Candidates);
             return;
         }
 
@@ -122,6 +123,7 @@ public partial class SaveFolderSelectViewModel : ObservableObject
             if (Candidates.Count == 0)
                 StatusMessage = "No save folders were detected automatically. Use \"Browse for folder\" to add yours.";
 
+            MarkLatest(Candidates);
             _cachedCandidates = allCandidates;
         }
         finally
@@ -271,6 +273,18 @@ public partial class SaveFolderSelectViewModel : ObservableObject
     {
         var expanded = Candidates.Where(c => c.IsExpanded).Select(c => c.FolderPath).ToList();
         SaveFolderSettingsService.SetExpandedFolders(expanded);
+    }
+
+    /// <summary>Flags each folder's most recently saved slot (live file times,
+    /// so it stays right even when the indexed candidates come from the cache
+    /// while the game keeps saving).</summary>
+    private static void MarkLatest(IEnumerable<SaveFolderCandidate> candidates)
+    {
+        foreach (var candidate in candidates)
+        {
+            var latest = candidate.SlotGroups.OrderByDescending(g => g.LastWriteUtc).FirstOrDefault();
+            foreach (var group in candidate.SlotGroups) group.IsLatest = ReferenceEquals(group, latest);
+        }
     }
 
     private static async Task LoadSlotGroupsAsync(SaveFolderCandidate candidate)

@@ -38,6 +38,8 @@ public sealed partial class FishingPage : Page
     private List<KnownPlanet>? _otherSaves;
     private Dictionary<ulong, string> _bases = new();
     private FishInfo? _whereFish;
+    private string _liveKey = "";
+    private readonly Dictionary<string, string> _rowTitles = new();
     private bool _ready;
 
     public FishingPage()
@@ -82,6 +84,7 @@ public sealed partial class FishingPage : Page
         if (SaveSessionManager.IsSaveLoaded)
         {
             ReadSnapshot(LiveSaveWatcher.FromSession());
+            _liveKey = LiveKey();
             _live.Start();
         }
 
@@ -94,10 +97,20 @@ public sealed partial class FishingPage : Page
     {
         ReadSnapshot(snapshot);
         LiveStatusTxt.Text = $"Following your game · updated {DateTime.Now:t}";
+        // The game saves often; only touch the page when something it shows changed.
+        string key = LiveKey();
+        if (key == _liveKey) return;
+        _liveKey = key;
         UpdateHere();
         Apply();
         UpdateWhere();
     }
+
+    /// <summary>Everything the page shows that a new save can change: where you
+    /// are, your catches, your known planets and bases.</summary>
+    private string LiveKey() =>
+        $"{_hereSystem}|{_herePlanet}|{_hereBiome}|{_thisSave.Count}|{string.Join(",", _bases.Keys.OrderBy(k => k))}|"
+        + string.Join(",", _caught.OrderBy(c => c.Key, StringComparer.OrdinalIgnoreCase).Select(c => $"{c.Key}:{c.Value.Count}:{c.Value.Largest}"));
 
     private void ReadSnapshot(PlanetSnapshot snapshot)
     {
@@ -215,7 +228,21 @@ public sealed partial class FishingPage : Page
             .ToList();
 
         var spots = FishingSpots();
-        FishList.ItemsSource = shown.Select(f => ToCard(f, spots)).ToList();
+        var cards = shown.Select(f => ToCard(f, spots)).ToList();
+        // Same cards in the same order: update them in place, so the grid keeps its
+        // scroll position and doesn't blink.
+        if (FishList.ItemsSource is List<FishCardViewModel> current && current.Select(c => c.Id).SequenceEqual(cards.Select(c => c.Id)))
+            for (int i = 0; i < cards.Count; i++) current[i].UpdateFrom(cards[i]);
+        else
+        {
+            // Order changed (e.g. a fish was just caught): rebuild, but keep the scroll position.
+            var scroller = FindScrollViewer(FishList);
+            double offset = scroller?.VerticalOffset ?? 0;
+            FishList.ItemsSource = cards;
+            if (scroller is not null && offset > 0)
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                    () => scroller.ChangeView(null, offset, null, disableAnimation: true));
+        }
         int caughtCount = planetFish.Count(f => _caught.ContainsKey(f.Id));
         CountTxt.Text = $"Showing {shown.Count} · {caughtCount} of {planetFish.Count} caught";
     }
@@ -259,6 +286,8 @@ public sealed partial class FishingPage : Page
             CardOpacity = caught ? 0.6 : 1.0,
             Spots = spotList is null ? "" : $"Your spots: {string.Join(", ", spotList)}",
             SpotsVisibility = spotList is null ? Visibility.Collapsed : Visibility.Visible,
+            CardBorder = ThemeResources.Brush(f.Id == _whereFish?.Id ? "ThemeAccentBrush" : "ThemeLineBrush"),
+            CardBackground = ThemeResources.Brush(f.Id == _whereFish?.Id ? "ThemeSelectedFillBrush" : "ThemePanelAltBrush"),
         };
     }
 
@@ -269,6 +298,7 @@ public sealed partial class FishingPage : Page
         if (e.ClickedItem is not FishCardViewModel card) return;
         _whereFish = _fish.FirstOrDefault(f => f.Id == card.Id);
         if (_whereFish is null) return;
+        HighlightSelected();
         WhereIcon.Source = card.Icon;
         WhereNameTxt.Text = card.Name;
         WhereHabitatTxt.Text = $"{card.Habitat} · {card.Traits}";
@@ -281,6 +311,20 @@ public sealed partial class FishingPage : Page
     {
         _whereFish = null;
         WherePanel.Visibility = Visibility.Collapsed;
+        HighlightSelected();
+    }
+
+    /// <summary>Marks the clicked fish's card (accent border and fill) without
+    /// rebuilding the grid.</summary>
+    private void HighlightSelected()
+    {
+        if (FishList.ItemsSource is not List<FishCardViewModel> cards) return;
+        foreach (var card in cards)
+        {
+            bool selected = card.Id == _whereFish?.Id;
+            card.CardBorder = ThemeResources.Brush(selected ? "ThemeAccentBrush" : "ThemeLineBrush");
+            card.CardBackground = ThemeResources.Brush(selected ? "ThemeSelectedFillBrush" : "ThemePanelAltBrush");
+        }
     }
 
     private async void OtherSlots_Click(object sender, RoutedEventArgs e)
@@ -300,33 +344,131 @@ public sealed partial class FishingPage : Page
         UpdateWhere();
     }
 
-    /// <summary>Every known planet whose type the fish lives on, nearest first.
-    /// Fish that live on any planet need water, which the save doesn't record,
-    /// so those lists say so.</summary>
+    private static string SpotKey(string portalCode, int galaxy) => $"{portalCode}|{galaxy}";
+
+    /// <summary>Fishing-spot finds (Finds page) by planet. One find per planet;
+    /// its ItemIds are the fish you've marked as caught there.</summary>
+    private static Dictionary<string, Find> SpotsByPlanet() => FindsService.All
+        .Where(f => f.Type == "Fishing spot" && f.PortalCode.Length == 12)
+        .GroupBy(f => SpotKey(f.PortalCode, f.Galaxy))
+        .ToDictionary(g => g.Key, g => g.First());
+
+    /// <summary>Every known planet whose type the fish lives on. Order: planets
+    /// you've marked for this fish, then your other fishing spots (known to
+    /// have water), then planets with your bases, then nearest. Fish that live
+    /// on any planet need water, which the save doesn't record, so those lists
+    /// say so.</summary>
     private void UpdateWhere()
     {
         if (_whereFish is not FishInfo fish) return;
         bool anyPlanet = fish.Biomes.Contains(FishInfo.AnyPlanet);
-        var planets = OtherSlotsBox.IsChecked == true && _otherSaves is not null
+        var spots = SpotsByPlanet();
+        var planets = (OtherSlotsBox.IsChecked == true && _otherSaves is not null
             ? _thisSave.Concat(_otherSaves).GroupBy(p => p.Address).Select(g => g.First())
-            : _thisSave;
+            : _thisSave).ToList();
 
-        var rows = planets.Where(p => fish.LivesOn(p.BiomeIndex))
-            .Select(p => (Planet: p, Distance: _hereSystem is ulong h ? NmsPlanets.DistanceLightYears(h, p.SystemAddress) : null))
-            .OrderBy(x => _bases.ContainsKey(x.Planet.Address) ? 0 : 1)
+        // Spots marked for this fish always show, even on a planet these saves don't know.
+        var known = planets.Select(p => SpotKey(p.PortalCode, p.Galaxy)).ToHashSet();
+        foreach (var (key, spot) in spots)
+        {
+            if (known.Contains(key) || !spot.ItemIds.Contains(fish.Id, StringComparer.OrdinalIgnoreCase)) continue;
+            ulong address = NmsPortalCode.ToAddress(spot.PortalCode, spot.Galaxy);
+            int planetIndex = int.Parse(spot.PortalCode[..1], NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+            planets.Add(new KnownPlanet(address, spot.Galaxy, planetIndex, 11, false, "", false, 0) { Source = "Recorded spot" });
+        }
+
+        int Rank(KnownPlanet p)
+        {
+            if (spots.TryGetValue(SpotKey(p.PortalCode, p.Galaxy), out var spot))
+                return spot.ItemIds.Contains(fish.Id, StringComparer.OrdinalIgnoreCase) ? 0 : 1;
+            if (PlanetWaterService.Get(p.SystemAddress, p.PlanetIndex) == true) return 1;
+            return _bases.ContainsKey(p.Address) ? 2 : 3;
+        }
+
+        // Planets the player found dry leave every list unless they ask to see them.
+        bool showDry = ShowDryBox.IsChecked == true;
+        int dry = 0;
+        bool Wet(KnownPlanet p)
+        {
+            if (PlanetWaterService.Get(p.SystemAddress, p.PlanetIndex) != false) return true;
+            dry++;
+            return showDry;
+        }
+
+        var rows = planets.Where(p => fish.LivesOn(p.BiomeIndex) || Rank(p) == 0)
+            .Where(Wet)
+            .Select(p => (Planet: p, Rank: Rank(p), Distance: _hereSystem is ulong h ? NmsPlanets.DistanceLightYears(h, p.SystemAddress) : null))
+            .OrderBy(x => x.Rank)
             .ThenBy(x => x.Distance ?? double.MaxValue)
             .ToList();
 
-        var shown = rows.Take(100).Select(x => ToWhereRow(x.Planet, x.Distance)).ToList();
+        _rowTitles.Clear();
+        var shown = rows.Take(100).Select(x => ToWhereRow(x.Planet, x.Distance, spots, fish)).ToList();
         WhereList.ItemsSource = shown;
+        int marked = rows.Count(x => x.Rank == 0);
         string where = anyPlanet ? "planets" : string.Join(" or ", fish.Biomes.Select(NmsPlanets.TypeName)) + " planets";
-        WhereCountTxt.Text = rows.Count == 0
+        WhereCountTxt.Text = (rows.Count == 0
             ? $"You haven't discovered any {where} on {(OtherSlotsBox.IsChecked == true ? "your saves" : "this save")} yet."
-            : $"{rows.Count:N0} known {where}{(rows.Count > shown.Count ? $", nearest {shown.Count} shown" : "")} - your bases first, then nearest."
-              + (anyPlanet ? " Not every planet has water: look for lakes or seas from orbit." : "");
+            : $"{rows.Count:N0} known {where}{(rows.Count > shown.Count ? $", nearest {shown.Count} shown" : "")}"
+              + (marked > 0 ? $" - {marked} where you've caught it, listed first." : " - mark a planet with Found it here once you catch it there."))
+            + (anyPlanet ? " Not every planet has water: look for lakes or seas from orbit." : "")
+            + (dry > 0 && !showDry ? $" {dry} you marked as having no water {(dry == 1 ? "is" : "are")} hidden." : "");
     }
 
-    private FishPlanetRowViewModel ToWhereRow(KnownPlanet p, double? distance)
+    private void ShowDry_Click(object sender, RoutedEventArgs e) => UpdateWhere();
+
+    /// <summary>Toggles a planet's "no water" mark (PlanetWaterService, user.db).</summary>
+    private void Water_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not string key) return;
+        string[] parts = key.Split('|');
+        if (parts.Length != 2 || !ulong.TryParse(parts[0], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out ulong system)
+            || !int.TryParse(parts[1], out int planet)) return;
+        PlanetWaterService.Set(system, planet, PlanetWaterService.Get(system, planet) == false ? null : false);
+        UpdateWhere();
+    }
+
+    private void Mark_Click(object sender, RoutedEventArgs e)
+    {
+        if (_whereFish is not FishInfo fish || (sender as FrameworkElement)?.Tag is not string key) return;
+        string[] parts = key.Split('|');
+        if (parts.Length != 2 || !int.TryParse(parts[1], out int galaxy)) return;
+        string code = parts[0];
+
+        var spot = SpotsByPlanet().GetValueOrDefault(key);
+        if (spot is null)
+        {
+            FindsService.Save(new Find
+            {
+                Type = "Fishing spot",
+                Title = _rowTitles.GetValueOrDefault(key) ?? "Fishing spot",
+                PortalCode = code,
+                Galaxy = galaxy,
+                ItemIds = new() { fish.Id },
+            });
+        }
+        else if (spot.ItemIds.Contains(fish.Id, StringComparer.OrdinalIgnoreCase))
+        {
+            var remaining = spot.ItemIds.Where(i => !string.Equals(i, fish.Id, StringComparison.OrdinalIgnoreCase)).ToList();
+            // A spot that only existed for this mark goes away with it; one with notes or other fish stays.
+            if (remaining.Count == 0 && spot.Notes.Length == 0 && spot.Location.Length == 0) FindsService.Delete(spot.Id);
+            else FindsService.Save(spot with { ItemIds = remaining });
+        }
+        else FindsService.Save(spot with { ItemIds = spot.ItemIds.Append(fish.Id).ToList() });
+
+        // A catch proves the planet has water, whatever was marked before.
+        if (SpotsByPlanet().TryGetValue(key, out var marked) && marked.ItemIds.Contains(fish.Id, StringComparer.OrdinalIgnoreCase))
+        {
+            ulong address = NmsPortalCode.ToAddress(code, galaxy);
+            int planet = int.Parse(code[..1], NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+            PlanetWaterService.Set(S.ToSystemAddress(address), planet, true);
+        }
+
+        UpdateWhere();
+        Apply();
+    }
+
+    private FishPlanetRowViewModel ToWhereRow(KnownPlanet p, double? distance, Dictionary<string, Find> spots, FishInfo fish)
     {
         var note = SystemNotesService.Get(p.SystemAddress);
         string planetName = note is not null
@@ -346,6 +488,16 @@ public sealed partial class FishingPage : Page
             };
         _bases.TryGetValue(p.Address, out var baseName);
 
+        bool dry = PlanetWaterService.Get(p.SystemAddress, p.PlanetIndex) == false;
+        string key = SpotKey(p.PortalCode, p.Galaxy);
+        _rowTitles[key] = planetName.StartsWith("Planet ", StringComparison.Ordinal) && baseName is not null ? baseName : planetName;
+        spots.TryGetValue(key, out var spot);
+        bool markedHere = spot?.ItemIds.Contains(fish.Id, StringComparer.OrdinalIgnoreCase) == true;
+        var otherFish = spot?.ItemIds.Where(i => !string.Equals(i, fish.Id, StringComparison.OrdinalIgnoreCase)).Select(NameOf).ToList() ?? new();
+        string spotText = markedHere ? "You've caught it here"
+            : otherFish.Count > 0 ? $"Your fishing spot (water) - caught here: {string.Join(", ", otherFish)}"
+            : "";
+
         return new FishPlanetRowViewModel
         {
             Title = planetName,
@@ -356,6 +508,14 @@ public sealed partial class FishingPage : Page
             Glyphs = GlyphsFor(p.PortalCode),
             BaseText = baseName is null ? "" : $"Your base: {baseName}",
             BaseVisibility = baseName is null ? Visibility.Collapsed : Visibility.Visible,
+            SpotText = spotText,
+            SpotVisibility = spotText.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
+            MarkKey = key,
+            MarkText = markedHere ? "\u2713 Caught here" : "Found it here",
+            CardBorder = ThemeResources.Brush(markedHere ? "ThemeAccentBrush" : "ThemeLineBrush"),
+            WaterKey = $"{p.SystemAddress.ToString("X", CultureInfo.InvariantCulture)}|{p.PlanetIndex}",
+            WaterButtonText = dry ? "Has water" : "No water",
+            NoWaterVisibility = dry ? Visibility.Visible : Visibility.Collapsed,
         };
     }
 
@@ -368,6 +528,17 @@ public sealed partial class FishingPage : Page
     }
 
     // ---------------------------------------------------------------- helpers
+
+    private static ScrollViewer? FindScrollViewer(DependencyObject root)
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is ScrollViewer viewer) return viewer;
+            if (FindScrollViewer(child) is ScrollViewer found) return found;
+        }
+        return null;
+    }
 
     private static Windows.UI.Color ParseColour(string hex) => Windows.UI.Color.FromArgb(255,
         byte.Parse(hex.AsSpan(1, 2), NumberStyles.HexNumber), byte.Parse(hex.AsSpan(3, 2), NumberStyles.HexNumber),

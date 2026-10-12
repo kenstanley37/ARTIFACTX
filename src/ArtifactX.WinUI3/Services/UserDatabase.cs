@@ -120,6 +120,20 @@ public static class UserDatabase
         );
         CREATE INDEX ix_finds_type ON finds(type);
         """,
+
+        // 4 - planets the player checked for water on the Fishing page (2026-10-11).
+        """
+        CREATE TABLE planet_water (
+            system_address TEXT NOT NULL,
+            planet_index   INTEGER NOT NULL,
+            has_water      INTEGER NOT NULL,
+            updated_at     TEXT NOT NULL,
+            source         TEXT NOT NULL DEFAULT 'user',
+            synced_at      TEXT NULL,
+            deleted        INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (system_address, planet_index)
+        );
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;

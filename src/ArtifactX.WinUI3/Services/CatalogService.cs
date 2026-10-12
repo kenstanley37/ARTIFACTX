@@ -99,6 +99,25 @@ public static class CatalogService
 
         Debug.WriteLine($"[CatalogService] Query returned {rows.Count} matches out of {toFetch.Count} requested ids.");
 
+        // Packaged technology (e.g. ^UP_SHIP_TELE, ^UP_VEHICLE_BOOS, ^UP_SUIT_REFINER,
+        // seen in a 2026-10-11 expedition save's cargo): the id is "UP_" + the
+        // technology's own id, cut to the game's 15-character id limit. No table or
+        // loc file contains these ids (grep/locidall over every PAK: 0 matches), so
+        // show the technology itself - SHIP_TELEPORT, VEHICLE_BOOST, SUIT_REFINER.
+        foreach (var id in toFetch.Where(i => !rows.ContainsKey(i) && i.StartsWith("UP_", StringComparison.Ordinal)))
+        {
+            try
+            {
+                string? techId = await Task.Run(() => FindPackagedTechId(dbPath, id[3..]));
+                if (techId is not null && (await Task.Run(() => QueryRows(dbPath, new List<string> { techId }))).TryGetValue(techId, out var techRow))
+                    rows[id] = techRow;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[CatalogService] Packaged-tech lookup failed for '{id}': {ex.Message}");
+            }
+        }
+
         foreach (var id in toFetch)
         {
             if (!rows.TryGetValue(id, out var row))
@@ -127,6 +146,22 @@ public static class CatalogService
 
             Cache[id] = new CatalogEntry { DisplayName = row.DisplayName, Icon = icon };
         }
+    }
+
+    /// <summary>The technology id a packaged-tech "UP_" id was cut from: an exact
+    /// match, else the shortest technology id starting with it.</summary>
+    private static string? FindPackagedTechId(string dbPath, string truncated)
+    {
+        using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT i.GameId FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+            WHERE c.TemplateType = 'GcTechnologyTable' AND (i.GameId = $id OR i.GameId LIKE $prefix ESCAPE '\')
+            ORDER BY length(i.GameId) LIMIT 1";
+        command.Parameters.AddWithValue("$id", truncated);
+        command.Parameters.AddWithValue("$prefix", truncated.Replace("\\", "\\\\").Replace("_", "\\_").Replace("%", "\\%") + "%");
+        return command.ExecuteScalar() as string;
     }
 
     /// <summary>Searches the catalog for items whose display name contains the
