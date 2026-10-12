@@ -76,6 +76,7 @@ public static class NewFromTemplateService
         if (Positions(ship["PMT"]?["hl?"]) is { Count: > 0 } unlocked) template.UnlockedPositions = unlocked;
         template.CargoUnlockedPositions = Positions(ship[";l5"]?["hl?"]);
         template.Customisation = SaveSessionManager.GetValue(ShipCustomisationPath(shipIndex))?.ToString(Newtonsoft.Json.Formatting.None);
+        ShipBaseService.Capture(template, shipIndex);
     }
 
     // ---------------------------------------------------------------- add
@@ -132,6 +133,9 @@ public static class NewFromTemplateService
         if (ship["FA8"] is JArray) ship["FA8"] = new JArray();
 
         SaveSessionManager.StageEdit(ship, NmsInventoryContainer.ShipArrayPath.Append(slot.ToString()).ToArray());
+
+        // A corvette's build (cockpit, habitat, wings...) lives in its own base entry.
+        ShipBaseService.Write(t, slot);
 
         // Paint and parts: the template's, else the default an empty slot has.
         var paintPath = ShipCustomisationPath(slot);
