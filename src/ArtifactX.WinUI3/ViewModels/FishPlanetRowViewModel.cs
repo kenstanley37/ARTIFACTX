@@ -23,4 +23,7 @@ public sealed class FishPlanetRowViewModel
     public required string WaterKey { get; init; }
     public required string WaterButtonText { get; init; }
     public required Visibility NoWaterVisibility { get; init; }
+    public required Visibility WaterButtonVisibility { get; init; }
+    public required string WaterText { get; init; }
+    public required Visibility WaterVisibility { get; init; }
 }

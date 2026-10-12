@@ -213,12 +213,15 @@
                                             <Button Grid.Column="1" Content="{x:Bind MarkText}" Tag="{x:Bind MarkKey}" Click="Mark_Click" Padding="8,2" FontSize="12"
                                                     ToolTipService.ToolTip="Mark (or unmark) this planet as a place you've caught this fish. Saved as a Fishing spot on the Finds page."/>
                                             <Button Grid.Column="2" Content="{x:Bind WaterButtonText}" Tag="{x:Bind WaterKey}" Click="Water_Click" Padding="8,2" FontSize="12"
+                                                    Visibility="{x:Bind WaterButtonVisibility}"
                                                     ToolTipService.ToolTip="Went there and found no water to fish in? Mark it and it leaves every fish's list. Click again to undo."/>
                                         </Grid>
                                         <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                                         <TextBlock Text="{x:Bind SpotText}" Visibility="{x:Bind SpotVisibility}" Foreground="{ThemeResource ThemeAccentBrush}"
                                                    FontSize="12" TextWrapping="Wrap"/>
                                         <TextBlock Text="{x:Bind BaseText}" Visibility="{x:Bind BaseVisibility}" Foreground="{ThemeResource ThemeDoneBrush}"
+                                                   FontSize="12" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{x:Bind WaterText}" Visibility="{x:Bind WaterVisibility}" Foreground="{ThemeResource ThemeDoneBrush}"
                                                    FontSize="12" TextWrapping="Wrap"/>
                                         <TextBlock Text="You marked this planet as having no water" Visibility="{x:Bind NoWaterVisibility}"
                                                    Foreground="{ThemeResource ThemeWarningBrush}" FontSize="12" TextWrapping="Wrap"/>

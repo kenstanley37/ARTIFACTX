@@ -427,10 +427,10 @@ public sealed partial class FishingPage : Page
         .ToDictionary(g => g.Key, g => g.First());
 
     /// <summary>Every known planet whose type the fish lives on. Order: planets
-    /// you've marked for this fish, then your other fishing spots (known to
-    /// have water), then planets with your bases, then nearest. Fish that live
-    /// on any planet need water, which the save doesn't record, so those lists
-    /// say so.</summary>
+    /// you've marked for this fish, then planets known to have water (your other
+    /// fishing spots, and Swamp / Water World planets, which always do), then
+    /// planets with your bases, then nearest. The save doesn't record water for
+    /// any other planet, so those lists say so.</summary>
     private void UpdateWhere()
     {
         if (_whereFish is not FishInfo fish) return;
@@ -454,7 +454,7 @@ public sealed partial class FishingPage : Page
         {
             if (spots.TryGetValue(SpotKey(p.PortalCode, p.Galaxy), out var spot))
                 return spot.ItemIds.Contains(fish.Id, StringComparer.OrdinalIgnoreCase) ? 0 : 1;
-            if (PlanetWaterService.Get(p.SystemAddress, p.PlanetIndex) == true) return 1;
+            if (PlanetWaterService.Get(p.SystemAddress, p.PlanetIndex) == true || NmsPlanets.AlwaysHasWater(p.BiomeIndex)) return 1;
             return _bases.ContainsKey(p.Address) ? 2 : 3;
         }
 
@@ -463,7 +463,7 @@ public sealed partial class FishingPage : Page
         int dry = 0;
         bool Wet(KnownPlanet p)
         {
-            if (PlanetWaterService.Get(p.SystemAddress, p.PlanetIndex) != false) return true;
+            if (PlanetWaterService.Get(p.SystemAddress, p.PlanetIndex) != false || NmsPlanets.AlwaysHasWater(p.BiomeIndex)) return true;
             dry++;
             return showDry;
         }
@@ -472,6 +472,7 @@ public sealed partial class FishingPage : Page
             .Where(Wet)
             .Select(p => (Planet: p, Rank: Rank(p), Distance: _hereSystem is ulong h ? NmsPlanets.DistanceLightYears(h, p.SystemAddress) : null))
             .OrderBy(x => x.Rank)
+            .ThenBy(x => _bases.ContainsKey(x.Planet.Address) ? 0 : 1)
             .ThenBy(x => x.Distance ?? double.MaxValue)
             .ToList();
 
@@ -479,12 +480,15 @@ public sealed partial class FishingPage : Page
         var shown = rows.Take(100).Select(x => ToWhereRow(x.Planet, x.Distance, spots, fish)).ToList();
         WhereList.ItemsSource = shown;
         int marked = rows.Count(x => x.Rank == 0);
+        int wet = rows.Count(x => x.Rank == 1);
+        bool anyUnknown = rows.Any(x => x.Rank > 1);
         string where = anyPlanet ? "planets" : string.Join(" or ", fish.Biomes.Select(NmsPlanets.TypeName)) + " planets";
         WhereCountTxt.Text = (rows.Count == 0
             ? $"You haven't discovered any {where} on {(OtherSlotsBox.IsChecked == true ? "your saves" : "this save")} yet."
             : $"{rows.Count:N0} known {where}{(rows.Count > shown.Count ? $", nearest {shown.Count} shown" : "")}"
               + (marked > 0 ? $" - {marked} where you've caught it, listed first." : " - mark a planet with Found it here once you catch it there."))
-            + (anyPlanet ? " Not every planet has water: look for lakes or seas from orbit." : "")
+            + (wet > 0 ? $" {wet:N0} {(wet == 1 ? "is" : "are")} known to have water and listed {(marked > 0 ? "next" : "first")}." : "")
+            + (anyUnknown ? " Your save doesn't record water for other planets, so look for lakes or seas from orbit." : "")
             + (dry > 0 && !showDry ? $" {dry} you marked as having no water {(dry == 1 ? "is" : "are")} hidden." : "");
     }
 
@@ -561,6 +565,7 @@ public sealed partial class FishingPage : Page
         _bases.TryGetValue(p.Address, out var baseName);
 
         bool dry = PlanetWaterService.Get(p.SystemAddress, p.PlanetIndex) == false;
+        bool alwaysWet = NmsPlanets.AlwaysHasWater(p.BiomeIndex);
         string key = SpotKey(p.PortalCode, p.Galaxy);
         _rowTitles[key] = planetName.StartsWith("Planet ", StringComparison.Ordinal) && baseName is not null ? baseName : planetName;
         spots.TryGetValue(key, out var spot);
@@ -568,6 +573,11 @@ public sealed partial class FishingPage : Page
         var otherFish = spot?.ItemIds.Where(i => !string.Equals(i, fish.Id, StringComparison.OrdinalIgnoreCase)).Select(NameOf).ToList() ?? new();
         string spotText = markedHere ? "You've caught it here"
             : otherFish.Count > 0 ? $"Your fishing spot (water) - caught here: {string.Join(", ", otherFish)}"
+            : "";
+        // Spots already say so; otherwise say why water is known.
+        string waterText = spotText.Length > 0 ? ""
+            : alwaysWet ? $"\U0001F4A7 Has water: {p.TypeName} planets always do"
+            : PlanetWaterService.Get(p.SystemAddress, p.PlanetIndex) == true ? "\U0001F4A7 Has water: you've fished here"
             : "";
 
         return new FishPlanetRowViewModel
@@ -587,7 +597,10 @@ public sealed partial class FishingPage : Page
             CardBorder = ThemeResources.Brush(markedHere ? "ThemeAccentBrush" : "ThemeLineBrush"),
             WaterKey = $"{p.SystemAddress.ToString("X", CultureInfo.InvariantCulture)}|{p.PlanetIndex}",
             WaterButtonText = dry ? "Has water" : "No water",
-            NoWaterVisibility = dry ? Visibility.Visible : Visibility.Collapsed,
+            NoWaterVisibility = dry && !alwaysWet ? Visibility.Visible : Visibility.Collapsed,
+            WaterButtonVisibility = alwaysWet ? Visibility.Collapsed : Visibility.Visible,
+            WaterText = waterText,
+            WaterVisibility = waterText.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
         };
     }
 
