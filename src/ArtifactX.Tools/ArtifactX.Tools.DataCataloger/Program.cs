@@ -1714,6 +1714,155 @@ if (args.Length > 1 && args[0].Equals("add-item-values", StringComparison.Ordina
     return;
 }
 
+// "DataCataloger add-crafting <target-catalog-db-path>" adds what every craftable
+// thing is made from, for the Crafting calculator: GcProductData.Requirements
+// (what a product costs to craft) and GcTechnology.Requirements (what a
+// technology costs to build/install), each a list of {ID, Amount, Type}.
+// Category "Crafting"; GameId = "CRAFT:" + id (prefixed so it never collides
+// with the item's own catalog row), NameEnglish = readable name, UsageCategory
+// = "Product"/"Technology", DescriptionEnglish = JSON {"id","kind","craftable",
+// "req":[[id,amount],...]}. Only rows with at least one requirement are kept;
+// ids in "req" are products/substances (raw when they have no row here).
+// Added 2026-10-11; idempotent, same patch-in-place pattern as add-item-values.
+if (args.Length > 1 && args[0].Equals("add-crafting", StringComparison.OrdinalIgnoreCase))
+{
+    string craftDbPath = args[1];
+    if (!File.Exists(craftDbPath))
+    {
+        ConsoleStyle.Error($"Target catalog DB not found: {craftDbPath}");
+        return;
+    }
+
+    var craftSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(craftSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakReaderService craftPakReader = new PakReaderService();
+    var craftExtraction = new ExtractionService();
+    libMBIN.NMS.GameComponents.GcProductTable? craftProducts = null;
+    libMBIN.NMS.GameComponents.GcTechnologyTable? craftTech = null;
+    var craftLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    foreach (var pak in new PakDiscoveryService().Discover(craftSettings.NmsInstallationPath!))
+    {
+        PakHeader header;
+        IReadOnlyList<PakEntry> entries;
+        try
+        {
+            header = craftPakReader.ReadHeader(pak.FullPath);
+            entries = craftPakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+
+        var wanted = entries.Where(e =>
+            !string.IsNullOrEmpty(e.FileName) &&
+            ((e.FileName.Contains("language/nms_", StringComparison.OrdinalIgnoreCase) &&
+              e.FileName.Contains("english", StringComparison.OrdinalIgnoreCase) &&
+              !e.FileName.Contains("usenglish", StringComparison.OrdinalIgnoreCase)) ||
+             e.FileName.EndsWith("nms_reality_gcproducttable.mbin", StringComparison.OrdinalIgnoreCase) ||
+             e.FileName.EndsWith("nms_reality_gctechnologytable.mbin", StringComparison.OrdinalIgnoreCase)));
+
+        foreach (var entry in wanted)
+        {
+            byte[]? bytes;
+            try { bytes = craftExtraction.ExtractEntryBytes(pak.FullPath, entry, header); }
+            catch { continue; }
+            if (bytes is null || bytes.Length == 0) continue;
+
+            NMSTemplate? template;
+            try
+            {
+                using var ms = new MemoryStream(bytes);
+                var mbin = new MBINFile(ms);
+                mbin.Load();
+                template = mbin.GetData();
+            }
+            catch { continue; }
+
+            switch (template)
+            {
+                case libMBIN.NMS.GameComponents.GcProductTable p: craftProducts ??= p; break;
+                case libMBIN.NMS.GameComponents.GcTechnologyTable t: craftTech ??= t; break;
+                case not null:
+                    foreach (var kv in LocalisationService.BuildEnglishLookup(template))
+                        craftLookup.TryAdd(kv.Key, kv.Value);
+                    break;
+            }
+        }
+    }
+
+    if (craftProducts?.Table is null || craftTech?.Table is null)
+    {
+        ConsoleStyle.Error("Could not find/decode the product and technology tables.");
+        return;
+    }
+
+    string CraftName(string? lowerKey, string? key)
+    {
+        if (lowerKey is { Length: > 0 } && craftLookup.TryGetValue(lowerKey, out var lower)) return lower;
+        return key is { Length: > 0 } && craftLookup.TryGetValue(key, out var upper) ? upper : "";
+    }
+
+    var craftItems = new List<CatalogItem>();
+    void AddCraft(string id, string name, string kind, bool craftable, List<libMBIN.NMS.GameComponents.GcTechnologyRequirement>? requirements)
+    {
+        var req = (requirements ?? new()).Where(r => !string.IsNullOrEmpty(r.ID?.Value) && r.Amount > 0).ToList();
+        if (id.Length == 0 || req.Count == 0) return;
+        var payload = new System.Text.Json.Nodes.JsonObject
+        {
+            ["id"] = id,
+            ["kind"] = kind,
+            ["craftable"] = craftable,
+            ["req"] = new System.Text.Json.Nodes.JsonArray(req
+                .Select(r => (System.Text.Json.Nodes.JsonNode)new System.Text.Json.Nodes.JsonArray(r.ID.Value, r.Amount)).ToArray()),
+        };
+        craftItems.Add(new CatalogItem
+        {
+            GameId = "CRAFT:" + id,
+            NameEnglish = name.Length > 0 ? name : id,
+            UsageCategory = kind,
+            DescriptionEnglish = payload.ToJsonString(),
+        });
+    }
+
+    foreach (var p in craftProducts.Table)
+        AddCraft(p.ID?.Value ?? "", CraftName(p.NameLower?.Value, p.Name?.Value), "Product", p.IsCraftable, p.Requirements);
+    foreach (var t in craftTech.Table)
+        AddCraft(t.ID?.Value ?? "", CraftName(t.NameLower?.Value, t.Name?.Value), "Technology", true, t.Requirements);
+
+    ConsoleStyle.Header($"Found {craftItems.Count} craftable things ({craftItems.Count(i => i.UsageCategory == "Product")} products, {craftItems.Count(i => i.UsageCategory == "Technology")} technology).");
+    foreach (var sample in craftItems.Where(i => i.GameId is "CRAFT:STASIS_DEVICE" or "CRAFT:HYPERDRIVE"))
+        ConsoleStyle.Success($"  {sample.GameId} '{sample.NameEnglish}' {sample.DescriptionEnglish}");
+
+    using var craftDb = new CatalogDbContext(craftDbPath);
+    var existingCraftCategory = craftDb.Categories.FirstOrDefault(c => c.TemplateType == "Crafting");
+    if (existingCraftCategory != null)
+    {
+        craftDb.Items.RemoveRange(craftDb.Items.Where(i => i.CategoryId == existingCraftCategory.Id));
+        craftDb.Categories.Remove(existingCraftCategory);
+        craftDb.SaveChanges();
+    }
+
+    var craftCategory = new CatalogCategory
+    {
+        TemplateType = "Crafting",
+        RowType = "GcTechnologyRequirement",
+        SourceMbinPath = "metadata/reality/tables/nms_reality_gcproducttable.mbin + gctechnologytable.mbin"
+    };
+    craftDb.Categories.Add(craftCategory);
+    craftDb.SaveChanges();
+
+    foreach (var item in craftItems) item.CategoryId = craftCategory.Id;
+    craftDb.Items.AddRange(craftItems);
+    craftDb.SaveChanges();
+
+    ConsoleStyle.Success($"Wrote {craftItems.Count} crafting requirement rows to {craftDbPath}.");
+    return;
+}
+
 // "DataCataloger dumpfile <path substring>" decodes exactly one MBIN (the first
 // entry whose path contains the given substring) and prints its full raw field
 // structure, regardless of whether CatalogClassifier would recognize it as a

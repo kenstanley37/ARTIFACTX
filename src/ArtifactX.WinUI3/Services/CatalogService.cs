@@ -701,6 +701,48 @@ public static class CatalogService
 
     /// <summary>Every refiner and cooking recipe (catalog category "Recipes",
     /// DataCataloger add-recipes). Empty if the catalog predates that command.</summary>
+    /// <summary>What every craftable product and buildable technology is made
+    /// from (catalog category "Crafting", DataCataloger add-crafting), by id.
+    /// Ingredient ids with no entry here are raw materials.</summary>
+    public static async Task<Dictionary<string, CraftInfo>> GetCraftingAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new Dictionary<string, CraftInfo>(StringComparer.OrdinalIgnoreCase);
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.NameEnglish, i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'Crafting'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    if (reader.IsDBNull(1)) continue;
+                    using var json = System.Text.Json.JsonDocument.Parse(reader.GetString(1));
+                    var root = json.RootElement;
+                    string id = root.GetProperty("id").GetString() ?? "";
+                    var req = root.GetProperty("req").EnumerateArray()
+                        .Select(r => (Id: r[0].GetString() ?? "", Amount: r[1].GetInt32()))
+                        .Where(r => r.Id.Length > 0)
+                        .ToList();
+                    if (id.Length > 0) results[id] = new CraftInfo(id, reader.GetString(0), root.GetProperty("kind").GetString() ?? "", req);
+                }
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetCraftingAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
     public static async Task<List<RecipeInfo>> GetRecipesAsync()
     {
         string? dbPath = ResolveDbPath();
@@ -1247,6 +1289,10 @@ public static class CatalogService
 }
 
 /// <summary>One refiner/cooking recipe: Kind is "Refiner" or "Cooking"; ids are item GameIds.</summary>
+/// <summary>A craftable product or buildable technology: Kind is "Product" or
+/// "Technology"; Requirements are ingredient ids and amounts for one.</summary>
+public sealed record CraftInfo(string Id, string Name, string Kind, List<(string Id, int Amount)> Requirements);
+
 public sealed record RecipeInfo(string Id, string Name, string Kind, (string Id, int Amount) Result, List<(string Id, int Amount)> Ingredients);
 
 /// <summary>An item's base Units value. TradeCategory is the game's own

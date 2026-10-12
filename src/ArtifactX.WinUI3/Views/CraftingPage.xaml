@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). Read-only Tools page: pick
+     something to craft or build and see everything it takes, down to raw
+     materials (the game's own requirements, DataCataloger add-crafting). -->
+<Page
+    x:Class="ArtifactX.WinUI3.Views.CraftingPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="28,26,28,24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="CRAFTING" Style="{StaticResource ThemePageTitleStyle}"/>
+
+        <Border Grid.Row="1" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                Background="{ThemeResource ThemePanelAltBrush}"
+                CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
+            <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                <TextBlock Grid.Column="1" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
+                           Text="Pick something to craft or a technology to build and see everything it takes, all the way down to raw materials, with totals for what to gather. Amounts come from the game's own crafting and build costs. Click a crafted part to open it on its own."/>
+            </Grid>
+        </Border>
+
+        <ctcontrols:WrapPanel Grid.Row="2" HorizontalSpacing="14" VerticalSpacing="10">
+            <AutoSuggestBox x:Name="ItemSearch" Header="What do you want to make?" Width="360" QueryIcon="Find"
+                            PlaceholderText="e.g. Stasis Device, Hyperdrive"
+                            TextChanged="ItemSearch_TextChanged" SuggestionChosen="ItemSearch_SuggestionChosen" QuerySubmitted="ItemSearch_QuerySubmitted"/>
+            <NumberBox x:Name="QuantityBox" Header="How many" Width="140" Minimum="1" Maximum="9999" Value="1"
+                       SpinButtonPlacementMode="Inline" ValueChanged="Quantity_ValueChanged"/>
+            <Button x:Name="BackBtn" Click="Back_Click" VerticalAlignment="Bottom" Visibility="Collapsed">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE72B;" FontSize="12"/>
+                    <TextBlock x:Name="BackTxt"/>
+                </StackPanel>
+            </Button>
+        </ctcontrols:WrapPanel>
+
+        <TextBlock Grid.Row="3" x:Name="EmptyTxt" Style="{StaticResource ThemeDimTextStyle}" Margin="0,8,0,0" TextWrapping="Wrap"
+                   Text="Search for an item above - anything you can craft from your inventory or build as technology."/>
+
+        <Grid Grid.Row="3" x:Name="ResultGrid" ColumnSpacing="16" Visibility="Collapsed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="400"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- What it takes: the full tree. -->
+            <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Background="{ThemeResource ThemePanelAltBrush}"
+                    CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,12">
+                <Grid RowSpacing="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Width="56" Height="56" Background="{ThemeResource ThemeVoidBrush}">
+                            <Image x:Name="TargetIcon" Width="50" Height="50"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="WHAT IT TAKES" Style="{StaticResource ThemeEyebrowStyle}" FontSize="10"/>
+                            <TextBlock x:Name="TargetNameTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="17" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="TargetKindTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+                    <ListView Grid.Row="1" x:Name="TreeList" SelectionMode="None" IsItemClickEnabled="True" ItemClick="TreeList_ItemClick">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="MinHeight" Value="0"/>
+                                <Setter Property="Margin" Value="0,0,0,4"/>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodels:CraftTreeRowViewModel">
+                                <Border Margin="{x:Bind Indent}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                                        Background="{ThemeResource ThemePanelBrush}" CornerRadius="4" Padding="8,5"
+                                        ToolTipService.ToolTip="{x:Bind ToolTip}">
+                                    <Grid ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="30" Height="30" Background="{ThemeResource ThemeVoidBrush}">
+                                            <Image Source="{x:Bind Icon}" Width="26" Height="26"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <Border Grid.Column="2" BorderBrush="{x:Bind TagBrush}" BorderThickness="1" CornerRadius="4" Padding="6,0" VerticalAlignment="Center">
+                                            <TextBlock Text="{x:Bind Tag}" FontSize="10" FontWeight="Bold" Foreground="{x:Bind TagBrush}"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="3" Text="{x:Bind Amount}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold"
+                                                   FontSize="15" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center" MinWidth="70" TextAlignment="Right"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </Border>
+
+            <!-- Raw materials: the shopping list. -->
+            <Border Grid.Column="1" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Background="{ThemeResource ThemePanelAltBrush}"
+                    CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,12">
+                <Grid RowSpacing="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="RAW MATERIALS TO GATHER" Style="{StaticResource ThemeEyebrowStyle}" FontSize="10" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" x:Name="ExportBtn" Content="Export CSV" Click="ExportCsv_Click" Padding="8,2" FontSize="12"
+                                ToolTipService.ToolTip="Save this shopping list as a spreadsheet file"/>
+                    </Grid>
+                    <TextBlock Grid.Row="1" x:Name="RawSummaryTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                    <ListView Grid.Row="2" x:Name="RawList" SelectionMode="None">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="MinHeight" Value="0"/>
+                                <Setter Property="Margin" Value="0,0,0,6"/>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodels:CraftRawRowViewModel">
+                                <Grid ColumnSpacing="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="36" Height="36" Background="{ThemeResource ThemeVoidBrush}" VerticalAlignment="Top">
+                                        <Image Source="{x:Bind Icon}" Width="32" Height="32"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="0">
+                                        <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{x:Bind RefineHint}" Visibility="{x:Bind RefineVisibility}" Style="{StaticResource ThemeDimTextStyle}"
+                                                   FontSize="11" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind RefineToolTip}"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="2" Text="{x:Bind Total}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold"
+                                               FontSize="17" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>
