@@ -34,8 +34,10 @@ public sealed partial class BasesPage : Page
         _live = new LiveSaveWatcher(DispatcherQueue);
         _live.SnapshotRead += OnLiveSnapshot;
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
+        JumpPlanner.RangeChanged += OnRangeChanged;
         Unloaded += (_, _) =>
         {
+            JumpPlanner.RangeChanged -= OnRangeChanged;
             SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
             _live.SnapshotRead -= OnLiveSnapshot;
             _live.Dispose();
@@ -62,8 +64,19 @@ public sealed partial class BasesPage : Page
 
     /// <summary>Builds the rows from a snapshot; skipped when neither your
     /// position nor the base list changed, so the list doesn't reset.</summary>
+    private PlanetSnapshot? _lastSnapshot;
+
+    /// <summary>Rebuilds the rows so their distances pick up the new jump estimate.</summary>
+    private void OnRangeChanged()
+    {
+        if (_lastSnapshot is null) return;
+        _lastKey = "";
+        Build(_lastSnapshot);
+    }
+
     private void Build(PlanetSnapshot snapshot)
     {
+        _lastSnapshot = snapshot;
         ulong? here = S.ReadSystemAddress(snapshot.Universe);
         string key = $"{here}|{snapshot.Bases?.Count}|{string.Join(",", snapshot.Bases?.OfType<JObject>().Select(b => b["NKm"]?.Value<string>()) ?? Enumerable.Empty<string?>())}";
         if (key == _lastKey) return;
@@ -114,8 +127,8 @@ public sealed partial class BasesPage : Page
             : distance switch
             {
                 null => "In a different galaxy from you",
-                < 1 => "Under 400 ly from you",
-                double ly => $"About {ly:N0} ly from you",
+                < 1 => JumpPlanner.WithJumps("Under 400 ly from you", 1),
+                double ly => JumpPlanner.WithJumps($"About {ly:N0} ly from you", ly),
             };
         return $"{fromYou} · {core}";
     }

@@ -8,6 +8,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
@@ -79,6 +80,7 @@
             <ComboBox x:Name="RarityBox" Header="Rarity" Width="170" SelectionChanged="Filter_Changed"/>
             <TextBox x:Name="SearchBox" Header="Search" Width="220" PlaceholderText="Fish name" TextChanged="Search_TextChanged"/>
             <CheckBox x:Name="AnywhereBox" Content="Include fish found on any planet" IsChecked="True" Click="Filter_Click" VerticalAlignment="Bottom"/>
+            <controls:HyperdriveRangeBox VerticalAlignment="Bottom"/>
             <Button x:Name="ExportBtn" Content="Export CSV" Click="ExportCsv_Click" VerticalAlignment="Bottom"
                     ToolTipService.ToolTip="Save the list as shown (with your filters) as a spreadsheet file"/>
             <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>

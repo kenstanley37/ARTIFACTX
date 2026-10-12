@@ -46,8 +46,10 @@ public sealed partial class FindsPage : Page
         InitializeComponent();
         _live = new LiveSaveWatcher(DispatcherQueue);
         _live.SnapshotRead += OnLiveSnapshot;
+        JumpPlanner.RangeChanged += Apply;
         Unloaded += (_, _) =>
         {
+            JumpPlanner.RangeChanged -= Apply;
             _live.SnapshotRead -= OnLiveSnapshot;
             _live.Dispose();
         };
@@ -230,8 +232,8 @@ public sealed partial class FindsPage : Page
             : DistanceFrom(f) switch
             {
                 null => "In a different galaxy from you - portals can't cross galaxies",
-                < 1 => "Under 400 ly from you",
-                double ly => $"About {ly:N0} ly from you",
+                < 1 => JumpPlanner.WithJumps("Under 400 ly from you", 1),
+                double ly => JumpPlanner.WithJumps($"About {ly:N0} ly from you", ly),
             };
 
         return new FindCardViewModel

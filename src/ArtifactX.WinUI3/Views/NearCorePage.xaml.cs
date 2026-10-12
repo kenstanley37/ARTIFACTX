@@ -40,8 +40,10 @@ public sealed partial class NearCorePage : Page
         _live = new LiveSaveWatcher(DispatcherQueue);
         _live.SnapshotRead += OnLiveSnapshot;
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
+        JumpPlanner.RangeChanged += OnRangeChanged;
         Unloaded += (_, _) =>
         {
+            JumpPlanner.RangeChanged -= OnRangeChanged;
             SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
             _live.SnapshotRead -= OnLiveSnapshot;
             _live.Dispose();
@@ -209,8 +211,8 @@ public sealed partial class NearCorePage : Page
             : (_here is ulong h ? NmsPlanets.DistanceLightYears(h, system.SystemAddress) : null) switch
             {
                 null => "In a different galaxy from you",
-                < 1 => "Under 400 ly from you",
-                double ly => $"About {ly:N0} ly from you",
+                < 1 => JumpPlanner.WithJumps("Under 400 ly from you", 1),
+                double ly => JumpPlanner.WithJumps($"About {ly:N0} ly from you", ly),
             };
 
         // Portal addresses need a planet glyph; planet 1 lands you in the system.
@@ -274,6 +276,8 @@ public sealed partial class NearCorePage : Page
             new[] { "Rank", "System", "Details", "To the galaxy core", "From you", "Portal code", "Your notes" },
             rows.Select(r => new[] { r.Rank, r.Name, r.Detail, r.CoreDistance, r.FromYou, r.PortalCode, r.NotesLabel }));
     }
+
+    private void OnRangeChanged() => Apply();
 
     private void CopyCode_Click(object sender, RoutedEventArgs e)
     {
