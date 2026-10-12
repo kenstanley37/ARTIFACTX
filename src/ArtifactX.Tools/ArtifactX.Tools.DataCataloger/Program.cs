@@ -1863,6 +1863,167 @@ if (args.Length > 1 && args[0].Equals("add-crafting", StringComparison.OrdinalIg
     return;
 }
 
+// "DataCataloger add-procedural-products <target-catalog-db-path>" adds the
+// procedurally generated items (save ids like ^PROC_SEA#17140 - ocean
+// salvage, fossils, plant samples, documents, freighter logs...) from
+// metadata/reality/tables/proceduralproducttable.mbin (GcProceduralProductTable,
+// one entry per GcProceduralProductCategory). The game builds each item's
+// display name from random words picked by the #seed, which can't be
+// reproduced here, so each row gets the product's own subtitle/category name
+// and its icon instead. Category "ProceduralProducts"; GameId = the product
+// id (the app already strips "#seed" when looking items up), NameEnglish =
+// resolved name, icon from Product.Icon (else the first ProceduralData icon).
+// Added 2026-10-11; idempotent.
+if (args.Length > 1 && args[0].Equals("add-procedural-products", StringComparison.OrdinalIgnoreCase))
+{
+    string procDbPath = args[1];
+    if (!File.Exists(procDbPath))
+    {
+        ConsoleStyle.Error($"Target catalog DB not found: {procDbPath}");
+        return;
+    }
+
+    var procSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(procSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakReaderService procPakReader = new PakReaderService();
+    var procExtraction = new ExtractionService();
+    var procIndex = new GlobalFileIndexService();
+    libMBIN.NMS.GameComponents.GcProceduralProductTable? procTable = null;
+    var procLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    foreach (var pak in new PakDiscoveryService().Discover(procSettings.NmsInstallationPath!))
+    {
+        PakHeader header;
+        IReadOnlyList<PakEntry> entries;
+        try
+        {
+            header = procPakReader.ReadHeader(pak.FullPath);
+            entries = procPakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+        procIndex.Add(pak.FullPath, header, entries);
+
+        var wanted = entries.Where(e =>
+            !string.IsNullOrEmpty(e.FileName) &&
+            ((e.FileName.Contains("language/nms_", StringComparison.OrdinalIgnoreCase) &&
+              e.FileName.Contains("english", StringComparison.OrdinalIgnoreCase) &&
+              !e.FileName.Contains("usenglish", StringComparison.OrdinalIgnoreCase)) ||
+             e.FileName.EndsWith("proceduralproducttable.mbin", StringComparison.OrdinalIgnoreCase)));
+
+        foreach (var entry in wanted)
+        {
+            byte[]? bytes;
+            try { bytes = procExtraction.ExtractEntryBytes(pak.FullPath, entry, header); }
+            catch { continue; }
+            if (bytes is null || bytes.Length == 0) continue;
+
+            NMSTemplate? template;
+            try
+            {
+                using var ms = new MemoryStream(bytes);
+                var mbin = new MBINFile(ms);
+                mbin.Load();
+                template = mbin.GetData();
+            }
+            catch { continue; }
+
+            if (template is libMBIN.NMS.GameComponents.GcProceduralProductTable table) procTable ??= table;
+            else if (template is not null)
+                foreach (var kv in LocalisationService.BuildEnglishLookup(template))
+                    procLookup.TryAdd(kv.Key, kv.Value);
+        }
+    }
+
+    if (procTable?.Table is null)
+    {
+        ConsoleStyle.Error("Could not find/decode proceduralproducttable.mbin.");
+        return;
+    }
+
+    string ProcLoc(string? key) => key is { Length: > 0 } && procLookup.TryGetValue(key, out var text) ? text : "";
+    var categories = Enum.GetNames(typeof(libMBIN.NMS.GameComponents.GcProceduralProductCategory.ProceduralProductCategoryEnum));
+    var iconService = new IconExtractionService(procExtraction, procIndex, targetSize: 128);
+    var procRows = new List<(string Id, string Name, string Category, string TexturePath, byte[]? Png)>();
+
+    for (int i = 0; i < procTable.Table.Length; i++)
+    {
+        var entry = procTable.Table[i];
+        var product = entry?.Product;
+        if (product is null) continue;
+        string category = i < categories.Length ? categories[i] : $"#{i}";
+        string id = product.ID?.Value ?? "";
+        string name = ProcLoc(product.NameLower?.Value);
+        if (name.Length == 0) name = ProcLoc(product.Name?.Value);
+        string subtitle = ProcLoc(product.Subtitle?.Value);
+        string texture = product.Icon?.Filename?.Value ?? "";
+        if (texture.Length == 0)
+            texture = entry!.ProceduralData?.Select(d => d?.Icon?.Filename?.Value ?? "").FirstOrDefault(f => f.Length > 0) ?? "";
+
+        ConsoleStyle.Success($"  [{i}] {category,-20} id='{id}' name='{name}' nameKey='{product.Name?.Value}' lowerKey='{product.NameLower?.Value}' subtitle='{subtitle}' (key '{product.Subtitle?.Value}') base='{entry!.NameGeneratorBase?.Word?.Value}' icon='{texture}'");
+        if (id.Length == 0 || (name.Length == 0 && subtitle.Length == 0)) continue;
+
+        // Names with %WORD% placeholders are filled in per item by the game.
+        string display = name.Length > 0 && !name.Contains('%') ? name : subtitle.Length > 0 ? subtitle : category;
+        byte[]? png = texture.Length > 0 ? iconService.ExtractAndConvert(texture) : null;
+        procRows.Add((id, display, category, texture, png));
+    }
+
+    ConsoleStyle.Header($"Found {procRows.Count} procedural products ({procRows.Count(r => r.Png is not null)} with icons).");
+
+    using var procDb = new CatalogDbContext(procDbPath);
+    var existingProc = procDb.Categories.FirstOrDefault(c => c.TemplateType == "ProceduralProducts");
+    if (existingProc is not null)
+    {
+        var itemIds = procDb.Items.Where(i => i.CategoryId == existingProc.Id).Select(i => i.Id).ToList();
+        var oldIcons = procDb.Set<IconAsset>().Where(a => itemIds.Contains(a.ItemId)).ToList();
+        var oldBlobIds = oldIcons.Select(a => a.IconBlobId).Distinct().ToList();
+        procDb.RemoveRange(oldIcons);
+        procDb.Items.RemoveRange(procDb.Items.Where(i => i.CategoryId == existingProc.Id));
+        procDb.SaveChanges();
+        // Icon images can be shared with other catalog rows; only drop ones nothing uses now.
+        var stillUsed = procDb.Set<IconAsset>().Where(a => oldBlobIds.Contains(a.IconBlobId)).Select(a => a.IconBlobId).ToHashSet();
+        procDb.RemoveRange(procDb.Set<IconBlob>().Where(b => oldBlobIds.Contains(b.Id) && !stillUsed.Contains(b.Id)));
+        procDb.Categories.Remove(existingProc);
+        procDb.SaveChanges();
+    }
+
+    var procCategory = new CatalogCategory
+    {
+        TemplateType = "ProceduralProducts",
+        RowType = "GcProceduralProductData",
+        SourceMbinPath = "metadata/reality/tables/proceduralproducttable.mbin"
+    };
+    // One IconBlob per texture path (unique in the DB): reuse an existing one -
+    // e.g. the fossil texture is shared by two categories and may already be in
+    // the catalog from the product table.
+    var blobs = new Dictionary<string, IconBlob>(StringComparer.OrdinalIgnoreCase);
+    foreach (var row in procRows)
+    {
+        var item = new CatalogItem { GameId = row.Id, NameEnglish = row.Name, UsageCategory = row.Category };
+        if (row.Png is not null)
+        {
+            if (!blobs.TryGetValue(row.TexturePath, out var blob))
+            {
+                blob = procDb.Set<IconBlob>().FirstOrDefault(b => b.SourceDdsPath == row.TexturePath)
+                    ?? new IconBlob { SourceDdsPath = row.TexturePath, PngData = row.Png };
+                blobs[row.TexturePath] = blob;
+            }
+            item.Icons.Add(new IconAsset { SourceField = "Icon", IconBlob = blob });
+        }
+        procCategory.Items.Add(item);
+    }
+    procDb.Categories.Add(procCategory);
+    procDb.SaveChanges();
+
+    ConsoleStyle.Success($"Wrote {procRows.Count} procedural products to {procDbPath}.");
+    return;
+}
+
 // "DataCataloger dumpfile <path substring>" decodes exactly one MBIN (the first
 // entry whose path contains the given substring) and prints its full raw field
 // structure, regardless of whether CatalogClassifier would recognize it as a
