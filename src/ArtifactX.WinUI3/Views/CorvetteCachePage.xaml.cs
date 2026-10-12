@@ -56,14 +56,14 @@ public sealed partial class CorvetteCachePage : Page
         Unloaded += Page_Unloaded;
         LoadGrid();
 
-        // Every part the game lets you build on a corvette, to click into the cache.
-        _ = PartsPanel.LoadAsync(CacheGrid, CatalogService.GetCorvettePartsAsync, "part", "Product", group => group switch
+        // Every part a corvette is built from, to click into the cache - and
+        // the same list limits the right-click search.
+        _ = PartsPanel.LoadAsync(CacheGrid, async () =>
         {
-            "Structural" => "Structural",
-            "Decorative" => "Decorative",
-            "Both" => "Structural and decorative",
-            _ => "",
-        });
+            var parts = await CatalogService.GetCorvettePartsAsync();
+            CacheGrid.AllowedItemIds = parts.Select(p => p.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return parts;
+        }, "part", "Product", _ => "");
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
