@@ -64,7 +64,9 @@ public partial class SaveFolderSelectViewModel : ObservableObject
 
         try
         {
+            DevTimingLog.Write("save selection: detecting accounts");
             var detected = await Task.Run(SaveFolderDetectionService.DetectCandidates);
+            DevTimingLog.Write($"save selection: {detected.Count} accounts detected");
             var customCandidates = PruneAndLoadCustomFolders();
 
             var allCandidates = detected
@@ -81,6 +83,8 @@ public partial class SaveFolderSelectViewModel : ObservableObject
                     SaveFolderSource.Manual => SaveFolderSettingsService.GetCustomFolderName(c.FolderPath) is { Length: > 0 } custom ? custom : "Custom Folder",
                     _ => c.PlatformName,
                 }, StringComparer.OrdinalIgnoreCase));
+
+            DevTimingLog.Write("save selection: old backups checked");
 
             // The account played most recently first (with several Steam/GOG
             // accounts, that's almost always the one wanted), then the rest -
@@ -143,8 +147,10 @@ public partial class SaveFolderSelectViewModel : ObservableObject
             // indexer reads one file per core at a time, so the most recent
             // account's saves come in first.
             IsBusy = false;
+            DevTimingLog.Write("save selection: cards shown, reading saves");
             await Task.WhenAll(allCandidates.Select(LoadSlotGroupsAsync));
             MarkLatest(Candidates);
+            DevTimingLog.Write("save selection: all accounts read");
         }
         finally
         {
@@ -313,7 +319,9 @@ public partial class SaveFolderSelectViewModel : ObservableObject
 
         try
         {
+            DevTimingLog.Write($"index start: {candidate.FolderPath}");
             var groups = await SaveFolderIndexingService.IndexAsync(candidate);
+            DevTimingLog.Write($"index done: {candidate.FolderPath}");
 
             candidate.SlotGroups.Clear();
             foreach (var group in groups)

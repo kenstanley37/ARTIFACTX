@@ -33,6 +33,7 @@ public partial class App : Application
         // SDK generates its own), so this constructor - already documented
         // above as "the logical equivalent of main()" - is the earliest
         // reachable hook.
+        DevTimingLog.Start();
         VelopackApp.Build().Run();
 
         InitializeComponent();
@@ -47,12 +48,18 @@ public partial class App : Application
         // Initialize the SQLite local store engine cleanly before the window goes live
         //await ArtifactX.Data.DatabaseInitializer.InitializeAsync();
 
+        DevTimingLog.Write("OnLaunched");
         DeleteWorkingFolder();
+        DevTimingLog.Write("working folder moved aside");
         ThemeService.ApplySaved();
+        DevTimingLog.Write("theme applied");
 
         _window = new MainWindow();
+        DevTimingLog.Write("main window created");
         MainWindowInstance = (MainWindow)_window;
         _window.Activate();
+        DevTimingLog.Write("main window activated");
+        DevTimingLog.WatchUiThread(_window.DispatcherQueue);
     }
 
     /// <summary>Clears last session's decrypted save copies (Working, next to
