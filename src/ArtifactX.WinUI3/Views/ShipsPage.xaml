@@ -194,6 +194,11 @@
                                 <TextBlock Text="SHIP DETAILS" Style="{StaticResource ThemeBandTextStyle}"/>
                             </Border>
                             <StackPanel Padding="18,14,18,18" Spacing="16">
+                                <!-- Shown for corvettes: their build lives apart from the ship (ShipBaseService). -->
+                                <Border x:Name="CorvetteNote" Visibility="Collapsed" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="1"
+                                        CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,8">
+                                    <TextBlock x:Name="CorvetteNoteTxt" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
+                                </Border>
                                 <StackPanel Spacing="6">
                                     <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
                                     <TextBox x:Name="NameEditBox" LostFocus="NameEditBox_LostFocus"/>
@@ -251,6 +256,12 @@
                                         <NumberBox Grid.Row="3" Grid.Column="1" x:Name="AgileStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="AgileStatBox_ValueChanged" LostFocus="AgileStatBox_LostFocus"/>
                                     </Grid>
                                 </StackPanel>
+
+                                <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="0,1,0,0" Padding="0,14,0,0">
+                                    <Button Content="Delete this ship..." Click="DeleteShipBtn_Click"
+                                            Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
+                                            ToolTipService.ToolTip="Remove this ship from the save. You can keep it as a template first."/>
+                                </Border>
                             </StackPanel>
                         </StackPanel>
                     </Border>

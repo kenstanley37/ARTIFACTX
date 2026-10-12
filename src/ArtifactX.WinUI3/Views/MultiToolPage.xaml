@@ -222,6 +222,12 @@
                                         <NumberBox Grid.Row="2" Grid.Column="1" x:Name="ScannerStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="ScannerStatBox_ValueChanged" LostFocus="ScannerStatBox_LostFocus"/>
                                     </Grid>
                                 </StackPanel>
+
+                                <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="0,1,0,0" Padding="0,14,0,0">
+                                    <Button Content="Delete this Multi-Tool..." Click="DeleteToolBtn_Click"
+                                            Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
+                                            ToolTipService.ToolTip="Remove this Multi-Tool from the save. You can keep it as a template first."/>
+                                </Border>
                             </StackPanel>
                         </StackPanel>
                     </Border>

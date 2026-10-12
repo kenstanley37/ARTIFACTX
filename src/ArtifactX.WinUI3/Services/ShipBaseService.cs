@@ -48,6 +48,38 @@ public static class ShipBaseService
         t.ShipBase = shipBase.ToString(Newtonsoft.Json.Formatting.None);
     }
 
+    /// <summary>Ship slots that have a corvette build, with its part count -
+    /// read once for a whole list (the base list is large).</summary>
+    public static System.Collections.Generic.Dictionary<int, int> BuildsBySlot()
+    {
+        var builds = new System.Collections.Generic.Dictionary<int, int>();
+        if (SaveSessionManager.GetValue(S.BasesPath) is not JArray bases) return builds;
+        foreach (var b in bases.OfType<JObject>())
+            if (string.Equals(b["peI"]?["DPp"]?.Value<string>(), ShipBaseType, StringComparison.Ordinal)
+                && b["CVX"]?.Type == JTokenType.Integer)
+                builds[(int)b["CVX"]!.Value<long>()] = (b["@ZJ"] as JArray)?.Count ?? 0;
+        return builds;
+    }
+
+    /// <summary>Corvettes use this model; a corvette can exist without a build
+    /// yet (the game makes the default one).</summary>
+    public static bool IsCorvetteModel(string? scenePath) =>
+        scenePath?.Contains("/BIGGS/", StringComparison.OrdinalIgnoreCase) == true;
+
+    /// <summary>How many parts the corvette build in this ship slot has (0 = none).</summary>
+    public static int PartCount(int shipIndex) =>
+        SaveSessionManager.GetValue(S.BasesPath) is JArray bases && IndexFor(bases, shipIndex) is int index
+            ? (bases[index]["@ZJ"] as JArray)?.Count ?? 0 : 0;
+
+    /// <summary>Removes the build linked to a ship slot (when the ship is deleted).</summary>
+    public static void Remove(int shipIndex)
+    {
+        if (SaveSessionManager.GetValue(S.BasesPath) is not JArray bases || IndexFor(bases, shipIndex) is not int index) return;
+        var remaining = (JArray)bases.DeepClone();
+        remaining.RemoveAt(index);
+        SaveSessionManager.StageEdit(remaining, S.BasesPath);
+    }
+
     public static bool HasBuild(NmsLoadoutTemplate t) => t.ShipBase is { Length: > 0 } && t.InteriorObjects is { Count: > 0 };
 
     /// <summary>Writes the template's build for the ship in `shipIndex`,

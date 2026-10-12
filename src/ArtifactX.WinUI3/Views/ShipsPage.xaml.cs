@@ -32,7 +32,7 @@ public sealed partial class ShipsPage : Page
     // EQUIPPED ship is tracked by a plain integer index - NmsInventoryContainer.
     // ActiveShipIndexPath (aBE) - confirmed against 15 real save files across
     // 3 characters.
-    private sealed record ShipEntry(int Index, string Name, bool IsGameActive);
+    private sealed record ShipEntry(int Index, string Name, bool IsGameActive, bool IsCorvette, int BuildParts);
 
     private InventoryGridViewModel? _techViewModel;
     private InventoryGridViewModel? _cargoViewModel;
@@ -184,6 +184,7 @@ public sealed partial class ShipsPage : Page
             return;
 
         int activeIndex = SaveSessionManager.GetValue(NmsInventoryContainer.ActiveShipIndexPath)?.Value<int>() ?? -1;
+        var builds = ShipBaseService.BuildsBySlot();
 
         var ships = new List<ShipEntry>();
         for (int i = 0; i < array.Count; i++)
@@ -199,7 +200,8 @@ public sealed partial class ShipsPage : Page
 
             string name = array[i]?["NKm"]?.Value<string>() ?? "";
             if (string.IsNullOrEmpty(name)) name = $"Starship {i + 1}";
-            ships.Add(new ShipEntry(i, name, i == activeIndex));
+            int parts = builds.GetValueOrDefault(i);
+            ships.Add(new ShipEntry(i, name, i == activeIndex, parts > 0 || ShipBaseService.IsCorvetteModel(scenePath), parts));
         }
 
         _ships = ships;
@@ -256,6 +258,29 @@ public sealed partial class ShipsPage : Page
             FontWeight = isSelected ? FontWeights.SemiBold : FontWeights.Normal,
             VerticalAlignment = VerticalAlignment.Center
         });
+
+        // Corvettes are built, not found: their modules live in a separate
+        // build (ShipBaseService), so they get their own badge.
+        if (ship.IsCorvette)
+        {
+            panel.Children.Add(new Border
+            {
+                BorderBrush = ThemeResources.Brush("ThemeAccentBrush"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = ThemeResources.CardCornerRadius,
+                Padding = new Thickness(6, 1, 6, 1),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock
+                {
+                    Text = "CORVETTE",
+                    FontSize = 10,
+                    FontWeight = FontWeights.Bold,
+                    FontFamily = ThemeResources.Font("ThemeDisplayFont"),
+                    CharacterSpacing = 120,
+                    Foreground = ThemeResources.Brush("ThemeAccentBrush"),
+                }
+            });
+        }
 
         if (ship.IsGameActive)
         {
@@ -356,6 +381,10 @@ public sealed partial class ShipsPage : Page
 
         BuildClassSelector();
         NameEditBox.Text = selectedShip.Name;
+        CorvetteNote.Visibility = selectedShip.IsCorvette ? Visibility.Visible : Visibility.Collapsed;
+        CorvetteNoteTxt.Text = selectedShip.BuildParts > 0
+            ? $"This is a corvette. What you built onto it - {selectedShip.BuildParts} parts: cockpit, habitat, wings, engines and the rest - is stored apart from the ship. Full Build templates include it."
+            : "This is a corvette with no build of its own yet, so the game shows the default one.";
         SeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.ShipModelSeedPath(_selectedIndex))?.Value<string>() ?? "";
         UpdateStatDisplay();
     }
@@ -963,16 +992,51 @@ public sealed partial class ShipsPage : Page
         string name = nameBox.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(name)) return;
 
-        var template = _techViewModel.ExtractTemplate(name, sourceShip.Name, "Ship");
-        template.Scope = "FullBuild";
-        template.Stats = ExtractStatsList(_selectedIndex);
-        template.Seed = SaveSessionManager.GetValue(NmsInventoryContainer.ShipModelSeedPath(_selectedIndex))?.Value<string>();
-        template.TypeScenePath = SaveSessionManager.GetValue(
-            "vLc", "6f=", "@Cs", _selectedIndex.ToString(), "NTx", "93M")?.Value<string>();
-        NewFromTemplateService.CaptureShip(template, _selectedIndex);
-
-        await LoadoutTemplateService.SaveAsync(template);
+        await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate(name, sourceShip));
         await RefreshFullBuildTemplatesListAsync();
+    }
+
+    /// <summary>The selected ship as a Full Build template (Save Current, and
+    /// "save it first" when deleting).</summary>
+    private NmsLoadoutTemplate BuildFullBuildTemplate(string name, ShipEntry source)
+    {
+        var template = _techViewModel!.ExtractTemplate(name, source.Name, "Ship");
+        template.Scope = "FullBuild";
+        template.Stats = ExtractStatsList(source.Index);
+        template.Seed = SaveSessionManager.GetValue(NmsInventoryContainer.ShipModelSeedPath(source.Index))?.Value<string>();
+        template.TypeScenePath = SaveSessionManager.GetValue(
+            "vLc", "6f=", "@Cs", source.Index.ToString(), "NTx", "93M")?.Value<string>();
+        NewFromTemplateService.CaptureShip(template, source.Index);
+        return template;
+    }
+
+    /// <summary>Deletes the selected ship from the save (with its corvette
+    /// build), after a strict confirmation that can keep it as a template first.
+    /// The ship being flown can't go - the game needs one.</summary>
+    private async void DeleteShipBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var ship = _ships.FirstOrDefault(s => s.Index == _selectedIndex);
+        if (ship is null || _techViewModel is null) return;
+        if (ship.IsGameActive)
+        {
+            await DeleteConfirmation.ShowBlockedAsync(XamlRoot, "That's the ship you're flying",
+                $"{ship.Name} is your active ship, and the game always needs one. Switch to another ship in game, save, then delete this one here.");
+            return;
+        }
+
+        string whatGoes = "its tech, everything in its cargo, its paint"
+            + (ship.BuildParts > 0 ? $" and its corvette build ({ship.BuildParts} parts)" : "");
+        var choice = await DeleteConfirmation.ShowAsync(XamlRoot, ship.Name, whatGoes);
+        if (!choice.Confirmed) return;
+
+        if (choice.SaveTemplateFirst)
+        {
+            await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate($"{ship.Name} (saved before deleting)", ship));
+            await RefreshFullBuildTemplatesListAsync();
+        }
+        NewFromTemplateService.RemoveShip(ship.Index);
+        _selectedIndex = -1;
+        LoadShipList();
     }
 
     /// <summary>Same shape as RefreshTemplatesListAsync, filtered to Scope==
