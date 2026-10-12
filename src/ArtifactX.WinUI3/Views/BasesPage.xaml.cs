@@ -135,6 +135,14 @@ public sealed partial class BasesPage : Page
         CountTxt.Text = _rows.Count == 0 ? "No planet bases in this save" : $"{list.Count} of {_rows.Count} bases";
     }
 
+    private async void ExportCsv_Click(object sender, RoutedEventArgs e)
+    {
+        var rows = BasesList.ItemsSource as List<BaseRowViewModel> ?? new();
+        await CsvExportService.ExportAsync(ExportBtn, "ArtifactX bases",
+            new[] { "Base", "Planet", "Portal code", "Distance" },
+            rows.Select(r => new[] { r.Name, r.Detail, r.PortalCode, r.DistanceLabel }));
+    }
+
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => Apply();
 
     private void SortBox_SelectionChanged(object sender, SelectionChangedEventArgs e)

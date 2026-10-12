@@ -79,6 +79,8 @@
             <ComboBox x:Name="RarityBox" Header="Rarity" Width="170" SelectionChanged="Filter_Changed"/>
             <TextBox x:Name="SearchBox" Header="Search" Width="220" PlaceholderText="Fish name" TextChanged="Search_TextChanged"/>
             <CheckBox x:Name="AnywhereBox" Content="Include fish found on any planet" IsChecked="True" Click="Filter_Click" VerticalAlignment="Bottom"/>
+            <Button x:Name="ExportBtn" Content="Export CSV" Click="ExportCsv_Click" VerticalAlignment="Bottom"
+                    ToolTipService.ToolTip="Save the list as shown (with your filters) as a spreadsheet file"/>
             <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
         </ctcontrols:WrapPanel>
 

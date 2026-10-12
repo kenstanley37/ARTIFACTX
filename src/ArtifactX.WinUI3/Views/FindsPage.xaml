@@ -137,6 +137,8 @@
                 <ComboBoxItem Content="Nearest to you first"/>
                 <ComboBoxItem Content="Title (A to Z)"/>
             </ComboBox>
+            <Button x:Name="ExportBtn" Content="Export CSV" Click="ExportCsv_Click" VerticalAlignment="Bottom"
+                    ToolTipService.ToolTip="Save the list as shown (with your filters) as a spreadsheet file"/>
             <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
         </ctcontrols:WrapPanel>
 

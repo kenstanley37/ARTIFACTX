@@ -267,6 +267,14 @@ public sealed partial class NearCorePage : Page
         return images.Any(i => i is null) ? new() : images.Cast<ImageSource>().ToList();
     }
 
+    private async void ExportCsv_Click(object sender, RoutedEventArgs e)
+    {
+        var rows = SystemsList.ItemsSource as List<CoreSystemRowViewModel> ?? new();
+        await CsvExportService.ExportAsync(ExportBtn, "ArtifactX systems near the core",
+            new[] { "Rank", "System", "Details", "To the galaxy core", "From you", "Portal code", "Your notes" },
+            rows.Select(r => new[] { r.Rank, r.Name, r.Detail, r.CoreDistance, r.FromYou, r.PortalCode, r.NotesLabel }));
+    }
+
     private void CopyCode_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is not string code) return;

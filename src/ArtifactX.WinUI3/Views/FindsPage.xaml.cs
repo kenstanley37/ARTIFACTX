@@ -265,6 +265,31 @@ public sealed partial class FindsPage : Page
         _ => Colors.Transparent,
     };
 
+    private async void ExportCsv_Click(object sender, RoutedEventArgs e)
+    {
+        var cards = FindsList.ItemsSource as List<FindCardViewModel> ?? new();
+        var finds = FindsService.All.ToDictionary(f => f.Id);
+        var rows = new List<string[]>();
+        foreach (var card in cards)
+        {
+            if (!finds.TryGetValue(card.Id, out var f)) continue;
+            rows.Add(new[]
+            {
+                f.Type, f.Title, f.Class, f.Subtype, string.Join(", ", f.ItemIds.Select(NameOf)), f.Location,
+                f.PortalCode, f.PortalCode.Length == 12 ? GalaxyLabel(f.Galaxy) : "", SystemName(f), PlanetName(f, PlanetOf(f)),
+                card.Distance, f.Notes, LocalTime(f.CreatedAt),
+            });
+        }
+        await CsvExportService.ExportAsync(ExportBtn, "ArtifactX finds",
+            new[] { "Type", "Title", "Class", "Kind", "Items or fish", "Where", "Portal code", "Galaxy", "System", "Planet", "Distance", "Notes", "Added" },
+            rows);
+    }
+
+    /// <summary>user.db timestamps are UTC (ISO 8601); show them in local time.</summary>
+    private static string LocalTime(string utc) =>
+        DateTime.TryParse(utc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var t)
+            ? t.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) : utc;
+
     private void Search_TextChanged(object sender, TextChangedEventArgs e) => Apply();
     private void Filter_Changed(object sender, SelectionChangedEventArgs e) => Apply();
 
