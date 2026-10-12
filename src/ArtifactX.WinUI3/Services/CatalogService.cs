@@ -358,7 +358,7 @@ public static class CatalogService
                     JOIN Categories pc ON pc.Id = p.CategoryId
                     WHERE cc.TemplateType = 'CorvetteParts'
                       AND cp.UsageCategory IN ('Structural', 'Both')
-                      AND cp.DescriptionEnglish LIKE '%"menu":true%'
+                      AND cp.DescriptionEnglish LIKE '%""menu"":true%'
                       AND pc.TemplateType = 'GcProductTable'
                       AND p.NameEnglish IS NOT NULL
                     GROUP BY p.GameId
