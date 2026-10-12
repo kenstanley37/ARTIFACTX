@@ -88,20 +88,22 @@
                                 <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="3">
-                                <ItemsControl ItemsSource="{x:Bind Glyphs}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal" Spacing="2"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="ImageSource">
-                                            <Border Width="24" Height="24" Background="{ThemeResource ThemeVoidBrush}">
-                                                <Image Source="{x:Bind}" Width="20" Height="20"/>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <controls:GlyphStrip Code="{x:Bind PortalCode}" VerticalAlignment="Center">
+                                    <ItemsControl ItemsSource="{x:Bind Glyphs}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" Spacing="2"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="ImageSource">
+                                                <Border Width="24" Height="24" Background="{ThemeResource ThemeVoidBrush}">
+                                                    <Image Source="{x:Bind}" Width="20" Height="20"/>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </controls:GlyphStrip>
                                 <TextBlock Text="{x:Bind PortalCode}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"
                                            IsTextSelectionEnabled="True" CharacterSpacing="80"/>
                             </StackPanel>

@@ -82,7 +82,7 @@
                                 <TextBlock x:Name="SystemStationTxt" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" Visibility="Collapsed"/>
                                 <StackPanel Spacing="6" Margin="0,6,0,0">
                                     <TextBlock Text="SYSTEM PORTAL ADDRESS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                    <StackPanel x:Name="SystemGlyphsPanel" Orientation="Horizontal" Spacing="3"/>
+                                    <controls:GlyphStrip x:Name="SystemGlyphStrip"><StackPanel x:Name="SystemGlyphsPanel" Orientation="Horizontal" Spacing="3"/></controls:GlyphStrip>
                                     <StackPanel Orientation="Horizontal" Spacing="10"
                                                 ToolTipService.ToolTip="The same address as text: each character is one glyph, in order. The first is the planet number (0 for the system itself).">
                                         <TextBlock Text="Text code (for sharing):" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"
@@ -175,7 +175,7 @@
                                  PlaceholderText="Portal code or galactic coordinates" TextChanged="DecoderInputBox_TextChanged"/>
                         <TextBlock x:Name="DecoderErrorTxt" Foreground="{ThemeResource ThemeWarningBrush}" FontSize="13" Visibility="Collapsed"/>
                         <StackPanel x:Name="DecoderResultPanel" Spacing="8" Visibility="Collapsed">
-                            <StackPanel x:Name="DecoderGlyphsPanel" Orientation="Horizontal" Spacing="4"/>
+                            <controls:GlyphStrip x:Name="DecoderGlyphStrip"><StackPanel x:Name="DecoderGlyphsPanel" Orientation="Horizontal" Spacing="4"/></controls:GlyphStrip>
                             <TextBlock x:Name="DecoderDetailTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" IsTextSelectionEnabled="True"/>
                         </StackPanel>
                     </StackPanel>
@@ -269,20 +269,22 @@
                                             </StackPanel>
 
                                             <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="3">
-                                                <ItemsControl ItemsSource="{x:Bind Glyphs}">
-                                                    <ItemsControl.ItemsPanel>
-                                                        <ItemsPanelTemplate>
-                                                            <StackPanel Orientation="Horizontal" Spacing="2"/>
-                                                        </ItemsPanelTemplate>
-                                                    </ItemsControl.ItemsPanel>
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate x:DataType="ImageSource">
-                                                            <Border Width="24" Height="24" Background="{ThemeResource ThemeVoidBrush}">
-                                                                <Image Source="{x:Bind}" Width="20" Height="20"/>
-                                                            </Border>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
+                                                <controls:GlyphStrip Code="{x:Bind PortalCode}" VerticalAlignment="Center">
+                                                    <ItemsControl ItemsSource="{x:Bind Glyphs}">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <StackPanel Orientation="Horizontal" Spacing="2"/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="ImageSource">
+                                                                <Border Width="24" Height="24" Background="{ThemeResource ThemeVoidBrush}">
+                                                                    <Image Source="{x:Bind}" Width="20" Height="20"/>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </controls:GlyphStrip>
                                                 <TextBlock Text="{x:Bind PortalCode}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"
                                                            IsTextSelectionEnabled="True" CharacterSpacing="80"/>
                                             </StackPanel>

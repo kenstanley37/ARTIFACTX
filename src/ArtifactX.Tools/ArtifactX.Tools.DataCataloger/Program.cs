@@ -771,7 +771,9 @@ if (args.Length > 1 && args[0].Equals("add-station-assets", StringComparison.Ord
     }
 
     // Glyphs
-    var iconService = new IconExtractionService(assetsExtraction, assetsIndex, targetSize: 128);
+    // Glyphs keep the game's full texture size (the extractor never upscales) so the
+    // app's enlarged glyph view stays sharp; only 16 images, so size is no concern.
+    var iconService = new IconExtractionService(assetsExtraction, assetsIndex, targetSize: 1024);
     var glyphs = new List<(string GameId, string Name, string TexturePath, byte[] Png)>();
     for (int digit = 0; digit < 16; digit++)
     {

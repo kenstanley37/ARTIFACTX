@@ -77,4 +77,49 @@
         <Setter Property="Foreground" Value="{ThemeResource ThemeTextBrush}"/>
     </Style>
 
+    <!-- A row of portal glyphs that opens the large glyph view (Controls/GlyphStrip).
+         Looks like the row itself; hover, press or keyboard focus adds an accent
+         outline and a magnifier badge so people can tell it's clickable. -->
+    <Style x:Key="GlyphStripButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="2"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid Background="Transparent">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="HoverOutline.Opacity" Value="1"/>
+                                        <Setter Target="Badge.Opacity" Value="1"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="HoverOutline.Opacity" Value="1"/>
+                                        <Setter Target="Badge.Opacity" Value="1"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled"/>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                        <Border x:Name="HoverOutline" Opacity="0" CornerRadius="4" BorderThickness="1"
+                                BorderBrush="{ThemeResource ThemeAccentBrush}"/>
+                        <ContentPresenter Content="{TemplateBinding Content}" Padding="{TemplateBinding Padding}"/>
+                        <Border x:Name="Badge" Opacity="0" Width="18" Height="18" CornerRadius="9"
+                                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-6,-6,0"
+                                Background="{ThemeResource ThemeAccentBrush}">
+                            <FontIcon Glyph="&#xE71E;" FontSize="10" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
+                        </Border>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>
