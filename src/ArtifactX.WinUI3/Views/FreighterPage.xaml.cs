@@ -117,12 +117,13 @@ public sealed partial class FreighterPage : Page
 
         if (!HasFreighter())
         {
-            NoFreighterTxt.Visibility = Visibility.Visible;
+            NoFreighterPanel.Visibility = Visibility.Visible;
             HeaderGrid.Visibility = Visibility.Collapsed;
+            _ = RefreshAddFreighterListAsync();
             return;
         }
 
-        NoFreighterTxt.Visibility = Visibility.Collapsed;
+        NoFreighterPanel.Visibility = Visibility.Collapsed;
         HeaderGrid.Visibility = Visibility.Visible;
 
         string? classLetter = GetFreighterClassLetter();
@@ -716,6 +717,7 @@ public sealed partial class FreighterPage : Page
         // NmsLoadoutTemplate.Seed's own doc comment.
         template.Seed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>();
         template.TypeScenePath = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>();
+        FreighterBuildService.Capture(template);
         // Every unlocked slot, not just the ones holding tech (a Tech Stack
         // template keeps only those, so it never unlocks extra slots).
         template.UnlockedPositions = _techViewModel.Cells.Where(c => c.State != InventorySlotState.Locked)
@@ -727,6 +729,95 @@ public sealed partial class FreighterPage : Page
 
     /// <summary>Same shape as RefreshTemplatesListAsync, filtered to Scope==
     /// "FullBuild" instead and targeting the separate FullBuildTemplatesListPanel.</summary>
+    /// <summary>The "Add a freighter" card shown when the save has none:
+    /// every Freighter Full Build template, each with Add as my freighter.</summary>
+    private async Task RefreshAddFreighterListAsync()
+    {
+        var templates = (await LoadoutTemplateService.LoadAllAsync())
+            .Where(t => t.SourceKind == "Freighter" && t.Scope == "FullBuild")
+            .ToList();
+
+        AddFreighterListPanel.Children.Clear();
+        if (templates.Count == 0)
+        {
+            AddFreighterListPanel.Children.Add(new TextBlock
+            {
+                Text = "No freighter templates yet.",
+                FontSize = 12,
+                Opacity = 0.7,
+            });
+            return;
+        }
+
+        foreach (var template in templates)
+        {
+            var row = new Grid { ColumnSpacing = 12 };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var info = new StackPanel { Spacing = 2 };
+            info.Children.Add(new TextBlock { Text = template.Name, FontWeight = FontWeights.SemiBold, FontSize = 13, TextWrapping = TextWrapping.Wrap });
+            info.Children.Add(new TextBlock
+            {
+                Text = $"{template.SourceClass ?? "?"} class, {template.TechItems.Count} tech"
+                    + (FreighterBuildService.HasInterior(template) ? $", interior with {template.InteriorObjects!.Count} parts" : ", default interior (saved before interiors were included)")
+                    + (template.SourceToolName is { Length: > 0 } source ? $" - from {source}" : ""),
+                FontSize = 11,
+                Opacity = 0.7,
+                TextWrapping = TextWrapping.Wrap,
+            });
+            row.Children.Add(info);
+
+            var add = new Button { Content = "Add as my freighter", VerticalAlignment = VerticalAlignment.Center };
+            add.Click += async (_, _) => await AddFreighterAsync(template);
+            Grid.SetColumn(add, 1);
+            row.Children.Add(add);
+            AddFreighterListPanel.Children.Add(row);
+        }
+    }
+
+    private async void AddFreighterImport_Click(object sender, RoutedEventArgs e)
+    {
+        var result = await TemplateSharingService.ImportAsync("Freighter");
+        if (result is not { } r) return;
+        AddFreighterStatusTxt.Text = r.Ok && r.Message.Contains("Use Apply", StringComparison.Ordinal)
+            ? r.Message.Replace("Use Apply", "Use Add as my freighter", StringComparison.Ordinal) : r.Message;
+        AddFreighterStatusTxt.Foreground = ThemeResources.Brush(r.Ok ? "ThemeDoneBrush" : "ThemeWarningBrush");
+        AddFreighterStatusTxt.Visibility = Visibility.Visible;
+        if (r.Ok) await RefreshAddFreighterListAsync();
+    }
+
+    /// <summary>Builds a whole freighter from the template (FreighterBuildService)
+    /// in a save that doesn't have one. Nothing is written until Save.</summary>
+    private async Task AddFreighterAsync(NmsLoadoutTemplate template)
+    {
+        var confirm = new ContentDialog
+        {
+            Title = $"Add \"{template.Name}\" as your freighter?",
+            Content = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Text = "It arrives with this template's model, look, tech, class, stats and "
+                    + (FreighterBuildService.HasInterior(template) ? "furnished interior" : "the standard starter interior")
+                    + ", parked in the system you're in. Its cargo starts empty and it gets a new Gek captain (change the race under Crew Race). "
+                    + "Nothing is written to your save until you Save."
+            },
+            PrimaryButtonText = "Add",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = this.XamlRoot
+        };
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+
+        if (FreighterBuildService.AddFreighter(template) is string problem)
+        {
+            AddFreighterStatusTxt.Text = $"Couldn't add the freighter: {problem}";
+            AddFreighterStatusTxt.Foreground = ThemeResources.Brush("ThemeWarningBrush");
+            AddFreighterStatusTxt.Visibility = Visibility.Visible;
+            return;
+        }
+        LoadGrids();
+    }
+
     private async Task RefreshFullBuildTemplatesListAsync()
     {
         var templates = (await LoadoutTemplateService.LoadAllAsync())
@@ -761,7 +852,8 @@ public sealed partial class FreighterPage : Page
             });
             row.Children.Add(new TextBlock
             {
-                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class, stats+seed{sourceInfo}",
+                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class, stats+seed"
+                    + (FreighterBuildService.HasInterior(template) ? $", interior ({template.InteriorObjects!.Count} parts)" : "") + sourceInfo,
                 FontSize = 10,
                 Opacity = 0.6,
                 TextWrapping = TextWrapping.Wrap
@@ -862,11 +954,13 @@ public sealed partial class FreighterPage : Page
 
         var sourcePositions = template.UnlockedPositions.Select(p => (p.X, p.Y));
         var (confirmed, alsoMatchClass) = await ShowApplyConfirmationAsync(
-            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions, includesStatsAndSeed: true);
+            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions, includesStatsAndSeed: true,
+            replacesInterior: FreighterBuildService.HasInterior(template));
 
         if (!confirmed) return;
 
         _techViewModel.ApplyTemplate(template, alsoMatchClass);
+        FreighterBuildService.ApplyInterior(template);
         ApplyStatsList(template.Stats);
         if (!string.IsNullOrEmpty(template.Seed))
             SaveSessionManager.StageEdit(template.Seed, NmsInventoryContainer.FreighterModelSeedPath);
@@ -912,7 +1006,8 @@ public sealed partial class FreighterPage : Page
     /// one freighter: no target picker, just "apply this template to your
     /// freighter now."</summary>
     private async Task<(bool Confirmed, bool AlsoMatchClass)> ShowApplyConfirmationAsync(
-        string sourceLabel, string? sourceClass, IEnumerable<(int X, int Y)> sourcePositions, bool includesStatsAndSeed = false)
+        string sourceLabel, string? sourceClass, IEnumerable<(int X, int Y)> sourcePositions, bool includesStatsAndSeed = false,
+        bool replacesInterior = false)
     {
         if (_techViewModel is null) return (false, false);
 
@@ -927,7 +1022,10 @@ public sealed partial class FreighterPage : Page
         panel.Children.Add(new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
-            Text = includesStatsAndSeed
+            Text = includesStatsAndSeed && replacesInterior
+                ? $"This replaces your freighter's entire tech loadout, base stats, Type, appearance seed and interior (every room and furnishing) with {sourceLabel}. "
+                    + "Items in your storage containers aren't affected."
+                : includesStatsAndSeed
                 ? $"This replaces your freighter's entire tech loadout, base stats, Type, and appearance seed with {sourceLabel}."
                 : $"This replaces your freighter's entire tech loadout with {sourceLabel}."
         });

@@ -192,7 +192,16 @@ public static partial class TemplateSharingService
                 t.PrimaryMode = t.SecondaryMode = null;
                 t.UseLegacyColours = null;
             }
-            if (t.SourceKind != "Ship") t.CargoUnlockedPositions = null;
+            if (t.SourceKind is not ("Ship" or "Freighter")) t.CargoUnlockedPositions = null;
+            if (t.SourceKind == "Freighter")
+            {
+                if (CheckInterior(t) is string interiorProblem) return interiorProblem;
+            }
+            else
+            {
+                t.InteriorObjects = null;
+                t.InteriorPosition = t.FreighterAt = t.FreighterUp = null;
+            }
         }
         else
         {
@@ -206,7 +215,31 @@ public static partial class TemplateSharingService
             t.IsLarge = null;
             t.PrimaryMode = t.SecondaryMode = null;
             t.UseLegacyColours = null;
+            t.InteriorObjects = null;
+            t.InteriorPosition = t.FreighterAt = t.FreighterUp = null;
         }
+        return null;
+    }
+
+    /// <summary>A freighter interior: part ids in the game's own id shape,
+    /// sane positions (parts sit within about 60 units of the base's anchor on
+    /// every freighter checked; allow far more) and unit-ish directions.</summary>
+    private static string? CheckInterior(NmsLoadoutTemplate t)
+    {
+        static bool Vector(double[]? v, double limit) => v is { Length: 3 } && v.All(c => double.IsFinite(c) && Math.Abs(c) <= limit);
+
+        if (t.InteriorObjects is { } parts)
+        {
+            if (parts.Count > 20_000) return "its interior has too many parts.";
+            foreach (var part in parts)
+            {
+                if (!ItemIdPattern().IsMatch(part.Id)) return "an interior part isn't valid.";
+                if (!Vector(part.Position, 10_000) || !Vector(part.Up, 2) || !Vector(part.At, 2)) return "an interior part's position isn't valid.";
+            }
+        }
+        if (t.InteriorPosition is not null && !Vector(t.InteriorPosition, 100_000)) return "its interior position isn't valid.";
+        if (t.FreighterAt is not null && !Vector(t.FreighterAt, 2)) return "its facing isn't valid.";
+        if (t.FreighterUp is not null && !Vector(t.FreighterUp, 2)) return "its facing isn't valid.";
         return null;
     }
 

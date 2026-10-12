@@ -46,14 +46,26 @@
                  this the Tech/Cargo grids rendered anyway, reading a
                  structurally-always-present-but-unowned container (real bug
                  found 2026-08-10 on a save that hadn't left the starting planet). -->
-            <TextBlock x:Name="NoFreighterTxt" Style="{StaticResource ThemeDimTextStyle}"
-                       MaxWidth="640" HorizontalAlignment="Left" Visibility="Collapsed" TextWrapping="Wrap">
-                <Run Text="You don't own a freighter yet, so there's nothing to edit here."/>
-                <LineBreak/><LineBreak/>
-                <Run Text="To get one: keep warping to new systems until you arrive in a space battle with a freighter under pirate attack. Destroy the pirates, land in the freighter's hangar and talk to the captain on the bridge - they'll offer you the freighter (sometimes free, sometimes for Units). You can also buy one from any freighter captain."/>
-                <LineBreak/><LineBreak/>
-                <Run Text="Want a particular freighter? Once you own any freighter, come back here and use a Full Build template's Apply to turn it into that one."/>
-            </TextBlock>
+            <StackPanel x:Name="NoFreighterPanel" Spacing="18" MaxWidth="760" HorizontalAlignment="Left" Visibility="Collapsed">
+                <TextBlock Text="FREIGHTER" Style="{StaticResource ThemePageTitleStyle}"/>
+                <TextBlock Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap">
+                    <Run Text="You don't own a freighter yet. Add one from a Full Build template below - it arrives with that freighter's look, tech and furnished interior, parked in the system you're in."/>
+                    <LineBreak/><LineBreak/>
+                    <Run Text="Or get one in game: warp until you arrive in a space battle with a freighter under pirate attack, destroy the pirates, then land and talk to the captain on the bridge (sometimes free, sometimes for Units). You can also buy one from any freighter captain."/>
+                </TextBlock>
+
+                <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                        Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                    <StackPanel Padding="16,14,16,16" Spacing="12">
+                        <TextBlock Text="ADD A FREIGHTER" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
+                                   Text="Freighter Full Build templates - yours, or one a friend shared. Save one from a save that has the freighter you want (Freighter page, Full Build, Save Current...)."/>
+                        <Button Content="Import a template file..." Click="AddFreighterImport_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="AddFreighterStatusTxt" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"/>
+                        <StackPanel x:Name="AddFreighterListPanel" Spacing="10"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
 
             <!-- ONE Grid for the whole page body (title row + a single tall
                  content row), matching ShipsPage's structure - column 0
@@ -175,7 +187,7 @@
                                         <Button Content="Save Current..." Click="SaveAsFullBuildTemplateBtn_Click" FontSize="11" Padding="8,3,8,3" HorizontalAlignment="Right"/>
                                     </Grid>
                                     <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                               Text="Also captures Base Stats, Type, and the hull's Model Seed - for cloning a whole build onto another save's freighter. Never touches Cargo, Name, or Crew."/>
+                                               Text="The whole freighter: tech, class, stats, model, look, cargo slots and its furnished interior. Apply replaces your freighter's with it. Never touches cargo, name or crew."/>
                                     <StackPanel x:Name="FullBuildTemplatesListPanel" Spacing="8"/>
                                 </StackPanel>
                             </StackPanel>
