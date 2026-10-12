@@ -49,16 +49,16 @@
         </Border>
 
         <ctcontrols:WrapPanel Grid.Row="2" HorizontalSpacing="14" VerticalSpacing="10">
-            <TextBox x:Name="SearchBox" Width="280" PlaceholderText="Search base names..." TextChanged="SearchBox_TextChanged"/>
-            <ComboBox x:Name="SortBox" Width="200" SelectionChanged="SortBox_SelectionChanged">
+            <TextBox x:Name="SearchBox" Header="Search" Width="280" PlaceholderText="Search base names..." TextChanged="SearchBox_TextChanged"/>
+            <ComboBox x:Name="SortBox" Header="Sort" Width="200" SelectionChanged="SortBox_SelectionChanged">
                 <ComboBoxItem Content="Nearest to you first"/>
                 <ComboBoxItem Content="Name (A-Z)"/>
                 <ComboBoxItem Content="Galaxy"/>
             </ComboBox>
-            <controls:HyperdriveRangeBox VerticalAlignment="Center"/>
-            <Button x:Name="ExportBtn" Content="Export CSV" Click="ExportCsv_Click" VerticalAlignment="Center"
+            <controls:HyperdriveRangeBox VerticalAlignment="Bottom"/>
+            <Button x:Name="ExportBtn" Content="Export CSV" Click="ExportCsv_Click" VerticalAlignment="Bottom"
                     ToolTipService.ToolTip="Save the list as shown (with your filters) as a spreadsheet file"/>
-            <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center"/>
+            <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
         </ctcontrols:WrapPanel>
 
         <ListView Grid.Row="3" x:Name="BasesList" SelectionMode="None">

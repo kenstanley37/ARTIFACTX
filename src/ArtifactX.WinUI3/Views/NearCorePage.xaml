@@ -104,10 +104,10 @@
                         <Grid ColumnSpacing="14">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="44"/>
-                                <ColumnDefinition Width="300"/>
-                                <ColumnDefinition Width="170"/>
+                                <ColumnDefinition Width="*" MinWidth="200"/>
+                                <ColumnDefinition Width="150"/>
                                 <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="200"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="{x:Bind Rank}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="Bold" FontSize="16"
