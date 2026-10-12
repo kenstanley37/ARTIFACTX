@@ -308,14 +308,68 @@ public static class UserDatabase
         }
     }
 
-    /// <summary>Copies user.db (and its WAL) to Backups\user-db, keeping the newest 10.</summary>
+    public const int DefaultBackupsToKeep = 14;
+    private const string BackupsToKeepKey = "DataBackupsToKeep";
+    private const string DailyBackupKey = "DataBackupDaily";
+
+    /// <summary>How many backups of user.db to keep (Settings page).</summary>
+    public static int BackupsToKeep
+    {
+        get => int.TryParse(SettingsStore.Get(SettingsStore.Scope.Profile, BackupsToKeepKey), out int keep) && keep > 0 ? keep : DefaultBackupsToKeep;
+        set => SettingsStore.Set(SettingsStore.Scope.Profile, BackupsToKeepKey, value.ToString(CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>Whether a backup is made automatically once a day (on by default).</summary>
+    public static bool DailyBackups
+    {
+        get => SettingsStore.Get(SettingsStore.Scope.Profile, DailyBackupKey) != "false";
+        set => SettingsStore.Set(SettingsStore.Scope.Profile, DailyBackupKey, value ? "true" : "false");
+    }
+
+    private static string BackupFolder => BackupLocation.Sub(BackupService.UserDataFolder);
+
+    /// <summary>One backup of the player's data, for the Settings page.</summary>
+    public sealed record DataBackup(string Path, DateTime Created, long Bytes, string Reason);
+
+    public static List<DataBackup> ListBackups() =>
+        new DirectoryInfo(BackupFolder).GetFiles("user-*.db")
+            .OrderByDescending(f => f.CreationTimeUtc)
+            .Select(f => new DataBackup(f.FullName, f.CreationTime, f.Length, ReasonOf(f.Name)))
+            .ToList();
+
+    /// <summary>"user-20261012-153334-before-v7.db" -> "before-v7".</summary>
+    private static string ReasonOf(string fileName)
+    {
+        var parts = System.IO.Path.GetFileNameWithoutExtension(fileName).Split('-', 4);
+        return parts.Length == 4 ? parts[3] : "";
+    }
+
+    public static void DeleteBackup(string path)
+    {
+        if (System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path)) is string folder
+            && string.Equals(folder, System.IO.Path.GetFullPath(BackupFolder), StringComparison.OrdinalIgnoreCase))
+            File.Delete(path);
+    }
+
+    /// <summary>Makes the day's automatic backup if it's on and none was made
+    /// in the last 20 hours. Called once at startup, off the UI thread.</summary>
+    public static void DailyBackupIfDue()
+    {
+        if (!DailyBackups || !File.Exists(FilePath)) return;
+        var newest = ListBackups().FirstOrDefault(b => b.Reason == "daily");
+        if (newest is not null && DateTime.Now - newest.Created < TimeSpan.FromHours(20)) return;
+        Backup("daily");
+    }
+
+    /// <summary>Copies user.db (and its WAL) to the backups folder's user-db,
+    /// keeping the newest BackupsToKeep. Runs before upgrades and restores too,
+    /// when the settings can't be read yet - then the default count is kept.</summary>
     public static void Backup(string reason)
     {
         try
         {
             if (!File.Exists(FilePath)) return;
-            string folder = Path.Combine(LocalAppDataPaths.GetSubfolder("Backups"), "user-db");
-            Directory.CreateDirectory(folder);
+            string folder = BackupFolder;
             string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
             string target = Path.Combine(folder, $"user-{stamp}-{reason}.db");
 
@@ -329,7 +383,7 @@ public static class UserDatabase
                 cmd.ExecuteNonQuery();
             }
 
-            foreach (var old in new DirectoryInfo(folder).GetFiles("user-*.db").OrderByDescending(f => f.CreationTimeUtc).Skip(10))
+            foreach (var old in new DirectoryInfo(folder).GetFiles("user-*.db").OrderByDescending(f => f.CreationTimeUtc).Skip(_initialized ? BackupsToKeep : DefaultBackupsToKeep))
                 old.Delete();
         }
         catch (Exception ex)

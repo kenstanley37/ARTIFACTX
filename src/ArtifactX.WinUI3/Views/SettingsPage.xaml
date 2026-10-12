@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). App-wide settings: where
+     backups go, backups of the player's own data (UserDatabase), game save
+     backups (BackupService), appearance and updates. Lists are built in code. -->
+<Page
+    x:Class="ArtifactX.WinUI3.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <ScrollViewer>
+        <StackPanel Padding="28,26,28,32" Spacing="18" MaxWidth="980" HorizontalAlignment="Left">
+            <TextBlock Text="SETTINGS" Style="{StaticResource ThemePageTitleStyle}"/>
+
+            <!-- Where backups go -->
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="BACKUP LOCATION" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <StackPanel Padding="18,14,18,18" Spacing="10">
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
+                                   Text="Every backup ArtifactX makes - of your own data and of your game saves - goes here. Choose a folder inside OneDrive, Dropbox or Google Drive to keep copies off this PC."/>
+                        <TextBlock x:Name="BackupFolderTxt" FontSize="13" IsTextSelectionEnabled="True" TextWrapping="Wrap"
+                                   Foreground="{ThemeResource ThemeTextBrush}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Change folder..." Click="ChangeFolder_Click"/>
+                            <Button Content="Open folder" Click="OpenFolder_Click"/>
+                            <Button x:Name="UseDefaultFolderBtn" Content="Use the default folder" Click="UseDefaultFolder_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="FolderStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- user.db -->
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="YOUR ARTIFACTX DATA" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <StackPanel Padding="18,14,18,18" Spacing="12">
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
+                                   Text="Everything ArtifactX keeps for you - templates, settings, account nicknames, system notes and learned names, finds, guides, pins and planet marks - in one file, separate from your game saves. Restoring keeps this PC's own window position and save-folder list."/>
+                        <StackPanel Orientation="Horizontal" Spacing="16">
+                            <ToggleSwitch x:Name="DailyBackupSwitch" Header="Back up automatically once a day" Toggled="DailyBackup_Toggled"/>
+                            <ComboBox x:Name="DataKeepBox" Header="Keep the newest" MinWidth="150" SelectionChanged="DataKeep_SelectionChanged"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Back up now" Click="BackUpDataNow_Click"/>
+                            <Button Content="Save a copy to a file..." Click="ExportData_Click"/>
+                            <Button Content="Restore from a file..." Click="RestoreDataFromFile_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="DataStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                        <TextBlock Text="BACKUPS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <StackPanel x:Name="DataBackupsPanel" Spacing="6"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Game save backups -->
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="GAME SAVE BACKUPS" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <StackPanel Padding="18,14,18,18" Spacing="12">
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
+                                   Text="Before ArtifactX writes a change to a save, it backs up that save's files, so any change can be undone. To restore one, use the clock button on the save's card in Save Selection."/>
+                        <TextBlock x:Name="SaveBackupsTotalTxt" FontSize="15" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Bottom">
+                            <ComboBox x:Name="SaveKeepBox" Header="Keep the newest, per save slot" MinWidth="200" SelectionChanged="SaveKeep_SelectionChanged"/>
+                            <Button x:Name="CleanUpBtn" Click="CleanUp_Click" VerticalAlignment="Bottom"/>
+                        </StackPanel>
+                        <TextBlock x:Name="SaveBackupsStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                        <StackPanel x:Name="SaveBackupsPanel" Spacing="12"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Appearance + updates -->
+            <StackPanel Orientation="Horizontal" Spacing="18">
+                <Border Style="{StaticResource ThemeCardStyle}" Width="340" VerticalAlignment="Top">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <TextBlock Text="APPEARANCE" Style="{StaticResource ThemeBandTextStyle}"/>
+                        </Border>
+                        <StackPanel Padding="18,14,18,18" Spacing="10">
+                            <ComboBox x:Name="ThemeBox" Header="Theme" MinWidth="200" SelectionChanged="Theme_SelectionChanged"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource ThemeCardStyle}" Width="340" VerticalAlignment="Top">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <TextBlock Text="UPDATES" Style="{StaticResource ThemeBandTextStyle}"/>
+                        </Border>
+                        <StackPanel Padding="18,14,18,18" Spacing="10">
+                            <TextBlock x:Name="VersionTxt" Text="ArtifactX" FontFamily="{ThemeResource ThemeDisplayFont}" FontSize="15" FontWeight="SemiBold"
+                                       Foreground="{ThemeResource ThemeTextBrush}"/>
+                            <Button x:Name="CheckForUpdatesBtn" Content="Check for updates" Click="CheckForUpdates_Click" HorizontalAlignment="Left"/>
+                            <TextBlock x:Name="UpdateStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                            <HyperlinkButton x:Name="ReleasePageLink" Content="Open release page" Visibility="Collapsed" Padding="0" Click="ReleasePageLink_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -339,6 +339,11 @@
             </NavigationView.MenuItems>
 
             <NavigationView.FooterMenuItems>
+                <NavigationViewItem Content="Settings" Tag="Settings">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE713;" FontFamily="Segoe MDL2 Assets"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
                 <NavigationViewItem Content="Credits" Tag="Credits">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xEB51;" FontFamily="Segoe MDL2 Assets"/>
