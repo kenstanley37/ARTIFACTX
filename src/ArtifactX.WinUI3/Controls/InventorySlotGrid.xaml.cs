@@ -36,6 +36,12 @@ public sealed partial class InventorySlotGrid : UserControl
     /// passed straight through to CatalogService.SearchAsync.</summary>
     public string[]? AllowedTemplateTypes { get; set; }
 
+    /// <summary>Optional exact list of item ids this inventory accepts, when
+    /// the catalog's categories are broader than the game's rule (the Corvette
+    /// Cache holds only structural corvette parts, not every building part).
+    /// Narrows the right-click search; null = no extra limit.</summary>
+    public IReadOnlySet<string>? AllowedItemIds { get; set; }
+
     /// <summary>Further restricts search to specific equipment-slot categories within
     /// a table (e.g. "Suit"/"All" for the Exosuit tech grid vs "Ship"/"All" for
     /// Starship) - GcTechnologyTable alone covers every equipment type undifferentiated,
@@ -418,7 +424,10 @@ public sealed partial class InventorySlotGrid : UserControl
 
             if (string.IsNullOrWhiteSpace(query) || AllowedTemplateTypes is null) return;
 
-            var matches = await CatalogService.SearchAsync(query, AllowedTemplateTypes, AllowedUsageCategories);
+            var matches = await CatalogService.SearchAsync(query, AllowedTemplateTypes, AllowedUsageCategories,
+                maxResults: AllowedItemIds is null ? 30 : 400);
+            if (AllowedItemIds is not null)
+                matches = matches.Where(m => AllowedItemIds.Contains(m.GameId)).Take(30).ToList();
             await CatalogService.WarmCacheAsync(matches.Select(m => m.GameId));
 
             foreach (var match in matches)

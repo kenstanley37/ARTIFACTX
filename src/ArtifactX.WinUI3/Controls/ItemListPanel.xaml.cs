@@ -75,6 +75,8 @@ public sealed partial class ItemListPanel : UserControl
         foreach (string group in _cards.Select(c => c.Part.Group).Where(g => g is "Structural" or "Decorative").Distinct().OrderBy(g => g))
             GroupBox.Items.Add(group);
         GroupBox.SelectedIndex = 0;
+        // A filter with one choice is just clutter.
+        GroupBox.Visibility = GroupBox.Items.Count > 2 ? Visibility.Visible : Visibility.Collapsed;
 
         MarkOwned();
         Apply();

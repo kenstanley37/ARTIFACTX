@@ -326,10 +326,14 @@ public static class CatalogService
     public static async Task<List<(string DisplayName, string ScenePath)>> GetFreighterCrewRacesAsync() =>
         await GetScenePathOptionsAsync("FreighterCrewRaces");
 
-    /// <summary>Every part that can be built on a corvette (the game's own
-    /// BuildableInShipStructural/Decorative flags - DataCataloger
-    /// add-corvette-parts), joined to its product row for the name and stack
-    /// size, A-Z. Parts with no inventory item of their own are left out.</summary>
+    /// <summary>The parts a corvette is built from - the game's own
+    /// BuildableInShipStructural flag (DataCataloger add-corvette-parts) -
+    /// joined to the product row for the name and stack size, A-Z. These are
+    /// what the Corvette Cache holds: 139 of the 141 different items found in
+    /// real caches across every save (2026-10-12; the other two were base
+    /// reactors). Decorative-only parts (decals, posters, furniture) are placed
+    /// inside a corvette, not kept in the cache, so they're left out, as are
+    /// parts with no inventory item of their own.</summary>
     public static async Task<List<CatalogPart>> GetCorvettePartsAsync()
     {
         string? dbPath = ResolveDbPath();
@@ -349,6 +353,7 @@ public static class CatalogService
                     JOIN Items p ON p.GameId = substr(cp.GameId, 10)
                     JOIN Categories pc ON pc.Id = p.CategoryId
                     WHERE cc.TemplateType = 'CorvetteParts'
+                      AND cp.UsageCategory IN ('Structural', 'Both')
                       AND pc.TemplateType = 'GcProductTable'
                       AND p.NameEnglish IS NOT NULL
                     GROUP BY p.GameId
