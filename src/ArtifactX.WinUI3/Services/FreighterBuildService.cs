@@ -108,17 +108,7 @@ public static class FreighterBuildService
         if (SaveSessionManager.GetValue(S.BasesPath) is not JArray bases || FreighterBaseIndex(bases) is not int index) return;
         var freighterBase = bases[index];
         t.InteriorPosition = Vector(freighterBase["wMC"]);
-        t.InteriorObjects = (freighterBase["@ZJ"] as JArray)?.OfType<JObject>()
-            .Where(o => o["r<7"]?.Value<string>() is { Length: > 0 })
-            .Select(o => new NmsLoadoutBaseObject
-            {
-                Id = o["r<7"]!.Value<string>()!,
-                UserData = o["CVX"]?.Value<long>() ?? 0,
-                Position = Vector(o["wMC"]) ?? new double[3],
-                Up = Vector(o["wJ0"]) ?? new double[] { 0, 1, 0 },
-                At = Vector(o["aNu"]) ?? new double[] { 0, 0, 1 },
-            })
-            .ToList();
+        t.InteriorObjects = ReadParts(freighterBase["@ZJ"]);
     }
 
     // ---------------------------------------------------------------- apply
@@ -239,7 +229,22 @@ public static class FreighterBuildService
 
     private static long Now() => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-    private static JArray InteriorArray(NmsLoadoutTemplate t)
+    /// <summary>A base's placed parts (@ZJ) as template objects. Also used for
+    /// corvettes (ShipBaseService).</summary>
+    internal static List<NmsLoadoutBaseObject>? ReadParts(JToken? parts) =>
+        (parts as JArray)?.OfType<JObject>()
+            .Where(o => o["r<7"]?.Value<string>() is { Length: > 0 })
+            .Select(o => new NmsLoadoutBaseObject
+            {
+                Id = o["r<7"]!.Value<string>()!,
+                UserData = o["CVX"]?.Value<long>() ?? 0,
+                Position = Vector(o["wMC"]) ?? new double[3],
+                Up = Vector(o["wJ0"]) ?? new double[] { 0, 1, 0 },
+                At = Vector(o["aNu"]) ?? new double[] { 0, 0, 1 },
+            })
+            .ToList();
+
+    internal static JArray InteriorArray(NmsLoadoutTemplate t)
     {
         long now = Now();
         return new JArray(t.InteriorObjects!.Select(o => BaseObject(now, o.Id, o.UserData, o.Position, o.Up, o.At)));
@@ -287,7 +292,7 @@ public static class FreighterBuildService
 
     /// <summary>The player's owner block (platform id, name): from one of
     /// their bases, else their newest own discovery.</summary>
-    private static JObject OwnerBlock()
+    internal static JObject OwnerBlock()
     {
         if (SaveSessionManager.GetValue(S.BasesPath) is JArray bases
             && bases.OfType<JObject>().Select(b => b["3?K"] as JObject)

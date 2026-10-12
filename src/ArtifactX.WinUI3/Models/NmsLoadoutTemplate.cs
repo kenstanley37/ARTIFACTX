@@ -96,10 +96,14 @@ public sealed class NmsLoadoutTemplate
     /// <summary>Multi-Tools only: UseLegacyColours (J&lt;o).</summary>
     public bool? UseLegacyColours { get; set; }
 
-    /// <summary>Freighters only: every placed room and furnishing in the
-    /// freighter's base (FreighterBase entry of F?0), in the base's own local
-    /// space - see FreighterBuildService.</summary>
+    /// <summary>Every placed part of the build, in the base's own local space:
+    /// a freighter's rooms and furnishings (FreighterBase entry of F?0, see
+    /// FreighterBuildService), or a corvette's modules (its PlayerShipBase,
+    /// see ShipBaseService).</summary>
     public List<NmsLoadoutBaseObject>? InteriorObjects { get; set; }
+    /// <summary>Starships (corvettes) only: the PlayerShipBase entry as JSON,
+    /// parts and owner emptied - see ShipBaseService.</summary>
+    public string? ShipBase { get; set; }
     /// <summary>Freighters only: the interior's anchor (FreighterBase wMC) and
     /// the freighter's facing (9wg at / fUl up). Always copied together with
     /// the model and seed they were captured with.</summary>

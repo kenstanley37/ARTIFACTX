@@ -1011,7 +1011,8 @@ public sealed partial class ShipsPage : Page
             });
             row.Children.Add(new TextBlock
             {
-                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class, stats+seed{sourceInfo}",
+                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class, stats+seed"
+                    + (ShipBaseService.HasBuild(template) ? $", corvette build ({template.InteriorObjects!.Count} parts)" : "") + sourceInfo,
                 FontSize = 10,
                 Opacity = 0.6,
                 TextWrapping = TextWrapping.Wrap

@@ -193,15 +193,17 @@ public static partial class TemplateSharingService
                 t.UseLegacyColours = null;
             }
             if (t.SourceKind is not ("Ship" or "Freighter")) t.CargoUnlockedPositions = null;
-            if (t.SourceKind == "Freighter")
+            if (t.SourceKind is "Freighter" or "Ship")
             {
                 if (CheckInterior(t) is string interiorProblem) return interiorProblem;
             }
             else
             {
                 t.InteriorObjects = null;
-                t.InteriorPosition = t.FreighterAt = t.FreighterUp = null;
             }
+            if (t.SourceKind != "Freighter") t.InteriorPosition = t.FreighterAt = t.FreighterUp = null;
+            if (t.SourceKind != "Ship") t.ShipBase = null;
+            else if (t.ShipBase is { Length: > 0 } shipBase && !IsShipBase(shipBase)) return "its corvette build isn't valid.";
         }
         else
         {
@@ -217,8 +219,23 @@ public static partial class TemplateSharingService
             t.UseLegacyColours = null;
             t.InteriorObjects = null;
             t.InteriorPosition = t.FreighterAt = t.FreighterUp = null;
+            t.ShipBase = null;
         }
         return null;
+    }
+
+    /// <summary>A corvette's base entry as ShipBaseService captures it: the
+    /// game's base fields only, small, its parts list empty (the parts travel,
+    /// checked, in InteriorObjects).</summary>
+    private static bool IsShipBase(string json)
+    {
+        if (json.Length > 16_384) return false;
+        Newtonsoft.Json.Linq.JObject obj;
+        try { obj = Newtonsoft.Json.Linq.JObject.Parse(json); } catch { return false; }
+        string[] known = { "h4X", "BpT", "oZw", "wMC", "oHw", "CVX", "wx7", "@ZJ", "B2h", "3?K", "NKm", "peI", "J=S", "vyN", "D9@", "rIR", "idA", "6nS", "C0j", "i4g", "tww", "6Ts" };
+        return obj.Properties().All(p => known.Contains(p.Name))
+            && obj["@ZJ"] is Newtonsoft.Json.Linq.JArray { Count: 0 }
+            && obj["peI"]?["DPp"]?.ToString() == "PlayerShipBase";
     }
 
     /// <summary>A freighter interior: part ids in the game's own id shape,
