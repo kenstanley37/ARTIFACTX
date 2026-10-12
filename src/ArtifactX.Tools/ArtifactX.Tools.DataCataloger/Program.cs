@@ -1256,6 +1256,10 @@ if (args.Length > 1 && args[0].Equals("add-corvette-parts", StringComparison.Ord
     }
 
     var corvetteParts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    // The part's build-menu facts, kept as JSON in DescriptionEnglish - many
+    // parts are rotations/mirrors of one buildable item (B_STR_K_NE, _NE1..3,
+    // _Y_NE...), so the app needs these to tell the item from its variants.
+    var corvetteFacts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     foreach (var part in buildingTable.Objects)
     {
         if (!part.BuildableInShipStructural && !part.BuildableInShipDecorative) continue;
@@ -1264,7 +1268,17 @@ if (args.Length > 1 && args[0].Equals("add-corvette-parts", StringComparison.Ord
         if (itemId.Length == 0) continue;
         string kind = part.BuildableInShipStructural && part.BuildableInShipDecorative ? "Both"
             : part.BuildableInShipStructural ? "Structural" : "Decorative";
-        corvetteParts.TryAdd(itemId, kind);
+        if (corvetteParts.TryAdd(itemId, kind))
+            corvetteFacts[itemId] = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object?>
+            {
+                ["menu"] = part.ShowInBuildMenu,
+                ["placeable"] = part.IsPlaceable,
+                ["single"] = part.SinglePartID?.Value ?? "",
+                ["modBase"] = part.ModularCustomisationBaseID?.Value ?? "",
+                ["isMod"] = part.IsModularCustomisation,
+                ["families"] = part.FamilyIDs?.Select(f => f?.Value ?? "").ToList() ?? new List<string>(),
+                ["composite"] = part.CompositePartObjectIDs?.Select(f => f?.Value ?? "").ToList() ?? new List<string>(),
+            });
     }
     ConsoleStyle.Header($"Found {corvetteParts.Count} corvette parts " +
         $"({corvetteParts.Values.Count(k => k != "Decorative")} structural, {corvetteParts.Values.Count(k => k != "Structural")} decorative).");
@@ -1293,7 +1307,8 @@ if (args.Length > 1 && args[0].Equals("add-corvette-parts", StringComparison.Ord
             CategoryId = corvetteCategory.Id,
             GameId = "CORVETTE:" + itemId,
             NameEnglish = itemId,
-            UsageCategory = kind
+            UsageCategory = kind,
+            DescriptionEnglish = corvetteFacts.GetValueOrDefault(itemId)
         });
     corvetteDb.SaveChanges();
 

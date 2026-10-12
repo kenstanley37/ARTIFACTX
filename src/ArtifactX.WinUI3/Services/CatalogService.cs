@@ -333,7 +333,11 @@ public static class CatalogService
     /// real caches across every save (2026-10-12; the other two were base
     /// reactors). Decorative-only parts (decals, posters, furniture) are placed
     /// inside a corvette, not kept in the cache, so they're left out, as are
-    /// parts with no inventory item of their own.</summary>
+    /// parts with no inventory item of their own. And only the ones in the
+    /// game's build menu (ShowInBuildMenu): most structural ids are rotations
+    /// and mirrors of one part (B_STR_K_NE, _NE1-3, _Y_NE...) - 433 of 575 -
+    /// and real caches held 131 of the 142 menu parts; the few non-menu ids
+    /// seen there were right-hand wing pieces the game hands back.</summary>
     public static async Task<List<CatalogPart>> GetCorvettePartsAsync()
     {
         string? dbPath = ResolveDbPath();
@@ -354,6 +358,7 @@ public static class CatalogService
                     JOIN Categories pc ON pc.Id = p.CategoryId
                     WHERE cc.TemplateType = 'CorvetteParts'
                       AND cp.UsageCategory IN ('Structural', 'Both')
+                      AND cp.DescriptionEnglish LIKE '%"menu":true%'
                       AND pc.TemplateType = 'GcProductTable'
                       AND p.NameEnglish IS NOT NULL
                     GROUP BY p.GameId
