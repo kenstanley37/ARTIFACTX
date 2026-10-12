@@ -14,6 +14,16 @@ public sealed partial class SaveSlotGroup : ObservableObject
     [ObservableProperty]
     private bool isActive;
 
+    /// <summary>True on the slot of its platform folder that was written most
+    /// recently - usually the one the game is playing. Set by
+    /// SaveFolderSelectViewModel.MarkLatest from live file times, since the
+    /// indexed SaveFileEntry.LastModified is a one-time snapshot.</summary>
+    [ObservableProperty]
+    private bool isLatest;
+
+    /// <summary>Live last-write time of this slot's newest file.</summary>
+    public System.DateTime LastWriteUtc => Files.Max(f => File.Exists(f.FullPath) ? File.GetLastWriteTimeUtc(f.FullPath) : System.DateTime.MinValue);
+
     public string SlotLabel => $"Slot {SlotId}";
     public string ActiveLabel => $"{SourceDisplayName} - {SlotLabel}";
 

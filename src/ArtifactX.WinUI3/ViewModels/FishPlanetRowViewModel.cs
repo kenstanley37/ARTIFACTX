@@ -15,4 +15,12 @@ public sealed class FishPlanetRowViewModel
     public required List<ImageSource> Glyphs { get; init; }
     public required string BaseText { get; init; }
     public required Visibility BaseVisibility { get; init; }
+    public required string SpotText { get; init; }
+    public required Visibility SpotVisibility { get; init; }
+    public required string MarkKey { get; init; }
+    public required string MarkText { get; init; }
+    public required Brush CardBorder { get; init; }
+    public required string WaterKey { get; init; }
+    public required string WaterButtonText { get; init; }
+    public required Visibility NoWaterVisibility { get; init; }
 }
