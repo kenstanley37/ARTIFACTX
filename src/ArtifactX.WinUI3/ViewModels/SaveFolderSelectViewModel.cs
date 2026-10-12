@@ -72,12 +72,26 @@ public partial class SaveFolderSelectViewModel : ObservableObject
                 .DistinctBy(c => c.FolderPath, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
+            // Backups used to be keyed by the card's display name; move them to
+            // their account's own folder where that's unambiguous (BackupService).
+            BackupService.MigrateLegacyFolders(allCandidates
+                .Where(c => !c.IsDevTest)
+                .ToDictionary(c => c.FolderPath, c => c.Source switch
+                {
+                    SaveFolderSource.Manual => SaveFolderSettingsService.GetCustomFolderName(c.FolderPath) is { Length: > 0 } custom ? custom : "Custom Folder",
+                    _ => c.PlatformName,
+                }, StringComparer.OrdinalIgnoreCase));
+
             // Every candidate gets decrypted and indexed exactly once, here, in
             // parallel, before anything is shown. Expanding a card afterward
             // never touches disk again - and, as of this cache, neither does
             // navigating away from and back to this page within the same
             // NMS session.
             await Task.WhenAll(allCandidates.Select(LoadSlotGroupsAsync));
+
+            // The account played most recently first (with several Steam/GOG
+            // accounts, that's almost always the one wanted), then the rest.
+            allCandidates = allCandidates.OrderByDescending(c => c.LastPlayedUtc).ToList();
 
             // Null (never persisted - first launch ever) defaults every card open,
             // so a brand-new user immediately sees their saves instead of a wall
@@ -300,6 +314,7 @@ public partial class SaveFolderSelectViewModel : ObservableObject
                 candidate.SlotGroups.Add(group);
 
             candidate.IsEmptyResult = candidate.SlotGroups.Count == 0;
+            candidate.NotifySlotsChanged();
         }
         catch (Exception ex)
         {

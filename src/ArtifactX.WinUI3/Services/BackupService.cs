@@ -32,11 +32,62 @@ public static class BackupService
     private const string RootSubfolder = "Backups";
     private const string TimestampFormat = "yyyy-MM-dd_HH-mm-ss";
 
-    public static string BuildSlotGroupKey(string platformDisplayName, int slotId) =>
-        Path.Combine(SanitizeForPath(platformDisplayName), $"Slot{slotId}");
+    public static string BuildSlotGroupKey(string accountFolder, int slotId) =>
+        Path.Combine(AccountKey(accountFolder), $"Slot{slotId}");
 
-    public static string BuildAccountDataGroupKey(string platformDisplayName) =>
-        Path.Combine(SanitizeForPath(platformDisplayName), "AccountData");
+    public static string BuildAccountDataGroupKey(string accountFolder) =>
+        Path.Combine(AccountKey(accountFolder), "AccountData");
+
+    /// <summary>The backup folder name for a game account's save folder:
+    /// "Steam_76561198090992118" / "GOG_12345678" from st_/gog_ folder names,
+    /// else "Folder_" plus a hash of the path (Xbox, browsed folders).
+    /// Keyed by account, never by the card's display name: two Steam accounts
+    /// both shown as "Steam" used to share one backup folder, so restoring a
+    /// slot could offer the other account's saves (fixed 2026-10-12).</summary>
+    public static string AccountKey(string accountFolder)
+    {
+        string leaf = Path.GetFileName(accountFolder.TrimEnd('\\', '/'));
+        if (leaf.StartsWith("st_", StringComparison.OrdinalIgnoreCase) && leaf.Length > 3) return SanitizeForPath("Steam_" + leaf[3..]);
+        if (leaf.StartsWith("gog_", StringComparison.OrdinalIgnoreCase) && leaf.Length > 4) return SanitizeForPath("GOG_" + leaf[4..]);
+        byte[] hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(accountFolder.ToUpperInvariant()));
+        return "Folder_" + Convert.ToHexString(hash)[..8];
+    }
+
+    /// <summary>Moves backups made before AccountKey (Backups\Steam,
+    /// Backups\Custom Folder...) into their account's folder - but only when
+    /// exactly one account could have made them, so nobody's backups get
+    /// attached to the wrong account. Anything ambiguous is left untouched on
+    /// disk. legacyNames maps each account folder to the display name the old
+    /// code keyed it by.</summary>
+    public static void MigrateLegacyFolders(IReadOnlyDictionary<string, string> legacyNameByAccountFolder)
+    {
+        string backupsRoot = LocalAppDataPaths.GetSubfolder(RootSubfolder);
+        foreach (var byName in legacyNameByAccountFolder.GroupBy(kv => SanitizeForPath(kv.Value), StringComparer.OrdinalIgnoreCase))
+        {
+            if (byName.Count() != 1) continue;
+            string legacy = Path.Combine(backupsRoot, byName.Key);
+            string target = Path.Combine(backupsRoot, AccountKey(byName.First().Key));
+            if (!Directory.Exists(legacy) || string.Equals(legacy, target, StringComparison.OrdinalIgnoreCase)) continue;
+
+            try
+            {
+                foreach (var group in Directory.GetDirectories(legacy))
+                {
+                    string targetGroup = Path.Combine(target, Path.GetFileName(group));
+                    Directory.CreateDirectory(targetGroup);
+                    foreach (var point in Directory.GetDirectories(group))
+                    {
+                        string targetPoint = Path.Combine(targetGroup, Path.GetFileName(point));
+                        if (!Directory.Exists(targetPoint)) Directory.Move(point, targetPoint);
+                    }
+                    if (Directory.GetFileSystemEntries(group).Length == 0) Directory.Delete(group);
+                }
+                if (Directory.GetFileSystemEntries(legacy).Length == 0) Directory.Delete(legacy);
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+    }
 
     /// <summary>Copies every currently-existing file in sourceFilePaths into a
     /// NEW timestamped subfolder under this group, preserving each file's own
