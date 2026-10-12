@@ -96,6 +96,7 @@ public sealed partial class GeneralPage : Page
             FindsService.Reload();
             PlanetWaterService.Reload();
             GuidesService.Reload();
+            HiddenStationsService.Reload();
         }
         UserDataStatusTxt.Text = error ?? $"Imported {file.Name}. Your previous data was backed up.";
     }

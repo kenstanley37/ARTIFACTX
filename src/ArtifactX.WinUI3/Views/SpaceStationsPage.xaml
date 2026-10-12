@@ -92,10 +92,22 @@
                         </Grid>
 
                         <!-- Other systems where standing has been earned - only when any. -->
-                        <StackPanel x:Name="InProgressSection" Visibility="Collapsed" Spacing="8" Padding="26,16,26,20"
+                        <StackPanel x:Name="InProgressSection" Visibility="Collapsed" Spacing="12" Padding="26,16,26,20"
                                     Background="{ThemeResource ThemePanelAltBrush}">
-                            <TextBlock Text="CLAIMS IN PROGRESS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                            <StackPanel x:Name="InProgressPanel" Spacing="8"/>
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="InProgressHeaderTxt" Text="CLAIMS IN PROGRESS" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14">
+                                    <ComboBox x:Name="ClaimSortBox" Width="240" SelectionChanged="ClaimSort_Changed" VerticalAlignment="Center"
+                                              AutomationProperties.Name="Sort claims"/>
+                                    <CheckBox x:Name="ShowHiddenBox" Content="Show hidden" Click="ShowHidden_Click" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock x:Name="ClaimHintTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"/>
+                            <ctcontrols:WrapPanel x:Name="InProgressPanel" HorizontalSpacing="12" VerticalSpacing="12"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
