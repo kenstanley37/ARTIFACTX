@@ -140,6 +140,25 @@ public static class GameAccountsService
         }
     }
 
+    /// <summary>The name to show for an account key: its nickname, else the
+    /// name the game knows the player by, else null.</summary>
+    public static string? Name(string key)
+    {
+        try
+        {
+            using var connection = UserDatabase.Open();
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = "SELECT CASE WHEN nickname <> '' THEN nickname ELSE display_name END FROM game_accounts WHERE id = $id AND deleted = 0";
+            cmd.Parameters.AddWithValue("$id", key);
+            return cmd.ExecuteScalar() is string name && name.Length > 0 ? name : null;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[GameAccountsService] {ex.Message}");
+            return null;
+        }
+    }
+
     public static void Reload()
     {
         lock (Lock) _nicknames = null;

@@ -60,6 +60,13 @@ public partial class App : Application
         _window.Activate();
         DevTimingLog.Write("main window activated");
         DevTimingLog.WatchUiThread(_window.DispatcherQueue);
+
+        // The day's automatic backup of the player's own data (Settings page).
+        _ = Task.Run(() =>
+        {
+            try { UserDatabase.DailyBackupIfDue(); }
+            catch (Exception ex) { Debug.WriteLine($"[Startup] Daily backup failed: {ex.Message}"); }
+        });
     }
 
     /// <summary>Clears last session's decrypted save copies (Working, next to

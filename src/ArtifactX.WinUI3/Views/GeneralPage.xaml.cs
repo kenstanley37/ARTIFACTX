@@ -20,111 +20,12 @@ public sealed partial class GeneralPage : Page
 
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
-        UpdateCheckService.Changed += OnUpdateCheckChanged;
         Unloaded += Page_Unloaded;
         LoadValues();
-        RefreshUpdateStatus();
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(LoadValues);
-
-    private void OnUpdateCheckChanged(object? sender, EventArgs e) =>
-        DispatcherQueue.TryEnqueue(RefreshUpdateStatus);
-
-    private void RefreshUpdateStatus()
-    {
-        VersionTxt.Text = $"ArtifactX v{AppVersionService.DisplayVersion}";
-
-        var result = UpdateCheckService.LastResult;
-        UpdateStatusTxt.Text = result?.Message ?? "";
-        ReleasePageLink.Visibility = result?.Status == UpdateCheckStatus.UpdateAvailable
-            ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    // ---- user.db export / import (UserDatabase) ----
-
-    private async void ExportUserData_Click(object sender, RoutedEventArgs e)
-    {
-        var picker = new Windows.Storage.Pickers.FileSavePicker
-        {
-            SuggestedFileName = $"ArtifactX backup {DateTime.Now:yyyy-MM-dd}",
-        };
-        picker.FileTypeChoices.Add("ArtifactX backup", new List<string> { ".artifactx" });
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindowInstance));
-
-        var file = await picker.PickSaveFileAsync();
-        if (file is null) return;
-        try
-        {
-            string path = file.Path;
-            await Task.Run(() => UserDatabase.ExportTo(path));
-            UserDataStatusTxt.Text = $"Backed up to {file.Name}.";
-        }
-        catch (Exception ex)
-        {
-            UserDataStatusTxt.Text = $"Export failed: {ex.Message}";
-        }
-    }
-
-    private async void ImportUserData_Click(object sender, RoutedEventArgs e)
-    {
-        var picker = new Windows.Storage.Pickers.FileOpenPicker();
-        picker.FileTypeFilter.Add(".artifactx");
-        picker.FileTypeFilter.Add(".db"); // exports made before 2026-10-12
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindowInstance));
-
-        var file = await picker.PickSingleFileAsync();
-        if (file is null) return;
-
-        var confirm = new ContentDialog
-        {
-            Title = "Restore your ArtifactX data?",
-            Content = "Everything ArtifactX keeps for you (templates, settings, nicknames, notes, finds and the rest) will be replaced by what's in this backup. "
-                + "This PC's window position and save-folder list stay as they are. Your current data is backed up first, in the Backups folder.",
-            PrimaryButtonText = "Replace",
-            CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Close,
-            XamlRoot = XamlRoot,
-        };
-        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
-
-        string path = file.Path;
-        string? error = await Task.Run(() => UserDatabase.ImportFrom(path));
-        if (error is null)
-        {
-            SystemNotesService.Reload();
-            PinnedRecipesService.Reload();
-            FindsService.Reload();
-            PlanetWaterService.Reload();
-            GuidesService.Reload();
-            HiddenStationsService.Reload();
-            if (AppSettingsService.ThemeId is { Length: > 0 } theme && theme != ThemeService.Current.Id)
-                ThemeService.Apply(theme);
-        }
-        UserDataStatusTxt.Text = error ?? $"Restored {file.Name}. Your previous data was backed up first. Reopen a page to see restored templates.";
-    }
-
-    private async void CheckForUpdatesBtn_Click(object sender, RoutedEventArgs e)
-    {
-        CheckForUpdatesBtn.IsEnabled = false;
-        UpdateStatusTxt.Text = "Checking...";
-        try
-        {
-            await UpdateCheckService.RefreshAsync();
-        }
-        finally
-        {
-            CheckForUpdatesBtn.IsEnabled = true;
-        }
-    }
-
-    private async void ReleasePageLink_Click(object sender, RoutedEventArgs e)
-    {
-        string? url = UpdateCheckService.LastResult?.ReleaseUrl;
-        if (url is null) return;
-        await Launcher.LaunchUriAsync(new Uri(url));
-    }
 
     /// <summary>Frame.Navigate creates a fresh Page instance on every visit
     /// (no NavigationCacheMode set anywhere in this app) - without this,
@@ -138,7 +39,6 @@ public sealed partial class GeneralPage : Page
     {
         SaveSessionManager.ActiveSessionChanged -= OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged -= OnSessionOrEditsChanged;
-        UpdateCheckService.Changed -= OnUpdateCheckChanged;
     }
 
     private void LoadValues()

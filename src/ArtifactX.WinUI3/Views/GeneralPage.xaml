@@ -152,38 +152,6 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Style="{StaticResource ThemeCardStyle}" Width="340">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <TextBlock Text="ABOUT" Style="{StaticResource ThemeBandTextStyle}"/>
-                            </Border>
-                            <StackPanel Padding="18,14,18,18" Spacing="10">
-                                <TextBlock x:Name="VersionTxt" Text="ArtifactX" FontFamily="{ThemeResource ThemeDisplayFont}" FontSize="15" FontWeight="SemiBold"
-                                           Foreground="{ThemeResource ThemeTextBrush}"/>
-                                <Button x:Name="CheckForUpdatesBtn" Content="Check for Updates" Click="CheckForUpdatesBtn_Click" HorizontalAlignment="Left"/>
-                                <TextBlock x:Name="UpdateStatusTxt" Text="" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                <HyperlinkButton x:Name="ReleasePageLink" Content="Open release page" Visibility="Collapsed" Padding="0" Click="ReleasePageLink_Click"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- user.db (UserDatabase): system notes and learned names - not part of any save. -->
-                    <Border Style="{StaticResource ThemeCardStyle}" Width="340">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <TextBlock Text="YOUR ARTIFACTX DATA" Style="{StaticResource ThemeBandTextStyle}"/>
-                            </Border>
-                            <StackPanel Padding="18,14,18,18" Spacing="10">
-                                <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                           Text="Everything ArtifactX keeps for you - templates, settings, account nicknames, system notes and learned names, finds, guides, pins and planet marks - is in one file on this PC, separate from your game saves. Back it up, or restore it on another PC (that PC keeps its own window position and folder list)."/>
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Button Content="Back up everything..." Click="ExportUserData_Click"/>
-                                    <Button Content="Restore from a backup..." Click="ImportUserData_Click"/>
-                                </StackPanel>
-                                <TextBlock x:Name="UserDataStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
                 </StackPanel>
             </ctcontrols:WrapPanel>
         </StackPanel>
