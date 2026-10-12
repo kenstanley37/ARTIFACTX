@@ -137,7 +137,9 @@ public static partial class TemplateSharingService
             template.SourceToolName = template.SourceToolName is { Length: > 0 } source
                 ? $"{(source.Length > 60 ? source[..60] : source)} (imported)" : "imported";
             await LoadoutTemplateService.SaveAsync(template);
-            return (true, $"Imported \"{template.Name}\". Use Apply when you're ready - nothing in your save changes until then.");
+            // Full Builds add a new tool or ship (Freighter: only one per save, so it Applies).
+            string action = template.Scope == "FullBuild" && template.SourceKind != "Freighter" ? "Add as new" : "Apply";
+            return (true, $"Imported \"{template.Name}\". Use {action} when you're ready - nothing in your save changes until then.");
         }
         catch (Exception ex)
         {
