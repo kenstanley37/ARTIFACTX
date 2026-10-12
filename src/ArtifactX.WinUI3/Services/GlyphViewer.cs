@@ -56,9 +56,10 @@ public static class GlyphViewer
                         Height = size + 14,
                         CornerRadius = new CornerRadius(6),
                         Background = ThemeResources.Brush("ThemeVoidBrush"),
-                        // The first glyph is the planet; outline it like the Space Stations page does.
-                        BorderBrush = ThemeResources.Brush(i == 0 ? "ThemeAccentBrush" : "ThemeLineBrush"),
-                        BorderThickness = new Thickness(i == 0 ? 2 : 1),
+                        // All tiles look alike - an outline read as "selected". The planet glyph
+                        // is named in its number label instead.
+                        BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
+                        BorderThickness = new Thickness(1),
                         Child = new Image
                         {
                             Source = CatalogService.TryGet($"PORTALSYMBOL_{code[i]}")?.Icon,
@@ -68,7 +69,7 @@ public static class GlyphViewer
                     });
                     tile.Children.Add(new TextBlock
                     {
-                        Text = (i + 1).ToString(),
+                        Text = i == 0 ? "1 · planet" : (i + 1).ToString(),
                         FontSize = Math.Max(14, size / 5.0),
                         FontWeight = FontWeights.SemiBold,
                         HorizontalAlignment = HorizontalAlignment.Center,
@@ -105,7 +106,7 @@ public static class GlyphViewer
             });
             content.Children.Add(new TextBlock
             {
-                Text = "Dial them at a portal from left to right, 1 to 12. The outlined first glyph picks the planet.",
+                Text = "Dial them at a portal from left to right, 1 to 12. Glyph 1 picks the planet.",
                 TextWrapping = TextWrapping.Wrap,
                 Foreground = ThemeResources.Brush("ThemeTextDimBrush"),
             });
