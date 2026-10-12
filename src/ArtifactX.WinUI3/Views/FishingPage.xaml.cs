@@ -41,6 +41,8 @@ public sealed partial class FishingPage : Page
     private string _liveKey = "";
     private readonly Dictionary<string, string> _rowTitles = new();
     private bool _ready;
+    // Set by the "Any planet with water" button; cleared when a planet type is picked.
+    private bool _anywhereOnly;
 
     public FishingPage()
     {
@@ -155,8 +157,66 @@ public sealed partial class FishingPage : Page
 
     // ---------------------------------------------------------------- here
 
+    /// <summary>The "Still to catch" strip: each group of planet types that
+    /// shares its own fish (e.g. Exotic/Red/Green/Blue), most uncaught first.
+    /// Fish found on any planet are counted separately - they're everywhere.</summary>
+    private void UpdateNext()
+    {
+        NextPanel.Children.Clear();
+        if (!SaveSessionManager.IsSaveLoaded)
+        {
+            NextPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var groups = _fish.Where(f => !f.Biomes.Contains(FishInfo.AnyPlanet))
+            .GroupBy(f => string.Join(",", f.Biomes.OrderBy(b => b)))
+            .Select(g => (Biomes: g.First().Biomes, Left: g.Count(f => !_caught.ContainsKey(f.Id)), Total: g.Count()))
+            .Where(g => g.Left > 0)
+            .OrderByDescending(g => g.Left)
+            .ThenBy(g => NmsPlanets.TypeName(g.Biomes[0]), StringComparer.CurrentCulture)
+            .ToList();
+        int anywhereLeft = _fish.Count(f => f.Biomes.Contains(FishInfo.AnyPlanet) && !_caught.ContainsKey(f.Id));
+
+        NextPanel.Children.Add(new TextBlock
+        {
+            Text = groups.Count == 0 && anywhereLeft == 0 ? "You've caught every fish in the game!" : "STILL TO CATCH",
+            Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"],
+            FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0),
+        });
+        foreach (var g in groups)
+        {
+            string types = string.Join(", ", g.Biomes.Select(NmsPlanets.TypeName));
+            var button = new Button { Content = $"{types} · {g.Left} left", Padding = new Thickness(8, 2, 8, 2), FontSize = 12, Tag = g.Biomes[0] };
+            ToolTipService.SetToolTip(button, $"{g.Left} of {g.Total} fish that live on {types} planets not caught yet - click to show them");
+            button.Click += NextType_Click;
+            NextPanel.Children.Add(button);
+        }
+        if (anywhereLeft > 0)
+        {
+            var anywhere = new Button { Content = $"Any planet with water · {anywhereLeft} left", Padding = new Thickness(8, 2, 8, 2), FontSize = 12, Tag = FishInfo.AnyPlanet };
+            ToolTipService.SetToolTip(anywhere, "Fish that live on any planet with water - click to show the ones you haven't caught");
+            anywhere.Click += NextType_Click;
+            NextPanel.Children.Add(anywhere);
+        }
+        NextPanel.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Shows the uncaught fish of the clicked planet type ("Any planet
+    /// with water" shows only the fish that live anywhere).</summary>
+    private void NextType_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not int biome) return;
+        int typeTag = biome == FishInfo.AnyPlanet ? AllTypes : biome;
+        PlanetTypeBox.SelectedItem = PlanetTypeBox.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (int)i.Tag == typeTag) ?? PlanetTypeBox.SelectedItem;
+        ShowBox.SelectedIndex = 1; // Not caught yet
+        AnywhereBox.IsChecked = true;
+        _anywhereOnly = biome == FishInfo.AnyPlanet; // after the selection change, which clears it
+        Apply();
+    }
+
     private void UpdateHere()
     {
+        UpdateNext();
         string typeName = _hereBiome is int b ? NmsPlanets.TypeName(b) : "";
         if (PlanetTypeBox.Items.FirstOrDefault() is ComboBoxItem whereItem)
             whereItem.Content = typeName.Length > 0 ? $"Where I am ({typeName})" : "Where I am";
@@ -196,7 +256,11 @@ public sealed partial class FishingPage : Page
 
     // ---------------------------------------------------------------- list
 
-    private void Filter_Changed(object sender, SelectionChangedEventArgs e) => Apply();
+    private void Filter_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender == PlanetTypeBox) _anywhereOnly = false;
+        Apply();
+    }
     private void Filter_Click(object sender, RoutedEventArgs e) => Apply();
     private void Search_TextChanged(object sender, TextChangedEventArgs e) => Apply();
 
@@ -218,6 +282,7 @@ public sealed partial class FishingPage : Page
 
         var planetFish = _fish.Where(f => biome is not int b || f.LivesOn(b))
             .Where(f => anywhere || !f.Biomes.Contains(FishInfo.AnyPlanet))
+            .Where(f => !_anywhereOnly || f.Biomes.Contains(FishInfo.AnyPlanet))
             .ToList();
         var shown = planetFish
             .Where(f => show == 0 || (show == 2) == _caught.ContainsKey(f.Id))
@@ -246,7 +311,7 @@ public sealed partial class FishingPage : Page
                     () => scroller.ChangeView(null, offset, null, disableAnimation: true));
         }
         int caughtCount = planetFish.Count(f => _caught.ContainsKey(f.Id));
-        CountTxt.Text = $"Showing {shown.Count} · {caughtCount} of {planetFish.Count} caught";
+        CountTxt.Text = (_anywhereOnly ? "Fish found on any planet · " : "") + $"Showing {shown.Count} · {caughtCount} of {planetFish.Count} caught";
     }
 
     /// <summary>Fishing spots recorded on the Finds page, by fish id.</summary>

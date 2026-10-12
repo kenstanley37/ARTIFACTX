@@ -20,6 +20,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -73,7 +74,10 @@
             </Grid>
         </Border>
 
-        <ctcontrols:WrapPanel Grid.Row="3" HorizontalSpacing="14" VerticalSpacing="10">
+        <!-- Where to go next: planet types with the most fish still to catch (click to filter). -->
+        <ctcontrols:WrapPanel Grid.Row="3" x:Name="NextPanel" HorizontalSpacing="6" VerticalSpacing="6" Visibility="Collapsed"/>
+
+        <ctcontrols:WrapPanel Grid.Row="4" HorizontalSpacing="14" VerticalSpacing="10">
             <ComboBox x:Name="PlanetTypeBox" Header="Planet type" Width="240" SelectionChanged="Filter_Changed"/>
             <ComboBox x:Name="ShowBox" Header="Show" Width="200" SelectionChanged="Filter_Changed"/>
             <ComboBox x:Name="TimeBox" Header="Time of day" Width="180" SelectionChanged="Filter_Changed"/>
@@ -86,7 +90,7 @@
             <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
         </ctcontrols:WrapPanel>
 
-        <Grid Grid.Row="4" ColumnSpacing="14">
+        <Grid Grid.Row="5" ColumnSpacing="14">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
