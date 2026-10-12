@@ -27,7 +27,10 @@
                         Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
             </Grid>
 
-            <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left">
+            <!-- The cache, and beside it every corvette part it can hold (ItemListPanel),
+                 so nobody has to remember part names. Wraps under on narrow windows. -->
+            <ctcontrols:WrapPanel HorizontalSpacing="18" VerticalSpacing="18">
+            <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left" VerticalAlignment="Top">
                 <StackPanel>
                     <Border Style="{StaticResource ThemeBandStyle}">
                         <TextBlock Text="CONTENTS" Style="{StaticResource ThemeBandTextStyle}"/>
@@ -56,6 +59,16 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
+
+            <Border Style="{StaticResource ThemeCardStyle}" Width="340" VerticalAlignment="Top">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="CORVETTE PARTS" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <controls:ItemListPanel x:Name="PartsPanel" Padding="14,12,14,14"/>
+                </StackPanel>
+            </Border>
+            </ctcontrols:WrapPanel>
         </StackPanel>
     </ScrollViewer>
 </Page>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A browsable list of the items an inventory can hold, shown beside its grid
+     (first on the Corvette Cache): search, a group filter, click a card to add
+     a full stack to the next free slot, or add a stack of everything. Fed by
+     the page (see ItemListPanel.LoadAsync), so it only ever offers items that
+     inventory accepts. -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.ItemListPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ArtifactX.WinUI3.Controls">
+
+    <StackPanel Spacing="10">
+        <TextBlock x:Name="SummaryTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
+                   Text="Loading..."/>
+        <TextBox x:Name="SearchBox" PlaceholderText="Search by name" TextChanged="Filter_Changed"/>
+        <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ComboBox x:Name="GroupBox" HorizontalAlignment="Stretch" SelectionChanged="Filter_Changed"/>
+            <CheckBox Grid.Column="1" x:Name="HideOwnedBox" Content="Hide ones I have" Checked="Filter_Changed" Unchecked="Filter_Changed" MinWidth="0"/>
+        </Grid>
+        <Button x:Name="AddAllBtn" HorizontalAlignment="Stretch" Click="AddAll_Click"/>
+        <TextBlock x:Name="StatusTxt" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"/>
+
+        <GridView x:Name="CardsView" Height="560" SelectionMode="None" IsItemClickEnabled="True" ItemClick="Card_Click"
+                  Padding="0" ScrollViewer.VerticalScrollBarVisibility="Auto">
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="2" ItemWidth="150" ItemHeight="96"/>
+                </ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+            <GridView.ItemContainerStyle>
+                <Style TargetType="GridViewItem">
+                    <Setter Property="Margin" Value="0,0,6,6"/>
+                    <Setter Property="Padding" Value="0"/>
+                </Style>
+            </GridView.ItemContainerStyle>
+            <GridView.ItemTemplate>
+                <DataTemplate x:DataType="local:ItemCard">
+                    <Border Width="144" Height="90" Padding="8,6" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                            BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Background="{ThemeResource ThemePanelAltBrush}"
+                            Opacity="{x:Bind CardOpacity, Mode=OneWay}"
+                            ToolTipService.ToolTip="{x:Bind Tooltip, Mode=OneWay}">
+                        <Grid RowSpacing="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Grid ColumnSpacing="6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Image Source="{x:Bind Icon, Mode=OneWay}" Width="34" Height="34"/>
+                                <TextBlock Grid.Column="1" Text="{x:Bind Group}" FontSize="10" Opacity="0.7" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                            </Grid>
+                            <TextBlock Grid.Row="1" Text="{x:Bind Name}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap"
+                                       TextTrimming="CharacterEllipsis" MaxLines="2" VerticalAlignment="Top"/>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </GridView.ItemTemplate>
+        </GridView>
+    </StackPanel>
+</UserControl>

@@ -7,6 +7,7 @@ using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Windows.UI;
 
@@ -466,12 +467,7 @@ public sealed partial class InventorySlotGrid : UserControl
             // same reasoning as the Max Qty context-menu action: that's the
             // value people actually want, and trimming down is easier (sell/drop
             // in-game) than topping up here.
-            int maxAmount = match.CategoryLabel switch
-            {
-                "Technology" => 100,
-                "Product" => ComputeStackCap(match.MaxStackSize, ProductStorageMultiplier),
-                _ => 9999,
-            };
+            int maxAmount = StackCapFor(match.CategoryLabel, match.MaxStackSize);
 
             ViewModel?.AddItem(cell.X, cell.Y, match.GameId, match.CategoryLabel, maxAmount, maxAmount);
             Refresh();
@@ -481,6 +477,44 @@ public sealed partial class InventorySlotGrid : UserControl
 
         FlyoutBase.SetAttachedFlyout(anchor, flyout);
         FlyoutBase.ShowAttachedFlyout(anchor);
+    }
+
+    /// <summary>A full stack of an item in this container: technology is 100
+    /// (durability, not a count), products use their stack size times this
+    /// container's multiplier, substances 9999 (see the add-item flyout).</summary>
+    public int StackCapFor(string? categoryLabel, int? maxStackSize) => categoryLabel switch
+    {
+        "Technology" => 100,
+        "Product" => ComputeStackCap(maxStackSize, ProductStorageMultiplier),
+        _ => 9999,
+    };
+
+    /// <summary>Unlocked slots with nothing in them.</summary>
+    public int FreeSlotCount =>
+        ViewModel?.Cells.Count(c => c.State == ViewModels.InventorySlotState.UnlockedEmpty) ?? 0;
+
+    /// <summary>Item ids already in this inventory (without the save's "^").</summary>
+    public HashSet<string> ItemIdsPresent() =>
+        ViewModel?.Cells.Where(c => c.IsOccupied && c.ItemId is not null)
+            .Select(c => c.ItemId!.TrimStart('^'))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Adds one full stack of each item to the next free slots, in
+    /// one write (item lists beside the grid). Returns how many fit.</summary>
+    public int AddStacksToFreeSlots(IEnumerable<(string GameId, string CategoryLabel, int? MaxStackSize)> items)
+    {
+        if (ViewModel is null) return 0;
+        int added = ViewModel.AddItemsToFreeSlots(items.Select(i =>
+        {
+            int cap = StackCapFor(i.CategoryLabel, i.MaxStackSize);
+            return (i.GameId, (string?)i.CategoryLabel, cap, cap);
+        }));
+        if (added > 0)
+        {
+            Refresh();
+            CellChanged?.Invoke(this, EventArgs.Empty);
+        }
+        return added;
     }
 
     /// <summary>Applies this container's storage multiplier to a catalog row's raw

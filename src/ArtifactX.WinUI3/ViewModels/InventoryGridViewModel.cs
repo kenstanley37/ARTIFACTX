@@ -390,6 +390,28 @@ public partial class InventoryGridViewModel : ObservableObject
         return true;
     }
 
+    /// <summary>Puts each item into the next free unlocked slot (top-left
+    /// first), in one write. Returns how many fit; the rest are left out.</summary>
+    public int AddItemsToFreeSlots(IEnumerable<(string ItemId, string? CategoryLabel, int Amount, int MaxAmount)> items)
+    {
+        var free = Cells.Where(c => c.State == InventorySlotState.UnlockedEmpty)
+            .OrderBy(c => c.Y).ThenBy(c => c.X)
+            .Select(c => (c.X, c.Y))
+            .ToList();
+        var added = items.Zip(free, (item, slot) => (slot.X, slot.Y,
+                (string?)(item.ItemId.StartsWith('^') ? item.ItemId : "^" + item.ItemId),
+                item.Amount, item.MaxAmount, item.CategoryLabel, true, 0.0))
+            .ToList();
+        if (added.Count == 0) return 0;
+
+        var entries = Cells.Where(c => c.IsOccupied)
+            .Select(c => (c.X, c.Y, c.ItemId, c.Amount, c.MaxAmount, c.CategoryLabel, c.IsFunctional, c.MalfunctionSeverity))
+            .Concat(added);
+        StageWholeArray(entries);
+        Load();
+        return added.Count;
+    }
+
     /// <summary>Clears whatever item occupies (x, y). No-op if already empty.</summary>
     public void RemoveItem(int x, int y)
     {

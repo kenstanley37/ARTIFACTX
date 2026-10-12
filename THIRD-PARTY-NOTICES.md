@@ -59,6 +59,14 @@ add game data structures newer than the upstream release). Any changes are
 part of this repository's public source, so the modified library's source is
 always available under the LGPL.
 
+Changes made by ArtifactX to its copy of libMBIN:
+- 2026-10-12: `GcBaseBuildingTable`, `GcBaseBuildingEntry`, `GcBaseBuildingPartStyle`
+  and `GcBaseBuildingPalette` updated, and `GcSwatchColour` added, from upstream
+  MBINCompiler's update for the current game build (25800958), so the base
+  building table reads again.
+- The DataCataloger tool's `dumpfile` command prints the full error chain when a
+  file can't be decoded (ArtifactX code, not libMBIN).
+
 ## NMS-Tools
 
 The half-precision float helpers in libMBIN's `BinaryStreamExtensions.cs`

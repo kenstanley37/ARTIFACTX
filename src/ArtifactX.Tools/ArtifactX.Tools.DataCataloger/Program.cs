@@ -1189,6 +1189,118 @@ if (args.Length > 1 && args[0].Equals("add-freighter-paints", StringComparison.O
     return;
 }
 
+// "DataCataloger add-corvette-parts <target-catalog-db-path>" marks which
+// base-building parts can be built on a corvette, from the game's own base
+// building table (GcBaseBuildingTable.Objects): BuildableInShipStructural
+// (cockpits, habitats, landing gear, wings...) and BuildableInShipDecorative.
+// The catalog's own BuildingPart items mix every base part (2,090) with no
+// way to tell corvette ones apart, so the Corvette Cache's item list needs
+// this (added 2026-10-12). Written as category "CorvetteParts": GameId = the
+// inventory item id (OverrideProductID when the part uses one), NameEnglish =
+// the part id, UsageCategory = Structural / Decorative / Both. The app joins
+// it back to the product rows for names, icons and stack sizes. Same
+// patch-in-place pattern as add-freighter-paints; idempotent.
+if (args.Length > 1 && args[0].Equals("add-corvette-parts", StringComparison.OrdinalIgnoreCase))
+{
+    string corvetteDbPath = args[1];
+    if (!File.Exists(corvetteDbPath))
+    {
+        ConsoleStyle.Error($"Target catalog DB not found: {corvetteDbPath}");
+        return;
+    }
+
+    var corvetteSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(corvetteSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakReaderService corvettePakReader = new PakReaderService();
+    var corvetteExtraction = new ExtractionService();
+    libMBIN.NMS.GameComponents.GcBaseBuildingTable? buildingTable = null;
+    foreach (var pak in new PakDiscoveryService().Discover(corvetteSettings.NmsInstallationPath!))
+    {
+        if (buildingTable is not null) break;
+        PakHeader header;
+        IReadOnlyList<PakEntry> entries;
+        try
+        {
+            header = corvettePakReader.ReadHeader(pak.FullPath);
+            entries = corvettePakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+
+        foreach (var entry in entries.Where(e => !string.IsNullOrEmpty(e.FileName)
+                     && e.FileName.Contains("basebuildingobjectstable.mbin", StringComparison.OrdinalIgnoreCase)))
+        {
+            byte[]? bytes;
+            try { bytes = corvetteExtraction.ExtractEntryBytes(pak.FullPath, entry, header); }
+            catch { continue; }
+            if (bytes is null || bytes.Length == 0) continue;
+            try
+            {
+                using var ms = new MemoryStream(bytes);
+                var mbin = new MBINFile(ms);
+                mbin.Load();
+                if (mbin.GetData() is libMBIN.NMS.GameComponents.GcBaseBuildingTable table) { buildingTable = table; break; }
+            }
+            catch { }
+        }
+    }
+
+    if (buildingTable?.Objects is null)
+    {
+        ConsoleStyle.Error("Could not find GcBaseBuildingTable (basebuildingobjectstable.mbin).");
+        return;
+    }
+
+    var corvetteParts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    foreach (var part in buildingTable.Objects)
+    {
+        if (!part.BuildableInShipStructural && !part.BuildableInShipDecorative) continue;
+        string partId = part.ID?.Value ?? "";
+        string itemId = part.UseProductIDOverride && part.OverrideProductID?.Value is { Length: > 0 } overrideId ? overrideId : partId;
+        if (itemId.Length == 0) continue;
+        string kind = part.BuildableInShipStructural && part.BuildableInShipDecorative ? "Both"
+            : part.BuildableInShipStructural ? "Structural" : "Decorative";
+        corvetteParts.TryAdd(itemId, kind);
+    }
+    ConsoleStyle.Header($"Found {corvetteParts.Count} corvette parts " +
+        $"({corvetteParts.Values.Count(k => k != "Decorative")} structural, {corvetteParts.Values.Count(k => k != "Structural")} decorative).");
+
+    using var corvetteDb = new CatalogDbContext(corvetteDbPath);
+    var existingCorvetteCategory = corvetteDb.Categories.FirstOrDefault(c => c.TemplateType == "CorvetteParts");
+    if (existingCorvetteCategory != null)
+    {
+        corvetteDb.Items.RemoveRange(corvetteDb.Items.Where(i => i.CategoryId == existingCorvetteCategory.Id));
+        corvetteDb.Categories.Remove(existingCorvetteCategory);
+        corvetteDb.SaveChanges();
+    }
+
+    var corvetteCategory = new CatalogCategory
+    {
+        TemplateType = "CorvetteParts",
+        RowType = "GcBaseBuildingEntry",
+        SourceMbinPath = "metadata/reality/tables/basebuildingobjectstable.mbin"
+    };
+    corvetteDb.Categories.Add(corvetteCategory);
+    corvetteDb.SaveChanges();
+
+    foreach (var (itemId, kind) in corvetteParts)
+        corvetteDb.Items.Add(new CatalogItem
+        {
+            CategoryId = corvetteCategory.Id,
+            GameId = "CORVETTE:" + itemId,
+            NameEnglish = itemId,
+            UsageCategory = kind
+        });
+    corvetteDb.SaveChanges();
+
+    ConsoleStyle.Success($"Wrote {corvetteParts.Count} corvette parts to {corvetteDbPath}.");
+    return;
+}
+
 // "DataCataloger add-system-descriptors <target-catalog-db-path>" adds the
 // words the game uses to describe a star system's economy, wealth and
 // conflict (system info panel / Galaxy Map), e.g. "Mathematical", "Opulent",
@@ -2107,7 +2219,7 @@ if (args.Length > 1 && args[0].Equals("dumpfile", StringComparison.OrdinalIgnore
         }
         catch (Exception ex)
         {
-            ConsoleStyle.Error($"Decode failed: {ex.Message}");
+            ConsoleStyle.Error($"Decode failed: {ex}");
             return;
         }
         if (template is null)
