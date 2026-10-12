@@ -47,8 +47,13 @@
                  structurally-always-present-but-unowned container (real bug
                  found 2026-08-10 on a save that hadn't left the starting planet). -->
             <TextBlock x:Name="NoFreighterTxt" Style="{StaticResource ThemeDimTextStyle}"
-                       MaxWidth="600" HorizontalAlignment="Left" Visibility="Collapsed"
-                       Text="You don't own a freighter yet. Buy or claim one in-game, then come back here to edit it."/>
+                       MaxWidth="640" HorizontalAlignment="Left" Visibility="Collapsed" TextWrapping="Wrap">
+                <Run Text="You don't own a freighter yet, so there's nothing to edit here."/>
+                <LineBreak/><LineBreak/>
+                <Run Text="The quickest way to get one is free: keep warping to new systems until you arrive in a space battle with a freighter under pirate attack. Destroy the pirates, land in the freighter's hangar and talk to the captain on the bridge - they'll offer you the freighter."/>
+                <LineBreak/><LineBreak/>
+                <Run Text="Want a particular freighter? Once you own any freighter, come back here and use a Full Build template's Apply to turn it into that one."/>
+            </TextBlock>
 
             <!-- ONE Grid for the whole page body (title row + a single tall
                  content row), matching ShipsPage's structure - column 0
