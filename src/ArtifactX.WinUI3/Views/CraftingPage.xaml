@@ -130,6 +130,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <Grid>
@@ -141,8 +142,10 @@
                         <Button Grid.Column="1" x:Name="ExportBtn" Content="Export CSV" Click="ExportCsv_Click" Padding="8,2" FontSize="12"
                                 ToolTipService.ToolTip="Save this shopping list as a spreadsheet file"/>
                     </Grid>
-                    <TextBlock Grid.Row="1" x:Name="RawSummaryTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
-                    <ListView Grid.Row="2" x:Name="RawList" SelectionMode="None">
+                    <CheckBox Grid.Row="1" x:Name="CountCarriedBox" Content="Take off what I'm already carrying" IsChecked="True" Click="CountCarried_Click"
+                              ToolTipService.ToolTip="Counts what's in your Exosuit, starships, Exocraft, freighter and storage containers in the loaded save (as of when it was loaded)."/>
+                    <TextBlock Grid.Row="2" x:Name="RawSummaryTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                    <ListView Grid.Row="3" x:Name="RawList" SelectionMode="None">
                         <ListView.ItemContainerStyle>
                             <Style TargetType="ListViewItem">
                                 <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -165,11 +168,16 @@
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="0">
                                         <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" FontWeight="SemiBold"
                                                    TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{x:Bind Have}" Visibility="{x:Bind HaveVisibility}" Foreground="{x:Bind HaveBrush}"
+                                                   FontSize="11" TextTrimming="CharacterEllipsis"/>
                                         <TextBlock Text="{x:Bind RefineHint}" Visibility="{x:Bind RefineVisibility}" Style="{StaticResource ThemeDimTextStyle}"
                                                    FontSize="11" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind RefineToolTip}"/>
                                     </StackPanel>
-                                    <TextBlock Grid.Column="2" Text="{x:Bind Total}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold"
-                                               FontSize="17" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="0">
+                                        <TextBlock Text="{x:Bind Total}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold"
+                                                   FontSize="17" Foreground="{ThemeResource ThemeAccentBrush}" HorizontalAlignment="Right"/>
+                                        <TextBlock Text="{x:Bind TotalLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="10" HorizontalAlignment="Right"/>
+                                    </StackPanel>
                                 </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>
