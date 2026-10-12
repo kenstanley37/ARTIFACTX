@@ -112,7 +112,7 @@
                         <TextBox x:Name="FormSystemNameBox" Header="System name" Width="220" PlaceholderText="As shown in game"
                                  ToolTipService.ToolTip="The game only writes the system name into the save when you save in space, so type it here if it's missing. It's shared with the Planets page."/>
                         <StackPanel Spacing="4" VerticalAlignment="Bottom">
-                            <StackPanel x:Name="FormGlyphsPanel" Orientation="Horizontal" Spacing="2"/>
+                            <controls:GlyphStrip x:Name="FormGlyphStrip"><StackPanel x:Name="FormGlyphsPanel" Orientation="Horizontal" Spacing="2"/></controls:GlyphStrip>
                             <TextBlock x:Name="FormCodeStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                         </StackPanel>
                     </ctcontrols:WrapPanel>
@@ -232,20 +232,22 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <ItemsControl ItemsSource="{x:Bind Glyphs}" VerticalAlignment="Center">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal" Spacing="1"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="ImageSource">
-                                            <Border Width="20" Height="20" Background="{ThemeResource ThemeVoidBrush}">
-                                                <Image Source="{x:Bind}" Width="17" Height="17"/>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <controls:GlyphStrip Code="{x:Bind PortalCode}" VerticalAlignment="Center">
+                                    <ItemsControl ItemsSource="{x:Bind Glyphs}" VerticalAlignment="Center">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" Spacing="1"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="ImageSource">
+                                                <Border Width="20" Height="20" Background="{ThemeResource ThemeVoidBrush}">
+                                                    <Image Source="{x:Bind}" Width="17" Height="17"/>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </controls:GlyphStrip>
                                 <Button Grid.Column="1" Content="Copy" Tag="{x:Bind PortalCode}" Click="CopyCode_Click" Padding="8,2"
                                         ToolTipService.ToolTip="Copy the portal address"/>
                             </Grid>

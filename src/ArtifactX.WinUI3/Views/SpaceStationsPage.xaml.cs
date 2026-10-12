@@ -594,7 +594,7 @@ public sealed partial class SpaceStationsPage : Page
     {
         string code = S.PortalAddress(address);
         PortalGlyphsPanel.Children.Clear();
-        ToolTipService.SetToolTip(PortalGlyphsBorder, $"Portal code {code}");
+        PortalGlyphStrip.Code = code;
 
         var icons = code.Select(c => CatalogService.TryGet($"PORTALSYMBOL_{c}")?.Icon).ToList();
         if (icons.Any(i => i is null))

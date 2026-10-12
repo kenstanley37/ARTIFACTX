@@ -16,6 +16,7 @@ public static class AppSettingsService
     private const string DisclaimerAcceptedKey = "DisclaimerAccepted";
     private const string ThemeIdKey = "Theme";
     private const string HyperdriveRangeKey = "HyperdriveRange";
+    private const string GlyphViewSizeKey = "GlyphViewSize";
 
     private static readonly string SettingsFilePath = Path.Combine(LocalAppDataPaths.RootFolder, "app-settings.json");
 
@@ -75,6 +76,13 @@ public static class AppSettingsService
 
     public static void SetHyperdriveRange(double? range) =>
         SetSetting(HyperdriveRangeKey, range is double r ? r.ToString(System.Globalization.CultureInfo.InvariantCulture) : "");
+
+    /// <summary>Glyph size (px) the player last picked in the large glyph view
+    /// (GlyphViewer); 96 until they choose.</summary>
+    public static int GlyphViewSize =>
+        LoadSettings().TryGetValue(GlyphViewSizeKey, out var value) && int.TryParse(value, out int size) ? size : 96;
+
+    public static void SetGlyphViewSize(int size) => SetSetting(GlyphViewSizeKey, size.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
     /// <summary>Simple on/off flags for one-time UI hints (e.g. a dismissed tip).</summary>
     public static bool GetFlag(string key) => LoadSettings().TryGetValue(key, out var value) && value == "true";

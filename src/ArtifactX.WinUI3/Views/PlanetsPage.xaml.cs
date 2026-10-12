@@ -425,6 +425,8 @@ public sealed partial class PlanetsPage : Page
         SystemCodeTxt.Text = systemCode;
         CopySystemCodeBtn.Tag = systemCode;
         SystemGlyphsPanel.Children.Clear();
+        SystemGlyphStrip.Code = systemCode;
+        SystemGlyphStrip.Title = note?.SystemName is { Length: > 0 } stripName ? stripName : "This system";
         foreach (var glyph in GlyphsFor(systemCode))
             SystemGlyphsPanel.Children.Add(GlyphTile(glyph, 28));
 
@@ -669,8 +671,10 @@ public sealed partial class PlanetsPage : Page
         stack.Children.Add(DimLine($"Found by {(planet.DiscoveredHere ? "you" : planet.Discoverer)}"));
 
         var glyphRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
+        var glyphTiles = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
         foreach (var glyph in GlyphsFor(planet.PortalCode))
-            glyphRow.Children.Add(GlyphTile(glyph, 20));
+            glyphTiles.Children.Add(GlyphTile(glyph, 20));
+        glyphRow.Children.Add(new ArtifactX.WinUI3.Controls.GlyphStrip { Content = glyphTiles, Code = planet.PortalCode, VerticalAlignment = VerticalAlignment.Center });
         var copy = new Button { Content = "Copy", Tag = planet.PortalCode, Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(8, 0, 0, 0) };
         copy.Click += CopyCode_Click;
         ToolTipService.SetToolTip(copy, $"Copy portal address {planet.PortalCode}");
@@ -1160,6 +1164,7 @@ public sealed partial class PlanetsPage : Page
         DecoderErrorTxt.Visibility = error.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         DecoderResultPanel.Visibility = ok ? Visibility.Visible : Visibility.Collapsed;
         DecoderGlyphsPanel.Children.Clear();
+        DecoderGlyphStrip.Code = ok ? code : "";
         if (!ok) return;
 
         foreach (var glyph in GlyphsFor(code))

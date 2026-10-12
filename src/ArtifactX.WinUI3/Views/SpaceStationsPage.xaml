@@ -6,6 +6,7 @@
     x:Class="ArtifactX.WinUI3.Views.SpaceStationsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -154,7 +155,7 @@
                                            Foreground="{ThemeResource ThemeTextDimBrush}" Margin="0,8,0,0"/>
                                 <Border x:Name="PortalGlyphsBorder" Padding="6" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                                         Background="{ThemeResource ThemeVoidBrush}">
-                                    <StackPanel x:Name="PortalGlyphsPanel" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center"/>
+                                    <controls:GlyphStrip x:Name="PortalGlyphStrip" HorizontalAlignment="Center"><StackPanel x:Name="PortalGlyphsPanel" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center"/></controls:GlyphStrip>
                                 </Border>
                                 <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                            Text="Dial at any portal to reach this system. The highlighted first glyph picks planet 1."/>

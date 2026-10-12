@@ -409,6 +409,7 @@ public sealed partial class FindsPage : Page
     private void UpdateFormGlyphs()
     {
         FormGlyphsPanel.Children.Clear();
+        FormGlyphStrip.Code = NmsPortalCode.TryParse(FormCodeBox.Text.Trim(), out string stripCode, out _) ? stripCode : "";
         string input = FormCodeBox.Text.Trim();
         if (input.Length == 0)
         {
