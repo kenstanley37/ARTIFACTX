@@ -217,10 +217,10 @@
                                    Text="Record a system's star colour, economy and so on in Your notes on this system, and filters for them appear here."/>
                         <ctcontrols:WrapPanel x:Name="NoteFiltersPanel" HorizontalSpacing="14" VerticalSpacing="10">
                             <ComboBox x:Name="StarFilterBox" Header="Star colour" Width="200" SelectionChanged="Filter_Changed"/>
-                            <ComboBox x:Name="EconomyFilterBox" Header="Economy (your notes)" Width="200" SelectionChanged="Filter_Changed"/>
-                            <ComboBox x:Name="WealthFilterBox" Header="Wealth (your notes)" Width="180" SelectionChanged="Filter_Changed"/>
-                            <ComboBox x:Name="ConflictFilterBox" Header="Conflict (your notes)" Width="180" SelectionChanged="Filter_Changed"/>
-                            <ComboBox x:Name="RaceFilterBox" Header="Race (your notes)" Width="180" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="EconomyFilterBox" Header="Economy" Width="200" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="WealthFilterBox" Header="Wealth" Width="180" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="ConflictFilterBox" Header="Conflict" Width="180" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="RaceFilterBox" Header="Race" Width="180" SelectionChanged="Filter_Changed"/>
                             <CheckBox x:Name="WaterFilterBox" Content="Water (your notes)" Click="Filter_Click" VerticalAlignment="Bottom"/>
                             <CheckBox x:Name="DissonantFilterBox" Content="Dissonant (your notes)" Click="Filter_Click" VerticalAlignment="Bottom"/>
                             <ComboBox x:Name="BodiesFilterBox" Header="Planets / moons (your notes)" Width="220" SelectionChanged="Filter_Changed">
@@ -266,9 +266,11 @@
 
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                                                 <TextBlock Text="{x:Bind TypeLabel}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold"/>
-                                                <TextBlock Text="{x:Bind LocationLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                                <TextBlock Text="{x:Bind LocationLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{x:Bind FactsLabel}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"
+                                                           Foreground="{ThemeResource ThemeAccentBrush}"/>
                                                 <TextBlock Text="{x:Bind NotesLabel}" Visibility="{x:Bind NotesVisibility}" FontSize="12"
-                                                           Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+                                                           Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"/>
                                             </StackPanel>
 
                                             <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="3">

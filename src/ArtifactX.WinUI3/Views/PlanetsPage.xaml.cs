@@ -1092,12 +1092,15 @@ public sealed partial class PlanetsPage : Page
         NotesLabel = notes,
         NotesVisibility = notes.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
         DistanceLabel = DistanceText(planet, distance),
-        TypeLabel = planet.TypeName,
+        TypeLabel = UniverseInfo.PlanetName(planet.SystemAddress, planet.PlanetIndex),
+        FactsLabel = UniverseInfo.Compact(planet.SystemAddress),
         Swatch = new SolidColorBrush(ParseColour(NmsPlanets.TypeColour(planet.BiomeIndex))),
         RingVisibility = planet.HasRings ? Visibility.Visible : Visibility.Collapsed,
-        LocationLabel = planet.Source.Length > 0
-            ? $"{GalaxyLabel(planet.Galaxy)} · {BodyLabel(planet)} · {planet.Source}"
-            : $"{GalaxyLabel(planet.Galaxy)} · {BodyLabel(planet)}",
+        LocationLabel = string.Join(" · ", new[]
+        {
+            planet.HasRings ? $"{planet.TypeName} with rings" : planet.TypeName,
+            BodyLabel(planet), GalaxyLabel(planet.Galaxy), planet.Source,
+        }.Where(s => s.Length > 0)),
         PortalCode = planet.PortalCode,
         Glyphs = GlyphsFor(planet.PortalCode),
         DiscoveredLabel = $"{(planet.DiscoveredHere ? "You" : planet.Discoverer)} · {FormatDate(planet.DiscoveredUnixSeconds)}",
@@ -1108,7 +1111,7 @@ public sealed partial class PlanetsPage : Page
     {
         var note = SystemNotesService.Get(planet.SystemAddress);
         string body = note?.IsMoon(planet.PlanetIndex) == true ? "moon" : $"planet {planet.PlanetIndex}";
-        return $"{UniverseInfo.SystemName(planet.SystemAddress)} · {UniverseInfo.PlanetName(planet.SystemAddress, planet.PlanetIndex)} ({body})";
+        return $"{body} of {UniverseInfo.SystemName(planet.SystemAddress)}";
     }
 
     // System facts for the finder: the player's note when they took one, else the generator.

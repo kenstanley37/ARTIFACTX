@@ -240,7 +240,7 @@ public sealed partial class FishingPage : Page
         string planetName = UniverseInfo.PlanetName(system, _herePlanet);
         HereTitleTxt.Text = typeName.Length > 0 ? $"{planetName} · {typeName} planet" : planetName;
         HerePlaceTxt.Text = typeName.Length > 0
-            ? $"{systemName} · {GalaxyLabel(S.GalaxyNumber(system))}"
+            ? $"{systemName} · {GalaxyLabel(S.GalaxyNumber(system))} · {UniverseInfo.Compact(system)}"
             : $"{systemName} · {GalaxyLabel(S.GalaxyNumber(system))} · this planet's type isn't in the save yet - scan it, or pick a type below";
 
         if (_hereBiome is int biome)
@@ -546,6 +546,7 @@ public sealed partial class FishingPage : Page
         string planetName = UniverseInfo.PlanetName(p.SystemAddress, p.PlanetIndex);
         var detail = new List<string> { p.HasRings ? $"{p.TypeName} · rings" : p.TypeName };
         detail.Add(UniverseInfo.SystemName(p.SystemAddress));
+        detail.Add(UniverseInfo.Compact(p.SystemAddress));
         detail.Add(GalaxyLabel(p.Galaxy));
         if (p.Source.Length > 0) detail.Add(p.Source);
 

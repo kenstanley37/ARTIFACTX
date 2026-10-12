@@ -220,7 +220,7 @@ public sealed partial class NearCorePage : Page
         // Star, race, economy, wealth and conflict (the game's generator; notes override),
         // then anything else the player noted.
         string extra = NotesSummary(note);
-        string notes = UniverseInfo.Summary(system.SystemAddress) + (extra.Length > 0 ? $"  \u00B7  {extra}" : "");
+        string notes = UniverseInfo.Compact(system.SystemAddress) + (extra.Length > 0 ? $"  \u00B7  {extra}" : "");
         return new CoreSystemRowViewModel
         {
             Rank = $"#{rank}",

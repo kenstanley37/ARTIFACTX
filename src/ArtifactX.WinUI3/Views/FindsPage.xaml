@@ -150,7 +150,7 @@
         <GridView Grid.Row="5" x:Name="FindsList" SelectionMode="None" IsItemClickEnabled="False">
             <GridView.ItemsPanel>
                 <ItemsPanelTemplate>
-                    <ItemsWrapGrid Orientation="Horizontal" ItemWidth="340" ItemHeight="250"/>
+                    <ItemsWrapGrid Orientation="Horizontal" ItemWidth="340" ItemHeight="270"/>
                 </ItemsPanelTemplate>
             </GridView.ItemsPanel>
             <GridView.ItemContainerStyle>
@@ -163,7 +163,7 @@
             </GridView.ItemContainerStyle>
             <GridView.ItemTemplate>
                 <DataTemplate x:DataType="viewmodels:FindCardViewModel">
-                    <Border Width="330" Height="240" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                    <Border Width="330" Height="260" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                             Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,10">
                         <Grid RowSpacing="5">
                             <Grid.RowDefinitions>
@@ -203,6 +203,8 @@
                                            TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
                                 <TextBlock Text="{x:Bind Place}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                            TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Place}"/>
+                                <TextBlock Text="{x:Bind Facts}" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}"
+                                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Facts}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Row="2" Spacing="4">

@@ -244,6 +244,7 @@ public sealed partial class FindsPage : Page
             Items = f.ItemIds.Select(id => new FindItemChip { Label = NameOf(id), Icon = CatalogService.TryGet(id)?.Icon }).ToList(),
             ItemsVisibility = f.ItemIds.Count > 0 ? Visibility.Visible : Visibility.Collapsed,
             Place = place,
+            Facts = AddressOf(f) is ulong factsAddress ? UniverseInfo.Compact(factsAddress) : "",
             Distance = distance,
             PortalCode = f.PortalCode,
             Glyphs = GlyphsFor(f.PortalCode),

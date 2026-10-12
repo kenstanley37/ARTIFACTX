@@ -155,6 +155,9 @@
                                 <TextBlock Text="Station details" HorizontalAlignment="Right" Style="{StaticResource ThemeDimTextStyle}"/>
                             </Grid>
                         </Border>
+                        <!-- The station's system: name and details from the game's generator. -->
+                        <TextBlock x:Name="DetailFactsTxt" Margin="22,16,22,0" FontWeight="SemiBold" TextWrapping="Wrap"
+                                   Foreground="{ThemeResource ThemeAccentBrush}"/>
                         <ctcontrols:WrapPanel Padding="22,20,22,24" HorizontalSpacing="30" VerticalSpacing="20">
                             <StackPanel Width="440" Spacing="10">
                                 <Grid Height="248" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"

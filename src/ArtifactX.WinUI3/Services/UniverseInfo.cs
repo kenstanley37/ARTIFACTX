@@ -123,6 +123,28 @@ public static class UniverseInfo
         return facts.Uncharted ? 0 : facts.Wealth;
     }
 
+    /// <summary>One short line for cards, wealth first since that's what people scan
+    /// for: "★★★ · Advanced Materials · Gek · Medium conflict · Yellow star".</summary>
+    public static string Compact(ulong address)
+    {
+        var f = For(address);
+        if (f.Uncharted) return $"Uncharted (no station) \u00B7 {f.StarLabel} star";
+        int stars = WealthStars(address);
+        var parts = new System.Collections.Generic.List<string>
+        {
+            stars > 0 ? new string('\u2605', stars) : "\u2606",
+            Economy(address),
+            f.Abandoned ? "Abandoned" : RaceLabel(address),
+            $"{Conflict(address)} conflict",
+            $"{(SystemNotesService.Get(SystemKey(address))?.StarColour is { Length: > 0 } c ? c : f.StarLabel)} star",
+        };
+        if (f.Pirate) parts.Add("Pirate");
+        return string.Join(" \u00B7 ", parts);
+    }
+
+    public static string RaceLabel(ulong address) =>
+        SystemNotesService.Get(SystemKey(address))?.Race is { Length: > 0 } r ? r : For(address).RaceLabel;
+
     /// <summary>"Yellow star · Gek · Advanced Materials · High ★★★ wealth · Medium conflict".</summary>
     public static string Summary(ulong address)
     {

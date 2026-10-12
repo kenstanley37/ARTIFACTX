@@ -10,6 +10,7 @@ namespace ArtifactX.WinUI3.ViewModels;
 public sealed class PlanetRowViewModel
 {
     public required string TypeLabel { get; init; }
+    public required string FactsLabel { get; init; }
     public required Brush Swatch { get; init; }
     public required Visibility RingVisibility { get; init; }
     public required string LocationLabel { get; init; }

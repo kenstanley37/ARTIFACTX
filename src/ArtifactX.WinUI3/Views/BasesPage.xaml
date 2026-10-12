@@ -86,6 +86,8 @@
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                                 <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
                                 <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                                <TextBlock Text="{x:Bind Facts}" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}"
+                                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Facts}"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="3">
                                 <controls:GlyphStrip Code="{x:Bind PortalCode}" VerticalAlignment="Center">
