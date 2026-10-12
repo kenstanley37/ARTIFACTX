@@ -1169,6 +1169,14 @@ public sealed partial class PlanetsPage : Page
             : $"Portal code {code} · galactic coordinates {NmsPortalCode.ToCoordinates(code)} · planet {code[0]}";
     }
 
+    private async void ExportCsv_Click(object sender, RoutedEventArgs e)
+    {
+        var rows = ResultsList.ItemsSource as List<PlanetRowViewModel> ?? new();
+        await CsvExportService.ExportAsync(ExportBtn, "ArtifactX planets",
+            new[] { "Type", "Location", "Portal code", "Discovered", "Distance", "Your notes" },
+            rows.Select(r => new[] { r.TypeLabel, r.LocationLabel, r.PortalCode, r.DiscoveredLabel, r.DistanceLabel, r.NotesLabel }));
+    }
+
     private void CopyCode_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is not string code) return;

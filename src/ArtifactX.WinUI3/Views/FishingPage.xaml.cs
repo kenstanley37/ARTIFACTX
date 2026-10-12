@@ -291,6 +291,14 @@ public sealed partial class FishingPage : Page
         };
     }
 
+    private async void ExportCsv_Click(object sender, RoutedEventArgs e)
+    {
+        var rows = FishList.ItemsSource as List<FishCardViewModel> ?? new();
+        await CsvExportService.ExportAsync(ExportBtn, "ArtifactX fish",
+            new[] { "Fish", "Rarity", "Size and time", "Lives on", "Caught", "Your spots" },
+            rows.Select(r => new[] { r.Name, r.Rarity, r.Traits, r.Habitat, r.Caught, r.Spots.Replace("Your spots: ", "") }));
+    }
+
     // ---------------------------------------------------------------- where to catch it
 
     private async void FishList_ItemClick(object sender, ItemClickEventArgs e)

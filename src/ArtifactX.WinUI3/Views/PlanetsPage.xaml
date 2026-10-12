@@ -202,6 +202,8 @@
                             <CheckBox x:Name="RingsOnlyBox" Content="Rings only" Click="Filter_Click" VerticalAlignment="Bottom"/>
                             <CheckBox x:Name="MineOnlyBox" Content="Discovered by you" Click="Filter_Click" VerticalAlignment="Bottom"/>
                             <CheckBox x:Name="AllSlotsBox" Content="Include my other save slots" IsChecked="True" Click="AllSlotsBox_Click" VerticalAlignment="Bottom"/>
+                            <Button x:Name="ExportBtn" Content="Export CSV" Click="ExportCsv_Click" VerticalAlignment="Bottom"
+                                    ToolTipService.ToolTip="Save the list as shown (with your filters) as a spreadsheet file"/>
                             <TextBlock x:Name="ResultCountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                        VerticalAlignment="Bottom" Margin="0,0,0,8"/>
                         </ctcontrols:WrapPanel>
