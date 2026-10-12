@@ -91,9 +91,13 @@ public static class SaveFolderIndexingService
             {
                 summary = await Task.Run(async () =>
                 {
+                    DevTimingLog.Write($"  file start {filePath}");
                     string rawJson = await SaveStreamProcessor.ExtractRawJsonAsync(filePath);
+                    DevTimingLog.Write($"  decrypted {fi.Name} ({rawJson.Length / 1024} KB)");
                     await File.WriteAllTextAsync(workingJsonPath, rawJson);
-                    return NmsSaveSummaryReader.Read(rawJson);
+                    var result = NmsSaveSummaryReader.Read(rawJson);
+                    DevTimingLog.Write($"  file done {filePath}");
+                    return result;
                 });
             }
             finally
