@@ -51,7 +51,13 @@ libMBIN from MBINCompiler. It reads the game's own data files.
 
 - Project: https://github.com/monkeyman192/MBINCompiler (originally emoose/MBINCompiler)
 - Authors: monkeyman192, emoose and contributors
-- Licence: GNU LGPL 3.0 (https://www.gnu.org/licenses/lgpl-3.0.html)
+- Licence: GNU LGPL 3.0. Full text in `licenses/LGPL-3.0.txt`, with the GNU
+  GPL 3.0 it builds on in `licenses/GPL-3.0.txt`; both ship with the app.
+
+ArtifactX keeps its own copy of libMBIN and may change it (for example to
+add game data structures newer than the upstream release). Any changes are
+part of this repository's public source, so the modified library's source is
+always available under the LGPL.
 
 ## NMS-Tools
 
