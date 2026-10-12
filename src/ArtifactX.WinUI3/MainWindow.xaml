@@ -338,6 +338,14 @@
                 </NavigationViewItem>
             </NavigationView.MenuItems>
 
+            <NavigationView.FooterMenuItems>
+                <NavigationViewItem Content="Credits" Tag="Credits">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xEB51;" FontFamily="Segoe MDL2 Assets"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.FooterMenuItems>
+
             <Frame x:Name="ContentFrame" Navigated="ContentFrame_Navigated"/>
         </NavigationView>
     </Grid>

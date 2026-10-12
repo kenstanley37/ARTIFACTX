@@ -361,6 +361,7 @@ public sealed partial class MainWindow : Window
                 "Recipes" => typeof(RecipesPage),
                 "Crafting" => typeof(CraftingPage),
                 "Guides" => typeof(GuidesPage),
+                "Credits" => typeof(CreditsPage),
                 "ItemValues" => typeof(ItemValuesPage),
                 "NearCore" => typeof(NearCorePage),
                 "Milestones" => typeof(MilestonesPage),
@@ -455,6 +456,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(RecipesPage) => "Recipes",
             Type t when t == typeof(CraftingPage) => "Crafting",
             Type t when t == typeof(GuidesPage) => "Guides",
+            Type t when t == typeof(CreditsPage) => "Credits",
             Type t when t == typeof(ItemValuesPage) => "ItemValues",
             Type t when t == typeof(NearCorePage) => "NearCore",
             Type t when t == typeof(MilestonesPage) => "Milestones",
@@ -477,7 +479,8 @@ public sealed partial class MainWindow : Window
 
         if (!string.IsNullOrEmpty(targetTag))
         {
-            var targetItem = FindNavItemByTag(RootNav.MenuItems, targetTag);
+            var targetItem = FindNavItemByTag(RootNav.MenuItems, targetTag)
+                ?? FindNavItemByTag(RootNav.FooterMenuItems, targetTag);
             if (targetItem != null)
             {
                 RootNav.SelectedItem = targetItem;

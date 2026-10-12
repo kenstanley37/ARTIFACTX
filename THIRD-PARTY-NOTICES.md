@@ -43,3 +43,64 @@ truth (same accuracy as the original: star colour 99.1%, race 99.1%,
 economy 99.0%, wealth 98.9%, conflict 99.0%, region names 100%).
 ArtifactX and nms_namegen are fan projects and are not associated with
 Hello Games.
+
+## MBINCompiler / libMBIN
+
+ArtifactX's game-data reader (`src/ArtifactX.Tools/NMS.Tools.libMBIN`) is
+libMBIN from MBINCompiler. It reads the game's own data files.
+
+- Project: https://github.com/monkeyman192/MBINCompiler (originally emoose/MBINCompiler)
+- Authors: monkeyman192, emoose and contributors
+- Licence: GNU LGPL 3.0 (https://www.gnu.org/licenses/lgpl-3.0.html)
+
+## NMS-Tools
+
+The half-precision float helpers in libMBIN's `BinaryStreamExtensions.cs`
+come from NMS-Tools.
+
+- Project: https://github.com/HugoPeters/NMS-Tools
+- Author: Hugo Peters
+- Licence: MIT
+
+## NMS systems ground truth
+
+The 1,000 hand-recorded systems used to check the generator come from
+had.sh's corpus (https://glyphs.had.sh), recorded by players on the No Man's
+Sky community wiki.
+
+## Fonts
+
+- **Exo 2**: Copyright 2013 The Exo 2 Project Authors
+  (https://github.com/googlefonts/Exo-2.0). SIL Open Font License 1.1, full
+  text in `src/ArtifactX.WinUI3/Assets/Fonts/Exo2-OFL.txt`.
+- **Titillium Web**: Copyright (c) 2009-2011 by Accademia di Belle Arti di
+  Urbino and students of MA course of Visual design. SIL Open Font License
+  1.1, full text in `src/ArtifactX.WinUI3/Assets/Fonts/TitilliumWeb-OFL.txt`.
+
+## Packages
+
+App:
+
+| Package | Licence | Project |
+|---|---|---|
+| Microsoft.WindowsAppSDK (WinUI 3) | MIT | https://github.com/microsoft/WindowsAppSDK |
+| .NET runtime, System.Text.Json | MIT | https://github.com/dotnet/runtime |
+| CommunityToolkit.Mvvm, CommunityToolkit.WinUI.Controls.Primitives | MIT | https://github.com/CommunityToolkit |
+| Newtonsoft.Json | MIT | https://github.com/JamesNK/Newtonsoft.Json |
+| K4os.Compression.LZ4 (+ Streams) | MIT | https://github.com/MiloszKrajewski/K4os.Compression.LZ4 |
+| Microsoft.Data.Sqlite | MIT | https://github.com/dotnet/efcore |
+| SQLitePCLRaw | Apache-2.0 | https://github.com/ericsink/SQLitePCL.raw |
+| SQLite | Public domain | https://sqlite.org |
+| Velopack | MIT | https://github.com/velopack/velopack |
+
+Game-data tool (DataCataloger, not shipped in the app):
+
+| Package | Licence | Project |
+|---|---|---|
+| Pfim | MIT | https://github.com/nickbabcock/Pfim |
+| SkiaSharp | MIT | https://github.com/mono/SkiaSharp |
+| ZstdNet | BSD-3-Clause | https://github.com/skbkontur/ZstdNet |
+| Entity Framework Core | MIT | https://github.com/dotnet/efcore |
+
+No Man's Sky is a trademark of Hello Games. ArtifactX is a fan-made tool and
+is not made by, or associated with, Hello Games.
