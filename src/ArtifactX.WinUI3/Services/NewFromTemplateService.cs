@@ -144,6 +144,44 @@ public static class NewFromTemplateService
         return slot;
     }
 
+    // ---------------------------------------------------------------- delete
+
+    // Empty slots exactly as the newest game version writes them (2026-10-12),
+    // for when a save has no empty slot of its own to copy.
+    private const string EmptyShipJson = """{"NKm":"","NTx":{"93M":"","@EL":[false,"0x0"],"<d2":{"bnT":[]},"QlJ":""},";l5":{":No":[],"hl?":[],"B@N":{"1o6":"C"},"WA4":{"rri":"Default"},"@bB":[],"MMm":[],"=Tb":1,"N9>":1,"iF:":false,"NKm":"","F2P":1,"2c0":0},"gan":{":No":[],"hl?":[],"B@N":{"1o6":"C"},"WA4":{"rri":"Default"},"@bB":[],"MMm":[],"=Tb":1,"N9>":1,"iF:":false,"NKm":"","F2P":1,"2c0":0},"PMT":{":No":[],"hl?":[],"B@N":{"1o6":"C"},"WA4":{"rri":"Default"},"@bB":[],"MMm":[],"=Tb":1,"N9>":1,"iF:":false,"NKm":"","F2P":1,"2c0":0},"pMa":{":No":10,"@EL":[true,"0x1"],"9;o":1},"YTa":0,"wMC":[0.0,0.0,0.0,-1.0],"l?l":[0.0,0.0,0.0,-1.0],"FA8":[]}""";
+    private const string EmptyToolJson = """{"CA4":{":No":10,"@EL":[true,"0x1"],"9;o":1},"OsQ":{":No":[],"hl?":[],"B@N":{"1o6":"C"},"WA4":{"rri":"Default"},"@bB":[],"MMm":[],"=Tb":0,"N9>":0,"iF:":false,"NKm":"","F2P":0,"2c0":0},"1Lx":{"6pZ":1.0,"w?h":[0.0,0.0,0.0],"dmU":[0.0,0.0,0.0,0.0]},"@EL":[false,"0x0"],"7DH":{"SMP":[],"FCx":"^","Aak":[],"T>1":[],"gsg":[],"unY":1.0},"NKm":"","OGV":false,"qVG":0,"jl;":0,"J<o":true,"NTx":{"93M":"","@EL":[false,"0x0"],"<d2":{"bnT":[]},"QlJ":""}}""";
+
+    /// <summary>An unused slot as this save's game version writes it: a clean
+    /// empty slot copied from the same save when it has one (no leftover
+    /// inventory), else the built-in shape.</summary>
+    private static JToken EmptySlot(string[] arrayPath, string fallback)
+    {
+        if (SaveSessionManager.GetValue(arrayPath) is JArray array)
+            foreach (var entry in array)
+                if (string.IsNullOrEmpty(entry?["NTx"]?["93M"]?.Value<string>())
+                    && (entry?["PMT"] ?? entry?["OsQ"])?[":No"] is JArray { Count: 0 }
+                    && (entry?["PMT"] ?? entry?["OsQ"])?["hl?"] is JArray { Count: 0 })
+                    return entry!.DeepClone();
+        return JToken.Parse(fallback);
+    }
+
+    /// <summary>Stages deleting the ship in a slot: the slot becomes unused,
+    /// its paint goes back to the default and a corvette's build is removed.
+    /// The caller blocks the active ship (the game needs one to fly).</summary>
+    public static void RemoveShip(int index)
+    {
+        SaveSessionManager.StageEdit(EmptySlot(NmsInventoryContainer.ShipArrayPath, EmptyShipJson),
+            NmsInventoryContainer.ShipArrayPath.Append(index.ToString()).ToArray());
+        SaveSessionManager.StageEdit(DefaultCustomisationEntry(), ShipCustomisationPath(index));
+        ShipBaseService.Remove(index);
+    }
+
+    /// <summary>Stages deleting the Multi-Tool in a slot (the caller blocks the
+    /// equipped one).</summary>
+    public static void RemoveMultiTool(int index) =>
+        SaveSessionManager.StageEdit(EmptySlot(NmsInventoryContainer.MultiToolArrayPath, EmptyToolJson),
+            NmsInventoryContainer.MultiToolArrayPath.Append(index.ToString()).ToArray());
+
     // ---------------------------------------------------------------- helpers
 
     /// <summary>Tech, unlocked and supercharged slots, class and stats - the

@@ -865,15 +865,48 @@ public sealed partial class MultiToolPage : Page
         string name = nameBox.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(name)) return;
 
-        var template = _techViewModel.ExtractTemplate(name, sourceTool.Name, "MultiTool");
-        template.Scope = "FullBuild";
-        template.Stats = ExtractStatsList(_selectedIndex);
-        template.TypeScenePath = SaveSessionManager.GetValue(
-            "vLc", "6f=", "SuJ", _selectedIndex.ToString(), "NTx", "93M")?.Value<string>();
-        NewFromTemplateService.CaptureMultiTool(template, _selectedIndex);
-
-        await LoadoutTemplateService.SaveAsync(template);
+        await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate(name, sourceTool));
         await RefreshFullBuildTemplatesListAsync();
+    }
+
+    /// <summary>The selected tool as a Full Build template (Save Current, and
+    /// "save it first" when deleting).</summary>
+    private NmsLoadoutTemplate BuildFullBuildTemplate(string name, ToolEntry source)
+    {
+        var template = _techViewModel!.ExtractTemplate(name, source.Name, "MultiTool");
+        template.Scope = "FullBuild";
+        template.Stats = ExtractStatsList(source.Index);
+        template.TypeScenePath = SaveSessionManager.GetValue(
+            "vLc", "6f=", "SuJ", source.Index.ToString(), "NTx", "93M")?.Value<string>();
+        NewFromTemplateService.CaptureMultiTool(template, source.Index);
+        return template;
+    }
+
+    /// <summary>Deletes the selected Multi-Tool from the save, after a strict
+    /// confirmation that can keep it as a template first. The equipped tool
+    /// can't go - the game needs one in hand.</summary>
+    private async void DeleteToolBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var tool = _tools.FirstOrDefault(t => t.Index == _selectedIndex);
+        if (tool is null || _techViewModel is null) return;
+        if (tool.IsGameActive)
+        {
+            await DeleteConfirmation.ShowBlockedAsync(XamlRoot, "That's the Multi-Tool you're holding",
+                $"{tool.Name} is your equipped Multi-Tool, and the game always needs one. Switch to another in game, save, then delete this one here.");
+            return;
+        }
+
+        var choice = await DeleteConfirmation.ShowAsync(XamlRoot, tool.Name, "its tech, its stats and its look");
+        if (!choice.Confirmed) return;
+
+        if (choice.SaveTemplateFirst)
+        {
+            await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate($"{tool.Name} (saved before deleting)", tool));
+            await RefreshFullBuildTemplatesListAsync();
+        }
+        NewFromTemplateService.RemoveMultiTool(tool.Index);
+        _selectedIndex = -1;
+        LoadToolList();
     }
 
     /// <summary>Same shape as RefreshTemplatesListAsync, filtered to Scope==
