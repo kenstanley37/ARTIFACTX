@@ -71,7 +71,7 @@
                                                     <TextBlock Text="ACTIVE" FontSize="10" FontWeight="Bold" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
                                                 </Border>
                                                 <!-- Shown on every card while its saves are read, collapsed or not. -->
-                                                <ProgressRing IsActive="{x:Bind IsLoadingSlots, Mode=OneWay}" Width="14" Height="14" VerticalAlignment="Center"
+                                                <ProgressRing IsActive="{x:Bind IsLoadingSlots, Mode=OneWay}" Width="20" Height="20" MinWidth="20" MinHeight="20" VerticalAlignment="Center"
                                                               Visibility="{x:Bind IsLoadingSlots, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                             </StackPanel>
                                             <TextBlock Text="{x:Bind SubText, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
