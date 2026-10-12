@@ -25,6 +25,7 @@ public sealed class FindCardViewModel
     public required List<FindItemChip> Items { get; init; }
     public required Visibility ItemsVisibility { get; init; }
     public required string Place { get; init; }
+    public required string Facts { get; init; }
     public required string Distance { get; init; }
     public required string PortalCode { get; init; }
     public required List<ImageSource> Glyphs { get; init; }

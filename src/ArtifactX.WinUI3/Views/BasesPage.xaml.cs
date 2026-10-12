@@ -106,6 +106,7 @@ public sealed partial class BasesPage : Page
                 {
                     Name = name,
                     Detail = $"{UniverseInfo.PlanetName(address, planetIndex)} ({type}) · {UniverseInfo.SystemName(address)} · {galaxyName}",
+                    Facts = UniverseInfo.Compact(address),
                     Swatch = new SolidColorBrush(ParseColour(planet is null ? "#777777" : NmsPlanets.TypeColour(planet.BiomeIndex))),
                     PortalCode = code,
                     Glyphs = GlyphsFor(code),

@@ -8,6 +8,7 @@ public sealed class BaseRowViewModel
 {
     public required string Name { get; init; }
     public required string Detail { get; init; }
+    public required string Facts { get; init; }
     public required Brush Swatch { get; init; }
     public required string PortalCode { get; init; }
     public required List<ImageSource> Glyphs { get; init; }

@@ -390,6 +390,7 @@ public sealed partial class SpaceStationsPage : Page
         int version = ++_detailsVersion;
         StationDetailsCard.Visibility = Visibility.Visible;
         DetailNameTxt.Text = station.Name.ToUpperInvariant();
+        DetailFactsTxt.Text = $"{UniverseInfo.SystemName(station.Address)} system · {UniverseInfo.Compact(station.Address)}";
 
         try
         {
