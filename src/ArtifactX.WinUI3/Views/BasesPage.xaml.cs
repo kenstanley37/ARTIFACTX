@@ -105,7 +105,7 @@ public sealed partial class BasesPage : Page
                 _rows.Add(new BaseRowViewModel
                 {
                     Name = name,
-                    Detail = $"{type} · planet {planetIndex} · {galaxyName}",
+                    Detail = $"{UniverseInfo.PlanetName(address, planetIndex)} ({type}) · {UniverseInfo.SystemName(address)} · {galaxyName}",
                     Swatch = new SolidColorBrush(ParseColour(planet is null ? "#777777" : NmsPlanets.TypeColour(planet.BiomeIndex))),
                     PortalCode = code,
                     Glyphs = GlyphsFor(code),

@@ -123,24 +123,21 @@ public sealed partial class FindsPage : Page
             return;
         }
         HerePanel.Visibility = Visibility.Visible;
-        var note = SystemNotesService.Get(system);
-        string systemName = note?.SystemName ?? "";
-        HereSystemTxt.Text = systemName.Length > 0 ? systemName : "Unnamed system";
-        HereHintTxt.Visibility = systemName.Length > 0 ? Visibility.Collapsed : Visibility.Visible;
+        HereSystemTxt.Text = UniverseInfo.SystemName(system);
+        // Names now come from the game's generator, so the "save in space to learn it" hint isn't needed.
+        HereHintTxt.Visibility = Visibility.Collapsed;
 
         var parts = new List<string>();
         if (_herePlanet > 0)
         {
-            string planetName = note is not null
-                && note.PlanetNames.TryGetValue(_herePlanet.ToString(CultureInfo.InvariantCulture), out var n) ? n : "";
-            parts.Add(planetName.Length > 0 ? $"On {planetName} (planet {_herePlanet})" : $"On planet {_herePlanet}");
+            parts.Add($"On {UniverseInfo.PlanetName(system, _herePlanet)} (planet {_herePlanet})");
             var planet = _herePlanets.FirstOrDefault(p => p.SystemAddress == system && p.PlanetIndex == _herePlanet);
             if (planet is not null) parts.Add(planet.TypeName);
         }
         else parts.Add("In space");
         parts.Add(GalaxyLabel(S.GalaxyNumber(system)));
         parts.Add(S.PortalAddress(system, _herePlanet > 0 ? _herePlanet : 1));
-        HerePlaceTxt.Text = string.Join(" · ", parts);
+        HerePlaceTxt.Text = string.Join(" · ", parts) + "\n" + UniverseInfo.Summary(system);
     }
 
     // ---------------------------------------------------------------- list
@@ -199,16 +196,14 @@ public sealed partial class FindsPage : Page
         f.PortalCode.Length == 12 ? NmsPortalCode.ToAddress(f.PortalCode, f.Galaxy) : null;
 
     private static string SystemName(Find f) =>
-        AddressOf(f) is ulong a && SystemNotesService.Get(S.ToSystemAddress(a))?.SystemName is { Length: > 0 } n ? n : "";
+        AddressOf(f) is ulong a ? UniverseInfo.SystemName(a) : "";
 
     private static int PlanetOf(Find f) =>
         f.PortalCode.Length == 12 ? int.Parse(f.PortalCode[..1], NumberStyles.HexNumber, CultureInfo.InvariantCulture) : 0;
 
-    /// <summary>The planet's name if it was learned from a save (Planets page / live follow).</summary>
+    /// <summary>The planet's name: learned from a save, else the game's generated name.</summary>
     private static string PlanetName(Find f, int planet) =>
-        AddressOf(f) is ulong a
-        && SystemNotesService.Get(S.ToSystemAddress(a)) is { } note
-        && note.PlanetNames.TryGetValue(planet.ToString(CultureInfo.InvariantCulture), out var name) ? name : "";
+        AddressOf(f) is ulong a && planet > 0 ? UniverseInfo.PlanetName(a, planet) : "";
 
     private double? DistanceFrom(Find f) =>
         _hereSystem is ulong h && AddressOf(f) is ulong a ? NmsPlanets.DistanceLightYears(h, S.ToSystemAddress(a)) : null;
@@ -389,16 +384,9 @@ public sealed partial class FindsPage : Page
         // Portal codes need a planet digit; in space, planet 1 lands you in the system.
         FormCodeBox.Text = S.PortalAddress(system, _herePlanet > 0 ? _herePlanet : 1);
         SelectGalaxy(S.GalaxyNumber(system));
-        // Pre-fill "Where to find it" with the learned planet (or system) name, if known.
-        var note = SystemNotesService.Get(system);
-        string planetName = "";
-        if (_herePlanet > 0 && note is not null
-            && note.PlanetNames.TryGetValue(_herePlanet.ToString(CultureInfo.InvariantCulture), out var p)) planetName = p;
+        // Pre-fill "Where to find it" with the planet (or system) name.
         if (FormLocationBox.Text.Trim().Length == 0)
-        {
-            if (planetName.Length > 0) FormLocationBox.Text = $"On {planetName}";
-            else if (note?.SystemName is { Length: > 0 } name) FormLocationBox.Text = $"In {name}";
-        }
+            FormLocationBox.Text = _herePlanet > 0 ? $"On {UniverseInfo.PlanetName(system, _herePlanet)}" : $"In {UniverseInfo.SystemName(system)}";
     }
 
     private void FormCode_TextChanged(object sender, TextChangedEventArgs e) => UpdateFormGlyphs();
@@ -421,10 +409,10 @@ public sealed partial class FindsPage : Page
             FormCodeStatusTxt.Text = error;
             return;
         }
-        // Show the system's known name; never overwrite what the user typed.
-        if (FormSystemNameBox.Text.Trim().Length == 0
-            && SystemNotesService.Get(S.ToSystemAddress(NmsPortalCode.ToAddress(code, SelectedGalaxy())))?.SystemName is { Length: > 0 } known)
-            FormSystemNameBox.Text = known;
+        // Show the system's name (recorded, else the game's own); a typed name is only
+        // needed when a player renamed the system. Never overwrite what the user typed.
+        ulong codeAddress = NmsPortalCode.ToAddress(code, SelectedGalaxy());
+        FormSystemNameBox.PlaceholderText = UniverseInfo.SystemName(codeAddress);
         foreach (var glyph in GlyphsFor(code))
             FormGlyphsPanel.Children.Add(new Border
             {

@@ -376,6 +376,7 @@ public sealed partial class PlanetsPage : Page
             ? _thisSave.Concat(_otherSaves).GroupBy(p => p.Address).Select(g => g.First()).ToList()
             : _thisSave;
         BuildFilterChoices();
+        if (_choicesFilled) RefreshNoteFilters(); // system facts depend on which planets are known
         ApplyFilters();
     }
 
@@ -403,7 +404,9 @@ public sealed partial class PlanetsPage : Page
         var systemNote = SystemNotesService.Get(system);
         var (markerStation, bases) = ReadMarkers(system);
         _baseNames = bases;
-        SystemHeadingTxt.Text = systemNote?.SystemName is { Length: > 0 } systemName ? systemName : "Unnamed system";
+        SystemHeadingTxt.Text = UniverseInfo.SystemName(system);
+        SystemFactsTxt.Text = UniverseInfo.Summary(system);
+        NoteSystemNameBox.PlaceholderText = $"{UniverseInfo.For(system).GeneratedName} (the game's name)";
         string station = markerStation.Length > 0 ? markerStation : systemNote?.StationName ?? "";
         SystemStationTxt.Text = $"Space station: {station}";
         SystemStationTxt.Visibility = station.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -426,7 +429,7 @@ public sealed partial class PlanetsPage : Page
         CopySystemCodeBtn.Tag = systemCode;
         SystemGlyphsPanel.Children.Clear();
         SystemGlyphStrip.Code = systemCode;
-        SystemGlyphStrip.Title = note?.SystemName is { Length: > 0 } stripName ? stripName : "This system";
+        SystemGlyphStrip.Title = UniverseInfo.SystemName(system);
         foreach (var glyph in GlyphsFor(systemCode))
             SystemGlyphsPanel.Children.Add(GlyphTile(glyph, 28));
 
@@ -632,16 +635,14 @@ public sealed partial class PlanetsPage : Page
             Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"],
         });
         string typeText = planet.HasRings ? $"{planet.TypeName} · rings" : planet.TypeName;
-        string? planetName = null;
-        SystemNotesService.Get(planet.SystemAddress)?.PlanetNames.TryGetValue(planet.PlanetIndex.ToString(CultureInfo.InvariantCulture), out planetName);
+        string planetName = UniverseInfo.PlanetName(planet.SystemAddress, planet.PlanetIndex);
         names.Children.Add(new TextBlock
         {
-            Text = planetName ?? typeText,
+            Text = planetName,
             Style = (Style)Application.Current.Resources["ThemeBodyTextStyle"],
             FontWeight = FontWeights.SemiBold,
         });
-        if (planetName is not null)
-            names.Children.Add(DimLine(typeText));
+        names.Children.Add(DimLine(typeText));
         Grid.SetColumn(names, 1);
         header.Children.Add(names);
         stack.Children.Add(header);
@@ -788,21 +789,21 @@ public sealed partial class PlanetsPage : Page
     {
         var notes = SystemNotesService.All;
 
-        IEnumerable<(string Label, string Value)> Recorded(Func<SystemNote, string> value, Func<string, string>? category = null)
-        {
-            category ??= v => v;
-            return notes.Select(value).Where(v => v.Length > 0).Select(category)
-                .GroupBy(c => c)
-                .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase)
-                .Select(g => (Label: $"{g.Key} ({g.Count()})", Value: g.Key));
-        }
+        // Star, economy, wealth, conflict and race come from the game's generator for
+        // every planet the finder knows (the player's notes override), counted in planets.
+        IEnumerable<(string Label, string Value)> Known(Func<ulong, string> value) => _allPlanets
+            .Select(p => value(p.SystemAddress))
+            .Where(v => v.Length > 0 && v != "None")
+            .GroupBy(v => v)
+            .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase)
+            .Select(g => (Label: $"{g.Key} ({g.Count():N0})", Value: g.Key));
 
         _suppressFilterEvents = true;
-        Refill(StarFilterBox, Recorded(n => n.StarColour));
-        Refill(EconomyFilterBox, Recorded(n => n.Economy, w => SystemNotesService.CategoryOf("Economy", w)));
-        Refill(WealthFilterBox, Recorded(n => n.Wealth, w => SystemNotesService.CategoryOf("Wealth", w)));
-        Refill(ConflictFilterBox, Recorded(n => n.Conflict, w => SystemNotesService.CategoryOf("Conflict", w)));
-        Refill(RaceFilterBox, Recorded(n => n.Race));
+        Refill(StarFilterBox, Known(StarOf));
+        Refill(EconomyFilterBox, Known(UniverseInfo.Economy));
+        Refill(WealthFilterBox, Known(UniverseInfo.Wealth));
+        Refill(ConflictFilterBox, Known(UniverseInfo.Conflict));
+        Refill(RaceFilterBox, Known(RaceOf));
 
         int water = notes.Count(n => n.Water), dissonant = notes.Count(n => n.Dissonant), moons = notes.Count(n => n.Moons is not null);
         WaterFilterBox.Content = $"Water ({water})";
@@ -1052,13 +1053,14 @@ public sealed partial class PlanetsPage : Page
             .Where(p => galaxy < 0 || p.Galaxy == galaxy)
             .Where(p => !ringsOnly || p.HasRings)
             .Where(p => !mineOnly || p.DiscoveredHere)
-            .Where(p => !noteFilter || SystemNotesService.Get(p.SystemAddress) is { } n
-                && (star == "" || n.StarColour == star)
-                && (economy == "" || SystemNotesService.CategoryOf("Economy", n.Economy) == economy)
-                && (wealth == "" || SystemNotesService.CategoryOf("Wealth", n.Wealth) == wealth)
-                && (conflict == "" || SystemNotesService.CategoryOf("Conflict", n.Conflict) == conflict)
-                && (race == "" || n.Race == race)
-                && (!water || n.Water) && (!dissonant || n.Dissonant))
+            .Where(p => !noteFilter
+                || ((star == "" || StarOf(p.SystemAddress) == star)
+                    && (economy == "" || UniverseInfo.Economy(p.SystemAddress) == economy)
+                    && (wealth == "" || UniverseInfo.Wealth(p.SystemAddress) == wealth)
+                    && (conflict == "" || UniverseInfo.Conflict(p.SystemAddress) == conflict)
+                    && (race == "" || RaceOf(p.SystemAddress) == race)
+                    && (!water || SystemNotesService.Get(p.SystemAddress)?.Water == true)
+                    && (!dissonant || SystemNotesService.Get(p.SystemAddress)?.Dissonant == true)))
             .Where(p => bodies switch
             {
                 1 => SystemNotesService.Get(p.SystemAddress)?.IsMoon(p.PlanetIndex) != true,
@@ -1106,10 +1108,15 @@ public sealed partial class PlanetsPage : Page
     {
         var note = SystemNotesService.Get(planet.SystemAddress);
         string body = note?.IsMoon(planet.PlanetIndex) == true ? "moon" : $"planet {planet.PlanetIndex}";
-        if (note?.PlanetNames.TryGetValue(planet.PlanetIndex.ToString(CultureInfo.InvariantCulture), out var planetName) == true)
-            body = $"{planetName} ({body})";
-        return note?.SystemName is { Length: > 0 } systemName ? $"{systemName} · {body}" : body;
+        return $"{UniverseInfo.SystemName(planet.SystemAddress)} · {UniverseInfo.PlanetName(planet.SystemAddress, planet.PlanetIndex)} ({body})";
     }
+
+    // System facts for the finder: the player's note when they took one, else the generator.
+    private static string StarOf(ulong system) =>
+        SystemNotesService.Get(system)?.StarColour is { Length: > 0 } s ? s : UniverseInfo.For(system).StarLabel;
+
+    private static string RaceOf(ulong system) =>
+        SystemNotesService.Get(system)?.Race is { Length: > 0 } r ? r : UniverseInfo.For(system).RaceLabel;
 
     private string DistanceText(KnownPlanet planet, double? distance)
     {
