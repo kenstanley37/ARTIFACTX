@@ -31,7 +31,7 @@
                             <Button Content="Open folder" Click="OpenFolder_Click"/>
                             <Button x:Name="UseDefaultFolderBtn" Content="Use the default folder" Click="UseDefaultFolder_Click"/>
                         </StackPanel>
-                        <TextBlock x:Name="FolderStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="FolderStatusTxt" Visibility="Collapsed" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -54,7 +54,7 @@
                             <Button Content="Save a copy to a file..." Click="ExportData_Click"/>
                             <Button Content="Restore from a file..." Click="RestoreDataFromFile_Click"/>
                         </StackPanel>
-                        <TextBlock x:Name="DataStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="DataStatusTxt" Visibility="Collapsed" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                         <TextBlock Text="BACKUPS" Style="{StaticResource ThemeEyebrowStyle}"/>
                         <StackPanel x:Name="DataBackupsPanel" Spacing="6"/>
                     </StackPanel>
@@ -75,7 +75,7 @@
                             <ComboBox x:Name="SaveKeepBox" Header="Keep the newest, per save slot" MinWidth="200" SelectionChanged="SaveKeep_SelectionChanged"/>
                             <Button x:Name="CleanUpBtn" Click="CleanUp_Click" VerticalAlignment="Bottom"/>
                         </StackPanel>
-                        <TextBlock x:Name="SaveBackupsStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="SaveBackupsStatusTxt" Visibility="Collapsed" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                         <StackPanel x:Name="SaveBackupsPanel" Spacing="12"/>
                     </StackPanel>
                 </StackPanel>

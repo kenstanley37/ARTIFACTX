@@ -89,9 +89,9 @@ public sealed partial class SettingsPage : Page
         var choice = await dialog.ShowAsync();
         if (choice == ContentDialogResult.None) return;
 
-        FolderStatusTxt.Text = choice == ContentDialogResult.Primary ? "Moving backups..." : "";
+        Status(FolderStatusTxt, choice == ContentDialogResult.Primary ? "Moving backups..." : "");
         string? error = await BackupLocation.ChangeAsync(target, moveExisting: choice == ContentDialogResult.Primary);
-        FolderStatusTxt.Text = error ?? (choice == ContentDialogResult.Primary ? "Done - your backups are in the new folder." : "New backups will go to the new folder.");
+        Status(FolderStatusTxt, error ?? (choice == ContentDialogResult.Primary ? "Done - your backups are in the new folder." : "New backups will go to the new folder."));
         RefreshFolder();
         RefreshDataBackups();
         await RefreshSaveBackupsAsync();
@@ -117,7 +117,7 @@ public sealed partial class SettingsPage : Page
     private async void BackUpDataNow_Click(object sender, RoutedEventArgs e)
     {
         await Task.Run(() => UserDatabase.Backup("manual"));
-        DataStatusTxt.Text = "Backed up.";
+        Status(DataStatusTxt, "Backed up.");
         RefreshDataBackups();
     }
 
@@ -132,11 +132,11 @@ public sealed partial class SettingsPage : Page
         {
             string path = file.Path;
             await Task.Run(() => UserDatabase.ExportTo(path));
-            DataStatusTxt.Text = $"Saved a copy to {file.Name}.";
+            Status(DataStatusTxt, $"Saved a copy to {file.Name}.");
         }
         catch (Exception ex)
         {
-            DataStatusTxt.Text = $"Couldn't save the copy: {ex.Message}";
+            Status(DataStatusTxt, $"Couldn't save the copy: {ex.Message}");
         }
     }
 
@@ -182,7 +182,7 @@ public sealed partial class SettingsPage : Page
             if (AppSettingsService.ThemeId is { Length: > 0 } theme && theme != ThemeService.Current.Id)
                 ThemeService.Apply(theme);
         }
-        DataStatusTxt.Text = error ?? $"Restored the backup from {label}. Your data from before is in the list below.";
+        Status(DataStatusTxt, error ?? $"Restored the backup from {label}. Your data from before is in the list below.");
         RefreshDataBackups();
     }
 
@@ -219,7 +219,7 @@ public sealed partial class SettingsPage : Page
             delete.Click += (_, _) =>
             {
                 try { UserDatabase.DeleteBackup(backup.Path); }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { DataStatusTxt.Text = $"Couldn't delete it: {ex.Message}"; }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Status(DataStatusTxt, $"Couldn't delete it: {ex.Message}"); }
                 RefreshDataBackups();
             };
             Grid.SetColumn(delete, 2);
@@ -287,9 +287,9 @@ public sealed partial class SettingsPage : Page
     {
         if (_loading || SaveKeepBox.SelectedItem is not ComboBoxItem { Tag: int keep }) return;
         BackupService.KeepPerSlot = keep;
-        SaveBackupsStatusTxt.Text = keep == 0
+        Status(SaveBackupsStatusTxt, keep == 0
             ? "Every backup will be kept."
-            : $"Older backups are removed when a save gets a new one, or now with Clean up.";
+            : "Older backups are removed when a save gets a new one, or now with Clean up.");
         await RefreshSaveBackupsAsync();
     }
 
@@ -314,7 +314,7 @@ public sealed partial class SettingsPage : Page
 
         CleanUpBtn.IsEnabled = false;
         int removed = await Task.Run(() => BackupService.PruneAll(keep));
-        SaveBackupsStatusTxt.Text = $"Deleted {removed:N0} older backups.";
+        Status(SaveBackupsStatusTxt, $"Deleted {removed:N0} older backups.");
         await RefreshSaveBackupsAsync();
     }
 
@@ -347,6 +347,13 @@ public sealed partial class SettingsPage : Page
     private async void ReleasePageLink_Click(object sender, RoutedEventArgs e)
     {
         if (UpdateCheckService.LastResult?.ReleaseUrl is string url) await Launcher.LaunchUriAsync(new Uri(url));
+    }
+
+    /// <summary>Status lines only take up room when they have something to say.</summary>
+    private static void Status(TextBlock line, string text)
+    {
+        line.Text = text;
+        line.Visibility = text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private static string Size(long bytes) => bytes switch
