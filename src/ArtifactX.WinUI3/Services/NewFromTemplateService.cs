@@ -125,6 +125,7 @@ public static class NewFromTemplateService
         var cargo = (JObject)ship[";l5"]!;
         cargo[":No"] = new JArray();
         if (t.CargoUnlockedPositions is { } cargoSlots) cargo["hl?"] = PositionsArray(cargoSlots);
+        FitGrid(cargo);
         if (t.SourceClass is { Length: > 0 } cls) cargo["B@N"] = new JObject { ["1o6"] = cls };
         if (t.Stats.Count > 0) cargo["@bB"] = StatsArray(t.Stats);
         if (ship["gan"] is JObject legacyCargo) legacyCargo[":No"] = new JArray();
@@ -145,20 +146,36 @@ public static class NewFromTemplateService
     /// whole Technology inventory as the template describes it.</summary>
     private static void FillTechInventory(JObject store, NmsLoadoutTemplate t)
     {
-        store[":No"] = InventoryGridViewModelItems(t.TechItems);
+        store[":No"] = ItemsArray(t.TechItems);
         store["hl?"] = PositionsArray(t.UnlockedPositions);
-        if (t.SuperchargedPositions is { } supercharged)
-            store["MMm"] = new JArray(supercharged.Select(p => new JObject
-            {
-                ["Vn8"] = new JObject { ["QA1"] = "TechBonus" },
-                ["3ZH"] = new JObject { [">Qh"] = p.X, ["XJ>"] = p.Y },
-            }));
+        if (t.SuperchargedPositions is { } supercharged) store["MMm"] = SuperchargedArray(supercharged);
         if (t.SourceClass is { Length: > 0 } cls) store["B@N"] = new JObject { ["1o6"] = cls };
         if (t.Stats.Count > 0) store["@bB"] = StatsArray(t.Stats);
+        FitGrid(store);
+    }
+
+    public static JArray SuperchargedArray(IEnumerable<NmsLoadoutPosition> positions) =>
+        new(positions.Select(p => new JObject
+        {
+            ["Vn8"] = new JObject { ["QA1"] = "TechBonus" },
+            ["3ZH"] = new JObject { [">Qh"] = p.X, ["XJ>"] = p.Y },
+        }));
+
+    /// <summary>Widens an inventory's grid (=Tb width, N9> height) to fit
+    /// every unlocked slot and item - an empty freighter's inventories start
+    /// as small as 7x3, smaller than a template's slots may need.</summary>
+    public static void FitGrid(JObject store)
+    {
+        var cells = (store["hl?"] as JArray ?? new JArray()).Concat((store[":No"] as JArray ?? new JArray()).Select(i => i["3ZH"]))
+            .Where(p => p?[">Qh"] is not null && p["XJ>"] is not null).ToList();
+        if (cells.Count == 0) return;
+        int width = cells.Max(p => p![">Qh"]!.Value<int>()) + 1, height = cells.Max(p => p!["XJ>"]!.Value<int>()) + 1;
+        if ((store["=Tb"]?.Value<int>() ?? 0) < width) store["=Tb"] = width;
+        if ((store["N9>"]?.Value<int>() ?? 0) < height) store["N9>"] = height;
     }
 
     /// <summary>Same item shape InventoryGridViewModel writes.</summary>
-    private static JArray InventoryGridViewModelItems(IEnumerable<NmsLoadoutTechItem> items) =>
+    public static JArray ItemsArray(IEnumerable<NmsLoadoutTechItem> items) =>
         new(items.Select(e => new JObject
         {
             ["Vn8"] = new JObject { ["elv"] = e.CategoryLabel },
@@ -171,10 +188,10 @@ public static class NewFromTemplateService
             ["3ZH"] = new JObject { [">Qh"] = e.X, ["XJ>"] = e.Y },
         }));
 
-    private static JArray StatsArray(IEnumerable<NmsLoadoutStat> stats) =>
+    public static JArray StatsArray(IEnumerable<NmsLoadoutStat> stats) =>
         new(stats.Select(s => new JObject { ["QL1"] = s.Key, [">MX"] = s.Value }));
 
-    private static JArray PositionsArray(IEnumerable<NmsLoadoutPosition> positions) =>
+    public static JArray PositionsArray(IEnumerable<NmsLoadoutPosition> positions) =>
         new(positions.Select(p => new JObject { [">Qh"] = p.X, ["XJ>"] = p.Y }));
 
     private static List<NmsLoadoutPosition>? Positions(JToken? array) =>

@@ -95,6 +95,28 @@ public sealed class NmsLoadoutTemplate
     public int? SecondaryMode { get; set; }
     /// <summary>Multi-Tools only: UseLegacyColours (J&lt;o).</summary>
     public bool? UseLegacyColours { get; set; }
+
+    /// <summary>Freighters only: every placed room and furnishing in the
+    /// freighter's base (FreighterBase entry of F?0), in the base's own local
+    /// space - see FreighterBuildService.</summary>
+    public List<NmsLoadoutBaseObject>? InteriorObjects { get; set; }
+    /// <summary>Freighters only: the interior's anchor (FreighterBase wMC) and
+    /// the freighter's facing (9wg at / fUl up). Always copied together with
+    /// the model and seed they were captured with.</summary>
+    public double[]? InteriorPosition { get; set; }
+    public double[]? FreighterAt { get; set; }
+    public double[]? FreighterUp { get; set; }
+}
+
+/// <summary>One placed base part (GcPersistentBaseEntry: r&lt;7 id, CVX user
+/// data such as colour, wMC position, wJ0 up, aNu at).</summary>
+public sealed class NmsLoadoutBaseObject
+{
+    public string Id { get; set; } = "";
+    public long UserData { get; set; }
+    public double[] Position { get; set; } = new double[3];
+    public double[] Up { get; set; } = new double[3];
+    public double[] At { get; set; } = new double[3];
 }
 
 public sealed class NmsLoadoutStat
