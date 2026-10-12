@@ -159,15 +159,29 @@ public sealed partial class CraftingPage : Page
             };
         }).ToList();
 
-        _raw = raw.OrderByDescending(r => r.Value).ThenBy(r => NameOf(r.Key)).Select(r =>
+        // What the save is already carrying (Exosuit, ships, Exocraft, freighter, storage).
+        bool counting = CountCarriedBox.IsChecked == true && SaveSessionManager.IsSaveLoaded;
+        var carried = counting ? InventoryTotalsService.Count() : new Dictionary<string, long>();
+        CountCarriedBox.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+
+        _raw = raw.OrderByDescending(r => Math.Max(0, r.Value - carried.GetValueOrDefault(r.Key))).ThenByDescending(r => r.Value).ThenBy(r => NameOf(r.Key)).Select(r =>
         {
             var recipes = _refinedFrom.GetValueOrDefault(r.Key) ?? new();
+            long have = carried.GetValueOrDefault(r.Key);
+            long still = Math.Max(0, r.Value - have);
             return new CraftRawRowViewModel
             {
                 Id = r.Key,
                 Name = NameOf(r.Key),
                 Icon = CatalogService.TryGet(r.Key)?.Icon,
-                Total = r.Value.ToString("N0", CultureInfo.CurrentCulture),
+                Needed = r.Value,
+                Carried = have,
+                Total = !counting ? r.Value.ToString("N0", CultureInfo.CurrentCulture)
+                    : still == 0 ? "\u2713" : still.ToString("N0", CultureInfo.CurrentCulture),
+                TotalLabel = !counting ? "" : still == 0 ? "enough" : "still needed",
+                Have = !counting ? "" : have == 0 ? $"You have none - {r.Value:N0} needed" : $"You have {have:N0} of {r.Value:N0}",
+                HaveBrush = ThemeResources.Brush(!counting || still > 0 ? "ThemeTextDimBrush" : "ThemeDoneBrush"),
+                HaveVisibility = counting ? Visibility.Visible : Visibility.Collapsed,
                 RefineHint = recipes.Count == 0 ? "" : $"Can also be made in a refiner ({recipes.Count} recipe{(recipes.Count == 1 ? "" : "s")})",
                 RefineVisibility = recipes.Count == 0 ? Visibility.Collapsed : Visibility.Visible,
                 RefineToolTip = string.Join("\n", recipes.Take(6).Select(x =>
@@ -175,7 +189,13 @@ public sealed partial class CraftingPage : Page
             };
         }).ToList();
         RawList.ItemsSource = _raw;
-        RawSummaryTxt.Text = $"{_raw.Count} material{(_raw.Count == 1 ? "" : "s")}, {raw.Values.Sum():N0} units in all, counted from scratch - anything you already carry comes off these totals.";
+        int enough = _raw.Count(r => r.Carried >= r.Needed);
+        long toGather = _raw.Sum(r => Math.Max(0, r.Needed - r.Carried));
+        RawSummaryTxt.Text = counting
+            ? (toGather == 0
+                ? $"You're carrying enough of all {_raw.Count} materials."
+                : $"You have enough of {enough} of {_raw.Count} materials. Still to gather: {toGather:N0} units.")
+            : $"{_raw.Count} material{(_raw.Count == 1 ? "" : "s")}, {raw.Values.Sum():N0} units in all, counted from scratch.";
 
         ShowGuides(id);
         BackBtn.Visibility = _history.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -210,12 +230,21 @@ public sealed partial class CraftingPage : Page
         }
     }
 
+    private void CountCarried_Click(object sender, RoutedEventArgs e)
+    {
+        if (_target is not null) _ = ShowAsync(_target);
+    }
+
     private async void ExportCsv_Click(object sender, RoutedEventArgs e)
     {
         if (_target is null) return;
+        bool counting = CountCarriedBox.IsChecked == true && SaveSessionManager.IsSaveLoaded;
         await CsvExportService.ExportAsync(ExportBtn, $"ArtifactX {NameOf(_target)} materials",
-            new[] { "Material", "Amount", "Also from a refiner" },
-            _raw.Select(r => new[] { r.Name, r.Total, r.RefineHint.Length > 0 ? "Yes" : "" }));
+            counting ? new[] { "Material", "Needed", "You have", "Still needed", "Also from a refiner" } : new[] { "Material", "Needed", "Also from a refiner" },
+            _raw.Select(r => counting
+                ? new[] { r.Name, r.Needed.ToString("N0", CultureInfo.CurrentCulture), r.Carried.ToString("N0", CultureInfo.CurrentCulture),
+                          Math.Max(0, r.Needed - r.Carried).ToString("N0", CultureInfo.CurrentCulture), r.RefineHint.Length > 0 ? "Yes" : "" }
+                : new[] { r.Name, r.Needed.ToString("N0", CultureInfo.CurrentCulture), r.RefineHint.Length > 0 ? "Yes" : "" }));
     }
 
     private string NameOf(string id) =>
