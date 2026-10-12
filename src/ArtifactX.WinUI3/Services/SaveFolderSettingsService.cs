@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -8,12 +7,13 @@ using System.Text.Json.Serialization;
 namespace ArtifactX.WinUI3.Services;
 
 /// <summary>
-/// Persists as a flat key/value JSON file under LocalAppDataPaths rather than
-/// Windows.Storage.ApplicationData.Current.LocalSettings (which threw
-/// InvalidOperationException when this app moved to running unpackaged - see
-/// LocalAppDataPaths). Each value is itself a JSON-serialized blob, same
-/// nested-JSON-string shape LocalSettings.Values held before, to keep this
-/// change to a storage-backend swap rather than a data-shape rewrite.
+/// Save Selection's per-PC choices - folders the player browsed to, which
+/// cards were left open, names given to browsed folders - in user.db's
+/// device_settings (SettingsStore, Device scope): they're paths on this PC,
+/// so restoring a backup on another PC keeps that PC's own. A Steam/GOG
+/// account's nickname isn't a path setting: it lives on the game account
+/// (GameAccountsService), so it follows the account. These were settings.json
+/// until 2026-10-12. Each value is a JSON blob, the shape they always had.
 /// </summary>
 public static class SaveFolderSettingsService
 {
@@ -21,44 +21,17 @@ public static class SaveFolderSettingsService
     private const string ExpandedFoldersKey = "ExpandedSaveFolders";
     private const string FolderNamesKey = "SaveFolderCustomNames";
 
-    private static readonly string SettingsFilePath = Path.Combine(LocalAppDataPaths.RootFolder, "settings.json");
-
-    private static Dictionary<string, string>? _cache;
-
-    private static Dictionary<string, string> LoadSettings()
-    {
-        if (_cache != null) return _cache;
-
-        if (File.Exists(SettingsFilePath))
-        {
-            try
-            {
-                string fileJson = File.ReadAllText(SettingsFilePath);
-                _cache = JsonSerializer.Deserialize(fileJson, SaveFolderJsonContext.Default.DictionaryStringString)
-                    ?? new Dictionary<string, string>();
-                return _cache;
-            }
-            catch (JsonException)
-            {
-                // fall through to a fresh, empty settings store
-            }
-        }
-
-        _cache = new Dictionary<string, string>();
-        return _cache;
-    }
-
     private static bool TryGetSetting(string key, out string value)
     {
-        return LoadSettings().TryGetValue(key, out value!);
+        string? stored = SettingsStore.Get(SettingsStore.Scope.Device, key);
+        value = stored ?? "";
+        return stored is not null;
     }
 
-    private static void SetSetting(string key, string value)
-    {
-        var settings = LoadSettings();
-        settings[key] = value;
-        File.WriteAllText(SettingsFilePath, JsonSerializer.Serialize(settings, SaveFolderJsonContext.Default.DictionaryStringString));
-    }
+    private static void SetSetting(string key, string value) => SettingsStore.Set(SettingsStore.Scope.Device, key, value);
+
+    private static bool IsGameAccount(string folderPath) =>
+        !GameAccountsService.KeyFor(folderPath).StartsWith("folder:", StringComparison.Ordinal);
 
     /// <summary>Which folder cards the user left expanded, so re-launching the
     /// app doesn't dump them back into a fully-collapsed list. Null (as opposed
@@ -135,12 +108,18 @@ public static class SaveFolderSettingsService
     /// name has been set, so the caller falls back to its default label.</summary>
     public static string? GetCustomFolderName(string folderPath)
     {
+        if (IsGameAccount(folderPath)) return GameAccountsService.Nickname(folderPath);
         var names = GetCustomFolderNames();
         return names.TryGetValue(folderPath, out var name) ? name : null;
     }
 
     public static void SetCustomFolderName(string folderPath, string? name)
     {
+        if (IsGameAccount(folderPath))
+        {
+            GameAccountsService.SetNickname(folderPath, name);
+            return;
+        }
         var names = GetCustomFolderNames();
 
         if (string.IsNullOrWhiteSpace(name))
