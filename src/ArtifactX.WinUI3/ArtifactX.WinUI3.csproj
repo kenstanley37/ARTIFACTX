@@ -234,6 +234,14 @@
        later, rather than hardcoding today's ~85 names - and so it can't
        accidentally catch a real folder like "Data" or "Microsoft.UI.Xaml",
        neither of which fits that shape. -->
+  <!-- Licence texts ship next to the app: libMBIN (inside ArtifactX) is
+       LGPL-3, which needs its licence (and the GPL-3 it builds on) to travel
+       with it. THIRD-PARTY-NOTICES.md lists everything else. -->
+  <ItemGroup>
+    <None Include="..\..\licenses\*.txt" Link="licenses\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <Target Name="TrimPublishLocaleFolders" AfterTargets="Publish" Condition="'$(SelfContained)' == 'true' and Exists('$(PublishDir)')">
     <ItemGroup>
       <_PublishTopDir Include="$([System.IO.Directory]::GetDirectories('$(PublishDir)'))" />
