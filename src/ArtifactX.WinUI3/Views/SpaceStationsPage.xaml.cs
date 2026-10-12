@@ -729,22 +729,219 @@ public sealed partial class SpaceStationsPage : Page
         }
     }
 
+    // ---------------------------------------------------------------- claims in progress
+
+    private List<SystemStats> _claims = new();
+    private Dictionary<ulong, string> _claimNames = new();
+    private int _claimsVersion;
+    private static Task<List<(string Word, string Group, string Tier)>>? _descriptorsLoad;
+
     private void ShowInProgress(List<SystemStats> systemStats, Dictionary<ulong, string> stationNames, HashSet<ulong> ownedSystems)
     {
-        InProgressPanel.Children.Clear();
+        _claims = systemStats.Where(s => !ownedSystems.Contains(s.Address) && HasAnyProgress(s.Group)).ToList();
+        _claimNames = stationNames;
+        InProgressSection.Visibility = _claims.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        _ = RenderClaimsAsync();
+    }
 
-        var rows = systemStats
-            .Where(s => !ownedSystems.Contains(s.Address) && HasAnyProgress(s.Group))
-            .ToList();
+    private void ClaimSort_Changed(object sender, SelectionChangedEventArgs e) => _ = RenderClaimsAsync();
+    private void ShowHidden_Click(object sender, RoutedEventArgs e) => _ = RenderClaimsAsync();
 
-        InProgressSection.Visibility = rows.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-
-        foreach (var stats in rows)
+    /// <summary>Claims in progress as wrapping cards: progress bars, the
+    /// system's glyphs (click to enlarge), distance and jumps, and the
+    /// player's own notes on the system (wealth, economy, conflict - the save
+    /// doesn't record those). Stations the player doesn't want can be hidden
+    /// (HiddenStationsService, user.db).</summary>
+    private async Task RenderClaimsAsync()
+    {
+        int version = ++_claimsVersion;
+        try
         {
-            string name = stationNames.TryGetValue(stats.Address, out var n) ? n : "Unnamed station";
-            if (stats.Address == _currentSystemAddress) name += " (current system)";
-            InProgressPanel.Children.Add(CreateRow(name, DescribeProgress(stats)));
+            await WarmStationAssetsAsync();
+            _descriptorsLoad ??= CatalogService.GetSystemDescriptorsAsync();
+            SystemNotesService.SetDescriptors(await _descriptorsLoad);
         }
+        catch (Exception)
+        {
+            // Glyphs or wealth labels just show plainer; the cards still render.
+        }
+        if (version != _claimsVersion) return;
+
+        if (ClaimSortBox.Items.Count == 0)
+        {
+            foreach (var label in new[] { "Closest to done first", "Nearest to you first", "Richest first (your notes)", "Name (A to Z)" })
+                ClaimSortBox.Items.Add(label);
+            ClaimSortBox.SelectedIndex = 0; // fires ClaimSort_Changed, which renders
+            return;
+        }
+
+        bool showHidden = ShowHiddenBox.IsChecked == true;
+        int hiddenCount = _claims.Count(s => HiddenStationsService.IsHidden(s.Address));
+        var shown = _claims.Where(s => showHidden || !HiddenStationsService.IsHidden(s.Address));
+        var ordered = ClaimSortBox.SelectedIndex switch
+        {
+            1 => shown.OrderBy(s => ClaimDistance(s.Address) ?? double.MaxValue),
+            2 => shown.OrderByDescending(s => WealthStars(s.Address)).ThenByDescending(ClaimProgress),
+            3 => shown.OrderBy(s => ClaimName(s.Address), StringComparer.CurrentCultureIgnoreCase),
+            _ => shown.OrderByDescending(ClaimProgress),
+        };
+        var list = ordered.ToList();
+
+        InProgressHeaderTxt.Text = $"CLAIMS IN PROGRESS \u00B7 {_claims.Count}";
+        ShowHiddenBox.Content = hiddenCount > 0 ? $"Show hidden ({hiddenCount})" : "Show hidden";
+        ShowHiddenBox.IsEnabled = hiddenCount > 0 || showHidden;
+        bool anyNotes = _claims.Any(s => SystemNotesService.Get(s.Address) is { Wealth.Length: > 0 } or { Economy.Length: > 0 } or { Conflict.Length: > 0 });
+        ClaimHintTxt.Text = list.Count == 0 && hiddenCount > 0
+            ? $"You've hidden all {hiddenCount}. Tick Show hidden to see them again."
+            : anyNotes ? ""
+            : "Tip: the save doesn't record a system's wealth, economy or conflict. Note them on the Planets page while you're in a system and they show here, so you can sort for the richest.";
+        ClaimHintTxt.Visibility = ClaimHintTxt.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        InProgressPanel.Children.Clear();
+        foreach (var stats in list) InProgressPanel.Children.Add(ClaimCard(stats));
+    }
+
+    private string ClaimName(ulong address) => _claimNames.TryGetValue(address, out var n) ? n : "Unnamed station";
+
+    private double? ClaimDistance(ulong address) =>
+        _currentSystemAddress is ulong here ? NmsPlanets.DistanceLightYears(here, address) : null;
+
+    /// <summary>0 to 3: how far along the three requirements are.</summary>
+    private static double ClaimProgress(SystemStats s) =>
+        Math.Min(1.0, Best(S.RaceStats, s.Group).Value / (double)S.RaceStandingRequired)
+        + Math.Min(1.0, Best(S.GuildStats, s.Group).Value / (double)S.GuildStandingRequired)
+        + Math.Min(1.0, S.ReadStat(s.Group, S.SalvageContractsStatId) / (double)S.SalvageContractsRequired);
+
+    /// <summary>Stars from the player's wealth note (0 when not recorded).</summary>
+    private static int WealthStars(ulong address) =>
+        SystemNotesService.Get(address)?.Wealth is { Length: > 0 } w ? SystemNotesService.CategoryOf("Wealth", w).Count(c => c == '\u2605') : 0;
+
+    private Border ClaimCard(SystemStats stats)
+    {
+        ulong address = stats.Address;
+        bool hidden = HiddenStationsService.IsHidden(address);
+        bool here = address == _currentSystemAddress;
+        var note = SystemNotesService.Get(address);
+        string name = ClaimName(address);
+
+        var stack = new StackPanel { Spacing = 8 };
+
+        // Name, system and Hide/Show
+        var head = new Grid { ColumnSpacing = 8 };
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var titles = new StackPanel { Spacing = 2 };
+        titles.Children.Add(new TextBlock { Text = name, FontWeight = FontWeights.SemiBold, FontSize = 15, TextWrapping = TextWrapping.Wrap, Foreground = ThemeBrush("ThemeTextBrush") });
+        string system = note?.SystemName is { Length: > 0 } sn ? sn : "Unnamed system";
+        int galaxy = S.GalaxyNumber(address);
+        titles.Children.Add(new TextBlock
+        {
+            Text = $"{system} \u00B7 {NmsGalaxyNames.ForNumber(galaxy) ?? "Galaxy"} ({galaxy})",
+            FontSize = 12, TextWrapping = TextWrapping.Wrap, Foreground = ThemeBrush("ThemeTextDimBrush"),
+        });
+        head.Children.Add(titles);
+        var hideBtn = new Button { Content = hidden ? "Show" : "Hide", FontSize = 11, Padding = new Thickness(8, 2, 8, 2), VerticalAlignment = VerticalAlignment.Top };
+        ToolTipService.SetToolTip(hideBtn, hidden ? "Show this station in the list again" : "Not interested in this station? Hide it from the list (Show hidden brings it back)");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(hideBtn, $"{(hidden ? "Show" : "Hide")} {name}");
+        hideBtn.Click += (_, _) =>
+        {
+            HiddenStationsService.SetHidden(address, !hidden);
+            _ = RenderClaimsAsync();
+        };
+        Grid.SetColumn(hideBtn, 1);
+        head.Children.Add(hideBtn);
+        stack.Children.Add(head);
+
+        // Badges: where you are, and the player's own notes on the system
+        var badges = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        if (here) badges.Children.Add(Badge("YOU ARE HERE", accent: true));
+        if (note is not null)
+        {
+            if (note.Wealth.Length > 0) badges.Children.Add(Badge(SystemNotesService.CategoryOf("Wealth", note.Wealth), accent: false, tip: $"Wealth: {note.Wealth} (your notes)"));
+            if (note.Economy.Length > 0) badges.Children.Add(Badge(SystemNotesService.CategoryOf("Economy", note.Economy), accent: false, tip: $"Economy: {note.Economy} (your notes)"));
+            if (note.Conflict.Length > 0) badges.Children.Add(Badge($"Conflict {SystemNotesService.CategoryOf("Conflict", note.Conflict)}", accent: false, tip: $"Conflict: {note.Conflict} (your notes)"));
+        }
+        if (badges.Children.Count > 0) stack.Children.Add(badges);
+
+        // The three requirements as bars
+        var race = Best(S.RaceStats, stats.Group);
+        var guild = Best(S.GuildStats, stats.Group);
+        stack.Children.Add(Requirement($"{race.Name ?? "Race"} standing", race.Value, S.RaceStandingRequired));
+        stack.Children.Add(Requirement($"{guild.Name ?? "Guild"} standing", guild.Value, S.GuildStandingRequired));
+        stack.Children.Add(Requirement("Salvage contracts", S.ReadStat(stats.Group, S.SalvageContractsStatId), S.SalvageContractsRequired));
+
+        // Glyphs (click to enlarge) and distance
+        string code = S.PortalAddress(address, 0);
+        var tiles = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
+        foreach (char c in code)
+            if (CatalogService.TryGet($"PORTALSYMBOL_{c}")?.Icon is ImageSource glyph)
+                tiles.Children.Add(new Border { Width = 20, Height = 20, Background = ThemeBrush("ThemeVoidBrush"), Child = new Image { Source = glyph, Width = 17, Height = 17 } });
+        stack.Children.Add(new ArtifactX.WinUI3.Controls.GlyphStrip { Content = tiles, Code = code, Title = name });
+        double? distance = ClaimDistance(address);
+        stack.Children.Add(new TextBlock
+        {
+            Text = here ? "In the system you're in"
+                : distance switch
+                {
+                    null => "In a different galaxy from you",
+                    < 1 => JumpPlanner.WithJumps("Under 400 ly from you", 1),
+                    double ly => JumpPlanner.WithJumps($"About {ly:N0} ly from you", ly),
+                },
+            FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush"),
+        });
+
+        return new Border
+        {
+            Width = 330,
+            Padding = new Thickness(14, 12, 14, 12),
+            CornerRadius = (CornerRadius)Application.Current.Resources["ThemeCardCornerRadius"],
+            BorderThickness = new Thickness(here ? 2 : 1),
+            BorderBrush = ThemeBrush(here ? "ThemeAccentBrush" : "ThemeLineBrush"),
+            Background = ThemeBrush("ThemePanelBrush"),
+            Opacity = hidden ? 0.55 : 1,
+            Child = stack,
+        };
+    }
+
+    private static Border Badge(string text, bool accent, string? tip = null)
+    {
+        var badge = new Border
+        {
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(6, 1, 6, 1),
+            Background = accent ? ThemeBrush("ThemeAccentBrush") : null,
+            BorderBrush = accent ? null : ThemeBrush("ThemeLineBrush"),
+            BorderThickness = new Thickness(accent ? 0 : 1),
+            Child = new TextBlock
+            {
+                Text = text, FontSize = 10, FontWeight = FontWeights.SemiBold,
+                Foreground = ThemeBrush(accent ? "ThemeOnAccentBrush" : "ThemeTextBrush"),
+            },
+        };
+        if (tip is not null) ToolTipService.SetToolTip(badge, tip);
+        return badge;
+    }
+
+    private static StackPanel Requirement(string label, int value, int required)
+    {
+        bool done = value >= required;
+        var row = new StackPanel { Spacing = 3 };
+        var text = new Grid();
+        text.Children.Add(new TextBlock { Text = label, FontSize = 12, Foreground = ThemeBrush("ThemeTextDimBrush") });
+        text.Children.Add(new TextBlock
+        {
+            Text = $"{value} / {required}", FontSize = 12, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Right,
+            Foreground = ThemeBrush(done ? "ThemeDoneBrush" : "ThemeTextBrush"),
+        });
+        row.Children.Add(text);
+        row.Children.Add(new ProgressBar
+        {
+            Maximum = required, Value = Math.Min(value, required), Height = 4,
+            Foreground = ThemeBrush(done ? "ThemeDoneBrush" : "ThemeAccentBrush"),
+            Background = ThemeBrush("ThemeTrackBrush"),
+        });
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(row, $"{label}: {value} of {required}");
+        return row;
     }
 
     private static StackPanel CreateRow(string title, string? detail)

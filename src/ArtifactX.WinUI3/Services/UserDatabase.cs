@@ -155,6 +155,18 @@ public static class UserDatabase
         );
         CREATE INDEX ix_guides_url ON guides(url);
         """,
+
+        // 6 - stations hidden from Space Stations' claims-in-progress list (2026-10-12).
+        """
+        CREATE TABLE hidden_stations (
+            system_address TEXT PRIMARY KEY,
+            hidden_at      TEXT NOT NULL,
+            updated_at     TEXT NOT NULL,
+            source         TEXT NOT NULL DEFAULT 'user',
+            synced_at      TEXT NULL,
+            deleted        INTEGER NOT NULL DEFAULT 0
+        );
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;
