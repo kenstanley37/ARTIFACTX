@@ -70,6 +70,9 @@
                                                         Visibility="{x:Bind IsActivePlatform, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                     <TextBlock Text="ACTIVE" FontSize="10" FontWeight="Bold" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
                                                 </Border>
+                                                <!-- Shown on every card while its saves are read, collapsed or not. -->
+                                                <ProgressRing IsActive="{x:Bind IsLoadingSlots, Mode=OneWay}" Width="14" Height="14" VerticalAlignment="Center"
+                                                              Visibility="{x:Bind IsLoadingSlots, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                             </StackPanel>
                                             <TextBlock Text="{x:Bind SubText, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
                                         </StackPanel>
@@ -94,7 +97,7 @@
                                         <StackPanel Orientation="Horizontal" Spacing="8"
                                                     Visibility="{x:Bind IsLoadingSlots, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
                                             <ProgressRing IsActive="{x:Bind IsLoadingSlots, Mode=OneWay}" Width="20" Height="20"/>
-                                            <TextBlock Text="Indexing save files..." Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Reading this account's saves - a few seconds the first time after the game closes..." Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
                                         </StackPanel>
 
                                         <TextBlock Text="No readable save files were found in this folder."
@@ -191,7 +194,7 @@
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8"
                         Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <ProgressRing IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" Width="40" Height="40" HorizontalAlignment="Center"/>
-                <TextBlock Text="Indexing your save folders — this only happens once per launch."
+                <TextBlock Text="Looking for your save folders..."
                            FontSize="13" Foreground="{ThemeResource ThemeTextDimBrush}"/>
             </StackPanel>
         </Grid>
