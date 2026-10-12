@@ -65,7 +65,9 @@
                     <Border Style="{StaticResource ThemeBandStyle}">
                         <TextBlock Text="CORVETTE PARTS" Style="{StaticResource ThemeBandTextStyle}"/>
                     </Border>
-                    <controls:ItemListPanel x:Name="PartsPanel" Padding="14,12,14,14"/>
+                    <Border Padding="14,12,14,14">
+                        <controls:ItemListPanel x:Name="PartsPanel"/>
+                    </Border>
                 </StackPanel>
             </Border>
             </ctcontrols:WrapPanel>
