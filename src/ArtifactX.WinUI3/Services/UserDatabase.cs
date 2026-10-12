@@ -333,9 +333,20 @@ public static class UserDatabase
 
     public static List<DataBackup> ListBackups() =>
         new DirectoryInfo(BackupFolder).GetFiles("user-*.db")
-            .OrderByDescending(f => f.CreationTimeUtc)
-            .Select(f => new DataBackup(f.FullName, f.CreationTime, f.Length, ReasonOf(f.Name)))
+            .OrderByDescending(MadeAt)
+            .Select(f => new DataBackup(f.FullName, MadeAt(f), f.Length, ReasonOf(f.Name)))
             .ToList();
+
+    /// <summary>When a backup was made, from its name ("user-20261012-153334-...").
+    /// Not the file's own dates: moving the backups folder (e.g. to OneDrive)
+    /// gives every file a new creation time (seen 2026-10-12, all showing the
+    /// move's time).</summary>
+    private static DateTime MadeAt(FileInfo file)
+    {
+        var parts = System.IO.Path.GetFileNameWithoutExtension(file.Name).Split('-');
+        return parts.Length >= 3 && DateTime.TryParseExact(parts[1] + parts[2], "yyyyMMddHHmmss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var made)
+            ? made : file.LastWriteTime;
+    }
 
     /// <summary>"user-20261012-153334-before-v7.db" -> "before-v7".</summary>
     private static string ReasonOf(string fileName)
@@ -383,7 +394,7 @@ public static class UserDatabase
                 cmd.ExecuteNonQuery();
             }
 
-            foreach (var old in new DirectoryInfo(folder).GetFiles("user-*.db").OrderByDescending(f => f.CreationTimeUtc).Skip(_initialized ? BackupsToKeep : DefaultBackupsToKeep))
+            foreach (var old in new DirectoryInfo(folder).GetFiles("user-*.db").OrderByDescending(MadeAt).Skip(_initialized ? BackupsToKeep : DefaultBackupsToKeep))
                 old.Delete();
         }
         catch (Exception ex)
