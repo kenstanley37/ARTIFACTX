@@ -55,6 +55,15 @@ public sealed partial class CorvetteCachePage : Page
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
         Unloaded += Page_Unloaded;
         LoadGrid();
+
+        // Every part the game lets you build on a corvette, to click into the cache.
+        _ = PartsPanel.LoadAsync(CacheGrid, CatalogService.GetCorvettePartsAsync, "part", "Product", group => group switch
+        {
+            "Structural" => "Structural",
+            "Decorative" => "Decorative",
+            "Both" => "Structural and decorative",
+            _ => "",
+        });
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>

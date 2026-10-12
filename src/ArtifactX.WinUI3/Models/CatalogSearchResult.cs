@@ -3,6 +3,10 @@
 /// <summary>One row from CatalogService.SearchAsync. CategoryLabel is the save-file
 /// "elv" value (Technology/Product/Substance) derived from the matched MBIN table,
 /// not stored on CatalogItem itself - see CatalogService.ElvLabelFor.</summary>
+/// <summary>A part that can go in an inventory, for item lists (the Corvette
+/// Cache's parts list): Group is e.g. Structural / Decorative / Both.</summary>
+public sealed record CatalogPart(string GameId, string Name, string Group, int? MaxStackSize);
+
 public sealed class CatalogSearchResult
 {
     public required string GameId { get; init; }

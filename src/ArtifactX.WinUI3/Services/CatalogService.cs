@@ -326,6 +326,47 @@ public static class CatalogService
     public static async Task<List<(string DisplayName, string ScenePath)>> GetFreighterCrewRacesAsync() =>
         await GetScenePathOptionsAsync("FreighterCrewRaces");
 
+    /// <summary>Every part that can be built on a corvette (the game's own
+    /// BuildableInShipStructural/Decorative flags - DataCataloger
+    /// add-corvette-parts), joined to its product row for the name and stack
+    /// size, A-Z. Parts with no inventory item of their own are left out.</summary>
+    public static async Task<List<CatalogPart>> GetCorvettePartsAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var parts = new List<CatalogPart>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT p.GameId, p.NameEnglish, cp.UsageCategory, p.MaxStackSize
+                    FROM Items cp
+                    JOIN Categories cc ON cc.Id = cp.CategoryId
+                    JOIN Items p ON p.GameId = substr(cp.GameId, 10)
+                    JOIN Categories pc ON pc.Id = p.CategoryId
+                    WHERE cc.TemplateType = 'CorvetteParts'
+                      AND pc.TemplateType = 'GcProductTable'
+                      AND p.NameEnglish IS NOT NULL
+                    GROUP BY p.GameId
+                    ORDER BY p.NameEnglish";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                    parts.Add(new CatalogPart(reader.GetString(0), reader.GetString(1),
+                        reader.IsDBNull(2) ? "" : reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetInt32(3)));
+                return parts;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetCorvettePartsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
     private static async Task<List<(string DisplayName, string ScenePath)>> GetScenePathOptionsAsync(string templateType)
     {
         string? dbPath = ResolveDbPath();
