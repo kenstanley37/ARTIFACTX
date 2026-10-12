@@ -73,6 +73,28 @@ public sealed class NmsLoadoutTemplate
 
     public List<NmsLoadoutTechItem> TechItems { get; set; } = new();
     public List<NmsLoadoutPosition> UnlockedPositions { get; set; } = new();
+
+    // ---- Full Build extras, captured since 2026-10-12 so "Add as new" can
+    // rebuild the whole thing in an empty slot (NewFromTemplateService). All
+    // null on older templates, which then fall back to the skeleton entry's
+    // own values.
+
+    /// <summary>Supercharged Technology slots (MMm).</summary>
+    public List<NmsLoadoutPosition>? SuperchargedPositions { get; set; }
+    /// <summary>Starships only: unlocked Cargo slots (;l5 hl?). Never the cargo itself.</summary>
+    public List<NmsLoadoutPosition>? CargoUnlockedPositions { get; set; }
+    /// <summary>Paint, colours and parts, as the save's own JSON: a Multi-Tool's
+    /// CustomisationData (7DH), or a Starship's CharacterCustomisationData slot
+    /// (l:j entry). Checked by TemplateSharingService on import.</summary>
+    public string? Customisation { get; set; }
+    /// <summary>Multi-Tools only (GcMultitoolData): pistol vs rifle size (OGV) -
+    /// varies even within one model, so it can't be worked out from Type.</summary>
+    public bool? IsLarge { get; set; }
+    /// <summary>Multi-Tools only: selected primary/secondary weapon modes (qVG / jl;).</summary>
+    public int? PrimaryMode { get; set; }
+    public int? SecondaryMode { get; set; }
+    /// <summary>Multi-Tools only: UseLegacyColours (J&lt;o).</summary>
+    public bool? UseLegacyColours { get; set; }
 }
 
 public sealed class NmsLoadoutStat

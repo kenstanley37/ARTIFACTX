@@ -179,6 +179,18 @@ public static partial class TemplateSharingService
                 if (!StatKeyPattern().IsMatch(stat.Key) || !double.IsFinite(stat.Value) || Math.Abs(stat.Value) > 1_000_000) return "a stat isn't valid.";
             if (t.Seed is { Length: > 0 } seed && !SeedPattern().IsMatch(seed)) return "its look (seed) isn't valid.";
             if (t.TypeScenePath is { Length: > 0 } scene && !ScenePathPattern().IsMatch(scene)) return "its model isn't valid.";
+            foreach (var p in (t.SuperchargedPositions ?? new()).Concat(t.CargoUnlockedPositions ?? new()))
+                if (p.X < 0 || p.Y < 0 || p.X >= MaxGrid || p.Y >= MaxGrid) return "a slot is outside the grid.";
+            if ((t.SuperchargedPositions?.Count ?? 0) > MaxGrid * MaxGrid || (t.CargoUnlockedPositions?.Count ?? 0) > MaxGrid * MaxGrid) return "it has too many slots.";
+            if (t.PrimaryMode is < 0 or > 1000 || t.SecondaryMode is < 0 or > 1000) return "its weapon mode isn't valid.";
+            if (t.Customisation is { Length: > 0 } paint && !IsCustomisation(paint)) return "its paint and parts aren't valid.";
+            if (t.SourceKind != "MultiTool")
+            {
+                t.IsLarge = null;
+                t.PrimaryMode = t.SecondaryMode = null;
+                t.UseLegacyColours = null;
+            }
+            if (t.SourceKind != "Ship") t.CargoUnlockedPositions = null;
         }
         else
         {
@@ -186,8 +198,35 @@ public static partial class TemplateSharingService
             t.Stats.Clear();
             t.Seed = null;
             t.TypeScenePath = null;
+            t.SuperchargedPositions = null;
+            t.CargoUnlockedPositions = null;
+            t.Customisation = null;
+            t.IsLarge = null;
+            t.PrimaryMode = t.SecondaryMode = null;
+            t.UseLegacyColours = null;
         }
         return null;
+    }
+
+    /// <summary>Paint and parts must be the game's own customisation shape and
+    /// nothing else: a Multi-Tool's CustomisationData, or a Starship's
+    /// customisation slot ({VFd: preset, wnR: CustomisationData}), small, with
+    /// only known keys. It's written into the save as-is on Add as new.</summary>
+    private static bool IsCustomisation(string json)
+    {
+        if (json.Length > 32_768) return false;
+        Newtonsoft.Json.Linq.JObject obj;
+        try { obj = Newtonsoft.Json.Linq.JObject.Parse(json); } catch { return false; }
+
+        static bool IsData(Newtonsoft.Json.Linq.JToken? data) =>
+            data is Newtonsoft.Json.Linq.JObject d
+            && d.Properties().All(p => p.Name is "SMP" or "FCx" or "Aak" or "T>1" or "gsg" or "unY")
+            && d["SMP"] is null or Newtonsoft.Json.Linq.JArray
+            && d["FCx"] is null or { Type: Newtonsoft.Json.Linq.JTokenType.String };
+
+        return obj.ContainsKey("wnR")
+            ? obj.Properties().All(p => p.Name is "VFd" or "wnR") && obj["VFd"] is null or { Type: Newtonsoft.Json.Linq.JTokenType.String } && IsData(obj["wnR"])
+            : IsData(obj);
     }
 
     private static string SafeFileName(string name)
