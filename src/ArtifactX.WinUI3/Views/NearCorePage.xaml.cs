@@ -176,7 +176,7 @@ public sealed partial class NearCorePage : Page
             return;
         }
 
-        string name = SystemNotesService.Get(here.SystemAddress)?.SystemName is { Length: > 0 } n ? n : "Unnamed system";
+        string name = UniverseInfo.SystemName(here.SystemAddress);
         int rank = (SystemsList.ItemsSource as List<CoreSystemRowViewModel>)?.FindIndex(r => r.HereVisibility == Visibility.Visible) ?? -1;
         string rankText = rank >= 0 ? $" · #{rank + 1} in this list" : " · not in this list (check the filters)";
         HereTxt.Text = $"{name} · {here.DistanceToCore:N0} ly from the galaxy core{rankText}";
@@ -201,7 +201,7 @@ public sealed partial class NearCorePage : Page
     private CoreSystemRowViewModel ToRow(KnownSystem system, int rank)
     {
         var note = SystemNotesService.Get(system.SystemAddress);
-        string name = note?.SystemName is { Length: > 0 } n ? n : "Unnamed system";
+        string name = UniverseInfo.SystemName(system.SystemAddress);
         string planets = system.PlanetCount switch { 0 => "no planets recorded", 1 => "1 planet known", var c => $"{c} planets known" };
         string who = system.DiscoveredHere ? "found by you" : "found by another player";
         string source = system.Source.Length > 0 ? $" · {system.Source}" : "";
@@ -217,7 +217,10 @@ public sealed partial class NearCorePage : Page
 
         // Portal addresses need a planet glyph; planet 1 lands you in the system.
         string code = S.PortalAddress(system.SystemAddress, 1);
-        string notes = NotesSummary(note);
+        // Star, race, economy, wealth and conflict (the game's generator; notes override),
+        // then anything else the player noted.
+        string extra = NotesSummary(note);
+        string notes = UniverseInfo.Summary(system.SystemAddress) + (extra.Length > 0 ? $"  \u00B7  {extra}" : "");
         return new CoreSystemRowViewModel
         {
             Rank = $"#{rank}",

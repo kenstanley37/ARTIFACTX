@@ -769,7 +769,7 @@ public sealed partial class SpaceStationsPage : Page
 
         if (ClaimSortBox.Items.Count == 0)
         {
-            foreach (var label in new[] { "Closest to done first", "Nearest to you first", "Richest first (your notes)", "Name (A to Z)" })
+            foreach (var label in new[] { "Closest to done first", "Nearest to you first", "Richest first", "Name (A to Z)" })
                 ClaimSortBox.Items.Add(label);
             ClaimSortBox.SelectedIndex = 0; // fires ClaimSort_Changed, which renders
             return;
@@ -790,18 +790,16 @@ public sealed partial class SpaceStationsPage : Page
         InProgressHeaderTxt.Text = $"CLAIMS IN PROGRESS \u00B7 {_claims.Count}";
         ShowHiddenBox.Content = hiddenCount > 0 ? $"Show hidden ({hiddenCount})" : "Show hidden";
         ShowHiddenBox.IsEnabled = hiddenCount > 0 || showHidden;
-        bool anyNotes = _claims.Any(s => SystemNotesService.Get(s.Address) is { Wealth.Length: > 0 } or { Economy.Length: > 0 } or { Conflict.Length: > 0 });
         ClaimHintTxt.Text = list.Count == 0 && hiddenCount > 0
             ? $"You've hidden all {hiddenCount}. Tick Show hidden to see them again."
-            : anyNotes ? ""
-            : "Tip: the save doesn't record a system's wealth, economy or conflict. Note them on the Planets page while you're in a system and they show here, so you can sort for the richest.";
+            : "";
         ClaimHintTxt.Visibility = ClaimHintTxt.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
         InProgressPanel.Children.Clear();
         foreach (var stats in list) InProgressPanel.Children.Add(ClaimCard(stats));
     }
 
-    private string ClaimName(ulong address) => _claimNames.TryGetValue(address, out var n) ? n : "Unnamed station";
+    private string ClaimName(ulong address) => _claimNames.TryGetValue(address, out var n) ? n : $"Station in {UniverseInfo.SystemName(address)}";
 
     private double? ClaimDistance(ulong address) =>
         _currentSystemAddress is ulong here ? NmsPlanets.DistanceLightYears(here, address) : null;
@@ -812,9 +810,8 @@ public sealed partial class SpaceStationsPage : Page
         + Math.Min(1.0, Best(S.GuildStats, s.Group).Value / (double)S.GuildStandingRequired)
         + Math.Min(1.0, S.ReadStat(s.Group, S.SalvageContractsStatId) / (double)S.SalvageContractsRequired);
 
-    /// <summary>Stars from the player's wealth note (0 when not recorded).</summary>
-    private static int WealthStars(ulong address) =>
-        SystemNotesService.Get(address)?.Wealth is { Length: > 0 } w ? SystemNotesService.CategoryOf("Wealth", w).Count(c => c == '\u2605') : 0;
+    /// <summary>Stars of wealth: the player's note, else the game's generator.</summary>
+    private static int WealthStars(ulong address) => UniverseInfo.WealthStars(address);
 
     private Border ClaimCard(SystemStats stats)
     {
@@ -832,7 +829,7 @@ public sealed partial class SpaceStationsPage : Page
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var titles = new StackPanel { Spacing = 2 };
         titles.Children.Add(new TextBlock { Text = name, FontWeight = FontWeights.SemiBold, FontSize = 15, TextWrapping = TextWrapping.Wrap, Foreground = ThemeBrush("ThemeTextBrush") });
-        string system = note?.SystemName is { Length: > 0 } sn ? sn : "Unnamed system";
+        string system = UniverseInfo.SystemName(address);
         int galaxy = S.GalaxyNumber(address);
         titles.Children.Add(new TextBlock
         {
@@ -855,12 +852,13 @@ public sealed partial class SpaceStationsPage : Page
         // Badges: where you are, and the player's own notes on the system
         var badges = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         if (here) badges.Children.Add(Badge("YOU ARE HERE", accent: true));
-        if (note is not null)
-        {
-            if (note.Wealth.Length > 0) badges.Children.Add(Badge(SystemNotesService.CategoryOf("Wealth", note.Wealth), accent: false, tip: $"Wealth: {note.Wealth} (your notes)"));
-            if (note.Economy.Length > 0) badges.Children.Add(Badge(SystemNotesService.CategoryOf("Economy", note.Economy), accent: false, tip: $"Economy: {note.Economy} (your notes)"));
-            if (note.Conflict.Length > 0) badges.Children.Add(Badge($"Conflict {SystemNotesService.CategoryOf("Conflict", note.Conflict)}", accent: false, tip: $"Conflict: {note.Conflict} (your notes)"));
-        }
+        // Wealth, economy and conflict: the game's generator, or the player's note when they took one.
+        var facts = UniverseInfo.For(address);
+        string Source(string? noted) => noted is { Length: > 0 } ? $"{noted} (your notes)" : "from the game's generator";
+        badges.Children.Add(Badge(UniverseInfo.Wealth(address), accent: false, tip: $"Wealth - {Source(note?.Wealth)}"));
+        badges.Children.Add(Badge(UniverseInfo.Economy(address), accent: false, tip: $"Economy - {Source(note?.Economy)}"));
+        badges.Children.Add(Badge($"{UniverseInfo.Conflict(address)} conflict", accent: false, tip: $"Conflict - {Source(note?.Conflict)}"));
+        if (facts.Pirate) badges.Children.Add(Badge("Pirate", accent: false, tip: "Pirate-controlled system (the game's generator)"));
         if (badges.Children.Count > 0) stack.Children.Add(badges);
 
         // The three requirements as bars

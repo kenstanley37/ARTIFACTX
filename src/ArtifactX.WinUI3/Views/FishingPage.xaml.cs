@@ -227,8 +227,7 @@ public sealed partial class FishingPage : Page
             return;
         }
         HerePanel.Visibility = Visibility.Visible;
-        var note = SystemNotesService.Get(system);
-        string systemName = note?.SystemName is { Length: > 0 } n ? n : "Unnamed system";
+        string systemName = UniverseInfo.SystemName(system);
 
         if (_herePlanet == 0)
         {
@@ -238,8 +237,7 @@ public sealed partial class FishingPage : Page
             return;
         }
 
-        string planetName = note is not null
-            && note.PlanetNames.TryGetValue(_herePlanet.ToString(CultureInfo.InvariantCulture), out var pn) ? pn : $"Planet {_herePlanet}";
+        string planetName = UniverseInfo.PlanetName(system, _herePlanet);
         HereTitleTxt.Text = typeName.Length > 0 ? $"{planetName} · {typeName} planet" : planetName;
         HerePlaceTxt.Text = typeName.Length > 0
             ? $"{systemName} · {GalaxyLabel(S.GalaxyNumber(system))}"
@@ -545,11 +543,9 @@ public sealed partial class FishingPage : Page
 
     private FishPlanetRowViewModel ToWhereRow(KnownPlanet p, double? distance, Dictionary<string, Find> spots, FishInfo fish)
     {
-        var note = SystemNotesService.Get(p.SystemAddress);
-        string planetName = note is not null
-            && note.PlanetNames.TryGetValue(p.PlanetIndex.ToString(CultureInfo.InvariantCulture), out var n) ? n : $"Planet {p.PlanetIndex}";
+        string planetName = UniverseInfo.PlanetName(p.SystemAddress, p.PlanetIndex);
         var detail = new List<string> { p.HasRings ? $"{p.TypeName} · rings" : p.TypeName };
-        detail.Add(note?.SystemName is { Length: > 0 } system ? system : "Unnamed system");
+        detail.Add(UniverseInfo.SystemName(p.SystemAddress));
         detail.Add(GalaxyLabel(p.Galaxy));
         if (p.Source.Length > 0) detail.Add(p.Source);
 
