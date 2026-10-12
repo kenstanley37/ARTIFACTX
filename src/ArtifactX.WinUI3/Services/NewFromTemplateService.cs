@@ -63,6 +63,9 @@ public static class NewFromTemplateService
         template.UseLegacyColours = tool["J<o"]?.Value<bool>();
         template.Customisation = tool["7DH"]?.ToString(Newtonsoft.Json.Formatting.None);
         template.SuperchargedPositions = Positions(tool["OsQ"]?["MMm"]);
+        // Every unlocked slot, not just the ones holding tech (what a Tech
+        // Stack template keeps, so it never unlocks extra slots on a target).
+        if (Positions(tool["OsQ"]?["hl?"]) is { Count: > 0 } unlocked) template.UnlockedPositions = unlocked;
     }
 
     /// <summary>Fills a Starship Full Build template's extra fields from the ship.</summary>
@@ -70,6 +73,7 @@ public static class NewFromTemplateService
     {
         if (SaveSessionManager.GetValue(NmsInventoryContainer.ShipArrayPath.Append(shipIndex.ToString()).ToArray()) is not JObject ship) return;
         template.SuperchargedPositions = Positions(ship["PMT"]?["MMm"]);
+        if (Positions(ship["PMT"]?["hl?"]) is { Count: > 0 } unlocked) template.UnlockedPositions = unlocked;
         template.CargoUnlockedPositions = Positions(ship[";l5"]?["hl?"]);
         template.Customisation = SaveSessionManager.GetValue(ShipCustomisationPath(shipIndex))?.ToString(Newtonsoft.Json.Formatting.None);
     }

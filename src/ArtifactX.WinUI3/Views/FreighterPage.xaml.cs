@@ -716,6 +716,10 @@ public sealed partial class FreighterPage : Page
         // NmsLoadoutTemplate.Seed's own doc comment.
         template.Seed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>();
         template.TypeScenePath = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>();
+        // Every unlocked slot, not just the ones holding tech (a Tech Stack
+        // template keeps only those, so it never unlocks extra slots).
+        template.UnlockedPositions = _techViewModel.Cells.Where(c => c.State != InventorySlotState.Locked)
+            .Select(c => new NmsLoadoutPosition { X = c.X, Y = c.Y }).ToList();
 
         await LoadoutTemplateService.SaveAsync(template);
         await RefreshFullBuildTemplatesListAsync();
