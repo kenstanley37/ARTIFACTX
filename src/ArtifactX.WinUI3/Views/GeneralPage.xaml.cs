@@ -95,6 +95,7 @@ public sealed partial class GeneralPage : Page
             PinnedRecipesService.Reload();
             FindsService.Reload();
             PlanetWaterService.Reload();
+            GuidesService.Reload();
         }
         UserDataStatusTxt.Text = error ?? $"Imported {file.Name}. Your previous data was backed up.";
     }

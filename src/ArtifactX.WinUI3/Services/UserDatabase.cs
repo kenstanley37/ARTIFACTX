@@ -134,6 +134,27 @@ public static class UserDatabase
             PRIMARY KEY (system_address, planet_index)
         );
         """,
+
+        // 5 - creator video links on the Guides page (2026-10-12).
+        """
+        CREATE TABLE guides (
+            id            TEXT PRIMARY KEY,
+            url           TEXT NOT NULL,
+            platform      TEXT NOT NULL,
+            title         TEXT NOT NULL DEFAULT '',
+            creator       TEXT NOT NULL DEFAULT '',
+            thumbnail_url TEXT NOT NULL DEFAULT '',
+            topic         TEXT NOT NULL DEFAULT '',
+            items         TEXT NOT NULL DEFAULT '',
+            notes         TEXT NOT NULL DEFAULT '',
+            created_at    TEXT NOT NULL,
+            updated_at    TEXT NOT NULL,
+            source        TEXT NOT NULL DEFAULT 'user',
+            synced_at     TEXT NULL,
+            deleted       INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX ix_guides_url ON guides(url);
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;

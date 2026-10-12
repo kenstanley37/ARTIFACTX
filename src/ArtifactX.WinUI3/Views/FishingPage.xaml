@@ -173,7 +173,7 @@
                             <TextBlock x:Name="WhereHabitatTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                         </StackPanel>
                         <Button Grid.Column="2" Click="WhereClose_Click" Padding="6,4" Background="Transparent" BorderThickness="0"
-                                VerticalAlignment="Top" ToolTipService.ToolTip="Close">
+                                VerticalAlignment="Top" ToolTipService.ToolTip="Close" AutomationProperties.Name="Close">
                             <FontIcon Glyph="&#xE711;" FontSize="12"/>
                         </Button>
                     </Grid>
