@@ -82,16 +82,12 @@ public partial class SaveFolderSelectViewModel : ObservableObject
                     _ => c.PlatformName,
                 }, StringComparer.OrdinalIgnoreCase));
 
-            // Every candidate gets decrypted and indexed exactly once, here, in
-            // parallel, before anything is shown. Expanding a card afterward
-            // never touches disk again - and, as of this cache, neither does
-            // navigating away from and back to this page within the same
-            // NMS session.
-            await Task.WhenAll(allCandidates.Select(LoadSlotGroupsAsync));
-
             // The account played most recently first (with several Steam/GOG
-            // accounts, that's almost always the one wanted), then the rest.
+            // accounts, that's almost always the one wanted), then the rest -
+            // by the save files' dates, so the order is known before any save
+            // is read.
             allCandidates = allCandidates.OrderByDescending(c => c.LastPlayedUtc).ToList();
+            foreach (var candidate in allCandidates) candidate.IsLoadingSlots = true;
 
             // Null (never persisted - first launch ever) defaults every card open,
             // so a brand-new user immediately sees their saves instead of a wall
@@ -137,8 +133,18 @@ public partial class SaveFolderSelectViewModel : ObservableObject
             if (Candidates.Count == 0)
                 StatusMessage = "No save folders were detected automatically. Use \"Browse for folder\" to add yours.";
 
-            MarkLatest(Candidates);
             _cachedCandidates = allCandidates;
+
+            // The cards are on screen now, each with its own "Reading saves"
+            // spinner. Every candidate is decrypted and indexed exactly once,
+            // here; expanding a card afterward never touches disk again - and,
+            // with the cache above, neither does navigating back to this page
+            // within the same NMS session. Started in card order, and the
+            // indexer reads one file per core at a time, so the most recent
+            // account's saves come in first.
+            IsBusy = false;
+            await Task.WhenAll(allCandidates.Select(LoadSlotGroupsAsync));
+            MarkLatest(Candidates);
         }
         finally
         {

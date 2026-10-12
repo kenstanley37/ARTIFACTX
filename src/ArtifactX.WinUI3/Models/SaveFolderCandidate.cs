@@ -51,8 +51,24 @@ public sealed partial class SaveFolderCandidate : ObservableObject, IEquatable<S
     public Microsoft.UI.Xaml.Media.ImageSource? AvatarImage =>
         AvatarPath is null ? null : _avatarImage ??= new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(AvatarPath));
 
-    /// <summary>When the game last saved to any slot here (UTC); orders the cards.</summary>
-    public DateTime LastPlayedUtc => SlotGroups.Count == 0 ? DateTime.MinValue : SlotGroups.Max(g => g.LastWriteUtc);
+    /// <summary>When the game last saved to any slot here (UTC); orders the
+    /// cards. Before the slots are read, the save files' own dates.</summary>
+    public DateTime LastPlayedUtc => SlotGroups.Count > 0 ? SlotGroups.Max(g => g.LastWriteUtc) : SaveFilesLastWriteUtc();
+
+    private DateTime SaveFilesLastWriteUtc()
+    {
+        try
+        {
+            return System.IO.Directory.GetFiles(FolderPath, "save*.hg")
+                .Select(System.IO.File.GetLastWriteTimeUtc)
+                .DefaultIfEmpty(DateTime.MinValue)
+                .Max();
+        }
+        catch (Exception)
+        {
+            return DateTime.MinValue;
+        }
+    }
 
     /// <summary>Drives this candidate's own Expander card, independently of
     /// every other candidate - unlike the old single-selection model, several
@@ -62,6 +78,7 @@ public sealed partial class SaveFolderCandidate : ObservableObject, IEquatable<S
     private bool isExpanded;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SubText))]
     private bool isLoadingSlots;
 
     [ObservableProperty]
@@ -119,7 +136,8 @@ public sealed partial class SaveFolderCandidate : ObservableObject, IEquatable<S
                 return "Xbox save containers can't be auto-verified — select to use anyway";
             if (!IsValidated) return "No save*.hg files found here";
             var parts = new System.Collections.Generic.List<string>();
-            if (SlotGroups.Count > 0) parts.Add(SlotGroups.Count == 1 ? "1 save" : $"{SlotGroups.Count} saves");
+            if (IsLoadingSlots) parts.Add("Reading saves…");
+            else if (SlotGroups.Count > 0) parts.Add(SlotGroups.Count == 1 ? "1 save" : $"{SlotGroups.Count} saves");
             else parts.Add($"{DetectedSaveFileCount} save file(s) found");
             if (LastPlayedUtc > DateTime.MinValue) parts.Add($"last played {Ago(LastPlayedUtc)}");
             if (AccountId is { Length: >= 4 } id && Source != SaveFolderSource.Manual) parts.Add($"ID …{id[^4..]}");
