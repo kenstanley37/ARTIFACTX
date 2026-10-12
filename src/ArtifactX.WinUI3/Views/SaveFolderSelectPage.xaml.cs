@@ -67,7 +67,7 @@ public sealed partial class SaveFolderSelectPage : Page
         await ViewModel.TryAddCustomFolderAsync(folder.Path);
     }
 
-    private async void SaveSlot_Tapped(object sender, TappedRoutedEventArgs e)
+    private async void SaveSlot_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement { Tag: SaveSlotGroup slot }) return;
         await SaveSessionManager.LoadAsync(slot);

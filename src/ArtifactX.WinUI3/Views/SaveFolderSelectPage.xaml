@@ -105,7 +105,18 @@
                                             </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate x:DataType="models:SaveSlotGroup">
-                                                    <Border Tapped="SaveSlot_Tapped" Tag="{x:Bind}"
+                                                    <!-- A real Button (with a bare template, so the card looks the same) rather
+                                                         than a tapped Border: keyboard (Tab, then Enter/Space), screen readers
+                                                         and UI Automation can open a save too. The restore button inside handles
+                                                         its own click, which does not reach this one. -->
+                                                    <Button Click="SaveSlot_Click" Tag="{x:Bind}" Padding="0" UseSystemFocusVisuals="True"
+                                                            AutomationProperties.Name="{x:Bind AccessibleName}">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <ContentPresenter Content="{TemplateBinding Content}"/>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                    <Border
                                                             Width="270" Padding="14" CornerRadius="{ThemeResource ThemeCardCornerRadius}" BorderThickness="1"
                                                             BorderBrush="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BoolToAccentBrushConverter}}"
                                                             Background="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BoolToActiveBackgroundConverter}}">
@@ -136,7 +147,7 @@
                                                                      platform card's Rename/Remove buttons. -->
                                                                 <Button Grid.Column="3" Click="RestoreBackupBtn_Click" Tag="{x:Bind}"
                                                                         Background="Transparent" BorderThickness="0" Padding="4" MinWidth="0" VerticalAlignment="Center"
-                                                                        ToolTipService.ToolTip="Restore this slot from a backup">
+                                                                        ToolTipService.ToolTip="Restore this slot from a backup" AutomationProperties.Name="Restore from a backup">
                                                                     <FontIcon Glyph="&#xE81C;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
                                                                 </Button>
                                                             </Grid>
@@ -159,6 +170,7 @@
                                                                        Visibility="{x:Bind HasBackupCopy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                                         </StackPanel>
                                                     </Border>
+                                                    </Button>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>

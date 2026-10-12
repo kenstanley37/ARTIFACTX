@@ -45,4 +45,7 @@ public sealed partial class SaveSlotGroup : ObservableObject
     public SaveFileEntry PrimaryFile => Files.OrderByDescending(f => File.GetLastWriteTimeUtc(f.FullPath)).First();
 
     public bool HasBackupCopy => Files.Count > 1;
+
+    /// <summary>What a screen reader announces for the card, e.g. "Slot 7, NMS Small Test".</summary>
+    public string AccessibleName => $"{SlotLabel}, {PrimaryFile.SaveName}";
 }
