@@ -111,6 +111,8 @@
                                             <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
                                             <Button Content="Supercharge All Slots" Click="SuperchargeAllTech_Click"/>
                                             <Button Content="Repair All Slots" Click="RepairAllTech_Click"/>
+                                            <Button Content="Arrange for Adjacency" Click="ArrangeTech_Click"
+                                                    ToolTipService.ToolTip="Groups same-type tech side by side so it gets the game's adjacency boost. Tech in supercharged slots stays where it is."/>
                                             <Button Content="Copy Tech Stack..." Click="CopyTechStackBtn_Click"/>
                                         </ctcontrols:WrapPanel>
                                         <Grid>

@@ -85,10 +85,42 @@ public sealed partial class InventorySlotGrid : UserControl
         InitializeComponent();
     }
 
+    /// <summary>Optional: an item's type and border colour (#RRGGBB) for the
+    /// adjacency boost. Set, a slot touching another of the same type gets
+    /// that colour round it, like the game draws it.</summary>
+    public Func<string, (string Type, string Colour)?>? AdjacencyOf { get; set; }
+
+    /// <summary>Rearranges this inventory into one block per type (see
+    /// InventoryGridViewModel.ArrangeForAdjacency). Returns how many moved.</summary>
+    public int ArrangeForAdjacency(Func<string, string?> groupOf)
+    {
+        int moved = ViewModel?.ArrangeForAdjacency(groupOf) ?? 0;
+        if (moved > 0)
+        {
+            Refresh();
+            CellChanged?.Invoke(this, EventArgs.Empty);
+        }
+        return moved;
+    }
+
     public void Refresh()
     {
         RootCanvas.Children.Clear();
         if (ViewModel is null) return;
+
+        // Each occupied slot's adjacency type + colour, for the boost borders.
+        var adjacency = new Dictionary<(int, int), (string Type, string Colour)>();
+        if (AdjacencyOf is not null)
+            foreach (var c in ViewModel.Cells.Where(c => c.IsOccupied && c.ItemId is not null))
+                if (AdjacencyOf(c.ItemId!.TrimStart('^')) is { } a)
+                    adjacency[(c.X, c.Y)] = a;
+        Brush? BoostBorder(int x, int y)
+        {
+            if (!adjacency.TryGetValue((x, y), out var me)) return null;
+            bool linked = new[] { (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1) }
+                .Any(n => adjacency.TryGetValue(n, out var other) && other.Type == me.Type);
+            return linked ? BrushFromHex(me.Colour) : null;
+        }
 
         RootCanvas.Width = ViewModel.Columns * CellSpacing;
         RootCanvas.Height = ViewModel.Rows * CellSpacing;
@@ -96,17 +128,17 @@ public sealed partial class InventorySlotGrid : UserControl
         foreach (var cell in ViewModel.Cells)
         {
             bool isDamaged = cell.IsOccupied && (!cell.IsFunctional || cell.MalfunctionSeverity > 0);
+            var boost = isDamaged ? null : BoostBorder(cell.X, cell.Y);
 
             var border = new Border
             {
                 Width = CellSize,
                 Height = CellSize,
                 CornerRadius = (CornerRadius)Application.Current.Resources["ThemeSlotCornerRadius"],
-                BorderThickness = new Thickness(isDamaged ? 3 : cell.IsSupercharged ? 2 : 1),
+                BorderThickness = new Thickness(isDamaged ? 3 : boost is not null || cell.IsSupercharged ? 2 : 1),
                 Background = BackgroundFor(cell),
                 BorderBrush = isDamaged ? ThemeBrush("ThemeDamagedBrush")
-                    : cell.IsSupercharged ? ThemeBrush("ThemeSuperchargedBrush")
-                    : BorderFor(cell.State)
+                    : boost ?? (cell.IsSupercharged ? ThemeBrush("ThemeSuperchargedBrush") : BorderFor(cell.State))
             };
 
             Canvas.SetLeft(border, cell.PixelX);
@@ -552,6 +584,18 @@ public sealed partial class InventorySlotGrid : UserControl
     /// <summary>Overlays a small gold badge on a cell that already has its Child
     /// set (or not) - wraps whatever's there in a Grid rather than replacing it,
     /// since occupied cells already carry the icon/name/amount content.</summary>
+    private static readonly Dictionary<string, Brush> HexBrushes = new(StringComparer.OrdinalIgnoreCase);
+
+    private static Brush? BrushFromHex(string hex)
+    {
+        if (HexBrushes.TryGetValue(hex, out var cached)) return cached;
+        if (hex.Length != 7 || hex[0] != '#' || !uint.TryParse(hex[1..], System.Globalization.NumberStyles.HexNumber, null, out uint rgb))
+            return null;
+        var brush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb));
+        HexBrushes[hex] = brush;
+        return brush;
+    }
+
     private static void ApplySuperchargedBadge(Border border)
     {
         var wrapper = new Grid();

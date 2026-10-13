@@ -397,7 +397,7 @@ public static class CatalogService
                 using var command = connection.CreateCommand();
                 var names = usageCategories.Select((u, i) => (Name: $"@u{i}", Value: u)).ToList();
                 command.CommandText = $@"
-                    SELECT i.GameId, i.NameEnglish, i.UsageCategory, i.MaxStackSize, s.NameEnglish, s.UsageCategory
+                    SELECT i.GameId, i.NameEnglish, i.UsageCategory, i.MaxStackSize, s.NameEnglish, s.UsageCategory, s.DescriptionEnglish
                     FROM Items i
                     JOIN Categories c ON c.Id = i.CategoryId
                     LEFT JOIN Items s ON s.GameId = 'TECHSTAT:' || i.GameId
@@ -415,7 +415,8 @@ public static class CatalogService
                     tech.Add(new CatalogPart(reader.GetString(0), reader.GetString(1),
                         reader.IsDBNull(2) ? "" : reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetInt32(3),
                         Stat: reader.IsDBNull(4) ? null : reader.GetString(4),
-                        Primary: !reader.IsDBNull(5) && reader.GetString(5) == "Primary"));
+                        Primary: !reader.IsDBNull(5) && reader.GetString(5) == "Primary",
+                        Colour: reader.IsDBNull(6) ? null : reader.GetString(6)));
                 return tech;
             });
         }
@@ -445,7 +446,7 @@ public static class CatalogService
                 using var command = connection.CreateCommand();
                 var names = families.Select((f, i) => (Name: $"@f{i}", Value: f + "4")).ToList();
                 command.CommandText = $@"
-                    SELECT i.GameId, i.NameLowerEnglish, i.DescriptionEnglish, s.NameEnglish
+                    SELECT i.GameId, i.NameLowerEnglish, i.DescriptionEnglish, s.NameEnglish, s.DescriptionEnglish
                     FROM Items i
                     JOIN Categories c ON c.Id = i.CategoryId
                     LEFT JOIN Items s ON s.GameId = 'TECHSTAT:' || i.GameId
@@ -463,7 +464,8 @@ public static class CatalogService
                         ? CultureInfo.InvariantCulture.TextInfo.ToTitleCase(target.Groups[1].Value)
                         : plain ?? id;
                     modules.Add(new CatalogPart(id, $"{tech} upgrade (S)", "Upgrade modules", null,
-                        CountKey: id[..^1], Limit: 3, Seeded: true, Stat: reader.IsDBNull(3) ? null : reader.GetString(3)));
+                        CountKey: id[..^1], Limit: 3, Seeded: true, Stat: reader.IsDBNull(3) ? null : reader.GetString(3),
+                        Colour: reader.IsDBNull(4) ? null : reader.GetString(4)));
                 }
                 return modules.OrderBy(m => m.Name).ToList();
             });
