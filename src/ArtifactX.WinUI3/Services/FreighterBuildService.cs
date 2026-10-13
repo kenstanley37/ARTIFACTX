@@ -225,6 +225,48 @@ public static class FreighterBuildService
         return null;
     }
 
+    /// <summary>The hulls a player can own, for "start fresh" (the three seen
+    /// on the real saves' freighters, 2026-10-13; the catalog's small/tiny/A
+    /// hulls are NPC-only).</summary>
+    public static readonly (string Name, string Description, string ScenePath)[] StarterHulls =
+    {
+        ("Freighter", "The regular freighter - the one most players start with.", DefaultHull),
+        ("Capital freighter", "The big one - the larger, more ornate hull.", "MODELS/COMMON/SPACECRAFT/INDUSTRIAL/CAPITALFREIGHTER_PROC.SCENE.MBIN"),
+        ("Dreadnought", "The dark pirate freighter.", "MODELS/COMMON/SPACECRAFT/INDUSTRIAL/PIRATEFREIGHTER.SCENE.MBIN"),
+    };
+
+    /// <summary>A brand-new freighter exactly as the game hands one over -
+    /// from the controlled in-game diff of acquiring one (Slot 4,
+    /// 2026-10-12): C class, Freighter Hyperdrive + Interstellar Scanner,
+    /// 8 tech slots (one supercharged), 15 cargo slots, the same base stats,
+    /// a random look (seed) and the standard starter interior. For players
+    /// who want to build their own (user request 2026-10-13).</summary>
+    public static NmsLoadoutTemplate Starter(string name, string scenePath) => new()
+    {
+        Name = name,
+        SourceKind = "Freighter",
+        Scope = "FullBuild",
+        SourceClass = "C",
+        TypeScenePath = scenePath,
+        Stats =
+        {
+            new NmsLoadoutStat { Key = "^FREI_HYPERDRIVE", Value = 7.832129955291748 },
+            new NmsLoadoutStat { Key = "^FREI_FLEET", Value = 9.052688598632812 },
+        },
+        TechItems =
+        {
+            new NmsLoadoutTechItem { X = 6, Y = 0, ItemId = "^F_HYPERDRIVE", Amount = 0, MaxAmount = 120, CategoryLabel = "Technology" },
+            new NmsLoadoutTechItem { X = 1, Y = 1, ItemId = "^F_SCANNER", Amount = -1, MaxAmount = 100, CategoryLabel = "Technology" },
+        },
+        UnlockedPositions = Pos((6, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (0, 2)),
+        SuperchargedPositions = Pos((2, 2)),
+        CargoUnlockedPositions = Pos((0, 0), (1, 0), (5, 0), (6, 0), (4, 1), (5, 1), (6, 1), (3, 2), (4, 2), (5, 2),
+            (0, 3), (3, 3), (4, 3), (2, 4), (3, 4)),
+    };
+
+    private static List<NmsLoadoutPosition> Pos(params (int X, int Y)[] cells) =>
+        cells.Select(c => new NmsLoadoutPosition { X = c.X, Y = c.Y }).ToList();
+
     // ---------------------------------------------------------------- helpers
 
     private static long Now() => DateTimeOffset.UtcNow.ToUnixTimeSeconds();

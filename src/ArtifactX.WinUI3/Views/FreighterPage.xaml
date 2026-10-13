@@ -49,10 +49,20 @@
             <StackPanel x:Name="NoFreighterPanel" Spacing="18" MaxWidth="760" HorizontalAlignment="Left" Visibility="Collapsed">
                 <TextBlock Text="FREIGHTER" Style="{StaticResource ThemePageTitleStyle}"/>
                 <TextBlock Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap">
-                    <Run Text="You don't own a freighter yet. Add one from a Full Build template below - it arrives with that freighter's look, tech and furnished interior, parked in the system you're in."/>
+                    <Run Text="You don't own a freighter yet. Start fresh with a basic one, or add one from a Full Build template - it arrives with that freighter's look, tech and furnished interior. Either way it's parked in the system you're in."/>
                     <LineBreak/><LineBreak/>
                     <Run Text="Or get one in game: warp until you arrive in a space battle with a freighter under pirate attack, destroy the pirates, then land and talk to the captain on the bridge (sometimes free, sometimes for Units). You can also buy one from any freighter captain."/>
                 </TextBlock>
+
+                <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                        Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                    <StackPanel Padding="16,14,16,16" Spacing="12">
+                        <TextBlock Text="START FRESH" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
+                                   Text="A brand-new freighter, just like the game gives you: C class, a hyperdrive and scanner, the starter interior and a random look. Build it up yourself - change its look, class and tech once it's yours."/>
+                        <StackPanel x:Name="StarterListPanel" Spacing="10"/>
+                    </StackPanel>
+                </Border>
 
                 <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                         Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
