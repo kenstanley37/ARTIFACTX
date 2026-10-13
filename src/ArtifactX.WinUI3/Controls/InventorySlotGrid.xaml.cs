@@ -598,7 +598,27 @@ public sealed partial class InventorySlotGrid : UserControl
 
     private static void ApplySuperchargedBadge(Border border)
     {
+        // A gold glow rising from the bottom (like the game's tinted slot)
+        // under the content, and a gold corner on top of it - so a
+        // supercharged slot still reads as one when an adjacency border
+        // takes its outline (it used to be marked by the border alone plus a
+        // small bolt the name label covered; user, 2026-10-13).
         var wrapper = new Grid();
+        var gold = ((SolidColorBrush)ThemeBrush("ThemeSuperchargedBrush")).Color;
+        wrapper.Children.Add(new Microsoft.UI.Xaml.Shapes.Rectangle
+        {
+            Fill = new LinearGradientBrush
+            {
+                StartPoint = new Windows.Foundation.Point(0.5, 1),
+                EndPoint = new Windows.Foundation.Point(0.5, 0),
+                GradientStops =
+                {
+                    new GradientStop { Color = Windows.UI.Color.FromArgb(110, gold.R, gold.G, gold.B), Offset = 0 },
+                    new GradientStop { Color = Windows.UI.Color.FromArgb(0, gold.R, gold.G, gold.B), Offset = 0.75 },
+                },
+            },
+            IsHitTestVisible = false,
+        });
 
         if (border.Child is UIElement existing)
         {
@@ -606,13 +626,23 @@ public sealed partial class InventorySlotGrid : UserControl
             wrapper.Children.Add(existing);
         }
 
+        var corner = new Microsoft.UI.Xaml.Shapes.Polygon
+        {
+            Points = { new Windows.Foundation.Point(0, 0), new Windows.Foundation.Point(16, 0), new Windows.Foundation.Point(16, 16) },
+            Fill = ThemeBrush("ThemeSuperchargedBrush"),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            IsHitTestVisible = false,
+        };
+        wrapper.Children.Add(corner);
         wrapper.Children.Add(new TextBlock
         {
             Text = "⚡",
-            FontSize = 13,
+            FontSize = 8,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(0, -3, 2, 0)
+            Margin = new Thickness(0, 0, 1, 0),
+            IsHitTestVisible = false,
         });
 
         border.Child = wrapper;
