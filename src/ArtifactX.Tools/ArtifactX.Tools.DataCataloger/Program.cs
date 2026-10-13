@@ -1324,7 +1324,8 @@ if (args.Length > 1 && args[0].Equals("add-corvette-parts", StringComparison.Ord
 // tech; BaseStat groups them cleanly. Upgrade modules (procedural tech) get
 // the stat of the template tech they're rolled from. Written as category
 // "TechStats": GameId = "TECHSTAT:" + tech id, NameEnglish = the stat,
-// UsageCategory = "Primary" for a device's main item (PrimaryItem), else "".
+// UsageCategory = "Primary" for a device's main item (PrimaryItem), else "",
+// DescriptionEnglish = its LinkColour (#RRGGBB, the adjacency border).
 // Same patch-in-place pattern as add-corvette-parts; idempotent.
 if (args.Length > 1 && args[0].Equals("add-tech-stats", StringComparison.OrdinalIgnoreCase))
 {
@@ -1387,12 +1388,16 @@ if (args.Length > 1 && args[0].Equals("add-tech-stats", StringComparison.Ordinal
         return;
     }
 
-    var techStats = new Dictionary<string, (string Stat, bool Primary)>(StringComparer.OrdinalIgnoreCase);
+    // LinkColour is the border the game draws round same-type tech sitting
+    // side by side (the adjacency boost) - kept as #RRGGBB in DescriptionEnglish.
+    static string Hex(libMBIN.NMS.Colour? c) => c is null ? "" :
+        $"#{(int)Math.Round(Math.Clamp(c.R, 0, 1) * 255):X2}{(int)Math.Round(Math.Clamp(c.G, 0, 1) * 255):X2}{(int)Math.Round(Math.Clamp(c.B, 0, 1) * 255):X2}";
+    var techStats = new Dictionary<string, (string Stat, bool Primary, string Link)>(StringComparer.OrdinalIgnoreCase);
     foreach (var tech in techTable.Table)
     {
         string id = tech.ID?.Value ?? "";
         if (id.Length > 0)
-            techStats.TryAdd(id, (tech.BaseStat?.StatsType.ToString() ?? "Unspecified", tech.PrimaryItem));
+            techStats.TryAdd(id, (tech.BaseStat?.StatsType.ToString() ?? "Unspecified", tech.PrimaryItem, Hex(tech.LinkColour)));
     }
     int procCount = 0;
     foreach (var proc in procTable.Table)
@@ -1400,9 +1405,26 @@ if (args.Length > 1 && args[0].Equals("add-tech-stats", StringComparison.Ordinal
         string id = proc.ID?.Value ?? "";
         string template = proc.Template?.Value ?? "";
         if (id.Length == 0 || !techStats.TryGetValue(template, out var fromTemplate)) continue;
-        if (techStats.TryAdd(id, (fromTemplate.Stat, false))) procCount++;
+        if (techStats.TryAdd(id, (fromTemplate.Stat, false, fromTemplate.Link))) procCount++;
     }
     ConsoleStyle.Header($"Found stats for {techStats.Count - procCount} technologies and {procCount} upgrade modules.");
+
+    // The game colours the border by the tech's TYPE, not its own LinkColour:
+    // a living ship's Scream Suppressor (link #1A2733, the unset default) shows
+    // the pale gold of the regular Deflector Shield, its Spewing Vents (link
+    // green) the Photon Cannon's cyan (user's in-game screenshots, 2026-10-13).
+    // So each stat takes the most common real link colour among the main
+    // (PrimaryItem) tech of that stat; a tech keeps its own only when its stat
+    // has none.
+    var statColour = techStats.Values
+        .Where(t => t.Primary && t.Link is { Length: > 0 } && t.Link != "#1A2733" && t.Link != "#FFFFFF")
+        .GroupBy(t => t.Stat)
+        .ToDictionary(g => g.Key, g => g.GroupBy(t => t.Link).OrderByDescending(l => l.Count()).First().Key);
+    foreach (var id in techStats.Keys.ToList())
+    {
+        var t = techStats[id];
+        if (statColour.TryGetValue(t.Stat, out var colour)) techStats[id] = (t.Stat, t.Primary, colour);
+    }
 
     using var statsDb = new CatalogDbContext(statsDbPath);
     var existingStatsCategory = statsDb.Categories.FirstOrDefault(c => c.TemplateType == "TechStats");
@@ -1428,6 +1450,7 @@ if (args.Length > 1 && args[0].Equals("add-tech-stats", StringComparison.Ordinal
             CategoryId = statsCategory.Id,
             GameId = "TECHSTAT:" + id,
             NameEnglish = info.Stat,
+            DescriptionEnglish = info.Link,
             UsageCategory = info.Primary ? "Primary" : ""
         });
     statsDb.SaveChanges();

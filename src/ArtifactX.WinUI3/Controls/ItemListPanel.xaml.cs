@@ -125,6 +125,11 @@ public sealed partial class ItemListPanel : UserControl
 
         MarkOwned();
         Apply();
+        if (_isTech)
+        {
+            _grid.AdjacencyOf = AdjacencyOf;
+            _grid.Refresh();
+        }
         await LoadIconsAsync(version);
     }
 
@@ -171,11 +176,16 @@ public sealed partial class ItemListPanel : UserControl
     /// <summary>Technology's type for placement: its main stat (a module counts
     /// as its tech's), so new tech lands beside its own kind and gets the
     /// game's adjacency boost. Stacks have no type - they just fill in order.</summary>
-    private string? TypeOf(string installedId)
+    public string? TypeOf(string installedId) => _isTech ? PartFor(installedId)?.Stat : null;
+
+    /// <summary>Type + border colour for the grid's adjacency borders.</summary>
+    private (string Type, string Colour)? AdjacencyOf(string installedId) =>
+        _isTech && PartFor(installedId) is { Stat: { } stat, Colour: { } colour } ? (stat, colour) : null;
+
+    private CatalogPart? PartFor(string installedId)
     {
-        if (!_isTech) return null;
         string key = CountKeyOf(installedId);
-        return _cards.FirstOrDefault(c => string.Equals(c.Part.CountKey ?? c.Part.GameId, key, StringComparison.OrdinalIgnoreCase))?.Part.Stat;
+        return _cards.FirstOrDefault(c => string.Equals(c.Part.CountKey ?? c.Part.GameId, key, StringComparison.OrdinalIgnoreCase))?.Part;
     }
 
     /// <summary>The id to write: seeded modules get a fresh seed each, in the

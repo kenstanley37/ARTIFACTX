@@ -2,6 +2,7 @@ using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.Almanac.Starship;
 using ArtifactX.Core.NmsModels;
@@ -828,6 +829,27 @@ public sealed partial class ShipsPage : Page
         _techViewModel?.RepairAll();
         TechGrid.Refresh();
         PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Groups same-type tech together for the adjacency boost (see
+    /// InventoryGridViewModel.ArrangeForAdjacency); types come from the tech
+    /// list beside the grid.</summary>
+    private void ArrangeTech_Click(object sender, RoutedEventArgs e)
+    {
+        int moved = TechGrid.ArrangeForAdjacency(TechListPanel.TypeOf);
+        if (moved > 0) PageResetBtn.Visibility = Visibility.Visible;
+        FlyoutBase.SetAttachedFlyout((FrameworkElement)sender, new Flyout
+        {
+            Content = new TextBlock
+            {
+                Text = moved > 0
+                    ? $"Moved {moved} so each type sits together. Reset undoes it."
+                    : "Already grouped - nothing to move.",
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 260,
+            },
+        });
+        FlyoutBase.ShowAttachedFlyout((FrameworkElement)sender);
     }
 
     /// <summary>Toggles between the compact, game-matching preview height and
