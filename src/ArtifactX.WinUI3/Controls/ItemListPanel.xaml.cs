@@ -92,6 +92,11 @@ public sealed partial class ItemListPanel : UserControl
         Apply();
     }
 
+    /// <summary>Optional hint shown when everything won't fit even after
+    /// unlocking, e.g. "S class has more slots" (null for none). The page
+    /// knows the device's class; changing it stays the player's choice.</summary>
+    public Func<string?>? MoreRoomHint { get; set; }
+
     /// <summary>How tall the scrolling card list is.</summary>
     public double ListHeight { get => CardsView.Height; set => CardsView.Height = value; }
 
@@ -304,19 +309,41 @@ public sealed partial class ItemListPanel : UserControl
         int free = _grid.FreeSlotCount;
         if (missing.Count == 0) return;
 
+        // Short of room: offer to unlock what's needed (on by default - it's
+        // what the player is after), never silently (user, 2026-10-13).
+        int shortBy = Math.Max(0, missing.Count - free);
+        int canUnlock = Math.Min(shortBy, _grid.LockedSlotCount);
+        int stillShort = shortBy - canUnlock;
+        var unlockBox = new CheckBox
+        {
+            Content = $"Unlock {canUnlock:N0} more slot{(canUnlock == 1 ? "" : "s")} so {(stillShort == 0 ? "everything fits" : "more fits")}",
+            IsChecked = true,
+            Visibility = canUnlock > 0 ? Visibility.Visible : Visibility.Collapsed,
+        };
+        string? hint = stillShort > 0 ? MoreRoomHint?.Invoke() : null;
+        var body = new StackPanel { Spacing = 10 };
+        body.Children.Add(new TextBlock
+        {
+            TextWrapping = TextWrapping.Wrap,
+            Text = (_isTech
+                    ? $"Installs each {_noun} shown that isn't installed yet, and upgrade modules up to the game's 3 per technology, into free slots."
+                    : $"Adds one full stack of each {_noun} shown that isn't in here yet, into free slots.")
+                + (shortBy == 0
+                    ? $" There's room for all of them ({free:N0} free slots)."
+                    : $" Only {free:N0} free slots for {missing.Count:N0}."),
+        });
+        body.Children.Add(unlockBox);
+        if (stillShort > 0)
+            body.Children.Add(new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Text = $"Even with every slot unlocked, {stillShort:N0} won't fit and will be left out." + (hint is null ? "" : " " + hint),
+            });
+
         var dialog = new ContentDialog
         {
             Title = _isTech ? $"Install {missing.Count:N0} {_nouns}?" : $"Add {missing.Count:N0} {_nouns}?",
-            Content = new TextBlock
-            {
-                TextWrapping = TextWrapping.Wrap,
-                Text = (_isTech
-                        ? $"Installs each {_noun} shown that isn't installed yet, and upgrade modules up to the game's 3 per technology, into free slots."
-                        : $"Adds one full stack of each {_noun} shown that isn't in here yet, into free slots.")
-                    + (free >= missing.Count
-                        ? $" There's room for all of them ({free:N0} free slots)."
-                        : $" Only {free:N0} free slots - the first {free:N0} (A to Z) fit, the rest won't be added."),
-            },
+            Content = body,
             PrimaryButtonText = _isTech ? "Install them" : "Add them",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Primary,
@@ -324,6 +351,7 @@ public sealed partial class ItemListPanel : UserControl
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
 
+        if (canUnlock > 0 && unlockBox.IsChecked == true) _grid.UnlockSlots(canUnlock);
         int added = _grid.AddToFreeSlots(missing.Select(EntryFor), TypeOf);
         string verb = _isTech ? "Installed" : "Added";
         Status(added == missing.Count ? $"{verb} {added:N0} {_nouns}." : $"{verb} {added:N0} of {missing.Count:N0} - no free slots left for the rest.", ok: added > 0);
