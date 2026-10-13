@@ -918,15 +918,17 @@ public sealed partial class FreighterPage : Page
     /// in a save that doesn't have one. Nothing is written until Save.</summary>
     private async Task AddFreighterAsync(NmsLoadoutTemplate template)
     {
+        bool fresh = template.TechItems.Count <= 2 && !FreighterBuildService.HasInterior(template);
         var confirm = new ContentDialog
         {
-            Title = template.Id.Length > 0 && template.TechItems.Count <= 2 && !FreighterBuildService.HasInterior(template)
-                ? $"Add a new {template.Name.ToLowerInvariant()}?"
-                : $"Add \"{template.Name}\" as your freighter?",
+            Title = fresh ? $"Add a new {template.Name.ToLowerInvariant()}?" : $"Add \"{template.Name}\" as your freighter?",
             Content = new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Text = "It arrives with this template's model, look, tech, class, stats and "
+                Text = fresh
+                    ? "A brand-new one, just as the game hands it over: C class, a hyperdrive and scanner, the starter interior and a random look, "
+                        + "parked in the system you're in, with a new Gek captain (change the race under Crew Race). Nothing is written to your save until you Save."
+                    : "It arrives with this template's model, look, tech, class, stats and "
                     + (FreighterBuildService.HasInterior(template) ? "furnished interior" : "the standard starter interior")
                     + ", parked in the system you're in. Its cargo starts empty and it gets a new Gek captain (change the race under Crew Race). "
                     + "Nothing is written to your save until you Save."
