@@ -377,6 +377,52 @@ public static class CatalogService
         }
     }
 
+    /// <summary>Technology that fits a device, by the catalog's usage categories
+    /// (a ship kind's own set - see ShipsPage.TechRuleFor). Skips the game's
+    /// broken-slot placeholders, the generic "Upgrade Module" template rows and
+    /// procedural upgrades (those carry a seed and come from shops, not a list).
+    /// Group holds the usage category. Checked 2026-10-13 against every ship in
+    /// the real saves: every installed non-procedural tech is in its kind's list.</summary>
+    public static async Task<List<CatalogPart>> GetTechForAsync(IReadOnlyCollection<string> usageCategories)
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null || usageCategories.Count == 0) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var tech = new List<CatalogPart>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                var names = usageCategories.Select((u, i) => (Name: $"@u{i}", Value: u)).ToList();
+                command.CommandText = $@"
+                    SELECT i.GameId, i.NameEnglish, i.UsageCategory, i.MaxStackSize
+                    FROM Items i
+                    JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'GcTechnologyTable'
+                      AND i.NameEnglish IS NOT NULL
+                      AND i.UsageCategory IN ({string.Join(", ", names.Select(n => n.Name))})
+                      AND COALESCE(i.IsBrokenSlotTech, 0) = 0
+                      AND NOT (i.NameEnglish = 'UPGRADE MODULE' AND i.DescriptionEnglish IS NULL)
+                      AND i.GameId NOT LIKE '%#%'
+                    GROUP BY i.GameId
+                    ORDER BY i.NameEnglish";
+                foreach (var n in names) command.Parameters.AddWithValue(n.Name, n.Value);
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                    tech.Add(new CatalogPart(reader.GetString(0), reader.GetString(1),
+                        reader.IsDBNull(2) ? "" : reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetInt32(3)));
+                return tech;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetTechForAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
     private static async Task<List<(string DisplayName, string ScenePath)>> GetScenePathOptionsAsync(string templateType)
     {
         string? dbPath = ResolveDbPath();

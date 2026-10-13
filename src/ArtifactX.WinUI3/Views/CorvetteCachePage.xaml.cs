@@ -63,7 +63,7 @@ public sealed partial class CorvetteCachePage : Page
             var parts = await CatalogService.GetCorvettePartsAsync();
             CacheGrid.AllowedItemIds = parts.Select(p => p.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
             return parts;
-        }, "part", "Product", _ => "");
+        }, "part", "parts", "Product", _ => "");
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>

@@ -305,6 +305,30 @@ public sealed partial class ShipsPage : Page
         return panel;
     }
 
+    /// <summary>Which technology a ship takes, by its model folder. Worked out
+    /// 2026-10-13 from every ship in the real saves: regular ships (and
+    /// corvettes) take AllShips + AllShipsExceptAlien + Ship tech, living ships
+    /// (S-CLASS/BIOPARTS) AllShips + AlienShip, Sentinel ships AllShips +
+    /// AllShipsExceptAlien + RobotShip. The catalog's "Corvette" category is
+    /// only generic upgrade-module templates, so corvettes use the regular set.
+    /// The old grid rule ("Ship"/"All") missed AllShips and AllShipsExceptAlien
+    /// tech entirely and offered nothing for living or Sentinel ships.</summary>
+    private static (string[] UsageCategories, string Header) TechRuleFor(string? scenePath)
+    {
+        string path = (scenePath ?? "").ToUpperInvariant();
+        if (path.Contains("/BIOPARTS/")) return (new[] { "AllShips", "AlienShip" }, "LIVING SHIP TECHNOLOGY");
+        if (path.Contains("/SENTINELSHIP/")) return (new[] { "AllShips", "AllShipsExceptAlien", "RobotShip" }, "SENTINEL SHIP TECHNOLOGY");
+        string[] regular = { "AllShips", "AllShipsExceptAlien", "Ship" };
+        return ShipBaseService.IsCorvetteModel(scenePath ?? "") ? (regular, "CORVETTE TECHNOLOGY") : (regular, "STARSHIP TECHNOLOGY");
+    }
+
+    /// <summary>Filter groups for the tech list: the cosmetic figurines and
+    /// trails apart from the tech that does something.</summary>
+    private static string TechGroup(CatalogPart tech) =>
+        tech.Name.EndsWith("FIGURINE", StringComparison.OrdinalIgnoreCase) ? "Figurines"
+        : tech.Name.Contains("STARSHIP TRAIL", StringComparison.OrdinalIgnoreCase) ? "Starship trails"
+        : "Ship systems";
+
     private async void LoadSelectedShip()
     {
         SyncTypeComboBox();
@@ -318,6 +342,7 @@ public sealed partial class ShipsPage : Page
             CargoGrid.ViewModel = null;
             CargoGrid.Refresh();
             TechHeaderTxt.Text = "TECHNOLOGY";
+            TechListCard.Visibility = Visibility.Collapsed;
             ClassSelectorPanel.Children.Clear();
             NameEditBox.Text = "";
             SeedEditBox.Text = "";
@@ -355,7 +380,9 @@ public sealed partial class ShipsPage : Page
         TechGrid.ViewModel = _techViewModel;
         TechGrid.AllowedCategories = new[] { "Technology" };
         TechGrid.AllowedTemplateTypes = new[] { "GcTechnologyTable" };
-        TechGrid.AllowedUsageCategories = new[] { "Ship", "All" };
+        var techRule = TechRuleFor(SaveSessionManager.GetValue(
+            "vLc", "6f=", "@Cs", _selectedIndex.ToString(), "NTx", "93M")?.Value<string>());
+        TechGrid.AllowedUsageCategories = techRule.UsageCategories;
 
         CargoGrid.ViewModel = _cargoViewModel;
         CargoGrid.AllowedCategories = new[] { "Substance", "Product" };
@@ -376,6 +403,17 @@ public sealed partial class ShipsPage : Page
         CargoGrid.Refresh();
 
         TechHeaderTxt.Text = $"TECHNOLOGY  —  {selectedShip.Name.ToUpperInvariant()}";
+
+        // The tech this kind of ship can fit, to click in - the same list
+        // limits the right-click search.
+        TechListCard.Visibility = Visibility.Visible;
+        TechListHeaderTxt.Text = techRule.Header;
+        _ = TechListPanel.LoadAsync(TechGrid, async () =>
+        {
+            var tech = await CatalogService.GetTechForAsync(techRule.UsageCategories);
+            TechGrid.AllowedItemIds = tech.Select(t => t.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return tech;
+        }, "technology", "technologies", "Technology", TechGroup);
         PageResetBtn.Visibility = (_techViewModel.HasLocalChanges || _cargoViewModel.HasLocalChanges)
             ? Visibility.Visible : Visibility.Collapsed;
 
