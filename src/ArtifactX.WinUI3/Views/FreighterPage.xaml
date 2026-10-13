@@ -337,6 +337,12 @@
                                         <NumberBox Grid.Row="1" Grid.Column="1" x:Name="FleetStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="FleetStatBox_ValueChanged" LostFocus="FleetStatBox_LostFocus"/>
                                     </Grid>
                                 </StackPanel>
+
+                                <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="0,1,0,0" Padding="0,14,0,0">
+                                    <Button Content="Delete this freighter..." Click="DeleteFreighterBtn_Click"
+                                            Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
+                                            ToolTipService.ToolTip="Remove your freighter from the save. You can keep it as a template first."/>
+                                </Border>
                             </StackPanel>
                         </StackPanel>
                     </Border>

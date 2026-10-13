@@ -225,6 +225,48 @@ public static class FreighterBuildService
         return null;
     }
 
+    /// <summary>Takes the freighter away, putting the save back the way it was
+    /// before the player owned one - every value from the "before" side of the
+    /// controlled acquire diff (Slot 4, 2026-10-12): empty hull and captain
+    /// models, home seed and parked address cleared, default facing, empty
+    /// tech and cargo, and its FreighterBase (interior) entry removed. What
+    /// the player learned (known tech, blueprints) and their frigates stay.
+    /// User request 2026-10-13, to try the start-fresh freighters.</summary>
+    public static void RemoveFreighter()
+    {
+        if (SaveSessionManager.GetValue(HullPath) is JObject hull)
+        {
+            var empty = (JObject)hull.DeepClone();
+            empty["93M"] = "";
+            SaveSessionManager.StageEdit(empty, HullPath);
+        }
+        if (SaveSessionManager.GetValue(CaptainPath) is JObject captain)
+        {
+            var empty = (JObject)captain.DeepClone();
+            empty["93M"] = "";
+            empty["@EL"] = new JArray(false, "0x0");
+            SaveSessionManager.StageEdit(empty, CaptainPath);
+        }
+        SaveSessionManager.StageEdit(new JArray(false, "0x0"), HomeSeedPath);
+        SaveSessionManager.StageEdit(new JObject
+        {
+            ["Iis"] = 0,
+            ["oZw"] = new JObject { ["dZj"] = 0, ["IyE"] = 0, ["uXE"] = 0, ["vby"] = 0, ["jsv"] = 0 },
+        }, ParkedAddressPath);
+        SaveSessionManager.StageEdit(new JArray(0.0, 0.0, 1.0), AtPath);
+        SaveSessionManager.StageEdit(new JArray(0.0, 1.0, 0.0), UpPath);
+        SaveSessionManager.StageEdit(new JArray(0.0, 0.0, 0.0), PositionPath);
+        foreach (var path in new[] { NmsInventoryContainer.FreighterTechnologyPath, NmsInventoryContainer.FreighterCargoPath })
+            SaveSessionManager.StageEdit(new JArray(), path.Append(":No").ToArray());
+
+        if (SaveSessionManager.GetValue(S.BasesPath) is JArray bases && FreighterBaseIndex(bases) is int index)
+        {
+            var remaining = (JArray)bases.DeepClone();
+            remaining.RemoveAt(index);
+            SaveSessionManager.StageEdit(remaining, S.BasesPath);
+        }
+    }
+
     /// <summary>The hulls a player can own, for "start fresh" (the three seen
     /// on the real saves' freighters, 2026-10-13; the catalog's small/tiny/A
     /// hulls are NPC-only).</summary>

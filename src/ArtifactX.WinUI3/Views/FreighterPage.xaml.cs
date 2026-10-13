@@ -778,8 +778,16 @@ public sealed partial class FreighterPage : Page
         string name = nameBox.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(name)) return;
 
+        await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate(name));
+        await RefreshFullBuildTemplatesListAsync();
+    }
+
+    /// <summary>The whole freighter as a Full Build template: tech, unlocked
+    /// slots, stats, look and furnished interior.</summary>
+    private NmsLoadoutTemplate BuildFullBuildTemplate(string name)
+    {
         string freighterName = NameEditBox.Text?.Trim() is { Length: > 0 } n ? n : "Freighter";
-        var template = _techViewModel.ExtractTemplate(name, freighterName, "Freighter");
+        var template = _techViewModel!.ExtractTemplate(name, freighterName, "Freighter");
         template.Scope = "FullBuild";
         template.Stats = ExtractStatsList();
         // Model Seed only (the hull's own look) - deliberately never the
@@ -792,9 +800,29 @@ public sealed partial class FreighterPage : Page
         // template keeps only those, so it never unlocks extra slots).
         template.UnlockedPositions = _techViewModel.Cells.Where(c => c.State != InventorySlotState.Locked)
             .Select(c => new NmsLoadoutPosition { X = c.X, Y = c.Y }).ToList();
+        return template;
+    }
 
-        await LoadoutTemplateService.SaveAsync(template);
-        await RefreshFullBuildTemplatesListAsync();
+    private async void DeleteFreighterBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_techViewModel is null) return;
+        string name = NameEditBox.Text?.Trim() is { Length: > 0 } n ? n : "your freighter";
+        int cargo = _cargoViewModel?.Cells.Count(c => c.IsOccupied) ?? 0;
+        int frigates = (SaveSessionManager.GetValue(NmsFrigatePaths.FrigateArrayPath) as JArray)?.Count ?? 0;
+        string whatGoes = "its tech, its furnished interior"
+            + (cargo > 0 ? $", the {cargo} stacks in its cargo" : "")
+            + " and its look. What you've learned (blueprints, known tech) stays"
+            + (frigates > 0 ? $", and your {frigates} frigate{(frigates == 1 ? "" : "s")} stay as they are" : "");
+        var choice = await DeleteConfirmation.ShowAsync(XamlRoot, name, whatGoes);
+        if (!choice.Confirmed) return;
+
+        if (choice.SaveTemplateFirst)
+        {
+            await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate($"{(name == "your freighter" ? "Freighter" : name)} (saved before deleting)"));
+            await RefreshFullBuildTemplatesListAsync();
+        }
+        FreighterBuildService.RemoveFreighter();
+        LoadGrids();
     }
 
     /// <summary>Same shape as RefreshTemplatesListAsync, filtered to Scope==
