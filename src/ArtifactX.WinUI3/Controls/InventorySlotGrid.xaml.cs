@@ -55,6 +55,12 @@ public sealed partial class InventorySlotGrid : UserControl
     /// All Slots" button the host page wires up.</summary>
     public bool SupportsSupercharge { get; set; } = true;
 
+    /// <summary>Whether locked slots can be unlocked. False for exocraft: every
+    /// exocraft in 24 real saves has exactly the same unlocked slots per
+    /// vehicle (e.g. Roamer tech 28 of 30) - the locked cells are the
+    /// vehicle's fixed shape, which the game never changes (user, 2026-10-13).</summary>
+    public bool SupportsUnlock { get; set; } = true;
+
     /// <summary>Whether this grid's slots can be damaged/repaired at all - true
     /// for Technology grids (Amount/MaxAmount there is durability - a damaged
     /// item shows something like -1/100), false for Cargo, where that same
@@ -236,8 +242,12 @@ public sealed partial class InventorySlotGrid : UserControl
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
-                ToolTipService.SetToolTip(border, "Locked - right-click to unlock");
-                border.ContextFlyout = BuildLockedFlyout(cell.X, cell.Y);
+                if (SupportsUnlock)
+                {
+                    ToolTipService.SetToolTip(border, "Locked - right-click to unlock");
+                    border.ContextFlyout = BuildLockedFlyout(cell.X, cell.Y);
+                }
+                else ToolTipService.SetToolTip(border, "Not a slot on this vehicle");
             }
             else if (cell.State == InventorySlotState.UnlockedEmpty)
             {
@@ -533,7 +543,7 @@ public sealed partial class InventorySlotGrid : UserControl
     /// <summary>Unlocked slots with nothing in them.</summary>
     /// <summary>Locked slots this inventory could still unlock (within its
     /// current size - class/type sets the size).</summary>
-    public int LockedSlotCount =>
+    public int LockedSlotCount => !SupportsUnlock ? 0 :
         ViewModel?.Cells.Count(c => c.State == ViewModels.InventorySlotState.Locked) ?? 0;
 
     /// <summary>Unlocks up to `count` locked slots, top-left first.</summary>
