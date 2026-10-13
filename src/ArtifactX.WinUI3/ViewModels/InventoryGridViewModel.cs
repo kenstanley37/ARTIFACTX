@@ -417,13 +417,28 @@ public partial class InventoryGridViewModel : ObservableObject
             string id = item.ItemId.TrimStart('^');
             string? type = groupOf?.Invoke(id);
             var slot = free[0];
-            if (type is not null)
+            if (groupOf is not null)
             {
-                int Neighbours((int X, int Y) s) =>
-                    new[] { (s.X - 1, s.Y), (s.X + 1, s.Y), (s.X, s.Y - 1), (s.X, s.Y + 1) }
-                        .Count(n => typeAt.TryGetValue(n, out var t) && t == type);
-                int best = free.Max(Neighbours);
-                if (best > 0) slot = free.First(s => Neighbours(s) == best);
+                // Touch as many of its own type as possible and as few others
+                // as possible; a type with nothing installed yet starts its
+                // cluster where it borders the least other tech, so it doesn't
+                // take the room the other families need to grow (first try
+                // dropped them in the first free slot, mid-family, 2026-10-13).
+                // Free list is top-left first, so ties stay top-left.
+                (int Same, int Other) Neighbours((int X, int Y) s)
+                {
+                    int same = 0, other = 0;
+                    foreach (var n in new[] { (s.X - 1, s.Y), (s.X + 1, s.Y), (s.X, s.Y - 1), (s.X, s.Y + 1) })
+                        if (typeAt.TryGetValue(n, out var t))
+                        {
+                            if (type is not null && t == type) same++;
+                            else other++;
+                        }
+                    return (same, other);
+                }
+                slot = free.OrderByDescending(s => Neighbours(s).Same)
+                    .ThenBy(s => Neighbours(s).Other)
+                    .First();
             }
             free.Remove(slot);
             typeAt[slot] = type;
