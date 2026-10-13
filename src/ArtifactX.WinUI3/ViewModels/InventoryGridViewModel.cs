@@ -391,18 +391,44 @@ public partial class InventoryGridViewModel : ObservableObject
         return true;
     }
 
-    /// <summary>Puts each item into the next free unlocked slot (top-left
-    /// first), in one write. Returns how many fit; the rest are left out.</summary>
-    public int AddItemsToFreeSlots(IEnumerable<(string ItemId, string? CategoryLabel, int Amount, int MaxAmount)> items)
+    /// <summary>Puts each item into a free unlocked slot, in one write. Returns
+    /// how many fit; the rest are left out. With `groupOf` (item id -> its
+    /// type, e.g. the tech's main stat) each item goes next to the most items
+    /// of its own type, so technology gets the game's adjacency boost (same-type
+    /// tech side by side lights up and boosts each other - user, 2026-10-13);
+    /// otherwise, or with no such neighbour, the top-left free slot.</summary>
+    public int AddItemsToFreeSlots(IEnumerable<(string ItemId, string? CategoryLabel, int Amount, int MaxAmount)> items,
+        Func<string, string?>? groupOf = null)
     {
         var free = Cells.Where(c => c.State == InventorySlotState.UnlockedEmpty)
             .OrderBy(c => c.Y).ThenBy(c => c.X)
             .Select(c => (c.X, c.Y))
             .ToList();
-        var added = items.Zip(free, (item, slot) => (slot.X, slot.Y,
-                (string?)(item.ItemId.StartsWith('^') ? item.ItemId : "^" + item.ItemId),
-                item.Amount, item.MaxAmount, item.CategoryLabel, true, 0.0))
-            .ToList();
+        // Type of what's in each slot so far (existing items, then each one placed).
+        var typeAt = new Dictionary<(int, int), string?>();
+        if (groupOf is not null)
+            foreach (var c in Cells.Where(c => c.IsOccupied && c.ItemId is not null))
+                typeAt[(c.X, c.Y)] = groupOf(c.ItemId!.TrimStart('^'));
+
+        var added = new List<(int X, int Y, string? ItemId, int Amount, int MaxAmount, string? CategoryLabel, bool IsFunctional, double MalfunctionSeverity)>();
+        foreach (var item in items)
+        {
+            if (free.Count == 0) break;
+            string id = item.ItemId.TrimStart('^');
+            string? type = groupOf?.Invoke(id);
+            var slot = free[0];
+            if (type is not null)
+            {
+                int Neighbours((int X, int Y) s) =>
+                    new[] { (s.X - 1, s.Y), (s.X + 1, s.Y), (s.X, s.Y - 1), (s.X, s.Y + 1) }
+                        .Count(n => typeAt.TryGetValue(n, out var t) && t == type);
+                int best = free.Max(Neighbours);
+                if (best > 0) slot = free.First(s => Neighbours(s) == best);
+            }
+            free.Remove(slot);
+            typeAt[slot] = type;
+            added.Add((slot.X, slot.Y, "^" + id, item.Amount, item.MaxAmount, item.CategoryLabel, true, 0.0));
+        }
         if (added.Count == 0) return 0;
 
         var entries = Cells.Where(c => c.IsOccupied)
