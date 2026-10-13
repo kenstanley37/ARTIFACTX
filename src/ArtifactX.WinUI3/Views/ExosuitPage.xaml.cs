@@ -1,6 +1,9 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using ArtifactX.Core.NmsModels;
+using ArtifactX.WinUI3.Controls;
+using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using System;
@@ -33,7 +36,8 @@ public sealed partial class ExosuitPage : Page
 
         TechGrid.AllowedCategories = new[] { "Technology" };
         TechGrid.AllowedTemplateTypes = new[] { "GcTechnologyTable" };
-        TechGrid.AllowedUsageCategories = new[] { "Suit", "All" };
+        // Every tech on the 24 exosuits in the real saves is "Suit" (2026-10-13).
+        TechGrid.AllowedUsageCategories = new[] { "Suit" };
 
         CargoGrid.AllowedCategories = new[] { "Substance", "Product" };
         CargoGrid.AllowedTemplateTypes = new[] { "GcProductTable", "GcSubstanceTable" };
@@ -48,6 +52,80 @@ public sealed partial class ExosuitPage : Page
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
         Unloaded += Page_Unloaded;
         LoadGrids();
+        LoadTechList();
+    }
+
+    /// <summary>Exosuit module families, from every suit in the real saves
+    /// (2026-10-13): each tops out at 3 per suit. UP_HAZ only exists as
+    /// class 0/X (no shop module) and UP_SNSUIT/UP_RBSUIT are one-off
+    /// salvaged/anomalous finds, so they aren't offered.</summary>
+    private static readonly string[] ModuleFamilies =
+        { "UP_ENGY", "UP_JET", "UP_SHLD", "UP_HOT", "UP_COLD", "UP_TOX", "UP_RAD", "UP_UNW" };
+
+    private static readonly string[] TechGroupOrder =
+        { "Life support", "Hazard protection", "Movement", "Shields", "Translators", "Utilities" };
+
+    /// <summary>Groups by the main stat each tech works on (the game's
+    /// BaseStat, via the catalog's TechStats), same as Starships.</summary>
+    private static string TechGroup(CatalogPart tech) => (tech.Stat ?? "") switch
+    {
+        "Suit_Energy" => "Life support",
+        "Suit_Protection" => "Hazard protection",
+        "Suit_Jetpack" or "Suit_Underwater" => "Movement",
+        "Suit_Armour_Shield" => "Shields",
+        "Suit_AutoTranslator" => "Translators",
+        _ => "Utilities",
+    };
+
+    private void LoadTechList()
+    {
+        if (!SaveSessionManager.IsSaveLoaded) return;
+        _ = TechListPanel.LoadAsync(TechGrid, async () =>
+        {
+            var tech = await CatalogService.GetTechForAsync(new[] { "Suit" });
+            TechGrid.AllowedItemIds = tech.Select(t => t.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var modules = await CatalogService.GetUpgradeModulesAsync(ModuleFamilies);
+            return ItemListPanel.SortByGroups(tech.Concat(modules), TechGroup, TechGroupOrder);
+        }, "technology", "technologies", "Technology", TechGroup);
+    }
+
+    private void TechCargoStack_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
+    private void MainColumn_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
+
+    /// <summary>Tech list beside tech + cargo, as tall as they are, or
+    /// underneath at a fixed height when the window is too narrow.</summary>
+    private void LayoutTechList()
+    {
+        double inner = MainColumn.ActualWidth - MainColumn.Padding.Left - MainColumn.Padding.Right;
+        bool beside = inner >= TechCargoStack.ActualWidth + TechLayoutGrid.ColumnSpacing + TechListCard.Width;
+        Grid.SetRow(TechListCard, beside ? 0 : 1);
+        Grid.SetColumn(TechListCard, beside ? 1 : 0);
+        double height = 560;
+        if (beside)
+        {
+            double chrome = TechListCard.ActualHeight - TechListPanel.ListHeight;
+            if (TechListCard.ActualHeight <= 0 || chrome <= 0) chrome = 230;
+            height = Math.Max(300, TechCargoStack.ActualHeight - chrome);
+        }
+        if (Math.Abs(height - TechListPanel.ListHeight) > 1) TechListPanel.ListHeight = height;
+    }
+
+    private void ArrangeTech_Click(object sender, RoutedEventArgs e)
+    {
+        int moved = TechGrid.ArrangeForAdjacency(TechListPanel.TypeOf);
+        if (moved > 0) PageResetBtn.Visibility = Visibility.Visible;
+        FlyoutBase.SetAttachedFlyout((FrameworkElement)sender, new Flyout
+        {
+            Content = new TextBlock
+            {
+                Text = moved > 0
+                    ? $"Moved {moved} so each type sits together. Reset undoes it."
+                    : "Already grouped - nothing to move.",
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 260,
+            },
+        });
+        FlyoutBase.ShowAttachedFlyout((FrameworkElement)sender);
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
@@ -80,6 +158,7 @@ public sealed partial class ExosuitPage : Page
 
         TechGrid.Refresh();
         CargoGrid.Refresh();
+        TechListPanel.RefreshOwned();
 
         PageResetBtn.Visibility = (_techViewModel.HasLocalChanges || _cargoViewModel.HasLocalChanges)
             ? Visibility.Visible : Visibility.Collapsed;
@@ -155,6 +234,7 @@ public sealed partial class ExosuitPage : Page
         TechGrid.Refresh();
         _cargoViewModel.Revert();
         CargoGrid.Refresh();
+        TechListPanel.RefreshOwned();
         PageResetBtn.Visibility = Visibility.Collapsed;
     }
 }

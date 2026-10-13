@@ -428,7 +428,9 @@ public static class CatalogService
     }
 
     /// <summary>S-class upgrade modules (the ones bought at space stations) for
-    /// the given module families, e.g. "UP_PULSE". The game allows 3 per
+    /// the given module families, e.g. "UP_PULSE": per family the "supremely
+    /// powerful" one (class 4 for ships, but class 3 for the Exosuit's hazard
+    /// modules - UP_HOT3 etc. have no 4), else its highest class. The game allows 3 per
     /// technology, any class - every ship in the real saves tops out at exactly
     /// 3 per family (2026-10-13). Named after the tech they upgrade, read from
     /// the module's own description ("upgrade for the Pulsing Heart").</summary>
@@ -444,28 +446,38 @@ public static class CatalogService
                 using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
                 connection.Open();
                 using var command = connection.CreateCommand();
-                var names = families.Select((f, i) => (Name: $"@f{i}", Value: f + "4")).ToList();
+                var names = families.Select((f, i) => (Name: $"@f{i}", Value: f)).ToList();
                 command.CommandText = $@"
                     SELECT i.GameId, i.NameLowerEnglish, i.DescriptionEnglish, s.NameEnglish, s.DescriptionEnglish
                     FROM Items i
                     JOIN Categories c ON c.Id = i.CategoryId
                     LEFT JOIN Items s ON s.GameId = 'TECHSTAT:' || i.GameId
                     WHERE c.TemplateType = 'GcProceduralTechnologyTable'
-                      AND i.GameId IN ({string.Join(", ", names.Select(n => n.Name))})";
+                      AND substr(i.GameId, 1, length(i.GameId) - 1) IN ({string.Join(", ", names.Select(n => n.Name))})
+                      AND substr(i.GameId, -1) IN ('1', '2', '3', '4')";
                 foreach (var n in names) command.Parameters.AddWithValue(n.Name, n.Value);
                 using var reader = command.ExecuteReader();
+                var rows = new List<(string Id, string? Plain, string? Desc, string? Stat, string? Colour)>();
                 while (reader.Read())
+                    rows.Add((reader.GetString(0), reader.IsDBNull(1) ? null : reader.GetString(1),
+                        reader.IsDBNull(2) ? null : reader.GetString(2),
+                        reader.IsDBNull(3) ? null : reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetString(4)));
+                foreach (var best in rows.GroupBy(r => r.Id[..^1])
+                             .Select(g => g.OrderByDescending(r => r.Desc?.Contains("supremely powerful") == true)
+                                 .ThenByDescending(r => r.Id[^1]).First()))
                 {
-                    string id = reader.GetString(0);
-                    string? plain = reader.IsDBNull(1) ? null : reader.GetString(1);
-                    string? desc = reader.IsDBNull(2) ? null : reader.GetString(2);
+                    string id = best.Id;
+                    string? plain = best.Plain;
+                    string? desc = best.Desc;
                     var target = desc is null ? null : Regex.Match(desc, @"upgrade for the (?:vessel's )?<TECHNOLOGY>(.*?)<>");
                     string tech = target is { Success: true }
                         ? CultureInfo.InvariantCulture.TextInfo.ToTitleCase(target.Groups[1].Value)
                         : plain ?? id;
+                    // "Exosuit Thermal Protection System" -> "Thermal Protection System".
+                    foreach (string prefix in new[] { "Exosuit ", "Starship ", "Multi-Tool " })
+                        if (tech.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) tech = tech[prefix.Length..];
                     modules.Add(new CatalogPart(id, $"{tech} upgrade (S)", "Upgrade modules", null,
-                        CountKey: id[..^1], Limit: 3, Seeded: true, Stat: reader.IsDBNull(3) ? null : reader.GetString(3),
-                        Colour: reader.IsDBNull(4) ? null : reader.GetString(4)));
+                        CountKey: id[..^1], Limit: 3, Seeded: true, Stat: best.Stat, Colour: best.Colour));
                 }
                 return modules.OrderBy(m => m.Name).ToList();
             });
