@@ -21,19 +21,25 @@ public sealed class ItemCard : INotifyPropertyChanged
     private ImageSource? _icon;
     public ImageSource? Icon { get => _icon; set { _icon = value; Changed(nameof(Icon)); } }
 
-    /// <summary>Technology is installed once, not stacked.</summary>
+    /// <summary>Technology is installed, not stacked: once, or up to
+    /// Part.Limit copies for upgrade modules.</summary>
     public bool IsTech { get; init; }
 
-    private bool _owned;
-    /// <summary>Already in the inventory - dimmed; stacks can still be added
-    /// again, technology can't.</summary>
-    public bool Owned { get => _owned; set { _owned = value; Changed(nameof(CardOpacity)); Changed(nameof(Tooltip)); } }
+    private int _count;
+    /// <summary>How many are in the inventory (modules: of the whole family,
+    /// any class).</summary>
+    public int Count { get => _count; set { _count = value; Changed(nameof(CardOpacity)); Changed(nameof(Tooltip)); } }
+    /// <summary>Technology: as many as allowed. Stacks: at least one.</summary>
+    public bool Owned => IsTech ? Count >= Part.Limit : Count > 0;
+    /// <summary>More copies that may still be installed.</summary>
+    public int Room => IsTech ? Math.Max(0, Part.Limit - Count) : 0;
     public double CardOpacity => Owned ? 0.55 : 1.0;
-    public string Tooltip => (IsTech, Owned) switch
+    public string Tooltip => (IsTech, Owned, Part.Limit > 1) switch
     {
-        (true, true) => $"{Name} - already installed.",
-        (true, false) => $"{Name} - click to install it.",
-        (false, true) => $"{Name} - already in here. Click to add another stack.",
+        (true, _, true) => $"{Name} - {Count} of {Part.Limit} installed (the game allows {Part.Limit} upgrades per technology).{(Owned ? "" : " Click to install one; each gets its own random stats.")}",
+        (true, true, _) => $"{Name} - already installed.",
+        (true, false, _) => $"{Name} - click to install it.",
+        (false, true, _) => $"{Name} - already in here. Click to add another stack.",
         _ => $"{Name} - click to add a stack.",
     };
 
@@ -91,7 +97,8 @@ public sealed partial class ItemListPanel : UserControl
         _cards = parts.Select(p => new ItemCard
         {
             Part = p,
-            Name = CatalogService.TryGet(p.GameId)?.DisplayName is { Length: > 0 } name ? name : p.Name,
+            // Modules keep their own "... upgrade (S)" name, not the plain tech name.
+            Name = !p.Seeded && CatalogService.TryGet(p.GameId)?.DisplayName is { Length: > 0 } name ? name : p.Name,
             Group = groupLabel(p),
             IsTech = _isTech,
         }).ToList();
@@ -99,7 +106,8 @@ public sealed partial class ItemListPanel : UserControl
         string? keepGroup = GroupBox.SelectedItem as string;
         GroupBox.Items.Clear();
         GroupBox.Items.Add(AllGroups);
-        foreach (string group in _cards.Select(c => c.Group).Where(g => g.Length > 0).Distinct().OrderBy(g => g))
+        // In list order, so the filter reads the same way the cards do.
+        foreach (string group in _cards.Select(c => c.Group).Where(g => g.Length > 0).Distinct())
             GroupBox.Items.Add(group);
         int keep = keepGroup is null ? -1 : GroupBox.Items.IndexOf(keepGroup);
         GroupBox.SelectedIndex = keep > 0 ? keep : 0;
@@ -144,8 +152,34 @@ public sealed partial class ItemListPanel : UserControl
 
     private void MarkOwned()
     {
-        var present = _grid?.ItemIdsPresent() ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var card in _cards) card.Owned = present.Contains(card.Part.GameId);
+        var counts = (_grid?.ItemIdsInSlots() ?? new List<string>())
+            .GroupBy(CountKeyOf, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+        foreach (var card in _cards)
+            card.Count = counts.GetValueOrDefault(card.Part.CountKey ?? card.Part.GameId);
+    }
+
+    /// <summary>What an installed id counts towards: itself, or for a seeded
+    /// upgrade module ("UP_PULSE4#12345") its family ("UP_PULSE"), so every
+    /// class of a module counts against the same limit.</summary>
+    private static string CountKeyOf(string id)
+    {
+        int hash = id.IndexOf('#');
+        return hash < 0 ? id : id[..hash].TrimEnd('0', '1', '2', '3', '4', 'X');
+    }
+
+    /// <summary>The id to write: seeded modules get a fresh seed each, in the
+    /// range the game's own modules use (1,016-99,671 in the real saves).</summary>
+    private static string NewIdFor(CatalogPart part) =>
+        part.Seeded ? $"{part.GameId}#{Random.Shared.Next(10000, 100000)}" : part.GameId;
+
+    /// <summary>Amount/max for a new item: modules hold no charge (-1/100, as
+    /// the game writes them), everything else the grid's usual full stack.</summary>
+    private (string, string, int, int) EntryFor(CatalogPart part)
+    {
+        if (part.Seeded) return (NewIdFor(part), _categoryLabel, -1, 100);
+        int cap = _grid!.StackCapFor(_categoryLabel, part.MaxStackSize);
+        return (part.GameId, _categoryLabel, cap, cap);
     }
 
     private void Filter_Changed(object sender, object e) => Apply();
@@ -174,7 +208,7 @@ public sealed partial class ItemListPanel : UserControl
 
     private void UpdateAddAll()
     {
-        int missing = Shown().Count(c => !c.Owned);
+        int missing = ToAdd(Shown()).Count;
         AddAllBtn.Content = (missing, _isTech) switch
         {
             (0, true) => $"Every {_noun} shown is installed",
@@ -190,17 +224,19 @@ public sealed partial class ItemListPanel : UserControl
         if (e.ClickedItem is not ItemCard card || _grid is null) return;
         if (_isTech && card.Owned)
         {
-            Status($"{card.Name} is already installed.", ok: false);
+            Status(card.Part.Limit > 1
+                ? $"Already {card.Part.Limit} {card.Name.Replace(" (S)", "")}s installed - the game allows {card.Part.Limit} per technology."
+                : $"{card.Name} is already installed.", ok: false);
             return;
         }
-        int added = _grid.AddStacksToFreeSlots(new[] { (card.Part.GameId, _categoryLabel, card.Part.MaxStackSize) });
+        int added = _grid.AddToFreeSlots(new[] { EntryFor(card.Part) });
         Status(added > 0 ? $"{(_isTech ? "Installed" : "Added")} {card.Name}." : "There's no free slot left - unlock more or make room first.", ok: added > 0);
     }
 
     private async void AddAll_Click(object sender, RoutedEventArgs e)
     {
         if (_grid is null) return;
-        var missing = Shown().Where(c => !c.Owned).ToList();
+        var missing = ToAdd(Shown());
         int free = _grid.FreeSlotCount;
         if (missing.Count == 0) return;
 
@@ -211,7 +247,7 @@ public sealed partial class ItemListPanel : UserControl
             {
                 TextWrapping = TextWrapping.Wrap,
                 Text = (_isTech
-                        ? $"Installs one of each {_noun} shown that isn't installed yet, into free slots."
+                        ? $"Installs each {_noun} shown that isn't installed yet, and upgrade modules up to the game's 3 per technology, into free slots."
                         : $"Adds one full stack of each {_noun} shown that isn't in here yet, into free slots.")
                     + (free >= missing.Count
                         ? $" There's room for all of them ({free:N0} free slots)."
@@ -224,10 +260,16 @@ public sealed partial class ItemListPanel : UserControl
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
 
-        int added = _grid.AddStacksToFreeSlots(missing.Select(c => (c.Part.GameId, _categoryLabel, c.Part.MaxStackSize)));
+        int added = _grid.AddToFreeSlots(missing.Select(EntryFor));
         string verb = _isTech ? "Installed" : "Added";
         Status(added == missing.Count ? $"{verb} {added:N0} {_nouns}." : $"{verb} {added:N0} of {missing.Count:N0} - no free slots left for the rest.", ok: added > 0);
     }
+
+    /// <summary>What "add all" adds: one stack of each missing item, or for
+    /// technology every copy still allowed (modules up to their limit).</summary>
+    private List<CatalogPart> ToAdd(List<ItemCard> shown) => _isTech
+        ? shown.SelectMany(c => Enumerable.Repeat(c.Part, c.Room)).ToList()
+        : shown.Where(c => !c.Owned).Select(c => c.Part).ToList();
 
     private void Status(string text, bool ok)
     {

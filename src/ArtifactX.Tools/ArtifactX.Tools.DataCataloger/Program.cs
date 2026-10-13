@@ -1316,6 +1316,126 @@ if (args.Length > 1 && args[0].Equals("add-corvette-parts", StringComparison.Ord
     return;
 }
 
+// "DataCataloger add-tech-stats <target-catalog-db-path>" records the main
+// stat each technology works on (GcTechnology.BaseStat - Ship_Hyperdrive,
+// Ship_PulseDrive, Ship_Weapons_Lasers...), so ArtifactX can keep a device's
+// related tech together (user request 2026-10-13: "all the drives should be
+// together"). The game's own Group/ParentTechId fields are empty for ship
+// tech; BaseStat groups them cleanly. Upgrade modules (procedural tech) get
+// the stat of the template tech they're rolled from. Written as category
+// "TechStats": GameId = "TECHSTAT:" + tech id, NameEnglish = the stat,
+// UsageCategory = "Primary" for a device's main item (PrimaryItem), else "".
+// Same patch-in-place pattern as add-corvette-parts; idempotent.
+if (args.Length > 1 && args[0].Equals("add-tech-stats", StringComparison.OrdinalIgnoreCase))
+{
+    string statsDbPath = args[1];
+    if (!File.Exists(statsDbPath))
+    {
+        ConsoleStyle.Error($"Target catalog DB not found: {statsDbPath}");
+        return;
+    }
+
+    var statsSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(statsSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakReaderService statsPakReader = new PakReaderService();
+    var statsExtraction = new ExtractionService();
+    libMBIN.NMS.GameComponents.GcTechnologyTable? techTable = null;
+    libMBIN.NMS.GameComponents.GcProceduralTechnologyTable? procTable = null;
+    foreach (var pak in new PakDiscoveryService().Discover(statsSettings.NmsInstallationPath!))
+    {
+        if (techTable is not null && procTable is not null) break;
+        PakHeader header;
+        IReadOnlyList<PakEntry> entries;
+        try
+        {
+            header = statsPakReader.ReadHeader(pak.FullPath);
+            entries = statsPakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+
+        foreach (var entry in entries.Where(e => !string.IsNullOrEmpty(e.FileName)
+                     && (e.FileName.EndsWith("nms_reality_gctechnologytable.mbin", StringComparison.OrdinalIgnoreCase)
+                         || e.FileName.EndsWith("nms_reality_gcproceduraltechnologytable.mbin", StringComparison.OrdinalIgnoreCase))))
+        {
+            byte[]? bytes;
+            try { bytes = statsExtraction.ExtractEntryBytes(pak.FullPath, entry, header); }
+            catch { continue; }
+            if (bytes is null || bytes.Length == 0) continue;
+            try
+            {
+                using var ms = new MemoryStream(bytes);
+                var mbin = new MBINFile(ms);
+                mbin.Load();
+                switch (mbin.GetData())
+                {
+                    case libMBIN.NMS.GameComponents.GcTechnologyTable t: techTable ??= t; break;
+                    case libMBIN.NMS.GameComponents.GcProceduralTechnologyTable t: procTable ??= t; break;
+                }
+            }
+            catch { }
+        }
+    }
+
+    if (techTable?.Table is null || procTable?.Table is null)
+    {
+        ConsoleStyle.Error("Could not find the technology tables (nms_reality_gctechnologytable / gcproceduraltechnologytable).");
+        return;
+    }
+
+    var techStats = new Dictionary<string, (string Stat, bool Primary)>(StringComparer.OrdinalIgnoreCase);
+    foreach (var tech in techTable.Table)
+    {
+        string id = tech.ID?.Value ?? "";
+        if (id.Length > 0)
+            techStats.TryAdd(id, (tech.BaseStat?.StatsType.ToString() ?? "Unspecified", tech.PrimaryItem));
+    }
+    int procCount = 0;
+    foreach (var proc in procTable.Table)
+    {
+        string id = proc.ID?.Value ?? "";
+        string template = proc.Template?.Value ?? "";
+        if (id.Length == 0 || !techStats.TryGetValue(template, out var fromTemplate)) continue;
+        if (techStats.TryAdd(id, (fromTemplate.Stat, false))) procCount++;
+    }
+    ConsoleStyle.Header($"Found stats for {techStats.Count - procCount} technologies and {procCount} upgrade modules.");
+
+    using var statsDb = new CatalogDbContext(statsDbPath);
+    var existingStatsCategory = statsDb.Categories.FirstOrDefault(c => c.TemplateType == "TechStats");
+    if (existingStatsCategory != null)
+    {
+        statsDb.Items.RemoveRange(statsDb.Items.Where(i => i.CategoryId == existingStatsCategory.Id));
+        statsDb.Categories.Remove(existingStatsCategory);
+        statsDb.SaveChanges();
+    }
+
+    var statsCategory = new CatalogCategory
+    {
+        TemplateType = "TechStats",
+        RowType = "GcTechnology",
+        SourceMbinPath = "metadata/reality/tables/nms_reality_gctechnologytable.mbin"
+    };
+    statsDb.Categories.Add(statsCategory);
+    statsDb.SaveChanges();
+
+    foreach (var (id, info) in techStats)
+        statsDb.Items.Add(new CatalogItem
+        {
+            CategoryId = statsCategory.Id,
+            GameId = "TECHSTAT:" + id,
+            NameEnglish = info.Stat,
+            UsageCategory = info.Primary ? "Primary" : ""
+        });
+    statsDb.SaveChanges();
+
+    ConsoleStyle.Success($"Wrote {techStats.Count} tech stats to {statsDbPath}.");
+    return;
+}
+
 // "DataCataloger add-system-descriptors <target-catalog-db-path>" adds the
 // words the game uses to describe a star system's economy, wealth and
 // conflict (system info panel / Galaxy Map), e.g. "Mathematical", "Opulent",
