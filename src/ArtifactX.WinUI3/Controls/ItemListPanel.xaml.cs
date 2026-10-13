@@ -173,13 +173,22 @@ public sealed partial class ItemListPanel : UserControl
         else UpdateAddAll();
     }
 
+    /// <summary>Tech that can't be installed together - one of each set at a
+    /// time (e.g. the exosuit's two personal refiners; the game data has no
+    /// field for this, so the page lists them).</summary>
+    public IReadOnlyList<string[]> OneOf { get; set; } = Array.Empty<string[]>();
+
     private void MarkOwned()
     {
         var counts = (_grid?.ItemIdsInSlots() ?? new List<string>())
             .GroupBy(CountKeyOf, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
         foreach (var card in _cards)
-            card.Count = counts.GetValueOrDefault(card.Part.CountKey ?? card.Part.GameId);
+        {
+            string key = card.Part.CountKey ?? card.Part.GameId;
+            var set = OneOf.FirstOrDefault(s => s.Contains(key, StringComparer.OrdinalIgnoreCase));
+            card.Count = set is null ? counts.GetValueOrDefault(key) : set.Sum(id => counts.GetValueOrDefault(id));
+        }
     }
 
     /// <summary>What an installed id counts towards: itself, or for a seeded
@@ -188,7 +197,11 @@ public sealed partial class ItemListPanel : UserControl
     private static string CountKeyOf(string id)
     {
         int hash = id.IndexOf('#');
-        return hash < 0 ? id : id[..hash].TrimEnd('0', '1', '2', '3', '4', 'X');
+        if (hash < 0) return id;
+        // Only the one class character: TrimEnd took "UP_TOX3" to "UP_TO",
+        // so toxic modules never counted towards their limit (2026-10-13).
+        string module = id[..hash];
+        return module.Length > 1 && module[^1] is >= '0' and <= '4' or 'X' ? module[..^1] : module;
     }
 
     /// <summary>Technology's type for placement: its main stat (a module counts
@@ -266,6 +279,13 @@ public sealed partial class ItemListPanel : UserControl
     private void Card_Click(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is not ItemCard card || _grid is null) return;
+        if (_isTech && card.Owned && card.Part.Limit == 1
+            && OneOf.FirstOrDefault(s => s.Contains(card.Part.GameId, StringComparer.OrdinalIgnoreCase)) is { } exclusive
+            && !_grid.ItemIdsPresent().Contains(card.Part.GameId))
+        {
+            Status($"{card.Name} can't go in alongside {string.Join(" / ", _cards.Where(c => exclusive.Contains(c.Part.GameId, StringComparer.OrdinalIgnoreCase) && c != card).Select(c => c.Name))} - only one at a time.", ok: false);
+            return;
+        }
         if (_isTech && card.Owned)
         {
             Status(card.Part.Limit > 1

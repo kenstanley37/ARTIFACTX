@@ -80,6 +80,8 @@ public sealed partial class ExosuitPage : Page
     private void LoadTechList()
     {
         if (!SaveSessionManager.IsSaveLoaded) return;
+        // In game only one personal refiner fits at a time (user, 2026-10-13).
+        TechListPanel.OneOf = new[] { new[] { "SUIT_REFINER", "SUIT_REFINER2" } };
         _ = TechListPanel.LoadAsync(TechGrid, async () =>
         {
             var tech = await CatalogService.GetTechForAsync(new[] { "Suit" });
