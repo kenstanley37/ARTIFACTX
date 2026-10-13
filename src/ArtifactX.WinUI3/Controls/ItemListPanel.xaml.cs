@@ -189,8 +189,14 @@ public sealed partial class ItemListPanel : UserControl
 
     private void MarkOwned()
     {
+        // A module family's template placeholder ("UPGRADE MODULE", e.g.
+        // T_FR_HYP) counts towards that family's 3 in game, so count it too.
+        var templateFamily = _cards.Where(c => c.Part.TemplateId is not null && c.Part.CountKey is not null)
+            .GroupBy(c => c.Part.TemplateId!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Part.CountKey!, StringComparer.OrdinalIgnoreCase);
         var counts = (_grid?.ItemIdsInSlots() ?? new List<string>())
-            .GroupBy(CountKeyOf, StringComparer.OrdinalIgnoreCase)
+            .Select(id => templateFamily.TryGetValue(id, out var family) ? family : CountKeyOf(id))
+            .GroupBy(k => k, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
         foreach (var card in _cards)
         {
