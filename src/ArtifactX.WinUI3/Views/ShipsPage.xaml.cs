@@ -385,7 +385,9 @@ public sealed partial class ShipsPage : Page
         _ => new[] { "UP_HYP", "UP_LAUN", "UP_PULSE", "UP_SGUN", "UP_SLASR", "UP_SMINI", "UP_SSHOT", "UP_S_SHL", "UP_SBLOB" },
     };
 
-    private async void LoadSelectedShip()
+    private async void LoadSelectedShip() => await LoadSelectedShipAsync();
+
+    private async Task LoadSelectedShipAsync()
     {
         SyncTypeComboBox();
 
@@ -466,6 +468,14 @@ public sealed partial class ShipsPage : Page
         TechListHeaderTxt.Text = techRule.Header;
         // Figurines and trails don't boost each other in game.
         TechListPanel.NoAdjacency = p => TechGroup(p) is "Figurines" or "Starship trails";
+        TechListPanel.IsBestClass = () => ReadShipClass(_selectedIndex) == "S";
+        TechListPanel.SwitchToBestClassAsync = async () =>
+        {
+            _techViewModel?.SetClass("S");
+            SyncCargoClass(_selectedIndex);
+            PageResetBtn.Visibility = Visibility.Visible;
+            await LoadSelectedShipAsync();
+        };
         TechListPanel.MoreRoomHint = () => ReadShipClass(_selectedIndex) == "S" ? null
             : "S class has more slots - change the class in Ship Details to fit more.";
         _ = TechListPanel.LoadAsync(TechGrid, async () =>

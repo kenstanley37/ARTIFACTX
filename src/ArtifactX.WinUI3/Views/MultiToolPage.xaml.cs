@@ -330,7 +330,9 @@ public sealed partial class MultiToolPage : Page
         FlyoutBase.ShowAttachedFlyout((FrameworkElement)sender);
     }
 
-    private async void LoadSelectedTool()
+    private async void LoadSelectedTool() => await LoadSelectedToolAsync();
+
+    private async Task LoadSelectedToolAsync()
     {
         if (_selectedIndex < 0)
         {
@@ -391,6 +393,13 @@ public sealed partial class MultiToolPage : Page
         // The tech a multi-tool can fit, to click in - the same list limits
         // the right-click search.
         TechListCard.Visibility = Visibility.Visible;
+        TechListPanel.IsBestClass = () => _techViewModel?.CurrentClass == "S";
+        TechListPanel.SwitchToBestClassAsync = async () =>
+        {
+            _techViewModel?.SetClass("S");
+            PageResetBtn.Visibility = Visibility.Visible;
+            await LoadSelectedToolAsync();
+        };
         TechListPanel.MoreRoomHint = () => _techViewModel?.CurrentClass == "S" ? null
             : "S class has more slots - change the class above to fit more.";
         _ = TechListPanel.LoadAsync(TechGrid, async () =>
