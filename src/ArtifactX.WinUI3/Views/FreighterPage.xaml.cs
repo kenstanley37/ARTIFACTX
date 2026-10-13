@@ -801,8 +801,29 @@ public sealed partial class FreighterPage : Page
     /// "FullBuild" instead and targeting the separate FullBuildTemplatesListPanel.</summary>
     /// <summary>The "Add a freighter" card shown when the save has none:
     /// every Freighter Full Build template, each with Add as my freighter.</summary>
+    private void BuildStarterList()
+    {
+        if (StarterListPanel.Children.Count > 0) return;
+        foreach (var (name, description, scene) in FreighterBuildService.StarterHulls)
+        {
+            var row = new Grid { ColumnSpacing = 12 };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var info = new StackPanel { Spacing = 2 };
+            info.Children.Add(new TextBlock { Text = name, FontWeight = FontWeights.SemiBold, FontSize = 13 });
+            info.Children.Add(new TextBlock { Text = description, FontSize = 11, Opacity = 0.7, TextWrapping = TextWrapping.Wrap });
+            row.Children.Add(info);
+            var add = new Button { Content = "Add as my freighter", VerticalAlignment = VerticalAlignment.Center };
+            add.Click += async (_, _) => await AddFreighterAsync(FreighterBuildService.Starter(name, scene));
+            Grid.SetColumn(add, 1);
+            row.Children.Add(add);
+            StarterListPanel.Children.Add(row);
+        }
+    }
+
     private async Task RefreshAddFreighterListAsync()
     {
+        BuildStarterList();
         var templates = (await LoadoutTemplateService.LoadAllAsync())
             .Where(t => t.SourceKind == "Freighter" && t.Scope == "FullBuild")
             .ToList();
@@ -862,7 +883,9 @@ public sealed partial class FreighterPage : Page
     {
         var confirm = new ContentDialog
         {
-            Title = $"Add \"{template.Name}\" as your freighter?",
+            Title = template.Id.Length > 0 && template.TechItems.Count <= 2 && !FreighterBuildService.HasInterior(template)
+                ? $"Add a new {template.Name.ToLowerInvariant()}?"
+                : $"Add \"{template.Name}\" as your freighter?",
             Content = new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
