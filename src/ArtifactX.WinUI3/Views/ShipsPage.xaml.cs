@@ -322,6 +322,16 @@ public sealed partial class ShipsPage : Page
         return ShipBaseService.IsCorvetteModel(scenePath ?? "") ? (regular, "CORVETTE TECHNOLOGY") : (regular, "STARSHIP TECHNOLOGY");
     }
 
+    /// <summary>Keeps the tech list as tall as the tech and cargo cards beside
+    /// it, so neither side leaves a gap (fixed-height list did, 2026-10-13).</summary>
+    private void TechCargoStack_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        double chrome = TechListCard.ActualHeight - TechListPanel.ListHeight;
+        if (TechListCard.ActualHeight <= 0 || chrome <= 0) chrome = 230;
+        double height = Math.Max(300, e.NewSize.Height - chrome);
+        if (Math.Abs(height - TechListPanel.ListHeight) > 1) TechListPanel.ListHeight = height;
+    }
+
     /// <summary>Filter groups for the tech list: the cosmetic figurines and
     /// trails apart from the tech that does something.</summary>
     private static string TechGroup(CatalogPart tech) =>

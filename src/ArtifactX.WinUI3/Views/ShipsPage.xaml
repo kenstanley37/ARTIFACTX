@@ -88,76 +88,82 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Tech grid with the list of tech this ship can fit beside it
-                         (wraps underneath when the window is narrow). -->
-                    <ctcontrols:WrapPanel HorizontalSpacing="22" VerticalSpacing="22">
-                        <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left" VerticalAlignment="Top">
-                            <StackPanel>
-                                <Border Style="{StaticResource ThemeBandStyle}">
-                                    <TextBlock x:Name="TechHeaderTxt" Text="TECHNOLOGY" Style="{StaticResource ThemeBandTextStyle}"/>
-                                </Border>
-                                <StackPanel Padding="14,12,14,14" Spacing="10">
-                                    <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
-                                        <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
-                                        <Button Content="Supercharge All Slots" Click="SuperchargeAllTech_Click"/>
-                                        <Button Content="Repair All Slots" Click="RepairAllTech_Click"/>
-                                        <Button Content="Copy Tech Stack..." Click="CopyTechStackBtn_Click"/>
-                                    </ctcontrols:WrapPanel>
-                                    <Grid>
-                                        <ScrollViewer x:Name="TechScrollViewer" Padding="0,28,0,0" MaxHeight="232" VerticalScrollBarVisibility="Auto"
-                                                      HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
-                                            <controls:InventorySlotGrid x:Name="TechGrid"/>
-                                        </ScrollViewer>
-                                        <Button x:Name="TechExpandBtn" Click="TechExpandBtn_Click"
-                                                HorizontalAlignment="Right" VerticalAlignment="Top"
-                                                Padding="6" Background="Transparent" BorderThickness="0"
-                                                ToolTipService.ToolTip="Expand">
-                                            <FontIcon x:Name="TechExpandIcon" Glyph="&#xE70D;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                        </Button>
-                                    </Grid>
+                    <!-- Tech and cargo stacked, with the list of tech this ship can fit
+                         beside them (its height follows theirs - see TechCargoStack_SizeChanged). -->
+                    <Grid ColumnSpacing="22">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel x:Name="TechCargoStack" Spacing="22" VerticalAlignment="Top" SizeChanged="TechCargoStack_SizeChanged">
+                            <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                <StackPanel>
+                                    <Border Style="{StaticResource ThemeBandStyle}">
+                                        <TextBlock x:Name="TechHeaderTxt" Text="TECHNOLOGY" Style="{StaticResource ThemeBandTextStyle}"/>
+                                    </Border>
+                                    <StackPanel Padding="14,12,14,14" Spacing="10">
+                                        <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
+                                            <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
+                                            <Button Content="Supercharge All Slots" Click="SuperchargeAllTech_Click"/>
+                                            <Button Content="Repair All Slots" Click="RepairAllTech_Click"/>
+                                            <Button Content="Copy Tech Stack..." Click="CopyTechStackBtn_Click"/>
+                                        </ctcontrols:WrapPanel>
+                                        <Grid>
+                                            <ScrollViewer x:Name="TechScrollViewer" Padding="0,28,0,0" MaxHeight="232" VerticalScrollBarVisibility="Auto"
+                                                          HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
+                                                <controls:InventorySlotGrid x:Name="TechGrid"/>
+                                            </ScrollViewer>
+                                            <Button x:Name="TechExpandBtn" Click="TechExpandBtn_Click"
+                                                    HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                    Padding="6" Background="Transparent" BorderThickness="0"
+                                                    ToolTipService.ToolTip="Expand">
+                                                <FontIcon x:Name="TechExpandIcon" Glyph="&#xE70D;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                            </Button>
+                                        </Grid>
+                                    </StackPanel>
                                 </StackPanel>
-                            </StackPanel>
-                        </Border>
+                            </Border>
 
-                        <Border x:Name="TechListCard" Style="{StaticResource ThemeCardStyle}" Width="340" VerticalAlignment="Top">
+                            <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left">
+                                <StackPanel>
+                                    <Border Style="{StaticResource ThemeBandStyle}">
+                                        <TextBlock Text="CARGO" Style="{StaticResource ThemeBandTextStyle}"/>
+                                    </Border>
+                                    <StackPanel Padding="14,12,14,14" Spacing="10">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Button Content="Unlock All Slots" Click="UnlockAllCargo_Click"/>
+                                            <Button Content="Max All Qty" Click="MaxAllQtyCargo_Click"/>
+                                            <Button Content="Sort" Click="SortCargo_Click"
+                                                    ToolTipService.ToolTip="Groups items by kind and name, packed from the top-left, so identical items sit together."/>
+                                        </StackPanel>
+                                        <Grid>
+                                            <ScrollViewer x:Name="CargoScrollViewer" Padding="0,28,0,0" MaxHeight="368" VerticalScrollBarVisibility="Auto"
+                                                          HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
+                                                <controls:InventorySlotGrid x:Name="CargoGrid"/>
+                                            </ScrollViewer>
+                                            <Button x:Name="CargoExpandBtn" Click="CargoExpandBtn_Click"
+                                                    HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                    Padding="6" Background="Transparent" BorderThickness="0"
+                                                    ToolTipService.ToolTip="Expand">
+                                                <FontIcon x:Name="CargoExpandIcon" Glyph="&#xE70D;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                            </Button>
+                                        </Grid>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <Border x:Name="TechListCard" Grid.Column="1" Style="{StaticResource ThemeCardStyle}" Width="340" VerticalAlignment="Top">
                             <StackPanel>
                                 <Border Style="{StaticResource ThemeBandStyle}">
                                     <TextBlock x:Name="TechListHeaderTxt" Text="TECHNOLOGY FOR THIS SHIP" Style="{StaticResource ThemeBandTextStyle}"/>
                                 </Border>
                                 <Border Padding="14,12,14,14">
-                                    <controls:ItemListPanel x:Name="TechListPanel" ListHeight="380"/>
+                                    <controls:ItemListPanel x:Name="TechListPanel"/>
                                 </Border>
                             </StackPanel>
                         </Border>
-                    </ctcontrols:WrapPanel>
-
-                    <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <TextBlock Text="CARGO" Style="{StaticResource ThemeBandTextStyle}"/>
-                            </Border>
-                            <StackPanel Padding="14,12,14,14" Spacing="10">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Button Content="Unlock All Slots" Click="UnlockAllCargo_Click"/>
-                                    <Button Content="Max All Qty" Click="MaxAllQtyCargo_Click"/>
-                                    <Button Content="Sort" Click="SortCargo_Click"
-                                            ToolTipService.ToolTip="Groups items by kind and name, packed from the top-left, so identical items sit together."/>
-                                </StackPanel>
-                                <Grid>
-                                    <ScrollViewer x:Name="CargoScrollViewer" Padding="0,28,0,0" MaxHeight="368" VerticalScrollBarVisibility="Auto"
-                                                  HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
-                                        <controls:InventorySlotGrid x:Name="CargoGrid"/>
-                                    </ScrollViewer>
-                                    <Button x:Name="CargoExpandBtn" Click="CargoExpandBtn_Click"
-                                            HorizontalAlignment="Right" VerticalAlignment="Top"
-                                            Padding="6" Background="Transparent" BorderThickness="0"
-                                            ToolTipService.ToolTip="Expand">
-                                        <FontIcon x:Name="CargoExpandIcon" Glyph="&#xE70D;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                    </Button>
-                                </Grid>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
+                    </Grid>
                 </StackPanel>
 
                 <!-- SidebarPanel is one named unit (Templates + Ship Details) so the
