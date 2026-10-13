@@ -531,6 +531,23 @@ public sealed partial class InventorySlotGrid : UserControl
     };
 
     /// <summary>Unlocked slots with nothing in them.</summary>
+    /// <summary>Locked slots this inventory could still unlock (within its
+    /// current size - class/type sets the size).</summary>
+    public int LockedSlotCount =>
+        ViewModel?.Cells.Count(c => c.State == ViewModels.InventorySlotState.Locked) ?? 0;
+
+    /// <summary>Unlocks up to `count` locked slots, top-left first.</summary>
+    public int UnlockSlots(int count)
+    {
+        int unlocked = ViewModel?.UnlockSlots(count) ?? 0;
+        if (unlocked > 0)
+        {
+            Refresh();
+            CellChanged?.Invoke(this, EventArgs.Empty);
+        }
+        return unlocked;
+    }
+
     public int FreeSlotCount =>
         ViewModel?.Cells.Count(c => c.State == ViewModels.InventorySlotState.UnlockedEmpty) ?? 0;
 

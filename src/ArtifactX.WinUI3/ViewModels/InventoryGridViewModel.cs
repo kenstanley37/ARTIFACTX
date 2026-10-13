@@ -155,6 +155,21 @@ public partial class InventoryGridViewModel : ObservableObject
         Load();
     }
 
+    /// <summary>Unlocks up to `count` locked slots, top-left first, in one
+    /// write. Returns how many it unlocked.</summary>
+    public int UnlockSlots(int count)
+    {
+        var locked = Cells.Where(c => c.State == InventorySlotState.Locked)
+            .OrderBy(c => c.Y).ThenBy(c => c.X)
+            .Take(Math.Max(0, count))
+            .ToList();
+        foreach (var c in locked) _unlockedSet.Add((c.X, c.Y));
+        if (locked.Count == 0) return 0;
+        StageUnlockedPositions();
+        Load();
+        return locked.Count;
+    }
+
     public void UnlockAll()
     {
         bool changed = false;

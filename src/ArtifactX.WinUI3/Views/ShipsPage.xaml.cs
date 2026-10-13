@@ -466,6 +466,8 @@ public sealed partial class ShipsPage : Page
         TechListHeaderTxt.Text = techRule.Header;
         // Figurines and trails don't boost each other in game.
         TechListPanel.NoAdjacency = p => TechGroup(p) is "Figurines" or "Starship trails";
+        TechListPanel.MoreRoomHint = () => ReadShipClass(_selectedIndex) == "S" ? null
+            : "S class has more slots - change the class in Ship Details to fit more.";
         _ = TechListPanel.LoadAsync(TechGrid, async () =>
         {
             var tech = await CatalogService.GetTechForAsync(techRule.UsageCategories);
