@@ -2,6 +2,7 @@ using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Models;
@@ -111,6 +112,62 @@ public sealed partial class FreighterPage : Page
     private static bool HasFreighter() =>
         !string.IsNullOrEmpty(SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>());
 
+    /// <summary>Freighter module families, from the 24 freighters in the real
+    /// saves (2026-10-13): hyperdrive plus the six fleet ones, each topping
+    /// out at 3.</summary>
+    private static readonly string[] ModuleFamilies =
+        { "UP_FRHYP", "UP_FRCOM", "UP_FREXP", "UP_FRFUE", "UP_FRMIN", "UP_FRSPE", "UP_FRTRA" };
+
+    private static readonly string[] TechGroupOrder = { "Hyperdrive", "Fleet", "Utilities" };
+
+    /// <summary>Groups by the main stat each tech works on (the game's
+    /// BaseStat, via the catalog's TechStats), same as Starships.</summary>
+    private static string TechGroup(CatalogPart tech)
+    {
+        string stat = tech.Stat ?? "";
+        if (stat.StartsWith("Freighter_Hyperdrive")) return "Hyperdrive";
+        if (stat.StartsWith("Freighter_Fleet")) return "Fleet";
+        return "Utilities";
+    }
+
+    private void TechCargoStack_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
+    private void MainColumn_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
+
+    /// <summary>Tech list beside tech + cargo, as tall as they are, or
+    /// underneath at a fixed height when the window is too narrow.</summary>
+    private void LayoutTechList()
+    {
+        bool beside = MainColumn.ActualWidth >= TechCargoStack.ActualWidth + TechLayoutGrid.ColumnSpacing + TechListCard.Width;
+        Grid.SetRow(TechListCard, beside ? 0 : 1);
+        Grid.SetColumn(TechListCard, beside ? 1 : 0);
+        double height = 560;
+        if (beside)
+        {
+            double chrome = TechListCard.ActualHeight - TechListPanel.ListHeight;
+            if (TechListCard.ActualHeight <= 0 || chrome <= 0) chrome = 230;
+            height = Math.Max(300, TechCargoStack.ActualHeight - chrome);
+        }
+        if (Math.Abs(height - TechListPanel.ListHeight) > 1) TechListPanel.ListHeight = height;
+    }
+
+    private void ArrangeTech_Click(object sender, RoutedEventArgs e)
+    {
+        int moved = TechGrid.ArrangeForAdjacency(TechListPanel.TypeOf);
+        if (moved > 0) PageResetBtn.Visibility = Visibility.Visible;
+        FlyoutBase.SetAttachedFlyout((FrameworkElement)sender, new Flyout
+        {
+            Content = new TextBlock
+            {
+                Text = moved > 0
+                    ? $"Moved {moved} so each type sits together. Reset undoes it."
+                    : "Already grouped - nothing to move.",
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 260,
+            },
+        });
+        FlyoutBase.ShowAttachedFlyout((FrameworkElement)sender);
+    }
+
     private async void LoadGrids()
     {
         if (!SaveSessionManager.IsSaveLoaded) return;
@@ -149,7 +206,8 @@ public sealed partial class FreighterPage : Page
         TechGrid.ViewModel = _techViewModel;
         TechGrid.AllowedCategories = new[] { "Technology" };
         TechGrid.AllowedTemplateTypes = new[] { "GcTechnologyTable" };
-        TechGrid.AllowedUsageCategories = new[] { "Freighter", "All" };
+        // Every tech on the 24 freighters in the real saves is "Freighter" (2026-10-13).
+        TechGrid.AllowedUsageCategories = new[] { "Freighter" };
 
         CargoGrid.ViewModel = _cargoViewModel;
         CargoGrid.AllowedCategories = new[] { "Substance", "Product" };
@@ -171,6 +229,18 @@ public sealed partial class FreighterPage : Page
 
         PageResetBtn.Visibility = (_techViewModel.HasLocalChanges || _cargoViewModel.HasLocalChanges)
             ? Visibility.Visible : Visibility.Collapsed;
+
+        // The tech a freighter can fit, to click in - the same list limits
+        // the right-click search.
+        TechListPanel.MoreRoomHint = () => GetFreighterClassLetter() == "S" ? null
+            : "S class has more slots - change the class in Freighter Details to fit more.";
+        _ = TechListPanel.LoadAsync(TechGrid, async () =>
+        {
+            var tech = await CatalogService.GetTechForAsync(new[] { "Freighter" });
+            TechGrid.AllowedItemIds = tech.Select(t => t.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var modules = await CatalogService.GetUpgradeModulesAsync(ModuleFamilies);
+            return Controls.ItemListPanel.SortByGroups(tech.Concat(modules), TechGroup, TechGroupOrder);
+        }, "technology", "technologies", "Technology", TechGroup);
 
         BuildClassSelector();
         NameEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterNamePath)?.Value<string>() ?? "";
@@ -1074,6 +1144,7 @@ public sealed partial class FreighterPage : Page
         TechGrid.Refresh();
         _cargoViewModel?.Revert();
         CargoGrid.Refresh();
+        TechListPanel.RefreshOwned();
         PageResetBtn.Visibility = Visibility.Collapsed;
     }
 }
