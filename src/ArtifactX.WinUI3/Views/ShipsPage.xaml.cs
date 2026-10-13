@@ -346,12 +346,47 @@ public sealed partial class ShipsPage : Page
         if (Math.Abs(height - TechListPanel.ListHeight) > 1) TechListPanel.ListHeight = height;
     }
 
-    /// <summary>Filter groups for the tech list: the cosmetic figurines and
-    /// trails apart from the tech that does something.</summary>
-    private static string TechGroup(CatalogPart tech) =>
-        tech.Name.EndsWith("FIGURINE", StringComparison.OrdinalIgnoreCase) ? "Figurines"
-        : tech.Name.Contains("STARSHIP TRAIL", StringComparison.OrdinalIgnoreCase) ? "Starship trails"
-        : "Ship systems";
+    /// <summary>The tech list's groups, in the order they're shown: by the
+    /// main stat each tech works on (the game's own BaseStat, via the catalog's
+    /// TechStats), so all the drives sit together, each weapon beside its
+    /// upgrades, and every upgrade module with the tech it upgrades (user
+    /// request 2026-10-13). Figurines and trails also use the scanner stat,
+    /// so they're told apart by name.</summary>
+    private static readonly string[] TechGroupOrder =
+        { "Hyperdrive", "Pulse engine", "Launch thrusters", "Shields", "Weapons", "Utilities", "Figurines", "Starship trails" };
+
+    private static string TechGroup(CatalogPart tech)
+    {
+        if (tech.Name.EndsWith("FIGURINE", StringComparison.OrdinalIgnoreCase)) return "Figurines";
+        if (tech.Name.Contains("STARSHIP TRAIL", StringComparison.OrdinalIgnoreCase)) return "Starship trails";
+        string stat = tech.Stat ?? "";
+        if (stat.StartsWith("Ship_Hyperdrive")) return "Hyperdrive";
+        if (stat.StartsWith("Ship_PulseDrive")) return "Pulse engine";
+        if (stat.StartsWith("Ship_Launcher")) return "Launch thrusters";
+        if (stat.StartsWith("Ship_Armour")) return "Shields";
+        if (stat.StartsWith("Ship_Weapons")) return "Weapons";
+        return "Utilities";
+    }
+
+    /// <summary>Group order, then each weapon type together (by stat), the
+    /// main item before its add-ons, upgrade modules after the tech, A to Z.</summary>
+    private static List<CatalogPart> SortTech(IEnumerable<CatalogPart> tech) => tech
+        .OrderBy(t => Array.IndexOf(TechGroupOrder, TechGroup(t)))
+        .ThenBy(t => t.Stat ?? "", StringComparer.Ordinal)
+        .ThenBy(t => t.Primary ? 0 : t.Seeded ? 2 : 1)
+        .ThenBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase)
+        .ToList();
+
+    /// <summary>Upgrade module families each kind of ship takes, from every
+    /// ship in the real saves (2026-10-13): regular and Sentinel ships take the
+    /// station-bought UP_ modules, living ships their own UA_ ones. Corvettes'
+    /// modules (CV_) are all added by their built parts, so none are offered.</summary>
+    private static string[] ModuleFamiliesFor(string header) => header switch
+    {
+        "LIVING SHIP TECHNOLOGY" => new[] { "UA_HYP", "UA_LAUN", "UA_PULSE", "UA_SGUN", "UA_SLASR", "UA_S_SHL" },
+        "CORVETTE TECHNOLOGY" => Array.Empty<string>(),
+        _ => new[] { "UP_HYP", "UP_LAUN", "UP_PULSE", "UP_SGUN", "UP_SLASR", "UP_SMINI", "UP_SSHOT", "UP_S_SHL", "UP_SBLOB" },
+    };
 
     private async void LoadSelectedShip()
     {
@@ -436,7 +471,8 @@ public sealed partial class ShipsPage : Page
         {
             var tech = await CatalogService.GetTechForAsync(techRule.UsageCategories);
             TechGrid.AllowedItemIds = tech.Select(t => t.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            return tech;
+            var modules = await CatalogService.GetUpgradeModulesAsync(ModuleFamiliesFor(techRule.Header));
+            return SortTech(tech.Concat(modules));
         }, "technology", "technologies", "Technology", TechGroup);
         PageResetBtn.Visibility = (_techViewModel.HasLocalChanges || _cargoViewModel.HasLocalChanges)
             ? Visibility.Visible : Visibility.Collapsed;

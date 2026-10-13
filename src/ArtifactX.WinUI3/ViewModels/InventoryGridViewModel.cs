@@ -3,6 +3,7 @@ using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
 using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -561,6 +562,18 @@ public partial class InventoryGridViewModel : ObservableObject
     /// (false/1.0 on an item missing required parts, true/0.0 once repaired).</summary>
     private void StageWholeArray(IEnumerable<(int X, int Y, string? ItemId, int Amount, int MaxAmount, string? CategoryLabel, bool IsFunctional, double MalfunctionSeverity)> entries)
     {
+        // 5tH is the game's "added automatically" flag: true on the tech a
+        // corvette's built parts put in its tech grid (every one of the 172
+        // such items in the real saves, 2026-10-13; false or absent on every
+        // other ship). Rewriting the array used to reset it to false for all
+        // of them - keep it for any item id that already had it.
+        var automatic = (SaveSessionManager.GetValue(NoPath) as JArray ?? new JArray())
+            .OfType<JObject>()
+            .Where(o => o["5tH"]?.Type == JTokenType.Boolean && o["5tH"]!.Value<bool>())
+            .Select(o => o["b2n"]?.Value<string>())
+            .Where(id => id is not null)
+            .ToHashSet(StringComparer.Ordinal);
+
         var array = new JArray(entries.Select(e => new JObject
         {
             ["Vn8"] = new JObject { ["elv"] = e.CategoryLabel },
@@ -569,7 +582,7 @@ public partial class InventoryGridViewModel : ObservableObject
             ["F9q"] = e.MaxAmount,
             ["eVk"] = e.MalfunctionSeverity,
             ["b76"] = e.IsFunctional,
-            ["5tH"] = false,
+            ["5tH"] = e.ItemId is not null && automatic.Contains(e.ItemId),
             ["3ZH"] = new JObject { [">Qh"] = e.X, ["XJ>"] = e.Y }
         }));
 

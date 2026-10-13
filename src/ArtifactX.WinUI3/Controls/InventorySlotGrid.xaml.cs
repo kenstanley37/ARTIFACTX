@@ -510,14 +510,24 @@ public sealed partial class InventorySlotGrid : UserControl
 
     /// <summary>Adds one full stack of each item to the next free slots, in
     /// one write (item lists beside the grid). Returns how many fit.</summary>
-    public int AddStacksToFreeSlots(IEnumerable<(string GameId, string CategoryLabel, int? MaxStackSize)> items)
-    {
-        if (ViewModel is null) return 0;
-        int added = ViewModel.AddItemsToFreeSlots(items.Select(i =>
+    public int AddStacksToFreeSlots(IEnumerable<(string GameId, string CategoryLabel, int? MaxStackSize)> items) =>
+        AddToFreeSlots(items.Select(i =>
         {
             int cap = StackCapFor(i.CategoryLabel, i.MaxStackSize);
-            return (i.GameId, (string?)i.CategoryLabel, cap, cap);
+            return (i.GameId, i.CategoryLabel, cap, cap);
         }));
+
+    /// <summary>Every item id in this inventory, one per occupied slot, without
+    /// the save's "^" (seeded modules keep their "#seed").</summary>
+    public List<string> ItemIdsInSlots() =>
+        ViewModel?.Cells.Where(c => c.IsOccupied && c.ItemId is not null)
+            .Select(c => c.ItemId!.TrimStart('^')).ToList() ?? new();
+
+    /// <summary>Puts items with exact amounts into free slots, top-left first.</summary>
+    public int AddToFreeSlots(IEnumerable<(string GameId, string CategoryLabel, int Amount, int MaxAmount)> items)
+    {
+        if (ViewModel is null) return 0;
+        int added = ViewModel.AddItemsToFreeSlots(items.Select(i => (i.GameId, (string?)i.CategoryLabel, i.Amount, i.MaxAmount)));
         if (added > 0)
         {
             Refresh();

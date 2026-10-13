@@ -397,9 +397,10 @@ public static class CatalogService
                 using var command = connection.CreateCommand();
                 var names = usageCategories.Select((u, i) => (Name: $"@u{i}", Value: u)).ToList();
                 command.CommandText = $@"
-                    SELECT i.GameId, i.NameEnglish, i.UsageCategory, i.MaxStackSize
+                    SELECT i.GameId, i.NameEnglish, i.UsageCategory, i.MaxStackSize, s.NameEnglish, s.UsageCategory
                     FROM Items i
                     JOIN Categories c ON c.Id = i.CategoryId
+                    LEFT JOIN Items s ON s.GameId = 'TECHSTAT:' || i.GameId
                     WHERE c.TemplateType = 'GcTechnologyTable'
                       AND i.NameEnglish IS NOT NULL
                       AND i.UsageCategory IN ({string.Join(", ", names.Select(n => n.Name))})
@@ -412,13 +413,64 @@ public static class CatalogService
                 using var reader = command.ExecuteReader();
                 while (reader.Read())
                     tech.Add(new CatalogPart(reader.GetString(0), reader.GetString(1),
-                        reader.IsDBNull(2) ? "" : reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetInt32(3)));
+                        reader.IsDBNull(2) ? "" : reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetInt32(3),
+                        Stat: reader.IsDBNull(4) ? null : reader.GetString(4),
+                        Primary: !reader.IsDBNull(5) && reader.GetString(5) == "Primary"));
                 return tech;
             });
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[CatalogService] GetTechForAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>S-class upgrade modules (the ones bought at space stations) for
+    /// the given module families, e.g. "UP_PULSE". The game allows 3 per
+    /// technology, any class - every ship in the real saves tops out at exactly
+    /// 3 per family (2026-10-13). Named after the tech they upgrade, read from
+    /// the module's own description ("upgrade for the Pulsing Heart").</summary>
+    public static async Task<List<CatalogPart>> GetUpgradeModulesAsync(IReadOnlyCollection<string> families)
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null || families.Count == 0) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var modules = new List<CatalogPart>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                var names = families.Select((f, i) => (Name: $"@f{i}", Value: f + "4")).ToList();
+                command.CommandText = $@"
+                    SELECT i.GameId, i.NameLowerEnglish, i.DescriptionEnglish, s.NameEnglish
+                    FROM Items i
+                    JOIN Categories c ON c.Id = i.CategoryId
+                    LEFT JOIN Items s ON s.GameId = 'TECHSTAT:' || i.GameId
+                    WHERE c.TemplateType = 'GcProceduralTechnologyTable'
+                      AND i.GameId IN ({string.Join(", ", names.Select(n => n.Name))})";
+                foreach (var n in names) command.Parameters.AddWithValue(n.Name, n.Value);
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    string id = reader.GetString(0);
+                    string? plain = reader.IsDBNull(1) ? null : reader.GetString(1);
+                    string? desc = reader.IsDBNull(2) ? null : reader.GetString(2);
+                    var target = desc is null ? null : Regex.Match(desc, @"upgrade for the (?:vessel's )?<TECHNOLOGY>(.*?)<>");
+                    string tech = target is { Success: true }
+                        ? CultureInfo.InvariantCulture.TextInfo.ToTitleCase(target.Groups[1].Value)
+                        : plain ?? id;
+                    modules.Add(new CatalogPart(id, $"{tech} upgrade (S)", "Upgrade modules", null,
+                        CountKey: id[..^1], Limit: 3, Seeded: true, Stat: reader.IsDBNull(3) ? null : reader.GetString(3)));
+                }
+                return modules.OrderBy(m => m.Name).ToList();
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetUpgradeModulesAsync failed: {ex.Message}");
             return new();
         }
     }
