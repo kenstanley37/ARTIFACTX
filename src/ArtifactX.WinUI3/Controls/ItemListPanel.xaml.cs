@@ -176,11 +176,17 @@ public sealed partial class ItemListPanel : UserControl
     /// <summary>Technology's type for placement: its main stat (a module counts
     /// as its tech's), so new tech lands beside its own kind and gets the
     /// game's adjacency boost. Stacks have no type - they just fill in order.</summary>
-    public string? TypeOf(string installedId) => _isTech ? PartFor(installedId)?.Stat : null;
+    /// <summary>Items the game gives no adjacency boost (e.g. figurines and
+    /// trails) - no border, and Arrange leaves them to fill in last.</summary>
+    public Func<CatalogPart, bool>? NoAdjacency { get; set; }
+
+    public string? TypeOf(string installedId) =>
+        _isTech && PartFor(installedId) is { } part && NoAdjacency?.Invoke(part) != true ? part.Stat : null;
 
     /// <summary>Type + border colour for the grid's adjacency borders.</summary>
     private (string Type, string Colour)? AdjacencyOf(string installedId) =>
-        _isTech && PartFor(installedId) is { Stat: { } stat, Colour: { } colour } ? (stat, colour) : null;
+        _isTech && PartFor(installedId) is { Stat: { } stat, Colour: { } colour } part && NoAdjacency?.Invoke(part) != true
+            ? (stat, colour) : null;
 
     private CatalogPart? PartFor(string installedId)
     {

@@ -459,9 +459,13 @@ public partial class InventoryGridViewModel : ObservableObject
     /// the tech's main stat), so same-type tech sits together and gets the
     /// game's adjacency boost - for families that got boxed in as tech was
     /// added (user, 2026-10-13). Items in supercharged slots stay put (a
-    /// player puts their best tech there on purpose) and their families
-    /// gather round them; biggest families are placed first. Only positions
-    /// change, in one write. Returns how many items moved.</summary>
+    /// player puts their best tech there on purpose): their families grow out
+    /// from them first. Every other family is then laid along a snake path
+    /// (left to right, then right to left on the next row...), biggest first,
+    /// so each is one connected strip - the first version grew every family
+    /// greedily and interleaved them round the supercharged slots. Untyped
+    /// items go last. Only positions change, in one write. Returns how many
+    /// items moved.</summary>
     public int ArrangeForAdjacency(Func<string, string?> groupOf)
     {
         var occupied = Cells.Where(c => c.IsOccupied && c.ItemId is not null).ToList();
@@ -471,33 +475,46 @@ public partial class InventoryGridViewModel : ObservableObject
 
         var typeOf = occupied.ToDictionary(c => (c.X, c.Y), c => groupOf(c.ItemId!.TrimStart('^')));
         var typeAt = staying.ToDictionary(c => ((int, int))(c.X, c.Y), c => typeOf[(c.X, c.Y)]);
+        // Snake order: even rows left to right, odd rows right to left, so
+        // consecutive slots always touch.
         var free = Cells.Where(c => c.State == InventorySlotState.UnlockedEmpty || (c.IsOccupied && !c.IsSupercharged))
-            .OrderBy(c => c.Y).ThenBy(c => c.X)
+            .OrderBy(c => c.Y).ThenBy(c => c.Y % 2 == 0 ? c.X : -c.X)
             .Select(c => (c.X, c.Y))
             .ToList();
 
-        // Untyped items (nothing to be adjacent to) go last, one by one.
-        var order = moving
-            .GroupBy(c => typeOf[(c.X, c.Y)] ?? $"\u0000{c.X},{c.Y}")
-            .OrderBy(g => typeOf[(g.First().X, g.First().Y)] is null ? 1 : 0)
-            .ThenByDescending(g => g.Count() + staying.Count(s => typeOf[(s.X, s.Y)] == g.Key))
-            .SelectMany(g => g.OrderBy(c => c.Y).ThenBy(c => c.X));
+        var anchoredTypes = staying.Select(c => typeOf[(c.X, c.Y)]).Where(t => t is not null).ToHashSet();
+        var families = moving
+            .Where(c => typeOf[(c.X, c.Y)] is not null)
+            .GroupBy(c => typeOf[(c.X, c.Y)]!)
+            .Select(g => (Type: g.Key, Items: g.OrderBy(c => c.Y).ThenBy(c => c.X).ToList()))
+            .OrderByDescending(f => f.Items.Count)
+            .ToList();
 
         var entries = staying
             .Select(c => (c.X, c.Y, c.ItemId, c.Amount, c.MaxAmount, c.CategoryLabel, c.IsFunctional, c.MalfunctionSeverity))
             .ToList();
         int moved = 0;
-        foreach (var c in order)
+        void Put(InventorySlotViewModel c, (int X, int Y) slot)
         {
-            string? type = typeOf[(c.X, c.Y)];
-            var slot = PickSlot(free, typeAt, type);
             free.Remove(slot);
-            typeAt[slot] = type;
+            typeAt[slot] = typeOf[(c.X, c.Y)];
             if (slot != (c.X, c.Y)) moved++;
             entries.Add((slot.X, slot.Y, c.ItemId, c.Amount, c.MaxAmount, c.CategoryLabel, c.IsFunctional, c.MalfunctionSeverity));
         }
-        if (moved == 0) return 0;
 
+        // 1) Families with a supercharged member grow out from it.
+        foreach (var family in families.Where(f => anchoredTypes.Contains(f.Type)))
+            foreach (var c in family.Items)
+                Put(c, PickSlot(free, typeAt, family.Type));
+        // 2) The rest, one strip each along the snake.
+        foreach (var family in families.Where(f => !anchoredTypes.Contains(f.Type)))
+            foreach (var c in family.Items)
+                Put(c, free[0]);
+        // 3) Untyped items in whatever is left.
+        foreach (var c in moving.Where(c => typeOf[(c.X, c.Y)] is null))
+            Put(c, free[0]);
+
+        if (moved == 0) return 0;
         StageWholeArray(entries);
         Load();
         return moved;

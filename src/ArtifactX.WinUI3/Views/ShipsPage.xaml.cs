@@ -468,6 +468,8 @@ public sealed partial class ShipsPage : Page
         // limits the right-click search.
         TechListCard.Visibility = Visibility.Visible;
         TechListHeaderTxt.Text = techRule.Header;
+        // Figurines and trails don't boost each other in game.
+        TechListPanel.NoAdjacency = p => TechGroup(p) is "Figurines" or "Starship trails";
         _ = TechListPanel.LoadAsync(TechGrid, async () =>
         {
             var tech = await CatalogService.GetTechForAsync(techRule.UsageCategories);
