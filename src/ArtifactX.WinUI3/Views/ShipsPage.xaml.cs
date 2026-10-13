@@ -309,7 +309,7 @@ public sealed partial class ShipsPage : Page
     /// 2026-10-13 from every ship in the real saves: regular ships (and
     /// corvettes) take AllShips + AllShipsExceptAlien + Ship tech, living ships
     /// (S-CLASS/BIOPARTS) AllShips + AlienShip, Sentinel ships AllShips +
-    /// AllShipsExceptAlien + RobotShip. The catalog's "Corvette" category is
+    /// AllShipsExceptAlien + RobotShip (so does the Vintage Interceptor). The catalog's "Corvette" category is
     /// only generic upgrade-module templates, so corvettes use the regular set.
     /// The old grid rule ("Ship"/"All") missed AllShips and AllShipsExceptAlien
     /// tech entirely and offered nothing for living or Sentinel ships.</summary>
@@ -317,18 +317,32 @@ public sealed partial class ShipsPage : Page
     {
         string path = (scenePath ?? "").ToUpperInvariant();
         if (path.Contains("/BIOPARTS/")) return (new[] { "AllShips", "AlienShip" }, "LIVING SHIP TECHNOLOGY");
-        if (path.Contains("/SENTINELSHIP/")) return (new[] { "AllShips", "AllShipsExceptAlien", "RobotShip" }, "SENTINEL SHIP TECHNOLOGY");
+        // The Vintage Interceptor reward is a Sentinel ship in a fighter's
+        // folder: all 8 in the real saves carry only Sentinel tech.
+        if (path.Contains("/SENTINELSHIP/") || path.Contains("/VINTAGEINTERCEPTOR.")) return (new[] { "AllShips", "AllShipsExceptAlien", "RobotShip" }, "SENTINEL SHIP TECHNOLOGY");
         string[] regular = { "AllShips", "AllShipsExceptAlien", "Ship" };
         return ShipBaseService.IsCorvetteModel(scenePath ?? "") ? (regular, "CORVETTE TECHNOLOGY") : (regular, "STARSHIP TECHNOLOGY");
     }
 
-    /// <summary>Keeps the tech list as tall as the tech and cargo cards beside
-    /// it, so neither side leaves a gap (fixed-height list did, 2026-10-13).</summary>
-    private void TechCargoStack_SizeChanged(object sender, SizeChangedEventArgs e)
+    private void TechCargoStack_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
+    private void MainColumn_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
+
+    /// <summary>Puts the tech list beside tech and cargo, as tall as they are
+    /// (a fixed height left a gap under the tech grid), or underneath them at a
+    /// fixed height when the window is too narrow (it was cut off at ~1500px).
+    /// 2026-10-13.</summary>
+    private void LayoutTechList()
     {
-        double chrome = TechListCard.ActualHeight - TechListPanel.ListHeight;
-        if (TechListCard.ActualHeight <= 0 || chrome <= 0) chrome = 230;
-        double height = Math.Max(300, e.NewSize.Height - chrome);
+        bool beside = MainColumn.ActualWidth >= TechCargoStack.ActualWidth + TechLayoutGrid.ColumnSpacing + TechListCard.Width;
+        Grid.SetRow(TechListCard, beside ? 0 : 1);
+        Grid.SetColumn(TechListCard, beside ? 1 : 0);
+        double height = 560;
+        if (beside)
+        {
+            double chrome = TechListCard.ActualHeight - TechListPanel.ListHeight;
+            if (TechListCard.ActualHeight <= 0 || chrome <= 0) chrome = 230;
+            height = Math.Max(300, TechCargoStack.ActualHeight - chrome);
+        }
         if (Math.Abs(height - TechListPanel.ListHeight) > 1) TechListPanel.ListHeight = height;
     }
 
