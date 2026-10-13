@@ -168,7 +168,9 @@ public sealed partial class FreighterPage : Page
         FlyoutBase.ShowAttachedFlyout((FrameworkElement)sender);
     }
 
-    private async void LoadGrids()
+    private async void LoadGrids() => await LoadGridsAsync();
+
+    private async Task LoadGridsAsync()
     {
         if (!SaveSessionManager.IsSaveLoaded) return;
 
@@ -232,6 +234,13 @@ public sealed partial class FreighterPage : Page
 
         // The tech a freighter can fit, to click in - the same list limits
         // the right-click search.
+        TechListPanel.IsBestClass = () => GetFreighterClassLetter() == "S";
+        TechListPanel.SwitchToBestClassAsync = async () =>
+        {
+            SaveSessionManager.StageEdit("S", NmsInventoryContainer.FreighterClassPath);
+            PageResetBtn.Visibility = Visibility.Visible;
+            await LoadGridsAsync();
+        };
         TechListPanel.MoreRoomHint = () => GetFreighterClassLetter() == "S" ? null
             : "S class has more slots - change the class in Freighter Details to fit more.";
         _ = TechListPanel.LoadAsync(TechGrid, async () =>

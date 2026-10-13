@@ -101,6 +101,14 @@ public sealed partial class ItemListPanel : UserControl
     /// knows the device's class; changing it stays the player's choice.</summary>
     public Func<string?>? MoreRoomHint { get; set; }
 
+    /// <summary>Optional: whether the device is already at its roomiest class
+    /// (S), and how to switch it there (the page changes the class and
+    /// reloads the grid). Given, Install-all offers - ticked by default - to
+    /// switch class too, so one click makes everything fit (user, 2026-10-13:
+    /// "if they click install all then modify everything to make it fit").</summary>
+    public Func<bool>? IsBestClass { get; set; }
+    public Func<Task>? SwitchToBestClassAsync { get; set; }
+
     /// <summary>How tall the scrolling card list is.</summary>
     public double ListHeight { get => CardsView.Height; set => CardsView.Height = value; }
 
@@ -347,7 +355,16 @@ public sealed partial class ItemListPanel : UserControl
             IsChecked = true,
             Visibility = canUnlock > 0 ? Visibility.Visible : Visibility.Collapsed,
         };
-        string? hint = stillShort > 0 ? MoreRoomHint?.Invoke() : null;
+        bool canSwitch = stillShort > 0 && SwitchToBestClassAsync is not null && IsBestClass?.Invoke() == false;
+        var classBox = new CheckBox
+        {
+            Content = "Make room: switch to S class (more slots) and unlock what's needed",
+            IsChecked = true,
+            Visibility = canSwitch ? Visibility.Visible : Visibility.Collapsed,
+        };
+        // One choice covers both: the class switch also unlocks what's needed.
+        if (canSwitch) unlockBox.Visibility = Visibility.Collapsed;
+        string? hint = stillShort > 0 && !canSwitch ? MoreRoomHint?.Invoke() : null;
         var body = new StackPanel { Spacing = 10 };
         body.Children.Add(new TextBlock
         {
@@ -360,7 +377,8 @@ public sealed partial class ItemListPanel : UserControl
                     : $" Only {free:N0} free slots for {missing.Count:N0}."),
         });
         body.Children.Add(unlockBox);
-        if (stillShort > 0)
+        body.Children.Add(classBox);
+        if (stillShort > 0 && !canSwitch)
             body.Children.Add(new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
@@ -378,7 +396,15 @@ public sealed partial class ItemListPanel : UserControl
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
 
-        if (canUnlock > 0 && unlockBox.IsChecked == true) _grid.UnlockSlots(canUnlock);
+        if (canSwitch && classBox.IsChecked == true)
+        {
+            // The page swaps in a bigger grid for the new class; then unlock
+            // as much of it as the install needs.
+            await SwitchToBestClassAsync!();
+            int needed = Math.Max(0, missing.Count - _grid.FreeSlotCount);
+            if (needed > 0) _grid.UnlockSlots(Math.Min(needed, _grid.LockedSlotCount));
+        }
+        else if (canUnlock > 0 && unlockBox.IsChecked == true) _grid.UnlockSlots(canUnlock);
         int added = _grid.AddToFreeSlots(missing.Select(EntryFor), TypeOf);
         string verb = _isTech ? "Installed" : "Added";
         Status(added == missing.Count ? $"{verb} {added:N0} {_nouns}." : $"{verb} {added:N0} of {missing.Count:N0} - no free slots left for the rest.", ok: added > 0);
