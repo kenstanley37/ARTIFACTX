@@ -2,6 +2,7 @@ using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Models;
@@ -270,6 +271,65 @@ public sealed partial class MultiToolPage : Page
         return panel;
     }
 
+    /// <summary>Multi-tool module families, from the 94 tools in the real saves
+    /// (2026-10-13): each tops out at 3 per tool. UP_SENGUN is a one-off
+    /// salvaged find, so it isn't offered.</summary>
+    private static readonly string[] ModuleFamilies =
+        { "UP_LASER", "UP_SCAN", "UP_BOLT", "UP_SMG", "UP_SHOT", "UP_CANN", "UP_RAIL", "UP_GREN", "UP_TGREN" };
+
+    private static readonly string[] TechGroupOrder = { "Mining", "Scanning", "Weapons", "Utilities" };
+
+    /// <summary>Groups by the main stat each tech works on (the game's
+    /// BaseStat, via the catalog's TechStats), same as Starships.</summary>
+    private static string TechGroup(CatalogPart tech)
+    {
+        string stat = tech.Stat ?? "";
+        if (stat is "Weapon_Laser" or "Weapon_SunLaser") return "Mining";
+        if (stat.StartsWith("Weapon_Scan")) return "Scanning";
+        if (stat is "Weapon_Projectile" or "Weapon_Burst" or "Weapon_Shotgun" or "Weapon_Cannon" or "Weapon_Rail"
+            or "Weapon_Grenade" or "Weapon_MineGrenade" or "Weapon_StunGrenade" or "Weapon_Flame" or "Weapon_Stun"
+            or "Weapon_Gravity" or "Weapon_SoulLaser") return "Weapons";
+        return "Utilities";
+    }
+
+    private void TechCargoStack_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
+    private void MainColumn_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
+
+    /// <summary>Tech list beside the tech card, as tall as it, or underneath
+    /// at a fixed height when the window is too narrow.</summary>
+    private void LayoutTechList()
+    {
+        bool beside = MainColumn.ActualWidth >= TechCargoStack.ActualWidth + TechLayoutGrid.ColumnSpacing + TechListCard.Width;
+        Grid.SetRow(TechListCard, beside ? 0 : 1);
+        Grid.SetColumn(TechListCard, beside ? 1 : 0);
+        double height = 560;
+        if (beside)
+        {
+            double chrome = TechListCard.ActualHeight - TechListPanel.ListHeight;
+            if (TechListCard.ActualHeight <= 0 || chrome <= 0) chrome = 230;
+            height = Math.Max(300, TechCargoStack.ActualHeight - chrome);
+        }
+        if (Math.Abs(height - TechListPanel.ListHeight) > 1) TechListPanel.ListHeight = height;
+    }
+
+    private void ArrangeTech_Click(object sender, RoutedEventArgs e)
+    {
+        int moved = TechGrid.ArrangeForAdjacency(TechListPanel.TypeOf);
+        if (moved > 0) PageResetBtn.Visibility = Visibility.Visible;
+        FlyoutBase.SetAttachedFlyout((FrameworkElement)sender, new Flyout
+        {
+            Content = new TextBlock
+            {
+                Text = moved > 0
+                    ? $"Moved {moved} so each type sits together. Reset undoes it."
+                    : "Already grouped - nothing to move.",
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 260,
+            },
+        });
+        FlyoutBase.ShowAttachedFlyout((FrameworkElement)sender);
+    }
+
     private async void LoadSelectedTool()
     {
         if (_selectedIndex < 0)
@@ -277,6 +337,7 @@ public sealed partial class MultiToolPage : Page
             _techViewModel = null;
             TechGrid.ViewModel = null;
             TechGrid.Refresh();
+            TechListCard.Visibility = Visibility.Collapsed;
             TechHeaderTxt.Text = "TECHNOLOGY";
             ClassSelectorPanel.Children.Clear();
             NameEditBox.Text = "";
@@ -313,7 +374,8 @@ public sealed partial class MultiToolPage : Page
         TechGrid.ViewModel = _techViewModel;
         TechGrid.AllowedCategories = new[] { "Technology" };
         TechGrid.AllowedTemplateTypes = new[] { "GcTechnologyTable" };
-        TechGrid.AllowedUsageCategories = new[] { "Weapon", "All" };
+        // Every tech on the 94 multi-tools in the real saves is "Weapon" (2026-10-13).
+        TechGrid.AllowedUsageCategories = new[] { "Weapon" };
 
         // Reload can run many times per page lifetime (every selector click) -
         // unsubscribe first so CellChanged doesn't fire PageResetBtn's handler
@@ -325,6 +387,17 @@ public sealed partial class MultiToolPage : Page
 
         TechHeaderTxt.Text = $"TECHNOLOGY  —  {selectedTool.Name.ToUpperInvariant()}";
         PageResetBtn.Visibility = _techViewModel.HasLocalChanges ? Visibility.Visible : Visibility.Collapsed;
+
+        // The tech a multi-tool can fit, to click in - the same list limits
+        // the right-click search.
+        TechListCard.Visibility = Visibility.Visible;
+        _ = TechListPanel.LoadAsync(TechGrid, async () =>
+        {
+            var tech = await CatalogService.GetTechForAsync(new[] { "Weapon" });
+            TechGrid.AllowedItemIds = tech.Select(t => t.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var modules = await CatalogService.GetUpgradeModulesAsync(ModuleFamilies);
+            return Controls.ItemListPanel.SortByGroups(tech.Concat(modules), TechGroup, TechGroupOrder);
+        }, "technology", "technologies", "Technology", TechGroup);
 
         BuildClassSelector();
         NameEditBox.Text = selectedTool.Name;
