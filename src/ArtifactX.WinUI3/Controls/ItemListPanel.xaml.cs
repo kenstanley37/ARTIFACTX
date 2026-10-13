@@ -21,11 +21,21 @@ public sealed class ItemCard : INotifyPropertyChanged
     private ImageSource? _icon;
     public ImageSource? Icon { get => _icon; set { _icon = value; Changed(nameof(Icon)); } }
 
+    /// <summary>Technology is installed once, not stacked.</summary>
+    public bool IsTech { get; init; }
+
     private bool _owned;
-    /// <summary>Already in the inventory - dimmed, but still addable (another stack).</summary>
+    /// <summary>Already in the inventory - dimmed; stacks can still be added
+    /// again, technology can't.</summary>
     public bool Owned { get => _owned; set { _owned = value; Changed(nameof(CardOpacity)); Changed(nameof(Tooltip)); } }
     public double CardOpacity => Owned ? 0.55 : 1.0;
-    public string Tooltip => Owned ? $"{Name} - already in here. Click to add another stack." : $"{Name} - click to add a stack.";
+    public string Tooltip => (IsTech, Owned) switch
+    {
+        (true, true) => $"{Name} - already installed.",
+        (true, false) => $"{Name} - click to install it.",
+        (false, true) => $"{Name} - already in here. Click to add another stack.",
+        _ => $"{Name} - click to add a stack.",
+    };
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Changed(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
@@ -37,6 +47,8 @@ public sealed class ItemCard : INotifyPropertyChanged
 /// 2026-10-12; Corvette Cache first). Click a card to put a full stack in the
 /// next free slot, or add a stack of every item shown at once. The page hands
 /// it the items (only ones that inventory accepts) and the grid to fill.
+/// With the "Technology" category it installs instead: one of each, never a
+/// duplicate, and installed tech is hidden at first (2026-10-13, Starships).
 /// </summary>
 public sealed partial class ItemListPanel : UserControl
 {
@@ -44,7 +56,11 @@ public sealed partial class ItemListPanel : UserControl
     private List<ItemCard> _cards = new();
     private InventorySlotGrid? _grid;
     private string _noun = "item";
+    private string _nouns = "items";
     private string _categoryLabel = "Product";
+    private bool _isTech;
+    private bool _loadedOnce;
+    private int _loadVersion;
 
     public ItemListPanel()
     {
@@ -52,43 +68,65 @@ public sealed partial class ItemListPanel : UserControl
         Unloaded += (_, _) => { if (_grid is not null) _grid.CellChanged -= OnGridChanged; };
     }
 
-    /// <summary>Fills the list. `noun` is what the items are called ("part"),
-    /// `categoryLabel` how the save files them ("Product").</summary>
-    public async Task LoadAsync(InventorySlotGrid grid, Func<Task<List<CatalogPart>>> source, string noun, string categoryLabel, Func<string, string> groupLabel)
+    /// <summary>How tall the scrolling card list is.</summary>
+    public double ListHeight { get => CardsView.Height; set => CardsView.Height = value; }
+
+    /// <summary>Fills the list (again, when the page switches device). `noun` is
+    /// what the items are called ("part"), `nouns` its plural, `categoryLabel`
+    /// how the save files them ("Product", or "Technology" to install tech).
+    /// `groupLabel` names each item's group for the filter; "" for none.</summary>
+    public async Task LoadAsync(InventorySlotGrid grid, Func<Task<List<CatalogPart>>> source, string noun, string nouns, string categoryLabel, Func<CatalogPart, string> groupLabel)
     {
+        int version = ++_loadVersion;
         if (_grid is not null) _grid.CellChanged -= OnGridChanged;
         _grid = grid;
         _grid.CellChanged += OnGridChanged;
         _noun = noun;
+        _nouns = nouns;
         _categoryLabel = categoryLabel;
+        _isTech = categoryLabel == "Technology";
 
         var parts = await source();
+        if (version != _loadVersion) return; // a newer load (another ship) won
         _cards = parts.Select(p => new ItemCard
         {
             Part = p,
             Name = CatalogService.TryGet(p.GameId)?.DisplayName is { Length: > 0 } name ? name : p.Name,
-            Group = groupLabel(p.Group),
+            Group = groupLabel(p),
+            IsTech = _isTech,
         }).ToList();
 
+        string? keepGroup = GroupBox.SelectedItem as string;
         GroupBox.Items.Clear();
         GroupBox.Items.Add(AllGroups);
-        foreach (string group in _cards.Select(c => c.Part.Group).Where(g => g is "Structural" or "Decorative").Distinct().OrderBy(g => g))
+        foreach (string group in _cards.Select(c => c.Group).Where(g => g.Length > 0).Distinct().OrderBy(g => g))
             GroupBox.Items.Add(group);
-        GroupBox.SelectedIndex = 0;
+        int keep = keepGroup is null ? -1 : GroupBox.Items.IndexOf(keepGroup);
+        GroupBox.SelectedIndex = keep > 0 ? keep : 0;
         // A filter with one choice is just clutter.
         GroupBox.Visibility = GroupBox.Items.Count > 2 ? Visibility.Visible : Visibility.Collapsed;
 
+        if (!_loadedOnce)
+        {
+            _loadedOnce = true;
+            HideOwnedBox.Content = _isTech ? "Hide installed" : "Hide ones I have";
+            // What's already fitted is noise when picking what to add.
+            if (_isTech) HideOwnedBox.IsChecked = true;
+        }
+        StatusTxt.Visibility = Visibility.Collapsed;
+
         MarkOwned();
         Apply();
-        await LoadIconsAsync();
+        await LoadIconsAsync(version);
     }
 
     /// <summary>Icons in batches, so the list is usable straight away.</summary>
-    private async Task LoadIconsAsync()
+    private async Task LoadIconsAsync(int version)
     {
         foreach (var batch in _cards.Chunk(120))
         {
             await CatalogService.WarmCacheAsync(batch.Select(c => c.Part.GameId));
+            if (version != _loadVersion) return;
             foreach (var card in batch)
             {
                 var entry = CatalogService.TryGet(card.Part.GameId);
@@ -118,7 +156,7 @@ public sealed partial class ItemListPanel : UserControl
         string group = GroupBox.SelectedItem as string ?? AllGroups;
         return _cards
             .Where(c => text.Length == 0 || c.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase))
-            .Where(c => group == AllGroups || c.Part.Group == group || c.Part.Group == "Both")
+            .Where(c => group == AllGroups || c.Group == group)
             .Where(c => HideOwnedBox.IsChecked != true || !c.Owned)
             .ToList();
     }
@@ -127,22 +165,36 @@ public sealed partial class ItemListPanel : UserControl
     {
         var shown = Shown();
         CardsView.ItemsSource = shown;
-        SummaryTxt.Text = $"{_cards.Count:N0} {_noun}s can go in here{(shown.Count != _cards.Count ? $" - showing {shown.Count:N0}" : "")}. Click one to add a full stack to the next free slot.";
+        string showing = shown.Count != _cards.Count ? $" - showing {shown.Count:N0}" : "";
+        SummaryTxt.Text = _isTech
+            ? $"{_cards.Count:N0} {_nouns} fit here{showing}. Click one to install it in the next free slot."
+            : $"{_cards.Count:N0} {_nouns} can go in here{showing}. Click one to add a full stack to the next free slot.";
         UpdateAddAll();
     }
 
     private void UpdateAddAll()
     {
         int missing = Shown().Count(c => !c.Owned);
-        AddAllBtn.Content = missing == 0 ? $"You have every {_noun} shown" : $"Add a stack of each {_noun} I don't have ({missing:N0})";
+        AddAllBtn.Content = (missing, _isTech) switch
+        {
+            (0, true) => $"Every {_noun} shown is installed",
+            (0, false) => $"You have every {_noun} shown",
+            (_, true) => $"Install each one I don't have ({missing:N0})",
+            _ => $"Add a stack of each {_noun} I don't have ({missing:N0})",
+        };
         AddAllBtn.IsEnabled = missing > 0;
     }
 
     private void Card_Click(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is not ItemCard card || _grid is null) return;
+        if (_isTech && card.Owned)
+        {
+            Status($"{card.Name} is already installed.", ok: false);
+            return;
+        }
         int added = _grid.AddStacksToFreeSlots(new[] { (card.Part.GameId, _categoryLabel, card.Part.MaxStackSize) });
-        Status(added > 0 ? $"Added {card.Name}." : "There's no free slot left - unlock more or make room first.", ok: added > 0);
+        Status(added > 0 ? $"{(_isTech ? "Installed" : "Added")} {card.Name}." : "There's no free slot left - unlock more or make room first.", ok: added > 0);
     }
 
     private async void AddAll_Click(object sender, RoutedEventArgs e)
@@ -154,16 +206,18 @@ public sealed partial class ItemListPanel : UserControl
 
         var dialog = new ContentDialog
         {
-            Title = $"Add {missing.Count:N0} {_noun}s?",
+            Title = _isTech ? $"Install {missing.Count:N0} {_nouns}?" : $"Add {missing.Count:N0} {_nouns}?",
             Content = new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Text = $"Adds one full stack of each {_noun} shown that isn't in here yet, into free slots."
+                Text = (_isTech
+                        ? $"Installs one of each {_noun} shown that isn't installed yet, into free slots."
+                        : $"Adds one full stack of each {_noun} shown that isn't in here yet, into free slots.")
                     + (free >= missing.Count
                         ? $" There's room for all of them ({free:N0} free slots)."
                         : $" Only {free:N0} free slots - the first {free:N0} (A to Z) fit, the rest won't be added."),
             },
-            PrimaryButtonText = "Add them",
+            PrimaryButtonText = _isTech ? "Install them" : "Add them",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = XamlRoot,
@@ -171,7 +225,8 @@ public sealed partial class ItemListPanel : UserControl
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
 
         int added = _grid.AddStacksToFreeSlots(missing.Select(c => (c.Part.GameId, _categoryLabel, c.Part.MaxStackSize)));
-        Status(added == missing.Count ? $"Added {added:N0} {_noun}s." : $"Added {added:N0} of {missing.Count:N0} - no free slots left for the rest.", ok: added > 0);
+        string verb = _isTech ? "Installed" : "Added";
+        Status(added == missing.Count ? $"{verb} {added:N0} {_nouns}." : $"{verb} {added:N0} of {missing.Count:N0} - no free slots left for the rest.", ok: added > 0);
     }
 
     private void Status(string text, bool ok)
