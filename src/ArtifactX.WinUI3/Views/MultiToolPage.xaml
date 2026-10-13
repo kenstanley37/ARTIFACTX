@@ -83,7 +83,7 @@
                             Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
                 </Grid>
 
-                <StackPanel Grid.Row="1" Grid.Column="0" Spacing="22">
+                <StackPanel x:Name="MainColumn" Grid.Row="1" Grid.Column="0" Spacing="22" SizeChanged="MainColumn_SizeChanged">
                     <Border Style="{StaticResource ThemeCardStyle}">
                         <StackPanel>
                             <Border Style="{StaticResource ThemeBandStyle}">
@@ -98,28 +98,55 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- No cargo section (multi-tools don't have one), so the full 10x6
-                         grid is shown at once - no scroll cap needed. -->
-                    <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <TextBlock x:Name="TechHeaderTxt" Text="TECHNOLOGY" Style="{StaticResource ThemeBandTextStyle}"/>
-                            </Border>
-                            <StackPanel Padding="14,12,14,14" Spacing="12">
-                                <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
-                                    <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
-                                    <Button Content="Supercharge All Slots" Click="SuperchargeAllTech_Click"/>
-                                    <Button Content="Repair All Slots" Click="RepairAllTech_Click"/>
-                                    <Button Content="Copy Tech Stack..." Click="CopyTechStackBtn_Click"/>
-                                </ctcontrols:WrapPanel>
-                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
-                                    <StackPanel x:Name="ClassSelectorPanel" Orientation="Horizontal" Spacing="6"/>
+                    <!-- Tech grid with the list of tech this tool can fit beside it, or
+                         underneath on a narrow window - same as Starships/Exosuit. -->
+                    <Grid x:Name="TechLayoutGrid" ColumnSpacing="22" RowSpacing="22">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel x:Name="TechCargoStack" VerticalAlignment="Top" SizeChanged="TechCargoStack_SizeChanged">
+                            <!-- No cargo section (multi-tools don't have one), so the full 10x6
+                                 grid is shown at once - no scroll cap needed. -->
+                            <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                <StackPanel>
+                                    <Border Style="{StaticResource ThemeBandStyle}">
+                                        <TextBlock x:Name="TechHeaderTxt" Text="TECHNOLOGY" Style="{StaticResource ThemeBandTextStyle}"/>
+                                    </Border>
+                                    <StackPanel Padding="14,12,14,14" Spacing="12">
+                                        <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
+                                            <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
+                                            <Button Content="Supercharge All Slots" Click="SuperchargeAllTech_Click"/>
+                                            <Button Content="Repair All Slots" Click="RepairAllTech_Click"/>
+                                            <Button Content="Arrange for Adjacency" Click="ArrangeTech_Click"
+                                                    ToolTipService.ToolTip="Groups same-type tech side by side so it gets the game's adjacency boost. Tech in supercharged slots stays where it is."/>
+                                            <Button Content="Copy Tech Stack..." Click="CopyTechStackBtn_Click"/>
+                                        </ctcontrols:WrapPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
+                                            <StackPanel x:Name="ClassSelectorPanel" Orientation="Horizontal" Spacing="6"/>
+                                        </StackPanel>
+                                        <controls:InventorySlotGrid x:Name="TechGrid"/>
+                                    </StackPanel>
                                 </StackPanel>
-                                <controls:InventorySlotGrid x:Name="TechGrid"/>
-                            </StackPanel>
+                            </Border>
                         </StackPanel>
-                    </Border>
+
+                        <Border x:Name="TechListCard" Grid.Column="1" Style="{StaticResource ThemeCardStyle}" Width="340" VerticalAlignment="Top" HorizontalAlignment="Left">
+                            <StackPanel>
+                                <Border Style="{StaticResource ThemeBandStyle}">
+                                    <TextBlock Text="MULTI-TOOL TECHNOLOGY" Style="{StaticResource ThemeBandTextStyle}"/>
+                                </Border>
+                                <Border Padding="14,12,14,14">
+                                    <controls:ItemListPanel x:Name="TechListPanel"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
                 </StackPanel>
 
                 <!-- SidebarPanel is one named unit (Templates + Name/Class/Type/Stats
