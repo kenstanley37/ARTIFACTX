@@ -450,7 +450,7 @@ public static class CatalogService
                 using var command = connection.CreateCommand();
                 var names = families.Select((f, i) => (Name: $"@f{i}", Value: f)).ToList();
                 command.CommandText = $@"
-                    SELECT i.GameId, i.NameLowerEnglish, i.DescriptionEnglish, s.NameEnglish, s.DescriptionEnglish
+                    SELECT i.GameId, i.NameLowerEnglish, i.DescriptionEnglish, s.NameEnglish, s.DescriptionEnglish, s.UsageCategory
                     FROM Items i
                     JOIN Categories c ON c.Id = i.CategoryId
                     LEFT JOIN Items s ON s.GameId = 'TECHSTAT:' || i.GameId
@@ -459,11 +459,12 @@ public static class CatalogService
                       AND substr(i.GameId, -1) IN ('1', '2', '3', '4')";
                 foreach (var n in names) command.Parameters.AddWithValue(n.Name, n.Value);
                 using var reader = command.ExecuteReader();
-                var rows = new List<(string Id, string? Plain, string? Desc, string? Stat, string? Colour)>();
+                var rows = new List<(string Id, string? Plain, string? Desc, string? Stat, string? Colour, string? Template)>();
                 while (reader.Read())
                     rows.Add((reader.GetString(0), reader.IsDBNull(1) ? null : reader.GetString(1),
                         reader.IsDBNull(2) ? null : reader.GetString(2),
-                        reader.IsDBNull(3) ? null : reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetString(4)));
+                        reader.IsDBNull(3) ? null : reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetString(4),
+                        !reader.IsDBNull(5) && reader.GetString(5).StartsWith("Module:") ? reader.GetString(5)[7..] : null));
                 foreach (var best in rows.GroupBy(r => r.Id[..^1])
                              .Select(g => g.OrderByDescending(r => r.Desc?.Contains("supremely powerful") == true)
                                  .ThenByDescending(r => r.Id[^1]).First()))
@@ -479,7 +480,7 @@ public static class CatalogService
                     foreach (string prefix in new[] { "Exosuit ", "Starship ", "Multi-Tool " })
                         if (tech.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) tech = tech[prefix.Length..];
                     modules.Add(new CatalogPart(id, $"{tech} upgrade (S)", "Upgrade modules", null,
-                        CountKey: id[..^1], Limit: 3, Seeded: true, Stat: best.Stat, Colour: best.Colour));
+                        CountKey: id[..^1], Limit: 3, Seeded: true, Stat: best.Stat, Colour: best.Colour, TemplateId: best.Template));
                 }
                 return modules.OrderBy(m => m.Name).ToList();
             });

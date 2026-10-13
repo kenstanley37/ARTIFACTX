@@ -13,7 +13,7 @@
 /// Primary marks a device's main item (Hyperdrive vs its Cadmium Drive).</summary>
 public sealed record CatalogPart(string GameId, string Name, string Group, int? MaxStackSize,
     string? CountKey = null, int Limit = 1, bool Seeded = false, string? Stat = null, bool Primary = false,
-    string? Colour = null);
+    string? Colour = null, string? TemplateId = null);
 
 public sealed class CatalogSearchResult
 {

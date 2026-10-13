@@ -470,7 +470,11 @@ public sealed partial class ShipsPage : Page
             : "S class has more slots - change the class in Ship Details to fit more.";
         _ = TechListPanel.LoadAsync(TechGrid, async () =>
         {
-            var tech = await CatalogService.GetTechForAsync(techRule.UsageCategories);
+            // Advanced Launch System is a special ship's built-in launcher: it
+            // blocks take-off next to a normal Launch Thruster and the game
+            // won't let you remove it (user, 2026-10-13); no real ship had it.
+            var tech = (await CatalogService.GetTechForAsync(techRule.UsageCategories))
+                .Where(t => !string.Equals(t.GameId, "LAUNCHER_SPEC", StringComparison.OrdinalIgnoreCase)).ToList();
             TechGrid.AllowedItemIds = tech.Select(t => t.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var modules = await CatalogService.GetUpgradeModulesAsync(ModuleFamiliesFor(techRule.Header));
             return SortTech(tech.Concat(modules));

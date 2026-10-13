@@ -1400,12 +1400,18 @@ if (args.Length > 1 && args[0].Equals("add-tech-stats", StringComparison.Ordinal
             techStats.TryAdd(id, (tech.BaseStat?.StatsType.ToString() ?? "Unspecified", tech.PrimaryItem, Hex(tech.LinkColour)));
     }
     int procCount = 0;
+    // Upgrade module -> the template tech it's rolled from (T_FR_HYP...). The
+    // game counts an installed template placeholder towards its family's 3
+    // (a freighter with T_FR_HYP + 3 hyperdrive modules showed "Technology
+    // overloaded", 2026-10-13), so the app needs the link.
+    var moduleTemplate = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     foreach (var proc in procTable.Table)
     {
         string id = proc.ID?.Value ?? "";
         string template = proc.Template?.Value ?? "";
         if (id.Length == 0 || !techStats.TryGetValue(template, out var fromTemplate)) continue;
         if (techStats.TryAdd(id, (fromTemplate.Stat, false, fromTemplate.Link))) procCount++;
+        moduleTemplate[id] = template;
     }
     ConsoleStyle.Header($"Found stats for {techStats.Count - procCount} technologies and {procCount} upgrade modules.");
 
@@ -1451,7 +1457,7 @@ if (args.Length > 1 && args[0].Equals("add-tech-stats", StringComparison.Ordinal
             GameId = "TECHSTAT:" + id,
             NameEnglish = info.Stat,
             DescriptionEnglish = info.Link,
-            UsageCategory = info.Primary ? "Primary" : ""
+            UsageCategory = info.Primary ? "Primary" : moduleTemplate.TryGetValue(id, out var tpl) ? "Module:" + tpl : ""
         });
     statsDb.SaveChanges();
 
