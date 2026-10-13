@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -60,6 +61,9 @@ public sealed partial class ItemListPanel : UserControl
 {
     private const string AllGroups = "All";
     private List<ItemCard> _cards = new();
+    // Bound once and edited in place: replacing ItemsSource on every install
+    // (Hide installed re-filters) scrolled the list back to the top (2026-10-13).
+    private readonly ObservableCollection<ItemCard> _shown = new();
     private InventorySlotGrid? _grid;
     private string _noun = "item";
     private string _nouns = "items";
@@ -257,10 +261,27 @@ public sealed partial class ItemListPanel : UserControl
             .ToList();
     }
 
+    /// <summary>Makes the bound collection match `target` with the fewest
+    /// removes/inserts, so the GridView keeps its scroll position.</summary>
+    private void Sync(List<ItemCard> target)
+    {
+        if (CardsView.ItemsSource != _shown) CardsView.ItemsSource = _shown;
+        var keep = target.ToHashSet();
+        for (int i = _shown.Count - 1; i >= 0; i--)
+            if (!keep.Contains(_shown[i])) _shown.RemoveAt(i);
+        for (int i = 0; i < target.Count; i++)
+        {
+            if (i < _shown.Count && ReferenceEquals(_shown[i], target[i])) continue;
+            int at = _shown.IndexOf(target[i]);
+            if (at >= 0) _shown.Move(at, i);
+            else _shown.Insert(i, target[i]);
+        }
+    }
+
     private void Apply()
     {
         var shown = Shown();
-        CardsView.ItemsSource = shown;
+        Sync(shown);
         string showing = shown.Count != _cards.Count ? $" - showing {shown.Count:N0}" : "";
         SummaryTxt.Text = _isTech
             ? $"{_cards.Count:N0} {_nouns} fit here{showing}. Click one to install it in the next free slot."
