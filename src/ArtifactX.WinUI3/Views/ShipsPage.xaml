@@ -74,7 +74,7 @@
                             Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
                 </Grid>
 
-                <StackPanel Grid.Row="1" Grid.Column="0" Spacing="22">
+                <StackPanel x:Name="MainColumn" Grid.Row="1" Grid.Column="0" Spacing="22" SizeChanged="MainColumn_SizeChanged">
                     <Border Style="{StaticResource ThemeCardStyle}">
                         <StackPanel>
                             <Border Style="{StaticResource ThemeBandStyle}">
@@ -89,12 +89,17 @@
                     </Border>
 
                     <!-- Tech and cargo stacked, with the list of tech this ship can fit
-                         beside them (its height follows theirs - see TechCargoStack_SizeChanged). -->
-                    <Grid ColumnSpacing="22">
+                         beside them (its height follows theirs), or underneath them when
+                         the window is too narrow - see MainColumn_SizeChanged. -->
+                    <Grid x:Name="TechLayoutGrid" ColumnSpacing="22" RowSpacing="22">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
                         <StackPanel x:Name="TechCargoStack" Spacing="22" VerticalAlignment="Top" SizeChanged="TechCargoStack_SizeChanged">
                             <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left" VerticalAlignment="Top">
                                 <StackPanel>
@@ -153,7 +158,7 @@
                             </Border>
                         </StackPanel>
 
-                        <Border x:Name="TechListCard" Grid.Column="1" Style="{StaticResource ThemeCardStyle}" Width="340" VerticalAlignment="Top">
+                        <Border x:Name="TechListCard" Grid.Column="1" Style="{StaticResource ThemeCardStyle}" Width="340" VerticalAlignment="Top" HorizontalAlignment="Left">
                             <StackPanel>
                                 <Border Style="{StaticResource ThemeBandStyle}">
                                     <TextBlock x:Name="TechListHeaderTxt" Text="TECHNOLOGY FOR THIS SHIP" Style="{StaticResource ThemeBandTextStyle}"/>
