@@ -371,12 +371,8 @@ public sealed partial class ShipsPage : Page
 
     /// <summary>Group order, then each weapon type together (by stat), the
     /// main item before its add-ons, upgrade modules after the tech, A to Z.</summary>
-    private static List<CatalogPart> SortTech(IEnumerable<CatalogPart> tech) => tech
-        .OrderBy(t => Array.IndexOf(TechGroupOrder, TechGroup(t)))
-        .ThenBy(t => t.Stat ?? "", StringComparer.Ordinal)
-        .ThenBy(t => t.Primary ? 0 : t.Seeded ? 2 : 1)
-        .ThenBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase)
-        .ToList();
+    private static List<CatalogPart> SortTech(IEnumerable<CatalogPart> tech) =>
+        Controls.ItemListPanel.SortByGroups(tech, TechGroup, TechGroupOrder);
 
     /// <summary>Upgrade module families each kind of ship takes, from every
     /// ship in the real saves (2026-10-13): regular and Sentinel ships take the

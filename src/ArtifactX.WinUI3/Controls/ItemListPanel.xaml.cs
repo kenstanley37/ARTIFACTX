@@ -74,6 +74,24 @@ public sealed partial class ItemListPanel : UserControl
         Unloaded += (_, _) => { if (_grid is not null) _grid.CellChanged -= OnGridChanged; };
     }
 
+    /// <summary>Orders a tech list for display: by group (in `groupOrder`),
+    /// then each stat together, the main item before its add-ons, upgrade
+    /// modules after the tech, A to Z.</summary>
+    public static List<CatalogPart> SortByGroups(IEnumerable<CatalogPart> tech, Func<CatalogPart, string> group, string[] groupOrder) => tech
+        .OrderBy(t => Array.IndexOf(groupOrder, group(t)) is var i && i < 0 ? int.MaxValue : i)
+        .ThenBy(t => t.Stat ?? "", StringComparer.Ordinal)
+        .ThenBy(t => t.Primary ? 0 : t.Seeded ? 2 : 1)
+        .ThenBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase)
+        .ToList();
+
+    /// <summary>Re-marks what's installed after the grid was reloaded from
+    /// outside (Reset, a save switch) rather than through a cell edit.</summary>
+    public void RefreshOwned()
+    {
+        MarkOwned();
+        Apply();
+    }
+
     /// <summary>How tall the scrolling card list is.</summary>
     public double ListHeight { get => CardsView.Height; set => CardsView.Height = value; }
 
