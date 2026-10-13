@@ -331,9 +331,21 @@ public sealed partial class ItemListPanel : UserControl
 
     /// <summary>What "add all" adds: one stack of each missing item, or for
     /// technology every copy still allowed (modules up to their limit).</summary>
-    private List<CatalogPart> ToAdd(List<ItemCard> shown) => _isTech
-        ? shown.SelectMany(c => Enumerable.Repeat(c.Part, c.Room)).ToList()
-        : shown.Where(c => !c.Owned).Select(c => c.Part).ToList();
+    private List<CatalogPart> ToAdd(List<ItemCard> shown)
+    {
+        if (!_isTech) return shown.Where(c => !c.Owned).Select(c => c.Part).ToList();
+        // Only the first missing one of each one-of set (both refiners went
+        // in together before - each card checked on its own, 2026-10-13).
+        var setsTaken = new HashSet<string[]>();
+        var parts = new List<CatalogPart>();
+        foreach (var c in shown)
+        {
+            var set = OneOf.FirstOrDefault(s => s.Contains(c.Part.GameId, StringComparer.OrdinalIgnoreCase));
+            if (set is not null && c.Room > 0 && !setsTaken.Add(set)) continue;
+            parts.AddRange(Enumerable.Repeat(c.Part, c.Room));
+        }
+        return parts;
+    }
 
     private void Status(string text, bool ok)
     {
