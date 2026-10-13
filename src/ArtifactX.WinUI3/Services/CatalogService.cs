@@ -407,6 +407,8 @@ public static class CatalogService
                       AND COALESCE(i.IsBrokenSlotTech, 0) = 0
                       AND NOT (i.NameEnglish = 'UPGRADE MODULE' AND i.DescriptionEnglish IS NULL)
                       AND i.GameId NOT LIKE '%#%'
+                      -- ""Old, unusable technology"" - only good for dismantling (user, 2026-10-13).
+                      AND i.GameId <> 'OBSOLETE'
                     GROUP BY i.GameId
                     ORDER BY i.NameEnglish";
                 foreach (var n in names) command.Parameters.AddWithValue(n.Name, n.Value);
