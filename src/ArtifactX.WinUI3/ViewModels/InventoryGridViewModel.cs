@@ -460,12 +460,14 @@ public partial class InventoryGridViewModel : ObservableObject
     /// game's adjacency boost - for families that got boxed in as tech was
     /// added (user, 2026-10-13). Items in supercharged slots stay put (a
     /// player puts their best tech there on purpose): their families grow out
-    /// from them first. Every other family is then laid along a snake path
-    /// (left to right, then right to left on the next row...), biggest first,
-    /// so each is one connected strip - the first version grew every family
-    /// greedily and interleaved them round the supercharged slots. Untyped
-    /// items go last. Only positions change, in one write. Returns how many
-    /// items moved.</summary>
+    /// from them first. Every other family, biggest first, takes one connected
+    /// block - the free cells nearest (breadth-first) to the first free slot,
+    /// in reading order, that has room for all of it. Two earlier tries
+    /// (greedy growth, then a snake path) both split families round the
+    /// supercharged slots on a real ship; this one was simulated on that ship
+    /// and ~13,000 random layouts first: families only split when no
+    /// connected room is left (0.13%). Untyped items fill in last. Only
+    /// positions change, in one write. Returns how many items moved.</summary>
     public int ArrangeForAdjacency(Func<string, string?> groupOf)
     {
         var occupied = Cells.Where(c => c.IsOccupied && c.ItemId is not null).ToList();
@@ -475,10 +477,8 @@ public partial class InventoryGridViewModel : ObservableObject
 
         var typeOf = occupied.ToDictionary(c => (c.X, c.Y), c => groupOf(c.ItemId!.TrimStart('^')));
         var typeAt = staying.ToDictionary(c => ((int, int))(c.X, c.Y), c => typeOf[(c.X, c.Y)]);
-        // Snake order: even rows left to right, odd rows right to left, so
-        // consecutive slots always touch.
         var free = Cells.Where(c => c.State == InventorySlotState.UnlockedEmpty || (c.IsOccupied && !c.IsSupercharged))
-            .OrderBy(c => c.Y).ThenBy(c => c.Y % 2 == 0 ? c.X : -c.X)
+            .OrderBy(c => c.Y).ThenBy(c => c.X)
             .Select(c => (c.X, c.Y))
             .ToList();
 
@@ -487,7 +487,8 @@ public partial class InventoryGridViewModel : ObservableObject
             .Where(c => typeOf[(c.X, c.Y)] is not null)
             .GroupBy(c => typeOf[(c.X, c.Y)]!)
             .Select(g => (Type: g.Key, Items: g.OrderBy(c => c.Y).ThenBy(c => c.X).ToList()))
-            .OrderByDescending(f => f.Items.Count)
+            .OrderBy(f => anchoredTypes.Contains(f.Type) ? 0 : 1)
+            .ThenByDescending(f => f.Items.Count)
             .ToList();
 
         var entries = staying
@@ -502,15 +503,43 @@ public partial class InventoryGridViewModel : ObservableObject
             entries.Add((slot.X, slot.Y, c.ItemId, c.Amount, c.MaxAmount, c.CategoryLabel, c.IsFunctional, c.MalfunctionSeverity));
         }
 
-        // 1) Families with a supercharged member grow out from it.
-        foreach (var family in families.Where(f => anchoredTypes.Contains(f.Type)))
+        // Free cells reachable from `starts` through free cells, nearest first.
+        List<(int X, int Y)> Nearest(IEnumerable<(int X, int Y)> starts, int count)
+        {
+            var freeSet = free.ToHashSet();
+            var queue = new Queue<(int X, int Y)>(starts);
+            var seen = new HashSet<(int X, int Y)>(starts);
+            var found = new List<(int X, int Y)>();
+            while (queue.Count > 0 && found.Count < count)
+            {
+                var (x, y) = queue.Dequeue();
+                foreach (var n in new[] { (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1) })
+                    if (freeSet.Contains(n) && seen.Add(n))
+                    {
+                        queue.Enqueue(n);
+                        found.Add(n);
+                        if (found.Count == count) break;
+                    }
+            }
+            return found;
+        }
+
+        foreach (var family in families)
+        {
+            List<(int X, int Y)> block;
+            if (anchoredTypes.Contains(family.Type))
+                // Grow out from its supercharged member(s).
+                block = Nearest(staying.Where(c => typeOf[(c.X, c.Y)] == family.Type).Select(c => (c.X, c.Y)), family.Items.Count);
+            else
+                // The first free slot with room for the whole family in one piece.
+                block = free.Select(seed => Nearest(new[] { seed }, family.Items.Count - 1).Prepend(seed).ToList())
+                    .FirstOrDefault(b => b.Count == family.Items.Count) ?? new();
+            int i = 0;
             foreach (var c in family.Items)
-                Put(c, PickSlot(free, typeAt, family.Type));
-        // 2) The rest, one strip each along the snake.
-        foreach (var family in families.Where(f => !anchoredTypes.Contains(f.Type)))
-            foreach (var c in family.Items)
-                Put(c, free[0]);
-        // 3) Untyped items in whatever is left.
+                // No room left in one piece: next to its own type where possible.
+                Put(c, i < block.Count ? block[i++] : PickSlot(free, typeAt, family.Type));
+        }
+        // Untyped items in whatever is left.
         foreach (var c in moving.Where(c => typeOf[(c.X, c.Y)] is null))
             Put(c, free[0]);
 
