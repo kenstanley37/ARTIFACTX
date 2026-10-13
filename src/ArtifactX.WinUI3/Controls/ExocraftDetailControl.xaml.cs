@@ -46,6 +46,9 @@ public sealed partial class ExocraftDetailControl : UserControl
         TechGrid.AllowedCategories = new[] { "Technology" };
         TechGrid.AllowedTemplateTypes = new[] { "GcTechnologyTable" };
         TechGrid.AllowedUsageCategories = ExocraftCapacity.UsageCategories(type);
+        // An exocraft's slots are fixed by the game (see SupportsUnlock).
+        TechGrid.SupportsUnlock = false;
+        CargoGrid.SupportsUnlock = false;
 
         CargoGrid.AllowedCategories = new[] { "Substance", "Product" };
         CargoGrid.AllowedTemplateTypes = new[] { "GcProductTable", "GcSubstanceTable" };
