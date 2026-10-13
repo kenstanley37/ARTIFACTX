@@ -471,13 +471,18 @@ public partial class InventoryGridViewModel : ObservableObject
     public int ArrangeForAdjacency(Func<string, string?> groupOf)
     {
         var occupied = Cells.Where(c => c.IsOccupied && c.ItemId is not null).ToList();
-        var staying = occupied.Where(c => c.IsSupercharged).ToList();
-        var moving = occupied.Where(c => !c.IsSupercharged).ToList();
+        // A brand-new save (2026-10-13, current game) marks EVERY exosuit and
+        // multi-tool slot supercharged (60 of 60, even locked ones); older
+        // saves have the usual handful. When every usable slot is
+        // supercharged it singles nothing out, so nothing is held in place.
+        bool superchargeMeansSomething = Cells.Any(c => c.State != InventorySlotState.Locked && !c.IsSupercharged);
+        var staying = superchargeMeansSomething ? occupied.Where(c => c.IsSupercharged).ToList() : new();
+        var moving = occupied.Except(staying).ToList();
         if (moving.Count == 0) return 0;
 
         var typeOf = occupied.ToDictionary(c => (c.X, c.Y), c => groupOf(c.ItemId!.TrimStart('^')));
         var typeAt = staying.ToDictionary(c => ((int, int))(c.X, c.Y), c => typeOf[(c.X, c.Y)]);
-        var free = Cells.Where(c => c.State == InventorySlotState.UnlockedEmpty || (c.IsOccupied && !c.IsSupercharged))
+        var free = Cells.Where(c => c.State == InventorySlotState.UnlockedEmpty || (c.IsOccupied && !staying.Contains(c)))
             .OrderBy(c => c.Y).ThenBy(c => c.X)
             .Select(c => (c.X, c.Y))
             .ToList();
