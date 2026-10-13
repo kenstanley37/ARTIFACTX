@@ -168,6 +168,16 @@ public sealed partial class ItemListPanel : UserControl
         return hash < 0 ? id : id[..hash].TrimEnd('0', '1', '2', '3', '4', 'X');
     }
 
+    /// <summary>Technology's type for placement: its main stat (a module counts
+    /// as its tech's), so new tech lands beside its own kind and gets the
+    /// game's adjacency boost. Stacks have no type - they just fill in order.</summary>
+    private string? TypeOf(string installedId)
+    {
+        if (!_isTech) return null;
+        string key = CountKeyOf(installedId);
+        return _cards.FirstOrDefault(c => string.Equals(c.Part.CountKey ?? c.Part.GameId, key, StringComparison.OrdinalIgnoreCase))?.Part.Stat;
+    }
+
     /// <summary>The id to write: seeded modules get a fresh seed each, in the
     /// range the game's own modules use (1,016-99,671 in the real saves).</summary>
     private static string NewIdFor(CatalogPart part) =>
@@ -229,7 +239,7 @@ public sealed partial class ItemListPanel : UserControl
                 : $"{card.Name} is already installed.", ok: false);
             return;
         }
-        int added = _grid.AddToFreeSlots(new[] { EntryFor(card.Part) });
+        int added = _grid.AddToFreeSlots(new[] { EntryFor(card.Part) }, TypeOf);
         Status(added > 0 ? $"{(_isTech ? "Installed" : "Added")} {card.Name}." : "There's no free slot left - unlock more or make room first.", ok: added > 0);
     }
 
@@ -260,7 +270,7 @@ public sealed partial class ItemListPanel : UserControl
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
 
-        int added = _grid.AddToFreeSlots(missing.Select(EntryFor));
+        int added = _grid.AddToFreeSlots(missing.Select(EntryFor), TypeOf);
         string verb = _isTech ? "Installed" : "Added";
         Status(added == missing.Count ? $"{verb} {added:N0} {_nouns}." : $"{verb} {added:N0} of {missing.Count:N0} - no free slots left for the rest.", ok: added > 0);
     }

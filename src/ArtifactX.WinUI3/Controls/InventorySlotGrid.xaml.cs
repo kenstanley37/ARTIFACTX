@@ -523,11 +523,13 @@ public sealed partial class InventorySlotGrid : UserControl
         ViewModel?.Cells.Where(c => c.IsOccupied && c.ItemId is not null)
             .Select(c => c.ItemId!.TrimStart('^')).ToList() ?? new();
 
-    /// <summary>Puts items with exact amounts into free slots, top-left first.</summary>
-    public int AddToFreeSlots(IEnumerable<(string GameId, string CategoryLabel, int Amount, int MaxAmount)> items)
+    /// <summary>Puts items with exact amounts into free slots: next to their
+    /// own type when `groupOf` is given (adjacency boost), else top-left first.</summary>
+    public int AddToFreeSlots(IEnumerable<(string GameId, string CategoryLabel, int Amount, int MaxAmount)> items,
+        Func<string, string?>? groupOf = null)
     {
         if (ViewModel is null) return 0;
-        int added = ViewModel.AddItemsToFreeSlots(items.Select(i => (i.GameId, (string?)i.CategoryLabel, i.Amount, i.MaxAmount)));
+        int added = ViewModel.AddItemsToFreeSlots(items.Select(i => (i.GameId, (string?)i.CategoryLabel, i.Amount, i.MaxAmount)), groupOf);
         if (added > 0)
         {
             Refresh();
