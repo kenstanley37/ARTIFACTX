@@ -37,6 +37,11 @@ public static class SaveFolderWatchService
 
     private static readonly TimeSpan Quiet = TimeSpan.FromSeconds(3);
 
+    /// <summary>Raised (UI thread) when the running game saves a different slot
+    /// of the loaded account than the one ArtifactX has loaded - the player
+    /// switched saves in game (MainWindow offers to follow).</summary>
+    public static event Action<SaveSlotGroup>? GameSavedOtherSlot;
+
     /// <summary>Watches these account folders, replacing whatever was watched before.</summary>
     public static void Watch(IEnumerable<SaveFolderCandidate> candidates, DispatcherQueue dispatcher)
     {
@@ -165,5 +170,13 @@ public static class SaveFolderWatchService
         candidate.NotifySlotsChanged();
         var latest = slots.OrderByDescending(g => g.LastWriteUtc).FirstOrDefault();
         foreach (var g in slots) g.IsLatest = ReferenceEquals(g, latest);
+
+        // Only while the game runs: ArtifactX itself only writes the loaded
+        // slot, and restoring a backup needs the game closed, so a write to
+        // another slot then means the game is playing it.
+        if (group is not null && ReferenceEquals(group, latest) && GameProcessMonitorService.IsGameRunning
+            && SaveSessionManager.ActiveSlot is { } active && active.SlotId != slotId
+            && string.Equals(Path.TrimEndingDirectorySeparator(candidate.FolderPath), SaveSessionManager.ActivePlatformFolder is { } f ? Path.TrimEndingDirectorySeparator(f) : null, StringComparison.OrdinalIgnoreCase))
+            GameSavedOtherSlot?.Invoke(group);
     }
 }
