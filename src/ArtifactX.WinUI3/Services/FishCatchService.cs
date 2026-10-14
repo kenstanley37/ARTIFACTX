@@ -113,6 +113,12 @@ public static class FishCatchService
             return false;
         }
 
+        // A catch proves there's water: record it, and correct a "no water"
+        // mark - it would otherwise be wrong for everyone once notes are shared
+        // through the API (user, 2026-10-13).
+        if (PlanetWaterService.Get(here, planet) != true)
+            PlanetWaterService.Set(here, planet, true);
+
         lock (Lock)
         {
             var tally = ByPlanet.TryGetValue(PlanetKey(here, planet), out var t) ? t

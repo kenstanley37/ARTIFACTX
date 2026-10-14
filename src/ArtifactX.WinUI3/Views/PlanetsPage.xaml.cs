@@ -1226,7 +1226,8 @@ public sealed partial class PlanetsPage : Page
         // have none, and a fish bar on them suggests they do (user, 2026-10-13).
         var caughtHere = FishCatchService.CaughtOn(planet.SystemAddress, planet.PlanetIndex);
         bool? water = PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex);
-        bool hasWater = water == true || (water is null && (caughtHere.Count > 0 || NmsPlanets.AlwaysHasWater(planet.BiomeIndex)));
+        // A recorded catch beats a "no water" mark (catches also correct the mark).
+        bool hasWater = water == true || caughtHere.Count > 0 || (water is null && NmsPlanets.AlwaysHasWater(planet.BiomeIndex));
         if (!hasWater) return;
         var section = Section("FISH");
 
