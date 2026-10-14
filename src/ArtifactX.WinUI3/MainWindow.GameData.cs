@@ -22,6 +22,9 @@ public sealed partial class MainWindow
     private string? _gameDataError;
     private bool _gameDataCancelled;
     private bool _gameDataJustBuilt;
+    // Kept in a field: a timer held only by a local can be collected before it
+    // fires, which left "Game data ready" up for good (2026-10-14).
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _gameDataReadyTimer;
 
     private void InitGameData()
     {
@@ -187,11 +190,12 @@ public sealed partial class MainWindow
             else if (ContentFrame.CurrentSourcePageType is Type page && page != typeof(SaveFolderSelectPage))
                 ContentFrame.Navigate(page);
             // The "ready" note goes away on its own.
-            var timer = DispatcherQueue.CreateTimer();
-            timer.Interval = TimeSpan.FromSeconds(8);
-            timer.IsRepeating = false;
-            timer.Tick += (_, _) => { _gameDataJustBuilt = false; ShowGameData(); };
-            timer.Start();
+            _gameDataReadyTimer?.Stop();
+            _gameDataReadyTimer = DispatcherQueue.CreateTimer();
+            _gameDataReadyTimer.Interval = TimeSpan.FromSeconds(8);
+            _gameDataReadyTimer.IsRepeating = false;
+            _gameDataReadyTimer.Tick += (_, _) => { _gameDataJustBuilt = false; ShowGameData(); };
+            _gameDataReadyTimer.Start();
         }
         ShowGameData();
     }
