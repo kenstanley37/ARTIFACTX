@@ -45,9 +45,10 @@ public class CatalogBuildService
         _extraction = extraction;
     }
 
-    /// <summary>How far through Run is, 0 to 1 (for the app's progress bar):
-    /// indexing ~5%, decoding every table ~65%, writing the database the rest.
-    /// Rough shares from timed builds; it only has to keep moving sensibly.</summary>
+    /// <summary>How far through Run is, 0 to 1 (for the app's progress bar).
+    /// Shares from a timed 39s run (2026-10-14): text and the special tables
+    /// before the main sweep ~25%, the table sweep ~23%, icons ~24%, writing
+    /// the database the rest. It only has to keep moving sensibly.</summary>
     public Action<double>? Progress { get; set; }
 
     /// <summary>Decode every MBIN looking for tables, not just METADATA/.
@@ -86,7 +87,7 @@ public class CatalogBuildService
 
                 fileIndex.Add(pak.FullPath, header, entries);
                 pakData.Add((pak.FullPath, header, entries));
-                Progress?.Invoke(0.05 * pakData.Count / Math.Max(1, paks.Count));
+                Progress?.Invoke(0.02 * pakData.Count / Math.Max(1, paks.Count));
             }
             catch (Exception ex)
             {
@@ -907,6 +908,7 @@ public class CatalogBuildService
 
         int mbinTotal = pakData.Sum(p => p.Entries.Count(e => e.FileName?.EndsWith(".MBIN", StringComparison.OrdinalIgnoreCase) == true && IsTableCandidate(e.FileName)));
         int mbinDone = 0;
+        Progress?.Invoke(0.25);
         var tableClock = System.Diagnostics.Stopwatch.StartNew();
         foreach (var (pakPath, header, entries) in pakData)
         {
@@ -916,7 +918,7 @@ public class CatalogBuildService
                     !entry.FileName.EndsWith(".MBIN", StringComparison.OrdinalIgnoreCase) ||
                     !IsTableCandidate(entry.FileName))
                     continue;
-                if (++mbinDone % 250 == 0) Progress?.Invoke(0.05 + 0.65 * mbinDone / Math.Max(1, mbinTotal));
+                if (++mbinDone % 25 == 0) Progress?.Invoke(0.25 + 0.23 * mbinDone / Math.Max(1, mbinTotal));
 
                 if (locEntryPaths.Contains(entry.FileName))
                     continue;
@@ -1018,12 +1020,10 @@ public class CatalogBuildService
 
                     foreach (var (sourceField, texturePath) in row.Icons)
                     {
+                        // Converted after this loop, all at once in parallel (see below).
                         if (!iconBlobCache.TryGetValue(texturePath, out var blob))
                         {
-                            byte[]? pngBytes = iconService.ExtractAndConvert(texturePath);
-                            if (pngBytes == null) continue; // extraction/decode failed - skip, don't create an empty blob
-
-                            blob = new IconBlob { SourceDdsPath = texturePath, PngData = pngBytes };
+                            blob = new IconBlob { SourceDdsPath = texturePath };
                             iconBlobCache[texturePath] = blob;
                         }
 
@@ -1045,7 +1045,27 @@ public class CatalogBuildService
             }
         }
 
-        LogService.Write($"CatalogBuild: classified {categories.Count} tables, {totalRows} rows, {totalIcons} icon references ({mbinDone} files read in {tableClock.Elapsed.TotalSeconds:0}s; {runClock.Elapsed.TotalSeconds:0}s so far).");
+        LogService.Write($"CatalogBuild: classified {categories.Count} tables, {totalRows} rows ({mbinDone} files read in {tableClock.Elapsed.TotalSeconds:0}s; {runClock.Elapsed.TotalSeconds:0}s so far).");
+
+        // Icons: every unique texture the rows above reference, converted at once
+        // on all cores (used to be one at a time inside the loop - most of the
+        // build's time). One that can't be found or decoded is dropped, exactly
+        // as before: no empty blob, and the rows simply have no icon from it.
+        var iconClock = System.Diagnostics.Stopwatch.StartNew();
+        iconService.ConvertAll(iconBlobCache.Keys.ToList(), f => Progress?.Invoke(0.48 + 0.24 * f));
+        foreach (var (path, blob) in iconBlobCache.ToList())
+        {
+            if (iconService.ExtractAndConvert(path) is { } png) blob.PngData = png;
+            else iconBlobCache.Remove(path);
+        }
+        totalIcons = 0;
+        foreach (var c in categories)
+            foreach (var it in c.Items)
+            {
+                it.Icons.RemoveAll(a => a.IconBlob is { PngData.Length: 0 });
+                totalIcons += it.Icons.Count;
+            }
+        LogService.Write($"CatalogBuild: converted {iconBlobCache.Count} icons ({totalIcons} references) in {iconClock.Elapsed.TotalSeconds:0}s.");
 
         // -------------------------------------------------------------
         // Phase 2.5: procedural upgrade modules (GcProceduralTechnologyTable -
@@ -1201,7 +1221,7 @@ public class CatalogBuildService
         int categoryDone = 0;
         foreach (var category in categories)
         {
-            Progress?.Invoke(0.7 + 0.3 * categoryDone++ / Math.Max(1, categories.Count));
+            Progress?.Invoke(0.72 + 0.28 * categoryDone++ / Math.Max(1, categories.Count));
             db.Categories.Add(category);
 
             try
