@@ -833,13 +833,14 @@ public sealed partial class PlanetsPage : Page
             .GroupBy(v => v)
             .OrderBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase)
             .Select(g => (Label: $"{g.Key} ({g.Count():N0})", Value: g.Key));
+        Refill(ShipFilterBox, Levels(notes.SelectMany(n => n.Ships)));
         Refill(SentinelsFilterBox, Levels(details.Select(d => LevelOf("Sentinels", d.Sentinels))));
         Refill(FloraFilterBox, Levels(details.Select(d => LevelOf("Life", d.Flora))));
         Refill(FaunaFilterBox, Levels(details.Select(d => LevelOf("Life", d.Fauna))));
         Refill(ResourceFilterBox, Levels(details.SelectMany(d => d.Resources)));
 
         bool any = new[] { StarFilterBox, EconomyFilterBox, WealthFilterBox, ConflictFilterBox, RaceFilterBox,
-                SentinelsFilterBox, FloraFilterBox, FaunaFilterBox, ResourceFilterBox }.Any(b => b.Visibility == Visibility.Visible)
+                ShipFilterBox, SentinelsFilterBox, FloraFilterBox, FaunaFilterBox, ResourceFilterBox }.Any(b => b.Visibility == Visibility.Visible)
             || water > 0 || dissonant > 0 || moons > 0;
         NoteFiltersPanel.Visibility = any ? Visibility.Visible : Visibility.Collapsed;
         NoNoteFiltersTxt.Visibility = any ? Visibility.Collapsed : Visibility.Visible;
@@ -888,8 +889,53 @@ public sealed partial class PlanetsPage : Page
         NoteSystemNameBox.Text = note?.SystemName ?? "";
         NoteWaterBox.IsChecked = note?.Water == true;
         NoteDissonantBox.IsChecked = note?.Dissonant == true;
+        BuildShipToggles(note?.Ships ?? new());
         _suppressNoteEvents = false;
+        ApplySystemNotesCollapsed();
     }
+
+    private const string SystemNotesCollapsedKey = "PlanetsSystemNotesCollapsed";
+
+    private bool SystemNotesCollapsed => SettingsStore.Get(SettingsStore.Scope.Profile, SystemNotesCollapsedKey) == "1";
+
+    /// <summary>Open: every field. Closed: one line with what's recorded.</summary>
+    private void ApplySystemNotesCollapsed()
+    {
+        bool collapsed = SystemNotesCollapsed;
+        SystemNotesBody.Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
+        SystemNotesToggleBtn.Content = collapsed ? "Show" : "Hide";
+        string summary = _currentSystem is ulong system ? NoteSummary(SystemNotesService.Get(system)) : "";
+        SystemNotesSummaryTxt.Text = collapsed ? (summary.Length > 0 ? summary : "Nothing recorded yet") : "";
+        ToolTipService.SetToolTip(SystemNotesSummaryTxt, collapsed && summary.Length > 0 ? summary : null);
+    }
+
+    private void SystemNotesToggle_Click(object sender, RoutedEventArgs e)
+    {
+        SettingsStore.Set(SettingsStore.Scope.Profile, SystemNotesCollapsedKey, SystemNotesCollapsed ? "0" : "1");
+        ApplySystemNotesCollapsed();
+    }
+
+    /// <summary>One toggle per ship type; on = seen in this system.</summary>
+    private void BuildShipToggles(List<string> seen)
+    {
+        ShipTypesPanel.Children.Clear();
+        foreach (string type in SystemNotesService.ShipTypes)
+        {
+            var toggle = new Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
+            {
+                Content = type,
+                Tag = type,
+                IsChecked = seen.Contains(type, StringComparer.OrdinalIgnoreCase),
+                Padding = new Thickness(12, 4, 12, 4),
+            };
+            toggle.Click += (_, _) => SaveSystemNote();
+            ShipTypesPanel.Children.Add(toggle);
+        }
+    }
+
+    private List<string> CheckedShips() => ShipTypesPanel.Children
+        .OfType<Microsoft.UI.Xaml.Controls.Primitives.ToggleButton>()
+        .Where(t => t.IsChecked == true).Select(t => (string)t.Tag).ToList();
 
     private void SaveSystemNote()
     {
@@ -911,7 +957,9 @@ public sealed partial class PlanetsPage : Page
             StarClass = NoteClassBox.Text.Trim(),
             Water = NoteWaterBox.IsChecked == true,
             Dissonant = NoteDissonantBox.IsChecked == true,
+            Ships = CheckedShips(),
         });
+        ApplySystemNotesCollapsed();
         RefreshNoteFilters();
         ApplyFilters();
     }
@@ -1333,6 +1381,7 @@ public sealed partial class PlanetsPage : Page
         if (note.Water) parts.Add("Water");
         if (note.Dissonant) parts.Add("Dissonant");
         if (note.Moons is int moons) parts.Add(moons == 1 ? "1 moon" : $"{moons} moons");
+        if (note.Ships.Count > 0) parts.Add($"Ships: {string.Join(", ", note.Ships)}");
         parts.AddRange(note.Notes);
         return string.Join(" · ", parts);
     }
@@ -1388,6 +1437,7 @@ public sealed partial class PlanetsPage : Page
         string sentinels = ChosenValue(SentinelsFilterBox), flora = ChosenValue(FloraFilterBox);
         string fauna = ChosenValue(FaunaFilterBox), resource = ChosenValue(ResourceFilterBox);
         string search = SearchBox.Text.Trim();
+        string ship = ChosenValue(ShipFilterBox);
 
         var filtered = _allPlanets
             .Where(p => type < 0 || p.BiomeIndex == type)
@@ -1408,6 +1458,7 @@ public sealed partial class PlanetsPage : Page
                     && (flora == "" || LevelOf("Life", d.Flora) == flora)
                     && (fauna == "" || LevelOf("Life", d.Fauna) == fauna)
                     && (resource == "" || d.Resources.Contains(resource, StringComparer.OrdinalIgnoreCase)))
+            .Where(p => ship == "" || SystemNotesService.Get(p.SystemAddress)?.Ships.Contains(ship, StringComparer.OrdinalIgnoreCase) == true)
             .Where(p => search.Length == 0 || SearchText(p).Contains(search, StringComparison.CurrentCultureIgnoreCase))
             .Where(p => bodies switch
             {

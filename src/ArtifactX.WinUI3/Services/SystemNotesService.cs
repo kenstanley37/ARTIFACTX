@@ -21,6 +21,10 @@ public sealed class SystemNote
     public bool Water { get; set; }
     public bool Dissonant { get; set; }
 
+    /// <summary>Ship types seen in this system (at its station or flying
+    /// by), from <see cref="SystemNotesService.ShipTypes"/>.</summary>
+    public List<string> Ships { get; set; } = new();
+
     /// <summary>Moon count as the game's Discoveries screen shows it ("4 PLANETS / 2 MOONS"); null = not recorded.</summary>
     public int? Moons { get; set; }
 
@@ -38,7 +42,7 @@ public sealed class SystemNote
     [JsonIgnore]
     public bool IsEmpty => StarColour == "" && Economy == "" && Wealth == "" && Conflict == "" && Race == ""
         && Text == "" && StarClass == "" && !Water && !Dissonant && Moons is null && Notes.Count == 0
-        && SystemName == "" && StationName == "" && PlanetNames.Count == 0;
+        && SystemName == "" && StationName == "" && PlanetNames.Count == 0 && Ships.Count == 0;
 
     /// <summary>Whether a body is a moon. The save doesn't mark moons, but
     /// checked against 4 real systems (2026-10-11) moons are always the bodies
@@ -64,6 +68,11 @@ public static class SystemNotesService
     // player picked, and CategoryOf maps it back to its category for filtering.
     public static readonly string[] StarColours = { "Yellow", "Red", "Green", "Blue", "Purple" };
     public static readonly string[] Races = { "Gek", "Korvax", "Vy'keen", "Autophage", "Evacuated (no station)", "None (uncharted)" };
+
+    /// <summary>The game's ship classes (GcSpaceshipClasses: Fighter, Dropship,
+    /// Scientific, Shuttle, Royal, Sail, Alien, Robot, Corvette) by the names
+    /// players use for them.</summary>
+    public static readonly string[] ShipTypes = { "Fighter", "Hauler", "Explorer", "Shuttle", "Exotic", "Solar", "Living", "Sentinel", "Corvette" };
 
     /// <summary>Star colour from a spectral class as the Galaxy Map shows it
     /// (e.g. "G7", "F5p", "K8pf", "E7", "X1"): the first letter decides it.
@@ -194,7 +203,7 @@ public static class SystemNotesService
             using (var cmd = connection.CreateCommand())
             {
                 cmd.CommandText = @"SELECT address, name, station, star_class, star_colour, economy, wealth, conflict,
-                                           race, moons, water, dissonant
+                                           race, moons, water, dissonant, ships
                                     FROM systems WHERE deleted = 0";
                 using var r = cmd.ExecuteReader();
                 while (r.Read())
@@ -206,6 +215,7 @@ public static class SystemNotesService
                         Conflict = r.GetString(7), Race = r.GetString(8),
                         Moons = r.IsDBNull(9) ? null : r.GetInt32(9),
                         Water = r.GetInt64(10) != 0, Dissonant = r.GetInt64(11) != 0,
+                        Ships = r.GetString(12).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
                     };
                 }
             }
@@ -248,13 +258,13 @@ public static class SystemNotesService
             cmd.Transaction = tx;
             cmd.CommandText = @"
                 INSERT INTO systems (address, galaxy, name, station, star_class, star_colour, economy, wealth, conflict,
-                                     race, moons, water, dissonant, updated_at, source, synced_at, deleted, added_by)
+                                     race, moons, water, dissonant, ships, updated_at, source, synced_at, deleted, added_by)
                 VALUES ($a, $g, $name, $station, $class, $colour, $economy, $wealth, $conflict,
-                        $race, $moons, $water, $dissonant, $now, $source, NULL, $deleted, $added_by)
+                        $race, $moons, $water, $dissonant, $ships, $now, $source, NULL, $deleted, $added_by)
                 ON CONFLICT(address) DO UPDATE SET
                     galaxy = $g, name = $name, station = $station, star_class = $class, star_colour = $colour,
                     economy = $economy, wealth = $wealth, conflict = $conflict, race = $race, moons = $moons,
-                    water = $water, dissonant = $dissonant, updated_at = $now, source = $source,
+                    water = $water, dissonant = $dissonant, ships = $ships, updated_at = $now, source = $source,
                     synced_at = NULL, deleted = $deleted";
             cmd.Parameters.AddWithValue("$a", key);
             cmd.Parameters.AddWithValue("$g", galaxy);
@@ -269,6 +279,7 @@ public static class SystemNotesService
             cmd.Parameters.AddWithValue("$moons", note.Moons is int m ? m : DBNull.Value);
             cmd.Parameters.AddWithValue("$water", note.Water ? 1 : 0);
             cmd.Parameters.AddWithValue("$dissonant", note.Dissonant ? 1 : 0);
+            cmd.Parameters.AddWithValue("$ships", string.Join(", ", note.Ships));
             cmd.Parameters.AddWithValue("$now", now);
             cmd.Parameters.AddWithValue("$added_by", GameAccountsService.ActiveKey);
             cmd.Parameters.AddWithValue("$source", source);

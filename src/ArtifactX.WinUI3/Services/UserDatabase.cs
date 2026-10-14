@@ -297,6 +297,12 @@ public static class UserDatabase
         );
         CREATE INDEX ix_planet_notes_planet ON planet_notes(system_address, planet_index);
         """,
+
+        // 9 - ship types the player has seen in a system (2026-10-13),
+        // comma-separated ("Fighter, Solar"); the save doesn't record them.
+        """
+        ALTER TABLE systems ADD COLUMN ships TEXT NOT NULL DEFAULT '';
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;
