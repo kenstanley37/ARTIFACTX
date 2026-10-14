@@ -178,6 +178,7 @@ public sealed partial class SettingsPage : Page
             FindsService.Reload();
             PlanetWaterService.Reload();
             PlanetDetailsService.Reload();
+            FishCatchService.Reload();
             GuidesService.Reload();
             HiddenStationsService.Reload();
             if (AppSettingsService.ThemeId is { Length: > 0 } theme && theme != ThemeService.Current.Id)

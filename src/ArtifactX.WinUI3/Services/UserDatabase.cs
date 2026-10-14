@@ -303,6 +303,26 @@ public static class UserDatabase
         """
         ALTER TABLE systems ADD COLUMN ships TEXT NOT NULL DEFAULT '';
         """,
+
+        // 10 - where fish were caught, learned while following the game
+        // (2026-10-13; see FishCatchService). One row per catch seen.
+        """
+        CREATE TABLE fish_catches (
+            id             TEXT PRIMARY KEY,
+            system_address TEXT NOT NULL,
+            planet_index   INTEGER NOT NULL,
+            fish_id        TEXT NOT NULL,
+            count          INTEGER NOT NULL DEFAULT 1,
+            caught_at      TEXT NOT NULL,
+            updated_at     TEXT NOT NULL,
+            source         TEXT NOT NULL DEFAULT 'save',
+            synced_at      TEXT NULL,
+            deleted        INTEGER NOT NULL DEFAULT 0,
+            profile_id     TEXT NOT NULL DEFAULT '',
+            added_by       TEXT NOT NULL DEFAULT ''
+        );
+        CREATE INDEX ix_fish_catches_planet ON fish_catches(system_address, planet_index);
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;

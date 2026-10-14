@@ -87,7 +87,9 @@ public sealed partial class FishingPage : Page
 
         if (SaveSessionManager.IsSaveLoaded)
         {
-            ReadSnapshot(LiveSaveWatcher.FromSession());
+            var first = LiveSaveWatcher.FromSession();
+            FishCatchService.Observe(FishCatchService.ActiveSaveKey(), first, _fish); // starting counts
+            ReadSnapshot(first);
             _liveKey = LiveKey();
             _live.Start();
         }
@@ -99,6 +101,7 @@ public sealed partial class FishingPage : Page
 
     private void OnLiveSnapshot(PlanetSnapshot snapshot)
     {
+        FishCatchService.Observe(FishCatchService.ActiveSaveKey(), snapshot, _fish);
         ReadSnapshot(snapshot);
         LiveStatusTxt.Text = $"Following your game · updated {DateTime.Now:t}";
         // The game saves often; only touch the page when something it shows changed.
@@ -138,22 +141,8 @@ public sealed partial class FishingPage : Page
 
     /// <summary>The save's three parallel fishing-record arrays (see NmsFishingPaths)
     /// as id to (times caught, largest catch).</summary>
-    private static Dictionary<string, (uint, float)> ReadCaught(JToken? records)
-    {
-        var caught = new Dictionary<string, (uint, float)>(StringComparer.OrdinalIgnoreCase);
-        if (records?["5gB"] is not JArray ids) return caught;
-        var counts = records["yv6"] as JArray;
-        var largest = records["CXv"] as JArray;
-        for (int i = 0; i < ids.Count; i++)
-        {
-            string id = CatalogService.NormalizeId(ids[i]?.Value<string>() ?? "");
-            if (id.Length == 0) continue;
-            uint count = counts is not null && i < counts.Count ? counts[i].Value<uint>() : 0;
-            float size = largest is not null && i < largest.Count ? largest[i].Value<float>() : 0;
-            caught[id] = (count, size);
-        }
-        return caught;
-    }
+    private static Dictionary<string, (uint, float)> ReadCaught(JToken? records) =>
+        FishCatchService.ReadCaught(records).ToDictionary(c => c.Key, c => (c.Value.Count, c.Value.Largest), StringComparer.OrdinalIgnoreCase);
 
     // ---------------------------------------------------------------- here
 
