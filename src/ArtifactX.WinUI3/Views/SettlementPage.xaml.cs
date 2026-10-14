@@ -104,8 +104,11 @@ public sealed partial class SettlementPage : Page
         LoadSelectedSettlement();
     }
 
-    private void BuildSelectorStrip()
+    private async void BuildSelectorStrip()
     {
+        // Production icons/names on the cards come from the catalog cache.
+        if (SaveSessionManager.GetValue(NmsSettlementPaths.SettlementArrayPath) is JArray all)
+            await CatalogService.WarmCacheAsync(_settlements.SelectMany(st => (all[st.Index]?["abj"] as JArray)?.Select(x => x["CZw"]?.Value<string>()) ?? Enumerable.Empty<string?>()));
         SettlementSelectorPanel.Children.Clear();
 
         foreach (var settlement in _settlements)
@@ -165,6 +168,27 @@ public sealed partial class SettlementPage : Page
         }
         int population = SaveSessionManager.GetValue(NmsSettlementPaths.PopulationPath(settlement.Index))?.Value<int>() ?? 0;
         card.Children.Add(Line($"Population {population.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)}"));
+        // What it produces: ProductionState (abj), two slots of item (CZw) and the
+        // building making it (N6t.iqv). Slots with no building ("None") aren't
+        // shown in game either (Inuyam's Cove lists Nitrogen/Sulphurine but the
+        // register shows nothing) - checked against the Settlements Register 2026-10-14.
+        if (SaveSessionManager.GetValue(path.Append("abj").ToArray()) is JArray production)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 4, 0, 0) };
+            foreach (var slot in production.OfType<JObject>())
+            {
+                string item = slot["CZw"]?.Value<string>() ?? "";
+                string maker = slot["N6t"]?["iqv"]?.Value<string>() ?? "None";
+                if (item.Trim('^').Length == 0 || maker == "None") continue;
+                var entry = CatalogService.TryGet(item);
+                var chip = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+                if (entry?.Icon is { } icon) chip.Children.Add(new Image { Source = icon, Width = 22, Height = 22 });
+                chip.Children.Add(new TextBlock { Text = entry?.DisplayName ?? CatalogService.NormalizeId(item), FontSize = 12, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 110 });
+                ToolTipService.SetToolTip(chip, $"{entry?.DisplayName ?? item} - made by the {BuildingLabel(maker)}");
+                row.Children.Add(chip);
+            }
+            if (row.Children.Count > 0) card.Children.Add(row);
+        }
         string next = SaveSessionManager.GetValue(path.Concat(new[] { ":Qn", "iqv" }).ToArray())?.ToString() ?? "";
         if (next.Length > 0 && next != "None")
             card.Children.Add(new TextBlock
