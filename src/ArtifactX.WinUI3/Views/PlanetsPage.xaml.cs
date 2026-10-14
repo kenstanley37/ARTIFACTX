@@ -1254,11 +1254,21 @@ public sealed partial class PlanetsPage : Page
         }
         if (caughtHere.Count > 0)
         {
-            var caughtTitle = new TextBlock { Text = "CAUGHT HERE", FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush") };
-            ToolTipService.SetToolTip(caughtTitle, "Recorded by ArtifactX while it followed your game. Catches from before, or while it was closed, aren't known - the save doesn't record where a fish was caught.");
-            body.Children.Add(caughtTitle);
-            body.Children.Add(NameList(caughtHere.OrderByDescending(c => c.Value).ThenBy(c => FishName(c.Key))
-                .Select(c => c.Value > 1 ? $"{FishName(c.Key)} ×{c.Value}" : FishName(c.Key))));
+            // Split like the bars: this type's own fish count on the bar above,
+            // any-planet fish on the system-wide bar (13 names under a "6 / 21"
+            // bar read as a wrong count, 2026-10-13).
+            var ownIds = own.Select(f => f.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            void Group(string title, IEnumerable<KeyValuePair<string, int>> fish)
+            {
+                var list = fish.OrderByDescending(c => c.Value).ThenBy(c => FishName(c.Key)).ToList();
+                if (list.Count == 0) return;
+                var heading = new TextBlock { Text = $"{title} ({list.Count})", FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush") };
+                ToolTipService.SetToolTip(heading, "Recorded by ArtifactX while it followed your game. Catches from before, or while it was closed, aren't known - the save doesn't record where a fish was caught.");
+                body.Children.Add(heading);
+                body.Children.Add(NameList(list.Select(c => c.Value > 1 ? $"{FishName(c.Key)} ×{c.Value}" : FishName(c.Key))));
+            }
+            Group($"CAUGHT HERE - {planet.TypeName.ToUpperInvariant()} FISH", caughtHere.Where(c => ownIds.Contains(c.Key)));
+            Group("CAUGHT HERE - ANY-PLANET FISH", caughtHere.Where(c => !ownIds.Contains(c.Key)));
         }
         section.Children.Add(toggle);
         section.Children.Add(body);
