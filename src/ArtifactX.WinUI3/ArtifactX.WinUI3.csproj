@@ -86,8 +86,10 @@
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
   </ItemGroup>
 
+	<!-- Developer builds only: release builds never carry game data - the
+	     player's own copy is read on their PC (GameDataService). -->
 	<ItemGroup>
-		<Content Include="Data\nms_catalog.sqlite" Condition="Exists('Data\nms_catalog.sqlite')">
+		<Content Include="Data\nms_catalog.sqlite" Condition="Exists('Data\nms_catalog.sqlite') And '$(Configuration)' == 'Debug'">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>
@@ -123,6 +125,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ArtifactX.Almanac\ArtifactX.Almanac.csproj" />
     <ProjectReference Include="..\ArtifactX.Core\ArtifactX.Core.csproj" />
+    <ProjectReference Include="..\ArtifactX.GameData\ArtifactX.GameData.csproj" />
     <!-- Structural type definitions only (enums, field classes) - no PAK/MBIN
          file I/O lives in this library, so referencing it doesn't mean the UI
          extracts game files at runtime. Used to pull real, authoritative

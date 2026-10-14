@@ -42,10 +42,80 @@ public sealed partial class SettingsPage : Page
         ThemeBox.SelectedItem = ThemeBox.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == ThemeService.Current.Id);
         _loading = false;
 
+        GameDataService.StateChanged += OnGameDataChanged;
+        GameDataService.ProgressChanged += OnGameDataProgress;
+        Unloaded += (_, _) =>
+        {
+            GameDataService.StateChanged -= OnGameDataChanged;
+            GameDataService.ProgressChanged -= OnGameDataProgress;
+        };
+        RefreshGameData();
         RefreshFolder();
         RefreshDataBackups();
         _ = RefreshSaveBackupsAsync();
         RefreshUpdateStatus();
+    }
+
+    // ---------------------------------------------------------------- game data
+
+    private void OnGameDataChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(RefreshGameData);
+    private void OnGameDataProgress(ArtifactX.GameData.GameDataProgress p) => DispatcherQueue.TryEnqueue(RefreshGameData);
+
+    /// <summary>Where the game is, which build it is, and whether ArtifactX's
+    /// game data matches it (GameDataService).</summary>
+    private void RefreshGameData()
+    {
+        var game = GameDataService.Game;
+        GameFolderTxt.Text = game is null
+            ? "No Man's Sky wasn't found on this PC - choose its folder."
+            : $"No Man's Sky: {game.RootFolder} ({game.BuildLabel})";
+
+        var info = GameDataService.Info;
+        string built = info?.BuiltAtUtc is DateTime at ? $"Read {at.ToLocalTime():d MMM yyyy, h:mm tt}" : "Read";
+        string from = info?.ExeVersion is { Length: > 0 } v ? $" from build {v}" : "";
+        GameDataStatusTxt.Text = GameDataService.IsBuilding
+            ? $"Reading your game files - {(GameDataService.Progress is { } p ? $"step {p.Step} of {p.Steps}: {p.Label}" : "starting")}..."
+            : GameDataService.State switch
+            {
+                GameDataState.UpToDate => $"{built}{from} - matches your game.",
+                GameDataState.NotBuilt => "Not read yet.",
+                GameDataState.GameUpdated => $"{built}{from} - your game has updated since, so some items may be missing or out of date.",
+                GameDataState.BuilderUpdated => $"{built}{from} - this version of ArtifactX reads more from the game files; update to get it.",
+                _ => $"{built}{from}.",
+            };
+        GameDataBuildBtn.Content = GameDataService.IsBuilding ? "Cancel"
+            : GameDataService.State switch
+            {
+                GameDataState.NotBuilt => "Read my game files",
+                GameDataState.UpToDate => "Read them again",
+                _ => "Update game data",
+            };
+        GameDataBuildBtn.IsEnabled = game is not null || GameDataService.IsBuilding;
+        GameDataLogBtn.IsEnabled = File.Exists(GameDataService.LogPath);
+    }
+
+    private void GameDataBuild_Click(object sender, RoutedEventArgs e)
+    {
+        if (GameDataService.IsBuilding) GameDataService.CancelBuild();
+        else GameDataService.StartBuild();
+        RefreshGameData();
+    }
+
+    private async void ChangeGameFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new Windows.Storage.Pickers.FolderPicker();
+        picker.FileTypeFilter.Add("*");
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindowInstance));
+        var folder = await picker.PickSingleFolderAsync();
+        if (folder is null) return;
+        if (GameDataService.ChooseGameFolder(folder.Path)) RefreshGameData();
+        else GameFolderTxt.Text = $"\"{folder.Path}\" isn't a No Man's Sky folder - choose the one the game is installed in (with GAMEDATA and Binaries in it).";
+    }
+
+    private void OpenGameDataLog_Click(object sender, RoutedEventArgs e)
+    {
+        if (File.Exists(GameDataService.LogPath))
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(GameDataService.LogPath) { UseShellExecute = true });
     }
 
     // ---------------------------------------------------------------- location

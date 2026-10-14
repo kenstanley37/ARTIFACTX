@@ -109,6 +109,7 @@ public sealed partial class MainWindow : Window
         };
         UpdateNavAvailability();
         SaveFolderWatchService.GameSavedOtherSlot += OfferSlotSwitch;
+        InitGameData();
 
         GameProcessMonitorService.RunningStateChanged += (_, isRunning) =>
             DispatcherQueue.TryEnqueue(() =>

@@ -354,17 +354,28 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
+                <!-- Game data: first-run build, "the game updated", progress
+                     (GameDataService; set up in MainWindow.GameData.cs). -->
+                <InfoBar x:Name="GameDataBar" IsOpen="False" Margin="16,8,16,0" CloseButtonClick="GameDataBar_Closed">
+                    <InfoBar.Content>
+                        <ProgressBar x:Name="GameDataProgress" Margin="0,0,0,12" Visibility="Collapsed"/>
+                    </InfoBar.Content>
+                    <InfoBar.ActionButton>
+                        <Button x:Name="GameDataButton" Click="GameDataButton_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
+                    </InfoBar.ActionButton>
+                </InfoBar>
                 <!-- The game is playing a different slot than the one loaded
                      (SaveFolderWatchService.GameSavedOtherSlot). -->
-                <InfoBar x:Name="SlotSwitchBar" Severity="Informational" IsOpen="False" Margin="16,8,16,0"
+                <InfoBar x:Name="SlotSwitchBar" Grid.Row="1" Severity="Informational" IsOpen="False" Margin="16,8,16,0"
                          Title="You've switched saves in No Man's Sky" CloseButtonClick="SlotSwitchBar_Closed">
                     <InfoBar.ActionButton>
                         <Button x:Name="SlotSwitchButton" Click="SlotSwitch_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
                     </InfoBar.ActionButton>
                 </InfoBar>
-                <Frame x:Name="ContentFrame" Grid.Row="1" Navigated="ContentFrame_Navigated"/>
+                <Frame x:Name="ContentFrame" Grid.Row="2" Navigated="ContentFrame_Navigated"/>
             </Grid>
         </NavigationView>
     </Grid>
