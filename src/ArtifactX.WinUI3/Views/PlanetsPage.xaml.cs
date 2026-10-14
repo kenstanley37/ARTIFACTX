@@ -1732,6 +1732,15 @@ public sealed partial class PlanetsPage : Page
         facts.Add("Visited", VisitText(ReadPlanetStats(planet.Address)));
         if (inThisSystem && _baseNames.TryGetValue(planet.PlanetIndex, out var baseNames))
             facts.Add(baseNames.Count == 1 ? "Your base" : "Your bases", string.Join(", ", baseNames));
+        // Other players' bases on this planet: the save keeps them as
+        // ExternalPlanetBase entries, and the game counts them in its "& 1 other
+        // bases" (Ippianes III, 2026-10-14: "Аванпост Isvil" by Bihram).
+        var others = (_snapshot.Bases ?? new JArray()).OfType<JObject>()
+            .Where(b => b["peI"]?["DPp"]?.Value<string>() == "ExternalPlanetBase"
+                && S.ParsePackedAddress(b["oZw"]) == planet.Address)
+            .Select(b => $"{(b["NKm"]?.Value<string>() is { Length: > 0 } n ? n : "Unnamed")} ({b["3?K"]?["V?:"]?.Value<string>() ?? "another player"})")
+            .ToList();
+        if (others.Count > 0) facts.Add("Others' bases", string.Join(", ", others));
         facts.Add("Waypoints", tally is { Waypoints: > 0 } w ? w.Waypoints.ToString(CultureInfo.CurrentCulture) : "");
         facts.Add("Found by", planet.DiscoveredHere ? "You" : planet.Discoverer);
         facts.Add("Found on", FormatDate(planet.DiscoveredUnixSeconds));
