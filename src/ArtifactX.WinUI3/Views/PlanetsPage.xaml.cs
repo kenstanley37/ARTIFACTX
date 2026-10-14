@@ -1351,29 +1351,35 @@ public sealed partial class PlanetsPage : Page
         if (caughtHere.Count > 0)
         {
             Heading($"CAUGHT ON THIS PLANET ({caughtHere.Count} kinds)");
-            // Each fish on its own line with where it was caught - the
-            // coordinates on the ship's dashboard (2026-10-14). Up to 3 spots,
-            // newest first; older catches were recorded without coordinates.
+            // Fish with a known spot get a line each with the coordinates on the
+            // ship's dashboard (2026-10-14; up to 3 spots, newest first). The
+            // rest - caught before coordinates were kept - stay one compact
+            // list: a line per fish made the card very tall (user, 2026-10-14).
             var spots = FishCatchService.SpotsOn(planet.SystemAddress, planet.PlanetIndex);
-            string Line(KeyValuePair<string, int> c)
+            string Name(KeyValuePair<string, int> c) => c.Value > 1 ? $"{FishName(c.Key)} ×{c.Value}" : FishName(c.Key);
+            var ordered = caughtHere.OrderByDescending(c => c.Value).ThenBy(c => FishName(c.Key)).ToList();
+            var located = ordered.Where(c => spots.ContainsKey(c.Key)).Select(c =>
             {
-                string name = c.Value > 1 ? $"{FishName(c.Key)} ×{c.Value}" : FishName(c.Key);
-                if (!spots.TryGetValue(c.Key, out var at) || at.Count == 0) return name;
-                var shown = at.Select(a => NmsPlanetCoordinates.Format(a.Latitude, a.Longitude)).Distinct().ToList();
+                var shown = spots[c.Key].Select(a => NmsPlanetCoordinates.Format(a.Latitude, a.Longitude)).Distinct().ToList();
                 string where = string.Join("  ·  ", shown.Take(3)) + (shown.Count > 3 ? $"  (+{shown.Count - 3} more)" : "");
-                return $"{name}  —  at {where}";
-            }
-            var caughtList = new TextBlock
+                return $"{Name(c)}  —  at {where}";
+            }).ToList();
+            var unlocated = ordered.Where(c => !spots.ContainsKey(c.Key)).Select(Name).ToList();
+            const string Recorded = "Recorded by ArtifactX while it followed your game. Catches from before, or while it was closed, aren't known - the save doesn't record where a fish was caught.";
+            if (located.Count > 0)
             {
-                Text = string.Join(Environment.NewLine, caughtHere.OrderByDescending(c => c.Value).ThenBy(c => FishName(c.Key)).Select(Line)),
-                FontSize = 12,
-                Foreground = ThemeBrush("ThemeTextBrush"),
-                TextWrapping = TextWrapping.Wrap,
-                IsTextSelectionEnabled = true,
-            };
-            ToolTipService.SetToolTip(caughtList, "Recorded by ArtifactX while it followed your game. Catches from before, or while it was closed, aren't known - the save doesn't record where a fish was caught. "
-                + "Coordinates are where you were when the game next saved, the same numbers your ship's dashboard shows.");
-            body.Children.Add(caughtList);
+                var list = NameList(Array.Empty<string>());
+                list.Text = string.Join(Environment.NewLine, located);
+                ToolTipService.SetToolTip(list, Recorded + " Coordinates are where you were when the game next saved - the numbers your ship's dashboard and scanner show.");
+                body.Children.Add(list);
+            }
+            if (unlocated.Count > 0)
+            {
+                if (located.Count > 0) Heading("CAUGHT HERE BEFORE LOCATIONS WERE KEPT");
+                var list = NameList(unlocated);
+                ToolTipService.SetToolTip(list, Recorded);
+                body.Children.Add(list);
+            }
         }
         section.Children.Add(body);
         stack.Children.Add(section);
