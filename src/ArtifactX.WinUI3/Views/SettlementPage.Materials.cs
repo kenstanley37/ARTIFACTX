@@ -55,23 +55,24 @@ public sealed partial class SettlementPage
         5 => "Upgrade 1", 6 => "Upgrade 2", 7 => "Upgrade 3", _ => $"Stage {stage}",
     };
 
-    /// <summary>Plain names for the game's building classes. Their in-game
-    /// names aren't in the loc tables (searched every loc file 2026-10-14), so
-    /// these are the names seen in game where known, else the class.</summary>
-    private static string BuildingLabel(string buildingClass) => buildingClass switch
+    // Building names from the game (catalog "SettlementBuildingNames"): each
+    // type has a pool and every settlement shows one of them, so the type's own
+    // name is shown with the others in a tooltip. Loaded once for all pages.
+    private static Dictionary<string, (string Name, List<string> Names, List<string> Upgraded)> _buildingNames = new();
+
+    private static string BuildingLabel(string buildingClass) =>
+        _buildingNames.TryGetValue(buildingClass, out var n) ? n.Name : buildingClass.Replace("Settlement_", "").Replace('_', ' ');
+
+    /// <summary>"Also called: Manufacturing Unit, Workshop... Once upgraded: Nano-Foundry..."</summary>
+    private static string BuildingAliases(string buildingClass)
     {
-        "Settlement_Factory" => "Manufacturing Unit", // seen in game, Inuyam's Cove 2026-10-14
-        "Settlement_LandingZone" => "Landing Zone",
-        "Settlement_SheriffsOffice" => "Overseer's Office",
-        "Settlement_SmallIndustrial" => "Small industrial building",
-        "Settlement_Builders_RoboArm" => "Autophage robotic arm",
-        "Settlement_FishPond" => "Fish Pond",
-        "Settlement_Small" => "Small building",
-        "Settlement_Medium" => "Medium building",
-        "Settlement_Large" => "Large building",
-        "Settlement_Double" => "Double building",
-        _ => buildingClass.Replace("Settlement_", "").Replace('_', ' '),
-    };
+        if (!_buildingNames.TryGetValue(buildingClass, out var n)) return "";
+        var others = n.Names.Where(x => !string.Equals(x, n.Name, StringComparison.OrdinalIgnoreCase)).ToList();
+        var parts = new List<string>();
+        if (others.Count > 0) parts.Add($"Each settlement names it differently - also: {string.Join(", ", others)}.");
+        if (n.Upgraded.Count > 0) parts.Add($"Once upgraded: {string.Join(", ", n.Upgraded)}.");
+        return string.Join(" ", parts);
+    }
 
     // Details needs ~620 px (feature dropdowns + stat boxes), materials ~600 px
     // to read its "where to get it" lines; below that they stack (user 2026-10-14).
@@ -96,6 +97,7 @@ public sealed partial class SettlementPage
             if (_costs.Count == 0)
             {
                 _costs = await CatalogService.GetSettlementCostsAsync();
+                _buildingNames = await CatalogService.GetSettlementBuildingNamesAsync();
                 _economySells = await CatalogService.GetEconomySellsAsync();
                 _itemValues = (await CatalogService.GetItemValuesAsync()).GroupBy(v => v.Id, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
@@ -123,7 +125,11 @@ public sealed partial class SettlementPage
                 .OrderBy(b => b == next ? 0 : 1).ThenBy(BuildingLabel).ToList();
             MaterialsBuildingBox.Items.Clear();
             foreach (var b in buildings)
-                MaterialsBuildingBox.Items.Add(new ComboBoxItem { Content = b == next ? $"{BuildingLabel(b)} (next upgrade)" : BuildingLabel(b), Tag = b });
+            {
+                var item = new ComboBoxItem { Content = b == next ? $"{BuildingLabel(b)} (next upgrade)" : BuildingLabel(b), Tag = b };
+                if (BuildingAliases(b) is { Length: > 0 } aliases) ToolTipService.SetToolTip(item, aliases);
+                MaterialsBuildingBox.Items.Add(item);
+            }
             MaterialsNextTxt.Text = next.Length > 0 && next != "None" && buildings.Contains(next)
                 ? $"Next upgrade here: {BuildingLabel(next)}" : "";
 
@@ -149,6 +155,7 @@ public sealed partial class SettlementPage
     private void ShowMaterials(string building)
     {
         MaterialsPanel.Children.Clear();
+        if (BuildingAliases(building) is { Length: > 0 } aliases) MaterialsPanel.Children.Add(Dim(aliases));
         foreach (var cost in _costs.Where(c => c.BuildingClass == building).OrderBy(c => c.Stage))
             MaterialsPanel.Children.Add(MaterialRow(cost));
     }

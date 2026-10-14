@@ -106,6 +106,7 @@ public sealed partial class SettlementPage : Page
 
     private async void BuildSelectorStrip()
     {
+        if (_buildingNames.Count == 0) _buildingNames = await CatalogService.GetSettlementBuildingNamesAsync();
         // Production icons/names on the cards come from the catalog cache.
         if (SaveSessionManager.GetValue(NmsSettlementPaths.SettlementArrayPath) is JArray all)
             await CatalogService.WarmCacheAsync(_settlements.SelectMany(st => (all[st.Index]?["abj"] as JArray)?.Select(x => x["CZw"]?.Value<string>()) ?? Enumerable.Empty<string?>()));
