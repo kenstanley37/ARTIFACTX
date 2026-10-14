@@ -25,7 +25,7 @@ public static class GameDataBuilder
     /// <summary>Bump when the builder changes what goes in the catalog (a new
     /// step, a fix): every player's catalog then needs rebuilding, even if the
     /// game didn't update.</summary>
-    public const int CatalogFormat = 2; // 2: settlement building costs + what economies sell
+    public const int CatalogFormat = 3; // 2: settlement building costs + what economies sell; 3: settlement building names
 
     /// <summary>The additions after the main build, in order.</summary>
     private static readonly (string Label, Action<string, string> Run)[] Steps =

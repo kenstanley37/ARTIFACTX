@@ -154,7 +154,63 @@ public static partial class CatalogSteps
             }
         }
 
+        // ---- building names
+        // Each building type has a pool of names (UI_SETTLEMENT_POI_NAME_FACT_1..5:
+        // "Ore Extraction Unit", "Manufacturing Unit", "Workshop"...) and another
+        // once upgraded (..._UP_FAC_n); each settlement shows one of them -
+        // Inuyam's Cove's factory is a "Manufacturing Unit" (2026-10-14). The
+        // unnumbered id is the type's own name ("Factory Module"). The prefix for
+        // each building class is the only hand-made part; the names are the game's.
+        var prefixes = new Dictionary<string, (string Base, string? Upgraded)>
+        {
+            ["Settlement_LandingZone"] = ("PAD", "UP_PAD"), ["Settlement_Bar"] = ("BAR", "UP_BAR"),
+            ["Settlement_Tower"] = ("TOWER", "UP_TWR"), ["Settlement_Market"] = ("MARKET", "UP_MKT"),
+            ["Settlement_Small"] = ("SMALL", "UP_SML"), ["Settlement_SmallIndustrial"] = ("UNIT", "UP_UNT"),
+            ["Settlement_Medium"] = ("MEDIUM", "UP_MED"), ["Settlement_Large"] = ("LARGE", "UP_LRG"),
+            ["Settlement_SheriffsOffice"] = ("SHERIFF", "UP_OFF"), ["Settlement_Double"] = ("DOUBLE", "UP_DBL"),
+            ["Settlement_Farm"] = ("FARM", "UP_FRM"), ["Settlement_Factory"] = ("FACT", "UP_FAC"),
+            ["Settlement_FishPond"] = ("FISH", null), ["Settlement_Builders_RoboArm"] = ("RARM", null),
+            ["Settlement_Hub"] = ("HUB", null), ["Settlement_Clump"] = ("CLUMP", null),
+        };
+        var loc = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in new[] { "LANGUAGE/NMS_LOC4_ENGLISH.MBIN", "LANGUAGE/NMS_LOC5_ENGLISH.MBIN", "LANGUAGE/NMS_LOC7_ENGLISH.MBIN", "LANGUAGE/NMS_LOC1_ENGLISH.MBIN" })
+        {
+            if (Bytes(path) is not { } locBytes) continue;
+            try
+            {
+                var mbin = new MBINFile(new MemoryStream(locBytes));
+                mbin.Load();
+                foreach (var (key, text) in LocalisationService.BuildEnglishLookup(mbin.GetData()))
+                    if (key.StartsWith("UI_SETTLEMENT_POI_NAME_", StringComparison.OrdinalIgnoreCase)) loc.TryAdd(key, text);
+            }
+            catch (Exception ex) { ConsoleStyle.Warning($"Couldn't read {path}: {ex.Message}"); }
+        }
+        List<string> Names(string prefix) => loc
+            .Where(kv => System.Text.RegularExpressions.Regex.IsMatch(kv.Key, $"^UI_SETTLEMENT_POI_NAME_{prefix}(_[0-9]+)?$", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            .Select(kv => System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(kv.Value.Trim()))
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var nameRows = new List<CatalogItem>();
+        foreach (var (buildingClass, (basePrefix, upgradedPrefix)) in prefixes)
+        {
+            var baseNames = Names(basePrefix);
+            if (baseNames.Count == 0) continue;
+            string main = loc.TryGetValue($"UI_SETTLEMENT_POI_NAME_{basePrefix}", out var m) ? System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(m.Trim()) : baseNames[0];
+            nameRows.Add(new CatalogItem
+            {
+                GameId = "SETTLENAME:" + buildingClass,
+                NameEnglish = main,
+                UsageCategory = buildingClass,
+                DescriptionEnglish = new JsonObject
+                {
+                    ["names"] = new JsonArray(baseNames.Select(n => (JsonNode)n).ToArray()),
+                    ["upgraded"] = new JsonArray((upgradedPrefix is null ? new List<string>() : Names(upgradedPrefix)).Select(n => (JsonNode)n).ToArray()),
+                }.ToJsonString(),
+            });
+        }
+        ConsoleStyle.Header($"Found names for {nameRows.Count} settlement building types.");
+
         Replace(db, "SettlementCosts", "GcSettlementBuildingCostData", settlementFile, costRows);
+        Replace(db, "SettlementBuildingNames", "LocalisedText", "language/nms_loc*_english.mbin", nameRows);
         Replace(db, "TradeClasses", "GcTradingClassData", tradeFile, tradeRows);
         ConsoleStyle.Success($"Wrote {costRows.Count} settlement costs and {tradeRows.Count} economy types to {catalogPath}.");
     }

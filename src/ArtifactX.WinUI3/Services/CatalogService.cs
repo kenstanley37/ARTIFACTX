@@ -867,6 +867,42 @@ public static class CatalogService
         }
     }
 
+    /// <summary>Settlement building names by class (catalog
+    /// "SettlementBuildingNames"): the type's own name, and every name a
+    /// settlement can give it, plain and upgraded.</summary>
+    public static async Task<Dictionary<string, (string Name, List<string> Names, List<string> Upgraded)>> GetSettlementBuildingNamesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new Dictionary<string, (string, List<string>, List<string>)>(StringComparer.OrdinalIgnoreCase);
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.UsageCategory, i.NameEnglish, i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'SettlementBuildingNames'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    using var json = System.Text.Json.JsonDocument.Parse(reader.GetString(2));
+                    List<string> List(string key) => json.RootElement.GetProperty(key).EnumerateArray().Select(n => n.GetString() ?? "").ToList();
+                    results[reader.GetString(0)] = (reader.GetString(1), List("names"), List("upgraded"));
+                }
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetSettlementBuildingNamesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
     /// <summary>Trade category each economy sells, keyed by the game's trading
     /// class (Mining, HighTech, Trading, Manufacturing, Fusion, Scientific,
     /// PowerGeneration) - catalog "TradeClasses".</summary>
