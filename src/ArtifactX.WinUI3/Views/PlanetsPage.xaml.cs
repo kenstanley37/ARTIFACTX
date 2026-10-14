@@ -1290,7 +1290,14 @@ public sealed partial class PlanetsPage : Page
         ComboBox Choice(string header, List<string> options, string current)
         {
             var combo = new ComboBox { Header = header, Width = 240, IsEditable = true, ItemsSource = options, PlaceholderText = "Not recorded" };
-            combo.Text = current.Length == 0 ? "" : options.FirstOrDefault(o => string.Equals(WordOf(o), current, StringComparison.OrdinalIgnoreCase)) ?? current;
+            // Select the matching choice; Text set before the box is on screen is
+            // ignored by an editable ComboBox (picks didn't show on reopening, 2026-10-13).
+            if (current.Length > 0)
+            {
+                string? match = options.FirstOrDefault(o => string.Equals(WordOf(o), current, StringComparison.OrdinalIgnoreCase));
+                if (match is not null) combo.SelectedItem = match;
+                else combo.Loaded += (_, _) => combo.Text = current; // a word the player typed
+            }
             return combo;
         }
         var sentinelsBox = Choice("Sentinels", Words("Sentinels"), details.Sentinels);
@@ -1299,7 +1306,8 @@ public sealed partial class PlanetsPage : Page
 
         var weatherWords = _planetWords.Where(w => w.Group == "Weather").Select(w => w.Word)
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(w => w, StringComparer.CurrentCultureIgnoreCase).ToList();
-        var weatherBox = new AutoSuggestBox { Header = "Weather", Width = 360, PlaceholderText = "Start typing, e.g. Painfully Hot Rain", Text = details.Weather };
+        var weatherBox = new AutoSuggestBox { Header = "Weather", Width = 360, PlaceholderText = "Start typing, e.g. Painfully Hot Rain" };
+        weatherBox.Loaded += (_, _) => weatherBox.Text = details.Weather;
         weatherBox.TextChanged += (s, e) =>
         {
             if (e.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
@@ -1434,14 +1442,16 @@ public sealed partial class PlanetsPage : Page
         dialog.Resources["ContentDialogMaxWidth"] = 680.0;
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
 
+        // The box shows its selection as its text; clearing the text clears the field.
+        string Picked(ComboBox box) => WordOf((box.Text ?? "").Trim());
         AddNote(); // a note typed but not added yet still counts
         if (resourceBox.Text.Trim().Length > 0) AddResource(resourceBox.Text);
         PlanetDetailsService.Save(system, planet.PlanetIndex, new PlanetDetails
         {
             Weather = weatherBox.Text.Trim(),
-            Sentinels = WordOf(sentinelsBox.Text.Trim()),
-            Flora = WordOf(floraBox.Text.Trim()),
-            Fauna = WordOf(faunaBox.Text.Trim()),
+            Sentinels = Picked(sentinelsBox),
+            Flora = Picked(floraBox),
+            Fauna = Picked(faunaBox),
             Resources = resources,
             Notes = notes,
         });
