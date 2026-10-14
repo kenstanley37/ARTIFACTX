@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Media;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Controls;
 using System;
+using System.Linq;
 using Windows.UI;
 
 namespace ArtifactX.WinUI3.Views;
@@ -32,11 +33,32 @@ public sealed partial class ExocraftPage : Page
 
     private ExocraftType _selectedType = ExocraftType.Roamer;
 
+    /// <summary>A picture for each vehicle button: the game's own Geobay icon,
+    /// which shows the vehicle on its pad (user request 2026-10-13). The
+    /// Dragonfly has no Geobay, so it gets the Exocraft Summoning Station.</summary>
+    private static string IconIdFor(ExocraftType type) => type switch
+    {
+        ExocraftType.Roamer => "GARAGE_M",
+        ExocraftType.Nomad => "GARAGE_S",
+        ExocraftType.Colossus => "GARAGE_L",
+        ExocraftType.Pilgrim => "GARAGE_B",
+        ExocraftType.Nautilon => "GARAGE_SUB",
+        ExocraftType.Minotaur => "GARAGE_MECH",
+        _ => "SUMMON_GARAGE",
+    };
+
     public ExocraftPage()
     {
         InitializeComponent();
         BuildTabStrip();
         ShowTab(_selectedType);
+        _ = LoadIconsAsync();
+    }
+
+    private async System.Threading.Tasks.Task LoadIconsAsync()
+    {
+        await CatalogService.WarmCacheAsync(AllTypes.Select(IconIdFor));
+        BuildTabStrip();
     }
 
     private void BuildTabStrip()
@@ -50,12 +72,28 @@ public sealed partial class ExocraftPage : Page
             var button = new Button
             {
                 Tag = type,
-                Content = new TextBlock
+                Content = new StackPanel
                 {
-                    Text = ExocraftCapacity.DisplayName(type),
-                    FontWeight = isCurrent ? FontWeights.Bold : FontWeights.Normal
+                    Spacing = 2,
+                    Children =
+                    {
+                        new Image
+                        {
+                            Source = CatalogService.TryGet(IconIdFor(type))?.Icon,
+                            Width = 72,
+                            Height = 72,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                        },
+                        new TextBlock
+                        {
+                            Text = ExocraftCapacity.DisplayName(type),
+                            FontWeight = isCurrent ? FontWeights.Bold : FontWeights.Normal,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                        },
+                    },
                 },
-                Padding = new Thickness(16, 6, 16, 6)
+                MinWidth = 104,
+                Padding = new Thickness(10, 6, 10, 8)
             };
             ThemeResources.StyleChoiceButton(button, isCurrent);
 

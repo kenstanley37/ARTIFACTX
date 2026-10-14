@@ -382,7 +382,8 @@ public sealed partial class ItemListPanel : UserControl
             body.Children.Add(new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Text = $"Even with every slot unlocked, {stillShort:N0} won't fit and will be left out." + (hint is null ? "" : " " + hint),
+                Text = (_grid.SupportsUnlock ? $"Even with every slot unlocked, {stillShort:N0} won't fit" : $"{stillShort:N0} won't fit")
+                    + " and will be left out." + (hint is null ? "" : " " + hint),
             });
 
         var dialog = new ContentDialog
