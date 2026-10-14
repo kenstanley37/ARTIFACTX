@@ -177,6 +177,13 @@ public sealed partial class PlanetsPage : Page
             SaveSystemNote();
         }
 
+        // Where fish were caught: credit any new catches to this planet.
+        bool newCatch = FishCatchService.Observe(FishCatchService.ActiveSaveKey(), snapshot, _fish);
+        var caught = FishCatchService.ReadCaught(snapshot.Fishing);
+        bool caughtChanged = caught.Count != _caught.Count || caught.Any(c => !_caught.TryGetValue(c.Key, out var was) || was.Count != c.Value.Count);
+        _caught = caught;
+        if (newCatch || caughtChanged) layoutChanged = true;
+
         _snapshot = snapshot;
         _thisSave = newPlanets;
         _currentSystem = newSystem;
@@ -339,12 +346,7 @@ public sealed partial class PlanetsPage : Page
         await EnsureChoicesAsync();
         int version = ++_loadVersion;
         _otherSaves = new();
-        ApplySnapshot(new PlanetSnapshot(
-            SaveSessionManager.GetValue(S.CurrentUniverseAddressPath),
-            SaveSessionManager.GetValue(NmsPlayerStatsPaths.StatGroupsArrayPath) as JArray,
-            SaveSessionManager.GetValue(S.DiscoveriesPath) as JArray,
-            SaveSessionManager.GetValue(S.LocationDescriptionPath)?.Value<string>(),
-            SaveSessionManager.GetValue(S.MarkersPath) as JArray), live: false);
+        ApplySnapshot(LiveSaveWatcher.FromSession(), live: false);
         StartWatching();
         await LoadOtherSavesAsync(version);
     }
@@ -671,6 +673,7 @@ public sealed partial class PlanetsPage : Page
             stack.Children.Add(DimLine(baseNames.Count == 1 ? $"Your base: {baseNames[0]}" : $"Your bases: {string.Join(", ", baseNames)}"));
         stack.Children.Add(DimLine($"Found by {(planet.DiscoveredHere ? "you" : planet.Discoverer)}"));
 
+        AddPlanetFish(stack, planet);
         AddPlanetDetails(stack, planet);
 
         var glyphRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
@@ -756,6 +759,11 @@ public sealed partial class PlanetsPage : Page
     private static Task<List<string>>? _substancesLoad;
     private List<(string Word, string Group, string Tier)> _planetWords = new();
     private List<string> _substances = new();
+    private static Task<List<FishInfo>>? _fishLoad;
+    private static Task<Dictionary<string, string>>? _namesLoad;
+    private List<FishInfo> _fish = new();
+    private Dictionary<string, string> _itemNames = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, (uint Count, float Largest)> _caught = new(StringComparer.OrdinalIgnoreCase);
     private bool _choicesFilled;
 
     /// <summary>Fills the note and filter dropdowns once per page. Economy,
@@ -771,6 +779,11 @@ public sealed partial class PlanetsPage : Page
         _substancesLoad ??= CatalogService.GetSubstanceNamesAsync();
         _planetWords = await _planetWordsLoad;
         _substances = await _substancesLoad;
+        // The 210 real species, as on the Fishing page (no junk or mission-only fish).
+        _fishLoad ??= CatalogService.GetFishAsync();
+        _namesLoad ??= CatalogService.GetItemNamesAsync();
+        _fish = (await _fishLoad).Where(f => CatalogService.IsFishSpecies(f.Id) && !f.NeedsMission).ToList();
+        _itemNames = await _namesLoad;
 
         IEnumerable<(string Label, string Value)> Words(string group) => descriptors
             .Where(d => d.Group == group)
@@ -1110,6 +1123,44 @@ public sealed partial class PlanetsPage : Page
     }
 
     private void SearchTimer_Tick(Microsoft.UI.Dispatching.DispatcherQueueTimer sender, object args) => ApplyFilters();
+
+    private string FishName(string id) =>
+        CatalogService.TryGet(id)?.DisplayName is { Length: > 0 } shown ? shown
+        : _itemNames.TryGetValue(id, out var name) ? name : id;
+
+    /// <summary>The planet's fish: how many of this planet type's fish you've
+    /// caught (the save only records what you caught, not where), plus the
+    /// ones recorded as caught right here since ArtifactX started following
+    /// your game (FishCatchService).</summary>
+    private void AddPlanetFish(StackPanel stack, KnownPlanet planet)
+    {
+        if (_fish.Count == 0) return;
+        if (PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex) == false)
+        {
+            stack.Children.Add(DimLine("Fish: no water here"));
+            return;
+        }
+        var here = _fish.Where(f => f.LivesOn(planet.BiomeIndex)).ToList();
+        if (here.Count == 0) return;
+
+        int caughtCount = here.Count(f => _caught.ContainsKey(f.Id));
+        var line = DimLine($"Fish for this planet type: {caughtCount} of {here.Count} caught");
+        var missing = here.Where(f => !_caught.ContainsKey(f.Id)).Select(f => FishName(f.Id)).OrderBy(n => n).ToList();
+        ToolTipService.SetToolTip(line, missing.Count == 0
+            ? "You've caught every fish this planet type has."
+            : $"Still to catch here ({missing.Count}):\n{string.Join("\n", missing)}");
+        stack.Children.Add(line);
+
+        var caughtHere = FishCatchService.CaughtOn(planet.SystemAddress, planet.PlanetIndex);
+        if (caughtHere.Count > 0)
+        {
+            var names = caughtHere.OrderByDescending(c => c.Value).ThenBy(c => FishName(c.Key))
+                .Select(c => c.Value > 1 ? $"{FishName(c.Key)} ×{c.Value}" : FishName(c.Key));
+            var caughtLine = DimLine($"Caught here: {string.Join(", ", names)}");
+            ToolTipService.SetToolTip(caughtLine, "Recorded by ArtifactX while it followed your game - catches from before, or while it was closed, aren't known (the save doesn't record where a fish was caught).");
+            stack.Children.Add(caughtLine);
+        }
+    }
 
     /// <summary>The recorded details on a planet card, plus Add / Edit details.</summary>
     private void AddPlanetDetails(StackPanel stack, KnownPlanet planet)
