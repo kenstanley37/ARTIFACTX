@@ -435,7 +435,7 @@ public sealed partial class PlanetsPage : Page
         DrawSystem(planets, currentPlanet, note);
 
         NoSystemPlanetsTxt.Visibility = planets.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        BuildAnyPlanetFish(planets);
+        AnyFishPanel.Visibility = Visibility.Collapsed; // each card counts every fish it can have now
         foreach (var planet in planets)
         {
             counts.TryGetValue(planet.Address, out var tally);
@@ -1228,47 +1228,52 @@ public sealed partial class PlanetsPage : Page
             stack.Children.Add(section);
             return;
         }
-        var own = _fish.Where(f => f.LivesOn(planet.BiomeIndex) && !f.Biomes.Contains(FishInfo.AnyPlanet)).ToList();
+        // One bar for every fish you can catch on this planet - its type's own
+        // fish plus the ones found on any planet with water - counting catches
+        // made anywhere, with the split spelled out underneath. (Separate bars
+        // for each kind read as a wrong count either way, 2026-10-13.)
+        var here = _fish.Where(f => f.LivesOn(planet.BiomeIndex)).ToList();
+        var own = here.Where(f => !f.Biomes.Contains(FishInfo.AnyPlanet)).ToList();
+        var anywhere = here.Where(f => f.Biomes.Contains(FishInfo.AnyPlanet)).ToList();
         var caughtHere = FishCatchService.CaughtOn(planet.SystemAddress, planet.PlanetIndex);
-        if (own.Count == 0 && caughtHere.Count == 0) return;
+        if (here.Count == 0 && caughtHere.Count == 0) return;
 
-        if (own.Count > 0)
-            section.Children.Add(ProgressRow($"{planet.TypeName} fish", own.Count(f => _caught.ContainsKey(f.Id)), own.Count));
+        int Caught(List<FishInfo> fish) => fish.Count(f => _caught.ContainsKey(f.Id));
+        section.Children.Add(ProgressRow("Fish you can catch here", Caught(here), here.Count));
+        section.Children.Add(DimLine($"{Caught(own)} of {own.Count} found only on {planet.TypeName} planets · {Caught(anywhere)} of {anywhere.Count} found on any planet with water"));
 
-        var missing = own.Where(f => !_caught.ContainsKey(f.Id)).Select(f => FishName(f.Id)).OrderBy(x => x).ToList();
+        var missingOwn = own.Where(f => !_caught.ContainsKey(f.Id)).Select(f => FishName(f.Id)).OrderBy(x => x).ToList();
+        var missingAny = anywhere.Where(f => !_caught.ContainsKey(f.Id)).Select(f => FishName(f.Id)).OrderBy(x => x).ToList();
+        int missing = missingOwn.Count + missingAny.Count;
         var parts = new List<string>();
-        if (missing.Count > 0) parts.Add($"{missing.Count} still to catch");
+        if (missing > 0) parts.Add($"{missing} still to catch");
         if (caughtHere.Count > 0) parts.Add($"{caughtHere.Count} caught here");
         if (parts.Count == 0)
         {
-            section.Children.Add(DimLine($"You've caught every {planet.TypeName} fish."));
+            section.Children.Add(DimLine("You've caught every fish you can find here."));
             stack.Children.Add(section);
             return;
         }
 
         var (toggle, body) = Expandable($"Show {string.Join(" · ", parts)}");
-        if (missing.Count > 0)
+        void Heading(string text) => body.Children.Add(new TextBlock { Text = text, FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush") });
+        if (missingOwn.Count > 0)
         {
-            body.Children.Add(new TextBlock { Text = "STILL TO CATCH", FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush") });
-            body.Children.Add(NameList(missing));
+            Heading($"STILL TO CATCH - ONLY ON {planet.TypeName.ToUpperInvariant()} PLANETS ({missingOwn.Count})");
+            body.Children.Add(NameList(missingOwn));
+        }
+        if (missingAny.Count > 0)
+        {
+            Heading($"STILL TO CATCH - ANY PLANET WITH WATER ({missingAny.Count})");
+            body.Children.Add(NameList(missingAny));
         }
         if (caughtHere.Count > 0)
         {
-            // Split like the bars: this type's own fish count on the bar above,
-            // any-planet fish on the system-wide bar (13 names under a "6 / 21"
-            // bar read as a wrong count, 2026-10-13).
-            var ownIds = own.Select(f => f.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            void Group(string title, IEnumerable<KeyValuePair<string, int>> fish)
-            {
-                var list = fish.OrderByDescending(c => c.Value).ThenBy(c => FishName(c.Key)).ToList();
-                if (list.Count == 0) return;
-                var heading = new TextBlock { Text = $"{title} ({list.Count})", FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush") };
-                ToolTipService.SetToolTip(heading, "Recorded by ArtifactX while it followed your game. Catches from before, or while it was closed, aren't known - the save doesn't record where a fish was caught.");
-                body.Children.Add(heading);
-                body.Children.Add(NameList(list.Select(c => c.Value > 1 ? $"{FishName(c.Key)} ×{c.Value}" : FishName(c.Key))));
-            }
-            Group($"CAUGHT HERE - {planet.TypeName.ToUpperInvariant()} FISH", caughtHere.Where(c => ownIds.Contains(c.Key)));
-            Group("CAUGHT HERE - ANY-PLANET FISH", caughtHere.Where(c => !ownIds.Contains(c.Key)));
+            Heading($"CAUGHT ON THIS PLANET ({caughtHere.Count})");
+            var caughtList = NameList(caughtHere.OrderByDescending(c => c.Value).ThenBy(c => FishName(c.Key))
+                .Select(c => c.Value > 1 ? $"{FishName(c.Key)} ×{c.Value}" : FishName(c.Key)));
+            ToolTipService.SetToolTip(caughtList, "Recorded by ArtifactX while it followed your game. Catches from before, or while it was closed, aren't known - the save doesn't record where a fish was caught.");
+            body.Children.Add(caughtList);
         }
         section.Children.Add(toggle);
         section.Children.Add(body);
