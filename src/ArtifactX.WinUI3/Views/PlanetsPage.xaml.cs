@@ -1339,8 +1339,25 @@ public sealed partial class PlanetsPage : Page
             string name = _substances.FirstOrDefault(n => string.Equals(n, text, StringComparison.OrdinalIgnoreCase)) ?? text;
             if (!resources.Contains(name, StringComparer.OrdinalIgnoreCase)) resources.Add(name);
             resourceBox.Text = "";
+            resourceBox.ItemsSource = null;
             RenderChips();
         }
+        // A click on a suggestion adds it at once (it only filled the box
+        // before, so it took a second click - 2026-10-13). Arrow keys also
+        // raise SuggestionChosen while moving through the list, so a choice
+        // straight after an arrow key is just a highlight; Enter adds it.
+        var lastArrow = DateTime.MinValue;
+        resourceBox.PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key is Windows.System.VirtualKey.Up or Windows.System.VirtualKey.Down) lastArrow = DateTime.UtcNow;
+        };
+        resourceBox.SuggestionChosen += (_, e) =>
+        {
+            if (DateTime.UtcNow - lastArrow < TimeSpan.FromMilliseconds(400) || e.SelectedItem is not string chosen) return;
+            // After the box has finished filling itself in, or it puts the text back.
+            DispatcherQueue.TryEnqueue(() => AddResource(chosen));
+        };
+        // Enter (or a click that also submits): adding is duplicate-safe.
         resourceBox.QuerySubmitted += (_, e) => AddResource(e.ChosenSuggestion as string ?? e.QueryText);
 
         // Notes.
