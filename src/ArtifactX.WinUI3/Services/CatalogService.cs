@@ -988,6 +988,76 @@ public static class CatalogService
         }
     }
 
+    /// <summary>The words the game's discovery screen uses for a planet's
+    /// weather, sentinels and flora/fauna (catalog category
+    /// "PlanetDescriptors", DataCataloger add-planet-descriptors): word,
+    /// group (Weather/Sentinels/Life) and tier (biome or level).</summary>
+    public static async Task<List<(string Word, string Group, string Tier)>> GetPlanetDescriptorsAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new List<(string, string, string)>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.NameEnglish, i.UsageCategory, i.DescriptionEnglish
+                    FROM Items i
+                    JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'PlanetDescriptors'
+                    ORDER BY i.Id";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                    results.Add((reader.GetString(0), reader.IsDBNull(1) ? "" : reader.GetString(1), reader.IsDBNull(2) ? "" : reader.GetString(2)));
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetPlanetDescriptorsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>Names of every raw resource (substance) - what a planet's
+    /// discovery screen lists under resources - A to Z, for the planet
+    /// details picker.</summary>
+    public static async Task<List<string>> GetSubstanceNamesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var names = new List<string>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT DISTINCT COALESCE(i.NameLowerEnglish, i.NameEnglish)
+                    FROM Items i
+                    JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'GcSubstanceTable' AND i.NameEnglish IS NOT NULL
+                      -- currency/placeholder rows that live in the same table
+                      AND i.NameEnglish NOT IN ('UNITS', 'QUICKSILVER', 'NANITES', 'FEATURE', 'OUTLAWS')
+                    ORDER BY 1";
+                using var reader = command.ExecuteReader();
+                while (reader.Read()) names.Add(reader.GetString(0));
+                return names;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetSubstanceNamesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
     /// <summary>Freighter Recolouring blueprints (catalog category
     /// "FreighterPaints", DataCataloger add-freighter-paints): blueprint id,
     /// in-game name, and the paint colour as "#RRGGBB". Empty if the catalog

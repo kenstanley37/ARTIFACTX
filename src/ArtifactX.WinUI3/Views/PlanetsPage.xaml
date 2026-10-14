@@ -108,7 +108,7 @@
                             <StackPanel Spacing="10">
                                 <TextBlock Text="YOUR NOTES ON THIS SYSTEM" Style="{StaticResource ThemeEyebrowStyle}"/>
                                 <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                           Text="The game doesn't save these, so record what it shows in the system's info panel (Discoveries, or the Galaxy Map), picking the exact word the game uses. Notes are kept by ArtifactX on this PC, never in your save, and become filters in the Planet Finder below."/>
+                                           Text="Facts about the whole system, as the Galaxy Map or the system's info panel shows them - pick the exact word the game uses. A planet's weather, sentinels, life, resources and notes go on its own card below. The game doesn't save any of these, so ArtifactX keeps them on this PC (never in your save), and they become filters in the Planet Finder."/>
                                 <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="10">
                                     <TextBox x:Name="NoteSystemNameBox" Header="System name" Width="200" PlaceholderText="Learned when you save here"
                                              LostFocus="NoteTextBox_LostFocus"
@@ -137,7 +137,7 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBox x:Name="NewNoteBox" MinWidth="380" PlaceholderText="e.g. S-class ships, crashed freighter on planet 3"
+                                        <TextBox x:Name="NewNoteBox" MinWidth="380" PlaceholderText="About the whole system, e.g. S-class ships at the station"
                                                  KeyDown="NewNoteBox_KeyDown"/>
                                         <Button Grid.Column="1" Content="Add note" Click="AddNote_Click"/>
                                     </Grid>
@@ -195,6 +195,9 @@
                         <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13"
                                    Text="Every planet in your saves' discoveries, including ones other players found that the game downloaded for you. Pick a type to find the nearest one, then dial its portal address at any portal. Distances are approximate, measured from where this save is now."/>
                         <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
+                            <TextBox x:Name="SearchBox" Width="260" Header="Search" PlaceholderText="Names, notes, resources, weather..."
+                                     TextChanged="SearchBox_TextChanged"
+                                     ToolTipService.ToolTip="Finds planets whose name, system name, your notes or recorded details contain this text"/>
                             <ComboBox x:Name="TypeFilterBox" Width="220" SelectionChanged="Filter_Changed" Header="Planet type"/>
                             <ComboBox x:Name="GalaxyFilterBox" Width="220" SelectionChanged="Filter_Changed" Header="Galaxy"/>
                             <ComboBox x:Name="SortBox" Width="180" SelectionChanged="Filter_Changed" Header="Sort">
@@ -214,7 +217,7 @@
                         </ctcontrols:WrapPanel>
 
                         <TextBlock x:Name="NoNoteFiltersTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Visibility="Collapsed"
-                                   Text="Record a system's star colour, economy and so on in Your notes on this system, and filters for them appear here."/>
+                                   Text="Record a system's star colour, economy and so on in Your notes on this system, or a planet's sentinels, life and resources on its card, and filters for them appear here."/>
                         <ctcontrols:WrapPanel x:Name="NoteFiltersPanel" HorizontalSpacing="14" VerticalSpacing="10">
                             <ComboBox x:Name="StarFilterBox" Header="Star colour" Width="200" SelectionChanged="Filter_Changed"/>
                             <ComboBox x:Name="EconomyFilterBox" Header="Economy" Width="200" SelectionChanged="Filter_Changed"/>
@@ -223,6 +226,10 @@
                             <ComboBox x:Name="RaceFilterBox" Header="Race" Width="180" SelectionChanged="Filter_Changed"/>
                             <CheckBox x:Name="WaterFilterBox" Content="Water (your notes)" Click="Filter_Click" VerticalAlignment="Bottom"/>
                             <CheckBox x:Name="DissonantFilterBox" Content="Dissonant (your notes)" Click="Filter_Click" VerticalAlignment="Bottom"/>
+                            <ComboBox x:Name="SentinelsFilterBox" Header="Sentinels" Width="200" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="FloraFilterBox" Header="Flora" Width="180" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="FaunaFilterBox" Header="Fauna" Width="180" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="ResourceFilterBox" Header="Resource" Width="200" SelectionChanged="Filter_Changed"/>
                             <ComboBox x:Name="BodiesFilterBox" Header="Planets / moons (your notes)" Width="220" SelectionChanged="Filter_Changed">
                                 <ComboBoxItem Content="Planets and moons"/>
                                 <ComboBoxItem Content="Planets only"/>
