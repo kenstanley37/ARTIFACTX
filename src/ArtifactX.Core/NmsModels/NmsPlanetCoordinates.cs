@@ -61,6 +61,13 @@ public static class NmsPlanetCoordinates
         return (Math.Asin(Math.Clamp(y / r, -1, 1)) * 180 / Math.PI, Math.Atan2(x, z) * 180 / Math.PI);
     }
 
+    /// <summary>Coordinates of a planet base (F?0 entry, or a teleporter):
+    /// its wMC is already measured from the planet's centre. Ippianes III's
+    /// base [46176, 350, 45226] gives +0.31, +45.60, where the player stood
+    /// beside it (2026-10-14).</summary>
+    public static (double Latitude, double Longitude)? OfBase(JToken? baseEntry) =>
+        Vector(baseEntry?["wMC"]) is { } at ? From(at, (0, 0, 0)) : null;
+
     /// <summary>As the game writes them: "+8.92, -29.91".</summary>
     public static string Format(double latitude, double longitude) =>
         $"{Signed(latitude)}, {Signed(longitude)}";
