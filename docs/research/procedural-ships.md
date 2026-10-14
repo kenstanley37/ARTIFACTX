@@ -91,6 +91,30 @@ picks). Rule A is the working rule; a second, sharper
 round (exact twins including the nested groups) should confirm it before any
 UI is built on it.
 
+### Correction (2026-10-14, closer screenshots)
+
+A close-up showed Reference and Test 1 have the **same cockpit but different
+wings**, so rule A is ruled out (Test 2 below was built on it and is moot).
+What was actually seen:
+
+- Engines: Tests 1-3 share one; Reference and Test 4 each have another
+  (three engines exist, so this pins every ship's engine).
+- Cockpit: Reference = Test 1; Test 2 has a round bubble canopy.
+- Wings: all five different.
+
+An offline search (`scratchpad rulesearch`) tried 432 distinct rules: 8 seed
+forms (full, halves, swapped halves, hashed...) x 9 generators (the game's
+multiply-with-carry two ways, splitmix64, xorshift64(*), two LCGs, mt19937)
+x skipping 0-3 numbers first x three pick orders. Only one fit those
+observations, about what chance alone gives (~1 in 670 per rule), and it also
+predicts Test 2's cockpit = Reference's, which the bubble canopy contradicts.
+**No guessed rule fits.** Guessing further costs in-game time per round with
+poor odds.
+
+Next step that would actually work: watch the game do it. NMS.py (Python
+modding API on pyMHF, hooks the game's own functions) could log seed -> chosen
+descriptor options as ships load, giving unlimited ground truth.
+
 ## Test 2 (in game)
 
 Rule A, every pick in the fighter descriptor (nested ones too). Reference's
