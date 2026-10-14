@@ -823,7 +823,11 @@ public sealed partial class PlanetsPage : Page
         _planetWordsLoad ??= CatalogService.GetPlanetDescriptorsAsync();
         _substancesLoad ??= CatalogService.GetSubstanceNamesAsync();
         _planetWords = await _planetWordsLoad;
-        _substances = await _substancesLoad;
+        // Plus the special finds a planet lists among its resources (Ancient Bones...).
+        _substances = (await _substancesLoad)
+            .Concat(_planetWords.Where(w => w.Group == "Resource").Select(w => w.Word))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase).ToList();
         // The 210 real species, as on the Fishing page (no junk or mission-only fish).
         _fishLoad ??= CatalogService.GetFishAsync();
         _namesLoad ??= CatalogService.GetItemNamesAsync();

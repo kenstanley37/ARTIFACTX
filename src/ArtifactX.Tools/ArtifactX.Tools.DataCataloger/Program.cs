@@ -1661,6 +1661,12 @@ if (args.Length > 1 && args[0].Equals("add-planet-descriptors", StringComparison
         // SENTINEL_ also names drone status text (STATE_PATROL "Patrolling...",
         // MISSION_GUARD, ROUTINE_ALERT...) - keep only the planet levels.
         .Where(x => x.Group != "Sentinels" || x.Tier is "NONE" or "RARE" or "LOW" or "DEFAULT" or "HIGH" or "AGGRESSIVE" or "CORRUPT")
+        // The special finds a planet's Resources list can show besides
+        // substances: "Ancient Bones" (UI_BONES_HINT), "Salvageable Scrap"
+        // (UI_SCRAP_HINT), Vile Brood, Swarm wreckage (2026-10-14).
+        .Concat(planetDescLookup
+            .Where(kv => kv.Key is "UI_BONES_HINT" or "UI_SCRAP_HINT" or "UI_BUGS_HINT" or "UI_SWARM_HINT")
+            .Select(kv => (Id: kv.Key, Word: kv.Value.Trim(), Group: "Resource", Tier: "SPECIAL")))
         .OrderBy(x => x.Group).ThenBy(x => x.Tier).ThenBy(x => x.Id, StringComparer.Ordinal)
         .ToList();
 
