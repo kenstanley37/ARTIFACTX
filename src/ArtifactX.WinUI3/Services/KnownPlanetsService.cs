@@ -191,6 +191,11 @@ public sealed class LiveSaveWatcher : IDisposable
         _watcher.Created += OnWritten;
         _watcher.Renamed += OnWritten;
         _watcher.EnableRaisingEvents = true;
+
+        // Read the newest save straight away: pages start from the copy loaded
+        // when ArtifactX started, which can be long out of date - Finds' "Use my
+        // current location" gave a spot the player had left (2026-10-14).
+        _timer.Start();
     }
 
     public void Stop()
