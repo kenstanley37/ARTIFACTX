@@ -5,12 +5,14 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.WinUI3.Controls;
+using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Resources;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.Views;
 using ArtifactX.WinUI3.Views.InspectionPages;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using Windows.UI;
 using WinRT.Interop;
@@ -100,8 +102,13 @@ public sealed partial class MainWindow : Window
         // awaited properly with its own try/catch instead of discarded.
         ((FrameworkElement)Content).Loaded += MainWindow_ContentLoaded;
 
-        SaveSessionManager.ActiveSessionChanged += (_, _) => UpdateNavAvailability();
+        SaveSessionManager.ActiveSessionChanged += (_, _) =>
+        {
+            UpdateNavAvailability();
+            SlotSwitchBar.IsOpen = false; // a save was opened or closed - nothing to offer
+        };
         UpdateNavAvailability();
+        SaveFolderWatchService.GameSavedOtherSlot += OfferSlotSwitch;
 
         GameProcessMonitorService.RunningStateChanged += (_, isRunning) =>
             DispatcherQueue.TryEnqueue(() =>
@@ -472,6 +479,58 @@ public sealed partial class MainWindow : Window
         AccountDataNavItem.Visibility = SaveSessionManager.IsSaveLoaded || SaveSessionManager.HasActivePlatform
             ? Visibility.Visible
             : Visibility.Collapsed;
+    }
+
+    // The slot the game moved to, and one the player said no to (not offered
+    // again on every autosave - only once the game moves somewhere else).
+    private SaveSlotGroup? _offeredSlot;
+    private (string? Folder, int SlotId)? _declinedSlot;
+
+    /// <summary>The game saved a different slot of this account than the one
+    /// loaded: offer to follow it, rather than switching on our own - the
+    /// loaded save may have edits waiting (user request 2026-10-14).</summary>
+    private void OfferSlotSwitch(SaveSlotGroup slot)
+    {
+        string? folder = Path.GetDirectoryName(slot.PrimaryFile.FullPath);
+        if (_declinedSlot is { } no && no.SlotId == slot.SlotId && string.Equals(no.Folder, folder, StringComparison.OrdinalIgnoreCase)) return;
+        _declinedSlot = null;
+        _offeredSlot = slot;
+        string loaded = SaveSessionManager.ActiveSlot is { } a ? $"{a.SlotLabel} ({a.PrimaryFile.SaveName})" : "another save";
+        SlotSwitchBar.Message = $"The game is now saving to {slot.SlotLabel} ({slot.PrimaryFile.SaveName}). ArtifactX is showing {loaded}.";
+        SlotSwitchButton.Content = $"Switch to {slot.SlotLabel}";
+        SlotSwitchBar.IsOpen = true;
+    }
+
+    private void SlotSwitchBar_Closed(InfoBar sender, object args)
+    {
+        if (_offeredSlot is { } slot)
+            _declinedSlot = (Path.GetDirectoryName(slot.PrimaryFile.FullPath), slot.SlotId);
+        _offeredSlot = null;
+    }
+
+    private async void SlotSwitch_Click(object sender, RoutedEventArgs e)
+    {
+        if (_offeredSlot is not { } slot) return;
+        if (SaveSessionManager.HasUnsavedChanges)
+        {
+            var confirm = new ContentDialog
+            {
+                Title = "Switch saves?",
+                Content = $"You have unsaved changes to {SaveSessionManager.ActiveLabel}. Switching to {slot.SlotLabel} discards them.",
+                PrimaryButtonText = "Discard and switch",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = Content.XamlRoot,
+            };
+            if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+        }
+
+        SlotSwitchBar.IsOpen = false;
+        _offeredSlot = null;
+        await SaveSessionManager.LoadAsync(slot);
+        // Rebuild the page on screen from the new save (pages read it as they open).
+        if (ContentFrame.CurrentSourcePageType is Type page && page != typeof(SaveFolderSelectPage))
+            ContentFrame.Navigate(page);
     }
 
     private void ContentFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
