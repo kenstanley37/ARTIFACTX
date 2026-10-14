@@ -27,6 +27,11 @@ public sealed partial class FindsPage : Page
     private readonly LiveSaveWatcher _live;
     private ulong? _hereSystem;
     private int _herePlanet;
+    // The player's coordinates on that planet (NmsPlanetCoordinates), and the
+    // last "Where to find it" text Use my current location wrote, so pressing
+    // it again after moving updates it without overwriting the player's own.
+    private (double Latitude, double Longitude)? _hereCoords;
+    private string _autoLocation = "";
     private List<KnownPlanet> _herePlanets = new();
     private Dictionary<string, string> _itemNames = new(StringComparer.OrdinalIgnoreCase);
     private List<string> _shipKinds = new();
@@ -90,6 +95,7 @@ public sealed partial class FindsPage : Page
             var universe = SaveSessionManager.GetValue(S.CurrentUniverseAddressPath);
             _hereSystem = S.ReadSystemAddress(universe);
             _herePlanet = universe?["oZw"]?["jsv"]?.Value<int>() ?? 0;
+            _hereCoords = LiveSaveWatcher.FromSession().Coordinates;
             _herePlanets = NmsPlanets.ReadAll(SaveSessionManager.GetValue(S.DiscoveriesPath) as JArray);
             _live.Start();
         }
@@ -106,6 +112,7 @@ public sealed partial class FindsPage : Page
     {
         _hereSystem = S.ReadSystemAddress(snapshot.Universe);
         _herePlanet = snapshot.Universe?["oZw"]?["jsv"]?.Value<int>() ?? 0;
+        _hereCoords = snapshot.Coordinates;
         _herePlanets = NmsPlanets.ReadAll(snapshot.Discoveries);
         UseHereBtn.IsEnabled = _hereSystem is not null;
         UpdateHere();
@@ -385,9 +392,17 @@ public sealed partial class FindsPage : Page
         // Portal codes need a planet digit; in space, planet 1 lands you in the system.
         FormCodeBox.Text = S.PortalAddress(system, _herePlanet > 0 ? _herePlanet : 1);
         SelectGalaxy(S.GalaxyNumber(system));
-        // Pre-fill "Where to find it" with the planet (or system) name.
-        if (FormLocationBox.Text.Trim().Length == 0)
-            FormLocationBox.Text = _herePlanet > 0 ? $"On {UniverseInfo.PlanetName(system, _herePlanet)}" : $"In {UniverseInfo.SystemName(system)}";
+        // Pre-fill "Where to find it" with the planet (or system) name, plus the
+        // coordinates the game's scanner shows (2026-10-14) - the spot itself,
+        // not just the planet.
+        string current = FormLocationBox.Text.Trim();
+        if (current.Length == 0 || current == _autoLocation)
+        {
+            _autoLocation = _herePlanet > 0
+                ? $"On {UniverseInfo.PlanetName(system, _herePlanet)}" + (_hereCoords is { } at ? $" at {NmsPlanetCoordinates.Format(at.Latitude, at.Longitude)}" : "")
+                : $"In {UniverseInfo.SystemName(system)}";
+            FormLocationBox.Text = _autoLocation;
+        }
     }
 
     private void FormCode_TextChanged(object sender, TextChangedEventArgs e) => UpdateFormGlyphs();
@@ -539,6 +554,7 @@ public sealed partial class FindsPage : Page
         _editingCreatedAt = "";
         FormTitleBox.Text = "";
         FormLocationBox.Text = "";
+        _autoLocation = "";
         FormNotesBox.Text = "";
         FormCodeBox.Text = "";
         FormSystemNameBox.Text = "";

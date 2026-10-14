@@ -1843,15 +1843,22 @@ public sealed partial class PlanetsPage : Page
         _lastCounts.TryGetValue(planet.Address, out var tally);
         facts.Add("You found", inThisSystem || tally is not null ? DiscoveredText(tally) : "");
         facts.Add("Visited", VisitText(ReadPlanetStats(planet.Address)));
-        if (inThisSystem && _baseNames.TryGetValue(planet.PlanetIndex, out var baseNames))
-            facts.Add(baseNames.Count == 1 ? "Your base" : "Your bases", string.Join(", ", baseNames));
+        // Bases with where they are on the planet (2026-10-14) - the save
+        // stores each base's position from the planet's centre.
+        string At(JObject b) => NmsPlanetCoordinates.OfBase(b) is { } at ? $" at {NmsPlanetCoordinates.Format(at.Latitude, at.Longitude)}" : "";
+        var mine = (_snapshot.Bases ?? new JArray()).OfType<JObject>()
+            .Where(b => b["peI"]?["DPp"]?.Value<string>() == "HomePlanetBase" && S.ParsePackedAddress(b["oZw"]) == planet.Address)
+            .Select(b => $"{(b["NKm"]?.Value<string>() is { Length: > 0 } n ? n : "Unnamed base")}{At(b)}")
+            .ToList();
+        if (mine.Count == 0 && inThisSystem && _baseNames.TryGetValue(planet.PlanetIndex, out var baseNames)) mine = baseNames.ToList();
+        if (mine.Count > 0) facts.Add(mine.Count == 1 ? "Your base" : "Your bases", string.Join(", ", mine));
         // Other players' bases on this planet: the save keeps them as
         // ExternalPlanetBase entries, and the game counts them in its "& 1 other
         // bases" (Ippianes III, 2026-10-14: "Аванпост Isvil" by Bihram).
         var others = (_snapshot.Bases ?? new JArray()).OfType<JObject>()
             .Where(b => b["peI"]?["DPp"]?.Value<string>() == "ExternalPlanetBase"
                 && S.ParsePackedAddress(b["oZw"]) == planet.Address)
-            .Select(b => $"{(b["NKm"]?.Value<string>() is { Length: > 0 } n ? n : "Unnamed")} ({b["3?K"]?["V?:"]?.Value<string>() ?? "another player"})")
+            .Select(b => $"{(b["NKm"]?.Value<string>() is { Length: > 0 } n ? n : "Unnamed")} ({b["3?K"]?["V?:"]?.Value<string>() ?? "another player"}){At(b)}")
             .ToList();
         if (others.Count > 0) facts.Add("Others' bases", string.Join(", ", others));
         facts.Add("Waypoints", tally is { Waypoints: > 0 } w ? w.Waypoints.ToString(CultureInfo.CurrentCulture) : "");

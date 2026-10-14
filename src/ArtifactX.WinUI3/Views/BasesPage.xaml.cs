@@ -105,7 +105,10 @@ public sealed partial class BasesPage : Page
                 _rows.Add(new BaseRowViewModel
                 {
                     Name = name,
-                    Detail = $"{UniverseInfo.PlanetName(address, planetIndex)} ({type}) · {UniverseInfo.SystemName(address)} · {galaxyName}",
+                    // Where on the planet, as the game's scanner shows it (2026-10-14).
+                    Detail = $"{UniverseInfo.PlanetName(address, planetIndex)} ({type})"
+                        + (NmsPlanetCoordinates.OfBase(b) is { } at ? $" at {NmsPlanetCoordinates.Format(at.Latitude, at.Longitude)}" : "")
+                        + $" · {UniverseInfo.SystemName(address)} · {galaxyName}",
                     Facts = UniverseInfo.Compact(address),
                     Swatch = new SolidColorBrush(ParseColour(planet is null ? "#777777" : NmsPlanets.TypeColour(planet.BiomeIndex))),
                     PortalCode = code,
