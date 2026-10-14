@@ -206,6 +206,8 @@ public sealed partial class PlanetsPage : Page
 
         if (!live || systemChanged || planetsChanged) RefreshFinder();
         if (live) RefreshPlanetPageLive();
+        UpdateHereText(_hereCardText);
+        UpdateHereText(_herePageText);
     }
 
 
@@ -654,17 +656,7 @@ public sealed partial class PlanetsPage : Page
         header.Children.Add(open);
         stack.Children.Add(header);
 
-        if (here)
-        {
-            stack.Children.Add(new Border
-            {
-                Background = ThemeBrush("ThemeAccentBrush"),
-                CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(8, 2, 8, 2),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Child = new TextBlock { Text = "YOU ARE HERE", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = ThemeBrush("ThemeOnAccentBrush") },
-            });
-        }
+        if (here) stack.Children.Add(HereBadge(page: false));
 
         // What the save knows, as a label / value table (2026-10-13 redesign:
         // a stack of small dim lines was hard to read and easy to miss).
@@ -1238,6 +1230,37 @@ public sealed partial class PlanetsPage : Page
         return (toggle, body);
     }
 
+    // The "YOU ARE HERE" badges on the current planet's card and its open page,
+    // kept so each new save can update the coordinates without a rebuild.
+    private TextBlock? _hereCardText, _herePageText;
+
+    /// <summary>"YOU ARE HERE", plus the coordinates the game shows on the
+    /// ship's dashboard when the save has them (NmsPlanetCoordinates).</summary>
+    private Border HereBadge(bool page)
+    {
+        var text = new TextBlock { FontSize = 10, FontWeight = FontWeights.Bold, Foreground = ThemeBrush("ThemeOnAccentBrush"), IsTextSelectionEnabled = true };
+        if (page) _herePageText = text; else _hereCardText = text;
+        UpdateHereText(text);
+        var badge = new Border
+        {
+            Background = ThemeBrush("ThemeAccentBrush"),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(8, 2, 8, 2),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Child = text,
+        };
+        ToolTipService.SetToolTip(badge, "Your coordinates on this planet when the game last saved - the same numbers the game shows on your ship's dashboard.");
+        return badge;
+    }
+
+    private void UpdateHereText(TextBlock? text)
+    {
+        if (text is null) return;
+        text.Text = _snapshot.Coordinates is { } at
+            ? $"YOU ARE HERE · {NmsPlanetCoordinates.Format(at.Latitude, at.Longitude)}"
+            : "YOU ARE HERE";
+    }
+
     private TextBlock NameList(IEnumerable<string> names) => new()
     {
         Text = string.Join(", ", names),
@@ -1328,9 +1351,28 @@ public sealed partial class PlanetsPage : Page
         if (caughtHere.Count > 0)
         {
             Heading($"CAUGHT ON THIS PLANET ({caughtHere.Count} kinds)");
-            var caughtList = NameList(caughtHere.OrderByDescending(c => c.Value).ThenBy(c => FishName(c.Key))
-                .Select(c => c.Value > 1 ? $"{FishName(c.Key)} ×{c.Value}" : FishName(c.Key)));
-            ToolTipService.SetToolTip(caughtList, "Recorded by ArtifactX while it followed your game. Catches from before, or while it was closed, aren't known - the save doesn't record where a fish was caught.");
+            // Each fish on its own line with where it was caught - the
+            // coordinates on the ship's dashboard (2026-10-14). Up to 3 spots,
+            // newest first; older catches were recorded without coordinates.
+            var spots = FishCatchService.SpotsOn(planet.SystemAddress, planet.PlanetIndex);
+            string Line(KeyValuePair<string, int> c)
+            {
+                string name = c.Value > 1 ? $"{FishName(c.Key)} ×{c.Value}" : FishName(c.Key);
+                if (!spots.TryGetValue(c.Key, out var at) || at.Count == 0) return name;
+                var shown = at.Select(a => NmsPlanetCoordinates.Format(a.Latitude, a.Longitude)).Distinct().ToList();
+                string where = string.Join("  ·  ", shown.Take(3)) + (shown.Count > 3 ? $"  (+{shown.Count - 3} more)" : "");
+                return $"{name}  —  at {where}";
+            }
+            var caughtList = new TextBlock
+            {
+                Text = string.Join(Environment.NewLine, caughtHere.OrderByDescending(c => c.Value).ThenBy(c => FishName(c.Key)).Select(Line)),
+                FontSize = 12,
+                Foreground = ThemeBrush("ThemeTextBrush"),
+                TextWrapping = TextWrapping.Wrap,
+                IsTextSelectionEnabled = true,
+            };
+            ToolTipService.SetToolTip(caughtList, "Recorded by ArtifactX while it followed your game. Catches from before, or while it was closed, aren't known - the save doesn't record where a fish was caught. "
+                + "Coordinates are where you were when the game next saved, the same numbers your ship's dashboard shows.");
             body.Children.Add(caughtList);
         }
         section.Children.Add(body);
@@ -1726,15 +1768,7 @@ public sealed partial class PlanetsPage : Page
             Style = (Style)Application.Current.Resources["ThemeDimTextStyle"],
             TextWrapping = TextWrapping.Wrap,
         });
-        if (here)
-            titles.Children.Add(new Border
-            {
-                Background = ThemeBrush("ThemeAccentBrush"),
-                CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(8, 2, 8, 2),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Child = new TextBlock { Text = "YOU ARE HERE", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = ThemeBrush("ThemeOnAccentBrush") },
-            });
+        if (here) titles.Children.Add(HereBadge(page: true));
         var glyphRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 3, Margin = new Thickness(0, 6, 0, 0) };
         var glyphTiles = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 3 };
         foreach (var glyph in GlyphsFor(planet.PortalCode))
