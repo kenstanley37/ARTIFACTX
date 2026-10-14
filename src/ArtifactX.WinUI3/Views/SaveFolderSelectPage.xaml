@@ -118,11 +118,14 @@
                                                          than a tapped Border: keyboard (Tab, then Enter/Space), screen readers
                                                          and UI Automation can open a save too. The restore button inside handles
                                                          its own click, which does not reach this one. -->
-                                                    <Button Click="SaveSlot_Click" Tag="{x:Bind}" Padding="0" UseSystemFocusVisuals="True"
+                                                    <!-- Stretch: a Button centres itself by default, so a slot
+                                                         without a backup copy (one line shorter) sat lower than
+                                                         the cards beside it (2026-10-14). -->
+                                                    <Button Click="SaveSlot_Click" Tag="{x:Bind}" Padding="0" UseSystemFocusVisuals="True" VerticalAlignment="Stretch"
                                                             AutomationProperties.Name="{x:Bind AccessibleName}">
                                                     <Button.Template>
                                                         <ControlTemplate TargetType="Button">
-                                                            <ContentPresenter Content="{TemplateBinding Content}"/>
+                                                            <ContentPresenter Content="{TemplateBinding Content}" VerticalContentAlignment="Stretch"/>
                                                         </ControlTemplate>
                                                     </Button.Template>
                                                     <Border
