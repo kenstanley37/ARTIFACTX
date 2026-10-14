@@ -66,11 +66,19 @@ public static class FishCatchService
         if (saveKey.Length == 0) return false;
         var counts = ReadCaught(snapshot.Fishing).ToDictionary(c => c.Key, c => c.Value.Count, StringComparer.OrdinalIgnoreCase);
 
+        // The starting point only ever moves up. Pages hand in the copy of the
+        // save loaded when ArtifactX started as their first look; letting that
+        // reset the counts made the next save count earlier catches again
+        // (found 2026-10-14).
         Dictionary<string, uint>? before;
         lock (Lock)
         {
             Baselines.TryGetValue(saveKey, out before);
-            Baselines[saveKey] = counts;
+            var merged = new Dictionary<string, uint>(counts, StringComparer.OrdinalIgnoreCase);
+            if (before is not null)
+                foreach (var (id, was) in before)
+                    if (!merged.TryGetValue(id, out var now) || now < was) merged[id] = was;
+            Baselines[saveKey] = merged;
         }
         if (before is null || fish.Count == 0) return false; // first look: just remember
 
