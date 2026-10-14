@@ -167,6 +167,8 @@
 
                         <TextBlock x:Name="NoSystemPlanetsTxt" Style="{StaticResource ThemeDimTextStyle}" Visibility="Collapsed"
                                    Text="No planets in this system are in your discoveries yet. Scan or land on one in-game, then save."/>
+                        <!-- Fish found on any planet with water: once here, not on every card. -->
+                        <StackPanel x:Name="AnyFishPanel" Spacing="4" Visibility="Collapsed"/>
                         <ctcontrols:WrapPanel x:Name="CurrentPlanetsPanel" HorizontalSpacing="14" VerticalSpacing="14"/>
                     </StackPanel>
 

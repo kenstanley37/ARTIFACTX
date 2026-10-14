@@ -435,6 +435,7 @@ public sealed partial class PlanetsPage : Page
         DrawSystem(planets, currentPlanet, note);
 
         NoSystemPlanetsTxt.Visibility = planets.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        BuildAnyPlanetFish(planets);
         foreach (var planet in planets)
         {
             counts.TryGetValue(planet.Address, out var tally);
@@ -1171,11 +1172,50 @@ public sealed partial class PlanetsPage : Page
         return section;
     }
 
-    /// <summary>The planet's fish: progress on this planet type's fish (the
-    /// save records what you caught, not where), and the ones recorded as
-    /// caught right here since ArtifactX started following your game
-    /// (FishCatchService). Fish found on every planet type are counted apart,
-    /// so the number doesn't read as "this planet has 42 fish of its own".</summary>
+    /// <summary>A "Show ... / Hide" link that opens a block below it.</summary>
+    private static (HyperlinkButton Toggle, StackPanel Body) Expandable(string showText)
+    {
+        var body = new StackPanel { Spacing = 6, Visibility = Visibility.Collapsed };
+        var toggle = new HyperlinkButton { Content = showText, Padding = new Thickness(0), FontSize = 12 };
+        toggle.Click += (_, _) =>
+        {
+            bool open = body.Visibility == Visibility.Collapsed;
+            body.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+            toggle.Content = open ? "Hide" : showText;
+        };
+        return (toggle, body);
+    }
+
+    private TextBlock NameList(IEnumerable<string> names) => new()
+    {
+        Text = string.Join(", ", names),
+        FontSize = 12,
+        Foreground = ThemeBrush("ThemeTextBrush"),
+        TextWrapping = TextWrapping.Wrap,
+        IsTextSelectionEnabled = true,
+    };
+
+    private static Grid ProgressRow(string label, int done, int total)
+    {
+        var row = new Grid { ColumnSpacing = 10 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.Children.Add(new TextBlock { Text = label, FontSize = 12, Foreground = ThemeBrush("ThemeTextDimBrush"), VerticalAlignment = VerticalAlignment.Center });
+        var bar = new ProgressBar { Maximum = Math.Max(1, total), Value = done, VerticalAlignment = VerticalAlignment.Center };
+        Grid.SetColumn(bar, 1);
+        row.Children.Add(bar);
+        var count = new TextBlock { Text = $"{done} / {total}", FontSize = 13, Foreground = ThemeBrush("ThemeTextBrush") };
+        Grid.SetColumn(count, 2);
+        row.Children.Add(count);
+        return row;
+    }
+
+    /// <summary>The planet's own fish - the ones that live only on its planet
+    /// type. The fish found on any planet with water are shown once above the
+    /// cards: counting them on every card made each planet read "5 / 42" after
+    /// catching 5 anywhere (user, 2026-10-13). Lists start closed to keep the
+    /// card short; "Caught here" is what FishCatchService recorded on it.</summary>
     private void AddPlanetFish(StackPanel stack, KnownPlanet planet)
     {
         if (_fish.Count == 0) return;
@@ -1186,59 +1226,65 @@ public sealed partial class PlanetsPage : Page
             stack.Children.Add(section);
             return;
         }
-        var here = _fish.Where(f => f.LivesOn(planet.BiomeIndex)).ToList();
-        if (here.Count == 0) return;
+        var own = _fish.Where(f => f.LivesOn(planet.BiomeIndex) && !f.Biomes.Contains(FishInfo.AnyPlanet)).ToList();
+        var caughtHere = FishCatchService.CaughtOn(planet.SystemAddress, planet.PlanetIndex);
+        if (own.Count == 0 && caughtHere.Count == 0) return;
 
-        int caught = here.Count(f => _caught.ContainsKey(f.Id));
-        int ownType = here.Count(f => !f.Biomes.Contains(FishInfo.AnyPlanet));
-        var progress = new Grid { ColumnSpacing = 10 };
-        progress.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        progress.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        progress.Children.Add(new ProgressBar { Maximum = here.Count, Value = caught, VerticalAlignment = VerticalAlignment.Center });
-        var count = new TextBlock { Text = $"{caught} / {here.Count} caught", FontSize = 13, Foreground = ThemeBrush("ThemeTextBrush") };
-        Grid.SetColumn(count, 1);
-        progress.Children.Add(count);
-        section.Children.Add(progress);
-        section.Children.Add(DimLine($"{ownType} live only on {planet.TypeName} planets, {here.Count - ownType} on any planet with water."));
+        if (own.Count > 0)
+            section.Children.Add(ProgressRow($"{planet.TypeName} fish", own.Count(f => _caught.ContainsKey(f.Id)), own.Count));
 
-        // The fish still to catch, opened with a click (a hover tooltip was
-        // easy to miss and never fired on the bar, 2026-10-13).
-        var missing = here.Where(f => !_caught.ContainsKey(f.Id)).Select(f => FishName(f.Id)).OrderBy(n => n).ToList();
-        if (missing.Count == 0)
-            section.Children.Add(DimLine("You've caught every fish this planet type has."));
-        else
+        var missing = own.Where(f => !_caught.ContainsKey(f.Id)).Select(f => FishName(f.Id)).OrderBy(x => x).ToList();
+        var parts = new List<string>();
+        if (missing.Count > 0) parts.Add($"{missing.Count} still to catch");
+        if (caughtHere.Count > 0) parts.Add($"{caughtHere.Count} caught here");
+        if (parts.Count == 0)
         {
-            var list = new TextBlock
-            {
-                Text = string.Join(", ", missing),
-                FontSize = 12,
-                Foreground = ThemeBrush("ThemeTextBrush"),
-                TextWrapping = TextWrapping.Wrap,
-                IsTextSelectionEnabled = true,
-                Visibility = Visibility.Collapsed,
-            };
-            var toggle = new HyperlinkButton { Content = $"Show the {missing.Count} still to catch", Padding = new Thickness(0), FontSize = 12 };
-            toggle.Click += (_, _) =>
-            {
-                bool open = list.Visibility == Visibility.Collapsed;
-                list.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
-                toggle.Content = open ? "Hide the list" : $"Show the {missing.Count} still to catch";
-            };
-            section.Children.Add(toggle);
-            section.Children.Add(list);
+            section.Children.Add(DimLine($"You've caught every {planet.TypeName} fish."));
+            stack.Children.Add(section);
+            return;
         }
 
-        var caughtHere = FishCatchService.CaughtOn(planet.SystemAddress, planet.PlanetIndex);
+        var (toggle, body) = Expandable($"Show {string.Join(" · ", parts)}");
+        if (missing.Count > 0)
+        {
+            body.Children.Add(new TextBlock { Text = "STILL TO CATCH", FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush") });
+            body.Children.Add(NameList(missing));
+        }
         if (caughtHere.Count > 0)
         {
-            var facts = new FactTable();
-            var names = caughtHere.OrderByDescending(c => c.Value).ThenBy(c => FishName(c.Key))
-                .Select(c => c.Value > 1 ? $"{FishName(c.Key)} ×{c.Value}" : FishName(c.Key));
-            var value = facts.Add("Caught here", string.Join(", ", names));
-            ToolTipService.SetToolTip(value, "Recorded by ArtifactX while it followed your game. Catches from before, or while it was closed, aren't known - the save doesn't record where a fish was caught.");
-            section.Children.Add(facts.Grid);
+            var caughtTitle = new TextBlock { Text = "CAUGHT HERE", FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush") };
+            ToolTipService.SetToolTip(caughtTitle, "Recorded by ArtifactX while it followed your game. Catches from before, or while it was closed, aren't known - the save doesn't record where a fish was caught.");
+            body.Children.Add(caughtTitle);
+            body.Children.Add(NameList(caughtHere.OrderByDescending(c => c.Value).ThenBy(c => FishName(c.Key))
+                .Select(c => c.Value > 1 ? $"{FishName(c.Key)} ×{c.Value}" : FishName(c.Key))));
         }
+        section.Children.Add(toggle);
+        section.Children.Add(body);
         stack.Children.Add(section);
+    }
+
+    /// <summary>The fish that live on any planet with water, once for the
+    /// whole system rather than repeated on every card.</summary>
+    private void BuildAnyPlanetFish(List<KnownPlanet> planets)
+    {
+        AnyFishPanel.Children.Clear();
+        var anywhere = _fish.Where(f => f.Biomes.Contains(FishInfo.AnyPlanet)).ToList();
+        bool anyWet = planets.Any(p => PlanetWaterService.Get(p.SystemAddress, p.PlanetIndex) != false);
+        AnyFishPanel.Visibility = anywhere.Count > 0 && anyWet ? Visibility.Visible : Visibility.Collapsed;
+        if (AnyFishPanel.Visibility == Visibility.Collapsed) return;
+
+        var row = ProgressRow("Fish on any planet with water", anywhere.Count(f => _caught.ContainsKey(f.Id)), anywhere.Count);
+        row.MaxWidth = 560;
+        row.HorizontalAlignment = HorizontalAlignment.Left;
+        AnyFishPanel.Children.Add(row);
+        var missing = anywhere.Where(f => !_caught.ContainsKey(f.Id)).Select(f => FishName(f.Id)).OrderBy(x => x).ToList();
+        if (missing.Count == 0) return;
+        var (toggle, body) = Expandable($"Show the {missing.Count} still to catch");
+        body.MaxWidth = 900;
+        body.HorizontalAlignment = HorizontalAlignment.Left;
+        body.Children.Add(NameList(missing));
+        AnyFishPanel.Children.Add(toggle);
+        AnyFishPanel.Children.Add(body);
     }
 
     /// <summary>The player's recorded details on a planet card, plus Add / Edit details.</summary>
