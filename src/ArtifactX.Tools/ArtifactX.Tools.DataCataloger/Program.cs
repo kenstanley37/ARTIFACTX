@@ -733,6 +733,13 @@ if (args.Length > 1 && args[0].Equals("add-crafting", StringComparison.OrdinalIg
     return;
 }
 
+// "DataCataloger add-ship-descriptors <target-catalog-db-path>" - see CatalogSteps.AddShipDescriptors.
+if (args.Length > 1 && args[0].Equals("add-ship-descriptors", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddShipDescriptors(args[1], gamePath);
+    return;
+}
+
 // "DataCataloger add-settlement-costs <target-catalog-db-path>" - see CatalogSteps.AddSettlementCosts.
 if (args.Length > 1 && args[0].Equals("add-settlement-costs", StringComparison.OrdinalIgnoreCase))
 {
