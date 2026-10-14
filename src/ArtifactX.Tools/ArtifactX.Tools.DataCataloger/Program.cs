@@ -1583,6 +1583,120 @@ if (args.Length > 1 && args[0].Equals("add-system-descriptors", StringComparison
     return;
 }
 
+// "DataCataloger add-planet-descriptors <target-catalog-db-path>" adds the
+// words the game's discovery screen uses to describe a planet, which the save
+// doesn't store: weather (WEATHER_<biome><n>, e.g. WEATHER_LUSHEXTREME6
+// "Painfully Hot Rain", in nms_update3_english), sentinels (SENTINEL_<level><n>,
+// e.g. SENTINEL_HIGH2 "Frenzied") and flora/fauna (RARITY_<level><n>, e.g.
+// RARITY_HIGH6 "Generous"). Found 2026-10-13 via `locval` on words from a
+// user screenshot. Category "PlanetDescriptors": GameId = loc id, NameEnglish
+// = the word, UsageCategory = Weather/Sentinels/Life, DescriptionEnglish = the
+// tier (biome or level). Same pattern as add-system-descriptors; idempotent.
+if (args.Length > 1 && args[0].Equals("add-planet-descriptors", StringComparison.OrdinalIgnoreCase))
+{
+    string planetDescDbPath = args[1];
+    if (!File.Exists(planetDescDbPath))
+    {
+        ConsoleStyle.Error($"Target catalog DB not found: {planetDescDbPath}");
+        return;
+    }
+
+    var planetDescSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(planetDescSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    IPakReaderService planetDescPakReader = new PakReaderService();
+    var planetDescExtraction = new ExtractionService();
+    var planetDescLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    foreach (var pak in new PakDiscoveryService().Discover(planetDescSettings.NmsInstallationPath!))
+    {
+        PakHeader header;
+        IReadOnlyList<PakEntry> entries;
+        try
+        {
+            header = planetDescPakReader.ReadHeader(pak.FullPath);
+            entries = planetDescPakReader.Read(pak.FullPath);
+        }
+        catch { continue; }
+
+        foreach (var entry in entries.Where(e =>
+                     !string.IsNullOrEmpty(e.FileName) &&
+                     e.FileName.Contains("language/nms_", StringComparison.OrdinalIgnoreCase) &&
+                     e.FileName.Contains("english", StringComparison.OrdinalIgnoreCase) &&
+                     !e.FileName.Contains("usenglish", StringComparison.OrdinalIgnoreCase)))
+        {
+            byte[]? bytes;
+            try { bytes = planetDescExtraction.ExtractEntryBytes(pak.FullPath, entry, header); }
+            catch { continue; }
+            if (bytes is null || bytes.Length == 0) continue;
+
+            NMSTemplate? locTemplate;
+            try
+            {
+                using var ms = new MemoryStream(bytes);
+                var mbin = new MBINFile(ms);
+                mbin.Load();
+                locTemplate = mbin.GetData();
+            }
+            catch { continue; }
+            if (locTemplate is null) continue;
+
+            foreach (var kv in LocalisationService.BuildEnglishLookup(locTemplate))
+                planetDescLookup.TryAdd(kv.Key, kv.Value);
+        }
+    }
+
+    var planetDescPattern = new Regex(@"^(WEATHER|SENTINEL|RARITY)_([A-Z]+?)\d+$", RegexOptions.Compiled);
+    var planetDescriptors = planetDescLookup
+        .Select(kv => (Id: kv.Key, Word: kv.Value.Trim(), Match: planetDescPattern.Match(kv.Key)))
+        .Where(x => x.Match.Success && x.Word.Length is > 0 and <= 40 && !x.Word.Contains('%') && !x.Word.Contains('<'))
+        .Select(x => (x.Id, x.Word,
+            Group: x.Match.Groups[1].Value switch { "WEATHER" => "Weather", "SENTINEL" => "Sentinels", _ => "Life" },
+            Tier: x.Match.Groups[2].Value))
+        .OrderBy(x => x.Group).ThenBy(x => x.Tier).ThenBy(x => x.Id, StringComparer.Ordinal)
+        .ToList();
+
+    foreach (var group in planetDescriptors.GroupBy(d => (d.Group, d.Tier)))
+        ConsoleStyle.Success($"  {group.Key.Group}/{group.Key.Tier}: {string.Join(", ", group.Select(d => d.Word))}");
+
+    using var planetDescDb = new CatalogDbContext(planetDescDbPath);
+    var existingPlanetDescCategory = planetDescDb.Categories.FirstOrDefault(c => c.TemplateType == "PlanetDescriptors");
+    if (existingPlanetDescCategory != null)
+    {
+        planetDescDb.Items.RemoveRange(planetDescDb.Items.Where(i => i.CategoryId == existingPlanetDescCategory.Id));
+        planetDescDb.Categories.Remove(existingPlanetDescCategory);
+        planetDescDb.SaveChanges();
+    }
+
+    var planetDescCategory = new CatalogCategory
+    {
+        TemplateType = "PlanetDescriptors",
+        RowType = "LocString",
+        SourceMbinPath = "language/nms_*_english.mbin"
+    };
+    planetDescDb.Categories.Add(planetDescCategory);
+    planetDescDb.SaveChanges();
+
+    foreach (var d in planetDescriptors)
+    {
+        planetDescDb.Items.Add(new CatalogItem
+        {
+            CategoryId = planetDescCategory.Id,
+            GameId = d.Id,
+            NameEnglish = d.Word,
+            DescriptionEnglish = d.Tier,
+            UsageCategory = d.Group
+        });
+    }
+    planetDescDb.SaveChanges();
+
+    ConsoleStyle.Success($"Wrote {planetDescriptors.Count} planet descriptor words to {planetDescDbPath}.");
+    return;
+}
+
 // "DataCataloger add-recipes <target-catalog-db-path>" adds every refiner and
 // cooking recipe from metadata/reality/tables/nms_reality_gcrecipetable.mbin
 // (GcRecipeTable: Id, RecipeName/RecipeType loc keys, Result + Ingredients

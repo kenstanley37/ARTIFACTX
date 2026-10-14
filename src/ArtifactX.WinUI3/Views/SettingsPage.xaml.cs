@@ -177,6 +177,7 @@ public sealed partial class SettingsPage : Page
             PinnedRecipesService.Reload();
             FindsService.Reload();
             PlanetWaterService.Reload();
+            PlanetDetailsService.Reload();
             GuidesService.Reload();
             HiddenStationsService.Reload();
             if (AppSettingsService.ThemeId is { Length: > 0 } theme && theme != ThemeService.Current.Id)

@@ -260,6 +260,43 @@ public static class UserDatabase
         ALTER TABLE pinned_recipes  ADD COLUMN profile_id TEXT NOT NULL DEFAULT '';
         ALTER TABLE hidden_stations ADD COLUMN profile_id TEXT NOT NULL DEFAULT '';
         """,
+
+        // 8 - what the player recorded about each planet (2026-10-13): the
+        // discovery screen's weather, sentinels, flora and fauna words and
+        // the resources found there (comma-separated), plus free notes per
+        // planet. The save stores none of these. Keyed like planet_names.
+        """
+        CREATE TABLE planet_details (
+            system_address TEXT NOT NULL,
+            planet_index   INTEGER NOT NULL,
+            weather        TEXT NOT NULL DEFAULT '',
+            sentinels      TEXT NOT NULL DEFAULT '',
+            flora          TEXT NOT NULL DEFAULT '',
+            fauna          TEXT NOT NULL DEFAULT '',
+            resources      TEXT NOT NULL DEFAULT '',
+            updated_at     TEXT NOT NULL,
+            source         TEXT NOT NULL DEFAULT 'user',
+            synced_at      TEXT NULL,
+            deleted        INTEGER NOT NULL DEFAULT 0,
+            profile_id     TEXT NOT NULL DEFAULT '',
+            added_by       TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (system_address, planet_index)
+        );
+        CREATE TABLE planet_notes (
+            id             TEXT PRIMARY KEY,
+            system_address TEXT NOT NULL,
+            planet_index   INTEGER NOT NULL,
+            text           TEXT NOT NULL,
+            created_at     TEXT NOT NULL,
+            updated_at     TEXT NOT NULL,
+            source         TEXT NOT NULL DEFAULT 'user',
+            synced_at      TEXT NULL,
+            deleted        INTEGER NOT NULL DEFAULT 0,
+            profile_id     TEXT NOT NULL DEFAULT '',
+            added_by       TEXT NOT NULL DEFAULT ''
+        );
+        CREATE INDEX ix_planet_notes_planet ON planet_notes(system_address, planet_index);
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;

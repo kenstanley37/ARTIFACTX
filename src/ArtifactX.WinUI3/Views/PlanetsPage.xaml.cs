@@ -671,6 +671,8 @@ public sealed partial class PlanetsPage : Page
             stack.Children.Add(DimLine(baseNames.Count == 1 ? $"Your base: {baseNames[0]}" : $"Your bases: {string.Join(", ", baseNames)}"));
         stack.Children.Add(DimLine($"Found by {(planet.DiscoveredHere ? "you" : planet.Discoverer)}"));
 
+        AddPlanetDetails(stack, planet);
+
         var glyphRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
         var glyphTiles = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
         foreach (var glyph in GlyphsFor(planet.PortalCode))
@@ -750,6 +752,10 @@ public sealed partial class PlanetsPage : Page
     // ---------------------------------------------------------------- system notes
 
     private static Task<List<(string Word, string Group, string Tier)>>? _descriptorsLoad;
+    private static Task<List<(string Word, string Group, string Tier)>>? _planetWordsLoad;
+    private static Task<List<string>>? _substancesLoad;
+    private List<(string Word, string Group, string Tier)> _planetWords = new();
+    private List<string> _substances = new();
     private bool _choicesFilled;
 
     /// <summary>Fills the note and filter dropdowns once per page. Economy,
@@ -761,6 +767,10 @@ public sealed partial class PlanetsPage : Page
         _descriptorsLoad ??= CatalogService.GetSystemDescriptorsAsync();
         var descriptors = await _descriptorsLoad;
         SystemNotesService.SetDescriptors(descriptors);
+        _planetWordsLoad ??= CatalogService.GetPlanetDescriptorsAsync();
+        _substancesLoad ??= CatalogService.GetSubstanceNamesAsync();
+        _planetWords = await _planetWordsLoad;
+        _substances = await _substancesLoad;
 
         IEnumerable<(string Label, string Value)> Words(string group) => descriptors
             .Where(d => d.Group == group)
@@ -815,7 +825,21 @@ public sealed partial class PlanetsPage : Page
         BodiesFilterBox.Visibility = moons > 0 ? Visibility.Visible : Visibility.Collapsed;
         if (moons == 0) BodiesFilterBox.SelectedIndex = 0;
 
-        bool any = new[] { StarFilterBox, EconomyFilterBox, WealthFilterBox, ConflictFilterBox, RaceFilterBox }.Any(b => b.Visibility == Visibility.Visible)
+        // Planet details: only what's been recorded, counted in planets, by level
+        // ("Frenzied" and "Aggressive" are both High sentinels).
+        var details = PlanetDetailsService.All;
+        IEnumerable<(string Label, string Value)> Levels(IEnumerable<string> values) => values
+            .Where(v => v.Length > 0)
+            .GroupBy(v => v)
+            .OrderBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase)
+            .Select(g => (Label: $"{g.Key} ({g.Count():N0})", Value: g.Key));
+        Refill(SentinelsFilterBox, Levels(details.Select(d => LevelOf("Sentinels", d.Sentinels))));
+        Refill(FloraFilterBox, Levels(details.Select(d => LevelOf("Life", d.Flora))));
+        Refill(FaunaFilterBox, Levels(details.Select(d => LevelOf("Life", d.Fauna))));
+        Refill(ResourceFilterBox, Levels(details.SelectMany(d => d.Resources)));
+
+        bool any = new[] { StarFilterBox, EconomyFilterBox, WealthFilterBox, ConflictFilterBox, RaceFilterBox,
+                SentinelsFilterBox, FloraFilterBox, FaunaFilterBox, ResourceFilterBox }.Any(b => b.Visibility == Visibility.Visible)
             || water > 0 || dissonant > 0 || moons > 0;
         NoteFiltersPanel.Visibility = any ? Visibility.Visible : Visibility.Collapsed;
         NoNoteFiltersTxt.Visibility = any ? Visibility.Collapsed : Visibility.Visible;
@@ -930,11 +954,325 @@ public sealed partial class PlanetsPage : Page
                 RenderNotes();
                 SaveSystemNote();
             };
-            Grid.SetColumn(remove, 2);
-            row.Children.Add(remove);
+            var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Top };
+            if (MoveToPlanetButton(index) is { } move) actions.Children.Add(move);
+            actions.Children.Add(remove);
+            Grid.SetColumn(actions, 2);
+            row.Children.Add(actions);
 
             NotesListPanel.Children.Add(row);
         }
+    }
+
+    /// <summary>"Move to planet" for a system note: planet facts typed here
+    /// before planets had their own details (user, 2026-10-13: "delete them
+    /// from the system and add them to the planet" - moved, not copied).</summary>
+    private DropDownButton? MoveToPlanetButton(int noteIndex)
+    {
+        if (_currentSystem is not ulong system) return null;
+        var planets = _thisSave.Where(p => p.SystemAddress == system).OrderBy(p => p.PlanetIndex).ToList();
+        if (planets.Count == 0) return null;
+        var menu = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedRight };
+        foreach (var planet in planets)
+        {
+            var item = new MenuFlyoutItem { Text = $"{UniverseInfo.PlanetName(system, planet.PlanetIndex)} ({planet.TypeName})" };
+            item.Click += (_, _) =>
+            {
+                if (noteIndex >= _noteList.Count) return;
+                string text = _noteList[noteIndex];
+                var details = PlanetDetailsService.Get(system, planet.PlanetIndex)?.Copy() ?? new PlanetDetails();
+                details.Notes.Add(text);
+                PlanetDetailsService.Save(system, planet.PlanetIndex, details);
+                _noteList.RemoveAt(noteIndex);
+                RenderNotes();
+                SaveSystemNote();
+                BuildCurrentSystem(_lastCounts);
+            };
+            menu.Items.Add(item);
+        }
+        var button = new DropDownButton { Content = "Move to planet", Flyout = menu, Padding = new Thickness(8, 2, 8, 2) };
+        ToolTipService.SetToolTip(button, "This note is about one planet - move it to that planet's card");
+        return button;
+    }
+
+    // ---- planet details (PlanetDetailsService)
+
+    private static readonly string[] LevelOrder = { "None", "Low", "Medium", "High", "Corrupted", "Infested", "Synthetic", "Weird" };
+
+    /// <summary>The game's tier names (from the loc ids, e.g. SENTINEL_RARE3,
+    /// RARITY_HIGH6) as levels: sentinels RARE and LOW are both low, DEFAULT
+    /// is the usual medium, HIGH and AGGRESSIVE share their words (both high).</summary>
+    private static string LevelName(string tier) => tier.ToUpperInvariant() switch
+    {
+        "NONE" => "None",
+        "LOW" or "RARE" => "Low",
+        "MID" or "DEFAULT" => "Medium",
+        "HIGH" or "AGGRESSIVE" => "High",
+        "CORRUPT" => "Corrupted",
+        "INFESTED" => "Infested",
+        "ROBOT" => "Synthetic",
+        "WEIRD" => "Weird",
+        _ => CultureInfo.InvariantCulture.TextInfo.ToTitleCase(tier.ToLowerInvariant()),
+    };
+
+    /// <summary>The level a recorded word belongs to ("Frenzied" -> "High"), or the word itself.</summary>
+    private string LevelOf(string group, string word)
+    {
+        if (word.Length == 0) return "";
+        var match = _planetWords.FirstOrDefault(w => w.Group == group && string.Equals(w.Word, word, StringComparison.OrdinalIgnoreCase));
+        return match.Word is null ? word : LevelName(match.Tier);
+    }
+
+    /// <summary>"Sentinels: Infrequent · Flora: Generous · Paraffinium, Silver · Water · ..."</summary>
+    private static string DetailsSummary(PlanetDetails? d, bool? water)
+    {
+        var parts = new List<string>();
+        if (d is not null)
+        {
+            if (d.Weather != "") parts.Add($"Weather: {d.Weather}");
+            if (d.Sentinels != "") parts.Add($"Sentinels: {d.Sentinels}");
+            if (d.Flora != "") parts.Add($"Flora: {d.Flora}");
+            if (d.Fauna != "") parts.Add($"Fauna: {d.Fauna}");
+            if (d.Resources.Count > 0) parts.Add(string.Join(", ", d.Resources));
+        }
+        if (water == true) parts.Add("Has water");
+        else if (water == false) parts.Add("No water");
+        if (d is not null) parts.AddRange(d.Notes);
+        return string.Join(" · ", parts);
+    }
+
+    /// <summary>Everything the finder's search box looks through for a planet.</summary>
+    private string SearchText(KnownPlanet p) => string.Join(" ",
+        UniverseInfo.PlanetName(p.SystemAddress, p.PlanetIndex), UniverseInfo.SystemName(p.SystemAddress), p.TypeName,
+        DetailsSummary(PlanetDetailsService.Get(p.SystemAddress, p.PlanetIndex), PlanetWaterService.Get(p.SystemAddress, p.PlanetIndex)),
+        NoteSummary(SystemNotesService.Get(p.SystemAddress)));
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _searchTimer;
+
+    /// <summary>Waits for a pause in typing, so the finder isn't re-run per key.</summary>
+    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        _searchTimer ??= DispatcherQueue.CreateTimer();
+        _searchTimer.Interval = TimeSpan.FromMilliseconds(250);
+        _searchTimer.IsRepeating = false;
+        _searchTimer.Tick -= SearchTimer_Tick;
+        _searchTimer.Tick += SearchTimer_Tick;
+        _searchTimer.Stop();
+        _searchTimer.Start();
+    }
+
+    private void SearchTimer_Tick(Microsoft.UI.Dispatching.DispatcherQueueTimer sender, object args) => ApplyFilters();
+
+    /// <summary>The recorded details on a planet card, plus Add / Edit details.</summary>
+    private void AddPlanetDetails(StackPanel stack, KnownPlanet planet)
+    {
+        var details = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex);
+        bool? water = PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex);
+
+        var box = new StackPanel { Spacing = 4, Margin = new Thickness(0, 4, 0, 0) };
+        void Fact(string label, string value)
+        {
+            if (value.Length == 0) return;
+            box.Children.Add(new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = 12,
+                Inlines =
+                {
+                    new Microsoft.UI.Xaml.Documents.Run { Text = $"{label}: ", Foreground = ThemeBrush("ThemeTextDimBrush") },
+                    new Microsoft.UI.Xaml.Documents.Run { Text = value },
+                },
+            });
+        }
+        if (details is not null)
+        {
+            Fact("Weather", details.Weather);
+            Fact("Sentinels", details.Sentinels);
+            Fact("Flora", details.Flora);
+            Fact("Fauna", details.Fauna);
+            Fact("Resources", string.Join(", ", details.Resources));
+        }
+        Fact("Water", water switch { true => "Yes", false => "None", _ => "" });
+        if (details is not null)
+            foreach (var note in details.Notes)
+                box.Children.Add(new TextBlock { Text = $"• {note}", FontSize = 12, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true });
+
+        bool any = box.Children.Count > 0;
+        var edit = new Button
+        {
+            Content = any ? "Edit details" : "Add details",
+            Padding = new Thickness(8, 2, 8, 2),
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        ToolTipService.SetToolTip(edit, "Weather, sentinels, flora, fauna, resources and notes - as the game's discovery screen shows them");
+        edit.Click += async (_, _) => await EditPlanetDetailsAsync(planet);
+        box.Children.Add(edit);
+        stack.Children.Add(box);
+    }
+
+    /// <summary>The editor for one planet's details. Words come from the game
+    /// (catalog "PlanetDescriptors"); typing anything else is kept too.</summary>
+    private async Task EditPlanetDetailsAsync(KnownPlanet planet)
+    {
+        ulong system = planet.SystemAddress;
+        var details = PlanetDetailsService.Get(system, planet.PlanetIndex)?.Copy() ?? new PlanetDetails();
+
+        static string Label(string word, string tier) => $"{word} ({LevelName(tier)})";
+        List<string> Words(string group) => _planetWords.Where(w => w.Group == group)
+            .GroupBy(w => w.Word, StringComparer.OrdinalIgnoreCase).Select(g => g.First())
+            .OrderBy(w => Array.IndexOf(LevelOrder, LevelName(w.Tier)) is var i && i < 0 ? 99 : i)
+            .ThenBy(w => w.Word, StringComparer.CurrentCultureIgnoreCase)
+            .Select(w => Label(w.Word, w.Tier)).ToList();
+        string WordOf(string label) => label.LastIndexOf(" (", StringComparison.Ordinal) is int cut and > 0 ? label[..cut] : label;
+
+        ComboBox Choice(string header, List<string> options, string current)
+        {
+            var combo = new ComboBox { Header = header, Width = 240, IsEditable = true, ItemsSource = options, PlaceholderText = "Not recorded" };
+            combo.Text = current.Length == 0 ? "" : options.FirstOrDefault(o => string.Equals(WordOf(o), current, StringComparison.OrdinalIgnoreCase)) ?? current;
+            return combo;
+        }
+        var sentinelsBox = Choice("Sentinels", Words("Sentinels"), details.Sentinels);
+        var floraBox = Choice("Flora", Words("Life"), details.Flora);
+        var faunaBox = Choice("Fauna", Words("Life"), details.Fauna);
+
+        var weatherWords = _planetWords.Where(w => w.Group == "Weather").Select(w => w.Word)
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(w => w, StringComparer.CurrentCultureIgnoreCase).ToList();
+        var weatherBox = new AutoSuggestBox { Header = "Weather", Width = 360, PlaceholderText = "Start typing, e.g. Painfully Hot Rain", Text = details.Weather };
+        weatherBox.TextChanged += (s, e) =>
+        {
+            if (e.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
+            s.ItemsSource = s.Text.Length == 0 ? null
+                : weatherWords.Where(w => w.Contains(s.Text, StringComparison.CurrentCultureIgnoreCase)).Take(20).ToList();
+        };
+
+        var waterBox = new ComboBox { Header = "Water", Width = 160, ItemsSource = new[] { "Not recorded", "Yes", "No" } };
+        waterBox.SelectedIndex = PlanetWaterService.Get(system, planet.PlanetIndex) switch { true => 1, false => 2, _ => 0 };
+
+        // Resources: chips + a picker of the game's raw resources.
+        var resources = details.Resources.ToList();
+        var chips = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 6, VerticalSpacing = 6 };
+        void RenderChips()
+        {
+            chips.Children.Clear();
+            foreach (var r in resources.ToList())
+            {
+                var chip = new Button { Content = $"{r}  ✕", Padding = new Thickness(8, 2, 8, 2) };
+                ToolTipService.SetToolTip(chip, $"Remove {r}");
+                chip.Click += (_, _) => { resources.Remove(r); RenderChips(); };
+                chips.Children.Add(chip);
+            }
+        }
+        RenderChips();
+        var resourceBox = new AutoSuggestBox { Header = "Resources", Width = 360, PlaceholderText = "Type a resource and press Enter, e.g. Paraffinium" };
+        resourceBox.TextChanged += (s, e) =>
+        {
+            if (e.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
+            s.ItemsSource = s.Text.Length == 0 ? null
+                : _substances.Where(n => n.Contains(s.Text, StringComparison.CurrentCultureIgnoreCase)).Take(15).ToList();
+        };
+        void AddResource(string text)
+        {
+            text = text.Trim();
+            if (text.Length == 0) return;
+            string name = _substances.FirstOrDefault(n => string.Equals(n, text, StringComparison.OrdinalIgnoreCase)) ?? text;
+            if (!resources.Contains(name, StringComparer.OrdinalIgnoreCase)) resources.Add(name);
+            resourceBox.Text = "";
+            RenderChips();
+        }
+        resourceBox.QuerySubmitted += (_, e) => AddResource(e.ChosenSuggestion as string ?? e.QueryText);
+
+        // Notes.
+        var notes = details.Notes.ToList();
+        var notesPanel = new StackPanel { Spacing = 4 };
+        void RenderNotesList()
+        {
+            notesPanel.Children.Clear();
+            foreach (var n in notes.ToList())
+            {
+                var row = new Grid { ColumnSpacing = 8 };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                row.Children.Add(new TextBlock { Text = $"• {n}", TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center });
+                var remove = new Button { Content = "Remove", Padding = new Thickness(8, 2, 8, 2) };
+                remove.Click += (_, _) => { notes.Remove(n); RenderNotesList(); };
+                Grid.SetColumn(remove, 1);
+                row.Children.Add(remove);
+                notesPanel.Children.Add(row);
+            }
+        }
+        RenderNotesList();
+        var newNote = new TextBox { PlaceholderText = "e.g. crashed freighter, Vile Brood, great base spot", Width = 360 };
+        void AddNote()
+        {
+            string text = newNote.Text.Trim();
+            if (text.Length == 0) return;
+            notes.Add(text);
+            newNote.Text = "";
+            RenderNotesList();
+        }
+        newNote.KeyDown += (_, e) =>
+        {
+            if (e.Key != Windows.System.VirtualKey.Enter) return;
+            e.Handled = true;
+            AddNote();
+        };
+        var addNote = new Button { Content = "Add note" };
+        addNote.Click += (_, _) => AddNote();
+
+        var row1 = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 12, VerticalSpacing = 10 };
+        row1.Children.Add(sentinelsBox);
+        row1.Children.Add(floraBox);
+        row1.Children.Add(faunaBox);
+        row1.Children.Add(waterBox);
+        var content = new StackPanel { Spacing = 12, Width = 560 };
+        content.Children.Add(new TextBlock
+        {
+            Text = "As the game's discovery screen shows them. Pick the game's word, or type your own. Kept by ArtifactX on this PC, never in your save.",
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 12,
+            Opacity = 0.75,
+        });
+        content.Children.Add(weatherBox);
+        content.Children.Add(row1);
+        content.Children.Add(resourceBox);
+        content.Children.Add(chips);
+        content.Children.Add(new TextBlock { Text = "NOTES", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"], Margin = new Thickness(0, 6, 0, 0) });
+        content.Children.Add(notesPanel);
+        var addRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        addRow.Children.Add(newNote);
+        addRow.Children.Add(addNote);
+        content.Children.Add(addRow);
+
+        var dialog = new ContentDialog
+        {
+            Title = $"{UniverseInfo.PlanetName(system, planet.PlanetIndex)} - {planet.TypeName}",
+            Content = new ScrollViewer { Content = content, MaxHeight = 560 },
+            PrimaryButtonText = "Save",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+        dialog.Resources["ContentDialogMaxWidth"] = 680.0;
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+        AddNote(); // a note typed but not added yet still counts
+        if (resourceBox.Text.Trim().Length > 0) AddResource(resourceBox.Text);
+        PlanetDetailsService.Save(system, planet.PlanetIndex, new PlanetDetails
+        {
+            Weather = weatherBox.Text.Trim(),
+            Sentinels = WordOf(sentinelsBox.Text.Trim()),
+            Flora = WordOf(floraBox.Text.Trim()),
+            Fauna = WordOf(faunaBox.Text.Trim()),
+            Resources = resources,
+            Notes = notes,
+        });
+        bool? newWater = waterBox.SelectedIndex switch { 1 => true, 2 => false, _ => null };
+        if (newWater != PlanetWaterService.Get(system, planet.PlanetIndex))
+            PlanetWaterService.Set(system, planet.PlanetIndex, newWater);
+
+        BuildCurrentSystem(_lastCounts);
+        RefreshNoteFilters();
+        ApplyFilters();
     }
 
     /// <summary>Adds whatever is typed in the new-note box; returns whether it added one.</summary>
@@ -1047,6 +1385,9 @@ public sealed partial class PlanetsPage : Page
         bool water = WaterFilterBox.IsChecked == true, dissonant = DissonantFilterBox.IsChecked == true;
         int bodies = BodiesFilterBox.SelectedIndex; // 0 all, 1 planets only, 2 moons only
         bool noteFilter = star != "" || economy != "" || wealth != "" || conflict != "" || race != "" || water || dissonant;
+        string sentinels = ChosenValue(SentinelsFilterBox), flora = ChosenValue(FloraFilterBox);
+        string fauna = ChosenValue(FaunaFilterBox), resource = ChosenValue(ResourceFilterBox);
+        string search = SearchBox.Text.Trim();
 
         var filtered = _allPlanets
             .Where(p => type < 0 || p.BiomeIndex == type)
@@ -1061,6 +1402,13 @@ public sealed partial class PlanetsPage : Page
                     && (race == "" || RaceOf(p.SystemAddress) == race)
                     && (!water || SystemNotesService.Get(p.SystemAddress)?.Water == true)
                     && (!dissonant || SystemNotesService.Get(p.SystemAddress)?.Dissonant == true)))
+            .Where(p => (sentinels == "" && flora == "" && fauna == "" && resource == "")
+                || PlanetDetailsService.Get(p.SystemAddress, p.PlanetIndex) is { } d
+                    && (sentinels == "" || LevelOf("Sentinels", d.Sentinels) == sentinels)
+                    && (flora == "" || LevelOf("Life", d.Flora) == flora)
+                    && (fauna == "" || LevelOf("Life", d.Fauna) == fauna)
+                    && (resource == "" || d.Resources.Contains(resource, StringComparer.OrdinalIgnoreCase)))
+            .Where(p => search.Length == 0 || SearchText(p).Contains(search, StringComparison.CurrentCultureIgnoreCase))
             .Where(p => bodies switch
             {
                 1 => SystemNotesService.Get(p.SystemAddress)?.IsMoon(p.PlanetIndex) != true,
@@ -1086,7 +1434,11 @@ public sealed partial class PlanetsPage : Page
 
     private PlanetRowViewModel ToRow(KnownPlanet planet, double? distance)
     {
-        string notes = NoteSummary(SystemNotesService.Get(planet.SystemAddress));
+        string notes = string.Join(" · ", new[]
+        {
+            DetailsSummary(PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex), PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex)),
+            NoteSummary(SystemNotesService.Get(planet.SystemAddress)),
+        }.Where(s => s.Length > 0));
         return new()
         {
         NotesLabel = notes,
