@@ -13,7 +13,11 @@
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <ScrollViewer>
+    <!-- Two views: the overview (MainScroll) and one planet in full (DetailScroll,
+         built in code - see OpenPlanet). Switching only hides one, so the
+         overview keeps its scroll position, filters and live follow. -->
+    <Grid>
+    <ScrollViewer x:Name="MainScroll">
         <StackPanel Padding="28,26,28,40" Spacing="22">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -265,7 +269,7 @@
                         <TextBlock x:Name="FinderStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Visibility="Collapsed"/>
                         <!-- Bounded height so the ListView virtualizes inside the page's
                              ScrollViewer (an unbounded one would realize every row). -->
-                        <ListView x:Name="ResultsList" SelectionMode="None" MaxHeight="640">
+                        <ListView x:Name="ResultsList" SelectionMode="None" MaxHeight="640" IsItemClickEnabled="True" ItemClick="ResultsList_ItemClick">
                             <ListView.ItemContainerStyle>
                                 <Style TargetType="ListViewItem">
                                     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -347,4 +351,8 @@
             </Border>
         </StackPanel>
     </ScrollViewer>
+    <ScrollViewer x:Name="DetailScroll" Visibility="Collapsed">
+        <StackPanel x:Name="DetailPanel" Padding="28,22,28,40" Spacing="20"/>
+    </ScrollViewer>
+    </Grid>
 </Page>
