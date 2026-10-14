@@ -32,12 +32,48 @@ public sealed partial class MainWindow : Window
 
     public AppTitleBar TitleBar => CustomTitleBar;
 
+    /// <summary>The nav sections that open and close, by the key their state is saved under.</summary>
+    private (string Key, NavigationViewItem Item)[] ExpandableNavItems => new[]
+    {
+        ("SaveEditor", SaveEditorNavItem),
+        ("AccountData", AccountDataNavItem),
+        ("Milestones", MilestonesNavItem),
+        ("Tools", ToolsNavItem),
+        ("StructuralAnalysis", StructuralAnalysisNavItem),
+    };
+
+    /// <summary>Puts the nav back the way the player left it - which sections
+    /// were open, and whether the pane was open - and keeps it saved as they
+    /// change it (user, 2026-10-13: re-collapsing Save Editor and opening
+    /// Tools on every launch). Per profile, so it travels with their backups.</summary>
+    private void RestoreNavLayout()
+    {
+        foreach (var (key, item) in ExpandableNavItems)
+            if (SettingsStore.Get(SettingsStore.Scope.Profile, $"NavExpanded.{key}") is string saved)
+                item.IsExpanded = saved == "1";
+        if (SettingsStore.Get(SettingsStore.Scope.Profile, "NavPaneOpen") is string pane)
+            RootNav.IsPaneOpen = pane == "1";
+
+        RootNav.Expanding += (_, e) => SaveNavExpanded(e.ExpandingItemContainer, true);
+        RootNav.Collapsed += (_, e) => SaveNavExpanded(e.CollapsedItemContainer, false);
+        RootNav.PaneOpened += (_, _) => SettingsStore.Set(SettingsStore.Scope.Profile, "NavPaneOpen", "1");
+        RootNav.PaneClosed += (_, _) => SettingsStore.Set(SettingsStore.Scope.Profile, "NavPaneOpen", "0");
+    }
+
+    private void SaveNavExpanded(NavigationViewItemBase? container, bool expanded)
+    {
+        foreach (var (key, item) in ExpandableNavItems)
+            if (ReferenceEquals(item, container))
+                SettingsStore.Set(SettingsStore.Scope.Profile, $"NavExpanded.{key}", expanded ? "1" : "0");
+    }
+
     public MainWindow()
     {
         InitializeComponent();
 
         SetNavIconGeometries();
         ThemeService.ThemeChanged += (_, _) => ApplyThemeToFrame();
+        RestoreNavLayout();
 
 #if !DEBUG
         // Dev-only tools for reverse-engineering raw JSON field mappings - not
