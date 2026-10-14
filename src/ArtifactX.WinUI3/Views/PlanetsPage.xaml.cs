@@ -1728,6 +1728,7 @@ public sealed partial class PlanetsPage : Page
         facts.Add("Visited", VisitText(ReadPlanetStats(planet.Address)));
         if (inThisSystem && _baseNames.TryGetValue(planet.PlanetIndex, out var baseNames))
             facts.Add(baseNames.Count == 1 ? "Your base" : "Your bases", string.Join(", ", baseNames));
+        facts.Add("Waypoints", tally is { Waypoints: > 0 } w ? w.Waypoints.ToString(CultureInfo.CurrentCulture) : "");
         facts.Add("Found by", planet.DiscoveredHere ? "You" : planet.Discoverer);
         facts.Add("Found on", FormatDate(planet.DiscoveredUnixSeconds));
         facts.Add("Portal code", planet.PortalCode);

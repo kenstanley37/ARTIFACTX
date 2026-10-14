@@ -1042,7 +1042,11 @@ public static class CatalogService
                     SELECT DISTINCT COALESCE(i.NameLowerEnglish, i.NameEnglish)
                     FROM Items i
                     JOIN Categories c ON c.Id = i.CategoryId
-                    WHERE c.TemplateType = 'GcSubstanceTable' AND i.NameEnglish IS NOT NULL
+                    WHERE c.TemplateType IN ('GcSubstanceTable', 'GcProductTable') AND i.NameEnglish IS NOT NULL
+                      -- plus the planet curiosities the discovery screen can list
+                      -- (Storm Crystal, Gravitino Ball...), not fish
+                      AND (c.TemplateType = 'GcSubstanceTable'
+                           OR (i.CatalogGroup = 'Curiosities' AND i.GameId NOT GLOB 'F_*'))
                       -- currency/placeholder rows that live in the same table
                       AND i.NameEnglish NOT IN ('UNITS', 'QUICKSILVER', 'NANITES', 'FEATURE', 'OUTLAWS')
                     ORDER BY 1";

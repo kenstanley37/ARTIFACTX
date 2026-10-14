@@ -36,7 +36,10 @@ public sealed record KnownSystem(ulong SystemAddress, int Galaxy, int PlanetCoun
 /// <summary>Per-planet discovery tallies, counted from the discovery records
 /// (the game itself counts records, not the ^PLANET_STATS counters - confirmed
 /// 2026-10-11: setting Cholton's ^DISC_CREATURES to 6 changed nothing in-game).</summary>
-public sealed record PlanetDiscoveryCounts(int Fauna, int Flora, int Minerals);
+/// <summary>Discovery records per planet. Waypoints are the save's "Sector"
+/// records - one per waypoint the game lists on the planet's Discoveries page
+/// (Ippianes III: 6 records, game shows "Waypoints 6 Discovered", 2026-10-13).</summary>
+public sealed record PlanetDiscoveryCounts(int Fauna, int Flora, int Minerals, int Waypoints = 0);
 
 /// <summary>
 /// Planets as the save records them. The save stores very little about a
@@ -184,24 +187,25 @@ public static class NmsPlanets
     /// <summary>Fauna/flora/mineral record counts per planet address.</summary>
     public static Dictionary<ulong, PlanetDiscoveryCounts> CountDiscoveries(JArray? discoveries)
     {
-        var tallies = new Dictionary<ulong, (int Fauna, int Flora, int Minerals)>();
+        var tallies = new Dictionary<ulong, (int Fauna, int Flora, int Minerals, int Waypoints)>();
         if (discoveries is null) return new();
 
         foreach (var record in discoveries.OfType<JObject>())
         {
             string? type = record["8P3"]?["<Dn"]?.Value<string>();
-            if (type is not ("Animal" or "Flora" or "Mineral")) continue;
+            if (type is not ("Animal" or "Flora" or "Mineral" or "Sector")) continue;
             if (NmsSpaceStationPaths.ParsePackedAddress(record["8P3"]?["5L6"]) is not ulong address) continue;
 
             tallies.TryGetValue(address, out var t);
             tallies[address] = type switch
             {
-                "Animal" => (t.Fauna + 1, t.Flora, t.Minerals),
-                "Flora" => (t.Fauna, t.Flora + 1, t.Minerals),
-                _ => (t.Fauna, t.Flora, t.Minerals + 1),
+                "Animal" => (t.Fauna + 1, t.Flora, t.Minerals, t.Waypoints),
+                "Flora" => (t.Fauna, t.Flora + 1, t.Minerals, t.Waypoints),
+                "Sector" => (t.Fauna, t.Flora, t.Minerals, t.Waypoints + 1),
+                _ => (t.Fauna, t.Flora, t.Minerals + 1, t.Waypoints),
             };
         }
 
-        return tallies.ToDictionary(kv => kv.Key, kv => new PlanetDiscoveryCounts(kv.Value.Fauna, kv.Value.Flora, kv.Value.Minerals));
+        return tallies.ToDictionary(kv => kv.Key, kv => new PlanetDiscoveryCounts(kv.Value.Fauna, kv.Value.Flora, kv.Value.Minerals, kv.Value.Waypoints));
     }
 }
