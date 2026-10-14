@@ -1397,7 +1397,17 @@ public sealed partial class PlanetsPage : Page
         var weatherWords = _planetWords.Where(w => w.Group == "Weather").Select(w => w.Word)
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(w => w, StringComparer.CurrentCultureIgnoreCase).ToList();
         var weatherBox = new AutoSuggestBox { Header = "Weather", Width = 360, HorizontalAlignment = HorizontalAlignment.Left, PlaceholderText = "Start typing, e.g. Painfully Hot Rain" };
-        weatherBox.Loaded += (_, _) => weatherBox.Text = details.Weather;
+        var weatherHint = new StackPanel();
+        void CheckWeather()
+        {
+            weatherHint.Children.Clear();
+            string typed = weatherBox.Text.Trim();
+            if (Suggestion(typed, weatherWords) is string better)
+                weatherHint.Children.Add(DidYouMean(typed, "weathers", better, () => { weatherBox.Text = better; CheckWeather(); }));
+        }
+        weatherBox.Loaded += (_, _) => { weatherBox.Text = details.Weather; CheckWeather(); };
+        weatherBox.LostFocus += (_, _) => CheckWeather();
+        weatherBox.SuggestionChosen += (_, _) => DispatcherQueue.TryEnqueue(CheckWeather);
         weatherBox.TextChanged += (s, e) =>
         {
             if (e.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
@@ -1411,8 +1421,22 @@ public sealed partial class PlanetsPage : Page
         // Resources: chips + a picker of the game's raw resources.
         var resources = details.Resources.ToList();
         var chips = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 6, VerticalSpacing = 6 };
+        var resourceHints = new StackPanel { Spacing = 4 };
         void RenderChips()
         {
+            // "Coblat isn't one of the game's resources - did you mean Cobalt?"
+            // (typos are kept as typed, so they'd never match a search; 2026-10-14).
+            resourceHints.Children.Clear();
+            foreach (var r in resources.ToList())
+                if (Suggestion(r, _substances) is string better)
+                    resourceHints.Children.Add(DidYouMean(r, "resources", better, () =>
+                    {
+                        int at = resources.IndexOf(r);
+                        if (at < 0) return;
+                        if (resources.Contains(better, StringComparer.OrdinalIgnoreCase)) resources.RemoveAt(at);
+                        else resources[at] = better;
+                        RenderChips();
+                    }));
             chips.Children.Clear();
             foreach (var r in resources.ToList())
             {
@@ -1510,9 +1534,11 @@ public sealed partial class PlanetsPage : Page
             Opacity = 0.75,
         });
         content.Children.Add(weatherBox);
+        content.Children.Add(weatherHint);
         content.Children.Add(row1);
         content.Children.Add(resourceBox);
         content.Children.Add(chips);
+        content.Children.Add(resourceHints);
         content.Children.Add(new TextBlock { Text = "NOTES", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"], Margin = new Thickness(0, 6, 0, 0) });
         content.Children.Add(notesPanel);
         var addRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -1540,6 +1566,53 @@ public sealed partial class PlanetsPage : Page
                 PlanetWaterService.Set(system, planet.PlanetIndex, newWater);
         }
         return (content, Commit);
+    }
+
+    /// <summary>The closest of the game's words to a typed one that isn't one of
+    /// them ("Coblat" -> "Cobalt"), or null when it matches or nothing is close.</summary>
+    private static string? Suggestion(string typed, IReadOnlyList<string> words)
+    {
+        if (typed.Length < 3 || words.Count == 0) return null;
+        if (words.Any(w => string.Equals(w, typed, StringComparison.OrdinalIgnoreCase))) return null;
+        string a = typed.ToLowerInvariant();
+        var best = words.Select(w => (Word: w, Distance: Distance(a, w.ToLowerInvariant())))
+            .OrderBy(x => x.Distance).ThenBy(x => Math.Abs(x.Word.Length - typed.Length)).First();
+        // Up to 1 edit per 4 letters (2 for "Coblat"), so real one-offs aren't flagged.
+        return best.Distance <= Math.Max(1, typed.Length / 4) ? best.Word : null;
+    }
+
+    /// <summary>Edit distance where swapping two neighbouring letters counts as one.</summary>
+    private static int Distance(string a, string b)
+    {
+        var d = new int[a.Length + 1, b.Length + 1];
+        for (int i = 0; i <= a.Length; i++) d[i, 0] = i;
+        for (int j = 0; j <= b.Length; j++) d[0, j] = j;
+        for (int i = 1; i <= a.Length; i++)
+            for (int j = 1; j <= b.Length; j++)
+            {
+                int cost = a[i - 1] == b[j - 1] ? 0 : 1;
+                d[i, j] = Math.Min(Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1), d[i - 1, j - 1] + cost);
+                if (i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1])
+                    d[i, j] = Math.Min(d[i, j], d[i - 2, j - 2] + 1);
+            }
+        return d[a.Length, b.Length];
+    }
+
+    private static UIElement DidYouMean(string typed, string what, string better, Action use)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        row.Children.Add(new TextBlock
+        {
+            Text = $"\"{typed}\" isn't one of the game's {what} - did you mean {better}?",
+            FontSize = 12,
+            Foreground = ThemeBrush("ThemeWarningBrush"),
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        var fix = new HyperlinkButton { Content = $"Use {better}", Padding = new Thickness(0), FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+        fix.Click += (_, _) => use();
+        row.Children.Add(fix);
+        return row;
     }
 
     // ---------------------------------------------------------------- one planet
