@@ -6,6 +6,8 @@ using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using libMBIN.NMS.GameComponents;
 using Newtonsoft.Json.Linq;
+using Microsoft.UI.Xaml.Automation;
+using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -112,14 +114,14 @@ public sealed partial class SettlementPage : Page
 
             var button = new Button
             {
-                Content = new TextBlock
-                {
-                    Text = settlement.SelectorLabel,
-                    FontWeight = isSelected ? FontWeights.SemiBold : FontWeights.Normal
-                },
-                Padding = new Thickness(12, 6, 12, 6)
+                Content = SettlementCard(settlement, isSelected),
+                Padding = new Thickness(14, 10, 14, 10),
+                Width = 300,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
             };
             ThemeResources.StyleChoiceButton(button, isSelected);
+            AutomationProperties.SetName(button, settlement.SelectorLabel);
 
             button.Click += (_, _) =>
             {
@@ -130,6 +132,49 @@ public sealed partial class SettlementPage : Page
 
             SettlementSelectorPanel.Children.Add(button);
         }
+    }
+
+    /// <summary>A settlement as a small card, like the game's Settlements
+    /// Register (user request 2026-10-14): name, where it is (planet, system,
+    /// galaxy), the system's race, population, and the building queued for an
+    /// upgrade. All read from the save / generated from the address.</summary>
+    private UIElement SettlementCard(SettlementEntry settlement, bool isSelected)
+    {
+        var path = NmsSettlementPaths.SettlementPath(settlement.Index);
+        ulong? address = S.ParsePackedAddress(SaveSessionManager.GetValue(path.Append("yhJ").ToArray()));
+        var card = new StackPanel { Spacing = 3 };
+        card.Children.Add(new TextBlock
+        {
+            Text = settlement.SelectorLabel,
+            FontSize = 15,
+            FontWeight = isSelected ? FontWeights.Bold : FontWeights.SemiBold,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        });
+        TextBlock Line(string text) => new()
+        {
+            Text = text, FontSize = 12, Opacity = 0.8, TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        if (address is ulong a)
+        {
+            int planet = (int)((a >> 52) & 0xF);
+            int galaxy = S.GalaxyNumber(a);
+            string where = planet > 0 ? $"{UniverseInfo.PlanetName(a, planet)} · {UniverseInfo.SystemName(a)} system" : $"{UniverseInfo.SystemName(a)} system";
+            card.Children.Add(Line(where));
+            string galaxyName = NmsGalaxyNames.ForNumber(galaxy) is string g ? $"{g} ({galaxy})" : $"Galaxy {galaxy}";
+            card.Children.Add(Line($"{galaxyName} · {UniverseInfo.RaceLabel(a)}"));
+        }
+        int population = SaveSessionManager.GetValue(NmsSettlementPaths.PopulationPath(settlement.Index))?.Value<int>() ?? 0;
+        card.Children.Add(Line($"Population {population.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)}"));
+        string next = SaveSessionManager.GetValue(path.Concat(new[] { ":Qn", "iqv" }).ToArray())?.ToString() ?? "";
+        if (next.Length > 0 && next != "None")
+            card.Children.Add(new TextBlock
+            {
+                Text = $"Building: {BuildingLabel(next)}",
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = ThemeResources.Brush("ThemeAccentBrush"),
+            });
+        return card;
     }
 
     private void ClearFields()
