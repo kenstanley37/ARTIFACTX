@@ -903,6 +903,36 @@ public static class CatalogService
         }
     }
 
+    /// <summary>Every starship part tree (catalog "ShipDescriptors"), by
+    /// lower-case descriptor path, as stored JSON (ShipParts.ParseTree).</summary>
+    public static async Task<Dictionary<string, string>> GetShipPartTreesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.NameEnglish, i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'ShipDescriptors'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read()) results[reader.GetString(0)] = reader.GetString(1);
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetShipPartTreesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
     /// <summary>Trade category each economy sells, keyed by the game's trading
     /// class (Mining, HighTech, Trading, Manufacturing, Fusion, Scientific,
     /// PowerGeneration) - catalog "TradeClasses".</summary>

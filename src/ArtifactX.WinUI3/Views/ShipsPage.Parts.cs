@@ -1,0 +1,185 @@
+using ArtifactX.Core.NmsModels;
+using ArtifactX.Core.Procedural;
+using ArtifactX.WinUI3.Services;
+using Microsoft.UI.Text;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace ArtifactX.WinUI3.Views;
+
+/// <summary>
+/// Experiment (branch experiment/ship-parts, 2026-10-14): the parts a seed gives
+/// the selected ship (ShipParts - port of NMS Shipwright's selector), and a
+/// search for a seed with the parts the player wants. Part names are the game's
+/// own internal ids ("_WINGS_F" shows as Wings F) - there's no picture yet.
+/// </summary>
+public sealed partial class ShipsPage
+{
+    private static Dictionary<string, string>? _treeJson;
+    private static readonly Dictionary<string, IReadOnlyList<PartGroup>> TreeCache = new(StringComparer.OrdinalIgnoreCase);
+    private CancellationTokenSource? _partSearch;
+    private readonly Dictionary<string, ComboBox> _wantBoxes = new(StringComparer.Ordinal);
+
+    private static IReadOnlyList<PartGroup>? LoadTree(string path)
+    {
+        lock (TreeCache)
+        {
+            if (TreeCache.TryGetValue(path, out var tree)) return tree;
+            if (_treeJson is null || !_treeJson.TryGetValue(path, out var json)) return null;
+            return TreeCache[path] = ShipParts.ParseTree(json);
+        }
+    }
+
+    private string? CurrentScene() => _selectedIndex < 0 ? null
+        : SaveSessionManager.GetValue("vLc", "6f=", "@Cs", _selectedIndex.ToString(CultureInfo.InvariantCulture), "NTx", "93M")?.ToString();
+
+    private static bool TryParseSeed(string? text, out ulong seed)
+    {
+        seed = 0;
+        text = text?.Trim() ?? "";
+        if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+        return text.Length > 0 && ulong.TryParse(text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out seed);
+    }
+
+    /// <summary>"_WINGS_" -> "Wings", "_ENGINE_B" -> "B".</summary>
+    private static string GroupLabel(string group)
+    {
+        string t = group.Trim('_').Replace('_', ' ').ToLowerInvariant();
+        return t.Length == 0 ? group : CultureInfo.CurrentCulture.TextInfo.ToTitleCase(t);
+    }
+
+    private static string PartLabel(string group, string id) =>
+        id.StartsWith(group, StringComparison.OrdinalIgnoreCase) && id.Length > group.Length ? id[group.Length..] : id.Trim('_');
+
+    /// <summary>Rebuilds the parts list for the selected ship's type and the seed in the box.</summary>
+    private async void RefreshShipParts()
+    {
+        ShipPartsPanel.Children.Clear();
+        string? scene = CurrentScene();
+        if (scene is null) return;
+        _treeJson ??= await CatalogService.GetShipPartTreesAsync();
+        if (_treeJson.Count == 0)
+        {
+            ShipPartsPanel.Children.Add(Dim("Update your game data (Settings › Game data) to see which parts a seed gives."));
+            return;
+        }
+        var root = LoadTree(ShipParts.DescriptorFor(scene));
+        if (root is null)
+        {
+            ShipPartsPanel.Children.Add(Dim("This ship type has a fixed look - its seed doesn't change its parts."));
+            return;
+        }
+
+        ShipPartsPanel.Children.Add(new TextBlock { Text = "PARTS THIS SEED GIVES", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] });
+        if (TryParseSeed(SeedEditBox.Text, out ulong seed))
+        {
+            var parts = ShipParts.Generate(scene, seed, LoadTree);
+            var main = parts.Where(p => p.Depth == 0).Select(p => $"{GroupLabel(p.Group)} {PartLabel(p.Group, p.Id)}");
+            ShipPartsPanel.Children.Add(new TextBlock { Text = string.Join("  ·  ", main), FontSize = 13, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true });
+            var extra = parts.Where(p => p.Depth > 0).Select(p => p.Id.Trim('_')).ToList();
+            if (extra.Count > 0)
+                ShipPartsPanel.Children.Add(Dim($"Also: {string.Join(", ", extra)}"));
+        }
+        else
+        {
+            ShipPartsPanel.Children.Add(Dim("Not a seed - it should look like 0x1CD40D0620985D13."));
+        }
+
+        BuildPartSearch(root);
+    }
+
+    /// <summary>"Find a seed": one choice per main part group, then a search.</summary>
+    private void BuildPartSearch(IReadOnlyList<PartGroup> root)
+    {
+        var (toggle, body) = (new HyperlinkButton { Content = "Find a seed with the parts you want", Padding = new Thickness(0) }, new StackPanel { Spacing = 8, Visibility = Visibility.Collapsed });
+        toggle.Click += (_, _) => body.Visibility = body.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+        ShipPartsPanel.Children.Add(toggle);
+
+        var choices = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        _wantBoxes.Clear();
+        foreach (var g in root.Where(g => g.Options.Count > 1))
+        {
+            var box = new ComboBox { Header = GroupLabel(g.Type), MinWidth = 110 };
+            box.Items.Add(new ComboBoxItem { Content = "Any", Tag = "" });
+            foreach (var o in g.Options.Where(o => o.Weight > 0))
+                box.Items.Add(new ComboBoxItem { Content = PartLabel(g.Type, o.Id) + (o.Weight < 20 ? " (rare)" : ""), Tag = o.Id });
+            box.SelectedIndex = 0;
+            _wantBoxes[g.Type] = box;
+            choices.Children.Add(box);
+        }
+        body.Children.Add(new ScrollViewer { Content = choices, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, HorizontalScrollMode = ScrollMode.Auto });
+
+        var results = new StackPanel { Spacing = 4 };
+        var status = Dim("");
+        var search = new Button { Content = "Search" };
+        search.Click += async (_, _) => await SearchSeedsAsync(search, status, results);
+        body.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { search, status } });
+        body.Children.Add(results);
+        ShipPartsPanel.Children.Add(body);
+    }
+
+    private async Task SearchSeedsAsync(Button search, TextBlock status, StackPanel results)
+    {
+        if (_partSearch is not null) { _partSearch.Cancel(); return; }
+        string? scene = CurrentScene();
+        if (scene is null) return;
+        var want = _wantBoxes.Values.Select(b => (b.SelectedItem as ComboBoxItem)?.Tag as string).Where(t => !string.IsNullOrEmpty(t)).Cast<string>().ToHashSet();
+        results.Children.Clear();
+        _partSearch = new CancellationTokenSource();
+        var token = _partSearch.Token;
+        search.Content = "Stop";
+        status.Text = "Searching...";
+        var found = new List<ulong>();
+        long tried = 0;
+        try
+        {
+            await Task.Run(() =>
+            {
+                var rng = new Random();
+                while (found.Count < 5 && tried < 20_000_000 && !token.IsCancellationRequested)
+                {
+                    ulong seed = (ulong)rng.NextInt64() | ((ulong)rng.Next(2) << 63);
+                    tried++;
+                    var ids = ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet();
+                    if (want.All(ids.Contains)) lock (found) found.Add(seed);
+                }
+            }, token);
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            _partSearch = null;
+            search.Content = "Search";
+        }
+        status.Text = found.Count == 0 ? $"No match in {tried:N0} seeds - try fewer or less rare parts." : $"Found {found.Count} in {tried:N0} seeds.";
+        foreach (ulong seed in found)
+        {
+            string text = $"0x{seed:X16}";
+            var use = new Button { Content = "Use", Padding = new Thickness(10, 2, 10, 2) };
+            use.Click += (_, _) =>
+            {
+                if (_selectedIndex < 0) return;
+                SeedEditBox.Text = text;
+                SaveSessionManager.StageEdit(text, NmsInventoryContainer.ShipModelSeedPath(_selectedIndex));
+                PageResetBtn.Visibility = Visibility.Visible;
+                RefreshShipParts();
+            };
+            results.Children.Add(new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Spacing = 10,
+                Children = { new TextBlock { Text = text, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas"), VerticalAlignment = VerticalAlignment.Center, IsTextSelectionEnabled = true }, use },
+            });
+        }
+    }
+
+    private static TextBlock Dim(string text) => new()
+    {
+        Text = text, FontSize = 12, TextWrapping = TextWrapping.Wrap, Foreground = ThemeResources.Brush("ThemeTextDimBrush"),
+    };
+}
