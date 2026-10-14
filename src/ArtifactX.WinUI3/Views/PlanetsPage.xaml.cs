@@ -646,6 +646,12 @@ public sealed partial class PlanetsPage : Page
         names.Children.Add(DimLine(typeText));
         Grid.SetColumn(names, 1);
         header.Children.Add(names);
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var open = new Button { Content = "Open ›", Padding = new Thickness(10, 3, 10, 3), VerticalAlignment = VerticalAlignment.Top };
+        ToolTipService.SetToolTip(open, "Open this planet - everything about it, and your details");
+        open.Click += (_, _) => OpenPlanet(planet);
+        Grid.SetColumn(open, 2);
+        header.Children.Add(open);
         stack.Children.Add(header);
 
         if (here)
@@ -683,9 +689,6 @@ public sealed partial class PlanetsPage : Page
         copy.Click += CopyCode_Click;
         ToolTipService.SetToolTip(copy, $"Copy portal address {planet.PortalCode}");
         glyphRow.Children.Add(copy);
-        var open = new Button { Content = "Open planet ›", Padding = new Thickness(10, 2, 10, 2), Margin = new Thickness(8, 0, 0, 0) };
-        open.Click += (_, _) => OpenPlanet(planet);
-        glyphRow.Children.Add(open);
         stack.Children.Add(glyphRow);
 
         var card = new Border
@@ -1300,8 +1303,13 @@ public sealed partial class PlanetsPage : Page
             return;
         }
 
-        var (toggle, body) = Expandable($"Show {string.Join(" · ", parts)}");
-        if (full) body.Visibility = Visibility.Visible;
+        if (!full)
+        {
+            stack.Children.Add(section);
+            return;
+        }
+        var (_, body) = Expandable("");
+        body.Visibility = Visibility.Visible;
         void Heading(string text) => body.Children.Add(new TextBlock { Text = text, FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush") });
         if (missingOwn.Count > 0)
         {
@@ -1321,7 +1329,6 @@ public sealed partial class PlanetsPage : Page
             ToolTipService.SetToolTip(caughtList, "Recorded by ArtifactX while it followed your game. Catches from before, or while it was closed, aren't known - the save doesn't record where a fish was caught.");
             body.Children.Add(caughtList);
         }
-        if (!full) section.Children.Add(toggle);
         section.Children.Add(body);
         stack.Children.Add(section);
     }
@@ -1385,7 +1392,7 @@ public sealed partial class PlanetsPage : Page
 
         var weatherWords = _planetWords.Where(w => w.Group == "Weather").Select(w => w.Word)
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(w => w, StringComparer.CurrentCultureIgnoreCase).ToList();
-        var weatherBox = new AutoSuggestBox { Header = "Weather", Width = 360, PlaceholderText = "Start typing, e.g. Painfully Hot Rain" };
+        var weatherBox = new AutoSuggestBox { Header = "Weather", Width = 360, HorizontalAlignment = HorizontalAlignment.Left, PlaceholderText = "Start typing, e.g. Painfully Hot Rain" };
         weatherBox.Loaded += (_, _) => weatherBox.Text = details.Weather;
         weatherBox.TextChanged += (s, e) =>
         {
@@ -1412,7 +1419,7 @@ public sealed partial class PlanetsPage : Page
             }
         }
         RenderChips();
-        var resourceBox = new AutoSuggestBox { Header = "Resources", Width = 360, PlaceholderText = "Type a resource and press Enter, e.g. Paraffinium" };
+        var resourceBox = new AutoSuggestBox { Header = "Resources", Width = 360, HorizontalAlignment = HorizontalAlignment.Left, PlaceholderText = "Type a resource and press Enter, e.g. Paraffinium" };
         resourceBox.TextChanged += (s, e) =>
         {
             if (e.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
@@ -1665,10 +1672,11 @@ public sealed partial class PlanetsPage : Page
         DetailPanel.Children.Add(header);
 
         var cards = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 18, VerticalSpacing = 18 };
+        var left = new StackPanel { Spacing = 18, VerticalAlignment = VerticalAlignment.Top };
 
         // What the save knows (live: refreshed by RefreshPlanetPageLive).
         _saveFactsCard = DetailCard("FROM YOUR SAVE", SaveFacts(planet, inThisSystem));
-        cards.Children.Add(_saveFactsCard);
+        left.Children.Add(_saveFactsCard);
 
         // Your details: edited right here.
         var (editor, commit) = BuildDetailsEditor(planet);
@@ -1684,11 +1692,11 @@ public sealed partial class PlanetsPage : Page
         saveRow.Children.Add(saveBtn);
         saveRow.Children.Add(status);
         editor.Children.Add(saveRow);
-        cards.Children.Add(DetailCard("YOUR DETAILS", editor, 640));
+        var detailsCard = DetailCard("YOUR DETAILS", editor, 640);
 
         _fishCard = DetailCard("FISH", FishBody(planet));
         _fishCard.Visibility = ((StackPanel)((StackPanel)_fishCard.Child).Children[1]).Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        cards.Children.Add(_fishCard);
+        left.Children.Add(_fishCard);
 
         // Your Finds on this planet (Finds page).
         var finds = FindsService.All.Where(f => f.PortalCode == planet.PortalCode && f.Galaxy == planet.Galaxy).ToList();
@@ -1704,9 +1712,11 @@ public sealed partial class PlanetsPage : Page
                     TextWrapping = TextWrapping.Wrap,
                     IsTextSelectionEnabled = true,
                 });
-            cards.Children.Add(DetailCard("YOUR FINDS HERE", list));
+            left.Children.Add(DetailCard("YOUR FINDS HERE", list));
         }
 
+        cards.Children.Add(left);
+        cards.Children.Add(detailsCard);
         DetailPanel.Children.Add(cards);
     }
 
