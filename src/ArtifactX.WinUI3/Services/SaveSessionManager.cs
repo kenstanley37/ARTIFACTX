@@ -97,6 +97,20 @@ public static class SaveSessionManager
         ActiveSessionChanged?.Invoke(null, EventArgs.Empty);
     }
 
+    /// <summary>Points the loaded session at a re-read copy of its own slot
+    /// (SaveFolderWatchService) - same slot, possibly more files now (the game
+    /// adds the second of a slot's pair later). The session and its unsaved
+    /// edits stay as they are; only where a save gets written changes.</summary>
+    public static void AdoptSlot(SaveSlotGroup slot)
+    {
+        if (_activeSlot is null || _activeSlot.SlotId != slot.SlotId) return;
+        if (!string.Equals(Path.GetDirectoryName(slot.PrimaryFile.FullPath), _activePlatformFolder, StringComparison.OrdinalIgnoreCase)) return;
+        _activeSlot.IsActive = false;
+        _activeSlot = slot;
+        _activeSlot.IsActive = true;
+        _targetHgPaths = slot.Files.Select(f => f.FullPath).ToArray();
+    }
+
     /// <summary>Marks a platform folder as the active one without loading any
     /// specific save slot - called when the user opens a platform card on
     /// SaveFolderSelectPage (see SaveFolderSelectPage.xaml's Expander.Expanding
