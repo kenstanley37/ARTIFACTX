@@ -1,7 +1,9 @@
 using ArtifactX.GameData;
 using ArtifactX.GameData.Services;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -86,6 +88,12 @@ public static class GameDataService
 
     public static GameDataInfo? Info => GameDataInfo.Read(CatalogPath);
 
+    /// <summary>No catalog has been built on this PC yet. Until there is one,
+    /// the app shows the setup page instead of letting a save be opened:
+    /// editing leans on the catalog (stack limits, slot counts, which tech
+    /// goes where), so it's a requirement, not an extra (user, 2026-10-14).</summary>
+    public static bool NeedsSetup => !File.Exists(CatalogPath);
+
     public static GameDataState State
     {
         get
@@ -133,7 +141,8 @@ public static class GameDataService
             }
             _cancel = new CancellationTokenSource();
             var token = _cancel.Token;
-            Progress = new GameDataProgress(0, GameDataBuilder.StepCount, "Starting");
+            Progress = new GameDataProgress(0, GameDataBuilder.StepCount, "Starting", 0, TimeSpan.Zero);
+            lock (ActivityLines) ActivityLines.Clear();
             _build = Task.Factory.StartNew(() => Run(game, token), token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
     }
@@ -148,6 +157,7 @@ public static class GameDataService
         string? error = null;
         LogService.EchoToConsole = false;
         LogService.UseLogFile(LogPath);
+        LogService.MessageWritten += OnLogMessage;
         try
         {
             GameDataBuilder.Build(game, CatalogPath, Path.Combine(Folder, "work"),
@@ -164,6 +174,7 @@ public static class GameDataService
         }
         finally
         {
+            LogService.MessageWritten -= OnLogMessage;
             Progress = null;
             // The builder holds every decoded table while it runs; give that back.
             GC.Collect();
@@ -171,6 +182,55 @@ public static class GameDataService
         BuildFinished?.Invoke(error);
         StateChanged?.Invoke(null, EventArgs.Empty);
     }
+
+    // ------------------------------------------------------------------ activity
+
+    private static readonly List<string> ActivityLines = new();
+
+    /// <summary>What the build has done so far, in plain words (the setup page's activity box).</summary>
+    public static IReadOnlyList<string> Activity { get { lock (ActivityLines) return ActivityLines.ToList(); } }
+
+    /// <summary>Raised (builder thread) with each new activity line.</summary>
+    public static event Action<string>? ActivityLogged;
+
+    private static void OnLogMessage(string message)
+    {
+        if (ToActivity(message) is not string line) return;
+        lock (ActivityLines)
+        {
+            ActivityLines.Add(line);
+            if (ActivityLines.Count > 400) ActivityLines.RemoveAt(0);
+        }
+        ActivityLogged?.Invoke(line);
+    }
+
+    /// <summary>The builder's log, cut down to what a player would want to see:
+    /// each step, and what it found. The thousands of 3D-model files it skips,
+    /// internal warnings and file paths stay in the log file only.</summary>
+    private static string? ToActivity(string message)
+    {
+        if (message.Length == 0 || char.IsWhiteSpace(message[0])) return null;
+        if (message.StartsWith("== ", StringComparison.Ordinal))
+            return message[3..];
+        if (message.StartsWith("CatalogBuild: ", StringComparison.Ordinal))
+        {
+            string text = message["CatalogBuild: ".Length..];
+            if (text.Contains("fail", StringComparison.OrdinalIgnoreCase) || text.Contains("threw", StringComparison.Ordinal)
+                || text.StartsWith("WARNING", StringComparison.Ordinal)) return null;
+            return "   " + Capitalise(CutPath(text));
+        }
+        if (message.StartsWith("Found ", StringComparison.Ordinal) || message.StartsWith("Extracted ", StringComparison.Ordinal))
+            return "   " + CutPath(message).TrimEnd(':');
+        return null;
+    }
+
+    private static string CutPath(string text)
+    {
+        int to = text.IndexOf(" to ", StringComparison.Ordinal);
+        return to > 0 && text.IndexOf(":\\", to, StringComparison.Ordinal) > 0 ? text[..to] + "." : text;
+    }
+
+    private static string Capitalise(string text) => text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
 
     /// <summary>Reports on the builder's own thread (Progress&lt;T&gt; would
     /// post to a thread pool and could arrive out of order).</summary>

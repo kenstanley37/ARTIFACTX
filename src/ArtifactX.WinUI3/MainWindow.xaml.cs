@@ -126,10 +126,9 @@ public sealed partial class MainWindow : Window
 
         _ = RunStartupUpdateCheckAsync();
 
-        ContentFrame.Navigate(typeof(SaveFolderSelectPage));
-
-        var defaultItem = FindNavItemByTag(RootNav.MenuItems, "SaveFolderSelect");
-        if (defaultItem != null) RootNav.SelectedItem = defaultItem;
+        // No game data yet: set up first - a save can't be opened without it.
+        if (GameDataService.NeedsSetup) ShowSetup();
+        else ShowSaveSelection();
     }
 
     // Assigns each nav PathIcon's Data from the raw path strings in
