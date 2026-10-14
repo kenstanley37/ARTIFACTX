@@ -15,6 +15,27 @@
         <StackPanel Padding="28,26,28,32" Spacing="18" MaxWidth="980" HorizontalAlignment="Left">
             <TextBlock Text="SETTINGS" Style="{StaticResource ThemePageTitleStyle}"/>
 
+            <!-- Game data: built from the player's own game files (GameDataService) -->
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="GAME DATA" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <StackPanel Padding="18,14,18,18" Spacing="10">
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
+                                   Text="Item names, icons, recipes and more come from your own copy of No Man's Sky - nothing from the game comes with ArtifactX. It reads them once, and again after the game updates."/>
+                        <TextBlock x:Name="GameFolderTxt" FontSize="13" IsTextSelectionEnabled="True" TextWrapping="Wrap"
+                                   Foreground="{ThemeResource ThemeTextBrush}"/>
+                        <TextBlock x:Name="GameDataStatusTxt" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="GameDataBuildBtn" Click="GameDataBuild_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
+                            <Button Content="Change game folder..." Click="ChangeGameFolder_Click"/>
+                            <Button x:Name="GameDataLogBtn" Content="Open build log" Click="OpenGameDataLog_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
             <!-- Where backups go -->
             <Border Style="{StaticResource ThemeCardStyle}">
                 <StackPanel>

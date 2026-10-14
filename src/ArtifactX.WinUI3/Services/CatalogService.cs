@@ -22,6 +22,16 @@ public static class CatalogService
 
     public static bool IsAvailable => ResolveDbPath() is not null;
 
+    /// <summary>Forgets everything read so far - after the game data was
+    /// rebuilt (GameDataService). Call on the UI thread; pages pick the new
+    /// catalog up as they load.</summary>
+    public static void Reload()
+    {
+        Cache.Clear();
+        _pathChecked = false;
+        _dbPath = null;
+    }
+
     public static CatalogEntry? TryGet(string? gameId)
     {
         if (string.IsNullOrEmpty(gameId)) return null;
@@ -1517,12 +1527,12 @@ public static class CatalogService
         if (_pathChecked) return _dbPath;
         _pathChecked = true;
 
-        string candidate = Path.Combine(AppContext.BaseDirectory, "Data", "nms_catalog.sqlite");
-        _dbPath = File.Exists(candidate) ? candidate : null;
+        // Built on this PC from the player's own game files (GameDataService).
+        _dbPath = GameDataService.ActiveCatalogPath;
 
         Debug.WriteLine(_dbPath is not null
             ? $"[CatalogService] Catalog found at: {_dbPath}"
-            : $"[CatalogService] Catalog NOT found. Checked: {candidate}");
+            : $"[CatalogService] No catalog yet (not built). Checked: {GameDataService.CatalogPath}");
 
         return _dbPath;
     }

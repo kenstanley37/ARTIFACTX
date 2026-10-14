@@ -10,6 +10,23 @@ using libMBIN;
 string workingFolder = Path.Combine(AppContext.BaseDirectory, "Working");
 Directory.CreateDirectory(workingFolder);
 
+// "DataCataloger build-all <output.sqlite> [game folder]" - the whole build the
+// app runs on the player's PC (GameDataBuilder): main build, every add-* step,
+// trim, game-build stamp. Game folder defaults to config.json, else the first
+// install found.
+if (args.Length > 1 && args[0].Equals("build-all", StringComparison.OrdinalIgnoreCase))
+{
+    var game = args.Length > 2 ? GameInstall.Inspect(args[2])
+        : (DevGamePath() is string configured ? GameInstall.Inspect(configured) : null) ?? GameInstall.Find();
+    if (game is null) { ConsoleStyle.Error("No No Man's Sky install found."); return; }
+    ConsoleStyle.Header($"Building from {game.RootFolder} ({game.BuildLabel}, fingerprint {game.Fingerprint})");
+    GameDataBuilder.Build(game, Path.GetFullPath(args[1]), Path.Combine(workingFolder, "build-all"),
+        new Progress<GameDataProgress>(p => ConsoleStyle.Success($"[{p.Step}/{p.Steps}] {p.Label}")));
+    var info = GameDataInfo.Read(Path.GetFullPath(args[1]));
+    ConsoleStyle.Success($"Done: format {info?.Format}, fingerprint {info?.Fingerprint}, matches install: {info?.Matches(game)}");
+    return;
+}
+
 // "DataCataloger trim" reuses an already-built working catalog and writes
 // the small, ship-ready distribution copy - no PAK re-extraction needed.
 if (args.Length > 0 && args[0].Equals("trim", StringComparison.OrdinalIgnoreCase))
