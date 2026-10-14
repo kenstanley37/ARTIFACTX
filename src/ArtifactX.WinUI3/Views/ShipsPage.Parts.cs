@@ -63,7 +63,13 @@ public sealed partial class ShipsPage
         ShipPartsPanel.Children.Clear();
         string? scene = CurrentScene();
         if (scene is null) return;
-        _treeJson ??= await CatalogService.GetShipPartTreesAsync();
+        // Re-read while empty: the game data may have been updated since (an empty
+        // result was being kept for the whole session).
+        if (_treeJson is null || _treeJson.Count == 0)
+        {
+            _treeJson = await CatalogService.GetShipPartTreesAsync();
+            lock (TreeCache) TreeCache.Clear();
+        }
         if (_treeJson.Count == 0)
         {
             ShipPartsPanel.Children.Add(Dim("Update your game data (Settings › Game data) to see which parts a seed gives."));
