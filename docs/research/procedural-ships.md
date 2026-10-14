@@ -69,6 +69,43 @@ its rule is right (random chance of a false match is about 1 in 150).
 All five as **Fighter** type. If no test ship matches, none of the rules is
 right, but the screenshots still become ground truth for the next round.
 
+### Result (2026-10-14)
+
+Screenshots (top and rear) of the five ships: **Test 1 matches the
+reference** (twin round engines, long multi-pane canopy, swept wings with a
+tall fin). No other test ship does. Only rule A predicts that:
+
+| Ship | Rule A prediction |
+|---|---|
+| Reference | `_ENGINE_D _WINGS_F _COCKPIT_A` |
+| Test 1 | `_ENGINE_D _WINGS_F _COCKPIT_A` |
+| Test 2 | `_ENGINE_D _WINGS_J _COCKPIT_E` |
+| Test 3 | `_ENGINE_C _WINGS_I _COCKPIT_E` |
+| Test 4 | `_ENGINE_D _WINGS_F _COCKPIT_E` |
+
+Test 2 and Test 3 also look alike from behind (same boxy rear, both
+`_COCKPIT_E` under rule A), but their canopies differ from above and Test 4
+(also `_COCKPIT_E`) doesn't obviously share that rear - so which visible
+piece each group controls isn't pinned down yet (canopies may be nested
+picks). Rule A is the working rule; a second, sharper
+round (exact twins including the nested groups) should confirm it before any
+UI is built on it.
+
+## Test 2 (in game)
+
+Rule A, every pick in the fighter descriptor (nested ones too). Reference's
+full picks: `_ENGINE_D _WINGS_F _ACC_NONE3 _COCKPIT_A _ANOSE_A`.
+
+| Ship | Seed | Rule A picks | Expected |
+|---|---|---|---|
+| Twin A | `0x5E060BD87F938EEA` | same as reference | identical shape |
+| Twin B | `0x57A61A7D596EFBBA` | same as reference | identical shape |
+| Engine only | `0x7E5A910663656BA4` | `_ENGINE_C`, rest the same | only the engine differs |
+| Wings only | `0x53A1D1F248985B29` | `_WINGS_E _ACC_NONE2`, rest the same | only the wings differ |
+
+The part scenes have descriptors of their own (not modelled yet), so small
+details could still differ between twins; the big shapes should not.
+
 ## After the rule is known
 
 Showing the result needs the part models. Options, cheapest first:
