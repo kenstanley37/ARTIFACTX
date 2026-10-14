@@ -1563,6 +1563,42 @@ public sealed partial class PlanetsPage : Page
 
     private void Filter_Click(object sender, RoutedEventArgs e) => ApplyFilters();
 
+    private ComboBox[] ChoiceFilters => new[]
+    {
+        StarFilterBox, EconomyFilterBox, WealthFilterBox, ConflictFilterBox, RaceFilterBox,
+        ShipFilterBox, SentinelsFilterBox, FloraFilterBox, FaunaFilterBox, ResourceFilterBox,
+    };
+    private CheckBox[] CheckFilters => new[] { RingsOnlyBox, MineOnlyBox, WaterFilterBox, DissonantFilterBox };
+
+    /// <summary>Which filters narrow the list right now (sort, save slots and
+    /// hyperdrive range are display choices, not filters).</summary>
+    private IEnumerable<bool> ActiveFilters() =>
+        new[]
+        {
+            SearchBox.Text.Trim().Length > 0,
+            TypeFilterBox.SelectedIndex > 0,
+            GalaxyFilterBox.SelectedIndex > 0,
+            BodiesFilterBox.SelectedIndex > 0,
+        }
+        .Concat(ChoiceFilters.Select(b => ChosenValue(b) != ""))
+        .Concat(CheckFilters.Select(c => c.IsChecked == true));
+
+    /// <summary>Back to the whole list in one click (user, 2026-10-13: a search
+    /// left in the box quietly hid nearly every planet).</summary>
+    private void ClearFilters_Click(object sender, RoutedEventArgs e)
+    {
+        _suppressFilterEvents = true;
+        SearchBox.Text = "";
+        _searchTimer?.Stop();
+        TypeFilterBox.SelectedIndex = 0;
+        GalaxyFilterBox.SelectedIndex = 0;
+        BodiesFilterBox.SelectedIndex = 0;
+        foreach (var box in ChoiceFilters) if (box.Items.Count > 0) box.SelectedIndex = 0;
+        foreach (var check in CheckFilters) check.IsChecked = false;
+        _suppressFilterEvents = false;
+        ApplyFilters();
+    }
+
     private void ApplyFilters()
     {
         int type = (TypeFilterBox.SelectedItem as ComboBoxItem)?.Tag as int? ?? -1;
@@ -1621,6 +1657,9 @@ public sealed partial class PlanetsPage : Page
         var matches = ordered.Select(x => ToRow(x.Planet, x.Distance)).ToList();
 
         ResultsList.ItemsSource = matches;
+        int active = ActiveFilters().Count(on => on);
+        ClearFiltersBtn.Content = $"Clear filters ({active})";
+        ClearFiltersBtn.Visibility = active > 0 ? Visibility.Visible : Visibility.Collapsed;
         ResultCountTxt.Text = $"{matches.Count:N0} of {_allPlanets.Count:N0} planets";
     }
 
