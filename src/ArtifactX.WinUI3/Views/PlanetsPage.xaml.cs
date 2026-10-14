@@ -259,11 +259,8 @@ public sealed partial class PlanetsPage : Page
             string discovered = DiscoveredText(tally);
             string visit = VisitText(ReadPlanetStats(address));
             if (lines.Discovered.Text != discovered) lines.Discovered.Text = discovered;
-            if (lines.Visit.Text != visit)
-            {
-                lines.Visit.Text = visit;
-                lines.Visit.Visibility = visit.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-            }
+            if (visit.Length == 0) visit = "-";
+            if (lines.Visit.Text != visit) lines.Visit.Text = visit;
         }
     }
 
@@ -661,17 +658,16 @@ public sealed partial class PlanetsPage : Page
             });
         }
 
-        var discoveredLine = DimLine(DiscoveredText(tally));
-        stack.Children.Add(discoveredLine);
-        string visitText = VisitText(stats);
-        var visitLine = DimLine(visitText);
-        visitLine.Visibility = visitText.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-        stack.Children.Add(visitLine);
+        // What the save knows, as a label / value table (2026-10-13 redesign:
+        // a stack of small dim lines was hard to read and easy to miss).
+        var facts = new FactTable();
+        var discoveredLine = facts.Add("Discovered", DiscoveredText(tally));
+        var visitLine = facts.Add("Visited", VisitText(stats));
         _tileText[planet.Address] = (discoveredLine, visitLine);
-
         if (_baseNames.TryGetValue(planet.PlanetIndex, out var baseNames))
-            stack.Children.Add(DimLine(baseNames.Count == 1 ? $"Your base: {baseNames[0]}" : $"Your bases: {string.Join(", ", baseNames)}"));
-        stack.Children.Add(DimLine($"Found by {(planet.DiscoveredHere ? "you" : planet.Discoverer)}"));
+            facts.Add(baseNames.Count == 1 ? "Your base" : "Your bases", string.Join(", ", baseNames));
+        facts.Add("Found by", planet.DiscoveredHere ? "You" : planet.Discoverer);
+        stack.Children.Add(facts.Grid);
 
         AddPlanetFish(stack, planet);
         AddPlanetDetails(stack, planet);
@@ -702,7 +698,7 @@ public sealed partial class PlanetsPage : Page
     private static string DiscoveredText(PlanetDiscoveryCounts? tally)
     {
         var t = tally ?? new PlanetDiscoveryCounts(0, 0, 0);
-        return $"Discovered: {t.Fauna} fauna · {t.Flora} flora · {t.Minerals} minerals";
+        return $"{t.Fauna} fauna · {t.Flora} flora · {t.Minerals} minerals";
     }
 
     // ^TIME / ^DIST_WALKED units assumed seconds / metres (Cholton: 199 and 85
@@ -711,7 +707,7 @@ public sealed partial class PlanetsPage : Page
     {
         var visit = new List<string>();
         if (stats.TryGetValue("^TIME", out double secondsHere) && secondsHere >= 1)
-            visit.Add($"{FormatDuration(secondsHere)} here");
+            visit.Add(FormatDuration(secondsHere));
         if (stats.TryGetValue("^DIST_WALKED", out double walked) && walked >= 1)
             visit.Add($"{walked:N0} m walked");
         return string.Join(" · ", visit);
@@ -1124,64 +1120,118 @@ public sealed partial class PlanetsPage : Page
 
     private void SearchTimer_Tick(Microsoft.UI.Dispatching.DispatcherQueueTimer sender, object args) => ApplyFilters();
 
-    private string FishName(string id) =>
-        CatalogService.TryGet(id)?.DisplayName is { Length: > 0 } shown ? shown
-        : _itemNames.TryGetValue(id, out var name) ? name : id;
+    /// <summary>A fish's name in normal case ("Glass Angel", not "GLASS ANGEL").</summary>
+    private string FishName(string id)
+    {
+        string name = _itemNames.TryGetValue(id, out var n) ? n
+            : CatalogService.TryGet(id)?.DisplayName is { Length: > 0 } shown ? shown : id;
+        return name == name.ToUpperInvariant() ? CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name.ToLowerInvariant()) : name;
+    }
 
-    /// <summary>The planet's fish: how many of this planet type's fish you've
-    /// caught (the save only records what you caught, not where), plus the
-    /// ones recorded as caught right here since ArtifactX started following
-    /// your game (FishCatchService).</summary>
+    /// <summary>Label / value rows for a planet card: labels dim, values in
+    /// normal text so they're easy to read.</summary>
+    private sealed class FactTable
+    {
+        public Grid Grid { get; } = new() { ColumnSpacing = 10, RowSpacing = 3 };
+
+        public FactTable()
+        {
+            Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(82) });
+            Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        }
+
+        public TextBlock Add(string label, string value)
+        {
+            int row = Grid.RowDefinitions.Count;
+            Grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var labelText = new TextBlock { Text = label, FontSize = 12, Foreground = ThemeBrush("ThemeTextDimBrush") };
+            var valueText = new TextBlock
+            {
+                Text = value.Length > 0 ? value : "-",
+                FontSize = 13,
+                Foreground = ThemeBrush("ThemeTextBrush"),
+                TextWrapping = TextWrapping.Wrap,
+                IsTextSelectionEnabled = true,
+            };
+            Grid.SetRow(labelText, row);
+            Grid.SetRow(valueText, row);
+            Grid.SetColumn(valueText, 1);
+            Grid.Children.Add(labelText);
+            Grid.Children.Add(valueText);
+            return valueText;
+        }
+    }
+
+    /// <summary>A card section: a thin rule and a small heading.</summary>
+    private static StackPanel Section(string title)
+    {
+        var section = new StackPanel { Spacing = 6, Margin = new Thickness(0, 4, 0, 0) };
+        section.Children.Add(new Border { Height = 1, Background = ThemeBrush("ThemeLineBrush"), Margin = new Thickness(0, 0, 0, 4) });
+        section.Children.Add(new TextBlock { Text = title, Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] });
+        return section;
+    }
+
+    /// <summary>The planet's fish: progress on this planet type's fish (the
+    /// save records what you caught, not where), and the ones recorded as
+    /// caught right here since ArtifactX started following your game
+    /// (FishCatchService). Fish found on every planet type are counted apart,
+    /// so the number doesn't read as "this planet has 42 fish of its own".</summary>
     private void AddPlanetFish(StackPanel stack, KnownPlanet planet)
     {
         if (_fish.Count == 0) return;
+        var section = Section("FISH");
         if (PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex) == false)
         {
-            stack.Children.Add(DimLine("Fish: no water here"));
+            section.Children.Add(DimLine("No water here, so no fish."));
+            stack.Children.Add(section);
             return;
         }
         var here = _fish.Where(f => f.LivesOn(planet.BiomeIndex)).ToList();
         if (here.Count == 0) return;
 
-        int caughtCount = here.Count(f => _caught.ContainsKey(f.Id));
-        var line = DimLine($"Fish for this planet type: {caughtCount} of {here.Count} caught");
+        int caught = here.Count(f => _caught.ContainsKey(f.Id));
+        int ownType = here.Count(f => !f.Biomes.Contains(FishInfo.AnyPlanet));
+        var progress = new Grid { ColumnSpacing = 10 };
+        progress.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        progress.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        progress.Children.Add(new ProgressBar { Maximum = here.Count, Value = caught, VerticalAlignment = VerticalAlignment.Center });
+        var count = new TextBlock { Text = $"{caught} / {here.Count} caught", FontSize = 13, Foreground = ThemeBrush("ThemeTextBrush") };
+        Grid.SetColumn(count, 1);
+        progress.Children.Add(count);
         var missing = here.Where(f => !_caught.ContainsKey(f.Id)).Select(f => FishName(f.Id)).OrderBy(n => n).ToList();
-        ToolTipService.SetToolTip(line, missing.Count == 0
+        ToolTipService.SetToolTip(progress, missing.Count == 0
             ? "You've caught every fish this planet type has."
-            : $"Still to catch here ({missing.Count}):\n{string.Join("\n", missing)}");
-        stack.Children.Add(line);
+            : $"Still to catch ({missing.Count}):\n{string.Join("\n", missing)}");
+        section.Children.Add(progress);
+        section.Children.Add(DimLine($"{ownType} live only on {planet.TypeName} planets, {here.Count - ownType} on any planet with water. Hover for the ones you still need."));
 
         var caughtHere = FishCatchService.CaughtOn(planet.SystemAddress, planet.PlanetIndex);
         if (caughtHere.Count > 0)
         {
+            var facts = new FactTable();
             var names = caughtHere.OrderByDescending(c => c.Value).ThenBy(c => FishName(c.Key))
                 .Select(c => c.Value > 1 ? $"{FishName(c.Key)} ×{c.Value}" : FishName(c.Key));
-            var caughtLine = DimLine($"Caught here: {string.Join(", ", names)}");
-            ToolTipService.SetToolTip(caughtLine, "Recorded by ArtifactX while it followed your game - catches from before, or while it was closed, aren't known (the save doesn't record where a fish was caught).");
-            stack.Children.Add(caughtLine);
+            var value = facts.Add("Caught here", string.Join(", ", names));
+            ToolTipService.SetToolTip(value, "Recorded by ArtifactX while it followed your game. Catches from before, or while it was closed, aren't known - the save doesn't record where a fish was caught.");
+            section.Children.Add(facts.Grid);
         }
+        stack.Children.Add(section);
     }
 
-    /// <summary>The recorded details on a planet card, plus Add / Edit details.</summary>
+    /// <summary>The player's recorded details on a planet card, plus Add / Edit details.</summary>
     private void AddPlanetDetails(StackPanel stack, KnownPlanet planet)
     {
         var details = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex);
         bool? water = PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex);
+        var section = Section("YOUR DETAILS");
 
-        var box = new StackPanel { Spacing = 4, Margin = new Thickness(0, 4, 0, 0) };
+        var facts = new FactTable();
+        int rows = 0;
         void Fact(string label, string value)
         {
             if (value.Length == 0) return;
-            box.Children.Add(new TextBlock
-            {
-                TextWrapping = TextWrapping.Wrap,
-                FontSize = 12,
-                Inlines =
-                {
-                    new Microsoft.UI.Xaml.Documents.Run { Text = $"{label}: ", Foreground = ThemeBrush("ThemeTextDimBrush") },
-                    new Microsoft.UI.Xaml.Documents.Run { Text = value },
-                },
-            });
+            facts.Add(label, value);
+            rows++;
         }
         if (details is not null)
         {
@@ -1192,21 +1242,34 @@ public sealed partial class PlanetsPage : Page
             Fact("Resources", string.Join(", ", details.Resources));
         }
         Fact("Water", water switch { true => "Yes", false => "None", _ => "" });
-        if (details is not null)
-            foreach (var note in details.Notes)
-                box.Children.Add(new TextBlock { Text = $"• {note}", FontSize = 12, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true });
+        if (rows > 0) section.Children.Add(facts.Grid);
 
-        bool any = box.Children.Count > 0;
+        if (details is not null && details.Notes.Count > 0)
+        {
+            var notes = new StackPanel { Spacing = 2 };
+            foreach (var note in details.Notes)
+                notes.Children.Add(new TextBlock
+                {
+                    Text = $"• {note}",
+                    FontSize = 13,
+                    Foreground = ThemeBrush("ThemeTextBrush"),
+                    TextWrapping = TextWrapping.Wrap,
+                    IsTextSelectionEnabled = true,
+                });
+            section.Children.Add(notes);
+        }
+
+        bool any = rows > 0 || details?.Notes.Count > 0;
+        if (!any) section.Children.Add(DimLine("Weather, sentinels, life and resources from the game's discovery screen."));
         var edit = new Button
         {
             Content = any ? "Edit details" : "Add details",
-            Padding = new Thickness(8, 2, 8, 2),
+            Padding = new Thickness(10, 3, 10, 3),
             HorizontalAlignment = HorizontalAlignment.Left,
         };
-        ToolTipService.SetToolTip(edit, "Weather, sentinels, flora, fauna, resources and notes - as the game's discovery screen shows them");
         edit.Click += async (_, _) => await EditPlanetDetailsAsync(planet);
-        box.Children.Add(edit);
-        stack.Children.Add(box);
+        section.Children.Add(edit);
+        stack.Children.Add(section);
     }
 
     /// <summary>The editor for one planet's details. Words come from the game
