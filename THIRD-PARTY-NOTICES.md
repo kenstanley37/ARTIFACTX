@@ -44,6 +44,53 @@ economy 99.0%, wealth 98.9%, conflict 99.0%, region names 100%).
 ArtifactX and nms_namegen are fan projects and are not associated with
 Hello Games.
 
+## NMS Shipwright
+
+How ArtifactX works out a starship's parts from its seed
+(`src/ArtifactX.Core/Procedural/ShipParts.cs`: the game's random generator as
+seeded for models, weighted part picks, nested part seeds) is a C# port of the
+part selector in **NMS Shipwright**'s `nms_procgen/generator.py`. No code from
+it runs in ArtifactX and no files from it are included; the part trees come
+from the player's own game files.
+
+- Project: https://github.com/S-T-0-7/NMS-Shipwright
+- Author: Shikhar Tiwari
+- Licence: MIT
+
+```
+MIT License
+
+Copyright (c) 2026 Shikhar Tiwari
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+This software is not affiliated with, endorsed by or connected to Hello Games.
+No Man's Sky is a trademark of Hello Games. No game files are included in this
+repository or in the released application; everything the app needs is read
+from the user's own installed copy of the game at runtime.
+```
+
+The port was checked against the original on 2,000 seeds across 8 ship types
+(every part identical) and against starships seen in game.
+
 ## MBINCompiler / libMBIN
 
 ArtifactX's game-data reader (`src/ArtifactX.Tools/NMS.Tools.libMBIN`) is
