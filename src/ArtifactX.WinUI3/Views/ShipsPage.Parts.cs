@@ -107,11 +107,13 @@ public sealed partial class ShipsPage
         toggle.Click += (_, _) => body.Visibility = body.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
         ShipPartsPanel.Children.Add(toggle);
 
-        var choices = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        // Wraps onto more lines in the narrow details column (a sideways scroll bar
+        // covered the dropdowns, 2026-10-14).
+        var choices = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 8, VerticalSpacing = 8 };
         _wantBoxes.Clear();
         foreach (var g in root.Where(g => g.Options.Count > 1))
         {
-            var box = new ComboBox { Header = GroupLabel(g.Type), MinWidth = 110 };
+            var box = new ComboBox { Header = GroupLabel(g.Type), Width = 120 };
             box.Items.Add(new ComboBoxItem { Content = "Any", Tag = "" });
             foreach (var o in g.Options.Where(o => o.Weight > 0))
                 box.Items.Add(new ComboBoxItem { Content = PartLabel(g.Type, o.Id) + (o.Weight < 20 ? " (rare)" : ""), Tag = o.Id });
@@ -119,7 +121,7 @@ public sealed partial class ShipsPage
             _wantBoxes[g.Type] = box;
             choices.Children.Add(box);
         }
-        body.Children.Add(new ScrollViewer { Content = choices, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, HorizontalScrollMode = ScrollMode.Auto });
+        body.Children.Add(choices);
 
         var results = new StackPanel { Spacing = 4 };
         var status = Dim("");
