@@ -29,7 +29,7 @@
                         <Border Style="{StaticResource ThemeBandStyle}">
                             <TextBlock Text="OWNED SETTLEMENTS" Style="{StaticResource ThemeBandTextStyle}"/>
                         </Border>
-                        <ScrollViewer MaxHeight="120" Padding="18,14,18,16" VerticalScrollBarVisibility="Auto"
+                        <ScrollViewer MaxHeight="300" Padding="18,14,18,16" VerticalScrollBarVisibility="Auto"
                                       HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
                             <ctcontrols:WrapPanel x:Name="SettlementSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
                         </ScrollViewer>
