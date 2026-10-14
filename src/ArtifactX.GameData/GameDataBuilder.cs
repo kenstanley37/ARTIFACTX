@@ -4,8 +4,9 @@ using Microsoft.Data.Sqlite;
 
 namespace ArtifactX.GameData;
 
-/// <summary>One step of the build, for progress: "Step 3 of 16 - Recipes".</summary>
-public sealed record GameDataProgress(int Step, int Steps, string Label, string? Detail = null);
+/// <summary>Where the build is: "Step 3 of 15 - Recipes", and how far through
+/// the whole build that is (0 to 1, weighted by how long each part takes).</summary>
+public sealed record GameDataProgress(int Step, int Steps, string Label, double Fraction, TimeSpan Elapsed);
 
 /// <summary>
 /// Builds ArtifactX's catalog (item names, icons, recipes, fish...) from the
@@ -47,6 +48,12 @@ public static class GameDataBuilder
     /// <summary>Main build + additions + finishing.</summary>
     public static int StepCount => Steps.Length + 2;
 
+    // Share of the whole build each part takes. Timed 2026-10-14 (18m53s on
+    // the developer's PC): reading the game files 17m49s, all 13 additions
+    // about a minute together, finishing 11s.
+    private const double MainShare = 0.94, FinishShare = 0.01;
+    private static double StepShare => (1 - MainShare - FinishShare) / Steps.Length;
+
     /// <summary>Builds the catalog for <paramref name="game"/> and moves it to
     /// <paramref name="outputPath"/>. Throws on failure (the old catalog stays).</summary>
     public static void Build(GameInstall game, string outputPath, string workFolder,
@@ -59,31 +66,47 @@ public static class GameDataBuilder
         DeleteIfThere(trimmed);
         var clock = Stopwatch.StartNew();
         int step = 0;
+        string current = "";
+        double done = 0; // share of the build finished before the current step
+        double lastSent = -1;
 
-        void Report(string label)
+        void Begin(string label, double previousShare)
         {
+            if (step > 0) done += previousShare;
             step++;
+            current = label;
             LogService.Write($"== {label} ({clock.Elapsed:mm\\:ss})");
-            progress?.Report(new GameDataProgress(step, StepCount, label));
+            Send(0);
+        }
+        void Send(double within)
+        {
+            double fraction = Math.Min(1, done + within);
+            if (within > 0 && fraction - lastSent < 0.002) return; // don't flood the UI
+            lastSent = fraction;
+            progress?.Report(new GameDataProgress(step, StepCount, current, fraction, clock.Elapsed));
         }
 
         try
         {
-            Report("Reading your game files");
+            Begin("Reading your game files", 0);
             var discovery = new PakDiscoveryService();
             new CatalogBuildService(discovery, new PakReaderService(), new ExtractionService())
-                .Run(game.PcbanksPath, full, iconTargetSize: 128);
+            {
+                Progress = f => { cancel.ThrowIfCancellationRequested(); Send(MainShare * f); },
+            }.Run(game.PcbanksPath, full, iconTargetSize: 128);
             if (!File.Exists(full)) throw new InvalidOperationException("The game files couldn't be read - no catalog was written.");
 
+            double previous = MainShare;
             foreach (var (label, run) in Steps)
             {
                 cancel.ThrowIfCancellationRequested();
-                Report(label);
+                Begin(label, previous);
+                previous = StepShare;
                 run(full, game.PcbanksPath);
             }
 
             cancel.ThrowIfCancellationRequested();
-            Report("Finishing");
+            Begin("Finishing", previous);
             CatalogTrimService.Trim(full, trimmed);
             int items = CountItems(trimmed);
             if (items < 1000) throw new InvalidOperationException($"The build only found {items} items - something went wrong reading the game files.");
@@ -93,6 +116,8 @@ public static class GameDataBuilder
             SqliteConnection.ClearAllPools(); // let go of the files before moving
             File.Move(trimmed, outputPath, overwrite: true);
             LogService.Write($"== Done in {clock.Elapsed:mm\\:ss}: {items} items, {game.BuildLabel}");
+            done = 1;
+            Send(0);
         }
         finally
         {

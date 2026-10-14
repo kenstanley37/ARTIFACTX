@@ -31,6 +31,22 @@ public sealed partial class MainWindow
         ShowGameData();
     }
 
+    /// <summary>The setup page, with the menu hidden so nothing else can be
+    /// opened until the game data exists (GameDataService.NeedsSetup).</summary>
+    private void ShowSetup()
+    {
+        RootNav.IsPaneVisible = false;
+        ContentFrame.Navigate(typeof(GameDataSetupPage));
+    }
+
+    private void ShowSaveSelection()
+    {
+        RootNav.IsPaneVisible = true;
+        ContentFrame.Navigate(typeof(SaveFolderSelectPage));
+        var item = FindNavItemByTag(RootNav.MenuItems, "SaveFolderSelect");
+        if (item != null) RootNav.SelectedItem = item;
+    }
+
     private void ShowGameData()
     {
         var bar = GameDataBar;
@@ -49,14 +65,20 @@ public sealed partial class MainWindow
             bar.IsOpen = true;
         }
 
+        // The setup page shows all of this itself.
+        if (ContentFrame.CurrentSourcePageType == typeof(GameDataSetupPage) || GameDataService.NeedsSetup && !GameDataService.IsBuilding)
+        {
+            bar.IsOpen = false;
+            return;
+        }
+
         if (GameDataService.IsBuilding)
         {
             var p = GameDataService.Progress;
             GameDataProgress.Visibility = Visibility.Visible;
-            GameDataProgress.Maximum = p?.Steps ?? 1;
-            GameDataProgress.Value = Math.Max(0, (p?.Step ?? 1) - 1);
-            // The first step (reading every game file) is most of the time.
-            GameDataProgress.IsIndeterminate = p is null || p.Step <= 1;
+            GameDataProgress.Maximum = 100;
+            GameDataProgress.Value = (p?.Fraction ?? 0) * 100;
+            GameDataProgress.IsIndeterminate = p is null;
             bar.IsClosable = false;
             Show(InfoBarSeverity.Informational, "Reading your game files",
                 p is null ? "Starting..." : $"Step {p.Step} of {p.Steps}: {p.Label}. You can keep using ArtifactX - item names and icons update when it's done.",
@@ -157,9 +179,12 @@ public sealed partial class MainWindow
         _gameDataJustBuilt = error is null;
         if (error is null)
         {
-            // Pages read the catalog as they open: re-open the current one.
             CatalogService.Reload();
-            if (ContentFrame.CurrentSourcePageType is Type page && page != typeof(SaveFolderSelectPage))
+            // First run done: on to the saves. Otherwise pages read the catalog
+            // as they open, so re-open the current one.
+            if (ContentFrame.CurrentSourcePageType == typeof(GameDataSetupPage))
+                ShowSaveSelection();
+            else if (ContentFrame.CurrentSourcePageType is Type page && page != typeof(SaveFolderSelectPage))
                 ContentFrame.Navigate(page);
             // The "ready" note goes away on its own.
             var timer = DispatcherQueue.CreateTimer();

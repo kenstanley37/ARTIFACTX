@@ -45,6 +45,11 @@ public class CatalogBuildService
         _extraction = extraction;
     }
 
+    /// <summary>How far through Run is, 0 to 1 (for the app's progress bar):
+    /// indexing ~5%, decoding every table ~65%, writing the database the rest.
+    /// Rough shares from timed builds; it only has to keep moving sensibly.</summary>
+    public Action<double>? Progress { get; set; }
+
     public void Run(string pcbanksPath, string dbOutputPath, int iconTargetSize = 128)
     {
         var paks = _discovery.Discover(pcbanksPath);
@@ -68,6 +73,7 @@ public class CatalogBuildService
 
                 fileIndex.Add(pak.FullPath, header, entries);
                 pakData.Add((pak.FullPath, header, entries));
+                Progress?.Invoke(0.05 * pakData.Count / Math.Max(1, paks.Count));
             }
             catch (Exception ex)
             {
@@ -886,6 +892,8 @@ public class CatalogBuildService
             LogService.Write("CatalogBuild: WARNING - could not extract frigate traits from frigatetraittable.mbin.");
         }
 
+        int mbinTotal = pakData.Sum(p => p.Entries.Count(e => e.FileName?.EndsWith(".MBIN", StringComparison.OrdinalIgnoreCase) == true));
+        int mbinDone = 0;
         foreach (var (pakPath, header, entries) in pakData)
         {
             foreach (var entry in entries)
@@ -893,6 +901,7 @@ public class CatalogBuildService
                 if (string.IsNullOrEmpty(entry.FileName) ||
                     !entry.FileName.EndsWith(".MBIN", StringComparison.OrdinalIgnoreCase))
                     continue;
+                if (++mbinDone % 250 == 0) Progress?.Invoke(0.05 + 0.65 * mbinDone / Math.Max(1, mbinTotal));
 
                 if (locEntryPaths.Contains(entry.FileName))
                     continue;
@@ -1173,8 +1182,10 @@ public class CatalogBuildService
 
         int savedCategories = 0, savedItems = 0;
 
+        int categoryDone = 0;
         foreach (var category in categories)
         {
+            Progress?.Invoke(0.7 + 0.3 * categoryDone++ / Math.Max(1, categories.Count));
             db.Categories.Add(category);
 
             try

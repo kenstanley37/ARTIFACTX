@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). First-run setup: ArtifactX
+     reads its item catalog from the player's own No Man's Sky files
+     (GameDataService) before a save can be opened - editing relies on it.
+     MainWindow shows this page, with the menu hidden, until a catalog exists. -->
+<Page
+    x:Class="ArtifactX.WinUI3.Views.GameDataSetupPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <ScrollViewer>
+        <StackPanel Padding="28,26,28,32" Spacing="18" MaxWidth="900" HorizontalAlignment="Left">
+            <TextBlock Text="SET UP ARTIFACTX" Style="{StaticResource ThemePageTitleStyle}"/>
+            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="14" TextWrapping="Wrap" MaxWidth="760" HorizontalAlignment="Left"
+                       Text="Before you open a save, ArtifactX reads item names, icons, recipes and more from your own copy of No Man's Sky - nothing from the game comes with ArtifactX. It does this once, and again when the game updates."/>
+
+            <!-- The game it found, and the button to start -->
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="YOUR GAME" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <StackPanel Padding="18,14,18,18" Spacing="12">
+                        <TextBlock x:Name="GameTxt" FontSize="14" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                                   Foreground="{ThemeResource ThemeTextBrush}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="StartBtn" Content="Read my game files" Click="Start_Click"
+                                    Style="{StaticResource ThemeAccentButtonStyle}" Padding="18,8"/>
+                            <Button x:Name="ChangeBtn" Content="Choose a different folder..." Click="Change_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="MessageTxt" Visibility="Collapsed" FontSize="13" TextWrapping="Wrap"
+                                   Foreground="{ThemeResource ThemeWarningBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Progress: one bar for the whole build, the current step, time, and what it's doing -->
+            <Border x:Name="ProgressCard" Style="{StaticResource ThemeCardStyle}" Visibility="Collapsed">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="READING YOUR GAME FILES" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <StackPanel Padding="18,14,18,18" Spacing="10">
+                        <Grid>
+                            <TextBlock x:Name="StepTxt" FontSize="15" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}"
+                                       TextWrapping="Wrap" Margin="0,0,70,0"/>
+                            <TextBlock x:Name="PercentTxt" Style="{StaticResource ThemeNumberStyle}" FontSize="15"
+                                       HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                        </Grid>
+                        <ProgressBar x:Name="Bar" Maximum="100" MinHeight="6"/>
+                        <TextBlock x:Name="TimeTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
+
+                        <TextBlock Text="WHAT IT'S DOING" Style="{StaticResource ThemeEyebrowStyle}" Margin="0,6,0,0"/>
+                        <Border Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                                CornerRadius="4" Height="260">
+                            <ScrollViewer x:Name="ActivityScroll" Padding="12,8">
+                                <TextBlock x:Name="ActivityTxt" FontFamily="Cascadia Mono, Consolas" FontSize="12" TextWrapping="Wrap"
+                                           IsTextSelectionEnabled="True" Foreground="{ThemeResource ThemeTextBrush}"/>
+                            </ScrollViewer>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="CancelBtn" Content="Cancel" Click="Cancel_Click"/>
+                            <Button x:Name="LogBtn" Content="Open full log" Click="OpenLog_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>
