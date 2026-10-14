@@ -20,4 +20,6 @@ public sealed class PlanetRowViewModel
     public required string DistanceLabel { get; init; }
     public required string NotesLabel { get; init; }
     public required Visibility NotesVisibility { get; init; }
+    /// <summary>The planet itself, for opening it in full.</summary>
+    public required ArtifactX.Core.NmsModels.KnownPlanet Planet { get; init; }
 }
