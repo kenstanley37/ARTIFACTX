@@ -257,6 +257,8 @@
                                         <TextBox x:Name="SeedEditBox" LostFocus="SeedEditBox_LostFocus"/>
                                         <Button Grid.Column="1" Content="Generate" Click="GenerateSeedBtn_Click"/>
                                     </Grid>
+                                    <!-- The parts this seed gives (ShipsPage.Parts.cs, experiment). -->
+                                    <StackPanel x:Name="ShipPartsPanel" Spacing="6" Margin="0,6,0,0"/>
                                 </StackPanel>
 
                                 <StackPanel Spacing="8">
