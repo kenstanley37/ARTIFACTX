@@ -50,8 +50,21 @@ public class CatalogBuildService
     /// Rough shares from timed builds; it only has to keep moving sensibly.</summary>
     public Action<double>? Progress { get; set; }
 
+    /// <summary>Decode every MBIN looking for tables, not just METADATA/.
+    /// Off by default: of 81,803 MBINs (2026-10-14) ~78,000 are 3D models, and
+    /// every table that survives into the shipped catalog (CatalogTrimService
+    /// keeps only categories with named items) came from METADATA/ - the
+    /// models' "tables" were all dropped. Decoding them was most of an ~18
+    /// minute build. The developer tool can turn this on to hunt for tables
+    /// a game update might add elsewhere.</summary>
+    public bool ScanAllFolders { get; set; }
+
+    private bool IsTableCandidate(string fileName) =>
+        ScanAllFolders || fileName.StartsWith("METADATA/", StringComparison.OrdinalIgnoreCase);
+
     public void Run(string pcbanksPath, string dbOutputPath, int iconTargetSize = 128)
     {
+        var runClock = System.Diagnostics.Stopwatch.StartNew();
         var paks = _discovery.Discover(pcbanksPath);
         LogService.Write($"CatalogBuild: found {paks.Count} PAK files.");
 
@@ -81,7 +94,7 @@ public class CatalogBuildService
             }
         }
 
-        LogService.Write($"CatalogBuild: indexed {fileIndex.Count} files across all PAKs.");
+        LogService.Write($"CatalogBuild: indexed {fileIndex.Count} files across all PAKs ({runClock.Elapsed.TotalSeconds:0}s).");
 
         // -------------------------------------------------------------
         // Phase 1: resolve localisation FIRST. Row classification needs the
@@ -892,14 +905,16 @@ public class CatalogBuildService
             LogService.Write("CatalogBuild: WARNING - could not extract frigate traits from frigatetraittable.mbin.");
         }
 
-        int mbinTotal = pakData.Sum(p => p.Entries.Count(e => e.FileName?.EndsWith(".MBIN", StringComparison.OrdinalIgnoreCase) == true));
+        int mbinTotal = pakData.Sum(p => p.Entries.Count(e => e.FileName?.EndsWith(".MBIN", StringComparison.OrdinalIgnoreCase) == true && IsTableCandidate(e.FileName)));
         int mbinDone = 0;
+        var tableClock = System.Diagnostics.Stopwatch.StartNew();
         foreach (var (pakPath, header, entries) in pakData)
         {
             foreach (var entry in entries)
             {
                 if (string.IsNullOrEmpty(entry.FileName) ||
-                    !entry.FileName.EndsWith(".MBIN", StringComparison.OrdinalIgnoreCase))
+                    !entry.FileName.EndsWith(".MBIN", StringComparison.OrdinalIgnoreCase) ||
+                    !IsTableCandidate(entry.FileName))
                     continue;
                 if (++mbinDone % 250 == 0) Progress?.Invoke(0.05 + 0.65 * mbinDone / Math.Max(1, mbinTotal));
 
@@ -1030,7 +1045,7 @@ public class CatalogBuildService
             }
         }
 
-        LogService.Write($"CatalogBuild: classified {categories.Count} tables, {totalRows} rows, {totalIcons} icon references.");
+        LogService.Write($"CatalogBuild: classified {categories.Count} tables, {totalRows} rows, {totalIcons} icon references ({mbinDone} files read in {tableClock.Elapsed.TotalSeconds:0}s; {runClock.Elapsed.TotalSeconds:0}s so far).");
 
         // -------------------------------------------------------------
         // Phase 2.5: procedural upgrade modules (GcProceduralTechnologyTable -
@@ -1148,6 +1163,7 @@ public class CatalogBuildService
 
         // -------------------------------------------------------------
         // Phase 3: write everything to a fresh SQLite database.
+        LogService.Write($"CatalogBuild: icons and links done ({runClock.Elapsed.TotalSeconds:0}s so far).");
         // -------------------------------------------------------------
         if (File.Exists(dbOutputPath))
             File.Delete(dbOutputPath);
@@ -1201,7 +1217,7 @@ public class CatalogBuildService
             }
         }
 
-        LogService.Write($"CatalogBuild: wrote {savedCategories}/{categories.Count} categories ({savedItems} items) to {dbOutputPath}.");
+        LogService.Write($"CatalogBuild: wrote {savedCategories}/{categories.Count} categories ({savedItems} items) to {dbOutputPath} ({runClock.Elapsed.TotalSeconds:0}s in all).");
     }
 
     /// <summary>
