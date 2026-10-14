@@ -48,10 +48,11 @@ public static class GameDataBuilder
     /// <summary>Main build + additions + finishing.</summary>
     public static int StepCount => Steps.Length + 2;
 
-    // Share of the whole build each part takes. Timed 2026-10-14 (18m53s on
-    // the developer's PC): reading the game files 17m49s, all 13 additions
-    // about a minute together, finishing 11s.
-    private const double MainShare = 0.94, FinishShare = 0.01;
+    // Share of the whole build each part takes. Timed 2026-10-14 on the
+    // developer's PC, 1m28s in all: reading the game files 39s, the 13
+    // additions 40s together, finishing 9s. (It was 18m53s before decoding
+    // only METADATA/ tables and converting icons in parallel.)
+    private const double MainShare = 0.45, FinishShare = 0.10;
     private static double StepShare => (1 - MainShare - FinishShare) / Steps.Length;
 
     /// <summary>Builds the catalog for <paramref name="game"/> and moves it to

@@ -114,17 +114,17 @@ public sealed partial class MainWindow
             case GameDataState.NotBuilt:
                 Show(InfoBarSeverity.Informational, "Set up ArtifactX for your game",
                     "ArtifactX reads item names, icons, recipes and more from your own copy of No Man's Sky - nothing from the game comes with ArtifactX. "
-                    + "It takes a few minutes, once, and you can keep using ArtifactX meanwhile.",
+                    + "It takes a minute or two, once.",
                     "Read my game files");
                 break;
             case GameDataState.GameUpdated:
                 Show(InfoBarSeverity.Informational, "No Man's Sky has updated",
-                    $"Your game is now {game?.BuildLabel}. Update ArtifactX's game data so new items and changes show up - it takes a few minutes and ArtifactX stays usable.",
+                    $"Your game is now {game?.BuildLabel}. Update ArtifactX's game data so new items and changes show up - it takes a minute or two and ArtifactX stays usable.",
                     "Update game data");
                 break;
             case GameDataState.BuilderUpdated:
                 Show(InfoBarSeverity.Informational, "Update your game data",
-                    "This version of ArtifactX reads more from your game files. Update the game data to get it - it takes a few minutes and ArtifactX stays usable.",
+                    "This version of ArtifactX reads more from your game files. Update the game data to get it - it takes a minute or two and ArtifactX stays usable.",
                     "Update game data");
                 break;
             default:

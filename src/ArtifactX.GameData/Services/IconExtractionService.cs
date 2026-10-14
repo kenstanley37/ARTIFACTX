@@ -10,8 +10,27 @@ public class IconExtractionService
     private readonly int _targetSize;
 
     // Keyed by source texture path so the same icon (referenced by hundreds of rows)
-    // is only ever extracted/decoded/resized once per run.
-    private readonly Dictionary<string, byte[]?> _cache = new(StringComparer.OrdinalIgnoreCase);
+    // is only ever extracted/decoded/resized once per run. Concurrent: ConvertAll
+    // fills it from several threads.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte[]?> _cache = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Converts every one of these textures at once, on all but one of
+    /// the PC's cores (2026-10-14: ~123 ms per icon one at a time - about 8 of
+    /// a 13-minute build's minutes for ~4,000 icons). Results land in the cache
+    /// for <see cref="ExtractAndConvert"/>. Safe in parallel: each read opens its
+    /// own handle on the PAK, the file index is read-only by now, and Pfim/Skia
+    /// decode into per-call buffers.</summary>
+    public void ConvertAll(IReadOnlyCollection<string> texturePaths, Action<double>? progress = null)
+    {
+        int done = 0;
+        var options = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount - 1) };
+        Parallel.ForEach(texturePaths, options, path =>
+        {
+            ExtractAndConvert(path);
+            int n = Interlocked.Increment(ref done);
+            if (n % 50 == 0) progress?.Invoke((double)n / texturePaths.Count);
+        });
+    }
 
     public IconExtractionService(ExtractionService extractor, GlobalFileIndexService index, int targetSize = 128)
     {
@@ -30,9 +49,7 @@ public class IconExtractionService
         if (_cache.TryGetValue(texturePath, out var cached))
             return cached;
 
-        byte[]? result = ExtractAndConvertCore(texturePath);
-        _cache[texturePath] = result;
-        return result;
+        return _cache.GetOrAdd(texturePath, ExtractAndConvertCore);
     }
 
     private byte[]? ExtractAndConvertCore(string texturePath)
@@ -80,34 +97,42 @@ public class IconExtractionService
     /// avoid colliding with the `Pfim` namespace itself). Pfim decodes to a raw byte buffer
     /// in BGRA order for the common 32bpp formats ArtifactX UI icons use. Stride can include row
     /// padding, so index by (row * Stride) rather than assuming Width * bytesPerPixel.
-    /// Uses SKBitmap.SetPixel per-pixel rather than raw pointer access - slower, but this
-    /// is a one-shot batch tool (not a hot path) and avoids needing &lt;AllowUnsafeBlocks&gt;
-    /// in the csproj for what's a few thousand icons total.
+    ///
+    /// Pixels are reordered to RGBA in a managed buffer and copied into the bitmap a row at
+    /// a time. This used SKBitmap.SetPixel per pixel - a native call for each of ~65,000
+    /// pixels, ~120 ms an icon and, it turned out, no faster spread over many threads; with
+    /// players now waiting on the build that was most of it (2026-10-14). Same pixels, so
+    /// the PNGs come out byte-for-byte the same.
     /// </summary>
     private static SKBitmap DecodeDds(byte[] ddsBytes)
     {
         using IImage pfimImage = Pfimage.FromStream(new MemoryStream(ddsBytes));
 
-        var info = new SKImageInfo(pfimImage.Width, pfimImage.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+        int width = pfimImage.Width, height = pfimImage.Height;
+        var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
         var bitmap = new SKBitmap(info);
 
         int bytesPerPixel = pfimImage.BitsPerPixel / 8;
+        byte[] source = pfimImage.Data;
+        byte[] row = new byte[width * 4];
+        IntPtr pixels = bitmap.GetPixels();
 
-        for (int y = 0; y < pfimImage.Height; y++)
+        for (int y = 0; y < height; y++)
         {
             int rowStart = y * pfimImage.Stride;
 
-            for (int x = 0; x < pfimImage.Width; x++)
+            for (int x = 0; x < width; x++)
             {
                 int i = rowStart + x * bytesPerPixel;
+                int o = x * 4;
 
-                byte b = pfimImage.Data[i];
-                byte g = pfimImage.Data[i + 1];
-                byte r = pfimImage.Data[i + 2];
-                byte a = bytesPerPixel >= 4 ? pfimImage.Data[i + 3] : (byte)255;
-
-                bitmap.SetPixel(x, y, new SKColor(r, g, b, a));
+                row[o] = source[i + 2];     // r
+                row[o + 1] = source[i + 1]; // g
+                row[o + 2] = source[i];     // b
+                row[o + 3] = bytesPerPixel >= 4 ? source[i + 3] : (byte)255;
             }
+
+            System.Runtime.InteropServices.Marshal.Copy(row, 0, pixels + y * bitmap.RowBytes, row.Length);
         }
 
         return bitmap;

@@ -53,10 +53,15 @@ catalog's. The title bar shows the installed game's own build
   where the catalog lives, its state against the install, and the background
   build.
 
-The main build only decodes tables under `METADATA/` (about 1,000 files):
-every table the app uses lives there, and decoding all 81,803 MBINs - mostly
-3D models - was most of an 18-minute build. `CatalogBuildService.ScanAllFolders`
-turns the full scan back on for research.
+A full build takes about a minute and a half (1m28s on the developer's PC;
+it was 18m53s before two fixes, with byte-identical results):
+
+- the main build only decodes tables under `METADATA/` (about 1,000 files) -
+  every table the app uses lives there; the other ~80,000 MBINs are mostly 3D
+  models. `CatalogBuildService.ScanAllFolders` turns the full scan back on for
+  research;
+- icons (~4,000) are converted all at once on every core but one, and copied
+  into the bitmap a row at a time instead of a native call per pixel.
 
 ## Developer tool
 
