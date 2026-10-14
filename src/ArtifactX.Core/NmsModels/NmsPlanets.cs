@@ -35,10 +35,15 @@ public sealed record KnownSystem(ulong SystemAddress, int Galaxy, int PlanetCoun
 
 /// <summary>Per-planet discovery tallies, counted from the discovery records
 /// (the game itself counts records, not the ^PLANET_STATS counters - confirmed
-/// 2026-10-11: setting Cholton's ^DISC_CREATURES to 6 changed nothing in-game).</summary>
-/// <summary>Discovery records per planet. Waypoints are the save's "Sector"
-/// records - one per waypoint the game lists on the planet's Discoveries page
-/// (Ippianes III: 6 records, game shows "Waypoints 6 Discovered", 2026-10-13).</summary>
+/// 2026-10-11: setting Cholton's ^DISC_CREATURES to 6 changed nothing in-game).
+/// Waypoints are the save's "Sector" records - one per waypoint the game lists
+/// (Ippianes III: 6 records, game shows "Waypoints 6 Discovered", 2026-10-13).
+/// Fauna/Flora/Minerals count only the records YOU made (ksu.f5Q set - the
+/// player's own online id; empty on other players' records, checked across
+/// ~20k records). The save also caches other players' discoveries and the game
+/// adds only some of those to its counts - Ippianes III, 2026-10-14: records
+/// 12 / 22 / 19, yours 3 / 12 / 6, game 11 / 12 / 8 - and which ones can't be
+/// told from the save, so ArtifactX shows yours.</summary>
 public sealed record PlanetDiscoveryCounts(int Fauna, int Flora, int Minerals, int Waypoints = 0);
 
 /// <summary>
@@ -194,6 +199,7 @@ public static class NmsPlanets
         {
             string? type = record["8P3"]?["<Dn"]?.Value<string>();
             if (type is not ("Animal" or "Flora" or "Mineral" or "Sector")) continue;
+            if (type != "Sector" && string.IsNullOrEmpty(record["ksu"]?["f5Q"]?.Value<string>())) continue;
             if (NmsSpaceStationPaths.ParsePackedAddress(record["8P3"]?["5L6"]) is not ulong address) continue;
 
             tallies.TryGetValue(address, out var t);
