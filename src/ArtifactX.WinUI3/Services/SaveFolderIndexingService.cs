@@ -30,10 +30,7 @@ public static class SaveFolderIndexingService
         string workingRoot = Path.Combine(AppContext.BaseDirectory, "Working", candidate.WorkingFolderKey);
         Directory.CreateDirectory(workingRoot);
 
-        var hgFiles = Directory.GetFiles(candidate.FolderPath, "*", SearchOption.TopDirectoryOnly)
-            .Where(f => Path.GetFileName(f).StartsWith("save", StringComparison.OrdinalIgnoreCase) &&
-                        Path.GetExtension(f).Equals(".hg", StringComparison.OrdinalIgnoreCase))
-            .ToArray();
+        var hgFiles = SaveFiles(candidate.FolderPath);
 
         var slotFiles = hgFiles.GroupBy(SlotIdFor).OrderBy(g => g.Key);
         var indexed = new List<(int SlotId, List<SaveFileEntry> Files)>();
@@ -64,8 +61,32 @@ public static class SaveFolderIndexingService
         }).ToList();
     }
 
+    /// <summary>Re-reads one slot after the game (or anything else) writes it
+    /// while ArtifactX is open - SaveFolderWatchService. Null when the slot has
+    /// no files any more.</summary>
+    public static async Task<SaveSlotGroup?> IndexSlotAsync(SaveFolderCandidate candidate, int slotId)
+    {
+        var files = SaveFiles(candidate.FolderPath).Where(f => SlotIdFor(f) == slotId).OrderBy(Path.GetFileName).ToList();
+        if (files.Count == 0) return null;
+        string slotDir = Path.Combine(AppContext.BaseDirectory, "Working", candidate.WorkingFolderKey, $"Slot{slotId}");
+        Directory.CreateDirectory(slotDir);
+        var entries = await Task.WhenAll(files.Select(f => IndexFileAsync(f, slotDir)));
+        return new SaveSlotGroup { SlotId = slotId, Files = entries.ToList(), SourceDisplayName = candidate.DisplayName };
+    }
+
+    /// <summary>The game's save files in a folder: save.hg, save2.hg ... (not
+    /// mf_ manifests, not backups such as save12.hg.artifactx-test-backup).</summary>
+    public static string[] SaveFiles(string folder) =>
+        Directory.Exists(folder)
+            ? Directory.GetFiles(folder, "*", SearchOption.TopDirectoryOnly).Where(IsSaveFile).ToArray()
+            : Array.Empty<string>();
+
+    public static bool IsSaveFile(string path) =>
+        Path.GetFileName(path).StartsWith("save", StringComparison.OrdinalIgnoreCase)
+        && Path.GetExtension(path).Equals(".hg", StringComparison.OrdinalIgnoreCase);
+
     // Slot pairing: (save.hg, save2.hg) -> Slot 1, (save3.hg, save4.hg) -> Slot 2, etc.
-    private static int SlotIdFor(string filePath)
+    public static int SlotIdFor(string filePath)
     {
         string name = Path.GetFileNameWithoutExtension(filePath);
         string digits = new string(name.Where(char.IsDigit).ToArray());

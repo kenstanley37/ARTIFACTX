@@ -150,6 +150,9 @@ public partial class SaveFolderSelectViewModel : ObservableObject
             DevTimingLog.Write("save selection: cards shown, reading saves");
             await Task.WhenAll(allCandidates.Select(LoadSlotGroupsAsync));
             MarkLatest(Candidates);
+            // From here on, saves the game writes update these cards in place.
+            if (Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread() is { } dispatcher)
+                SaveFolderWatchService.Watch(allCandidates, dispatcher);
             DevTimingLog.Write("save selection: all accounts read");
         }
         finally
@@ -244,6 +247,7 @@ public partial class SaveFolderSelectViewModel : ObservableObject
 
         if (!stored.HasLoadedSlots)
             await LoadSlotGroupsAsync(stored);
+        SaveFolderWatchService.Add(stored);
 
         PersistExpandedFolders();
         return true;
