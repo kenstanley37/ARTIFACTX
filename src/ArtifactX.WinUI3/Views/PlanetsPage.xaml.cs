@@ -1221,26 +1221,25 @@ public sealed partial class PlanetsPage : Page
     private void AddPlanetFish(StackPanel stack, KnownPlanet planet)
     {
         if (_fish.Count == 0) return;
-        var section = Section("FISH");
-        if (PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex) == false)
-        {
-            section.Children.Add(DimLine("No water here, so no fish."));
-            stack.Children.Add(section);
-            return;
-        }
-        // One bar for every fish you can catch on this planet - its type's own
-        // fish plus the ones found on any planet with water - counting catches
-        // made anywhere, with the split spelled out underneath. (Separate bars
-        // for each kind read as a wrong count either way, 2026-10-13.)
-        var here = _fish.Where(f => f.LivesOn(planet.BiomeIndex)).ToList();
-        var own = here.Where(f => !f.Biomes.Contains(FishInfo.AnyPlanet)).ToList();
-        var anywhere = here.Where(f => f.Biomes.Contains(FishInfo.AnyPlanet)).ToList();
+        // Only for planets known to have water: marked in details (or on the
+        // Fishing page), a catch recorded here, or a water world. Most planets
+        // have none, and a fish bar on them suggests they do (user, 2026-10-13).
         var caughtHere = FishCatchService.CaughtOn(planet.SystemAddress, planet.PlanetIndex);
-        if (here.Count == 0 && caughtHere.Count == 0) return;
+        bool? water = PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex);
+        bool hasWater = water == true || (water is null && (caughtHere.Count > 0 || NmsPlanets.AlwaysHasWater(planet.BiomeIndex)));
+        if (!hasWater) return;
+        var section = Section("FISH");
 
+        // The bar is this planet type's own fish - the reason to fish HERE. The
+        // 21 found on any planet with water are the same on every planet, so
+        // they're a line of text, not part of the bar (in it, every planet read
+        // "5 / 42" after 5 catches anywhere).
+        var own = _fish.Where(f => f.LivesOn(planet.BiomeIndex) && !f.Biomes.Contains(FishInfo.AnyPlanet)).ToList();
+        var anywhere = _fish.Where(f => f.Biomes.Contains(FishInfo.AnyPlanet)).ToList();
         int Caught(List<FishInfo> fish) => fish.Count(f => _caught.ContainsKey(f.Id));
-        section.Children.Add(ProgressRow("Fish you can catch here", Caught(here), here.Count));
-        section.Children.Add(DimLine($"{Caught(own)} of {own.Count} found only on {planet.TypeName} planets · {Caught(anywhere)} of {anywhere.Count} found on any planet with water"));
+        if (own.Count > 0)
+            section.Children.Add(ProgressRow($"{planet.TypeName} fish", Caught(own), own.Count));
+        section.Children.Add(DimLine($"Plus {anywhere.Count} fish found on any planet with water - you've caught {Caught(anywhere)}."));
 
         var missingOwn = own.Where(f => !_caught.ContainsKey(f.Id)).Select(f => FishName(f.Id)).OrderBy(x => x).ToList();
         var missingAny = anywhere.Where(f => !_caught.ContainsKey(f.Id)).Select(f => FishName(f.Id)).OrderBy(x => x).ToList();
@@ -1269,7 +1268,7 @@ public sealed partial class PlanetsPage : Page
         }
         if (caughtHere.Count > 0)
         {
-            Heading($"CAUGHT ON THIS PLANET ({caughtHere.Count})");
+            Heading($"CAUGHT ON THIS PLANET ({caughtHere.Count} kinds)");
             var caughtList = NameList(caughtHere.OrderByDescending(c => c.Value).ThenBy(c => FishName(c.Key))
                 .Select(c => c.Value > 1 ? $"{FishName(c.Key)} ×{c.Value}" : FishName(c.Key)));
             ToolTipService.SetToolTip(caughtList, "Recorded by ArtifactX while it followed your game. Catches from before, or while it was closed, aren't known - the save doesn't record where a fish was caught.");
