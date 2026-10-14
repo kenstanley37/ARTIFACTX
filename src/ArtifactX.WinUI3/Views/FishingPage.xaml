@@ -75,7 +75,7 @@
         </Border>
 
         <!-- Where to go next: planet types with the most fish still to catch (click to filter). -->
-        <ctcontrols:WrapPanel Grid.Row="3" x:Name="NextPanel" HorizontalSpacing="6" VerticalSpacing="6" Visibility="Collapsed"/>
+        <ctcontrols:WrapPanel Grid.Row="3" x:Name="NextPanel" HorizontalSpacing="10" VerticalSpacing="10" Visibility="Collapsed"/>
 
         <ctcontrols:WrapPanel Grid.Row="4" HorizontalSpacing="14" VerticalSpacing="10">
             <ComboBox x:Name="PlanetTypeBox" Header="Planet type" Width="240" SelectionChanged="Filter_Changed"/>
