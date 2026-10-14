@@ -49,7 +49,7 @@
         </Border>
 
         <ctcontrols:WrapPanel Grid.Row="2" HorizontalSpacing="14" VerticalSpacing="10">
-            <TextBox x:Name="SearchBox" Header="Search" Width="280" PlaceholderText="Search base names..." TextChanged="SearchBox_TextChanged"/>
+            <TextBox x:Name="SearchBox" Header="Search" Width="280" PlaceholderText="Base names, resources, notes..." TextChanged="SearchBox_TextChanged"/>
             <ComboBox x:Name="SortBox" Header="Sort" Width="200" SelectionChanged="SortBox_SelectionChanged">
                 <ComboBoxItem Content="Nearest to you first"/>
                 <ComboBoxItem Content="Name (A-Z)"/>
@@ -74,7 +74,11 @@
                     <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                             Background="{ThemeResource ThemePanelAltBrush}"
                             CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
-                        <Grid ColumnSpacing="14">
+                        <Grid ColumnSpacing="14" RowSpacing="6">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="30"/>
                                 <ColumnDefinition Width="300"/>
@@ -83,6 +87,10 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Ellipse Width="22" Height="22" Fill="{x:Bind Swatch}" VerticalAlignment="Center"/>
+                            <!-- What you've recorded about the area: you can teleport to a
+                                 base, so this is often more useful than its glyphs. -->
+                            <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="4" Text="{x:Bind AreaLabel}" Opacity="{x:Bind AreaOpacity}"
+                                       FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                                 <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
                                 <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
