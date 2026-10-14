@@ -61,44 +61,65 @@
             <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
         </ctcontrols:WrapPanel>
 
-        <ListView Grid.Row="3" x:Name="BasesList" SelectionMode="None">
-            <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem">
+        <!-- Cards, not full-width rows (rows cut words off, 2026-10-14). Uniform
+             size so the grid stays tidy; long text wraps, with the full text on hover. -->
+        <GridView Grid.Row="3" x:Name="BasesList" SelectionMode="None" IsItemClickEnabled="False">
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsWrapGrid Orientation="Horizontal" ItemWidth="430" ItemHeight="300"/>
+                </ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+            <GridView.ItemContainerStyle>
+                <Style TargetType="GridViewItem">
                     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="VerticalContentAlignment" Value="Stretch"/>
                     <Setter Property="Padding" Value="0"/>
-                    <Setter Property="Margin" Value="0,0,0,8"/>
+                    <Setter Property="Margin" Value="0,0,12,12"/>
                 </Style>
-            </ListView.ItemContainerStyle>
-            <ListView.ItemTemplate>
+            </GridView.ItemContainerStyle>
+            <GridView.ItemTemplate>
                 <DataTemplate x:DataType="viewmodels:BaseRowViewModel">
                     <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                             Background="{ThemeResource ThemePanelAltBrush}"
-                            CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
-                        <Grid ColumnSpacing="14" RowSpacing="6">
+                            CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,12,16,12">
+                        <Grid RowSpacing="8">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="30"/>
-                                <ColumnDefinition Width="300"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Ellipse Width="22" Height="22" Fill="{x:Bind Swatch}" VerticalAlignment="Center"/>
+
+                            <!-- Name and where -->
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Ellipse Width="26" Height="26" Fill="{x:Bind Swatch}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Grid.Row="1" Text="{x:Bind Facts}" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+
                             <!-- What you've recorded about the area: you can teleport to a
                                  base, so this is often more useful than its glyphs. -->
-                            <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="4" Text="{x:Bind AreaLabel}" Opacity="{x:Bind AreaOpacity}"
-                                       FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                                <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
-                                <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
-                                <TextBlock Text="{x:Bind Facts}" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}"
-                                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Facts}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="3">
-                                <controls:GlyphStrip Code="{x:Bind PortalCode}" VerticalAlignment="Center">
+                            <TextBlock Grid.Row="2" Text="{x:Bind AreaLabel}" Opacity="{x:Bind AreaOpacity}"
+                                       FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                                       ToolTipService.ToolTip="{x:Bind AreaLabel}" IsTextSelectionEnabled="True"/>
+
+                            <TextBlock Grid.Row="3" Text="{x:Bind DistanceLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+
+                            <Grid Grid.Row="4" ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <controls:GlyphStrip Code="{x:Bind PortalCode}" VerticalAlignment="Center" HorizontalAlignment="Left">
                                     <ItemsControl ItemsSource="{x:Bind Glyphs}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
@@ -114,17 +135,13 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </controls:GlyphStrip>
-                                <TextBlock Text="{x:Bind PortalCode}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"
-                                           IsTextSelectionEnabled="True" CharacterSpacing="80"/>
-                            </StackPanel>
-                            <TextBlock Grid.Column="3" Text="{x:Bind DistanceLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                       VerticalAlignment="Center" TextWrapping="Wrap"/>
-                            <Button Grid.Column="4" Content="Copy" Tag="{x:Bind PortalCode}" Click="CopyCode_Click"
-                                    VerticalAlignment="Center" Padding="10,3" ToolTipService.ToolTip="Copy this base's portal address"/>
+                                <Button Grid.Column="1" Content="Copy" Tag="{x:Bind PortalCode}" Click="CopyCode_Click"
+                                        VerticalAlignment="Center" Padding="10,3" ToolTipService.ToolTip="{x:Bind PortalCode}"/>
+                            </Grid>
                         </Grid>
                     </Border>
                 </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+            </GridView.ItemTemplate>
+        </GridView>
     </Grid>
 </Page>
