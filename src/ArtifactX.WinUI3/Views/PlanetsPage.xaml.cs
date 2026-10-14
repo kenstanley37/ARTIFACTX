@@ -1198,12 +1198,35 @@ public sealed partial class PlanetsPage : Page
         var count = new TextBlock { Text = $"{caught} / {here.Count} caught", FontSize = 13, Foreground = ThemeBrush("ThemeTextBrush") };
         Grid.SetColumn(count, 1);
         progress.Children.Add(count);
-        var missing = here.Where(f => !_caught.ContainsKey(f.Id)).Select(f => FishName(f.Id)).OrderBy(n => n).ToList();
-        ToolTipService.SetToolTip(progress, missing.Count == 0
-            ? "You've caught every fish this planet type has."
-            : $"Still to catch ({missing.Count}):\n{string.Join("\n", missing)}");
         section.Children.Add(progress);
-        section.Children.Add(DimLine($"{ownType} live only on {planet.TypeName} planets, {here.Count - ownType} on any planet with water. Hover for the ones you still need."));
+        section.Children.Add(DimLine($"{ownType} live only on {planet.TypeName} planets, {here.Count - ownType} on any planet with water."));
+
+        // The fish still to catch, opened with a click (a hover tooltip was
+        // easy to miss and never fired on the bar, 2026-10-13).
+        var missing = here.Where(f => !_caught.ContainsKey(f.Id)).Select(f => FishName(f.Id)).OrderBy(n => n).ToList();
+        if (missing.Count == 0)
+            section.Children.Add(DimLine("You've caught every fish this planet type has."));
+        else
+        {
+            var list = new TextBlock
+            {
+                Text = string.Join(", ", missing),
+                FontSize = 12,
+                Foreground = ThemeBrush("ThemeTextBrush"),
+                TextWrapping = TextWrapping.Wrap,
+                IsTextSelectionEnabled = true,
+                Visibility = Visibility.Collapsed,
+            };
+            var toggle = new HyperlinkButton { Content = $"Show the {missing.Count} still to catch", Padding = new Thickness(0), FontSize = 12 };
+            toggle.Click += (_, _) =>
+            {
+                bool open = list.Visibility == Visibility.Collapsed;
+                list.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+                toggle.Content = open ? "Hide the list" : $"Show the {missing.Count} still to catch";
+            };
+            section.Children.Add(toggle);
+            section.Children.Add(list);
+        }
 
         var caughtHere = FishCatchService.CaughtOn(planet.SystemAddress, planet.PlanetIndex);
         if (caughtHere.Count > 0)
