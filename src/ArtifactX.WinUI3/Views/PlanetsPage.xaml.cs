@@ -669,7 +669,7 @@ public sealed partial class PlanetsPage : Page
         // What the save knows, as a label / value table (2026-10-13 redesign:
         // a stack of small dim lines was hard to read and easy to miss).
         var facts = new FactTable();
-        var discoveredLine = facts.Add("Discovered", DiscoveredText(tally));
+        var discoveredLine = facts.Add("You found", DiscoveredText(tally));
         var visitLine = facts.Add("Visited", VisitText(stats));
         _tileText[planet.Address] = (discoveredLine, visitLine);
         if (_baseNames.TryGetValue(planet.PlanetIndex, out var baseNames))
@@ -1724,7 +1724,7 @@ public sealed partial class PlanetsPage : Page
     {
         var facts = new FactTable();
         _lastCounts.TryGetValue(planet.Address, out var tally);
-        facts.Add("Discovered", inThisSystem || tally is not null ? DiscoveredText(tally) : "");
+        facts.Add("You found", inThisSystem || tally is not null ? DiscoveredText(tally) : "");
         facts.Add("Visited", VisitText(ReadPlanetStats(planet.Address)));
         if (inThisSystem && _baseNames.TryGetValue(planet.PlanetIndex, out var baseNames))
             facts.Add(baseNames.Count == 1 ? "Your base" : "Your bases", string.Join(", ", baseNames));
