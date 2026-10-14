@@ -41,7 +41,18 @@
                      fixed width now that its real length is confirmed unbounded (tested to 19
                      entries with no cap found), so the whole card stretches to use whatever
                      room the window actually has. -->
-                <Border Style="{StaticResource ThemeCardStyle}">
+                <!-- Details and Building materials side by side when the window is wide
+                     enough, stacked otherwise (SettlementCards_SizeChanged). -->
+                <Grid x:Name="SettlementCardsGrid" ColumnSpacing="18" RowSpacing="18" SizeChanged="SettlementCards_SizeChanged">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="0"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Border x:Name="DetailsCard" Style="{StaticResource ThemeCardStyle}" VerticalAlignment="Top">
                   <StackPanel>
                     <Border Style="{StaticResource ThemeBandStyle}">
                         <TextBlock Text="SETTLEMENT DETAILS" Style="{StaticResource ThemeBandTextStyle}"/>
@@ -127,7 +138,7 @@
                 </Border>
 
                 <!-- What each building needs and where to get it (SettlementPage.Materials.cs). -->
-                <Border Style="{StaticResource ThemeCardStyle}">
+                <Border x:Name="MaterialsCard" Grid.Row="1" Style="{StaticResource ThemeCardStyle}" VerticalAlignment="Top">
                   <StackPanel>
                     <Border Style="{StaticResource ThemeBandStyle}">
                         <TextBlock Text="BUILDING MATERIALS" Style="{StaticResource ThemeBandTextStyle}"/>
@@ -144,6 +155,7 @@
                     </StackPanel>
                   </StackPanel>
                 </Border>
+                </Grid>
             </StackPanel>
         </StackPanel>
     </ScrollViewer>

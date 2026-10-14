@@ -73,6 +73,20 @@ public sealed partial class SettlementPage
         _ => buildingClass.Replace("Settlement_", "").Replace('_', ' '),
     };
 
+    // Details needs ~620 px (feature dropdowns + stat boxes), materials ~600 px
+    // to read its "where to get it" lines; below that they stack (user 2026-10-14).
+    private const double DetailsWidth = 640, MaterialsMinWidth = 600;
+
+    private void SettlementCards_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        bool beside = e.NewSize.Width >= DetailsWidth + SettlementCardsGrid.ColumnSpacing + MaterialsMinWidth;
+        var columns = SettlementCardsGrid.ColumnDefinitions;
+        columns[0].Width = beside ? new GridLength(DetailsWidth) : new GridLength(1, GridUnitType.Star);
+        columns[1].Width = beside ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+        Grid.SetRow(MaterialsCard, beside ? 0 : 1);
+        Grid.SetColumn(MaterialsCard, beside ? 1 : 0);
+    }
+
     private async Task LoadMaterialsAsync()
     {
         if (_materialsLoading) return;
