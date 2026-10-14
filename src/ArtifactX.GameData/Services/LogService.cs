@@ -5,12 +5,15 @@ namespace ArtifactX.GameData.Services;
 /// old behaviour (console + DataCataloger.log.txt next to the exe); the app
 /// points the log at its own folder, turns the console off and listens to
 /// <see cref="MessageWritten"/> for progress (2026-10-14).
+///
+/// The file stays open between writes (it used to be opened and closed for
+/// every line - thousands per build).
 /// </summary>
 public static class LogService
 {
     private static readonly object Lock = new();
     private static string? _logPath = Path.Combine(AppContext.BaseDirectory, "DataCataloger.log.txt");
-    private static bool _started;
+    private static StreamWriter? _writer;
 
     /// <summary>Every message, as it's written (on the builder's thread).</summary>
     public static event Action<string>? MessageWritten;
@@ -22,8 +25,18 @@ public static class LogService
     {
         lock (Lock)
         {
+            Close();
             _logPath = path;
-            _started = false;
+        }
+    }
+
+    /// <summary>Flushes and closes the log file (the next write starts it afresh).</summary>
+    public static void Close()
+    {
+        lock (Lock)
+        {
+            _writer?.Dispose();
+            _writer = null;
         }
     }
 
@@ -35,16 +48,15 @@ public static class LogService
             {
                 try
                 {
-                    if (!_started)
+                    if (_writer is null)
                     {
                         Directory.CreateDirectory(Path.GetDirectoryName(_logPath)!);
-                        File.WriteAllText(_logPath, "");
-                        _started = true;
+                        _writer = new StreamWriter(new FileStream(_logPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite)) { AutoFlush = true };
                     }
-                    File.AppendAllText(_logPath, message + Environment.NewLine);
+                    _writer.WriteLine(message);
                 }
-                catch (IOException) { }
-                catch (UnauthorizedAccessException) { }
+                catch (IOException) { _logPath = null; }
+                catch (UnauthorizedAccessException) { _logPath = null; }
             }
         }
         if (EchoToConsole) Console.WriteLine(message);

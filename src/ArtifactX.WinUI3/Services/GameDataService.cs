@@ -175,6 +175,7 @@ public static class GameDataService
         finally
         {
             LogService.MessageWritten -= OnLogMessage;
+            LogService.Close(); // so "Open build log" can read all of it
             Progress = null;
             // The builder holds every decoded table while it runs; give that back.
             GC.Collect();

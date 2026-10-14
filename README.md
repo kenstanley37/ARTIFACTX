@@ -16,9 +16,9 @@ A modern, open-source save editor for No Man's Sky, built with .NET 10 and WinUI
 - **Game-running protection:** Detects when No Man's Sky is actively running
   and disables saving to prevent conflicting writes; also detects if the
   save changed externally (e.g. an autosave) while the app had it open.
-- **Real item names and icons:** Item data extracted from your own local
-  game files via the included cataloging tool — see
-  [docs/DATACATALOGER.md](docs/DATACATALOGER.md).
+- **Real item names and icons:** Read from your own copy of No Man's Sky on
+  first run (and again after game updates) — no game data ships with
+  ArtifactX. See [docs/DATACATALOGER.md](docs/DATACATALOGER.md).
 - **Game-authentic dark UI:** Built with WinUI 3, styled to resemble the
   in-game interface so editing feels familiar rather than like reading raw
   JSON.
@@ -34,9 +34,10 @@ The solution is split into a few decoupled layers:
    `SaveSessionManager` singleton that holds the active save's parsed tree
    and staged edits, and the reusable UI controls (like the inventory slot
    grid) shared across Exosuit/Starship/Multi-Tool/Freighter.
-3. **`ArtifactX.Tools.DataCataloger`** — A separate CLI tool that extracts item
-   names and icons from your local game files into a SQLite database, which
-   the main app reads read-only at runtime.
+3. **`ArtifactX.GameData`** — Reads the player's own game files and builds
+   the item catalog (names, icons, recipes...) the app shows; the app runs it
+   on first launch. **`ArtifactX.Tools.DataCataloger`** is its command-line
+   front end for development and research.
 4. **`ArtifactX.Tools.SaveInspector`** — A CLI tool for investigating unfamiliar
    save file formats (hex dumps, round-trip tests, targeted field edits)
    without needing the full app.
@@ -81,19 +82,11 @@ Open `NmsSaveEditor.slnx` in Visual Studio, set `ArtifactX.WinUI3` as the startu
 project, and run. On first launch, it auto-detects Steam/GOG/Microsoft Store
 save folders, or you can browse for your own.
 
-### (Recommended) Generate real item names and icons
-Without this step, the app still works, but items display as raw internal
-ids (e.g. `ASTEROID2`) instead of real names (`Gold`). To fix that:
-```bash
-cd src/ArtifactX.Tools/ArtifactX.Tools.DataCataloger
-dotnet run                # full extraction, ~15 minutes, one-time
-dotnet run -- trim        # produces a small, ship-ready catalog file
-```
-Then copy the resulting `Working/nms_catalog_dist.sqlite` to:
-
-<ArtifactX.WinUI3 build output folder>/Data/nms_catalog.sqlite
-
-Full details in [docs/DATACATALOGER.md](docs/DATACATALOGER.md).
+### Game data
+On first launch ArtifactX asks to read your No Man's Sky files (it finds
+Steam, GOG and Xbox app installs, or you choose the folder) and builds its
+item catalog from them. Saves can be opened once that's done. Full details in
+[docs/DATACATALOGER.md](docs/DATACATALOGER.md).
 
 ## Contributing
 
