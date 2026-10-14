@@ -1195,20 +1195,22 @@ public sealed partial class PlanetsPage : Page
         IsTextSelectionEnabled = true,
     };
 
-    private static Grid ProgressRow(string label, int done, int total)
+    /// <summary>Label on its own line, then a full-width bar and the count -
+    /// so every card's bar starts and ends in the same place (a label beside
+    /// the bar made each one a different length, 2026-10-13).</summary>
+    private static StackPanel ProgressRow(string label, int done, int total)
     {
+        var block = new StackPanel { Spacing = 2 };
+        block.Children.Add(new TextBlock { Text = label, FontSize = 12, Foreground = ThemeBrush("ThemeTextDimBrush") });
         var row = new Grid { ColumnSpacing = 10 };
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        row.Children.Add(new TextBlock { Text = label, FontSize = 12, Foreground = ThemeBrush("ThemeTextDimBrush"), VerticalAlignment = VerticalAlignment.Center });
-        var bar = new ProgressBar { Maximum = Math.Max(1, total), Value = done, VerticalAlignment = VerticalAlignment.Center };
-        Grid.SetColumn(bar, 1);
-        row.Children.Add(bar);
-        var count = new TextBlock { Text = $"{done} / {total}", FontSize = 13, Foreground = ThemeBrush("ThemeTextBrush") };
-        Grid.SetColumn(count, 2);
+        row.Children.Add(new ProgressBar { Maximum = Math.Max(1, total), Value = done, VerticalAlignment = VerticalAlignment.Center });
+        var count = new TextBlock { Text = $"{done} / {total} caught", FontSize = 13, Foreground = ThemeBrush("ThemeTextBrush") };
+        Grid.SetColumn(count, 1);
         row.Children.Add(count);
-        return row;
+        block.Children.Add(row);
+        return block;
     }
 
     /// <summary>The planet's own fish - the ones that live only on its planet
@@ -1274,7 +1276,7 @@ public sealed partial class PlanetsPage : Page
         if (AnyFishPanel.Visibility == Visibility.Collapsed) return;
 
         var row = ProgressRow("Fish on any planet with water", anywhere.Count(f => _caught.ContainsKey(f.Id)), anywhere.Count);
-        row.MaxWidth = 560;
+        row.Width = 420; // left-aligned, so it needs a width or the bar has none
         row.HorizontalAlignment = HorizontalAlignment.Left;
         AnyFishPanel.Children.Add(row);
         var missing = anywhere.Where(f => !_caught.ContainsKey(f.Id)).Select(f => FishName(f.Id)).OrderBy(x => x).ToList();
