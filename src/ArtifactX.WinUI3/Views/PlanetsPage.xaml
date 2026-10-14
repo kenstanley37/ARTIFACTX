@@ -106,7 +106,21 @@
                                 Background="{ThemeResource ThemePanelAltBrush}"
                                 CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,12,16,14">
                             <StackPanel Spacing="10">
-                                <TextBlock Text="YOUR NOTES ON THIS SYSTEM" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <!-- Collapsible (user, 2026-10-13): closed, it's one line with a
+                                     summary of what's recorded. Remembered per profile. -->
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="YOUR NOTES ON THIS SYSTEM" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" x:Name="SystemNotesSummaryTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="2" x:Name="SystemNotesToggleBtn" Click="SystemNotesToggle_Click" Padding="10,4"
+                                            ToolTipService.ToolTip="Show or hide your notes on this system"/>
+                                </Grid>
+                                <StackPanel x:Name="SystemNotesBody" Spacing="10">
                                 <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                            Text="Facts about the whole system, as the Galaxy Map or the system's info panel shows them - pick the exact word the game uses. A planet's weather, sentinels, life, resources and notes go on its own card below. The game doesn't save any of these, so ArtifactX keeps them on this PC (never in your save), and they become filters in the Planet Finder."/>
                                 <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="10">
@@ -129,6 +143,11 @@
                                               ToolTipService.ToolTip="From the Discoveries screen, e.g. &quot;4 PLANETS / 2 MOONS&quot;. Marks which bodies below are moons."/>
                                 </ctcontrols:WrapPanel>
 
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="SHIPS SEEN HERE" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <ctcontrols:WrapPanel x:Name="ShipTypesPanel" HorizontalSpacing="6" VerticalSpacing="6"/>
+                                </StackPanel>
+
                                 <StackPanel Spacing="6" Margin="0,4,0,0">
                                     <TextBlock Text="NOTES" Style="{StaticResource ThemeEyebrowStyle}"/>
                                     <StackPanel x:Name="NotesListPanel" Spacing="6"/>
@@ -141,6 +160,7 @@
                                                  KeyDown="NewNoteBox_KeyDown"/>
                                         <Button Grid.Column="1" Content="Add note" Click="AddNote_Click"/>
                                     </Grid>
+                                </StackPanel>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -226,6 +246,7 @@
                             <ComboBox x:Name="RaceFilterBox" Header="Race" Width="180" SelectionChanged="Filter_Changed"/>
                             <CheckBox x:Name="WaterFilterBox" Content="Water (your notes)" Click="Filter_Click" VerticalAlignment="Bottom"/>
                             <CheckBox x:Name="DissonantFilterBox" Content="Dissonant (your notes)" Click="Filter_Click" VerticalAlignment="Bottom"/>
+                            <ComboBox x:Name="ShipFilterBox" Header="Ships seen" Width="180" SelectionChanged="Filter_Changed"/>
                             <ComboBox x:Name="SentinelsFilterBox" Header="Sentinels" Width="200" SelectionChanged="Filter_Changed"/>
                             <ComboBox x:Name="FloraFilterBox" Header="Flora" Width="180" SelectionChanged="Filter_Changed"/>
                             <ComboBox x:Name="FaunaFilterBox" Header="Fauna" Width="180" SelectionChanged="Filter_Changed"/>
