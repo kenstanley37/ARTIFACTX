@@ -111,12 +111,44 @@ public sealed partial class BasesPage : Page
                     PortalCode = code,
                     Glyphs = GlyphsFor(code),
                     DistanceLabel = DistanceText(here, address, distance),
+                    AreaLabel = AreaText(address, planetIndex, galaxy, code) is { Length: > 0 } area ? area
+                        : "Nothing recorded about this planet yet - add its resources, sentinels and notes on the Planets page.",
+                    AreaOpacity = AreaText(address, planetIndex, galaxy, code).Length > 0 ? 1.0 : 0.55,
                     SortDistance = distance ?? double.MaxValue,
                     Galaxy = galaxy,
                 });
             }
         }
         Apply();
+    }
+
+    /// <summary>"Resources: Paraffinium, Copper, Silver, Ancient Bones · Infrequent
+    /// sentinels · Painfully Hot Rain · Water · 13 kinds of fish caught here ·
+    /// 2 finds · Ships seen: Solar" - from the planet's details (PlanetDetailsService),
+    /// water, recorded catches, Finds and the system's notes. Empty when nothing
+    /// is recorded. User request 2026-10-14: see what an area has without
+    /// needing its glyphs (bases are a teleport away).</summary>
+    private static string AreaText(ulong address, int planet, int galaxy, string code)
+    {
+        ulong system = S.ToSystemAddress(address);
+        var parts = new List<string>();
+        var d = PlanetDetailsService.Get(system, planet);
+        if (d is not null)
+        {
+            if (d.Resources.Count > 0) parts.Add($"Resources: {string.Join(", ", d.Resources)}");
+            if (d.Sentinels != "") parts.Add($"{d.Sentinels} sentinels");
+            if (d.Weather != "") parts.Add(d.Weather);
+            if (d.Flora != "") parts.Add($"Flora: {d.Flora}");
+            if (d.Fauna != "") parts.Add($"Fauna: {d.Fauna}");
+        }
+        if (PlanetWaterService.Get(system, planet) == true) parts.Add("Water");
+        int fish = FishCatchService.CaughtOn(system, planet).Count;
+        if (fish > 0) parts.Add(fish == 1 ? "1 kind of fish caught here" : $"{fish} kinds of fish caught here");
+        int finds = FindsService.All.Count(f => f.PortalCode == code && f.Galaxy == galaxy);
+        if (finds > 0) parts.Add(finds == 1 ? "1 find" : $"{finds} finds");
+        if (SystemNotesService.Get(system)?.Ships is { Count: > 0 } ships) parts.Add($"Ships seen: {string.Join(", ", ships)}");
+        if (d is not null) parts.AddRange(d.Notes);
+        return string.Join(" · ", parts);
     }
 
     /// <summary>"About 1,131 ly from you · 742,100 ly from the galaxy core".
@@ -137,7 +169,9 @@ public sealed partial class BasesPage : Page
     private void Apply()
     {
         string search = SearchBox.Text.Trim();
-        var shown = _rows.Where(r => search.Length == 0 || r.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase));
+        // Names and what's recorded about the area ("copper" finds bases near copper).
+        var shown = _rows.Where(r => search.Length == 0 || r.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)
+            || (r.AreaOpacity > 0.9 && r.AreaLabel.Contains(search, StringComparison.CurrentCultureIgnoreCase)));
         shown = SortBox.SelectedIndex switch
         {
             1 => shown.OrderBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase),
