@@ -75,6 +75,74 @@ if (args.Length > 0 && args[0].Equals("multitool", StringComparison.OrdinalIgnor
 // filename in the first matching PAK, no decoding. For finding the exact
 // filename of a globals file when a substring guess (e.g. "spaceshipglobals")
 // ambiguously matches multiple real files (e.g. "aispaceshipglobals" too).
+// "DataCataloger descriptors <path-substring> <out-folder>" writes every
+// procedural model descriptor (*.descriptor.mbin, TkModelDescriptorList)
+// whose path contains the substring as a JSON part tree: groups (TypeId,
+// e.g. "_ENGINE_") each with options (Id, Name, Chance, scene paths and
+// nested child groups). Research for ship previews (2026-10-14): a ship's
+// look is its model scene + a seed that picks one option per group.
+if (args.Length > 2 && args[0].Equals("descriptors", StringComparison.OrdinalIgnoreCase))
+{
+    string descFilter = args[1];
+    string descOut = args[2];
+    Directory.CreateDirectory(descOut);
+    var descSettings2 = SettingsService.Load();
+    if (!SettingsService.IsValid(descSettings2))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+
+    static object? Groups(libMBIN.NMS.Toolkit.TkModelDescriptorList? list) =>
+        list?.List?.Select(g => new
+        {
+            type = g.TypeId?.Value ?? "",
+            options = g.Descriptors?.Select(d => new
+            {
+                id = d.Id?.Value ?? "",
+                name = d.Name?.Value ?? "",
+                chance = d.Chance,
+                scenes = d.ReferencePaths?.Select(r => r?.Value ?? "").ToList(),
+                children = d.Children?.OfType<libMBIN.NMS.Toolkit.TkModelDescriptorList>()
+                    .Select(c => Groups(c)).ToList(),
+            }).ToList(),
+        }).ToList();
+
+    IPakReaderService descReader2 = new PakReaderService();
+    var descExtract2 = new ExtractionService();
+    int written = 0;
+    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    foreach (var pak in new PakDiscoveryService().Discover(descSettings2.NmsInstallationPath!))
+    {
+        PakHeader header;
+        IReadOnlyList<PakEntry> entries;
+        try { header = descReader2.ReadHeader(pak.FullPath); entries = descReader2.Read(pak.FullPath); }
+        catch { continue; }
+        foreach (var entry in entries.Where(e => !string.IsNullOrEmpty(e.FileName)
+                     && e.FileName.EndsWith(".descriptor.mbin", StringComparison.OrdinalIgnoreCase)
+                     && e.FileName.Contains(descFilter, StringComparison.OrdinalIgnoreCase)))
+        {
+            if (!seen.Add(entry.FileName)) continue;
+            try
+            {
+                var bytes = descExtract2.ExtractEntryBytes(pak.FullPath, entry, header);
+                if (bytes is null || bytes.Length == 0) continue;
+                using var ms = new MemoryStream(bytes);
+                var mbin = new MBINFile(ms);
+                mbin.Load();
+                if (mbin.GetData() is not libMBIN.NMS.Toolkit.TkModelDescriptorList list) continue;
+                string name = entry.FileName.Replace('/', '_').Replace(".descriptor.mbin", ".json", StringComparison.OrdinalIgnoreCase);
+                File.WriteAllText(Path.Combine(descOut, name), System.Text.Json.JsonSerializer.Serialize(
+                    new { file = entry.FileName, groups = Groups(list) }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+                written++;
+            }
+            catch (Exception ex) { ConsoleStyle.Error($"{entry.FileName}: {ex.Message}"); }
+        }
+    }
+    ConsoleStyle.Success($"Wrote {written} descriptor trees to {descOut}.");
+    return;
+}
+
 if (args.Length > 1 && args[0].Equals("listpak", StringComparison.OrdinalIgnoreCase))
 {
     string pakSubstring = args[1];

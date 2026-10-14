@@ -1,0 +1,89 @@
+using System.Text.Json;
+using ArtifactX.Core.Universe;
+
+// Candidate rules for "ship seed -> parts", and seeds that tell them apart.
+// Only the top-level fighter groups (engine, wings, cockpit) are compared -
+// the big shapes anyone can see - but each rule also consumes the RNG for the
+// nested groups (wing accessories, cockpit noses) the way it would in game.
+
+string descPath = args[0];
+var root = JsonDocument.Parse(File.ReadAllText(descPath)).RootElement.GetProperty("groups");
+
+// Rules: how the generator is seeded, and how picks are ordered.
+var rules = new (string Name, Func<ulong, UniverseRandom> Rng, bool DepthFirst)[]
+{
+    ("A: seed as-is, depth-first", s => new UniverseRandom(s), true),
+    ("B: low 32 bits, depth-first", s => new UniverseRandom(s & 0xFFFFFFFF), true),
+    ("C: hashed seed, depth-first", s => new UniverseRandom(UniverseHash.IndexPrimed(s)), true),
+    ("D: seed as-is, top level first", s => new UniverseRandom(s), false),
+};
+
+string Pick(ulong seed, int rule)
+{
+    var rng = rules[rule].Rng(seed);
+    var top = new List<string>();
+    var later = new List<JsonElement>();
+    void Walk(JsonElement groups, int depth)
+    {
+        foreach (var g in groups.EnumerateArray())
+        {
+            var opts = g.GetProperty("options");
+            int n = opts.GetArrayLength();
+            if (n == 0) continue;
+            int i = n == 1 ? 0 : (int)rng.Next((uint)n);
+            var o = opts[i];
+            if (depth == 0) top.Add(o.GetProperty("id").GetString()!);
+            if (o.GetProperty("children").ValueKind == JsonValueKind.Array)
+                foreach (var c in o.GetProperty("children").EnumerateArray())
+                    if (c.ValueKind == JsonValueKind.Array)
+                    {
+                        if (rules[rule].DepthFirst) Walk(c, depth + 1);
+                        else later.Add(c);
+                    }
+        }
+    }
+    Walk(root, 0);
+    foreach (var c in later) Walk(c, 1);
+    return string.Join(" ", top);
+}
+
+// Find a reference seed, then for each rule a seed that matches the reference's
+// big parts under THAT rule only, and differs under all the others.
+var rnd = new Random(20261014);
+ulong NewSeed() => ((ulong)(uint)rnd.Next() << 32 | (uint)rnd.Next()) | 0x1000000000000000UL;
+
+for (int attempt = 0; attempt < 50; attempt++)
+{
+    ulong reference = NewSeed();
+    var refParts = Enumerable.Range(0, rules.Length).Select(r => Pick(reference, r)).ToArray();
+    if (refParts.Distinct().Count() < rules.Length) continue; // want each rule to give the reference a different look
+    var matches = new ulong[rules.Length];
+    bool ok = true;
+    for (int r = 0; r < rules.Length && ok; r++)
+    {
+        ok = false;
+        for (int t = 0; t < 2_000_000; t++)
+        {
+            ulong s = NewSeed();
+            if (Pick(s, r) != refParts[r]) continue;
+            bool unique = true;
+            for (int o = 0; o < rules.Length; o++)
+                if (o != r && Pick(s, o) == refParts[o]) { unique = false; break; }
+            if (!unique) continue;
+            matches[r] = s; ok = true; break;
+        }
+    }
+    if (!ok) continue;
+    Console.WriteLine($"Reference ship seed: 0x{reference:X16}");
+    for (int r = 0; r < rules.Length; r++)
+        Console.WriteLine($"  rule {rules[r].Name}: reference = {refParts[r]}");
+    Console.WriteLine();
+    for (int r = 0; r < rules.Length; r++)
+    {
+        Console.WriteLine($"Test ship {r + 1}: 0x{matches[r]:X16}  - same big parts as the reference ONLY if rule {rules[r].Name} is right");
+        for (int o = 0; o < rules.Length; o++)
+            Console.WriteLine($"     under {rules[o].Name}: {Pick(matches[r], o)}");
+    }
+    return;
+}
+Console.WriteLine("no test set found");
