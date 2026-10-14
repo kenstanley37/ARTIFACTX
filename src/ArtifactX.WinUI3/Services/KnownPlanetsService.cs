@@ -103,8 +103,16 @@ public static class KnownPlanetsService
 /// (yhJ), stat groups (per-planet ^PLANET_STATS), the discovery list, the
 /// "where you saved" line (n:R, e.g. "In the Plyimed system") and the map
 /// markers (nlG - named space stations and bases), plus the bases (F?0)
-/// and fishing records (bTf, see NmsFishingPaths) for other Tools pages.</summary>
-public sealed record PlanetSnapshot(JToken? Universe, JArray? StatGroups, JArray? Discoveries, string? Summary = null, JArray? Markers = null, JArray? Bases = null, JToken? Fishing = null);
+/// and fishing records (bTf, see NmsFishingPaths) for other Tools pages.
+/// Spawn (rnc) and PlanetPositions (aHM) give the player's coordinates on the
+/// planet (NmsPlanetCoordinates).</summary>
+public sealed record PlanetSnapshot(JToken? Universe, JArray? StatGroups, JArray? Discoveries, string? Summary = null, JArray? Markers = null, JArray? Bases = null, JToken? Fishing = null,
+    JToken? Spawn = null, JToken? PlanetPositions = null)
+{
+    /// <summary>The player's coordinates on the planet they're on, if any.</summary>
+    public (double Latitude, double Longitude)? Coordinates =>
+        NmsPlanetCoordinates.Read(Spawn, PlanetPositions, Universe?["oZw"]?["jsv"]?.Value<int>() ?? 0);
+}
 
 public static class LiveSaveReader
 {
@@ -121,9 +129,11 @@ public static class LiveSaveReader
             var root = JObject.Parse(json.TrimEnd('\0'));
             bool expedition = root[NmsSaveContext.ActiveContextKey]?.Value<string>() == NmsSaveContext.ExpeditionContextValue
                 && root[NmsSaveContext.ExpeditionRootKey]?["6f="] is JObject;
-            var player = root[expedition ? NmsSaveContext.ExpeditionRootKey : NmsSaveContext.MainRootKey]?["6f="];
+            var context = root[expedition ? NmsSaveContext.ExpeditionRootKey : NmsSaveContext.MainRootKey];
+            var player = context?["6f="];
             return new PlanetSnapshot(player?["yhJ"], player?["gUR"] as JArray, root["fDu"]?["ETO"]?["OsQ"]?["?fB"] as JArray,
-                player?["n:R"]?.Value<string>(), player?["nlG"] as JArray, player?["F?0"] as JArray, player?["bTf"]);
+                player?["n:R"]?.Value<string>(), player?["nlG"] as JArray, player?["F?0"] as JArray, player?["bTf"],
+                context?["rnc"], player?["aHM"]);
         }
         catch (Exception ex)
         {
@@ -159,7 +169,9 @@ public sealed class LiveSaveWatcher : IDisposable
         SaveSessionManager.GetValue(NmsSpaceStationPaths.LocationDescriptionPath)?.Value<string>(),
         SaveSessionManager.GetValue(NmsSpaceStationPaths.MarkersPath) as JArray,
         SaveSessionManager.GetValue("vLc", "6f=", "F?0") as JArray,
-        SaveSessionManager.GetValue(NmsFishingPaths.RecordContainerPath));
+        SaveSessionManager.GetValue(NmsFishingPaths.RecordContainerPath),
+        SaveSessionManager.GetValue(NmsPlanetCoordinates.SpawnStatePath),
+        SaveSessionManager.GetValue(NmsPlanetCoordinates.PlanetPositionsPath));
 
     public void Start()
     {

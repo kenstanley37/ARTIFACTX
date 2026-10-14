@@ -323,6 +323,14 @@ public static class UserDatabase
         );
         CREATE INDEX ix_fish_catches_planet ON fish_catches(system_address, planet_index);
         """,
+
+        // 11 - where on the planet a catch was (2026-10-14): the coordinates
+        // the game shows, worked out from the save (NmsPlanetCoordinates).
+        // NULL for catches recorded before this step.
+        """
+        ALTER TABLE fish_catches ADD COLUMN latitude REAL NULL;
+        ALTER TABLE fish_catches ADD COLUMN longitude REAL NULL;
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;

@@ -24,6 +24,10 @@ namespace ArtifactX.WinUI3.Services;
 ///    out rather than put on the Frozen planet);
 ///  - nothing is recorded in space (planet 0).
 /// So the record is accurate but not complete - pages say so.
+///
+/// Each catch also keeps the player's coordinates on the planet (2026-10-14,
+/// NmsPlanetCoordinates) - where they were when the game saved after the
+/// catch, which is near the spot unless they moved on before it saved.
 /// </summary>
 public static class FishCatchService
 {
@@ -83,6 +87,7 @@ public static class FishCatchService
             .Where(c => c.More > 0 && fishById.TryGetValue(c.Id, out var info) && info.LivesOn(type))
             .ToList();
         if (caughtNow.Count == 0) return false;
+        var spot = snapshot.Coordinates;
 
         try
         {
@@ -94,8 +99,8 @@ public static class FishCatchService
                 using var cmd = connection.CreateCommand();
                 cmd.Transaction = tx;
                 cmd.CommandText = @"
-                    INSERT INTO fish_catches (id, system_address, planet_index, fish_id, count, caught_at, updated_at, source, synced_at, deleted, added_by)
-                    VALUES ($id, $s, $p, $fish, $count, $now, $now, 'save', NULL, 0, $added_by)";
+                    INSERT INTO fish_catches (id, system_address, planet_index, fish_id, count, caught_at, updated_at, source, synced_at, deleted, added_by, latitude, longitude)
+                    VALUES ($id, $s, $p, $fish, $count, $now, $now, 'save', NULL, 0, $added_by, $lat, $lon)";
                 cmd.Parameters.AddWithValue("$id", Guid.NewGuid().ToString("N"));
                 cmd.Parameters.AddWithValue("$s", here.ToString("X", CultureInfo.InvariantCulture));
                 cmd.Parameters.AddWithValue("$p", planet);
@@ -103,6 +108,8 @@ public static class FishCatchService
                 cmd.Parameters.AddWithValue("$count", more);
                 cmd.Parameters.AddWithValue("$now", now);
                 cmd.Parameters.AddWithValue("$added_by", GameAccountsService.ActiveKey);
+                cmd.Parameters.AddWithValue("$lat", spot is { } a ? a.Latitude : DBNull.Value);
+                cmd.Parameters.AddWithValue("$lon", spot is { } b ? b.Longitude : DBNull.Value);
                 cmd.ExecuteNonQuery();
             }
             tx.Commit();
@@ -163,6 +170,35 @@ public static class FishCatchService
             return ByPlanet.TryGetValue(PlanetKey(system, planet), out var tally)
                 ? new Dictionary<string, int>(tally, StringComparer.OrdinalIgnoreCase)
                 : new Dictionary<string, int>();
+    }
+
+    /// <summary>Where on this planet each fish was caught, newest first
+    /// (catches recorded before coordinates were kept have none).</summary>
+    public static Dictionary<string, List<(double Latitude, double Longitude)>> SpotsOn(ulong system, int planet)
+    {
+        var spots = new Dictionary<string, List<(double, double)>>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            using var connection = UserDatabase.Open();
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+                SELECT fish_id, latitude, longitude FROM fish_catches
+                WHERE deleted = 0 AND system_address = $s AND planet_index = $p AND latitude IS NOT NULL AND longitude IS NOT NULL
+                ORDER BY caught_at DESC";
+            cmd.Parameters.AddWithValue("$s", system.ToString("X", CultureInfo.InvariantCulture));
+            cmd.Parameters.AddWithValue("$p", planet);
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                if (!spots.TryGetValue(r.GetString(0), out var list)) spots[r.GetString(0)] = list = new();
+                list.Add((r.GetDouble(1), r.GetDouble(2)));
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[FishCatchService] Couldn't read catch spots: {ex.Message}");
+        }
+        return spots;
     }
 
     /// <summary>Every planet a fish was recorded caught on.</summary>
