@@ -25,7 +25,7 @@ public static class GameDataBuilder
     /// <summary>Bump when the builder changes what goes in the catalog (a new
     /// step, a fix): every player's catalog then needs rebuilding, even if the
     /// game didn't update.</summary>
-    public const int CatalogFormat = 1;
+    public const int CatalogFormat = 2; // 2: settlement building costs + what economies sell
 
     /// <summary>The additions after the main build, in order.</summary>
     private static readonly (string Label, Action<string, string> Run)[] Steps =
@@ -43,6 +43,7 @@ public static class GameDataBuilder
         ("Fish", CatalogSteps.AddFish),
         ("Crafting", CatalogSteps.AddCrafting),
         ("Procedural items", CatalogSteps.AddProceduralProducts),
+        ("Settlement building costs", CatalogSteps.AddSettlementCosts),
     };
 
     /// <summary>Main build + additions + finishing.</summary>

@@ -125,6 +125,25 @@
                     </StackPanel>
                   </StackPanel>
                 </Border>
+
+                <!-- What each building needs and where to get it (SettlementPage.Materials.cs). -->
+                <Border Style="{StaticResource ThemeCardStyle}">
+                  <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="BUILDING MATERIALS" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <StackPanel Spacing="12" Padding="20,16,20,20">
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap" MaxWidth="900" HorizontalAlignment="Left"
+                                   Text="What each building asks for at every stage, from your game files, and where to get it: trade goods from systems you know with the right economy, items from your Finds, resources from planets where you've recorded them."/>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <ComboBox x:Name="MaterialsBuildingBox" Header="Building" MinWidth="260" SelectionChanged="MaterialsBuilding_Changed"/>
+                            <TextBlock x:Name="MaterialsNextTxt" VerticalAlignment="Bottom" Margin="0,0,0,8" FontSize="13"
+                                       Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <StackPanel x:Name="MaterialsPanel" Spacing="8"/>
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
             </StackPanel>
         </StackPanel>
     </ScrollViewer>

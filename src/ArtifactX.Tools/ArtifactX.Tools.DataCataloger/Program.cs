@@ -733,6 +733,13 @@ if (args.Length > 1 && args[0].Equals("add-crafting", StringComparison.OrdinalIg
     return;
 }
 
+// "DataCataloger add-settlement-costs <target-catalog-db-path>" - see CatalogSteps.AddSettlementCosts.
+if (args.Length > 1 && args[0].Equals("add-settlement-costs", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddSettlementCosts(args[1], gamePath);
+    return;
+}
+
 // "DataCataloger add-procedural-products <target-catalog-db-path>" adds the
 // procedurally generated items (save ids like ^PROC_SEA#17140 - ocean
 // salvage, fossils, plant samples, documents, freighter logs...) from
