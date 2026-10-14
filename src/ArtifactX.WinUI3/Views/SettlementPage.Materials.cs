@@ -34,6 +34,7 @@ public sealed partial class SettlementPage
     private Dictionary<string, string> _economySells = new();
     private Dictionary<string, ItemValueInfo> _itemValues = new();
     private HashSet<string> _craftable = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string> _refinable = new(StringComparer.OrdinalIgnoreCase);
     private List<KnownSystem> _knownSystems = new();
     private ulong? _settlementAddress;
     private bool _materialsLoading;
@@ -54,10 +55,12 @@ public sealed partial class SettlementPage
         5 => "Upgrade 1", 6 => "Upgrade 2", 7 => "Upgrade 3", _ => $"Stage {stage}",
     };
 
-    /// <summary>Plain names for the game's building classes (settlement
-    /// buildings have no fixed in-game name - each settlement names its own).</summary>
+    /// <summary>Plain names for the game's building classes. Their in-game
+    /// names aren't in the loc tables (searched every loc file 2026-10-14), so
+    /// these are the names seen in game where known, else the class.</summary>
     private static string BuildingLabel(string buildingClass) => buildingClass switch
     {
+        "Settlement_Factory" => "Manufacturing Unit", // seen in game, Inuyam's Cove 2026-10-14
         "Settlement_LandingZone" => "Landing Zone",
         "Settlement_SheriffsOffice" => "Overseer's Office",
         "Settlement_SmallIndustrial" => "Small industrial building",
@@ -83,7 +86,8 @@ public sealed partial class SettlementPage
                 _itemValues = (await CatalogService.GetItemValuesAsync()).GroupBy(v => v.Id, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
                 _craftable = (await CatalogService.GetCraftingAsync()).Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
-                foreach (var r in await CatalogService.GetRecipesAsync()) _craftable.Add(r.Result.Id);
+                foreach (var r in await CatalogService.GetRecipesAsync())
+                    if (r.Kind == "Refiner") _refinable.Add(r.Result.Id);
                 await CatalogService.WarmCacheAsync(_costs.Select(c => c.Item));
 
                 // Every system this account knows: this save's discoveries, then the other slots'.
@@ -204,7 +208,9 @@ public sealed partial class SettlementPage
                 S.PortalAddress(system, planet)));
 
         if (_craftable.Contains(itemId))
-            lines.Add(Dim("Can be crafted or refined - see Tools › Crafting and Recipes."));
+            lines.Add(Dim("Can be crafted - see Tools › Crafting."));
+        if (_refinable.Contains(itemId))
+            lines.Add(Dim("Can be made in a refiner - see Tools › Recipes."));
         if (lines.Count == 0)
             lines.Add(Dim("Not recorded anywhere yet. Add a find when you see it for sale, or the resource to a planet's details."));
         return lines;
@@ -221,7 +227,13 @@ public sealed partial class SettlementPage
     private double? Distance(ulong address) =>
         _settlementAddress is ulong home ? NmsPlanets.DistanceLightYears(S.ToSystemAddress(home), S.ToSystemAddress(address)) : null;
 
-    private static string DistanceText(double? ly) => ly is double d ? $" · {d.ToString("N0", CultureInfo.CurrentCulture)} ly" : "";
+    // Distances are region to region, so systems in the settlement's own region come out as 0.
+    private static string DistanceText(double? ly) => ly switch
+    {
+        null => "",
+        < 1 => " · same region as the settlement",
+        double d => $" · {d.ToString("N0", CultureInfo.CurrentCulture)} ly",
+    };
 
     private UIElement SystemLine(ulong address, double? distance) =>
         CodeLine($"{UniverseInfo.SystemName(address)} · {UniverseInfo.Wealth(address)}{DistanceText(distance)}", S.PortalAddress(address, 1));
