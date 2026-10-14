@@ -188,6 +188,7 @@ public sealed partial class SettlementPage : Page
             ? Visibility.Visible : Visibility.Collapsed;
 
         _suppressStatChangeEvent = false;
+        await LoadMaterialsAsync();
     }
 
     private static TextBlock FieldLabel(string text) => new()

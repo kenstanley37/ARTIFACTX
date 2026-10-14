@@ -109,6 +109,22 @@ public static class PlanetDetailsService
         get { lock (Lock) return Details.Values.Where(d => !d.IsEmpty).ToList(); }
     }
 
+    /// <summary>Every planet's recorded details with the planet they belong to
+    /// (Settlement materials: "where have I seen this resource?").</summary>
+    public static List<(ulong System, int Planet, PlanetDetails Details)> AllWithPlanets
+    {
+        get
+        {
+            lock (Lock)
+                return Details.Where(kv => !kv.Value.IsEmpty).Select(kv =>
+                {
+                    var parts = kv.Key.Split('|');
+                    return (ulong.Parse(parts[0], NumberStyles.HexNumber, CultureInfo.InvariantCulture),
+                            int.Parse(parts[1], CultureInfo.InvariantCulture), kv.Value);
+                }).ToList();
+        }
+    }
+
     /// <summary>Replaces what's recorded for a planet.</summary>
     public static void Save(ulong systemAddress, int planet, PlanetDetails details, string source = "user")
     {

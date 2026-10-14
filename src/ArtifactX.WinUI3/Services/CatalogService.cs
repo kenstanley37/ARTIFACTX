@@ -824,6 +824,81 @@ public static class CatalogService
         }
     }
 
+    /// <summary>What each settlement building stage needs (catalog
+    /// "SettlementCosts", CatalogSteps.AddSettlementCosts). Empty on game data
+    /// built before it existed - the page then asks for an update.</summary>
+    public static async Task<List<SettlementCost>> GetSettlementCostsAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new List<SettlementCost>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.UsageCategory, i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'SettlementCosts'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    if (reader.IsDBNull(1)) continue;
+                    using var json = System.Text.Json.JsonDocument.Parse(reader.GetString(1));
+                    var root = json.RootElement;
+                    results.Add(new SettlementCost(
+                        reader.GetString(0),
+                        root.GetProperty("stage").GetInt32(),
+                        root.GetProperty("stageName").GetString() ?? "",
+                        root.GetProperty("item").GetString() ?? "",
+                        root.GetProperty("amountMin").GetInt32(),
+                        root.GetProperty("amountMax").GetInt32()));
+                }
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetSettlementCostsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>Trade category each economy sells, keyed by the game's trading
+    /// class (Mining, HighTech, Trading, Manufacturing, Fusion, Scientific,
+    /// PowerGeneration) - catalog "TradeClasses".</summary>
+    public static async Task<Dictionary<string, string>> GetEconomySellsAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.GameId, i.NameEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'TradeClasses'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                    results[reader.GetString(0)["TRADECLASS:".Length..]] = reader.GetString(1);
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetEconomySellsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
     /// <summary>A plain-English item type for each product/substance, for the
     /// Recipes page's type filter: from the catalog's CatalogGroup (the game's
     /// own "Cooking Products"/"Crafted Products"/"Raw Materials" grouping) and,
@@ -1553,5 +1628,10 @@ public sealed record FishInfo(string Id, string Quality, string Size, string Tim
     public const int AnyPlanet = 16;
     public bool LivesOn(int biome) => Biomes.Contains(AnyPlanet) || Biomes.Contains(biome);
 }
+
+/// <summary>One settlement building stage's cost: BuildingClass is the
+/// game's id (Settlement_Market...), Stage 1-7 (GcSettlementConstructionLevel:
+/// GroundStorey .. Upgrade3), Item a catalog GameId.</summary>
+public sealed record SettlementCost(string BuildingClass, int Stage, string StageName, string Item, int AmountMin, int AmountMax);
 
 public sealed record ItemValueInfo(string Id, string Name, string TradeCategory, long Value, string Legality, string Kind);
