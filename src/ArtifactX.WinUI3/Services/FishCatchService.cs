@@ -57,7 +57,9 @@ public static class FishCatchService
     /// <param name="fish">The fish table, to check a fish can live on the planet.</param>
     public static bool Observe(string saveKey, PlanetSnapshot snapshot, IReadOnlyList<FishInfo> fish)
     {
-        if (saveKey.Length == 0 || snapshot.Fishing is null) return false;
+        // A missing record counts as "nothing caught yet", so the first catches
+        // on a brand-new save aren't swallowed as the starting point.
+        if (saveKey.Length == 0) return false;
         var counts = ReadCaught(snapshot.Fishing).ToDictionary(c => c.Key, c => c.Value.Count, StringComparer.OrdinalIgnoreCase);
 
         Dictionary<string, uint>? before;
