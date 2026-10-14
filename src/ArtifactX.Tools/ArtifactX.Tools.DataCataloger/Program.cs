@@ -1649,13 +1649,18 @@ if (args.Length > 1 && args[0].Equals("add-planet-descriptors", StringComparison
         }
     }
 
-    var planetDescPattern = new Regex(@"^(WEATHER|SENTINEL|RARITY)_([A-Z]+?)\d+$", RegexOptions.Compiled);
+    // Tiers can contain "_" (WEATHER_LAVA_CLEAR1 "Sulphurous Haze" was missed
+    // by [A-Z]+, 2026-10-14).
+    var planetDescPattern = new Regex(@"^(WEATHER|SENTINEL|RARITY)_([A-Z_]+?)_?\d+$", RegexOptions.Compiled);
     var planetDescriptors = planetDescLookup
         .Select(kv => (Id: kv.Key, Word: kv.Value.Trim(), Match: planetDescPattern.Match(kv.Key)))
         .Where(x => x.Match.Success && x.Word.Length is > 0 and <= 40 && !x.Word.Contains('%') && !x.Word.Contains('<'))
         .Select(x => (x.Id, x.Word,
             Group: x.Match.Groups[1].Value switch { "WEATHER" => "Weather", "SENTINEL" => "Sentinels", _ => "Life" },
             Tier: x.Match.Groups[2].Value))
+        // SENTINEL_ also names drone status text (STATE_PATROL "Patrolling...",
+        // MISSION_GUARD, ROUTINE_ALERT...) - keep only the planet levels.
+        .Where(x => x.Group != "Sentinels" || x.Tier is "NONE" or "RARE" or "LOW" or "DEFAULT" or "HIGH" or "AGGRESSIVE" or "CORRUPT")
         .OrderBy(x => x.Group).ThenBy(x => x.Tier).ThenBy(x => x.Id, StringComparer.Ordinal)
         .ToList();
 
