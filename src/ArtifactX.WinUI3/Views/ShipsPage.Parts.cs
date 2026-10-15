@@ -146,19 +146,7 @@ public sealed partial class ShipsPage
             var picked = ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var row = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 8, VerticalSpacing = 8 };
             foreach (var set in sets)
-            {
-                // Fighter/Hauler/Solar parts list pieces that must ALL be picked;
-                // Shuttle/Explorer parts often list alternatives (the game's own
-                // "Any" salvage rule, in a table libMBIN can't read since COSMOS).
-                // So: a full match first, else the part sharing the most pieces.
-                var match = set.Where(g => g.Descriptors.All(picked.Contains)).OrderByDescending(g => g.Descriptors.Count).FirstOrDefault();
-                if (match.Id is null)
-                    match = set.Select(g => (Group: g, Hits: g.Descriptors.Count(picked.Contains)))
-                        .Where(x => x.Hits > 0).OrderByDescending(x => x.Hits).ThenBy(x => x.Group.Descriptors.Count)
-                        .Select(x => x.Group).FirstOrDefault();
-                if (match.Id is null) continue;
-                row.Children.Add(PartChip(match.Id));
-            }
+                if (Match(set, picked) is string id) row.Children.Add(PartChip(id));
             if (row.Children.Count == 0) ShipPartsPanel.Children.Add(Dim("No ship-builder parts match this seed."));
             else ShipPartsPanel.Children.Add(row);
         }
@@ -167,7 +155,32 @@ public sealed partial class ShipsPage
             ShipPartsPanel.Children.Add(Dim("Not a seed - it should look like 0x1CD40D0620985D13."));
         }
 
-        BuildPartSearch(sets);
+        BuildPartSearch(scene, sets);
+    }
+
+    /// <summary>Which part of a set a ship has, from the parts its seed picked.
+    /// Fighter/Hauler/Solar parts list pieces that must ALL be picked;
+    /// Explorer parts often list alternatives (the game's own "Any" salvage
+    /// rule, in a table libMBIN can't read since COSMOS). So: a full match
+    /// first, else the part sharing the most pieces. The display, the odds and
+    /// the search all use this, so they always agree.</summary>
+    private static string? Match(IGrouping<string, (string Id, string Set, List<string> Descriptors)> set, HashSet<string> picked)
+    {
+        string? best = null;
+        int bestCount = -1;
+        foreach (var g in set)
+            if (g.Descriptors.Count > bestCount && g.Descriptors.All(picked.Contains)) { best = g.Id; bestCount = g.Descriptors.Count; }
+        if (best is not null) return best;
+        int bestHits = 0, bestSize = int.MaxValue;
+        foreach (var g in set)
+        {
+            int hits = g.Descriptors.Count(picked.Contains);
+            if (hits > bestHits || (hits == bestHits && hits > 0 && g.Descriptors.Count < bestSize))
+            {
+                best = g.Id; bestHits = hits; bestSize = g.Descriptors.Count;
+            }
+        }
+        return best;
     }
 
     /// <summary>A part as the game's ship builder shows it: icon and name.</summary>
@@ -180,8 +193,70 @@ public sealed partial class ShipsPage
         return chip;
     }
 
-    /// <summary>"Find a seed": one choice per part set, then a search.</summary>
-    private void BuildPartSearch(List<IGrouping<string, (string Id, string Set, List<string> Descriptors)>> sets)
+    // ------------------------------------------------------------------ odds
+
+    /// <summary>A sample of random ships of one type: the part each has per set
+    /// (Rows[ship][set]). Gives every part's odds and the odds of any
+    /// combination, so the search can say how long it will take - or that the
+    /// parts were never seen together.</summary>
+    private sealed record PartSample(string?[][] Rows);
+
+    private const int SampleSize = 100_000;
+    private static readonly Dictionary<string, Task<PartSample>> Samples = new(StringComparer.OrdinalIgnoreCase);
+
+    private static Task<PartSample> SampleFor(string scene, List<IGrouping<string, (string Id, string Set, List<string> Descriptors)>> sets)
+    {
+        lock (Samples)
+        {
+            if (Samples.TryGetValue(scene, out var running)) return running;
+            return Samples[scene] = Task.Run(() =>
+            {
+                var rows = new string?[SampleSize][];
+                // Fixed seeds per chunk: the same odds every time the page opens.
+                Parallel.For(0, 16, chunk =>
+                {
+                    var rng = new Random(1000 + chunk);
+                    for (int i = chunk; i < SampleSize; i += 16)
+                    {
+                        ulong seed = (ulong)rng.NextInt64() | ((ulong)rng.Next(2) << 63);
+                        var picked = ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                        var row = new string?[sets.Count];
+                        for (int s = 0; s < sets.Count; s++) row[s] = Match(sets[s], picked);
+                        rows[i] = row;
+                    }
+                });
+                return new PartSample(rows);
+            });
+        }
+    }
+
+    /// <summary>How many sample ships have all of these (set index -> part id).</summary>
+    private static int CountWith(PartSample sample, Dictionary<int, string> want)
+    {
+        int n = 0;
+        foreach (var row in sample.Rows)
+        {
+            bool all = true;
+            foreach (var (s, id) in want)
+                if (!string.Equals(row[s], id, StringComparison.OrdinalIgnoreCase)) { all = false; break; }
+            if (all) n++;
+        }
+        return n;
+    }
+
+    private static string Odds(int count, int total) => count switch
+    {
+        0 => "not seen",
+        _ when total / (double)count < 1.5 => "most ships",
+        _ => $"1 in {Math.Round(total / (double)count):N0}",
+    };
+
+    // ------------------------------------------------------------------ search
+
+    /// <summary>"Find a seed": one choice per part set with each part's odds
+    /// (given the other picks), the odds of the whole combination, then a
+    /// search on all cores.</summary>
+    private void BuildPartSearch(string scene, List<IGrouping<string, (string Id, string Set, List<string> Descriptors)>> sets)
     {
         var toggle = new HyperlinkButton { Content = "Find a seed with the parts you want", Padding = new Thickness(0) };
         var body = new StackPanel { Spacing = 8, Visibility = Visibility.Collapsed };
@@ -190,39 +265,99 @@ public sealed partial class ShipsPage
 
         var choices = new StackPanel { Spacing = 8 };
         _wantBoxes.Clear();
-        foreach (var set in sets)
+        var oddsTexts = new List<Dictionary<string, TextBlock>>();
+        var oddsLine = Dim("Working out the odds...");
+        for (int s = 0; s < sets.Count; s++)
         {
             var box = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
             box.Items.Add(new ComboBoxItem { Content = "Any", Tag = null });
-            foreach (var g in set.OrderBy(g => PartName(g.Id)))
+            var texts = new Dictionary<string, TextBlock>(StringComparer.OrdinalIgnoreCase);
+            foreach (var g in sets[s].OrderBy(g => PartName(g.Id)))
             {
                 var item = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
                 if (CatalogService.TryGet(g.Id)?.Icon is { } icon) item.Children.Add(new Image { Source = icon, Width = 28, Height = 28 });
                 item.Children.Add(new TextBlock { Text = PartName(g.Id), VerticalAlignment = VerticalAlignment.Center });
-                box.Items.Add(new ComboBoxItem { Content = item, Tag = g.Descriptors });
+                var odds = new TextBlock { FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Foreground = ThemeResources.Brush("ThemeTextDimBrush") };
+                item.Children.Add(odds);
+                texts[g.Id] = odds;
+                box.Items.Add(new ComboBoxItem { Content = item, Tag = g.Id });
             }
             box.SelectedIndex = 0;
-            _wantBoxes[set.Key] = box;
+            _wantBoxes[sets[s].Key] = box;
+            oddsTexts.Add(texts);
             choices.Children.Add(box);
         }
         body.Children.Add(choices);
+        body.Children.Add(oddsLine);
 
         var results = new StackPanel { Spacing = 4 };
         var status = Dim("");
         var search = new Button { Content = "Search" };
-        search.Click += async (_, _) => await SearchSeedsAsync(search, status, results);
+        search.Click += async (_, _) => await SearchSeedsAsync(scene, sets, search, status, results);
         body.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { search, status } });
         body.Children.Add(results);
         ShipPartsPanel.Children.Add(body);
+
+        // Odds: each part's chance given the other picks; parts never seen with
+        // them are dimmed (still pickable - very rare isn't impossible).
+        int version = 0;
+        async void UpdateOdds()
+        {
+            int mine = ++version;
+            var sample = await SampleFor(scene, sets);
+            var chosen = Chosen(sets);
+            var ids = oddsTexts.Select(t => t.Keys.ToList()).ToList();
+            // Counting 100,000 ships per part is too slow for the UI thread on
+            // ship types with many parts (a Hauler has 122 wings).
+            var (perPart, all) = await Task.Run(() =>
+            {
+                var counts = new List<Dictionary<string, (int N, bool HasOthers)>>();
+                for (int s = 0; s < sets.Count; s++)
+                {
+                    var others = chosen.Where(c => c.Key != s).ToDictionary(c => c.Key, c => c.Value);
+                    var d = new Dictionary<string, (int, bool)>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var id in ids[s])
+                        d[id] = (CountWith(sample, new Dictionary<int, string>(others) { [s] = id }), others.Count > 0);
+                    counts.Add(d);
+                }
+                return (counts, chosen.Count == 0 ? -1 : CountWith(sample, chosen));
+            });
+            if (mine != version) return; // a newer pick is already being counted
+            for (int s = 0; s < sets.Count; s++)
+                foreach (var (id, text) in oddsTexts[s])
+                {
+                    var (n, hasOthers) = perPart[s][id];
+                    text.Text = hasOthers && n == 0 ? "not seen with your other picks" : Odds(n, SampleSize);
+                    if (text.Parent is FrameworkElement item) item.Opacity = n == 0 ? 0.5 : 1;
+                }
+            if (all < 0) { oddsLine.Text = "Pick the parts you want, then Search."; return; }
+            double perSecond = 60_000.0 * Math.Max(1, Environment.ProcessorCount - 1);
+            oddsLine.Text = all == 0
+                ? $"None of {SampleSize:N0} sample ships had all of these - they may never appear together. You can still search."
+                : $"About {Odds(all, SampleSize)} ships have all of these - a search should take {SearchTime(5 * SampleSize / (double)all / perSecond)}.";
+        }
+        foreach (var box in _wantBoxes.Values) box.SelectionChanged += (_, _) => UpdateOdds();
+        UpdateOdds();
     }
 
-    private async Task SearchSeedsAsync(Button search, TextBlock status, StackPanel results)
+    private static string SearchTime(double seconds) =>
+        seconds < 2 ? "a moment" : seconds < 90 ? $"about {Math.Ceiling(seconds)} seconds" : $"about {Math.Ceiling(seconds / 60)} minutes";
+
+    /// <summary>The picked part per set (set index -> part id), leaving out "Any".</summary>
+    private Dictionary<int, string> Chosen(List<IGrouping<string, (string Id, string Set, List<string> Descriptors)>> sets)
+    {
+        var chosen = new Dictionary<int, string>();
+        for (int s = 0; s < sets.Count; s++)
+            if (_wantBoxes.TryGetValue(sets[s].Key, out var box) && (box.SelectedItem as ComboBoxItem)?.Tag is string id)
+                chosen[s] = id;
+        return chosen;
+    }
+
+    private async Task SearchSeedsAsync(string scene, List<IGrouping<string, (string Id, string Set, List<string> Descriptors)>> sets,
+        Button search, TextBlock status, StackPanel results)
     {
         if (_partSearch is not null) { _partSearch.Cancel(); return; }
-        string? scene = CurrentScene();
-        if (scene is null) return;
-        var want = _wantBoxes.Values.Select(b => (b.SelectedItem as ComboBoxItem)?.Tag as List<string>)
-            .Where(t => t is not null).SelectMany(t => t!).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var want = Chosen(sets);
         results.Children.Clear();
         _partSearch = new CancellationTokenSource();
         var token = _partSearch.Token;
@@ -230,19 +365,24 @@ public sealed partial class ShipsPage
         status.Text = "Searching...";
         var found = new List<ulong>();
         long tried = 0;
+        const long MaxTries = 100_000_000;
         try
         {
-            await Task.Run(() =>
+            // Every core but one, so the app stays responsive.
+            int workers = Math.Max(1, Environment.ProcessorCount - 1);
+            await Task.Run(() => Parallel.For(0, workers, w =>
             {
                 var rng = new Random();
-                while (found.Count < 5 && tried < 20_000_000 && !token.IsCancellationRequested)
+                while (!token.IsCancellationRequested && Volatile.Read(ref tried) < MaxTries)
                 {
+                    lock (found) if (found.Count >= 5) return;
                     ulong seed = (ulong)rng.NextInt64() | ((ulong)rng.Next(2) << 63);
-                    tried++;
-                    var ids = ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                    if (want.All(ids.Contains)) found.Add(seed);
+                    Interlocked.Increment(ref tried);
+                    var picked = ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    if (want.All(c => string.Equals(Match(sets[c.Key], picked), c.Value, StringComparison.OrdinalIgnoreCase)))
+                        lock (found) if (found.Count < 5) found.Add(seed);
                 }
-            }, token);
+            }), token);
         }
         catch (OperationCanceledException) { }
         finally
@@ -250,7 +390,9 @@ public sealed partial class ShipsPage
             _partSearch = null;
             search.Content = "Search";
         }
-        status.Text = found.Count == 0 ? $"No match in {tried:N0} seeds - some parts can't appear together, or are very rare." : $"Found {found.Count} in {tried:N0} seeds.";
+        status.Text = found.Count == 0
+            ? $"No match in {tried:N0} seeds - these parts may never appear together."
+            : $"Found {found.Count} in {tried:N0} seeds.";
         foreach (ulong seed in found)
         {
             string text = $"0x{seed:X16}";
