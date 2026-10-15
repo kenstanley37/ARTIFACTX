@@ -316,7 +316,7 @@ public sealed partial class ItemListPanel : UserControl
             (0, true) => $"Every {_noun} shown is installed",
             (0, false) => $"You have every {_noun} shown",
             (_, true) => $"Install each one I don't have ({missing:N0})",
-            _ => $"Add a stack of each {_noun} I don't have ({missing:N0})",
+            _ => $"Add one of each I don't have ({missing:N0})",
         };
         AddAllBtn.IsEnabled = missing > 0;
     }

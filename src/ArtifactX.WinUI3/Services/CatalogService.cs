@@ -868,7 +868,8 @@ public static class CatalogService
                     if (coldStorage && !bait && !fishIds.Contains(id)) continue;
                     string group = coldStorage ? (bait ? "Bait" : "Fish")
                         : fishIds.Contains(id) || IsFishSpecies(id) ? "Fish"
-                        : reader.IsDBNull(2) ? "" : reader.GetString(2);
+                        : bait || id.StartsWith("BAIT_", StringComparison.OrdinalIgnoreCase) ? "Bait"
+                        : reader.IsDBNull(2) ? "Other" : reader.GetString(2);
                     parts.Add(new CatalogPart(id, reader.GetString(1), group, reader.IsDBNull(3) ? null : reader.GetInt32(3)));
                 }
                 return parts.OrderBy(p => p.Group).ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
