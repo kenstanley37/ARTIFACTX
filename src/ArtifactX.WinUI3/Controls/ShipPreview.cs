@@ -31,9 +31,10 @@ public sealed class ShipPreview : UserControl
     private ShipMesh? _mesh;
     private uint[] _triColours = Array.Empty<uint>();
     private Vector3 _centre;
-    // Starts on the nose, three-quarter view (the first version opened on the
-    // tail - "weird", 2026-10-15): the game's ships face +Z, half a turn away.
-    private const float StartYaw = MathF.PI - 0.75f, StartPitch = 0.3f;
+    // Opens on the nose, three-quarter view from above, nose to the lower left
+    // - the angle the user picked by hand (2026-10-15; the tail-on start felt
+    // "weird"). Ships face +Z; a negative pitch looks down on the hull.
+    private const float StartYaw = MathF.PI + 0.75f, StartPitch = -0.52f;
     private float _yaw = StartYaw, _pitch = StartPitch;
     private Windows.Foundation.Point? _drag;
     private int _drawing, _pending;
