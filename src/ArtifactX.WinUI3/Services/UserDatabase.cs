@@ -11,7 +11,7 @@ namespace ArtifactX.WinUI3.Services;
 /// <summary>
 /// The player's own data (system notes, learned names - later a discovery
 /// cache and anything synced with the planned ArtifactX API), in
-/// %LocalAppData%\ArtifactX\user.db. Separate from the game catalog
+/// %AppData%\ArtifactX\user.db. Separate from the game catalog
 /// (Data\nms_catalog.sqlite), which is rebuilt and replaced; this file is
 /// outside the install folder, so app updates never replace it.
 ///

@@ -32,7 +32,7 @@ public enum GameDataState
 /// from the install, never a version typed into ArtifactX - and runs the build
 /// in the background.
 ///
-/// The catalog lives in LocalAppData\ArtifactX\GameData. Developer builds
+/// The catalog lives in %AppData%\ArtifactX\GameData. Developer builds
 /// still find the old bundled Data\nms_catalog.sqlite until a catalog has been
 /// built (it has no GameDataInfo, so it reads as needing a build).
 /// </summary>

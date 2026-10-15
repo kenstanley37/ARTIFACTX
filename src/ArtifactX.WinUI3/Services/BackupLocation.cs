@@ -9,14 +9,14 @@ namespace ArtifactX.WinUI3.Services;
 /// <summary>
 /// Where every backup goes - game save backups (BackupService) and copies of
 /// the player's own data (UserDatabase.Backup). Default:
-/// %LOCALAPPDATA%\ArtifactX\Backups. The player can point it at another folder,
+/// %APPDATA%\ArtifactX\Backups. The player can point it at another folder,
 /// e.g. inside OneDrive, to keep copies off this PC (Settings page).
 ///
 /// Kept in backup-folder.txt next to user.db rather than inside user.db: the
 /// way to find user.db's backups must not depend on user.db itself being
 /// readable, and user.db's own upgrade step makes a backup before anything
 /// else in it can be read. Only backups move - the live user.db stays in
-/// %LOCALAPPDATA%, since sync tools can corrupt a database that's open.
+/// %APPDATA%\ArtifactX (not synced by OneDrive and the like), since sync tools can corrupt a database that's open.
 /// </summary>
 public static class BackupLocation
 {

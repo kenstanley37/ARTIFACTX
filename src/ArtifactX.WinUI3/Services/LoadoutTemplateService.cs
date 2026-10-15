@@ -14,7 +14,7 @@ namespace ArtifactX.WinUI3.Services;
 /// Loadout templates (Tech Stack / Full Build, every kind) in user.db's
 /// templates table: the template as JSON in payload, with kind/scope/name
 /// alongside for listing. Until 2026-10-12 each was a file in
-/// %LOCALAPPDATA%\ArtifactX\Loadouts; LegacyDataImporter moves those in.
+/// %APPDATA%\ArtifactX\Loadouts; LegacyDataImporter moves those in.
 /// Deleting is a soft delete (deleted = 1), so it can sync later.
 /// </summary>
 public static class LoadoutTemplateService
