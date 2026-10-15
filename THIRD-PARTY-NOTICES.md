@@ -59,11 +59,12 @@ add game data structures newer than the upstream release). Any changes are
 part of this repository's public source, so the modified library's source is
 always available under the LGPL.
 
+ArtifactX's copy is upstream **libMBIN 7.07.0** (MBINCompiler tag
+`v7.07.0-pre1`, game build 25800958), updated 2026-10-15.
+
 Changes made by ArtifactX to its copy of libMBIN:
-- 2026-10-12: `GcBaseBuildingTable`, `GcBaseBuildingEntry`, `GcBaseBuildingPartStyle`
-  and `GcBaseBuildingPalette` updated, and `GcSwatchColour` added, from upstream
-  MBINCompiler's update for the current game build (25800958), so the base
-  building table reads again.
+- `Common/Async.cs`: one null-forgiving operator (`null!`) to silence a
+  nullable-reference warning; no change in behaviour.
 - The DataCataloger tool's `dumpfile` command prints the full error chain when a
   file can't be decoded (ArtifactX code, not libMBIN).
 
