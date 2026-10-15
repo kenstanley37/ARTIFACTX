@@ -109,6 +109,30 @@
                                     <TextBlock x:Name="CorvetteNoteTxt" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
                                 </Border>
 
+                                <!-- Its rolled stats: one wrapping row at the top, so the card stays short (2026-10-15). -->
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
+                                               ToolTipService.ToolTip="The ship's own rolled bonus stats - changing Class doesn't change them by itself. No known upper limit; extreme values won't corrupt your save, just unbalance it."/>
+                                    <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="10">
+                                        <StackPanel Width="150" Spacing="4">
+                                            <TextBlock Text="Damage" Style="{StaticResource ThemeBodyTextStyle}"/>
+                                            <NumberBox x:Name="DamageStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="DamageStatBox_ValueChanged" LostFocus="DamageStatBox_LostFocus"/>
+                                        </StackPanel>
+                                        <StackPanel Width="150" Spacing="4">
+                                            <TextBlock Text="Shield" Style="{StaticResource ThemeBodyTextStyle}"/>
+                                            <NumberBox x:Name="ShieldStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="ShieldStatBox_ValueChanged" LostFocus="ShieldStatBox_LostFocus"/>
+                                        </StackPanel>
+                                        <StackPanel Width="150" Spacing="4">
+                                            <TextBlock Text="Hyperdrive" Style="{StaticResource ThemeBodyTextStyle}"/>
+                                            <NumberBox x:Name="HyperdriveStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="HyperdriveStatBox_ValueChanged" LostFocus="HyperdriveStatBox_LostFocus"/>
+                                        </StackPanel>
+                                        <StackPanel Width="150" Spacing="4">
+                                            <TextBlock Text="Maneuverability" Style="{StaticResource ThemeBodyTextStyle}"/>
+                                            <NumberBox x:Name="AgileStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="AgileStatBox_ValueChanged" LostFocus="AgileStatBox_LostFocus"/>
+                                        </StackPanel>
+                                    </ctcontrols:WrapPanel>
+                                </StackPanel>
+
                                 <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
                                     <!-- Who it is -->
                                     <StackPanel Width="280" Spacing="12">
@@ -127,6 +151,9 @@
                                                       SelectionChanged="TypeComboBox_SelectionChanged"
                                                       ToolTipService.ToolTip="The ship's model. Changing it swaps the hull you fly in-game."/>
                                         </StackPanel>
+                                        <Button Content="Delete this ship..." Click="DeleteShipBtn_Click" Margin="0,4,0,0"
+                                                Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
+                                                ToolTipService.ToolTip="Remove this ship from the save. You can keep it as a template first."/>
                                     </StackPanel>
 
                                     <!-- How it looks -->
@@ -153,34 +180,6 @@
                                                    Text="Shape from your game files. Colours are still being checked against the game."/>
                                     </StackPanel>
 
-                                    <!-- Its rolled stats -->
-                                    <StackPanel Width="280" Spacing="8">
-                                        <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
-                                                   ToolTipService.ToolTip="The ship's own rolled bonus stats - changing Class doesn't change them by itself. No known upper limit; extreme values won't corrupt your save, just unbalance it."/>
-                                        <Grid ColumnSpacing="10" RowSpacing="8">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="140"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Damage" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
-                                            <NumberBox Grid.Row="0" Grid.Column="1" x:Name="DamageStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="DamageStatBox_ValueChanged" LostFocus="DamageStatBox_LostFocus"/>
-                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Shield" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
-                                            <NumberBox Grid.Row="1" Grid.Column="1" x:Name="ShieldStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="ShieldStatBox_ValueChanged" LostFocus="ShieldStatBox_LostFocus"/>
-                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Hyperdrive" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
-                                            <NumberBox Grid.Row="2" Grid.Column="1" x:Name="HyperdriveStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="HyperdriveStatBox_ValueChanged" LostFocus="HyperdriveStatBox_LostFocus"/>
-                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Maneuverability" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
-                                            <NumberBox Grid.Row="3" Grid.Column="1" x:Name="AgileStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="AgileStatBox_ValueChanged" LostFocus="AgileStatBox_LostFocus"/>
-                                        </Grid>
-                                        <Button Content="Delete this ship..." Click="DeleteShipBtn_Click" Margin="0,8,0,0"
-                                                Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
-                                                ToolTipService.ToolTip="Remove this ship from the save. You can keep it as a template first."/>
-                                    </StackPanel>
                                 </ctcontrols:WrapPanel>
                             </StackPanel>
                         </StackPanel>
