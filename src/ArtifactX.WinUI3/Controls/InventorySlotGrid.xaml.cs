@@ -42,6 +42,10 @@ public sealed partial class InventorySlotGrid : UserControl
     /// Narrows the right-click search; null = no extra limit.</summary>
     public IReadOnlySet<string>? AllowedItemIds { get; set; }
 
+    /// <summary>Display only: no menus, no dragging (Base Item Cache - the game
+    /// only lets items be taken out, 2026-10-15).</summary>
+    public bool IsReadOnly { get; set; }
+
     /// <summary>Further restricts search to specific equipment-slot categories within
     /// a table (e.g. "Suit"/"All" for the Exosuit tech grid vs "Ship"/"All" for
     /// Starship) - GcTechnologyTable alone covers every equipment type undifferentiated,
@@ -265,6 +269,14 @@ public sealed partial class InventorySlotGrid : UserControl
                         ? Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move
                         : Windows.ApplicationModel.DataTransfer.DataPackageOperation.None;
                 border.Drop += (_, _) => HandleDrop(cell);
+            }
+
+            if (IsReadOnly)
+            {
+                border.ContextFlyout = null;
+                border.CanDrag = false;
+                border.AllowDrop = false;
+                ToolTipService.SetToolTip(border, cell.IsOccupied ? cell.DisplayText : null);
             }
 
             if (cell.IsSupercharged)

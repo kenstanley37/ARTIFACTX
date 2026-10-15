@@ -188,6 +188,12 @@
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
+                    <NavigationViewItem x:Name="BaseItemCacheNavItem" Content="Base Item Cache" Tag="BaseItemCache" Visibility="Collapsed">
+                        <NavigationViewItem.Icon>
+                            <FontIcon Glyph="&#xE7B8;"/>
+                        </NavigationViewItem.Icon>
+                    </NavigationViewItem>
+
                     <NavigationViewItem x:Name="CorvetteCacheNavItem" Content="Corvette Cache" Tag="CorvetteCache" Visibility="Collapsed">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="CorvetteCachePathIcon"/>
