@@ -1459,6 +1459,20 @@ public sealed partial class PlanetsPage : Page
             }
             return combo;
         }
+        // The name the game shows. Its discoverer may have renamed it - the new
+        // name is on the game's servers, not in the save - so the player can type
+        // it (2026-10-15: a renamed planet didn't match until they landed, when
+        // the save's "On Planet (...)" line taught it). Empty = the original name.
+        string original = UniverseInfo.GeneratedPlanetName(system, planet.PlanetIndex);
+        string indexKey = planet.PlanetIndex.ToString(CultureInfo.InvariantCulture);
+        string currentName = SystemNotesService.Get(system)?.PlanetNames.TryGetValue(indexKey, out var named) == true ? named : "";
+        var nameBox = new TextBox
+        {
+            Header = "Name in game", Width = 360, HorizontalAlignment = HorizontalAlignment.Left,
+            Text = currentName == original ? "" : currentName, PlaceholderText = original,
+        };
+        var nameHint = DimLine($"Original name: {original}. If whoever discovered it renamed it, type the name the game shows - ArtifactX also learns it when you land there.");
+
         var sentinelsBox = Choice("Sentinels", Words("Sentinels"), details.Sentinels);
         var floraBox = Choice("Flora", Words("Life"), details.Flora);
         var faunaBox = Choice("Fauna", Words("Life"), details.Fauna);
@@ -1602,6 +1616,8 @@ public sealed partial class PlanetsPage : Page
             FontSize = 12,
             Opacity = 0.75,
         });
+        content.Children.Add(nameBox);
+        content.Children.Add(nameHint);
         content.Children.Add(weatherBox);
         content.Children.Add(weatherHint);
         content.Children.Add(row1);
@@ -1630,6 +1646,19 @@ public sealed partial class PlanetsPage : Page
                 Resources = resources.ToList(),
                 Notes = notes.ToList(),
             });
+            string typedName = nameBox.Text.Trim();
+            var nameNote = SystemNotesService.Get(system) ?? new SystemNote();
+            nameNote.PlanetNames.TryGetValue(indexKey, out var oldName);
+            if (typedName.Length > 0 && typedName != oldName)
+            {
+                nameNote.PlanetNames[indexKey] = typedName;
+                SystemNotesService.Save(system, nameNote);
+            }
+            else if (typedName.Length == 0 && !string.IsNullOrEmpty(oldName))
+            {
+                nameNote.PlanetNames.Remove(indexKey);
+                SystemNotesService.Save(system, nameNote);
+            }
             bool? newWater = waterBox.SelectedIndex switch { 1 => true, 2 => false, _ => null };
             if (newWater != PlanetWaterService.Get(system, planet.PlanetIndex))
                 PlanetWaterService.Set(system, planet.PlanetIndex, newWater);

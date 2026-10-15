@@ -95,6 +95,15 @@ public static class UniverseInfo
         if (SystemNotesService.Get(key)?.PlanetNames.TryGetValue(planetIndex.ToString(CultureInfo.InvariantCulture), out var recorded) == true
             && recorded.Length > 0)
             return recorded;
+        return GeneratedPlanetName(address, planetIndex);
+    }
+
+    /// <summary>The planet's original name, from its seed - what it's called
+    /// until its discoverer renames it (the new name lives on the game's
+    /// servers, not in the save).</summary>
+    public static string GeneratedPlanetName(ulong address, int planetIndex)
+    {
+        ulong key = SystemKey(address);
         var names = PlanetNamesCache.GetOrAdd(key, k =>
         {
             var (code, galaxy) = Generator(k);
