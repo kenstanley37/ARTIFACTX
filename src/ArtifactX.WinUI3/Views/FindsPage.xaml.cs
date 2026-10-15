@@ -68,7 +68,15 @@ public sealed partial class FindsPage : Page
         // Kinds come from game data / the app's own type lists, not hand-typed here.
         // Reward ships can't be found in the wild, so they're left out.
         _shipKinds = StarshipTypes.All.Select(t => t.DisplayName).Where(n => !n.Contains("(Reward")).ToList();
-        _toolKinds = (await CatalogService.GetMultiToolTypesAsync()).Select(t => t.DisplayName).Distinct().ToList();
+        // The main model (MULTITOOL.SCENE, listed as "Rifle") makes pistols, rifles,
+        // experimentals and alien tools - the seed picks which - so a find needs
+        // those names, not the one model name (an Alien tool had no entry,
+        // 2026-10-15). The game has no names for them; these are the players'.
+        _toolKinds = (await CatalogService.GetMultiToolTypesAsync())
+            .SelectMany(t => t.ScenePath.EndsWith("/MULTITOOL.SCENE.MBIN", StringComparison.OrdinalIgnoreCase)
+                ? new[] { "Pistol", "Rifle", "Experimental", "Alien" }
+                : new[] { t.DisplayName })
+            .Distinct().ToList();
         _freighterKinds = (await CatalogService.GetFreighterTypesAsync()).Select(t => t.DisplayName)
             .Where(n => n is "Normal" or "Capital" or "Dreadnought").ToList();
         // Same fish list as the Fishing Records page (game ids, not hand-typed).
