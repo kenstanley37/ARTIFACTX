@@ -175,12 +175,13 @@ public sealed partial class ShipsPage
                     await CatalogService.GetJsonCategoryAsync("ShipScenes"),
                     await CatalogService.GetJsonCategoryAsync("ShipMaterials"),
                     await CatalogService.GetJsonCategoryAsync("TextureLists"));
-                var surfaces = _look.HasScenes
-                    ? await Task.Run(() => ShipLook.Generate(scene, seed, AllOptionIdsExact(root),
-                        ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet(StringComparer.Ordinal), _look))
-                    : new List<SurfacePick>();
-                ShipPartsPanel.Children.Add(PaintRow(surfaces, ShipColours.Generate(seed, _palettes)));
-                ShowPreview(scene, seed, root, surfaces);
+                // Paint isn't shown: the seed -> colour rule (ShipColours/ShipLook,
+                // ported from NMS Shipwright) was disproved in game on 2026-10-15 -
+                // four controlled test fighters came out tan/red/blue/blue where it
+                // predicted yellow/periwinkle/white/green. The code stays in Core for
+                // when the game's real rule is found; until then the preview is
+                // neutral and the page claims no colours.
+                ShowPreview(scene, seed, root);
             }
         }
         else
@@ -221,66 +222,6 @@ public sealed partial class ShipsPage
     private static HashSet<string> AllOptionIdsExact(IReadOnlyList<PartGroup> root) =>
         new(AllOptionIds(root), StringComparer.Ordinal);
 
-    /// <summary>Paint by surface: which colour the seed puts on each of the
-    /// ship's paint materials (ShipLook - port of NMS Shipwright's texture and
-    /// palette picks). Which surface covers most of the ship depends on its parts
-    /// (a Speeder Fuselage is mostly Tertiary paint), so every surface is shown
-    /// rather than guessing a "main" colour. Falls back to the plain paint
-    /// palette on game data without ship surfaces.</summary>
-    private static UIElement PaintRow(List<SurfacePick> surfaces, ShipPaint paint)
-    {
-        var row = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 10, VerticalSpacing = 8, Margin = new Thickness(0, 4, 0, 0) };
-        var shown = new HashSet<string>(StringComparer.Ordinal);
-        void Swatch(string label, float[]? rgb, string? pattern = null)
-        {
-            if (rgb is null) return;
-            var colour = Windows.UI.Color.FromArgb(255, Byte(rgb[0]), Byte(rgb[1]), Byte(rgb[2]));
-            string hex = $"#{colour.R:X2}{colour.G:X2}{colour.B:X2}";
-            if (!shown.Add(label + hex)) return;
-            var cell = new StackPanel { Spacing = 3, Width = 70 };
-            cell.Children.Add(new Border
-            {
-                Height = 26, CornerRadius = new CornerRadius(4),
-                Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(colour),
-                BorderBrush = ThemeResources.Brush("ThemeLineBrush"), BorderThickness = new Thickness(1),
-            });
-            cell.Children.Add(new TextBlock { Text = label, FontSize = 10, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Foreground = ThemeResources.Brush("ThemeTextDimBrush") });
-            ToolTipService.SetToolTip(cell, $"{label}: {hex}{(string.IsNullOrEmpty(pattern) ? "" : $" ({Title(pattern)} pattern)")}");
-            row.Children.Add(cell);
-        }
-        static byte Byte(float v) => (byte)Math.Clamp(Math.Round(v * 255), 0, 255);
-        static string Title(string s) => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(s.ToLowerInvariant().Replace('_', ' '));
-        SurfacePick? Base(string list) => surfaces.FirstOrDefault(p => p.List == list && p.Layer == "BASE");
-
-        if (surfaces.Count > 0)
-        {
-            foreach (var (list, label) in new[] { ("PRIMARY", "Primary paint"), ("SECONDARY", "Secondary paint"), ("TERTIARY", "Tertiary paint"), ("TRIMS", "Trims") })
-                if (Base(list) is { } pick) Swatch(label, pick.Rgb, pick.Option);
-            // Decals: the separate decal textures, and the decal layers parts carry
-            // on their own material (an engine's MARKINGS/SIGNAGE/RAREDECAL - the
-            // Hauler's orange stripes, 2026-10-15).
-            foreach (var pick in surfaces.Where(p =>
-                         (p.Layer == "BASE" && p.List is "LETTERING" or "LOGO" or "NUMBER" or "SMALLSIGN")
-                         || p.Layer is "MARKINGS" or "SIGNAGE" or "RAREDECAL"))
-                Swatch(pick.Layer == "RAREDECAL" ? "Rare decal" : "Markings", pick.Rgb);
-        }
-        else
-        {
-            Swatch("Primary", paint.Primary);
-            Swatch("Secondary", paint.Secondary);
-            Swatch("Undercoat", paint.Undercoat);
-            Swatch("Decal 1", paint.Decal1);
-            Swatch("Decal 2", paint.Decal2);
-        }
-        var block = new StackPanel { Spacing = 4, Margin = new Thickness(0, 6, 0, 0) };
-        block.Children.Add(new TextBlock { Text = "PAINT THIS SEED GIVES", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] });
-        block.Children.Add(row);
-        block.Children.Add(Dim(surfaces.Count > 0
-            ? "By surface - which one covers most of the ship depends on its parts. Before any recolouring at a space station."
-            : "Update your game data to see which surface gets which colour. Before any recolouring at a space station."));
-        return block;
-    }
-
     /// <summary>The ship look data from the catalog, parsed as ShipLook asks for it.</summary>
     private sealed class LookData(IReadOnlyList<ColourPalette> palettes, Dictionary<string, string> scenes,
         Dictionary<string, string> materials, Dictionary<string, string> lists) : IShipLookData
@@ -297,10 +238,10 @@ public sealed partial class ShipsPage
     }
 
     /// <summary>The 3D preview: the seed's parts built from the player's own
-    /// game files (ShipModels), each material painted with its surface's colour
-    /// (the BASE pick of the material's texture list), glass/lights/dark parts by
-    /// their material name.</summary>
-    private async void ShowPreview(string scene, ulong seed, IReadOnlyList<PartGroup> root, List<SurfacePick> surfaces)
+    /// game files (ShipModels) in neutral shades - each paint surface its own
+    /// grey so the parts read apart, glass/lights/dark parts by their material
+    /// name. Not the ship's real colours (see RefreshShipParts).</summary>
+    private async void ShowPreview(string scene, ulong seed, IReadOnlyList<PartGroup> root)
     {
         int version = ++_previewVersion;
         if (GameDataService.Game is not { } game) { ShipPreviewGroup.Visibility = Visibility.Collapsed; return; }
@@ -313,13 +254,13 @@ public sealed partial class ShipsPage
         var mesh = await Task.Run(() => models.Build(scene, options, chosen));
         if (version != _previewVersion) return;
         var look = _look;
-        ShipPreviewView.Show(mesh, material => MaterialColour(material, look, surfaces));
+        ShipPreviewView.Show(mesh, material => MaterialColour(material, look));
         ShipPreviewNote.Text = mesh is null
             ? "This ship's model couldn't be read from your game files."
-            : "Shape from your game files - drag to turn. Colours are still being checked against the game.";
+            : "Shape from your game files - drag to turn. Shown in neutral grey: the colours a seed gives can't be predicted yet.";
     }
 
-    private static uint MaterialColour(string material, LookData? look, List<SurfacePick> surfaces)
+    private static uint MaterialColour(string material, LookData? look)
     {
         string name = System.IO.Path.GetFileName(material).ToUpperInvariant();
         static uint Rgb(int r, int g, int b) => (uint)(r << 16 | g << 8 | b);
@@ -328,9 +269,10 @@ public sealed partial class ShipsPage
         if (look is not null && look.MaterialLists(material) is { Count: > 0 } lists)
         {
             string key = System.IO.Path.GetFileName(lists[0]).Split('.')[0];
-            var pick = surfaces.FirstOrDefault(p => p.List == key && p.Layer == "BASE")
-                       ?? surfaces.FirstOrDefault(p => p.List == key && p.Layer == "PAINT");
-            if (pick?.Rgb is { } c) return Rgb((int)(c[0] * 255), (int)(c[1] * 255), (int)(c[2] * 255));
+            if (key.EndsWith("PRIMARY", StringComparison.Ordinal)) return Rgb(196, 199, 205);
+            if (key.EndsWith("SECONDARY", StringComparison.Ordinal)) return Rgb(158, 162, 170);
+            if (key == "TERTIARY") return Rgb(122, 127, 136);
+            if (key == "TRIMS") return Rgb(98, 102, 110);
         }
         if (System.Text.RegularExpressions.Regex.IsMatch(name, "RUBBER|DARK|BLACK|GRILL|VENT|UNDERCOAT")) return Rgb(46, 48, 53);
         return Rgb(140, 142, 148);
