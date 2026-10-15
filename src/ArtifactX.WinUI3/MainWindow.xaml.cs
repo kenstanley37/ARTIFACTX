@@ -462,6 +462,12 @@ public sealed partial class MainWindow : Window
         ColdStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         IngredientStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         BaseItemCacheNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        // A reminder: how many different items are waiting in the cache (easy to
+        // forget, user 2026-10-15) - kinds of item, not quantities.
+        int cacheItems = SaveSessionManager.GetValue(ArtifactX.Core.NmsModels.NmsInventoryContainer.BaseItemCachePath)?[":No"] is Newtonsoft.Json.Linq.JArray cached ? cached.Count : 0;
+        BaseItemCacheNavItem.InfoBadge = cacheItems > 0 ? new InfoBadge { Value = cacheItems } : null;
+        ToolTipService.SetToolTip(BaseItemCacheNavItem, cacheItems > 0
+            ? $"{cacheItems} item{(cacheItems == 1 ? "" : "s")} waiting from a dismantled base" : null);
         CompanionsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SettlementNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SpaceStationsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
