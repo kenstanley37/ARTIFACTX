@@ -2,10 +2,10 @@ using System;
 
 namespace libMBIN.NMS.GameComponents
 {
-    [NMS(GUID = 0xAA7F6FA5A54E725A, NameHash = 0x6A2D4F5A)]
+    [NMS(GUID = 0x5EC82AAA9D1660DB, NameHash = 0x6A2D4F5A)]
     public class GcPhysicsCollisionGroups : NMSTemplate
     {
-        // size: 0x4F
+        // size: 0x57
         [Flags]
         public enum CollisionGroupEnum : uint {
             Normal,
@@ -18,6 +18,7 @@ namespace libMBIN.NMS.GameComponents
             Asteroid,
             Player,
             NetworkPlayer,
+            NetworkPlayerNoCargoPermission,
             NPC,
             Ragdoll,
             Vehicle,
@@ -29,10 +30,13 @@ namespace libMBIN.NMS.GameComponents
             Creature,
             Spaceship,
             Spaceship_Landing,
+            Spaceship_CargoBarrier,
             Debris,
             Shield,
             Loot,
             PlayerMovableObject,
+            NetworkedObjectNoPermission,
+            SolarSystemMapObject,
             CollidesWithNothing,
             CollidesWithEverything,
             DefaultRaycast,
@@ -47,12 +51,14 @@ namespace libMBIN.NMS.GameComponents
             Raycast_WeaponOfPlayer,
             Raycast_WeaponOfAgent,
             Raycast_Binoculars,
+            Raycast_TerrainEditingBeamProbe,
             Raycast_TerrainEditingBeam,
             Raycast_TerrainEditing_OverlappingObjects,
             Raycast_PlayerClimb,
             Raycast_PlayerAim,
             Raycast_PlayerThrow,
             Raycast_PlayerSpawn,
+            Raycast_WorldMigrationTest,
             Raycast_ObjectPlacement,
             Raycast_DroneControl,
             Raycast_PlanetHeightTest,
@@ -72,6 +78,7 @@ namespace libMBIN.NMS.GameComponents
             Raycast_NavigationLink,
             Raycast_AiShipAtack,
             Raycast_AiShipTravel,
+            Raycast_AiShipMining,
             Raycast_ObstructionQuery,
             Raycast_GeometryProbe,
             Raycast_AirNavigationProbe,
@@ -87,6 +94,7 @@ namespace libMBIN.NMS.GameComponents
             Raycast_CatchCreatureObstacles,
             Raycast_SpaceStationShipBuilderCamera,
             Raycast_GravLaserObjectBlocking,
+            Raycast_SolarSystemMapObject,
         }
         [NMS(Index = 0)]
         /* 0x0 */ public CollisionGroupEnum CollisionGroup;

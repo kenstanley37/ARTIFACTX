@@ -95,20 +95,25 @@ public sealed partial class ExocraftDetailControl : UserControl
         { "Engine & handling", "Mining", "Weapons", "Scanning", "Hazard protection", "Minotaur parts", "Utilities" };
 
     /// <summary>Groups by the main stat each tech works on (the game's
-    /// BaseStat, via the catalog's TechStats). Vehicle stats are loosely
-    /// named in the game data (engines use Vehicle_Scan), so they're mapped
-    /// to what the tech does; the Minotaur's swappable body parts get their
-    /// own group.</summary>
+    /// BaseStat, via the catalog's TechStats), mapped to what the tech does;
+    /// the Minotaur's swappable body parts get their own group. Stat names
+    /// read correctly since libMBIN 7.07 (2026-10-15) - before, the COSMOS
+    /// stat list was shifted by one (engines read as Vehicle_Scan, scanners as
+    /// Vehicle_EngineFuelUse), so both spellings are kept for catalogs built
+    /// before the update.</summary>
     private static string TechGroup(CatalogPart tech)
     {
         if (tech.Name.StartsWith("HARDFRAME", StringComparison.OrdinalIgnoreCase)
             || tech.Name.StartsWith("LIQUIDATOR", StringComparison.OrdinalIgnoreCase)) return "Minotaur parts";
+        bool oldCatalog = GameDataService.Info?.Format < 4;
         return (tech.Stat ?? "") switch
         {
-            "Vehicle_Scan" or "Vehicle_Engine" => "Engine & handling",
-            "Vehicle_LaserDamage" or "Vehicle_FuelRegen" => "Mining",
-            "Vehicle_GunDamage" or "Vehicle_FlameDamage" => "Weapons",
-            "Vehicle_EngineFuelUse" or "Weapon_Scan_Binoculars" => "Scanning",
+            "Vehicle_Scan" when oldCatalog => "Engine & handling",
+            "Vehicle_EngineFuelUse" when oldCatalog => "Scanning",
+            "Vehicle_Engine" or "Vehicle_Boost" or "Vehicle_AutoPilot" => "Engine & handling",
+            "Vehicle_Laser" or "Vehicle_LaserDamage" or "Vehicle_TerrainEdit" or "Vehicle_FuelRegen" or "Vehicle_Plough" or "Vehicle_Refiner" => "Mining",
+            "Vehicle_Gun" or "Vehicle_GunDamage" or "Vehicle_Flame" or "Vehicle_FlameDamage" or "Vehicle_StunGun" => "Weapons",
+            "Vehicle_Scan" or "Vehicle_EngineFuelUse" or "Weapon_Scan_Binoculars" => "Scanning",
             var s when s.StartsWith("Suit_Protection") => "Hazard protection",
             _ => "Utilities",
         };
