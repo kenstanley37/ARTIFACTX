@@ -252,8 +252,13 @@ public sealed partial class ShipsPage
         {
             foreach (var (list, label) in new[] { ("PRIMARY", "Primary paint"), ("SECONDARY", "Secondary paint"), ("TERTIARY", "Tertiary paint"), ("TRIMS", "Trims") })
                 if (Base(list) is { } pick) Swatch(label, pick.Rgb, pick.Option);
-            foreach (var pick in surfaces.Where(p => p.Layer == "BASE" && p.List is "LETTERING" or "LOGO" or "NUMBER" or "SMALLSIGN"))
-                Swatch("Markings", pick.Rgb);
+            // Decals: the separate decal textures, and the decal layers parts carry
+            // on their own material (an engine's MARKINGS/SIGNAGE/RAREDECAL - the
+            // Hauler's orange stripes, 2026-10-15).
+            foreach (var pick in surfaces.Where(p =>
+                         (p.Layer == "BASE" && p.List is "LETTERING" or "LOGO" or "NUMBER" or "SMALLSIGN")
+                         || p.Layer is "MARKINGS" or "SIGNAGE" or "RAREDECAL"))
+                Swatch(pick.Layer == "RAREDECAL" ? "Rare decal" : "Markings", pick.Rgb);
         }
         else
         {
