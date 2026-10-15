@@ -903,6 +903,39 @@ public static class CatalogService
         }
     }
 
+    /// <summary>Ship-builder parts (catalog "PartGroups"): the part item's id
+    /// (FIGHT_COCKAA - a product with a name and icon), its set (FIGHT_COCK) and
+    /// the descriptor options it switches on.</summary>
+    public static async Task<List<(string Id, string Set, List<string> Descriptors)>> GetPartGroupsAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new List<(string, string, List<string>)>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.NameEnglish, i.UsageCategory, i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'PartGroups'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                    results.Add((reader.GetString(0), reader.GetString(1),
+                        System.Text.Json.JsonSerializer.Deserialize<List<string>>(reader.GetString(2)) ?? new()));
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetPartGroupsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
     /// <summary>Every starship part tree (catalog "ShipDescriptors"), by
     /// lower-case descriptor path, as stored JSON (ShipParts.ParseTree).</summary>
     public static async Task<Dictionary<string, string>> GetShipPartTreesAsync()

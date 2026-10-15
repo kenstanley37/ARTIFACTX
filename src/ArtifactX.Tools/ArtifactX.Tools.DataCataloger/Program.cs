@@ -733,6 +733,12 @@ if (args.Length > 1 && args[0].Equals("add-crafting", StringComparison.OrdinalIg
     return;
 }
 
+if (args.Length > 1 && args[0].Equals("add-part-groups", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddPartGroups(args[1], gamePath);
+    return;
+}
+
 // "DataCataloger add-ship-descriptors <target-catalog-db-path>" - see CatalogSteps.AddShipDescriptors.
 if (args.Length > 1 && args[0].Equals("add-ship-descriptors", StringComparison.OrdinalIgnoreCase))
 {

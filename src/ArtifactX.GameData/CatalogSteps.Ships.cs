@@ -82,3 +82,61 @@ public static partial class CatalogSteps
         ConsoleStyle.Success($"Wrote {rows.Count} starship part trees to {catalogPath}.");
     }
 }
+
+public static partial class CatalogSteps
+{
+    /// <summary>
+    /// Which ship-builder part (an item with a name and icon, e.g. FIGHT_COCKAA
+    /// "Omega Fuselage") switches on which descriptor options ("_COCKPIT_A",
+    /// "_ANOSE_A") - charactercustomisationdescriptorgroupsdata.mbin
+    /// (GcCustomisationDescriptorGroups; despite the name it covers ships,
+    /// multi-tools, freighters... too). Category "PartGroups": GameId
+    /// "PARTGROUP:" + group id, NameEnglish = group id (the product's GameId),
+    /// UsageCategory = its set ("FIGHT_COCK"), DescriptionEnglish = JSON list of
+    /// descriptor ids. Lets the Starships page show a seed's parts by name and icon.
+    /// </summary>
+    public static void AddPartGroups(string catalogPath, string pcbanksPath)
+    {
+        if (!File.Exists(catalogPath)) { ConsoleStyle.Error($"Target catalog DB not found: {catalogPath}"); return; }
+        var reader = new PakReaderService();
+        var extraction = new ExtractionService();
+        const string file = "METADATA/GAMESTATE/PLAYERDATA/CHARACTERCUSTOMISATIONDESCRIPTORGROUPSDATA.MBIN";
+        libMBIN.NMS.GameComponents.GcCustomisationDescriptorGroups? table = null;
+        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
+        {
+            Models.PakHeader header;
+            IReadOnlyList<Models.PakEntry> entries;
+            try { header = reader.ReadHeader(pak.FullPath); entries = reader.Read(pak.FullPath); }
+            catch { continue; }
+            var entry = entries.FirstOrDefault(e => string.Equals(e.FileName, file, StringComparison.OrdinalIgnoreCase));
+            if (entry is null) continue;
+            try
+            {
+                var mbin = new MBINFile(new MemoryStream(extraction.ExtractEntryBytes(pak.FullPath, entry, header)!));
+                mbin.Load();
+                table = mbin.GetData() as libMBIN.NMS.GameComponents.GcCustomisationDescriptorGroups;
+            }
+            catch (Exception ex) { ConsoleStyle.Warning($"Couldn't read the part groups: {ex.Message}"); }
+            break;
+        }
+        var rows = new List<CatalogItem>();
+        foreach (var set in table?.DescriptorGroupSets ?? new())
+            foreach (var g in set.DescriptorGroups ?? new())
+            {
+                string id = g.GroupID?.Value ?? "";
+                var descriptors = g.Descriptors?.Select(d => d?.Value ?? "").Where(d => d.Length > 0).ToList() ?? new();
+                if (id.Length == 0 || descriptors.Count == 0) continue;
+                rows.Add(new CatalogItem
+                {
+                    GameId = "PARTGROUP:" + id,
+                    NameEnglish = id,
+                    UsageCategory = set.Id?.Value ?? "",
+                    DescriptionEnglish = JsonSerializer.Serialize(descriptors),
+                });
+            }
+        ConsoleStyle.Header($"Found {rows.Count} customisation part groups.");
+        using var db = new CatalogDbContext(catalogPath);
+        Replace(db, "PartGroups", "GcCustomisationDescriptorGroup", file.ToLowerInvariant(), rows);
+        ConsoleStyle.Success($"Wrote {rows.Count} part groups to {catalogPath}.");
+    }
+}
