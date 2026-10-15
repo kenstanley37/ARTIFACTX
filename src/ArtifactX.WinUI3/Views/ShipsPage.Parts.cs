@@ -107,6 +107,7 @@ public sealed partial class ShipsPage
     /// <summary>Rebuilds the parts list for the selected ship's type and the seed in the box.</summary>
     private async void RefreshShipParts()
     {
+        ApplyDetailsCollapsed(); // the closed band names the ship shown
         ShipPartsPanel.Children.Clear();
         string? scene = CurrentScene();
         if (scene is null) return;

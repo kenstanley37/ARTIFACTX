@@ -68,6 +68,7 @@ public sealed partial class ShipsPage : Page
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
         Unloaded += Page_Unloaded;
 
+        ApplyDetailsCollapsed();
         LoadShipList();
         _ = RefreshTemplatesListAsync();
         _ = RefreshFullBuildTemplatesListAsync();
