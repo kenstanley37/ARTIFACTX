@@ -19,14 +19,14 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="BASE ITEM CACHE" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="0" Text="DISMANTLED BASE COMPONENTS" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
             </Grid>
             <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap" MaxWidth="720" HorizontalAlignment="Left"
                        Text="What the game gave back when you dismantled a base - the Previous Base Item Cache in your base. You can only take items out of it in game, so this page just shows what is there."/>
             <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left" VerticalAlignment="Top">
                 <StackPanel>
                     <Border Style="{StaticResource ThemeBandStyle}">
-                        <TextBlock Text="DISMANTLED BASE COMPONENTS" Style="{StaticResource ThemeBandTextStyle}"/>
+                        <TextBlock Text="CONTENTS" Style="{StaticResource ThemeBandTextStyle}"/>
                     </Border>
                     <StackPanel Padding="14,12,14,14" Spacing="10">
                         <controls:InventorySlotGrid x:Name="CacheGrid"/>
