@@ -87,8 +87,11 @@ public sealed partial class ShipsPage
         var fitting = (_partGroups ?? new()).Where(g => g.Descriptors.All(possible.Contains)).ToList();
         static string Family(string set) => set.Contains('_') ? set[..set.IndexOf('_')] : set;
         string? best = fitting.GroupBy(g => Family(g.Set)).OrderByDescending(f => f.Count()).FirstOrDefault()?.Key;
+        // Only parts that are real items (a name and icon): Shuttles can't be built
+        // or broken into parts in game, so theirs - like Explorer wings - have none
+        // and are left out rather than shown as raw ids (checked in game 2026-10-15).
         return fitting
-            .Where(g => Family(g.Set) == best)
+            .Where(g => Family(g.Set) == best && CatalogService.TryGet(g.Id) is not null)
             .GroupBy(g => g.Set)
             .Where(s => s.Count() > 1)
             .ToList();
@@ -130,6 +133,11 @@ public sealed partial class ShipsPage
             return;
         }
         var sets = PartSetsFor(root);
+        if (sets.Count == 0)
+        {
+            ShipPartsPanel.Children.Add(Dim("This ship type can't be built from parts or broken into parts in game, so its parts have no names to show."));
+            return;
+        }
 
         ShipPartsPanel.Children.Add(new TextBlock { Text = "PARTS THIS SEED GIVES", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] });
         if (TryParseSeed(SeedEditBox.Text, out ulong seed))
