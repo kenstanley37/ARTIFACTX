@@ -34,7 +34,6 @@
                         <Setter Target="SidebarPanel.(Grid.Column)" Value="0"/>
                         <Setter Target="SidebarPanel.(Grid.ColumnSpan)" Value="2"/>
                         <Setter Target="TemplatesBorder.Width" Value="NaN"/>
-                        <Setter Target="ShipInfoBorder.Width" Value="NaN"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -85,6 +84,105 @@
                                           HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
                                 <ctcontrols:WrapPanel x:Name="ShipSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
                             </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- The selected ship's own details, full width above its tech
+                         (user 2026-10-15: a ship page shouldn't hide them bottom right).
+                         Wide and short - three groups that wrap on narrow windows - and
+                         collapsible (ShipDetailsToggle_Click, remembered). -->
+                    <Border x:Name="ShipInfoBorder" Style="{StaticResource ThemeCardStyle}">
+                        <StackPanel>
+                            <Border Style="{StaticResource ThemeBandStyle}">
+                                <Grid>
+                                    <TextBlock x:Name="ShipDetailsHeaderTxt" Text="SHIP DETAILS" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
+                                    <Button x:Name="ShipDetailsToggle" Click="ShipDetailsToggle_Click" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                            Padding="6,2" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Hide the details">
+                                        <FontIcon x:Name="ShipDetailsToggleIcon" Glyph="&#xE70E;" FontSize="12" Foreground="{ThemeResource ThemeBandTextBrush}"/>
+                                    </Button>
+                                </Grid>
+                            </Border>
+                            <StackPanel x:Name="ShipDetailsBody" Padding="18,14,18,18" Spacing="16">
+                                <!-- Shown for corvettes: their build lives apart from the ship (ShipBaseService). -->
+                                <Border x:Name="CorvetteNote" Visibility="Collapsed" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="1"
+                                        CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,8">
+                                    <TextBlock x:Name="CorvetteNoteTxt" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
+                                </Border>
+
+                                <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
+                                    <!-- Who it is -->
+                                    <StackPanel Width="280" Spacing="12">
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                            <TextBox x:Name="NameEditBox" LostFocus="NameEditBox_LostFocus"/>
+                                        </StackPanel>
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                            <StackPanel x:Name="ClassSelectorPanel" Orientation="Horizontal" Spacing="6"/>
+                                        </StackPanel>
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                            <ComboBox x:Name="TypeComboBox" HorizontalAlignment="Stretch"
+                                                      DisplayMemberPath="DisplayName"
+                                                      SelectionChanged="TypeComboBox_SelectionChanged"
+                                                      ToolTipService.ToolTip="The ship's model. Changing it swaps the hull you fly in-game."/>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- How it looks -->
+                                    <StackPanel Width="380" Spacing="6">
+                                        <TextBlock Text="SEED" Style="{StaticResource ThemeEyebrowStyle}"
+                                                   ToolTipService.ToolTip="Drives this ship's procedural look, alongside its Class and model. Paste a seed you've found elsewhere, or Generate a new random look - you'll see it next time you load the game."/>
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="SeedEditBox" LostFocus="SeedEditBox_LostFocus"/>
+                                            <Button Grid.Column="1" Content="Generate" Click="GenerateSeedBtn_Click"/>
+                                        </Grid>
+                                        <!-- The parts this seed gives (ShipsPage.Parts.cs, experiment). -->
+                                        <StackPanel x:Name="ShipPartsPanel" Spacing="6" Margin="0,6,0,0"/>
+                                    </StackPanel>
+
+                                    <!-- What the seed looks like (ShipsPage.Parts.cs, experiment) -->
+                                    <StackPanel x:Name="ShipPreviewGroup" Width="420" Spacing="6" Visibility="Collapsed">
+                                        <TextBlock Text="PREVIEW" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                        <controls:ShipPreview x:Name="ShipPreviewView" Height="260"/>
+                                        <TextBlock x:Name="ShipPreviewNote" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" TextWrapping="Wrap"
+                                                   Text="Shape from your game files. Colours are still being checked against the game."/>
+                                    </StackPanel>
+
+                                    <!-- Its rolled stats -->
+                                    <StackPanel Width="280" Spacing="8">
+                                        <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
+                                                   ToolTipService.ToolTip="The ship's own rolled bonus stats - changing Class doesn't change them by itself. No known upper limit; extreme values won't corrupt your save, just unbalance it."/>
+                                        <Grid ColumnSpacing="10" RowSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="140"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Damage" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
+                                            <NumberBox Grid.Row="0" Grid.Column="1" x:Name="DamageStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="DamageStatBox_ValueChanged" LostFocus="DamageStatBox_LostFocus"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Shield" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
+                                            <NumberBox Grid.Row="1" Grid.Column="1" x:Name="ShieldStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="ShieldStatBox_ValueChanged" LostFocus="ShieldStatBox_LostFocus"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Hyperdrive" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
+                                            <NumberBox Grid.Row="2" Grid.Column="1" x:Name="HyperdriveStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="HyperdriveStatBox_ValueChanged" LostFocus="HyperdriveStatBox_LostFocus"/>
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Maneuverability" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
+                                            <NumberBox Grid.Row="3" Grid.Column="1" x:Name="AgileStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="AgileStatBox_ValueChanged" LostFocus="AgileStatBox_LostFocus"/>
+                                        </Grid>
+                                        <Button Content="Delete this ship..." Click="DeleteShipBtn_Click" Margin="0,8,0,0"
+                                                Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
+                                                ToolTipService.ToolTip="Remove this ship from the save. You can keep it as a template first."/>
+                                    </StackPanel>
+                                </ctcontrols:WrapPanel>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
@@ -173,7 +271,7 @@
                     </Grid>
                 </StackPanel>
 
-                <!-- SidebarPanel is one named unit (Templates + Ship Details) so the
+                <!-- SidebarPanel (Templates) is one named unit so the
                      narrow-mode VisualState below can move it to its own row at once. -->
                 <StackPanel x:Name="SidebarPanel" Grid.Row="1" Grid.Column="1" Spacing="22" VerticalAlignment="Top">
                     <Border x:Name="TemplatesBorder" Style="{StaticResource ThemeCardStyle}" Width="320">
@@ -216,83 +314,6 @@
                         </StackPanel>
                     </Border>
 
-                    <Border x:Name="ShipInfoBorder" Style="{StaticResource ThemeCardStyle}" Width="320">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <TextBlock Text="SHIP DETAILS" Style="{StaticResource ThemeBandTextStyle}"/>
-                            </Border>
-                            <StackPanel Padding="18,14,18,18" Spacing="16">
-                                <!-- Shown for corvettes: their build lives apart from the ship (ShipBaseService). -->
-                                <Border x:Name="CorvetteNote" Visibility="Collapsed" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="1"
-                                        CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,8">
-                                    <TextBlock x:Name="CorvetteNoteTxt" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
-                                </Border>
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                    <TextBox x:Name="NameEditBox" LostFocus="NameEditBox_LostFocus"/>
-                                </StackPanel>
-
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                    <StackPanel x:Name="ClassSelectorPanel" Orientation="Horizontal" Spacing="6"/>
-                                </StackPanel>
-
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                    <ComboBox x:Name="TypeComboBox" HorizontalAlignment="Stretch"
-                                              DisplayMemberPath="DisplayName"
-                                              SelectionChanged="TypeComboBox_SelectionChanged"
-                                              ToolTipService.ToolTip="The ship's model. Changing it swaps the hull you fly in-game."/>
-                                </StackPanel>
-
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                               Text="Drives this ship's procedural look, alongside its Class and model. Paste a seed you've found elsewhere, or Generate a new random look - you'll see it next time you load the game."/>
-                                    <Grid ColumnSpacing="8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBox x:Name="SeedEditBox" LostFocus="SeedEditBox_LostFocus"/>
-                                        <Button Grid.Column="1" Content="Generate" Click="GenerateSeedBtn_Click"/>
-                                    </Grid>
-                                </StackPanel>
-
-                                <StackPanel Spacing="8">
-                                    <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                               Text="The ship's own rolled bonus stats - changing Class doesn't change them by itself. No known upper limit; extreme values won't corrupt your save, just unbalance it."/>
-                                    <Grid ColumnSpacing="10" RowSpacing="8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="140"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Damage" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
-                                        <NumberBox Grid.Row="0" Grid.Column="1" x:Name="DamageStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="DamageStatBox_ValueChanged" LostFocus="DamageStatBox_LostFocus"/>
-                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Shield" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
-                                        <NumberBox Grid.Row="1" Grid.Column="1" x:Name="ShieldStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="ShieldStatBox_ValueChanged" LostFocus="ShieldStatBox_LostFocus"/>
-                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Hyperdrive" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
-                                        <NumberBox Grid.Row="2" Grid.Column="1" x:Name="HyperdriveStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="HyperdriveStatBox_ValueChanged" LostFocus="HyperdriveStatBox_LostFocus"/>
-                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Maneuverability" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
-                                        <NumberBox Grid.Row="3" Grid.Column="1" x:Name="AgileStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="AgileStatBox_ValueChanged" LostFocus="AgileStatBox_LostFocus"/>
-                                    </Grid>
-                                </StackPanel>
-
-                                <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="0,1,0,0" Padding="0,14,0,0">
-                                    <Button Content="Delete this ship..." Click="DeleteShipBtn_Click"
-                                            Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
-                                            ToolTipService.ToolTip="Remove this ship from the save. You can keep it as a template first."/>
-                                </Border>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
                 </StackPanel>
 
             </Grid>

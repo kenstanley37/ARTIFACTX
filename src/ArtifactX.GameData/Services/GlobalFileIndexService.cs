@@ -40,4 +40,7 @@ public class GlobalFileIndexService
     }
 
     public int Count => _index.Count;
+
+    /// <summary>Every file path in every PAK.</summary>
+    public IEnumerable<string> Paths => _index.Keys;
 }
