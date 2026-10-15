@@ -68,6 +68,7 @@ public sealed partial class ShipsPage : Page
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
         Unloaded += Page_Unloaded;
 
+        ApplyDetailsCollapsed();
         LoadShipList();
         _ = RefreshTemplatesListAsync();
         _ = RefreshFullBuildTemplatesListAsync();
@@ -499,6 +500,7 @@ public sealed partial class ShipsPage : Page
             ? $"This is a corvette. What you built onto it - {selectedShip.BuildParts} parts: cockpit, habitat, wings, engines and the rest - is stored apart from the ship. Full Build templates include it."
             : "This is a corvette with no build of its own yet, so the game shows the default one.";
         SeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.ShipModelSeedPath(_selectedIndex))?.Value<string>() ?? "";
+        RefreshShipParts();
         UpdateStatDisplay();
     }
 
@@ -564,6 +566,7 @@ public sealed partial class ShipsPage : Page
 
         SaveSessionManager.StageEdit(type.ScenePath, "vLc", "6f=", "@Cs", _selectedIndex.ToString(), "NTx", "93M");
         PageResetBtn.Visibility = Visibility.Visible;
+        RefreshShipParts();
     }
 
     /// <summary>Stages the seed when the field loses focus - same plain-text
@@ -581,6 +584,7 @@ public sealed partial class ShipsPage : Page
 
         SaveSessionManager.StageEdit(newSeed, seedPath);
         PageResetBtn.Visibility = Visibility.Visible;
+        RefreshShipParts();
     }
 
     /// <summary>Rerolls the selected ship to a brand new random seed - same
@@ -596,6 +600,7 @@ public sealed partial class ShipsPage : Page
         SeedEditBox.Text = newSeed;
         SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.ShipModelSeedPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
+        RefreshShipParts();
     }
 
     private void GridCellChanged(object? sender, EventArgs e) =>
