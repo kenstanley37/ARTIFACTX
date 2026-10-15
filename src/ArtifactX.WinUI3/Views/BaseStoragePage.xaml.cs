@@ -110,7 +110,11 @@ public sealed partial class BaseStoragePage : Page
             results.Add(new ContainerEntry(prop.Name, name));
         }
 
-        return results.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        var sorted = results.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        // Cold Storage (fishing) - a fixed key, listed after the player's chests.
+        if (playerState[NmsInventoryContainer.ColdStorageKey] is JObject)
+            sorted.Add(new ContainerEntry(NmsInventoryContainer.ColdStorageKey, "Cold Storage"));
+        return sorted;
     }
 
     private void LoadContainerList()
@@ -180,8 +184,8 @@ public sealed partial class BaseStoragePage : Page
 
         _gridViewModel = new InventoryGridViewModel(
             NmsInventoryContainer.BaseStorageContainerPath(_selectedKey),
-            BaseStorageCapacity.Columns,
-            BaseStorageCapacity.Rows);
+            IsColdStorage ? NmsInventoryContainer.ColdStorageColumns : BaseStorageCapacity.Columns,
+            IsColdStorage ? NmsInventoryContainer.ColdStorageRows : BaseStorageCapacity.Rows);
 
         _gridViewModel.Load();
 
@@ -207,7 +211,10 @@ public sealed partial class BaseStoragePage : Page
         PageResetBtn.Visibility = _gridViewModel.HasLocalChanges ? Visibility.Visible : Visibility.Collapsed;
 
         NameEditBox.Text = selectedContainer.Name;
+        NameEditBox.IsEnabled = !IsColdStorage; // the game doesn't name it
     }
+
+    private bool IsColdStorage => _selectedKey == NmsInventoryContainer.ColdStorageKey;
 
     private void StorageGrid_CellChanged(object? sender, EventArgs e) =>
         PageResetBtn.Visibility = Visibility.Visible;
