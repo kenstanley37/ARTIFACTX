@@ -1,3 +1,4 @@
+using ArtifactX.Core;
 using System;
 using System.Diagnostics;
 using System.Net;
@@ -35,7 +36,9 @@ public sealed class UpdateCheckResult
 /// </summary>
 public static class UpdateCheckService
 {
-    private const string LatestReleaseApiUrl = "https://api.github.com/repos/kenstanley37/ARTIFACTX/releases/latest";
+    // The release list, not /releases/latest: that one leaves out pre-releases,
+    // so an alpha build would never see the next alpha (2026-10-15).
+    private const string ReleasesApiUrl = "https://api.github.com/repos/kenstanley37/ARTIFACTX/releases?per_page=30";
     private const string ReleasesPageUrl = "https://github.com/kenstanley37/ARTIFACTX/releases";
 
     public static UpdateCheckResult? LastResult { get; private set; }
@@ -54,56 +57,41 @@ public static class UpdateCheckService
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(6) };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("ArtifactX-UpdateCheck");
 
-            using var response = await client.GetAsync(LatestReleaseApiUrl);
-
-            // No release has been published yet (true as of this writing) -
-            // GitHub returns a plain 404 for /releases/latest in that case,
-            // not an empty/malformed body, so this is worth its own status
-            // rather than folding it into Error.
-            if (response.StatusCode == HttpStatusCode.NotFound)
-            {
-                return new UpdateCheckResult { Status = UpdateCheckStatus.NoReleasesYet, Message = "No releases published yet." };
-            }
-
+            using var response = await client.GetAsync(ReleasesApiUrl);
             response.EnsureSuccessStatusCode();
-
             string json = await response.Content.ReadAsStringAsync();
 
-            // JsonDocument (DOM parse), not JsonSerializer.Deserialize<T> -
-            // this project publishes trimmed in Release
-            // (PublishTrimmed=True), and reflection-based deserialization
-            // without a source-generated JsonSerializerContext risks
-            // breaking under trimming. See AppSettingsJsonContext for the
-            // pattern used where a full typed model is actually needed.
+            // JsonDocument (DOM parse), not JsonSerializer.Deserialize<T>, so
+            // nothing here depends on reflection.
             using var doc = JsonDocument.Parse(json);
-            string? tagName = doc.RootElement.TryGetProperty("tag_name", out var tagProp) ? tagProp.GetString() : null;
-            string releaseUrl = doc.RootElement.TryGetProperty("html_url", out var urlProp)
-                ? urlProp.GetString() ?? ReleasesPageUrl
-                : ReleasesPageUrl;
-
-            Version? latest = ParseVersion(tagName);
-            if (latest is null)
+            var current = AppVersionService.Current;
+            ReleaseVersion? newest = null;
+            string releaseUrl = ReleasesPageUrl;
+            foreach (var release in doc.RootElement.EnumerateArray())
             {
-                return new UpdateCheckResult { Status = UpdateCheckStatus.Error, Message = "Couldn't read the latest release version." };
+                if (release.TryGetProperty("draft", out var draft) && draft.GetBoolean()) continue;
+                var version = ReleaseVersion.TryParse(release.TryGetProperty("tag_name", out var tag) ? tag.GetString() : null);
+                if (version is null) continue;
+                // Someone on a full release isn't offered alphas and betas.
+                if (version.IsPreRelease && !current.IsPreRelease) continue;
+                if (newest is null || version > newest)
+                {
+                    newest = version;
+                    releaseUrl = release.TryGetProperty("html_url", out var url) ? url.GetString() ?? ReleasesPageUrl : ReleasesPageUrl;
+                }
             }
 
-            // Normalize both sides to Major.Minor.Build before comparing -
-            // Version.TryParse leaves missing components as -1, which would
-            // otherwise skew comparisons against AppVersionService.Current's
-            // always-4-part AssemblyVersion.
-            var normalizedLatest = new Version(latest.Major, Math.Max(latest.Minor, 0), Math.Max(latest.Build, 0));
-            var normalizedCurrent = new Version(AppVersionService.Current.Major, AppVersionService.Current.Minor, AppVersionService.Current.Build);
-
-            if (normalizedLatest > normalizedCurrent)
+            if (newest is null)
+                return new UpdateCheckResult { Status = UpdateCheckStatus.NoReleasesYet, Message = "No releases published yet." };
+            if (newest > current)
             {
                 return new UpdateCheckResult
                 {
                     Status = UpdateCheckStatus.UpdateAvailable,
-                    Message = $"Version {normalizedLatest} is available (you have {AppVersionService.DisplayVersion}).",
+                    Message = $"Version {newest} is available (you have {AppVersionService.DisplayVersion}).",
                     ReleaseUrl = releaseUrl,
                 };
             }
-
             return new UpdateCheckResult { Status = UpdateCheckStatus.UpToDate, Message = "You're up to date." };
         }
         catch (Exception ex)
@@ -111,12 +99,5 @@ public static class UpdateCheckService
             Debug.WriteLine($"[UpdateCheckService] Check failed: {ex}");
             return new UpdateCheckResult { Status = UpdateCheckStatus.Error, Message = "Couldn't check for updates (no internet connection?)." };
         }
-    }
-
-    private static Version? ParseVersion(string? tagName)
-    {
-        if (string.IsNullOrWhiteSpace(tagName)) return null;
-        string trimmed = tagName.TrimStart('v', 'V');
-        return Version.TryParse(trimmed, out var version) ? version : null;
     }
 }
