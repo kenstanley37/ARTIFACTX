@@ -283,6 +283,16 @@ public class NmsInventoryContainer
     public const int IngredientStorageColumns = 10, IngredientStorageRows = 5;
     public static readonly string[] ColdStoragePath = { "vLc", "6f=", ColdStorageKey };
 
+    /// <summary>The "Previous Base Item Cache" (2026-10-15): what the game gives
+    /// back when a base is dismantled - the player can only take items out.
+    /// WA4.rri "BaseCapsule", same key in every save checked, 48 open slots
+    /// (8 x 6 in one save, spread over 10 columns in another, so the grid is
+    /// 10 x 6 and shows the open ones). Matched item for item against the
+    /// game's DISMANTLED BASE COMPONENTS screen. A second BaseCapsule (fCh)
+    /// sits beside it - not identified yet.</summary>
+    public static readonly string[] BaseItemCachePath = { "vLc", "6f=", ";?C" };
+    public const int BaseItemCacheColumns = 10, BaseItemCacheRows = 6;
+
     // Exocraft live in a FIXED 7-slot array, one slot per GcVehicleType.
     // VehicleTypeEnum member - see ExocraftType's own doc comment for the full
     // confirmation trail (libMBIN's fixed Size=0x7 declarations, cross-checked

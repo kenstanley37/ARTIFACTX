@@ -398,6 +398,7 @@ public sealed partial class MainWindow : Window
                 "CorvetteCache" => typeof(CorvetteCachePage),
                 "ColdStorage" => typeof(ColdStoragePage),
                 "IngredientStorage" => typeof(IngredientStoragePage),
+                "BaseItemCache" => typeof(BaseItemCachePage),
                 "Companions" => typeof(CompanionsPage),
                 "Settlement" => typeof(SettlementPage),
                 "SpaceStations" => typeof(SpaceStationsPage),
@@ -460,6 +461,7 @@ public sealed partial class MainWindow : Window
         CorvetteCacheNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         ColdStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         IngredientStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        BaseItemCacheNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         CompanionsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SettlementNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SpaceStationsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
@@ -556,6 +558,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(CorvetteCachePage) => "CorvetteCache",
             Type t when t == typeof(ColdStoragePage) => "ColdStorage",
             Type t when t == typeof(IngredientStoragePage) => "IngredientStorage",
+            Type t when t == typeof(BaseItemCachePage) => "BaseItemCache",
             Type t when t == typeof(CompanionsPage) => "Companions",
             Type t when t == typeof(SettlementPage) => "Settlement",
             Type t when t == typeof(SpaceStationsPage) => "SpaceStations",
