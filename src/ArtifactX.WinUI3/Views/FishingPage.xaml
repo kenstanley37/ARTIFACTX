@@ -19,8 +19,6 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -30,54 +28,67 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock Text="FISHING" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+            <Button x:Name="OverviewToggle" Click="OverviewToggle_Click" Padding="10,3" FontSize="12"
+                    ToolTipService.ToolTip="Hide the info, You are here and planet-type boxes to give the fish list and Where to catch more room">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon x:Name="OverviewToggleIcon" Glyph="&#xE70E;" FontSize="11"/>
+                    <TextBlock x:Name="OverviewToggleTxt" Text="Hide overview"/>
+                </StackPanel>
+            </Button>
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
                         ToolTipService.ToolTip="This page follows your game: save on a planet and it shows that planet's fish, and your catches update too. It only reads the save.">
                 <Ellipse Width="8" Height="8" Fill="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>
                 <TextBlock x:Name="LiveStatusTxt" Text="Following your game" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
             </StackPanel>
+            </StackPanel>
         </Grid>
 
-        <Border Grid.Row="1" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                Background="{ThemeResource ThemePanelAltBrush}"
-                CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
-            <Grid ColumnSpacing="10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                <TextBlock Grid.Column="1" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
-                           Text="Which fish can bite depends on the planet's type: every type has its own fish, plus a set that lives on any planet with water. Some only bite by day or by night, and some only during a storm. Click a fish to see the planets you've discovered where it lives. This list comes from the game's own fish table; caught counts come from your save."/>
-            </Grid>
-        </Border>
+        <!-- Collapsible (OverviewToggle, remembered) so the list and Where to
+             catch get the room (2026-10-15). -->
+        <StackPanel Grid.Row="1" x:Name="OverviewPanel" Spacing="16">
+            <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                    Background="{ThemeResource ThemePanelAltBrush}"
+                    CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
+                <Grid ColumnSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Column="1" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
+                               Text="Which fish can bite depends on the planet's type: every type has its own fish, plus a set that lives on any planet with water. Some only bite by day or by night, and some only during a storm. Click a fish to see the planets you've discovered where it lives. This list comes from the game's own fish table; caught counts come from your save."/>
+                </Grid>
+            </Border>
 
-        <!-- Where the player is right now, and how much of this planet's list is done. -->
-        <Border Grid.Row="2" x:Name="HerePanel" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
-            <Grid ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <FontIcon Glyph="&#xE81D;" FontSize="16" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
-                <StackPanel Grid.Column="1" Spacing="2">
-                    <TextBlock Text="YOU ARE HERE" Style="{StaticResource ThemeEyebrowStyle}" FontSize="10"/>
-                    <TextBlock x:Name="HereTitleTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                    <TextBlock x:Name="HerePlaceTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
-                </StackPanel>
-                <StackPanel Grid.Column="2" x:Name="HereProgressPanel" VerticalAlignment="Center" HorizontalAlignment="Right" Spacing="0">
-                    <TextBlock x:Name="HereProgressTxt" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold" FontSize="22"
-                               Foreground="{ThemeResource ThemeAccentBrush}" HorizontalAlignment="Right"/>
-                    <TextBlock Text="caught here" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" HorizontalAlignment="Right"/>
-                </StackPanel>
-            </Grid>
-        </Border>
+            <!-- Where the player is right now, and how much of this planet's list is done. -->
+            <Border x:Name="HerePanel" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                    Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE81D;" FontSize="16" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="1" Spacing="2">
+                        <TextBlock Text="YOU ARE HERE" Style="{StaticResource ThemeEyebrowStyle}" FontSize="10"/>
+                        <TextBlock x:Name="HereTitleTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="HerePlaceTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" x:Name="HereProgressPanel" VerticalAlignment="Center" HorizontalAlignment="Right" Spacing="0">
+                        <TextBlock x:Name="HereProgressTxt" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold" FontSize="22"
+                                   Foreground="{ThemeResource ThemeAccentBrush}" HorizontalAlignment="Right"/>
+                        <TextBlock Text="caught here" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" HorizontalAlignment="Right"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
-        <!-- Where to go next: planet types with the most fish still to catch (click to filter). -->
-        <ctcontrols:WrapPanel Grid.Row="3" x:Name="NextPanel" HorizontalSpacing="10" VerticalSpacing="10" Visibility="Collapsed"/>
+            <!-- Where to go next: planet types with the most fish still to catch (click to filter). -->
+            <ctcontrols:WrapPanel x:Name="NextPanel" HorizontalSpacing="10" VerticalSpacing="10" Visibility="Collapsed"/>
+        </StackPanel>
 
-        <ctcontrols:WrapPanel Grid.Row="4" HorizontalSpacing="14" VerticalSpacing="10">
+        <ctcontrols:WrapPanel Grid.Row="2" HorizontalSpacing="14" VerticalSpacing="10">
             <ComboBox x:Name="PlanetTypeBox" Header="Planet type" Width="240" SelectionChanged="Filter_Changed"/>
             <ComboBox x:Name="ShowBox" Header="Show" Width="200" SelectionChanged="Filter_Changed"/>
             <ComboBox x:Name="TimeBox" Header="Time of day" Width="180" SelectionChanged="Filter_Changed"/>
@@ -90,7 +101,7 @@
             <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
         </ctcontrols:WrapPanel>
 
-        <Grid Grid.Row="5" ColumnSpacing="14">
+        <Grid Grid.Row="3" ColumnSpacing="14">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>

@@ -49,6 +49,7 @@ public sealed partial class FishingPage : Page
         InitializeComponent();
         _live = new LiveSaveWatcher(DispatcherQueue);
         _live.SnapshotRead += OnLiveSnapshot;
+        ApplyOverviewHidden();
         JumpPlanner.RangeChanged += UpdateWhere;
         Unloaded += (_, _) =>
         {
@@ -464,8 +465,15 @@ public sealed partial class FishingPage : Page
             planets.Add(new KnownPlanet(address, spot.Galaxy, planetIndex, 11, false, "", false, 0) { Source = "Recorded spot" });
         }
 
+        // Planets where ArtifactX recorded this fish being caught (FishCatchService)
+        // come first with the marked spots - real catches, the data to share
+        // through the API later (2026-10-15).
+        var caughtAt = FishCatchService.WhereCaught(fish.Id).ToDictionary(c => (c.System, c.Planet), c => c.Count);
+        int CaughtCount(KnownPlanet p) => caughtAt.GetValueOrDefault((p.SystemAddress, p.PlanetIndex));
+
         int Rank(KnownPlanet p)
         {
+            if (CaughtCount(p) > 0) return 0;
             if (spots.TryGetValue(SpotKey(p.PortalCode, p.Galaxy), out var spot))
                 return spot.ItemIds.Contains(fish.Id, StringComparer.OrdinalIgnoreCase) ? 0 : 1;
             if (PlanetWaterService.Get(p.SystemAddress, p.PlanetIndex) == true || NmsPlanets.AlwaysHasWater(p.BiomeIndex)) return 1;
@@ -491,7 +499,7 @@ public sealed partial class FishingPage : Page
             .ToList();
 
         _rowTitles.Clear();
-        var shown = rows.Take(100).Select(x => ToWhereRow(x.Planet, x.Distance, spots, fish)).ToList();
+        var shown = rows.Take(100).Select(x => ToWhereRow(x.Planet, x.Distance, spots, fish, CaughtCount(x.Planet))).ToList();
         WhereList.ItemsSource = shown;
         int marked = rows.Count(x => x.Rank == 0);
         int wet = rows.Count(x => x.Rank == 1);
@@ -500,7 +508,7 @@ public sealed partial class FishingPage : Page
         WhereCountTxt.Text = (rows.Count == 0
             ? $"You haven't discovered any {where} on {(OtherSlotsBox.IsChecked == true ? "your saves" : "this save")} yet."
             : $"{rows.Count:N0} known {where}{(rows.Count > shown.Count ? $", nearest {shown.Count} shown" : "")}"
-              + (marked > 0 ? $" - {marked} where you've caught it, listed first." : " - mark a planet with Found it here once you catch it there."))
+              + (marked > 0 ? $" - {marked} where you've caught it (recorded or marked), listed first." : " - mark a planet with Found it here once you catch it there."))
             + (wet > 0 ? $" {wet:N0} {(wet == 1 ? "is" : "are")} known to have water and listed {(marked > 0 ? "next" : "first")}." : "")
             + (anyUnknown ? " Your save doesn't record water for other planets, so look for lakes or seas from orbit." : "")
             + (dry > 0 && !showDry ? $" {dry} you marked as having no water {(dry == 1 ? "is" : "are")} hidden." : "");
@@ -559,7 +567,7 @@ public sealed partial class FishingPage : Page
         Apply();
     }
 
-    private FishPlanetRowViewModel ToWhereRow(KnownPlanet p, double? distance, Dictionary<string, Find> spots, FishInfo fish)
+    private FishPlanetRowViewModel ToWhereRow(KnownPlanet p, double? distance, Dictionary<string, Find> spots, FishInfo fish, int caughtTimes = 0)
     {
         string planetName = UniverseInfo.PlanetName(p.SystemAddress, p.PlanetIndex);
         var detail = new List<string> { p.HasRings ? $"{p.TypeName} · rings" : p.TypeName };
@@ -585,7 +593,8 @@ public sealed partial class FishingPage : Page
         spots.TryGetValue(key, out var spot);
         bool markedHere = spot?.ItemIds.Contains(fish.Id, StringComparer.OrdinalIgnoreCase) == true;
         var otherFish = spot?.ItemIds.Where(i => !string.Equals(i, fish.Id, StringComparison.OrdinalIgnoreCase)).Select(NameOf).ToList() ?? new();
-        string spotText = markedHere ? "You've caught it here"
+        string spotText = caughtTimes > 0 ? $"Caught here {caughtTimes} time{(caughtTimes == 1 ? "" : "s")} (recorded while ArtifactX was open)"
+            : markedHere ? "You've caught it here"
             : otherFish.Count > 0 ? $"Your fishing spot (water) - caught here: {string.Join(", ", otherFish)}"
             : "";
         // Spots already say so; otherwise say why water is known.
