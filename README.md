@@ -115,6 +115,12 @@ ArtifactX builds on the work of others - see
 No Man's Sky is a trademark of Hello Games. ArtifactX is a fan project and
 isn't affiliated with or endorsed by Hello Games.
 
+## Licence
+
+ArtifactX is free software under the [GNU GPL 3.0](LICENSE): you can use,
+change and share it, and anything built from it must stay open source under
+the same licence.
+
 ## Contributing
 
 Bug reports, platform testing and help mapping more of the save file are all
