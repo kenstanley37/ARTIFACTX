@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed, same card pattern as Corvette Cache: each store with every item it
+     can hold beside it (ItemListPanel). -->
+<Page
+    x:Class="ArtifactX.WinUI3.Views.FoodStoragePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <ScrollViewer>
+        <StackPanel Padding="28,26,28,40" Spacing="22">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="FOOD STORAGE" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
+                <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Food Storage Changes" Click="PageResetBtn_Click"
+                        Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- COLD STORAGE -->
+            <ctcontrols:WrapPanel HorizontalSpacing="18" VerticalSpacing="18">
+                <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left" VerticalAlignment="Top">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <TextBlock Text="COLD STORAGE" Style="{StaticResource ThemeBandTextStyle}"/>
+                        </Border>
+                        <StackPanel Padding="14,12,14,14" Spacing="10">
+                            <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
+                                <Button Content="Max All Qty" Tag="Cold" Click="MaxAllQtyBtn_Click"/>
+                                <Button Content="Merge Duplicates" Tag="Cold" Click="MergeDuplicatesBtn_Click"
+                                        ToolTipService.ToolTip="Combines repeated items into one stack each (up to the item's max) and frees the other slots."/>
+                                <Button Content="Sort" Tag="Cold" Click="SortBtn_Click"
+                                        ToolTipService.ToolTip="Groups items by kind and name, packed from the top-left, so identical items sit together."/>
+                                <TextBlock x:Name="ColdResultTxt" VerticalAlignment="Center" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                            </ctcontrols:WrapPanel>
+                            <controls:InventorySlotGrid x:Name="ColdGrid"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource ThemeCardStyle}" Width="340" VerticalAlignment="Top">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <TextBlock Text="FISH AND BAIT" Style="{StaticResource ThemeBandTextStyle}"/>
+                        </Border>
+                        <Border Padding="14,12,14,14">
+                            <controls:ItemListPanel x:Name="ColdList"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </ctcontrols:WrapPanel>
+
+            <!-- INGREDIENT STORAGE -->
+            <ctcontrols:WrapPanel HorizontalSpacing="18" VerticalSpacing="18">
+                <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left" VerticalAlignment="Top">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <TextBlock Text="INGREDIENT STORAGE" Style="{StaticResource ThemeBandTextStyle}"/>
+                        </Border>
+                        <StackPanel Padding="14,12,14,14" Spacing="10">
+                            <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
+                                <Button Content="Max All Qty" Tag="Ingredient" Click="MaxAllQtyBtn_Click"/>
+                                <Button Content="Merge Duplicates" Tag="Ingredient" Click="MergeDuplicatesBtn_Click"
+                                        ToolTipService.ToolTip="Combines repeated items into one stack each (up to the item's max) and frees the other slots."/>
+                                <Button Content="Sort" Tag="Ingredient" Click="SortBtn_Click"
+                                        ToolTipService.ToolTip="Groups items by kind and name, packed from the top-left, so identical items sit together."/>
+                                <TextBlock x:Name="IngredientResultTxt" VerticalAlignment="Center" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                            </ctcontrols:WrapPanel>
+                            <controls:InventorySlotGrid x:Name="IngredientGrid"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource ThemeCardStyle}" Width="340" VerticalAlignment="Top">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <TextBlock Text="COOKING INGREDIENTS" Style="{StaticResource ThemeBandTextStyle}"/>
+                        </Border>
+                        <Border Padding="14,12,14,14">
+                            <controls:ItemListPanel x:Name="IngredientList"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </ctcontrols:WrapPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

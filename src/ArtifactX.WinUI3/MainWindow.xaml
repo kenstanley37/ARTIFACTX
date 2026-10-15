@@ -182,6 +182,12 @@
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
+                    <NavigationViewItem x:Name="FoodStorageNavItem" Content="Food Storage" Tag="FoodStorage" Visibility="Collapsed">
+                        <NavigationViewItem.Icon>
+                            <FontIcon Glyph="&#xED56;"/>
+                        </NavigationViewItem.Icon>
+                    </NavigationViewItem>
+
                     <NavigationViewItem x:Name="CompanionsNavItem" Content="Companions" Tag="Companions" Visibility="Collapsed">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="CompanionsPathIcon"/>
