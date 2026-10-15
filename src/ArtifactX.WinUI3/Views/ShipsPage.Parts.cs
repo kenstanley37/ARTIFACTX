@@ -138,7 +138,15 @@ public sealed partial class ShipsPage
             var row = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 8, VerticalSpacing = 8 };
             foreach (var set in sets)
             {
+                // Fighter/Hauler/Solar parts list pieces that must ALL be picked;
+                // Shuttle/Explorer parts often list alternatives (the game's own
+                // "Any" salvage rule, in a table libMBIN can't read since COSMOS).
+                // So: a full match first, else the part sharing the most pieces.
                 var match = set.Where(g => g.Descriptors.All(picked.Contains)).OrderByDescending(g => g.Descriptors.Count).FirstOrDefault();
+                if (match.Id is null)
+                    match = set.Select(g => (Group: g, Hits: g.Descriptors.Count(picked.Contains)))
+                        .Where(x => x.Hits > 0).OrderByDescending(x => x.Hits).ThenBy(x => x.Group.Descriptors.Count)
+                        .Select(x => x.Group).FirstOrDefault();
                 if (match.Id is null) continue;
                 row.Children.Add(PartChip(match.Id));
             }
