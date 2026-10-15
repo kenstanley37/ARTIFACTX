@@ -265,6 +265,15 @@ public class NmsInventoryContainer
     public static string[] BaseStorageContainerPath(string containerKey) =>
         new[] { "vLc", "6f=", containerKey };
 
+    /// <summary>The fishing update's Cold Storage (2026-10-15): one of the 3
+    /// trailing Chest-shaped entries described above - not unreachable after
+    /// all. Same key in every save checked (Slots 1, 5, 7, 8), 10 x 6, all 60
+    /// slots open; holds the fish the player keeps. Confirmed by storing 14
+    /// fish in game and finding exactly those here. The other two (V86, 7 x 3,
+    /// and nHK, 1 x 1) are still unidentified.</summary>
+    public const string ColdStorageKey = "KQ<";
+    public const int ColdStorageColumns = 10, ColdStorageRows = 6;
+
     // Exocraft live in a FIXED 7-slot array, one slot per GcVehicleType.
     // VehicleTypeEnum member - see ExocraftType's own doc comment for the full
     // confirmation trail (libMBIN's fixed Size=0x7 declarations, cross-checked
