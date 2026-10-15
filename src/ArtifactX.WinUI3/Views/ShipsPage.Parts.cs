@@ -115,6 +115,10 @@ public sealed partial class ShipsPage
     {
         ApplyDetailsCollapsed(); // the closed band names the ship shown
         ShipPartsPanel.Children.Clear();
+        // Hide the last ship's model (and drop a build still running for it), or
+        // a ship that shows no parts kept the previous ship's model (2026-10-15).
+        int refresh = ++_previewVersion;
+        ShipPreviewGroup.Visibility = Visibility.Collapsed;
         string? scene = CurrentScene();
         if (scene is null) return;
         // Built again since last time (game-data update): forget everything read from the old one.
@@ -147,6 +151,14 @@ public sealed partial class ShipsPage
             return;
         }
         var root = LoadTree(ShipParts.DescriptorFor(scene));
+        bool hasSeed = TryParseSeed(SeedEditBox.Text, out ulong seed);
+        // Every ship type has a model, parts or not - except a corvette, whose
+        // look is the modules built onto it, stored apart from the ship.
+        if (!IsCorvetteSelected() && (root is null || hasSeed))
+        {
+            await EnsureLookAsync();
+            if (refresh == _previewVersion) ShowPreview(scene, hasSeed ? seed : 0, root);
+        }
         if (root is null)
         {
             ShipPartsPanel.Children.Add(Dim("This ship type has a fixed look - its seed doesn't change its parts."));
@@ -160,29 +172,20 @@ public sealed partial class ShipsPage
         }
 
         ShipPartsPanel.Children.Add(new TextBlock { Text = "PARTS THIS SEED GIVES", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] });
-        if (TryParseSeed(SeedEditBox.Text, out ulong seed))
+        if (hasSeed)
         {
-            if (_palettes is null || _palettes.Count == 0) _palettes = await CatalogService.GetPalettesAsync();
             var picked = ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var row = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 8, VerticalSpacing = 8 };
             foreach (var set in sets)
                 if (Match(set, picked) is string id) row.Children.Add(PartChip(id));
             if (row.Children.Count == 0) ShipPartsPanel.Children.Add(Dim("No ship-builder parts match this seed."));
             else ShipPartsPanel.Children.Add(row);
-            if (_palettes.Count > ShipColours.UndercoatPalette)
-            {
-                _look ??= new LookData(_palettes,
-                    await CatalogService.GetJsonCategoryAsync("ShipScenes"),
-                    await CatalogService.GetJsonCategoryAsync("ShipMaterials"),
-                    await CatalogService.GetJsonCategoryAsync("TextureLists"));
-                // Paint isn't shown: the seed -> colour rule (ShipColours/ShipLook,
-                // ported from NMS Shipwright) was disproved in game on 2026-10-15 -
-                // four controlled test fighters came out tan/red/blue/blue where it
-                // predicted yellow/periwinkle/white/green. The code stays in Core for
-                // when the game's real rule is found; until then the preview is
-                // neutral and the page claims no colours.
-                ShowPreview(scene, seed, root);
-            }
+            // Paint isn't shown: the seed -> colour rule (ShipColours/ShipLook,
+            // ported from NMS Shipwright) was disproved in game on 2026-10-15 -
+            // four controlled test fighters came out tan/red/blue/blue where it
+            // predicted yellow/periwinkle/white/green. The code stays in Core for
+            // when the game's real rule is found; until then the preview is
+            // neutral and the page claims no colours.
         }
         else
         {
@@ -222,6 +225,20 @@ public sealed partial class ShipsPage
     private static HashSet<string> AllOptionIdsExact(IReadOnlyList<PartGroup> root) =>
         new(AllOptionIds(root), StringComparer.Ordinal);
 
+    private bool IsCorvetteSelected() =>
+        _ships.FirstOrDefault(s => s.Index == _selectedIndex)?.IsCorvette ?? false;
+
+    /// <summary>Material -> texture list data for the preview's surface shades.</summary>
+    private static async Task EnsureLookAsync()
+    {
+        if (_look is not null) return;
+        if (_palettes is null || _palettes.Count == 0) _palettes = await CatalogService.GetPalettesAsync();
+        _look ??= new LookData(_palettes,
+            await CatalogService.GetJsonCategoryAsync("ShipScenes"),
+            await CatalogService.GetJsonCategoryAsync("ShipMaterials"),
+            await CatalogService.GetJsonCategoryAsync("TextureLists"));
+    }
+
     /// <summary>The ship look data from the catalog, parsed as ShipLook asks for it.</summary>
     private sealed class LookData(IReadOnlyList<ColourPalette> palettes, Dictionary<string, string> scenes,
         Dictionary<string, string> materials, Dictionary<string, string> lists) : IShipLookData
@@ -241,7 +258,7 @@ public sealed partial class ShipsPage
     /// game files (ShipModels) in neutral shades - each paint surface its own
     /// grey so the parts read apart, glass/lights/dark parts by their material
     /// name. Not the ship's real colours (see RefreshShipParts).</summary>
-    private async void ShowPreview(string scene, ulong seed, IReadOnlyList<PartGroup> root)
+    private async void ShowPreview(string scene, ulong seed, IReadOnlyList<PartGroup>? root)
     {
         int version = ++_previewVersion;
         if (GameDataService.Game is not { } game) { ShipPreviewGroup.Visibility = Visibility.Collapsed; return; }
@@ -249,8 +266,10 @@ public sealed partial class ShipsPage
         _models ??= Task.Run(() => { try { return new ArtifactX.GameData.ShipModels(game); } catch { return null; } });
         var models = await _models;
         if (models is null || version != _previewVersion) return;
-        var options = AllOptionIdsExact(root);
-        var chosen = ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
+        // A fixed-look type has no part options: every mesh in its scene is kept.
+        var options = root is null ? new HashSet<string>(StringComparer.Ordinal) : AllOptionIdsExact(root);
+        var chosen = root is null ? new HashSet<string>(StringComparer.Ordinal)
+            : ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
         var mesh = await Task.Run(() => models.Build(scene, options, chosen));
         if (version != _previewVersion) return;
         var look = _look;
