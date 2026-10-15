@@ -234,6 +234,11 @@ public sealed partial class ItemListPanel : UserControl
     /// trails) - no border, and Arrange leaves them to fill in last.</summary>
     public Func<CatalogPart, bool>? NoAdjacency { get; set; }
 
+    /// <summary>Tech goes next to its own type (adjacency bonus); stored items
+    /// just take the first free slot, top-left (2026-10-15: a bait landed
+    /// rows below the last item).</summary>
+    private Func<string, string?>? PlacementGroup => _isTech ? TypeOf : null;
+
     public string? TypeOf(string installedId) =>
         _isTech && PartFor(installedId) is { } part && NoAdjacency?.Invoke(part) != true ? part.Stat : null;
 
@@ -333,7 +338,7 @@ public sealed partial class ItemListPanel : UserControl
                 : $"{card.Name} is already installed.", ok: false);
             return;
         }
-        int added = _grid.AddToFreeSlots(new[] { EntryFor(card.Part) }, TypeOf);
+        int added = _grid.AddToFreeSlots(new[] { EntryFor(card.Part) }, PlacementGroup);
         Status(added > 0 ? $"{(_isTech ? "Installed" : "Added")} {card.Name}." : "There's no free slot left - unlock more or make room first.", ok: added > 0);
     }
 
@@ -406,7 +411,7 @@ public sealed partial class ItemListPanel : UserControl
             if (needed > 0) _grid.UnlockSlots(Math.Min(needed, _grid.LockedSlotCount));
         }
         else if (canUnlock > 0 && unlockBox.IsChecked == true) _grid.UnlockSlots(canUnlock);
-        int added = _grid.AddToFreeSlots(missing.Select(EntryFor), TypeOf);
+        int added = _grid.AddToFreeSlots(missing.Select(EntryFor), PlacementGroup);
         string verb = _isTech ? "Installed" : "Added";
         Status(added == missing.Count ? $"{verb} {added:N0} {_nouns}." : $"{verb} {added:N0} of {missing.Count:N0} - no free slots left for the rest.", ok: added > 0);
     }
