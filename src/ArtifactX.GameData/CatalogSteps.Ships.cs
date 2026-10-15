@@ -140,3 +140,56 @@ public static partial class CatalogSteps
         ConsoleStyle.Success($"Wrote {rows.Count} part groups to {catalogPath}.");
     }
 }
+
+public static partial class CatalogSteps
+{
+    /// <summary>
+    /// The game's 66 base colour palettes (metadata/simulation/solarsystem/
+    /// colours/basecolourpalettes.mbin, GcPaletteList) - with a ship's seed they
+    /// give its paint colours (ArtifactX.Core ShipColours). Category "Palettes":
+    /// GameId "PALETTE:" + index, UsageCategory = NumColours (_1/_4/_8/_16/All/
+    /// Inactive), DescriptionEnglish = the 64 colours as JSON [[r,g,b],...]
+    /// (exact float32 values - the colour picker compares them).
+    /// </summary>
+    public static void AddPalettes(string catalogPath, string pcbanksPath)
+    {
+        if (!File.Exists(catalogPath)) { ConsoleStyle.Error($"Target catalog DB not found: {catalogPath}"); return; }
+        const string file = "METADATA/SIMULATION/SOLARSYSTEM/COLOURS/BASECOLOURPALETTES.MBIN";
+        var reader = new PakReaderService();
+        var extraction = new ExtractionService();
+        libMBIN.NMS.GameComponents.GcPaletteList? list = null;
+        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
+        {
+            Models.PakHeader header;
+            IReadOnlyList<Models.PakEntry> entries;
+            try { header = reader.ReadHeader(pak.FullPath); entries = reader.Read(pak.FullPath); }
+            catch { continue; }
+            var entry = entries.FirstOrDefault(e => string.Equals(e.FileName, file, StringComparison.OrdinalIgnoreCase));
+            if (entry is null) continue;
+            try
+            {
+                var mbin = new MBINFile(new MemoryStream(extraction.ExtractEntryBytes(pak.FullPath, entry, header)!));
+                mbin.Load();
+                list = mbin.GetData() as libMBIN.NMS.GameComponents.GcPaletteList;
+            }
+            catch (Exception ex) { ConsoleStyle.Warning($"Couldn't read the colour palettes: {ex.Message}"); }
+            break;
+        }
+        var rows = new List<CatalogItem>();
+        for (int i = 0; i < (list?.Palettes?.Length ?? 0); i++)
+        {
+            var p = list!.Palettes[i];
+            rows.Add(new CatalogItem
+            {
+                GameId = "PALETTE:" + i,
+                NameEnglish = i.ToString(),
+                UsageCategory = p.NumColours.ToString(),
+                DescriptionEnglish = JsonSerializer.Serialize(p.Colours.Select(c => new[] { c.R, c.G, c.B })),
+            });
+        }
+        ConsoleStyle.Header($"Found {rows.Count} colour palettes.");
+        using var db = new CatalogDbContext(catalogPath);
+        Replace(db, "Palettes", "GcPaletteData", file.ToLowerInvariant(), rows);
+        ConsoleStyle.Success($"Wrote {rows.Count} colour palettes to {catalogPath}.");
+    }
+}
