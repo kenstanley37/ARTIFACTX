@@ -28,6 +28,7 @@ public sealed partial class ShipsPage
     private static Dictionary<string, string>? _treeJson;
     private static List<(string Id, string Set, List<string> Descriptors)>? _partGroups;
     private static DateTime? _dataStamp;
+    private static List<ColourPalette>? _palettes;
     private static readonly Dictionary<string, IReadOnlyList<PartGroup>> TreeCache = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _partSearch;
     private readonly Dictionary<string, ComboBox> _wantBoxes = new(StringComparer.Ordinal);
@@ -119,6 +120,7 @@ public sealed partial class ShipsPage
             _dataStamp = stamp;
             _treeJson = null;
             _partGroups = null;
+            _palettes = null;
             lock (TreeCache) TreeCache.Clear();
             lock (Samples) Samples.Clear();
         }
@@ -155,12 +157,14 @@ public sealed partial class ShipsPage
         ShipPartsPanel.Children.Add(new TextBlock { Text = "PARTS THIS SEED GIVES", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] });
         if (TryParseSeed(SeedEditBox.Text, out ulong seed))
         {
+            if (_palettes is null || _palettes.Count == 0) _palettes = await CatalogService.GetPalettesAsync();
             var picked = ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var row = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 8, VerticalSpacing = 8 };
             foreach (var set in sets)
                 if (Match(set, picked) is string id) row.Children.Add(PartChip(id));
             if (row.Children.Count == 0) ShipPartsPanel.Children.Add(Dim("No ship-builder parts match this seed."));
             else ShipPartsPanel.Children.Add(row);
+            if (_palettes.Count > ShipColours.UndercoatPalette) ShipPartsPanel.Children.Add(PaintRow(ShipColours.Generate(seed, _palettes)));
         }
         else
         {
@@ -193,6 +197,39 @@ public sealed partial class ShipsPage
             }
         }
         return best;
+    }
+
+    /// <summary>The seed's paint as swatches: primary, secondary, undercoat and
+    /// the two decal colours (ShipColours - port of NMS Shipwright's palette
+    /// picker, matches the original on 3,000 seeds).</summary>
+    private static UIElement PaintRow(ShipPaint paint)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 4, 0, 0) };
+        void Swatch(string label, float[] rgb)
+        {
+            var colour = Windows.UI.Color.FromArgb(255, Byte(rgb[0]), Byte(rgb[1]), Byte(rgb[2]));
+            var cell = new StackPanel { Spacing = 3, Width = 64 };
+            cell.Children.Add(new Border
+            {
+                Height = 26, CornerRadius = new CornerRadius(4),
+                Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(colour),
+                BorderBrush = ThemeResources.Brush("ThemeLineBrush"), BorderThickness = new Thickness(1),
+            });
+            cell.Children.Add(new TextBlock { Text = label, FontSize = 10, TextAlignment = TextAlignment.Center, Foreground = ThemeResources.Brush("ThemeTextDimBrush") });
+            ToolTipService.SetToolTip(cell, $"{label}: #{colour.R:X2}{colour.G:X2}{colour.B:X2}");
+            row.Children.Add(cell);
+        }
+        static byte Byte(float v) => (byte)Math.Clamp(Math.Round(v * 255), 0, 255);
+        Swatch("Primary", paint.Primary);
+        Swatch("Secondary", paint.Secondary);
+        Swatch("Undercoat", paint.Undercoat);
+        Swatch("Decal 1", paint.Decal1);
+        Swatch("Decal 2", paint.Decal2);
+        var block = new StackPanel { Spacing = 4, Margin = new Thickness(0, 6, 0, 0) };
+        block.Children.Add(new TextBlock { Text = "PAINT THIS SEED GIVES", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] });
+        block.Children.Add(row);
+        block.Children.Add(Dim("Before any recolouring at a space station - a recolour is kept separately and overrides these."));
+        return block;
     }
 
     /// <summary>A part as the game's ship builder shows it: icon and name.</summary>

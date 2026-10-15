@@ -936,6 +936,39 @@ public static class CatalogService
         }
     }
 
+    /// <summary>The game's 66 base colour palettes in file order (catalog
+    /// "Palettes"); empty on game data built before they were collected.</summary>
+    public static async Task<List<ArtifactX.Core.Procedural.ColourPalette>> GetPalettesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var byIndex = new SortedDictionary<int, ArtifactX.Core.Procedural.ColourPalette>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.NameEnglish, i.UsageCategory, i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'Palettes'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                    byIndex[int.Parse(reader.GetString(0), System.Globalization.CultureInfo.InvariantCulture)] = new(
+                        System.Text.Json.JsonSerializer.Deserialize<float[][]>(reader.GetString(2)) ?? Array.Empty<float[]>(),
+                        reader.GetString(1));
+                return byIndex.Values.ToList();
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetPalettesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
     /// <summary>Every starship part tree (catalog "ShipDescriptors"), by
     /// lower-case descriptor path, as stored JSON (ShipParts.ParseTree).</summary>
     public static async Task<Dictionary<string, string>> GetShipPartTreesAsync()

@@ -91,6 +91,11 @@ from the user's own installed copy of the game at runtime.
 The port was checked against the original on 2,000 seeds across 8 ship types
 (every part identical) and against starships seen in game.
 
+The starship paint colours (`src/ArtifactX.Core/Procedural/ShipColours.cs`) are
+a C# port of the palette picker in NMS Shipwright's `nms_procgen/textures.py`,
+checked against the original on 3,000 seeds (every colour identical, bit for
+bit).
+
 ## MBINCompiler / libMBIN
 
 ArtifactX's game-data reader (`src/ArtifactX.Tools/NMS.Tools.libMBIN`) is

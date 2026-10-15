@@ -733,6 +733,12 @@ if (args.Length > 1 && args[0].Equals("add-crafting", StringComparison.OrdinalIg
     return;
 }
 
+if (args.Length > 1 && args[0].Equals("add-palettes", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddPalettes(args[1], gamePath);
+    return;
+}
+
 if (args.Length > 1 && args[0].Equals("add-part-groups", StringComparison.OrdinalIgnoreCase))
 {
     if (DevGamePath() is string gamePath) CatalogSteps.AddPartGroups(args[1], gamePath);
