@@ -176,15 +176,15 @@
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="CorvetteCacheNavItem" Content="Corvette Cache" Tag="CorvetteCache" Visibility="Collapsed">
-                        <NavigationViewItem.Icon>
-                            <PathIcon x:Name="CorvetteCachePathIcon"/>
-                        </NavigationViewItem.Icon>
-                    </NavigationViewItem>
-
                     <NavigationViewItem x:Name="FoodStorageNavItem" Content="Food Storage" Tag="FoodStorage" Visibility="Collapsed">
                         <NavigationViewItem.Icon>
                             <FontIcon Glyph="&#xED56;"/>
+                        </NavigationViewItem.Icon>
+                    </NavigationViewItem>
+
+                    <NavigationViewItem x:Name="CorvetteCacheNavItem" Content="Corvette Cache" Tag="CorvetteCache" Visibility="Collapsed">
+                        <NavigationViewItem.Icon>
+                            <PathIcon x:Name="CorvetteCachePathIcon"/>
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
