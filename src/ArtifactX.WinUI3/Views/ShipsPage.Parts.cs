@@ -29,6 +29,7 @@ public sealed partial class ShipsPage
     private static List<(string Id, string Set, List<string> Descriptors)>? _partGroups;
     private static DateTime? _dataStamp;
     private static List<ColourPalette>? _palettes;
+    private static LookData? _look;
     private static readonly Dictionary<string, IReadOnlyList<PartGroup>> TreeCache = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _partSearch;
     private readonly Dictionary<string, ComboBox> _wantBoxes = new(StringComparer.Ordinal);
@@ -121,6 +122,7 @@ public sealed partial class ShipsPage
             _treeJson = null;
             _partGroups = null;
             _palettes = null;
+            _look = null;
             lock (TreeCache) TreeCache.Clear();
             lock (Samples) Samples.Clear();
         }
@@ -164,7 +166,18 @@ public sealed partial class ShipsPage
                 if (Match(set, picked) is string id) row.Children.Add(PartChip(id));
             if (row.Children.Count == 0) ShipPartsPanel.Children.Add(Dim("No ship-builder parts match this seed."));
             else ShipPartsPanel.Children.Add(row);
-            if (_palettes.Count > ShipColours.UndercoatPalette) ShipPartsPanel.Children.Add(PaintRow(ShipColours.Generate(seed, _palettes)));
+            if (_palettes.Count > ShipColours.UndercoatPalette)
+            {
+                _look ??= new LookData(_palettes,
+                    await CatalogService.GetJsonCategoryAsync("ShipScenes"),
+                    await CatalogService.GetJsonCategoryAsync("ShipMaterials"),
+                    await CatalogService.GetJsonCategoryAsync("TextureLists"));
+                var surfaces = _look.HasScenes
+                    ? await Task.Run(() => ShipLook.Generate(scene, seed, AllOptionIdsExact(root),
+                        ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet(StringComparer.Ordinal), _look))
+                    : new List<SurfacePick>();
+                ShipPartsPanel.Children.Add(PaintRow(surfaces, ShipColours.Generate(seed, _palettes)));
+            }
         }
         else
         {
@@ -199,37 +212,79 @@ public sealed partial class ShipsPage
         return best;
     }
 
-    /// <summary>The seed's paint as swatches: primary, secondary, undercoat and
-    /// the two decal colours (ShipColours - port of NMS Shipwright's palette
-    /// picker, matches the original on 3,000 seeds).</summary>
-    private static UIElement PaintRow(ShipPaint paint)
+    /// <summary>Every option id a ship type can have, compared exactly as the
+    /// original look code does (case-sensitive) - see ShipLook.Generate.</summary>
+    private static HashSet<string> AllOptionIdsExact(IReadOnlyList<PartGroup> root) =>
+        new(AllOptionIds(root), StringComparer.Ordinal);
+
+    /// <summary>Paint by surface: which colour the seed puts on each of the
+    /// ship's paint materials (ShipLook - port of NMS Shipwright's texture and
+    /// palette picks). Which surface covers most of the ship depends on its parts
+    /// (a Speeder Fuselage is mostly Tertiary paint), so every surface is shown
+    /// rather than guessing a "main" colour. Falls back to the plain paint
+    /// palette on game data without ship surfaces.</summary>
+    private static UIElement PaintRow(List<SurfacePick> surfaces, ShipPaint paint)
     {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 4, 0, 0) };
-        void Swatch(string label, float[] rgb)
+        var row = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 10, VerticalSpacing = 8, Margin = new Thickness(0, 4, 0, 0) };
+        var shown = new HashSet<string>(StringComparer.Ordinal);
+        void Swatch(string label, float[]? rgb, string? pattern = null)
         {
+            if (rgb is null) return;
             var colour = Windows.UI.Color.FromArgb(255, Byte(rgb[0]), Byte(rgb[1]), Byte(rgb[2]));
-            var cell = new StackPanel { Spacing = 3, Width = 64 };
+            string hex = $"#{colour.R:X2}{colour.G:X2}{colour.B:X2}";
+            if (!shown.Add(label + hex)) return;
+            var cell = new StackPanel { Spacing = 3, Width = 70 };
             cell.Children.Add(new Border
             {
                 Height = 26, CornerRadius = new CornerRadius(4),
                 Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(colour),
                 BorderBrush = ThemeResources.Brush("ThemeLineBrush"), BorderThickness = new Thickness(1),
             });
-            cell.Children.Add(new TextBlock { Text = label, FontSize = 10, TextAlignment = TextAlignment.Center, Foreground = ThemeResources.Brush("ThemeTextDimBrush") });
-            ToolTipService.SetToolTip(cell, $"{label}: #{colour.R:X2}{colour.G:X2}{colour.B:X2}");
+            cell.Children.Add(new TextBlock { Text = label, FontSize = 10, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Foreground = ThemeResources.Brush("ThemeTextDimBrush") });
+            ToolTipService.SetToolTip(cell, $"{label}: {hex}{(string.IsNullOrEmpty(pattern) ? "" : $" ({Title(pattern)} pattern)")}");
             row.Children.Add(cell);
         }
         static byte Byte(float v) => (byte)Math.Clamp(Math.Round(v * 255), 0, 255);
-        Swatch("Primary", paint.Primary);
-        Swatch("Secondary", paint.Secondary);
-        Swatch("Undercoat", paint.Undercoat);
-        Swatch("Decal 1", paint.Decal1);
-        Swatch("Decal 2", paint.Decal2);
+        static string Title(string s) => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(s.ToLowerInvariant().Replace('_', ' '));
+        SurfacePick? Base(string list) => surfaces.FirstOrDefault(p => p.List == list && p.Layer == "BASE");
+
+        if (surfaces.Count > 0)
+        {
+            foreach (var (list, label) in new[] { ("PRIMARY", "Primary paint"), ("SECONDARY", "Secondary paint"), ("TERTIARY", "Tertiary paint"), ("TRIMS", "Trims") })
+                if (Base(list) is { } pick) Swatch(label, pick.Rgb, pick.Option);
+            foreach (var pick in surfaces.Where(p => p.Layer == "BASE" && p.List is "LETTERING" or "LOGO" or "NUMBER" or "SMALLSIGN"))
+                Swatch("Markings", pick.Rgb);
+        }
+        else
+        {
+            Swatch("Primary", paint.Primary);
+            Swatch("Secondary", paint.Secondary);
+            Swatch("Undercoat", paint.Undercoat);
+            Swatch("Decal 1", paint.Decal1);
+            Swatch("Decal 2", paint.Decal2);
+        }
         var block = new StackPanel { Spacing = 4, Margin = new Thickness(0, 6, 0, 0) };
         block.Children.Add(new TextBlock { Text = "PAINT THIS SEED GIVES", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] });
         block.Children.Add(row);
-        block.Children.Add(Dim("Before any recolouring at a space station - a recolour is kept separately and overrides these."));
+        block.Children.Add(Dim(surfaces.Count > 0
+            ? "By surface - which one covers most of the ship depends on its parts. Before any recolouring at a space station."
+            : "Update your game data to see which surface gets which colour. Before any recolouring at a space station."));
         return block;
+    }
+
+    /// <summary>The ship look data from the catalog, parsed as ShipLook asks for it.</summary>
+    private sealed class LookData(IReadOnlyList<ColourPalette> palettes, Dictionary<string, string> scenes,
+        Dictionary<string, string> materials, Dictionary<string, string> lists) : IShipLookData
+    {
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, SceneNode?> _scenes = new(StringComparer.OrdinalIgnoreCase);
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, IReadOnlyList<string>> _materials = new(StringComparer.OrdinalIgnoreCase);
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, IReadOnlyList<TextureLayer>?> _lists = new(StringComparer.OrdinalIgnoreCase);
+        public bool HasScenes => scenes.Count > 0;
+        public IReadOnlyList<ColourPalette> Palettes => palettes;
+        public SceneNode? Scene(string path) => _scenes.GetOrAdd(path, p => scenes.TryGetValue(p, out var j) ? ShipLook.ParseScene(j) : null);
+        public IReadOnlyList<string> MaterialLists(string material) => _materials.GetOrAdd(material, m =>
+            materials.TryGetValue(m, out var j) ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(j) ?? new List<string>() : new List<string>());
+        public IReadOnlyList<TextureLayer>? TextureList(string path) => _lists.GetOrAdd(path, p => lists.TryGetValue(p, out var j) ? ShipLook.ParseTextureList(j) : null);
     }
 
     /// <summary>A part as the game's ship builder shows it: icon and name.</summary>
