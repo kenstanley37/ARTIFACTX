@@ -32,7 +32,6 @@
                         <Setter Target="SidebarPanel.(Grid.Column)" Value="0"/>
                         <Setter Target="SidebarPanel.(Grid.ColumnSpan)" Value="2"/>
                         <Setter Target="TemplatesBorder.Width" Value="NaN"/>
-                        <Setter Target="ToolInfoBorder.Width" Value="NaN"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -95,6 +94,61 @@
                                           HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
                                 <ctcontrols:WrapPanel x:Name="ToolSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
                             </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Details above the tech, like Starships (2026-10-15 - they sat at
+                         the bottom of the sidebar): Base Stats from OsQ.@bB
+                         (WEAPON_DAMAGE/WEAPON_MINING/WEAPON_SCAN) in one wrapping row, then
+                         Name (NKm), class badge and Type. -->
+                    <Border x:Name="ToolInfoBorder" Style="{StaticResource ThemeCardStyle}">
+                        <StackPanel>
+                            <Border Style="{StaticResource ThemeBandStyle}">
+                                <TextBlock Text="MULTI-TOOL DETAILS" Style="{StaticResource ThemeBandTextStyle}"/>
+                            </Border>
+                            <StackPanel Padding="18,14,18,18" Spacing="16">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
+                                               ToolTipService.ToolTip="No known upper limit - extreme values won't corrupt your save, just unbalance it."/>
+                                    <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="10">
+                                        <StackPanel Width="150" Spacing="4">
+                                            <TextBlock Text="Damage" Style="{StaticResource ThemeBodyTextStyle}"/>
+                                            <NumberBox x:Name="DamageStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="DamageStatBox_ValueChanged" LostFocus="DamageStatBox_LostFocus"/>
+                                        </StackPanel>
+                                        <StackPanel Width="150" Spacing="4">
+                                            <TextBlock Text="Mining" Style="{StaticResource ThemeBodyTextStyle}"/>
+                                            <NumberBox x:Name="MiningStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="MiningStatBox_ValueChanged" LostFocus="MiningStatBox_LostFocus"/>
+                                        </StackPanel>
+                                        <StackPanel Width="150" Spacing="4">
+                                            <TextBlock Text="Scanner" Style="{StaticResource ThemeBodyTextStyle}"/>
+                                            <NumberBox x:Name="ScannerStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="ScannerStatBox_ValueChanged" LostFocus="ScannerStatBox_LostFocus"/>
+                                        </StackPanel>
+                                    </ctcontrols:WrapPanel>
+                                </StackPanel>
+
+                                <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="16">
+                                    <StackPanel Width="280" Spacing="6">
+                                        <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                        <TextBox x:Name="NameEditBox" LostFocus="NameEditBox_LostFocus"/>
+                                    </StackPanel>
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                        <Border x:Name="SelectedToolClassBadge" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,3" HorizontalAlignment="Left">
+                                            <TextBlock x:Name="SelectedToolClassTxt" Text="—" FontWeight="Bold" FontSize="14"
+                                                       FontFamily="{ThemeResource ThemeDisplayFont}"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Width="240" Spacing="6">
+                                        <TextBlock Text="TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                        <ComboBox x:Name="TypeComboBox" HorizontalAlignment="Stretch"
+                                                  DisplayMemberPath="DisplayName"
+                                                  SelectionChanged="TypeComboBox_SelectionChanged"/>
+                                    </StackPanel>
+                                    <Button Content="Delete this Multi-Tool..." Click="DeleteToolBtn_Click" VerticalAlignment="Bottom"
+                                            Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
+                                            ToolTipService.ToolTip="Remove this Multi-Tool from the save. You can keep it as a template first."/>
+                                </ctcontrols:WrapPanel>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
@@ -195,66 +249,6 @@
                                                Text="The whole tool: tech, class, stats, type and look. Add as new puts it in an empty Multi-Tool slot - your other tools aren't changed."/>
                                     <StackPanel x:Name="FullBuildTemplatesListPanel" Spacing="8"/>
                                 </StackPanel>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Name (NKm), class badge, Type, and Base Stats from OsQ.@bB
-                         (WEAPON_DAMAGE/WEAPON_MINING/WEAPON_SCAN). -->
-                    <Border x:Name="ToolInfoBorder" Style="{StaticResource ThemeCardStyle}" Width="320">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <TextBlock Text="MULTI-TOOL DETAILS" Style="{StaticResource ThemeBandTextStyle}"/>
-                            </Border>
-                            <StackPanel Padding="18,14,18,18" Spacing="16">
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                    <TextBox x:Name="NameEditBox" LostFocus="NameEditBox_LostFocus"/>
-                                </StackPanel>
-
-                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
-                                    <Border x:Name="SelectedToolClassBadge" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,3">
-                                        <TextBlock x:Name="SelectedToolClassTxt" Text="—" FontWeight="Bold" FontSize="14"
-                                                   FontFamily="{ThemeResource ThemeDisplayFont}"/>
-                                    </Border>
-                                </StackPanel>
-
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                    <ComboBox x:Name="TypeComboBox" HorizontalAlignment="Stretch"
-                                              DisplayMemberPath="DisplayName"
-                                              SelectionChanged="TypeComboBox_SelectionChanged"/>
-                                </StackPanel>
-
-                                <StackPanel Spacing="8">
-                                    <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                               Text="No known upper limit - extreme values won't corrupt your save, just unbalance it."/>
-                                    <Grid ColumnSpacing="10" RowSpacing="8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="170"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Damage" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
-                                        <NumberBox Grid.Row="0" Grid.Column="1" x:Name="DamageStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="DamageStatBox_ValueChanged" LostFocus="DamageStatBox_LostFocus"/>
-                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Mining" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
-                                        <NumberBox Grid.Row="1" Grid.Column="1" x:Name="MiningStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="MiningStatBox_ValueChanged" LostFocus="MiningStatBox_LostFocus"/>
-                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Scanner" Style="{StaticResource ThemeBodyTextStyle}" VerticalAlignment="Center"/>
-                                        <NumberBox Grid.Row="2" Grid.Column="1" x:Name="ScannerStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="ScannerStatBox_ValueChanged" LostFocus="ScannerStatBox_LostFocus"/>
-                                    </Grid>
-                                </StackPanel>
-
-                                <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="0,1,0,0" Padding="0,14,0,0">
-                                    <Button Content="Delete this Multi-Tool..." Click="DeleteToolBtn_Click"
-                                            Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
-                                            ToolTipService.ToolTip="Remove this Multi-Tool from the save. You can keep it as a template first."/>
-                                </Border>
                             </StackPanel>
                         </StackPanel>
                     </Border>
