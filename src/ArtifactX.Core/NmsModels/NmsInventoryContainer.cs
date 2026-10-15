@@ -274,6 +274,15 @@ public class NmsInventoryContainer
     public const string ColdStorageKey = "KQ<";
     public const int ColdStorageColumns = 10, ColdStorageRows = 6;
 
+    /// <summary>The cooking Ingredient Storage (2026-10-15): 10 x 5 open slots
+    /// (stored 10 x 6 like the others), same key in every save; holds
+    /// ingredients and cooked food - matched item for item against the game's
+    /// INGREDIENT STORAGE screen (50 slots). Stacks are 5x the catalog size
+    /// (fish 25, food 50); Cold Storage's are 20x (fish 100, bait 1,000).</summary>
+    public static readonly string[] IngredientStoragePath = { "vLc", "6f=", "Kha" };
+    public const int IngredientStorageColumns = 10, IngredientStorageRows = 5;
+    public static readonly string[] ColdStoragePath = { "vLc", "6f=", ColdStorageKey };
+
     // Exocraft live in a FIXED 7-slot array, one slot per GcVehicleType.
     // VehicleTypeEnum member - see ExocraftType's own doc comment for the full
     // confirmation trail (libMBIN's fixed Size=0x7 declarations, cross-checked

@@ -824,6 +824,63 @@ public static class CatalogService
         }
     }
 
+    /// <summary>Items for the Food Storage page (2026-10-15). Cold Storage: the
+    /// fish (fish table) and fishing baits (FISHBAIT_*) - what the user found
+    /// it takes in game. Ingredient Storage: everything the game flags as a
+    /// cooking ingredient (catalog "CookingIngredients", the product/substance
+    /// CookingIngredient flag; egg modifiers and the ANY_* recipe wildcards
+    /// left out). Group = the item's catalog group (Fish, Bait, Cooking
+    /// Products, Raw Materials...).</summary>
+    public static async Task<List<CatalogPart>> GetFoodStorageItemsAsync(bool coldStorage)
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        var fishIds = coldStorage
+            ? (await GetFishAsync()).Select(f => f.Id).Where(IsFishSpecies).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var parts = new List<CatalogPart>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = coldStorage
+                    ? @"SELECT i.GameId, i.NameEnglish, i.CatalogGroup, i.MaxStackSize
+                        FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                        WHERE c.TemplateType IN ('GcProductTable', 'GcSubstanceTable') AND i.NameEnglish IS NOT NULL
+                          AND (i.GameId LIKE 'F!_%' ESCAPE '!' OR i.GameId LIKE 'FISHBAIT!_%' ESCAPE '!')"
+                    : @"SELECT i.GameId, i.NameEnglish, i.CatalogGroup, i.MaxStackSize
+                        FROM Items ck
+                        JOIN Categories cc ON cc.Id = ck.CategoryId
+                        JOIN Items i ON i.GameId = substr(ck.GameId, 6)
+                        JOIN Categories c ON c.Id = i.CategoryId
+                        WHERE cc.TemplateType = 'CookingIngredients' AND ck.UsageCategory = 'Ingredient'
+                          AND c.TemplateType IN ('GcProductTable', 'GcSubstanceTable') AND i.NameEnglish IS NOT NULL
+                          AND i.GameId NOT LIKE 'ANY!_%' ESCAPE '!'
+                        GROUP BY i.GameId";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    string id = reader.GetString(0);
+                    bool bait = id.StartsWith("FISHBAIT_", StringComparison.OrdinalIgnoreCase);
+                    if (coldStorage && !bait && !fishIds.Contains(id)) continue;
+                    string group = coldStorage ? (bait ? "Bait" : "Fish")
+                        : fishIds.Contains(id) || IsFishSpecies(id) ? "Fish"
+                        : reader.IsDBNull(2) ? "" : reader.GetString(2);
+                    parts.Add(new CatalogPart(id, reader.GetString(1), group, reader.IsDBNull(3) ? null : reader.GetInt32(3)));
+                }
+                return parts.OrderBy(p => p.Group).ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetFoodStorageItemsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
     /// <summary>What each settlement building stage needs (catalog
     /// "SettlementCosts", CatalogSteps.AddSettlementCosts). Empty on game data
     /// built before it existed - the page then asks for an update.</summary>
