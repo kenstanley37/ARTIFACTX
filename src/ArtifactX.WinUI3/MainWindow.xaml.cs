@@ -122,6 +122,8 @@ public sealed partial class MainWindow : Window
         // ordering ever gets disturbed again - it doesn't depend on catching a
         // transition, just reads whatever the current state actually is.
         GameProcessMonitorService.Start(DispatcherQueue);
+        // Where fish are caught is learned from each new save, on every page (FishCatchRecorder).
+        FishCatchRecorder.Start(DispatcherQueue);
         GameRunningBanner.Visibility = GameProcessMonitorService.IsGameRunning ? Visibility.Visible : Visibility.Collapsed;
 
         _ = RunStartupUpdateCheckAsync();

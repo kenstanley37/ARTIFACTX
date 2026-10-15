@@ -11,8 +11,8 @@ namespace ArtifactX.WinUI3.Services;
 /// <summary>
 /// Where fish were caught. The save's fishing record (NmsFishingPaths) only
 /// keeps, per fish, how many were caught and the largest - no planet, no date
-/// - so this learns it going forward (user request 2026-10-13): pages that
-/// follow the game live hand each new save to <see cref="Observe"/>, and when a
+/// - so this learns it going forward (user request 2026-10-13): FishCatchRecorder
+/// (app-wide, every page) hands each new save to <see cref="Observe"/>, and when a
 /// fish's count has gone up while the player is on a planet, the catch is
 /// recorded against that planet in user.db (table fish_catches, step 10).
 ///
