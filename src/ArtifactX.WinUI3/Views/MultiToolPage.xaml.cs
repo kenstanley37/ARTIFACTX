@@ -412,6 +412,7 @@ public sealed partial class MultiToolPage : Page
 
         BuildClassSelector();
         NameEditBox.Text = selectedTool.Name;
+        ApplyDetailsCollapsed();
         UpdateClassBadge();
         UpdateStatDisplay();
         await SyncTypeComboBoxAsync();
