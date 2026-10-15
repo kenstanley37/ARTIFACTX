@@ -55,7 +55,7 @@ public sealed partial class ShipsPage
     /// <summary>Every option id reachable from a tree (which parts this ship type can have at all).</summary>
     private static HashSet<string> AllOptionIds(IReadOnlyList<PartGroup> root)
     {
-        var ids = new HashSet<string>(StringComparer.Ordinal);
+        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var seenTrees = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         void Walk(IReadOnlyList<PartGroup> groups)
         {
@@ -75,12 +75,20 @@ public sealed partial class ShipsPage
         return ids;
     }
 
-    /// <summary>The ship-builder parts this ship type can have, grouped by set (cockpit, wings...).</summary>
+    /// <summary>The ship-builder parts this ship type can have, grouped by set
+    /// (cockpit, wings...). Builder data writes some ids in mixed case
+    /// (_WingJointL_A vs the tree's _WINGJOINTL_A), so ids compare ignoring case.
+    /// Ship types share some ids (_COCKPIT_A), so only the builder family that
+    /// fits this ship best is used - FIGHT_, DROPS_, SCIEN_, SHUTT_, SAIL_ - picked
+    /// by how many of its parts this tree can make, not by a hand-made list.</summary>
     private static List<IGrouping<string, (string Id, string Set, List<string> Descriptors)>> PartSetsFor(IReadOnlyList<PartGroup> root)
     {
         var possible = AllOptionIds(root);
-        return (_partGroups ?? new())
-            .Where(g => g.Descriptors.All(possible.Contains))
+        var fitting = (_partGroups ?? new()).Where(g => g.Descriptors.All(possible.Contains)).ToList();
+        static string Family(string set) => set.Contains('_') ? set[..set.IndexOf('_')] : set;
+        string? best = fitting.GroupBy(g => Family(g.Set)).OrderByDescending(f => f.Count()).FirstOrDefault()?.Key;
+        return fitting
+            .Where(g => Family(g.Set) == best)
             .GroupBy(g => g.Set)
             .Where(s => s.Count() > 1)
             .ToList();
@@ -126,7 +134,7 @@ public sealed partial class ShipsPage
         ShipPartsPanel.Children.Add(new TextBlock { Text = "PARTS THIS SEED GIVES", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] });
         if (TryParseSeed(SeedEditBox.Text, out ulong seed))
         {
-            var picked = ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
+            var picked = ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var row = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 8, VerticalSpacing = 8 };
             foreach (var set in sets)
             {
@@ -197,7 +205,7 @@ public sealed partial class ShipsPage
         string? scene = CurrentScene();
         if (scene is null) return;
         var want = _wantBoxes.Values.Select(b => (b.SelectedItem as ComboBoxItem)?.Tag as List<string>)
-            .Where(t => t is not null).SelectMany(t => t!).ToHashSet(StringComparer.Ordinal);
+            .Where(t => t is not null).SelectMany(t => t!).ToHashSet(StringComparer.OrdinalIgnoreCase);
         results.Children.Clear();
         _partSearch = new CancellationTokenSource();
         var token = _partSearch.Token;
@@ -214,7 +222,7 @@ public sealed partial class ShipsPage
                 {
                     ulong seed = (ulong)rng.NextInt64() | ((ulong)rng.Next(2) << 63);
                     tried++;
-                    var ids = ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
+                    var ids = ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
                     if (want.All(ids.Contains)) found.Add(seed);
                 }
             }, token);
