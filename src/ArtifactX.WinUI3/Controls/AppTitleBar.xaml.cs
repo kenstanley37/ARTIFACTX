@@ -35,9 +35,14 @@ public sealed partial class AppTitleBar : UserControl
         UpdateCheckService.Changed += OnUpdateCheckChanged;
         RefreshUpdateBadge();
         ThemeBtnTxt.Text = $"Theme: {ThemeService.Current.DisplayName}";
+        FishCatchRecorder.ActiveChanged += RefreshRecording;
+        RefreshRecording();
 
         Refresh();
     }
+
+    private void RefreshRecording() =>
+        RecordingBtn.Visibility = FishCatchRecorder.IsActive ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>The installed game's own build, read from the install (never a
     /// version typed into ArtifactX - the old hand-written "NMS: SWARM" went a

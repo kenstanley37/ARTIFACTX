@@ -81,6 +81,23 @@
             </HyperlinkButton>
         </StackPanel>
 
+        <!-- Out of the way, top right: ArtifactX only learns where fish are caught
+             while it's open (FishCatchRecorder), so say so while it's following. -->
+        <Button x:Name="RecordingBtn" Background="Transparent" BorderThickness="0" MinHeight="0" Grid.Row="1" Grid.Column="2" Padding="6,0" Margin="0,0,12,0"
+                         HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="Collapsed"
+                         ToolTipService.ToolTip="Keep ArtifactX open while you play - click for why">
+            <Button.Flyout>
+                <Flyout>
+                    <TextBlock MaxWidth="320" TextWrapping="Wrap" FontSize="12"
+                               Text="While ArtifactX is open - on any page, even minimised - it notes where you catch each fish: the planet and your coordinates. The game's save only keeps how many of each fish you've caught, so catches made while ArtifactX is closed can't be placed. Keep it open while you play for the most detail."/>
+                </Flyout>
+            </Button.Flyout>
+            <StackPanel Orientation="Horizontal" Spacing="5">
+                <Ellipse Width="6" Height="6" Fill="#3DDC84" VerticalAlignment="Center"/>
+                <TextBlock Text="Recording as you play" FontSize="10" Opacity="0.8"/>
+            </StackPanel>
+        </Button>
+
         <StackPanel x:Name="CurrencyDisplayRegion" Grid.Row="1" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20" Visibility="Collapsed">
             <StackPanel Orientation="Horizontal" Spacing="5">
                 <TextBlock Text="💰" VerticalAlignment="Center" FontSize="10"/>
