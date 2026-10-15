@@ -30,6 +30,9 @@ public sealed partial class ShipsPage
     private static DateTime? _dataStamp;
     private static List<ColourPalette>? _palettes;
     private static LookData? _look;
+    // The game files' model reader: indexing every PAK takes a moment, so once per session.
+    private static Task<ArtifactX.GameData.ShipModels?>? _models;
+    private int _previewVersion;
     private static readonly Dictionary<string, IReadOnlyList<PartGroup>> TreeCache = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _partSearch;
     private readonly Dictionary<string, ComboBox> _wantBoxes = new(StringComparer.Ordinal);
@@ -177,6 +180,7 @@ public sealed partial class ShipsPage
                         ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet(StringComparer.Ordinal), _look))
                     : new List<SurfacePick>();
                 ShipPartsPanel.Children.Add(PaintRow(surfaces, ShipColours.Generate(seed, _palettes)));
+                ShowPreview(scene, seed, root, surfaces);
             }
         }
         else
@@ -290,6 +294,46 @@ public sealed partial class ShipsPage
         public IReadOnlyList<string> MaterialLists(string material) => _materials.GetOrAdd(material, m =>
             materials.TryGetValue(m, out var j) ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(j) ?? new List<string>() : new List<string>());
         public IReadOnlyList<TextureLayer>? TextureList(string path) => _lists.GetOrAdd(path, p => lists.TryGetValue(p, out var j) ? ShipLook.ParseTextureList(j) : null);
+    }
+
+    /// <summary>The 3D preview: the seed's parts built from the player's own
+    /// game files (ShipModels), each material painted with its surface's colour
+    /// (the BASE pick of the material's texture list), glass/lights/dark parts by
+    /// their material name.</summary>
+    private async void ShowPreview(string scene, ulong seed, IReadOnlyList<PartGroup> root, List<SurfacePick> surfaces)
+    {
+        int version = ++_previewVersion;
+        if (GameDataService.Game is not { } game) { ShipPreviewGroup.Visibility = Visibility.Collapsed; return; }
+        ShipPreviewGroup.Visibility = Visibility.Visible;
+        _models ??= Task.Run(() => { try { return new ArtifactX.GameData.ShipModels(game); } catch { return null; } });
+        var models = await _models;
+        if (models is null || version != _previewVersion) return;
+        var options = AllOptionIdsExact(root);
+        var chosen = ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
+        var mesh = await Task.Run(() => models.Build(scene, options, chosen));
+        if (version != _previewVersion) return;
+        var look = _look;
+        ShipPreviewView.Show(mesh, material => MaterialColour(material, look, surfaces));
+        ShipPreviewNote.Text = mesh is null
+            ? "This ship's model couldn't be read from your game files."
+            : "Shape from your game files - drag to turn. Colours are still being checked against the game.";
+    }
+
+    private static uint MaterialColour(string material, LookData? look, List<SurfacePick> surfaces)
+    {
+        string name = System.IO.Path.GetFileName(material).ToUpperInvariant();
+        static uint Rgb(int r, int g, int b) => (uint)(r << 16 | g << 8 | b);
+        if (System.Text.RegularExpressions.Regex.IsMatch(name, "GLASS|CANOPY|WINDOW|SCREEN|COCKPITTRANS|TRANS_")) return Rgb(32, 62, 82);
+        if (System.Text.RegularExpressions.Regex.IsMatch(name, "LIGHT|GLOW|EMIS|THRUST|FLAME|LASER")) return Rgb(255, 214, 140);
+        if (look is not null && look.MaterialLists(material) is { Count: > 0 } lists)
+        {
+            string key = System.IO.Path.GetFileName(lists[0]).Split('.')[0];
+            var pick = surfaces.FirstOrDefault(p => p.List == key && p.Layer == "BASE")
+                       ?? surfaces.FirstOrDefault(p => p.List == key && p.Layer == "PAINT");
+            if (pick?.Rgb is { } c) return Rgb((int)(c[0] * 255), (int)(c[1] * 255), (int)(c[2] * 255));
+        }
+        if (System.Text.RegularExpressions.Regex.IsMatch(name, "RUBBER|DARK|BLACK|GRILL|VENT|UNDERCOAT")) return Rgb(46, 48, 53);
+        return Rgb(140, 142, 148);
     }
 
     /// <summary>A part as the game's ship builder shows it: icon and name.</summary>
