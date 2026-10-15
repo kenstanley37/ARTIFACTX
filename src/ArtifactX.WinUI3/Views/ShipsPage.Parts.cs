@@ -27,6 +27,7 @@ public sealed partial class ShipsPage
 {
     private static Dictionary<string, string>? _treeJson;
     private static List<(string Id, string Set, List<string> Descriptors)>? _partGroups;
+    private static DateTime? _dataStamp;
     private static readonly Dictionary<string, IReadOnlyList<PartGroup>> TreeCache = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _partSearch;
     private readonly Dictionary<string, ComboBox> _wantBoxes = new(StringComparer.Ordinal);
@@ -111,6 +112,16 @@ public sealed partial class ShipsPage
         ShipPartsPanel.Children.Clear();
         string? scene = CurrentScene();
         if (scene is null) return;
+        // Built again since last time (game-data update): forget everything read from the old one.
+        var stamp = GameDataService.Info?.BuiltAtUtc;
+        if (stamp != _dataStamp)
+        {
+            _dataStamp = stamp;
+            _treeJson = null;
+            _partGroups = null;
+            lock (TreeCache) TreeCache.Clear();
+            lock (Samples) Samples.Clear();
+        }
         // Re-read while empty: the game data may have been updated since.
         if (_treeJson is null || _treeJson.Count == 0)
         {
@@ -118,10 +129,11 @@ public sealed partial class ShipsPage
             lock (TreeCache) TreeCache.Clear();
         }
         if (_partGroups is null || _partGroups.Count == 0)
-        {
             _partGroups = await CatalogService.GetPartGroupsAsync();
-            await CatalogService.WarmCacheAsync(_partGroups.Select(g => g.Id));
-        }
+        // Every time: a game-data update empties the name/icon cache, and parts
+        // with no name are left out - every Fighter part vanished after one
+        // (2026-10-15). Already-cached ids are skipped, so this is cheap.
+        await CatalogService.WarmCacheAsync(_partGroups.Select(g => g.Id));
         if (_treeJson.Count == 0 || _partGroups.Count == 0)
         {
             ShipPartsPanel.Children.Add(Dim("Update your game data (Settings › Game data) to see which parts a seed gives."));
