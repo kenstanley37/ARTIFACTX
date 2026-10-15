@@ -193,3 +193,122 @@ public static partial class CatalogSteps
         ConsoleStyle.Success($"Wrote {rows.Count} colour palettes to {catalogPath}.");
     }
 }
+
+public static partial class CatalogSteps
+{
+    /// <summary>
+    /// What a ship's surfaces are painted with (2026-10-15): every spacecraft
+    /// scene as a pruned node tree, every material those scenes use, and every
+    /// procedural texture list those materials sample - with the ship's seed these
+    /// give which pattern and colour each surface gets (ArtifactX.Core ShipLook,
+    /// port of NMS Shipwright's textures.py).
+    ///
+    /// Category "ShipScenes": GameId "SCENE:" + lower-case path, DescriptionEnglish =
+    /// the node tree as JSON {"n":name,"m":material,"r":referenced scene,"c":[children]},
+    /// keeping only nodes on the way to a material or a reference.
+    /// Category "ShipMaterials": GameId "MATERIAL:" + path, DescriptionEnglish = JSON
+    /// list of the texture lists its samplers use (repeated per sampler, as the game
+    /// counts them). Category "TextureLists": GameId "TEXLIST:" + path,
+    /// DescriptionEnglish = JSON layers [{"n","g","p","m","o":[{"n","a","pal","w","u"}]}].
+    /// </summary>
+    public static void AddShipLooks(string catalogPath, string pcbanksPath)
+    {
+        if (!File.Exists(catalogPath)) { ConsoleStyle.Error($"Target catalog DB not found: {catalogPath}"); return; }
+        var reader = new PakReaderService();
+        var index = new GlobalFileIndexService();
+        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
+        {
+            try { index.Add(pak.FullPath, reader.ReadHeader(pak.FullPath), reader.Read(pak.FullPath)); }
+            catch { /* unreadable PAK - skip */ }
+        }
+        var extraction = new ExtractionService();
+        NMSTemplate? Decode(string path)
+        {
+            if (!index.TryFind(path.ToUpperInvariant(), out var pakPath, out var entry, out var header)) return null;
+            try
+            {
+                var bytes = extraction.ExtractEntryBytes(pakPath, entry, header);
+                if (bytes is null) return null;
+                var mbin = new MBINFile(new MemoryStream(bytes));
+                mbin.Load();
+                return mbin.GetData();
+            }
+            catch { return null; }
+        }
+
+        // Scenes: every procedural ship root, then everything they reference.
+        var scenes = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        var materials = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var todo = new Stack<string>(index.Paths
+            .Where(p => p.StartsWith("MODELS/COMMON/SPACECRAFT/", StringComparison.OrdinalIgnoreCase)
+                     && p.EndsWith("_PROC.SCENE.MBIN", StringComparison.OrdinalIgnoreCase)));
+        Dictionary<string, object>? Prune(libMBIN.NMS.Toolkit.TkSceneNodeData node, HashSet<string> refs)
+        {
+            string material = "", reference = "";
+            foreach (var a in node.Attributes ?? new())
+            {
+                string name = a.Name?.Value ?? "", value = (a.Value?.Value ?? "").Replace('\\', '/');
+                if (name == "MATERIAL") material = value;
+                else if (name == "SCENEGRAPH") reference = value;
+            }
+            var kids = (node.Children ?? new()).Select(c => Prune(c, refs)).Where(c => c is not null).ToList();
+            if (material.Length == 0 && reference.Length == 0 && kids.Count == 0) return null;
+            if (material.Length > 0) materials.Add(material);
+            if (reference.Length > 0) refs.Add(reference);
+            return new Dictionary<string, object> { ["n"] = node.Name?.Value ?? "", ["m"] = material, ["r"] = reference, ["c"] = kids };
+        }
+        while (todo.Count > 0)
+        {
+            string path = todo.Pop();
+            if (scenes.ContainsKey(path)) continue;
+            if (Decode(path) is not libMBIN.NMS.Toolkit.TkSceneNodeData root) { scenes[path] = new Dictionary<string, object>(); continue; }
+            var refs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            scenes[path] = Prune(root, refs) ?? new Dictionary<string, object>();
+            foreach (var r in refs) if (!scenes.ContainsKey(r)) todo.Push(r);
+        }
+
+        // Materials -> the texture lists their samplers use.
+        var materialLists = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        var textureLists = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        var ext = new System.Text.RegularExpressions.Regex(@"(\.[^./]*){1,4}$");
+        foreach (var material in materials)
+        {
+            if (Decode(material) is not libMBIN.NMS.Toolkit.TkMaterialData data) continue;
+            var lists = new List<string>();
+            foreach (var sampler in data.Samplers ?? new())
+            {
+                string map = (sampler.Map?.Value ?? "").Replace('\\', '/');
+                if (map.Length == 0) continue;
+                string list = ext.Replace(map, "") + ".TEXTURE.MBIN";
+                if (!textureLists.ContainsKey(list))
+                {
+                    if (Decode(list) is not libMBIN.NMS.Toolkit.TkProceduralTextureList tl) continue;
+                    textureLists[list] = (tl.Layers ?? Array.Empty<libMBIN.NMS.Toolkit.TkProceduralTextureLayer>()).Select(l => new Dictionary<string, object>
+                    {
+                        ["n"] = l.Name?.Value ?? "", ["g"] = l.Group?.Value ?? "", ["p"] = l.Probability, ["m"] = l.SelectToMatchBase,
+                        ["o"] = (l.Textures ?? new()).Select(t => new Dictionary<string, object>
+                        {
+                            ["n"] = t.Name?.Value ?? "", ["a"] = (int)t.Palette.ColourAlt, ["pal"] = (int)t.Palette.Palette,
+                            ["w"] = t.Probability, ["u"] = (int)t.TextureGameplayUse,
+                        }).ToList(),
+                    }).ToList();
+                }
+                lists.Add(list);
+            }
+            if (lists.Count > 0) materialLists[material] = lists;
+        }
+
+        static CatalogItem Row(string prefix, string path, object json) => new()
+        {
+            GameId = prefix + path.ToLowerInvariant(),
+            NameEnglish = path.ToLowerInvariant(),
+            DescriptionEnglish = JsonSerializer.Serialize(json),
+        };
+        ConsoleStyle.Header($"Found {scenes.Count} ship scenes, {materialLists.Count} painted materials and {textureLists.Count} texture lists.");
+        using var db = new CatalogDbContext(catalogPath);
+        Replace(db, "ShipScenes", "TkSceneNodeData", "models/common/spacecraft/*.scene.mbin", scenes.Select(s => Row("SCENE:", s.Key, s.Value)).ToList());
+        Replace(db, "ShipMaterials", "TkMaterialData", "*.material.mbin", materialLists.Select(m => Row("MATERIAL:", m.Key, m.Value)).ToList());
+        Replace(db, "TextureLists", "TkProceduralTextureList", "*.texture.mbin", textureLists.Select(t => Row("TEXLIST:", t.Key, t.Value)).ToList());
+        ConsoleStyle.Success($"Wrote ship looks to {catalogPath}.");
+    }
+}

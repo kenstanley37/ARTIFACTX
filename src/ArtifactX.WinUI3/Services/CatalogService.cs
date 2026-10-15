@@ -936,6 +936,38 @@ public static class CatalogService
         }
     }
 
+    /// <summary>Raw JSON rows of one catalog category, by lower-case path
+    /// (NameEnglish) - for the ship look data ("ShipScenes", "ShipMaterials",
+    /// "TextureLists"), which ShipLook parses on demand.</summary>
+    public static async Task<Dictionary<string, string>> GetJsonCategoryAsync(string templateType)
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.NameEnglish, i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = $type";
+                command.Parameters.AddWithValue("$type", templateType);
+                using var reader = command.ExecuteReader();
+                while (reader.Read()) results[reader.GetString(0)] = reader.GetString(1);
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetJsonCategoryAsync({templateType}) failed: {ex.Message}");
+            return new();
+        }
+    }
+
     /// <summary>The game's 66 base colour palettes in file order (catalog
     /// "Palettes"); empty on game data built before they were collected.</summary>
     public static async Task<List<ArtifactX.Core.Procedural.ColourPalette>> GetPalettesAsync()
