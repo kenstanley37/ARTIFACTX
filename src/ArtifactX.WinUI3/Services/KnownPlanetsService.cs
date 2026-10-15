@@ -181,7 +181,7 @@ public sealed class LiveSaveWatcher : IDisposable
         _timer = _dispatcher.CreateTimer();
         _timer.Interval = TimeSpan.FromSeconds(2.5);
         _timer.IsRepeating = false;
-        _timer.Tick += (_, _) => _ = ReadAsync(retry: true);
+        _timer.Tick += (_, _) => _ = ReadAsync(triesLeft: 5);
 
         _watcher = new FileSystemWatcher(folder, "save*.hg")
         {
@@ -226,7 +226,10 @@ public sealed class LiveSaveWatcher : IDisposable
         });
     }
 
-    private async Task ReadAsync(bool retry)
+    /// <summary>Reads the newest save. The game may still be writing it, so a
+    /// failed read is tried again a few times (once wasn't enough - a save
+    /// could show up only after the game's next one, 2026-10-15).</summary>
+    private async Task ReadAsync(int triesLeft)
     {
         if (SaveSessionManager.ActiveSlot is not { } slot) return;
         string newest = slot.Files.Select(f => f.FullPath).Where(File.Exists)
@@ -236,7 +239,7 @@ public sealed class LiveSaveWatcher : IDisposable
         var snapshot = await LiveSaveReader.ReadAsync(newest);
         if (snapshot is null)
         {
-            if (retry) { await Task.Delay(3000); await ReadAsync(retry: false); }
+            if (triesLeft > 1) { await Task.Delay(3000); await ReadAsync(triesLeft - 1); }
             return;
         }
         SystemNameLearner.Learn(NmsSpaceStationPaths.ReadSystemAddress(snapshot.Universe),
