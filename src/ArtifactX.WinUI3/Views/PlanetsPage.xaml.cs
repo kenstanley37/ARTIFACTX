@@ -1313,22 +1313,30 @@ public sealed partial class PlanetsPage : Page
         var own = _fish.Where(f => f.LivesOn(planet.BiomeIndex) && !f.Biomes.Contains(FishInfo.AnyPlanet)).ToList();
         var anywhere = _fish.Where(f => f.Biomes.Contains(FishInfo.AnyPlanet)).ToList();
         int Caught(List<FishInfo> fish) => fish.Count(f => _caught.ContainsKey(f.Id));
+        // A finished goal shrinks to one line - nothing to hide or manage, and
+        // the card stays short (2026-10-15). Labels say "any X planet" so the
+        // bar isn't read as catches on THIS planet; that's "Caught here" below.
         if (own.Count > 0)
-            section.Children.Add(ProgressRow($"{planet.TypeName} fish", Caught(own), own.Count));
-        section.Children.Add(DimLine($"Plus {anywhere.Count} fish found on any planet with water - you've caught {Caught(anywhere)}."));
-        // Catches ArtifactX recorded on this exact planet - a running count, so
-        // it can pass the number of kinds (2026-10-15: the card only showed the
-        // per-type goal, never what you'd caught here).
-        if (caughtHere.Count > 0)
         {
-            int total = caughtHere.Values.Sum();
-            section.Children.Add(new TextBlock
-            {
-                Text = $"Caught here: {total:N0} fish · {caughtHere.Count} kind{(caughtHere.Count == 1 ? "" : "s")}",
-                FontSize = 13,
-                Foreground = ThemeBrush("ThemeTextBrush"),
-            });
+            if (Caught(own) >= own.Count)
+                section.Children.Add(DimLine($"✓ All {own.Count} {planet.TypeName} fish caught (on any {planet.TypeName} planet)"));
+            else
+                section.Children.Add(ProgressRow($"{planet.TypeName} fish - on any {planet.TypeName} planet", Caught(own), own.Count));
         }
+        section.Children.Add(DimLine(Caught(anywhere) >= anywhere.Count
+            ? $"✓ All {anywhere.Count} fish found on any planet with water caught"
+            : $"Plus {anywhere.Count} fish found on any planet with water - you've caught {Caught(anywhere)}."));
+        // Catches ArtifactX recorded on this exact planet - a running count that
+        // can pass the number of kinds, shown even at 0 so "nothing caught here
+        // yet" is clear (2026-10-15).
+        int totalHere = caughtHere.Values.Sum();
+        section.Children.Add(new TextBlock
+        {
+            Text = totalHere == 0 ? "Caught here: none yet"
+                : $"Caught here: {totalHere:N0} fish · {caughtHere.Count} kind{(caughtHere.Count == 1 ? "" : "s")}",
+            FontSize = 13,
+            Foreground = ThemeBrush("ThemeTextBrush"),
+        });
 
         var missingOwn = own.Where(f => !_caught.ContainsKey(f.Id)).Select(f => FishName(f.Id)).OrderBy(x => x).ToList();
         var missingAny = anywhere.Where(f => !_caught.ContainsKey(f.Id)).Select(f => FishName(f.Id)).OrderBy(x => x).ToList();
