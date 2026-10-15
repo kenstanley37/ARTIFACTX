@@ -1371,7 +1371,7 @@ public sealed partial class PlanetsPage : Page
         }
         if (caughtHere.Count > 0)
         {
-            Heading($"CAUGHT ON THIS PLANET ({caughtHere.Count} kinds)");
+            Heading($"CAUGHT ON THIS PLANET ({caughtHere.Count} KIND{(caughtHere.Count == 1 ? "" : "S")})");
             // Fish with a known spot get a line each with the coordinates on the
             // ship's dashboard (2026-10-14; up to 3 spots, newest first). The
             // rest - caught before coordinates were kept - stay one compact
