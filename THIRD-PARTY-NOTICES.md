@@ -96,6 +96,13 @@ a C# port of the palette picker in NMS Shipwright's `nms_procgen/textures.py`,
 checked against the original on 3,000 seeds (every colour identical, bit for
 bit).
 
+Which paint pattern and colour each ship surface gets
+(`src/ArtifactX.Core/Procedural/ShipLook.cs`) follows NMS Shipwright's
+`nms_procgen/textures.py`, and building a ship's 3D model from the game's scene
+and geometry files (`src/ArtifactX.GameData/ShipModels.cs`) follows its
+`nms_procgen/model3d.py`. The models are read from the player's own game files
+at runtime; none are stored or shipped.
+
 ## MBINCompiler / libMBIN
 
 ArtifactX's game-data reader (`src/ArtifactX.Tools/NMS.Tools.libMBIN`) is
