@@ -74,8 +74,10 @@ public sealed class ShipPreview : UserControl
     {
         if (_drag is not { } from || _mesh is null) return;
         var to = e.GetCurrentPoint(this).Position;
-        _yaw += (float)(to.X - from.X) * 0.01f;
-        _pitch = Math.Clamp(_pitch + (float)(to.Y - from.Y) * 0.01f, -1.4f, 1.4f);
+        // The model follows the mouse, like turning a real object (the first
+        // version turned it the opposite way - "feels backwards", 2026-10-15).
+        _yaw -= (float)(to.X - from.X) * 0.01f;
+        _pitch = Math.Clamp(_pitch - (float)(to.Y - from.Y) * 0.01f, -1.4f, 1.4f);
         _drag = to;
         Redraw();
     }
