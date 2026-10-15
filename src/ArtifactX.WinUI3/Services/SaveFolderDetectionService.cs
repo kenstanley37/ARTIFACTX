@@ -56,7 +56,7 @@ public static class SaveFolderDetectionService
     /// the repository and the game's own save folder, so test copies never get
     /// committed or uploaded by Steam Cloud.</summary>
     public static string DevTestRoot =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ArtifactX", "DevFakeAccounts");
+        Path.Combine(LocalAppDataPaths.RootFolder, "DevFakeAccounts");
 
     /// <summary>Steam and GOG keep one folder per game account under the same
     /// HelloGames\NMS root, named st_&lt;SteamID64&gt; / gog_&lt;id&gt;.</summary>

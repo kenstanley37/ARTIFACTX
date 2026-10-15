@@ -7,7 +7,7 @@ namespace ArtifactX.WinUI3.Services;
 
 /// <summary>
 /// Debug builds only: a plain-text timing log for startup and Save Selection,
-/// at %LOCALAPPDATA%\ArtifactX\logs\timing.log (recreated each launch), so a
+/// at %APPDATA%\ArtifactX\logs\timing.log (recreated each launch), so a
 /// slow start can be measured from one ordinary run instead of guessed at.
 /// Each line: milliseconds since launch, thread (UI or pool), message.
 /// Also records any stretch where the UI thread stops responding for more
@@ -24,7 +24,7 @@ public static class DevTimingLog
     public static void Start()
     {
         _uiThreadId = Environment.CurrentManagedThreadId;
-        string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ArtifactX", "logs");
+        string folder = LocalAppDataPaths.GetSubfolder("logs");
         Directory.CreateDirectory(folder);
         _path = Path.Combine(folder, "timing.log");
         File.WriteAllText(_path, $"ArtifactX timing log, {DateTime.Now:yyyy-MM-dd HH:mm:ss}{Environment.NewLine}");

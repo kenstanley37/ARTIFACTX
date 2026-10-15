@@ -33,8 +33,11 @@ public partial class App : Application
         // SDK generates its own), so this constructor - already documented
         // above as "the logical equivalent of main()" - is the earliest
         // reachable hook.
-        DevTimingLog.Start();
         VelopackApp.Build().Run();
+        // Before anything opens the data: it moved from %LocalAppData% (the
+        // install folder) to %AppData% on 2026-10-15.
+        Services.LocalAppDataPaths.MoveFromOldFolder();
+        DevTimingLog.Start();
 
         InitializeComponent();
     }

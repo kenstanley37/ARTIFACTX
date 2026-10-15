@@ -26,6 +26,9 @@ if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed' }
 
 # --skipVeloAppCheck: VelopackApp.Build().Run() is in App()'s constructor (WinUI 3
 # has no Main of our own), which vpk's static check can't see.
+# Velopack installs to %LocalAppData%\ArtifactX and manages that whole
+# folder (an uninstall removes it), so the app keeps its own data in
+# %AppData%\ArtifactX instead (LocalAppDataPaths, moved there 2026-10-15).
 vpk pack --packId ArtifactX --packVersion $version `
     --packDir $publish --mainExe ArtifactX.exe `
     --icon (Join-Path $repo 'src/ArtifactX.WinUI3/Assets/AppIcon.ico') `

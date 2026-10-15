@@ -18,7 +18,7 @@ public sealed record BackupRestorePoint(string FolderPath, DateTime Timestamp, I
 /// added 2026-08-05 after the user pointed out neither had this at all for
 /// per-slot saves (AccountSessionManager had a single one-time backup, since
 /// replaced by this). Lives in the backups folder (BackupLocation - by default
-/// %LOCALAPPDATA%\ArtifactX\Backups, or one the player chose such as OneDrive),
+/// %APPDATA%\ArtifactX\Backups, or one the player chose such as OneDrive),
 /// never alongside the real save files - keeps the user's actual NMS save
 /// folder untouched as backups accumulate, and there's no risk of the game
 /// itself mistaking a backup for a real save (NMS only looks for save*.hg).
