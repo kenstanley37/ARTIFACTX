@@ -176,7 +176,13 @@
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="FoodStorageNavItem" Content="Food Storage" Tag="FoodStorage" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="ColdStorageNavItem" Content="Cold Storage" Tag="ColdStorage" Visibility="Collapsed">
+                        <NavigationViewItem.Icon>
+                            <FontIcon Glyph="&#xE9CA;"/>
+                        </NavigationViewItem.Icon>
+                    </NavigationViewItem>
+
+                    <NavigationViewItem x:Name="IngredientStorageNavItem" Content="Ingredient Storage" Tag="IngredientStorage" Visibility="Collapsed">
                         <NavigationViewItem.Icon>
                             <FontIcon Glyph="&#xED56;"/>
                         </NavigationViewItem.Icon>

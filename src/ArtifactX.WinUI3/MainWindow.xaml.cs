@@ -396,7 +396,8 @@ public sealed partial class MainWindow : Window
                 "Squadron" => typeof(SquadronPage),
                 "BaseStorage" => typeof(BaseStoragePage),
                 "CorvetteCache" => typeof(CorvetteCachePage),
-                "FoodStorage" => typeof(FoodStoragePage),
+                "ColdStorage" => typeof(ColdStoragePage),
+                "IngredientStorage" => typeof(IngredientStoragePage),
                 "Companions" => typeof(CompanionsPage),
                 "Settlement" => typeof(SettlementPage),
                 "SpaceStations" => typeof(SpaceStationsPage),
@@ -457,7 +458,8 @@ public sealed partial class MainWindow : Window
         SquadronNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         BaseStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         CorvetteCacheNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        FoodStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        ColdStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        IngredientStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         CompanionsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SettlementNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SpaceStationsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
@@ -552,7 +554,8 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(SquadronPage) => "Squadron",
             Type t when t == typeof(BaseStoragePage) => "BaseStorage",
             Type t when t == typeof(CorvetteCachePage) => "CorvetteCache",
-            Type t when t == typeof(FoodStoragePage) => "FoodStorage",
+            Type t when t == typeof(ColdStoragePage) => "ColdStorage",
+            Type t when t == typeof(IngredientStoragePage) => "IngredientStorage",
             Type t when t == typeof(CompanionsPage) => "Companions",
             Type t when t == typeof(SettlementPage) => "Settlement",
             Type t when t == typeof(SpaceStationsPage) => "SpaceStations",
