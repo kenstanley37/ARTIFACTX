@@ -1,4 +1,5 @@
 using Microsoft.UI;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -10,6 +11,7 @@ using ArtifactX.WinUI3.Resources;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.Views;
 using ArtifactX.WinUI3.Views.InspectionPages;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -107,9 +109,13 @@ public sealed partial class MainWindow : Window
         {
             UpdateNavAvailability();
             SlotSwitchBar.IsOpen = false; // a save was opened or closed - nothing to offer
+            ContextSwitchBar.IsOpen = false;
         };
         UpdateNavAvailability();
         SaveFolderWatchService.GameSavedOtherSlot += OfferSlotSwitch;
+        SaveSessionManager.GameSavedLoadedSlot += OnGameSavedLoadedSlot;
+        LiveItemsService.Start();
+        LiveItemsService.Changed += _ => UpdateLiveBadges();
         InitGameData();
 
         GameProcessMonitorService.RunningStateChanged += (_, isRunning) =>
@@ -548,6 +554,121 @@ public sealed partial class MainWindow : Window
         // Rebuild the page on screen from the new save (pages read it as they open).
         if (ContentFrame.CurrentSourcePageType is Type page && page != typeof(SaveFolderSelectPage))
             ContentFrame.Navigate(page);
+    }
+
+    /// <summary>"New" counts on Multi-Tool and Starships for what the game added
+    /// while it played (LiveItemsService), until each one is clicked.</summary>
+    private void UpdateLiveBadges()
+    {
+        SetNewBadge(MultiToolNavItem, LiveItemsService.NewCount(LiveCollection.MultiTools), "multi-tool");
+        SetNewBadge(ShipsNavItem, LiveItemsService.NewCount(LiveCollection.Ships), "starship");
+    }
+
+    private static void SetNewBadge(NavigationViewItem item, int count, string noun)
+    {
+        item.InfoBadge = count > 0 ? new InfoBadge { Value = count } : null;
+        ToolTipService.SetToolTip(item, count > 0 ? $"{count} new {noun}{(count == 1 ? "" : "s")} in your game" : null);
+    }
+
+    // The context the player chose to keep editing despite the game moving
+    // away from it - not offered again on every autosave.
+    private bool? _declinedContextIsExpedition;
+    private DispatcherQueueTimer? _contextBarFade;
+
+    /// <summary>The game saved the loaded slot. Ordinary autosaves change
+    /// nothing on screen (user rule 2026-10-16); only a move between the
+    /// expedition and the main game does, since every page would otherwise
+    /// show a character the game is no longer playing.</summary>
+    private async void OnGameSavedLoadedSlot(JObject disk)
+    {
+        bool nowExpedition = SaveSessionManager.IsMidExpedition(disk);
+        if (nowExpedition == SaveSessionManager.IsExpeditionActive)
+        {
+            _declinedContextIsExpedition = null;
+            return;
+        }
+        if (_declinedContextIsExpedition == SaveSessionManager.IsExpeditionActive) return;
+
+        string now = nowExpedition ? "You started an expedition" : "You left the expedition";
+        if (!SaveSessionManager.HasUnsavedChanges)
+        {
+            await ReloadSaveInPlaceAsync();
+            ShowContextBar(now, nowExpedition
+                ? "ArtifactX is now showing your expedition character."
+                : "ArtifactX is now showing your main game.", offerReload: false);
+            return;
+        }
+
+        int count = SaveSessionManager.PendingEditCount;
+        string was = SaveSessionManager.IsExpeditionActive ? "the expedition" : "your main game";
+        ShowContextBar($"{now} in No Man's Sky",
+            $"Your {count} unsaved {(count == 1 ? "change was" : "changes were")} made to {was}, which the game is no longer playing. " +
+            "Reload to see what the game is playing now.", offerReload: true);
+    }
+
+    private void ShowContextBar(string title, string message, bool offerReload)
+    {
+        _contextBarFade?.Stop();
+        ContextSwitchBar.Title = title;
+        ContextSwitchBar.Message = message;
+        ContextSwitchButton.Visibility = offerReload ? Visibility.Visible : Visibility.Collapsed;
+        ContextSwitchBar.Opacity = 1;
+        ContextSwitchBar.IsOpen = true;
+        if (offerReload) return;
+
+        // A notice, not a question: it fades out on its own.
+        if (_contextBarFade is null)
+        {
+            _contextBarFade = DispatcherQueue.CreateTimer();
+            _contextBarFade.IsRepeating = false;
+            _contextBarFade.Interval = TimeSpan.FromSeconds(8);
+            _contextBarFade.Tick += FadeContextBar;
+        }
+        _contextBarFade.Start();
+    }
+
+    private async void FadeContextBar(DispatcherQueueTimer timer, object args)
+    {
+        ContextSwitchBar.Opacity = 0; // OpacityTransition animates it
+        await Task.Delay(600);
+        if (ContextSwitchBar.Opacity == 0) ContextSwitchBar.IsOpen = false;
+        ContextSwitchBar.Opacity = 1;
+    }
+
+    private void ContextSwitchBar_Closed(InfoBar sender, object args)
+    {
+        _contextBarFade?.Stop();
+        if (ContextSwitchButton.Visibility == Visibility.Visible)
+            _declinedContextIsExpedition = SaveSessionManager.IsExpeditionActive;
+    }
+
+    private async void ContextSwitchReload_Click(object sender, RoutedEventArgs e)
+    {
+        if (SaveSessionManager.HasUnsavedChanges)
+        {
+            var confirm = new ContentDialog
+            {
+                Title = "Reload this save?",
+                Content = $"Your unsaved changes to {SaveSessionManager.ActiveLabel} will be discarded.",
+                PrimaryButtonText = "Discard and reload",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = Content.XamlRoot,
+            };
+            if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+        }
+        ContextSwitchBar.IsOpen = false;
+        await ReloadSaveInPlaceAsync();
+    }
+
+    /// <summary>Reads the loaded slot fresh from disk and rebuilds the page on
+    /// screen from it, keeping the player where they are.</summary>
+    private async Task ReloadSaveInPlaceAsync()
+    {
+        _declinedContextIsExpedition = null;
+        await SaveSessionManager.ReloadFromDiskAsync();
+        if (ContentFrame.CurrentSourcePageType is Type page && page != typeof(SaveFolderSelectPage))
+            ReloadCurrentPage();
     }
 
     private void ContentFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)

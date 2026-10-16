@@ -156,7 +156,11 @@ public static class SaveFolderWatchService
             {
                 bool wasActive = old.IsActive;
                 slots[at] = group;
-                if (wasActive) SaveSessionManager.AdoptSlot(group);
+                if (wasActive)
+                {
+                    SaveSessionManager.AdoptSlot(group);
+                    _ = SaveSessionManager.NotifyGameSavedAsync(group);
+                }
             }
             else
             {

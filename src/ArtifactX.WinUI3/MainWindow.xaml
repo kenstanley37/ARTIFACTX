@@ -403,6 +403,18 @@
                         <Button x:Name="SlotSwitchButton" Click="SlotSwitch_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
                     </InfoBar.ActionButton>
                 </InfoBar>
+                <!-- The game moved the loaded save between its expedition and the
+                     main game (SaveSessionManager.GameSavedLoadedSlot). Shares the
+                     row: at most one of these is ever relevant at a time. -->
+                <InfoBar x:Name="ContextSwitchBar" Grid.Row="1" Severity="Informational" IsOpen="False" Margin="16,8,16,0" Visibility="{x:Bind ContextSwitchBar.IsOpen, Mode=OneWay}"
+                         CloseButtonClick="ContextSwitchBar_Closed">
+                    <InfoBar.OpacityTransition>
+                        <ScalarTransition Duration="0:0:0.6"/>
+                    </InfoBar.OpacityTransition>
+                    <InfoBar.ActionButton>
+                        <Button x:Name="ContextSwitchButton" Content="Reload" Click="ContextSwitchReload_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
+                    </InfoBar.ActionButton>
+                </InfoBar>
                 <Frame x:Name="ContentFrame" Grid.Row="2" Navigated="ContentFrame_Navigated"/>
             </Grid>
         </NavigationView>

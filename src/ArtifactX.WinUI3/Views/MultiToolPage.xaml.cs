@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.Core.NmsModels;
+using ArtifactX.WinUI3.Controls;
 using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
@@ -70,6 +71,7 @@ public sealed partial class MultiToolPage : Page
 
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
+        LiveItemsService.Changed += OnLiveItemsChanged;
         Unloaded += Page_Unloaded;
 
         LoadToolList();
@@ -83,6 +85,13 @@ public sealed partial class MultiToolPage : Page
         DispatcherQueue.TryEnqueue(LoadToolList);
     }
 
+    /// <summary>The game added or dropped a tool while it played: only the strip
+    /// changes, the tool on screen stays (LiveItemsService).</summary>
+    private void OnLiveItemsChanged(LiveCollection list)
+    {
+        if (list == LiveCollection.MultiTools) DispatcherQueue.TryEnqueue(() => LoadToolList(live: true));
+    }
+
     /// <summary>Without this, the constructor's subscriptions above never
     /// get released across page navigation (Frame.Navigate makes a fresh
     /// Page instance every visit, no NavigationCacheMode set anywhere in
@@ -94,6 +103,7 @@ public sealed partial class MultiToolPage : Page
     {
         SaveSessionManager.ActiveSessionChanged -= OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged -= OnSessionOrEditsChanged;
+        LiveItemsService.Changed -= OnLiveItemsChanged;
     }
 
     private async Task<Dictionary<string, int>> GetMultiToolCapacityAsync()
@@ -116,8 +126,12 @@ public sealed partial class MultiToolPage : Page
     /// rebuilds the selector strip. Defaults selection to the in-game active
     /// tool the first time a session loads; a plain edits-changed refresh keeps
     /// whatever the user already has selected, so mid-edit work on a non-active
-    /// tool doesn't get yanked out from under them.</summary>
-    private void LoadToolList()
+    /// tool doesn't get yanked out from under them. A live update (the game
+    /// added or dropped a tool) rebuilds only the strip, unless the tool on
+    /// screen is the one that changed.</summary>
+    private void LoadToolList() => LoadToolList(live: false);
+
+    private void LoadToolList(bool live)
     {
         if (!SaveSessionManager.IsSaveLoaded)
         {
@@ -181,10 +195,16 @@ public sealed partial class MultiToolPage : Page
             _selectedIndex = defaultTool?.Index ?? -1;
         }
 
+        // Unnamed tools are relabelled a moment later, rebuilding the strip; a
+        // new tool's slide-in waits for that so it isn't cut off halfway.
+        _labelsPending = _tools.Any(t => t.IsUnnamed);
         BuildSelectorStrip();
-        LoadSelectedTool();
+        if (!live || _shownIndex != _selectedIndex || LiveItemsService.IsNew(LiveCollection.MultiTools, _selectedIndex))
+            LoadSelectedTool();
         _ = LabelUnnamedAsync();
     }
+
+    private bool _labelsPending;
 
     /// <summary>A tool the player never named has no name in the save - the
     /// game makes one up from its seed, which ArtifactX can't do yet (wish list
@@ -207,6 +227,7 @@ public sealed partial class MultiToolPage : Page
         }
         if (!ReferenceEquals(tools, _tools)) return; // the list was rebuilt meanwhile
         _tools = labelled;
+        _labelsPending = false;
         BuildSelectorStrip();
         if (_tools.FirstOrDefault(t => t.Index == _selectedIndex) is { IsUnnamed: true } selected)
         {
@@ -247,22 +268,37 @@ public sealed partial class MultiToolPage : Page
         {
             bool isSelected = tool.Index == _selectedIndex;
 
+            var content = BuildButtonContent(tool, isSelected);
             var button = new Button
             {
-                Content = BuildButtonContent(tool, isSelected),
+                Content = content,
                 Padding = new Thickness(12, 6, 12, 6)
             };
             ThemeResources.StyleChoiceButton(button, isSelected);
+            if (LiveItemsService.IsNew(LiveCollection.MultiTools, tool.Index))
+            {
+                LiveItemVisuals.MarkNew(button, content);
+                if (!_labelsPending && LiveItemsService.TakeAnimation(LiveCollection.MultiTools, tool.Index))
+                    LiveItemVisuals.SlideIn(button);
+            }
 
             button.Click += (_, _) =>
             {
                 _selectedIndex = tool.Index;
+                if (LiveItemsService.IsNew(LiveCollection.MultiTools, tool.Index))
+                {
+                    LiveItemsService.Seen(LiveCollection.MultiTools, tool.Index); // Changed -> LoadToolList shows it
+                    return;
+                }
                 BuildSelectorStrip();
                 LoadSelectedTool();
             };
 
             ToolSelectorPanel.Children.Add(button);
         }
+
+        foreach (var gone in LiveItemsService.Gone(LiveCollection.MultiTools))
+            ToolSelectorPanel.Children.Add(LiveItemVisuals.Gone(gone));
     }
 
     /// <summary>Selected state bolds the name; game-active state adds a small
@@ -361,7 +397,15 @@ public sealed partial class MultiToolPage : Page
         FlyoutBase.ShowAttachedFlyout((FrameworkElement)sender);
     }
 
-    private async void LoadSelectedTool() => await LoadSelectedToolAsync();
+    private async void LoadSelectedTool()
+    {
+        _shownIndex = _selectedIndex;
+        await LoadSelectedToolAsync();
+    }
+
+    // The tool whose details are on screen - a live update leaves it there
+    // unless it's the one that changed.
+    private int _shownIndex = -1;
 
     private async Task LoadSelectedToolAsync()
     {

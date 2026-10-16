@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.Almanac.Starship;
 using ArtifactX.Core.NmsModels;
+using ArtifactX.WinUI3.Controls;
 using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
@@ -66,6 +67,7 @@ public sealed partial class ShipsPage : Page
 
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
+        LiveItemsService.Changed += OnLiveItemsChanged;
         Unloaded += Page_Unloaded;
 
         ApplyDetailsCollapsed();
@@ -82,6 +84,13 @@ public sealed partial class ShipsPage : Page
     {
         if (_suppressReloadOnOwnStatEdit) return;
         DispatcherQueue.TryEnqueue(LoadShipList);
+    }
+
+    /// <summary>The game added or dropped a ship while it played: only the strip
+    /// changes, the ship on screen stays (LiveItemsService).</summary>
+    private void OnLiveItemsChanged(LiveCollection list)
+    {
+        if (list == LiveCollection.Ships) DispatcherQueue.TryEnqueue(() => LoadShipList(live: true));
     }
 
     /// <summary>Fix for a real reported bug (2026-08-01): "changing from
@@ -109,6 +118,7 @@ public sealed partial class ShipsPage : Page
     {
         SaveSessionManager.ActiveSessionChanged -= OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged -= OnSessionOrEditsChanged;
+        LiveItemsService.Changed -= OnLiveItemsChanged;
     }
 
     /// <summary>Reads a ship's model scene path (to detect its real ship type -
@@ -167,8 +177,12 @@ public sealed partial class ShipsPage : Page
 
     /// <summary>Re-reads the owned ship list from the current session and
     /// rebuilds the selector strip. A plain edits-changed refresh keeps
-    /// whatever the user already has selected, mirroring MultiToolPage.</summary>
-    private void LoadShipList()
+    /// whatever the user already has selected, mirroring MultiToolPage. A live
+    /// update (the game added or dropped a ship) rebuilds only the strip,
+    /// unless the ship on screen is the one that changed.</summary>
+    private void LoadShipList() => LoadShipList(live: false);
+
+    private void LoadShipList(bool live)
     {
         if (!SaveSessionManager.IsSaveLoaded)
         {
@@ -218,7 +232,8 @@ public sealed partial class ShipsPage : Page
         }
 
         BuildSelectorStrip();
-        LoadSelectedShip();
+        if (!live || _shownIndex != _selectedIndex || LiveItemsService.IsNew(LiveCollection.Ships, _selectedIndex))
+            LoadSelectedShip();
     }
 
     private void BuildSelectorStrip()
@@ -229,22 +244,37 @@ public sealed partial class ShipsPage : Page
         {
             bool isSelected = ship.Index == _selectedIndex;
 
+            var content = BuildButtonContent(ship, isSelected);
             var button = new Button
             {
-                Content = BuildButtonContent(ship, isSelected),
+                Content = content,
                 Padding = new Thickness(12, 6, 12, 6)
             };
             ThemeResources.StyleChoiceButton(button, isSelected);
+            if (LiveItemsService.IsNew(LiveCollection.Ships, ship.Index))
+            {
+                LiveItemVisuals.MarkNew(button, content);
+                if (LiveItemsService.TakeAnimation(LiveCollection.Ships, ship.Index))
+                    LiveItemVisuals.SlideIn(button);
+            }
 
             button.Click += (_, _) =>
             {
                 _selectedIndex = ship.Index;
+                if (LiveItemsService.IsNew(LiveCollection.Ships, ship.Index))
+                {
+                    LiveItemsService.Seen(LiveCollection.Ships, ship.Index); // Changed -> LoadShipList shows it
+                    return;
+                }
                 BuildSelectorStrip();
                 LoadSelectedShip();
             };
 
             ShipSelectorPanel.Children.Add(button);
         }
+
+        foreach (var gone in LiveItemsService.Gone(LiveCollection.Ships))
+            ShipSelectorPanel.Children.Add(LiveItemVisuals.Gone(gone));
     }
 
     /// <summary>Selected state bolds the name; game-active state adds a small
@@ -386,7 +416,15 @@ public sealed partial class ShipsPage : Page
         _ => new[] { "UP_HYP", "UP_LAUN", "UP_PULSE", "UP_SGUN", "UP_SLASR", "UP_SMINI", "UP_SSHOT", "UP_S_SHL", "UP_SBLOB" },
     };
 
-    private async void LoadSelectedShip() => await LoadSelectedShipAsync();
+    private async void LoadSelectedShip()
+    {
+        _shownIndex = _selectedIndex;
+        await LoadSelectedShipAsync();
+    }
+
+    // The ship whose details are on screen - a live update leaves it there
+    // unless it's the one that changed.
+    private int _shownIndex = -1;
 
     private async Task LoadSelectedShipAsync()
     {
