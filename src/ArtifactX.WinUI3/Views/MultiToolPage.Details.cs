@@ -27,7 +27,7 @@ public sealed partial class MultiToolPage
         DetailsBody.Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
         DetailsToggleIcon.Glyph = collapsed ? "" : ""; // chevron down / up
         ToolTipService.SetToolTip(DetailsToggle, collapsed ? "Show the details" : "Hide the details");
-        string name = NameEditBox.Text?.Trim() ?? "";
+        string name = NameEditBox.Text?.Trim() is { Length: > 0 } typed ? typed : NameEditBox.PlaceholderText ?? "";
         DetailsHeaderTxt.Text = collapsed && name.Length > 0 ? $"MULTI-TOOL DETAILS  ·  {name.ToUpperInvariant()}" : "MULTI-TOOL DETAILS";
     }
 }

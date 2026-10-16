@@ -44,7 +44,7 @@ public sealed partial class MultiToolPage : Page
     // common case of no duplicate loadouts, and merely non-deterministic-but-
     // not-wrong in the rare duplicate-content edge case, instead of visibly
     // wrong).
-    private sealed record ToolEntry(int Index, string Name, bool IsGameActive);
+    private sealed record ToolEntry(int Index, string Name, bool IsGameActive, bool IsUnnamed = false);
 
     private InventoryGridViewModel? _techViewModel;
     private int _selectedIndex = -1;
@@ -150,7 +150,8 @@ public sealed partial class MultiToolPage : Page
             if (string.IsNullOrEmpty(scenePath)) continue;
 
             string name = array[i]?["NKm"]?.Value<string>() ?? "";
-            if (string.IsNullOrEmpty(name)) name = $"Multi-Tool {i + 1}";
+            bool unnamed = string.IsNullOrEmpty(name);
+            if (unnamed) name = $"Multi-Tool {i + 1}"; // until LabelUnnamedAsync names its kind
 
             // The tool whose OsQ occupied items match Kgt's is the one currently
             // equipped - Kgt is a live mirror of it. Compared as a set of
@@ -169,7 +170,7 @@ public sealed partial class MultiToolPage : Page
             bool isActive = _activeIndex < 0 && kgtSignature.Count > 0 && kgtSignature.SetEquals(thisSignature);
 
             if (isActive) _activeIndex = i;
-            tools.Add(new ToolEntry(i, name, isActive));
+            tools.Add(new ToolEntry(i, name, isActive, unnamed));
         }
 
         _tools = tools;
@@ -182,6 +183,36 @@ public sealed partial class MultiToolPage : Page
 
         BuildSelectorStrip();
         LoadSelectedTool();
+        _ = LabelUnnamedAsync();
+    }
+
+    /// <summary>A tool the player never named has no name in the save - the
+    /// game makes one up from its seed, which ArtifactX can't do yet (wish list
+    /// #7). Label it by its kind instead: "Rifle (unnamed)", not "Multi-Tool 3"
+    /// (2026-10-15).</summary>
+    private async Task LabelUnnamedAsync()
+    {
+        var tools = _tools;
+        if (!tools.Any(t => t.IsUnnamed)) return;
+        var labelled = new List<ToolEntry>();
+        var used = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var t in tools)
+        {
+            if (!t.IsUnnamed) { labelled.Add(t); continue; }
+            string scene = SaveSessionManager.GetValue("vLc", "6f=", "SuJ", t.Index.ToString(), "NTx", "93M")?.Value<string>() ?? "";
+            string? kind = MultiToolKinds.IsMainModel(scene) ? await KindOfAsync(t.Index) : MultiToolKinds.NameFor(scene, "");
+            if (string.IsNullOrEmpty(kind)) { labelled.Add(t); continue; }
+            int n = used[kind] = used.GetValueOrDefault(kind) + 1;
+            labelled.Add(t with { Name = n == 1 ? $"{kind} (unnamed)" : $"{kind} {n} (unnamed)" });
+        }
+        if (!ReferenceEquals(tools, _tools)) return; // the list was rebuilt meanwhile
+        _tools = labelled;
+        BuildSelectorStrip();
+        if (_tools.FirstOrDefault(t => t.Index == _selectedIndex) is { IsUnnamed: true } selected)
+        {
+            NameEditBox.PlaceholderText = selected.Name;
+            TechHeaderTxt.Text = $"TECHNOLOGY  —  {selected.Name.ToUpperInvariant()}";
+        }
     }
 
     /// <summary>Reduces a :No array down to a set of "ItemId@X,Y" strings - just
@@ -412,7 +443,10 @@ public sealed partial class MultiToolPage : Page
         }, "technology", "technologies", "Technology", TechGroup);
 
         BuildClassSelector();
-        NameEditBox.Text = selectedTool.Name;
+        // An unnamed tool shows an empty box (its label as the hint), so leaving
+        // the box never writes the label into the save as its name.
+        NameEditBox.Text = selectedTool.IsUnnamed ? "" : selectedTool.Name;
+        NameEditBox.PlaceholderText = selectedTool.IsUnnamed ? selectedTool.Name : "";
         ApplyDetailsCollapsed();
         UpdateClassBadge();
         UpdateStatDisplay();
@@ -461,10 +495,12 @@ public sealed partial class MultiToolPage : Page
         finally { _suppressTypeSelectionEvent = false; }
     }
 
-    private async Task<string?> KindAsync()
+    private Task<string?> KindAsync() => KindOfAsync(_selectedIndex);
+
+    private static async Task<string?> KindOfAsync(int index)
     {
-        string? seedText = _selectedIndex < 0 ? null
-            : SaveSessionManager.GetValue("vLc", "6f=", "SuJ", _selectedIndex.ToString(), "@EL", "1")?.Value<string>();
+        string? seedText = index < 0 ? null
+            : SaveSessionManager.GetValue("vLc", "6f=", "SuJ", index.ToString(), "@EL", "1")?.Value<string>();
         if (seedText is not { Length: > 2 }) return null;
         string hex = seedText.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? seedText[2..] : seedText;
         return ulong.TryParse(hex, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out ulong seed)
