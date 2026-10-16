@@ -86,7 +86,7 @@ You need:
 git clone https://github.com/kenstanley37/ARTIFACTX.git
 ```
 
-Open `NmsSaveEditor.slnx`, set **ArtifactX.WinUI3** as the startup project
+Open `ARTIFACTX.slnx`, set **ArtifactX.WinUI3** as the startup project
 and run (x64). ArtifactX finds your No Man's Sky install and save folders on
 its own; you can also point it at them yourself.
 
