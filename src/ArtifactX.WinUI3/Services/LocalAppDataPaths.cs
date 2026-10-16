@@ -29,6 +29,11 @@ public static class LocalAppDataPaths
 
     public static string RootFolder => RootLazy.Value;
 
+    /// <summary>The unpacked-save cache. It sat next to the exe until
+    /// 2026-10-15 - not writable when installed for all users (Program Files),
+    /// and replaced on every update anyway.</summary>
+    public static string WorkingFolder => Path.Combine(RootFolder, "Working");
+
     /// <summary>Returns (and ensures the existence of) a named subfolder under
     /// the app's data root, e.g. "Backups".</summary>
     public static string GetSubfolder(string name)

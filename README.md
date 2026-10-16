@@ -33,18 +33,21 @@ visit, and shows what a starship seed gives before you commit to it.
 - **Account data:** catalog, Guide, Expedition and Twitch rewards
   (`accountdata.hg`).
 
-### Tools (no editing - they follow your game)
+### Explore (follows your game - never edits your save)
 - **Planets:** every system and planet you've discovered, with your
   coordinates on the planet, your own notes, names for planets renamed by
   their discoverer, and the fish caught on each.
 - **Fishing:** every fish, which planet types it lives on, and where to catch
   it - including the planets where ArtifactX recorded you catching it.
-- **Finds, Near Core, Bases, Recipes, Crafting** (full crafting trees down to
-  raw materials), **Item Values** and **Guides** (your own list of creator
-  videos).
+- **Finds** (great ships, multi-tools, shops, fishing spots - with the
+  portal address to get back), **Near Core** and **Bases**.
 - While ArtifactX is open - on any page, even minimised - it notes where you
   catch each fish. The game's save only keeps how many you caught, so keep
   ArtifactX open while you play for the most detail.
+
+### Reference
+- **Recipes**, **Crafting** (full crafting trees down to raw materials),
+  **Item Values** and **Guides** (your own list of creator videos).
 
 ### Safety
 - **Nothing is written until you click Save**, with Reset per page and for

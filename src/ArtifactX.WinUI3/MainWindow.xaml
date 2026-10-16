@@ -278,13 +278,11 @@
                     </NavigationViewItem.MenuItems>
                 </NavigationViewItem>
 
-                <!-- Tools: features that help you play but never change the save
-                     (planet finder, future galaxy tools). Pure folder, same pattern
-                     as Milestones/Account Data. -->
-                <NavigationViewItemSeparator x:Name="ToolsSeparator" Visibility="Collapsed"/>
-                <NavigationViewItem x:Name="ToolsNavItem" Content="Tools" SelectsOnInvoked="False" IsExpanded="False" Visibility="Collapsed">
+                <!-- Explore: your journey - pages that follow your game and know your discoveries, never change the save (2026-10-15, split from "Tools"). Pure folder, same pattern as Milestones/Account Data. -->
+                <NavigationViewItemSeparator x:Name="ExploreSeparator" Visibility="Collapsed"/>
+                <NavigationViewItem x:Name="ExploreNavItem" Content="Explore" SelectsOnInvoked="False" IsExpanded="False" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE90F;" FontFamily="Segoe MDL2 Assets"/>
+                        <FontIcon Glyph="&#xE909;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.MenuItems>
                         <NavigationViewItem x:Name="PlanetsNavItem" Content="Planets" Tag="Planets">
@@ -307,6 +305,21 @@
                                 <FontIcon Glyph="&#xE7B7;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
+                        <NavigationViewItem x:Name="BasesNavItem" Content="Bases" Tag="Bases">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE80F;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                    </NavigationViewItem.MenuItems>
+                </NavigationViewItem>
+
+                <!-- Reference: game knowledge, the same for everyone (2026-10-15, split from "Tools"). -->
+                <NavigationViewItemSeparator x:Name="ReferenceSeparator" Visibility="Collapsed"/>
+                <NavigationViewItem x:Name="ReferenceNavItem" Content="Reference" SelectsOnInvoked="False" IsExpanded="False" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE82D;" FontFamily="Segoe MDL2 Assets"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.MenuItems>
                         <NavigationViewItem Content="Recipes" Tag="Recipes">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE8F1;" FontFamily="Segoe MDL2 Assets"/>
@@ -325,11 +338,6 @@
                         <NavigationViewItem Content="Guides" Tag="Guides">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE714;" FontFamily="Segoe MDL2 Assets"/>
-                            </NavigationViewItem.Icon>
-                        </NavigationViewItem>
-                        <NavigationViewItem x:Name="BasesNavItem" Content="Bases" Tag="Bases">
-                            <NavigationViewItem.Icon>
-                                <FontIcon Glyph="&#xE80F;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                     </NavigationViewItem.MenuItems>
@@ -376,8 +384,10 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <!-- Game data: first-run build, "the game updated", progress
-                     (GameDataService; set up in MainWindow.GameData.cs). -->
-                <InfoBar x:Name="GameDataBar" IsOpen="False" Margin="16,8,16,0" CloseButtonClick="GameDataBar_Closed">
+                     (GameDataService; set up in MainWindow.GameData.cs). Both bars
+                     are collapsed while closed - a closed InfoBar keeps its margin,
+                     which left a 16 px grey strip above every page (2026-10-15). -->
+                <InfoBar x:Name="GameDataBar" IsOpen="False" Margin="16,8,16,0" Visibility="{x:Bind GameDataBar.IsOpen, Mode=OneWay}" CloseButtonClick="GameDataBar_Closed">
                     <InfoBar.Content>
                         <ProgressBar x:Name="GameDataProgress" Margin="0,0,0,12" Visibility="Collapsed"/>
                     </InfoBar.Content>
@@ -387,7 +397,7 @@
                 </InfoBar>
                 <!-- The game is playing a different slot than the one loaded
                      (SaveFolderWatchService.GameSavedOtherSlot). -->
-                <InfoBar x:Name="SlotSwitchBar" Grid.Row="1" Severity="Informational" IsOpen="False" Margin="16,8,16,0"
+                <InfoBar x:Name="SlotSwitchBar" Grid.Row="1" Severity="Informational" IsOpen="False" Margin="16,8,16,0" Visibility="{x:Bind SlotSwitchBar.IsOpen, Mode=OneWay}"
                          Title="You've switched saves in No Man's Sky" CloseButtonClick="SlotSwitchBar_Closed">
                     <InfoBar.ActionButton>
                         <Button x:Name="SlotSwitchButton" Click="SlotSwitch_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
