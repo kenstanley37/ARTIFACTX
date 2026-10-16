@@ -74,8 +74,8 @@ public sealed partial class FindsPage : Page
         // 2026-10-15). The game has no names for them; these are the players'.
         _toolKinds = (await CatalogService.GetMultiToolTypesAsync())
             .SelectMany(t => t.ScenePath.EndsWith("/MULTITOOL.SCENE.MBIN", StringComparison.OrdinalIgnoreCase)
-                ? new[] { "Pistol", "Rifle", "Experimental", "Alien" }
-                : new[] { t.DisplayName })
+                ? new[] { "Pistol", "Rifle", "Experimental", "Alien", "Starter" }
+                : new[] { MultiToolKinds.NameFor(t.ScenePath, t.DisplayName) })
             .Distinct().ToList();
         _freighterKinds = (await CatalogService.GetFreighterTypesAsync()).Select(t => t.DisplayName)
             .Where(n => n is "Normal" or "Capital" or "Dreadnought").ToList();

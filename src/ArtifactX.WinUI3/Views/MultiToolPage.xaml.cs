@@ -440,48 +440,35 @@ public sealed partial class MultiToolPage : Page
     private async Task SyncTypeComboBoxAsync()
     {
         _suppressTypeSelectionEvent = true;
-
-        if (_multiToolTypeOptions is null)
+        try
         {
             var raw = await CatalogService.GetMultiToolTypesAsync();
-            // The main model isn't a rifle - it makes several kinds, picked by the
-            // seed (shown under the box, MultiToolKinds).
+            string? currentPath = _selectedIndex < 0 ? null
+                : SaveSessionManager.GetValue("vLc", "6f=", "SuJ", _selectedIndex.ToString(), "NTx", "93M")?.Value<string>();
+            // The main model's name is the kind this tool's seed makes (Alien,
+            // Experimental...); the other models use the game's type names.
+            string mainName = "Pistol or Rifle";
+            if (MultiToolKinds.IsMainModel(currentPath) && await KindAsync() is string kind) mainName = kind;
             _multiToolTypeOptions = raw.Select(t => new MultiToolTypeOption(
-                MultiToolKinds.IsMainModel(t.ScenePath) ? "Main model" : t.DisplayName, t.ScenePath)).ToList();
+                MultiToolKinds.IsMainModel(t.ScenePath) ? mainName : MultiToolKinds.NameFor(t.ScenePath, t.DisplayName), t.ScenePath))
+                .OrderBy(t => t.DisplayName, StringComparer.CurrentCultureIgnoreCase).ToList();
             TypeComboBox.ItemsSource = _multiToolTypeOptions;
+            TypeComboBox.SelectedItem = _multiToolTypeOptions.FirstOrDefault(t =>
+                string.Equals(t.ScenePath, currentPath, StringComparison.OrdinalIgnoreCase));
+            KindTxt.Text = "Set by the tool's seed";
+            KindTxt.Visibility = MultiToolKinds.IsMainModel(currentPath) ? Visibility.Visible : Visibility.Collapsed;
         }
-
-        if (_selectedIndex < 0)
-        {
-            TypeComboBox.SelectedItem = null;
-            _suppressTypeSelectionEvent = false;
-            return;
-        }
-
-        string? currentPath = SaveSessionManager.GetValue(
-            "vLc", "6f=", "SuJ", _selectedIndex.ToString(), "NTx", "93M")?.Value<string>();
-
-        TypeComboBox.SelectedItem = _multiToolTypeOptions.FirstOrDefault(t =>
-            string.Equals(t.ScenePath, currentPath, StringComparison.OrdinalIgnoreCase));
-
-        _suppressTypeSelectionEvent = false;
-        await UpdateKindAsync(currentPath);
+        finally { _suppressTypeSelectionEvent = false; }
     }
 
-    /// <summary>"Kind: Alien" under Type for the main model, from the tool's seed.</summary>
-    private async Task UpdateKindAsync(string? scenePath)
+    private async Task<string?> KindAsync()
     {
-        int index = _selectedIndex;
-        string? seedText = index < 0 ? null
-            : SaveSessionManager.GetValue("vLc", "6f=", "SuJ", index.ToString(), "@EL", "1")?.Value<string>();
-        string? kind = null;
-        if (MultiToolKinds.IsMainModel(scenePath) && seedText is { Length: > 2 }
-            && ulong.TryParse(seedText.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? seedText[2..] : seedText,
-                System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out ulong seed))
-            kind = await MultiToolKinds.KindAsync(seed);
-        if (index != _selectedIndex) return; // another tool was picked meanwhile
-        KindTxt.Text = kind is null ? "" : $"Kind: {kind} - set by the tool's seed";
-        KindTxt.Visibility = kind is null ? Visibility.Collapsed : Visibility.Visible;
+        string? seedText = _selectedIndex < 0 ? null
+            : SaveSessionManager.GetValue("vLc", "6f=", "SuJ", _selectedIndex.ToString(), "@EL", "1")?.Value<string>();
+        if (seedText is not { Length: > 2 }) return null;
+        string hex = seedText.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? seedText[2..] : seedText;
+        return ulong.TryParse(hex, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out ulong seed)
+            ? await MultiToolKinds.KindAsync(seed) : null;
     }
 
     private void TypeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)

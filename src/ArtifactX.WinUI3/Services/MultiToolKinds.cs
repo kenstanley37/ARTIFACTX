@@ -28,6 +28,27 @@ public static class MultiToolKinds
     private static DateTime? _stamp;
     private static readonly Dictionary<string, IReadOnlyList<PartGroup>> Cache = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>The game's own type names (BASESTATS_*_L strings) for the other
+    /// models, matched by model file - Atlas = Atlantid, Royal = Exotic, Robot =
+    /// Sentinel, Staff = Voltaic Staff. Swarm, Retro and Rod aren't in the
+    /// game's type list (expedition / special tools), so they keep their own.
+    /// Confirmed against the user's tools 2026-10-15 (Atlas, Ruin and Bone
+    /// staffs, Swarm).</summary>
+    public static string NameFor(string scenePath, string fallback) =>
+        System.IO.Path.GetFileName(scenePath).ToUpperInvariant() switch
+        {
+            "ATLASMULTITOOL.SCENE.MBIN" => "Atlantid",
+            "ROYALMULTITOOL.SCENE.MBIN" => "Exotic",
+            "SENTINELMULTITOOL.SCENE.MBIN" => "Sentinel",
+            "SENTINELMULTITOOLB.SCENE.MBIN" => "Sentinel (variant B)",
+            "STAFFMULTITOOL.SCENE.MBIN" => "Voltaic Staff",
+            "STAFFMULTITOOLATLAS.SCENE.MBIN" => "Voltaic Staff (Atlas)",
+            "STAFFMULTITOOLBONE.SCENE.MBIN" => "Voltaic Staff (Bone)",
+            "STAFFMULTITOOLRUIN.SCENE.MBIN" => "Voltaic Staff (Ruin)",
+            "SWARMMULTITOOL.SCENE.MBIN" => "Swarm",
+            _ => fallback,
+        };
+
     public static bool IsMainModel(string? scenePath) => string.Equals(scenePath, MainModel, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>The kind this seed makes on the main model, or null when the
@@ -46,8 +67,9 @@ public static class MultiToolKinds
         var picked = ShipParts.Generate(MainModel, seed, Load).Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (picked.Contains("_MULTITOOL_ALIENXRARE")) return "Alien";
         if (picked.Contains("_MULTITOOL_STARTXRARE")) return "Starter";
-        if (picked.Contains("_MULTITOOL_PRISTINEXRARE")) return "Pristine (rare)";
-        return picked.Contains("_MULTITOOL_NORMAL") ? "Standard" : null;
+        // "Pristine" is the game's own word for Experimental (BASESTATS_PRISTINE_L).
+        if (picked.Contains("_MULTITOOL_PRISTINEXRARE")) return "Experimental";
+        return picked.Contains("_MULTITOOL_NORMAL") ? "Pistol or Rifle" : null;
     }
 
     private static IReadOnlyList<PartGroup>? Load(string path)
