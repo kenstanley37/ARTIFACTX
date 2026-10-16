@@ -42,7 +42,10 @@ public sealed partial class MultiToolPage
         var root = MultiToolKinds.Load(ShipParts.DescriptorFor(scene));
         // No part tree: a fixed-look model, every mesh in its scene is kept.
         var options = root is null ? new() : ModelPreviewService.AllOptionIds(root, MultiToolKinds.Load, StringComparer.Ordinal);
-        var chosen = root is null ? new() : ShipParts.Generate(scene, seed, MultiToolKinds.Load).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
+        // A staff's crafted head/core/pole are kept in the save (SuJ[i].7DH.SMP) and win over the seed.
+        var stored = (SaveSessionManager.GetValue("vLc", "6f=", "SuJ", _selectedIndex.ToString(CultureInfo.InvariantCulture), "7DH", "SMP") as JArray)
+            ?.Select(p => p.Value<string>() ?? "").Where(p => p.Length > 1).ToList();
+        var chosen = root is null ? new() : ShipParts.Generate(scene, seed, MultiToolKinds.Load, stored).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
         var mesh = models is null ? null : await Task.Run(() => models.Build(scene, options, chosen));
         if (version != _previewVersion) return;
 
