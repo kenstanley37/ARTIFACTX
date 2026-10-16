@@ -1,0 +1,5 @@
+Welcome to ArtifactX, a save editor and companion app for No Man's Sky.
+
+This is an early alpha. It has been tested with Steam saves only.
+
+Your game saves and ArtifactX's own data (notes, recorded catches, game data) are kept outside the install folder, so installing, updating or uninstalling ArtifactX never touches them.

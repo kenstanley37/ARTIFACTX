@@ -1,5 +1,7 @@
 # Builds an ArtifactX release: a self-contained x64 publish, packed by
-# Velopack into Setup.exe, a portable zip and the update package.
+# Velopack into Setup.exe (one click), an .msi with a full wizard (welcome,
+# risk notice + licence to accept, just me / everyone; texts in installer/),
+# a portable zip and the update package.
 #
 #   pwsh scripts/release.ps1
 #
@@ -29,10 +31,14 @@ if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed' }
 # Velopack installs to %LocalAppData%\ArtifactX and manages that whole
 # folder (an uninstall removes it), so the app keeps its own data in
 # %AppData%\ArtifactX instead (LocalAppDataPaths, moved there 2026-10-15).
-vpk pack --packId ArtifactX --packVersion $version `
+vpk pack --packId ArtifactX --packVersion $version --runtime win-x64 `
     --packDir $publish --mainExe ArtifactX.exe `
     --icon (Join-Path $repo 'src/ArtifactX.WinUI3/Assets/AppIcon.ico') `
     --packTitle ArtifactX --skipVeloAppCheck `
+    --msi --instLocation Either `
+    --instWelcome (Join-Path $repo 'installer/welcome.txt') `
+    --instLicense (Join-Path $repo 'installer/license.md') `
+    --instConclusion (Join-Path $repo 'installer/conclusion.txt') `
     --outputDir $packages
 if ($LASTEXITCODE -ne 0) { throw 'vpk pack failed' }
 
