@@ -2,6 +2,7 @@ using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.Almanac.Starship;
 using ArtifactX.Core.NmsModels;
@@ -32,7 +33,7 @@ public sealed partial class ShipsPage : Page
     // EQUIPPED ship is tracked by a plain integer index - NmsInventoryContainer.
     // ActiveShipIndexPath (aBE) - confirmed against 15 real save files across
     // 3 characters.
-    private sealed record ShipEntry(int Index, string Name, bool IsGameActive);
+    private sealed record ShipEntry(int Index, string Name, bool IsGameActive, bool IsCorvette, int BuildParts);
 
     private InventoryGridViewModel? _techViewModel;
     private InventoryGridViewModel? _cargoViewModel;
@@ -67,6 +68,7 @@ public sealed partial class ShipsPage : Page
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
         Unloaded += Page_Unloaded;
 
+        ApplyDetailsCollapsed();
         LoadShipList();
         _ = RefreshTemplatesListAsync();
         _ = RefreshFullBuildTemplatesListAsync();
@@ -120,10 +122,33 @@ public sealed partial class ShipsPage : Page
             "vLc", "6f=", "@Cs", shipIndex.ToString(), "NTx", "93M")?.Value<string>();
         var type = StarshipCapacity.DetectShipType(scenePath);
 
-        var classPath = NmsInventoryContainer.ShipTechnologyPath(shipIndex).Append("B@N").Append("1o6").ToArray();
-        string? classLetter = SaveSessionManager.GetValue(classPath)?.Value<string>();
+        return (type, ReadShipClass(shipIndex));
+    }
 
-        return (type, classLetter);
+    /// <summary>A ship stores its Class letter on BOTH inventories (PMT and
+    /// ;l5, each B@N.1o6) and the game reads the Cargo one: found 2026-10-10
+    /// when an S-class edit written only to Technology still showed C in-game
+    /// (save had PMT=S, ;l5=C; every untouched ship has the two matching).
+    /// Every class-changing action here writes Technology via its grid view
+    /// model, so this copies that letter onto Cargo afterwards. Only called
+    /// from those actions, never on load, so it never stages an unasked edit.
+    /// ReadShipClass shows the Cargo copy (Technology only as a fallback) so
+    /// the page matches what the game displays.</summary>
+    private static string? ReadShipClass(int shipIndex)
+    {
+        if (shipIndex < 0) return null;
+        return SaveSessionManager.GetValue(NmsInventoryContainer.ShipCargoPath(shipIndex).Append("B@N").Append("1o6").ToArray())?.Value<string>()
+            ?? SaveSessionManager.GetValue(NmsInventoryContainer.ShipTechnologyPath(shipIndex).Append("B@N").Append("1o6").ToArray())?.Value<string>();
+    }
+
+    private static void SyncCargoClass(int shipIndex)
+    {
+        if (shipIndex < 0) return;
+        string? techClass = SaveSessionManager.GetValue(
+            NmsInventoryContainer.ShipTechnologyPath(shipIndex).Append("B@N").Append("1o6").ToArray())?.Value<string>();
+        var cargoClassPath = NmsInventoryContainer.ShipCargoPath(shipIndex).Append("B@N").Append("1o6").ToArray();
+        if (string.IsNullOrEmpty(techClass) || SaveSessionManager.GetValue(cargoClassPath)?.Value<string>() == techClass) return;
+        SaveSessionManager.StageEdit(techClass, cargoClassPath);
     }
 
     private async Task<Dictionary<string, int>> GetShipCapacityAsync()
@@ -161,6 +186,7 @@ public sealed partial class ShipsPage : Page
             return;
 
         int activeIndex = SaveSessionManager.GetValue(NmsInventoryContainer.ActiveShipIndexPath)?.Value<int>() ?? -1;
+        var builds = ShipBaseService.BuildsBySlot();
 
         var ships = new List<ShipEntry>();
         for (int i = 0; i < array.Count; i++)
@@ -176,7 +202,8 @@ public sealed partial class ShipsPage : Page
 
             string name = array[i]?["NKm"]?.Value<string>() ?? "";
             if (string.IsNullOrEmpty(name)) name = $"Starship {i + 1}";
-            ships.Add(new ShipEntry(i, name, i == activeIndex));
+            int parts = builds.GetValueOrDefault(i);
+            ships.Add(new ShipEntry(i, name, i == activeIndex, parts > 0 || ShipBaseService.IsCorvetteModel(scenePath), parts));
         }
 
         _ships = ships;
@@ -205,15 +232,9 @@ public sealed partial class ShipsPage : Page
             var button = new Button
             {
                 Content = BuildButtonContent(ship, isSelected),
-                Padding = new Thickness(12, 6, 12, 6),
-                BorderThickness = new Thickness(isSelected ? 2 : 1),
-                BorderBrush = new SolidColorBrush(isSelected
-                    ? Color.FromArgb(255, 255, 157, 0)
-                    : Color.FromArgb(255, 90, 98, 112)),
-                Background = new SolidColorBrush(isSelected
-                    ? Color.FromArgb(60, 255, 157, 0)
-                    : Color.FromArgb(20, 255, 255, 255))
+                Padding = new Thickness(12, 6, 12, 6)
             };
+            ThemeResources.StyleChoiceButton(button, isSelected);
 
             button.Click += (_, _) =>
             {
@@ -240,22 +261,134 @@ public sealed partial class ShipsPage : Page
             VerticalAlignment = VerticalAlignment.Center
         });
 
+        // Corvettes are built, not found: their modules live in a separate
+        // build (ShipBaseService), so they get their own badge.
+        if (ship.IsCorvette)
+        {
+            panel.Children.Add(new Border
+            {
+                BorderBrush = ThemeResources.Brush("ThemeAccentBrush"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = ThemeResources.CardCornerRadius,
+                Padding = new Thickness(6, 1, 6, 1),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock
+                {
+                    Text = "CORVETTE",
+                    FontSize = 10,
+                    FontWeight = FontWeights.Bold,
+                    FontFamily = ThemeResources.Font("ThemeDisplayFont"),
+                    CharacterSpacing = 120,
+                    Foreground = ThemeResources.Brush("ThemeAccentBrush"),
+                }
+            });
+        }
+
         if (ship.IsGameActive)
         {
             panel.Children.Add(new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(255, 60, 200, 90)),
-                CornerRadius = new CornerRadius(4),
+                Background = ThemeResources.Brush("ThemeDoneBrush"),
+                CornerRadius = ThemeResources.CardCornerRadius,
                 Padding = new Thickness(6, 1, 6, 1),
                 VerticalAlignment = VerticalAlignment.Center,
-                Child = new TextBlock { Text = "ACTIVE", FontSize = 10, FontWeight = FontWeights.Bold }
+                Child = new TextBlock
+                {
+                    Text = "ACTIVE",
+                    FontSize = 10,
+                    FontWeight = FontWeights.Bold,
+                    FontFamily = ThemeResources.Font("ThemeDisplayFont"),
+                    CharacterSpacing = 120,
+                    Foreground = ThemeResources.Brush("ThemeOnAccentBrush"),
+                }
             });
         }
 
         return panel;
     }
 
-    private async void LoadSelectedShip()
+    /// <summary>Which technology a ship takes, by its model folder. Worked out
+    /// 2026-10-13 from every ship in the real saves: regular ships (and
+    /// corvettes) take AllShips + AllShipsExceptAlien + Ship tech, living ships
+    /// (S-CLASS/BIOPARTS) AllShips + AlienShip, Sentinel ships AllShips +
+    /// AllShipsExceptAlien + RobotShip (so does the Vintage Interceptor). The catalog's "Corvette" category is
+    /// only generic upgrade-module templates, so corvettes use the regular set.
+    /// The old grid rule ("Ship"/"All") missed AllShips and AllShipsExceptAlien
+    /// tech entirely and offered nothing for living or Sentinel ships.</summary>
+    private static (string[] UsageCategories, string Header) TechRuleFor(string? scenePath)
+    {
+        string path = (scenePath ?? "").ToUpperInvariant();
+        if (path.Contains("/BIOPARTS/")) return (new[] { "AllShips", "AlienShip" }, "LIVING SHIP TECHNOLOGY");
+        // The Vintage Interceptor reward is a Sentinel ship in a fighter's
+        // folder: all 8 in the real saves carry only Sentinel tech.
+        if (path.Contains("/SENTINELSHIP/") || path.Contains("/VINTAGEINTERCEPTOR.")) return (new[] { "AllShips", "AllShipsExceptAlien", "RobotShip" }, "SENTINEL SHIP TECHNOLOGY");
+        string[] regular = { "AllShips", "AllShipsExceptAlien", "Ship" };
+        return ShipBaseService.IsCorvetteModel(scenePath ?? "") ? (regular, "CORVETTE TECHNOLOGY") : (regular, "STARSHIP TECHNOLOGY");
+    }
+
+    private void TechCargoStack_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
+    private void MainColumn_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
+
+    /// <summary>Puts the tech list beside tech and cargo, as tall as they are
+    /// (a fixed height left a gap under the tech grid), or underneath them at a
+    /// fixed height when the window is too narrow (it was cut off at ~1500px).
+    /// 2026-10-13.</summary>
+    private void LayoutTechList()
+    {
+        bool beside = MainColumn.ActualWidth >= TechCargoStack.ActualWidth + TechLayoutGrid.ColumnSpacing + TechListCard.Width;
+        Grid.SetRow(TechListCard, beside ? 0 : 1);
+        Grid.SetColumn(TechListCard, beside ? 1 : 0);
+        double height = 560;
+        if (beside)
+        {
+            double chrome = TechListCard.ActualHeight - TechListPanel.ListHeight;
+            if (TechListCard.ActualHeight <= 0 || chrome <= 0) chrome = 230;
+            height = Math.Max(300, TechCargoStack.ActualHeight - chrome);
+        }
+        if (Math.Abs(height - TechListPanel.ListHeight) > 1) TechListPanel.ListHeight = height;
+    }
+
+    /// <summary>The tech list's groups, in the order they're shown: by the
+    /// main stat each tech works on (the game's own BaseStat, via the catalog's
+    /// TechStats), so all the drives sit together, each weapon beside its
+    /// upgrades, and every upgrade module with the tech it upgrades (user
+    /// request 2026-10-13). Figurines and trails also use the scanner stat,
+    /// so they're told apart by name.</summary>
+    private static readonly string[] TechGroupOrder =
+        { "Hyperdrive", "Pulse engine", "Launch thrusters", "Shields", "Weapons", "Utilities", "Figurines", "Starship trails" };
+
+    private static string TechGroup(CatalogPart tech)
+    {
+        if (tech.Name.EndsWith("FIGURINE", StringComparison.OrdinalIgnoreCase)) return "Figurines";
+        if (tech.Name.Contains("STARSHIP TRAIL", StringComparison.OrdinalIgnoreCase)) return "Starship trails";
+        string stat = tech.Stat ?? "";
+        if (stat.StartsWith("Ship_Hyperdrive")) return "Hyperdrive";
+        if (stat.StartsWith("Ship_PulseDrive")) return "Pulse engine";
+        if (stat.StartsWith("Ship_Launcher")) return "Launch thrusters";
+        if (stat.StartsWith("Ship_Armour")) return "Shields";
+        if (stat.StartsWith("Ship_Weapons")) return "Weapons";
+        return "Utilities";
+    }
+
+    /// <summary>Group order, then each weapon type together (by stat), the
+    /// main item before its add-ons, upgrade modules after the tech, A to Z.</summary>
+    private static List<CatalogPart> SortTech(IEnumerable<CatalogPart> tech) =>
+        Controls.ItemListPanel.SortByGroups(tech, TechGroup, TechGroupOrder);
+
+    /// <summary>Upgrade module families each kind of ship takes, from every
+    /// ship in the real saves (2026-10-13): regular and Sentinel ships take the
+    /// station-bought UP_ modules, living ships their own UA_ ones. Corvettes'
+    /// modules (CV_) are all added by their built parts, so none are offered.</summary>
+    private static string[] ModuleFamiliesFor(string header) => header switch
+    {
+        "LIVING SHIP TECHNOLOGY" => new[] { "UA_HYP", "UA_LAUN", "UA_PULSE", "UA_SGUN", "UA_SLASR", "UA_S_SHL" },
+        "CORVETTE TECHNOLOGY" => Array.Empty<string>(),
+        _ => new[] { "UP_HYP", "UP_LAUN", "UP_PULSE", "UP_SGUN", "UP_SLASR", "UP_SMINI", "UP_SSHOT", "UP_S_SHL", "UP_SBLOB" },
+    };
+
+    private async void LoadSelectedShip() => await LoadSelectedShipAsync();
+
+    private async Task LoadSelectedShipAsync()
     {
         SyncTypeComboBox();
 
@@ -267,7 +400,8 @@ public sealed partial class ShipsPage : Page
             TechGrid.Refresh();
             CargoGrid.ViewModel = null;
             CargoGrid.Refresh();
-            TechHeaderTxt.Text = "Technology";
+            TechHeaderTxt.Text = "TECHNOLOGY";
+            TechListCard.Visibility = Visibility.Collapsed;
             ClassSelectorPanel.Children.Clear();
             NameEditBox.Text = "";
             SeedEditBox.Text = "";
@@ -305,7 +439,9 @@ public sealed partial class ShipsPage : Page
         TechGrid.ViewModel = _techViewModel;
         TechGrid.AllowedCategories = new[] { "Technology" };
         TechGrid.AllowedTemplateTypes = new[] { "GcTechnologyTable" };
-        TechGrid.AllowedUsageCategories = new[] { "Ship", "All" };
+        var techRule = TechRuleFor(SaveSessionManager.GetValue(
+            "vLc", "6f=", "@Cs", _selectedIndex.ToString(), "NTx", "93M")?.Value<string>());
+        TechGrid.AllowedUsageCategories = techRule.UsageCategories;
 
         CargoGrid.ViewModel = _cargoViewModel;
         CargoGrid.AllowedCategories = new[] { "Substance", "Product" };
@@ -325,13 +461,46 @@ public sealed partial class ShipsPage : Page
         TechGrid.Refresh();
         CargoGrid.Refresh();
 
-        TechHeaderTxt.Text = $"Technology - {selectedShip.Name}";
+        TechHeaderTxt.Text = $"TECHNOLOGY  —  {selectedShip.Name.ToUpperInvariant()}";
+
+        // The tech this kind of ship can fit, to click in - the same list
+        // limits the right-click search.
+        TechListCard.Visibility = Visibility.Visible;
+        TechListHeaderTxt.Text = techRule.Header;
+        // Figurines and trails don't boost each other in game.
+        TechListPanel.NoAdjacency = p => TechGroup(p) is "Figurines" or "Starship trails";
+        TechListPanel.IsBestClass = () => ReadShipClass(_selectedIndex) == "S";
+        TechListPanel.SwitchToBestClassAsync = async () =>
+        {
+            _techViewModel?.SetClass("S");
+            SyncCargoClass(_selectedIndex);
+            PageResetBtn.Visibility = Visibility.Visible;
+            await LoadSelectedShipAsync();
+        };
+        TechListPanel.MoreRoomHint = () => ReadShipClass(_selectedIndex) == "S" ? null
+            : "S class has more slots - change the class in Ship Details to fit more.";
+        _ = TechListPanel.LoadAsync(TechGrid, async () =>
+        {
+            // Advanced Launch System is a special ship's built-in launcher: it
+            // blocks take-off next to a normal Launch Thruster and the game
+            // won't let you remove it (user, 2026-10-13); no real ship had it.
+            var tech = (await CatalogService.GetTechForAsync(techRule.UsageCategories))
+                .Where(t => !string.Equals(t.GameId, "LAUNCHER_SPEC", StringComparison.OrdinalIgnoreCase)).ToList();
+            TechGrid.AllowedItemIds = tech.Select(t => t.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var modules = await CatalogService.GetUpgradeModulesAsync(ModuleFamiliesFor(techRule.Header));
+            return SortTech(tech.Concat(modules));
+        }, "technology", "technologies", "Technology", TechGroup);
         PageResetBtn.Visibility = (_techViewModel.HasLocalChanges || _cargoViewModel.HasLocalChanges)
             ? Visibility.Visible : Visibility.Collapsed;
 
         BuildClassSelector();
         NameEditBox.Text = selectedShip.Name;
+        CorvetteNote.Visibility = selectedShip.IsCorvette ? Visibility.Visible : Visibility.Collapsed;
+        CorvetteNoteTxt.Text = selectedShip.BuildParts > 0
+            ? $"This is a corvette. What you built onto it - {selectedShip.BuildParts} parts: cockpit, habitat, wings, engines and the rest - is stored apart from the ship. Full Build templates include it."
+            : "This is a corvette with no build of its own yet, so the game shows the default one.";
         SeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.ShipModelSeedPath(_selectedIndex))?.Value<string>() ?? "";
+        RefreshShipParts();
         UpdateStatDisplay();
     }
 
@@ -397,6 +566,7 @@ public sealed partial class ShipsPage : Page
 
         SaveSessionManager.StageEdit(type.ScenePath, "vLc", "6f=", "@Cs", _selectedIndex.ToString(), "NTx", "93M");
         PageResetBtn.Visibility = Visibility.Visible;
+        RefreshShipParts();
     }
 
     /// <summary>Stages the seed when the field loses focus - same plain-text
@@ -414,6 +584,7 @@ public sealed partial class ShipsPage : Page
 
         SaveSessionManager.StageEdit(newSeed, seedPath);
         PageResetBtn.Visibility = Visibility.Visible;
+        RefreshShipParts();
     }
 
     /// <summary>Rerolls the selected ship to a brand new random seed - same
@@ -429,6 +600,7 @@ public sealed partial class ShipsPage : Page
         SeedEditBox.Text = newSeed;
         SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.ShipModelSeedPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
+        RefreshShipParts();
     }
 
     private void GridCellChanged(object? sender, EventArgs e) =>
@@ -460,7 +632,7 @@ public sealed partial class ShipsPage : Page
 
         foreach (var letter in new[] { "S", "A", "B", "C" })
         {
-            bool isCurrent = string.Equals(_techViewModel.CurrentClass, letter, StringComparison.OrdinalIgnoreCase);
+            bool isCurrent = string.Equals(ReadShipClass(_selectedIndex), letter, StringComparison.OrdinalIgnoreCase);
 
             var button = new Button
             {
@@ -469,15 +641,9 @@ public sealed partial class ShipsPage : Page
                     Text = letter,
                     FontWeight = isCurrent ? FontWeights.Bold : FontWeights.Normal
                 },
-                Padding = new Thickness(14, 4, 14, 4),
-                BorderThickness = new Thickness(isCurrent ? 2 : 1),
-                BorderBrush = new SolidColorBrush(isCurrent
-                    ? Color.FromArgb(255, 255, 157, 0)
-                    : Color.FromArgb(255, 90, 98, 112)),
-                Background = new SolidColorBrush(isCurrent
-                    ? Color.FromArgb(60, 255, 157, 0)
-                    : Color.FromArgb(20, 255, 255, 255))
+                Padding = new Thickness(14, 4, 14, 4)
             };
+            ThemeResources.StyleChoiceButton(button, isCurrent);
 
             button.Click += (_, _) =>
             {
@@ -485,6 +651,7 @@ public sealed partial class ShipsPage : Page
                 // totals (StarshipCapacity), so both grids get fully rebuilt via
                 // LoadSelectedShip rather than just refreshed in place.
                 _techViewModel?.SetClass(letter);
+                SyncCargoClass(_selectedIndex);
                 PageResetBtn.Visibility = Visibility.Visible;
                 LoadSelectedShip();
             };
@@ -662,6 +829,13 @@ public sealed partial class ShipsPage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
+    private void SortCargo_Click(object sender, RoutedEventArgs e)
+    {
+        if (_cargoViewModel?.SortItems() != true) return;
+        CargoGrid.Refresh();
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
     private void SuperchargeAllTech_Click(object sender, RoutedEventArgs e)
     {
         _techViewModel?.SuperchargeAll();
@@ -674,6 +848,27 @@ public sealed partial class ShipsPage : Page
         _techViewModel?.RepairAll();
         TechGrid.Refresh();
         PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Groups same-type tech together for the adjacency boost (see
+    /// InventoryGridViewModel.ArrangeForAdjacency); types come from the tech
+    /// list beside the grid.</summary>
+    private void ArrangeTech_Click(object sender, RoutedEventArgs e)
+    {
+        int moved = TechGrid.ArrangeForAdjacency(TechListPanel.TypeOf);
+        if (moved > 0) PageResetBtn.Visibility = Visibility.Visible;
+        FlyoutBase.SetAttachedFlyout((FrameworkElement)sender, new Flyout
+        {
+            Content = new TextBlock
+            {
+                Text = moved > 0
+                    ? $"Moved {moved} so each type sits together. Reset undoes it."
+                    : "Already grouped - nothing to move.",
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 260,
+            },
+        });
+        FlyoutBase.ShowAttachedFlyout((FrameworkElement)sender);
     }
 
     /// <summary>Toggles between the compact, game-matching preview height and
@@ -748,11 +943,12 @@ public sealed partial class ShipsPage : Page
 
         var sourcePositions = _techViewModel.Cells.Where(c => c.IsOccupied).Select(c => (c.X, c.Y));
         var (confirmed, alsoMatchClass) = await ShowCopyConfirmationAsync(
-            $"a copy of {sourceShip.Name}'s", _techViewModel.CurrentClass, sourcePositions, targetShip.Name, targetViewModel);
+            $"a copy of {sourceShip.Name}'s", ReadShipClass(sourceShip.Index), sourcePositions, targetShip.Name, targetViewModel);
 
         if (!confirmed) return;
 
         targetViewModel.CopyTechStackFrom(_techViewModel, alsoMatchClass);
+        SyncCargoClass(targetShip.Index);
 
         PageResetBtn.Visibility = Visibility.Visible;
         LoadShipList();
@@ -812,6 +1008,19 @@ public sealed partial class ShipsPage : Page
     /// separate list below (RefreshFullBuildTemplatesListAsync) so it's
     /// obvious which ones will touch Stats/Seed and which won't. Called after
     /// saving, deleting, or applying a template, and once on page load.</summary>
+    /// <summary>Imports a template file someone shared (TemplateSharingService checks it first).</summary>
+    private async void ImportTemplateBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var result = await TemplateSharingService.ImportAsync("Ship");
+        if (result is not { } r) return;
+        ImportTemplateStatusTxt.Text = r.Message;
+        ImportTemplateStatusTxt.Foreground = ThemeResources.Brush(r.Ok ? "ThemeDoneBrush" : "ThemeWarningBrush");
+        ImportTemplateStatusTxt.Visibility = Visibility.Visible;
+        if (!r.Ok) return;
+        await RefreshTemplatesListAsync();
+        await RefreshFullBuildTemplatesListAsync();
+    }
+
     private async Task RefreshTemplatesListAsync()
     {
         var templates = (await LoadoutTemplateService.LoadAllAsync())
@@ -858,6 +1067,11 @@ public sealed partial class ShipsPage : Page
             applyButton.Click += async (_, _) => await ApplyTemplateAsync(template);
             buttonRow.Children.Add(applyButton);
 
+            var shareButton = new Button { Content = "Share...", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            ToolTipService.SetToolTip(shareButton, "Save this template as a file - to give to a friend, or to keep as a backup");
+            shareButton.Click += async (_, _) => await TemplateSharingService.ExportAsync(shareButton, template);
+            buttonRow.Children.Add(shareButton);
+
             var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
             deleteButton.Click += async (_, _) =>
             {
@@ -870,7 +1084,7 @@ public sealed partial class ShipsPage : Page
 
             row.Children.Add(new Border
             {
-                BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 Margin = new Thickness(0, 4, 0, 0)
             });
@@ -917,15 +1131,51 @@ public sealed partial class ShipsPage : Page
         string name = nameBox.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(name)) return;
 
-        var template = _techViewModel.ExtractTemplate(name, sourceShip.Name, "Ship");
-        template.Scope = "FullBuild";
-        template.Stats = ExtractStatsList(_selectedIndex);
-        template.Seed = SaveSessionManager.GetValue(NmsInventoryContainer.ShipModelSeedPath(_selectedIndex))?.Value<string>();
-        template.TypeScenePath = SaveSessionManager.GetValue(
-            "vLc", "6f=", "@Cs", _selectedIndex.ToString(), "NTx", "93M")?.Value<string>();
-
-        await LoadoutTemplateService.SaveAsync(template);
+        await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate(name, sourceShip));
         await RefreshFullBuildTemplatesListAsync();
+    }
+
+    /// <summary>The selected ship as a Full Build template (Save Current, and
+    /// "save it first" when deleting).</summary>
+    private NmsLoadoutTemplate BuildFullBuildTemplate(string name, ShipEntry source)
+    {
+        var template = _techViewModel!.ExtractTemplate(name, source.Name, "Ship");
+        template.Scope = "FullBuild";
+        template.Stats = ExtractStatsList(source.Index);
+        template.Seed = SaveSessionManager.GetValue(NmsInventoryContainer.ShipModelSeedPath(source.Index))?.Value<string>();
+        template.TypeScenePath = SaveSessionManager.GetValue(
+            "vLc", "6f=", "@Cs", source.Index.ToString(), "NTx", "93M")?.Value<string>();
+        NewFromTemplateService.CaptureShip(template, source.Index);
+        return template;
+    }
+
+    /// <summary>Deletes the selected ship from the save (with its corvette
+    /// build), after a strict confirmation that can keep it as a template first.
+    /// The ship being flown can't go - the game needs one.</summary>
+    private async void DeleteShipBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var ship = _ships.FirstOrDefault(s => s.Index == _selectedIndex);
+        if (ship is null || _techViewModel is null) return;
+        if (ship.IsGameActive)
+        {
+            await DeleteConfirmation.ShowBlockedAsync(XamlRoot, "That's the ship you're flying",
+                $"{ship.Name} is your active ship, and the game always needs one. Switch to another ship in game, save, then delete this one here.");
+            return;
+        }
+
+        string whatGoes = "its tech, everything in its cargo, its paint"
+            + (ship.BuildParts > 0 ? $" and its corvette build ({ship.BuildParts} parts)" : "");
+        var choice = await DeleteConfirmation.ShowAsync(XamlRoot, ship.Name, whatGoes);
+        if (!choice.Confirmed) return;
+
+        if (choice.SaveTemplateFirst)
+        {
+            await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate($"{ship.Name} (saved before deleting)", ship));
+            await RefreshFullBuildTemplatesListAsync();
+        }
+        NewFromTemplateService.RemoveShip(ship.Index);
+        _selectedIndex = -1;
+        LoadShipList();
     }
 
     /// <summary>Same shape as RefreshTemplatesListAsync, filtered to Scope==
@@ -964,7 +1214,8 @@ public sealed partial class ShipsPage : Page
             });
             row.Children.Add(new TextBlock
             {
-                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class, stats+seed{sourceInfo}",
+                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class, stats+seed"
+                    + (ShipBaseService.HasBuild(template) ? $", corvette build ({template.InteriorObjects!.Count} parts)" : "") + sourceInfo,
                 FontSize = 10,
                 Opacity = 0.6,
                 TextWrapping = TextWrapping.Wrap
@@ -972,9 +1223,15 @@ public sealed partial class ShipsPage : Page
 
             var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 
-            var applyButton = new Button { Content = "Apply", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            applyButton.Click += async (_, _) => await ApplyFullBuildTemplateAsync(template);
-            buttonRow.Children.Add(applyButton);
+            var addButton = new Button { Content = "Add as new", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            ToolTipService.SetToolTip(addButton, "Add this whole build as a new Starship in an empty slot. Your other Starships aren't changed.");
+            addButton.Click += async (_, _) => await AddAsNewAsync(template);
+            buttonRow.Children.Add(addButton);
+
+            var shareButton = new Button { Content = "Share...", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            ToolTipService.SetToolTip(shareButton, "Save this template as a file - to give to a friend, or to keep as a backup");
+            shareButton.Click += async (_, _) => await TemplateSharingService.ExportAsync(shareButton, template);
+            buttonRow.Children.Add(shareButton);
 
             var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
             deleteButton.Click += async (_, _) =>
@@ -988,7 +1245,7 @@ public sealed partial class ShipsPage : Page
 
             row.Children.Add(new Border
             {
-                BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 Margin = new Thickness(0, 4, 0, 0)
             });
@@ -1019,65 +1276,50 @@ public sealed partial class ShipsPage : Page
         return result;
     }
 
-    /// <summary>Stages a Full Build template's saved stats onto the given ship -
-    /// rebuilds the whole @bB array matched by key, same "match by key, replace
-    /// whole array" pattern as SetStatValue. A key present on the target but not
-    /// in the template (or vice versa) is left untouched/dropped respectively -
-    /// this only ever adjusts values for keys both sides already agree exist.</summary>
-    private static void ApplyStatsList(int targetShipIndex, List<NmsLoadoutStat> stats)
+    /// <summary>Full Build templates add a whole new Starship in the first
+    /// empty slot (NewFromTemplateService) - the Starships you have are never
+    /// changed. Tech Stack templates are the ones that Apply onto the selected one.</summary>
+    private async Task AddAsNewAsync(NmsLoadoutTemplate template)
     {
-        if (stats.Count == 0) return;
-
-        var bonusesPath = NmsInventoryContainer.ShipStatBonusesPath(targetShipIndex);
-        var bonuses = SaveSessionManager.GetValue(bonusesPath) as JArray;
-        if (bonuses is null) return;
-
-        var statsByKey = stats.ToDictionary(s => s.Key, s => s.Value);
-
-        var updated = new JArray();
-        foreach (var entry in bonuses)
+        int total = NewFromTemplateService.ShipSlotCount;
+        int skeleton = _ships.FirstOrDefault(x => x.Index == _selectedIndex)?.Index ?? _ships.FirstOrDefault()?.Index ?? -1;
+        if (skeleton < 0 || NewFromTemplateService.FirstEmptyShipSlot() is not int slot)
         {
-            if (entry is JObject obj && obj["QL1"]?.Value<string>() is string key && statsByKey.TryGetValue(key, out double newValue))
+            await new ContentDialog
             {
-                var clone = (JObject)obj.DeepClone();
-                clone[">MX"] = newValue;
-                updated.Add(clone);
-            }
-            else
-            {
-                updated.Add(entry.DeepClone());
-            }
+                Title = "No room for another Starship",
+                Content = new TextBlock
+                {
+                    TextWrapping = TextWrapping.Wrap,
+                    Text = skeleton < 0
+                        ? "This save doesn't have a Starship yet. Get one in game first, then add builds here."
+                        : $"All {total} Starship slots are in use. Sell or scrap one in game, then try again."
+                },
+                CloseButtonText = "OK",
+                XamlRoot = this.XamlRoot
+            }.ShowAsync();
+            return;
         }
 
-        SaveSessionManager.StageEdit(updated, bonusesPath);
-    }
+        var confirm = new ContentDialog
+        {
+            Title = $"Add \"{template.Name}\" as a new Starship?",
+            Content = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Text = $"It goes in empty slot {slot + 1} of {total} with this build's tech, class, stats and look. "
+                    + "Your other Starships aren't changed. Nothing is written to your save until you Save."
+            },
+            PrimaryButtonText = "Add",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = this.XamlRoot
+        };
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
 
-    /// <summary>Applies a saved Full Build template's tech, stats, and Seed to
-    /// whichever ship is currently selected - Class only changes if the user
-    /// opts in, same as ApplyTemplateAsync.</summary>
-    private async Task ApplyFullBuildTemplateAsync(NmsLoadoutTemplate template)
-    {
-        if (_selectedIndex < 0 || _techViewModel is null) return;
-
-        var targetShip = _ships.FirstOrDefault(s => s.Index == _selectedIndex);
-        if (targetShip is null) return;
-
-        var sourcePositions = template.UnlockedPositions.Select(p => (p.X, p.Y));
-        var (confirmed, alsoMatchClass) = await ShowCopyConfirmationAsync(
-            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions, targetShip.Name, _techViewModel,
-            includesStatsAndSeed: true);
-
-        if (!confirmed) return;
-
-        _techViewModel.ApplyTemplate(template, alsoMatchClass);
-        ApplyStatsList(_selectedIndex, template.Stats);
-        if (!string.IsNullOrEmpty(template.Seed))
-            SaveSessionManager.StageEdit(template.Seed, NmsInventoryContainer.ShipModelSeedPath(_selectedIndex));
-        if (!string.IsNullOrEmpty(template.TypeScenePath))
-            SaveSessionManager.StageEdit(template.TypeScenePath, "vLc", "6f=", "@Cs", _selectedIndex.ToString(), "NTx", "93M");
-
-        PageResetBtn.Visibility = Visibility.Visible;
-        LoadSelectedShip();
+        if (NewFromTemplateService.AddShip(template, skeleton) is not int added) return;
+        _selectedIndex = added;
+        LoadShipList();
     }
 
     /// <summary>Applies a saved template to whichever ship is currently selected
@@ -1099,6 +1341,7 @@ public sealed partial class ShipsPage : Page
         if (!confirmed) return;
 
         _techViewModel.ApplyTemplate(template, alsoMatchClass);
+        SyncCargoClass(_selectedIndex);
         PageResetBtn.Visibility = Visibility.Visible;
         LoadSelectedShip();
     }
@@ -1108,7 +1351,7 @@ public sealed partial class ShipsPage : Page
     /// helper and the two pages have no other shared base to hang it on.</summary>
     private async Task<(bool Confirmed, bool AlsoMatchClass)> ShowCopyConfirmationAsync(
         string sourceLabel, string? sourceClass, IEnumerable<(int X, int Y)> sourcePositions,
-        string targetLabel, InventoryGridViewModel targetViewModel, bool includesStatsAndSeed = false)
+        string targetLabel, InventoryGridViewModel targetViewModel)
     {
         var sourcePositionSet = sourcePositions.ToHashSet();
         var targetUnlocked = targetViewModel.Cells.Where(c => c.State != InventorySlotState.Locked).Select(c => (c.X, c.Y)).ToHashSet();
@@ -1120,9 +1363,7 @@ public sealed partial class ShipsPage : Page
         panel.Children.Add(new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
-            Text = includesStatsAndSeed
-                ? $"This replaces {targetLabel}'s entire tech loadout, base stats, Type, and appearance seed with {sourceLabel}."
-                : $"This replaces {targetLabel}'s entire tech loadout with {sourceLabel}."
+            Text = $"This replaces {targetLabel}'s entire tech loadout with {sourceLabel}."
         });
 
         if (newSlotsNeeded > 0)
@@ -1130,7 +1371,7 @@ public sealed partial class ShipsPage : Page
             panel.Children.Add(new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = new SolidColorBrush(Color.FromArgb(255, 230, 160, 60)),
+                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
                 Text = $"⚠ {newSlotsNeeded} slot(s) will also be unlocked on {targetLabel} to fit this stack."
             });
         }
@@ -1141,7 +1382,7 @@ public sealed partial class ShipsPage : Page
             panel.Children.Add(new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = new SolidColorBrush(Color.FromArgb(255, 230, 160, 60)),
+                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
                 Text = $"⚠ Class differs: {targetLabel} is currently {targetViewModel.CurrentClass ?? "unknown"}, source is {sourceClass ?? "unknown"}."
             });
 
@@ -1151,7 +1392,7 @@ public sealed partial class ShipsPage : Page
 
         var dialog = new ContentDialog
         {
-            Title = includesStatsAndSeed ? "Confirm full build copy" : "Confirm tech stack copy",
+            Title = "Confirm tech stack copy",
             Content = panel,
             PrimaryButtonText = "Copy",
             CloseButtonText = "Cancel",

@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). -->
 <Page
     x:Class="ArtifactX.WinUI3.Views.MilestonesPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -9,7 +10,7 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <ScrollViewer>
-        <StackPanel Padding="24" Spacing="20" HorizontalAlignment="Stretch">
+        <StackPanel Padding="28,26,28,40" Spacing="22" HorizontalAlignment="Stretch">
 
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -17,53 +18,73 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="Milestones" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="0" Text="MILESTONES" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
                 <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Milestone Changes" Click="PageResetBtn_Click"
                         Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
             </Grid>
 
-            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="820"
-                       Text="From the in-game Catalog &amp; Guide -&gt; Milestones screen - save-wide progress tracking, not tied to any specific ship/tool/companion, and NOT shared with your other save slots (each is a fully independent file). 11 of 12 categories are mapped to real save data so far (the 3 Guilds are partial - their Standing/Missions Completed fields are still ambiguous). Previous Expeditions doesn't store expedition names in the save at all, so it can't be mapped the same way - see its placeholder for details."/>
+            <!-- Mapping status: 11 of 12 categories are mapped to real GLOBAL_STATS ids
+                 (the 3 Guilds partially - see the guild note in the code-behind).
+                 Previous Expeditions has no names in the save at all, so it can't be
+                 mapped the same way. -->
+            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" MaxWidth="820" HorizontalAlignment="Left"
+                       Text="Your progress from the in-game Catalog &amp; Guide &gt; Milestones screen. These numbers belong to this save slot only; your other slots keep their own."/>
 
-            <Grid ColumnSpacing="24">
+            <Grid ColumnSpacing="22">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="260"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0" Spacing="18">
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="MILESTONES" FontSize="11" FontWeight="SemiBold" Opacity="0.5"/>
-                        <StackPanel x:Name="MilestonesGroupPanel" Spacing="4"/>
+                <Border Grid.Column="0" Style="{StaticResource ThemeCardStyle}" VerticalAlignment="Top">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <TextBlock Text="CATEGORIES" Style="{StaticResource ThemeBandTextStyle}"/>
+                        </Border>
+                        <StackPanel Padding="16,14,16,16" Spacing="18">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="MILESTONES" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <StackPanel x:Name="MilestonesGroupPanel" Spacing="6"/>
+                            </StackPanel>
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="LIFEFORMS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <StackPanel x:Name="LifeformsGroupPanel" Spacing="6"/>
+                            </StackPanel>
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="FACTIONS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <StackPanel x:Name="FactionsGroupPanel" Spacing="6"/>
+                            </StackPanel>
+                        </StackPanel>
                     </StackPanel>
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="LIFEFORMS" FontSize="11" FontWeight="SemiBold" Opacity="0.5"/>
-                        <StackPanel x:Name="LifeformsGroupPanel" Spacing="4"/>
-                    </StackPanel>
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="FACTIONS" FontSize="11" FontWeight="SemiBold" Opacity="0.5"/>
-                        <StackPanel x:Name="FactionsGroupPanel" Spacing="4"/>
-                    </StackPanel>
-                </StackPanel>
+                </Border>
 
                 <Grid Grid.Column="1">
                     <!-- Shown for the 1 category with no confirmed stat mapping yet. -->
-                    <StackPanel x:Name="PlaceholderPanel" Spacing="10" HorizontalAlignment="Left" MaxWidth="600">
-                        <TextBlock x:Name="PlaceholderHeaderTxt" FontSize="20" FontWeight="SemiBold"/>
-                        <TextBlock x:Name="PlaceholderNoteTxt" TextWrapping="Wrap" Opacity="0.7"/>
-                    </StackPanel>
+                    <Border x:Name="PlaceholderPanel" Style="{StaticResource ThemeCardStyle}"
+                            MaxWidth="600" HorizontalAlignment="Left" VerticalAlignment="Top">
+                        <StackPanel>
+                            <Border Style="{StaticResource ThemeBandStyle}">
+                                <TextBlock x:Name="PlaceholderHeaderTxt" Style="{StaticResource ThemeBandTextStyle}"/>
+                            </Border>
+                            <TextBlock x:Name="PlaceholderNoteTxt" Style="{StaticResource ThemeDimTextStyle}" Margin="20,16,20,20"/>
+                        </StackPanel>
+                    </Border>
 
                     <!-- One reusable panel for every mapped category - fields are built
                          dynamically in code from each category's field list (see
                          MappedCategories in the code-behind) rather than one hand-written
                          Border per category, since 6 mapped categories x ~4-5 fields each
                          would otherwise mean a lot of repetitive XAML. -->
-                    <Border x:Name="MappedCategoryPanel" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                            CornerRadius="8" Padding="20" Opacity="0.9" Width="340" HorizontalAlignment="Left" Visibility="Collapsed">
-                        <StackPanel Spacing="14">
-                            <TextBlock x:Name="MappedCategoryHeaderTxt" FontSize="20" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="MappedCategoryNoteTxt" FontSize="11" Opacity="0.6" TextWrapping="Wrap"/>
-                            <StackPanel x:Name="MappedCategoryFieldsPanel" Spacing="14"/>
+                    <Border x:Name="MappedCategoryPanel" Style="{StaticResource ThemeCardStyle}"
+                            Width="360" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed">
+                        <StackPanel>
+                            <Border Style="{StaticResource ThemeBandStyle}">
+                                <TextBlock x:Name="MappedCategoryHeaderTxt" Style="{StaticResource ThemeBandTextStyle}"/>
+                            </Border>
+                            <StackPanel Padding="20,16,20,20" Spacing="16">
+                                <TextBlock x:Name="MappedCategoryNoteTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                <StackPanel x:Name="MappedCategoryFieldsPanel" Spacing="14"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </Grid>

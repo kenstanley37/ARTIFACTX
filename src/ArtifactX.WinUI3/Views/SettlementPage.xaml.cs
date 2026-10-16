@@ -6,6 +6,8 @@ using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using libMBIN.NMS.GameComponents;
 using Newtonsoft.Json.Linq;
+using Microsoft.UI.Xaml.Automation;
+using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -102,8 +104,12 @@ public sealed partial class SettlementPage : Page
         LoadSelectedSettlement();
     }
 
-    private void BuildSelectorStrip()
+    private async void BuildSelectorStrip()
     {
+        if (_buildingNames.Count == 0) _buildingNames = await CatalogService.GetSettlementBuildingNamesAsync();
+        // Production icons/names on the cards come from the catalog cache.
+        if (SaveSessionManager.GetValue(NmsSettlementPaths.SettlementArrayPath) is JArray all)
+            await CatalogService.WarmCacheAsync(_settlements.SelectMany(st => (all[st.Index]?["abj"] as JArray)?.Select(x => x["CZw"]?.Value<string>()) ?? Enumerable.Empty<string?>()));
         SettlementSelectorPanel.Children.Clear();
 
         foreach (var settlement in _settlements)
@@ -112,20 +118,14 @@ public sealed partial class SettlementPage : Page
 
             var button = new Button
             {
-                Content = new TextBlock
-                {
-                    Text = settlement.SelectorLabel,
-                    FontWeight = isSelected ? FontWeights.SemiBold : FontWeights.Normal
-                },
-                Padding = new Thickness(12, 6, 12, 6),
-                BorderThickness = new Thickness(isSelected ? 2 : 1),
-                BorderBrush = new SolidColorBrush(isSelected
-                    ? Color.FromArgb(255, 255, 157, 0)
-                    : Color.FromArgb(255, 90, 98, 112)),
-                Background = new SolidColorBrush(isSelected
-                    ? Color.FromArgb(60, 255, 157, 0)
-                    : Color.FromArgb(20, 255, 255, 255))
+                Content = SettlementCard(settlement, isSelected),
+                Padding = new Thickness(14, 10, 14, 10),
+                Width = 300,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
             };
+            ThemeResources.StyleChoiceButton(button, isSelected);
+            AutomationProperties.SetName(button, settlement.SelectorLabel);
 
             button.Click += (_, _) =>
             {
@@ -136,6 +136,70 @@ public sealed partial class SettlementPage : Page
 
             SettlementSelectorPanel.Children.Add(button);
         }
+    }
+
+    /// <summary>A settlement as a small card, like the game's Settlements
+    /// Register (user request 2026-10-14): name, where it is (planet, system,
+    /// galaxy), the system's race, population, and the building queued for an
+    /// upgrade. All read from the save / generated from the address.</summary>
+    private UIElement SettlementCard(SettlementEntry settlement, bool isSelected)
+    {
+        var path = NmsSettlementPaths.SettlementPath(settlement.Index);
+        ulong? address = S.ParsePackedAddress(SaveSessionManager.GetValue(path.Append("yhJ").ToArray()));
+        var card = new StackPanel { Spacing = 3 };
+        card.Children.Add(new TextBlock
+        {
+            Text = settlement.SelectorLabel,
+            FontSize = 15,
+            FontWeight = isSelected ? FontWeights.Bold : FontWeights.SemiBold,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        });
+        TextBlock Line(string text) => new()
+        {
+            Text = text, FontSize = 12, Opacity = 0.8, TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        if (address is ulong a)
+        {
+            int planet = (int)((a >> 52) & 0xF);
+            int galaxy = S.GalaxyNumber(a);
+            string where = planet > 0 ? $"{UniverseInfo.PlanetName(a, planet)} · {UniverseInfo.SystemName(a)} system" : $"{UniverseInfo.SystemName(a)} system";
+            card.Children.Add(Line(where));
+            string galaxyName = NmsGalaxyNames.ForNumber(galaxy) is string g ? $"{g} ({galaxy})" : $"Galaxy {galaxy}";
+            card.Children.Add(Line($"{galaxyName} · {UniverseInfo.RaceLabel(a)}"));
+        }
+        int population = SaveSessionManager.GetValue(NmsSettlementPaths.PopulationPath(settlement.Index))?.Value<int>() ?? 0;
+        card.Children.Add(Line($"Population {population.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)}"));
+        // What it produces: ProductionState (abj), two slots of item (CZw) and the
+        // building making it (N6t.iqv). Slots with no building ("None") aren't
+        // shown in game either (Inuyam's Cove lists Nitrogen/Sulphurine but the
+        // register shows nothing) - checked against the Settlements Register 2026-10-14.
+        if (SaveSessionManager.GetValue(path.Append("abj").ToArray()) is JArray production)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 4, 0, 0) };
+            foreach (var slot in production.OfType<JObject>())
+            {
+                string item = slot["CZw"]?.Value<string>() ?? "";
+                string maker = slot["N6t"]?["iqv"]?.Value<string>() ?? "None";
+                if (item.Trim('^').Length == 0 || maker == "None") continue;
+                var entry = CatalogService.TryGet(item);
+                var chip = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+                if (entry?.Icon is { } icon) chip.Children.Add(new Image { Source = icon, Width = 22, Height = 22 });
+                chip.Children.Add(new TextBlock { Text = entry?.DisplayName ?? CatalogService.NormalizeId(item), FontSize = 12, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 110 });
+                ToolTipService.SetToolTip(chip, $"{entry?.DisplayName ?? item} - made by the {BuildingLabel(maker)}");
+                row.Children.Add(chip);
+            }
+            if (row.Children.Count > 0) card.Children.Add(row);
+        }
+        string next = SaveSessionManager.GetValue(path.Concat(new[] { ":Qn", "iqv" }).ToArray())?.ToString() ?? "";
+        if (next.Length > 0 && next != "None")
+            card.Children.Add(new TextBlock
+            {
+                Text = $"Building: {BuildingLabel(next)}",
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = ThemeResources.Brush("ThemeAccentBrush"),
+            });
+        return card;
     }
 
     private void ClearFields()
@@ -194,6 +258,7 @@ public sealed partial class SettlementPage : Page
             ? Visibility.Visible : Visibility.Collapsed;
 
         _suppressStatChangeEvent = false;
+        await LoadMaterialsAsync();
     }
 
     private static TextBlock FieldLabel(string text) => new()
@@ -201,7 +266,7 @@ public sealed partial class SettlementPage : Page
         Text = text,
         Width = 90,
         VerticalAlignment = VerticalAlignment.Center,
-        Opacity = 0.8,
+        Foreground = ThemeResources.Brush("ThemeTextDimBrush"),
         FontSize = 12
     };
 
@@ -234,14 +299,16 @@ public sealed partial class SettlementPage : Page
 
     private static readonly SolidColorBrush NegativePerkBrush = new(Color.FromArgb(255, 0xE0, 0x4C, 0x3D));
     private static readonly SolidColorBrush PositivePerkBrush = new(Color.FromArgb(255, 0x3D, 0xC4, 0x77));
-    private static readonly SolidColorBrush NeutralPerkBrush = new(Color.FromArgb(255, 0x8A, 0x96, 0xA8));
+    // Positive/negative perk colours are meaning (good/bad), not decoration,
+    // so they stay fixed; neutral and the perk card chrome follow the theme.
+    private static Brush NeutralPerkBrush => ThemeResources.Brush("ThemeTextDimBrush");
 
     /// <summary>Red for a Negative-flagged perk, green for Positive,
     /// neutral gray for "(None)"/unrecognized - Category always starts
     /// with "Negative"/"Positive" (see CatalogBuildService's Phase 1.8;
     /// the other flags like Blessing/Job/Starter/Proc are appended after,
     /// never first) so a simple StartsWith check is enough.</summary>
-    private static SolidColorBrush PerkSignBrush(string? category) => category switch
+    private static Brush PerkSignBrush(string? category) => category switch
     {
         null or "" => NeutralPerkBrush,
         _ when category.StartsWith("Negative", StringComparison.OrdinalIgnoreCase) => NegativePerkBrush,
@@ -249,8 +316,14 @@ public sealed partial class SettlementPage : Page
         _ => NeutralPerkBrush
     };
 
-    private static readonly SolidColorBrush CardBorderBrush = new(Color.FromArgb(255, 90, 98, 112));
-    private static readonly SolidColorBrush CardBackgroundBrush = new(Color.FromArgb(18, 255, 255, 255));
+    /// <summary>Category flags minus "Proc" - those perks' names already say
+    /// "(random name)" (see CatalogService.ReadablePerkName).</summary>
+    private static string DisplayCategory(string category) => string.Join(", ",
+        category.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Where(flag => !flag.Equals("Proc", StringComparison.OrdinalIgnoreCase)));
+
+    private static Brush CardBorderBrush => ThemeResources.Brush("ThemeLineBrush");
+    private static Brush CardBackgroundBrush => ThemeResources.Brush("ThemePanelAltBrush");
     private const int PerksPerCard = 6;
 
     /// <summary>One dropdown per Perks (OEf) array slot, each offering
@@ -311,7 +384,7 @@ public sealed partial class SettlementPage : Page
             string baseId = hashIdx >= 0 ? stripped[..hashIdx] : stripped;
 
             var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-            row.Children.Add(FieldLabel($"Buff {i + 1}"));
+            row.Children.Add(FieldLabel($"Feature {i + 1}"));
 
             var swatch = new Border
             {
@@ -321,14 +394,14 @@ public sealed partial class SettlementPage : Page
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            var box = new ComboBox { Width = 340 };
+            var box = new ComboBox { Width = 400 };
             var noneItem = new ComboBoxItem { Content = "(None)", Tag = "", Foreground = NeutralPerkBrush };
             box.Items.Add(noneItem);
             foreach (var kv in sortedPerks)
             {
                 var item = new ComboBoxItem
                 {
-                    Content = $"{kv.Value.DisplayName} ({kv.Value.Category})",
+                    Content = $"{kv.Value.DisplayName} ({DisplayCategory(kv.Value.Category)})",
                     Tag = kv.Key,
                     Foreground = PerkSignBrush(kv.Value.Category)
                 };

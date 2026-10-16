@@ -55,6 +55,7 @@ public partial class SaveFolderSelectViewModel : ObservableObject
                 candidate.PropertyChanged += OnCandidatePropertyChanged;
                 Candidates.Add(candidate);
             }
+            MarkLatest(Candidates);
             return;
         }
 
@@ -63,7 +64,9 @@ public partial class SaveFolderSelectViewModel : ObservableObject
 
         try
         {
+            DevTimingLog.Write("save selection: detecting accounts");
             var detected = await Task.Run(SaveFolderDetectionService.DetectCandidates);
+            DevTimingLog.Write($"save selection: {detected.Count} accounts detected");
             var customCandidates = PruneAndLoadCustomFolders();
 
             var allCandidates = detected
@@ -71,12 +74,24 @@ public partial class SaveFolderSelectViewModel : ObservableObject
                 .DistinctBy(c => c.FolderPath, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            // Every candidate gets decrypted and indexed exactly once, here, in
-            // parallel, before anything is shown. Expanding a card afterward
-            // never touches disk again - and, as of this cache, neither does
-            // navigating away from and back to this page within the same
-            // NMS session.
-            await Task.WhenAll(allCandidates.Select(LoadSlotGroupsAsync));
+            // Backups used to be keyed by the card's display name; move them to
+            // their account's own folder where that's unambiguous (BackupService).
+            BackupService.MigrateLegacyFolders(allCandidates
+                .Where(c => !c.IsDevTest)
+                .ToDictionary(c => c.FolderPath, c => c.Source switch
+                {
+                    SaveFolderSource.Manual => SaveFolderSettingsService.GetCustomFolderName(c.FolderPath) is { Length: > 0 } custom ? custom : "Custom Folder",
+                    _ => c.PlatformName,
+                }, StringComparer.OrdinalIgnoreCase));
+
+            DevTimingLog.Write("save selection: old backups checked");
+
+            // The account played most recently first (with several Steam/GOG
+            // accounts, that's almost always the one wanted), then the rest -
+            // by the save files' dates, so the order is known before any save
+            // is read.
+            allCandidates = allCandidates.OrderByDescending(c => c.LastPlayedUtc).ToList();
+            foreach (var candidate in allCandidates) candidate.IsLoadingSlots = true;
 
             // Null (never persisted - first launch ever) defaults every card open,
             // so a brand-new user immediately sees their saves instead of a wall
@@ -123,6 +138,22 @@ public partial class SaveFolderSelectViewModel : ObservableObject
                 StatusMessage = "No save folders were detected automatically. Use \"Browse for folder\" to add yours.";
 
             _cachedCandidates = allCandidates;
+
+            // The cards are on screen now, each with its own "Reading saves"
+            // spinner. Every candidate is decrypted and indexed exactly once,
+            // here; expanding a card afterward never touches disk again - and,
+            // with the cache above, neither does navigating back to this page
+            // within the same NMS session. Started in card order, and the
+            // indexer reads one file per core at a time, so the most recent
+            // account's saves come in first.
+            IsBusy = false;
+            DevTimingLog.Write("save selection: cards shown, reading saves");
+            await Task.WhenAll(allCandidates.Select(LoadSlotGroupsAsync));
+            MarkLatest(Candidates);
+            // From here on, saves the game writes update these cards in place.
+            if (Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread() is { } dispatcher)
+                SaveFolderWatchService.Watch(allCandidates, dispatcher);
+            DevTimingLog.Write("save selection: all accounts read");
         }
         finally
         {
@@ -216,6 +247,7 @@ public partial class SaveFolderSelectViewModel : ObservableObject
 
         if (!stored.HasLoadedSlots)
             await LoadSlotGroupsAsync(stored);
+        SaveFolderWatchService.Add(stored);
 
         PersistExpandedFolders();
         return true;
@@ -273,19 +305,39 @@ public partial class SaveFolderSelectViewModel : ObservableObject
         SaveFolderSettingsService.SetExpandedFolders(expanded);
     }
 
+    /// <summary>Flags each folder's most recently saved slot (live file times,
+    /// so it stays right even when the indexed candidates come from the cache
+    /// while the game keeps saving).</summary>
+    private static void MarkLatest(IEnumerable<SaveFolderCandidate> candidates)
+    {
+        foreach (var candidate in candidates)
+        {
+            var latest = candidate.SlotGroups.OrderByDescending(g => g.LastWriteUtc).FirstOrDefault();
+            foreach (var group in candidate.SlotGroups) group.IsLatest = ReferenceEquals(group, latest);
+        }
+    }
+
     private static async Task LoadSlotGroupsAsync(SaveFolderCandidate candidate)
     {
         candidate.IsLoadingSlots = true;
 
         try
         {
+            DevTimingLog.Write($"index start: {candidate.FolderPath}");
             var groups = await SaveFolderIndexingService.IndexAsync(candidate);
+            DevTimingLog.Write($"index done: {candidate.FolderPath}");
 
             candidate.SlotGroups.Clear();
             foreach (var group in groups)
                 candidate.SlotGroups.Add(group);
 
             candidate.IsEmptyResult = candidate.SlotGroups.Count == 0;
+            candidate.NotifySlotsChanged();
+
+            // Every account found is linked to the player's profile in user.db,
+            // with the name the game knows them by (see GameAccountsService).
+            if (!candidate.IsDevTest)
+                GameAccountsService.Seen(candidate.FolderPath, candidate.PlatformName, candidate.AccountId, candidate.PlayerName);
         }
         catch (Exception ex)
         {

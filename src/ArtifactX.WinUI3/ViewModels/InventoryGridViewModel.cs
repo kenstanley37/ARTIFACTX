@@ -3,6 +3,7 @@ using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
 using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -144,6 +145,31 @@ public partial class InventoryGridViewModel : ObservableObject
         Load();
     }
 
+    /// <summary>Re-locks an EMPTY slot. Occupied slots are refused - an item
+    /// left in a locked slot is unusable in-game and risks being dropped.</summary>
+    public void LockSlot(int x, int y)
+    {
+        if (Cells.Any(c => c.IsOccupied && c.X == x && c.Y == y)) return;
+        if (!_unlockedSet.Remove((x, y))) return;
+        StageUnlockedPositions();
+        Load();
+    }
+
+    /// <summary>Unlocks up to `count` locked slots, top-left first, in one
+    /// write. Returns how many it unlocked.</summary>
+    public int UnlockSlots(int count)
+    {
+        var locked = Cells.Where(c => c.State == InventorySlotState.Locked)
+            .OrderBy(c => c.Y).ThenBy(c => c.X)
+            .Take(Math.Max(0, count))
+            .ToList();
+        foreach (var c in locked) _unlockedSet.Add((c.X, c.Y));
+        if (locked.Count == 0) return 0;
+        StageUnlockedPositions();
+        Load();
+        return locked.Count;
+    }
+
     public void UnlockAll()
     {
         bool changed = false;
@@ -236,6 +262,76 @@ public partial class InventoryGridViewModel : ObservableObject
         Load();
     }
 
+    /// <summary>Collapses every item that appears in more than one slot into a
+    /// single stack, kept at that item's first slot (reading order). The kept
+    /// stack's amount is the combined total, capped at the item's own max -
+    /// one full stack is plenty, and more can always be duplicated. A working
+    /// copy is preferred over a damaged one. Returns how many slots were freed.</summary>
+    public int MergeDuplicates()
+    {
+        var occupied = Cells.Where(c => c.IsOccupied).OrderBy(c => c.Y).ThenBy(c => c.X).ToList();
+        var merged = new List<(int X, int Y, string? ItemId, int Amount, int MaxAmount, string? CategoryLabel, bool IsFunctional, double MalfunctionSeverity)>();
+        int freed = 0;
+
+        foreach (var group in occupied.GroupBy(c => c.ItemId))
+        {
+            var cells = group.ToList();
+            var first = cells[0];
+            if (cells.Count == 1)
+            {
+                merged.Add((first.X, first.Y, first.ItemId, first.Amount, first.MaxAmount, first.CategoryLabel, first.IsFunctional, first.MalfunctionSeverity));
+                continue;
+            }
+
+            var best = cells.FirstOrDefault(c => c.IsFunctional && c.MalfunctionSeverity <= 0) ?? first;
+            int max = cells.Max(c => c.MaxAmount);
+            long total = cells.Sum(c => (long)c.Amount);
+            int amount = max > 0 ? (int)System.Math.Min(total, max) : (int)System.Math.Min(total, int.MaxValue);
+
+            merged.Add((first.X, first.Y, first.ItemId, amount, max, first.CategoryLabel, best.IsFunctional, best.MalfunctionSeverity));
+            freed += cells.Count - 1;
+        }
+
+        if (freed == 0) return 0;
+        StageWholeArray(merged);
+        Load();
+        return freed;
+    }
+
+    /// <summary>Re-packs every item into the unlocked slots in reading order,
+    /// grouped by kind (technology, product, substance) and then by name, so
+    /// identical items end up next to each other. Returns false when nothing
+    /// moved.</summary>
+    public bool SortItems()
+    {
+        var occupied = Cells.Where(c => c.IsOccupied).ToList();
+        if (occupied.Count == 0) return false;
+
+        static int KindOrder(string? category) => category switch
+        {
+            "Technology" => 0,
+            "Product" => 1,
+            "Substance" => 2,
+            _ => 3,
+        };
+
+        var sorted = occupied
+            .OrderBy(c => KindOrder(c.CategoryLabel))
+            .ThenBy(c => CatalogService.TryGet(c.ItemId)?.DisplayName ?? c.ItemId, System.StringComparer.OrdinalIgnoreCase)
+            .ThenBy(c => c.ItemId, System.StringComparer.Ordinal)
+            .ThenByDescending(c => c.Amount)
+            .ToList();
+        var slots = _unlockedSet.OrderBy(p => p.Y).ThenBy(p => p.X).ToList();
+        if (slots.Count < sorted.Count) return false;
+
+        var entries = sorted.Select((c, i) => (slots[i].X, slots[i].Y, c.ItemId, c.Amount, c.MaxAmount, c.CategoryLabel, c.IsFunctional, c.MalfunctionSeverity)).ToList();
+        if (entries.Zip(sorted).All(t => t.First.X == t.Second.X && t.First.Y == t.Second.Y)) return false;
+
+        StageWholeArray(entries);
+        Load();
+        return true;
+    }
+
     /// <summary>Sets this container's rarity/quality class (S/A/B/C). A plain
     /// single-letter string write - confirmed independent of the identity seed
     /// (@EL), so this can't corrupt or desync the item's appearance/stats.</summary>
@@ -308,6 +404,169 @@ public partial class InventoryGridViewModel : ObservableObject
         StageWholeArray(entries);
         Load();
         return true;
+    }
+
+    /// <summary>Puts each item into a free unlocked slot, in one write. Returns
+    /// how many fit; the rest are left out. With `groupOf` (item id -> its
+    /// type, e.g. the tech's main stat) each item goes next to the most items
+    /// of its own type, so technology gets the game's adjacency boost (same-type
+    /// tech side by side lights up and boosts each other - user, 2026-10-13);
+    /// otherwise, or with no such neighbour, the top-left free slot.</summary>
+    public int AddItemsToFreeSlots(IEnumerable<(string ItemId, string? CategoryLabel, int Amount, int MaxAmount)> items,
+        Func<string, string?>? groupOf = null)
+    {
+        var free = Cells.Where(c => c.State == InventorySlotState.UnlockedEmpty)
+            .OrderBy(c => c.Y).ThenBy(c => c.X)
+            .Select(c => (c.X, c.Y))
+            .ToList();
+        // Type of what's in each slot so far (existing items, then each one placed).
+        var typeAt = new Dictionary<(int, int), string?>();
+        if (groupOf is not null)
+            foreach (var c in Cells.Where(c => c.IsOccupied && c.ItemId is not null))
+                typeAt[(c.X, c.Y)] = groupOf(c.ItemId!.TrimStart('^'));
+
+        var added = new List<(int X, int Y, string? ItemId, int Amount, int MaxAmount, string? CategoryLabel, bool IsFunctional, double MalfunctionSeverity)>();
+        foreach (var item in items)
+        {
+            if (free.Count == 0) break;
+            string id = item.ItemId.TrimStart('^');
+            string? type = groupOf?.Invoke(id);
+            var slot = groupOf is null ? free[0] : PickSlot(free, typeAt, type);
+            free.Remove(slot);
+            typeAt[slot] = type;
+            added.Add((slot.X, slot.Y, "^" + id, item.Amount, item.MaxAmount, item.CategoryLabel, true, 0.0));
+        }
+        if (added.Count == 0) return 0;
+
+        var entries = Cells.Where(c => c.IsOccupied)
+            .Select(c => (c.X, c.Y, c.ItemId, c.Amount, c.MaxAmount, c.CategoryLabel, c.IsFunctional, c.MalfunctionSeverity))
+            .Concat(added);
+        StageWholeArray(entries);
+        Load();
+        return added.Count;
+    }
+
+    /// <summary>The free slot for an item of `type`: touching as many of its
+    /// own type as possible and as few others as possible, so a type with
+    /// nothing placed yet starts where it borders the least other tech and
+    /// doesn't take the room other families need to grow (first try dropped
+    /// them in the first free slot, mid-family, 2026-10-13). `free` is
+    /// top-left first, so ties stay top-left.</summary>
+    private static (int X, int Y) PickSlot(List<(int X, int Y)> free, Dictionary<(int, int), string?> typeAt, string? type)
+    {
+        (int Same, int Other) Neighbours((int X, int Y) s)
+        {
+            int same = 0, other = 0;
+            foreach (var n in new[] { (s.X - 1, s.Y), (s.X + 1, s.Y), (s.X, s.Y - 1), (s.X, s.Y + 1) })
+                if (typeAt.TryGetValue(n, out var t))
+                {
+                    if (type is not null && t == type) same++;
+                    else other++;
+                }
+            return (same, other);
+        }
+        return free.OrderByDescending(s => Neighbours(s).Same)
+            .ThenBy(s => Neighbours(s).Other)
+            .First();
+    }
+
+    /// <summary>Rearranges the items into one block per type (`groupOf`, e.g.
+    /// the tech's main stat), so same-type tech sits together and gets the
+    /// game's adjacency boost - for families that got boxed in as tech was
+    /// added (user, 2026-10-13). Items in supercharged slots stay put (a
+    /// player puts their best tech there on purpose): their families grow out
+    /// from them first. Every other family, biggest first, takes one connected
+    /// block - the free cells nearest (breadth-first) to the first free slot,
+    /// in reading order, that has room for all of it. Two earlier tries
+    /// (greedy growth, then a snake path) both split families round the
+    /// supercharged slots on a real ship; this one was simulated on that ship
+    /// and ~13,000 random layouts first: families only split when no
+    /// connected room is left (0.13%). Untyped items fill in last. Only
+    /// positions change, in one write. Returns how many items moved.</summary>
+    public int ArrangeForAdjacency(Func<string, string?> groupOf)
+    {
+        var occupied = Cells.Where(c => c.IsOccupied && c.ItemId is not null).ToList();
+        // A brand-new save (2026-10-13, current game) marks EVERY exosuit and
+        // multi-tool slot supercharged (60 of 60, even locked ones); older
+        // saves have the usual handful. When every usable slot is
+        // supercharged it singles nothing out, so nothing is held in place.
+        bool superchargeMeansSomething = Cells.Any(c => c.State != InventorySlotState.Locked && !c.IsSupercharged);
+        var staying = superchargeMeansSomething ? occupied.Where(c => c.IsSupercharged).ToList() : new();
+        var moving = occupied.Except(staying).ToList();
+        if (moving.Count == 0) return 0;
+
+        var typeOf = occupied.ToDictionary(c => (c.X, c.Y), c => groupOf(c.ItemId!.TrimStart('^')));
+        var typeAt = staying.ToDictionary(c => ((int, int))(c.X, c.Y), c => typeOf[(c.X, c.Y)]);
+        var free = Cells.Where(c => c.State == InventorySlotState.UnlockedEmpty || (c.IsOccupied && !staying.Contains(c)))
+            .OrderBy(c => c.Y).ThenBy(c => c.X)
+            .Select(c => (c.X, c.Y))
+            .ToList();
+
+        var anchoredTypes = staying.Select(c => typeOf[(c.X, c.Y)]).Where(t => t is not null).ToHashSet();
+        var families = moving
+            .Where(c => typeOf[(c.X, c.Y)] is not null)
+            .GroupBy(c => typeOf[(c.X, c.Y)]!)
+            .Select(g => (Type: g.Key, Items: g.OrderBy(c => c.Y).ThenBy(c => c.X).ToList()))
+            .OrderBy(f => anchoredTypes.Contains(f.Type) ? 0 : 1)
+            .ThenByDescending(f => f.Items.Count)
+            .ToList();
+
+        var entries = staying
+            .Select(c => (c.X, c.Y, c.ItemId, c.Amount, c.MaxAmount, c.CategoryLabel, c.IsFunctional, c.MalfunctionSeverity))
+            .ToList();
+        int moved = 0;
+        void Put(InventorySlotViewModel c, (int X, int Y) slot)
+        {
+            free.Remove(slot);
+            typeAt[slot] = typeOf[(c.X, c.Y)];
+            if (slot != (c.X, c.Y)) moved++;
+            entries.Add((slot.X, slot.Y, c.ItemId, c.Amount, c.MaxAmount, c.CategoryLabel, c.IsFunctional, c.MalfunctionSeverity));
+        }
+
+        // Free cells reachable from `starts` through free cells, nearest first.
+        List<(int X, int Y)> Nearest(IEnumerable<(int X, int Y)> starts, int count)
+        {
+            var freeSet = free.ToHashSet();
+            var queue = new Queue<(int X, int Y)>(starts);
+            var seen = new HashSet<(int X, int Y)>(starts);
+            var found = new List<(int X, int Y)>();
+            while (queue.Count > 0 && found.Count < count)
+            {
+                var (x, y) = queue.Dequeue();
+                foreach (var n in new[] { (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1) })
+                    if (freeSet.Contains(n) && seen.Add(n))
+                    {
+                        queue.Enqueue(n);
+                        found.Add(n);
+                        if (found.Count == count) break;
+                    }
+            }
+            return found;
+        }
+
+        foreach (var family in families)
+        {
+            List<(int X, int Y)> block;
+            if (anchoredTypes.Contains(family.Type))
+                // Grow out from its supercharged member(s).
+                block = Nearest(staying.Where(c => typeOf[(c.X, c.Y)] == family.Type).Select(c => (c.X, c.Y)), family.Items.Count);
+            else
+                // The first free slot with room for the whole family in one piece.
+                block = free.Select(seed => Nearest(new[] { seed }, family.Items.Count - 1).Prepend(seed).ToList())
+                    .FirstOrDefault(b => b.Count == family.Items.Count) ?? new();
+            int i = 0;
+            foreach (var c in family.Items)
+                // No room left in one piece: next to its own type where possible.
+                Put(c, i < block.Count ? block[i++] : PickSlot(free, typeAt, family.Type));
+        }
+        // Untyped items in whatever is left.
+        foreach (var c in moving.Where(c => typeOf[(c.X, c.Y)] is null))
+            Put(c, free[0]);
+
+        if (moved == 0) return 0;
+        StageWholeArray(entries);
+        Load();
+        return moved;
     }
 
     /// <summary>Clears whatever item occupies (x, y). No-op if already empty.</summary>
@@ -459,6 +718,18 @@ public partial class InventoryGridViewModel : ObservableObject
     /// (false/1.0 on an item missing required parts, true/0.0 once repaired).</summary>
     private void StageWholeArray(IEnumerable<(int X, int Y, string? ItemId, int Amount, int MaxAmount, string? CategoryLabel, bool IsFunctional, double MalfunctionSeverity)> entries)
     {
+        // 5tH is the game's "added automatically" flag: true on the tech a
+        // corvette's built parts put in its tech grid (every one of the 172
+        // such items in the real saves, 2026-10-13; false or absent on every
+        // other ship). Rewriting the array used to reset it to false for all
+        // of them - keep it for any item id that already had it.
+        var automatic = (SaveSessionManager.GetValue(NoPath) as JArray ?? new JArray())
+            .OfType<JObject>()
+            .Where(o => o["5tH"]?.Type == JTokenType.Boolean && o["5tH"]!.Value<bool>())
+            .Select(o => o["b2n"]?.Value<string>())
+            .Where(id => id is not null)
+            .ToHashSet(StringComparer.Ordinal);
+
         var array = new JArray(entries.Select(e => new JObject
         {
             ["Vn8"] = new JObject { ["elv"] = e.CategoryLabel },
@@ -467,7 +738,7 @@ public partial class InventoryGridViewModel : ObservableObject
             ["F9q"] = e.MaxAmount,
             ["eVk"] = e.MalfunctionSeverity,
             ["b76"] = e.IsFunctional,
-            ["5tH"] = false,
+            ["5tH"] = e.ItemId is not null && automatic.Contains(e.ItemId),
             ["3ZH"] = new JObject { [">Qh"] = e.X, ["XJ>"] = e.Y }
         }));
 

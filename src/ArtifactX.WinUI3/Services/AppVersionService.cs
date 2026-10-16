@@ -1,27 +1,22 @@
-using System;
+using ArtifactX.Core;
 using System.Reflection;
 
 namespace ArtifactX.WinUI3.Services;
 
 /// <summary>
-/// Single source of truth for the app's own version, read from the
-/// AssemblyVersion the SDK generates from ArtifactX.WinUI3.csproj's
-/// &lt;Version&gt; property - not hand-maintained anywhere else. Bump
-/// &lt;Version&gt; there and tag/publish a matching GitHub release to make
-/// UpdateCheckService pick it up.
+/// Single source of truth for the app's own version: ArtifactX.WinUI3.csproj's
+/// &lt;Version&gt; (e.g. "1.0.0-alpha1"), read from the informational version the
+/// SDK stamps into the assembly - which, unlike AssemblyVersion, keeps the
+/// pre-release label (2026-10-15: the title bar said "v1.0.0" on an alpha).
+/// Bump &lt;Version&gt; there and publish a GitHub release tagged "v" + that
+/// version to make UpdateCheckService pick it up.
 /// </summary>
 public static class AppVersionService
 {
-    public static Version Current { get; } =
-        Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0);
+    public static ReleaseVersion Current { get; } =
+        ReleaseVersion.TryParse(Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion)
+        ?? new ReleaseVersion(0, 0, 0, "");
 
-    public static string DisplayVersion => $"{Current.Major}.{Current.Minor}.{Current.Build}";
-
-    // Manually bumped whenever ArtifactX is actually re-tested against a new
-    // No Man's Sky update - NOT detected/read from the game itself (that
-    // would tell users what's installed, not whether this app's field
-    // mappings have actually been checked against it). Shown in the title
-    // bar's info row next to the app's own version. Update this string by
-    // hand after verifying against a new NMS patch.
-    public const string VerifiedNmsUpdate = "SWARM";
+    /// <summary>"1.0.0-alpha1" (no build metadata).</summary>
+    public static string DisplayVersion => Current.ToString();
 }

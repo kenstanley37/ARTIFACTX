@@ -10,14 +10,14 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <ScrollViewer>
-        <StackPanel Padding="24" Spacing="20">
+        <StackPanel Padding="28,26,28,40" Spacing="22">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="Frigates" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="0" Text="FRIGATES" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
                 <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Frigate Changes" Click="PageResetBtn_Click"
                         Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
             </Grid>
@@ -32,39 +32,48 @@
                  freighter's own hull scene path (bIR.93M) went from empty to
                  real - frigates are commanded from your freighter, so you
                  can't have a real one without owning one either. -->
-            <TextBlock x:Name="NoFreighterTxt" FontSize="14" Opacity="0.7" TextWrapping="Wrap"
+            <TextBlock x:Name="NoFreighterTxt" Style="{StaticResource ThemeDimTextStyle}"
                        MaxWidth="600" HorizontalAlignment="Left" Visibility="Collapsed"
                        Text="You don't own a freighter yet, so you don't have a Frigate Fleet to manage. Buy or claim a freighter in-game, then come back here."/>
 
-            <StackPanel x:Name="ContentPanel" Spacing="20" HorizontalAlignment="Stretch">
-                <TextBlock Text="Owned Frigates" FontSize="14" Opacity="0.8"/>
-                <ScrollViewer MaxHeight="104" VerticalScrollBarVisibility="Auto"
-                              HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-                    <ctcontrols:WrapPanel x:Name="FrigateSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
-                </ScrollViewer>
+            <StackPanel x:Name="ContentPanel" Spacing="22" HorizontalAlignment="Stretch">
+                <Border Style="{StaticResource ThemeCardStyle}">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <TextBlock Text="OWNED FRIGATES" Style="{StaticResource ThemeBandTextStyle}"/>
+                        </Border>
+                        <ScrollViewer MaxHeight="120" Padding="18,14,18,16" VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+                            <ctcontrols:WrapPanel x:Name="FrigateSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
 
-                <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                        CornerRadius="8" Padding="20" Opacity="0.9" HorizontalAlignment="Stretch">
-                    <StackPanel Spacing="18">
+                <Border Style="{StaticResource ThemeCardStyle}">
+                  <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="FRIGATE DETAILS" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <StackPanel Spacing="20" Padding="20,16,20,20">
                         <StackPanel Spacing="6">
-                            <TextBlock Text="Name" FontSize="12" Opacity="0.7"/>
-                            <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap" MaxWidth="700" HorizontalAlignment="Left"
+                            <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
+                            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" MaxWidth="700" HorizontalAlignment="Left"
                                        Text="Leave empty for an auto-generated name (e.g. &quot;SS-2 Akeosc's Gamble&quot;) - that flavor text isn't stored in the save at all, it's generated from the frigate's class/race/seeds each time, so ArtifactX can't show or reproduce it here. Set a value to override it, same as Settlement Name."/>
                             <TextBox x:Name="NameEditBox" Width="300" HorizontalAlignment="Left" LostFocus="NameEditBox_LostFocus"/>
                         </StackPanel>
 
                         <StackPanel Orientation="Horizontal" Spacing="32">
                             <StackPanel Spacing="6" Width="180">
-                                <TextBlock Text="Class" FontSize="12" Opacity="0.7"/>
+                                <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}"/>
                                 <ComboBox x:Name="FrigateClassBox" Width="170" HorizontalAlignment="Left" SelectionChanged="FrigateClassBox_SelectionChanged"
-                                          ToolTipService.ToolTip="Confirmed 2026-07-30 against 29 real frigates - drives the in-game Role pill: Combat-&gt;COMBAT, Exploration-&gt;EXPLORATION, Mining-&gt;INDUSTRIAL, Diplomacy-&gt;TRADE, Support-&gt;SUPPORT, Pirate-&gt;RAIDER, Normandy-&gt;RECON (easter egg, always &quot;SSV Normandy SR1&quot;), DeepSpace-&gt;ORGANIC, GhostShip-&gt;DOOMED. DeepSpaceCommon/Swarm untested (not seen in the sample)."/>
+                                          ToolTipService.ToolTip="The frigate's role, shown as the pill next to it in-game (Combat, Exploration, Industrial, Trade, Support and so on)."/>
                             </StackPanel>
                             <StackPanel Spacing="6" Width="150">
-                                <TextBlock Text="Crew Race" FontSize="12" Opacity="0.7"/>
+                                <TextBlock Text="CREW RACE" Style="{StaticResource ThemeEyebrowStyle}"/>
                                 <ComboBox x:Name="RaceBox" Width="140" HorizontalAlignment="Left" SelectionChanged="RaceBox_SelectionChanged"/>
                             </StackPanel>
                             <StackPanel Spacing="6" Width="150">
-                                <TextBlock Text="Class Rating" FontSize="12" Opacity="0.7"/>
+                                <TextBlock Text="CLASS RATING" Style="{StaticResource ThemeEyebrowStyle}"/>
                                 <ComboBox x:Name="InventoryClassBox" Width="140" HorizontalAlignment="Left" SelectionChanged="InventoryClassBox_SelectionChanged"
                                           ToolTipService.ToolTip="The S/A/B/C badge shown next to each frigate in-game."/>
                             </StackPanel>
@@ -83,8 +92,8 @@
                                  seed length, so they line up pixel-for-pixel
                                  with each other too (2026-08-07 user report). -->
                             <StackPanel Spacing="6" Width="300">
-                                <TextBlock Text="Model Seed" FontSize="12" Opacity="0.7"/>
-                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                                <TextBlock Text="MODEL SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                            Text="Drives the hull's procedural look, alongside Class/Type. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
@@ -96,8 +105,8 @@
                                 </Grid>
                             </StackPanel>
                             <StackPanel Spacing="6" Width="300">
-                                <TextBlock Text="Home Seed" FontSize="12" Opacity="0.7"/>
-                                <TextBlock FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                                <TextBlock Text="HOME SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                            Text="Drives which home system/name this frigate generates for itself. Paste a seed you've found elsewhere, or click Generate for a new random one."/>
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
@@ -111,90 +120,91 @@
                         </StackPanel>
 
                         <StackPanel Spacing="8">
-                            <TextBlock Text="Stats" FontSize="14" FontWeight="SemiBold"/>
+                            <TextBlock Text="STATS" Style="{StaticResource ThemeEyebrowStyle}"/>
                             <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="12">
                                 <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Combat" Opacity="0.7" FontSize="11"/>
+                                    <TextBlock Text="Combat" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     <NumberBox x:Name="Stat0Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat0Box_ValueChanged"/>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Exploration" Opacity="0.7" FontSize="11"/>
+                                    <TextBlock Text="Exploration" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     <NumberBox x:Name="Stat1Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat1Box_ValueChanged"/>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Mining" Opacity="0.7" FontSize="11"/>
+                                    <TextBlock Text="Mining" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     <NumberBox x:Name="Stat2Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat2Box_ValueChanged"/>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Diplomatic" Opacity="0.7" FontSize="11"/>
+                                    <TextBlock Text="Diplomatic" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     <NumberBox x:Name="Stat3Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat3Box_ValueChanged"/>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Fuel Burn Rate" Opacity="0.7" FontSize="11"/>
+                                    <TextBlock Text="Fuel Burn Rate" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     <NumberBox x:Name="Stat4Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat4Box_ValueChanged"/>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Fuel Capacity" Opacity="0.7" FontSize="11"/>
+                                    <TextBlock Text="Fuel Capacity" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     <NumberBox x:Name="Stat5Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat5Box_ValueChanged"/>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Speed" Opacity="0.7" FontSize="11"/>
+                                    <TextBlock Text="Speed" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     <NumberBox x:Name="Stat6Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat6Box_ValueChanged"/>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Extra Loot" Opacity="0.7" FontSize="11"/>
+                                    <TextBlock Text="Extra Loot" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     <NumberBox x:Name="Stat7Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat7Box_ValueChanged"/>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Repair" Opacity="0.7" FontSize="11"/>
+                                    <TextBlock Text="Repair" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     <NumberBox x:Name="Stat8Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat8Box_ValueChanged"/>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Invulnerable" Opacity="0.7" FontSize="11"/>
+                                    <TextBlock Text="Invulnerable" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     <NumberBox x:Name="Stat9Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat9Box_ValueChanged"/>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Stealth" Opacity="0.7" FontSize="11"/>
+                                    <TextBlock Text="Stealth" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     <NumberBox x:Name="Stat10Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat10Box_ValueChanged"/>
                                 </StackPanel>
                             </ctcontrols:WrapPanel>
                         </StackPanel>
 
                         <StackPanel Spacing="8">
-                            <TextBlock Text="Expedition Record" FontSize="14" FontWeight="SemiBold"/>
+                            <TextBlock Text="EXPEDITION RECORD" Style="{StaticResource ThemeEyebrowStyle}"/>
                             <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="12">
                                 <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Expeditions" Opacity="0.7" FontSize="11"/>
+                                    <TextBlock Text="Expeditions" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     <NumberBox x:Name="ExpeditionsBox" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="ExpeditionsBox_ValueChanged"/>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Successes" Opacity="0.7" FontSize="11"/>
+                                    <TextBlock Text="Successes" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     <NumberBox x:Name="SuccessesBox" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="SuccessesBox_ValueChanged"/>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Failures" Opacity="0.7" FontSize="11"/>
+                                    <TextBlock Text="Failures" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     <NumberBox x:Name="FailuresBox" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="FailuresBox_ValueChanged"/>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Times Damaged" Opacity="0.7" FontSize="11"/>
+                                    <TextBlock Text="Times Damaged" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     <NumberBox x:Name="TimesDamagedBox" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="TimesDamagedBox_ValueChanged"/>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Repairs Made" Opacity="0.7" FontSize="11"/>
+                                    <TextBlock Text="Repairs Made" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     <NumberBox x:Name="RepairsMadeBox" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="RepairsMadeBox_ValueChanged"/>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Damage Taken" Opacity="0.7" FontSize="11"/>
+                                    <TextBlock Text="Damage Taken" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     <NumberBox x:Name="DamageTakenBox" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="DamageTakenBox_ValueChanged"/>
                                 </StackPanel>
                             </ctcontrols:WrapPanel>
                         </StackPanel>
 
                         <StackPanel Spacing="8">
-                            <TextBlock Text="Traits" FontSize="14" FontWeight="SemiBold"/>
+                            <TextBlock Text="TRAITS" Style="{StaticResource ThemeEyebrowStyle}"/>
                             <ctcontrols:WrapPanel x:Name="TraitsPanel" HorizontalSpacing="16" VerticalSpacing="16"/>
                         </StackPanel>
                     </StackPanel>
+                  </StackPanel>
                 </Border>
             </StackPanel>
         </StackPanel>

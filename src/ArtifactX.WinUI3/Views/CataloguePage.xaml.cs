@@ -1,9 +1,11 @@
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -112,6 +114,7 @@ public sealed partial class CataloguePage : Page
             GameId = c.GameId,
             DisplayName = ToDisplayCase(c.DisplayName),
             UsageCategory = c.UsageCategory,
+            IsBrokenSlotTech = c.IsBrokenSlotTech,
             IsKnown = knownIdSet.Contains(c.GameId),
             Icon = CatalogService.TryGet(c.GameId)?.Icon
         }).ToList());
@@ -217,15 +220,50 @@ public sealed partial class CataloguePage : Page
     {
         if (_currentlyVisibleRows.Count == 0) return;
 
+        // Broken-slot placeholders are never marked known - teaching them is
+        // exactly how a save ends up with useless red entries in its Install
+        // Technology menu (found 2026-10-10 on a user save that had all 36).
         foreach (var row in _currentlyVisibleRows)
-            SetRowKnown(row, known);
+        {
+            if (!known || !row.IsBrokenSlotTech)
+                SetRowKnown(row, known);
+        }
 
         SaveSessionManager.StageEdit(new JArray(_knownIds), NmsCataloguePaths.KnownTechnologyArrayPath);
         UpdateResetButton();
         ApplyFilters();
     }
 
-    private void UpdateResetButton() =>
+    private void ForgetBrokenBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_allItems is null) return;
+
+        foreach (var row in _allItems.Where(r => r.IsBrokenSlotTech && r.IsKnown).ToList())
+            SetRowKnown(row, false);
+
+        SaveSessionManager.StageEdit(new JArray(_knownIds), NmsCataloguePaths.KnownTechnologyArrayPath);
+        UpdateResetButton();
+        ApplyFilters();
+    }
+
+    private static readonly Brush BrokenBrush = (Brush)Application.Current.Resources["NmsDangerBrush"];
+    // Read per call, not cached: the page is re-created on a theme change.
+    private static Brush DefaultTileBorderBrush => ThemeResources.Brush("ThemeLineBrush");
+    private static Brush DefaultIconBackground => ThemeResources.Brush("ThemeVoidBrush");
+
+    // x:Bind function targets - run on the UI thread at bind time, unlike the
+    // row VMs themselves, which are built on a background thread (brushes
+    // can't be created there).
+    public static Brush TileBorderBrush(bool isBroken) => isBroken ? BrokenBrush : DefaultTileBorderBrush;
+    public static Brush IconBackground(bool isBroken) => isBroken ? BrokenBrush : DefaultIconBackground;
+
+    private void UpdateResetButton()
+    {
+        ForgetBrokenBtn.Visibility = _allItems?.Any(r => r.IsBrokenSlotTech && r.IsKnown) == true ? Visibility.Visible : Visibility.Collapsed;
+        UpdatePageResetButton();
+    }
+
+    private void UpdatePageResetButton() =>
         PageResetBtn.Visibility = SaveSessionManager.HasStagedEditsUnder(NmsCataloguePaths.KnownTechnologyArrayPath)
             ? Visibility.Visible
             : Visibility.Collapsed;

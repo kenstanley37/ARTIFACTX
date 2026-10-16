@@ -20,48 +20,12 @@ public sealed partial class GeneralPage : Page
 
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
-        UpdateCheckService.Changed += OnUpdateCheckChanged;
         Unloaded += Page_Unloaded;
         LoadValues();
-        RefreshUpdateStatus();
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(LoadValues);
-
-    private void OnUpdateCheckChanged(object? sender, EventArgs e) =>
-        DispatcherQueue.TryEnqueue(RefreshUpdateStatus);
-
-    private void RefreshUpdateStatus()
-    {
-        VersionTxt.Text = $"ArtifactX v{AppVersionService.DisplayVersion}";
-
-        var result = UpdateCheckService.LastResult;
-        UpdateStatusTxt.Text = result?.Message ?? "";
-        ReleasePageLink.Visibility = result?.Status == UpdateCheckStatus.UpdateAvailable
-            ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    private async void CheckForUpdatesBtn_Click(object sender, RoutedEventArgs e)
-    {
-        CheckForUpdatesBtn.IsEnabled = false;
-        UpdateStatusTxt.Text = "Checking...";
-        try
-        {
-            await UpdateCheckService.RefreshAsync();
-        }
-        finally
-        {
-            CheckForUpdatesBtn.IsEnabled = true;
-        }
-    }
-
-    private async void ReleasePageLink_Click(object sender, RoutedEventArgs e)
-    {
-        string? url = UpdateCheckService.LastResult?.ReleaseUrl;
-        if (url is null) return;
-        await Launcher.LaunchUriAsync(new Uri(url));
-    }
 
     /// <summary>Frame.Navigate creates a fresh Page instance on every visit
     /// (no NavigationCacheMode set anywhere in this app) - without this,
@@ -75,7 +39,6 @@ public sealed partial class GeneralPage : Page
     {
         SaveSessionManager.ActiveSessionChanged -= OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged -= OnSessionOrEditsChanged;
-        UpdateCheckService.Changed -= OnUpdateCheckChanged;
     }
 
     private void LoadValues()

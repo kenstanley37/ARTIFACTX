@@ -2,6 +2,7 @@ using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Models;
@@ -218,15 +219,9 @@ public sealed partial class MultiToolPage : Page
             var button = new Button
             {
                 Content = BuildButtonContent(tool, isSelected),
-                Padding = new Thickness(12, 6, 12, 6),
-                BorderThickness = new Thickness(isSelected ? 2 : 1),
-                BorderBrush = new SolidColorBrush(isSelected
-                    ? Color.FromArgb(255, 255, 157, 0)   // selected - accent orange
-                    : Color.FromArgb(255, 90, 98, 112)),  // unselected - neutral
-                Background = new SolidColorBrush(isSelected
-                    ? Color.FromArgb(60, 255, 157, 0)
-                    : Color.FromArgb(20, 255, 255, 255))
+                Padding = new Thickness(12, 6, 12, 6)
             };
+            ThemeResources.StyleChoiceButton(button, isSelected);
 
             button.Click += (_, _) =>
             {
@@ -257,29 +252,99 @@ public sealed partial class MultiToolPage : Page
         {
             panel.Children.Add(new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(255, 60, 200, 90)),
-                CornerRadius = new CornerRadius(4),
+                Background = ThemeResources.Brush("ThemeDoneBrush"),
+                CornerRadius = ThemeResources.CardCornerRadius,
                 Padding = new Thickness(6, 1, 6, 1),
                 VerticalAlignment = VerticalAlignment.Center,
-                Child = new TextBlock { Text = "ACTIVE", FontSize = 10, FontWeight = FontWeights.Bold }
+                Child = new TextBlock
+                {
+                    Text = "ACTIVE",
+                    FontSize = 10,
+                    FontWeight = FontWeights.Bold,
+                    FontFamily = ThemeResources.Font("ThemeDisplayFont"),
+                    CharacterSpacing = 120,
+                    Foreground = ThemeResources.Brush("ThemeOnAccentBrush"),
+                }
             });
         }
 
         return panel;
     }
 
-    private async void LoadSelectedTool()
+    /// <summary>Multi-tool module families, from the 94 tools in the real saves
+    /// (2026-10-13): each tops out at 3 per tool. UP_SENGUN is a one-off
+    /// salvaged find, so it isn't offered.</summary>
+    private static readonly string[] ModuleFamilies =
+        { "UP_LASER", "UP_SCAN", "UP_BOLT", "UP_SMG", "UP_SHOT", "UP_CANN", "UP_RAIL", "UP_GREN", "UP_TGREN" };
+
+    private static readonly string[] TechGroupOrder = { "Mining", "Scanning", "Weapons", "Utilities" };
+
+    /// <summary>Groups by the main stat each tech works on (the game's
+    /// BaseStat, via the catalog's TechStats), same as Starships.</summary>
+    private static string TechGroup(CatalogPart tech)
+    {
+        string stat = tech.Stat ?? "";
+        if (stat is "Weapon_Laser" or "Weapon_SunLaser") return "Mining";
+        if (stat.StartsWith("Weapon_Scan")) return "Scanning";
+        if (stat is "Weapon_Projectile" or "Weapon_Burst" or "Weapon_Shotgun" or "Weapon_Cannon" or "Weapon_Rail"
+            or "Weapon_Grenade" or "Weapon_MineGrenade" or "Weapon_StunGrenade" or "Weapon_Flame" or "Weapon_Stun"
+            or "Weapon_Gravity" or "Weapon_SoulLaser") return "Weapons";
+        return "Utilities";
+    }
+
+    private void TechCargoStack_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
+    private void MainColumn_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
+
+    /// <summary>Tech list beside the tech card, as tall as it, or underneath
+    /// at a fixed height when the window is too narrow.</summary>
+    private void LayoutTechList()
+    {
+        bool beside = MainColumn.ActualWidth >= TechCargoStack.ActualWidth + TechLayoutGrid.ColumnSpacing + TechListCard.Width;
+        Grid.SetRow(TechListCard, beside ? 0 : 1);
+        Grid.SetColumn(TechListCard, beside ? 1 : 0);
+        double height = 560;
+        if (beside)
+        {
+            double chrome = TechListCard.ActualHeight - TechListPanel.ListHeight;
+            if (TechListCard.ActualHeight <= 0 || chrome <= 0) chrome = 230;
+            height = Math.Max(300, TechCargoStack.ActualHeight - chrome);
+        }
+        if (Math.Abs(height - TechListPanel.ListHeight) > 1) TechListPanel.ListHeight = height;
+    }
+
+    private void ArrangeTech_Click(object sender, RoutedEventArgs e)
+    {
+        int moved = TechGrid.ArrangeForAdjacency(TechListPanel.TypeOf);
+        if (moved > 0) PageResetBtn.Visibility = Visibility.Visible;
+        FlyoutBase.SetAttachedFlyout((FrameworkElement)sender, new Flyout
+        {
+            Content = new TextBlock
+            {
+                Text = moved > 0
+                    ? $"Moved {moved} so each type sits together. Reset undoes it."
+                    : "Already grouped - nothing to move.",
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 260,
+            },
+        });
+        FlyoutBase.ShowAttachedFlyout((FrameworkElement)sender);
+    }
+
+    private async void LoadSelectedTool() => await LoadSelectedToolAsync();
+
+    private async Task LoadSelectedToolAsync()
     {
         if (_selectedIndex < 0)
         {
             _techViewModel = null;
             TechGrid.ViewModel = null;
             TechGrid.Refresh();
-            TechHeaderTxt.Text = "Technology";
+            TechListCard.Visibility = Visibility.Collapsed;
+            TechHeaderTxt.Text = "TECHNOLOGY";
             ClassSelectorPanel.Children.Clear();
             NameEditBox.Text = "";
             SelectedToolClassTxt.Text = "—";
-            SelectedToolClassBadge.Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255));
+            SelectedToolClassBadge.Background = ThemeResources.Brush("ThemePanelAltBrush");
             DamageStatBox.Value = double.NaN;
             MiningStatBox.Value = double.NaN;
             ScannerStatBox.Value = double.NaN;
@@ -311,7 +376,8 @@ public sealed partial class MultiToolPage : Page
         TechGrid.ViewModel = _techViewModel;
         TechGrid.AllowedCategories = new[] { "Technology" };
         TechGrid.AllowedTemplateTypes = new[] { "GcTechnologyTable" };
-        TechGrid.AllowedUsageCategories = new[] { "Weapon", "All" };
+        // Every tech on the 94 multi-tools in the real saves is "Weapon" (2026-10-13).
+        TechGrid.AllowedUsageCategories = new[] { "Weapon" };
 
         // Reload can run many times per page lifetime (every selector click) -
         // unsubscribe first so CellChanged doesn't fire PageResetBtn's handler
@@ -321,11 +387,32 @@ public sealed partial class MultiToolPage : Page
 
         TechGrid.Refresh();
 
-        TechHeaderTxt.Text = $"Technology - {selectedTool.Name}";
+        TechHeaderTxt.Text = $"TECHNOLOGY  —  {selectedTool.Name.ToUpperInvariant()}";
         PageResetBtn.Visibility = _techViewModel.HasLocalChanges ? Visibility.Visible : Visibility.Collapsed;
+
+        // The tech a multi-tool can fit, to click in - the same list limits
+        // the right-click search.
+        TechListCard.Visibility = Visibility.Visible;
+        TechListPanel.IsBestClass = () => _techViewModel?.CurrentClass == "S";
+        TechListPanel.SwitchToBestClassAsync = async () =>
+        {
+            _techViewModel?.SetClass("S");
+            PageResetBtn.Visibility = Visibility.Visible;
+            await LoadSelectedToolAsync();
+        };
+        TechListPanel.MoreRoomHint = () => _techViewModel?.CurrentClass == "S" ? null
+            : "S class has more slots - change the class above to fit more.";
+        _ = TechListPanel.LoadAsync(TechGrid, async () =>
+        {
+            var tech = await CatalogService.GetTechForAsync(new[] { "Weapon" });
+            TechGrid.AllowedItemIds = tech.Select(t => t.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var modules = await CatalogService.GetUpgradeModulesAsync(ModuleFamilies);
+            return Controls.ItemListPanel.SortByGroups(tech.Concat(modules), TechGroup, TechGroupOrder);
+        }, "technology", "technologies", "Technology", TechGroup);
 
         BuildClassSelector();
         NameEditBox.Text = selectedTool.Name;
+        ApplyDetailsCollapsed();
         UpdateClassBadge();
         UpdateStatDisplay();
         await SyncTypeComboBoxAsync();
@@ -409,9 +496,11 @@ public sealed partial class MultiToolPage : Page
             "A" => Color.FromArgb(255, 130, 80, 200),
             "B" => Color.FromArgb(255, 60, 110, 200),
             "C" => Color.FromArgb(255, 60, 150, 90),
-            _ => Color.FromArgb(60, 255, 255, 255)
+            _ => Colors.Transparent
         };
-        SelectedToolClassBadge.Background = new SolidColorBrush(badgeColor);
+        SelectedToolClassBadge.Background = badgeColor == Colors.Transparent
+            ? ThemeResources.Brush("ThemePanelAltBrush")
+            : new SolidColorBrush(badgeColor);
     }
 
     /// <summary>Loads OsQ.@bB's raw continuous stat rolls (WEAPON_DAMAGE/
@@ -576,15 +665,9 @@ public sealed partial class MultiToolPage : Page
                     Text = letter,
                     FontWeight = isCurrent ? FontWeights.Bold : FontWeights.Normal
                 },
-                Padding = new Thickness(14, 4, 14, 4),
-                BorderThickness = new Thickness(isCurrent ? 2 : 1),
-                BorderBrush = new SolidColorBrush(isCurrent
-                    ? Color.FromArgb(255, 255, 157, 0)
-                    : Color.FromArgb(255, 90, 98, 112)),
-                Background = new SolidColorBrush(isCurrent
-                    ? Color.FromArgb(60, 255, 157, 0)
-                    : Color.FromArgb(20, 255, 255, 255))
+                Padding = new Thickness(14, 4, 14, 4)
             };
+            ThemeResources.StyleChoiceButton(button, isCurrent);
 
             button.Click += (_, _) =>
             {
@@ -744,6 +827,19 @@ public sealed partial class MultiToolPage : Page
     /// deleting, or applying a template, and once on page load, so the list
     /// visibly reflects reality at all times rather than living behind a
     /// button the user has to remember to press.</summary>
+    /// <summary>Imports a template file someone shared (TemplateSharingService checks it first).</summary>
+    private async void ImportTemplateBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var result = await TemplateSharingService.ImportAsync("MultiTool");
+        if (result is not { } r) return;
+        ImportTemplateStatusTxt.Text = r.Message;
+        ImportTemplateStatusTxt.Foreground = ThemeResources.Brush(r.Ok ? "ThemeDoneBrush" : "ThemeWarningBrush");
+        ImportTemplateStatusTxt.Visibility = Visibility.Visible;
+        if (!r.Ok) return;
+        await RefreshTemplatesListAsync();
+        await RefreshFullBuildTemplatesListAsync();
+    }
+
     private async Task RefreshTemplatesListAsync()
     {
         var templates = (await LoadoutTemplateService.LoadAllAsync())
@@ -790,6 +886,11 @@ public sealed partial class MultiToolPage : Page
             applyButton.Click += async (_, _) => await ApplyTemplateAsync(template);
             buttonRow.Children.Add(applyButton);
 
+            var shareButton = new Button { Content = "Share...", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            ToolTipService.SetToolTip(shareButton, "Save this template as a file - to give to a friend, or to keep as a backup");
+            shareButton.Click += async (_, _) => await TemplateSharingService.ExportAsync(shareButton, template);
+            buttonRow.Children.Add(shareButton);
+
             var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
             deleteButton.Click += async (_, _) =>
             {
@@ -802,7 +903,7 @@ public sealed partial class MultiToolPage : Page
 
             row.Children.Add(new Border
             {
-                BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 Margin = new Thickness(0, 4, 0, 0)
             });
@@ -849,16 +950,48 @@ public sealed partial class MultiToolPage : Page
         string name = nameBox.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(name)) return;
 
-        var template = _techViewModel.ExtractTemplate(name, sourceTool.Name, "MultiTool");
-        template.Scope = "FullBuild";
-        template.Stats = ExtractStatsList(_selectedIndex);
-        template.TypeScenePath = SaveSessionManager.GetValue(
-            "vLc", "6f=", "SuJ", _selectedIndex.ToString(), "NTx", "93M")?.Value<string>();
-        // No Seed here - unlike Ships/Freighter, Multi-Tools don't have a
-        // confirmed/exposed Model Seed path on this page.
-
-        await LoadoutTemplateService.SaveAsync(template);
+        await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate(name, sourceTool));
         await RefreshFullBuildTemplatesListAsync();
+    }
+
+    /// <summary>The selected tool as a Full Build template (Save Current, and
+    /// "save it first" when deleting).</summary>
+    private NmsLoadoutTemplate BuildFullBuildTemplate(string name, ToolEntry source)
+    {
+        var template = _techViewModel!.ExtractTemplate(name, source.Name, "MultiTool");
+        template.Scope = "FullBuild";
+        template.Stats = ExtractStatsList(source.Index);
+        template.TypeScenePath = SaveSessionManager.GetValue(
+            "vLc", "6f=", "SuJ", source.Index.ToString(), "NTx", "93M")?.Value<string>();
+        NewFromTemplateService.CaptureMultiTool(template, source.Index);
+        return template;
+    }
+
+    /// <summary>Deletes the selected Multi-Tool from the save, after a strict
+    /// confirmation that can keep it as a template first. The equipped tool
+    /// can't go - the game needs one in hand.</summary>
+    private async void DeleteToolBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var tool = _tools.FirstOrDefault(t => t.Index == _selectedIndex);
+        if (tool is null || _techViewModel is null) return;
+        if (tool.IsGameActive)
+        {
+            await DeleteConfirmation.ShowBlockedAsync(XamlRoot, "That's the Multi-Tool you're holding",
+                $"{tool.Name} is your equipped Multi-Tool, and the game always needs one. Switch to another in game, save, then delete this one here.");
+            return;
+        }
+
+        var choice = await DeleteConfirmation.ShowAsync(XamlRoot, tool.Name, "its tech, its stats and its look");
+        if (!choice.Confirmed) return;
+
+        if (choice.SaveTemplateFirst)
+        {
+            await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate($"{tool.Name} (saved before deleting)", tool));
+            await RefreshFullBuildTemplatesListAsync();
+        }
+        NewFromTemplateService.RemoveMultiTool(tool.Index);
+        _selectedIndex = -1;
+        LoadToolList();
     }
 
     /// <summary>Same shape as RefreshTemplatesListAsync, filtered to Scope==
@@ -905,9 +1038,15 @@ public sealed partial class MultiToolPage : Page
 
             var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 
-            var applyButton = new Button { Content = "Apply", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            applyButton.Click += async (_, _) => await ApplyFullBuildTemplateAsync(template);
-            buttonRow.Children.Add(applyButton);
+            var addButton = new Button { Content = "Add as new", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            ToolTipService.SetToolTip(addButton, "Add this whole build as a new Multi-Tool in an empty slot. Your other Multi-Tools aren't changed.");
+            addButton.Click += async (_, _) => await AddAsNewAsync(template);
+            buttonRow.Children.Add(addButton);
+
+            var shareButton = new Button { Content = "Share...", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            ToolTipService.SetToolTip(shareButton, "Save this template as a file - to give to a friend, or to keep as a backup");
+            shareButton.Click += async (_, _) => await TemplateSharingService.ExportAsync(shareButton, template);
+            buttonRow.Children.Add(shareButton);
 
             var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
             deleteButton.Click += async (_, _) =>
@@ -921,7 +1060,7 @@ public sealed partial class MultiToolPage : Page
 
             row.Children.Add(new Border
             {
-                BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 Margin = new Thickness(0, 4, 0, 0)
             });
@@ -953,63 +1092,50 @@ public sealed partial class MultiToolPage : Page
         return result;
     }
 
-    /// <summary>Stages a Full Build template's saved stats onto the given tool -
-    /// rebuilds the whole @bB array matched by key, same "match by key, replace
-    /// whole array" pattern as SetStatValue. A key present on one side but not
-    /// the other is left untouched/dropped respectively - this only ever
-    /// adjusts values for keys both sides already agree exist.</summary>
-    private static void ApplyStatsList(int targetToolIndex, List<NmsLoadoutStat> stats)
+    /// <summary>Full Build templates add a whole new Multi-Tool in the first
+    /// empty slot (NewFromTemplateService) - the Multi-Tools you have are never
+    /// changed. Tech Stack templates are the ones that Apply onto the selected one.</summary>
+    private async Task AddAsNewAsync(NmsLoadoutTemplate template)
     {
-        if (stats.Count == 0) return;
-
-        var bonusesPath = NmsInventoryContainer.MultiToolTechnologyPath(targetToolIndex).Append("@bB").ToArray();
-        var bonuses = SaveSessionManager.GetValue(bonusesPath) as JArray;
-        if (bonuses is null) return;
-
-        var statsByKey = stats.ToDictionary(s => s.Key, s => s.Value);
-
-        var updated = new JArray();
-        foreach (var entry in bonuses)
+        int total = NewFromTemplateService.MultiToolSlotCount;
+        int skeleton = _tools.FirstOrDefault(x => x.Index == _selectedIndex)?.Index ?? _tools.FirstOrDefault()?.Index ?? -1;
+        if (skeleton < 0 || NewFromTemplateService.FirstEmptyMultiToolSlot() is not int slot)
         {
-            if (entry is JObject obj && obj["QL1"]?.Value<string>() is string key && statsByKey.TryGetValue(key, out double newValue))
+            await new ContentDialog
             {
-                var clone = (JObject)obj.DeepClone();
-                clone[">MX"] = newValue;
-                updated.Add(clone);
-            }
-            else
-            {
-                updated.Add(entry.DeepClone());
-            }
+                Title = "No room for another Multi-Tool",
+                Content = new TextBlock
+                {
+                    TextWrapping = TextWrapping.Wrap,
+                    Text = skeleton < 0
+                        ? "This save doesn't have a Multi-Tool yet. Get one in game first, then add builds here."
+                        : $"All {total} Multi-Tool slots are in use. Sell or scrap one in game, then try again."
+                },
+                CloseButtonText = "OK",
+                XamlRoot = this.XamlRoot
+            }.ShowAsync();
+            return;
         }
 
-        SaveSessionManager.StageEdit(updated, bonusesPath);
-    }
+        var confirm = new ContentDialog
+        {
+            Title = $"Add \"{template.Name}\" as a new Multi-Tool?",
+            Content = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Text = $"It goes in empty slot {slot + 1} of {total} with this build's tech, class, stats and look. "
+                    + "Your other Multi-Tools aren't changed. Nothing is written to your save until you Save."
+            },
+            PrimaryButtonText = "Add",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = this.XamlRoot
+        };
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
 
-    /// <summary>Applies a saved Full Build template's tech and stats to
-    /// whichever tool is currently selected - Class only changes if the user
-    /// opts in, same as ApplyTemplateAsync.</summary>
-    private async Task ApplyFullBuildTemplateAsync(NmsLoadoutTemplate template)
-    {
-        if (_selectedIndex < 0 || _techViewModel is null) return;
-
-        var targetTool = _tools.FirstOrDefault(t => t.Index == _selectedIndex);
-        if (targetTool is null) return;
-
-        var sourcePositions = template.UnlockedPositions.Select(p => (p.X, p.Y));
-        var (confirmed, alsoMatchClass) = await ShowCopyConfirmationAsync(
-            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions, targetTool.Name, _techViewModel,
-            includesStatsAndSeed: true);
-
-        if (!confirmed) return;
-
-        _techViewModel.ApplyTemplate(template, alsoMatchClass);
-        ApplyStatsList(_selectedIndex, template.Stats);
-        if (!string.IsNullOrEmpty(template.TypeScenePath))
-            SetType(template.TypeScenePath);
-
-        PageResetBtn.Visibility = Visibility.Visible;
-        LoadSelectedTool();
+        if (NewFromTemplateService.AddMultiTool(template, skeleton) is not int added) return;
+        _selectedIndex = added;
+        LoadToolList();
     }
 
     /// <summary>Applies a template to whichever tool is currently selected in
@@ -1045,7 +1171,7 @@ public sealed partial class MultiToolPage : Page
     /// checkbox the user has to tick.</summary>
     private async Task<(bool Confirmed, bool AlsoMatchClass)> ShowCopyConfirmationAsync(
         string sourceLabel, string? sourceClass, IEnumerable<(int X, int Y)> sourcePositions,
-        string targetLabel, InventoryGridViewModel targetViewModel, bool includesStatsAndSeed = false)
+        string targetLabel, InventoryGridViewModel targetViewModel)
     {
         var sourcePositionSet = sourcePositions.ToHashSet();
         var targetUnlocked = targetViewModel.Cells.Where(c => c.State != InventorySlotState.Locked).Select(c => (c.X, c.Y)).ToHashSet();
@@ -1057,9 +1183,7 @@ public sealed partial class MultiToolPage : Page
         panel.Children.Add(new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
-            Text = includesStatsAndSeed
-                ? $"This replaces {targetLabel}'s entire tech loadout, base stats, and Type with {sourceLabel}."
-                : $"This replaces {targetLabel}'s entire tech loadout with {sourceLabel}."
+            Text = $"This replaces {targetLabel}'s entire tech loadout with {sourceLabel}."
         });
 
         if (newSlotsNeeded > 0)
@@ -1067,7 +1191,7 @@ public sealed partial class MultiToolPage : Page
             panel.Children.Add(new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = new SolidColorBrush(Color.FromArgb(255, 230, 160, 60)),
+                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
                 Text = $"\u26A0 {newSlotsNeeded} slot(s) will also be unlocked on {targetLabel} to fit this stack."
             });
         }
@@ -1078,7 +1202,7 @@ public sealed partial class MultiToolPage : Page
             panel.Children.Add(new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = new SolidColorBrush(Color.FromArgb(255, 230, 160, 60)),
+                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
                 Text = $"\u26A0 Class differs: {targetLabel} is currently {targetViewModel.CurrentClass ?? "unknown"}, source is {sourceClass ?? "unknown"}."
             });
 
@@ -1088,7 +1212,7 @@ public sealed partial class MultiToolPage : Page
 
         var dialog = new ContentDialog
         {
-            Title = includesStatsAndSeed ? "Confirm full build copy" : "Confirm tech stack copy",
+            Title = "Confirm tech stack copy",
             Content = panel,
             PrimaryButtonText = "Copy",
             CloseButtonText = "Cancel",

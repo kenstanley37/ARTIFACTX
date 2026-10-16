@@ -5,12 +5,14 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.WinUI3.Controls;
+using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Resources;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.Views;
 using ArtifactX.WinUI3.Views.InspectionPages;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using Windows.UI;
 using WinRT.Interop;
@@ -32,11 +34,48 @@ public sealed partial class MainWindow : Window
 
     public AppTitleBar TitleBar => CustomTitleBar;
 
+    /// <summary>The nav sections that open and close, by the key their state is saved under.</summary>
+    private (string Key, NavigationViewItem Item)[] ExpandableNavItems => new[]
+    {
+        ("SaveEditor", SaveEditorNavItem),
+        ("AccountData", AccountDataNavItem),
+        ("Milestones", MilestonesNavItem),
+        ("Tools", ToolsNavItem),
+        ("StructuralAnalysis", StructuralAnalysisNavItem),
+    };
+
+    /// <summary>Puts the nav back the way the player left it - which sections
+    /// were open, and whether the pane was open - and keeps it saved as they
+    /// change it (user, 2026-10-13: re-collapsing Save Editor and opening
+    /// Tools on every launch). Per profile, so it travels with their backups.</summary>
+    private void RestoreNavLayout()
+    {
+        foreach (var (key, item) in ExpandableNavItems)
+            if (SettingsStore.Get(SettingsStore.Scope.Profile, $"NavExpanded.{key}") is string saved)
+                item.IsExpanded = saved == "1";
+        if (SettingsStore.Get(SettingsStore.Scope.Profile, "NavPaneOpen") is string pane)
+            RootNav.IsPaneOpen = pane == "1";
+
+        RootNav.Expanding += (_, e) => SaveNavExpanded(e.ExpandingItemContainer, true);
+        RootNav.Collapsed += (_, e) => SaveNavExpanded(e.CollapsedItemContainer, false);
+        RootNav.PaneOpened += (_, _) => SettingsStore.Set(SettingsStore.Scope.Profile, "NavPaneOpen", "1");
+        RootNav.PaneClosed += (_, _) => SettingsStore.Set(SettingsStore.Scope.Profile, "NavPaneOpen", "0");
+    }
+
+    private void SaveNavExpanded(NavigationViewItemBase? container, bool expanded)
+    {
+        foreach (var (key, item) in ExpandableNavItems)
+            if (ReferenceEquals(item, container))
+                SettingsStore.Set(SettingsStore.Scope.Profile, $"NavExpanded.{key}", expanded ? "1" : "0");
+    }
+
     public MainWindow()
     {
         InitializeComponent();
 
         SetNavIconGeometries();
+        ThemeService.ThemeChanged += (_, _) => ApplyThemeToFrame();
+        RestoreNavLayout();
 
 #if !DEBUG
         // Dev-only tools for reverse-engineering raw JSON field mappings - not
@@ -63,8 +102,14 @@ public sealed partial class MainWindow : Window
         // awaited properly with its own try/catch instead of discarded.
         ((FrameworkElement)Content).Loaded += MainWindow_ContentLoaded;
 
-        SaveSessionManager.ActiveSessionChanged += (_, _) => UpdateNavAvailability();
+        SaveSessionManager.ActiveSessionChanged += (_, _) =>
+        {
+            UpdateNavAvailability();
+            SlotSwitchBar.IsOpen = false; // a save was opened or closed - nothing to offer
+        };
         UpdateNavAvailability();
+        SaveFolderWatchService.GameSavedOtherSlot += OfferSlotSwitch;
+        InitGameData();
 
         GameProcessMonitorService.RunningStateChanged += (_, isRunning) =>
             DispatcherQueue.TryEnqueue(() =>
@@ -77,14 +122,15 @@ public sealed partial class MainWindow : Window
         // ordering ever gets disturbed again - it doesn't depend on catching a
         // transition, just reads whatever the current state actually is.
         GameProcessMonitorService.Start(DispatcherQueue);
+        // Where fish are caught is learned from each new save, on every page (FishCatchRecorder).
+        FishCatchRecorder.Start(DispatcherQueue);
         GameRunningBanner.Visibility = GameProcessMonitorService.IsGameRunning ? Visibility.Visible : Visibility.Collapsed;
 
         _ = RunStartupUpdateCheckAsync();
 
-        ContentFrame.Navigate(typeof(SaveFolderSelectPage));
-
-        var defaultItem = FindNavItemByTag(RootNav.MenuItems, "SaveFolderSelect");
-        if (defaultItem != null) RootNav.SelectedItem = defaultItem;
+        // No game data yet: set up first - a save can't be opened without it.
+        if (GameDataService.NeedsSetup) ShowSetup();
+        else ShowSaveSelection();
     }
 
     // Assigns each nav PathIcon's Data from the raw path strings in
@@ -110,6 +156,8 @@ public sealed partial class MainWindow : Window
         CorvetteCachePathIcon.Data = G(NavIconGeometries.CorvetteCache);
         CompanionsPathIcon.Data = G(NavIconGeometries.Companions);
         SettlementsPathIcon.Data = G(NavIconGeometries.Settlements);
+        SpaceStationsPathIcon.Data = G(NavIconGeometries.SpaceStations);
+        PlanetsPathIcon.Data = G(NavIconGeometries.Planets);
         MilestonesPathIcon.Data = G(NavIconGeometries.Milestones);
         GekLanguagePathIcon.Data = G(NavIconGeometries.Language);
         VyKeenLanguagePathIcon.Data = G(NavIconGeometries.Language);
@@ -118,6 +166,7 @@ public sealed partial class MainWindow : Window
         AtlasLanguagePathIcon.Data = G(NavIconGeometries.Language);
         CataloguePathIcon.Data = G(NavIconGeometries.Catalogue);
         FishingRecordsPathIcon.Data = G(NavIconGeometries.FishingRecords);
+        FishingPathIcon.Data = G(NavIconGeometries.FishingRecords);
         ExocraftPathIcon.Data = G(NavIconGeometries.Exocraft);
     }
 
@@ -286,6 +335,31 @@ public sealed partial class MainWindow : Window
         Close();
     }
 
+    /// <summary>Frame elements (title bar, nav pane) live for the whole session,
+    /// so a swapped theme dictionary alone doesn't reach them. Flipping
+    /// RequestedTheme forces every {ThemeResource} in the tree to re-resolve
+    /// against the new dictionary; it's flipped straight back to Dark in the
+    /// same call, so no light frame is ever rendered.</summary>
+    private void ApplyThemeToFrame()
+    {
+        RootGrid.RequestedTheme = ElementTheme.Light;
+        RootGrid.RequestedTheme = ElementTheme.Dark;
+        ReloadCurrentPage();
+    }
+
+    /// <summary>Re-creates the current page so it picks up a newly applied
+    /// theme - already-built elements keep the old theme's brushes. Removes
+    /// the extra back-stack entry so Back still goes where the user expects.</summary>
+    private void ReloadCurrentPage()
+    {
+        var pageType = ContentFrame.CurrentSourcePageType;
+        if (pageType is null) return;
+
+        ContentFrame.Navigate(pageType);
+        if (ContentFrame.BackStackDepth > 0)
+            ContentFrame.BackStack.RemoveAt(ContentFrame.BackStackDepth - 1);
+    }
+
     private void InitializeCustomTitleBar()
     {
         IntPtr windowHandle = WindowNative.GetWindowHandle(this);
@@ -322,8 +396,23 @@ public sealed partial class MainWindow : Window
                 "Squadron" => typeof(SquadronPage),
                 "BaseStorage" => typeof(BaseStoragePage),
                 "CorvetteCache" => typeof(CorvetteCachePage),
+                "ColdStorage" => typeof(ColdStoragePage),
+                "IngredientStorage" => typeof(IngredientStoragePage),
+                "BaseItemCache" => typeof(BaseItemCachePage),
                 "Companions" => typeof(CompanionsPage),
                 "Settlement" => typeof(SettlementPage),
+                "SpaceStations" => typeof(SpaceStationsPage),
+                "Planets" => typeof(PlanetsPage),
+                "Bases" => typeof(BasesPage),
+                "Finds" => typeof(FindsPage),
+                "Fishing" => typeof(FishingPage),
+                "Recipes" => typeof(RecipesPage),
+                "Crafting" => typeof(CraftingPage),
+                "Guides" => typeof(GuidesPage),
+                "Credits" => typeof(CreditsPage),
+                "Settings" => typeof(SettingsPage),
+                "ItemValues" => typeof(ItemValuesPage),
+                "NearCore" => typeof(NearCorePage),
                 "Milestones" => typeof(MilestonesPage),
                 "AccountData" => typeof(AccountDataPage),
                 "Guide" => typeof(GuidePage),
@@ -370,8 +459,28 @@ public sealed partial class MainWindow : Window
         SquadronNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         BaseStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         CorvetteCacheNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        ColdStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        IngredientStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        BaseItemCacheNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        // A reminder: how many different items are waiting in the cache (easy to
+        // forget, user 2026-10-15) - kinds of item, not quantities.
+        int cacheItems = SaveSessionManager.GetValue(ArtifactX.Core.NmsModels.NmsInventoryContainer.BaseItemCachePath)?[":No"] is Newtonsoft.Json.Linq.JArray cached ? cached.Count : 0;
+        BaseItemCacheNavItem.InfoBadge = cacheItems > 0 ? new InfoBadge { Value = cacheItems } : null;
+        ToolTipService.SetToolTip(BaseItemCacheNavItem, cacheItems > 0
+            ? $"{cacheItems} item{(cacheItems == 1 ? "" : "s")} waiting from a dismantled base" : null);
         CompanionsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SettlementNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        SpaceStationsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        // Tools work from ArtifactX's own game data and the player's notes, so
+        // they're always there (looking up a recipe shouldn't need a save
+        // open); only the ones that read the loaded save hide without one.
+        ToolsNavItem.Visibility = Visibility.Visible;
+        PlanetsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        NearCoreNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        BasesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        SaveEditorNavItem.Visibility = SaveSessionManager.IsSaveLoaded || SaveSessionManager.HasActivePlatform
+            ? Visibility.Visible : Visibility.Collapsed;
+        ToolsSeparator.Visibility = ToolsNavItem.Visibility;
         MilestonesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         CatalogueNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         FishingRecordsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
@@ -384,6 +493,58 @@ public sealed partial class MainWindow : Window
         AccountDataNavItem.Visibility = SaveSessionManager.IsSaveLoaded || SaveSessionManager.HasActivePlatform
             ? Visibility.Visible
             : Visibility.Collapsed;
+    }
+
+    // The slot the game moved to, and one the player said no to (not offered
+    // again on every autosave - only once the game moves somewhere else).
+    private SaveSlotGroup? _offeredSlot;
+    private (string? Folder, int SlotId)? _declinedSlot;
+
+    /// <summary>The game saved a different slot of this account than the one
+    /// loaded: offer to follow it, rather than switching on our own - the
+    /// loaded save may have edits waiting (user request 2026-10-14).</summary>
+    private void OfferSlotSwitch(SaveSlotGroup slot)
+    {
+        string? folder = Path.GetDirectoryName(slot.PrimaryFile.FullPath);
+        if (_declinedSlot is { } no && no.SlotId == slot.SlotId && string.Equals(no.Folder, folder, StringComparison.OrdinalIgnoreCase)) return;
+        _declinedSlot = null;
+        _offeredSlot = slot;
+        string loaded = SaveSessionManager.ActiveSlot is { } a ? $"{a.SlotLabel} ({a.PrimaryFile.SaveName})" : "another save";
+        SlotSwitchBar.Message = $"The game is now saving to {slot.SlotLabel} ({slot.PrimaryFile.SaveName}). ArtifactX is showing {loaded}.";
+        SlotSwitchButton.Content = $"Switch to {slot.SlotLabel}";
+        SlotSwitchBar.IsOpen = true;
+    }
+
+    private void SlotSwitchBar_Closed(InfoBar sender, object args)
+    {
+        if (_offeredSlot is { } slot)
+            _declinedSlot = (Path.GetDirectoryName(slot.PrimaryFile.FullPath), slot.SlotId);
+        _offeredSlot = null;
+    }
+
+    private async void SlotSwitch_Click(object sender, RoutedEventArgs e)
+    {
+        if (_offeredSlot is not { } slot) return;
+        if (SaveSessionManager.HasUnsavedChanges)
+        {
+            var confirm = new ContentDialog
+            {
+                Title = "Switch saves?",
+                Content = $"You have unsaved changes to {SaveSessionManager.ActiveLabel}. Switching to {slot.SlotLabel} discards them.",
+                PrimaryButtonText = "Discard and switch",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = Content.XamlRoot,
+            };
+            if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+        }
+
+        SlotSwitchBar.IsOpen = false;
+        _offeredSlot = null;
+        await SaveSessionManager.LoadAsync(slot);
+        // Rebuild the page on screen from the new save (pages read it as they open).
+        if (ContentFrame.CurrentSourcePageType is Type page && page != typeof(SaveFolderSelectPage))
+            ContentFrame.Navigate(page);
     }
 
     private void ContentFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
@@ -401,8 +562,23 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(SquadronPage) => "Squadron",
             Type t when t == typeof(BaseStoragePage) => "BaseStorage",
             Type t when t == typeof(CorvetteCachePage) => "CorvetteCache",
+            Type t when t == typeof(ColdStoragePage) => "ColdStorage",
+            Type t when t == typeof(IngredientStoragePage) => "IngredientStorage",
+            Type t when t == typeof(BaseItemCachePage) => "BaseItemCache",
             Type t when t == typeof(CompanionsPage) => "Companions",
             Type t when t == typeof(SettlementPage) => "Settlement",
+            Type t when t == typeof(SpaceStationsPage) => "SpaceStations",
+            Type t when t == typeof(PlanetsPage) => "Planets",
+            Type t when t == typeof(BasesPage) => "Bases",
+            Type t when t == typeof(FindsPage) => "Finds",
+            Type t when t == typeof(FishingPage) => "Fishing",
+            Type t when t == typeof(RecipesPage) => "Recipes",
+            Type t when t == typeof(CraftingPage) => "Crafting",
+            Type t when t == typeof(GuidesPage) => "Guides",
+            Type t when t == typeof(CreditsPage) => "Credits",
+            Type t when t == typeof(SettingsPage) => "Settings",
+            Type t when t == typeof(ItemValuesPage) => "ItemValues",
+            Type t when t == typeof(NearCorePage) => "NearCore",
             Type t when t == typeof(MilestonesPage) => "Milestones",
             Type t when t == typeof(AccountDataPage) => "AccountData",
             Type t when t == typeof(GuidePage) => "Guide",
@@ -423,7 +599,8 @@ public sealed partial class MainWindow : Window
 
         if (!string.IsNullOrEmpty(targetTag))
         {
-            var targetItem = FindNavItemByTag(RootNav.MenuItems, targetTag);
+            var targetItem = FindNavItemByTag(RootNav.MenuItems, targetTag)
+                ?? FindNavItemByTag(RootNav.FooterMenuItems, targetTag);
             if (targetItem != null)
             {
                 RootNav.SelectedItem = targetItem;

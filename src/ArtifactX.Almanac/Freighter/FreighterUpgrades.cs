@@ -27,14 +27,11 @@ namespace ArtifactX.Almanac.Freighter;
 /// Freighter's own Cargo (already fully editable via FreighterPage's
 /// existing Cargo grid).
 ///
-/// The 10 "Recolouring" entries (FREIGHT_&lt;COLOUR&gt;) aren't in the
-/// shipped catalog DB at all - confirmed via DataCataloger grep directly
-/// against the game's raw files instead (found in
-/// metadata/gamestate/playerdata/customisationcolourpalettes.mbin).
-/// FREIGHT_RED was confirmed by the real save diff; FREIGHT_BLACK was
-/// independently confirmed via grep as a spot-check of the naming pattern;
-/// the other 8 (matching the exact 10 colour names shown in-game) are
-/// inferred from that consistent pattern, not individually save-confirmed.
+/// The 10 "Recolouring" blueprints are NOT listed here: they come from the
+/// catalog's "FreighterPaints" category (DataCataloger add-freighter-paints,
+/// read from the game's customisationcolourpalettes.mbin) along with each
+/// paint's real colour. An earlier hand-typed version here guessed the cyan
+/// paint as FREIGHT_TURQUOISE; the real id is FREIGHT_CYAN (2026-10-10).
 ///
 /// Still open: the true FULL universe of possible Construction Module/
 /// Frigate Upgrade blueprint IDs couldn't be confirmed from a single
@@ -116,20 +113,10 @@ public static class FreighterUpgrades
         new FreighterUpgradeInfo("FRE_ROOM_TECH", "Technology Room (Expansion)", "Construction Module"),
         new FreighterUpgradeInfo("FRE_ROOM_TELEPO", "Teleport Chamber", "Construction Module"),
         new FreighterUpgradeInfo("FRE_ROOM_VEHICL", "Orbital Exocraft Materializer", "Construction Module"),
-
-        // Recolouring - not in the shipped catalog DB at all, confirmed
-        // directly against the game's raw customisationcolourpalettes.mbin
-        // (see class doc comment for which of these 10 were individually
-        // confirmed vs inferred from the naming pattern).
-        new FreighterUpgradeInfo("FREIGHT_RED", "Red", "Recolouring"),
-        new FreighterUpgradeInfo("FREIGHT_ORANGE", "Orange", "Recolouring"),
-        new FreighterUpgradeInfo("FREIGHT_YELLOW", "Yellow", "Recolouring"),
-        new FreighterUpgradeInfo("FREIGHT_GREEN", "Green", "Recolouring"),
-        new FreighterUpgradeInfo("FREIGHT_TURQUOISE", "Turquoise", "Recolouring"),
-        new FreighterUpgradeInfo("FREIGHT_BLUE", "Blue", "Recolouring"),
-        new FreighterUpgradeInfo("FREIGHT_PURPLE", "Purple", "Recolouring"),
-        new FreighterUpgradeInfo("FREIGHT_PINK", "Pink", "Recolouring"),
-        new FreighterUpgradeInfo("FREIGHT_WHITE", "White", "Recolouring"),
-        new FreighterUpgradeInfo("FREIGHT_BLACK", "Black", "Recolouring"),
+        // Newer-update parts, found 2026-10-10 in a real save's eZ< list but
+        // missing here; names from the catalog's own GcProductTable rows.
+        new FreighterUpgradeInfo("FRE_CORR_B", "Freighter Passageway", "Construction Module"),
+        new FreighterUpgradeInfo("FRE_ROOM_B", "Commercial Room (Expansion)", "Construction Module"),
+        new FreighterUpgradeInfo("FRE_CORR_STA_B", "Steel Staircase", "Construction Module"),
     };
 }

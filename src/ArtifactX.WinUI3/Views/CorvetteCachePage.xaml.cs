@@ -55,6 +55,15 @@ public sealed partial class CorvetteCachePage : Page
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
         Unloaded += Page_Unloaded;
         LoadGrid();
+
+        // Every part a corvette is built from, to click into the cache - and
+        // the same list limits the right-click search.
+        _ = PartsPanel.LoadAsync(CacheGrid, async () =>
+        {
+            var parts = await CatalogService.GetCorvettePartsAsync();
+            CacheGrid.AllowedItemIds = parts.Select(p => p.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return parts;
+        }, "part", "parts", "Product", _ => "");
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
@@ -90,6 +99,24 @@ public sealed partial class CorvetteCachePage : Page
     private void MaxAllQtyBtn_Click(object sender, RoutedEventArgs e)
     {
         _viewModel.MaxAllQuantities();
+        CacheGrid.Refresh();
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void MergeDuplicatesBtn_Click(object sender, RoutedEventArgs e)
+    {
+        int freed = _viewModel.MergeDuplicates();
+        TidyResultTxt.Text = freed == 0 ? "No duplicates found." : $"Merged duplicates - {freed} slot{(freed == 1 ? "" : "s")} freed.";
+        if (freed == 0) return;
+        CacheGrid.Refresh();
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    private void SortBtn_Click(object sender, RoutedEventArgs e)
+    {
+        bool moved = _viewModel.SortItems();
+        TidyResultTxt.Text = moved ? "Sorted." : "Already sorted.";
+        if (!moved) return;
         CacheGrid.Refresh();
         PageResetBtn.Visibility = Visibility.Visible;
     }

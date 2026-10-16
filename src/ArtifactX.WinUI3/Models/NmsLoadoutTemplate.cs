@@ -73,6 +73,54 @@ public sealed class NmsLoadoutTemplate
 
     public List<NmsLoadoutTechItem> TechItems { get; set; } = new();
     public List<NmsLoadoutPosition> UnlockedPositions { get; set; } = new();
+
+    // ---- Full Build extras, captured since 2026-10-12 so "Add as new" can
+    // rebuild the whole thing in an empty slot (NewFromTemplateService). All
+    // null on older templates, which then fall back to the skeleton entry's
+    // own values.
+
+    /// <summary>Supercharged Technology slots (MMm).</summary>
+    public List<NmsLoadoutPosition>? SuperchargedPositions { get; set; }
+    /// <summary>Starships only: unlocked Cargo slots (;l5 hl?). Never the cargo itself.</summary>
+    public List<NmsLoadoutPosition>? CargoUnlockedPositions { get; set; }
+    /// <summary>Paint, colours and parts, as the save's own JSON: a Multi-Tool's
+    /// CustomisationData (7DH), or a Starship's CharacterCustomisationData slot
+    /// (l:j entry). Checked by TemplateSharingService on import.</summary>
+    public string? Customisation { get; set; }
+    /// <summary>Multi-Tools only (GcMultitoolData): pistol vs rifle size (OGV) -
+    /// varies even within one model, so it can't be worked out from Type.</summary>
+    public bool? IsLarge { get; set; }
+    /// <summary>Multi-Tools only: selected primary/secondary weapon modes (qVG / jl;).</summary>
+    public int? PrimaryMode { get; set; }
+    public int? SecondaryMode { get; set; }
+    /// <summary>Multi-Tools only: UseLegacyColours (J&lt;o).</summary>
+    public bool? UseLegacyColours { get; set; }
+
+    /// <summary>Every placed part of the build, in the base's own local space:
+    /// a freighter's rooms and furnishings (FreighterBase entry of F?0, see
+    /// FreighterBuildService), or a corvette's modules (its PlayerShipBase,
+    /// see ShipBaseService).</summary>
+    public List<NmsLoadoutBaseObject>? InteriorObjects { get; set; }
+    /// <summary>Starships (corvettes) only: the PlayerShipBase entry as JSON,
+    /// parts and owner emptied - see ShipBaseService.</summary>
+    public string? ShipBase { get; set; }
+    /// <summary>Freighters only: the interior's anchor (FreighterBase wMC) and
+    /// the freighter's facing (9wg at / fUl up). Always copied together with
+    /// the model and seed they were captured with.</summary>
+    public double[]? InteriorPosition { get; set; }
+    public double[]? FreighterAt { get; set; }
+    public double[]? FreighterUp { get; set; }
+}
+
+/// <summary>One placed base part (GcPersistentBaseEntry: r&lt;7 id, CVX user
+/// data such as colour, wMC position, wJ0 up, aNu at).</summary>
+public sealed class NmsLoadoutBaseObject
+{
+    public string Id { get; set; } = "";
+    public long UserData { get; set; }
+    public double[] Position { get; set; } = new double[3];
+    public double[] Up { get; set; } = new double[3];
+    public double[] At { get; set; } = new double[3];
 }
 
 public sealed class NmsLoadoutStat

@@ -265,6 +265,34 @@ public class NmsInventoryContainer
     public static string[] BaseStorageContainerPath(string containerKey) =>
         new[] { "vLc", "6f=", containerKey };
 
+    /// <summary>The fishing update's Cold Storage (2026-10-15): one of the 3
+    /// trailing Chest-shaped entries described above - not unreachable after
+    /// all. Same key in every save checked (Slots 1, 5, 7, 8), 10 x 6, all 60
+    /// slots open; holds the fish the player keeps. Confirmed by storing 14
+    /// fish in game and finding exactly those here. The other two (V86, 7 x 3,
+    /// and nHK, 1 x 1) are still unidentified.</summary>
+    public const string ColdStorageKey = "KQ<";
+    public const int ColdStorageColumns = 10, ColdStorageRows = 6;
+
+    /// <summary>The cooking Ingredient Storage (2026-10-15): 10 x 5 open slots
+    /// (stored 10 x 6 like the others), same key in every save; holds
+    /// ingredients and cooked food - matched item for item against the game's
+    /// INGREDIENT STORAGE screen (50 slots). Stacks are 5x the catalog size
+    /// (fish 25, food 50); Cold Storage's are 20x (fish 100, bait 1,000).</summary>
+    public static readonly string[] IngredientStoragePath = { "vLc", "6f=", "Kha" };
+    public const int IngredientStorageColumns = 10, IngredientStorageRows = 5;
+    public static readonly string[] ColdStoragePath = { "vLc", "6f=", ColdStorageKey };
+
+    /// <summary>The "Previous Base Item Cache" (2026-10-15): what the game gives
+    /// back when a base is dismantled - the player can only take items out.
+    /// WA4.rri "BaseCapsule", same key in every save checked, 48 open slots
+    /// (8 x 6 in one save, spread over 10 columns in another, so the grid is
+    /// 10 x 6 and shows the open ones). Matched item for item against the
+    /// game's DISMANTLED BASE COMPONENTS screen. A second BaseCapsule (fCh)
+    /// sits beside it - not identified yet.</summary>
+    public static readonly string[] BaseItemCachePath = { "vLc", "6f=", ";?C" };
+    public const int BaseItemCacheColumns = 10, BaseItemCacheRows = 6;
+
     // Exocraft live in a FIXED 7-slot array, one slot per GcVehicleType.
     // VehicleTypeEnum member - see ExocraftType's own doc comment for the full
     // confirmation trail (libMBIN's fixed Size=0x7 declarations, cross-checked

@@ -11,6 +11,10 @@ namespace ArtifactX.WinUI3.ViewModels;
 public sealed class CatalogCategorySectionViewModel
 {
     public required string Header { get; init; }
+
+    /// <summary>Header in capitals for the themed card band (TextBlock has no
+    /// text-transform).</summary>
+    public string HeaderUpper => Header.ToUpperInvariant();
     public required List<AccountItemRowViewModel> Items { get; init; }
 
     /// <summary>The card's internal ListView height in pixels - settable, not

@@ -112,8 +112,8 @@ public static class AccountSessionManager
     {
         if (_session is null || _accountDataPath is null) return;
 
-        string platformName = SaveSessionManager.ActivePlatformDisplayName ?? "Unknown";
-        BackupService.BackupFiles(new[] { _accountDataPath }, BackupService.BuildAccountDataGroupKey(platformName));
+        string accountFolder = Path.GetDirectoryName(_accountDataPath) ?? "";
+        BackupService.BackupFiles(new[] { _accountDataPath }, BackupService.BuildAccountDataGroupKey(accountFolder));
 
         await _session.CommitAsync(Enumerable.Empty<string>());
         PendingEditsChanged?.Invoke(null, EventArgs.Empty);

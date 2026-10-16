@@ -6,6 +6,7 @@
   <Folder Name="/src/">
     <Project Path="src/ArtifactX.Almanac/ArtifactX.Almanac.csproj" Id="68d99de1-f1fd-4a68-981f-378ce661b134" />
     <Project Path="src/ArtifactX.Core/ArtifactX.Core.csproj" />
+    <Project Path="src/ArtifactX.GameData/ArtifactX.GameData.csproj" />
     <Project Path="src/ArtifactX.WinUI3/ArtifactX.WinUI3.csproj" Id="62ead7dc-3cf1-4a0a-b434-b11346199274">
       <Platform Solution="*|ARM64" Project="ARM64" />
       <Platform Solution="*|x64" Project="x64" />

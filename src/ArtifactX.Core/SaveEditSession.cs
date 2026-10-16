@@ -46,19 +46,60 @@ public sealed class SaveEditSession
     public IEnumerable<string> DescribePendingEdits() =>
         _pendingEdits.Select(kv => $"{kv.Key.Replace(PathSeparator, "/")} = {kv.Value?.ToString() ?? "null"}");
 
+    /// <summary>The value at a path as it will be once saved. A path inside a
+    /// staged value (e.g. one field of a whole new Multi-Tool entry) reads from
+    /// that staged value, and a container with staged edits inside it (e.g. the
+    /// Multi-Tool list once a new entry is staged) comes back as a copy with
+    /// them applied. That copy is skipped for the top two levels ("vLc/6f="),
+    /// which are far too big to copy on every read; nothing reads those
+    /// expecting staged values.</summary>
     public JToken? GetValue(params string[] path)
     {
         string key = Join(path);
-        return _pendingEdits.TryGetValue(key, out var staged) ? staged : Resolve(Root, path);
+        JToken? result;
+        if (_pendingEdits.TryGetValue(key, out var staged))
+            result = staged;
+        else
+        {
+            result = Resolve(Root, path);
+            for (int n = path.Length - 1; n > 0; n--)
+            {
+                if (_pendingEdits.TryGetValue(Join(path[..n]), out var ancestor))
+                {
+                    result = ancestor is null ? null : Resolve(ancestor, path[n..]);
+                    break;
+                }
+            }
+        }
+
+        if (result is null || path.Length < 3 || _pendingEdits.Count == 0) return result;
+        string prefix = key + PathSeparator;
+        var inside = _pendingEdits.Where(kv => kv.Key.StartsWith(prefix, StringComparison.Ordinal))
+            .Select(kv => (Path: kv.Key[prefix.Length..].Split(PathSeparator), kv.Value))
+            .OrderBy(e => e.Path.Length)
+            .ToList();
+        if (inside.Count == 0) return result;
+
+        var copy = result.DeepClone();
+        foreach (var (subPath, value) in inside)
+            Apply(copy, subPath, value?.DeepClone());
+        return copy;
     }
 
     public long? GetLong(params string[] path) => GetValue(path)?.Value<long>();
     public string? GetString(params string[] path) => GetValue(path)?.Value<string>();
     public bool? GetBool(params string[] path) => GetValue(path)?.Value<bool>();
 
+    /// <summary>Stages a new value for a path. Staging a whole container
+    /// replaces any edits staged inside it earlier, since the new value
+    /// already decides everything under it.</summary>
     public void StageEdit(JToken? newValue, params string[] path)
     {
-        _pendingEdits[Join(path)] = newValue;
+        string key = Join(path);
+        string prefix = key + PathSeparator;
+        foreach (var inside in _pendingEdits.Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal)).ToList())
+            _pendingEdits.Remove(inside);
+        _pendingEdits[key] = newValue;
         EditsChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -103,8 +144,10 @@ public sealed class SaveEditSession
 
     public async Task CommitAsync(IEnumerable<string> targetHgFilePaths)
     {
-        foreach (var (key, value) in _pendingEdits)
-            Apply(Root, key.Split(PathSeparator), value);
+        // Containers before the edits inside them (a field edited on a newly
+        // staged entry must land on that entry, not be overwritten by it).
+        foreach (var (path, value) in _pendingEdits.Select(kv => (Path: kv.Key.Split(PathSeparator), kv.Value)).OrderBy(e => e.Path.Length).ToList())
+            Apply(Root, path, value);
 
         string editedJson = Root.ToString(Newtonsoft.Json.Formatting.None);
         await File.WriteAllTextAsync(WorkingJsonPath, editedJson);
@@ -134,7 +177,7 @@ public sealed class SaveEditSession
         return current;
     }
 
-    private static void Apply(JObject root, string[] path, JToken? value)
+    private static void Apply(JToken root, string[] path, JToken? value)
     {
         JToken current = root;
         for (int i = 0; i < path.Length - 1; i++)
@@ -157,7 +200,14 @@ public sealed class SaveEditSession
 
         string lastSegment = path[^1];
         if (current is JArray lastArr && int.TryParse(lastSegment, out int lastIdx))
-            lastArr[lastIdx] = value;
+        {
+            // Index == Count appends - used when a page stages a brand-new
+            // entry the game creates lazily (e.g. a ^SYSTEM_STATS group).
+            if (lastIdx == lastArr.Count)
+                lastArr.Add(value ?? JValue.CreateNull());
+            else
+                lastArr[lastIdx] = value;
+        }
         else
             ((JObject)current)[lastSegment] = value;
     }

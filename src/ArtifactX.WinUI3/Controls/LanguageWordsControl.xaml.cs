@@ -54,8 +54,8 @@ public sealed partial class LanguageWordsControl : UserControl
         _raceName = raceName;
         _idPrefix = idPrefix;
 
-        TitleTxt.Text = $"{raceName} Language";
-        InfoTxt.Text = $"This save's known {raceName} vocabulary. Names come from the game's own text table. Shares one list with every other language page (Gek/Vy'keen/Korvax/Autophage/Atlas) - Reset reverts every one of them's unsaved changes, not just {raceName}'s.";
+        TitleTxt.Text = $"{raceName} Language".ToUpperInvariant();
+        InfoTxt.Text = $"The {raceName} words this save knows. Click a word to mark it known or unknown. All five language pages share one list, so Reset undoes unsaved changes on every one of them, not just {raceName}.";
 
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         SaveSessionManager.PendingEditsChanged += OnPendingEditsChanged;

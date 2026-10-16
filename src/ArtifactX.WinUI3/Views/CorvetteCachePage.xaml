@@ -1,52 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml), same card pattern as the
+     equipment pages. -->
 <Page
     x:Class="ArtifactX.WinUI3.Views.CorvetteCachePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <ScrollViewer>
-        <StackPanel Padding="24" Spacing="20">
-            <!-- Reset button on the title's own row, pinned far right via the
-                 "*" spacer column, styled to stand out as a destructive
-                 action - not its own row below, which shifted the whole page
-                 down whenever it appeared. -->
+        <StackPanel Padding="28,26,28,40" Spacing="22">
+            <!-- Reset button on the title's own row, pinned far right, so it
+                 appearing never shifts the page down. -->
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="Corvette Workshop Cache" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="0" Text="CORVETTE WORKSHOP CACHE" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
                 <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Cache Changes" Click="PageResetBtn_Click"
                         Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
             </Grid>
 
-            <StackPanel Spacing="20" HorizontalAlignment="Left">
-            <StackPanel Orientation="Horizontal" Spacing="12">
-                <TextBlock Text="Contents" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                <Button Content="Max All Qty" Click="MaxAllQtyBtn_Click"/>
-            </StackPanel>
-            <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                    CornerRadius="6" HorizontalAlignment="Left" Opacity="0.9">
-                <Grid>
-                    <ScrollViewer x:Name="CacheScrollViewer" Padding="8,32,8,8" MaxHeight="708" VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
-                        <controls:InventorySlotGrid x:Name="CacheGrid"/>
-                    </ScrollViewer>
-                    <Button x:Name="CacheExpandBtn" Click="CacheExpandBtn_Click"
-                            HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"
-                            Padding="6" Background="Transparent" BorderThickness="0"
-                            ToolTipService.ToolTip="Expand">
-                        <FontIcon x:Name="CacheExpandIcon" Glyph="&#xE70D;" FontSize="12"/>
-                    </Button>
-                </Grid>
+            <!-- The cache, and beside it every corvette part it can hold (ItemListPanel),
+                 so nobody has to remember part names. Wraps under on narrow windows. -->
+            <ctcontrols:WrapPanel HorizontalSpacing="18" VerticalSpacing="18">
+            <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left" VerticalAlignment="Top">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="CONTENTS" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <StackPanel Padding="14,12,14,14" Spacing="10">
+                        <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
+                            <Button Content="Max All Qty" Click="MaxAllQtyBtn_Click"/>
+                            <Button Content="Merge Duplicates" Click="MergeDuplicatesBtn_Click"
+                                    ToolTipService.ToolTip="Combines repeated items into one stack each (up to the item's max) and frees the other slots."/>
+                            <Button Content="Sort" Click="SortBtn_Click"
+                                    ToolTipService.ToolTip="Groups items by kind and name, packed from the top-left, so identical items sit together."/>
+                            <TextBlock x:Name="TidyResultTxt" VerticalAlignment="Center" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                        </ctcontrols:WrapPanel>
+                        <Grid>
+                            <ScrollViewer x:Name="CacheScrollViewer" Padding="0,28,0,0" MaxHeight="708" VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
+                                <controls:InventorySlotGrid x:Name="CacheGrid"/>
+                            </ScrollViewer>
+                            <Button x:Name="CacheExpandBtn" Click="CacheExpandBtn_Click"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top"
+                                    Padding="6" Background="Transparent" BorderThickness="0"
+                                    ToolTipService.ToolTip="Expand">
+                                <FontIcon x:Name="CacheExpandIcon" Glyph="&#xE70D;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
             </Border>
-            </StackPanel>
+
+            <Border Style="{StaticResource ThemeCardStyle}" Width="340" VerticalAlignment="Top">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="CORVETTE PARTS" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <Border Padding="14,12,14,14">
+                        <controls:ItemListPanel x:Name="PartsPanel"/>
+                    </Border>
+                </StackPanel>
+            </Border>
+            </ctcontrols:WrapPanel>
         </StackPanel>
     </ScrollViewer>
 </Page>

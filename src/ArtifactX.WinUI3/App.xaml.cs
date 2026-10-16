@@ -1,7 +1,9 @@
-﻿using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
+using ArtifactX.WinUI3.Services;
 using Velopack;
 
 // To learn more about WinUI, the WinUI project structure,
@@ -32,6 +34,10 @@ public partial class App : Application
         // above as "the logical equivalent of main()" - is the earliest
         // reachable hook.
         VelopackApp.Build().Run();
+        // Before anything opens the data: it moved from %LocalAppData% (the
+        // install folder) to %AppData% on 2026-10-15.
+        Services.LocalAppDataPaths.MoveFromOldFolder();
+        DevTimingLog.Start();
 
         InitializeComponent();
     }
@@ -45,14 +51,35 @@ public partial class App : Application
         // Initialize the SQLite local store engine cleanly before the window goes live
         //await ArtifactX.Data.DatabaseInitializer.InitializeAsync();
 
+        DevTimingLog.Write("OnLaunched");
         DeleteWorkingFolder();
-
+        DevTimingLog.Write("working folder moved aside");
+        ThemeService.ApplySaved();
+        DevTimingLog.Write("theme applied");
 
         _window = new MainWindow();
+        DevTimingLog.Write("main window created");
         MainWindowInstance = (MainWindow)_window;
         _window.Activate();
+        DevTimingLog.Write("main window activated");
+        DevTimingLog.WatchUiThread(_window.DispatcherQueue);
+
+        // The day's automatic backup of the player's own data (Settings page).
+        _ = Task.Run(() =>
+        {
+            try { UserDatabase.DailyBackupIfDue(); }
+            catch (Exception ex) { Debug.WriteLine($"[Startup] Daily backup failed: {ex.Message}"); }
+        });
     }
 
+    /// <summary>Clears last session's decrypted save copies (Working, next to
+    /// the exe). It used to delete them file by file before the window opened -
+    /// hundreds of MB with several accounts, all while the user stared at
+    /// nothing (2026-10-12). Now the folder is renamed out of the way (instant)
+    /// and deleted in the background; leftovers from a run that closed before
+    /// its cleanup finished are swept up the same way. If the rename fails
+    /// (something holds a file open), the folder is simply reused - indexing
+    /// overwrites every copy it needs.</summary>
     public void DeleteWorkingFolder()
     {
         // Must match SaveWorkspaceService's working folder exactly, or this cleans up
@@ -62,53 +89,23 @@ public partial class App : Application
         try
         {
             if (Directory.Exists(workingRoot))
+                Directory.Move(workingRoot, $"{workingRoot}.old-{DateTime.UtcNow.Ticks}");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Debug.WriteLine($"[Startup Cleanup] Reusing the working directory: {ex.Message}");
+        }
+
+        _ = Task.Run(() =>
+        {
+            foreach (var stale in Directory.GetDirectories(AppContext.BaseDirectory, "Working.old-*"))
             {
-                foreach (var file in Directory.GetFiles(workingRoot, "*", SearchOption.AllDirectories))
+                try { Directory.Delete(stale, recursive: true); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    try
-                    {
-                        File.Delete(file);
-                    }
-                    catch (IOException)
-                    {
-                        // Skip locked files but continue
-                    }
-                    catch (UnauthorizedAccessException)
-                    {
-                        // Skip files we can't touch
-                    }
-                }
-
-                foreach (var dir in Directory.GetDirectories(workingRoot, "*", SearchOption.AllDirectories))
-                {
-                    try
-                    {
-                        Directory.Delete(dir, recursive: true);
-                    }
-                    catch (IOException)
-                    {
-                        // Skip locked subfolders
-                    }
-                    catch (UnauthorizedAccessException)
-                    {
-                        // Skip protected subfolders
-                    }
-                }
-
-                // Finally try to delete the root folder itself
-                try
-                {
-                    Directory.Delete(workingRoot, recursive: true);
-                }
-                catch (IOException)
-                {
-                    // If still locked, leave it — we’ll reuse it
+                    Debug.WriteLine($"[Startup Cleanup] Couldn't remove {stale}: {ex.Message}");
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[Startup Cleanup] Failed to clear working directory: {ex.Message}");
-        }
+        });
     }
 }

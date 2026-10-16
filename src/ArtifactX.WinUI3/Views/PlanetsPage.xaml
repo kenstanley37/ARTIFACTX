@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). Read-only page: shows what
+     the save knows about planets (see NmsPlanets) and never stages an edit. -->
+<Page
+    x:Class="ArtifactX.WinUI3.Views.PlanetsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <!-- Two views: the overview (MainScroll) and one planet in full (DetailScroll,
+         built in code - see OpenPlanet). Switching only hides one, so the
+         overview keeps its scroll position, filters and live follow. -->
+    <Grid>
+    <ScrollViewer x:Name="MainScroll">
+        <StackPanel Padding="28,26,28,40" Spacing="22">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="PLANETS" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
+                <!-- Live follow: the page re-reads the save whenever the game writes it. -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
+                            ToolTipService.ToolTip="This page follows your game: each time No Man's Sky saves, it shows your new location and discoveries. It only reads the save; it never changes it.">
+                    <Ellipse Width="8" Height="8" Fill="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="LiveStatusTxt" Text="Following your game" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center"/>
+                    <HyperlinkButton x:Name="ShowLiveHelpLink" Content="How it works" Click="ShowLiveHelp_Click" Padding="4,0" FontSize="12" Visibility="Collapsed"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- How live follow works - dismissible; reopened from the status link. -->
+            <Border x:Name="LiveHelpPanel" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                    Background="{ThemeResource ThemePanelAltBrush}"
+                    CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,12,16,14">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE946;" FontSize="16" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                        <TextBlock Text="PLAY WITH THIS PAGE OPEN" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13"
+                                   Text="Keep ArtifactX open on this page while you play (a second monitor or Alt+Tab works well). It updates every time No Man's Sky saves - it only reads your save, never changes it."/>
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap">
+                            <Run Text="•  The game saves when you get out of your ship, use a save point, or on autosave. Warping alone doesn't save, so after a jump, hop out of your ship (or save) to see the new system."/>
+                            <LineBreak/>
+                            <Run Text="•  Saving in your ship in space records the system's name; saving on a planet records that planet's name. Saves on your freighter or a station don't include the system name - type it in the System name box instead."/>
+                            <LineBreak/>
+                            <Run Text="•  Scan planets and creatures, then save, to see your discovery counts go up."/>
+                            <LineBreak/>
+                            <Run Text="•  Fill in the notes (star class, economy, moons...) while the game's system info is on screen. Notes save as you type and work while the game is running."/>
+                        </TextBlock>
+                    </StackPanel>
+                    <Button Grid.Column="2" Content="Got it" Click="HideLiveHelp_Click" VerticalAlignment="Top"/>
+                </Grid>
+            </Border>
+
+            <!-- Current system: animated orbit view + one tile per known planet. -->
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="CURRENT SYSTEM" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <Grid>
+                    <StackPanel x:Name="CurrentSystemBody" Padding="20,16,20,20" Spacing="18">
+                        <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
+                            <!-- Orbit spacing, planet sizes and the star's colour are
+                                 decorative: the save stores none of them. -->
+                            <Border Width="360" Height="360" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                                    Background="{ThemeResource ThemeVoidBrush}">
+                                <Canvas x:Name="SystemCanvas" Width="360" Height="360"/>
+                            </Border>
+
+                            <StackPanel Spacing="12" MaxWidth="520" VerticalAlignment="Top">
+                                <TextBlock Text="LOCATION" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <TextBlock x:Name="SystemHeadingTxt" Style="{StaticResource ThemeHeadingStyle}" FontSize="24"/>
+                                <TextBlock x:Name="SystemSubTxt" Style="{StaticResource ThemeDimTextStyle}"/>
+                                <!-- From the game's generator (ArtifactX.Core.Universe): star, race, economy, wealth, conflict. -->
+                                <TextBlock x:Name="SystemFactsTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextWrapping="Wrap"
+                                           Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                <TextBlock x:Name="SystemStationTxt" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" Visibility="Collapsed"/>
+                                <StackPanel Spacing="6" Margin="0,6,0,0">
+                                    <TextBlock Text="SYSTEM PORTAL ADDRESS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <controls:GlyphStrip x:Name="SystemGlyphStrip"><StackPanel x:Name="SystemGlyphsPanel" Orientation="Horizontal" Spacing="3"/></controls:GlyphStrip>
+                                    <StackPanel Orientation="Horizontal" Spacing="10"
+                                                ToolTipService.ToolTip="The same address as text: each character is one glyph, in order. The first is the planet number (0 for the system itself).">
+                                        <TextBlock Text="Text code (for sharing):" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="SystemCodeTxt" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" CharacterSpacing="80"
+                                                   IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                                        <Button x:Name="CopySystemCodeBtn" Content="Copy" Click="CopyCode_Click" Padding="10,3"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                           Text="Planet types, rings and your discoveries come from your save. Names, star colour, race, economy, wealth and conflict come from the game's own generator - the same formula the game uses, right about 99% of the time. Your notes below win if you record something different. Weather and resources aren't covered."/>
+                            </StackPanel>
+                        </ctcontrols:WrapPanel>
+
+                        <!-- Player-entered notes (SystemNotesService) - saved in ArtifactX's own
+                             settings, never the save, since the game doesn't store these. -->
+                        <Border x:Name="SystemNotesPanel" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                                Background="{ThemeResource ThemePanelAltBrush}"
+                                CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,12,16,14">
+                            <StackPanel Spacing="10">
+                                <!-- Collapsible (user, 2026-10-13): closed, it's one line with a
+                                     summary of what's recorded. Remembered per profile. -->
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="YOUR NOTES ON THIS SYSTEM" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" x:Name="SystemNotesSummaryTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="2" x:Name="SystemNotesToggleBtn" Click="SystemNotesToggle_Click" Padding="10,4"
+                                            ToolTipService.ToolTip="Show or hide your notes on this system"/>
+                                </Grid>
+                                <StackPanel x:Name="SystemNotesBody" Spacing="10">
+                                <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                           Text="Facts about the whole system, as the Galaxy Map or the system's info panel shows them - pick the exact word the game uses. A planet's weather, sentinels, life, resources and notes go on its own card below. The game doesn't save any of these, so ArtifactX keeps them on this PC (never in your save), and they become filters in the Planet Finder."/>
+                                <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="10">
+                                    <TextBox x:Name="NoteSystemNameBox" Header="System name" Width="200" PlaceholderText="Learned when you save here"
+                                             LostFocus="NoteTextBox_LostFocus"
+                                             ToolTipService.ToolTip="Filled in automatically when you save in space in this system (the save records &quot;In the ... system&quot;). You can also type it."/>
+                                    <TextBox x:Name="NoteClassBox" Header="Star class" Width="110" PlaceholderText="e.g. G7"
+                                             TextChanged="NoteClassBox_TextChanged" LostFocus="NoteTextBox_LostFocus"
+                                             ToolTipService.ToolTip="As shown on the Galaxy Map after the distance (e.g. 24 LY // G7). Its first letter fills in the star colour."/>
+                                    <ComboBox x:Name="NoteStarBox" Header="Star colour" Width="170" SelectionChanged="NoteField_Changed"/>
+                                    <ComboBox x:Name="NoteEconomyBox" Header="Economy" Width="250" SelectionChanged="NoteField_Changed"/>
+                                    <ComboBox x:Name="NoteWealthBox" Header="Wealth" Width="230" SelectionChanged="NoteField_Changed"/>
+                                    <ComboBox x:Name="NoteConflictBox" Header="Conflict" Width="200" SelectionChanged="NoteField_Changed"/>
+                                    <ComboBox x:Name="NoteRaceBox" Header="Dominant race" Width="170" SelectionChanged="NoteField_Changed"/>
+                                    <CheckBox x:Name="NoteWaterBox" Content="Water" Click="NoteCheck_Click" VerticalAlignment="Bottom"
+                                              ToolTipService.ToolTip="The Galaxy Map shows &quot;// Water&quot; after the star class - in every system checked so far that meant a water world with Salt to harvest"/>
+                                    <CheckBox x:Name="NoteDissonantBox" Content="Dissonant" Click="NoteCheck_Click" VerticalAlignment="Bottom"
+                                              ToolTipService.ToolTip="The Galaxy Map shows &quot;// Dissonant&quot; - systems with Autophage and corrupted sentinels"/>
+                                    <ComboBox x:Name="NoteMoonsBox" Header="Moons" Width="140" SelectionChanged="NoteField_Changed"
+                                              ToolTipService.ToolTip="From the Discoveries screen, e.g. &quot;4 PLANETS / 2 MOONS&quot;. Marks which bodies below are moons."/>
+                                </ctcontrols:WrapPanel>
+
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="SHIPS SEEN HERE" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <ctcontrols:WrapPanel x:Name="ShipTypesPanel" HorizontalSpacing="6" VerticalSpacing="6"/>
+                                </StackPanel>
+
+                                <StackPanel Spacing="6" Margin="0,4,0,0">
+                                    <TextBlock Text="NOTES" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <StackPanel x:Name="NotesListPanel" Spacing="6"/>
+                                    <Grid ColumnSpacing="8" MaxWidth="640" HorizontalAlignment="Left">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="NewNoteBox" MinWidth="380" PlaceholderText="About the whole system, e.g. S-class ships at the station"
+                                                 KeyDown="NewNoteBox_KeyDown"/>
+                                        <Button Grid.Column="1" Content="Add note" Click="AddNote_Click"/>
+                                    </Grid>
+                                </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock x:Name="NoSystemPlanetsTxt" Style="{StaticResource ThemeDimTextStyle}" Visibility="Collapsed"
+                                   Text="No planets in this system are in your discoveries yet. Scan or land on one in-game, then save."/>
+                        <!-- Fish found on any planet with water: once here, not on every card. -->
+                        <StackPanel x:Name="AnyFishPanel" Spacing="4" Visibility="Collapsed"/>
+                        <ctcontrols:WrapPanel x:Name="CurrentPlanetsPanel" HorizontalSpacing="14" VerticalSpacing="14"/>
+                    </StackPanel>
+
+                    <!-- Shown briefly when live follow sees you arrive in a new system. -->
+                    <Border x:Name="SystemChangeOverlay" Visibility="Collapsed" IsHitTestVisible="False"
+                            HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,150,0,0" Padding="34,18"
+                            Background="{ThemeResource ThemeAccentBrush}" BorderBrush="{ThemeResource ThemeTextBrush}" BorderThickness="2"
+                            CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                        <StackPanel Spacing="4" HorizontalAlignment="Center">
+                            <TextBlock Text="SYSTEM CHANGE DETECTED" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="Bold" FontSize="22"
+                                       CharacterSpacing="160" Foreground="{ThemeResource ThemeOnAccentBrush}" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="SystemChangeDetailTxt" FontSize="14" Foreground="{ThemeResource ThemeOnAccentBrush}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Glyph decoder: paste a code someone shared, see the glyphs to dial. -->
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="GLYPH DECODER" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <StackPanel Padding="20,16,20,20" Spacing="12">
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13"
+                                   Text="Paste a portal code someone shared (like 21BAE0F7D734) or galactic coordinates from a signal booster (like 0F2F:0065:077F:0013) to see the glyphs to dial."/>
+                        <TextBox x:Name="DecoderInputBox" MaxWidth="420" HorizontalAlignment="Left"
+                                 PlaceholderText="Portal code or galactic coordinates" TextChanged="DecoderInputBox_TextChanged"/>
+                        <TextBlock x:Name="DecoderErrorTxt" Foreground="{ThemeResource ThemeWarningBrush}" FontSize="13" Visibility="Collapsed"/>
+                        <StackPanel x:Name="DecoderResultPanel" Spacing="8" Visibility="Collapsed">
+                            <controls:GlyphStrip x:Name="DecoderGlyphStrip"><StackPanel x:Name="DecoderGlyphsPanel" Orientation="Horizontal" Spacing="4"/></controls:GlyphStrip>
+                            <TextBlock x:Name="DecoderDetailTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" IsTextSelectionEnabled="True"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Planet finder: every planet in the save's discovery list. -->
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="PLANET FINDER" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <StackPanel Padding="20,16,20,20" Spacing="14">
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13"
+                                   Text="Every planet in your saves' discoveries, including ones other players found that the game downloaded for you. Pick a type to find the nearest one, then dial its portal address at any portal. Distances are approximate, measured from where this save is now."/>
+                        <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
+                            <TextBox x:Name="SearchBox" Width="260" Header="Search" PlaceholderText="Names, notes, resources, weather..."
+                                     TextChanged="SearchBox_TextChanged"
+                                     ToolTipService.ToolTip="Finds planets whose name, system name, your notes or recorded details contain this text"/>
+                            <ComboBox x:Name="TypeFilterBox" Width="220" SelectionChanged="Filter_Changed" Header="Planet type"/>
+                            <ComboBox x:Name="GalaxyFilterBox" Width="220" SelectionChanged="Filter_Changed" Header="Galaxy"/>
+                            <ComboBox x:Name="SortBox" Width="180" SelectionChanged="Filter_Changed" Header="Sort">
+                                <ComboBoxItem Content="Nearest to you first"/>
+                                <ComboBoxItem Content="Newest first"/>
+                                <ComboBoxItem Content="Furthest from galaxy core"/>
+                                <ComboBoxItem Content="Nearest to galaxy core"/>
+                            </ComboBox>
+                            <CheckBox x:Name="RingsOnlyBox" Content="Rings only" Click="Filter_Click" VerticalAlignment="Bottom"/>
+                            <CheckBox x:Name="MineOnlyBox" Content="Discovered by you" Click="Filter_Click" VerticalAlignment="Bottom"/>
+                            <CheckBox x:Name="AllSlotsBox" Content="Include my other save slots" IsChecked="True" Click="AllSlotsBox_Click" VerticalAlignment="Bottom"/>
+                            <controls:HyperdriveRangeBox VerticalAlignment="Bottom"/>
+                            <Button x:Name="ClearFiltersBtn" Style="{StaticResource ThemeAccentButtonStyle}" Click="ClearFilters_Click"
+                                    VerticalAlignment="Bottom" Visibility="Collapsed"
+                                    ToolTipService.ToolTip="Clear the search and every filter (keeps your sort, save slots and hyperdrive range)"/>
+                            <Button x:Name="ExportBtn" Content="Export CSV" Click="ExportCsv_Click" VerticalAlignment="Bottom"
+                                    ToolTipService.ToolTip="Save the list as shown (with your filters) as a spreadsheet file"/>
+                            <TextBlock x:Name="ResultCountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                       VerticalAlignment="Bottom" Margin="0,0,0,8"/>
+                        </ctcontrols:WrapPanel>
+
+                        <TextBlock x:Name="NoNoteFiltersTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Visibility="Collapsed"
+                                   Text="Record a system's star colour, economy and so on in Your notes on this system, or a planet's sentinels, life and resources on its card, and filters for them appear here."/>
+                        <ctcontrols:WrapPanel x:Name="NoteFiltersPanel" HorizontalSpacing="14" VerticalSpacing="10">
+                            <ComboBox x:Name="StarFilterBox" Header="Star colour" Width="200" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="EconomyFilterBox" Header="Economy" Width="200" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="WealthFilterBox" Header="Wealth" Width="180" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="ConflictFilterBox" Header="Conflict" Width="180" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="RaceFilterBox" Header="Race" Width="180" SelectionChanged="Filter_Changed"/>
+                            <CheckBox x:Name="WaterFilterBox" Content="Water (your notes)" Click="Filter_Click" VerticalAlignment="Bottom"/>
+                            <CheckBox x:Name="DissonantFilterBox" Content="Dissonant (your notes)" Click="Filter_Click" VerticalAlignment="Bottom"/>
+                            <ComboBox x:Name="ShipFilterBox" Header="Ships seen" Width="180" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="SentinelsFilterBox" Header="Sentinels" Width="200" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="FloraFilterBox" Header="Flora" Width="180" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="FaunaFilterBox" Header="Fauna" Width="180" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="ResourceFilterBox" Header="Resource" Width="200" SelectionChanged="Filter_Changed"/>
+                            <ComboBox x:Name="BodiesFilterBox" Header="Planets / moons (your notes)" Width="220" SelectionChanged="Filter_Changed">
+                                <ComboBoxItem Content="Planets and moons"/>
+                                <ComboBoxItem Content="Planets only"/>
+                                <ComboBoxItem Content="Moons only"/>
+                            </ComboBox>
+                        </ctcontrols:WrapPanel>
+                        <TextBlock x:Name="FinderStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Visibility="Collapsed"/>
+                        <!-- Bounded height so the ListView virtualizes inside the page's
+                             ScrollViewer (an unbounded one would realize every row). -->
+                        <ListView x:Name="ResultsList" SelectionMode="None" MaxHeight="640" IsItemClickEnabled="True" ItemClick="ResultsList_ItemClick">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Margin" Value="0,0,0,8"/>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="viewmodels:PlanetRowViewModel">
+                                    <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                                            Background="{ThemeResource ThemePanelAltBrush}"
+                                            CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
+                                        <Grid ColumnSpacing="14">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="44"/>
+                                                <ColumnDefinition Width="220"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <Grid Width="44" Height="30" VerticalAlignment="Center">
+                                                <Ellipse Width="26" Height="26" Fill="{x:Bind Swatch}"/>
+                                                <Ellipse Width="44" Height="11" StrokeThickness="2" Stroke="{ThemeResource ThemeTextDimBrush}"
+                                                         Visibility="{x:Bind RingVisibility}" RenderTransformOrigin="0.5,0.5">
+                                                    <Ellipse.RenderTransform>
+                                                        <RotateTransform Angle="-18"/>
+                                                    </Ellipse.RenderTransform>
+                                                </Ellipse>
+                                            </Grid>
+
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                                <TextBlock Text="{x:Bind TypeLabel}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{x:Bind LocationLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{x:Bind FactsLabel}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"
+                                                           Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                                <TextBlock Text="{x:Bind NotesLabel}" Visibility="{x:Bind NotesVisibility}" FontSize="12"
+                                                           Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="3">
+                                                <controls:GlyphStrip Code="{x:Bind PortalCode}" VerticalAlignment="Center">
+                                                    <ItemsControl ItemsSource="{x:Bind Glyphs}">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <StackPanel Orientation="Horizontal" Spacing="2"/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="ImageSource">
+                                                                <Border Width="24" Height="24" Background="{ThemeResource ThemeVoidBrush}">
+                                                                    <Image Source="{x:Bind}" Width="20" Height="20"/>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </controls:GlyphStrip>
+                                                <TextBlock Text="{x:Bind PortalCode}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"
+                                                           IsTextSelectionEnabled="True" CharacterSpacing="80"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="2">
+                                                <TextBlock Text="{x:Bind DistanceLabel}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"
+                                                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                                                <TextBlock Text="{x:Bind DiscoveredLabel}" Style="{StaticResource ThemeDimTextStyle}"
+                                                           FontSize="12" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                                            </StackPanel>
+
+                                            <Button Grid.Column="4" Content="Copy" Tag="{x:Bind PortalCode}" Click="CopyCode_Click"
+                                                    VerticalAlignment="Center" Padding="10,3"
+                                                    ToolTipService.ToolTip="Copy this planet's portal address"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+    <ScrollViewer x:Name="DetailScroll" Visibility="Collapsed">
+        <StackPanel x:Name="DetailPanel" Padding="28,22,28,40" Spacing="20"/>
+    </ScrollViewer>
+    </Grid>
+</Page>

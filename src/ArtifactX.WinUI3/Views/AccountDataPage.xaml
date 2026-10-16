@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). -->
 <Page
     x:Class="ArtifactX.WinUI3.Views.AccountDataPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -37,18 +38,18 @@
                      2026-08-05). Differing checkbox states on those rows was
                      already proof they're real separate items, just easy to miss. -->
                 <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind DisplayName}" TextTrimming="CharacterEllipsis"/>
-                    <TextBlock Text="{x:Bind GameId}" FontSize="10" Foreground="{ThemeResource NmsTextSecondary}"
+                    <TextBlock Text="{x:Bind DisplayName}" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource ThemeTextBrush}"/>
+                    <TextBlock Text="{x:Bind GameId}" FontSize="10" Foreground="{ThemeResource ThemeTextFaintBrush}"
                                TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
                 <Border Grid.Column="2" Visibility="{x:Bind ExpeditionVisibility}"
-                        BorderBrush="{ThemeResource NmsAccentBrush}" BorderThickness="1"
+                        BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="1"
                         CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind ExpeditionLabel}" FontSize="11" Foreground="{ThemeResource NmsAccentBrush}"/>
+                    <TextBlock Text="{x:Bind ExpeditionLabel}" FontSize="11" Foreground="{ThemeResource ThemeAccentBrush}"/>
                 </Border>
-                <Border Grid.Column="3" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
+                <Border Grid.Column="3" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                         CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind CategoryLabel}" FontSize="11" Foreground="{ThemeResource NmsTextSecondary}"/>
+                    <TextBlock Text="{x:Bind CategoryLabel}" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}"/>
                 </Border>
             </Grid>
         </DataTemplate>
@@ -57,11 +58,12 @@
             <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="16"/>
         </ItemsPanelTemplate>
         <DataTemplate x:Key="CategoryCardTemplate" x:DataType="viewmodels:CatalogCategorySectionViewModel">
-            <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                    CornerRadius="8" Padding="14" Width="420" VerticalAlignment="Top" Opacity="0.95">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="{x:Bind Header}" FontWeight="SemiBold" FontSize="14"/>
-                    <ListView ItemsSource="{x:Bind Items}" SelectionMode="None"
+            <Border Style="{StaticResource ThemeCardStyle}" Width="420" VerticalAlignment="Top">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="{x:Bind HeaderUpper}" Style="{StaticResource ThemeBandTextStyle}" TextTrimming="CharacterEllipsis"/>
+                    </Border>
+                    <ListView ItemsSource="{x:Bind Items}" SelectionMode="None" Margin="6,8,6,8"
                               Height="{x:Bind ListHeight}"
                               ItemTemplate="{StaticResource AccountItemRowTemplate}"/>
                 </StackPanel>
@@ -69,7 +71,7 @@
         </DataTemplate>
     </Page.Resources>
 
-    <Grid Padding="24" RowSpacing="16">
+    <Grid Padding="28,26,28,24" RowSpacing="18">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -82,20 +84,20 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                <TextBlock Text="Catalog" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                <TextBlock Text="CATALOG" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
                 <!-- This list is account-wide, not tied to any one save slot (see the
                      warning banner below) - accountdata.hg lives once per PLATFORM
                      account, so what matters here is which platform is active
                      (SaveSessionManager.ActivePlatformDisplayName), not which save
                      slot. Without this, there was no on-page indication of which
                      account was actually being edited (user feedback 2026-08-04). -->
-                <Border Background="{ThemeResource NmsAccentBrush}" CornerRadius="4" Padding="9,3" VerticalAlignment="Center">
-                    <TextBlock x:Name="ActivePlatformTxt" Text="" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                <Border Background="{ThemeResource ThemeAccentBrush}" CornerRadius="4" Padding="9,3" VerticalAlignment="Center">
+                    <TextBlock x:Name="ActivePlatformTxt" Text="" FontSize="12" FontWeight="Bold" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
                 </Border>
             </StackPanel>
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                 <TextBlock x:Name="PendingEditsTxt" VerticalAlignment="Center" FontSize="12"
-                           Foreground="{ThemeResource NmsTextSecondary}"/>
+                           Foreground="{ThemeResource ThemeTextDimBrush}"/>
                 <!-- Its own Save/Discard pair, deliberately separate from AppTitleBar's -
                      this data isn't tied to the currently loaded save slot at all, so
                      conflating it with the per-slot Save button would risk a user
@@ -109,14 +111,14 @@
                 <Button x:Name="DiscardChangesBtn" Content="Discard Changes" Click="DiscardChangesBtn_Click"
                         Style="{StaticResource DangerButtonStyle}" IsEnabled="False"/>
                 <Button x:Name="SaveChangesBtn" Content="Save Changes" Click="SaveChangesBtn_Click"
-                        Style="{ThemeResource AccentButtonStyle}" IsEnabled="False"/>
+                        Style="{StaticResource ThemeAccentButtonStyle}" IsEnabled="False"/>
             </StackPanel>
         </Grid>
 
         <Grid Grid.Row="1">
             <TextBlock x:Name="NoAccountDataTxt" Visibility="Collapsed"
                        Text="No accountdata.hg file was found alongside this save - this platform account may be very new, or this feature isn't supported for it yet."
-                       Foreground="{ThemeResource NmsTextSecondary}" FontSize="14" TextWrapping="Wrap"
+                       Foreground="{ThemeResource ThemeTextDimBrush}" FontSize="14" TextWrapping="Wrap"
                        HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="480" TextAlignment="Center"/>
 
             <ProgressRing x:Name="LoadingRing" IsActive="False" Width="40" Height="40"
@@ -124,13 +126,17 @@
 
             <ScrollViewer x:Name="ContentPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                 <StackPanel Spacing="16">
-                    <Border Background="#332B1400" BorderBrush="#FFB800"
-                            BorderThickness="1" CornerRadius="6" Padding="12,8">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <FontIcon Glyph="&#xE7BA;" FontSize="14" Foreground="#FFB800" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#FFB800"
-                                       Text="This list is account-wide, not tied to any one save slot - unlocking or locking an item anywhere below affects every save on this platform account (accountdata.hg), not just the save currently loaded. Save this separately with the button above; it does not go through the normal per-save Save button."/>
-                        </StackPanel>
+                    <Border Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
+                            BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE7BA;" FontSize="14" Foreground="{ThemeResource ThemeWarningBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                            <TextBlock Grid.Column="1" TextWrapping="Wrap" FontSize="13" Foreground="{ThemeResource ThemeWarningBrush}"
+                                       Text="This list is shared by every save on this platform account, not just the save that's loaded. Save it with the Save Changes button above; the normal Save button doesn't cover it."/>
+                        </Grid>
                     </Border>
 
                     <!-- Deliberately hedged wording - see project_account_data_page.md's
@@ -141,13 +147,18 @@
                          confirmed that screen is actually driven by PER-SLOT save data, not
                          accountdata.hg at all. Don't restate that claim as fact here until
                          ArtifactX's own testing confirms what this list actually does in-game. -->
-                    <Border BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                            CornerRadius="6" Padding="12,8" Opacity="0.85">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource NmsTextSecondary}" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
-                                       Text="This is your account-wide unlock list (accountdata.hg) - the same data a reference tool's own 'Catalog' tab edits. That tool describes it as controlling the black-silhouette items under the game's Catalog &amp; Guide screen, but ArtifactX hasn't independently confirmed that effect yet - that screen may actually be driven by per-save-slot data instead. Treat changes here as experimental until confirmed in-game. Expedition and Twitch reward items live on their own separate pages, not here."/>
-                        </StackPanel>
+                    <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                            Background="{ThemeResource ThemePanelAltBrush}"
+                            CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                            <TextBlock Grid.Column="1" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"
+                                       Text="Your account-wide unlock list. What these unlocks change in-game hasn't been confirmed yet, so treat edits here as experimental. Expedition and Twitch rewards have their own pages."/>
+                        </Grid>
                     </Border>
 
                     <!-- The general ~4,300-item list, everything that isn't an Expedition/
@@ -163,7 +174,7 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" x:Name="CatalogResultCountTxt" VerticalAlignment="Center" FontSize="12"
-                                   Foreground="{ThemeResource NmsTextSecondary}"/>
+                                   Foreground="{ThemeResource ThemeTextDimBrush}"/>
                         <Button Grid.Column="1" x:Name="CatalogLockAllBtn" Content="Lock All" Click="CatalogLockAllBtn_Click"
                                 ToolTipService.ToolTip="Locks every item in the Catalog list"/>
                         <Button Grid.Column="2" x:Name="CatalogUnlockAllBtn" Content="Unlock All" Click="CatalogUnlockAllBtn_Click"

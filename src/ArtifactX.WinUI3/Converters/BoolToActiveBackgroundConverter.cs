@@ -1,4 +1,5 @@
-﻿using Microsoft.UI.Xaml.Data;
+﻿using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
 using System;
 using Windows.UI;
@@ -11,6 +12,11 @@ public class BoolToActiveBackgroundConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         bool isActive = value is bool b && b;
+        // Theme* keys are plain per-theme values, not Light/Dark theme-dictionary
+        // entries, so an indexer lookup is safe here (unlike the history below).
+        if (Application.Current.Resources.TryGetValue(isActive ? "ThemeSelectedFillBrush" : "ThemePanelAltBrush", out var themed)
+            && themed is Brush brush)
+            return brush;
         if (isActive)
             return new SolidColorBrush(Color.FromArgb(40, 255, 157, 0));
 

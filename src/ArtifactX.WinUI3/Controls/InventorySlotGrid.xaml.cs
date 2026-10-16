@@ -7,6 +7,7 @@ using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Windows.UI;
 
@@ -35,6 +36,16 @@ public sealed partial class InventorySlotGrid : UserControl
     /// passed straight through to CatalogService.SearchAsync.</summary>
     public string[]? AllowedTemplateTypes { get; set; }
 
+    /// <summary>Optional exact list of item ids this inventory accepts, when
+    /// the catalog's categories are broader than the game's rule (the Corvette
+    /// Cache holds only structural corvette parts, not every building part).
+    /// Narrows the right-click search; null = no extra limit.</summary>
+    public IReadOnlySet<string>? AllowedItemIds { get; set; }
+
+    /// <summary>Display only: no menus, no dragging (Base Item Cache - the game
+    /// only lets items be taken out, 2026-10-15).</summary>
+    public bool IsReadOnly { get; set; }
+
     /// <summary>Further restricts search to specific equipment-slot categories within
     /// a table (e.g. "Suit"/"All" for the Exosuit tech grid vs "Ship"/"All" for
     /// Starship) - GcTechnologyTable alone covers every equipment type undifferentiated,
@@ -47,6 +58,12 @@ public sealed partial class InventorySlotGrid : UserControl
     /// in-game. Gates both the per-slot context-menu toggle and whatever "Supercharge
     /// All Slots" button the host page wires up.</summary>
     public bool SupportsSupercharge { get; set; } = true;
+
+    /// <summary>Whether locked slots can be unlocked. False for exocraft: every
+    /// exocraft in 24 real saves has exactly the same unlocked slots per
+    /// vehicle (e.g. Roamer tech 28 of 30) - the locked cells are the
+    /// vehicle's fixed shape, which the game never changes (user, 2026-10-13).</summary>
+    public bool SupportsUnlock { get; set; } = true;
 
     /// <summary>Whether this grid's slots can be damaged/repaired at all - true
     /// for Technology grids (Amount/MaxAmount there is durability - a damaged
@@ -78,10 +95,42 @@ public sealed partial class InventorySlotGrid : UserControl
         InitializeComponent();
     }
 
+    /// <summary>Optional: an item's type and border colour (#RRGGBB) for the
+    /// adjacency boost. Set, a slot touching another of the same type gets
+    /// that colour round it, like the game draws it.</summary>
+    public Func<string, (string Type, string Colour)?>? AdjacencyOf { get; set; }
+
+    /// <summary>Rearranges this inventory into one block per type (see
+    /// InventoryGridViewModel.ArrangeForAdjacency). Returns how many moved.</summary>
+    public int ArrangeForAdjacency(Func<string, string?> groupOf)
+    {
+        int moved = ViewModel?.ArrangeForAdjacency(groupOf) ?? 0;
+        if (moved > 0)
+        {
+            Refresh();
+            CellChanged?.Invoke(this, EventArgs.Empty);
+        }
+        return moved;
+    }
+
     public void Refresh()
     {
         RootCanvas.Children.Clear();
         if (ViewModel is null) return;
+
+        // Each occupied slot's adjacency type + colour, for the boost borders.
+        var adjacency = new Dictionary<(int, int), (string Type, string Colour)>();
+        if (AdjacencyOf is not null)
+            foreach (var c in ViewModel.Cells.Where(c => c.IsOccupied && c.ItemId is not null))
+                if (AdjacencyOf(c.ItemId!.TrimStart('^')) is { } a)
+                    adjacency[(c.X, c.Y)] = a;
+        Brush? BoostBorder(int x, int y)
+        {
+            if (!adjacency.TryGetValue((x, y), out var me)) return null;
+            bool linked = new[] { (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1) }
+                .Any(n => adjacency.TryGetValue(n, out var other) && other.Type == me.Type);
+            return linked ? BrushFromHex(me.Colour) : null;
+        }
 
         RootCanvas.Width = ViewModel.Columns * CellSpacing;
         RootCanvas.Height = ViewModel.Rows * CellSpacing;
@@ -89,15 +138,17 @@ public sealed partial class InventorySlotGrid : UserControl
         foreach (var cell in ViewModel.Cells)
         {
             bool isDamaged = cell.IsOccupied && (!cell.IsFunctional || cell.MalfunctionSeverity > 0);
+            var boost = isDamaged ? null : BoostBorder(cell.X, cell.Y);
 
             var border = new Border
             {
                 Width = CellSize,
                 Height = CellSize,
-                CornerRadius = new CornerRadius(6),
-                BorderThickness = new Thickness(isDamaged ? 3 : cell.IsSupercharged ? 2 : 1),
-                Background = new SolidColorBrush(BackgroundFor(cell.State)),
-                BorderBrush = new SolidColorBrush(isDamaged ? DamagedColor : cell.IsSupercharged ? SuperchargedColor : BorderFor(cell.State))
+                CornerRadius = (CornerRadius)Application.Current.Resources["ThemeSlotCornerRadius"],
+                BorderThickness = new Thickness(isDamaged ? 3 : boost is not null || cell.IsSupercharged ? 2 : 1),
+                Background = BackgroundFor(cell),
+                BorderBrush = isDamaged ? ThemeBrush("ThemeDamagedBrush")
+                    : boost ?? (cell.IsSupercharged ? ThemeBrush("ThemeSuperchargedBrush") : BorderFor(cell.State))
             };
 
             Canvas.SetLeft(border, cell.PixelX);
@@ -120,12 +171,15 @@ public sealed partial class InventorySlotGrid : UserControl
 
                 var nameLabel = new Border
                 {
-                    Background = new SolidColorBrush(Color.FromArgb(170, 0, 0, 0)),
+                    Background = ThemeBrush("ThemeSlotLabelBackgroundBrush"),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Top,
                     Child = new TextBlock
                     {
-                        Text = entry?.DisplayName ?? cell.ShortLabel,
+                        // Upper-cased like the game's own slot labels - some catalog rows only
+                        // have the mixed-case NameLower ("Thermal Protection").
+                        Text = (entry?.DisplayName ?? cell.ShortLabel).ToUpperInvariant(),
+                        FontFamily = (FontFamily)Application.Current.Resources["ThemeBodyFont"],
                         FontSize = 8,
                         TextWrapping = TextWrapping.Wrap,
                         TextTrimming = TextTrimming.CharacterEllipsis,
@@ -137,12 +191,13 @@ public sealed partial class InventorySlotGrid : UserControl
 
                 var amountLabel = new Border
                 {
-                    Background = new SolidColorBrush(Color.FromArgb(170, 0, 0, 0)),
+                    Background = ThemeBrush("ThemeSlotLabelBackgroundBrush"),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Bottom,
                     Child = new TextBlock
                     {
                         Text = cell.DisplayText,
+                        FontFamily = (FontFamily)Application.Current.Resources["ThemeDisplayFont"],
                         FontSize = 10,
                         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                         TextAlignment = TextAlignment.Center
@@ -191,8 +246,12 @@ public sealed partial class InventorySlotGrid : UserControl
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
-                ToolTipService.SetToolTip(border, "Locked - right-click to unlock");
-                border.ContextFlyout = BuildLockedFlyout(cell.X, cell.Y);
+                if (SupportsUnlock)
+                {
+                    ToolTipService.SetToolTip(border, "Locked - right-click to unlock");
+                    border.ContextFlyout = BuildLockedFlyout(cell.X, cell.Y);
+                }
+                else ToolTipService.SetToolTip(border, "Not a slot on this vehicle");
             }
             else if (cell.State == InventorySlotState.UnlockedEmpty)
             {
@@ -210,6 +269,14 @@ public sealed partial class InventorySlotGrid : UserControl
                         ? Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move
                         : Windows.ApplicationModel.DataTransfer.DataPackageOperation.None;
                 border.Drop += (_, _) => HandleDrop(cell);
+            }
+
+            if (IsReadOnly)
+            {
+                border.ContextFlyout = null;
+                border.CanDrag = false;
+                border.AllowDrop = false;
+                ToolTipService.SetToolTip(border, cell.IsOccupied ? cell.DisplayText : null);
             }
 
             if (cell.IsSupercharged)
@@ -371,6 +438,15 @@ public sealed partial class InventorySlotGrid : UserControl
             flyout.Items.Add(superchargeItem);
         }
 
+        var lockItem = new MenuFlyoutItem { Text = "Lock this slot" };
+        lockItem.Click += (_, _) =>
+        {
+            ViewModel?.LockSlot(cell.X, cell.Y);
+            Refresh();
+            CellChanged?.Invoke(this, EventArgs.Empty);
+        };
+        flyout.Items.Add(lockItem);
+
         return flyout;
     }
 
@@ -402,7 +478,10 @@ public sealed partial class InventorySlotGrid : UserControl
 
             if (string.IsNullOrWhiteSpace(query) || AllowedTemplateTypes is null) return;
 
-            var matches = await CatalogService.SearchAsync(query, AllowedTemplateTypes, AllowedUsageCategories);
+            var matches = await CatalogService.SearchAsync(query, AllowedTemplateTypes, AllowedUsageCategories,
+                maxResults: AllowedItemIds is null ? 30 : 400);
+            if (AllowedItemIds is not null)
+                matches = matches.Where(m => AllowedItemIds.Contains(m.GameId)).Take(30).ToList();
             await CatalogService.WarmCacheAsync(matches.Select(m => m.GameId));
 
             foreach (var match in matches)
@@ -451,12 +530,7 @@ public sealed partial class InventorySlotGrid : UserControl
             // same reasoning as the Max Qty context-menu action: that's the
             // value people actually want, and trimming down is easier (sell/drop
             // in-game) than topping up here.
-            int maxAmount = match.CategoryLabel switch
-            {
-                "Technology" => 100,
-                "Product" => ComputeStackCap(match.MaxStackSize, ProductStorageMultiplier),
-                _ => 9999,
-            };
+            int maxAmount = StackCapFor(match.CategoryLabel, match.MaxStackSize);
 
             ViewModel?.AddItem(cell.X, cell.Y, match.GameId, match.CategoryLabel, maxAmount, maxAmount);
             Refresh();
@@ -466,6 +540,73 @@ public sealed partial class InventorySlotGrid : UserControl
 
         FlyoutBase.SetAttachedFlyout(anchor, flyout);
         FlyoutBase.ShowAttachedFlyout(anchor);
+    }
+
+    /// <summary>A full stack of an item in this container: technology is 100
+    /// (durability, not a count), products use their stack size times this
+    /// container's multiplier, substances 9999 (see the add-item flyout).</summary>
+    public int StackCapFor(string? categoryLabel, int? maxStackSize) => categoryLabel switch
+    {
+        "Technology" => 100,
+        "Product" => ComputeStackCap(maxStackSize, ProductStorageMultiplier),
+        _ => 9999,
+    };
+
+    /// <summary>Unlocked slots with nothing in them.</summary>
+    /// <summary>Locked slots this inventory could still unlock (within its
+    /// current size - class/type sets the size).</summary>
+    public int LockedSlotCount => !SupportsUnlock ? 0 :
+        ViewModel?.Cells.Count(c => c.State == ViewModels.InventorySlotState.Locked) ?? 0;
+
+    /// <summary>Unlocks up to `count` locked slots, top-left first.</summary>
+    public int UnlockSlots(int count)
+    {
+        int unlocked = ViewModel?.UnlockSlots(count) ?? 0;
+        if (unlocked > 0)
+        {
+            Refresh();
+            CellChanged?.Invoke(this, EventArgs.Empty);
+        }
+        return unlocked;
+    }
+
+    public int FreeSlotCount =>
+        ViewModel?.Cells.Count(c => c.State == ViewModels.InventorySlotState.UnlockedEmpty) ?? 0;
+
+    /// <summary>Item ids already in this inventory (without the save's "^").</summary>
+    public HashSet<string> ItemIdsPresent() =>
+        ViewModel?.Cells.Where(c => c.IsOccupied && c.ItemId is not null)
+            .Select(c => c.ItemId!.TrimStart('^'))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Adds one full stack of each item to the next free slots, in
+    /// one write (item lists beside the grid). Returns how many fit.</summary>
+    public int AddStacksToFreeSlots(IEnumerable<(string GameId, string CategoryLabel, int? MaxStackSize)> items) =>
+        AddToFreeSlots(items.Select(i =>
+        {
+            int cap = StackCapFor(i.CategoryLabel, i.MaxStackSize);
+            return (i.GameId, i.CategoryLabel, cap, cap);
+        }));
+
+    /// <summary>Every item id in this inventory, one per occupied slot, without
+    /// the save's "^" (seeded modules keep their "#seed").</summary>
+    public List<string> ItemIdsInSlots() =>
+        ViewModel?.Cells.Where(c => c.IsOccupied && c.ItemId is not null)
+            .Select(c => c.ItemId!.TrimStart('^')).ToList() ?? new();
+
+    /// <summary>Puts items with exact amounts into free slots: next to their
+    /// own type when `groupOf` is given (adjacency boost), else top-left first.</summary>
+    public int AddToFreeSlots(IEnumerable<(string GameId, string CategoryLabel, int Amount, int MaxAmount)> items,
+        Func<string, string?>? groupOf = null)
+    {
+        if (ViewModel is null) return 0;
+        int added = ViewModel.AddItemsToFreeSlots(items.Select(i => (i.GameId, (string?)i.CategoryLabel, i.Amount, i.MaxAmount)), groupOf);
+        if (added > 0)
+        {
+            Refresh();
+            CellChanged?.Invoke(this, EventArgs.Empty);
+        }
+        return added;
     }
 
     /// <summary>Applies this container's storage multiplier to a catalog row's raw
@@ -482,9 +623,41 @@ public sealed partial class InventorySlotGrid : UserControl
     /// <summary>Overlays a small gold badge on a cell that already has its Child
     /// set (or not) - wraps whatever's there in a Grid rather than replacing it,
     /// since occupied cells already carry the icon/name/amount content.</summary>
+    private static readonly Dictionary<string, Brush> HexBrushes = new(StringComparer.OrdinalIgnoreCase);
+
+    private static Brush? BrushFromHex(string hex)
+    {
+        if (HexBrushes.TryGetValue(hex, out var cached)) return cached;
+        if (hex.Length != 7 || hex[0] != '#' || !uint.TryParse(hex[1..], System.Globalization.NumberStyles.HexNumber, null, out uint rgb))
+            return null;
+        var brush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb));
+        HexBrushes[hex] = brush;
+        return brush;
+    }
+
     private static void ApplySuperchargedBadge(Border border)
     {
+        // A gold glow rising from the bottom (like the game's tinted slot)
+        // under the content, and a gold corner on top of it - so a
+        // supercharged slot still reads as one when an adjacency border
+        // takes its outline (it used to be marked by the border alone plus a
+        // small bolt the name label covered; user, 2026-10-13).
         var wrapper = new Grid();
+        var gold = ((SolidColorBrush)ThemeBrush("ThemeSuperchargedBrush")).Color;
+        wrapper.Children.Add(new Microsoft.UI.Xaml.Shapes.Rectangle
+        {
+            Fill = new LinearGradientBrush
+            {
+                StartPoint = new Windows.Foundation.Point(0.5, 1),
+                EndPoint = new Windows.Foundation.Point(0.5, 0),
+                GradientStops =
+                {
+                    new GradientStop { Color = Windows.UI.Color.FromArgb(110, gold.R, gold.G, gold.B), Offset = 0 },
+                    new GradientStop { Color = Windows.UI.Color.FromArgb(0, gold.R, gold.G, gold.B), Offset = 0.75 },
+                },
+            },
+            IsHitTestVisible = false,
+        });
 
         if (border.Child is UIElement existing)
         {
@@ -492,33 +665,52 @@ public sealed partial class InventorySlotGrid : UserControl
             wrapper.Children.Add(existing);
         }
 
+        var corner = new Microsoft.UI.Xaml.Shapes.Polygon
+        {
+            Points = { new Windows.Foundation.Point(0, 0), new Windows.Foundation.Point(16, 0), new Windows.Foundation.Point(16, 16) },
+            Fill = ThemeBrush("ThemeSuperchargedBrush"),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            IsHitTestVisible = false,
+        };
+        wrapper.Children.Add(corner);
         wrapper.Children.Add(new TextBlock
         {
             Text = "⚡",
-            FontSize = 13,
+            FontSize = 8,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(0, -3, 2, 0)
+            Margin = new Thickness(0, 0, 1, 0),
+            IsHitTestVisible = false,
         });
 
         border.Child = wrapper;
     }
 
-    private static readonly Color SuperchargedColor = Color.FromArgb(255, 255, 196, 0);
-    private static readonly Color DamagedColor = Color.FromArgb(255, 220, 50, 50);
+    // Slot colours come from the active theme (Themes/*.xaml, ThemeSlot* keys);
+    // the page is re-created on a theme change, which re-runs Refresh().
+    private static Brush ThemeBrush(string key) => (Brush)Application.Current.Resources[key];
 
-    private static Color BackgroundFor(InventorySlotState state) => state switch
+    /// <summary>Occupied slots are colour-coded by what they hold, like the
+    /// game's inventory: technology, product or substance (the save's own
+    /// per-slot "elv" category).</summary>
+    private static Brush BackgroundFor(InventorySlotViewModel cell) => cell.State switch
     {
-        InventorySlotState.Occupied => Color.FromArgb(60, 255, 157, 0),
-        InventorySlotState.UnlockedEmpty => Color.FromArgb(15, 255, 255, 255),
-        InventorySlotState.Locked => Color.FromArgb(50, 20, 20, 20),
-        _ => Colors.Transparent
+        InventorySlotState.Occupied => cell.CategoryLabel switch
+        {
+            "Technology" => ThemeBrush("ThemeSlotTechBrush"),
+            "Substance" => ThemeBrush("ThemeSlotSubstanceBrush"),
+            _ => ThemeBrush("ThemeSlotProductBrush"),
+        },
+        InventorySlotState.UnlockedEmpty => ThemeBrush("ThemeSlotEmptyBrush"),
+        InventorySlotState.Locked => ThemeBrush("ThemeSlotLockedBrush"),
+        _ => new SolidColorBrush(Colors.Transparent)
     };
 
-    private static Color BorderFor(InventorySlotState state) => state switch
+    private static Brush BorderFor(InventorySlotState state) => state switch
     {
-        InventorySlotState.Locked => Color.FromArgb(140, 90, 60, 60),
-        _ => Color.FromArgb(255, 90, 98, 112)
+        InventorySlotState.Locked => ThemeBrush("ThemeSlotLockedBorderBrush"),
+        _ => ThemeBrush("ThemeSlotBorderBrush")
     };
 
 

@@ -13,4 +13,11 @@
     <PackageReference Include="System.Text.Json" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="NmsModels\Templates\PlayerSpaceStationTemplate.json"
+                      LogicalName="ArtifactX.Core.PlayerSpaceStationTemplate.json" />
+    <!-- Name generator letter data from nms_namegen (MIT) - see THIRD-PARTY-NOTICES.md. -->
+    <EmbeddedResource Include="Universe/namegen-data.json.gz" LogicalName="ArtifactX.Core.namegen-data.json.gz" />
+  </ItemGroup>
+
 </Project>

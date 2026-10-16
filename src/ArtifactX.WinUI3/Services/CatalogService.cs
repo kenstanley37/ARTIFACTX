@@ -4,6 +4,7 @@ using ArtifactX.WinUI3.Models;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -20,6 +21,16 @@ public static class CatalogService
     private static bool _pathChecked;
 
     public static bool IsAvailable => ResolveDbPath() is not null;
+
+    /// <summary>Forgets everything read so far - after the game data was
+    /// rebuilt (GameDataService). Call on the UI thread; pages pick the new
+    /// catalog up as they load.</summary>
+    public static void Reload()
+    {
+        Cache.Clear();
+        _pathChecked = false;
+        _dbPath = null;
+    }
 
     public static CatalogEntry? TryGet(string? gameId)
     {
@@ -98,6 +109,25 @@ public static class CatalogService
 
         Debug.WriteLine($"[CatalogService] Query returned {rows.Count} matches out of {toFetch.Count} requested ids.");
 
+        // Packaged technology (e.g. ^UP_SHIP_TELE, ^UP_VEHICLE_BOOS, ^UP_SUIT_REFINER,
+        // seen in a 2026-10-11 expedition save's cargo): the id is "UP_" + the
+        // technology's own id, cut to the game's 15-character id limit. No table or
+        // loc file contains these ids (grep/locidall over every PAK: 0 matches), so
+        // show the technology itself - SHIP_TELEPORT, VEHICLE_BOOST, SUIT_REFINER.
+        foreach (var id in toFetch.Where(i => !rows.ContainsKey(i) && i.StartsWith("UP_", StringComparison.Ordinal)))
+        {
+            try
+            {
+                string? techId = await Task.Run(() => FindPackagedTechId(dbPath, id[3..]));
+                if (techId is not null && (await Task.Run(() => QueryRows(dbPath, new List<string> { techId }))).TryGetValue(techId, out var techRow))
+                    rows[id] = techRow;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[CatalogService] Packaged-tech lookup failed for '{id}': {ex.Message}");
+            }
+        }
+
         foreach (var id in toFetch)
         {
             if (!rows.TryGetValue(id, out var row))
@@ -126,6 +156,22 @@ public static class CatalogService
 
             Cache[id] = new CatalogEntry { DisplayName = row.DisplayName, Icon = icon };
         }
+    }
+
+    /// <summary>The technology id a packaged-tech "UP_" id was cut from: an exact
+    /// match, else the shortest technology id starting with it.</summary>
+    private static string? FindPackagedTechId(string dbPath, string truncated)
+    {
+        using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT i.GameId FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+            WHERE c.TemplateType = 'GcTechnologyTable' AND (i.GameId = $id OR i.GameId LIKE $prefix ESCAPE '\')
+            ORDER BY length(i.GameId) LIMIT 1";
+        command.Parameters.AddWithValue("$id", truncated);
+        command.Parameters.AddWithValue("$prefix", truncated.Replace("\\", "\\\\").Replace("_", "\\_").Replace("%", "\\%") + "%");
+        return command.ExecuteScalar() as string;
     }
 
     /// <summary>Searches the catalog for items whose display name contains the
@@ -290,6 +336,172 @@ public static class CatalogService
     public static async Task<List<(string DisplayName, string ScenePath)>> GetFreighterCrewRacesAsync() =>
         await GetScenePathOptionsAsync("FreighterCrewRaces");
 
+    /// <summary>The parts a corvette is built from - the game's own
+    /// BuildableInShipStructural flag (DataCataloger add-corvette-parts) -
+    /// joined to the product row for the name and stack size, A-Z. These are
+    /// what the Corvette Cache holds: 139 of the 141 different items found in
+    /// real caches across every save (2026-10-12; the other two were base
+    /// reactors). Decorative-only parts (decals, posters, furniture) are placed
+    /// inside a corvette, not kept in the cache, so they're left out, as are
+    /// parts with no inventory item of their own. And only the ones in the
+    /// game's build menu (ShowInBuildMenu): most structural ids are rotations
+    /// and mirrors of one part (B_STR_K_NE, _NE1-3, _Y_NE...) - 433 of 575 -
+    /// and real caches held 131 of the 142 menu parts; the few non-menu ids
+    /// seen there were right-hand wing pieces the game hands back.</summary>
+    public static async Task<List<CatalogPart>> GetCorvettePartsAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var parts = new List<CatalogPart>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT p.GameId, p.NameEnglish, cp.UsageCategory, p.MaxStackSize
+                    FROM Items cp
+                    JOIN Categories cc ON cc.Id = cp.CategoryId
+                    JOIN Items p ON p.GameId = substr(cp.GameId, 10)
+                    JOIN Categories pc ON pc.Id = p.CategoryId
+                    WHERE cc.TemplateType = 'CorvetteParts'
+                      AND cp.UsageCategory IN ('Structural', 'Both')
+                      AND cp.DescriptionEnglish LIKE '%""menu"":true%'
+                      AND pc.TemplateType = 'GcProductTable'
+                      AND p.NameEnglish IS NOT NULL
+                    GROUP BY p.GameId
+                    ORDER BY p.NameEnglish";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                    parts.Add(new CatalogPart(reader.GetString(0), reader.GetString(1),
+                        reader.IsDBNull(2) ? "" : reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetInt32(3)));
+                return parts;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetCorvettePartsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>Technology that fits a device, by the catalog's usage categories
+    /// (a ship kind's own set - see ShipsPage.TechRuleFor). Skips the game's
+    /// broken-slot placeholders, the generic "Upgrade Module" template rows and
+    /// procedural upgrades (those carry a seed and come from shops, not a list).
+    /// Group holds the usage category. Checked 2026-10-13 against every ship in
+    /// the real saves: every installed non-procedural tech is in its kind's list.</summary>
+    public static async Task<List<CatalogPart>> GetTechForAsync(IReadOnlyCollection<string> usageCategories)
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null || usageCategories.Count == 0) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var tech = new List<CatalogPart>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                var names = usageCategories.Select((u, i) => (Name: $"@u{i}", Value: u)).ToList();
+                command.CommandText = $@"
+                    SELECT i.GameId, i.NameEnglish, i.UsageCategory, i.MaxStackSize, s.NameEnglish, s.UsageCategory, s.DescriptionEnglish
+                    FROM Items i
+                    JOIN Categories c ON c.Id = i.CategoryId
+                    LEFT JOIN Items s ON s.GameId = 'TECHSTAT:' || i.GameId
+                    WHERE c.TemplateType = 'GcTechnologyTable'
+                      AND i.NameEnglish IS NOT NULL
+                      AND i.UsageCategory IN ({string.Join(", ", names.Select(n => n.Name))})
+                      AND COALESCE(i.IsBrokenSlotTech, 0) = 0
+                      AND NOT (i.NameEnglish = 'UPGRADE MODULE' AND i.DescriptionEnglish IS NULL)
+                      AND i.GameId NOT LIKE '%#%'
+                      -- ""Old, unusable technology"" - only good for dismantling (user, 2026-10-13).
+                      AND i.GameId <> 'OBSOLETE'
+                    GROUP BY i.GameId
+                    ORDER BY i.NameEnglish";
+                foreach (var n in names) command.Parameters.AddWithValue(n.Name, n.Value);
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                    tech.Add(new CatalogPart(reader.GetString(0), reader.GetString(1),
+                        reader.IsDBNull(2) ? "" : reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetInt32(3),
+                        Stat: reader.IsDBNull(4) ? null : reader.GetString(4),
+                        Primary: !reader.IsDBNull(5) && reader.GetString(5) == "Primary",
+                        Colour: reader.IsDBNull(6) ? null : reader.GetString(6)));
+                return tech;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetTechForAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>S-class upgrade modules (the ones bought at space stations) for
+    /// the given module families, e.g. "UP_PULSE": per family the "supremely
+    /// powerful" one (class 4 for ships, but class 3 for the Exosuit's hazard
+    /// modules - UP_HOT3 etc. have no 4), else its highest class. The game allows 3 per
+    /// technology, any class - every ship in the real saves tops out at exactly
+    /// 3 per family (2026-10-13). Named after the tech they upgrade, read from
+    /// the module's own description ("upgrade for the Pulsing Heart").</summary>
+    public static async Task<List<CatalogPart>> GetUpgradeModulesAsync(IReadOnlyCollection<string> families)
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null || families.Count == 0) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var modules = new List<CatalogPart>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                var names = families.Select((f, i) => (Name: $"@f{i}", Value: f)).ToList();
+                command.CommandText = $@"
+                    SELECT i.GameId, i.NameLowerEnglish, i.DescriptionEnglish, s.NameEnglish, s.DescriptionEnglish, s.UsageCategory
+                    FROM Items i
+                    JOIN Categories c ON c.Id = i.CategoryId
+                    LEFT JOIN Items s ON s.GameId = 'TECHSTAT:' || i.GameId
+                    WHERE c.TemplateType = 'GcProceduralTechnologyTable'
+                      AND substr(i.GameId, 1, length(i.GameId) - 1) IN ({string.Join(", ", names.Select(n => n.Name))})
+                      AND substr(i.GameId, -1) IN ('1', '2', '3', '4')";
+                foreach (var n in names) command.Parameters.AddWithValue(n.Name, n.Value);
+                using var reader = command.ExecuteReader();
+                var rows = new List<(string Id, string? Plain, string? Desc, string? Stat, string? Colour, string? Template)>();
+                while (reader.Read())
+                    rows.Add((reader.GetString(0), reader.IsDBNull(1) ? null : reader.GetString(1),
+                        reader.IsDBNull(2) ? null : reader.GetString(2),
+                        reader.IsDBNull(3) ? null : reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetString(4),
+                        !reader.IsDBNull(5) && reader.GetString(5).StartsWith("Module:") ? reader.GetString(5)[7..] : null));
+                foreach (var best in rows.GroupBy(r => r.Id[..^1])
+                             .Select(g => g.OrderByDescending(r => r.Desc?.Contains("supremely powerful") == true)
+                                 .ThenByDescending(r => r.Id[^1]).First()))
+                {
+                    string id = best.Id;
+                    string? plain = best.Plain;
+                    string? desc = best.Desc;
+                    var target = desc is null ? null : Regex.Match(desc, @"upgrade for the (?:vessel's )?<TECHNOLOGY>(.*?)<>");
+                    string tech = target is { Success: true }
+                        ? CultureInfo.InvariantCulture.TextInfo.ToTitleCase(target.Groups[1].Value)
+                        : plain ?? id;
+                    // "Exosuit Thermal Protection System" -> "Thermal Protection System".
+                    foreach (string prefix in new[] { "Exosuit ", "Starship ", "Multi-Tool " })
+                        if (tech.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) tech = tech[prefix.Length..];
+                    modules.Add(new CatalogPart(id, $"{tech} upgrade (S)", "Upgrade modules", null,
+                        CountKey: id[..^1], Limit: 3, Seeded: true, Stat: best.Stat, Colour: best.Colour, TemplateId: best.Template));
+                }
+                return modules.OrderBy(m => m.Name).ToList();
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetUpgradeModulesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
     private static async Task<List<(string DisplayName, string ScenePath)>> GetScenePathOptionsAsync(string templateType)
     {
         string? dbPath = ResolveDbPath();
@@ -430,13 +642,767 @@ public static class CatalogService
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
+            string name = reader.GetString(1);
+            string description = reader.IsDBNull(2) ? "" : reader.GetString(2);
             results[reader.GetString(0)] = (
-                reader.GetString(1),
-                reader.IsDBNull(2) ? "" : reader.GetString(2),
+                ReadablePerkName(name, description),
+                StripPerkPlaceholders(description),
                 reader.IsDBNull(3) ? "" : reader.GetString(3));
         }
 
         return results;
+    }
+
+    private static readonly Regex PerkPlaceholderRegex = new(@"%([A-Z_]+)%", RegexOptions.Compiled);
+
+    // Placeholder words too clipped to read on their own. Presentation only -
+    // the placeholder tokens themselves still come from the catalog.
+    private static readonly Dictionary<string, string> PerkTypeWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["SENT"] = "Sentinel",
+        ["POP"] = "Population",
+        ["PROD"] = "Production",
+        ["JOBLEVEL"] = "Job",
+        ["GREEK"] = "Building",
+    };
+
+    /// <summary>"Proc" perks (17 of 90) have names the game assembles per
+    /// settlement from word lists ("%BAR_ADJ% %BAR%", "Blessed by the
+    /// %BLESSING%"), picked by the "#NNNNN" roll suffix stored with each perk -
+    /// not reproducible here, so the real in-game name can't be shown. Stand-in
+    /// (user's choice 2026-10-10): keep any literal words with "…" for the
+    /// placeholder; a name that's ALL placeholder becomes "Type: effect", the
+    /// type word taken from the last placeholder so the four "Increases
+    /// productivity" perks (Shop/Factory/Facility/Production) stay distinct.</summary>
+    private static string ReadablePerkName(string name, string description)
+    {
+        if (!name.Contains('%')) return name;
+
+        string literal = PerkPlaceholderRegex.Replace(name, "").Trim();
+        if (literal.Length > 0)
+            return $"{PerkPlaceholderRegex.Replace(name, "…")} (random name)";
+
+        string lastToken = PerkPlaceholderRegex.Matches(name)[^1].Groups[1].Value;
+        string typeWord = PerkTypeWords.TryGetValue(lastToken, out var mapped)
+            ? mapped
+            : CultureInfo.InvariantCulture.TextInfo.ToTitleCase(lastToken.Replace('_', ' ').ToLowerInvariant());
+
+        string effect = StripPerkPlaceholders(description);
+        int paren = effect.IndexOf(" (", StringComparison.Ordinal);
+        if (paren > 0) effect = effect[..paren];
+
+        return effect.Length > 0 ? $"{typeWord}: {effect} (random name)" : $"{typeWord} (random name)";
+    }
+
+    /// <summary>Drops placeholder tokens from a perk description - e.g.
+    /// PROC_JOB's "%JOB_STAT% (Production +Wide)" becomes "Production +Wide".</summary>
+    private static string StripPerkPlaceholders(string description)
+    {
+        if (!description.Contains('%')) return description;
+        string stripped = PerkPlaceholderRegex.Replace(description, "").Trim();
+        if (stripped.StartsWith('(') && stripped.EndsWith(')'))
+            stripped = stripped[1..^1];
+        return stripped;
+    }
+
+    /// <summary>Readable item names (the catalog's proper-case NameLowerEnglish,
+    /// e.g. "Magnetized Ferrite", falling back to the upper-case name) for
+    /// products and substances, keyed by GameId.</summary>
+    public static async Task<Dictionary<string, string>> GetItemNamesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.GameId, COALESCE(i.NameLowerEnglish, i.NameEnglish)
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType IN ('GcProductTable', 'GcSubstanceTable')
+                      AND COALESCE(i.NameLowerEnglish, i.NameEnglish) IS NOT NULL";
+                using var reader = command.ExecuteReader();
+                while (reader.Read()) names.TryAdd(reader.GetString(0), reader.GetString(1));
+                return names;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetItemNamesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>Base Units value and trade category of every product and
+    /// substance (catalog category "ItemValues", DataCataloger add-item-values).</summary>
+    public static async Task<List<ItemValueInfo>> GetItemValuesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new List<ItemValueInfo>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.NameEnglish, i.UsageCategory, i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'ItemValues'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    if (reader.IsDBNull(2)) continue;
+                    using var json = System.Text.Json.JsonDocument.Parse(reader.GetString(2));
+                    var root = json.RootElement;
+                    results.Add(new ItemValueInfo(
+                        root.GetProperty("id").GetString() ?? "",
+                        reader.GetString(0),
+                        reader.IsDBNull(1) ? "None" : reader.GetString(1),
+                        root.GetProperty("value").GetInt64(),
+                        root.GetProperty("legality").GetString() ?? "",
+                        root.GetProperty("kind").GetString() ?? ""));
+                }
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetItemValuesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>Where and when each fish can be caught (catalog category
+    /// "Fish", DataCataloger add-fish, from the game's GcFishTable). Biomes are
+    /// GcBiomeType indexes - the same numbering as a planet's type in the
+    /// save's discovery records; 16 means every planet.</summary>
+    public static async Task<List<FishInfo>> GetFishAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new List<FishInfo>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'Fish'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    if (reader.IsDBNull(0)) continue;
+                    using var json = System.Text.Json.JsonDocument.Parse(reader.GetString(0));
+                    var root = json.RootElement;
+                    results.Add(new FishInfo(
+                        root.GetProperty("id").GetString() ?? "",
+                        root.GetProperty("quality").GetString() ?? "",
+                        root.GetProperty("size").GetString() ?? "",
+                        root.GetProperty("time").GetString() ?? "",
+                        root.GetProperty("storm").GetBoolean(),
+                        root.GetProperty("mission").GetBoolean(),
+                        root.GetProperty("biomes").EnumerateArray().Select(b => b.GetInt32()).ToArray()));
+                }
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetFishAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>Items for the Food Storage page (2026-10-15). Cold Storage: the
+    /// fish (fish table) and fishing baits (FISHBAIT_*) - what the user found
+    /// it takes in game. Ingredient Storage: everything the game flags as a
+    /// cooking ingredient (catalog "CookingIngredients", the product/substance
+    /// CookingIngredient flag; egg modifiers and the ANY_* recipe wildcards
+    /// left out). Group = the item's catalog group (Fish, Bait, Cooking
+    /// Products, Raw Materials...).</summary>
+    public static async Task<List<CatalogPart>> GetFoodStorageItemsAsync(bool coldStorage)
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        var fishIds = coldStorage
+            ? (await GetFishAsync()).Select(f => f.Id).Where(IsFishSpecies).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var parts = new List<CatalogPart>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = coldStorage
+                    ? @"SELECT i.GameId, i.NameEnglish, i.CatalogGroup, i.MaxStackSize
+                        FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                        WHERE c.TemplateType IN ('GcProductTable', 'GcSubstanceTable') AND i.NameEnglish IS NOT NULL
+                          AND (i.GameId LIKE 'F!_%' ESCAPE '!' OR i.GameId LIKE 'FISHBAIT!_%' ESCAPE '!')"
+                    : @"SELECT i.GameId, i.NameEnglish, i.CatalogGroup, i.MaxStackSize
+                        FROM Items ck
+                        JOIN Categories cc ON cc.Id = ck.CategoryId
+                        JOIN Items i ON i.GameId = substr(ck.GameId, 6)
+                        JOIN Categories c ON c.Id = i.CategoryId
+                        WHERE cc.TemplateType = 'CookingIngredients' AND ck.UsageCategory = 'Ingredient'
+                          AND c.TemplateType IN ('GcProductTable', 'GcSubstanceTable') AND i.NameEnglish IS NOT NULL
+                          AND i.GameId NOT LIKE 'ANY!_%' ESCAPE '!'
+                        GROUP BY i.GameId";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    string id = reader.GetString(0);
+                    bool bait = id.StartsWith("FISHBAIT_", StringComparison.OrdinalIgnoreCase);
+                    if (coldStorage && !bait && !fishIds.Contains(id)) continue;
+                    string group = coldStorage ? (bait ? "Bait" : "Fish")
+                        : fishIds.Contains(id) || IsFishSpecies(id) ? "Fish"
+                        : bait || id.StartsWith("BAIT_", StringComparison.OrdinalIgnoreCase) ? "Bait"
+                        : reader.IsDBNull(2) ? "Other" : reader.GetString(2);
+                    parts.Add(new CatalogPart(id, reader.GetString(1), group, reader.IsDBNull(3) ? null : reader.GetInt32(3)));
+                }
+                return parts.OrderBy(p => p.Group).ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetFoodStorageItemsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>What each settlement building stage needs (catalog
+    /// "SettlementCosts", CatalogSteps.AddSettlementCosts). Empty on game data
+    /// built before it existed - the page then asks for an update.</summary>
+    public static async Task<List<SettlementCost>> GetSettlementCostsAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new List<SettlementCost>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.UsageCategory, i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'SettlementCosts'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    if (reader.IsDBNull(1)) continue;
+                    using var json = System.Text.Json.JsonDocument.Parse(reader.GetString(1));
+                    var root = json.RootElement;
+                    results.Add(new SettlementCost(
+                        reader.GetString(0),
+                        root.GetProperty("stage").GetInt32(),
+                        root.GetProperty("stageName").GetString() ?? "",
+                        root.GetProperty("item").GetString() ?? "",
+                        root.GetProperty("amountMin").GetInt32(),
+                        root.GetProperty("amountMax").GetInt32()));
+                }
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetSettlementCostsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>Settlement building names by class (catalog
+    /// "SettlementBuildingNames"): the type's own name, and every name a
+    /// settlement can give it, plain and upgraded.</summary>
+    public static async Task<Dictionary<string, (string Name, List<string> Names, List<string> Upgraded)>> GetSettlementBuildingNamesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new Dictionary<string, (string, List<string>, List<string>)>(StringComparer.OrdinalIgnoreCase);
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.UsageCategory, i.NameEnglish, i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'SettlementBuildingNames'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    using var json = System.Text.Json.JsonDocument.Parse(reader.GetString(2));
+                    List<string> List(string key) => json.RootElement.GetProperty(key).EnumerateArray().Select(n => n.GetString() ?? "").ToList();
+                    results[reader.GetString(0)] = (reader.GetString(1), List("names"), List("upgraded"));
+                }
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetSettlementBuildingNamesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>Ship-builder parts (catalog "PartGroups"): the part item's id
+    /// (FIGHT_COCKAA - a product with a name and icon), its set (FIGHT_COCK) and
+    /// the descriptor options it switches on.</summary>
+    public static async Task<List<(string Id, string Set, List<string> Descriptors)>> GetPartGroupsAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new List<(string, string, List<string>)>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.NameEnglish, i.UsageCategory, i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'PartGroups'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                    results.Add((reader.GetString(0), reader.GetString(1),
+                        System.Text.Json.JsonSerializer.Deserialize<List<string>>(reader.GetString(2)) ?? new()));
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetPartGroupsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>Raw JSON rows of one catalog category, by lower-case path
+    /// (NameEnglish) - for the ship look data ("ShipScenes", "ShipMaterials",
+    /// "TextureLists"), which ShipLook parses on demand.</summary>
+    public static async Task<Dictionary<string, string>> GetJsonCategoryAsync(string templateType)
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.NameEnglish, i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = $type";
+                command.Parameters.AddWithValue("$type", templateType);
+                using var reader = command.ExecuteReader();
+                while (reader.Read()) results[reader.GetString(0)] = reader.GetString(1);
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetJsonCategoryAsync({templateType}) failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>The game's 66 base colour palettes in file order (catalog
+    /// "Palettes"); empty on game data built before they were collected.</summary>
+    public static async Task<List<ArtifactX.Core.Procedural.ColourPalette>> GetPalettesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var byIndex = new SortedDictionary<int, ArtifactX.Core.Procedural.ColourPalette>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.NameEnglish, i.UsageCategory, i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'Palettes'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                    byIndex[int.Parse(reader.GetString(0), System.Globalization.CultureInfo.InvariantCulture)] = new(
+                        System.Text.Json.JsonSerializer.Deserialize<float[][]>(reader.GetString(2)) ?? Array.Empty<float[]>(),
+                        reader.GetString(1));
+                return byIndex.Values.ToList();
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetPalettesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>Every starship part tree (catalog "ShipDescriptors"), by
+    /// lower-case descriptor path, as stored JSON (ShipParts.ParseTree).</summary>
+    public static async Task<Dictionary<string, string>> GetShipPartTreesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.NameEnglish, i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'ShipDescriptors'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read()) results[reader.GetString(0)] = reader.GetString(1);
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetShipPartTreesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>Trade category each economy sells, keyed by the game's trading
+    /// class (Mining, HighTech, Trading, Manufacturing, Fusion, Scientific,
+    /// PowerGeneration) - catalog "TradeClasses".</summary>
+    public static async Task<Dictionary<string, string>> GetEconomySellsAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.GameId, i.NameEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'TradeClasses'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                    results[reader.GetString(0)["TRADECLASS:".Length..]] = reader.GetString(1);
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetEconomySellsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>A plain-English item type for each product/substance, for the
+    /// Recipes page's type filter: from the catalog's CatalogGroup (the game's
+    /// own "Cooking Products"/"Crafted Products"/"Raw Materials" grouping) and,
+    /// for raw substances, their material category (UsageCategory: Fuel, Metal,
+    /// Catalyst, Stellar, Earth, Exotic, Flora, Special).</summary>
+    public static async Task<Dictionary<string, string>> GetItemTypesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var types = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.GameId, c.TemplateType, i.CatalogGroup, i.UsageCategory
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType IN ('GcProductTable', 'GcSubstanceTable')";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    string group = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                    string usage = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                    string type = reader.GetString(1) == "GcSubstanceTable"
+                        ? usage switch
+                        {
+                            "Fuel" => "Fuels (Carbon, Oxygen)",
+                            "Metal" => "Ferrite and silicates",
+                            "Catalyst" => "Catalysts (Sodium)",
+                            "Stellar" => "Stellar metals (Copper, Indium...)",
+                            "Earth" => "Earth elements (Cobalt, Salt, Pyrite...)",
+                            "Exotic" => "Precious metals (Gold, Silver, Platinum)",
+                            "Flora" => "Plants (Solanium, Star Bulb...)",
+                            _ => "Special (Chromatic Metal, gases...)",
+                        }
+                        : group == "Cooking Products" ? "Cooked food" : "Crafted products";
+                    types.TryAdd(reader.GetString(0), type);
+                }
+                return types;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetItemTypesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>Every refiner and cooking recipe (catalog category "Recipes",
+    /// DataCataloger add-recipes). Empty if the catalog predates that command.</summary>
+    /// <summary>What every craftable product and buildable technology is made
+    /// from (catalog category "Crafting", DataCataloger add-crafting), by id.
+    /// Ingredient ids with no entry here are raw materials.</summary>
+    public static async Task<Dictionary<string, CraftInfo>> GetCraftingAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new Dictionary<string, CraftInfo>(StringComparer.OrdinalIgnoreCase);
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.NameEnglish, i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'Crafting'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    if (reader.IsDBNull(1)) continue;
+                    using var json = System.Text.Json.JsonDocument.Parse(reader.GetString(1));
+                    var root = json.RootElement;
+                    string id = root.GetProperty("id").GetString() ?? "";
+                    var req = root.GetProperty("req").EnumerateArray()
+                        .Select(r => (Id: r[0].GetString() ?? "", Amount: r[1].GetInt32()))
+                        .Where(r => r.Id.Length > 0)
+                        .ToList();
+                    if (id.Length > 0) results[id] = new CraftInfo(id, reader.GetString(0), root.GetProperty("kind").GetString() ?? "", req);
+                }
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetCraftingAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    public static async Task<List<RecipeInfo>> GetRecipesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new List<RecipeInfo>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.GameId, i.NameEnglish, i.UsageCategory, i.DescriptionEnglish
+                    FROM Items i
+                    JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'Recipes'
+                    ORDER BY i.Id";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    if (reader.IsDBNull(3)) continue;
+                    using var json = System.Text.Json.JsonDocument.Parse(reader.GetString(3));
+                    var root = json.RootElement;
+                    static (string Id, int Amount) Pair(System.Text.Json.JsonElement e) => (e[0].GetString() ?? "", e[1].GetInt32());
+                    results.Add(new RecipeInfo(
+                        reader.GetString(0),
+                        reader.IsDBNull(1) ? "" : reader.GetString(1),
+                        reader.IsDBNull(2) ? "" : reader.GetString(2),
+                        Pair(root.GetProperty("result")),
+                        root.GetProperty("ingredients").EnumerateArray().Select(Pair).ToList()));
+                }
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetRecipesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>The words the game uses for a system's economy, wealth and
+    /// conflict (catalog category "SystemDescriptors", DataCataloger
+    /// add-system-descriptors): (Word, Group = Economy/Wealth/Conflict, Tier
+    /// e.g. SCIENCE/HIGH). Empty if the catalog predates that command.</summary>
+    public static async Task<List<(string Word, string Group, string Tier)>> GetSystemDescriptorsAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new List<(string, string, string)>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.NameEnglish, i.UsageCategory, i.DescriptionEnglish
+                    FROM Items i
+                    JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'SystemDescriptors'
+                    ORDER BY i.Id";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                    results.Add((reader.GetString(0), reader.IsDBNull(1) ? "" : reader.GetString(1), reader.IsDBNull(2) ? "" : reader.GetString(2)));
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetSystemDescriptorsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>The words the game's discovery screen uses for a planet's
+    /// weather, sentinels and flora/fauna (catalog category
+    /// "PlanetDescriptors", DataCataloger add-planet-descriptors): word,
+    /// group (Weather/Sentinels/Life) and tier (biome or level).</summary>
+    public static async Task<List<(string Word, string Group, string Tier)>> GetPlanetDescriptorsAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new List<(string, string, string)>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.NameEnglish, i.UsageCategory, i.DescriptionEnglish
+                    FROM Items i
+                    JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'PlanetDescriptors'
+                    ORDER BY i.Id";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                    results.Add((reader.GetString(0), reader.IsDBNull(1) ? "" : reader.GetString(1), reader.IsDBNull(2) ? "" : reader.GetString(2)));
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetPlanetDescriptorsAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>Names of every raw resource (substance) - what a planet's
+    /// discovery screen lists under resources - A to Z, for the planet
+    /// details picker.</summary>
+    public static async Task<List<string>> GetSubstanceNamesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var names = new List<string>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT DISTINCT COALESCE(i.NameLowerEnglish, i.NameEnglish)
+                    FROM Items i
+                    JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType IN ('GcSubstanceTable', 'GcProductTable') AND i.NameEnglish IS NOT NULL
+                      -- plus the planet curiosities the discovery screen can list
+                      -- (Storm Crystal, Gravitino Ball...), not fish
+                      AND (c.TemplateType = 'GcSubstanceTable'
+                           OR (i.CatalogGroup = 'Curiosities' AND i.GameId NOT GLOB 'F_*'))
+                      -- currency/placeholder rows that live in the same table
+                      AND i.NameEnglish NOT IN ('UNITS', 'QUICKSILVER', 'NANITES', 'FEATURE', 'OUTLAWS')
+                    ORDER BY 1";
+                using var reader = command.ExecuteReader();
+                while (reader.Read()) names.Add(reader.GetString(0));
+                return names;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetSubstanceNamesAsync failed: {ex.Message}");
+            return new();
+        }
+    }
+
+    /// <summary>Freighter Recolouring blueprints (catalog category
+    /// "FreighterPaints", DataCataloger add-freighter-paints): blueprint id,
+    /// in-game name, and the paint colour as "#RRGGBB". Empty if the catalog
+    /// predates that command.</summary>
+    public static async Task<List<(string GameId, string Name, string Hex)>> GetFreighterPaintsAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new();
+
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var results = new List<(string, string, string)>();
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.GameId, i.NameEnglish, i.DescriptionEnglish
+                    FROM Items i
+                    JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'FreighterPaints'
+                    ORDER BY i.Id";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                    results.Add((reader.GetString(0), reader.GetString(1), reader.IsDBNull(2) ? "" : reader.GetString(2)));
+                return results;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetFreighterPaintsAsync failed: {ex.Message}");
+            return new();
+        }
     }
 
     /// <summary>Frigate trait id -> (DisplayName, formatted description with the
@@ -761,7 +1727,7 @@ public static class CatalogService
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT i.GameId, COALESCE(i.NameEnglish, i.NameLowerEnglish) AS DisplayName, c.TemplateType, i.UsageCategory, i.CatalogGroup
+            SELECT i.GameId, COALESCE(i.NameEnglish, i.NameLowerEnglish) AS DisplayName, c.TemplateType, i.UsageCategory, i.CatalogGroup, i.IsBrokenSlotTech
             FROM Items i
             JOIN Categories c ON c.Id = i.CategoryId
             WHERE c.TemplateType IN ('GcProductTable','GcSubstanceTable','GcTechnologyTable','GcProceduralTechnologyTable')
@@ -778,7 +1744,8 @@ public static class CatalogService
                 DisplayName = reader.GetString(1),
                 CategoryLabel = ElvLabelFor(reader.GetString(2)),
                 UsageCategory = reader.IsDBNull(3) ? null : reader.GetString(3),
-                CatalogGroup = reader.IsDBNull(4) ? null : reader.GetString(4)
+                CatalogGroup = reader.IsDBNull(4) ? null : reader.GetString(4),
+                IsBrokenSlotTech = reader.GetBoolean(5)
             });
         }
         return results;
@@ -849,18 +1816,44 @@ public static class CatalogService
     public static List<CatalogUnlockableItem> FilterFishSpecies(IEnumerable<CatalogUnlockableItem> catalogItems) =>
         catalogItems.Where(c => FishSpeciesPattern.IsMatch(c.GameId)).OrderBy(c => c.DisplayName).ToList();
 
+    /// <summary>Same rule as FilterFishSpecies, for a single id.</summary>
+    public static bool IsFishSpecies(string gameId) => FishSpeciesPattern.IsMatch(gameId);
+
     private static string? ResolveDbPath()
     {
         if (_pathChecked) return _dbPath;
         _pathChecked = true;
 
-        string candidate = Path.Combine(AppContext.BaseDirectory, "Data", "nms_catalog.sqlite");
-        _dbPath = File.Exists(candidate) ? candidate : null;
+        // Built on this PC from the player's own game files (GameDataService).
+        _dbPath = GameDataService.ActiveCatalogPath;
 
         Debug.WriteLine(_dbPath is not null
             ? $"[CatalogService] Catalog found at: {_dbPath}"
-            : $"[CatalogService] Catalog NOT found. Checked: {candidate}");
+            : $"[CatalogService] No catalog yet (not built). Checked: {GameDataService.CatalogPath}");
 
         return _dbPath;
     }
 }
+
+/// <summary>One refiner/cooking recipe: Kind is "Refiner" or "Cooking"; ids are item GameIds.</summary>
+/// <summary>A craftable product or buildable technology: Kind is "Product" or
+/// "Technology"; Requirements are ingredient ids and amounts for one.</summary>
+public sealed record CraftInfo(string Id, string Name, string Kind, List<(string Id, int Amount)> Requirements);
+
+public sealed record RecipeInfo(string Id, string Name, string Kind, (string Id, int Amount) Result, List<(string Id, int Amount)> Ingredients);
+
+/// <summary>An item's base Units value. TradeCategory is the game's own
+/// (Mineral, Tech, Commodity, Component, Alloy, Exotic, Energy, None, SpecialShop);
+/// Kind is "Product" or "Substance".</summary>
+public sealed record FishInfo(string Id, string Quality, string Size, string Time, bool NeedsStorm, bool NeedsMission, int[] Biomes)
+{
+    public const int AnyPlanet = 16;
+    public bool LivesOn(int biome) => Biomes.Contains(AnyPlanet) || Biomes.Contains(biome);
+}
+
+/// <summary>One settlement building stage's cost: BuildingClass is the
+/// game's id (Settlement_Market...), Stage 1-7 (GcSettlementConstructionLevel:
+/// GroundStorey .. Upgrade3), Item a catalog GameId.</summary>
+public sealed record SettlementCost(string BuildingClass, int Stage, string StageName, string Item, int AmountMin, int AmountMax);
+
+public sealed record ItemValueInfo(string Id, string Name, string TradeCategory, long Value, string Legality, string Kind);

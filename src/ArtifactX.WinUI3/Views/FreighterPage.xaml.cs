@@ -2,6 +2,7 @@ using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Models;
@@ -111,18 +112,77 @@ public sealed partial class FreighterPage : Page
     private static bool HasFreighter() =>
         !string.IsNullOrEmpty(SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>());
 
-    private async void LoadGrids()
+    /// <summary>Freighter module families, from the 24 freighters in the real
+    /// saves (2026-10-13): hyperdrive plus the six fleet ones, each topping
+    /// out at 3.</summary>
+    private static readonly string[] ModuleFamilies =
+        { "UP_FRHYP", "UP_FRCOM", "UP_FREXP", "UP_FRFUE", "UP_FRMIN", "UP_FRSPE", "UP_FRTRA" };
+
+    private static readonly string[] TechGroupOrder = { "Hyperdrive", "Fleet", "Utilities" };
+
+    /// <summary>Groups by the main stat each tech works on (the game's
+    /// BaseStat, via the catalog's TechStats), same as Starships.</summary>
+    private static string TechGroup(CatalogPart tech)
+    {
+        string stat = tech.Stat ?? "";
+        if (stat.StartsWith("Freighter_Hyperdrive")) return "Hyperdrive";
+        if (stat.StartsWith("Freighter_Fleet")) return "Fleet";
+        return "Utilities";
+    }
+
+    private void TechCargoStack_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
+    private void MainColumn_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
+
+    /// <summary>Tech list beside tech + cargo, as tall as they are, or
+    /// underneath at a fixed height when the window is too narrow.</summary>
+    private void LayoutTechList()
+    {
+        bool beside = MainColumn.ActualWidth >= TechCargoStack.ActualWidth + TechLayoutGrid.ColumnSpacing + TechListCard.Width;
+        Grid.SetRow(TechListCard, beside ? 0 : 1);
+        Grid.SetColumn(TechListCard, beside ? 1 : 0);
+        double height = 560;
+        if (beside)
+        {
+            double chrome = TechListCard.ActualHeight - TechListPanel.ListHeight;
+            if (TechListCard.ActualHeight <= 0 || chrome <= 0) chrome = 230;
+            height = Math.Max(300, TechCargoStack.ActualHeight - chrome);
+        }
+        if (Math.Abs(height - TechListPanel.ListHeight) > 1) TechListPanel.ListHeight = height;
+    }
+
+    private void ArrangeTech_Click(object sender, RoutedEventArgs e)
+    {
+        int moved = TechGrid.ArrangeForAdjacency(TechListPanel.TypeOf);
+        if (moved > 0) PageResetBtn.Visibility = Visibility.Visible;
+        FlyoutBase.SetAttachedFlyout((FrameworkElement)sender, new Flyout
+        {
+            Content = new TextBlock
+            {
+                Text = moved > 0
+                    ? $"Moved {moved} so each type sits together. Reset undoes it."
+                    : "Already grouped - nothing to move.",
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 260,
+            },
+        });
+        FlyoutBase.ShowAttachedFlyout((FrameworkElement)sender);
+    }
+
+    private async void LoadGrids() => await LoadGridsAsync();
+
+    private async Task LoadGridsAsync()
     {
         if (!SaveSessionManager.IsSaveLoaded) return;
 
         if (!HasFreighter())
         {
-            NoFreighterTxt.Visibility = Visibility.Visible;
+            NoFreighterPanel.Visibility = Visibility.Visible;
             HeaderGrid.Visibility = Visibility.Collapsed;
+            _ = RefreshAddFreighterListAsync();
             return;
         }
 
-        NoFreighterTxt.Visibility = Visibility.Collapsed;
+        NoFreighterPanel.Visibility = Visibility.Collapsed;
         HeaderGrid.Visibility = Visibility.Visible;
 
         string? classLetter = GetFreighterClassLetter();
@@ -148,7 +208,8 @@ public sealed partial class FreighterPage : Page
         TechGrid.ViewModel = _techViewModel;
         TechGrid.AllowedCategories = new[] { "Technology" };
         TechGrid.AllowedTemplateTypes = new[] { "GcTechnologyTable" };
-        TechGrid.AllowedUsageCategories = new[] { "Freighter", "All" };
+        // Every tech on the 24 freighters in the real saves is "Freighter" (2026-10-13).
+        TechGrid.AllowedUsageCategories = new[] { "Freighter" };
 
         CargoGrid.ViewModel = _cargoViewModel;
         CargoGrid.AllowedCategories = new[] { "Substance", "Product" };
@@ -171,8 +232,28 @@ public sealed partial class FreighterPage : Page
         PageResetBtn.Visibility = (_techViewModel.HasLocalChanges || _cargoViewModel.HasLocalChanges)
             ? Visibility.Visible : Visibility.Collapsed;
 
+        // The tech a freighter can fit, to click in - the same list limits
+        // the right-click search.
+        TechListPanel.IsBestClass = () => GetFreighterClassLetter() == "S";
+        TechListPanel.SwitchToBestClassAsync = async () =>
+        {
+            SaveSessionManager.StageEdit("S", NmsInventoryContainer.FreighterClassPath);
+            PageResetBtn.Visibility = Visibility.Visible;
+            await LoadGridsAsync();
+        };
+        TechListPanel.MoreRoomHint = () => GetFreighterClassLetter() == "S" ? null
+            : "S class has more slots - change the class in Freighter Details to fit more.";
+        _ = TechListPanel.LoadAsync(TechGrid, async () =>
+        {
+            var tech = await CatalogService.GetTechForAsync(new[] { "Freighter" });
+            TechGrid.AllowedItemIds = tech.Select(t => t.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var modules = await CatalogService.GetUpgradeModulesAsync(ModuleFamilies);
+            return Controls.ItemListPanel.SortByGroups(tech.Concat(modules), TechGroup, TechGroupOrder);
+        }, "technology", "technologies", "Technology", TechGroup);
+
         BuildClassSelector();
         NameEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterNamePath)?.Value<string>() ?? "";
+        ApplyDetailsCollapsed();
         HomeSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterHomeSeedPath)?.Value<string>() ?? "";
         ModelSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>() ?? "";
         CrewSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterCrewSeedPath)?.Value<string>() ?? "";
@@ -364,15 +445,9 @@ public sealed partial class FreighterPage : Page
                     Text = letter,
                     FontWeight = isCurrent ? FontWeights.Bold : FontWeights.Normal
                 },
-                Padding = new Thickness(14, 4, 14, 4),
-                BorderThickness = new Thickness(isCurrent ? 2 : 1),
-                BorderBrush = new SolidColorBrush(isCurrent
-                    ? Color.FromArgb(255, 255, 157, 0)
-                    : Color.FromArgb(255, 90, 98, 112)),
-                Background = new SolidColorBrush(isCurrent
-                    ? Color.FromArgb(60, 255, 157, 0)
-                    : Color.FromArgb(20, 255, 255, 255))
+                Padding = new Thickness(14, 4, 14, 4)
             };
+            ThemeResources.StyleChoiceButton(button, isCurrent);
 
             button.Click += (_, _) =>
             {
@@ -498,6 +573,13 @@ public sealed partial class FreighterPage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
+    private void SortCargo_Click(object sender, RoutedEventArgs e)
+    {
+        if (_cargoViewModel?.SortItems() != true) return;
+        CargoGrid.Refresh();
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
+
     private void SuperchargeAllTech_Click(object sender, RoutedEventArgs e)
     {
         _techViewModel?.SuperchargeAll();
@@ -586,6 +668,19 @@ public sealed partial class FreighterPage : Page
     /// Full Build templates have their own separate list below
     /// (RefreshFullBuildTemplatesListAsync). Called after saving, deleting, or
     /// applying a template, and once on page load.</summary>
+    /// <summary>Imports a template file someone shared (TemplateSharingService checks it first).</summary>
+    private async void ImportTemplateBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var result = await TemplateSharingService.ImportAsync("Freighter");
+        if (result is not { } r) return;
+        ImportTemplateStatusTxt.Text = r.Message;
+        ImportTemplateStatusTxt.Foreground = ThemeResources.Brush(r.Ok ? "ThemeDoneBrush" : "ThemeWarningBrush");
+        ImportTemplateStatusTxt.Visibility = Visibility.Visible;
+        if (!r.Ok) return;
+        await RefreshTemplatesListAsync();
+        await RefreshFullBuildTemplatesListAsync();
+    }
+
     private async Task RefreshTemplatesListAsync()
     {
         var templates = (await LoadoutTemplateService.LoadAllAsync())
@@ -632,6 +727,11 @@ public sealed partial class FreighterPage : Page
             applyButton.Click += async (_, _) => await ApplyTemplateAsync(template);
             buttonRow.Children.Add(applyButton);
 
+            var shareButton = new Button { Content = "Share...", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            ToolTipService.SetToolTip(shareButton, "Save this template as a file - to give to a friend, or to keep as a backup");
+            shareButton.Click += async (_, _) => await TemplateSharingService.ExportAsync(shareButton, template);
+            buttonRow.Children.Add(shareButton);
+
             var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
             deleteButton.Click += async (_, _) =>
             {
@@ -644,7 +744,7 @@ public sealed partial class FreighterPage : Page
 
             row.Children.Add(new Border
             {
-                BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 Margin = new Thickness(0, 4, 0, 0)
             });
@@ -688,8 +788,16 @@ public sealed partial class FreighterPage : Page
         string name = nameBox.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(name)) return;
 
+        await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate(name));
+        await RefreshFullBuildTemplatesListAsync();
+    }
+
+    /// <summary>The whole freighter as a Full Build template: tech, unlocked
+    /// slots, stats, look and furnished interior.</summary>
+    private NmsLoadoutTemplate BuildFullBuildTemplate(string name)
+    {
         string freighterName = NameEditBox.Text?.Trim() is { Length: > 0 } n ? n : "Freighter";
-        var template = _techViewModel.ExtractTemplate(name, freighterName, "Freighter");
+        var template = _techViewModel!.ExtractTemplate(name, freighterName, "Freighter");
         template.Scope = "FullBuild";
         template.Stats = ExtractStatsList();
         // Model Seed only (the hull's own look) - deliberately never the
@@ -697,13 +805,152 @@ public sealed partial class FreighterPage : Page
         // NmsLoadoutTemplate.Seed's own doc comment.
         template.Seed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>();
         template.TypeScenePath = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>();
+        FreighterBuildService.Capture(template);
+        // Every unlocked slot, not just the ones holding tech (a Tech Stack
+        // template keeps only those, so it never unlocks extra slots).
+        template.UnlockedPositions = _techViewModel.Cells.Where(c => c.State != InventorySlotState.Locked)
+            .Select(c => new NmsLoadoutPosition { X = c.X, Y = c.Y }).ToList();
+        return template;
+    }
 
-        await LoadoutTemplateService.SaveAsync(template);
-        await RefreshFullBuildTemplatesListAsync();
+    private async void DeleteFreighterBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_techViewModel is null) return;
+        string name = NameEditBox.Text?.Trim() is { Length: > 0 } n ? n : "your freighter";
+        int cargo = _cargoViewModel?.Cells.Count(c => c.IsOccupied) ?? 0;
+        int frigates = (SaveSessionManager.GetValue(NmsFrigatePaths.FrigateArrayPath) as JArray)?.Count ?? 0;
+        string whatGoes = "its tech, its furnished interior"
+            + (cargo > 0 ? $", the {cargo} stacks in its cargo" : "")
+            + " and its look. What you've learned (blueprints, known tech) stays"
+            + (frigates > 0 ? $", and your {frigates} frigate{(frigates == 1 ? "" : "s")} stay as they are" : "");
+        var choice = await DeleteConfirmation.ShowAsync(XamlRoot, name, whatGoes);
+        if (!choice.Confirmed) return;
+
+        if (choice.SaveTemplateFirst)
+        {
+            await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate($"{(name == "your freighter" ? "Freighter" : name)} (saved before deleting)"));
+            await RefreshFullBuildTemplatesListAsync();
+        }
+        FreighterBuildService.RemoveFreighter();
+        LoadGrids();
     }
 
     /// <summary>Same shape as RefreshTemplatesListAsync, filtered to Scope==
     /// "FullBuild" instead and targeting the separate FullBuildTemplatesListPanel.</summary>
+    /// <summary>The "Add a freighter" card shown when the save has none:
+    /// every Freighter Full Build template, each with Add as my freighter.</summary>
+    private void BuildStarterList()
+    {
+        if (StarterListPanel.Children.Count > 0) return;
+        foreach (var (name, description, scene) in FreighterBuildService.StarterHulls)
+        {
+            var row = new Grid { ColumnSpacing = 12 };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var info = new StackPanel { Spacing = 2 };
+            info.Children.Add(new TextBlock { Text = name, FontWeight = FontWeights.SemiBold, FontSize = 13 });
+            info.Children.Add(new TextBlock { Text = description, FontSize = 11, Opacity = 0.7, TextWrapping = TextWrapping.Wrap });
+            row.Children.Add(info);
+            var add = new Button { Content = "Add as my freighter", VerticalAlignment = VerticalAlignment.Center };
+            add.Click += async (_, _) => await AddFreighterAsync(FreighterBuildService.Starter(name, scene));
+            Grid.SetColumn(add, 1);
+            row.Children.Add(add);
+            StarterListPanel.Children.Add(row);
+        }
+    }
+
+    private async Task RefreshAddFreighterListAsync()
+    {
+        BuildStarterList();
+        var templates = (await LoadoutTemplateService.LoadAllAsync())
+            .Where(t => t.SourceKind == "Freighter" && t.Scope == "FullBuild")
+            .ToList();
+
+        AddFreighterListPanel.Children.Clear();
+        if (templates.Count == 0)
+        {
+            AddFreighterListPanel.Children.Add(new TextBlock
+            {
+                Text = "No freighter templates yet.",
+                FontSize = 12,
+                Opacity = 0.7,
+            });
+            return;
+        }
+
+        foreach (var template in templates)
+        {
+            var row = new Grid { ColumnSpacing = 12 };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var info = new StackPanel { Spacing = 2 };
+            info.Children.Add(new TextBlock { Text = template.Name, FontWeight = FontWeights.SemiBold, FontSize = 13, TextWrapping = TextWrapping.Wrap });
+            info.Children.Add(new TextBlock
+            {
+                Text = $"{template.SourceClass ?? "?"} class, {template.TechItems.Count} tech"
+                    + (FreighterBuildService.HasInterior(template) ? $", interior with {template.InteriorObjects!.Count} parts" : ", default interior (saved before interiors were included)")
+                    + (template.SourceToolName is { Length: > 0 } source ? $" - from {source}" : ""),
+                FontSize = 11,
+                Opacity = 0.7,
+                TextWrapping = TextWrapping.Wrap,
+            });
+            row.Children.Add(info);
+
+            var add = new Button { Content = "Add as my freighter", VerticalAlignment = VerticalAlignment.Center };
+            add.Click += async (_, _) => await AddFreighterAsync(template);
+            Grid.SetColumn(add, 1);
+            row.Children.Add(add);
+            AddFreighterListPanel.Children.Add(row);
+        }
+    }
+
+    private async void AddFreighterImport_Click(object sender, RoutedEventArgs e)
+    {
+        var result = await TemplateSharingService.ImportAsync("Freighter");
+        if (result is not { } r) return;
+        AddFreighterStatusTxt.Text = r.Ok && r.Message.Contains("Use Apply", StringComparison.Ordinal)
+            ? r.Message.Replace("Use Apply", "Use Add as my freighter", StringComparison.Ordinal) : r.Message;
+        AddFreighterStatusTxt.Foreground = ThemeResources.Brush(r.Ok ? "ThemeDoneBrush" : "ThemeWarningBrush");
+        AddFreighterStatusTxt.Visibility = Visibility.Visible;
+        if (r.Ok) await RefreshAddFreighterListAsync();
+    }
+
+    /// <summary>Builds a whole freighter from the template (FreighterBuildService)
+    /// in a save that doesn't have one. Nothing is written until Save.</summary>
+    private async Task AddFreighterAsync(NmsLoadoutTemplate template)
+    {
+        bool fresh = template.TechItems.Count <= 2 && !FreighterBuildService.HasInterior(template);
+        var confirm = new ContentDialog
+        {
+            Title = fresh ? $"Add a new {template.Name.ToLowerInvariant()}?" : $"Add \"{template.Name}\" as your freighter?",
+            Content = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Text = fresh
+                    ? "A brand-new one, just as the game hands it over: C class, a hyperdrive and scanner, the starter interior and a random look, "
+                        + "parked in the system you're in, with a new Gek captain (change the race under Crew Race). Nothing is written to your save until you Save."
+                    : "It arrives with this template's model, look, tech, class, stats and "
+                    + (FreighterBuildService.HasInterior(template) ? "furnished interior" : "the standard starter interior")
+                    + ", parked in the system you're in. Its cargo starts empty and it gets a new Gek captain (change the race under Crew Race). "
+                    + "Nothing is written to your save until you Save."
+            },
+            PrimaryButtonText = "Add",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = this.XamlRoot
+        };
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+
+        if (FreighterBuildService.AddFreighter(template) is string problem)
+        {
+            AddFreighterStatusTxt.Text = $"Couldn't add the freighter: {problem}";
+            AddFreighterStatusTxt.Foreground = ThemeResources.Brush("ThemeWarningBrush");
+            AddFreighterStatusTxt.Visibility = Visibility.Visible;
+            return;
+        }
+        LoadGrids();
+    }
+
     private async Task RefreshFullBuildTemplatesListAsync()
     {
         var templates = (await LoadoutTemplateService.LoadAllAsync())
@@ -738,7 +985,8 @@ public sealed partial class FreighterPage : Page
             });
             row.Children.Add(new TextBlock
             {
-                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class, stats+seed{sourceInfo}",
+                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class, stats+seed"
+                    + (FreighterBuildService.HasInterior(template) ? $", interior ({template.InteriorObjects!.Count} parts)" : "") + sourceInfo,
                 FontSize = 10,
                 Opacity = 0.6,
                 TextWrapping = TextWrapping.Wrap
@@ -749,6 +997,11 @@ public sealed partial class FreighterPage : Page
             var applyButton = new Button { Content = "Apply", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
             applyButton.Click += async (_, _) => await ApplyFullBuildTemplateAsync(template);
             buttonRow.Children.Add(applyButton);
+
+            var shareButton = new Button { Content = "Share...", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
+            ToolTipService.SetToolTip(shareButton, "Save this template as a file - to give to a friend, or to keep as a backup");
+            shareButton.Click += async (_, _) => await TemplateSharingService.ExportAsync(shareButton, template);
+            buttonRow.Children.Add(shareButton);
 
             var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
             deleteButton.Click += async (_, _) =>
@@ -762,7 +1015,7 @@ public sealed partial class FreighterPage : Page
 
             row.Children.Add(new Border
             {
-                BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 Margin = new Thickness(0, 4, 0, 0)
             });
@@ -834,11 +1087,13 @@ public sealed partial class FreighterPage : Page
 
         var sourcePositions = template.UnlockedPositions.Select(p => (p.X, p.Y));
         var (confirmed, alsoMatchClass) = await ShowApplyConfirmationAsync(
-            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions, includesStatsAndSeed: true);
+            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions, includesStatsAndSeed: true,
+            replacesInterior: FreighterBuildService.HasInterior(template));
 
         if (!confirmed) return;
 
         _techViewModel.ApplyTemplate(template, alsoMatchClass);
+        FreighterBuildService.ApplyInterior(template);
         ApplyStatsList(template.Stats);
         if (!string.IsNullOrEmpty(template.Seed))
             SaveSessionManager.StageEdit(template.Seed, NmsInventoryContainer.FreighterModelSeedPath);
@@ -884,7 +1139,8 @@ public sealed partial class FreighterPage : Page
     /// one freighter: no target picker, just "apply this template to your
     /// freighter now."</summary>
     private async Task<(bool Confirmed, bool AlsoMatchClass)> ShowApplyConfirmationAsync(
-        string sourceLabel, string? sourceClass, IEnumerable<(int X, int Y)> sourcePositions, bool includesStatsAndSeed = false)
+        string sourceLabel, string? sourceClass, IEnumerable<(int X, int Y)> sourcePositions, bool includesStatsAndSeed = false,
+        bool replacesInterior = false)
     {
         if (_techViewModel is null) return (false, false);
 
@@ -899,7 +1155,10 @@ public sealed partial class FreighterPage : Page
         panel.Children.Add(new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
-            Text = includesStatsAndSeed
+            Text = includesStatsAndSeed && replacesInterior
+                ? $"This replaces your freighter's entire tech loadout, base stats, Type, appearance seed and interior (every room and furnishing) with {sourceLabel}. "
+                    + "Items in your storage containers aren't affected."
+                : includesStatsAndSeed
                 ? $"This replaces your freighter's entire tech loadout, base stats, Type, and appearance seed with {sourceLabel}."
                 : $"This replaces your freighter's entire tech loadout with {sourceLabel}."
         });
@@ -909,7 +1168,7 @@ public sealed partial class FreighterPage : Page
             panel.Children.Add(new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = new SolidColorBrush(Color.FromArgb(255, 230, 160, 60)),
+                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
                 Text = $"⚠ {newSlotsNeeded} slot(s) will also be unlocked on your freighter to fit this stack."
             });
         }
@@ -920,7 +1179,7 @@ public sealed partial class FreighterPage : Page
             panel.Children.Add(new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = new SolidColorBrush(Color.FromArgb(255, 230, 160, 60)),
+                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
                 Text = $"⚠ Class differs: your freighter is currently {currentClass ?? "unknown"}, source is {sourceClass ?? "unknown"}."
             });
 
@@ -948,6 +1207,7 @@ public sealed partial class FreighterPage : Page
         TechGrid.Refresh();
         _cargoViewModel?.Revert();
         CargoGrid.Refresh();
+        TechListPanel.RefreshOwned();
         PageResetBtn.Visibility = Visibility.Collapsed;
     }
 }

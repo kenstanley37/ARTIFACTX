@@ -67,7 +67,7 @@ public sealed partial class SaveFolderSelectPage : Page
         await ViewModel.TryAddCustomFolderAsync(folder.Path);
     }
 
-    private async void SaveSlot_Tapped(object sender, TappedRoutedEventArgs e)
+    private async void SaveSlot_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement { Tag: SaveSlotGroup slot }) return;
         await SaveSessionManager.LoadAsync(slot);
@@ -97,7 +97,7 @@ public sealed partial class SaveFolderSelectPage : Page
             return;
         }
 
-        string groupKey = BackupService.BuildSlotGroupKey(slot.SourceDisplayName, slot.SlotId);
+        string groupKey = BackupService.BuildSlotGroupKey(Path.GetDirectoryName(slot.Files[0].FullPath) ?? "", slot.SlotId);
         var restorePoints = BackupService.GetRestorePoints(groupKey);
 
         if (restorePoints.Count == 0)
@@ -177,14 +177,29 @@ public sealed partial class SaveFolderSelectPage : Page
     {
         if (sender is not FrameworkElement { Tag: SaveFolderCandidate candidate }) return;
 
-        var nameBox = new TextBox { Text = candidate.DisplayName, PlaceholderText = "e.g. \"Backup Drive\"" };
+        bool isAccount = candidate.Source != SaveFolderSource.Manual;
+        var nameBox = new TextBox
+        {
+            Text = candidate.CustomName ?? "",
+            PlaceholderText = candidate.PlayerName is { Length: > 0 } player ? player : isAccount ? "e.g. \"My alt\"" : "e.g. \"Backup Drive\"",
+        };
         var dialog = new ContentDialog
         {
-            Title = "Name this folder",
+            Title = isAccount ? "Nickname this account" : "Name this folder",
             Content = new StackPanel
             {
                 Spacing = 8,
-                Children = { new TextBlock { Text = "Shown in place of \"Custom Folder\" - doesn't rename anything on disk." }, nameBox }
+                Children =
+                {
+                    new TextBlock
+                    {
+                        TextWrapping = TextWrapping.Wrap,
+                        Text = isAccount
+                            ? $"Shown as \"{candidate.PlatformName} · nickname\". Leave it empty to show the player's name again. Doesn't change anything in the game or on disk."
+                            : "Shown in place of \"Custom Folder\" - doesn't rename anything on disk.",
+                    },
+                    nameBox,
+                },
             },
             PrimaryButtonText = "Save",
             CloseButtonText = "Cancel",

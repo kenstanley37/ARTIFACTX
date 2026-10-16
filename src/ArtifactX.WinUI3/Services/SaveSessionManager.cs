@@ -1,4 +1,5 @@
 ﻿using ArtifactX.Core;
+using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Models;
 using Newtonsoft.Json.Linq;
 using System;
@@ -16,6 +17,7 @@ public static class SaveSessionManager
     private static SaveSlotGroup? _activeSlot;
     private static string? _activePlatformFolder;
     private static string? _activePlatformDisplayName;
+    private static bool _isExpeditionActive;
     private static Dictionary<string, DateTime> _loadSnapshot = new();
 
     public static event EventHandler? ActiveSessionChanged;
@@ -53,6 +55,13 @@ public static class SaveSessionManager
     /// value once a slot IS loaded, via LoadAsync below).</summary>
     public static string? ActivePlatformDisplayName => _activePlatformDisplayName;
 
+    /// <summary>True when the loaded save is mid-expedition (see
+    /// NmsSaveContext). Every path starting with the main root ("vLc") is
+    /// then transparently redirected to the expedition root ("2YS") by the
+    /// read/write methods below, so each page edits whatever the game is
+    /// actually playing without needing expedition-specific copies.</summary>
+    public static bool IsExpeditionActive => _isExpeditionActive;
+
     public static async Task LoadAsync(SaveSlotGroup slot)
     {
         DetachCurrent();
@@ -72,6 +81,10 @@ public static class SaveSessionManager
         await File.WriteAllTextAsync(primary.WorkingJsonPath, freshJson);
 
         _session = await Task.Run(() => SaveEditSession.LoadAsync(primary.WorkingJsonPath));
+        _isExpeditionActive =
+            _session.Root[NmsSaveContext.ActiveContextKey]?.Value<string>() == NmsSaveContext.ExpeditionContextValue
+            && _session.Root[NmsSaveContext.ExpeditionRootKey]?["6f="] is JObject;
+
         _targetHgPaths = slot.Files.Select(f => f.FullPath).ToArray();
         _activeSlot = slot;
         _activeSlot.IsActive = true;
@@ -82,6 +95,20 @@ public static class SaveSessionManager
 
         _session.EditsChanged += OnEditsChanged;
         ActiveSessionChanged?.Invoke(null, EventArgs.Empty);
+    }
+
+    /// <summary>Points the loaded session at a re-read copy of its own slot
+    /// (SaveFolderWatchService) - same slot, possibly more files now (the game
+    /// adds the second of a slot's pair later). The session and its unsaved
+    /// edits stay as they are; only where a save gets written changes.</summary>
+    public static void AdoptSlot(SaveSlotGroup slot)
+    {
+        if (_activeSlot is null || _activeSlot.SlotId != slot.SlotId) return;
+        if (!string.Equals(Path.GetDirectoryName(slot.PrimaryFile.FullPath), _activePlatformFolder, StringComparison.OrdinalIgnoreCase)) return;
+        _activeSlot.IsActive = false;
+        _activeSlot = slot;
+        _activeSlot.IsActive = true;
+        _targetHgPaths = slot.Files.Select(f => f.FullPath).ToArray();
     }
 
     /// <summary>Marks a platform folder as the active one without loading any
@@ -108,22 +135,33 @@ public static class SaveSessionManager
             _activeSlot.IsActive = false;
 
         _session = null;
+        _isExpeditionActive = false;
         _targetHgPaths = Array.Empty<string>();
         _activeSlot = null;
         _loadSnapshot.Clear();
         ActiveSessionChanged?.Invoke(null, EventArgs.Empty);
     }
 
-    public static JToken? GetValue(params string[] path) => _session?.GetValue(path);
-    public static long? GetLong(params string[] path) => _session?.GetLong(path);
-    public static string? GetString(params string[] path) => _session?.GetString(path);
-    public static bool? GetBool(params string[] path) => _session?.GetBool(path);
+    public static JToken? GetValue(params string[] path) => _session?.GetValue(MapToActiveContext(path));
+    public static long? GetLong(params string[] path) => _session?.GetLong(MapToActiveContext(path));
+    public static string? GetString(params string[] path) => _session?.GetString(MapToActiveContext(path));
+    public static bool? GetBool(params string[] path) => _session?.GetBool(MapToActiveContext(path));
 
-    public static void StageEdit(JToken? newValue, params string[] path) => _session?.StageEdit(newValue, path);
-    public static void RevertEdit(params string[] path) => _session?.RevertEdit(path);
-    public static bool HasStagedEdit(params string[] path) => _session?.HasStagedEdit(path) ?? false;
-    public static bool HasStagedEditsUnder(params string[] pathPrefix) => _session?.HasStagedEditsUnder(pathPrefix) ?? false;
-    public static void RevertEditsUnder(params string[] pathPrefix) => _session?.RevertEditsUnder(pathPrefix);
+    public static void StageEdit(JToken? newValue, params string[] path) => _session?.StageEdit(newValue, MapToActiveContext(path));
+    public static void RevertEdit(params string[] path) => _session?.RevertEdit(MapToActiveContext(path));
+    public static bool HasStagedEdit(params string[] path) => _session?.HasStagedEdit(MapToActiveContext(path)) ?? false;
+    public static bool HasStagedEditsUnder(params string[] pathPrefix) => _session?.HasStagedEditsUnder(MapToActiveContext(pathPrefix)) ?? false;
+    public static void RevertEditsUnder(params string[] pathPrefix) => _session?.RevertEditsUnder(MapToActiveContext(pathPrefix));
+
+    private static string[] MapToActiveContext(string[] path)
+    {
+        if (!_isExpeditionActive || path.Length == 0 || path[0] != NmsSaveContext.MainRootKey)
+            return path;
+
+        var mapped = (string[])path.Clone();
+        mapped[0] = NmsSaveContext.ExpeditionRootKey;
+        return mapped;
+    }
     public static void DiscardAllEdits() => _session?.DiscardAllEdits();
 
     public static async Task CommitAsync()
@@ -134,7 +172,7 @@ public static class SaveSessionManager
         // every commit, not just the first, so the user always has a way
         // back to the state right before any given save (see BackupService).
         if (_activeSlot is not null && _activePlatformDisplayName is not null)
-            BackupService.BackupFiles(_targetHgPaths, BackupService.BuildSlotGroupKey(_activePlatformDisplayName, _activeSlot.SlotId));
+            BackupService.BackupFiles(_targetHgPaths, BackupService.BuildSlotGroupKey(_activePlatformFolder ?? "", _activeSlot.SlotId));
 
         await Task.Run(() => _session.CommitAsync(_targetHgPaths));
         TakeSnapshot();

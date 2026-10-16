@@ -14,8 +14,18 @@ public sealed partial class SaveSlotGroup : ObservableObject
     [ObservableProperty]
     private bool isActive;
 
+    /// <summary>True on the slot of its platform folder that was written most
+    /// recently - usually the one the game is playing. Set by
+    /// SaveFolderSelectViewModel.MarkLatest from live file times, since the
+    /// indexed SaveFileEntry.LastModified is a one-time snapshot.</summary>
+    [ObservableProperty]
+    private bool isLatest;
+
+    /// <summary>Live last-write time of this slot's newest file.</summary>
+    public System.DateTime LastWriteUtc => Files.Max(f => File.Exists(f.FullPath) ? File.GetLastWriteTimeUtc(f.FullPath) : System.DateTime.MinValue);
+
     public string SlotLabel => $"Slot {SlotId}";
-    public string ActiveLabel => $"{SourceDisplayName} - {SlotLabel}";
+    public string ActiveLabel => $"{SourceDisplayName} · {SlotLabel}";
 
     /// <summary>The file the game would actually load for this slot - the
     /// most recently written of NMS's own rotating pair (e.g. save.hg/
@@ -35,4 +45,7 @@ public sealed partial class SaveSlotGroup : ObservableObject
     public SaveFileEntry PrimaryFile => Files.OrderByDescending(f => File.GetLastWriteTimeUtc(f.FullPath)).First();
 
     public bool HasBackupCopy => Files.Count > 1;
+
+    /// <summary>What a screen reader announces for the card, e.g. "Slot 7, NMS Small Test".</summary>
+    public string AccessibleName => $"{SlotLabel}, {PrimaryFile.SaveName}";
 }

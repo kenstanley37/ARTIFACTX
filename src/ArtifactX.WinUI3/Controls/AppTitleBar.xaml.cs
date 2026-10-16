@@ -27,14 +27,62 @@ public sealed partial class AppTitleBar : UserControl
         GameProcessMonitorService.RunningStateChanged += OnGameRunningStateChanged;
 
         VersionTxt.Text = $"v{AppVersionService.DisplayVersion}";
-        NmsCompatTxt.Text = $"NMS: {AppVersionService.VerifiedNmsUpdate}";
+        RefreshGameLabel();
+        GameDataService.StateChanged += (_, _) => DispatcherQueue.TryEnqueue(RefreshGameLabel);
         // No Unloaded/unsub here - AppTitleBar is created once for the
         // lifetime of MainWindow, never re-created via Frame navigation like
         // a Page, so this is safe the same way the subscriptions above are.
         UpdateCheckService.Changed += OnUpdateCheckChanged;
         RefreshUpdateBadge();
+        ThemeBtnTxt.Text = $"Theme: {ThemeService.Current.DisplayName}";
+        FishCatchRecorder.ActiveChanged += RefreshRecording;
+        RefreshRecording();
 
         Refresh();
+    }
+
+    private void RefreshRecording() =>
+        RecordingBtn.Visibility = FishCatchRecorder.IsActive ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>The installed game's own build, read from the install (never a
+    /// version typed into ArtifactX - the old hand-written "NMS: SWARM" went a
+    /// whole major update out of date), and whether the game data matches it.</summary>
+    private void RefreshGameLabel()
+    {
+        var game = GameDataService.Game;
+        NmsCompatTxt.Text = game is null ? "NMS: not found" : $"NMS {game.BuildLabel}";
+        string data = GameDataService.State switch
+        {
+            GameDataState.UpToDate => "ArtifactX's game data matches it.",
+            GameDataState.NotBuilt => "ArtifactX hasn't read its game files yet.",
+            GameDataState.GameUpdated => "The game has updated since ArtifactX last read its files.",
+            GameDataState.BuilderUpdated => "This version of ArtifactX collects more from the game files - update the game data.",
+            _ => "",
+        };
+        ToolTipService.SetToolTip(NmsCompatTxt, game is null
+            ? "No Man's Sky wasn't found on this PC - choose its folder in Settings."
+            : $"Your No Man's Sky: {game.BuildLabel}{(game.SteamBuildId is { } s ? $" (Steam build {s})" : "")}, at {game.RootFolder}. {data}");
+    }
+
+    private void ThemeBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var menu = new MenuFlyout();
+        foreach (var theme in ThemeService.Themes)
+        {
+            var item = new RadioMenuFlyoutItem
+            {
+                Text = theme.DisplayName,
+                GroupName = "Theme",
+                IsChecked = theme == ThemeService.Current,
+            };
+            item.Click += (_, _) =>
+            {
+                ThemeService.Apply(theme.Id);
+                ThemeBtnTxt.Text = $"Theme: {ThemeService.Current.DisplayName}";
+            };
+            menu.Items.Add(item);
+        }
+        menu.ShowAt(ThemeBtn);
     }
 
     private void OnUpdateCheckChanged(object? sender, EventArgs e) =>
@@ -110,7 +158,9 @@ public sealed partial class AppTitleBar : UserControl
             SaveSwitchFlash.Begin();
         _lastActiveLabel = currentLabel;
 
-        ActiveSaveTxt.Text = currentLabel is not null ? $"•  {currentLabel}" : string.Empty;
+        ActiveSaveTxt.Text = currentLabel is null
+            ? string.Empty
+            : SaveSessionManager.IsExpeditionActive ? $"•  {currentLabel} (Expedition)" : $"•  {currentLabel}";
 
         if (!SaveSessionManager.IsSaveLoaded)
         {

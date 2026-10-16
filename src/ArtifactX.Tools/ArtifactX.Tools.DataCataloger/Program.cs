@@ -1,13 +1,31 @@
-﻿using ArtifactX.Tools.DataCataloger.Data;
-using ArtifactX.Tools.DataCataloger.Models;
-using ArtifactX.Tools.DataCataloger.Services;
-using ArtifactX.Tools.DataCataloger.Services.Interfaces;
+﻿using ArtifactX.GameData;
+using ArtifactX.GameData.Data;
+using ArtifactX.GameData.Models;
+using ArtifactX.GameData.Services;
+using ArtifactX.GameData.Services.Interfaces;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using libMBIN;
 
 string workingFolder = Path.Combine(AppContext.BaseDirectory, "Working");
 Directory.CreateDirectory(workingFolder);
+
+// "DataCataloger build-all <output.sqlite> [game folder]" - the whole build the
+// app runs on the player's PC (GameDataBuilder): main build, every add-* step,
+// trim, game-build stamp. Game folder defaults to config.json, else the first
+// install found.
+if (args.Length > 1 && args[0].Equals("build-all", StringComparison.OrdinalIgnoreCase))
+{
+    var game = args.Length > 2 ? GameInstall.Inspect(args[2])
+        : (DevGamePath() is string configured ? GameInstall.Inspect(configured) : null) ?? GameInstall.Find();
+    if (game is null) { ConsoleStyle.Error("No No Man's Sky install found."); return; }
+    ConsoleStyle.Header($"Building from {game.RootFolder} ({game.BuildLabel}, fingerprint {game.Fingerprint})");
+    GameDataBuilder.Build(game, Path.GetFullPath(args[1]), Path.Combine(workingFolder, "build-all"),
+        new Progress<GameDataProgress>(p => ConsoleStyle.Success($"[{p.Step}/{p.Steps}] {p.Label}")));
+    var info = GameDataInfo.Read(Path.GetFullPath(args[1]));
+    ConsoleStyle.Success($"Done: format {info?.Format}, fingerprint {info?.Fingerprint}, matches install: {info?.Matches(game)}");
+    return;
+}
 
 // "DataCataloger trim" reuses an already-built working catalog and writes
 // the small, ship-ready distribution copy - no PAK re-extraction needed.
@@ -43,7 +61,7 @@ if (args.Length > 0 && args[0].Equals("multitool", StringComparison.OrdinalIgnor
 
     foreach (var pak in mtPaks)
     {
-        IReadOnlyList<ArtifactX.Tools.DataCataloger.Models.PakEntry> entries;
+        IReadOnlyList<ArtifactX.GameData.Models.PakEntry> entries;
         try
         {
             entries = mtPakReader.Read(pak.FullPath);
@@ -93,7 +111,7 @@ if (args.Length > 1 && args[0].Equals("listpak", StringComparison.OrdinalIgnoreC
 
     foreach (var pak in listPaks)
     {
-        IReadOnlyList<ArtifactX.Tools.DataCataloger.Models.PakEntry> entries;
+        IReadOnlyList<ArtifactX.GameData.Models.PakEntry> entries;
         try { entries = listPakReader.Read(pak.FullPath); }
         catch { continue; }
 
@@ -126,7 +144,7 @@ if (args.Length > 0 && args[0].Equals("ships", StringComparison.OrdinalIgnoreCas
 
     foreach (var pak in shipPaks)
     {
-        IReadOnlyList<ArtifactX.Tools.DataCataloger.Models.PakEntry> entries;
+        IReadOnlyList<ArtifactX.GameData.Models.PakEntry> entries;
         try
         {
             entries = shipPakReader.Read(pak.FullPath);
@@ -189,8 +207,8 @@ if (args.Length > 1 && args[0].Equals("grep", StringComparison.OrdinalIgnoreCase
 
     foreach (var pak in grepPaks)
     {
-        ArtifactX.Tools.DataCataloger.Models.PakHeader header;
-        IReadOnlyList<ArtifactX.Tools.DataCataloger.Models.PakEntry> entries;
+        ArtifactX.GameData.Models.PakHeader header;
+        IReadOnlyList<ArtifactX.GameData.Models.PakEntry> entries;
         try
         {
             header = grepPakReader.ReadHeader(pak.FullPath);
@@ -273,8 +291,8 @@ if (args.Length > 1 && args[0].Equals("locid", StringComparison.OrdinalIgnoreCas
     bool locFound = false;
     foreach (var pak in locPaks)
     {
-        ArtifactX.Tools.DataCataloger.Models.PakHeader header;
-        IReadOnlyList<ArtifactX.Tools.DataCataloger.Models.PakEntry> entries;
+        ArtifactX.GameData.Models.PakHeader header;
+        IReadOnlyList<ArtifactX.GameData.Models.PakEntry> entries;
         try
         {
             header = locPakReader.ReadHeader(pak.FullPath);
@@ -347,8 +365,8 @@ if (args.Length > 1 && args[0].Equals("locval", StringComparison.OrdinalIgnoreCa
     bool locValFound = false;
     foreach (var pak in locValPaks)
     {
-        ArtifactX.Tools.DataCataloger.Models.PakHeader header;
-        IReadOnlyList<ArtifactX.Tools.DataCataloger.Models.PakEntry> entries;
+        ArtifactX.GameData.Models.PakHeader header;
+        IReadOnlyList<ArtifactX.GameData.Models.PakEntry> entries;
         try
         {
             header = locValPakReader.ReadHeader(pak.FullPath);
@@ -422,8 +440,8 @@ if (args.Length > 1 && args[0].Equals("locidall", StringComparison.OrdinalIgnore
 
     foreach (var pak in locAllPaks)
     {
-        ArtifactX.Tools.DataCataloger.Models.PakHeader header;
-        IReadOnlyList<ArtifactX.Tools.DataCataloger.Models.PakEntry> entries;
+        ArtifactX.GameData.Models.PakHeader header;
+        IReadOnlyList<ArtifactX.GameData.Models.PakEntry> entries;
         try
         {
             header = locAllPakReader.ReadHeader(pak.FullPath);
@@ -491,124 +509,41 @@ if (args.Length > 1 && args[0].Equals("locidall", StringComparison.OrdinalIgnore
 // GcAlienLanguageWords category rather than duplicating them.
 if (args.Length > 1 && args[0].Equals("add-language-words", StringComparison.OrdinalIgnoreCase))
 {
-    string targetDbPath = args[1];
-    if (!File.Exists(targetDbPath))
-    {
-        ConsoleStyle.Error($"Target catalog DB not found: {targetDbPath}");
-        return;
-    }
+    if (DevGamePath() is string gamePath) CatalogSteps.AddLanguageWords(args[1], gamePath);
+    return;
+}
 
-    var wordSettings = SettingsService.Load();
-    if (!SettingsService.IsValid(wordSettings))
-    {
-        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
-        return;
-    }
+// "DataCataloger add-broken-tech-flag <target-catalog-db-path>" marks every
+// GcTechnology row whose game-data "BrokenSlotTech" flag is set (the damaged-
+// slot placeholders - Hull Fracture, Short Circuit, etc. - drawn red in-game)
+// in an EXISTING catalog DB, adding the Items.IsBrokenSlotTech column first if
+// the DB predates it. Same "patch the shipped DB in place" pattern as
+// add-language-words/add-guide-topics, so their already-merged rows survive
+// without a full rebuild; fresh full builds get the flag via CatalogClassifier
+// directly. Idempotent - safe to re-run after a game update.
+//
+// Found 2026-10-10 investigating a user save whose Install Technology menu was
+// cluttered with useless red entries: a "Mark All Known" bulk edit had taught
+// it all 36 BrokenSlotTech rows, which a healthy save never knows.
+if (args.Length > 1 && args[0].Equals("add-broken-tech-flag", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddBrokenTechFlag(args[1], gamePath);
+    return;
+}
 
-    IPakDiscoveryService wordPakDiscovery = new PakDiscoveryService();
-    IPakReaderService wordPakReader = new PakReaderService();
-    var wordExtraction = new ExtractionService();
-    var wordPaks = wordPakDiscovery.Discover(wordSettings.NmsInstallationPath!);
-
-    NMSTemplate? locTemplate = null;
-    foreach (var pak in wordPaks)
-    {
-        PakHeader header;
-        IReadOnlyList<PakEntry> entries;
-        try
-        {
-            header = wordPakReader.ReadHeader(pak.FullPath);
-            entries = wordPakReader.Read(pak.FullPath);
-        }
-        catch { continue; }
-
-        var match = entries.FirstOrDefault(e =>
-            !string.IsNullOrEmpty(e.FileName) &&
-            e.FileName.Contains("language/nms_loc1_english.mbin", StringComparison.OrdinalIgnoreCase));
-        if (match is null) continue;
-
-        byte[]? bytes;
-        try { bytes = wordExtraction.ExtractEntryBytes(pak.FullPath, match, header); }
-        catch (Exception ex) { ConsoleStyle.Error($"Extraction failed: {ex.Message}"); return; }
-        if (bytes is null || bytes.Length == 0) { ConsoleStyle.Error("Extraction returned no bytes."); return; }
-
-        using var ms = new MemoryStream(bytes);
-        var mbin = new MBINFile(ms);
-        mbin.Load();
-        locTemplate = mbin.GetData();
-        break;
-    }
-
-    if (locTemplate is null)
-    {
-        ConsoleStyle.Error("Could not find/decode language/nms_loc1_english.mbin in any PAK.");
-        return;
-    }
-
-    var lookup = LocalisationService.BuildEnglishLookup(locTemplate);
-    ConsoleStyle.Header($"Loc table decoded: {lookup.Count} total entries.");
-
-    var raceByPrefix = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["TRA"] = "Gek",
-        ["WAR"] = "Vy'keen",
-        ["EXP"] = "Korvax",
-        ["BUI"] = "Autophage",
-        // Not a race - a smaller (~262-word) special vocabulary pool with no
-        // matching WORDS_LEARNT stat anywhere in Milestones, unlike the 4
-        // real races. Lives in the exact same MF2 array/id-shape though
-        // (confirmed 2026-08-04 - a few entries like ATLAS_STATION resolve
-        // to short phrases rather than single words, but still pass the
-        // same strict id-shape filter with zero lore-noise false positives).
-        ["ATLAS"] = "Atlas"
-    };
-
-    var wordPattern = new Regex(@"^(TRA|WAR|EXP|BUI|ATLAS)_[A-Z']+$", RegexOptions.Compiled);
-
-    var words = lookup
-        .Where(kv => wordPattern.IsMatch(kv.Key))
-        .Select(kv => (GameId: kv.Key.ToUpperInvariant(), NameEnglish: kv.Value, Race: raceByPrefix[kv.Key.Split('_')[0].ToUpperInvariant()]))
-        .ToList();
-
-    var byRace = words.GroupBy(w => w.Race).ToDictionary(g => g.Key, g => g.Count());
-    ConsoleStyle.Header($"Filtered to {words.Count} real vocabulary words (excludes lore/UI-text noise sharing the same prefixes):");
-    foreach (var (race, count) in byRace)
-        ConsoleStyle.Success($"  {race}: {count}");
-
-    using var db = new CatalogDbContext(targetDbPath);
-
-    var existingCategory = db.Categories.FirstOrDefault(c => c.TemplateType == "GcAlienLanguageWords");
-    if (existingCategory != null)
-    {
-        ConsoleStyle.Info("Existing GcAlienLanguageWords category found - removing before re-inserting (idempotent re-run).");
-        var existingItems = db.Items.Where(i => i.CategoryId == existingCategory.Id);
-        db.Items.RemoveRange(existingItems);
-        db.Categories.Remove(existingCategory);
-        db.SaveChanges();
-    }
-
-    var category = new CatalogCategory
-    {
-        TemplateType = "GcAlienLanguageWords",
-        RowType = "TkLocalisationEntry",
-        SourceMbinPath = "language/nms_loc1_english.mbin"
-    };
-    db.Categories.Add(category);
-    db.SaveChanges();
-
-    foreach (var word in words)
-    {
-        db.Items.Add(new CatalogItem
-        {
-            CategoryId = category.Id,
-            GameId = word.GameId,
-            NameEnglish = word.NameEnglish,
-            UsageCategory = word.Race
-        });
-    }
-    db.SaveChanges();
-
-    ConsoleStyle.Success($"Wrote {words.Count} language word entries to {targetDbPath}.");
+// "DataCataloger add-station-assets <target-catalog-db-path>" adds the portal
+// glyph images the app's Space Stations page uses:
+//   - "PortalGlyphs": 16 items PORTALSYMBOL_0..PORTALSYMBOL_F, each with the
+//     game's own glyph texture (textures/ui/frontend/icons/update3/
+//     portalsymbol.<hex>.dds) as its icon - a portal address is 12 hex digits,
+//     one glyph per digit.
+// Galaxy names are NOT here: the game's text only names galaxies 1-10, so the
+// app uses ArtifactX.Core's hand-recorded NmsGalaxyNames (all 256) instead.
+// Re-running also removes the "GalaxyNames" category an earlier version wrote.
+// Same patch-in-place pattern as add-guide-topics; idempotent.
+if (args.Length > 1 && args[0].Equals("add-station-assets", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddStationAssets(args[1], gamePath);
     return;
 }
 
@@ -643,182 +578,207 @@ if (args.Length > 1 && args[0].Equals("add-language-words", StringComparison.Ord
 // found this whole feature).
 if (args.Length > 1 && args[0].Equals("add-guide-topics", StringComparison.OrdinalIgnoreCase))
 {
-    string guideDbPath = args[1];
-    if (!File.Exists(guideDbPath))
-    {
-        ConsoleStyle.Error($"Target catalog DB not found: {guideDbPath}");
-        return;
-    }
+    if (DevGamePath() is string gamePath) CatalogSteps.AddGuideTopics(args[1], gamePath);
+    return;
+}
 
-    var guideSettings = SettingsService.Load();
-    if (!SettingsService.IsValid(guideSettings))
-    {
-        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
-        return;
-    }
+// "DataCataloger add-freighter-paints <target-catalog-db-path>" adds the
+// freighter Recolouring blueprints (Freighter Upgrades page) from the game's
+// own metadata/gamestate/playerdata/customisationcolourpalettes.mbin: the
+// palette with ID "FREIGHTER" lists, per colour, ExtraData.ProductToUnlock
+// (the blueprint id stored in the save) and TipText (its loc name). Entries
+// 0-9 are the 10 base colours; 10-19 are dark variants unlocked by the SAME
+// 10 products, so only the first occurrence of each product is kept.
+// Written as category "FreighterPaints": GameId = product id, NameEnglish =
+// resolved TipText, DescriptionEnglish = the colour as "#RRGGBB" (drawn as
+// the tile's swatch - these blueprints have no icon of their own).
+// Added 2026-10-10 replacing a hand-typed Almanac list that had the cyan
+// paint as FREIGHT_TURQUOISE; the real id (confirmed in a user save) is
+// FREIGHT_CYAN. Same patch-in-place pattern as add-guide-topics; idempotent.
+if (args.Length > 1 && args[0].Equals("add-freighter-paints", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddFreighterPaints(args[1], gamePath);
+    return;
+}
 
-    IPakDiscoveryService guidePakDiscovery = new PakDiscoveryService();
-    IPakReaderService guidePakReader = new PakReaderService();
-    var guideExtraction = new ExtractionService();
-    var guidePaks = guidePakDiscovery.Discover(guideSettings.NmsInstallationPath!);
+// "DataCataloger add-corvette-parts <target-catalog-db-path>" marks which
+// base-building parts can be built on a corvette, from the game's own base
+// building table (GcBaseBuildingTable.Objects): BuildableInShipStructural
+// (cockpits, habitats, landing gear, wings...) and BuildableInShipDecorative.
+// The catalog's own BuildingPart items mix every base part (2,090) with no
+// way to tell corvette ones apart, so the Corvette Cache's item list needs
+// this (added 2026-10-12). Written as category "CorvetteParts": GameId = the
+// inventory item id (OverrideProductID when the part uses one), NameEnglish =
+// the part id, UsageCategory = Structural / Decorative / Both. The app joins
+// it back to the product rows for names, icons and stack sizes. Same
+// patch-in-place pattern as add-freighter-paints; idempotent.
+if (args.Length > 1 && args[0].Equals("add-corvette-parts", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddCorvetteParts(args[1], gamePath);
+    return;
+}
 
-    NMSTemplate? DecodeFirstMatch(string pathSubstring)
-    {
-        foreach (var pak in guidePaks)
-        {
-            PakHeader header;
-            IReadOnlyList<PakEntry> entries;
-            try
-            {
-                header = guidePakReader.ReadHeader(pak.FullPath);
-                entries = guidePakReader.Read(pak.FullPath);
-            }
-            catch { continue; }
+// "DataCataloger add-tech-stats <target-catalog-db-path>" records the main
+// stat each technology works on (GcTechnology.BaseStat - Ship_Hyperdrive,
+// Ship_PulseDrive, Ship_Weapons_Lasers...), so ArtifactX can keep a device's
+// related tech together (user request 2026-10-13: "all the drives should be
+// together"). The game's own Group/ParentTechId fields are empty for ship
+// tech; BaseStat groups them cleanly. Upgrade modules (procedural tech) get
+// the stat of the template tech they're rolled from. Written as category
+// "TechStats": GameId = "TECHSTAT:" + tech id, NameEnglish = the stat,
+// UsageCategory = "Primary" for a device's main item (PrimaryItem), else "",
+// DescriptionEnglish = its LinkColour (#RRGGBB, the adjacency border).
+// Same patch-in-place pattern as add-corvette-parts; idempotent.
+if (args.Length > 1 && args[0].Equals("add-tech-stats", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddTechStats(args[1], gamePath);
+    return;
+}
 
-            var match = entries.FirstOrDefault(e =>
-                !string.IsNullOrEmpty(e.FileName) &&
-                e.FileName.Contains(pathSubstring, StringComparison.OrdinalIgnoreCase));
-            if (match is null) continue;
+// "DataCataloger add-system-descriptors <target-catalog-db-path>" adds the
+// words the game uses to describe a star system's economy, wealth and
+// conflict (system info panel / Galaxy Map), e.g. "Mathematical", "Opulent",
+// "Formidable". Each is a loc string named for its category:
+//   UI_ECON_CLASS_<TRADE|MINING|MANUFACT|TECH|SCIENCE|POWER|ALLOY>_<n>
+//   UI_ECON_LEVEL_<LOW|MED|HIGH>_<n>        (wealth)
+//   UI_CONFLICT_LEVEL_<LOW|MED|HIGH>_<n>
+// found 2026-10-11 via `locval` on words from a user screenshot (they live in
+// nms_update3_english). Written as category "SystemDescriptors": GameId = loc
+// id, NameEnglish = the word, UsageCategory = Economy/Wealth/Conflict,
+// DescriptionEnglish = the tier (TRADE, HIGH...). ArtifactX's Planets page uses
+// these so players can pick the exact word the game shows them. Same
+// patch-in-place pattern as add-guide-topics; idempotent.
+if (args.Length > 1 && args[0].Equals("add-system-descriptors", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddSystemDescriptors(args[1], gamePath);
+    return;
+}
 
-            byte[]? bytes;
-            try { bytes = guideExtraction.ExtractEntryBytes(pak.FullPath, match, header); }
-            catch (Exception ex) { ConsoleStyle.Error($"Extraction failed: {ex.Message}"); return null; }
-            if (bytes is null || bytes.Length == 0) { ConsoleStyle.Error("Extraction returned no bytes."); return null; }
+// "DataCataloger add-planet-descriptors <target-catalog-db-path>" adds the
+// words the game's discovery screen uses to describe a planet, which the save
+// doesn't store: weather (WEATHER_<biome><n>, e.g. WEATHER_LUSHEXTREME6
+// "Painfully Hot Rain", in nms_update3_english), sentinels (SENTINEL_<level><n>,
+// e.g. SENTINEL_HIGH2 "Frenzied") and flora/fauna (RARITY_<level><n>, e.g.
+// RARITY_HIGH6 "Generous"). Found 2026-10-13 via `locval` on words from a
+// user screenshot. Category "PlanetDescriptors": GameId = loc id, NameEnglish
+// = the word, UsageCategory = Weather/Sentinels/Life, DescriptionEnglish = the
+// tier (biome or level). Same pattern as add-system-descriptors; idempotent.
+if (args.Length > 1 && args[0].Equals("add-planet-descriptors", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddPlanetDescriptors(args[1], gamePath);
+    return;
+}
 
-            using var ms = new MemoryStream(bytes);
-            var mbin = new MBINFile(ms);
-            mbin.Load();
-            return mbin.GetData();
-        }
-        return null;
-    }
+// "DataCataloger add-recipes <target-catalog-db-path>" adds every refiner and
+// cooking recipe from metadata/reality/tables/nms_reality_gcrecipetable.mbin
+// (GcRecipeTable: Id, RecipeName/RecipeType loc keys, Result + Ingredients
+// [{Id, Amount, Type}], TimeToMake, Cooking) as category "Recipes". Stored as
+// ordinary catalog items so they survive `trim` with no schema change:
+// GameId = recipe id, NameEnglish = resolved recipe name, UsageCategory =
+// "Refiner"/"Cooking", DescriptionEnglish = compact JSON
+// {"type","result":[id,amount],"ingredients":[[id,amount],...],"time"} - ids
+// are item GameIds (products/substances), resolved to names/icons by the app
+// through the normal catalog lookup. Added 2026-10-11 for the Recipes tool;
+// same patch-in-place pattern as add-guide-topics; idempotent.
+if (args.Length > 1 && args[0].Equals("add-recipes", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddRecipes(args[1], gamePath);
+    return;
+}
 
-    // Merged across EVERY english loc file, not just loc4 - loc4 alone was
-    // the first fix, but 10 of the 59 real topic/category ids (e.g.
-    // UI_GUIDE_TOPIC_SETTLEMENTS, UI_GUIDE_TOPIC_WORDS) turned out to live
-    // in OTHER loc files instead, surfacing as raw ids in the UI (caught by
-    // user feedback 2026-08-12 - direct violation of the standing "no raw
-    // save keys in UI" rule). Same root cause and same fix as locidall's own
-    // doc comment already describes for ship/vehicle reward names: content
-    // is scattered across numbered loc files per-category, not consolidated
-    // in one.
-    var guideLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-    foreach (var pak in guidePaks)
-    {
-        PakHeader header;
-        IReadOnlyList<PakEntry> entries;
-        try
-        {
-            header = guidePakReader.ReadHeader(pak.FullPath);
-            entries = guidePakReader.Read(pak.FullPath);
-        }
-        catch { continue; }
+// "DataCataloger add-fish <target-catalog-db-path>" adds where/when every fish
+// can be caught, from the game's GcFishTable (found by type, not by path):
+// ProductID, Quality, Size, Time (Day/Night/Both), Biome (bool[17] in
+// GcBiomeType order - the same order as a planet's biome in the save's
+// discovery records), NeedsStorm, RequiresMissionActive. Category "Fish";
+// GameId = "FISH:" + product id (prefixed so it never collides with the fish
+// item's own catalog row), NameEnglish = product id (only so the row survives
+// `trim` - the app names fish through the normal item lookup),
+// DescriptionEnglish = JSON {"id","quality","size","time","storm","mission",
+// "biomes":[indexes]}. Added 2026-10-11 for the Fishing tool; idempotent.
+if (args.Length > 1 && args[0].Equals("add-fish", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddFish(args[1], gamePath);
+    return;
+}
 
-        var locEntries = entries.Where(e =>
-            !string.IsNullOrEmpty(e.FileName) &&
-            e.FileName.Contains("language/nms_", StringComparison.OrdinalIgnoreCase) &&
-            e.FileName.Contains("english", StringComparison.OrdinalIgnoreCase) &&
-            !e.FileName.Contains("usenglish", StringComparison.OrdinalIgnoreCase));
+// "DataCataloger add-item-values <target-catalog-db-path>" adds the base Units
+// value and trade data of every product and substance (GcProductTable /
+// GcRealitySubstanceTable: BaseValue, TradeCategory, Legality, Rarity) as
+// category "ItemValues". GameId = "VALUE:" + item id (prefixed so it never
+// collides with the item's own catalog row in id lookups), NameEnglish =
+// readable name, UsageCategory = TradeCategory (Mineral, Tech, Commodity,
+// Component, Alloy, Exotic, Energy, None, SpecialShop), DescriptionEnglish =
+// JSON {"id","value","legality","rarity","kind"}. Added 2026-10-11 for the
+// Item Values tool; idempotent, same patch-in-place pattern as add-recipes.
+if (args.Length > 1 && args[0].Equals("add-item-values", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddItemValues(args[1], gamePath);
+    return;
+}
 
-        foreach (var entry in locEntries)
-        {
-            byte[]? bytes;
-            try { bytes = guideExtraction.ExtractEntryBytes(pak.FullPath, entry, header); }
-            catch { continue; }
-            if (bytes is null || bytes.Length == 0) continue;
+// "DataCataloger add-crafting <target-catalog-db-path>" adds what every craftable
+// thing is made from, for the Crafting calculator: GcProductData.Requirements
+// (what a product costs to craft) and GcTechnology.Requirements (what a
+// technology costs to build/install), each a list of {ID, Amount, Type}.
+// Category "Crafting"; GameId = "CRAFT:" + id (prefixed so it never collides
+// with the item's own catalog row), NameEnglish = readable name, UsageCategory
+// = "Product"/"Technology", DescriptionEnglish = JSON {"id","kind","craftable",
+// "req":[[id,amount],...]}. Only rows with at least one requirement are kept;
+// ids in "req" are products/substances (raw when they have no row here).
+// Added 2026-10-11; idempotent, same patch-in-place pattern as add-item-values.
+if (args.Length > 1 && args[0].Equals("add-crafting", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddCrafting(args[1], gamePath);
+    return;
+}
 
-            NMSTemplate? locTemplate;
-            try
-            {
-                using var ms = new MemoryStream(bytes);
-                var mbin = new MBINFile(ms);
-                mbin.Load();
-                locTemplate = mbin.GetData();
-            }
-            catch { continue; }
-            if (locTemplate is null) continue;
+if (args.Length > 1 && args[0].Equals("add-ship-looks", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddShipLooks(args[1], gamePath);
+    return;
+}
 
-            foreach (var kv in LocalisationService.BuildEnglishLookup(locTemplate))
-                guideLookup.TryAdd(kv.Key, kv.Value);
-        }
-    }
-    ConsoleStyle.Header($"Merged loc tables decoded: {guideLookup.Count} total entries.");
+if (args.Length > 1 && args[0].Equals("add-palettes", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddPalettes(args[1], gamePath);
+    return;
+}
 
-    var wikiTemplate = DecodeFirstMatch("metadata/reality/wiki.mbin");
-    if (wikiTemplate is not libMBIN.NMS.GameComponents.GcWiki wiki || wiki.Categories is null)
-    {
-        ConsoleStyle.Error("Could not find/decode metadata/reality/wiki.mbin as GcWiki in any PAK.");
-        return;
-    }
+if (args.Length > 1 && args[0].Equals("add-part-groups", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddPartGroups(args[1], gamePath);
+    return;
+}
 
-    var guideRows = new List<(string GameId, string NameEnglish, string CategoryName)>();
-    var seenTopicIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+// "DataCataloger add-ship-descriptors <target-catalog-db-path>" - see CatalogSteps.AddShipDescriptors.
+if (args.Length > 1 && args[0].Equals("add-ship-descriptors", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddShipDescriptors(args[1], gamePath);
+    return;
+}
 
-    foreach (var category in wiki.Categories)
-    {
-        string categoryId = category.CategoryID?.Value ?? "";
-        string categoryName = guideLookup.TryGetValue(categoryId, out var catName) ? catName : categoryId;
+// "DataCataloger add-settlement-costs <target-catalog-db-path>" - see CatalogSteps.AddSettlementCosts.
+if (args.Length > 1 && args[0].Equals("add-settlement-costs", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddSettlementCosts(args[1], gamePath);
+    return;
+}
 
-        if (category.Topics is null) continue;
-
-        foreach (var topic in category.Topics)
-        {
-            string topicId = topic.TopicID?.Value ?? "";
-            if (topicId.Length == 0 || !seenTopicIds.Add(topicId)) continue;
-
-            string topicName = guideLookup.TryGetValue(topicId, out var topName) ? topName : topicId;
-            guideRows.Add((topicId, topicName, categoryName));
-        }
-    }
-
-    // Every real UI_GUIDE_TOPIC_* id from the loc table that this category
-    // walk didn't find a home for - see the Uncategorized note above.
-    var uncategorizedPattern = new Regex(@"^UI_GUIDE_TOPIC_[A-Z0-9_]+$", RegexOptions.Compiled);
-    var uncategorized = guideLookup.Keys
-        .Where(id => uncategorizedPattern.IsMatch(id) && seenTopicIds.Add(id))
-        .Select(id => (GameId: id, NameEnglish: guideLookup[id], CategoryName: "Uncategorized"))
-        .ToList();
-    guideRows.AddRange(uncategorized);
-
-    var byCategory = guideRows.GroupBy(r => r.CategoryName).ToDictionary(g => g.Key, g => g.Count());
-    ConsoleStyle.Header($"Found {guideRows.Count} Guide topics across {byCategory.Count} categories:");
-    foreach (var (cat, count) in byCategory)
-        ConsoleStyle.Success($"  {cat}: {count}");
-
-    using var guideDb = new CatalogDbContext(guideDbPath);
-
-    var existingGuideCategory = guideDb.Categories.FirstOrDefault(c => c.TemplateType == "GcWiki");
-    if (existingGuideCategory != null)
-    {
-        ConsoleStyle.Info("Existing GcWiki category found - removing before re-inserting (idempotent re-run).");
-        var existingGuideItems = guideDb.Items.Where(i => i.CategoryId == existingGuideCategory.Id);
-        guideDb.Items.RemoveRange(existingGuideItems);
-        guideDb.Categories.Remove(existingGuideCategory);
-        guideDb.SaveChanges();
-    }
-
-    var guideCategory = new CatalogCategory
-    {
-        TemplateType = "GcWiki",
-        RowType = "GcWikiTopic",
-        SourceMbinPath = "metadata/reality/wiki.mbin"
-    };
-    guideDb.Categories.Add(guideCategory);
-    guideDb.SaveChanges();
-
-    foreach (var row in guideRows)
-    {
-        guideDb.Items.Add(new CatalogItem
-        {
-            CategoryId = guideCategory.Id,
-            GameId = row.GameId,
-            NameEnglish = row.NameEnglish,
-            UsageCategory = row.CategoryName
-        });
-    }
-    guideDb.SaveChanges();
-
-    ConsoleStyle.Success($"Wrote {guideRows.Count} Guide topic entries to {guideDbPath}.");
+// "DataCataloger add-procedural-products <target-catalog-db-path>" adds the
+// procedurally generated items (save ids like ^PROC_SEA#17140 - ocean
+// salvage, fossils, plant samples, documents, freighter logs...) from
+// metadata/reality/tables/proceduralproducttable.mbin (GcProceduralProductTable,
+// one entry per GcProceduralProductCategory). The game builds each item's
+// display name from random words picked by the #seed, which can't be
+// reproduced here, so each row gets the product's own subtitle/category name
+// and its icon instead. Category "ProceduralProducts"; GameId = the product
+// id (the app already strips "#seed" when looking items up), NameEnglish =
+// resolved name, icon from Product.Icon (else the first ProceduralData icon).
+// Added 2026-10-11; idempotent.
+if (args.Length > 1 && args[0].Equals("add-procedural-products", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddProceduralProducts(args[1], gamePath);
     return;
 }
 
@@ -856,8 +816,8 @@ if (args.Length > 1 && args[0].Equals("dumpfile", StringComparison.OrdinalIgnore
 
     foreach (var pak in dumpPaks)
     {
-        ArtifactX.Tools.DataCataloger.Models.PakHeader header;
-        IReadOnlyList<ArtifactX.Tools.DataCataloger.Models.PakEntry> entries;
+        ArtifactX.GameData.Models.PakHeader header;
+        IReadOnlyList<ArtifactX.GameData.Models.PakEntry> entries;
         try
         {
             header = dumpPakReader.ReadHeader(pak.FullPath);
@@ -903,7 +863,7 @@ if (args.Length > 1 && args[0].Equals("dumpfile", StringComparison.OrdinalIgnore
         }
         catch (Exception ex)
         {
-            ConsoleStyle.Error($"Decode failed: {ex.Message}");
+            ConsoleStyle.Error($"Decode failed: {ex}");
             return;
         }
         if (template is null)
@@ -947,8 +907,8 @@ if (args.Length > 1 && args[0].Equals("dumptable", StringComparison.OrdinalIgnor
     bool dtFound = false;
     foreach (var pak in dtPaks)
     {
-        ArtifactX.Tools.DataCataloger.Models.PakHeader header;
-        IReadOnlyList<ArtifactX.Tools.DataCataloger.Models.PakEntry> entries;
+        ArtifactX.GameData.Models.PakHeader header;
+        IReadOnlyList<ArtifactX.GameData.Models.PakEntry> entries;
         try
         {
             header = dtPakReader.ReadHeader(pak.FullPath);
@@ -978,13 +938,13 @@ if (args.Length > 1 && args[0].Equals("dumptable", StringComparison.OrdinalIgnor
         catch (Exception ex) { ConsoleStyle.Error($"Decode failed: {ex.Message}"); return; }
         if (template is null) { ConsoleStyle.Error("Decoded template is null."); return; }
 
-        if (!ArtifactX.Tools.DataCataloger.Services.CatalogClassifier.TryClassify(template, out var listField, out _))
+        if (!ArtifactX.GameData.Services.CatalogClassifier.TryClassify(template, out var listField, out _))
         {
             ConsoleStyle.Error($"Not classifiable: {match.FileName} (top-level type {template.GetType().Name})");
             return;
         }
 
-        var rows = ArtifactX.Tools.DataCataloger.Services.CatalogClassifier.ExtractRows(template, listField);
+        var rows = ArtifactX.GameData.Services.CatalogClassifier.ExtractRows(template, listField);
         ConsoleStyle.Header($"{match.FileName}: {rows.Count} rows");
         for (int i = 0; i < rows.Count; i++)
         {
@@ -1017,7 +977,7 @@ static bool ContainsStringDeep(object? obj, string needle, int depth, HashSet<ob
     if (!type.IsValueType && !visited.Add(obj))
         return false;
 
-    string? wrapped = ArtifactX.Tools.DataCataloger.Services.ReflectionUtil.ExtractString(obj);
+    string? wrapped = ArtifactX.GameData.Services.ReflectionUtil.ExtractString(obj);
     if (wrapped != null)
         return wrapped.Contains(needle, StringComparison.OrdinalIgnoreCase);
 
@@ -1072,7 +1032,7 @@ static void DumpStructure(object? obj, int depth, string indent, HashSet<object>
         return;
     }
 
-    string? wrapped = ArtifactX.Tools.DataCataloger.Services.ReflectionUtil.ExtractString(obj);
+    string? wrapped = ArtifactX.GameData.Services.ReflectionUtil.ExtractString(obj);
     if (wrapped != null)
     {
         Console.WriteLine($"{indent}(wrapped string, {type.Name}) \"{Truncate(wrapped, 80)}\"");
@@ -1149,7 +1109,7 @@ if (args.Length > 1 && args[0].Equals("inspect", StringComparison.OrdinalIgnoreC
         return;
     }
 
-    using var db = new ArtifactX.Tools.DataCataloger.Data.CatalogDbContext(sourcePath);
+    using var db = new ArtifactX.GameData.Data.CatalogDbContext(sourcePath);
 
     var allCategories = db.Categories.ToList();
     var matching = allCategories
@@ -1256,3 +1216,13 @@ catch (Exception ex)
 
 LogService.Write("");
 LogService.Write("Pipeline complete.");
+
+// The developer's PCBANKS folder from config.json (the add-* steps take it as an argument now).
+static string? DevGamePath()
+{
+    var devSettings = SettingsService.Load();
+    if (SettingsService.IsValid(devSettings)) return devSettings.NmsInstallationPath;
+    ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+    return null;
+}
+

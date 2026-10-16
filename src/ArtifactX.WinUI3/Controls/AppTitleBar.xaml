@@ -22,7 +22,7 @@
         </Storyboard>
     </UserControl.Resources>
 
-    <Grid x:Name="TitleBarLayout" Background="{ThemeResource NmsPaneBackgroundBrush}">
+    <Grid x:Name="TitleBarLayout" Background="{ThemeResource ThemeChromeBrush}">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
@@ -38,13 +38,13 @@
         <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0" Spacing="12">
             <Image Source="/Assets/AppIconMark.png" Width="18" Height="18"/>
             <TextBlock Text="ARTIFACTX"
-                       Foreground="{ThemeResource NmsTextPrimary}"
+                       Foreground="{ThemeResource ThemeTextBrush}"
                        FontWeight="SemiBold" FontSize="12" CharacterSpacing="100"/>
             <Grid VerticalAlignment="Center">
-                <Border x:Name="ActiveSaveHighlight" Background="{ThemeResource NmsTextPrimary}"
+                <Border x:Name="ActiveSaveHighlight" Background="{ThemeResource ThemeTextBrush}"
                         CornerRadius="4" Opacity="0" Margin="-6,-3"/>
                 <TextBlock x:Name="ActiveSaveTxt" Text="" FontSize="12" FontWeight="SemiBold"
-                           Foreground="{ThemeResource NmsAccentBrush}" VerticalAlignment="Center"/>
+                           Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
             </Grid>
         </StackPanel>
 
@@ -69,11 +69,34 @@
         <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0" Spacing="10">
             <TextBlock x:Name="VersionTxt" Text="" FontSize="10" Opacity="0.5" VerticalAlignment="Center"/>
             <TextBlock x:Name="NmsCompatTxt" Text="" FontSize="10" Opacity="0.5" VerticalAlignment="Center"/>
+            <!-- Same slim link style as "Update available" so the info row keeps its
+                 height; opens a menu of ThemeService.Themes. -->
+            <HyperlinkButton x:Name="ThemeBtn" Padding="6,0" Click="ThemeBtn_Click"
+                             ToolTipService.ToolTip="Change the app's look">
+                <TextBlock x:Name="ThemeBtnTxt" FontSize="10" Opacity="0.8"/>
+            </HyperlinkButton>
             <HyperlinkButton x:Name="UpdateAvailableBtn" Padding="6,0" Visibility="Collapsed" Click="UpdateAvailableBtn_Click"
                              ToolTipService.ToolTip="A newer version of ArtifactX is available - click to open the release page">
-                <TextBlock Text="Update available" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource NmsAccentBrush}"/>
+                <TextBlock Text="Update available" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}"/>
             </HyperlinkButton>
         </StackPanel>
+
+        <!-- Out of the way, top right: ArtifactX only learns where fish are caught
+             while it's open (FishCatchRecorder), so say so while it's following. -->
+        <Button x:Name="RecordingBtn" Background="Transparent" BorderThickness="0" MinHeight="0" Grid.Row="1" Grid.Column="2" Padding="6,0" Margin="0,0,12,0"
+                         HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="Collapsed"
+                         ToolTipService.ToolTip="Keep ArtifactX open while you play - click for why">
+            <Button.Flyout>
+                <Flyout>
+                    <TextBlock MaxWidth="320" TextWrapping="Wrap" FontSize="12"
+                               Text="While ArtifactX is open - on any page, even minimised - it notes where you catch each fish: the planet and your coordinates. The game's save only keeps how many of each fish you've caught, so catches made while ArtifactX is closed can't be placed. Keep it open while you play for the most detail."/>
+                </Flyout>
+            </Button.Flyout>
+            <StackPanel Orientation="Horizontal" Spacing="5">
+                <Ellipse Width="6" Height="6" Fill="#3DDC84" VerticalAlignment="Center"/>
+                <TextBlock Text="Recording as you play" FontSize="10" Opacity="0.8"/>
+            </StackPanel>
+        </Button>
 
         <StackPanel x:Name="CurrencyDisplayRegion" Grid.Row="1" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20" Visibility="Collapsed">
             <StackPanel Orientation="Horizontal" Spacing="5">

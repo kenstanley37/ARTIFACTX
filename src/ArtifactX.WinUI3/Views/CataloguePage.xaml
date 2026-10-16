@@ -1,16 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). -->
 <Page
     x:Class="ArtifactX.WinUI3.Views.CataloguePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:views="using:ArtifactX.WinUI3.Views"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Grid Padding="24" RowSpacing="16">
+    <Grid Padding="28,26,28,24" RowSpacing="18">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -21,12 +23,16 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="Catalogue" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="0" Text="CATALOGUE" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
             <!-- No separate Save/Discard here, unlike AccountDataPage - this field is
                  a normal per-slot save value, so it goes through the same title-bar
                  Save/Reset button every other page in the app already uses. -->
-            <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Catalogue Changes" Click="PageResetBtn_Click"
+            <Button Grid.Column="2" x:Name="ForgetBrokenBtn" Content="Forget Broken Technology" Click="ForgetBrokenBtn_Click"
+                    Visibility="Collapsed" VerticalAlignment="Center"
+                    ToolTipService.ToolTip="Removes every red, broken-slot placeholder (Hull Fracture, Short Circuit, etc.) from this save's known technology, so they stop cluttering the in-game Install Technology menu."/>
+            <Button Grid.Column="3" x:Name="PageResetBtn" Content="Reset Catalogue Changes" Click="PageResetBtn_Click"
                     Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
         </Grid>
 
@@ -41,14 +47,21 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-            <Border Grid.Row="0" BorderBrush="{ThemeResource NmsTextSecondary}" BorderThickness="1"
-                    CornerRadius="6" Padding="12,8" Opacity="0.85">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource NmsTextSecondary}" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                    <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource NmsTextSecondary}"
-                               Text="This save's known-technology list. Scoped to Technology-table items only (~370 total)."/>
-                </StackPanel>
-            </Border>
+                <!-- Scoped to Technology-table items only (~370); Product/Substance
+                     discovery isn't covered. -->
+                <Border Grid.Row="0" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                        Background="{ThemeResource ThemePanelAltBrush}"
+                        CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"
+                                   Text="The technology this save knows how to build, as shown in the in-game Install Technology menu. Click an item to mark it known or unknown. Red items are broken-slot placeholders that do nothing; use Forget Broken Technology to clear them."/>
+                    </Grid>
+                </Border>
 
                 <Grid Grid.Row="1" ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
@@ -78,7 +91,7 @@
                         <ComboBoxItem Content="Unknown Only"/>
                     </ComboBox>
                     <TextBlock Grid.Column="3" x:Name="ResultCountTxt" VerticalAlignment="Center" FontSize="12"
-                               Foreground="{ThemeResource NmsTextSecondary}"/>
+                               Foreground="{ThemeResource ThemeTextDimBrush}"/>
                     <Button Grid.Column="4" x:Name="MarkUnknownAllBtn" Content="Mark All Unknown" Click="MarkUnknownAllBtn_Click"
                             ToolTipService.ToolTip="Marks every item currently shown below as unknown (respects the search box and filter)"/>
                     <Button Grid.Column="5" x:Name="MarkKnownAllBtn" Content="Mark All Known" Click="MarkKnownAllBtn_Click"
@@ -111,9 +124,9 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="viewmodels:CatalogueRowViewModel">
-                                <Border Width="360" Padding="10,8" CornerRadius="6" BorderThickness="1"
+                                <Border Width="360" Padding="10,8" CornerRadius="{ThemeResource ThemeCardCornerRadius}" BorderThickness="1"
                                         Tapped="Tile_Tapped" Tag="{x:Bind}"
-                                        BorderBrush="{ThemeResource NmsTextSecondary}" Opacity="0.95"
+                                        BorderBrush="{x:Bind views:CataloguePage.TileBorderBrush(IsBrokenSlotTech)}"
                                         Background="{x:Bind IsKnown, Mode=OneWay, Converter={StaticResource BoolToActiveBackgroundConverter}}">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
@@ -126,10 +139,11 @@
                                              bigger gap before the icon than the 8px ColumnSpacing alone. -->
                                         <CheckBox Grid.Column="0" IsChecked="{x:Bind IsKnown, Mode=OneWay}" IsHitTestVisible="False"
                                                   VerticalAlignment="Center" Padding="0" MinWidth="0"/>
-                                        <Border Grid.Column="1" Width="28" Height="28" Background="#1A1F2E" CornerRadius="4" VerticalAlignment="Center">
+                                        <Border Grid.Column="1" Width="28" Height="28" CornerRadius="4" VerticalAlignment="Center"
+                                                Background="{x:Bind views:CataloguePage.IconBackground(IsBrokenSlotTech)}">
                                             <Image Source="{x:Bind Icon, Mode=OneWay}" Stretch="Uniform" Width="22" Height="22"/>
                                         </Border>
-                                        <TextBlock Grid.Column="2" Text="{x:Bind DisplayName}" FontSize="12" TextWrapping="Wrap"
+                                        <TextBlock Grid.Column="2" Text="{x:Bind DisplayName}" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"
                                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxLines="2"/>
                                     </Grid>
                                 </Border>

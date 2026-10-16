@@ -19,7 +19,7 @@
          this back via the generated AssemblyVersion. Bump this AND tag/publish
          a matching GitHub release (vX.Y.Z) for UpdateCheckService to pick up
          the new version - it compares against this, not the other way around. -->
-    <Version>1.0.0</Version>
+    <Version>1.0.0-alpha1</Version>
     <Platforms>x86;x64;ARM64</Platforms>
     <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
     <PublishProfile>win-$(Platform).pubxml</PublishProfile>
@@ -74,6 +74,9 @@
 
   <ItemGroup>
     <Content Include="Assets\AppIconMark.png" />
+    <!-- Open Font License fonts for the visual themes (licences alongside). -->
+    <Content Include="Assets\Fonts\*.ttf" />
+    <Content Include="Assets\Fonts\*.txt" />
     <Content Include="Assets\SplashScreen.scale-200.png" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
     <Content Include="Assets\Square150x150Logo.scale-200.png" />
@@ -83,8 +86,10 @@
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
   </ItemGroup>
 
+	<!-- Developer builds only: release builds never carry game data - the
+	     player's own copy is read on their PC (GameDataService). -->
 	<ItemGroup>
-		<Content Include="Data\nms_catalog.sqlite" Condition="Exists('Data\nms_catalog.sqlite')">
+		<Content Include="Data\nms_catalog.sqlite" Condition="Exists('Data\nms_catalog.sqlite') And '$(Configuration)' == 'Debug'">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>
@@ -120,6 +125,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ArtifactX.Almanac\ArtifactX.Almanac.csproj" />
     <ProjectReference Include="..\ArtifactX.Core\ArtifactX.Core.csproj" />
+    <ProjectReference Include="..\ArtifactX.GameData\ArtifactX.GameData.csproj" />
     <!-- Structural type definitions only (enums, field classes) - no PAK/MBIN
          file I/O lives in this library, so referencing it doesn't mean the UI
          extracts game files at runtime. Used to pull real, authoritative
@@ -231,6 +237,14 @@
        later, rather than hardcoding today's ~85 names - and so it can't
        accidentally catch a real folder like "Data" or "Microsoft.UI.Xaml",
        neither of which fits that shape. -->
+  <!-- Licence texts ship next to the app: libMBIN (inside ArtifactX) is
+       LGPL-3, which needs its licence (and the GPL-3 it builds on) to travel
+       with it. THIRD-PARTY-NOTICES.md lists everything else. -->
+  <ItemGroup>
+    <None Include="..\..\licenses\*.txt" Link="licenses\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <Target Name="TrimPublishLocaleFolders" AfterTargets="Publish" Condition="'$(SelfContained)' == 'true' and Exists('$(PublishDir)')">
     <ItemGroup>
       <_PublishTopDir Include="$([System.IO.Directory]::GetDirectories('$(PublishDir)'))" />

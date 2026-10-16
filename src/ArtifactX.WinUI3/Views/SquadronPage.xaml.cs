@@ -85,15 +85,9 @@ public sealed partial class SquadronPage : Page
                     Text = label,
                     FontWeight = isSelected ? FontWeights.SemiBold : FontWeights.Normal
                 },
-                Padding = new Thickness(12, 6, 12, 6),
-                BorderThickness = new Thickness(isSelected ? 2 : 1),
-                BorderBrush = new SolidColorBrush(isSelected
-                    ? Color.FromArgb(255, 255, 157, 0)
-                    : Color.FromArgb(255, 90, 98, 112)),
-                Background = new SolidColorBrush(isSelected
-                    ? Color.FromArgb(60, 255, 157, 0)
-                    : Color.FromArgb(20, 255, 255, 255))
+                Padding = new Thickness(12, 6, 12, 6)
             };
+            ThemeResources.StyleChoiceButton(button, isSelected);
 
             int index = i;
             button.Click += (_, _) =>
