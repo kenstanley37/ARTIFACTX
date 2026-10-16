@@ -134,6 +134,41 @@ public sealed class ShipModels
         return corners.Count == 0 ? null : new ShipMesh(corners.ToArray(), materials.ToArray());
     }
 
+    private readonly ConcurrentDictionary<string, Dictionary<string, string>> _weaponTags = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Regex WeaponTag = new("WEAPON_[A-Z_]+");
+
+    /// <summary>The weapon tags a multi-tool scene's parts carry, by part name
+    /// (upper case): a part's ATTACHMENT entity holds a tag like "WEAPON_LARGE".
+    /// The game sets a tool's class from them (NMS.exe 0x1404dd980, 2026-10-16):
+    /// WEAPON_LARGE/MEDIUM make a rifle, nothing makes a pistol; ALIEN, PRISTINE,
+    /// ROYAL, ROBOT, ATLAS, STAFF their own classes. Barrels carry them on the main model.</summary>
+    public IReadOnlyDictionary<string, string> WeaponTags(string scenePath) => _weaponTags.GetOrAdd(scenePath, s =>
+    {
+        var tags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        void Walk(TkSceneNodeData node, int depth)
+        {
+            if (depth > 12) return;
+            string? attachment = node.Attributes?.FirstOrDefault(a => a.Name?.Value == "ATTACHMENT")?.Value?.Value;
+            if (!string.IsNullOrEmpty(attachment) && EntityTag(attachment) is { } tag)
+                tags[(node.Name?.Value ?? "").ToUpperInvariant()] = tag;
+            foreach (var child in node.Children ?? new()) Walk(child, depth + 1);
+        }
+        if (Decode(s) is TkSceneNodeData root) Walk(root, 0);
+        return tags;
+    });
+
+    private string? EntityTag(string entityPath)
+    {
+        string p = entityPath.Replace('\\', '/').ToUpperInvariant();
+        if (!_index.TryFind(p, out var pak, out var entry, out var header)) return null;
+        try
+        {
+            var bytes = _extraction.ExtractEntryBytes(pak, entry, header);
+            return bytes is null ? null : WeaponTag.Match(System.Text.Encoding.ASCII.GetString(bytes)) is { Success: true } m ? m.Value : null;
+        }
+        catch { return null; }
+    }
+
     private static string GeometryOf(TkSceneNodeData node) =>
         (node.Attributes?.FirstOrDefault(a => a.Name?.Value == "GEOMETRY")?.Value?.Value ?? "").Replace('\\', '/');
 

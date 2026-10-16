@@ -1,4 +1,4 @@
-using ArtifactX.Core.Procedural;
+﻿using ArtifactX.Core.Procedural;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,11 +19,11 @@ namespace ArtifactX.WinUI3.Services;
 /// Alien tool, STARTXRARE the rounded Starter-style tool. PRISTINEXRARE is
 /// named Experimental from the game's own BASESTATS_PRISTINE_L string.
 ///
-/// A normal tool is just "Standard". The game never calls a tool a pistol or a
-/// rifle (not even at a merchant) - those are players' words for its shape.
-/// Telling them apart by the magazine slot (_MAGSLOT_1/_2) matched the first
-/// two tools tried but was wrong for at least five of the next eight
-/// (2026-10-16), so ArtifactX doesn't guess.
+/// A normal tool is a Pistol or a Rifle by the game's own rule, read from its
+/// code (2026-10-16): the weapon tag on its barrel - large or medium makes a
+/// rifle, small a pistol (ShipModels.WeaponTags). Not its looks: compact tools
+/// with a medium barrel are rifles. The game shows the class nowhere in its UI.
+/// Guessing from the magazine slot was wrong for five of eight tools.
 /// </summary>
 public static class MultiToolKinds
 {
@@ -67,7 +67,16 @@ public static class MultiToolKinds
         if (picked.Contains("_MULTITOOL_STARTXRARE")) return "Starter";
         // "Pristine" is the game's own word for Experimental (BASESTATS_PRISTINE_L).
         if (picked.Contains("_MULTITOOL_PRISTINEXRARE")) return "Experimental";
-        return picked.Contains("_MULTITOOL_NORMAL") ? "Standard" : null; // no pistol/rifle guess - see above
+        if (!picked.Contains("_MULTITOOL_NORMAL")) return null;
+        // Pistol or rifle, the game's way: the weapon tags on the chosen parts
+        // (ShipModels.WeaponTags - a large or medium barrel makes a rifle).
+        if (GameDataService.Game is { } game && await ModelPreviewService.ModelsAsync(game) is { } models)
+        {
+            var tags = await Task.Run(() => models.WeaponTags(MainModel));
+            if (tags.Count > 0)
+                return picked.Any(p => tags.TryGetValue(p, out var t) && t is "WEAPON_LARGE" or "WEAPON_MEDIUM") ? "Rifle" : "Pistol";
+        }
+        return "Standard";
     }
 
     private static Dictionary<string, IReadOnlyList<string>>? _words;
