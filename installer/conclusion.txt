@@ -1,0 +1,5 @@
+ArtifactX is installed.
+
+The first time it starts, it reads your own copy of No Man's Sky to build its item catalog. That takes about a minute and a half, and happens again after game updates.
+
+Keep ArtifactX open while you play: it notes where you catch each fish, which the game's save doesn't record.
