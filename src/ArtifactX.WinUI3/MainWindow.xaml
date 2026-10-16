@@ -278,13 +278,11 @@
                     </NavigationViewItem.MenuItems>
                 </NavigationViewItem>
 
-                <!-- Tools: features that help you play but never change the save
-                     (planet finder, future galaxy tools). Pure folder, same pattern
-                     as Milestones/Account Data. -->
-                <NavigationViewItemSeparator x:Name="ToolsSeparator" Visibility="Collapsed"/>
-                <NavigationViewItem x:Name="ToolsNavItem" Content="Tools" SelectsOnInvoked="False" IsExpanded="False" Visibility="Collapsed">
+                <!-- Explore: your journey - pages that follow your game and know your discoveries, never change the save (2026-10-15, split from "Tools"). Pure folder, same pattern as Milestones/Account Data. -->
+                <NavigationViewItemSeparator x:Name="ExploreSeparator" Visibility="Collapsed"/>
+                <NavigationViewItem x:Name="ExploreNavItem" Content="Explore" SelectsOnInvoked="False" IsExpanded="False" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE90F;" FontFamily="Segoe MDL2 Assets"/>
+                        <FontIcon Glyph="&#xE909;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.MenuItems>
                         <NavigationViewItem x:Name="PlanetsNavItem" Content="Planets" Tag="Planets">
@@ -307,6 +305,21 @@
                                 <FontIcon Glyph="&#xE7B7;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
+                        <NavigationViewItem x:Name="BasesNavItem" Content="Bases" Tag="Bases">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE80F;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                    </NavigationViewItem.MenuItems>
+                </NavigationViewItem>
+
+                <!-- Reference: game knowledge, the same for everyone (2026-10-15, split from "Tools"). -->
+                <NavigationViewItemSeparator x:Name="ReferenceSeparator" Visibility="Collapsed"/>
+                <NavigationViewItem x:Name="ReferenceNavItem" Content="Reference" SelectsOnInvoked="False" IsExpanded="False" Visibility="Collapsed">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE82D;" FontFamily="Segoe MDL2 Assets"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.MenuItems>
                         <NavigationViewItem Content="Recipes" Tag="Recipes">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE8F1;" FontFamily="Segoe MDL2 Assets"/>
@@ -325,11 +338,6 @@
                         <NavigationViewItem Content="Guides" Tag="Guides">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE714;" FontFamily="Segoe MDL2 Assets"/>
-                            </NavigationViewItem.Icon>
-                        </NavigationViewItem>
-                        <NavigationViewItem x:Name="BasesNavItem" Content="Bases" Tag="Bases">
-                            <NavigationViewItem.Icon>
-                                <FontIcon Glyph="&#xE80F;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                     </NavigationViewItem.MenuItems>

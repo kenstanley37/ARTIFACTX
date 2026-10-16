@@ -229,9 +229,9 @@ public sealed partial class SettlementPage
                 S.PortalAddress(system, planet)));
 
         if (_craftable.Contains(itemId))
-            lines.Add(Dim("Can be crafted - see Tools › Crafting."));
+            lines.Add(Dim("Can be crafted - see Reference › Crafting."));
         if (_refinable.Contains(itemId))
-            lines.Add(Dim("Can be made in a refiner - see Tools › Recipes."));
+            lines.Add(Dim("Can be made in a refiner - see Reference › Recipes."));
         if (lines.Count == 0)
             lines.Add(Dim("Not recorded anywhere yet. Add a find when you see it for sale, or the resource to a planet's details."));
         return lines;
