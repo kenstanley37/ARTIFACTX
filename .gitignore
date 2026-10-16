@@ -78,6 +78,8 @@ Thumbs.db
 /Backups/
 /TestSaves/
 *.hg
+# decompressed save dumps (save.hg.json, accountdata.hg.json...)
+*.hg.json
 
 # External libraries (MBINCompiler, libMBIN, etc.)
 src/ArtifactX.Tools/External/
