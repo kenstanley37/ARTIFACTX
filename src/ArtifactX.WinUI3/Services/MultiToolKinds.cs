@@ -60,14 +60,7 @@ public static class MultiToolKinds
     /// game data has no multi-tool part trees yet (built before format 10).</summary>
     public static async Task<string?> KindAsync(ulong seed)
     {
-        // Read again after a game-data rebuild (the old data had no multi-tool trees).
-        var stamp = GameDataService.Info?.BuiltAtUtc;
-        if (_trees is null || _trees.Count == 0 || stamp != _stamp)
-        {
-            _stamp = stamp;
-            lock (Cache) Cache.Clear();
-            _trees = await CatalogService.GetShipPartTreesAsync();
-        }
+        await EnsureTreesAsync();
         if (Load(ShipParts.DescriptorFor(MainModel)) is null) return null;
         var picked = ShipParts.Generate(MainModel, seed, Load).Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (picked.Contains("_MULTITOOL_ALIENXRARE")) return "Alien";
@@ -77,7 +70,19 @@ public static class MultiToolKinds
         return picked.Contains("_MULTITOOL_NORMAL") ? "Standard" : null; // no pistol/rifle guess - see above
     }
 
-    private static IReadOnlyList<PartGroup>? Load(string path)
+    /// <summary>Reads the part trees from the catalog - again after a game-data
+    /// rebuild (the old data had no multi-tool trees).</summary>
+    public static async Task EnsureTreesAsync()
+    {
+        var stamp = GameDataService.Info?.BuiltAtUtc;
+        if (_trees is not null && _trees.Count > 0 && stamp == _stamp) return;
+        _stamp = stamp;
+        lock (Cache) Cache.Clear();
+        _trees = await CatalogService.GetShipPartTreesAsync();
+    }
+
+    /// <summary>A model's part tree by descriptor path, once EnsureTreesAsync has run.</summary>
+    public static IReadOnlyList<PartGroup>? Load(string path)
     {
         lock (Cache)
         {

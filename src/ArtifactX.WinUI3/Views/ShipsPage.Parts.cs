@@ -30,8 +30,6 @@ public sealed partial class ShipsPage
     private static DateTime? _dataStamp;
     private static List<ColourPalette>? _palettes;
     private static LookData? _look;
-    // The game files' model reader: indexing every PAK takes a moment, so once per session.
-    private static Task<ArtifactX.GameData.ShipModels?>? _models;
     private int _previewVersion;
     private static readonly Dictionary<string, IReadOnlyList<PartGroup>> TreeCache = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _partSearch;
@@ -59,27 +57,8 @@ public sealed partial class ShipsPage
     }
 
     /// <summary>Every option id reachable from a tree (which parts this ship type can have at all).</summary>
-    private static HashSet<string> AllOptionIds(IReadOnlyList<PartGroup> root)
-    {
-        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var seenTrees = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        void Walk(IReadOnlyList<PartGroup> groups)
-        {
-            foreach (var g in groups)
-                foreach (var o in g.Options)
-                {
-                    ids.Add(o.Id);
-                    foreach (var kid in o.Children) Walk(kid);
-                    foreach (var scene in o.Scenes)
-                    {
-                        string path = ShipParts.DescriptorFor(scene);
-                        if (seenTrees.Add(path) && LoadTree(path) is { } sub) Walk(sub);
-                    }
-                }
-        }
-        Walk(root);
-        return ids;
-    }
+    private static HashSet<string> AllOptionIds(IReadOnlyList<PartGroup> root) =>
+        ModelPreviewService.AllOptionIds(root, LoadTree, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The ship-builder parts this ship type can have, grouped by set
     /// (cockpit, wings...). Builder data writes some ids in mixed case
@@ -223,7 +202,7 @@ public sealed partial class ShipsPage
     /// <summary>Every option id a ship type can have, compared exactly as the
     /// original look code does (case-sensitive) - see ShipLook.Generate.</summary>
     private static HashSet<string> AllOptionIdsExact(IReadOnlyList<PartGroup> root) =>
-        new(AllOptionIds(root), StringComparer.Ordinal);
+        ModelPreviewService.AllOptionIds(root, LoadTree, StringComparer.Ordinal);
 
     private bool IsCorvetteSelected() =>
         _ships.FirstOrDefault(s => s.Index == _selectedIndex)?.IsCorvette ?? false;
@@ -263,8 +242,7 @@ public sealed partial class ShipsPage
         int version = ++_previewVersion;
         if (GameDataService.Game is not { } game) { ShipPreviewGroup.Visibility = Visibility.Collapsed; return; }
         ShipPreviewGroup.Visibility = Visibility.Visible;
-        _models ??= Task.Run(() => { try { return new ArtifactX.GameData.ShipModels(game); } catch { return null; } });
-        var models = await _models;
+        var models = await ModelPreviewService.ModelsAsync(game);
         if (models is null || version != _previewVersion) return;
         // A fixed-look type has no part options: every mesh in its scene is kept.
         var options = root is null ? new HashSet<string>(StringComparer.Ordinal) : AllOptionIdsExact(root);

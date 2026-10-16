@@ -207,9 +207,10 @@ public sealed partial class MultiToolPage : Page
     private bool _labelsPending;
 
     /// <summary>A tool the player never named has no name in the save - the
-    /// game makes one up from its seed, which ArtifactX can't do yet (wish list
-    /// #7). Label it by its kind instead: "Rifle (unnamed)", not "Multi-Tool 3"
-    /// (2026-10-15).</summary>
+    /// game makes one up from its seed ("Pillar of Ooruz-IX"), which ArtifactX
+    /// can't do yet (GitHub #7). Its button shows its type and class instead
+    /// ("Standard · B class"), worded so it doesn't pass for a name; the type
+    /// belongs in Type, the name box stays empty (user, 2026-10-16).</summary>
     private async Task LabelUnnamedAsync()
     {
         var tools = _tools;
@@ -222,18 +223,16 @@ public sealed partial class MultiToolPage : Page
             string scene = SaveSessionManager.GetValue("vLc", "6f=", "SuJ", t.Index.ToString(), "NTx", "93M")?.Value<string>() ?? "";
             string? kind = MultiToolKinds.IsMainModel(scene) ? await KindOfAsync(t.Index) : MultiToolKinds.NameFor(scene, "");
             if (string.IsNullOrEmpty(kind)) { labelled.Add(t); continue; }
-            int n = used[kind] = used.GetValueOrDefault(kind) + 1;
-            labelled.Add(t with { Name = n == 1 ? $"{kind} (unnamed)" : $"{kind} {n} (unnamed)" });
+            string label = GetToolClassLetter(t.Index) is { Length: > 0 } cls ? $"{kind} · {cls} class" : kind;
+            int n = used[label] = used.GetValueOrDefault(label) + 1;
+            labelled.Add(t with { Name = n == 1 ? label : $"{label} ({n})" });
         }
         if (!ReferenceEquals(tools, _tools)) return; // the list was rebuilt meanwhile
         _tools = labelled;
         _labelsPending = false;
         BuildSelectorStrip();
         if (_tools.FirstOrDefault(t => t.Index == _selectedIndex) is { IsUnnamed: true } selected)
-        {
-            NameEditBox.PlaceholderText = selected.Name;
             TechHeaderTxt.Text = $"TECHNOLOGY  —  {selected.Name.ToUpperInvariant()}";
-        }
     }
 
     /// <summary>Reduces a :No array down to a set of "ItemId@X,Y" strings - just
@@ -425,10 +424,12 @@ public sealed partial class MultiToolPage : Page
             ScannerStatBox.Value = double.NaN;
             TypeComboBox.SelectedItem = null;
             KindTxt.Visibility = Visibility.Collapsed;
+            ShowToolPreview();
             return;
         }
 
         var selectedTool = _tools.First(t => t.Index == _selectedIndex);
+        ShowToolPreview();
 
         string? classLetter = GetToolClassLetter(_selectedIndex);
         var capacity = await GetMultiToolCapacityAsync();
@@ -487,12 +488,12 @@ public sealed partial class MultiToolPage : Page
         }, "technology", "technologies", "Technology", TechGroup);
 
         BuildClassSelector();
-        // An unnamed tool shows an empty box (its label as the hint), so leaving
-        // the box never writes the label into the save as its name.
+        // An unnamed tool shows an empty box, so leaving it never writes anything
+        // into the save as its name; the hint says why it's empty.
         // The list may have been relabelled (LabelUnnamedAsync) while this loaded.
         var shown = _tools.FirstOrDefault(t => t.Index == selectedTool.Index) ?? selectedTool;
         NameEditBox.Text = shown.IsUnnamed ? "" : shown.Name;
-        NameEditBox.PlaceholderText = shown.IsUnnamed ? shown.Name : "";
+        NameEditBox.PlaceholderText = shown.IsUnnamed ? "The game's own name - not known to ArtifactX yet" : "";
         TechHeaderTxt.Text = $"TECHNOLOGY  —  {shown.Name.ToUpperInvariant()}";
         ApplyDetailsCollapsed();
         UpdateClassBadge();
