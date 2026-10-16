@@ -34,7 +34,9 @@ public sealed class ShipModels
     private static readonly Regex LodName = new(@"LOD(\d)$", RegexOptions.IgnoreCase);
     private static readonly Regex Lod = new(@"LOD\d$");
     private static readonly Regex Effects = new("SHIELD|WARPBUBBLE|FORCEFIELD");
-    private static readonly Regex Hidden = new("DECAL|SHADOW|MASKMAT|DEPTHMASK");
+    // MULTITOOLDECAL isn't a flat decal: multi-tools use it for solid panels (the middle
+    // of a long barrel's top cover went missing without it, 2026-10-16).
+    private static readonly Regex Hidden = new("(?<!MULTITOOL)DECAL|SHADOW|MASKMAT|DEPTHMASK");
 
     public ShipModels(GameInstall game)
     {
