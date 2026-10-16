@@ -50,24 +50,46 @@ public sealed partial class MultiToolPage
         var mesh = models is null ? null : await Task.Run(() => models.Build(scene, options, chosen));
         if (version != _previewVersion) return;
 
-        // A crafted staff keeps its colours in the save (7DH.Aak: palette, slot, RGBA);
-        // painted with them, it looks as in game. Seed-made tools' colours aren't known yet.
+        // A crafted staff keeps its colours in the save (7DH.Aak: palette, slot, RGBA).
+        // Any other tool gets them from its seed the game's way (NMS.exe, 2026-10-16):
+        // the palette table is built from the first child seed of the tool's seed, and
+        // the tool's own seed picks each surface's texture layers and options.
         var storedColours = StoredColours(_selectedIndex);
         Func<string, GameData.ModelTexture?>? painted = null;
-        if (storedColours.Count > 0 && models is not null && mesh is not null)
+        bool fromSeed = false;
+        if (models is not null && mesh is not null)
         {
-            var textures = await Task.Run(() => mesh.Materials.Distinct().ToDictionary(m => m,
-                m => models.Painted(m, (palette, slot) => storedColours.GetValueOrDefault((palette, slot)))));
-            if (version != _previewVersion) return;
-            painted = m => textures.GetValueOrDefault(m);
+            Func<string, string, float[]?>? colour = null;
+            ulong? textureSeed = null;
+            if (storedColours.Count > 0)
+                colour = (palette, slot) => storedColours.GetValueOrDefault((palette, slot));
+            else if (seed != 0 && await CatalogService.GetPalettesAsync() is { Count: > 0 } palettes)
+            {
+                var table = ShipLook.PaletteTable(ColourSeed(seed), palettes);
+                colour = (palette, slot) =>
+                {
+                    int p = GameData.ShipModels.PaletteIndex(palette), a = GameData.ShipModels.SlotIndex(slot);
+                    return p < 0 || p >= table.Length || table[p] is null || a is < 0 or > 5 ? null : table[p][Math.Min(a, 3)];
+                };
+                textureSeed = seed;
+                fromSeed = true;
+            }
+            if (colour is not null)
+            {
+                var textures = await Task.Run(() => mesh.Materials.Distinct().ToDictionary(m => m, m => models.Painted(m, colour, 512, textureSeed)));
+                if (version != _previewVersion) return;
+                painted = m => textures.GetValueOrDefault(m);
+            }
         }
 
         ToolPreviewView.Show(mesh, MaterialColour, painted);
         ToolPreviewNote.Text = mesh is null
             ? "This tool's model couldn't be read from your game files."
-            : painted is not null
-                ? "Shape and colours from your game files and save - drag to turn."
-                : "Shape from your game files - drag to turn. Shown in neutral grey: the colours a seed gives can't be predicted yet.";
+            : painted is null
+                ? "Shape from your game files - drag to turn."
+                : fromSeed
+                    ? "Shape and colours from your game files and the tool's seed - drag to turn. Colours are close to the game's, not always exact."
+                    : "Shape and colours from your game files and save - drag to turn.";
     }
 
     /// <summary>The colours a tool keeps in the save, by (palette, slot) - e.g.
@@ -84,6 +106,20 @@ public sealed partial class MultiToolPage
             result[(palette, slot)] = new[] { rgba[0].Value<float>(), rgba[1].Value<float>(), rgba[2].Value<float>() };
         }
         return result;
+    }
+
+    /// <summary>The seed a tool's colours come from: the first child seed of its own
+    /// (two draws of its generator, mixed) - NMS.exe 0x14165d840.</summary>
+    private static ulong ColourSeed(ulong seed)
+    {
+        ulong lo = seed & 0xFFFFFFFF, hi = seed >> 32;
+        ulong s0 = lo == 0 ? 1 : lo, s1 = (((lo << 16) | (lo >> 16)) & 0xFFFFFFFF) ^ hi ^ lo;
+        ulong Next() { ulong t = s0 * 0x5A76F899UL + s1; s0 = t & 0xFFFFFFFF; s1 = t >> 32; return s0; }
+        ulong a = Next();
+        ulong v = (Next() << 32) | a;
+        v = (v ^ (v >> 33)) * 0x64DD81482CBD31D7UL;
+        v = (v ^ (v >> 33)) * 0xE36AA5C613612997UL;
+        return v ^ (v >> 33);
     }
 
     private static ulong ParseSeed(string? text)
