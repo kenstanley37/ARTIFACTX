@@ -39,6 +39,8 @@ vpk pack --packId ArtifactX --packVersion $version --runtime win-x64 `
     --instWelcome (Join-Path $repo 'installer/welcome.txt') `
     --instLicense (Join-Path $repo 'installer/license.md') `
     --instConclusion (Join-Path $repo 'installer/conclusion.txt') `
+    --msiTopBanner (Join-Path $repo 'installer/banner.bmp') `
+    --msiDialogBackground (Join-Path $repo 'installer/dialog.bmp') `
     --outputDir $packages
 if ($LASTEXITCODE -ne 0) { throw 'vpk pack failed' }
 
