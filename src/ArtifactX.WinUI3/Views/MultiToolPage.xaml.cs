@@ -45,7 +45,9 @@ public sealed partial class MultiToolPage : Page
     // common case of no duplicate loadouts, and merely non-deterministic-but-
     // not-wrong in the rare duplicate-content edge case, instead of visibly
     // wrong).
-    private sealed record ToolEntry(int Index, string Name, bool IsGameActive, bool IsUnnamed = false);
+    // Name is the button label; GameName the name the game gives an unnamed
+    // tool (MultiToolKinds.GameNameAsync), shown as-is in the name box.
+    private sealed record ToolEntry(int Index, string Name, bool IsGameActive, bool IsUnnamed = false, string? GameName = null);
 
     private InventoryGridViewModel? _techViewModel;
     private int _selectedIndex = -1;
@@ -207,10 +209,11 @@ public sealed partial class MultiToolPage : Page
     private bool _labelsPending;
 
     /// <summary>A tool the player never named has no name in the save - the
-    /// game makes one up from its seed ("Pillar of Ooruz-IX"), which ArtifactX
-    /// can't do yet (GitHub #7). Its button shows its type and class instead
-    /// ("Standard · B class"), worded so it doesn't pass for a name; the type
-    /// belongs in Type, the name box stays empty (user, 2026-10-16).</summary>
+    /// game makes one up from its seed ("Pillar of Ooruz-IX"), and so does
+    /// ArtifactX (MultiToolNames, 2026-10-16), for the button and the name box.
+    /// Before the game data has the name words, the button shows type and
+    /// class ("Standard · B class") instead, worded so it doesn't pass for a
+    /// name, and the name box stays empty (user, 2026-10-16).</summary>
     private async Task LabelUnnamedAsync()
     {
         var tools = _tools;
@@ -221,18 +224,27 @@ public sealed partial class MultiToolPage : Page
         {
             if (!t.IsUnnamed) { labelled.Add(t); continue; }
             string scene = SaveSessionManager.GetValue("vLc", "6f=", "SuJ", t.Index.ToString(), "NTx", "93M")?.Value<string>() ?? "";
-            string? kind = MultiToolKinds.IsMainModel(scene) ? await KindOfAsync(t.Index) : MultiToolKinds.NameFor(scene, "");
-            if (string.IsNullOrEmpty(kind)) { labelled.Add(t); continue; }
-            string label = GetToolClassLetter(t.Index) is { Length: > 0 } cls ? $"{kind} · {cls} class" : kind;
+            string? gameName = SeedOf(t.Index) is ulong seed ? await MultiToolKinds.GameNameAsync(seed, scene) : null;
+            string? label = gameName;
+            if (label is null)
+            {
+                string? kind = MultiToolKinds.IsMainModel(scene) ? await KindOfAsync(t.Index) : MultiToolKinds.NameFor(scene, "");
+                if (string.IsNullOrEmpty(kind)) { labelled.Add(t); continue; }
+                label = GetToolClassLetter(t.Index) is { Length: > 0 } cls ? $"{kind} · {cls} class" : kind;
+            }
+            // The same tool twice (same seed) has the same name in game too.
             int n = used[label] = used.GetValueOrDefault(label) + 1;
-            labelled.Add(t with { Name = n == 1 ? label : $"{label} ({n})" });
+            labelled.Add(t with { Name = n == 1 ? label : $"{label} ({n})", GameName = gameName });
         }
         if (!ReferenceEquals(tools, _tools)) return; // the list was rebuilt meanwhile
         _tools = labelled;
         _labelsPending = false;
         BuildSelectorStrip();
         if (_tools.FirstOrDefault(t => t.Index == _selectedIndex) is { IsUnnamed: true } selected)
+        {
             TechHeaderTxt.Text = $"TECHNOLOGY  —  {selected.Name.ToUpperInvariant()}";
+            ShowName(selected);
+        }
     }
 
     /// <summary>Reduces a :No array down to a set of "ItemId@X,Y" strings - just
@@ -488,12 +500,9 @@ public sealed partial class MultiToolPage : Page
         }, "technology", "technologies", "Technology", TechGroup);
 
         BuildClassSelector();
-        // An unnamed tool shows an empty box, so leaving it never writes anything
-        // into the save as its name; the hint says why it's empty.
         // The list may have been relabelled (LabelUnnamedAsync) while this loaded.
         var shown = _tools.FirstOrDefault(t => t.Index == selectedTool.Index) ?? selectedTool;
-        NameEditBox.Text = shown.IsUnnamed ? "" : shown.Name;
-        NameEditBox.PlaceholderText = shown.IsUnnamed ? "The game's own name - not known to ArtifactX yet" : "";
+        ShowName(shown);
         TechHeaderTxt.Text = $"TECHNOLOGY  —  {shown.Name.ToUpperInvariant()}";
         ApplyDetailsCollapsed();
         UpdateClassBadge();
@@ -545,14 +554,18 @@ public sealed partial class MultiToolPage : Page
 
     private Task<string?> KindAsync() => KindOfAsync(_selectedIndex);
 
-    private static async Task<string?> KindOfAsync(int index)
+    private static async Task<string?> KindOfAsync(int index) =>
+        SeedOf(index) is ulong seed ? await MultiToolKinds.KindAsync(seed) : null;
+
+    /// <summary>A tool's own seed (SuJ[i].@EL[1]), which picks its look, kind and name.</summary>
+    private static ulong? SeedOf(int index)
     {
         string? seedText = index < 0 ? null
             : SaveSessionManager.GetValue("vLc", "6f=", "SuJ", index.ToString(), "@EL", "1")?.Value<string>();
         if (seedText is not { Length: > 2 }) return null;
         string hex = seedText.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? seedText[2..] : seedText;
         return ulong.TryParse(hex, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out ulong seed)
-            ? await MultiToolKinds.KindAsync(seed) : null;
+            ? seed : null;
     }
 
     private void TypeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -721,6 +734,19 @@ public sealed partial class MultiToolPage : Page
     /// which re-reads names for its buttons) mid-typing and fight the user's
     /// cursor. Only stages if the text actually changed from the tool's current
     /// name, so tabbing through without editing doesn't create a no-op edit.</summary>
+    /// <summary>The name box: the player's name, or the one the game made up
+    /// for an unnamed tool. Either way leaving the box unchanged writes nothing,
+    /// so the game's name never becomes a saved custom name by accident.</summary>
+    private void ShowName(ToolEntry tool)
+    {
+        NameEditBox.Text = tool.IsUnnamed ? tool.GameName ?? "" : tool.Name;
+        // No game name: game data from before the name words (format 11) - say how to get it.
+        bool oldData = GameDataService.Info is { } info && info.Format < ArtifactX.GameData.GameDataBuilder.CatalogFormat;
+        NameEditBox.PlaceholderText = tool.IsUnnamed && tool.GameName is null
+            ? (oldData ? "Update your game data to see the game's name" : "The game's own name couldn't be worked out")
+            : "";
+    }
+
     private void NameEditBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (_selectedIndex < 0) return;
@@ -729,7 +755,7 @@ public sealed partial class MultiToolPage : Page
         if (string.IsNullOrEmpty(newName)) return;
 
         var currentTool = _tools.FirstOrDefault(t => t.Index == _selectedIndex);
-        if (currentTool != null && newName == currentTool.Name) return;
+        if (currentTool != null && newName == (currentTool.IsUnnamed ? currentTool.GameName : currentTool.Name)) return;
 
         var namePath = new[] { "vLc", "6f=", "SuJ", _selectedIndex.ToString(), "NKm" };
         SaveSessionManager.StageEdit(newName, namePath);

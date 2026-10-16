@@ -70,6 +70,29 @@ public static class MultiToolKinds
         return picked.Contains("_MULTITOOL_NORMAL") ? "Standard" : null; // no pistol/rifle guess - see above
     }
 
+    private static Dictionary<string, IReadOnlyList<string>>? _words;
+    private static DateTime? _wordsStamp;
+
+    /// <summary>The name the game gives a tool nobody renamed ("Pillar of
+    /// Ooruz-IX", "Dozhgor-κ") - MultiToolNames, with the word lists from the
+    /// catalog. Null until the game data has them (format 11).</summary>
+    public static async Task<string?> GameNameAsync(ulong seed, string scenePath)
+    {
+        var stamp = GameDataService.Info?.BuiltAtUtc;
+        if (_words is null || _words.Count == 0 || stamp != _wordsStamp)
+        {
+            _wordsStamp = stamp;
+            var raw = await CatalogService.GetJsonCategoryAsync("MultiToolNameWords");
+            _words = raw.ToDictionary(kv => kv.Key,
+                kv => (IReadOnlyList<string>)(System.Text.Json.JsonSerializer.Deserialize<List<string>>(kv.Value) ?? new()),
+                StringComparer.OrdinalIgnoreCase);
+        }
+        if (_words.Count == 0) return null;
+        // Staffs (WeaponStatClass Staff) have their own patterns and adjectives.
+        bool staff = System.IO.Path.GetFileName(scenePath).StartsWith("STAFF", StringComparison.OrdinalIgnoreCase);
+        return MultiToolNames.Generate(seed, staff, list => _words.GetValueOrDefault(list));
+    }
+
     /// <summary>Reads the part trees from the catalog - again after a game-data
     /// rebuild (the old data had no multi-tool trees).</summary>
     public static async Task EnsureTreesAsync()

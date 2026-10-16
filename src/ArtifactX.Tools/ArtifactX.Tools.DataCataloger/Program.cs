@@ -751,6 +751,13 @@ if (args.Length > 1 && args[0].Equals("add-part-groups", StringComparison.Ordina
     return;
 }
 
+// "DataCataloger add-multitool-names <target-catalog-db-path>" - see CatalogSteps.AddMultiToolNameWords.
+if (args.Length > 1 && args[0].Equals("add-multitool-names", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddMultiToolNameWords(args[1], gamePath);
+    return;
+}
+
 // "DataCataloger add-ship-descriptors <target-catalog-db-path>" - see CatalogSteps.AddShipDescriptors.
 if (args.Length > 1 && args[0].Equals("add-ship-descriptors", StringComparison.OrdinalIgnoreCase))
 {

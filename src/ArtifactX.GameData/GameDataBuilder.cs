@@ -25,7 +25,7 @@ public static class GameDataBuilder
     /// <summary>Bump when the builder changes what goes in the catalog (a new
     /// step, a fix): every player's catalog then needs rebuilding, even if the
     /// game didn't update.</summary>
-    public const int CatalogFormat = 10; // 10: multi-tool part trees; 9: cooking ingredients; 8: ship scenes/materials/texture lists; 7: colour palettes; 2: settlement costs + economies; 3: settlement building names; 4: libMBIN 7.07 (on development); 5-6 (this branch): starship part trees + ship-builder part groups, on libMBIN 7.07
+    public const int CatalogFormat = 11; // 11: multi-tool name words; 10: multi-tool part trees; 9: cooking ingredients; 8: ship scenes/materials/texture lists; 7: colour palettes; 2: settlement costs + economies; 3: settlement building names; 4: libMBIN 7.07 (on development); 5-6 (this branch): starship part trees + ship-builder part groups, on libMBIN 7.07
 
     /// <summary>The additions after the main build, in order.</summary>
     private static readonly (string Label, Action<string, string> Run)[] Steps =
@@ -49,6 +49,7 @@ public static class GameDataBuilder
         ("Ship-builder parts", CatalogSteps.AddPartGroups),
         ("Colour palettes", CatalogSteps.AddPalettes),
         ("Ship surfaces", CatalogSteps.AddShipLooks),
+        ("Multi-tool names", CatalogSteps.AddMultiToolNameWords),
     };
 
     /// <summary>Main build + additions + finishing.</summary>
