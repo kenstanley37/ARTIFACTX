@@ -58,6 +58,11 @@ public sealed partial class ShipModels
             if (Image(texture.TextureName?.Value ?? "") is not { } img) continue;
             bool isBase = !any;
             var tint = colour(texture.Palette.Palette.ToString(), texture.Palette.ColourAlt.ToString());
+            // A Rock layer marked "None" is still tinted with Rock's first colour in game:
+            // untinted, Hidden Oboya's front frame came out light grey instead of near black.
+            if (tint is null && texture.Palette.Palette == TkPaletteTexture.PaletteEnum.Rock
+                && texture.Palette.ColourAlt == TkPaletteTexture.ColourAltEnum.None)
+                tint = colour("Rock", "Primary");
             // Some layer images hold two colours (2026-10-16): cyan areas take the layer's
             // own colour, red areas the palette's Unique colour - one coating gives a tool
             // its blue panels and its yellow frame. Grey images just take the one colour.
