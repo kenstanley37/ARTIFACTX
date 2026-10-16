@@ -21,7 +21,8 @@ public sealed record ShipMesh(Vector3[] Corners, string[] Materials);
 /// Follows NMS Shipwright's model3d.py (MIT, see THIRD-PARTY-NOTICES.md):
 /// only LOD0 meshes, effect shells (shields, warp bubble) and decal/shadow
 /// materials left out, lights/joints/collision ignored, a long part name may be
-/// cut short in the scene so names are matched by prefix.
+/// cut short in the scene so names are matched by prefix. Also used for
+/// multi-tools, whose scenes carry extra "Shape" pieces per option (see Keep).
 /// </summary>
 public sealed class ShipModels
 {
@@ -72,10 +73,22 @@ public sealed class ShipModels
             foreach (var o in trunc) if (up.StartsWith(o, StringComparison.Ordinal)) return o;
             return up;
         }
+        // A piece that isn't an option itself but is named into a group ("_B4Cap_Shape2"
+        // in group "_B4CAP_") goes with the option it starts with, and is hidden when
+        // that isn't the chosen one. Found 2026-10-16 on Reflex Beam: a stray
+        // "_B4Cap_Shape2" box covered Barrel 4's round front; the game's own part pick
+        // (run in an emulator) matched ours, so it was the drawing. No ship has such pieces.
+        var groups = optionIds.Select(o => o[..(o.LastIndexOf('_') + 1)]).Where(p => p.Length > 1)
+            .Distinct().OrderByDescending(p => p.Length).ToList();
         bool Keep(string name)
         {
-            string id = Canon(name.ToUpperInvariant());
-            return !optionIds.Contains(id) || chosen.Contains(Lod.Replace(id, "")) || chosen.Contains(id);
+            string up = name.ToUpperInvariant();
+            string id = Canon(up);
+            if (optionIds.Contains(id)) return chosen.Contains(Lod.Replace(id, "")) || chosen.Contains(id);
+            foreach (var g in groups)
+                if (up.StartsWith(g, StringComparison.Ordinal))
+                    return chosen.Any(c => c.StartsWith(g, StringComparison.Ordinal) && up.StartsWith(c, StringComparison.Ordinal));
+            return true;
         }
 
         var corners = new List<Vector3>();
