@@ -445,8 +445,11 @@ public sealed partial class MultiToolPage : Page
         BuildClassSelector();
         // An unnamed tool shows an empty box (its label as the hint), so leaving
         // the box never writes the label into the save as its name.
-        NameEditBox.Text = selectedTool.IsUnnamed ? "" : selectedTool.Name;
-        NameEditBox.PlaceholderText = selectedTool.IsUnnamed ? selectedTool.Name : "";
+        // The list may have been relabelled (LabelUnnamedAsync) while this loaded.
+        var shown = _tools.FirstOrDefault(t => t.Index == selectedTool.Index) ?? selectedTool;
+        NameEditBox.Text = shown.IsUnnamed ? "" : shown.Name;
+        NameEditBox.PlaceholderText = shown.IsUnnamed ? shown.Name : "";
+        TechHeaderTxt.Text = $"TECHNOLOGY  —  {shown.Name.ToUpperInvariant()}";
         ApplyDetailsCollapsed();
         UpdateClassBadge();
         UpdateStatDisplay();
