@@ -349,6 +349,7 @@ public sealed partial class MultiToolPage : Page
             MiningStatBox.Value = double.NaN;
             ScannerStatBox.Value = double.NaN;
             TypeComboBox.SelectedItem = null;
+            KindTxt.Visibility = Visibility.Collapsed;
             return;
         }
 
@@ -443,7 +444,10 @@ public sealed partial class MultiToolPage : Page
         if (_multiToolTypeOptions is null)
         {
             var raw = await CatalogService.GetMultiToolTypesAsync();
-            _multiToolTypeOptions = raw.Select(t => new MultiToolTypeOption(t.DisplayName, t.ScenePath)).ToList();
+            // The main model isn't a rifle - it makes several kinds, picked by the
+            // seed (shown under the box, MultiToolKinds).
+            _multiToolTypeOptions = raw.Select(t => new MultiToolTypeOption(
+                MultiToolKinds.IsMainModel(t.ScenePath) ? "Main model" : t.DisplayName, t.ScenePath)).ToList();
             TypeComboBox.ItemsSource = _multiToolTypeOptions;
         }
 
@@ -461,6 +465,23 @@ public sealed partial class MultiToolPage : Page
             string.Equals(t.ScenePath, currentPath, StringComparison.OrdinalIgnoreCase));
 
         _suppressTypeSelectionEvent = false;
+        await UpdateKindAsync(currentPath);
+    }
+
+    /// <summary>"Kind: Alien" under Type for the main model, from the tool's seed.</summary>
+    private async Task UpdateKindAsync(string? scenePath)
+    {
+        int index = _selectedIndex;
+        string? seedText = index < 0 ? null
+            : SaveSessionManager.GetValue("vLc", "6f=", "SuJ", index.ToString(), "@EL", "1")?.Value<string>();
+        string? kind = null;
+        if (MultiToolKinds.IsMainModel(scenePath) && seedText is { Length: > 2 }
+            && ulong.TryParse(seedText.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? seedText[2..] : seedText,
+                System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out ulong seed))
+            kind = await MultiToolKinds.KindAsync(seed);
+        if (index != _selectedIndex) return; // another tool was picked meanwhile
+        KindTxt.Text = kind is null ? "" : $"Kind: {kind} - set by the tool's seed";
+        KindTxt.Visibility = kind is null ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void TypeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)

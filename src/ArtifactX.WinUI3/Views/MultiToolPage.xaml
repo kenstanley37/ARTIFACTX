@@ -149,6 +149,8 @@
                                         <ComboBox x:Name="TypeComboBox" HorizontalAlignment="Stretch"
                                                   DisplayMemberPath="DisplayName"
                                                   SelectionChanged="TypeComboBox_SelectionChanged"/>
+                                        <!-- The main model's kind comes from the seed (MultiToolKinds). -->
+                                        <TextBlock x:Name="KindTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"/>
                                     </StackPanel>
                                     <Button Content="Delete this Multi-Tool..." Click="DeleteToolBtn_Click" VerticalAlignment="Bottom"
                                             Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"

@@ -19,6 +19,8 @@ public static partial class CatalogSteps
     /// Category "ShipDescriptors": GameId "DESC:" + lower-case descriptor path,
     /// NameEnglish = the path, DescriptionEnglish = the tree as JSON
     /// [{"t":type,"o":[{"id","n":name,"s":[scene paths],"c":[[groups]...]}]}].
+    /// Multi-tools too since 2026-10-15 (UsageCategory "MultiTool"): the seed
+    /// picks a tool's kind the same way - Alien, Starter... (MultiToolKinds).
     /// </summary>
     public static void AddShipDescriptors(string catalogPath, string pcbanksPath)
     {
@@ -52,7 +54,8 @@ public static partial class CatalogSteps
             try { header = reader.ReadHeader(pak.FullPath); entries = reader.Read(pak.FullPath); }
             catch { continue; }
             foreach (var entry in entries.Where(e => !string.IsNullOrEmpty(e.FileName)
-                         && e.FileName.StartsWith("MODELS/COMMON/SPACECRAFT/", StringComparison.OrdinalIgnoreCase)
+                         && (e.FileName.StartsWith("MODELS/COMMON/SPACECRAFT/", StringComparison.OrdinalIgnoreCase)
+                             || e.FileName.StartsWith("MODELS/COMMON/WEAPONS/MULTITOOL/", StringComparison.OrdinalIgnoreCase))
                          && e.FileName.EndsWith(".DESCRIPTOR.MBIN", StringComparison.OrdinalIgnoreCase)))
             {
                 if (!seen.Add(entry.FileName)) continue;
@@ -68,14 +71,14 @@ public static partial class CatalogSteps
                     {
                         GameId = "DESC:" + path,
                         NameEnglish = path,
-                        UsageCategory = "Spacecraft",
+                        UsageCategory = path.Contains("/weapons/") ? "MultiTool" : "Spacecraft",
                         DescriptionEnglish = JsonSerializer.Serialize(Groups(list)),
                     });
                 }
                 catch (Exception ex) { ConsoleStyle.Warning($"{entry.FileName}: {ex.Message}"); }
             }
         }
-        ConsoleStyle.Header($"Found {rows.Count} starship part trees.");
+        ConsoleStyle.Header($"Found {rows.Count} starship and multi-tool part trees.");
 
         using var db = new CatalogDbContext(catalogPath);
         Replace(db, "ShipDescriptors", "TkModelDescriptorList", "models/common/spacecraft/*.descriptor.mbin", rows);
