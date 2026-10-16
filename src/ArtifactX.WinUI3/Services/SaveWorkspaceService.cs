@@ -18,9 +18,7 @@ public static class SaveWorkspaceService
         {
             var results = new List<SaveSlotOverview>();
 
-            // Working folder lives next to the EXE, not in per-user AppData, so this
-            // doesn't depend on a machine-specific path other users won't have.
-            string workingRoot = Path.Combine(AppContext.BaseDirectory, "Working");
+            string workingRoot = LocalAppDataPaths.WorkingFolder;
 
             Directory.CreateDirectory(workingRoot);
             Debug.WriteLine($"Working directory created at: {workingRoot}");

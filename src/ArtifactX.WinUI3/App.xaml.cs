@@ -37,6 +37,11 @@ public partial class App : Application
         // Before anything opens the data: it moved from %LocalAppData% (the
         // install folder) to %AppData% on 2026-10-15.
         Services.LocalAppDataPaths.MoveFromOldFolder();
+        // The game-data library logs next to the exe by default (the command-line
+        // tool's behaviour) - not writable when installed for all users. The app
+        // only logs during a game-data build, which picks its own file.
+        ArtifactX.GameData.Services.LogService.EchoToConsole = false;
+        ArtifactX.GameData.Services.LogService.UseLogFile(null);
         DevTimingLog.Start();
 
         InitializeComponent();
@@ -83,8 +88,8 @@ public partial class App : Application
     public void DeleteWorkingFolder()
     {
         // Must match SaveWorkspaceService's working folder exactly, or this cleans up
-        // nothing while stale slot data quietly accumulates next to the exe instead.
-        string workingRoot = Path.Combine(AppContext.BaseDirectory, "Working");
+        // nothing while stale slot data quietly accumulates.
+        string workingRoot = LocalAppDataPaths.WorkingFolder;
 
         try
         {
@@ -98,7 +103,7 @@ public partial class App : Application
 
         _ = Task.Run(() =>
         {
-            foreach (var stale in Directory.GetDirectories(AppContext.BaseDirectory, "Working.old-*"))
+            foreach (var stale in Directory.GetDirectories(LocalAppDataPaths.RootFolder, "Working.old-*"))
             {
                 try { Directory.Delete(stale, recursive: true); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

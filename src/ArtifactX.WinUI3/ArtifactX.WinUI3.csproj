@@ -84,6 +84,10 @@
     <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
+    <!-- The app is unpackaged, so these must be loose files next to it. Without
+         this, publish (the installer) left out Assets entirely: no title-bar
+         icon, and the themes fell back to the default font (2026-10-15). -->
+    <Content Update="Assets\**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 	<!-- Developer builds only: release builds never carry game data - the

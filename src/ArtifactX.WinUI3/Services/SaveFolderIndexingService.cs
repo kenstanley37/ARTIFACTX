@@ -27,7 +27,7 @@ public static class SaveFolderIndexingService
 
     public static async Task<List<SaveSlotGroup>> IndexAsync(SaveFolderCandidate candidate)
     {
-        string workingRoot = Path.Combine(AppContext.BaseDirectory, "Working", candidate.WorkingFolderKey);
+        string workingRoot = Path.Combine(LocalAppDataPaths.WorkingFolder, candidate.WorkingFolderKey);
         Directory.CreateDirectory(workingRoot);
 
         var hgFiles = SaveFiles(candidate.FolderPath);
@@ -68,7 +68,7 @@ public static class SaveFolderIndexingService
     {
         var files = SaveFiles(candidate.FolderPath).Where(f => SlotIdFor(f) == slotId).OrderBy(Path.GetFileName).ToList();
         if (files.Count == 0) return null;
-        string slotDir = Path.Combine(AppContext.BaseDirectory, "Working", candidate.WorkingFolderKey, $"Slot{slotId}");
+        string slotDir = Path.Combine(LocalAppDataPaths.WorkingFolder, candidate.WorkingFolderKey, $"Slot{slotId}");
         Directory.CreateDirectory(slotDir);
         var entries = await Task.WhenAll(files.Select(f => IndexFileAsync(f, slotDir)));
         return new SaveSlotGroup { SlotId = slotId, Files = entries.ToList(), SourceDisplayName = candidate.DisplayName };
