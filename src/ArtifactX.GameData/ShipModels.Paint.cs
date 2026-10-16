@@ -58,6 +58,10 @@ public sealed partial class ShipModels
             if (Image(texture.TextureName?.Value ?? "") is not { } img) continue;
             bool isBase = !any;
             var tint = colour(texture.Palette.Palette.ToString(), texture.Palette.ColourAlt.ToString());
+            // Some layer images hold two colours (2026-10-16): cyan areas take the layer's
+            // own colour, red areas the palette's Unique colour - one coating gives a tool
+            // its blue panels and its yellow frame. Grey images just take the one colour.
+            var tint2 = tint is null ? null : colour(texture.Palette.Palette.ToString(), "Unique");
             for (int y = 0; y < size; y++)
                 for (int x = 0; x < size; x++)
                 {
@@ -65,10 +69,14 @@ public sealed partial class ShipModels
                     float r = img.Rgba[k] / 255f, g = img.Rgba[k + 1] / 255f, b = img.Rgba[k + 2] / 255f;
                     float a = isBase ? 1 : img.Rgba[k + 3] / 255f;
                     float lum = 0.299f * r + 0.587f * g + 0.114f * b;
+                    float wr = 1f, wg = 0f;
+                    if (tint2 is not null && MathF.Max(r, MathF.Max(g, b)) - MathF.Min(r, MathF.Min(g, b)) > 0.25f)
+                    { float sum = r + MathF.Max(g, b); wg = sum > 0 ? r / sum : 0f; wr = 1f - wg; lum = MathF.Max(r, MathF.Max(g, b)) * 0.5f; }
                     for (int c = 0; c < 3; c++)
                     {
                         // A tinted layer is its grey times the colour (doubled, so mid-grey gives the colour itself).
-                        float v = tint is null ? (c == 0 ? r : c == 1 ? g : b) : Math.Min(1f, tint[c] * lum * 2f);
+                        float tc = tint is null ? 0 : (tint2 is null ? tint[c] : tint[c] * wr + tint2[c] * wg);
+                        float v = tint is null ? (c == 0 ? r : c == 1 ? g : b) : Math.Min(1f, tc * lum * 2f);
                         acc[o + c] = acc[o + c] * (1 - a) + v * a;
                     }
                 }
