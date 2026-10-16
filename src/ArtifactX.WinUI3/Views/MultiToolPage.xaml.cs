@@ -528,7 +528,7 @@ public sealed partial class MultiToolPage : Page
                 : SaveSessionManager.GetValue("vLc", "6f=", "SuJ", _selectedIndex.ToString(), "NTx", "93M")?.Value<string>();
             // The main model's name is the kind this tool's seed makes (Alien,
             // Experimental...); the other models use the game's type names.
-            string mainName = "Pistol or Rifle";
+            string mainName = "Standard";
             if (MultiToolKinds.IsMainModel(currentPath) && await KindAsync() is string kind) mainName = kind;
             _multiToolTypeOptions = raw.Select(t => new MultiToolTypeOption(
                 MultiToolKinds.IsMainModel(t.ScenePath) ? mainName : MultiToolKinds.NameFor(t.ScenePath, t.DisplayName), t.ScenePath))

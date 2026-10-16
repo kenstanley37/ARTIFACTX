@@ -16,9 +16,14 @@ namespace ArtifactX.WinUI3.Services;
 /// of three rare kinds.
 ///
 /// Confirmed in game against screenshots and renders: ALIENXRARE is the
-/// Alien tool, STARTXRARE the rounded Starter-style tool, and a normal tool
-/// is a Pistol or a Rifle by its magazine slot. PRISTINEXRARE is named
-/// Experimental from the game's own BASESTATS_PRISTINE_L string.
+/// Alien tool, STARTXRARE the rounded Starter-style tool. PRISTINEXRARE is
+/// named Experimental from the game's own BASESTATS_PRISTINE_L string.
+///
+/// A normal tool is just "Standard". The game never calls a tool a pistol or a
+/// rifle (not even at a merchant) - those are players' words for its shape.
+/// Telling them apart by the magazine slot (_MAGSLOT_1/_2) matched the first
+/// two tools tried but was wrong for at least five of the next eight
+/// (2026-10-16), so ArtifactX doesn't guess.
 /// </summary>
 public static class MultiToolKinds
 {
@@ -69,12 +74,7 @@ public static class MultiToolKinds
         if (picked.Contains("_MULTITOOL_STARTXRARE")) return "Starter";
         // "Pristine" is the game's own word for Experimental (BASESTATS_PRISTINE_L).
         if (picked.Contains("_MULTITOOL_PRISTINEXRARE")) return "Experimental";
-        // A normal tool's front decides it: _MAGSLOT_1 is a short clip (pistol),
-        // _MAGSLOT_2 a long barrel (rifle) - whatever stock it has. Matched to a
-        // pistol and a rifle bought in game (2026-10-15) and renders mixing the parts.
-        if (picked.Contains("_MAGSLOT_1")) return "Pistol";
-        if (picked.Contains("_MAGSLOT_2")) return "Rifle";
-        return picked.Contains("_MULTITOOL_NORMAL") ? "Pistol or Rifle" : null;
+        return picked.Contains("_MULTITOOL_NORMAL") ? "Standard" : null; // no pistol/rifle guess - see above
     }
 
     private static IReadOnlyList<PartGroup>? Load(string path)
