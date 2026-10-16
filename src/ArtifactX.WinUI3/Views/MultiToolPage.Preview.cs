@@ -3,6 +3,7 @@ using ArtifactX.WinUI3.Services;
 using Microsoft.UI.Xaml;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -49,10 +50,40 @@ public sealed partial class MultiToolPage
         var mesh = models is null ? null : await Task.Run(() => models.Build(scene, options, chosen));
         if (version != _previewVersion) return;
 
-        ToolPreviewView.Show(mesh, MaterialColour);
+        // A crafted staff keeps its colours in the save (7DH.Aak: palette, slot, RGBA);
+        // painted with them, it looks as in game. Seed-made tools' colours aren't known yet.
+        var storedColours = StoredColours(_selectedIndex);
+        Func<string, GameData.ModelTexture?>? painted = null;
+        if (storedColours.Count > 0 && models is not null && mesh is not null)
+        {
+            var textures = await Task.Run(() => mesh.Materials.Distinct().ToDictionary(m => m,
+                m => models.Painted(m, (palette, slot) => storedColours.GetValueOrDefault((palette, slot)))));
+            if (version != _previewVersion) return;
+            painted = m => textures.GetValueOrDefault(m);
+        }
+
+        ToolPreviewView.Show(mesh, MaterialColour, painted);
         ToolPreviewNote.Text = mesh is null
             ? "This tool's model couldn't be read from your game files."
-            : "Shape from your game files - drag to turn. Shown in neutral grey: the colours a seed gives can't be predicted yet.";
+            : painted is not null
+                ? "Shape and colours from your game files and save - drag to turn."
+                : "Shape from your game files - drag to turn. Shown in neutral grey: the colours a seed gives can't be predicted yet.";
+    }
+
+    /// <summary>The colours a tool keeps in the save, by (palette, slot) - e.g.
+    /// ("Custom_Hands", "Alternative2") - as RGB 0-1. Empty for seed-made tools.</summary>
+    private static Dictionary<(string, string), float[]> StoredColours(int index)
+    {
+        var result = new Dictionary<(string, string), float[]>();
+        if (index < 0 || SaveSessionManager.GetValue("vLc", "6f=", "SuJ", index.ToString(CultureInfo.InvariantCulture), "7DH", "Aak") is not JArray entries)
+            return result;
+        foreach (var e in entries)
+        {
+            string? palette = e["RVl"]?["RVl"]?.Value<string>(), slot = e["RVl"]?["Ty="]?.Value<string>();
+            if (palette is null || slot is null || e["xEg"] is not JArray rgba || rgba.Count < 3) continue;
+            result[(palette, slot)] = new[] { rgba[0].Value<float>(), rgba[1].Value<float>(), rgba[2].Value<float>() };
+        }
+        return result;
     }
 
     private static ulong ParseSeed(string? text)

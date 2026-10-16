@@ -1,4 +1,4 @@
-using ArtifactX.GameData;
+﻿using ArtifactX.GameData;
 using ArtifactX.WinUI3.Services;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -30,6 +30,7 @@ public sealed class ShipPreview : UserControl
     };
     private ShipMesh? _mesh;
     private uint[] _triColours = Array.Empty<uint>();
+    private ModelTexture?[] _triTextures = Array.Empty<ModelTexture?>();
     private Vector3 _centre;
     // Opens on the nose, three-quarter view from above, nose to the lower left
     // - the angle the user picked by hand (2026-10-15; the tail-on start felt
@@ -54,8 +55,9 @@ public sealed class ShipPreview : UserControl
         ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.SizeAll);
     }
 
-    /// <summary>Shows a model; <paramref name="colourOf"/> gives each material's RGB.</summary>
-    public void Show(ShipMesh? mesh, Func<string, uint> colourOf)
+    /// <summary>Shows a model; <paramref name="colourOf"/> gives each material's RGB,
+    /// <paramref name="textureOf"/> (optional) a painted texture that wins over it.</summary>
+    public void Show(ShipMesh? mesh, Func<string, uint> colourOf, Func<string, ModelTexture?>? textureOf = null)
     {
         _mesh = mesh;
         _yaw = StartYaw; _pitch = StartPitch; // each ship opens on its front
@@ -68,6 +70,17 @@ public sealed class ShipPreview : UserControl
             colours[i] = c;
         }
         _triColours = colours;
+        var textures = new ModelTexture?[mesh.Materials.Length];
+        if (textureOf is not null && mesh.Uvs.Length == mesh.Corners.Length)
+        {
+            var texCache = new Dictionary<string, ModelTexture?>();
+            for (int i = 0; i < textures.Length; i++)
+            {
+                if (!texCache.TryGetValue(mesh.Materials[i], out var tx)) texCache[mesh.Materials[i]] = tx = textureOf(mesh.Materials[i]);
+                textures[i] = tx;
+            }
+        }
+        _triTextures = textures;
         // Centre on where most of the ship is (a few stray far points shouldn't move it).
         var min = new Vector3(float.MaxValue); var max = new Vector3(float.MinValue);
         foreach (var v in mesh.Corners) { min = Vector3.Min(min, v); max = Vector3.Max(max, v); }
@@ -92,9 +105,9 @@ public sealed class ShipPreview : UserControl
     {
         if (_mesh is null) return;
         if (Interlocked.Exchange(ref _drawing, 1) == 1) { _pending = 1; return; }
-        var mesh = _mesh; var colours = _triColours; var centre = _centre;
+        var mesh = _mesh; var colours = _triColours; var textures = _triTextures; var centre = _centre;
         float yaw = _yaw, pitch = _pitch; int w = PixelWidth, h = PixelHeight;
-        Task.Run(() => Render(mesh, colours, centre, yaw, pitch, w, h)).ContinueWith(t =>
+        Task.Run(() => Render(mesh, colours, textures, centre, yaw, pitch, w, h)).ContinueWith(t =>
             DispatcherQueue.TryEnqueue(() =>
             {
                 if (t.Result is { } pixels && ReferenceEquals(mesh, _mesh))
@@ -109,7 +122,7 @@ public sealed class ShipPreview : UserControl
     }
 
     /// <summary>Rotate, fit to the frame, z-buffer, light from above-front.</summary>
-    private static byte[] Render(ShipMesh mesh, uint[] colours, Vector3 centre, float yaw, float pitch, int w, int h)
+    private static byte[] Render(ShipMesh mesh, uint[] colours, ModelTexture?[] textures, Vector3 centre, float yaw, float pitch, int w, int h)
     {
         var rot = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateRotationX(pitch);
         var p = new Vector3[mesh.Corners.Length];
@@ -136,10 +149,10 @@ public sealed class ShipPreview : UserControl
             if (len < 1e-12f) continue;
             float lit = 0.38f + 0.62f * MathF.Abs(Vector3.Dot(n / len, light));
             uint col = colours[t];
-            uint argb = 0xFF000000u
-                | (uint)MathF.Min(255, ((col >> 16) & 0xFF) * lit) << 16
-                | (uint)MathF.Min(255, ((col >> 8) & 0xFF) * lit) << 8
-                | (uint)MathF.Min(255, (col & 0xFF) * lit);
+            uint argb = Shade(col, lit);
+            var tex = t < textures.Length ? textures[t] : null;
+            Vector2 ta = default, tb = default, tc = default;
+            if (tex is not null) { ta = mesh.Uvs[3 * t]; tb = mesh.Uvs[3 * t + 1]; tc = mesh.Uvs[3 * t + 2]; }
             float ax = w / 2f + (a.X - cx) * scale, ay = h / 2f - (a.Y - cy) * scale;
             float bx = w / 2f + (b.X - cx) * scale, by = h / 2f - (b.Y - cy) * scale;
             float qx = w / 2f + (c.X - cx) * scale, qy = h / 2f - (c.Y - cy) * scale;
@@ -158,9 +171,24 @@ public sealed class ShipPreview : UserControl
                     if (w0 < 0 || w1 < 0 || w2 < 0) continue;
                     float z = w0 * a.Z + w1 * b.Z + w2 * c.Z;
                     int i = y * w + x;
-                    if (z < zbuf[i]) { zbuf[i] = z; px[i] = argb; }
+                    if (z < zbuf[i])
+                    {
+                        zbuf[i] = z;
+                        if (tex is null) px[i] = argb;
+                        else
+                        {
+                            // Texture coordinates wrap, as the game's samplers do.
+                            float u = w0 * ta.X + w1 * tb.X + w2 * tc.X, v = w0 * ta.Y + w1 * tb.Y + w2 * tc.Y;
+                            int tx = (int)((u - MathF.Floor(u)) * tex.Width) % tex.Width, ty = (int)((v - MathF.Floor(v)) * tex.Height) % tex.Height;
+                            px[i] = Shade(tex.Pixels[ty * tex.Width + tx], lit);
+                        }
+                    }
                 }
         }
+        static uint Shade(uint c, float lit) => 0xFF000000u
+            | (uint)MathF.Min(255, ((c >> 16) & 0xFF) * lit) << 16
+            | (uint)MathF.Min(255, ((c >> 8) & 0xFF) * lit) << 8
+            | (uint)MathF.Min(255, (c & 0xFF) * lit);
         var bytes = new byte[px.Length * 4];
         Buffer.BlockCopy(px, 0, bytes, 0, bytes.Length); // BGRA, premultiplied (alpha is 0 or 255)
         return bytes;

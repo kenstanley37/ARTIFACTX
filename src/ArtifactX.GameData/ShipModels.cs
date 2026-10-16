@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Numerics;
 using System.Text.RegularExpressions;
 using ArtifactX.GameData.Services;
@@ -9,7 +9,11 @@ namespace ArtifactX.GameData;
 
 /// <summary>A ship's triangles in the game's axes (Y up), three corners each,
 /// with the material each triangle is painted with.</summary>
-public sealed record ShipMesh(Vector3[] Corners, string[] Materials);
+public sealed record ShipMesh(Vector3[] Corners, string[] Materials)
+{
+    /// <summary>Texture coordinates, one per corner (2026-10-16, for painted previews).</summary>
+    public Vector2[] Uvs { get; init; } = Array.Empty<Vector2>();
+}
 
 /// <summary>
 /// Builds a procedural ship's 3D model from the player's own game files
@@ -24,12 +28,12 @@ public sealed record ShipMesh(Vector3[] Corners, string[] Materials);
 /// cut short in the scene so names are matched by prefix. Also used for
 /// multi-tools, whose scenes carry extra "Shape" pieces per option (see Keep).
 /// </summary>
-public sealed class ShipModels
+public sealed partial class ShipModels
 {
     private readonly GlobalFileIndexService _index = new();
     private readonly ExtractionService _extraction = new();
     private readonly ConcurrentDictionary<string, NMSTemplate?> _files = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, Dictionary<ulong, (Vector3[] P, uint[] I)>> _geometry = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, Dictionary<ulong, (Vector3[] P, Vector2[] T, uint[] I)>> _geometry = new(StringComparer.OrdinalIgnoreCase);
 
     private static readonly Regex LodName = new(@"LOD(\d)$", RegexOptions.IgnoreCase);
     private static readonly Regex Lod = new(@"LOD\d$");
@@ -94,6 +98,7 @@ public sealed class ShipModels
         }
 
         var corners = new List<Vector3>();
+        var uvs = new List<Vector2>();
         var materials = new List<string>();
         void Walk(TkSceneNodeData node, string geometry, Matrix4x4 world, int depth)
         {
@@ -119,6 +124,10 @@ public sealed class ShipModels
                         corners.Add(a);
                         corners.Add(mirrored ? c : b);
                         corners.Add(mirrored ? b : c);
+                        Vector2 ua = mesh.T[mesh.I[i]], ub = mesh.T[mesh.I[i + 1]], uc = mesh.T[mesh.I[i + 2]];
+                        uvs.Add(ua);
+                        uvs.Add(mirrored ? uc : ub);
+                        uvs.Add(mirrored ? ub : uc);
                         materials.Add(material);
                     }
                 }
@@ -131,7 +140,7 @@ public sealed class ShipModels
             foreach (var child in node.Children ?? new()) Walk(child, geometry, world, depth);
         }
         Walk(root, GeometryOf(root), Matrix4x4.Identity, 0);
-        return corners.Count == 0 ? null : new ShipMesh(corners.ToArray(), materials.ToArray());
+        return corners.Count == 0 ? null : new ShipMesh(corners.ToArray(), materials.ToArray()) { Uvs = uvs.ToArray() };
     }
 
     private readonly ConcurrentDictionary<string, Dictionary<string, string>> _weaponTags = new(StringComparer.OrdinalIgnoreCase);
@@ -186,14 +195,16 @@ public sealed class ShipModels
     /// <summary>Every mesh of one geometry file: half-float positions and indices
     /// by mesh hash. The file's "16 bit indices" flag isn't always right (a
     /// sentinel ship says 32 and stores 16), so the width that fits wins.</summary>
-    private Dictionary<ulong, (Vector3[] P, uint[] I)> Geometry(string geometry) => _geometry.GetOrAdd(geometry, g =>
+    private Dictionary<ulong, (Vector3[] P, Vector2[] T, uint[] I)> Geometry(string geometry) => _geometry.GetOrAdd(geometry, g =>
     {
-        var result = new Dictionary<ulong, (Vector3[], uint[])>();
+        var result = new Dictionary<ulong, (Vector3[], Vector2[], uint[])>();
         if (Decode(g + ".PC") is not TkGeometryData gd
             || Decode(Regex.Replace(g, @"\.GEOMETRY\.MBIN$", ".GEOMETRY.DATA.MBIN", RegexOptions.IgnoreCase) + ".PC") is not TkGeometryStreamData sd)
             return result;
         int stride = gd.PositionVertexLayout.Stride;
         int at = gd.PositionVertexLayout.VertexElements?.FirstOrDefault(v => v.SemanticID == 0)?.Offset ?? 0;
+        // Texture coordinates share the position stream (semantic 1, half floats).
+        int uvAt = gd.PositionVertexLayout.VertexElements?.FirstOrDefault(v => v.SemanticID == 1)?.Offset ?? -1;
         bool wide = gd.Indices16Bit == 0;
         foreach (var md in sd.StreamDataArray ?? new())
         {
@@ -201,10 +212,13 @@ public sealed class ShipModels
             if (stride <= 0) break;
             int count = ps.Length / stride;
             var pos = new Vector3[count];
+            var tex = new Vector2[count];
             for (int i = 0; i < count; i++)
             {
                 int o = i * stride + at;
                 pos[i] = new Vector3((float)BitConverter.ToHalf(ps, o), (float)BitConverter.ToHalf(ps, o + 2), (float)BitConverter.ToHalf(ps, o + 4));
+                if (uvAt >= 0 && i * stride + uvAt + 4 <= ps.Length)
+                    tex[i] = new Vector2((float)BitConverter.ToHalf(ps, i * stride + uvAt), (float)BitConverter.ToHalf(ps, i * stride + uvAt + 2));
             }
             var ms = md.MeshDataStream ?? Array.Empty<byte>();
             int start = md.VertexDataSize, size = md.IndexDataSize;
@@ -218,7 +232,7 @@ public sealed class ShipModels
                     idx[i] = width == 2 ? BitConverter.ToUInt16(ms, start + i * 2) : BitConverter.ToUInt32(ms, start + i * 4);
                     if (idx[i] > max) max = idx[i];
                 }
-                if (idx.Length > 0 && max < count) { result[md.Hash] = (pos, idx); break; }
+                if (idx.Length > 0 && max < count) { result[md.Hash] = (pos, tex, idx); break; }
             }
         }
         return result;
