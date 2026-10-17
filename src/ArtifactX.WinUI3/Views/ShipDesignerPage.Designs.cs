@@ -43,35 +43,44 @@ public sealed partial class ShipDesignerPage
     private ShipDesign? _needsThumbnail;
     private bool _previewReady;
 
+    /// <summary>Editing a saved design: saves the changes under its name, no questions
+    /// (2026-10-17, the user: "Save changes shouldn't ask for a name"). A new design:
+    /// asks for a name first.</summary>
     private async void SaveDesignBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_type is null) return;
+        if (_editing is { } saved) await SaveAsync(CurrentDesign(saved.Id, saved.Name, saved.CreatedAt));
+        else await SaveAsNewAsync();
+    }
+
+    private async void SaveAsNewBtn_Click(object sender, RoutedEventArgs e) => await SaveAsNewAsync();
+
+    private async Task SaveAsNewAsync()
     {
         if (_type is null) return;
         var nameBox = new TextBox
         {
             Header = "Design name",
-            Text = _designId is null ? ShipNameTxt.Text : _designName,
+            Text = _editing is null ? ShipNameTxt.Text : $"{_designName} (copy)",
             MaxLength = 80,
         };
         nameBox.SelectAll();
         var dialog = new ContentDialog
         {
-            Title = _designId is null ? "Save design" : $"Save \"{_designName}\"",
+            Title = "Save as a new design",
             Content = nameBox,
             PrimaryButtonText = "Save",
-            // Saved before: Save updates it, Save as new keeps both.
-            SecondaryButtonText = _designId is null ? "" : "Save as new",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = XamlRoot,
         };
-        nameBox.TextChanged += (_, _) =>
-            dialog.IsPrimaryButtonEnabled = dialog.IsSecondaryButtonEnabled = nameBox.Text.Trim().Length > 0;
-        var result = await dialog.ShowAsync();
-        if (result == ContentDialogResult.None) return;
+        nameBox.TextChanged += (_, _) => dialog.IsPrimaryButtonEnabled = nameBox.Text.Trim().Length > 0;
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        await SaveAsync(CurrentDesign(Guid.NewGuid().ToString("N"), nameBox.Text.Trim(), UserDatabase.Now()));
+    }
 
-        bool asNew = _designId is null || result == ContentDialogResult.Secondary;
-        var design = CurrentDesign(asNew ? Guid.NewGuid().ToString("N") : _designId!, nameBox.Text.Trim(),
-            asNew ? UserDatabase.Now() : _designCreated);
+    private async Task SaveAsync(ShipDesign design)
+    {
         byte[]? thumbnail = _previewReady ? await TakeThumbnailAsync() : null;
         try
         {
@@ -291,7 +300,9 @@ public sealed partial class ShipDesignerPage
         {
             DesignNameTxt.Text = "New design · not saved yet";
             NewDesignBtn.Visibility = Visibility.Collapsed;
-            SaveDesignBtn.Content = "Save design";
+            SaveDesignBtn.Content = "Save design...";
+            SaveDesignBtn.IsEnabled = true;
+            SaveAsNewBtn.Visibility = Visibility.Collapsed;
             return;
         }
         var now = CurrentDesign(saved.Id, saved.Name, saved.CreatedAt);
@@ -299,7 +310,9 @@ public sealed partial class ShipDesignerPage
             || !SameEntries(now.Parts, saved.Parts) || !SameEntries(now.Colours, saved.Colours);
         DesignNameTxt.Text = $"Editing: {saved.Name}" + (changed ? " · unsaved changes" : "");
         NewDesignBtn.Visibility = Visibility.Visible;
-        SaveDesignBtn.Content = changed ? "Save changes" : "Save design";
+        SaveDesignBtn.Content = "Save changes";
+        SaveDesignBtn.IsEnabled = changed;
+        SaveAsNewBtn.Visibility = Visibility.Visible;
     }
 
     private static bool SameEntries<T>(Dictionary<string, T> a, Dictionary<string, T> b) =>

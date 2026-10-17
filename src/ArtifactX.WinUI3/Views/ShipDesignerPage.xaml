@@ -180,8 +180,12 @@
                                 <Button x:Name="AddNewBtn" Content="Add as new ship" Click="AddNewBtn_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
                                 <Button x:Name="ApplyBtn" Content="Apply to a ship..." Click="ApplyBtn_Click"/>
                             </StackPanel>
-                            <Button x:Name="SaveDesignBtn" Content="Save design" Click="SaveDesignBtn_Click"
-                                    ToolTipService.ToolTip="Keep this design in My designs to add or apply to a ship later. Your game save isn't changed."/>
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <Button x:Name="SaveDesignBtn" Content="Save design..." Click="SaveDesignBtn_Click"
+                                        ToolTipService.ToolTip="Keep this design in My designs to add or apply to a ship later. Your game save isn't changed."/>
+                                <Button x:Name="SaveAsNewBtn" Content="Save as new..." Click="SaveAsNewBtn_Click" Visibility="Collapsed"
+                                        ToolTipService.ToolTip="Keep this as another design, with its own name. The one you loaded stays as it was."/>
+                            </StackPanel>
                         </ctcontrols:WrapPanel>
                         <TextBlock x:Name="WriteBlockedTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
                                    Visibility="Collapsed"/>
