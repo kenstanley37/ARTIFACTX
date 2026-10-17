@@ -37,6 +37,11 @@ public static class SystemPageReader
         // The Galaxy Map card: "REGION : ..." under the system's name, then Race / Economy / Conflict.
         int region = lines.ToList().FindIndex(l => Regex.IsMatch(l, @"\bR\S{1,4}ON\S*\s*:", RegexOptions.IgnoreCase));
         bool card = region > 0 && lines.Skip(region).Take(12).Any(l => Is(PlanetPageReader.Clean(l), "Race"));
+        // Another system's card starts its star line with the distance ("32 LY // G2f // Water");
+        // the one you're in has none ("G5pf // Water"). A hovered neighbour's card was stored
+        // on the current system once (Sekinai-Musi onto Amogat-Aizu XIV, 2026-10-17): never again.
+        if (card && lines.Skip(region + 1).Take(3).Any(l => Regex.IsMatch(l, @"\d[\d,.]*\s*L\s*Y\b", RegexOptions.IgnoreCase)))
+            return popup ? null : "system page: another system's card (has a distance) - skipped";
         if (!popup && !card) return null;
 
         _words ??= await CatalogService.GetSystemDescriptorsAsync();
