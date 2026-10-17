@@ -354,9 +354,11 @@ public sealed partial class ShipDesignerPage : Page
 
         string scene = _type.Scene;
         var root = MultiToolKinds.Load(ShipParts.DescriptorFor(scene));
-        // Each chosen item turns on its model parts (PartGroups: FIGHT_COCKAA -> _COCKPIT_A, _ANOSE_A).
-        var items = _type.Slots.SelectMany(s => s.Items).GroupBy(i => i.Item).ToDictionary(g => g.Key, g => g.First());
-        var stored = _parts.Values.SelectMany(item => items.GetValueOrDefault(item)?.Groups ?? new())
+        // Each chosen item turns on its model parts (PartGroups: FIGHT_COCKAA -> _COCKPIT_A, _ANOSE_A),
+        // looked up in its own slot: an Explorer's left and right wings share item ids
+        // (SCIEN_WINGT_A) but not parts (SCIEN_L_WINGT_A / SCIEN_R_WINGT_A).
+        var stored = _type.Slots
+            .SelectMany(slot => slot.Items.FirstOrDefault(i => i.Item == _parts.GetValueOrDefault(slot.Id))?.Groups ?? new())
             .SelectMany(g => _partGroups.GetValueOrDefault(g) ?? new()).ToList();
         var options = root is null ? new HashSet<string>(StringComparer.Ordinal) : ModelPreviewService.AllOptionIds(root, MultiToolKinds.Load, StringComparer.Ordinal);
         var chosen = root is null ? new HashSet<string>(StringComparer.Ordinal)

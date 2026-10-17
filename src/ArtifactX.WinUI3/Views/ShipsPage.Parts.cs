@@ -28,6 +28,9 @@ public sealed partial class ShipsPage
 {
     private static Dictionary<string, string>? _treeJson;
     private static List<(string Id, string Set, List<string> Descriptors)>? _partGroups;
+    // The station builder's slots per ship scene (catalog "ShipBuilder"): each slot's
+    // items and the part groups an item turns on in that slot.
+    private static Dictionary<string, List<Dictionary<string, List<string>>>>? _builderSlots;
     private static DateTime? _dataStamp;
     private static List<ColourPalette>? _palettes;
     private static LookData? _look;
@@ -108,6 +111,7 @@ public sealed partial class ShipsPage
             _dataStamp = stamp;
             _treeJson = null;
             _partGroups = null;
+            _builderSlots = null;
             _palettes = null;
             _look = null;
             lock (TreeCache) TreeCache.Clear();
@@ -121,6 +125,8 @@ public sealed partial class ShipsPage
         }
         if (_partGroups is null || _partGroups.Count == 0)
             _partGroups = await CatalogService.GetPartGroupsAsync();
+        if (_builderSlots is null || _builderSlots.Count == 0)
+            _builderSlots = BuilderSlots(await CatalogService.GetJsonCategoryAsync("ShipBuilder"));
         // Every time: a game-data update empties the name/icon cache, and parts
         // with no name are left out - every Fighter part vanished after one
         // (2026-10-15). Already-cached ids are skipped, so this is cheap.
@@ -264,11 +270,55 @@ public sealed partial class ShipsPage
     }
 
     /// <summary>A built ship's parts as model options: each builder item turns on its
-    /// descriptor options (PartGroups - FIGHT_COCKAA -> _COCKPIT_A...).</summary>
-    private static List<string>? StoredOptions(BuiltLook? built) =>
-        built is not { Items.Count: > 0 } || _partGroups is null ? null
-            : built.Items.SelectMany(id => _partGroups.Where(g => string.Equals(g.Id, id, StringComparison.OrdinalIgnoreCase))
-                .SelectMany(g => g.Descriptors)).ToList();
+    /// descriptor options (PartGroups - FIGHT_COCKAA -> _COCKPIT_A...). The save lists
+    /// items in the builder's slot order, and the same item can sit in two slots with
+    /// different parts: an Explorer's SCIEN_WINGT_A is SCIEN_L_WINGT_A as the left wing
+    /// (first) and SCIEN_R_WINGT_A as the right (second) - so each item goes to the
+    /// first slot still free that offers it.</summary>
+    private static List<string>? StoredOptions(BuiltLook? built, string scene)
+    {
+        if (built is not { Items.Count: > 0 } || _partGroups is null) return null;
+        IEnumerable<string> groups = built.Items;
+        if (_builderSlots?.GetValueOrDefault(scene.ToUpperInvariant()) is { } slots)
+        {
+            var free = slots.ToList();
+            var mapped = new List<string>();
+            foreach (string item in built.Items)
+            {
+                var slot = free.FirstOrDefault(s => s.ContainsKey(item));
+                if (slot is null) { mapped.Add(item); continue; }
+                free.Remove(slot);
+                mapped.AddRange(slot[item]);
+            }
+            groups = mapped;
+        }
+        return groups.SelectMany(id => _partGroups.Where(g => string.Equals(g.Id, id, StringComparison.OrdinalIgnoreCase))
+            .SelectMany(g => g.Descriptors)).ToList();
+    }
+
+    private static Dictionary<string, List<Dictionary<string, List<string>>>> BuilderSlots(Dictionary<string, string> rows)
+    {
+        var result = new Dictionary<string, List<Dictionary<string, List<string>>>>(StringComparer.Ordinal);
+        foreach (string json in rows.Values)
+        {
+            if (!json.TrimStart().StartsWith("{", StringComparison.Ordinal)) continue;
+            try
+            {
+                var type = JObject.Parse(json);
+                string scene = type["scene"]?.ToString().ToUpperInvariant() ?? "";
+                if (scene.Length == 0 || type["slots"] is not JArray slotArray) continue;
+                result[scene] = slotArray.Select(slot => (slot["items"] as JArray ?? new JArray())
+                    .GroupBy(i => i["item"]?.ToString() ?? "")
+                    .ToDictionary(g => g.Key, g => g.First()["groups"]?.Select(t => t.ToString()).ToList() ?? new List<string>(), StringComparer.OrdinalIgnoreCase))
+                    .ToList();
+            }
+            catch (Newtonsoft.Json.JsonException)
+            {
+                // A row this version can't read: those ships fall back to matching by id.
+            }
+        }
+        return result;
+    }
 
     private async void ShowPreview(string scene, ulong seed, IReadOnlyList<PartGroup>? root, BuiltLook? built = null)
     {
@@ -280,7 +330,7 @@ public sealed partial class ShipsPage
         // A fixed-look type has no part options: every mesh in its scene is kept.
         var options = root is null ? new HashSet<string>(StringComparer.Ordinal) : AllOptionIdsExact(root);
         var chosen = root is null ? new HashSet<string>(StringComparer.Ordinal)
-            : ShipParts.Generate(scene, seed, LoadTree, StoredOptions(built)).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
+            : ShipParts.Generate(scene, seed, LoadTree, StoredOptions(built, scene)).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
         var mesh = await Task.Run(() => models.Build(scene, options, chosen));
         if (version != _previewVersion) return;
         var look = _look;
