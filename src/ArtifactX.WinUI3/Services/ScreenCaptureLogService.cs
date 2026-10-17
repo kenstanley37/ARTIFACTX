@@ -28,8 +28,12 @@ public static class ScreenCaptureLogService
 {
     private const string SettingKey = "ScreenCaptureLog";
     private const long MaxBytes = 1L << 30;
-    private const int ThumbW = 64, ThumbH = 36;
-    private const double ChangeThreshold = 6.0; // mean grey difference (0-255) for "a new screen"
+    // "A new screen": enough small cells of a 96x54 grey thumbnail changed clearly. A
+    // whole-screen average missed scrolling a list - only the list moves, so a trade
+    // terminal's later pages weren't kept for a minute (2026-10-17).
+    private const int ThumbW = 96, ThumbH = 54;
+    private const int CellChange = 24;           // grey levels for "this cell changed"
+    private const double ChangedFraction = 0.015; // share of cells that must change
 
     private static Timer? _timer;
     private static int _busy;
@@ -94,7 +98,7 @@ public static class ScreenCaptureLogService
 
         byte[] pixels = Grab(r.Left, r.Top, w, h);
         byte[] thumb = Thumb(pixels, w, h);
-        if (_lastThumb is not null && Difference(thumb, _lastThumb) < ChangeThreshold) return;
+        if (_lastThumb is not null && ChangedShare(thumb, _lastThumb) < ChangedFraction) return;
         _lastThumb = thumb;
 
         using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(pixels.AsBuffer(), BitmapPixelFormat.Bgra8, w, h, BitmapAlphaMode.Ignore);
@@ -290,11 +294,11 @@ public static class ScreenCaptureLogService
         return t;
     }
 
-    private static double Difference(byte[] a, byte[] b)
+    private static double ChangedShare(byte[] a, byte[] b)
     {
-        long sum = 0;
-        for (int i = 0; i < a.Length; i++) sum += Math.Abs(a[i] - b[i]);
-        return (double)sum / a.Length;
+        int changed = 0;
+        for (int i = 0; i < a.Length; i++) if (Math.Abs(a[i] - b[i]) > CellChange) changed++;
+        return (double)changed / a.Length;
     }
 
     [StructLayout(LayoutKind.Sequential)] private struct RECT { public int Left, Top, Right, Bottom; }

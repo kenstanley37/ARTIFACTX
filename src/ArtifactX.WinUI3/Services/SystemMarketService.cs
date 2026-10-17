@@ -92,21 +92,31 @@ public static class SystemMarketService
         }
         var allNames = _itemIds.Keys.ToList();
 
-        // Each item: the line just above its "Price: ..." / "Demand: ..." line.
+        // Each item: the real item name just above its "Price: ..." / "Demand: ..." line, by
+        // height - not the line before it in reading order, which can be the tiny label on
+        // the item's icon ("NaCl" for Salt, 2026-10-17).
         var items = new List<(string Id, string Name, string Change, double Y)>();
-        for (int i = 1; i < lines.Count; i++)
+        for (int i = 0; i < lines.Count; i++)
         {
             var m = Regex.Match(lines[i].Text, @"^\s*(Price|Demand)\s*:\s*([+\-−]?\s*[\d.,]+\s*%)", RegexOptions.IgnoreCase);
             if (!m.Success) continue;
-            string read = PlanetPageReader.Clean(lines[i - 1].Text);
-            string name = PlanetPageReader.Snap(read, allNames);
-            if (!_itemIds.TryGetValue(name, out var id)) continue;
-            items.Add((id, Title(name), m.Groups[2].Value.Replace(" ", "").Replace('−', '-'), lines[i - 1].Y));
+            double y = lines[i].Y;
+            foreach (var above in lines.Where(l => y - l.Y > 5 && y - l.Y < 50).OrderBy(l => y - l.Y))
+            {
+                string name = PlanetPageReader.Snap(PlanetPageReader.Clean(above.Text), allNames);
+                if (name.Length < 3 || !_itemIds.TryGetValue(name, out var id)) continue;
+                items.Add((id, Title(name), m.Groups[2].Value.Replace(" ", "").Replace('−', '-'), above.Y));
+                break;
+            }
         }
         if (items.Count == 0) return "trade terminal: no items read";
 
         // Each "Buy for N" (and the "1 / N" under it) goes with the item row at its height.
-        double rowGap = items.Count > 1 ? items.Zip(items.Skip(1), (a, b) => Math.Abs(b.Y - a.Y)).Min() : 110;
+        // The row height, from the price column: it's complete even when a name wasn't
+        // read, so a missing item's price can't fall to its neighbour (Salt's to Residual Goop).
+        var buyYs = buys.Select(b => b.Y).OrderBy(v => v).ToList();
+        double rowGap = buyYs.Count > 1 ? buyYs.Zip(buyYs.Skip(1), (a, b) => b - a).Where(d => d > 20).DefaultIfEmpty(110).Min()
+            : items.Count > 1 ? items.Zip(items.Skip(1), (a, b) => Math.Abs(b.Y - a.Y)).Min() : 110;
         var stocks = lines.Where(l => Regex.IsMatch(l.Text, @"^\s*\d+\s*/\s*[\d,]+\s*$")).ToList();
         var saved = new List<MarketItem>();
         string now = UserDatabase.Now();
@@ -136,11 +146,25 @@ public static class SystemMarketService
 
     private static string Title(string s) => s.Any(char.IsLower) ? s : CultureInfo.InvariantCulture.TextInfo.ToTitleCase(s.ToLowerInvariant());
 
+    // A price that differs from the one stored is only taken once read the same way twice -
+    // a single misread ("950" for 350) overwrote a good price once (2026-10-17).
+    private static readonly Dictionary<(string, string), int> PendingPrice = new();
+
     private static void Save(ulong system, List<MarketItem> items)
     {
         string key = Key(system);
         lock (Lock)
         {
+            if (Markets.TryGetValue(key, out var known))
+                items = items.Where(item =>
+                {
+                    var old = known.FirstOrDefault(i => i.ItemId.Equals(item.ItemId, StringComparison.OrdinalIgnoreCase));
+                    if (old is null || old.Price == item.Price) { PendingPrice.Remove((key, item.ItemId)); return true; }
+                    if (PendingPrice.TryGetValue((key, item.ItemId), out int seen) && seen == item.Price) { PendingPrice.Remove((key, item.ItemId)); return true; }
+                    PendingPrice[(key, item.ItemId)] = item.Price;
+                    return false;
+                }).ToList();
+            if (items.Count == 0) return;
             if (!Markets.TryGetValue(key, out var list)) Markets[key] = list = new();
             for (int k = 0; k < items.Count; k++)
             {
