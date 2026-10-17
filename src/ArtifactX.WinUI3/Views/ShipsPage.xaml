@@ -142,7 +142,8 @@
                                             <StackPanel Width="280" Spacing="12">
                                                 <StackPanel Spacing="6">
                                                     <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                                    <TextBox x:Name="NameEditBox" LostFocus="NameEditBox_LostFocus"/>
+                                                    <TextBox x:Name="NameEditBox" LostFocus="NameEditBox_LostFocus" GotFocus="NameEditBox_GotFocus"
+                                                             TextChanged="NameEditBox_TextChanged" KeyDown="NameEditBox_KeyDown"/>
                                                     <HyperlinkButton x:Name="NameUpdateLink" Content="Update game data now" Padding="0" Visibility="Collapsed" Click="NameUpdateLink_Click"/>
                                                 </StackPanel>
                                                 <StackPanel Spacing="6">

@@ -705,15 +705,57 @@ public sealed partial class ShipsPage : Page
     private void GridCellChanged(object? sender, EventArgs e) =>
         PageResetBtn.Visibility = Visibility.Visible;
 
-    /// <summary>Stages the rename when the field loses focus - not on every
-    /// keystroke, since that would rebuild the selector strip mid-typing.</summary>
     private void NameUpdateLink_Click(object sender, RoutedEventArgs e)
     {
         NameUpdateLink.Visibility = Visibility.Collapsed;
         App.MainWindowInstance?.StartGameDataUpdate();
     }
 
+    // The rename is staged shortly after typing stops, so Save shows up without
+    // leaving the box (2026-10-17: the player typed a name and found no Save), and
+    // straight away on Enter or leaving the box.
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _nameTimer;
+
+    /// <summary>Clicking in selects the whole name, ready to type over.</summary>
+    private void NameEditBox_GotFocus(object sender, RoutedEventArgs e) =>
+        DispatcherQueue.TryEnqueue(NameEditBox.SelectAll);
+
+    private void NameEditBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        // Only the player's typing - ShowName filling the box isn't an edit.
+        if (NameEditBox.FocusState == FocusState.Unfocused) return;
+        _nameTimer ??= CreateNameTimer();
+        _nameTimer.Stop();
+        _nameTimer.Start();
+    }
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateNameTimer()
+    {
+        var timer = DispatcherQueue.CreateTimer();
+        timer.Interval = TimeSpan.FromMilliseconds(500);
+        timer.IsRepeating = false;
+        timer.Tick += (_, _) => CommitName(typing: true);
+        return timer;
+    }
+
+    private void NameEditBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key != Windows.System.VirtualKey.Enter) return;
+        _nameTimer?.Stop();
+        CommitName(typing: true);
+        e.Handled = true;
+    }
+
     private void NameEditBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        _nameTimer?.Stop();
+        CommitName(typing: false);
+    }
+
+    /// <summary>Stages the rename. While the box has focus the ship isn't reloaded -
+    /// that would put the text back and move the cursor - only the strip and the
+    /// technology header are relabelled.</summary>
+    private void CommitName(bool typing)
     {
         if (_selectedIndex < 0) return;
 
@@ -724,10 +766,14 @@ public sealed partial class ShipsPage : Page
         if (currentShip != null && newName == (currentShip.IsUnnamed ? currentShip.GameName : currentShip.Name)) return;
 
         var namePath = new[] { "vLc", "6f=", "@Cs", _selectedIndex.ToString(), "NKm" };
+        _suppressReloadOnOwnStatEdit = typing;
         SaveSessionManager.StageEdit(newName, namePath);
+        _suppressReloadOnOwnStatEdit = false;
 
         PageResetBtn.Visibility = Visibility.Visible;
-        LoadShipList();
+        if (!typing) { LoadShipList(); return; }
+        LoadShipList(live: true);
+        TechHeaderTxt.Text = $"TECHNOLOGY  —  {newName.ToUpperInvariant()}";
     }
 
     private void BuildClassSelector()

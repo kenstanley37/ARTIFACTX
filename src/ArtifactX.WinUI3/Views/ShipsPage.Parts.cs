@@ -28,6 +28,9 @@ public sealed partial class ShipsPage
 {
     private static Dictionary<string, string>? _treeJson;
     private static List<(string Id, string Set, List<string> Descriptors)>? _partGroups;
+    // Part group -> the builder item that adds it (catalog "ShipBuilder"). A built
+    // ship stores groups (SCIEN_L_WINGE), and the item (SCIEN_WINGE) has the name and icon.
+    private static Dictionary<string, string>? _builderItemOf;
     private static DateTime? _dataStamp;
     private static List<ColourPalette>? _palettes;
     private static LookData? _look;
@@ -108,6 +111,7 @@ public sealed partial class ShipsPage
             _dataStamp = stamp;
             _treeJson = null;
             _partGroups = null;
+            _builderItemOf = null;
             _palettes = null;
             _look = null;
             lock (TreeCache) TreeCache.Clear();
@@ -121,10 +125,12 @@ public sealed partial class ShipsPage
         }
         if (_partGroups is null || _partGroups.Count == 0)
             _partGroups = await CatalogService.GetPartGroupsAsync();
+        if (_builderItemOf is null || _builderItemOf.Count == 0)
+            _builderItemOf = BuilderItems(await CatalogService.GetJsonCategoryAsync("ShipBuilder"));
         // Every time: a game-data update empties the name/icon cache, and parts
         // with no name are left out - every Fighter part vanished after one
         // (2026-10-15). Already-cached ids are skipped, so this is cheap.
-        await CatalogService.WarmCacheAsync(_partGroups.Select(g => g.Id));
+        await CatalogService.WarmCacheAsync(_partGroups.Select(g => g.Id).Concat(_builderItemOf.Values));
         if (_treeJson.Count == 0 || _partGroups.Count == 0)
         {
             ShipPartsPanel.Children.Add(Dim("Update your game data (Settings › Game data) to see which parts a seed gives."));
@@ -157,7 +163,9 @@ public sealed partial class ShipsPage
         {
             ShipPartsPanel.Children.Add(new TextBlock { Text = "PARTS CHOSEN WHEN BUILT", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] });
             var builtRow = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 8, VerticalSpacing = 8 };
-            foreach (var id in built.Items) builtRow.Children.Add(PartChip(id));
+            // One chip per item: a Hauler wing stores two groups (DROPS_WINGDA, DROPS_WINGDA_).
+            foreach (var id in built.Items.Select(g => _builderItemOf?.GetValueOrDefault(g) ?? g).Distinct(StringComparer.OrdinalIgnoreCase))
+                builtRow.Children.Add(PartChip(id));
             ShipPartsPanel.Children.Add(builtRow);
             BuildPartSearch(scene, sets);
             return;
@@ -324,6 +332,26 @@ public sealed partial class ShipsPage
     }
 
     /// <summary>A part as the game's ship builder shows it: icon and name.</summary>
+    private static Dictionary<string, string> BuilderItems(Dictionary<string, string> rows)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string json in rows.Values)
+        {
+            if (!json.TrimStart().StartsWith("{", StringComparison.Ordinal)) continue;
+            try
+            {
+                foreach (var item in JObject.Parse(json)["slots"]?.SelectMany(slot => slot["items"] ?? new JArray()) ?? Enumerable.Empty<JToken>())
+                    foreach (var group in item["groups"] ?? new JArray())
+                        result.TryAdd(group.ToString(), item["item"]?.ToString() ?? "");
+            }
+            catch (Newtonsoft.Json.JsonException)
+            {
+                // A row this version can't read: its parts show by group id.
+            }
+        }
+        return result;
+    }
+
     private static UIElement PartChip(string id)
     {
         var chip = new StackPanel { Width = 92, Spacing = 2 };
