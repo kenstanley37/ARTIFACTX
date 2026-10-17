@@ -331,6 +331,23 @@ public static class UserDatabase
         ALTER TABLE fish_catches ADD COLUMN latitude REAL NULL;
         ALTER TABLE fish_catches ADD COLUMN longitude REAL NULL;
         """,
+
+        // 12 - designs saved on the Ship Designer page (2026-10-17), to add or
+        // apply to a ship later. payload = the design as JSON (ShipDesignsService).
+        """
+        CREATE TABLE ship_designs (
+            id          TEXT PRIMARY KEY,
+            profile_id  TEXT NOT NULL DEFAULT '',
+            name        TEXT NOT NULL DEFAULT '',
+            ship_type   TEXT NOT NULL DEFAULT '',
+            payload     TEXT NOT NULL,
+            created_at  TEXT NOT NULL,
+            updated_at  TEXT NOT NULL,
+            source      TEXT NOT NULL DEFAULT 'user',
+            synced_at   TEXT NULL,
+            deleted     INTEGER NOT NULL DEFAULT 0
+        );
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;
