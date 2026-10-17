@@ -94,7 +94,7 @@ public static class BodyKindsService
             int by0 = list.FindIndex(l => l.Contains("Discovered by", StringComparison.OrdinalIgnoreCase));
             if (by0 < 0) return null;
             var type = list.Skip(by0 + 1).Take(3).Select(l => l.Trim())
-                .FirstOrDefault(l => Regex.IsMatch(l, @"^[\p{L} ]{3,30}\s(Moon|Planet)$", RegexOptions.IgnoreCase));
+                .FirstOrDefault(l => Regex.IsMatch(l, @"^[\p{L} \[\]'-]{3,30}\s(Moon|Planet)$", RegexOptions.IgnoreCase)); // "[REDACTED] Planet" too
             if (type is null) return null;
             moon = type.EndsWith("Moon", StringComparison.OrdinalIgnoreCase);
             mark = by0 + 1;
@@ -112,12 +112,16 @@ public static class BodyKindsService
         if (PlanetPageReader.MatchBody(name) is not (ulong system, int body, string matched))
             return $"body pop-up \"{name}\": no single matching body in recent systems";
 
+        // The list pop-up also lists the body's resources: fill them in (the full page
+        // adds weather, sentinels, flora and fauna).
+        string resources = PlanetPageReader.ReadPopupResources(list, mark, system, body);
+
         bool generatorSays = UniverseInfo.Bodies(system).IsMoon(body);
         string check = generatorSays == moon ? "" : $" (the generator said {(generatorSays ? "moon" : "planet")})";
         lock (Lock)
         {
             if (CapturedKinds.TryGetValue((Key(system), body), out bool was) && was == moon)
-                return $"body pop-up {matched}: already known as a {(moon ? "moon" : "planet")}{check}";
+                return $"body pop-up {matched}: already known as a {(moon ? "moon" : "planet")}{check}{resources}";
             CapturedKinds[(Key(system), body)] = moon;
         }
         try
@@ -140,7 +144,7 @@ public static class BodyKindsService
             Debug.WriteLine($"[BodyKindsService] {ex.Message}");
         }
         Captured?.Invoke(system);
-        return $"body pop-up {matched}: saved as a {(moon ? "moon" : "planet")}{check}";
+        return $"body pop-up {matched}: saved as a {(moon ? "moon" : "planet")}{check}{resources}";
     }
 
     /// <summary>Drops the in-memory copy (after a user.db import).</summary>

@@ -52,6 +52,7 @@ public static class PlanetPageReader
     /// while a tight, shrunk crop of it reads well.</param>
     public static async Task<string?> TryReadAsync(IReadOnlyList<string> lines, Func<Task<IReadOnlyList<string>>>? titleReads = null)
     {
+        await EnsureWordsAsync(); // cached; also what the Discoveries pop-ups use (ReadPopupResources)
         int data = lines.ToList().FindIndex(l => l.Trim().Equals("Planet Data", StringComparison.OrdinalIgnoreCase));
         int res = lines.ToList().FindIndex(l => l.Trim().Equals("Resources", StringComparison.OrdinalIgnoreCase));
         if (data < 0 || res < 0) return null;
@@ -223,6 +224,31 @@ public static class PlanetPageReader
         lock (Lock) systems = RecentSystems.ToList();
         if (systems.Count == 0 && NmsSpaceStationPaths.ReadSystemAddress(LiveSaveWatcher.FromSession().Universe) is ulong current) systems.Add(current);
         return systems;
+    }
+
+    /// <summary>Resources from a Discoveries list pop-up: the lines after its "Verdant Planet"
+    /// type line, up to its buttons. Stored only when it read at least one real item; the
+    /// planet's other details stay. Returns a note for the log ("" when nothing).</summary>
+    internal static string ReadPopupResources(IReadOnlyList<string> lines, int typeLine, ulong system, int body)
+    {
+        if (_resources is not { Count: > 0 }) return "";
+        var found = new List<string>();
+        for (int i = typeLine + 1; i < lines.Count; i++)
+        {
+            string line = Clean(lines[i]);
+            if (Regex.IsMatch(line, @"RENAME|VIEW|ADD TO WONDERS|MARK (PLANET|MOON)", RegexOptions.IgnoreCase)) break;
+            if (line.Length < 3) continue;
+            string word = Snap(line, _resources);
+            if (_resources.Contains(word, StringComparer.OrdinalIgnoreCase) && !found.Contains(word, StringComparer.OrdinalIgnoreCase)) found.Add(word);
+        }
+        if (found.Count == 0) return "";
+        var existing = PlanetDetailsService.Get(system, body);
+        if (existing is not null && existing.Resources.Count >= found.Count
+            && found.All(r => existing.Resources.Contains(r, StringComparer.OrdinalIgnoreCase))) return "";
+        var details = existing?.Copy() ?? new PlanetDetails();
+        details.Resources = found;
+        PlanetDetailsService.Save(system, body, details, source: "captured");
+        return $"; resources {string.Join(", ", found)}";
     }
 
     /// <summary>The body (planet or moon) a name points to in a recently visited system.</summary>
