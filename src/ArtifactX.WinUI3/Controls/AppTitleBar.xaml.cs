@@ -121,13 +121,18 @@ public sealed partial class AppTitleBar : UserControl
     {
         DispatcherQueue.TryEnqueue(async () =>
         {
+            // Say what Reload costs: a player who applied a ship design while the game ran
+            // reloaded, lost the design and took it for a missing Save button (2026-10-16).
+            int pending = SaveSessionManager.PendingEditCount;
+            string lost = pending == 0 ? ""
+                : $"\n\nReloading discards your {(pending == 1 ? "1 unsaved change" : $"{pending} unsaved changes")} - make them again after it reloads. Nothing has been written to your save.";
             var dialog = new ContentDialog
             {
                 Title = "No Man's Sky was closed",
                 Content = "The save file on disk has changed since you loaded it - most likely from " +
                           "an in-game autosave. Continuing to edit and save now could overwrite that " +
-                          "recent progress.\n\nWe recommend reloading this save before making further changes.",
-                PrimaryButtonText = "Reload (recommended)",
+                          "recent progress.\n\nWe recommend reloading this save before making further changes." + lost,
+                PrimaryButtonText = pending == 0 ? "Reload (recommended)" : "Reload and discard changes (recommended)",
                 SecondaryButtonText = "Keep editing anyway",
                 DefaultButton = ContentDialogButton.Primary,
                 XamlRoot = XamlRoot
