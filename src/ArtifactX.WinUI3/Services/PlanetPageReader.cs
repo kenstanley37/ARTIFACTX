@@ -82,6 +82,14 @@ public static class PlanetPageReader
         var existing = PlanetDetailsService.Get(system, planet);
         details.Notes = existing?.Notes.ToList() ?? new();
         details.FaunaTotal ??= existing?.FaunaTotal;
+        // A field that wasn't read keeps what was recorded.
+        if (existing is not null)
+        {
+            if (details.Weather == "") details.Weather = existing.Weather;
+            if (details.Sentinels == "") details.Sentinels = existing.Sentinels;
+            if (details.Flora == "") details.Flora = existing.Flora;
+            if (details.Fauna == "") details.Fauna = existing.Fauna;
+        }
         // A partly covered page never shrinks a fuller list already recorded.
         if (existing is { Resources.Count: > 0 } && details.Resources.Count < existing.Resources.Count
             && details.Resources.All(r => existing.Resources.Contains(r, StringComparer.OrdinalIgnoreCase)))
@@ -112,12 +120,18 @@ public static class PlanetPageReader
 
     // ------------------------------------------------------------- fields
 
-    /// <summary>The line after the label (first one after "Planet Data"), snapped to the game's words.</summary>
+    /// <summary>The line after the label (first one after "Planet Data"), as one of the game's
+    /// own words for it - or "" when it isn't one (a half-drawn page read "Discovered" as
+    /// Guhul VI's flora, 2026-10-17); the planet then keeps what it had.</summary>
     private static string Field(IReadOnlyList<string> lines, int from, string label, string group)
     {
+        var words = _words!.Where(w => w.Group == group).Select(w => w.Word).ToList();
         for (int i = from + 1; i < lines.Count - 1; i++)
             if (lines[i].Trim().Equals(label, StringComparison.OrdinalIgnoreCase))
-                return Snap(Clean(lines[i + 1]), _words!.Where(w => w.Group == group).Select(w => w.Word));
+            {
+                string word = Snap(Clean(lines[i + 1]), words);
+                return words.Contains(word, StringComparer.OrdinalIgnoreCase) ? word : "";
+            }
         return "";
     }
 
