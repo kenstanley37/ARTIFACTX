@@ -75,8 +75,6 @@ public sealed partial class ShipDesignerPage
         SaveSessionManager.StageEdit(ship, NmsInventoryContainer.ShipArrayPath.Append(slot.ToString()).ToArray());
         SaveSessionManager.StageEdit(CustomisationEntry(), CustomisationPath(slot));
         await Message("Added", $"\"{ShipNameTxt.Text}\" is in slot {slot + 1}. Save from the title bar to write it to your save, then load the save in game.");
-        _seed = NewSeed();
-        RefreshName();
     }
 
     private async void ApplyBtn_Click(object sender, RoutedEventArgs e)
@@ -119,8 +117,6 @@ public sealed partial class ShipDesignerPage
         SaveSessionManager.StageEdit(ship, path);
         SaveSessionManager.StageEdit(CustomisationEntry(), CustomisationPath(target));
         await Message("Applied", "Save from the title bar to write it to your save, then load the save in game.");
-        _seed = NewSeed();
-        RefreshName();
     }
 
     /// <summary>Model and seed, as the station builder writes them.</summary>

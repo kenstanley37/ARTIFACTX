@@ -62,9 +62,15 @@ public sealed partial class ShipModels
     {
         var all = (list.Layers ?? Array.Empty<TkProceduralTextureLayer>()).Where(l => (l.Textures?.Count ?? 0) > 0).ToList();
         var picked = textureSeed is ulong seed ? PickLayers(all, seed) : all.Select(l => (l, l.Textures![0])).ToList();
-        // A built ship's style replaces the pick on every layer that offers it.
+        // A built ship's style is painted on every layer that offers it, picked by the seed
+        // or not: Titan Stripes (SEVENTEEN) sets an OVERLAYS layer found ships never get, and
+        // without it the hull came out solid orange instead of striped (2026-10-16).
         if (styles is { Count: > 0 })
-            picked = picked.Select(p => (p.Item1, p.Item1.Textures!.FirstOrDefault(t => styles.Contains(t.Name?.Value ?? "")) ?? p.Item2)).ToList();
+        {
+            var byLayer = picked.ToDictionary(p => p.Item1, p => p.Item2);
+            picked = all.Select(l => (l, l.Textures!.FirstOrDefault(t => styles.Contains(t.Name?.Value ?? "")) ?? byLayer.GetValueOrDefault(l)))
+                .Where(p => p.Item2 is not null).Select(p => (p.l, p.Item2!)).ToList();
+        }
         // The file lists overlays first and BASE last; the game paints BASE first.
         var layers = picked.AsEnumerable().Reverse().ToList();
         if (layers.Count == 0) return null;
