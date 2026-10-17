@@ -127,9 +127,13 @@ public sealed class ShipPreview : UserControl
         var rot = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateRotationX(pitch);
         var p = new Vector3[mesh.Corners.Length];
         float minX = float.MaxValue, maxX = float.MinValue, minY = float.MaxValue, maxY = float.MinValue;
+        // The game's models are right-handed and this view is left-handed (nearer = smaller z),
+        // so X is flipped or every model comes out mirrored. Found 2026-10-16 on Hidden Oboya
+        // Tuner: its side disc and knob showed on the wrong side.
+        var mirror = new Vector3(-1, 1, 1);
         for (int i = 0; i < p.Length; i++)
         {
-            p[i] = Vector3.Transform(mesh.Corners[i] - centre, rot);
+            p[i] = Vector3.Transform((mesh.Corners[i] - centre) * mirror, rot);
             minX = MathF.Min(minX, p[i].X); maxX = MathF.Max(maxX, p[i].X);
             minY = MathF.Min(minY, p[i].Y); maxY = MathF.Max(maxY, p[i].Y);
         }
