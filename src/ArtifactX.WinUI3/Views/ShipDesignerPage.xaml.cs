@@ -86,7 +86,9 @@ public sealed partial class ShipDesignerPage : Page
         }
         _partGroups = (await CatalogService.GetPartGroupsAsync())
             .GroupBy(g => g.Id, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First().Descriptors, StringComparer.OrdinalIgnoreCase);
-        await CatalogService.WarmCacheAsync(_types.SelectMany(t => t.Slots).SelectMany(s => s.Items).Select(i => i.Item));
+        // Part names and icons, and the names of the items that unlock paint styles.
+        await CatalogService.WarmCacheAsync(_types.SelectMany(t => t.Slots).SelectMany(s => s.Items).Select(i => i.Item)
+            .Concat(_styles.Values.SelectMany(l => l).Select(s => s.Unlock).Where(u => u.Length > 0)));
         await MultiToolKinds.EnsureTreesAsync();
 
         BodyGrid.Visibility = Visibility.Visible;
