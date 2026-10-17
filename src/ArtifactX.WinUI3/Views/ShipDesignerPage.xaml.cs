@@ -124,6 +124,7 @@ public sealed partial class ShipDesignerPage : Page
         BodyGrid.Visibility = Visibility.Visible;
         _seed = NewSeed();
         SelectType(_types[0]);
+        await RefreshDesignsAsync();
     }
 
     private static ulong NewSeed() => (ulong)Random.Shared.NextInt64(long.MinValue, long.MaxValue);
@@ -361,6 +362,7 @@ public sealed partial class ShipDesignerPage : Page
     private async void RefreshPreview()
     {
         int version = ++_previewVersion;
+        _previewReady = false;
         if (_type is null || GameDataService.Game is not { } game) return;
         PreviewNote.Text = "Building the model from your game files...";
         var models = await ModelPreviewService.ModelsAsync(game);
@@ -392,6 +394,8 @@ public sealed partial class ShipDesignerPage : Page
         if (version != _previewVersion) return;
         PreviewView.Show(mesh, _ => 0x8C8E94u, m => textures.GetValueOrDefault(m));
         PreviewNote.Text = "Drag to turn. Built from your game files with the parts and colours you pick.";
+        _previewReady = true;
+        OnPreviewReady();
     }
 
     /// <summary>The design's colours: each colour group sets its palette slots to the picked

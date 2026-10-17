@@ -99,6 +99,16 @@ public sealed class ShipPreview : UserControl
         Redraw();
     }
 
+    /// <summary>The model shown, drawn at its opening angle at the given size - BGRA,
+    /// premultiplied, transparent background. For saved-design thumbnails (2026-10-17).
+    /// Null while nothing is shown.</summary>
+    public Task<byte[]?> SnapshotAsync(int width, int height)
+    {
+        if (_mesh is null) return Task.FromResult<byte[]?>(null);
+        var mesh = _mesh; var colours = _triColours; var textures = _triTextures; var centre = _centre;
+        return Task.Run(() => (byte[]?)Render(mesh, colours, textures, centre, StartYaw, StartPitch, width, height));
+    }
+
     private void OnPointerMoved(object sender, PointerRoutedEventArgs e)
     {
         if (_drag is not { } from || _mesh is null) return;

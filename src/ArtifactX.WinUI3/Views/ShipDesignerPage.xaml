@@ -25,19 +25,56 @@
                         <AdaptiveTrigger MinWindowWidth="1700"/>
                     </VisualState.StateTriggers>
                 </VisualState>
-                <VisualState x:Name="Narrow">
+                <VisualState x:Name="Medium">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="1250"/>
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <!-- Preview across the top; parts | paint + designs below; the page scrolls
+                             (2026-10-17: the old narrow layout laid the preview over the parts and
+                             pushed paint off the right edge). -->
+                        <Setter Target="BodyScroll.VerticalScrollMode" Value="Enabled"/>
+                        <Setter Target="BodyScroll.VerticalScrollBarVisibility" Value="Auto"/>
+                        <Setter Target="BodyCol0.Width" Value="*"/>
+                        <Setter Target="BodyCol1.Width" Value="0"/>
+                        <Setter Target="BodyCol1.MinWidth" Value="0"/>
+                        <Setter Target="PreviewCard.(Grid.Column)" Value="0"/>
+                        <Setter Target="PreviewCard.(Grid.ColumnSpan)" Value="3"/>
+                        <Setter Target="PreviewCard.(Grid.RowSpan)" Value="1"/>
+                        <Setter Target="PartsCard.(Grid.Row)" Value="1"/>
+                        <Setter Target="PartsCard.(Grid.RowSpan)" Value="1"/>
+                        <Setter Target="RightPanel.(Grid.RowSpan)" Value="1"/>
+                        <Setter Target="BodyCol2.Width" Value="*"/>
+                        <Setter Target="BodyRow1.Height" Value="880"/>
+                        <Setter Target="PreviewCard.Height" Value="440"/>
+                        <Setter Target="RightPanel.(Grid.Row)" Value="1"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Compact">
                     <VisualState.StateTriggers>
                         <AdaptiveTrigger MinWindowWidth="0"/>
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
-                        <!-- Narrow: preview across the top, parts and paint side by side below. -->
-                        <Setter Target="PreviewCard.(Grid.Row)" Value="0"/>
+                        <!-- One column: preview, parts, then paint + designs. -->
+                        <Setter Target="BodyScroll.VerticalScrollMode" Value="Enabled"/>
+                        <Setter Target="BodyScroll.VerticalScrollBarVisibility" Value="Auto"/>
+                        <Setter Target="BodyCol0.Width" Value="*"/>
+                        <Setter Target="BodyCol1.Width" Value="0"/>
+                        <Setter Target="BodyCol1.MinWidth" Value="0"/>
                         <Setter Target="PreviewCard.(Grid.Column)" Value="0"/>
                         <Setter Target="PreviewCard.(Grid.ColumnSpan)" Value="3"/>
-                        <Setter Target="PreviewCard.Height" Value="380"/>
+                        <Setter Target="PreviewCard.(Grid.RowSpan)" Value="1"/>
                         <Setter Target="PartsCard.(Grid.Row)" Value="1"/>
-                        <Setter Target="PartsCard.(Grid.ColumnSpan)" Value="2"/>
-                        <Setter Target="PaintCard.(Grid.Row)" Value="1"/>
+                        <Setter Target="PartsCard.(Grid.RowSpan)" Value="1"/>
+                        <Setter Target="RightPanel.(Grid.RowSpan)" Value="1"/>
+                        <Setter Target="BodyCol2.Width" Value="0"/>
+                        <Setter Target="BodyRow1.Height" Value="640"/>
+                        <Setter Target="BodyRow2.Height" Value="880"/>
+                        <Setter Target="PreviewCard.Height" Value="400"/>
+                        <Setter Target="PartsCard.(Grid.ColumnSpan)" Value="3"/>
+                        <Setter Target="RightPanel.(Grid.Row)" Value="2"/>
+                        <Setter Target="RightPanel.(Grid.Column)" Value="0"/>
+                        <Setter Target="RightPanel.(Grid.ColumnSpan)" Value="3"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -56,15 +93,20 @@
             <HyperlinkButton Content="Update game data now" Padding="0" Click="UpdateDataLink_Click"/>
         </StackPanel>
 
-        <Grid x:Name="BodyGrid" Grid.Row="1" ColumnSpacing="20" RowSpacing="18" Visibility="Collapsed">
+        <!-- Wide: no page scrolling, so each card's own list scrolls inside the window.
+             The narrower layouts give the cards fixed heights and scroll the page instead. -->
+        <ScrollViewer x:Name="BodyScroll" Grid.Row="1" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled"
+                      HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+        <Grid x:Name="BodyGrid" ColumnSpacing="20" RowSpacing="18" Visibility="Collapsed">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="400"/>
-                <ColumnDefinition Width="*" MinWidth="360"/>
-                <ColumnDefinition Width="380"/>
+                <ColumnDefinition x:Name="BodyCol0" Width="400"/>
+                <ColumnDefinition x:Name="BodyCol1" Width="*" MinWidth="360"/>
+                <ColumnDefinition x:Name="BodyCol2" Width="380"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
+                <RowDefinition x:Name="BodyRow0" Height="Auto"/>
+                <RowDefinition x:Name="BodyRow1" Height="*"/>
+                <RowDefinition x:Name="BodyRow2" Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- Left: type and parts, one slot at a time; only the slot's parts scroll. -->
@@ -125,17 +167,14 @@
                     <StackPanel Grid.Row="3" Padding="18,10,18,16" Spacing="4">
                         <TextBlock x:Name="PreviewNote" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
                                    Text="Drag to turn. Built from your game files with the parts and colours you pick."/>
-                        <!-- Left: into the save (Save.cs). Right: the player's own saved designs (Designs.cs). -->
+                        <!-- Left: into the save (Save.cs). Right: keep it in My designs (Designs.cs). -->
                         <ctcontrols:WrapPanel Margin="0,6,0,0" HorizontalSpacing="24" VerticalSpacing="8">
                             <StackPanel Orientation="Horizontal" Spacing="10">
                                 <Button x:Name="AddNewBtn" Content="Add as new ship" Click="AddNewBtn_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
                                 <Button x:Name="ApplyBtn" Content="Apply to a ship..." Click="ApplyBtn_Click"/>
                             </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <Button x:Name="SaveDesignBtn" Content="Save design" Click="SaveDesignBtn_Click"
-                                        ToolTipService.ToolTip="Keep this design in ArtifactX to add or apply to a ship later. Your game save isn't changed."/>
-                                <Button x:Name="MyDesignsBtn" Content="My designs..." Click="MyDesignsBtn_Click"/>
-                            </StackPanel>
+                            <Button x:Name="SaveDesignBtn" Content="Save design" Click="SaveDesignBtn_Click"
+                                    ToolTipService.ToolTip="Keep this design in My designs to add or apply to a ship later. Your game save isn't changed."/>
                         </ctcontrols:WrapPanel>
                         <TextBlock x:Name="WriteBlockedTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
                                    Visibility="Collapsed"/>
@@ -143,8 +182,14 @@
                 </Grid>
             </Border>
 
-            <!-- Right: paint style and colours, always in view. -->
-            <Border x:Name="PaintCard" Grid.Row="0" Grid.RowSpan="2" Grid.Column="2" Style="{StaticResource ThemeCardStyle}">
+            <!-- Right: paint, then the player's saved designs (2026-10-17, the user's idea:
+                 the space under Paint was empty). Paint takes what it needs, the list the rest. -->
+            <Grid x:Name="RightPanel" Grid.Row="0" Grid.RowSpan="2" Grid.Column="2" RowSpacing="18">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+            <Border x:Name="PaintCard" Style="{StaticResource ThemeCardStyle}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -158,6 +203,30 @@
                     </ScrollViewer>
                 </Grid>
             </Border>
+                <Border x:Name="DesignsCard" Grid.Row="1" MinHeight="260" Style="{StaticResource ThemeCardStyle}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <TextBlock Text="MY DESIGNS" Style="{StaticResource ThemeBandTextStyle}"/>
+                        </Border>
+                        <TextBox x:Name="DesignSearchBox" Grid.Row="1" Margin="16,12,16,0" PlaceholderText="Find a design"
+                                 TextChanged="DesignSearchBox_TextChanged"/>
+                        <ScrollViewer Grid.Row="2" Margin="0,10,0,0">
+                            <StackPanel Margin="16,0,16,16">
+                                <TextBlock x:Name="DesignsEmptyTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                           TextWrapping="Wrap" Visibility="Collapsed"/>
+                                <ctcontrols:WrapPanel x:Name="DesignsPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+
         </Grid>
+        </ScrollViewer>
     </Grid>
 </Page>

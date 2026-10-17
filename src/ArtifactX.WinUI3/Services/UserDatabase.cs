@@ -348,6 +348,12 @@ public static class UserDatabase
             deleted     INTEGER NOT NULL DEFAULT 0
         );
         """,
+
+        // 13 - a picture of each saved design for the designer's list (2026-10-17):
+        // PNG from the preview renderer. NULL until one is taken.
+        """
+        ALTER TABLE ship_designs ADD COLUMN thumbnail BLOB NULL;
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;
