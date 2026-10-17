@@ -99,10 +99,12 @@ public static class ScreenCaptureLogService
         using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(pixels.AsBuffer(), BitmapPixelFormat.Bgra8, w, h, BitmapAlphaMode.Ignore);
         string text = "";
         var lines = new List<string>();
+        var placed = new List<(string Text, double Y)>();
         if (OcrEngine.TryCreateFromUserProfileLanguages() is { } ocr)
         {
             var result = await ocr.RecognizeAsync(bitmap);
             lines = result.Lines.Select(l => l.Text).ToList();
+            placed = result.Lines.Select(l => (l.Text, l.Words.Count == 0 ? 0 : l.Words.Average(wd => wd.BoundingRect.Y + wd.BoundingRect.Height / 2))).ToList();
             text = string.Join(Environment.NewLine, lines);
         }
         // Same words as the last kept screen (the cursor moved over the same list): skip it.
@@ -113,6 +115,11 @@ public static class ScreenCaptureLogService
         string? read = null;
         try { read = await PlanetPageReader.TryReadAsync(lines, () => ReadTitleAsync(pixels, w, h)) ?? await SystemPageReader.TryReadAsync(lines); }
         catch (Exception ex) { read = "planet page: error " + ex.Message; }
+        try
+        {
+            if (await SystemMarketService.TryReadAsync(placed) is { } market) read = (read is null ? "" : read + " | ") + market;
+        }
+        catch (Exception ex) { read = (read is null ? "" : read + " | ") + "trade terminal: error " + ex.Message; }
         try
         {
             if (BodyKindsService.TryRead(lines) is { } body) read = (read is null ? "" : read + " | ") + body;

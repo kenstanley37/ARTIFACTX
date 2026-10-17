@@ -377,6 +377,27 @@ public static class UserDatabase
             PRIMARY KEY (system_address, planet_index)
         );
         """,
+
+        // 16 - what each system's station sells, from its trade terminal (2026-10-17,
+        // GitHub #9; SystemMarketService). price in units, change as shown ("-18.4%").
+        """
+        CREATE TABLE system_market (
+            system_address TEXT NOT NULL,
+            item_id        TEXT NOT NULL,
+            name           TEXT NOT NULL DEFAULT '',
+            price          INTEGER NOT NULL DEFAULT 0,
+            change         TEXT NOT NULL DEFAULT '',
+            stock          INTEGER NOT NULL DEFAULT 0,
+            seen_at        TEXT NOT NULL,
+            updated_at     TEXT NOT NULL,
+            source         TEXT NOT NULL DEFAULT 'captured',
+            synced_at      TEXT NULL,
+            deleted        INTEGER NOT NULL DEFAULT 0,
+            profile_id     TEXT NOT NULL DEFAULT '',
+            added_by       TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (system_address, item_id)
+        );
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;

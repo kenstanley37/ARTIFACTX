@@ -74,6 +74,7 @@ public sealed partial class PlanetsPage : Page
         SystemPageReader.Captured += OnSystemCaptured;
         ScreenCaptureLogService.SystemPictureSaved += OnSystemPictureSaved;
         BodyKindsService.Captured += OnSystemCaptured;
+        SystemMarketService.Changed += OnSystemCaptured;
         Unloaded += Page_Unloaded;
         JumpPlanner.RangeChanged += ApplyFilters;
         _ = LoadPageAsync();
@@ -111,6 +112,7 @@ public sealed partial class PlanetsPage : Page
         SystemPageReader.Captured -= OnSystemCaptured;
         ScreenCaptureLogService.SystemPictureSaved -= OnSystemPictureSaved;
         BodyKindsService.Captured -= OnSystemCaptured;
+        SystemMarketService.Changed -= OnSystemCaptured;
         JumpPlanner.RangeChanged -= ApplyFilters;
         StopOrbitAnimations();
         StopWatching();
@@ -468,6 +470,7 @@ public sealed partial class PlanetsPage : Page
         DrawSystem(planets, currentPlanet, note);
         ShowSystemPicture(system);
         BuildSystemData(system, note);
+        BuildMarket(system);
 
         NoSystemPlanetsTxt.Visibility = planets.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         AnyFishPanel.Visibility = Visibility.Collapsed; // each card counts every fish it can have now
@@ -801,6 +804,51 @@ public sealed partial class PlanetsPage : Page
             SystemCanvas.Visibility = Visibility.Visible;
             SystemViewFrame.Width = 360;
         }
+    }
+
+    /// <summary>SOLD AT THE STATION: one chip per item - icon, name, price, change, stock.</summary>
+    private void BuildMarket(ulong system)
+    {
+        MarketItemsPanel.Children.Clear();
+        var items = SystemMarketService.For(system);
+        MarketEmptyTxt.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        MarketSeenTxt.Text = items.Count == 0 ? "" : $"{items.Count} item{(items.Count == 1 ? "" : "s")} · last seen {SeenAgo(items.Max(i => i.SeenAt))}";
+        foreach (var item in items)
+        {
+            var chip = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Padding = new Thickness(8, 6, 12, 6) };
+            if (CatalogService.TryGet(item.ItemId)?.Icon is { } icon)
+                chip.Children.Add(new Image { Source = icon, Width = 32, Height = 32, VerticalAlignment = VerticalAlignment.Center });
+            var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            text.Children.Add(new TextBlock { Text = item.Name, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = ThemeBrush("ThemeTextBrush") });
+            text.Children.Add(new TextBlock
+            {
+                Text = $"{item.Price:N0} units · {item.Change}{(item.Stock > 0 ? $" · {item.Stock} in stock" : "")}",
+                FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush"),
+            });
+            chip.Children.Add(text);
+            MarketItemsPanel.Children.Add(new Border
+            {
+                Child = chip, CornerRadius = new CornerRadius(6), Background = ThemeBrush("ThemeVoidBrush"),
+                BorderBrush = ThemeBrush("ThemeLineBrush"), BorderThickness = new Thickness(1),
+            });
+        }
+        _ = WarmMarketIconsAsync(system, items);
+    }
+
+    private async Task WarmMarketIconsAsync(ulong system, IReadOnlyList<MarketItem> items)
+    {
+        var missing = items.Where(i => CatalogService.TryGet(i.ItemId)?.Icon is null).Select(i => i.ItemId).ToList();
+        if (missing.Count == 0) return;
+        await CatalogService.WarmCacheAsync(missing);
+        if (system == _currentSystem && items.Any(i => CatalogService.TryGet(i.ItemId)?.Icon is not null)) BuildMarket(system);
+    }
+
+    private static string SeenAgo(string iso)
+    {
+        if (!DateTime.TryParse(iso, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var at)) return "";
+        var ago = DateTime.UtcNow - at.ToUniversalTime();
+        return ago.TotalMinutes < 1 ? "just now" : ago.TotalHours < 1 ? $"{(int)ago.TotalMinutes} min ago"
+            : ago.TotalDays < 1 ? $"{(int)ago.TotalHours} h ago" : at.ToLocalTime().ToString("d", CultureInfo.CurrentCulture);
     }
 
     /// <summary>The SYSTEM DATA box: the game's own pop-up lines, with what the game showed

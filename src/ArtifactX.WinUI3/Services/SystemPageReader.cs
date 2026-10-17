@@ -197,6 +197,25 @@ public static class SystemPageReader
         return Races.Contains(word) ? word : "";
     }
 
+    internal static ulong? MatchSystem(string name) => Match(name);
+
+    /// <summary>"High Tech // Prosperous" read elsewhere (the trade terminal banner): fills the
+    /// system's economy and wealth like the pop-up does. Returns a note, or null if unchanged.</summary>
+    internal static async Task<string?> TryReadEconomyAsync(ulong system, string text)
+    {
+        _words ??= await CatalogService.GetSystemDescriptorsAsync();
+        var parts = text.Split("//", StringSplitOptions.TrimEntries);
+        string economy = Word("Economy", parts[0]), wealth = parts.Length > 1 ? Word("Wealth", parts[^1]) : "";
+        var note = SystemNotesService.Get(system) ?? new SystemNote();
+        bool changed = false;
+        if (economy.Length > 0 && note.Economy != economy) { note.Economy = economy; changed = true; }
+        if (wealth.Length > 0 && note.Wealth != wealth) { note.Wealth = wealth; changed = true; }
+        if (!changed) return null;
+        SystemNotesService.Save(system, note, source: "captured");
+        Captured?.Invoke(system);
+        return $"economy {economy} / {wealth}";
+    }
+
     private static ulong? Match(string name)
     {
         string t = PlanetPageReader.Norm(name);
