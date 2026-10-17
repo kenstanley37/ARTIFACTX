@@ -43,6 +43,7 @@ public partial class App : Application
         ArtifactX.GameData.Services.LogService.EchoToConsole = false;
         ArtifactX.GameData.Services.LogService.UseLogFile(null);
         DevTimingLog.Start();
+        CrashLog.Attach(this);
 
         InitializeComponent();
     }
