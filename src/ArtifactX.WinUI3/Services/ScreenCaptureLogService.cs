@@ -111,7 +111,7 @@ public static class ScreenCaptureLogService
         if (words.Length > 0 && words == _lastText) return;
         _lastText = words;
         string? read = null;
-        try { read = await PlanetPageReader.TryReadAsync(lines); }
+        try { read = await PlanetPageReader.TryReadAsync(lines, () => ReadTitleAsync(pixels, w, h)); }
         catch (Exception ex) { read = "planet page: error " + ex.Message; }
 
         var now = DateTime.Now;
@@ -137,6 +137,40 @@ public static class ScreenCaptureLogService
         if (read is not null) await File.AppendAllTextAsync(Path.Combine(day, "read.log"), $"{now:HH:mm:ss} {read}{Environment.NewLine}");
 
         if (++_savedSinceCheck >= 50) { _savedSinceCheck = 0; Trim(); }
+    }
+
+    /// <summary>The planet name at the top left of a Discoveries page, read on its own:
+    /// a tight crop shrunk to 60% and 75% (with a dark margin) reads the big title far
+    /// better than the whole screen does. Tested on the recorded pages: "Guhul VI",
+    /// "Euben XIII" and "Izent 62/B4" in full, where the whole screen gave nothing,
+    /// "Euben" and "Izent 62/84".</summary>
+    private static async Task<IReadOnlyList<string>> ReadTitleAsync(byte[] px, int w, int h)
+    {
+        var reads = new List<string>();
+        if (OcrEngine.TryCreateFromUserProfileLanguages() is not { } ocr) return reads;
+        int x0 = w * 11 / 100, y0 = h * 17 / 100, cw = w * 34 / 100, ch = h * 9 / 100;
+        foreach (double scale in new[] { 0.6, 0.75 })
+        {
+            const int pad = 40;
+            int ow = (int)(cw * scale) + 2 * pad, oh = (int)(ch * scale) + 2 * pad;
+            var o = new byte[ow * oh * 4];
+            for (int y = 0; y < oh; y++)
+                for (int x = 0; x < ow; x++)
+                {
+                    int sx = (int)((x - pad) / scale), sy = (int)((y - pad) / scale), j = (y * ow + x) * 4;
+                    byte l = 0;
+                    if (sx >= 0 && sy >= 0 && sx < cw && sy < ch)
+                    {
+                        int k = ((y0 + sy) * w + x0 + sx) * 4;
+                        l = (byte)((px[k] * 29 + px[k + 1] * 150 + px[k + 2] * 77) >> 8);
+                    }
+                    o[j] = o[j + 1] = o[j + 2] = l; o[j + 3] = 255;
+                }
+            using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(o.AsBuffer(), BitmapPixelFormat.Bgra8, ow, oh, BitmapAlphaMode.Ignore);
+            var result = await ocr.RecognizeAsync(bitmap);
+            if (result.Lines.FirstOrDefault()?.Text is { } line) reads.Add(line);
+        }
+        return reads;
     }
 
     /// <summary>Keeps the log under 1 GB by deleting the oldest files.</summary>

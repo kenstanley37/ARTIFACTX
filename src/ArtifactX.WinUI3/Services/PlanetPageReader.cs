@@ -47,7 +47,10 @@ public static class PlanetPageReader
 
     /// <summary>Called with each recorded screen's text lines. Returns a short note of
     /// what happened (for the capture log), or null when it isn't a planet page.</summary>
-    public static async Task<string?> TryReadAsync(IReadOnlyList<string> lines)
+    /// <param name="titleReads">Reads the title area again on its own: the big planet name
+    /// is often missed in the whole-screen read ("Guhul VI" read as nothing, 2026-10-17),
+    /// while a tight, shrunk crop of it reads well.</param>
+    public static async Task<string?> TryReadAsync(IReadOnlyList<string> lines, Func<Task<IReadOnlyList<string>>>? titleReads = null)
     {
         int data = lines.ToList().FindIndex(l => l.Trim().Equals("Planet Data", StringComparison.OrdinalIgnoreCase));
         int res = lines.ToList().FindIndex(l => l.Trim().Equals("Resources", StringComparison.OrdinalIgnoreCase));
@@ -64,10 +67,15 @@ public static class PlanetPageReader
         };
         if (details.Weather == "" && details.Sentinels == "" && details.Resources.Count == 0) return "planet page: nothing readable";
 
-        string? title = Title(lines);
-        if (title is null) return "planet page: no planet name";
-        var match = Match(title);
-        if (match is not (ulong system, int planet, string name)) return $"planet page \"{title}\": no single matching planet in recent systems";
+        var titles = new List<string>();
+        if (Title(lines) is { } fromScreen) titles.Add(fromScreen);
+        if (titleReads is not null)
+            foreach (var read in await titleReads())
+                if (Clean(read) is { Length: >= 3 } t && !IsHud(t)) titles.Add(t);
+        if (titles.Count == 0) return "planet page: no planet name";
+        var match = Match(titles);
+        if (match is not (ulong system, int planet, string name))
+            return $"planet page \"{string.Join("\" / \"", titles.Distinct())}\": no single matching planet in recent systems";
 
         // The player's own notes stay; the fields are what the game showed.
         var existing = PlanetDetailsService.Get(system, planet);
@@ -136,12 +144,18 @@ public static class PlanetPageReader
             if (Regex.IsMatch(lines[i], @"\bby\b", RegexOptions.IgnoreCase) && !lines[i - 1].Contains("ARTIFACT", StringComparison.OrdinalIgnoreCase))
             {
                 string t = Clean(lines[i - 1]);
-                if (t.Length >= 3 && !t.Equals("Discovered", StringComparison.OrdinalIgnoreCase)) return t;
+                if (t.Length >= 3 && !t.Equals("Discovered", StringComparison.OrdinalIgnoreCase) && !IsHud(t)) return t;
             }
         return null;
     }
 
     /// <summary>Drops the icon glyphs OCR reads as stray symbols at the start ("Ø Absent", "$ Cadmium", ", Izent").</summary>
+    /// <summary>The currency bar and header above the page ("Nanites" was taken for a planet name).</summary>
+    private static bool IsHud(string s) =>
+        s.Contains("ARTIFACT", StringComparison.OrdinalIgnoreCase)
+        || new[] { "Units", "Nanites", "Quicksilver", "Discoveries", "Catalog & Guide", "Discovered" }.Any(h => s.Equals(h, StringComparison.OrdinalIgnoreCase))
+        || s.Count(char.IsLetter) < 3;
+
     private static string Clean(string s)
     {
         s = s.Trim();
@@ -170,11 +184,21 @@ public static class PlanetPageReader
 
     // ------------------------------------------------------------- the planet
 
-    private static (ulong System, int Planet, string Name)? Match(string title)
+    /// <summary>The planet the best of several readings of its name points to.</summary>
+    private static (ulong System, int Planet, string Name)? Match(IReadOnlyList<string> titles)
     {
         List<ulong> systems;
         lock (Lock) systems = RecentSystems.ToList();
         if (systems.Count == 0 && NmsSpaceStationPaths.ReadSystemAddress(LiveSaveWatcher.FromSession().Universe) is ulong current) systems.Add(current);
+        (ulong, int, string)? best = null;
+        int bestScore = int.MaxValue;
+        foreach (string title in titles.Distinct())
+            if (Match(title, systems) is ((ulong, int, string) m, int score) && score < bestScore) { best = m; bestScore = score; }
+        return best;
+    }
+
+    private static ((ulong System, int Planet, string Name), int Score)? Match(string title, List<ulong> systems)
+    {
         string t = Norm(title);
         var scored = new List<(ulong System, int Planet, string Name, int Score)>();
         foreach (ulong system in systems)
@@ -195,7 +219,7 @@ public static class PlanetPageReader
         if (top.Score > Math.Max(2, t.Length / 4)) return null;
         // Unique: no other planet scores as well.
         if (ordered.Skip(1).Any(s => s.Score == top.Score && (s.System != top.System || s.Planet != top.Planet))) return null;
-        return (top.System, top.Planet, top.Name);
+        return ((top.System, top.Planet, top.Name), top.Score);
     }
 
     /// <summary>Lower-case letters and digits, with the usual OCR swaps folded (8/B, 0/O, 1/l/I, 5/S).</summary>
