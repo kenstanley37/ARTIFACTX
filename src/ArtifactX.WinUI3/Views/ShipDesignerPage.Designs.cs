@@ -157,7 +157,8 @@ public sealed partial class ShipDesignerPage
         var card = new Button { Content = content, Tag = design.Id, Padding = new Thickness(6), VerticalAlignment = VerticalAlignment.Stretch };
         ThemeResources.StyleChoiceButton(card, design.Id == _designId);
         ToolTipService.SetToolTip(card, $"Load \"{design.Name}\"");
-        card.Click += (_, _) => LoadDesign(design, saved.Thumbnail is null);
+        // Painting a ship: a design lends its paint only (its parts would be a different ship).
+        card.Click += (_, _) => { if (_paintShip is not null) UseDesignPaint(design); else LoadDesign(design, saved.Thumbnail is null); };
 
         var delete = new Button
         {
@@ -296,6 +297,7 @@ public sealed partial class ShipDesignerPage
     /// whether that one has changed since it was saved.</summary>
     private void UpdateDesignState()
     {
+        if (_paintShip is not null) return; // paint mode says its own thing (Paint.cs)
         if (_editing is not { } saved || _type is null)
         {
             DesignNameTxt.Text = "New design · not saved yet";

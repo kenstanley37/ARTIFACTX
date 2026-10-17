@@ -81,9 +81,10 @@ public sealed partial class ShipDesignerPage : Page
     {
         bool gameRunning = GameProcessMonitorService.IsGameRunning;
         bool saveLoaded = SaveSessionManager.IsSaveLoaded;
-        AddNewBtn.IsEnabled = ApplyBtn.IsEnabled = saveLoaded && !gameRunning;
-        WriteBlockedTxt.Text = gameRunning ? "Close No Man's Sky to add or apply a design. You can keep designing meanwhile."
-            : !saveLoaded ? "Load a save to add or apply a design."
+        AddNewBtn.IsEnabled = ApplyBtn.IsEnabled = RepaintBtn.IsEnabled = RemovePaintBtn.IsEnabled = saveLoaded && !gameRunning;
+        string what = _paintShip is null ? "add or apply a design" : "repaint the ship";
+        WriteBlockedTxt.Text = gameRunning ? $"Close No Man's Sky to {what}. You can keep choosing meanwhile."
+            : !saveLoaded ? $"Load a save to {what}."
             : "";
         WriteBlockedTxt.Visibility = WriteBlockedTxt.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -91,6 +92,8 @@ public sealed partial class ShipDesignerPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+        // From Starships' "Paint this ship": the ship's index (Paint.cs).
+        _paintShip = e.Parameter is int ship ? ship : null;
         await LoadAsync();
     }
 
@@ -124,6 +127,7 @@ public sealed partial class ShipDesignerPage : Page
         BodyGrid.Visibility = Visibility.Visible;
         _seed = NewSeed();
         SelectType(_types[0]);
+        if (_paintShip is not null) await EnterPaintModeAsync();
         await RefreshDesignsAsync();
     }
 
@@ -351,6 +355,7 @@ public sealed partial class ShipDesignerPage : Page
     private async void RefreshName()
     {
         if (_type is null) return;
+        if (_paintShip is not null) { ShipNameTxt.Text = _paintShipName; return; }
         string? name = await MultiToolKinds.ShipNameAsync(_seed, _type.Scene);
         ShipNameTxt.Text = name ?? "";
     }
@@ -377,8 +382,9 @@ public sealed partial class ShipDesignerPage : Page
         // Each chosen item turns on its model parts (PartGroups: FIGHT_COCKAA -> _COCKPIT_A, _ANOSE_A),
         // looked up in its own slot: an Explorer's left and right wings share item ids
         // (SCIEN_WINGT_A) but not parts (SCIEN_L_WINGT_A / SCIEN_R_WINGT_A).
-        var stored = _type.Slots
-            .SelectMany(slot => slot.Items.FirstOrDefault(i => i.Item == _parts.GetValueOrDefault(slot.Id))?.Groups ?? new())
+        // Paint mode: the ship's own parts - from its seed, or the ones it was built with.
+        var stored = (_paintShip is not null ? _paintShipParts : _type.Slots
+            .SelectMany(slot => slot.Items.FirstOrDefault(i => i.Item == _parts.GetValueOrDefault(slot.Id))?.Groups ?? new()))
             .SelectMany(g => _partGroups.GetValueOrDefault(g) ?? new()).ToList();
         var options = root is null ? new HashSet<string>(StringComparer.Ordinal) : ModelPreviewService.AllOptionIds(root, MultiToolKinds.Load, StringComparer.Ordinal);
         var chosen = root is null ? new HashSet<string>(StringComparer.Ordinal)
@@ -397,7 +403,9 @@ public sealed partial class ShipDesignerPage : Page
         var textures = await ModelPreviewService.PaintAsync(models, mesh, colour, _seed, styles);
         if (version != _previewVersion) return;
         PreviewView.Show(mesh, _ => 0x8C8E94u, m => textures.GetValueOrDefault(m));
-        PreviewNote.Text = "Drag to turn. Built from your game files with the parts and colours you pick.";
+        PreviewNote.Text = _paintShip is not null
+            ? "Drag to turn. Your ship with the paint you pick - its parts stay as they are."
+            : "Drag to turn. Built from your game files with the parts and colours you pick.";
         _previewReady = true;
         OnPreviewReady();
     }

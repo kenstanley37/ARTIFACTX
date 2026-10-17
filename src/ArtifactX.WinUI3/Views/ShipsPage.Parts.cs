@@ -103,6 +103,7 @@ public sealed partial class ShipsPage
         int refresh = ++_previewVersion;
         ShipPreviewGroup.Visibility = Visibility.Collapsed;
         string? scene = CurrentScene();
+        PaintShipBtn.Visibility = scene is not null && IsPaintable(scene) ? Visibility.Visible : Visibility.Collapsed;
         if (scene is null) return;
         // Built again since last time (game-data update): forget everything read from the old one.
         var stamp = GameDataService.Info?.BuiltAtUtc;
@@ -301,7 +302,7 @@ public sealed partial class ShipsPage
             var textures = await ModelPreviewService.PaintAsync(models, mesh, ModelPreviewService.StoredColourLookup(built.Colours), seed, built.Styles);
             if (version != _previewVersion) return;
             ShipPreviewView.Show(mesh, material => MaterialColour(material, look), m => textures.GetValueOrDefault(m));
-            ShipPreviewNote.Text = "Shape and colours from your game files and the colours chosen when this ship was built - drag to turn.";
+            ShipPreviewNote.Text = "Shape from your game files, in the paint saved for this ship - drag to turn.";
             return;
         }
         // Not painted yet (2026-10-16): the multi-tool colour rule (palettes from the
@@ -333,6 +334,19 @@ public sealed partial class ShipsPage
         }
         if (System.Text.RegularExpressions.Regex.IsMatch(name, "RUBBER|DARK|BLACK|GRILL|VENT|UNDERCOAT")) return Rgb(46, 48, 53);
         return Rgb(140, 142, 148);
+    }
+
+    /// <summary>The ship types the station builder makes, and so can be painted (an in-game
+    /// test, 2026-10-17: a found Hauler took colours and Titan Stripes, and kept them).</summary>
+    private static bool IsPaintable(string scene)
+    {
+        string file = System.IO.Path.GetFileName(scene.Replace('\\', '/')).ToUpperInvariant();
+        return file is "FIGHTER_PROC.SCENE.MBIN" or "DROPSHIP_PROC.SCENE.MBIN" or "SCIENTIFIC_PROC.SCENE.MBIN" or "SAILSHIP_PROC.SCENE.MBIN";
+    }
+
+    private void PaintShipBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex >= 0) Frame.Navigate(typeof(ShipDesignerPage), _selectedIndex);
     }
 
     /// <summary>A part as the game's ship builder shows it: icon and name.</summary>

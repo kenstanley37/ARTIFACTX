@@ -157,6 +157,9 @@
                                                               SelectionChanged="TypeComboBox_SelectionChanged"
                                                               ToolTipService.ToolTip="The ship's model. Changing it swaps the hull you fly in-game."/>
                                                 </StackPanel>
+                                                <Button x:Name="PaintShipBtn" Content="Paint this ship..." Click="PaintShipBtn_Click" Margin="0,4,0,0"
+                                                        Visibility="Collapsed"
+                                                        ToolTipService.ToolTip="Choose a paint style and colours for this ship in the Ship Designer. Its parts and name stay as they are."/>
                                                 <Button Content="Delete this ship..." Click="DeleteShipBtn_Click" Margin="0,4,0,0"
                                                         Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
                                                         ToolTipService.ToolTip="Remove this ship from the save. You can keep it as a template first."/>

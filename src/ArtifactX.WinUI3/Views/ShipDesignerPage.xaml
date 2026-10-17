@@ -122,18 +122,23 @@
                     <Border Style="{StaticResource ThemeBandStyle}">
                         <TextBlock Text="SHIP AND PARTS" Style="{StaticResource ThemeBandTextStyle}"/>
                     </Border>
-                    <StackPanel Grid.Row="1" Padding="16,14,16,4" Spacing="6">
+                    <!-- Paint mode (Paint.cs): the ship keeps its own parts, so the choices hide. -->
+                    <StackPanel x:Name="PaintPartsNote" Grid.Row="1" Padding="16,14,16,16" Spacing="8" Visibility="Collapsed">
+                        <TextBlock Text="PARTS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <TextBlock x:Name="PaintPartsTxt" TextWrapping="Wrap" Style="{StaticResource ThemeDimTextStyle}"/>
+                    </StackPanel>
+                    <StackPanel x:Name="TypeSection" Grid.Row="1" Padding="16,14,16,4" Spacing="6">
                         <TextBlock Text="SHIP TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
                         <ctcontrols:WrapPanel x:Name="TypePanel" HorizontalSpacing="6" VerticalSpacing="6"/>
                     </StackPanel>
-                    <StackPanel Grid.Row="2" Padding="16,12,16,0" Spacing="6">
+                    <StackPanel x:Name="PartsSection" Grid.Row="2" Padding="16,12,16,0" Spacing="6">
                         <TextBlock Text="PARTS" Style="{StaticResource ThemeEyebrowStyle}"/>
                         <StackPanel x:Name="SlotTabs" Spacing="6"/>
                     </StackPanel>
                     <!-- Some slots offer 40+ parts: filter by name (the list itself is A-Z). -->
                     <TextBox x:Name="PartSearchBox" Grid.Row="3" Margin="16,12,16,0" PlaceholderText="Find a part"
                              TextChanged="PartSearchBox_TextChanged"/>
-                    <ScrollViewer Grid.Row="4" Margin="0,10,0,0">
+                    <ScrollViewer x:Name="PartsScroll" Grid.Row="4" Margin="0,10,0,0">
                         <ctcontrols:WrapPanel x:Name="PartsPanel" Margin="16,0,16,16" HorizontalSpacing="6" VerticalSpacing="6"/>
                     </ScrollViewer>
                 </Grid>
@@ -176,11 +181,17 @@
                                    Text="Drag to turn. Built from your game files with the parts and colours you pick."/>
                         <!-- Left: into the save (Save.cs). Right: keep it in My designs (Designs.cs). -->
                         <ctcontrols:WrapPanel Margin="0,6,0,0" HorizontalSpacing="24" VerticalSpacing="8">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
+                            <StackPanel x:Name="PaintActions" Orientation="Horizontal" Spacing="10" Visibility="Collapsed">
+                                <Button x:Name="RepaintBtn" Content="Repaint" Click="RepaintBtn_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
+                                <Button x:Name="RemovePaintBtn" Content="Remove paint..." Click="RemovePaintBtn_Click"
+                                        ToolTipService.ToolTip="Back to the colours the ship had when you found or bought it."/>
+                                <HyperlinkButton Content="Design a new ship instead" Click="ExitPaintBtn_Click" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel x:Name="DesignActions" Orientation="Horizontal" Spacing="10">
                                 <Button x:Name="AddNewBtn" Content="Add as new ship" Click="AddNewBtn_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
                                 <Button x:Name="ApplyBtn" Content="Apply to a ship..." Click="ApplyBtn_Click"/>
                             </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="10">
+                            <StackPanel x:Name="SaveActions" Orientation="Horizontal" Spacing="10">
                                 <Button x:Name="SaveDesignBtn" Content="Save design..." Click="SaveDesignBtn_Click"
                                         ToolTipService.ToolTip="Keep this design in My designs to add or apply to a ship later. Your game save isn't changed."/>
                                 <Button x:Name="SaveAsNewBtn" Content="Save as new..." Click="SaveAsNewBtn_Click" Visibility="Collapsed"
