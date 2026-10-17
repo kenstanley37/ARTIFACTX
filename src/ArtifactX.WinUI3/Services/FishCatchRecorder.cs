@@ -26,6 +26,10 @@ public static class FishCatchRecorder
     public static bool IsActive => _live is not null;
     public static event Action? ActiveChanged;
 
+    /// <summary>Every save snapshot it reads, the session's first - for other listeners
+    /// that need the player's location (PlanetPageReader).</summary>
+    public static event Action<PlanetSnapshot>? SnapshotSeen;
+
     public static void Start(DispatcherQueue dispatcher)
     {
         if (_dispatcher is not null) return;
@@ -50,9 +54,15 @@ public static class FishCatchRecorder
             if (version != _version) return;
         }
 
-        FishCatchService.Observe(FishCatchService.ActiveSaveKey(), LiveSaveWatcher.FromSession(), _fish); // starting counts
+        var first = LiveSaveWatcher.FromSession();
+        FishCatchService.Observe(FishCatchService.ActiveSaveKey(), first, _fish); // starting counts
+        SnapshotSeen?.Invoke(first);
         var live = new LiveSaveWatcher(_dispatcher);
-        live.SnapshotRead += snapshot => FishCatchService.Observe(FishCatchService.ActiveSaveKey(), snapshot, _fish);
+        live.SnapshotRead += snapshot =>
+        {
+            FishCatchService.Observe(FishCatchService.ActiveSaveKey(), snapshot, _fish);
+            SnapshotSeen?.Invoke(snapshot);
+        };
         _live = live;
         live.Start();
         ActiveChanged?.Invoke();

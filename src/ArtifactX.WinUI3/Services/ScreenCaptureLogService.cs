@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -35,6 +36,7 @@ public static class ScreenCaptureLogService
     private static byte[]? _lastThumb;
     private static int _savedSinceCheck;
     private static bool _recording;
+    private static string _lastText = "";
 
     /// <summary>Whether the player has turned recording on (this PC only).</summary>
     public static bool Enabled
@@ -56,6 +58,7 @@ public static class ScreenCaptureLogService
 
     public static void Start()
     {
+        PlanetPageReader.Start();
         GameProcessMonitorService.RunningStateChanged += (_, _) => Update();
         Update();
     }
@@ -95,11 +98,21 @@ public static class ScreenCaptureLogService
 
         using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(pixels.AsBuffer(), BitmapPixelFormat.Bgra8, w, h, BitmapAlphaMode.Ignore);
         string text = "";
+        var lines = new List<string>();
         if (OcrEngine.TryCreateFromUserProfileLanguages() is { } ocr)
         {
             var result = await ocr.RecognizeAsync(bitmap);
-            text = string.Join(Environment.NewLine, result.Lines.Select(l => l.Text));
+            lines = result.Lines.Select(l => l.Text).ToList();
+            text = string.Join(Environment.NewLine, lines);
         }
+        // Same words as the last kept screen (the cursor moved over the same list): skip it.
+        // The first log showed half the frames were such repeats (2026-10-17).
+        string words = new string(text.Where(char.IsLetter).ToArray());
+        if (words.Length > 0 && words == _lastText) return;
+        _lastText = words;
+        string? read = null;
+        try { read = await PlanetPageReader.TryReadAsync(lines); }
+        catch (Exception ex) { read = "planet page: error " + ex.Message; }
 
         var now = DateTime.Now;
         string day = Path.Combine(Folder, now.ToString("yyyy-MM-dd"));
@@ -117,9 +130,11 @@ public static class ScreenCaptureLogService
             .AppendLine($"time: {now:yyyy-MM-dd HH:mm:ss.fff}")
             .AppendLine($"window: {w}x{h}")
             .AppendLine($"save: {SaveSessionManager.ActiveLabel ?? "-"}")
+            .AppendLine($"read: {read ?? "-"}")
             .AppendLine("--- text ---")
             .AppendLine(text);
         await File.WriteAllTextAsync(Path.Combine(day, name + ".txt"), info.ToString());
+        if (read is not null) await File.AppendAllTextAsync(Path.Combine(day, "read.log"), $"{now:HH:mm:ss} {read}{Environment.NewLine}");
 
         if (++_savedSinceCheck >= 50) { _savedSinceCheck = 0; Trim(); }
     }
