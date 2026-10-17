@@ -157,9 +157,6 @@
                                                               SelectionChanged="TypeComboBox_SelectionChanged"
                                                               ToolTipService.ToolTip="The ship's model. Changing it swaps the hull you fly in-game."/>
                                                 </StackPanel>
-                                                <Button x:Name="PaintShipBtn" Content="Paint this ship..." Click="PaintShipBtn_Click" Margin="0,4,0,0"
-                                                        Visibility="Collapsed"
-                                                        ToolTipService.ToolTip="Choose a paint style and colours for this ship in the Ship Designer. Its parts and name stay as they are."/>
                                                 <Button Content="Delete this ship..." Click="DeleteShipBtn_Click" Margin="0,4,0,0"
                                                         Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
                                                         ToolTipService.ToolTip="Remove this ship from the save. You can keep it as a template first."/>
@@ -189,6 +186,16 @@
                                         <controls:ShipPreview x:Name="ShipPreviewView" Height="260"/>
                                         <TextBlock x:Name="ShipPreviewNote" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" TextWrapping="Wrap"
                                                    Text="Shape from your game files. Colours are still being checked against the game."/>
+                                        <!-- Under the ship it paints, in the amber "offer" style (the plain button
+                                             in the stats column was easy to miss, 2026-10-17). -->
+                                        <Button x:Name="PaintShipBtn" Click="PaintShipBtn_Click" Margin="0,4,0,0" Visibility="Collapsed"
+                                                Style="{StaticResource ThemeAttentionButtonStyle}"
+                                                ToolTipService.ToolTip="Choose a paint style and colours for this ship in the Ship Designer. Its parts and name stay as they are.">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <FontIcon Glyph="&#xE790;" FontSize="14"/>
+                                                <TextBlock Text="Paint this ship"/>
+                                            </StackPanel>
+                                        </Button>
                                     </StackPanel>
 
                                 </ctcontrols:WrapPanel>

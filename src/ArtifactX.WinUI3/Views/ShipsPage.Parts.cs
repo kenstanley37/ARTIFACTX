@@ -132,6 +132,9 @@ public sealed partial class ShipsPage
         // with no name are left out - every Fighter part vanished after one
         // (2026-10-15). Already-cached ids are skipped, so this is cheap.
         await CatalogService.WarmCacheAsync(_partGroups.Select(g => g.Id).Concat(_builderItemOf.Values));
+        // A newer refresh started while this one waited (switching ships fires two):
+        // let that one fill the panel, or the parts list showed twice (2026-10-17).
+        if (refresh != _previewVersion) return;
         if (_treeJson.Count == 0 || _partGroups.Count == 0)
         {
             ShipPartsPanel.Children.Add(Dim("Update your game data (Settings › Game data) to see which parts a seed gives."));
@@ -145,7 +148,8 @@ public sealed partial class ShipsPage
         if (!IsCorvetteSelected() && (root is null || hasSeed))
         {
             await EnsureLookAsync();
-            if (refresh == _previewVersion) ShowPreview(scene, hasSeed ? seed : 0, root, built);
+            if (refresh != _previewVersion) return;
+            ShowPreview(scene, hasSeed ? seed : 0, root, built);
         }
         if (root is null)
         {
