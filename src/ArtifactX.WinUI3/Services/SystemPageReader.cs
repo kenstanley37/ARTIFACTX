@@ -50,6 +50,17 @@ public static class SystemPageReader
         if (popup)
         {
             name = PopupName(lines);
+            // The arrival banner ("Ozyors-Dax System" when you warp in) lays labels and values
+            // out as two columns, read one after the other: labels first, then values.
+            if (Columns(lines) is { } cols)
+            {
+                lines = lines.Select(l => cols.TryGetValue(l, out var v) ? $"{l.TrimEnd()} {v}" : l).ToList();
+                if (name is null)
+                {
+                    int label = lines.ToList().FindIndex(l => l.Contains("Celestial Bodies", StringComparison.OrdinalIgnoreCase));
+                    if (label > 0) name = PlanetPageReader.Clean(lines[label - 1]);
+                }
+            }
             if (After(lines, "Celestial Bodies") is { } bodies && Regex.Match(bodies, @"(\d+)\s*Moon", RegexOptions.IgnoreCase) is { Success: true } m)
                 read.Moons = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
             else if (After(lines, "Celestial Bodies") is { } b2 && !b2.Contains("Moon", StringComparison.OrdinalIgnoreCase) && b2.Contains("Planet", StringComparison.OrdinalIgnoreCase))
@@ -93,8 +104,55 @@ public static class SystemPageReader
             }
         }
         if (name is not { Length: >= 3 }) return "system page: no system name";
-        if (Match(name) is not ulong system) return $"system page \"{name}\": not a system you were recently in";
+        if (Match(name) is not ulong system)
+        {
+            // Read before the save knows you've arrived (the banner shows as you warp in):
+            // held for 30 minutes and applied when the save puts you in a system of that name.
+            lock (Pending)
+            {
+                Pending.RemoveAll(p => p.Name == name || DateTime.UtcNow - p.At > TimeSpan.FromMinutes(30));
+                Pending.Add((name, read, DateTime.UtcNow));
+            }
+            return $"system page \"{name}\": not a system you were recently in - kept until the save reaches it";
+        }
+        return Apply(system, name, read);
+    }
 
+    private static readonly List<(string Name, SystemNote Read, DateTime At)> Pending = new();
+
+    /// <summary>A new save snapshot: applies held readings that now match a system.</summary>
+    public static void Start()
+    {
+        FishCatchRecorder.SnapshotSeen += _ =>
+        {
+            List<(string Name, SystemNote Read, DateTime At)> held;
+            lock (Pending) held = Pending.ToList();
+            foreach (var p in held)
+                if (Match(p.Name) is ulong system)
+                {
+                    lock (Pending) Pending.Remove(p);
+                    Apply(system, p.Name, p.Read);
+                }
+        };
+    }
+
+    /// <summary>"Celestial Bodies:" with nothing after it: the values are the lines after the
+    /// last label, in the labels' order. Returns label line -> value, or null.</summary>
+    private static Dictionary<string, string>? Columns(IReadOnlyList<string> lines)
+    {
+        string[] labels = { "Celestial Bodies", "Dominant Lifeform", "Economy", "Conflict level" };
+        var at = labels.Select(lb => lines.ToList().FindIndex(l => l.Contains(lb, StringComparison.OrdinalIgnoreCase)
+            && l[(l.IndexOf(lb, StringComparison.OrdinalIgnoreCase) + lb.Length)..].Trim().TrimStart(':', '•').Trim().Length == 0)).ToList();
+        if (at.Any(i => i < 0) || at.Zip(at.Skip(1), (a, b) => b > a).Any(ok => !ok)) return null;
+        var values = lines.Skip(at[^1] + 1).Select(l => l.Trim()).Where(l => l.Count(char.IsLetterOrDigit) >= 2).Take(4).ToList();
+        if (values.Count < 4) return null;
+        var result = new Dictionary<string, string>();
+        for (int k = 0; k < 4; k++) result[lines[at[k]]] = values[k];
+        return result;
+    }
+
+    private static string Apply(ulong system, string name, SystemNote read)
+    {
         var note = SystemNotesService.Get(system) ?? new SystemNote();
         bool changed = false;
         void Set(string value, Func<string> get, Action<string> set)
