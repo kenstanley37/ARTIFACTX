@@ -17,7 +17,7 @@ namespace ArtifactX.WinUI3.Views;
 /// - the ship entry: model (NTx.93M), a new seed in NTx.@EL and pMa.@EL, no name
 ///   of its own (NKm "", so the game names it from the seed);
 /// - its customisation entry (l:j[3 + slot], slots 6-11 at 17+): the parts by
-///   item id (SMP "^FIGHT_COCKAA"), the swatch set (FCx "^SHIP_METALLIC"), the
+///   part group (SMP "^FIGHT_COCKAA"), the swatch set (FCx "^SHIP_METALLIC"), the
 ///   style (T>1 [{@6c "^SHIP_FIGHT", =Cv "^STEALTH"}]) and all 66 palettes x 5
 ///   colours (Aak). The builder fills the slots the player doesn't pick from the
 ///   swatch set; most were the dark metal grey (0.351), which is used here for all.
@@ -162,9 +162,14 @@ public sealed partial class ShipDesignerPage
             ["VFd"] = "^",
             ["wnR"] = new JObject
             {
-                ["SMP"] = new JArray(_type!.Slots.Select(s => _parts.GetValueOrDefault(s.Id)).OfType<string>()
-                    // The reactor is a crafting input, not a look part: the game didn't store it.
-                    .Where(item => !IsReactor(item)).Select(item => (object)("^" + item)).ToArray()),
+                // The parts as part-group ids, slot by slot - not item ids. They're the same
+                // for most parts (FIGHT_COCKAA), but an Explorer's wings share item ids
+                // across sides (SCIEN_WINGE) with side groups (SCIEN_L_WINGE / SCIEN_R_WINGE):
+                // the game dropped item-id wings on load and kept only the hull (2026-10-17).
+                // A reactor has no group - a crafting input, not a look part.
+                ["SMP"] = new JArray(_type!.Slots
+                    .SelectMany(slot => slot.Items.FirstOrDefault(i => i.Item == _parts.GetValueOrDefault(slot.Id))?.Groups ?? new())
+                    .Select(group => (object)("^" + group)).ToArray()),
                 ["FCx"] = "^" + (data?.Swatches ?? "SHIP"),
                 ["Aak"] = aak,
                 ["T>1"] = styles,
@@ -173,9 +178,6 @@ public sealed partial class ShipDesignerPage
             },
         };
     }
-
-    private bool IsReactor(string item) =>
-        _type!.Slots.Any(s => s.Id.EndsWith("_CORE", StringComparison.Ordinal) && s.Items.Any(i => i.Item == item));
 
     private string? ReactorClass() =>
         _type!.Slots.Where(s => s.Id.EndsWith("_CORE", StringComparison.Ordinal))
