@@ -83,9 +83,22 @@ public static class BodyKindsService
         var list = lines.ToList();
         int mark = list.FindIndex(l => Regex.IsMatch(l, @"MARK\s*(MOON|PLANET)", RegexOptions.IgnoreCase)
             || Regex.IsMatch(l, @"Pin\s+(moon|planet)\s+location", RegexOptions.IgnoreCase));
-        if (mark < 0) return null;
-        bool moon = Regex.IsMatch(list[mark], @"MOON", RegexOptions.IgnoreCase)
-            || (mark + 1 < list.Count && Regex.IsMatch(list[mark + 1], @"Pin\s+moon", RegexOptions.IgnoreCase));
+        bool moon;
+        if (mark >= 0)
+            moon = Regex.IsMatch(list[mark], @"MOON", RegexOptions.IgnoreCase)
+                || (mark + 1 < list.Count && Regex.IsMatch(list[mark + 1], @"Pin\s+moon", RegexOptions.IgnoreCase));
+        else
+        {
+            // The Discoveries list's pop-up names the body's type right under it:
+            // "Contaminated Moon", "Verdant Planet" (2026-10-17).
+            int by0 = list.FindIndex(l => l.Contains("Discovered by", StringComparison.OrdinalIgnoreCase));
+            if (by0 < 0) return null;
+            var type = list.Skip(by0 + 1).Take(3).Select(l => l.Trim())
+                .FirstOrDefault(l => Regex.IsMatch(l, @"^[\p{L} ]{3,30}\s(Moon|Planet)$", RegexOptions.IgnoreCase));
+            if (type is null) return null;
+            moon = type.EndsWith("Moon", StringComparison.OrdinalIgnoreCase);
+            mark = by0 + 1;
+        }
         // The pop-up's name: above its "Discovered by:" line, past stray icon reads.
         int by = list.FindLastIndex(mark, l => l.Contains("Discovered by", StringComparison.OrdinalIgnoreCase));
         if (by <= 0) return "body pop-up: no name";
