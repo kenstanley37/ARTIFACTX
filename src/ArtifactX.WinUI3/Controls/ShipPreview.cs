@@ -141,6 +141,7 @@ public sealed class ShipPreview : UserControl
         var px = new uint[w * h];
         Array.Fill(px, 0x00000000u); // transparent: the card shows through
         var light = Vector3.Normalize(new Vector3(-0.35f, 0.85f, -0.4f));
+        float depthSlack = 0.002f * MathF.Max(maxX - minX, maxY - minY);
         for (int t = 0; t < colours.Length; t++)
         {
             Vector3 a = p[3 * t], b = p[3 * t + 1], c = p[3 * t + 2];
@@ -151,8 +152,10 @@ public sealed class ShipPreview : UserControl
             uint col = colours[t];
             uint argb = Shade(col, lit);
             var tex = t < textures.Length ? textures[t] : null;
-            Vector2 ta = default, tb = default, tc = default;
+            Vector2 ta = default, tb = default, tc = default, da = default, db = default, dc = default;
             if (tex is not null) { ta = mesh.Uvs[3 * t]; tb = mesh.Uvs[3 * t + 1]; tc = mesh.Uvs[3 * t + 2]; }
+            var decal = tex?.Decal is { } dt && mesh.Uvs2.Length == mesh.Corners.Length ? dt : null;
+            if (decal is not null) { da = mesh.Uvs2[3 * t]; db = mesh.Uvs2[3 * t + 1]; dc = mesh.Uvs2[3 * t + 2]; }
             float ax = w / 2f + (a.X - cx) * scale, ay = h / 2f - (a.Y - cy) * scale;
             float bx = w / 2f + (b.X - cx) * scale, by = h / 2f - (b.Y - cy) * scale;
             float qx = w / 2f + (c.X - cx) * scale, qy = h / 2f - (c.Y - cy) * scale;
@@ -171,16 +174,32 @@ public sealed class ShipPreview : UserControl
                     if (w0 < 0 || w1 < 0 || w2 < 0) continue;
                     float z = w0 * a.Z + w1 * b.Z + w2 * c.Z;
                     int i = y * w + x;
-                    if (z < zbuf[i])
+                    // A decal lies on the surface it marks, at the same depth: it wins the tie.
+                    bool overlay = tex is { Overlay: true };
+                    if (z < zbuf[i] || (overlay && z <= zbuf[i] + depthSlack))
                     {
-                        zbuf[i] = z;
-                        if (tex is null) px[i] = argb;
+                        if (tex is null) { zbuf[i] = z; px[i] = argb; }
                         else
                         {
                             // Texture coordinates wrap, as the game's samplers do.
                             float u = w0 * ta.X + w1 * tb.X + w2 * tc.X, v = w0 * ta.Y + w1 * tb.Y + w2 * tc.Y;
                             int tx = (int)((u - MathF.Floor(u)) * tex.Width) % tex.Width, ty = (int)((v - MathF.Floor(v)) * tex.Height) % tex.Height;
-                            px[i] = Shade(tex.Pixels[ty * tex.Width + tx], lit);
+                            uint texel = tex.Pixels[ty * tex.Width + tx];
+                            if (overlay && texel >> 24 < 128) continue; // see-through part of a decal
+                            if (decal is not null)
+                            {
+                                float du = w0 * da.X + w1 * db.X + w2 * dc.X, dv = w0 * da.Y + w1 * db.Y + w2 * dc.Y;
+                                int dx = (int)((du - MathF.Floor(du)) * decal.Width) % decal.Width, dy = (int)((dv - MathF.Floor(dv)) * decal.Height) % decal.Height;
+                                uint d = decal.Pixels[dy * decal.Width + dx];
+                                float da2 = (d >> 24) / 255f;
+                                if (da2 > 0)
+                                {
+                                    uint Mix(int shift) => (uint)(((texel >> shift) & 0xFF) * (1 - da2) + ((d >> shift) & 0xFF) * da2) << shift;
+                                    texel = (texel & 0xFF000000u) | Mix(16) | Mix(8) | Mix(0);
+                                }
+                            }
+                            zbuf[i] = MathF.Min(z, zbuf[i]);
+                            px[i] = Shade(texel, lit);
                         }
                     }
                 }

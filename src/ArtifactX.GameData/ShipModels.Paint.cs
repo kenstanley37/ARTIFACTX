@@ -5,8 +5,14 @@ using Pfim;
 
 namespace ArtifactX.GameData;
 
-/// <summary>A small RGB texture for the 3D preview: 0xRRGGBB per pixel, row by row.</summary>
-public sealed record ModelTexture(int Width, int Height, uint[] Pixels);
+/// <summary>A small texture for the 3D preview: 0xAARRGGBB per pixel, row by row.
+/// <paramref name="Overlay"/>: see-through where alpha is low (decals such as stripes),
+/// drawn over the surface it lies on.</summary>
+public sealed record ModelTexture(int Width, int Height, uint[] Pixels, bool Overlay = false)
+{
+    /// <summary>A decal sheet laid over this texture, read with the second texture coordinates.</summary>
+    public ModelTexture? Decal { get; init; }
+}
 
 /// <summary>
 /// Paints a model's surfaces the way the game does (2026-10-16): a material's
@@ -32,12 +38,15 @@ public sealed partial class ShipModels
     {
         if (Decode(material) is not TkMaterialData data) return null;
         var samplers = data.Samplers ?? new();
-        foreach (var sampler in samplers)
+        TkProceduralTextureList? ListIn(string slot) =>
+            samplers.FirstOrDefault(s => (s.Name?.Value ?? "") == slot)?.Map?.Value is { Length: > 0 } map
+                ? Decode(Extension.Replace(map.Replace('\\', '/'), "") + ".TEXTURE.MBIN") as TkProceduralTextureList : null;
+        // The main paint (gDiffuseMap); a decal material lays a second sheet over it
+        // (gDiffuse2Map - the stripes along a tool's top, 2026-10-16).
+        if (ListIn("gDiffuseMap") is { } main && Layered(main, colour, size, textureSeed) is { } painted)
         {
-            string map = (sampler.Map?.Value ?? "").Replace('\\', '/');
-            if (map.Length == 0) continue;
-            if (Decode(Extension.Replace(map, "") + ".TEXTURE.MBIN") is TkProceduralTextureList list)
-                return Layered(list, colour, size, textureSeed);
+            return ListIn("gDiffuse2Map") is { } decal && Layered(decal, colour, size, textureSeed) is { } over
+                ? painted with { Decal = over } : painted;
         }
         // No layers: the plain diffuse image.
         var diffuse = samplers.FirstOrDefault(s => (s.Name?.Value ?? "") == "gDiffuseMap")?.Map?.Value;
@@ -52,11 +61,14 @@ public sealed partial class ShipModels
         var layers = picked.AsEnumerable().Reverse().ToList();
         if (layers.Count == 0) return null;
         var acc = new float[size * size * 3];
+        var cover = new float[size * size];
+        // A list with a BASE layer covers its whole surface; one without (decal sheets) only where its images do.
+        bool hasBase = layers.Any(l => (l.Item1.Name?.Value ?? "") == "BASE");
         bool any = false;
         foreach (var (layer, texture) in layers)
         {
             if (Image(texture.TextureName?.Value ?? "") is not { } img) continue;
-            bool isBase = !any;
+            bool isBase = hasBase && !any;
             var tint = colour(texture.Palette.Palette.ToString(), texture.Palette.ColourAlt.ToString());
             // A Rock layer marked "None" is still tinted with Rock's first colour in game:
             // untinted, Hidden Oboya's front frame came out light grey instead of near black.
@@ -84,14 +96,16 @@ public sealed partial class ShipModels
                         float v = tint is null ? (c == 0 ? r : c == 1 ? g : b) : Math.Min(1f, tc * lum * 2f);
                         acc[o + c] = acc[o + c] * (1 - a) + v * a;
                     }
+                    cover[y * size + x] = cover[y * size + x] * (1 - a) + a;
                 }
             any = true;
         }
         if (!any) return null;
         var px = new uint[size * size];
         for (int i = 0; i < px.Length; i++)
-            px[i] = (uint)(acc[i * 3] * 255) << 16 | (uint)(acc[i * 3 + 1] * 255) << 8 | (uint)(acc[i * 3 + 2] * 255);
-        return new ModelTexture(size, size, px);
+            px[i] = (uint)(Math.Clamp(cover[i], 0f, 1f) * 255) << 24
+                | (uint)(acc[i * 3] * 255) << 16 | (uint)(acc[i * 3 + 1] * 255) << 8 | (uint)(acc[i * 3 + 2] * 255);
+        return new ModelTexture(size, size, px, Overlay: !hasBase);
     }
 
     /// <summary>The layers a seed paints and the option it picks for each, in file
@@ -150,7 +164,7 @@ public sealed partial class ShipModels
             {
                 int k = ((y * img.H / size) * img.W + x * img.W / size) * 4;
                 var (r, g, b) = map(img.Rgba[k], img.Rgba[k + 1], img.Rgba[k + 2], img.Rgba[k + 3]);
-                px[y * size + x] = (uint)r << 16 | (uint)g << 8 | b;
+                px[y * size + x] = 0xFF000000u | (uint)r << 16 | (uint)g << 8 | b;
             }
         return new ModelTexture(size, size, px);
     }
