@@ -102,6 +102,19 @@
                                 <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                            Text="Planet types, rings and your discoveries come from your save. Names, star colour, race, economy, wealth and conflict come from the game's own generator - the same formula the game uses, right about 99% of the time. Your notes below win if you record something different. Weather and resources aren't covered."/>
                             </StackPanel>
+
+                            <!-- The system at a glance, laid out like the game's Discoveries pop-up
+                                 (2026-10-17, the user's request: the facts line was hard to scan). -->
+                            <Border x:Name="SystemDataBox" MinWidth="320" VerticalAlignment="Top" Padding="18,14,18,16"
+                                    CornerRadius="{ThemeResource ThemeCardCornerRadius}" Background="{ThemeResource ThemeVoidBrush}"
+                                    BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="SYSTEM DATA" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <StackPanel x:Name="SystemDataPanel" Spacing="6"/>
+                                    <TextBlock x:Name="SystemDataNoteTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" TextWrapping="Wrap" MaxWidth="320"
+                                               Text="Gold: as the game showed it. Grey: worked out by ArtifactX - open the system in the game's Discoveries or Galaxy Map with screen recording on, or type it in your notes below."/>
+                                </StackPanel>
+                            </Border>
                         </ctcontrols:WrapPanel>
 
                         <!-- Player-entered notes (SystemNotesService) - saved in ArtifactX's own

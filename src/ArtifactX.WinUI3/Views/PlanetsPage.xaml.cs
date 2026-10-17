@@ -462,6 +462,7 @@ public sealed partial class PlanetsPage : Page
             SystemGlyphsPanel.Children.Add(GlyphTile(glyph, 28));
 
         DrawSystem(planets, currentPlanet, note);
+        BuildSystemData(system, note);
 
         NoSystemPlanetsTxt.Visibility = planets.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         AnyFishPanel.Visibility = Visibility.Collapsed; // each card counts every fish it can have now
@@ -764,6 +765,40 @@ public sealed partial class PlanetsPage : Page
 
     /// <summary>"2 / 6 fauna · 0 flora · 0 minerals": fauna out of how many kinds the planet
     /// has, when its Discoveries page said (game screen recording or typed in).</summary>
+    /// <summary>The SYSTEM DATA box: the game's own pop-up lines, with what the game showed
+    /// (system notes - read off the screen or typed in) in gold and the generator's answer
+    /// in grey where nothing was recorded.</summary>
+    private void BuildSystemData(ulong system, SystemNote? note)
+    {
+        SystemDataPanel.Children.Clear();
+        var f = UniverseInfo.For(system);
+        void Row(string label, string? recorded, string estimate)
+        {
+            bool known = !string.IsNullOrEmpty(recorded);
+            var line = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 15 };
+            line.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = label + ": ", Foreground = ThemeBrush("ThemeTextBrush") });
+            line.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run
+            {
+                Text = known ? recorded! : estimate,
+                Foreground = ThemeBrush(known ? "ThemeWarningBrush" : "ThemeTextDimBrush"),
+            });
+            SystemDataPanel.Children.Add(line);
+        }
+        int galaxy = S.GalaxyNumber(system);
+        Row("Galaxy", NmsGalaxyNames.ForNumber(galaxy) is { } g ? $"{g} Galaxy" : $"Galaxy {galaxy}", "");
+        string bodies(int planets, int moons) => $"{planets} Planet{(planets == 1 ? "" : "s")} // {moons} Moon{(moons == 1 ? "" : "s")}";
+        int total = f.PlanetCount + f.MoonCount;
+        Row("Celestial Bodies", note?.Moons is int m ? bodies(total - m, m) : null, bodies(f.PlanetCount, f.MoonCount));
+        Row("Dominant Lifeform", note?.Race is { Length: > 0 } r ? r : null, f.RaceLabel);
+        string? economy = note?.Economy is { Length: > 0 } e ? (note.Wealth is { Length: > 0 } w ? $"{e} // {w}" : e) : null;
+        Row("Economy", economy, f.Uncharted ? "None" : $"{f.EconomyLabel} // {f.WealthLabel}");
+        Row("Conflict level", note?.Conflict is { Length: > 0 } c ? c : null, f.Uncharted ? "None" : f.ConflictLabel);
+        Row("Star", note?.StarClass is { Length: > 0 } cls ? $"{cls} ({note.StarColour})" : note?.StarColour is { Length: > 0 } sc ? sc : null, f.StarLabel);
+        if (note?.Water == true) Row("Water", "Yes", "");
+        if (note?.Dissonant == true) Row("Dissonance", "Detected", "");
+        if (f.Pirate) Row("Pirates", null, "Pirate-controlled");
+    }
+
     private static string DiscoveredText(PlanetDiscoveryCounts? tally, ulong address)
     {
         var t = tally ?? new PlanetDiscoveryCounts(0, 0, 0);
@@ -1044,6 +1079,7 @@ public sealed partial class PlanetsPage : Page
             Ships = CheckedShips(),
         });
         ApplySystemNotesCollapsed();
+        BuildSystemData(system, SystemNotesService.Get(system));
         RefreshNoteFilters();
         ApplyFilters();
     }
