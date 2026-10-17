@@ -282,6 +282,7 @@ public sealed partial class SettingsPage : Page
             FindsService.Reload();
             PlanetWaterService.Reload();
             PlanetDetailsService.Reload();
+            BodyKindsService.Reload();
             FishCatchService.Reload();
             GuidesService.Reload();
             HiddenStationsService.Reload();

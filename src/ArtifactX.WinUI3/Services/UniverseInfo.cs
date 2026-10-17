@@ -84,6 +84,15 @@ public static class UniverseInfo
             a.Economy, a.Wealth, a.Conflict, a.Race, a.Uncharted, a.Abandoned, a.Pirate, bodies.PlanetCount, bodies.MoonCount);
     });
 
+    private static readonly ConcurrentDictionary<ulong, ArtifactX.Core.Universe.SystemBodies> BodiesCache = new();
+
+    /// <summary>The generator's bodies for the system an address is in (which are moons, and of what).</summary>
+    public static ArtifactX.Core.Universe.SystemBodies Bodies(ulong address) => BodiesCache.GetOrAdd(SystemKey(address), key =>
+    {
+        var (code, galaxy) = Generator(key);
+        return SystemGenerator.Bodies(code, galaxy);
+    });
+
     /// <summary>The system's name: the one the save recorded or the player typed, else the generated one.</summary>
     public static string SystemName(ulong address) =>
         SystemNotesService.Get(SystemKey(address))?.SystemName is { Length: > 0 } recorded ? recorded : For(address).GeneratedName;

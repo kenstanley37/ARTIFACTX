@@ -225,6 +225,9 @@ public static class PlanetPageReader
         return systems;
     }
 
+    /// <summary>The body (planet or moon) a name points to in a recently visited system.</summary>
+    internal static (ulong System, int Planet, string Name)? MatchBody(string name) => Match(new[] { name });
+
     /// <summary>The planet the best of several readings of its name points to.</summary>
     private static (ulong System, int Planet, string Name)? Match(IReadOnlyList<string> titles)
     {

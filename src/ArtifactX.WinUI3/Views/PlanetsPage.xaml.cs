@@ -73,6 +73,7 @@ public sealed partial class PlanetsPage : Page
         PlanetDetailsService.Captured += OnDetailsCaptured;
         SystemPageReader.Captured += OnSystemCaptured;
         ScreenCaptureLogService.SystemPictureSaved += OnSystemPictureSaved;
+        BodyKindsService.Captured += OnSystemCaptured;
         Unloaded += Page_Unloaded;
         JumpPlanner.RangeChanged += ApplyFilters;
         _ = LoadPageAsync();
@@ -109,6 +110,7 @@ public sealed partial class PlanetsPage : Page
         PlanetDetailsService.Captured -= OnDetailsCaptured;
         SystemPageReader.Captured -= OnSystemCaptured;
         ScreenCaptureLogService.SystemPictureSaved -= OnSystemPictureSaved;
+        BodyKindsService.Captured -= OnSystemCaptured;
         JumpPlanner.RangeChanged -= ApplyFilters;
         StopOrbitAnimations();
         StopWatching();
@@ -443,12 +445,12 @@ public sealed partial class PlanetsPage : Page
 
         var planets = _thisSave.Where(p => p.SystemAddress == system).OrderBy(p => p.PlanetIndex).ToList();
         var note = SystemNotesService.Get(system);
-        int moonCount = planets.Count(p => note?.IsMoon(p.PlanetIndex) == true);
+        int moonCount = planets.Count(p => BodyKindsService.IsMoon(system, p.PlanetIndex));
         string bodies = moonCount > 0
             ? $"{planets.Count - moonCount} planet{(planets.Count - moonCount == 1 ? "" : "s")} · {moonCount} moon{(moonCount == 1 ? "" : "s")}"
             : $"{planets.Count} known planet{(planets.Count == 1 ? "" : "s")}";
         string where = currentPlanet == 0 ? "you're in space"
-            : note?.IsMoon(currentPlanet) == true ? "you're on a moon"
+            : BodyKindsService.IsMoon(system, currentPlanet) ? "you're on a moon"
             : $"you're on planet {currentPlanet}";
         string galaxyText = $"{NmsGalaxyNames.ForNumber(galaxy) ?? "Galaxy"} ({galaxy})";
         SystemSubTxt.Text = planets.Count == 0 ? $"{galaxyText} · no planets discovered here yet" : $"{galaxyText} · {bodies} · {where}";
@@ -473,7 +475,7 @@ public sealed partial class PlanetsPage : Page
         {
             counts.TryGetValue(planet.Address, out var tally);
             CurrentPlanetsPanel.Children.Add(BuildPlanetTile(planet, tally, ReadPlanetStats(planet.Address), planet.PlanetIndex == currentPlanet,
-                note?.IsMoon(planet.PlanetIndex) == true));
+                BodyKindsService.IsMoon(system, planet.PlanetIndex)));
         }
     }
 
@@ -482,11 +484,16 @@ public sealed partial class PlanetsPage : Page
     /// effects" setting is off.</summary>
     private void DrawSystem(List<KnownPlanet> allBodies, int currentPlanet, SystemNote? note)
     {
-        // Moons orbit planet 1 (see SystemNote.IsMoon) rather than the star -
-        // unless planet 1 isn't known yet, then they're drawn like planets.
-        var hostPlanet = allBodies.FirstOrDefault(p => p.PlanetIndex == 1);
-        var moons = hostPlanet is null ? new List<KnownPlanet>() : allBodies.Where(p => note?.IsMoon(p.PlanetIndex) == true).ToList();
-        var planets = allBodies.Except(moons).ToList();
+        // Moons orbit their own planet (BodyKindsService) rather than the star - unless
+        // that planet isn't known yet, then they're drawn like planets.
+        ulong system = allBodies.FirstOrDefault()?.SystemAddress ?? 0;
+        var moonsOf = allBodies
+            .Select(p => (Moon: p, Host: BodyKindsService.Host(system, p.PlanetIndex)))
+            .Where(m => m.Host != 0)
+            .Select(m => (m.Moon, Host: allBodies.FirstOrDefault(p => p.PlanetIndex == (m.Host > 0 ? m.Host : 1))))
+            .Where(m => m.Host is not null && m.Host != m.Moon)
+            .GroupBy(m => m.Host!).ToDictionary(g => g.Key, g => g.Select(m => m.Moon).ToList());
+        var planets = allBodies.Except(moonsOf.Values.SelectMany(m => m)).ToList();
         const double centre = 180;
         bool animate = new Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
 
@@ -523,7 +530,7 @@ public sealed partial class PlanetsPage : Page
 
             double size = here ? 22 : 16;
             FrameworkElement body = PlanetDrawing(planet, size, here);
-            if (planet == hostPlanet && moons.Count > 0)
+            if (moonsOf.TryGetValue(planet, out var moons))
                 body = WithMoons((Grid)body, moons, currentPlanet, animate);
 
             // The arm spins around the star; the body counter-spins so its ring keeps its tilt.
@@ -1908,7 +1915,7 @@ public sealed partial class PlanetsPage : Page
         drawing.VerticalAlignment = VerticalAlignment.Center;
         header.Children.Add(drawing);
         var titles = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
-        bool isMoon = SystemNotesService.Get(planet.SystemAddress)?.IsMoon(planet.PlanetIndex) == true;
+        bool isMoon = BodyKindsService.IsMoon(planet.SystemAddress, planet.PlanetIndex);
         titles.Children.Add(new TextBlock
         {
             Text = $"{(isMoon ? "MOON" : $"PLANET {planet.PlanetIndex}")} OF {UniverseInfo.SystemName(planet.SystemAddress).ToUpperInvariant()}",
@@ -2222,8 +2229,8 @@ public sealed partial class PlanetsPage : Page
             .Where(p => search.Length == 0 || SearchText(p).Contains(search, StringComparison.CurrentCultureIgnoreCase))
             .Where(p => bodies switch
             {
-                1 => SystemNotesService.Get(p.SystemAddress)?.IsMoon(p.PlanetIndex) != true,
-                2 => SystemNotesService.Get(p.SystemAddress)?.IsMoon(p.PlanetIndex) == true,
+                1 => !BodyKindsService.IsMoon(p.SystemAddress, p.PlanetIndex),
+                2 => BodyKindsService.IsMoon(p.SystemAddress, p.PlanetIndex),
                 _ => true,
             })
             .Select(p => (Planet: p, Distance: _currentSystem is ulong here ? NmsPlanets.DistanceLightYears(here, p.SystemAddress) : null));
@@ -2277,7 +2284,7 @@ public sealed partial class PlanetsPage : Page
     private static string BodyLabel(KnownPlanet planet)
     {
         var note = SystemNotesService.Get(planet.SystemAddress);
-        string body = note?.IsMoon(planet.PlanetIndex) == true ? "moon" : $"planet {planet.PlanetIndex}";
+        string body = BodyKindsService.IsMoon(planet.SystemAddress, planet.PlanetIndex) ? "moon" : $"planet {planet.PlanetIndex}";
         return $"{body} of {UniverseInfo.SystemName(planet.SystemAddress)}";
     }
 

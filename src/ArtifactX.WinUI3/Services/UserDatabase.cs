@@ -360,6 +360,23 @@ public static class UserDatabase
         """
         ALTER TABLE planet_details ADD COLUMN fauna_total INTEGER NULL;
         """,
+
+        // 15 - planet or moon, as the game's own pop-up said it (MARK MOON / MARK PLANET),
+        // read by game screen recording (2026-10-17; BodyKindsService).
+        """
+        CREATE TABLE body_kinds (
+            system_address TEXT NOT NULL,
+            planet_index   INTEGER NOT NULL,
+            is_moon        INTEGER NOT NULL,
+            updated_at     TEXT NOT NULL,
+            source         TEXT NOT NULL DEFAULT 'captured',
+            synced_at      TEXT NULL,
+            deleted        INTEGER NOT NULL DEFAULT 0,
+            profile_id     TEXT NOT NULL DEFAULT '',
+            added_by       TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (system_address, planet_index)
+        );
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;

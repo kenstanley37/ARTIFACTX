@@ -48,6 +48,8 @@ public sealed class SystemNote
     /// checked against 4 real systems (2026-10-11) moons are always the bodies
     /// right after planet 1: one moon = planet 2, two moons = planets 2 and 3.
     /// So with the player's recorded moon count, planets 2..(1 + Moons) are moons.</summary>
+    /// <remarks>Superseded by <see cref="BodyKindsService.IsMoon"/> (generator + what the
+    /// game showed); kept as its last fallback.</remarks>
     public bool IsMoon(int planetIndex) => Moons is int moons && planetIndex >= 2 && planetIndex <= 1 + moons;
 }
 

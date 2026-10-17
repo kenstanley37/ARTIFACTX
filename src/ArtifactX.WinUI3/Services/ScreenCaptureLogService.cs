@@ -115,6 +115,11 @@ public static class ScreenCaptureLogService
         catch (Exception ex) { read = "planet page: error " + ex.Message; }
         try
         {
+            if (BodyKindsService.TryRead(lines) is { } body) read = (read is null ? "" : read + " | ") + body;
+        }
+        catch (Exception ex) { read = (read is null ? "" : read + " | ") + "body pop-up: error " + ex.Message; }
+        try
+        {
             if (SystemPageReader.SystemView(lines) is ulong viewed && await SaveSystemPictureAsync(viewed, pixels, w, h))
                 read = (read is null ? "" : read + " | ") + $"system picture saved for {UniverseInfo.SystemName(viewed)}";
         }
