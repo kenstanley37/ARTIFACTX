@@ -199,6 +199,7 @@ public sealed partial class ShipsPage : Page
             _ships = new();
             _selectedIndex = -1;
             ShipSelectorPanel.Children.Clear();
+            ShipSlotsTxt.Text = "";
             TechGrid.ViewModel = null;
             TechGrid.Refresh();
             CargoGrid.ViewModel = null;
@@ -336,6 +337,26 @@ public sealed partial class ShipsPage : Page
 
         foreach (var gone in LiveItemsService.Gone(LiveCollection.Ships))
             ShipSelectorPanel.Children.Add(LiveItemVisuals.Gone(gone));
+
+        // Empty slots as faint placeholders, so how much room is left shows at a glance.
+        int total = NewFromTemplateService.ShipSlotCount, free = NewFromTemplateService.FreeShipSlots;
+        ShipSlotsTxt.Text = total > 0 ? $"{total - free} OF {total} SLOTS USED" : "";
+        for (int i = 0; i < free; i++)
+        {
+            var empty = new Button
+            {
+                Content = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal, Spacing = 6,
+                    Children = { new FontIcon { Glyph = "\uE710", FontSize = 11 }, new TextBlock { Text = "Empty slot" } },
+                },
+                Padding = new Thickness(12, 6, 12, 6), Opacity = 0.55,
+                Background = new SolidColorBrush(Colors.Transparent),
+            };
+            ToolTipService.SetToolTip(empty, "An empty starship slot. Design a ship for it in the Ship Designer, or use a Full Build template's Add as new.");
+            empty.Click += (_, _) => Frame.Navigate(typeof(ShipDesignerPage));
+            ShipSelectorPanel.Children.Add(empty);
+        }
     }
 
     /// <summary>Selected state bolds the name; game-active state adds a small

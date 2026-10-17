@@ -58,6 +58,7 @@ public sealed partial class ShipDesignerPage : Page
         InitializeComponent();
         GameProcessMonitorService.RunningStateChanged += OnGameRunningStateChanged;
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
+        SaveSessionManager.PendingEditsChanged += OnActiveSessionChanged; // slots used change with Add
         Unloaded += Page_Unloaded;
         UpdateWriteButtons();
     }
@@ -72,6 +73,7 @@ public sealed partial class ShipDesignerPage : Page
     {
         GameProcessMonitorService.RunningStateChanged -= OnGameRunningStateChanged;
         SaveSessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
+        SaveSessionManager.PendingEditsChanged -= OnActiveSessionChanged;
     }
 
     /// <summary>Add and Apply only stage edits, but edits staged while the game runs
@@ -82,6 +84,12 @@ public sealed partial class ShipDesignerPage : Page
         bool gameRunning = GameProcessMonitorService.IsGameRunning;
         bool saveLoaded = SaveSessionManager.IsSaveLoaded;
         AddNewBtn.IsEnabled = ApplyBtn.IsEnabled = RepaintBtn.IsEnabled = RemovePaintBtn.IsEnabled = saveLoaded && !gameRunning;
+        // Free starship slots, said before Add rather than after (2026-10-17).
+        int total = NewFromTemplateService.ShipSlotCount, free = NewFromTemplateService.FreeShipSlots;
+        ShipSlotsTxt.Text = !saveLoaded || total == 0 ? ""
+            : free == 0 ? $"All {total} starship slots are in use"
+            : $"{free} of {total} starship slot{(total == 1 ? "" : "s")} free";
+        if (saveLoaded && free == 0) AddNewBtn.IsEnabled = false;
         string what = _paintShip is null ? "add or apply a design" : "repaint the ship";
         WriteBlockedTxt.Text = gameRunning ? $"Close No Man's Sky to {what}. You can keep choosing meanwhile."
             : !saveLoaded ? $"Load a save to {what}."

@@ -77,7 +77,12 @@
                     <Border Style="{StaticResource ThemeCardStyle}">
                         <StackPanel>
                             <Border Style="{StaticResource ThemeBandStyle}">
-                                <TextBlock Text="OWNED STARSHIPS" Style="{StaticResource ThemeBandTextStyle}"/>
+                                <Grid>
+                                    <TextBlock Text="OWNED STARSHIPS" Style="{StaticResource ThemeBandTextStyle}"/>
+                                    <!-- "7 OF 12 SLOTS USED" (2026-10-17, the user's idea). -->
+                                    <TextBlock x:Name="ShipSlotsTxt" Style="{StaticResource ThemeBandTextStyle}" Opacity="0.75"
+                                               HorizontalAlignment="Right"/>
+                                </Grid>
                             </Border>
                             <!-- Bounded/scrollable so a save with many ships stays usable. -->
                             <ScrollViewer MaxHeight="120" Padding="18,14,18,16" VerticalScrollBarVisibility="Auto"
