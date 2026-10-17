@@ -23,7 +23,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Starships: the name box selects the whole name when you click it, and **Save** appears as you type, without leaving the box.
 - The reload notice says that reloading discards your unsaved changes.
 - Ship Designer: Add, Apply and Repaint wait until No Man's Sky is closed, so changes can't be lost to the game's autosave.
-- Starships shows how many of your starship slots are used, with the empty ones as placeholders (click one to open the Ship Designer). The Ship Designer says how many slots are free before you add a ship.
+- Starships shows how many of your starship slots are used, with the empty ones as placeholders (click one to open the Ship Designer). The Ship Designer shows how many empty slots you have before you add a ship.
 - The Ship Designer works in narrower windows: the layout rearranges and the page scrolls.
 
 ### Fixed

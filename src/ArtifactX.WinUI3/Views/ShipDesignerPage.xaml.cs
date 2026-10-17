@@ -86,14 +86,15 @@ public sealed partial class ShipDesignerPage : Page
         AddNewBtn.IsEnabled = ApplyBtn.IsEnabled = RepaintBtn.IsEnabled = RemovePaintBtn.IsEnabled = saveLoaded && !gameRunning;
         // Free starship slots, said before Add rather than after (2026-10-17).
         int total = NewFromTemplateService.ShipSlotCount, free = NewFromTemplateService.FreeShipSlots;
-        ShipSlotsTxt.Text = free == 0 ? $"All {total} starship slots in use"
-            : $"{free} of {total} starship slot{(total == 1 ? "" : "s")} free";
+        // "5 empty starship slots", not "5 of 12 free" - that read as 5 used (2026-10-17).
+        ShipSlotsTxt.Text = free == 0 ? "No empty starship slots"
+            : $"{free} empty starship slot{(free == 1 ? "" : "s")}";
         ShipSlotsBadge.Visibility = saveLoaded && total > 0 && _paintShip is null ? Visibility.Visible : Visibility.Collapsed;
         var badgeBrush = ThemeResources.Brush(free == 0 ? "ThemeWarningBrush" : "ThemeAccentBrush");
         ShipSlotsBadge.BorderBrush = ShipSlotsIcon.Foreground = ShipSlotsTxt.Foreground = badgeBrush;
-        ToolTipService.SetToolTip(ShipSlotsBadge, free == 0
+        ToolTipService.SetToolTip(ShipSlotsBadge, $"{total - free} of {total} starship slots used. " + (free == 0
             ? "Sell or scrap a ship in game, or delete one on the Starships page, to add another."
-            : "Add as new ship puts the design in the first free slot.");
+            : "Add as new ship puts the design in the first empty slot."));
         if (saveLoaded && free == 0) AddNewBtn.IsEnabled = false;
         string what = _paintShip is null ? "add or apply a design" : "repaint the ship";
         WriteBlockedTxt.Text = gameRunning ? $"Close No Man's Sky to {what}. You can keep choosing meanwhile."
