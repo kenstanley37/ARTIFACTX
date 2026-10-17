@@ -133,6 +133,8 @@ public sealed partial class ShipDesignerPage : Page
 
     private void SelectType(BuilderType type)
     {
+        // Another ship type is another ship: a new design, not the saved one changed.
+        if (_designId is not null && type != _type) SetDesign(null);
         _type = type;
         _parts.Clear();
         foreach (var slot in type.Slots)
@@ -357,12 +359,14 @@ public sealed partial class ShipDesignerPage : Page
     {
         _seed = NewSeed();
         RefreshName();
+        UpdateDesignState();
     }
 
     private async void RefreshPreview()
     {
         int version = ++_previewVersion;
         _previewReady = false;
+        UpdateDesignState();
         if (_type is null || GameDataService.Game is not { } game) return;
         PreviewNote.Text = "Building the model from your game files...";
         var models = await ModelPreviewService.ModelsAsync(game);

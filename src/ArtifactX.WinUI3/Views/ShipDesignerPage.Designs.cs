@@ -30,7 +30,9 @@ public sealed partial class ShipDesignerPage
 {
     private const int ThumbWidth = 288, ThumbHeight = 180; // drawn at 2x the card's 144 x 90
 
-    // The saved design being edited, if one was saved or loaded.
+    // The saved design being edited, if one was saved or loaded: as saved, to tell
+    // whether it has unsaved changes.
+    private ShipDesign? _editing;
     private string? _designId;
     private string _designName = "";
     private string _designCreated = "";
@@ -273,13 +275,43 @@ public sealed partial class ShipDesignerPage
             await Message("Some parts have changed", "Your game data no longer has everything this design used, so those choices are back to the default. Save the design again to keep it this way.");
     }
 
+    private void NewDesignBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_type is null) return;
+        SetDesign(null);
+        _seed = NewSeed();
+        SelectType(_type);
+    }
+
+    /// <summary>Says whether this is a new design or a saved one being edited, and
+    /// whether that one has changed since it was saved.</summary>
+    private void UpdateDesignState()
+    {
+        if (_editing is not { } saved || _type is null)
+        {
+            DesignNameTxt.Text = "New design · not saved yet";
+            NewDesignBtn.Visibility = Visibility.Collapsed;
+            SaveDesignBtn.Content = "Save design";
+            return;
+        }
+        var now = CurrentDesign(saved.Id, saved.Name, saved.CreatedAt);
+        bool changed = now.Type != saved.Type || now.Style != saved.Style || now.Seed != saved.Seed
+            || !SameEntries(now.Parts, saved.Parts) || !SameEntries(now.Colours, saved.Colours);
+        DesignNameTxt.Text = $"Editing: {saved.Name}" + (changed ? " · unsaved changes" : "");
+        NewDesignBtn.Visibility = Visibility.Visible;
+        SaveDesignBtn.Content = changed ? "Save changes" : "Save design";
+    }
+
+    private static bool SameEntries<T>(Dictionary<string, T> a, Dictionary<string, T> b) =>
+        a.Count == b.Count && a.All(kv => b.TryGetValue(kv.Key, out var v) && Equals(v, kv.Value));
+
     private void SetDesign(ShipDesign? design)
     {
+        _editing = design;
         _designId = design?.Id;
         _designName = design?.Name ?? "";
         _designCreated = design?.CreatedAt ?? "";
-        DesignNameTxt.Text = design is null ? "" : $"Saved design: {design.Name}";
-        DesignNameTxt.Visibility = design is null ? Visibility.Collapsed : Visibility.Visible;
+        UpdateDesignState();
         // Highlight the loaded design's card.
         foreach (var card in DesignsPanel.Children.OfType<Grid>().Select(g => g.Children.OfType<Button>().FirstOrDefault()).OfType<Button>())
             ThemeResources.StyleChoiceButton(card, card.Tag is string id && id == design?.Id);

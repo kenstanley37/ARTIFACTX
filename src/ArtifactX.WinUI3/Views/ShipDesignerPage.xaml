@@ -158,7 +158,14 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock x:Name="ShipNameTxt" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                            <TextBlock x:Name="DesignNameTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Visibility="Collapsed"/>
+                            <!-- New or editing a saved design, always said (2026-10-17: a loaded design
+                                 stayed highlighted after the player moved on to a new ship). -->
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <TextBlock x:Name="DesignNameTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center"/>
+                                <HyperlinkButton x:Name="NewDesignBtn" Content="New design" FontSize="12" Padding="0" Visibility="Collapsed"
+                                                 Click="NewDesignBtn_Click"
+                                                 ToolTipService.ToolTip="Start a new design. The saved one stays as it was saved."/>
+                            </StackPanel>
                         </StackPanel>
                         <Button Grid.Column="1" x:Name="NewNameBtn" Content="New name" Click="NewNameBtn_Click"
                                 ToolTipService.ToolTip="The game names a built ship from a random number - pick another to get another name."/>
