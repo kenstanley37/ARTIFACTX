@@ -111,7 +111,7 @@ public static class ScreenCaptureLogService
         if (words.Length > 0 && words == _lastText) return;
         _lastText = words;
         string? read = null;
-        try { read = await PlanetPageReader.TryReadAsync(lines, () => ReadTitleAsync(pixels, w, h)); }
+        try { read = await PlanetPageReader.TryReadAsync(lines, () => ReadTitleAsync(pixels, w, h)) ?? await SystemPageReader.TryReadAsync(lines); }
         catch (Exception ex) { read = "planet page: error " + ex.Message; }
 
         var now = DateTime.Now;

@@ -186,6 +186,7 @@ public sealed partial class SettingsPage : Page
         long bytes = ScreenCaptureLogService.SizeOnDisk();
         CaptureLogStatusTxt.Text = (bytes == 0 ? "No recordings yet." : $"Recordings use {bytes / 1048576.0:0.#} MB (the oldest are removed past 1 GB).")
             + (PlanetPageReader.Filled > 0 ? $" {PlanetPageReader.Filled} planet{(PlanetPageReader.Filled == 1 ? "" : "s")} filled in from their Discoveries page this session." : "")
+            + (SystemPageReader.Filled > 0 ? $" {SystemPageReader.Filled} system{(SystemPageReader.Filled == 1 ? "" : "s")} filled in from the game's system screens." : "")
             + (ScreenCaptureLogService.Enabled && !GameProcessMonitorService.IsGameRunning ? " Recording starts when you start No Man's Sky." : "");
     }
 

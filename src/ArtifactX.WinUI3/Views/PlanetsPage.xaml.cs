@@ -71,6 +71,7 @@ public sealed partial class PlanetsPage : Page
         SetLiveHelpVisible(!AppSettingsService.GetFlag(LiveHelpHiddenKey));
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         PlanetDetailsService.Captured += OnDetailsCaptured;
+        SystemPageReader.Captured += OnSystemCaptured;
         Unloaded += Page_Unloaded;
         JumpPlanner.RangeChanged += ApplyFilters;
         _ = LoadPageAsync();
@@ -86,6 +87,18 @@ public sealed partial class PlanetsPage : Page
         RefreshFinder();
     });
 
+    /// <summary>The current system's notes were read off a game screen: show them, keeping
+    /// anything half-typed in the new-note box.</summary>
+    private void OnSystemCaptured(ulong system) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_snapshot is null || system != _currentSystem) { RefreshFinder(); return; }
+        string typing = NewNoteBox.Text;
+        LoadSystemNote();
+        NewNoteBox.Text = typing;
+        BuildCurrentSystem(_lastCounts);
+        RefreshFinder();
+    });
+
     private void OnActiveSessionChanged(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(() => _ = LoadPageAsync());
 
@@ -93,6 +106,7 @@ public sealed partial class PlanetsPage : Page
     {
         SaveSessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
         PlanetDetailsService.Captured -= OnDetailsCaptured;
+        SystemPageReader.Captured -= OnSystemCaptured;
         JumpPlanner.RangeChanged -= ApplyFilters;
         StopOrbitAnimations();
         StopWatching();

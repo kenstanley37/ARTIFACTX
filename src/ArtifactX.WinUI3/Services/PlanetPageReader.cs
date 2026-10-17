@@ -97,6 +97,9 @@ public static class PlanetPageReader
         if (existing is not null && Same(existing, details)) return $"planet page {name}: already up to date";
         PlanetDetailsService.Save(system, planet, details, source: "captured");
         Filled++;
+        // "Dissonance detected" among a planet's resources marks the whole system dissonant.
+        if (details.Resources.Contains("Dissonance detected", StringComparer.OrdinalIgnoreCase))
+            SystemPageReader.MarkDissonant(system);
         return $"planet page {name}: saved ({details.Weather} / {details.Sentinels} / {details.Flora} / {details.Fauna} / {string.Join(", ", details.Resources)})";
     }
 
@@ -185,7 +188,7 @@ public static class PlanetPageReader
         || new[] { "Units", "Nanites", "Quicksilver", "Discoveries", "Catalog & Guide", "Discovered" }.Any(h => s.Equals(h, StringComparison.OrdinalIgnoreCase))
         || s.Count(char.IsLetter) < 3;
 
-    private static string Clean(string s)
+    internal static string Clean(string s)
     {
         s = s.Trim();
         s = Regex.Replace(s, @"^[^\p{L}\[]+", "");                 // leading symbols
@@ -194,7 +197,7 @@ public static class PlanetPageReader
     }
 
     /// <summary>The game word closest to what OCR read, or the text as read when none is close.</summary>
-    private static string Snap(string text, IEnumerable<string> words)
+    internal static string Snap(string text, IEnumerable<string> words)
     {
         if (text.Length == 0) return "";
         var list = words.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -212,6 +215,15 @@ public static class PlanetPageReader
         s.Any(char.IsUpper) ? s : CultureInfo.InvariantCulture.TextInfo.ToTitleCase(s);
 
     // ------------------------------------------------------------- the planet
+
+    /// <summary>The systems the save recently put the player in, newest first.</summary>
+    internal static List<ulong> Recent()
+    {
+        List<ulong> systems;
+        lock (Lock) systems = RecentSystems.ToList();
+        if (systems.Count == 0 && NmsSpaceStationPaths.ReadSystemAddress(LiveSaveWatcher.FromSession().Universe) is ulong current) systems.Add(current);
+        return systems;
+    }
 
     /// <summary>The planet the best of several readings of its name points to.</summary>
     private static (ulong System, int Planet, string Name)? Match(IReadOnlyList<string> titles)
@@ -252,7 +264,7 @@ public static class PlanetPageReader
     }
 
     /// <summary>Lower-case letters and digits, with the usual OCR swaps folded (8/B, 0/O, 1/l/I, 5/S).</summary>
-    private static string Norm(string s)
+    internal static string Norm(string s)
     {
         var chars = s.ToUpperInvariant().Where(char.IsLetterOrDigit).Select(c => c switch
         {
@@ -261,7 +273,7 @@ public static class PlanetPageReader
         return new string(chars.ToArray());
     }
 
-    private static int Distance(string a, string b)
+    internal static int Distance(string a, string b)
     {
         var d = new int[a.Length + 1, b.Length + 1];
         for (int i = 0; i <= a.Length; i++) d[i, 0] = i;
