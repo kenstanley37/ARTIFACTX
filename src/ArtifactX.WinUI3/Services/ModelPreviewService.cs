@@ -47,11 +47,13 @@ public static class ModelPreviewService
     /// <summary>A seed's colours, the game's way (NMS.exe, 2026-10-16): the palette
     /// table is built from the first child seed of the tool's or ship's own seed.
     /// Gives a (palette, slot) colour - ("Paint", "Alternative1") - as RGB 0-1, or null.
-    /// Multi-tools only so far: ships don't follow it reliably (see ShipsPage.ShowPreview).</summary>
-    public static async Task<Func<string, string, float[]?>?> SeedColoursAsync(ulong seed)
+    /// <paramref name="rawSeed"/>: starships build the table from the seed itself, not its
+    /// first child - six of seven ships checked in game on 2026-10-17 matched that way
+    /// (red/white/blue Fighter, yellow/blue Solar, teal/blue and blue Haulers...).</summary>
+    public static async Task<Func<string, string, float[]?>?> SeedColoursAsync(ulong seed, bool rawSeed = false)
     {
         if (seed == 0 || await CatalogService.GetPalettesAsync() is not { Count: > 0 } palettes) return null;
-        var table = ShipLook.PaletteTable(ColourSeed(seed), palettes);
+        var table = ShipLook.PaletteTable(rawSeed ? seed : ColourSeed(seed), palettes);
         return (palette, slot) =>
         {
             int p = ShipModels.PaletteIndex(palette), a = ShipModels.SlotIndex(slot);

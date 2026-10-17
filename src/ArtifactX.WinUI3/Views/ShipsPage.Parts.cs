@@ -309,17 +309,25 @@ public sealed partial class ShipsPage
             ShipPreviewNote.Text = "Shape from your game files, in the paint saved for this ship - drag to turn.";
             return;
         }
-        // Not painted yet (2026-10-16): the multi-tool colour rule (palettes from the
-        // seed's first child seed - ModelPreviewService.SeedColoursAsync) fits most
-        // fighters' hulls but not haulers, which fit the raw seed (Shipwright's rule);
-        // no single rule fits all six ships checked in game. NMS.exe's ship path
-        // (0x141659e80) derives the colour seed from a generator state after a loop of
-        // draws - not traced yet. Wrong colours would mislead, so greys until then.
-        // Shown as a hologram, not grey: plain grey read as a broken paint job (2026-10-17).
+        // Found and bought ships: colours from the seed itself (not its first child, the
+        // multi-tool rule). Checked 2026-10-17 against seven ships with known seeds and
+        // in-game screenshots (Colour Test 1-5 on Slot 8, Gamada RD6, Ashes of the Suitaka):
+        // six matched on their main colours. Texture picks (e.g. Explorers' dark hulls)
+        // come from the same seed.
+        if (mesh is not null && seed != 0 && await ModelPreviewService.SeedColoursAsync(seed, rawSeed: true) is { } seedColours)
+        {
+            var textures = await ModelPreviewService.PaintAsync(models, mesh, seedColours, seed);
+            if (version != _previewVersion) return;
+            ShipPreviewView.Show(mesh, material => MaterialColour(material, look), m => textures.GetValueOrDefault(m));
+            ShipPreviewNote.Text = "Shape and colours worked out from this ship's seed - close to the game, not always exact. Drag to turn.";
+            return;
+        }
+        // No colour data (old game data): a hologram, not grey - plain grey read as a
+        // broken paint job (2026-10-17).
         if (mesh is null) ShipPreviewView.ShowMessage("This ship's model couldn't be read from your game files.");
         else ShipPreviewView.Show(mesh, material => MaterialColour(material, look), hologram: true);
         ShipPreviewNote.Text = mesh is null ? ""
-            : "Shape scan - the parts are this ship's own, but its colours can't be shown yet (only ships built at a station). Drag to turn.";
+            : "Shape scan - the parts are this ship's own. Update your game data to see its colours. Drag to turn.";
     }
 
     private static uint MaterialColour(string material, LookData? look)
