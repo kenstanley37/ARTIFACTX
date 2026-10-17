@@ -34,7 +34,11 @@ public sealed partial class ShipModels
     /// with the option it picks (ShipLook's rule: per material a fresh generator; per
     /// layer one draw against its probability, then a weighted pick). Unset: every
     /// layer with its first option (a crafted staff's layers each have just one).</param>
-    public ModelTexture? Painted(string material, Func<string, string, float[]?> colour, int size = 512, ulong? textureSeed = null)
+    /// <param name="styles">Option names a ship built at a station was given (its T>1 list,
+    /// "STEALTH" for paint style 3 - 2026-10-16): wherever a layer has such an option it is
+    /// used, whatever the seed picks. The builder's styles are options found ships never get.</param>
+    public ModelTexture? Painted(string material, Func<string, string, float[]?> colour, int size = 512, ulong? textureSeed = null,
+        ISet<string>? styles = null)
     {
         if (Decode(material) is not TkMaterialData data) return null;
         var samplers = data.Samplers ?? new();
@@ -43,9 +47,9 @@ public sealed partial class ShipModels
                 ? Decode(Extension.Replace(map.Replace('\\', '/'), "") + ".TEXTURE.MBIN") as TkProceduralTextureList : null;
         // The main paint (gDiffuseMap); a decal material lays a second sheet over it
         // (gDiffuse2Map - the stripes along a tool's top, 2026-10-16).
-        if (ListIn("gDiffuseMap") is { } main && Layered(main, colour, size, textureSeed) is { } painted)
+        if (ListIn("gDiffuseMap") is { } main && Layered(main, colour, size, textureSeed, styles) is { } painted)
         {
-            return ListIn("gDiffuse2Map") is { } decal && Layered(decal, colour, size, textureSeed) is { } over
+            return ListIn("gDiffuse2Map") is { } decal && Layered(decal, colour, size, textureSeed, styles) is { } over
                 ? painted with { Decal = over } : painted;
         }
         // No layers: the plain diffuse image.
@@ -53,10 +57,14 @@ public sealed partial class ShipModels
         return diffuse is { Length: > 0 } && Image(diffuse) is { } img ? Resample(img, size, (r, g, b, _) => (r, g, b)) : null;
     }
 
-    private ModelTexture? Layered(TkProceduralTextureList list, Func<string, string, float[]?> colour, int size, ulong? textureSeed)
+    private ModelTexture? Layered(TkProceduralTextureList list, Func<string, string, float[]?> colour, int size, ulong? textureSeed,
+        ISet<string>? styles = null)
     {
         var all = (list.Layers ?? Array.Empty<TkProceduralTextureLayer>()).Where(l => (l.Textures?.Count ?? 0) > 0).ToList();
         var picked = textureSeed is ulong seed ? PickLayers(all, seed) : all.Select(l => (l, l.Textures![0])).ToList();
+        // A built ship's style replaces the pick on every layer that offers it.
+        if (styles is { Count: > 0 })
+            picked = picked.Select(p => (p.Item1, p.Item1.Textures!.FirstOrDefault(t => styles.Contains(t.Name?.Value ?? "")) ?? p.Item2)).ToList();
         // The file lists overlays first and BASE last; the game paints BASE first.
         var layers = picked.AsEnumerable().Reverse().ToList();
         if (layers.Count == 0) return null;

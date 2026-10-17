@@ -1,6 +1,7 @@
 using ArtifactX.Core.NmsModels;
 using ArtifactX.Core.Procedural;
 using ArtifactX.WinUI3.Services;
+using Newtonsoft.Json.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
@@ -131,12 +132,13 @@ public sealed partial class ShipsPage
         }
         var root = LoadTree(ShipParts.DescriptorFor(scene));
         bool hasSeed = TryParseSeed(SeedEditBox.Text, out ulong seed);
+        var built = BuiltLookOf(_selectedIndex);
         // Every ship type has a model, parts or not - except a corvette, whose
         // look is the modules built onto it, stored apart from the ship.
         if (!IsCorvetteSelected() && (root is null || hasSeed))
         {
             await EnsureLookAsync();
-            if (refresh == _previewVersion) ShowPreview(scene, hasSeed ? seed : 0, root);
+            if (refresh == _previewVersion) ShowPreview(scene, hasSeed ? seed : 0, root, built);
         }
         if (root is null)
         {
@@ -150,6 +152,16 @@ public sealed partial class ShipsPage
             return;
         }
 
+        // A ship built at a station keeps its parts in the save, whatever its seed says.
+        if (built is { Items.Count: > 0 })
+        {
+            ShipPartsPanel.Children.Add(new TextBlock { Text = "PARTS CHOSEN WHEN BUILT", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] });
+            var builtRow = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 8, VerticalSpacing = 8 };
+            foreach (var id in built.Items) builtRow.Children.Add(PartChip(id));
+            ShipPartsPanel.Children.Add(builtRow);
+            BuildPartSearch(scene, sets);
+            return;
+        }
         ShipPartsPanel.Children.Add(new TextBlock { Text = "PARTS THIS SEED GIVES", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] });
         if (hasSeed)
         {
@@ -232,7 +244,33 @@ public sealed partial class ShipsPage
     /// game files (ShipModels) in neutral shades - each paint surface its own
     /// grey so the parts read apart, glass/lights/dark parts by their material
     /// name. Not the ship's real colours (see the note in the body).</summary>
-    private async void ShowPreview(string scene, ulong seed, IReadOnlyList<PartGroup>? root)
+    /// <summary>The look a ship built at a station keeps in the save (in-game build
+    /// diff 2026-10-16): its customisation entry (l:j[3 + slot], slots 6-11 at 17+)
+    /// holds the builder parts by item id (SMP: "^FIGHT_COCKAA"), every palette's
+    /// colours (Aak, 66 x 5) and the paint style as a texture option (T>1: "^STEALTH").
+    /// Null for found and bought ships, whose entry is empty.</summary>
+    private sealed record BuiltLook(List<string> Items, Dictionary<(string, string), float[]> Colours, HashSet<string> Styles);
+
+    private static BuiltLook? BuiltLookOf(int slot)
+    {
+        if (slot is < 0 or > 11) return null;
+        int entry = slot < 6 ? 3 + slot : 17 + slot - 6;
+        if (SaveSessionManager.GetValue("vLc", "6f=", "l:j", entry.ToString(CultureInfo.InvariantCulture), "wnR") is not JObject data) return null;
+        var items = (data["SMP"] as JArray)?.Select(t => t.ToString().TrimStart('^')).Where(t => t.Length > 0).ToList() ?? new();
+        var colours = ModelPreviewService.StoredColours(data["Aak"]);
+        var styles = (data["T>1"] as JArray)?.Select(t => t["=Cv"]?.ToString().TrimStart('^') ?? "").Where(t => t.Length > 0)
+            .ToHashSet(StringComparer.Ordinal) ?? new();
+        return items.Count == 0 && colours.Count == 0 ? null : new BuiltLook(items, colours, styles);
+    }
+
+    /// <summary>A built ship's parts as model options: each builder item turns on its
+    /// descriptor options (PartGroups - FIGHT_COCKAA -> _COCKPIT_A...).</summary>
+    private static List<string>? StoredOptions(BuiltLook? built) =>
+        built is not { Items.Count: > 0 } || _partGroups is null ? null
+            : built.Items.SelectMany(id => _partGroups.Where(g => string.Equals(g.Id, id, StringComparison.OrdinalIgnoreCase))
+                .SelectMany(g => g.Descriptors)).ToList();
+
+    private async void ShowPreview(string scene, ulong seed, IReadOnlyList<PartGroup>? root, BuiltLook? built = null)
     {
         int version = ++_previewVersion;
         if (GameDataService.Game is not { } game) { ShipPreviewGroup.Visibility = Visibility.Collapsed; return; }
@@ -242,10 +280,19 @@ public sealed partial class ShipsPage
         // A fixed-look type has no part options: every mesh in its scene is kept.
         var options = root is null ? new HashSet<string>(StringComparer.Ordinal) : AllOptionIdsExact(root);
         var chosen = root is null ? new HashSet<string>(StringComparer.Ordinal)
-            : ShipParts.Generate(scene, seed, LoadTree).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
+            : ShipParts.Generate(scene, seed, LoadTree, StoredOptions(built)).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
         var mesh = await Task.Run(() => models.Build(scene, options, chosen));
         if (version != _previewVersion) return;
         var look = _look;
+        // A built ship's colours are in the save, so it is shown as the game shows it.
+        if (mesh is not null && built is { Colours.Count: > 0 })
+        {
+            var textures = await ModelPreviewService.PaintAsync(models, mesh, ModelPreviewService.StoredColourLookup(built.Colours), seed, built.Styles);
+            if (version != _previewVersion) return;
+            ShipPreviewView.Show(mesh, material => MaterialColour(material, look), m => textures.GetValueOrDefault(m));
+            ShipPreviewNote.Text = "Shape and colours from your game files and the colours chosen when this ship was built - drag to turn.";
+            return;
+        }
         // Not painted yet (2026-10-16): the multi-tool colour rule (palettes from the
         // seed's first child seed - ModelPreviewService.SeedColoursAsync) fits most
         // fighters' hulls but not haulers, which fit the raw seed (Shipwright's rule);

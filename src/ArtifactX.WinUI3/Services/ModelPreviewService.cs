@@ -73,8 +73,29 @@ public static class ModelPreviewService
         return v ^ (v >> 33);
     }
 
-    /// <summary>Each material painted with the given colours (null where it has nothing to paint with).</summary>
+    /// <summary>Each material painted with the given colours (null where it has nothing to paint with).
+    /// <paramref name="styles"/>: texture options a built ship was given ("STEALTH"), taken over the seed's.</summary>
     public static Task<Dictionary<string, ModelTexture?>> PaintAsync(ShipModels models, ShipMesh mesh,
-        Func<string, string, float[]?> colour, ulong? textureSeed) =>
-        Task.Run(() => mesh.Materials.Distinct().ToDictionary(m => m, m => models.Painted(m, colour, 512, textureSeed)));
+        Func<string, string, float[]?> colour, ulong? textureSeed, ISet<string>? styles = null) =>
+        Task.Run(() => mesh.Materials.Distinct().ToDictionary(m => m, m => models.Painted(m, colour, 512, textureSeed, styles)));
+
+    /// <summary>Colours kept in the save (a customisation entry's Aak list: crafted staffs,
+    /// ships built at a station), by (palette, slot) - ("Paint", "Alternative1") - as RGB 0-1.</summary>
+    public static Dictionary<(string, string), float[]> StoredColours(Newtonsoft.Json.Linq.JToken? entries)
+    {
+        var result = new Dictionary<(string, string), float[]>();
+        if (entries is not Newtonsoft.Json.Linq.JArray list) return result;
+        foreach (var e in list)
+        {
+            string? palette = e["RVl"]?["RVl"]?.ToString(), slot = e["RVl"]?["Ty="]?.ToString();
+            if (palette is null || slot is null || e["xEg"] is not Newtonsoft.Json.Linq.JArray rgba || rgba.Count < 3) continue;
+            result[(palette, slot)] = new[] { (float)rgba[0], (float)rgba[1], (float)rgba[2] };
+        }
+        return result;
+    }
+
+    /// <summary>A colour lookup over stored colours. The save keeps five slots per palette
+    /// (Primary, Alternative1-4); "Unique" reads Alternative3, as seed colours do.</summary>
+    public static Func<string, string, float[]?> StoredColourLookup(Dictionary<(string, string), float[]> stored) =>
+        (palette, slot) => stored.GetValueOrDefault((palette, slot == "Unique" ? "Alternative3" : slot));
 }

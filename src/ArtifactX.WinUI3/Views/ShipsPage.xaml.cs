@@ -275,6 +275,7 @@ public sealed partial class ShipsPage : Page
         var after = _ships.FirstOrDefault(s => s.Index == _selectedIndex);
         // Only fill the box if the player hasn't typed into it meanwhile.
         if (after is { IsUnnamed: true } && before is { IsUnnamed: true } && string.IsNullOrEmpty(typed)) ShowName(after);
+        if (after is not null) TechHeaderTxt.Text = $"TECHNOLOGY  —  {after.Name.ToUpperInvariant()}";
     }
 
     /// <summary>The name box: the player's name, or the one the game made up for an
@@ -282,6 +283,10 @@ public sealed partial class ShipsPage : Page
     /// becomes a saved custom name by accident (as on Multi-Tool).</summary>
     private void ShowName(ShipEntry ship)
     {
+        // The list may have been relabelled since the caller looked the ship up: the
+        // game's names arrive in the background, and a slow ship load used to put the
+        // old empty name back over them (2026-10-16).
+        ship = _ships.FirstOrDefault(s => s.Index == ship.Index) ?? ship;
         NameEditBox.Text = ship.IsUnnamed ? ship.GameName ?? "" : ship.Name;
         bool oldData = GameDataService.Info is { } info && info.Format < ArtifactX.GameData.GameDataBuilder.CatalogFormat;
         // The way to fix it, right where it shows (the bar at the top is easy to miss).
@@ -555,7 +560,7 @@ public sealed partial class ShipsPage : Page
         TechGrid.Refresh();
         CargoGrid.Refresh();
 
-        TechHeaderTxt.Text = $"TECHNOLOGY  —  {selectedShip.Name.ToUpperInvariant()}";
+        TechHeaderTxt.Text = $"TECHNOLOGY  —  {(_ships.FirstOrDefault(s => s.Index == selectedShip.Index) ?? selectedShip).Name.ToUpperInvariant()}";
 
         // The tech this kind of ship can fit, to click in - the same list
         // limits the right-click search.
