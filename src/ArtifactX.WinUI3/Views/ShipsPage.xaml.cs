@@ -716,9 +716,11 @@ public sealed partial class ShipsPage : Page
     // straight away on Enter or leaving the box.
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _nameTimer;
 
-    /// <summary>Clicking in selects the whole name, ready to type over.</summary>
+    /// <summary>Clicking in selects the whole name, ready to type over. A lambda, not
+    /// the method group NameEditBox.SelectAll: handing the TextBox's own projected
+    /// method to the queue as the callback closed the app on click (2026-10-17).</summary>
     private void NameEditBox_GotFocus(object sender, RoutedEventArgs e) =>
-        DispatcherQueue.TryEnqueue(NameEditBox.SelectAll);
+        DispatcherQueue.TryEnqueue(() => NameEditBox.SelectAll());
 
     private void NameEditBox_TextChanged(object sender, TextChangedEventArgs e)
     {
