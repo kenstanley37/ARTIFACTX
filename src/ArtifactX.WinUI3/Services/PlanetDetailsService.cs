@@ -14,6 +14,9 @@ public sealed class PlanetDetails
     public string Flora { get; set; } = "";
     public string Fauna { get; set; } = "";
 
+    /// <summary>Kinds of fauna on the planet ("0 / 6 Discovered" - 6); 0 = none; null = not known.</summary>
+    public int? FaunaTotal { get; set; }
+
     /// <summary>Resources found there, by name as the game shows them ("Paraffinum").</summary>
     public List<string> Resources { get; set; } = new();
 
@@ -25,7 +28,7 @@ public sealed class PlanetDetails
 
     public PlanetDetails Copy() => new()
     {
-        Weather = Weather, Sentinels = Sentinels, Flora = Flora, Fauna = Fauna,
+        Weather = Weather, Sentinels = Sentinels, Flora = Flora, Fauna = Fauna, FaunaTotal = FaunaTotal,
         Resources = Resources.ToList(), Notes = Notes.ToList(),
     };
 }
@@ -70,7 +73,7 @@ public static class PlanetDetailsService
                     }
                     using (var cmd = connection.CreateCommand())
                     {
-                        cmd.CommandText = "SELECT system_address, planet_index, weather, sentinels, flora, fauna, resources FROM planet_details WHERE deleted = 0";
+                        cmd.CommandText = "SELECT system_address, planet_index, weather, sentinels, flora, fauna, resources, fauna_total FROM planet_details WHERE deleted = 0";
                         using var r = cmd.ExecuteReader();
                         while (r.Read())
                         {
@@ -80,6 +83,7 @@ public static class PlanetDetailsService
                             d.Flora = r.GetString(4);
                             d.Fauna = r.GetString(5);
                             d.Resources = SplitResources(r.GetString(6));
+                            d.FaunaTotal = r.IsDBNull(7) ? null : r.GetInt32(7);
                         }
                     }
                     using (var cmd = connection.CreateCommand())
@@ -146,11 +150,12 @@ public static class PlanetDetailsService
             {
                 cmd.Transaction = tx;
                 cmd.CommandText = @"
-                    INSERT INTO planet_details (system_address, planet_index, weather, sentinels, flora, fauna, resources,
+                    INSERT INTO planet_details (system_address, planet_index, weather, sentinels, flora, fauna, resources, fauna_total,
                                                 updated_at, source, synced_at, deleted, added_by)
-                    VALUES ($s, $p, $weather, $sentinels, $flora, $fauna, $resources, $now, $source, NULL, $deleted, $added_by)
+                    VALUES ($s, $p, $weather, $sentinels, $flora, $fauna, $resources, $faunaTotal, $now, $source, NULL, $deleted, $added_by)
                     ON CONFLICT(system_address, planet_index) DO UPDATE SET
                         weather = $weather, sentinels = $sentinels, flora = $flora, fauna = $fauna, resources = $resources,
+                        fauna_total = $faunaTotal,
                         updated_at = $now, source = $source, synced_at = NULL, deleted = $deleted";
                 cmd.Parameters.AddWithValue("$s", system);
                 cmd.Parameters.AddWithValue("$p", planet);
@@ -159,6 +164,7 @@ public static class PlanetDetailsService
                 cmd.Parameters.AddWithValue("$flora", saved.Flora);
                 cmd.Parameters.AddWithValue("$fauna", saved.Fauna);
                 cmd.Parameters.AddWithValue("$resources", string.Join(", ", saved.Resources));
+                cmd.Parameters.AddWithValue("$faunaTotal", (object?)saved.FaunaTotal ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("$now", now);
                 cmd.Parameters.AddWithValue("$source", source);
                 cmd.Parameters.AddWithValue("$added_by", GameAccountsService.ActiveKey);

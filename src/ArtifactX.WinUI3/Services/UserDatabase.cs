@@ -354,6 +354,12 @@ public static class UserDatabase
         """
         ALTER TABLE ship_designs ADD COLUMN thumbnail BLOB NULL;
         """,
+
+        // 14 - how many kinds of fauna a planet has (2026-10-17), from its Discoveries
+        // page ("0 / 6 Discovered"; 0 = "No Planetary Fauna"). NULL = not known.
+        """
+        ALTER TABLE planet_details ADD COLUMN fauna_total INTEGER NULL;
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;

@@ -271,7 +271,7 @@ public sealed partial class PlanetsPage : Page
         foreach (var (address, lines) in _tileText)
         {
             counts.TryGetValue(address, out var tally);
-            string discovered = DiscoveredText(tally);
+            string discovered = DiscoveredText(tally, address);
             string visit = VisitText(ReadPlanetStats(address));
             if (lines.Discovered.Text != discovered) lines.Discovered.Text = discovered;
             if (visit.Length == 0) visit = "-";
@@ -673,7 +673,7 @@ public sealed partial class PlanetsPage : Page
         // What the save knows, as a label / value table (2026-10-13 redesign:
         // a stack of small dim lines was hard to read and easy to miss).
         var facts = new FactTable();
-        var discoveredLine = facts.Add("You found", DiscoveredText(tally));
+        var discoveredLine = facts.Add("You found", DiscoveredText(tally, planet.Address));
         var visitLine = facts.Add("Visited", VisitText(stats));
         _tileText[planet.Address] = (discoveredLine, visitLine);
         if (_baseNames.TryGetValue(planet.PlanetIndex, out var baseNames))
@@ -748,10 +748,14 @@ public sealed partial class PlanetsPage : Page
         stack.Children.Add(section);
     }
 
-    private static string DiscoveredText(PlanetDiscoveryCounts? tally)
+    /// <summary>"2 / 6 fauna · 0 flora · 0 minerals": fauna out of how many kinds the planet
+    /// has, when its Discoveries page said (game screen recording or typed in).</summary>
+    private static string DiscoveredText(PlanetDiscoveryCounts? tally, ulong address)
     {
         var t = tally ?? new PlanetDiscoveryCounts(0, 0, 0);
-        return $"{t.Fauna} fauna · {t.Flora} flora · {t.Minerals} minerals";
+        int? total = PlanetDetailsService.Get(S.ToSystemAddress(address), (int)((address >> 52) & 0xF))?.FaunaTotal;
+        string fauna = total switch { 0 => "no fauna", int n => $"{t.Fauna} / {n} fauna", _ => $"{t.Fauna} fauna" };
+        return $"{fauna} · {t.Flora} flora · {t.Minerals} minerals";
     }
 
     // ^TIME / ^DIST_WALKED units assumed seconds / metres (Cholton: 199 and 85
@@ -1903,7 +1907,7 @@ public sealed partial class PlanetsPage : Page
     {
         var facts = new FactTable();
         _lastCounts.TryGetValue(planet.Address, out var tally);
-        facts.Add("You found", inThisSystem || tally is not null ? DiscoveredText(tally) : "");
+        facts.Add("You found", inThisSystem || tally is not null ? DiscoveredText(tally, planet.Address) : "");
         facts.Add("Visited", VisitText(ReadPlanetStats(planet.Address)));
         // Bases with where they are on the planet (2026-10-14) - the save
         // stores each base's position from the planet's centre.

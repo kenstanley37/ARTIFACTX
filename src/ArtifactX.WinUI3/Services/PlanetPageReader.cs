@@ -64,6 +64,7 @@ public static class PlanetPageReader
             Flora = Field(lines, data, "Flora", "Life"),
             Fauna = Field(lines, data, "Fauna", "Life"),
             Resources = Resources(lines, res),
+            FaunaTotal = FaunaTotal(lines),
         };
         if (details.Weather == "" && details.Sentinels == "" && details.Resources.Count == 0) return "planet page: nothing readable";
 
@@ -80,6 +81,7 @@ public static class PlanetPageReader
         // The player's own notes stay; the fields are what the game showed.
         var existing = PlanetDetailsService.Get(system, planet);
         details.Notes = existing?.Notes.ToList() ?? new();
+        details.FaunaTotal ??= existing?.FaunaTotal;
         // A partly covered page never shrinks a fuller list already recorded.
         if (existing is { Resources.Count: > 0 } && details.Resources.Count < existing.Resources.Count
             && details.Resources.All(r => existing.Resources.Contains(r, StringComparer.OrdinalIgnoreCase)))
@@ -92,6 +94,7 @@ public static class PlanetPageReader
 
     private static bool Same(PlanetDetails a, PlanetDetails b) =>
         a.Weather == b.Weather && a.Sentinels == b.Sentinels && a.Flora == b.Flora && a.Fauna == b.Fauna
+        && a.FaunaTotal == b.FaunaTotal
         && a.Resources.SequenceEqual(b.Resources, StringComparer.OrdinalIgnoreCase);
 
     private static async Task EnsureWordsAsync()
@@ -135,6 +138,18 @@ public static class PlanetPageReader
             if (!result.Contains(word, StringComparer.OrdinalIgnoreCase)) result.Add(word);
         }
         return result;
+    }
+
+    /// <summary>"0 / 6 Discovered" under Fauna (OCR reads the 0 as "O") - 6; "No Planetary Fauna" - 0.
+    /// Flora and minerals show only what you found, so only fauna has a total.</summary>
+    private static int? FaunaTotal(IReadOnlyList<string> lines)
+    {
+        if (lines.Any(l => l.Contains("No Planetary Fauna", StringComparison.OrdinalIgnoreCase))) return 0;
+        foreach (var line in lines)
+            if (Regex.Match(line.Replace('O', '0').Replace('o', '0'), @"(\d+)\s*/\s*(\d+)\s*Disc", RegexOptions.IgnoreCase) is { Success: true } m
+                && int.TryParse(m.Groups[2].Value, out int total) && total is > 0 and < 100)
+                return total;
+        return null;
     }
 
     /// <summary>The planet's name: the line before "today by ..." / "Discovered by ...".</summary>
