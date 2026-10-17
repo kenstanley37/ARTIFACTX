@@ -58,13 +58,16 @@ public static class ShipParts
         foreach (var g in groups)
         {
             int total = g.Options.Sum(o => o.Weight);
-            // The game skips (no RNG step) a group with nothing to pick, or with any
-            // option already chosen elsewhere in the model.
-            if (total == 0 || g.Options.Any(o => seen.Contains(o.Id))) continue;
-            PartOption pick = g.Options[^1];
             // A stored part is taken without a draw, as the game's selector does
             // with a single candidate (NMS.exe 0x142d6b5a0); several draw among themselves.
             var wanted = preferred.Count == 0 ? new List<PartOption>() : g.Options.Where(o => preferred.Contains(Plain(o.Id))).ToList();
+            // The game skips (no RNG step) a group with nothing to pick, or with any
+            // option already chosen elsewhere in the model. A stored part counts even
+            // at weight 0: builder-only parts are "xNEVER" (never on a found ship) -
+            // the Explorer's Skywave/Prismatic/Planar/Vortex wings differ only in an
+            // xNEVER sub-wing (_SubWingR_AxNEVER...), so all four looked alike (2026-10-17).
+            if ((total == 0 && wanted.Count == 0) || g.Options.Any(o => seen.Contains(o.Id))) continue;
+            PartOption pick = g.Options[^1];
             if (wanted.Count == 1) pick = wanted[0];
             else if (wanted.Count > 1) pick = wanted[(int)((rng.Next() * (ulong)wanted.Count) >> 32)];
             else
