@@ -92,8 +92,16 @@ public sealed partial class ShipDesignerPage
             list.Items.Add(new ListViewItem { Content = label, Tag = index });
         }
         // A ship with a name of its own keeps it unless asked; one without takes the
-        // design's name anyway (the game names it from the new seed).
-        var rename = new CheckBox { Content = $"Rename it to \"{ShipNameTxt.Text}\"", IsChecked = true, Visibility = Visibility.Collapsed };
+        // design's name anyway (the game names it from the new seed). Always shown, so
+        // the choice can be found: greyed out and ticked when there is nothing to choose.
+        var rename = new CheckBox { Content = $"Rename it to \"{ShipNameTxt.Text}\"", IsChecked = true, IsEnabled = false };
+        var renameNote = new TextBlock
+        {
+            Style = (Style)Application.Current.Resources["ThemeDimTextStyle"], FontSize = 12, TextWrapping = TextWrapping.Wrap,
+            Text = "Pick a ship. One you named yourself can keep its name.",
+        };
+        bool renameChoice = true;
+        rename.Click += (_, _) => { if (rename.IsEnabled) renameChoice = rename.IsChecked == true; };
         var panel = new StackPanel { Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
@@ -102,6 +110,7 @@ public sealed partial class ShipDesignerPage
         });
         panel.Children.Add(list);
         panel.Children.Add(rename);
+        panel.Children.Add(renameNote);
         var dialog = new ContentDialog
         {
             Title = "Apply the design to which ship?",
@@ -115,8 +124,11 @@ public sealed partial class ShipDesignerPage
         list.SelectionChanged += (_, _) =>
         {
             dialog.IsPrimaryButtonEnabled = list.SelectedItem is not null;
-            rename.Visibility = list.SelectedItem is ListViewItem { Tag: int picked } && owned.Any(s => s.Index == picked && s.Name.Length > 0)
-                ? Visibility.Visible : Visibility.Collapsed;
+            bool named = list.SelectedItem is ListViewItem { Tag: int picked } && owned.Any(s => s.Index == picked && s.Name.Length > 0);
+            rename.IsEnabled = named;
+            rename.IsChecked = !named || renameChoice;
+            renameNote.Text = named ? "You named this ship. Untick to keep its name."
+                : "The game named this ship, so it takes the design's name.";
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary || list.SelectedItem is not ListViewItem { Tag: int target }) return;
 
