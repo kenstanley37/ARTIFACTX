@@ -100,7 +100,9 @@ public static class SystemPageReader
         Set(read.Economy, () => note.Economy, v => note.Economy = v);
         Set(read.Wealth, () => note.Wealth, v => note.Wealth = v);
         Set(read.Conflict, () => note.Conflict, v => note.Conflict = v);
-        Set(read.StarClass, () => note.StarClass, v => note.StarClass = v);
+        // A class read with its end cut off ("G5p" for G5pf) never replaces the fuller one.
+        if (!note.StarClass.StartsWith(read.StarClass, StringComparison.OrdinalIgnoreCase) || note.StarClass.Length == 0)
+            Set(read.StarClass, () => note.StarClass, v => note.StarClass = v);
         if (read.StarClass.Length > 0 && SystemNotesService.ColourForClass(read.StarClass) is { } colour)
             Set(colour, () => note.StarColour, v => note.StarColour = v);
         if (read.StarClass.Length > 0 && read.Water && !note.Water) { note.Water = true; changed = true; }
