@@ -84,7 +84,18 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="SHIP DESIGNER" Style="{StaticResource ThemePageTitleStyle}"/>
+        <!-- Free starship slots as a badge by the title (2026-10-17: as small text by the
+             buttons it was easy to miss). Amber when every slot is in use. -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="18">
+            <TextBlock Text="SHIP DESIGNER" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
+            <Border x:Name="ShipSlotsBadge" VerticalAlignment="Center" CornerRadius="12" Padding="12,4,12,4" BorderThickness="1"
+                    BorderBrush="{ThemeResource ThemeAccentBrush}" Visibility="Collapsed">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon x:Name="ShipSlotsIcon" Glyph="&#xE709;" FontSize="13" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                    <TextBlock x:Name="ShipSlotsTxt" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
 
         <!-- Shown instead of the designer when the game data has no builder yet. -->
         <StackPanel x:Name="NoDataPanel" Grid.Row="1" Spacing="8" Visibility="Collapsed">
@@ -190,7 +201,6 @@
                             <StackPanel x:Name="DesignActions" Orientation="Horizontal" Spacing="10">
                                 <Button x:Name="AddNewBtn" Content="Add as new ship" Click="AddNewBtn_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
                                 <Button x:Name="ApplyBtn" Content="Apply to a ship..." Click="ApplyBtn_Click"/>
-                                <TextBlock x:Name="ShipSlotsTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center"/>
                             </StackPanel>
                             <StackPanel x:Name="SaveActions" Orientation="Horizontal" Spacing="10">
                                 <Button x:Name="SaveDesignBtn" Content="Save design..." Click="SaveDesignBtn_Click"
