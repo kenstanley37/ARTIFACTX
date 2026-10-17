@@ -72,6 +72,7 @@ public sealed partial class PlanetsPage : Page
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         PlanetDetailsService.Captured += OnDetailsCaptured;
         SystemPageReader.Captured += OnSystemCaptured;
+        ScreenCaptureLogService.SystemPictureSaved += OnSystemPictureSaved;
         Unloaded += Page_Unloaded;
         JumpPlanner.RangeChanged += ApplyFilters;
         _ = LoadPageAsync();
@@ -107,6 +108,7 @@ public sealed partial class PlanetsPage : Page
         SaveSessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
         PlanetDetailsService.Captured -= OnDetailsCaptured;
         SystemPageReader.Captured -= OnSystemCaptured;
+        ScreenCaptureLogService.SystemPictureSaved -= OnSystemPictureSaved;
         JumpPlanner.RangeChanged -= ApplyFilters;
         StopOrbitAnimations();
         StopWatching();
@@ -462,6 +464,7 @@ public sealed partial class PlanetsPage : Page
             SystemGlyphsPanel.Children.Add(GlyphTile(glyph, 28));
 
         DrawSystem(planets, currentPlanet, note);
+        ShowSystemPicture(system);
         BuildSystemData(system, note);
 
         NoSystemPlanetsTxt.Visibility = planets.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -765,6 +768,34 @@ public sealed partial class PlanetsPage : Page
 
     /// <summary>"2 / 6 fauna · 0 flora · 0 minerals": fauna out of how many kinds the planet
     /// has, when its Discoveries page said (game screen recording or typed in).</summary>
+    private void OnSystemPictureSaved(ulong system) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (system == _currentSystem) ShowSystemPicture(system);
+    });
+
+    /// <summary>The game's picture of the system's planets in place of the drawn orbits, when there is one.</summary>
+    private void ShowSystemPicture(ulong system)
+    {
+        if (ScreenCaptureLogService.SystemPicture(system) is { } path)
+        {
+            // Read into memory so a newer picture can replace the file while it's shown.
+            var image = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage();
+            using (var stream = new MemoryStream(File.ReadAllBytes(path)))
+                image.SetSource(stream.AsRandomAccessStream());
+            SystemPictureImage.Source = image;
+            SystemPictureImage.Visibility = Visibility.Visible;
+            SystemCanvas.Visibility = Visibility.Collapsed;
+            SystemViewFrame.Width = 540; // the picture's own shape (about 3:2), not the square orbit view
+        }
+        else
+        {
+            SystemPictureImage.Source = null;
+            SystemPictureImage.Visibility = Visibility.Collapsed;
+            SystemCanvas.Visibility = Visibility.Visible;
+            SystemViewFrame.Width = 360;
+        }
+    }
+
     /// <summary>The SYSTEM DATA box: the game's own pop-up lines, with what the game showed
     /// (system notes - read off the screen or typed in) in gold and the generator's answer
     /// in grey where nothing was recorded.</summary>

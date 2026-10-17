@@ -116,6 +116,26 @@ public static class SystemPageReader
         return $"system page {name}: saved ({what})";
     }
 
+    /// <summary>The system shown when the screen is a system's own Discoveries view with no
+    /// pop-up over it ("3 PLANETS / 3 MOONS" under its name, its planets drawn on the right) -
+    /// the view the Planets page borrows a picture of. Null for anything else.</summary>
+    public static ulong? SystemView(IReadOnlyList<string> lines)
+    {
+        int header = lines.ToList().FindIndex(l => Regex.IsMatch(l, @"\d+\s*PLANETS?\s*/", RegexOptions.IgnoreCase));
+        if (header < 0) return null;
+        // A pop-up or a planet page covers the planets.
+        if (lines.Any(l => l.Contains("Galaxy:", StringComparison.OrdinalIgnoreCase) || l.Contains("RENAME AND UPLOAD", StringComparison.OrdinalIgnoreCase)
+            || l.Trim().Equals("Planet Data", StringComparison.OrdinalIgnoreCase)))
+            return null;
+        for (int i = header - 1; i >= 0 && i >= header - 4; i--)
+        {
+            string line = PlanetPageReader.Clean(lines[i]);
+            if (line.Count(char.IsLetter) < 3 || Regex.IsMatch(line, @"\bby\b|Discovered", RegexOptions.IgnoreCase)) continue;
+            return Match(line);
+        }
+        return null;
+    }
+
     /// <summary>A planet page listed "Dissonance detected": the system is dissonant.</summary>
     public static void MarkDissonant(ulong system)
     {

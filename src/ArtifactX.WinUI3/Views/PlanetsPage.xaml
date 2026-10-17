@@ -74,9 +74,15 @@
                         <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
                             <!-- Orbit spacing, planet sizes and the star's colour are
                                  decorative: the save stores none of them. -->
-                            <Border Width="360" Height="360" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                            <Border x:Name="SystemViewFrame" Width="360" Height="360" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
                                     Background="{ThemeResource ThemeVoidBrush}">
-                                <Canvas x:Name="SystemCanvas" Width="360" Height="360"/>
+                                <Grid>
+                                    <Canvas x:Name="SystemCanvas" Width="360" Height="360"/>
+                                    <!-- The game's own view of this system's planets, when screen recording
+                                         caught its Discoveries page (2026-10-17, the user's idea). -->
+                                    <Image x:Name="SystemPictureImage" Stretch="UniformToFill" Visibility="Collapsed"
+                                           ToolTipService.ToolTip="How the game's Discoveries page shows this system's planets."/>
+                                </Grid>
                             </Border>
 
                             <StackPanel Spacing="12" MaxWidth="520" VerticalAlignment="Top">

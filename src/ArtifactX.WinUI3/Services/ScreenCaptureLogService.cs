@@ -113,6 +113,12 @@ public static class ScreenCaptureLogService
         string? read = null;
         try { read = await PlanetPageReader.TryReadAsync(lines, () => ReadTitleAsync(pixels, w, h)) ?? await SystemPageReader.TryReadAsync(lines); }
         catch (Exception ex) { read = "planet page: error " + ex.Message; }
+        try
+        {
+            if (SystemPageReader.SystemView(lines) is ulong viewed && await SaveSystemPictureAsync(viewed, pixels, w, h))
+                read = (read is null ? "" : read + " | ") + $"system picture saved for {UniverseInfo.SystemName(viewed)}";
+        }
+        catch (Exception ex) { read = (read is null ? "" : read + " | ") + "system picture: error " + ex.Message; }
 
         var now = DateTime.Now;
         string day = Path.Combine(Folder, now.ToString("yyyy-MM-dd"));
@@ -171,6 +177,38 @@ public static class ScreenCaptureLogService
             if (result.Lines.FirstOrDefault()?.Text is { } line) reads.Add(line);
         }
         return reads;
+    }
+
+    /// <summary>Raised (any thread) when a system's picture was saved.</summary>
+    public static event Action<ulong>? SystemPictureSaved;
+    private static readonly HashSet<ulong> PicturedThisSession = new();
+
+    private static string PicturePath(ulong system) =>
+        Path.Combine(LocalAppDataPaths.GetSubfolder("system-pictures"), system.ToString("X", System.Globalization.CultureInfo.InvariantCulture) + ".jpg");
+
+    /// <summary>The picture of a system's planets as the game's Discoveries view draws them, if one was taken.</summary>
+    public static string? SystemPicture(ulong system) => File.Exists(PicturePath(system)) ? PicturePath(system) : null;
+
+    /// <summary>Crops the planets from a system's Discoveries view (right of the list, below
+    /// the name: x 46-93%, y 32-87%) and keeps it for the Planets page, once a session per
+    /// system - kept apart from the recordings, so clearing those never removes it.</summary>
+    private static async Task<bool> SaveSystemPictureAsync(ulong system, byte[] px, int w, int h)
+    {
+        lock (PicturedThisSession) if (!PicturedThisSession.Add(system)) return false;
+        int x0 = w * 46 / 100, y0 = h * 32 / 100, cw = w * 47 / 100, ch = h * 55 / 100;
+        var crop = new byte[cw * ch * 4];
+        for (int y = 0; y < ch; y++) System.Buffer.BlockCopy(px, ((y0 + y) * w + x0) * 4, crop, y * cw * 4, cw * 4);
+        using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(crop.AsBuffer(), BitmapPixelFormat.Bgra8, cw, ch, BitmapAlphaMode.Ignore);
+        using (var file = new FileStream(PicturePath(system), FileMode.Create, FileAccess.ReadWrite))
+        using (var stream = file.AsRandomAccessStream())
+        {
+            var options = new BitmapPropertySet { ["ImageQuality"] = new BitmapTypedValue(0.88, Windows.Foundation.PropertyType.Single) };
+            var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, stream, options);
+            encoder.SetSoftwareBitmap(bitmap);
+            await encoder.FlushAsync();
+        }
+        SystemPictureSaved?.Invoke(system);
+        return true;
     }
 
     /// <summary>Keeps the log under 1 GB by deleting the oldest files.</summary>
