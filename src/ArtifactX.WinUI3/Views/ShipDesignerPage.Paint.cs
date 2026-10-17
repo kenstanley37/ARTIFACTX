@@ -30,6 +30,8 @@ public sealed partial class ShipDesignerPage
     private List<string> _paintShipParts = new();
     private JToken? _paintShipSmp;
     private bool _paintShipHasPaint;
+    // Remove paint was staged: the preview shows the hologram until a colour is picked.
+    private bool _paintRemoved;
 
     private async Task EnterPaintModeAsync()
     {
@@ -106,6 +108,8 @@ public sealed partial class ShipDesignerPage
         ((JObject)entry["wnR"]!)["SMP"] = _paintShipSmp?.DeepClone() ?? new JArray();
         SaveSessionManager.StageEdit(entry, CustomisationPath(index));
         _paintShipHasPaint = true;
+        _paintRemoved = false;
+        RefreshPreview();
         RemovePaintBtn.Visibility = _paintShipParts.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         await Message("Repainted", $"\"{_paintShipName}\" has its new paint. Save from the title bar to write it to your save, then load the save in game.");
     }
@@ -124,7 +128,9 @@ public sealed partial class ShipDesignerPage
             },
         }, CustomisationPath(index));
         _paintShipHasPaint = false;
+        _paintRemoved = true;
         RemovePaintBtn.Visibility = Visibility.Collapsed;
+        RefreshPreview();
         await Message("Paint removed", "Save from the title bar to write it to your save.");
     }
 
@@ -141,6 +147,7 @@ public sealed partial class ShipDesignerPage
             return;
         }
         _style = style ?? _style;
+        _paintRemoved = false;
         ResetColours();
         foreach (var (group, swatch) in design.Colours)
             if (_colourPicks.ContainsKey(group)) _colourPicks[group] = swatch;

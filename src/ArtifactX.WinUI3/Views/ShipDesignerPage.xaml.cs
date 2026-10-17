@@ -268,6 +268,7 @@ public sealed partial class ShipDesignerPage : Page
             {
                 if (style == _style) return;
                 _style = style;
+                _paintRemoved = false;
                 ResetColours();
                 ShowPaint();
                 RefreshPreview();
@@ -314,6 +315,7 @@ public sealed partial class ShipDesignerPage : Page
                     _colourPicks[group.Title] = index;
                     MarkPicked(cells, index);
                     picked.Text = swatches[index].Name;
+                    _paintRemoved = false;
                     RefreshPreview();
                 };
                 cells.Add(cell);
@@ -400,6 +402,15 @@ public sealed partial class ShipDesignerPage : Page
 
         var colour = DesignColours();
         var styles = (_style?.Layers ?? new()).Select(l => l.Length > 1 ? l[1] : "").Where(o => o.Length > 0).ToHashSet(StringComparer.Ordinal);
+        if (_paintRemoved)
+        {
+            // Paint removed: the colours it had when found can't be shown yet, so the
+            // hologram scan, as on Starships - not the swatches still picked (2026-10-17).
+            PreviewView.Show(mesh, _ => 0x8C8E94u, hologram: true);
+            PreviewNote.Text = "Paint removed - it goes back to the colours it had when you found or bought it, which can't be shown yet. Pick a colour to paint it again.";
+            _previewReady = true;
+            return;
+        }
         var textures = await ModelPreviewService.PaintAsync(models, mesh, colour, _seed, styles);
         if (version != _previewVersion) return;
         PreviewView.Show(mesh, _ => 0x8C8E94u, m => textures.GetValueOrDefault(m));
