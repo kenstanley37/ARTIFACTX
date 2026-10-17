@@ -123,6 +123,31 @@
                             </Border>
                         </ctcontrols:WrapPanel>
 
+                        <!-- What the station sells, read off its trade terminal (SystemMarketService).
+                             Above the notes, same-width cards, collapsible (2026-10-17, the user's asks). -->
+                        <Border x:Name="MarketPanel" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                                Background="{ThemeResource ThemePanelAltBrush}"
+                                CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,12,16,14">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="SOLD AT THE STATION" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" x:Name="MarketSeenTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    <Button Grid.Column="2" x:Name="MarketToggleBtn" Click="MarketToggle_Click" Padding="10,4"/>
+                                </Grid>
+                                <StackPanel x:Name="MarketBody" Spacing="10">
+                                    <TextBlock x:Name="MarketEmptyTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
+                                               Text="Nothing recorded yet. With game screen recording on, open the station's trade terminal and scroll through its Buy list."/>
+                                    <ctcontrols:WrapPanel x:Name="MarketItemsPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Player-entered notes (SystemNotesService) - saved in ArtifactX's own
                              settings, never the save, since the game doesn't store these. -->
                         <Border x:Name="SystemNotesPanel" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
@@ -185,21 +210,6 @@
                                     </Grid>
                                 </StackPanel>
                                 </StackPanel>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- What the station sells, read off its trade terminal (SystemMarketService). -->
-                        <Border x:Name="MarketPanel" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                                Background="{ThemeResource ThemePanelAltBrush}"
-                                CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,12,16,14">
-                            <StackPanel Spacing="10">
-                                <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <TextBlock Text="SOLD AT THE STATION" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="MarketSeenTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <TextBlock x:Name="MarketEmptyTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
-                                           Text="Nothing recorded yet. With game screen recording on, open the station's trade terminal and scroll through its Buy list."/>
-                                <ctcontrols:WrapPanel x:Name="MarketItemsPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
                             </StackPanel>
                         </Border>
 

@@ -815,15 +815,17 @@ public sealed partial class PlanetsPage : Page
         MarketSeenTxt.Text = items.Count == 0 ? "" : $"{items.Count} item{(items.Count == 1 ? "" : "s")} · last seen {SeenAgo(items.Max(i => i.SeenAt))}";
         foreach (var item in items)
         {
-            var chip = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Padding = new Thickness(8, 6, 12, 6) };
+            // Fixed width, so the cards line up in columns whatever the name's length.
+            var chip = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Padding = new Thickness(8, 6, 12, 6), Width = 290 };
             if (CatalogService.TryGet(item.ItemId)?.Icon is { } icon)
                 chip.Children.Add(new Image { Source = icon, Width = 32, Height = 32, VerticalAlignment = VerticalAlignment.Center });
-            var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            text.Children.Add(new TextBlock { Text = item.Name, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = ThemeBrush("ThemeTextBrush") });
+            var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Width = 226 };
+            text.Children.Add(new TextBlock { Text = item.Name, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = ThemeBrush("ThemeTextBrush"), TextTrimming = TextTrimming.CharacterEllipsis });
+            ToolTipService.SetToolTip(chip, item.Name);
             text.Children.Add(new TextBlock
             {
                 Text = $"{item.Price:N0} units · {item.Change}{(item.Stock > 0 ? $" · {item.Stock} in stock" : "")}",
-                FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush"),
+                FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush"), TextTrimming = TextTrimming.CharacterEllipsis,
             });
             chip.Children.Add(text);
             MarketItemsPanel.Children.Add(new Border
@@ -832,7 +834,23 @@ public sealed partial class PlanetsPage : Page
                 BorderBrush = ThemeBrush("ThemeLineBrush"), BorderThickness = new Thickness(1),
             });
         }
+        ApplyMarketCollapsed();
         _ = WarmMarketIconsAsync(system, items);
+    }
+
+    private const string MarketCollapsedKey = "PlanetsMarketCollapsed";
+    private bool MarketCollapsed => SettingsStore.Get(SettingsStore.Scope.Profile, MarketCollapsedKey) == "1";
+
+    private void ApplyMarketCollapsed()
+    {
+        MarketBody.Visibility = MarketCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        MarketToggleBtn.Content = MarketCollapsed ? "Show" : "Hide";
+    }
+
+    private void MarketToggle_Click(object sender, RoutedEventArgs e)
+    {
+        SettingsStore.Set(SettingsStore.Scope.Profile, MarketCollapsedKey, MarketCollapsed ? "0" : "1");
+        ApplyMarketCollapsed();
     }
 
     private async Task WarmMarketIconsAsync(ulong system, IReadOnlyList<MarketItem> items)
