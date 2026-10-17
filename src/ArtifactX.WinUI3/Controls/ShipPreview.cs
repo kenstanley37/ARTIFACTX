@@ -43,6 +43,10 @@ public sealed class ShipPreview : UserControl
     public int PixelWidth { get; set; } = 420;
     public int PixelHeight { get; set; } = 260;
 
+    /// <summary>Draw at the control's own size instead of PixelWidth x PixelHeight - for a
+    /// preview that fills a resizable area (the Ship Designer, 2026-10-16).</summary>
+    public bool FitToSize { get; set; }
+
     public ShipPreview()
     {
         var grid = new Grid { Background = ThemeResources.Brush("ThemePanelAltBrush"), CornerRadius = new CornerRadius(6) };
@@ -53,6 +57,13 @@ public sealed class ShipPreview : UserControl
         PointerReleased += (_, e) => { _drag = null; ReleasePointerCapture(e.Pointer); };
         PointerMoved += OnPointerMoved;
         ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.SizeAll);
+        SizeChanged += (_, e) =>
+        {
+            if (!FitToSize || e.NewSize.Width < 16 || e.NewSize.Height < 16) return;
+            PixelWidth = (int)e.NewSize.Width;
+            PixelHeight = (int)e.NewSize.Height;
+            Redraw();
+        };
     }
 
     /// <summary>Shows a model; <paramref name="colourOf"/> gives each material's RGB,

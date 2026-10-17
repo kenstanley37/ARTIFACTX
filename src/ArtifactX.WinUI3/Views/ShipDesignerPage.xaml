@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). The Ship Designer: the game's own
+     ship fabricator choices (ShipDesignerPage.xaml.cs) around a preview that never
+     scrolls away - parts on the left, the ship in the middle, paint on the right,
+     like the game's builder (2026-10-16, the user's layout: the first version listed
+     everything in one column and the preview scrolled out of sight). -->
+<Page
+    x:Class="ArtifactX.WinUI3.Views.ShipDesignerPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="28,26,28,24" RowSpacing="18">
+        <!-- On the page's root element (AdaptiveTriggers on a nested Grid never fire). -->
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup>
+                <VisualState x:Name="Wide">
+                    <VisualState.StateTriggers>
+                        <!-- WINDOW width, nav pane included: ~320 nav + 400 + 480 + 380 + gaps. -->
+                        <AdaptiveTrigger MinWindowWidth="1700"/>
+                    </VisualState.StateTriggers>
+                </VisualState>
+                <VisualState x:Name="Narrow">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0"/>
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <!-- Narrow: preview across the top, parts and paint side by side below. -->
+                        <Setter Target="PreviewCard.(Grid.Row)" Value="0"/>
+                        <Setter Target="PreviewCard.(Grid.Column)" Value="0"/>
+                        <Setter Target="PreviewCard.(Grid.ColumnSpan)" Value="3"/>
+                        <Setter Target="PreviewCard.Height" Value="380"/>
+                        <Setter Target="PartsCard.(Grid.Row)" Value="1"/>
+                        <Setter Target="PartsCard.(Grid.ColumnSpan)" Value="2"/>
+                        <Setter Target="PaintCard.(Grid.Row)" Value="1"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="SHIP DESIGNER" Style="{StaticResource ThemePageTitleStyle}"/>
+
+        <!-- Shown instead of the designer when the game data has no builder yet. -->
+        <StackPanel x:Name="NoDataPanel" Grid.Row="1" Spacing="8" Visibility="Collapsed">
+            <TextBlock Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"
+                       Text="The Ship Designer reads the game's own ship fabricator from your game files. Update your game data to use it."/>
+            <HyperlinkButton Content="Update game data now" Padding="0" Click="UpdateDataLink_Click"/>
+        </StackPanel>
+
+        <Grid x:Name="BodyGrid" Grid.Row="1" ColumnSpacing="20" RowSpacing="18" Visibility="Collapsed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="400"/>
+                <ColumnDefinition Width="*" MinWidth="360"/>
+                <ColumnDefinition Width="380"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Left: type and parts, one slot at a time; only the slot's parts scroll. -->
+            <Border x:Name="PartsCard" Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" Style="{StaticResource ThemeCardStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="SHIP AND PARTS" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <StackPanel Grid.Row="1" Padding="16,14,16,4" Spacing="6">
+                        <TextBlock Text="SHIP TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <ctcontrols:WrapPanel x:Name="TypePanel" HorizontalSpacing="6" VerticalSpacing="6"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="2" Padding="16,12,16,0" Spacing="6">
+                        <TextBlock Text="PARTS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <StackPanel x:Name="SlotTabs" Spacing="6"/>
+                    </StackPanel>
+                    <ScrollViewer Grid.Row="3" Margin="0,12,0,0">
+                        <ctcontrols:WrapPanel x:Name="PartsPanel" Margin="16,0,16,16" HorizontalSpacing="6" VerticalSpacing="6"/>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- Middle: the ship. -->
+            <Border x:Name="PreviewCard" Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" Style="{StaticResource ThemeCardStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="PREVIEW" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <Grid Grid.Row="1" Padding="18,14,18,0" ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="ShipNameTxt" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" x:Name="NewNameBtn" Content="New name" Click="NewNameBtn_Click"
+                                ToolTipService.ToolTip="The game names a built ship from a random number - pick another to get another name."/>
+                    </Grid>
+                    <controls:ShipPreview x:Name="PreviewView" Grid.Row="2" Margin="18,10,18,0" MinHeight="200" FitToSize="True"/>
+                    <StackPanel Grid.Row="3" Padding="18,10,18,16" Spacing="4">
+                        <TextBlock x:Name="PreviewNote" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
+                                   Text="Drag to turn. Built from your game files with the parts and colours you pick."/>
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
+                                   Text="Adding the design to your save comes next - nothing here changes your save yet."/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Right: paint style and colours, always in view. -->
+            <Border x:Name="PaintCard" Grid.Row="0" Grid.RowSpan="2" Grid.Column="2" Style="{StaticResource ThemeCardStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="PAINT" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <ScrollViewer Grid.Row="1">
+                        <StackPanel x:Name="PaintPanel" Padding="16,14,16,16" Spacing="16"/>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

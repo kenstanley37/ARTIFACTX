@@ -42,7 +42,9 @@ public sealed partial class ShipModels
     private static readonly Regex Effects = new("SHIELD|WARPBUBBLE|FORCEFIELD");
     // MULTITOOLDECAL isn't a flat decal: multi-tools use it for solid panels (the middle
     // of a long barrel's top cover went missing without it, 2026-10-16).
-    private static readonly Regex Hidden = new("(?<!MULTITOOL)DECAL|SHADOW|MASKMAT|DEPTHMASK");
+    // ENGINEJET is the engine exhaust, drawn only in flight: big purple cones behind
+    // every ship in the preview (2026-10-16, the user: "doesn't need to be there").
+    private static readonly Regex Hidden = new("(?<!MULTITOOL)DECAL|SHADOW|MASKMAT|DEPTHMASK|ENGINEJET");
 
     public ShipModels(GameInstall game)
     {

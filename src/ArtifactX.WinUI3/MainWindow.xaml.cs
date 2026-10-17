@@ -397,6 +397,7 @@ public sealed partial class MainWindow : Window
                 "Exosuit" => typeof(ExosuitPage),
                 "MultiTool" => typeof(MultiToolPage),
                 "Ships" => typeof(ShipsPage),
+                "ShipDesigner" => typeof(ShipDesignerPage),
                 "Freighter" => typeof(FreighterPage),
                 "FreighterUpgrades" => typeof(FreighterUpgradesPage),
                 "Frigate" => typeof(FrigatePage),
@@ -460,6 +461,7 @@ public sealed partial class MainWindow : Window
         ExosuitNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         MultiToolNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         ShipsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        ShipDesignerNavItem.Visibility = ShipsNavItem.Visibility;
         FreighterNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         FreighterUpgradesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         FrigateNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
@@ -680,6 +682,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(ExosuitPage) => "Exosuit",
             Type t when t == typeof(MultiToolPage) => "MultiTool",
             Type t when t == typeof(ShipsPage) => "Ships",
+            Type t when t == typeof(ShipDesignerPage) => "ShipDesigner",
             Type t when t == typeof(FreighterPage) => "Freighter",
             Type t when t == typeof(FreighterUpgradesPage) => "FreighterUpgrades",
             Type t when t == typeof(FrigatePage) => "Frigate",

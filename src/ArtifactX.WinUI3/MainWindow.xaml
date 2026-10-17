@@ -135,6 +135,12 @@
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
+                    <NavigationViewItem x:Name="ShipDesignerNavItem" Content="Ship Designer" Tag="ShipDesigner" Visibility="Collapsed">
+                        <NavigationViewItem.Icon>
+                            <FontIcon Glyph="&#xE790;"/>
+                        </NavigationViewItem.Icon>
+                    </NavigationViewItem>
+
                     <NavigationViewItem x:Name="FreighterNavItem" Content="Freighter" Tag="Freighter" Visibility="Collapsed">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="FreighterPathIcon"/>

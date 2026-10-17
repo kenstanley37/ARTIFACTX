@@ -65,6 +65,8 @@ public sealed partial class MainWindow
             bar.Message = message;
             if (button is null) GameDataButton.Visibility = Visibility.Collapsed;
             else GameDataButton.Content = button;
+            // Offers get the warm attention colour; Cancel and Try again keep the accent.
+            GameDataButton.Style = (Style)Application.Current.Resources[offer ? "ThemeAttentionButtonStyle" : "ThemeAccentButtonStyle"];
             bar.IsOpen = true;
             if (offer && _pulsedOffer != title) { _pulsedOffer = title; PulseGameDataButton(); }
         }
