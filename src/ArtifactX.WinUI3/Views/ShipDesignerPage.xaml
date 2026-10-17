@@ -74,6 +74,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <Border Style="{StaticResource ThemeBandStyle}">
@@ -87,7 +88,10 @@
                         <TextBlock Text="PARTS" Style="{StaticResource ThemeEyebrowStyle}"/>
                         <StackPanel x:Name="SlotTabs" Spacing="6"/>
                     </StackPanel>
-                    <ScrollViewer Grid.Row="3" Margin="0,12,0,0">
+                    <!-- Some slots offer 40+ parts: filter by name (the list itself is A-Z). -->
+                    <TextBox x:Name="PartSearchBox" Grid.Row="3" Margin="16,12,16,0" PlaceholderText="Find a part"
+                             TextChanged="PartSearchBox_TextChanged"/>
+                    <ScrollViewer Grid.Row="4" Margin="0,10,0,0">
                         <ctcontrols:WrapPanel x:Name="PartsPanel" Margin="16,0,16,16" HorizontalSpacing="6" VerticalSpacing="6"/>
                     </ScrollViewer>
                 </Grid>

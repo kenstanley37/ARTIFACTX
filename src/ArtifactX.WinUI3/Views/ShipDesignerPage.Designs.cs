@@ -158,6 +158,7 @@ public sealed partial class ShipDesignerPage
             else if (slot.Items.Count > 0) { _parts[slot.Id] = slot.Items[0].Item; missing = true; }
         }
         _slot = type.Slots.FirstOrDefault()?.Id ?? "";
+        PartSearchBox.Text = "";
         var styles = _styles.GetValueOrDefault(type.StyleGroup) ?? new();
         _style = styles.FirstOrDefault(s => s.Option == design.Style);
         if (_style is null) { _style = styles.FirstOrDefault(); missing |= design.Style is not null; }

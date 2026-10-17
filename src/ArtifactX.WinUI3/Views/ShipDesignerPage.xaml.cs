@@ -137,6 +137,7 @@ public sealed partial class ShipDesignerPage : Page
         foreach (var slot in type.Slots)
             if (slot.Items.Count > 0) _parts[slot.Id] = slot.Items[0].Item;
         _slot = type.Slots.FirstOrDefault()?.Id ?? "";
+        PartSearchBox.Text = "";
         _style = (_styles.GetValueOrDefault(type.StyleGroup) ?? new()).FirstOrDefault();
         ResetColours();
         BuildTypePanel();
@@ -188,6 +189,7 @@ public sealed partial class ShipDesignerPage : Page
             {
                 if (slot.Id == _slot) return;
                 _slot = slot.Id;
+                PartSearchBox.Text = "";
                 BuildSlotTabs();
                 ShowParts();
             };
@@ -200,7 +202,17 @@ public sealed partial class ShipDesignerPage : Page
         PartsPanel.Children.Clear();
         var slot = _type?.Slots.FirstOrDefault(s => s.Id == _slot);
         if (slot is null) return;
-        foreach (var item in slot.Items)
+        string find = PartSearchBox.Text.Trim();
+        var shown = slot.Items
+            .Where(i => find.Length == 0 || PartName(i.Item).Contains(find, StringComparison.CurrentCultureIgnoreCase))
+            .OrderBy(i => PartName(i.Item), StringComparer.CurrentCulture).ToList();
+        if (shown.Count == 0)
+            PartsPanel.Children.Add(new TextBlock
+            {
+                Text = $"No {slot.Label.ToLowerInvariant()} part matches \"{find}\".",
+                Style = (Style)Application.Current.Resources["ThemeDimTextStyle"], FontSize = 12, TextWrapping = TextWrapping.Wrap,
+            });
+        foreach (var item in shown)
         {
             var button = new Button { Content = PartCard(item.Item), Padding = new Thickness(4), VerticalAlignment = VerticalAlignment.Stretch };
             ThemeResources.StyleChoiceButton(button, _parts.GetValueOrDefault(slot.Id) == item.Item);
@@ -215,6 +227,8 @@ public sealed partial class ShipDesignerPage : Page
             PartsPanel.Children.Add(button);
         }
     }
+
+    private void PartSearchBox_TextChanged(object sender, TextChangedEventArgs e) => ShowParts();
 
     private static UIElement PartCard(string id)
     {
