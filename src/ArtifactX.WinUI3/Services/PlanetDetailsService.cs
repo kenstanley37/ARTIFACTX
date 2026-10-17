@@ -44,6 +44,10 @@ public static class PlanetDetailsService
     private static readonly object Lock = new();
     private static Dictionary<string, PlanetDetails>? _details;
 
+    /// <summary>Raised (on any thread) when details arrive from outside the Planets page -
+    /// read off a game screen (PlanetPageReader) - so an open page can show them.</summary>
+    public static event Action<ulong, int>? Captured;
+
     private static string SystemKey(ulong systemAddress) => systemAddress.ToString("X", CultureInfo.InvariantCulture);
     private static string Key(string system, int planet) => $"{system}|{planet}";
 
@@ -213,6 +217,7 @@ public static class PlanetDetailsService
         {
             Debug.WriteLine($"[PlanetDetailsService] Couldn't save planet details: {ex.Message}");
         }
+        if (source == "captured") Captured?.Invoke(systemAddress, planet);
     }
 
     /// <summary>Drops the in-memory copy (after a user.db import).</summary>

@@ -70,10 +70,21 @@ public sealed partial class PlanetsPage : Page
         _suppressFilterEvents = false;
         SetLiveHelpVisible(!AppSettingsService.GetFlag(LiveHelpHiddenKey));
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
+        PlanetDetailsService.Captured += OnDetailsCaptured;
         Unloaded += Page_Unloaded;
         JumpPlanner.RangeChanged += ApplyFilters;
         _ = LoadPageAsync();
     }
+
+    /// <summary>A planet's details were read off the game screen while this page is open
+    /// (game screen recording): show them straight away. An open planet's own editor isn't
+    /// rebuilt under the player - it shows them next time it opens.</summary>
+    private void OnDetailsCaptured(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_snapshot is null) return;
+        if (system == _currentSystem) BuildCurrentSystem(_lastCounts);
+        RefreshFinder();
+    });
 
     private void OnActiveSessionChanged(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(() => _ = LoadPageAsync());
@@ -81,6 +92,7 @@ public sealed partial class PlanetsPage : Page
     private void Page_Unloaded(object sender, RoutedEventArgs e)
     {
         SaveSessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
+        PlanetDetailsService.Captured -= OnDetailsCaptured;
         JumpPlanner.RangeChanged -= ApplyFilters;
         StopOrbitAnimations();
         StopWatching();
