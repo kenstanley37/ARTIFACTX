@@ -91,13 +91,17 @@ public sealed partial class ShipDesignerPage
                 : $"Starship {index + 1}";
             list.Items.Add(new ListViewItem { Content = label, Tag = index });
         }
+        // A ship with a name of its own keeps it unless asked; one without takes the
+        // design's name anyway (the game names it from the new seed).
+        var rename = new CheckBox { Content = $"Rename it to \"{ShipNameTxt.Text}\"", IsChecked = true, Visibility = Visibility.Collapsed };
         var panel = new StackPanel { Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
-            Text = "The ship gets this design's type, parts, paint and a new seed. Its technology, cargo, class and stats stay as they are, and so does a name you gave it.",
+            Text = $"The ship gets this design's type, parts, paint and name (\"{ShipNameTxt.Text}\"). Its technology, cargo, class and stats stay as they are.",
         });
         panel.Children.Add(list);
+        panel.Children.Add(rename);
         var dialog = new ContentDialog
         {
             Title = "Apply the design to which ship?",
@@ -108,12 +112,18 @@ public sealed partial class ShipDesignerPage
             IsPrimaryButtonEnabled = false,
             XamlRoot = XamlRoot,
         };
-        list.SelectionChanged += (_, _) => dialog.IsPrimaryButtonEnabled = list.SelectedItem is not null;
+        list.SelectionChanged += (_, _) =>
+        {
+            dialog.IsPrimaryButtonEnabled = list.SelectedItem is not null;
+            rename.Visibility = list.SelectedItem is ListViewItem { Tag: int picked } && owned.Any(s => s.Index == picked && s.Name.Length > 0)
+                ? Visibility.Visible : Visibility.Collapsed;
+        };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary || list.SelectedItem is not ListViewItem { Tag: int target }) return;
 
         var path = NmsInventoryContainer.ShipArrayPath.Append(target.ToString()).ToArray();
         var ship = (JObject)SaveSessionManager.GetValue(path)!.DeepClone();
         WriteLook(ship);
+        if (rename.IsChecked == true) ship["NKm"] = "";
         SaveSessionManager.StageEdit(ship, path);
         SaveSessionManager.StageEdit(CustomisationEntry(), CustomisationPath(target));
         await Message("Applied", "Save from the title bar to write it to your save, then load the save in game.");
