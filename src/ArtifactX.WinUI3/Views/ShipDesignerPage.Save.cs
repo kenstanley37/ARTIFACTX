@@ -46,7 +46,7 @@ public sealed partial class ShipDesignerPage
 
     private async void AddNewBtn_Click(object sender, RoutedEventArgs e)
     {
-        if (_type is null || !SaveSessionManager.IsSaveLoaded) return;
+        if (_type is null || !SaveSessionManager.IsSaveLoaded || GameProcessMonitorService.IsGameRunning) return;
         var owned = RegularShips();
         int active = SaveSessionManager.GetValue(NmsInventoryContainer.ActiveShipIndexPath)?.Value<int>() ?? -1;
         // The new ship starts as a copy of one you own (its tech, so it flies straight away).
@@ -79,7 +79,7 @@ public sealed partial class ShipDesignerPage
 
     private async void ApplyBtn_Click(object sender, RoutedEventArgs e)
     {
-        if (_type is null || !SaveSessionManager.IsSaveLoaded) return;
+        if (_type is null || !SaveSessionManager.IsSaveLoaded || GameProcessMonitorService.IsGameRunning) return;
         var owned = RegularShips();
         if (owned.Count == 0) { await Message("No ship to apply it to", "This save has no starship the design can go on."); return; }
 

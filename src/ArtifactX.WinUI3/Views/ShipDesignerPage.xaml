@@ -122,6 +122,8 @@
                             <Button x:Name="AddNewBtn" Content="Add as new ship" Click="AddNewBtn_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
                             <Button x:Name="ApplyBtn" Content="Apply to a ship..." Click="ApplyBtn_Click"/>
                         </StackPanel>
+                        <TextBlock x:Name="WriteBlockedTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
+                                   Visibility="Collapsed"/>
                     </StackPanel>
                 </Grid>
             </Border>

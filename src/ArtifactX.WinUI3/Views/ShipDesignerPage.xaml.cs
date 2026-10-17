@@ -24,7 +24,7 @@ namespace ArtifactX.WinUI3.Views;
 /// A built ship keeps its design in the save, not in its seed (in-game build
 /// diff): the parts by item id, the style as a texture option and every
 /// palette's colours. The seed only names it. Writing a design into the save
-/// is the next step; this page doesn't change the save yet.
+/// is in ShipDesignerPage.Save.cs.
 /// </summary>
 public sealed partial class ShipDesignerPage : Page
 {
@@ -56,6 +56,36 @@ public sealed partial class ShipDesignerPage : Page
     public ShipDesignerPage()
     {
         InitializeComponent();
+        GameProcessMonitorService.RunningStateChanged += OnGameRunningStateChanged;
+        SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
+        Unloaded += Page_Unloaded;
+        UpdateWriteButtons();
+    }
+
+    private void OnGameRunningStateChanged(object? sender, bool isRunning) =>
+        DispatcherQueue.TryEnqueue(UpdateWriteButtons);
+
+    private void OnActiveSessionChanged(object? sender, EventArgs e) =>
+        DispatcherQueue.TryEnqueue(UpdateWriteButtons);
+
+    private void Page_Unloaded(object sender, RoutedEventArgs e)
+    {
+        GameProcessMonitorService.RunningStateChanged -= OnGameRunningStateChanged;
+        SaveSessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
+    }
+
+    /// <summary>Add and Apply only stage edits, but edits staged while the game runs
+    /// are lost: the game autosaves, and reloading its newer save discards them.
+    /// So they wait until No Man's Sky is closed, like Save in the title bar.</summary>
+    private void UpdateWriteButtons()
+    {
+        bool gameRunning = GameProcessMonitorService.IsGameRunning;
+        bool saveLoaded = SaveSessionManager.IsSaveLoaded;
+        AddNewBtn.IsEnabled = ApplyBtn.IsEnabled = saveLoaded && !gameRunning;
+        WriteBlockedTxt.Text = gameRunning ? "Close No Man's Sky to add or apply a design. You can keep designing meanwhile."
+            : !saveLoaded ? "Load a save to add or apply a design."
+            : "";
+        WriteBlockedTxt.Visibility = WriteBlockedTxt.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
