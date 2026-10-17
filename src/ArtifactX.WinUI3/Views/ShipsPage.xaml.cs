@@ -34,7 +34,17 @@ public sealed partial class ShipsPage : Page
     // EQUIPPED ship is tracked by a plain integer index - NmsInventoryContainer.
     // ActiveShipIndexPath (aBE) - confirmed against 15 real save files across
     // 3 characters.
-    private sealed record ShipEntry(int Index, string Name, bool IsGameActive, bool IsCorvette, int BuildParts);
+    // Name is the button label: the player's name, else the one the game makes
+    // up for an unnamed ship (GameName, MultiToolKinds.ShipNameAsync), else "Starship N".
+    private sealed record ShipEntry(int Index, string Name, bool IsGameActive, bool IsCorvette, int BuildParts,
+        bool IsUnnamed = false, string? GameName = null);
+
+    // The game's names for unnamed ships, by (seed, model) - worked out once, off the list build.
+    // Emptied when the game data changes: names worked out before an update (none,
+    // without the word lists) stayed cached as none afterwards (2026-10-16).
+    private static readonly Dictionary<(ulong, string), string?> GameNames = new();
+    private static DateTime? _gameNamesStamp;
+    private bool _namingShips;
 
     private InventoryGridViewModel? _techViewModel;
     private InventoryGridViewModel? _cargoViewModel;
@@ -203,6 +213,8 @@ public sealed partial class ShipsPage : Page
         var builds = ShipBaseService.BuildsBySlot();
 
         var ships = new List<ShipEntry>();
+        var missingNames = new List<(ulong, string)>();
+        if (GameDataService.Info?.BuiltAtUtc != _gameNamesStamp) { GameNames.Clear(); _gameNamesStamp = GameDataService.Info?.BuiltAtUtc; }
         for (int i = 0; i < array.Count; i++)
         {
             // Occupancy is the model scene path (NTx/93M), NOT NKm (Name) - a
@@ -215,12 +227,20 @@ public sealed partial class ShipsPage : Page
             if (string.IsNullOrEmpty(scenePath)) continue;
 
             string name = array[i]?["NKm"]?.Value<string>() ?? "";
-            if (string.IsNullOrEmpty(name)) name = $"Starship {i + 1}";
+            bool unnamed = string.IsNullOrEmpty(name);
+            string? gameName = null;
+            if (unnamed)
+            {
+                TryParseSeed(array[i]?["NTx"]?["@EL"]?[1]?.Value<string>(), out ulong seed);
+                if (!GameNames.TryGetValue((seed, scenePath), out gameName)) missingNames.Add((seed, scenePath));
+                name = gameName ?? $"Starship {i + 1}";
+            }
             int parts = builds.GetValueOrDefault(i);
-            ships.Add(new ShipEntry(i, name, i == activeIndex, parts > 0 || ShipBaseService.IsCorvetteModel(scenePath), parts));
+            ships.Add(new ShipEntry(i, name, i == activeIndex, parts > 0 || ShipBaseService.IsCorvetteModel(scenePath), parts, unnamed, gameName));
         }
 
         _ships = ships;
+        if (missingNames.Count > 0) NameShips(missingNames);
 
         // Defaults selection to the in-game active ship the first time a
         // session loads; a plain edits-changed refresh keeps whatever the
@@ -234,6 +254,42 @@ public sealed partial class ShipsPage : Page
         BuildSelectorStrip();
         if (!live || _shownIndex != _selectedIndex || LiveItemsService.IsNew(LiveCollection.Ships, _selectedIndex))
             LoadSelectedShip();
+    }
+
+    /// <summary>Works out the game's names for unnamed ships in the background, then
+    /// relabels the strip (and the name box, when it shows one of them).</summary>
+    private async void NameShips(List<(ulong Seed, string Scene)> missing)
+    {
+        if (_namingShips) return;
+        _namingShips = true;
+        try
+        {
+            foreach (var (seed, scene) in missing)
+                GameNames[(seed, scene)] = await MultiToolKinds.ShipNameAsync(seed, scene);
+        }
+        finally { _namingShips = false; }
+        if (missing.All(m => GameNames[m] is null)) return;
+        string? typed = NameEditBox.Text;
+        var before = _ships.FirstOrDefault(s => s.Index == _selectedIndex);
+        LoadShipList(live: true);
+        var after = _ships.FirstOrDefault(s => s.Index == _selectedIndex);
+        // Only fill the box if the player hasn't typed into it meanwhile.
+        if (after is { IsUnnamed: true } && before is { IsUnnamed: true } && string.IsNullOrEmpty(typed)) ShowName(after);
+    }
+
+    /// <summary>The name box: the player's name, or the one the game made up for an
+    /// unnamed ship. Leaving it unchanged writes nothing, so the game's name never
+    /// becomes a saved custom name by accident (as on Multi-Tool).</summary>
+    private void ShowName(ShipEntry ship)
+    {
+        NameEditBox.Text = ship.IsUnnamed ? ship.GameName ?? "" : ship.Name;
+        bool oldData = GameDataService.Info is { } info && info.Format < ArtifactX.GameData.GameDataBuilder.CatalogFormat;
+        // The way to fix it, right where it shows (the bar at the top is easy to miss).
+        NameUpdateLink.Visibility = ship.IsUnnamed && ship.GameName is null && oldData && !GameDataService.IsBuilding
+            ? Visibility.Visible : Visibility.Collapsed;
+        NameEditBox.PlaceholderText = ship.IsUnnamed && ship.GameName is null
+            ? (oldData ? "Update your game data to see the game's name" : "No name yet - type one to name this ship")
+            : "";
     }
 
     private void BuildSelectorStrip()
@@ -532,7 +588,7 @@ public sealed partial class ShipsPage : Page
             ? Visibility.Visible : Visibility.Collapsed;
 
         BuildClassSelector();
-        NameEditBox.Text = selectedShip.Name;
+        ShowName(selectedShip);
         CorvetteNote.Visibility = selectedShip.IsCorvette ? Visibility.Visible : Visibility.Collapsed;
         CorvetteNoteTxt.Text = selectedShip.BuildParts > 0
             ? $"This is a corvette. What you built onto it - {selectedShip.BuildParts} parts: cockpit, habitat, wings, engines and the rest - is stored apart from the ship. Full Build templates include it."
@@ -646,6 +702,12 @@ public sealed partial class ShipsPage : Page
 
     /// <summary>Stages the rename when the field loses focus - not on every
     /// keystroke, since that would rebuild the selector strip mid-typing.</summary>
+    private void NameUpdateLink_Click(object sender, RoutedEventArgs e)
+    {
+        NameUpdateLink.Visibility = Visibility.Collapsed;
+        App.MainWindowInstance?.StartGameDataUpdate();
+    }
+
     private void NameEditBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (_selectedIndex < 0) return;
@@ -654,7 +716,7 @@ public sealed partial class ShipsPage : Page
         if (string.IsNullOrEmpty(newName)) return;
 
         var currentShip = _ships.FirstOrDefault(s => s.Index == _selectedIndex);
-        if (currentShip != null && newName == currentShip.Name) return;
+        if (currentShip != null && newName == (currentShip.IsUnnamed ? currentShip.GameName : currentShip.Name)) return;
 
         var namePath = new[] { "vLc", "6f=", "@Cs", _selectedIndex.ToString(), "NKm" };
         SaveSessionManager.StageEdit(newName, namePath);

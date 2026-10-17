@@ -159,12 +159,7 @@ public sealed partial class ShipsPage
                 if (Match(set, picked) is string id) row.Children.Add(PartChip(id));
             if (row.Children.Count == 0) ShipPartsPanel.Children.Add(Dim("No ship-builder parts match this seed."));
             else ShipPartsPanel.Children.Add(row);
-            // Paint isn't shown: the seed -> colour rule (ShipColours/ShipLook,
-            // ported from NMS Shipwright) was disproved in game on 2026-10-15 -
-            // four controlled test fighters came out tan/red/blue/blue where it
-            // predicted yellow/periwinkle/white/green. The code stays in Core for
-            // when the game's real rule is found; until then the preview is
-            // neutral and the page claims no colours.
+            // Paint isn't shown: no seed -> colour rule fits every ship yet (see ShowPreview).
         }
         else
         {
@@ -236,7 +231,7 @@ public sealed partial class ShipsPage
     /// <summary>The 3D preview: the seed's parts built from the player's own
     /// game files (ShipModels) in neutral shades - each paint surface its own
     /// grey so the parts read apart, glass/lights/dark parts by their material
-    /// name. Not the ship's real colours (see RefreshShipParts).</summary>
+    /// name. Not the ship's real colours (see the note in the body).</summary>
     private async void ShowPreview(string scene, ulong seed, IReadOnlyList<PartGroup>? root)
     {
         int version = ++_previewVersion;
@@ -251,6 +246,12 @@ public sealed partial class ShipsPage
         var mesh = await Task.Run(() => models.Build(scene, options, chosen));
         if (version != _previewVersion) return;
         var look = _look;
+        // Not painted yet (2026-10-16): the multi-tool colour rule (palettes from the
+        // seed's first child seed - ModelPreviewService.SeedColoursAsync) fits most
+        // fighters' hulls but not haulers, which fit the raw seed (Shipwright's rule);
+        // no single rule fits all six ships checked in game. NMS.exe's ship path
+        // (0x141659e80) derives the colour seed from a generator state after a loop of
+        // draws - not traced yet. Wrong colours would mislead, so greys until then.
         ShipPreviewView.Show(mesh, material => MaterialColour(material, look));
         ShipPreviewNote.Text = mesh is null
             ? "This ship's model couldn't be read from your game files."

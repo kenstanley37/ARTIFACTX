@@ -14,7 +14,9 @@ public static partial class CatalogSteps
     /// tool the player never renamed from its seed (ArtifactX.Core
     /// MultiToolNames), picking a pattern ("%NOUN% of %PROCNAME%-%NUMERAL%")
     /// and words from these lists - NAMEGEN_WEAP_FORMAT/NOUN/PROPERTY/ADJ/
-    /// COMP1/COMP2 and the staff's NAMEGEN_STAFF_FORMAT/ADJ. One row per list,
+    /// COMP1/COMP2 and the staff's NAMEGEN_STAFF_FORMAT/ADJ. Starships too
+    /// (ArtifactX.Core ShipNames, format 12): NAMEGEN_SHIP_FORMAT/NOUN/VERB/
+    /// POSESSION (the game's spelling)/PROPERTY/ADJ. One row per list,
     /// its words in the game's order (key _1 first), read from the player's
     /// own language files.
     /// </summary>
@@ -36,7 +38,7 @@ public static partial class CatalogSteps
         var extraction = new ExtractionService();
 
         // The lists are spread over several language files (update files included).
-        var key = new Regex(@"^NAMEGEN_(WEAP|STAFF)_([A-Z0-9]+)_(\d+)$", RegexOptions.IgnoreCase);
+        var key = new Regex(@"^NAMEGEN_(WEAP|STAFF|SHIP)_([A-Z0-9]+)_(\d+)$", RegexOptions.IgnoreCase);
         var lists = new Dictionary<string, SortedDictionary<int, string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in index.Paths.Where(p => p.StartsWith("LANGUAGE/", StringComparison.OrdinalIgnoreCase)
                      && p.EndsWith("_ENGLISH.MBIN", StringComparison.OrdinalIgnoreCase)).ToList())
@@ -75,7 +77,7 @@ public static partial class CatalogSteps
                 DescriptionEnglish = new JsonArray(words.Values.Select(w => (JsonNode)w).ToArray()).ToJsonString(),
             });
         }
-        ConsoleStyle.Header($"Found {rows.Count} multi-tool name word lists.");
+        ConsoleStyle.Header($"Found {rows.Count} multi-tool and starship name word lists.");
 
         using var db = new CatalogDbContext(catalogPath);
         Replace(db, "MultiToolNameWords", "LocalisedText", "language/*_english.mbin", rows);

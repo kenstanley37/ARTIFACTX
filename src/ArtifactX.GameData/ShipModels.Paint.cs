@@ -79,21 +79,44 @@ public sealed partial class ShipModels
             // own colour, red areas the palette's Unique colour - one coating gives a tool
             // its blue panels and its yellow frame. Grey images just take the one colour.
             var tint2 = tint is null ? null : colour(texture.Palette.Palette.ToString(), "Unique");
+            // How bright the image is on average where it shows: a tinted layer is scaled
+            // so that average gives the palette colour itself (2026-10-16). Ship hull
+            // images are a flat half-bright mask - a fixed "doubled" scale left them
+            // near black; multi-tool images average about mid-grey, where both agree.
+            float Shade(int k, out float wr, out float wg)
+            {
+                float r = img.Rgba[k] / 255f, g = img.Rgba[k + 1] / 255f, b = img.Rgba[k + 2] / 255f;
+                wr = 1f; wg = 0f;
+                if (tint2 is not null && MathF.Max(r, MathF.Max(g, b)) - MathF.Min(r, MathF.Min(g, b)) > 0.25f)
+                {
+                    float sum = r + MathF.Max(g, b); wg = sum > 0 ? r / sum : 0f; wr = 1f - wg;
+                    return MathF.Max(r, MathF.Max(g, b)) * 0.5f;
+                }
+                return 0.299f * r + 0.587f * g + 0.114f * b;
+            }
+            float gain = 2f;
+            if (tint is not null)
+            {
+                double sumL = 0, sumA = 0;
+                for (int k = 0; k + 3 < img.Rgba.Length; k += 4 * 7)
+                {
+                    float a = isBase ? 1 : img.Rgba[k + 3] / 255f;
+                    sumL += Shade(k, out _, out _) * a; sumA += a;
+                }
+                if (sumA > 0 && sumL > 0) gain = (float)Math.Clamp(sumA / sumL, 1.0, 4.0);
+            }
             for (int y = 0; y < size; y++)
                 for (int x = 0; x < size; x++)
                 {
                     int sx = x * img.W / size, sy = y * img.H / size, k = (sy * img.W + sx) * 4, o = (y * size + x) * 3;
                     float r = img.Rgba[k] / 255f, g = img.Rgba[k + 1] / 255f, b = img.Rgba[k + 2] / 255f;
                     float a = isBase ? 1 : img.Rgba[k + 3] / 255f;
-                    float lum = 0.299f * r + 0.587f * g + 0.114f * b;
-                    float wr = 1f, wg = 0f;
-                    if (tint2 is not null && MathF.Max(r, MathF.Max(g, b)) - MathF.Min(r, MathF.Min(g, b)) > 0.25f)
-                    { float sum = r + MathF.Max(g, b); wg = sum > 0 ? r / sum : 0f; wr = 1f - wg; lum = MathF.Max(r, MathF.Max(g, b)) * 0.5f; }
+                    float lum = Shade(k, out float wr, out float wg);
                     for (int c = 0; c < 3; c++)
                     {
-                        // A tinted layer is its grey times the colour (doubled, so mid-grey gives the colour itself).
+                        // A tinted layer is its grey times the colour, scaled so the image's average gives the colour.
                         float tc = tint is null ? 0 : (tint2 is null ? tint[c] : tint[c] * wr + tint2[c] * wg);
-                        float v = tint is null ? (c == 0 ? r : c == 1 ? g : b) : Math.Min(1f, tc * lum * 2f);
+                        float v = tint is null ? (c == 0 ? r : c == 1 ? g : b) : Math.Min(1f, tc * lum * gain);
                         acc[o + c] = acc[o + c] * (1 - a) + v * a;
                     }
                     cover[y * size + x] = cover[y * size + x] * (1 - a) + a;

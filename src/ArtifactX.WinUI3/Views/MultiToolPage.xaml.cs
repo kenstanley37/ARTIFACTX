@@ -742,9 +742,18 @@ public sealed partial class MultiToolPage : Page
         NameEditBox.Text = tool.IsUnnamed ? tool.GameName ?? "" : tool.Name;
         // No game name: game data from before the name words (format 11) - say how to get it.
         bool oldData = GameDataService.Info is { } info && info.Format < ArtifactX.GameData.GameDataBuilder.CatalogFormat;
+        // The way to fix it, right where it shows (the bar at the top is easy to miss).
+        NameUpdateLink.Visibility = tool.IsUnnamed && tool.GameName is null && oldData && !GameDataService.IsBuilding
+            ? Visibility.Visible : Visibility.Collapsed;
         NameEditBox.PlaceholderText = tool.IsUnnamed && tool.GameName is null
             ? (oldData ? "Update your game data to see the game's name" : "The game's own name couldn't be worked out")
             : "";
+    }
+
+    private void NameUpdateLink_Click(object sender, RoutedEventArgs e)
+    {
+        NameUpdateLink.Visibility = Visibility.Collapsed;
+        App.MainWindowInstance?.StartGameDataUpdate();
     }
 
     private void NameEditBox_LostFocus(object sender, RoutedEventArgs e)

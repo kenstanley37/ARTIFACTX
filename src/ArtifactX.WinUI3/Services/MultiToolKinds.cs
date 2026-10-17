@@ -87,6 +87,30 @@ public static class MultiToolKinds
     /// catalog. Null until the game data has them (format 11).</summary>
     public static async Task<string?> GameNameAsync(ulong seed, string scenePath)
     {
+        var words = await NameWordsAsync();
+        if (words.Count == 0) return null;
+        // Staffs (WeaponStatClass Staff) have their own patterns and adjectives.
+        bool staff = System.IO.Path.GetFileName(scenePath).StartsWith("STAFF", StringComparison.OrdinalIgnoreCase);
+        return MultiToolNames.Generate(seed, staff, list => words.GetValueOrDefault(list));
+    }
+
+    /// <summary>The name the game gives a starship nobody renamed ("Ashes of the
+    /// Suitaka") - ShipNames, words from the catalog (format 12). Null for living
+    /// ships and Sentinel ships (their own name routines, not read yet) and corvettes.</summary>
+    public static async Task<string?> ShipNameAsync(ulong seed, string scenePath)
+    {
+        string path = scenePath.ToUpperInvariant();
+        if (seed == 0 || path.Contains("/BIOPARTS/") || path.Contains("/SENTINELSHIP/") || path.Contains("/VINTAGEINTERCEPTOR.")
+            || ShipBaseService.IsCorvetteModel(scenePath))
+            return null;
+        var words = await NameWordsAsync();
+        return words.Count == 0 ? null : ShipNames.Generate(seed, list => words.GetValueOrDefault(list));
+    }
+
+    /// <summary>The game's name word lists by list name ("WEAP_NOUN", "SHIP_ADJ"...),
+    /// read again after a game-data rebuild.</summary>
+    private static async Task<Dictionary<string, IReadOnlyList<string>>> NameWordsAsync()
+    {
         var stamp = GameDataService.Info?.BuiltAtUtc;
         if (_words is null || _words.Count == 0 || stamp != _wordsStamp)
         {
@@ -96,10 +120,7 @@ public static class MultiToolKinds
                 kv => (IReadOnlyList<string>)(System.Text.Json.JsonSerializer.Deserialize<List<string>>(kv.Value) ?? new()),
                 StringComparer.OrdinalIgnoreCase);
         }
-        if (_words.Count == 0) return null;
-        // Staffs (WeaponStatClass Staff) have their own patterns and adjectives.
-        bool staff = System.IO.Path.GetFileName(scenePath).StartsWith("STAFF", StringComparison.OrdinalIgnoreCase);
-        return MultiToolNames.Generate(seed, staff, list => _words.GetValueOrDefault(list));
+        return _words;
     }
 
     /// <summary>Reads the part trees from the catalog - again after a game-data

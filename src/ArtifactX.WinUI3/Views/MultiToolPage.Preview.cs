@@ -15,8 +15,8 @@ namespace ArtifactX.WinUI3.Views;
 /// The selected tool in 3D (2026-10-16), built from the player's own game
 /// files the way Starships builds a ship: its model, with the parts its seed
 /// picks (SuJ[i].@EL[1], the same pick as MultiToolKinds) - every model has a
-/// part tree, the staffs and Royal tools included. Neutral greys: a seed's
-/// colours aren't known yet, for tools as for ships.
+/// part tree, the staffs and Royal tools included. Colours: a crafted staff's
+/// from the save, any other tool's from its seed (ModelPreviewService.SeedColoursAsync).
 /// </summary>
 public sealed partial class MultiToolPage
 {
@@ -63,20 +63,15 @@ public sealed partial class MultiToolPage
             ulong? textureSeed = null;
             if (storedColours.Count > 0)
                 colour = (palette, slot) => storedColours.GetValueOrDefault((palette, slot));
-            else if (seed != 0 && await CatalogService.GetPalettesAsync() is { Count: > 0 } palettes)
+            else if (await ModelPreviewService.SeedColoursAsync(seed) is { } fromTable)
             {
-                var table = ShipLook.PaletteTable(ColourSeed(seed), palettes);
-                colour = (palette, slot) =>
-                {
-                    int p = GameData.ShipModels.PaletteIndex(palette), a = GameData.ShipModels.SlotIndex(slot);
-                    return p < 0 || p >= table.Length || table[p] is null || a is < 0 or > 5 ? null : table[p][Math.Min(a, 3)];
-                };
+                colour = fromTable;
                 textureSeed = seed;
                 fromSeed = true;
             }
             if (colour is not null)
             {
-                var textures = await Task.Run(() => mesh.Materials.Distinct().ToDictionary(m => m, m => models.Painted(m, colour, 512, textureSeed)));
+                var textures = await ModelPreviewService.PaintAsync(models, mesh, colour, textureSeed);
                 if (version != _previewVersion) return;
                 painted = m => textures.GetValueOrDefault(m);
             }
@@ -106,20 +101,6 @@ public sealed partial class MultiToolPage
             result[(palette, slot)] = new[] { rgba[0].Value<float>(), rgba[1].Value<float>(), rgba[2].Value<float>() };
         }
         return result;
-    }
-
-    /// <summary>The seed a tool's colours come from: the first child seed of its own
-    /// (two draws of its generator, mixed) - NMS.exe 0x14165d840.</summary>
-    private static ulong ColourSeed(ulong seed)
-    {
-        ulong lo = seed & 0xFFFFFFFF, hi = seed >> 32;
-        ulong s0 = lo == 0 ? 1 : lo, s1 = (((lo << 16) | (lo >> 16)) & 0xFFFFFFFF) ^ hi ^ lo;
-        ulong Next() { ulong t = s0 * 0x5A76F899UL + s1; s0 = t & 0xFFFFFFFF; s1 = t >> 32; return s0; }
-        ulong a = Next();
-        ulong v = (Next() << 32) | a;
-        v = (v ^ (v >> 33)) * 0x64DD81482CBD31D7UL;
-        v = (v ^ (v >> 33)) * 0xE36AA5C613612997UL;
-        return v ^ (v >> 33);
     }
 
     private static ulong ParseSeed(string? text)
