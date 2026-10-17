@@ -282,6 +282,9 @@ public sealed partial class ShipsPage
     {
         int version = ++_previewVersion;
         if (GameDataService.Game is not { } game) { ShipPreviewGroup.Visibility = Visibility.Collapsed; return; }
+        // Cleared first: the previous ship stayed on screen while this one built (2026-10-17).
+        ShipPreviewView.ShowMessage("Building this ship's model from your game files...");
+        ShipPreviewNote.Text = "";
         ShipPreviewGroup.Visibility = Visibility.Visible;
         var models = await ModelPreviewService.ModelsAsync(game);
         if (models is null || version != _previewVersion) return;
@@ -307,10 +310,11 @@ public sealed partial class ShipsPage
         // no single rule fits all six ships checked in game. NMS.exe's ship path
         // (0x141659e80) derives the colour seed from a generator state after a loop of
         // draws - not traced yet. Wrong colours would mislead, so greys until then.
-        ShipPreviewView.Show(mesh, material => MaterialColour(material, look));
-        ShipPreviewNote.Text = mesh is null
-            ? "This ship's model couldn't be read from your game files."
-            : "Shape from your game files - drag to turn. Shown in neutral grey: the colours a seed gives can't be predicted yet.";
+        // Shown as a hologram, not grey: plain grey read as a broken paint job (2026-10-17).
+        if (mesh is null) ShipPreviewView.ShowMessage("This ship's model couldn't be read from your game files.");
+        else ShipPreviewView.Show(mesh, material => MaterialColour(material, look), hologram: true);
+        ShipPreviewNote.Text = mesh is null ? ""
+            : "Shape scan - the parts are this ship's own, but its colours can't be shown yet (only ships built at a station). Drag to turn.";
     }
 
     private static uint MaterialColour(string material, LookData? look)
