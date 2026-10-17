@@ -60,7 +60,15 @@ public static class SystemPageReader
         }
         else
         {
+            // Usually the line above REGION, but a nearby star's label can land in between
+            // ("Ots" from Totsbursle, 2026-10-17): take the first of the 3 lines above that
+            // names a system you were recently in.
             name = PlanetPageReader.Clean(Regex.Replace(lines[region - 1], @"\(.*$", ""));
+            for (int k = region - 1; k >= 0 && k >= region - 3; k--)
+            {
+                string candidate = PlanetPageReader.Clean(Regex.Replace(lines[k], @"\(.*$", ""));
+                if (candidate.Length >= 3 && Match(candidate) is not null) { name = candidate; break; }
+            }
             // The busy star field behind the card scatters other systems' labels through the
             // text, so each field is taken from the line right after its label.
             for (int i = region + 1; i < lines.Count && i < region + 16; i++)
@@ -75,7 +83,7 @@ public static class SystemPageReader
                 else if (Is(line, "Race") && i + 1 < lines.Count) read.Race = RaceWord(lines[i + 1]);
                 else if (Is(line, "Economy") && i + 1 < lines.Count) read.Economy = Word("Economy", lines[i + 1]);
                 else if (Is(line, "Conflict") && i + 1 < lines.Count) read.Conflict = Word("Conflict", lines[i + 1]);
-                if (lines[i].Contains("//", StringComparison.Ordinal) && Word("Wealth", lines[i].Split("//")[^1]) is { Length: > 0 } wealth)
+                if (lines[i].Contains('/') && Word("Wealth", lines[i].Split('/')[^1]) is { Length: > 0 } wealth)
                     read.Wealth = wealth;
             }
         }
@@ -174,7 +182,7 @@ public static class SystemPageReader
             .Select(s => (System: s, Score: new[] { UniverseInfo.SystemName(s), UniverseInfo.For(s).GeneratedName }
                 .Distinct().Min(n => PlanetPageReader.Distance(t, PlanetPageReader.Norm(n)))))
             .OrderBy(x => x.Score).ToList();
-        if (scored.Count == 0 || scored[0].Score > Math.Max(1, t.Length / 5)) return null;
+        if (scored.Count == 0 || scored[0].Score > Math.Max(1, t.Length / 4)) return null;
         if (scored.Count > 1 && scored[1].Score == scored[0].Score) return null;
         return scored[0].System;
     }
