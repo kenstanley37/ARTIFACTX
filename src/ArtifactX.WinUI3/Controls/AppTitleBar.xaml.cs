@@ -37,12 +37,30 @@ public sealed partial class AppTitleBar : UserControl
         ThemeBtnTxt.Text = $"Theme: {ThemeService.Current.DisplayName}";
         FishCatchRecorder.ActiveChanged += RefreshRecording;
         RefreshRecording();
+        ScreenCaptureLogService.RecordingChanged += () => DispatcherQueue.TryEnqueue(RefreshScreenRecording);
+        RefreshScreenRecording();
 
         Refresh();
     }
 
-    private void RefreshRecording() =>
+    private void RefreshScreenRecording()
+    {
+        ScreenRecordingBtn.Visibility = ScreenCaptureLogService.IsRecording ? Visibility.Visible : Visibility.Collapsed;
+        // Beside the fish "Recording as you play" label when that shows, in its place when not.
+        ScreenRecordingBtn.Margin = new Thickness(0, 0, RecordingBtn.Visibility == Visibility.Visible ? 170 : 12, 0);
+    }
+
+    private void StopScreenRecording_Click(object sender, RoutedEventArgs e)
+    {
+        ScreenRecordingFlyout.Hide();
+        ScreenCaptureLogService.Enabled = false;
+    }
+
+    private void RefreshRecording()
+    {
         RecordingBtn.Visibility = FishCatchRecorder.IsActive ? Visibility.Visible : Visibility.Collapsed;
+        RefreshScreenRecording();
+    }
 
     /// <summary>The installed game's own build, read from the install (never a
     /// version typed into ArtifactX - the old hand-written "NMS: SWARM" went a

@@ -98,6 +98,25 @@
             </StackPanel>
         </Button>
 
+        <!-- Game screen recording is on (ScreenCaptureLogService): say so, with a one-click off. -->
+        <Button x:Name="ScreenRecordingBtn" Background="Transparent" BorderThickness="0" MinHeight="0" Grid.Row="1" Grid.Column="2" Padding="6,0" Margin="0,0,170,0"
+                HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="Collapsed"
+                ToolTipService.ToolTip="ArtifactX is recording game screens - click to stop">
+            <Button.Flyout>
+                <Flyout x:Name="ScreenRecordingFlyout">
+                    <StackPanel MaxWidth="300" Spacing="10">
+                        <TextBlock TextWrapping="Wrap" FontSize="12"
+                                   Text="ArtifactX is keeping pictures and text of the game screen while No Man's Sky is in front (Settings › Game screen recording). Nothing leaves this PC."/>
+                        <Button Content="Stop recording" Click="StopScreenRecording_Click"/>
+                    </StackPanel>
+                </Flyout>
+            </Button.Flyout>
+            <StackPanel Orientation="Horizontal" Spacing="5">
+                <Ellipse Width="6" Height="6" Fill="#FF5A5A" VerticalAlignment="Center"/>
+                <TextBlock Text="Recording screens" FontSize="10" Opacity="0.8"/>
+            </StackPanel>
+        </Button>
+
         <StackPanel x:Name="CurrencyDisplayRegion" Grid.Row="1" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20" Visibility="Collapsed">
             <StackPanel Orientation="Horizontal" Spacing="5">
                 <TextBlock Text="💰" VerticalAlignment="Center" FontSize="10"/>

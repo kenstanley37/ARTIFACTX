@@ -82,6 +82,25 @@
                 </StackPanel>
             </Border>
 
+            <!-- Game screen recording (ScreenCaptureLogService, GitHub #18 step 1) -->
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="GAME SCREEN RECORDING (EXPERIMENTAL)" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <StackPanel Padding="18,14,18,18" Spacing="12">
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
+                                   Text="Keeps a picture and the readable text of what No Man's Sky shows, about every 2 seconds when the screen changes - to learn which game screens ArtifactX could read planet and system details from. Only while the game is running and is the window in front: other apps are never recorded. Everything stays on this PC, in a folder you can open or delete. Works with the game in borderless or windowed mode."/>
+                        <ToggleSwitch x:Name="CaptureLogSwitch" Header="Record game screens" Toggled="CaptureLog_Toggled"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Open recordings folder" Click="OpenCaptureLog_Click"/>
+                            <Button Content="Delete recordings..." Click="DeleteCaptureLog_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="CaptureLogStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
             <!-- Game save backups -->
             <Border Style="{StaticResource ThemeCardStyle}">
                 <StackPanel>

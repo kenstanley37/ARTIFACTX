@@ -32,6 +32,8 @@ public sealed partial class SettingsPage : Page
         Unloaded += (_, _) => UpdateCheckService.Changed -= OnUpdateCheckChanged;
 
         DailyBackupSwitch.IsOn = UserDatabase.DailyBackups;
+        CaptureLogSwitch.IsOn = ScreenCaptureLogService.Enabled;
+        RefreshCaptureLogStatus();
         foreach (int keep in DataKeepChoices) DataKeepBox.Items.Add(new ComboBoxItem { Content = $"{keep} backups", Tag = keep });
         DataKeepBox.SelectedItem = DataKeepBox.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (int)i.Tag == UserDatabase.BackupsToKeep)
             ?? DataKeepBox.Items[1];
@@ -171,6 +173,36 @@ public sealed partial class SettingsPage : Page
         await Launcher.LaunchFolderPathAsync(BackupLocation.Root);
 
     // ---------------------------------------------------------------- user.db
+
+    private void CaptureLog_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        ScreenCaptureLogService.Enabled = CaptureLogSwitch.IsOn;
+        RefreshCaptureLogStatus();
+    }
+
+    private void RefreshCaptureLogStatus()
+    {
+        long bytes = ScreenCaptureLogService.SizeOnDisk();
+        CaptureLogStatusTxt.Text = (bytes == 0 ? "No recordings yet." : $"Recordings use {bytes / 1048576.0:0.#} MB (the oldest are removed past 1 GB).")
+            + (ScreenCaptureLogService.Enabled && !GameProcessMonitorService.IsGameRunning ? " Recording starts when you start No Man's Sky." : "");
+    }
+
+    private void OpenCaptureLog_Click(object sender, RoutedEventArgs e) =>
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = ScreenCaptureLogService.Folder, UseShellExecute = true });
+
+    private async void DeleteCaptureLog_Click(object sender, RoutedEventArgs e)
+    {
+        var confirm = new ContentDialog
+        {
+            Title = "Delete all game screen recordings?",
+            Content = "Every recorded picture and its text is removed. Your saves and ArtifactX data aren't touched.",
+            PrimaryButtonText = "Delete", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Close, XamlRoot = XamlRoot,
+        };
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+        ScreenCaptureLogService.DeleteAll();
+        RefreshCaptureLogStatus();
+    }
 
     private void DailyBackup_Toggled(object sender, RoutedEventArgs e)
     {
