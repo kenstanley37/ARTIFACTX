@@ -758,6 +758,13 @@ if (args.Length > 1 && args[0].Equals("add-multitool-names", StringComparison.Or
     return;
 }
 
+// "DataCataloger add-ship-builder <target-catalog-db-path>" - see CatalogSteps.AddShipBuilder.
+if (args.Length > 1 && args[0].Equals("add-ship-builder", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddShipBuilder(args[1], gamePath);
+    return;
+}
+
 // "DataCataloger add-ship-descriptors <target-catalog-db-path>" - see CatalogSteps.AddShipDescriptors.
 if (args.Length > 1 && args[0].Equals("add-ship-descriptors", StringComparison.OrdinalIgnoreCase))
 {
