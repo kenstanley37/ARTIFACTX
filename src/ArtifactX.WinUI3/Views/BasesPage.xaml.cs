@@ -31,7 +31,6 @@ public sealed partial class BasesPage : Page
     {
         InitializeComponent();
         SortBox.SelectedIndex = 0;
-        ShowBox.SelectedIndex = 0;
         _live = new LiveSaveWatcher(DispatcherQueue);
         _live.SnapshotRead += OnLiveSnapshot;
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
@@ -79,7 +78,10 @@ public sealed partial class BasesPage : Page
     {
         _lastSnapshot = snapshot;
         ulong? here = S.ReadSystemAddress(snapshot.Universe);
-        bool objects = ShowBox.SelectedIndex == 1;
+        bool objects = _showObjects;
+        // Each tab says how many it holds, so placed objects aren't missed.
+        BasesTab.Text = $"Bases ({(snapshot.Bases ?? new JArray()).OfType<JObject>().Count(x => x["peI"]?["DPp"]?.Value<string>() == "HomePlanetBase"):N0})";
+        ObjectsTab.Text = $"Placed objects ({snapshot.LooseObjects?.Count ?? 0:N0})";
         string key = $"{objects}|{here}|{snapshot.Bases?.Count}|{snapshot.LooseObjects?.Count}|{NmsBuildCounts.Total(snapshot.Bases, snapshot.LooseObjects)}|{string.Join(",", snapshot.Bases?.OfType<JObject>().Select(b => b["NKm"]?.Value<string>()) ?? Enumerable.Empty<string?>())}";
         if (key == _lastKey) return;
         _lastKey = key;
@@ -198,10 +200,13 @@ public sealed partial class BasesPage : Page
 
     private bool _warmedObjects;
 
-    private void ShowBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private bool _showObjects;
+
+    private void ShowBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
+        _showObjects = sender.SelectedItem == ObjectsTab;
         if (IntroTxt is null) return;
-        IntroTxt.Text = ShowBox.SelectedIndex == 1
+        IntroTxt.Text = _showObjects
             ? "Everything you've built outside a base - beacons, signal boosters, save points, refiners, garages - with where it is, so you can go back for it. Each one counts toward the game's building limit. This page only reads your save."
             : "Every planet base in this save, with the portal address to dial to get back to it. Handy for old bases you've lost track of. This page only reads your save.";
         _lastKey = "";
@@ -266,7 +271,17 @@ public sealed partial class BasesPage : Page
         };
         var list = shown.ToList();
         BasesList.ItemsSource = list;
-        bool objects = ShowBox.SelectedIndex == 1;
+        // A placed object has less to show than a base: shorter, narrower cards (2026-10-18).
+        if (BasesList.ItemsPanelRoot is ItemsWrapGrid panel)
+        {
+            panel.ItemHeight = _showObjects ? 205 : 300;
+            panel.ItemWidth = _showObjects ? 400 : 430;
+        }
+        else BasesList.Loaded += (_, _) =>
+        {
+            if (BasesList.ItemsPanelRoot is ItemsWrapGrid p) { p.ItemHeight = _showObjects ? 205 : 300; p.ItemWidth = _showObjects ? 400 : 430; }
+        };
+        bool objects = _showObjects;
         CountTxt.Text = _rows.Count == 0 ? (objects ? "Nothing placed outside a base" : "No planet bases in this save")
             : $"{list.Count} of {_rows.Count} {(objects ? "placed objects" : "bases")}";
     }
@@ -296,6 +311,14 @@ public sealed partial class BasesPage : Page
         DetailPartsTxt.Text = row.PartsLabel;
         DetailPartsTxt.Foreground = row.PartsBrush;
         DetailKindsTxt.Text = $"{groups.Count:N0} kinds of part";
+        DetailFactsTxt.Text = row.Facts;
+        DetailAreaTxt.Text = row.AreaLabel;
+        DetailAreaTxt.Opacity = row.AreaOpacity;
+        DetailDistanceTxt.Text = row.DistanceLabel;
+        DetailGlyphStrip.Code = row.PortalCode;
+        DetailGlyphs.ItemsSource = row.Glyphs;
+        DetailCopyBtn.Tag = row.PortalCode;
+        ToolTipService.SetToolTip(DetailCopyBtn, row.PortalCode);
         DetailList.Children.Clear();
         foreach (var g in groups)
         {

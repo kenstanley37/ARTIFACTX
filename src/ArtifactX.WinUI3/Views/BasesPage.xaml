@@ -48,17 +48,19 @@
             </Grid>
         </Border>
 
-        <Grid x:Name="ListArea" Grid.Row="2" Grid.RowSpan="2" RowSpacing="18">
+        <Grid x:Name="ListArea" Grid.Row="2" Grid.RowSpan="2" RowSpacing="14">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <ctcontrols:WrapPanel Grid.Row="0" HorizontalSpacing="14" VerticalSpacing="10">
-            <ComboBox x:Name="ShowBox" Header="Show" Width="230" SelectionChanged="ShowBox_SelectionChanged"
-                      ToolTipService.ToolTip="Placed objects: everything you've built outside a base - beacons, signal boosters, save points, refiners, garages - so you can find them again.">
-                <ComboBoxItem Content="Bases"/>
-                <ComboBoxItem Content="Placed objects (outside bases)"/>
-            </ComboBox>
+        <!-- Tabs, not a dropdown: placed objects were hidden in one (2026-10-18). -->
+        <SelectorBar x:Name="ShowBar" SelectionChanged="ShowBar_SelectionChanged">
+            <SelectorBarItem x:Name="BasesTab" Text="Bases" IsSelected="True"/>
+            <SelectorBarItem x:Name="ObjectsTab" Text="Placed objects"
+                             ToolTipService.ToolTip="Everything you've built outside a base - beacons, signal boosters, save points, refiners, garages - so you can find them again."/>
+        </SelectorBar>
+        <ctcontrols:WrapPanel Grid.Row="1" HorizontalSpacing="14" VerticalSpacing="10">
             <TextBox x:Name="SearchBox" Header="Search" Width="280" PlaceholderText="Names, resources, notes..." TextChanged="SearchBox_TextChanged"/>
             <ComboBox x:Name="SortBox" Header="Sort" Width="200" SelectionChanged="SortBox_SelectionChanged">
                 <ComboBoxItem Content="Nearest to you first"/>
@@ -77,7 +79,7 @@
 
         <!-- Cards, not full-width rows (rows cut words off, 2026-10-14). Uniform
              size so the grid stays tidy; long text wraps, with the full text on hover. -->
-        <GridView Grid.Row="1" x:Name="BasesList" SelectionMode="None" IsItemClickEnabled="True" ItemClick="BasesList_ItemClick">
+        <GridView Grid.Row="2" x:Name="BasesList" SelectionMode="None" IsItemClickEnabled="True" ItemClick="BasesList_ItemClick">
             <GridView.ItemsPanel>
                 <ItemsPanelTemplate>
                     <ItemsWrapGrid Orientation="Horizontal" ItemWidth="430" ItemHeight="300"/>
@@ -166,13 +168,49 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            <StackPanel Spacing="4">
-                <Button Content="‹ All bases" Click="DetailBack_Click" Padding="10,4" Margin="0,0,0,6"/>
-                <TextBlock x:Name="DetailTitleTxt" Style="{StaticResource ThemeBodyTextStyle}" FontSize="20" FontWeight="SemiBold"/>
-                <TextBlock x:Name="DetailSubTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"/>
-                <TextBlock x:Name="DetailPartsTxt" FontSize="14" FontWeight="SemiBold"/>
-                <TextBlock x:Name="DetailKindsTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
-            </StackPanel>
+            <Grid ColumnSpacing="24">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" MinWidth="360"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="4" MaxWidth="560">
+                    <Button Content="‹ All bases" Click="DetailBack_Click" Padding="10,4" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="DetailTitleTxt" Style="{StaticResource ThemeBodyTextStyle}" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="DetailSubTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="DetailPartsTxt" FontSize="14" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="DetailKindsTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
+                </StackPanel>
+                <!-- The system and planet at a glance, so nothing needs another page (user, 2026-10-18). -->
+                <Border Grid.Column="1" VerticalAlignment="Top" Padding="16,12" MaxWidth="720" HorizontalAlignment="Left"
+                        Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                        CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="SYSTEM AND PLANET" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <TextBlock x:Name="DetailFactsTxt" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="DetailAreaTxt" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                        <TextBlock x:Name="DetailDistanceTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <controls:GlyphStrip x:Name="DetailGlyphStrip" VerticalAlignment="Center">
+                                <ItemsControl x:Name="DetailGlyphs">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" Spacing="2"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="ImageSource">
+                                            <Border Width="24" Height="24" Background="{ThemeResource ThemeVoidBrush}">
+                                                <Image Source="{x:Bind}" Width="20" Height="20"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </controls:GlyphStrip>
+                            <Button x:Name="DetailCopyBtn" Content="Copy" Click="CopyCode_Click" Padding="10,3" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
             <ScrollViewer Grid.Row="1">
                 <ctcontrols:WrapPanel x:Name="DetailList" HorizontalSpacing="10" VerticalSpacing="8"/>
             </ScrollViewer>
