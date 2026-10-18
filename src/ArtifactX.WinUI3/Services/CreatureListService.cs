@@ -124,7 +124,12 @@ public static class CreatureListService
         // The selected creature (left side): its name is the big title above "Discovered ... by".
         var by = left.FirstOrDefault(p => Regex.IsMatch(p.Text, @"Discovered\s.*\bby\b|\bago\s+by\b|today\s+by\b", RegexOptions.IgnoreCase));
         string? selected = by.Text is null ? null : left.Where(p => by.Y - p.Y > 10 && by.Y - p.Y < 80).OrderBy(p => by.Y - p.Y)
-            .Select(p => CleanName(p.Text)).FirstOrDefault(n => rows.Any(r => NameKey(r.Name) == NameKey(n)));
+            .Select(p => CleanName(p.Text)).FirstOrDefault(n => rows.Any(r => NameKey(r.Name) == NameKey(n))
+                // or one already recorded here: a big model can lie across the list and garble every
+                // row while the title reads cleanly (Z. Donkeisae's antennae, 2026-10-18).
+                || On(system, planet).Any(c => NameKey(c.Name) == NameKey(n)));
+        if (selected is not null && !rows.Any(r => NameKey(r.Name) == NameKey(selected)))
+            rows.Add((selected, "", "", ""));
         string gender = selected is null ? "" : ValueBelow(left, "Gender");
         string size = selected is null ? "" : ValueBelow(left, "Weight / Height").Replace(" ", "").Replace("/", " / ");
         if (!Regex.IsMatch(size, @"^[\d.]+\s*kg\s*/\s*[\d.]+\s*m$", RegexOptions.IgnoreCase)) size = "";
@@ -284,7 +289,7 @@ public static class CreatureListService
                 // Kept once read in two frames: a name caught mid-animation ("Alde" for Alderhukkeum)
                 // or another line taken for one ("Add Records") rarely comes back (2026-10-18).
                 ReadCount[(planetKey, key)] = ReadCount.GetValueOrDefault((planetKey, key)) + 1;
-                if (ReadCount[(planetKey, key)] < Confirmations) continue;
+                if (ReadCount[(planetKey, key)] < Confirmations && !list.ContainsKey(key)) continue;
                 // A piece of a longer name is that name, cut off; a longer name replaces a stored piece.
                 if (list.Keys.Concat(rows.Select(r => NameKey(r.Name))).Any(k => k != key && k.Length > key.Length && k.Contains(key, StringComparison.Ordinal)))
                     continue;
