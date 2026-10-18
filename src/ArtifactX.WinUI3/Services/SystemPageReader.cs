@@ -186,21 +186,44 @@ public static class SystemPageReader
     /// <summary>The system shown when the screen is a system's own Discoveries view with no
     /// pop-up over it ("3 PLANETS / 3 MOONS" under its name, its planets drawn on the right) -
     /// the view the Planets page borrows a picture of. Null for anything else.</summary>
-    public static ulong? SystemView(IReadOnlyList<string> lines)
+    /// <summary>How many of the system's planet labels the frame shows - a settled view
+    /// shows them all; a frame caught mid-zoom (clicking a planet) shows few or none.</summary>
+    public static int LabelsShown(ulong system, IReadOnlyList<(string Text, double Y)> placed)
     {
-        int header = lines.ToList().FindIndex(l => Regex.IsMatch(l, @"^\s*\d+\s*PLANETS?\b", RegexOptions.IgnoreCase)
-            && !l.Contains("Celestial", StringComparison.OrdinalIgnoreCase)); // "3 PLANETS" alone when there are no moons
+        var f = UniverseInfo.For(system);
+        var names = Enumerable.Range(1, f.PlanetCount + f.MoonCount)
+            .SelectMany(b => new[] { UniverseInfo.PlanetName(system, b), UniverseInfo.GeneratedPlanetName(system, b) })
+            .Concat(UnmatchedBodiesService.For(system).Select(h => h.Name))
+            .Select(PlanetPageReader.Norm).Distinct().ToList();
+        // Labels on the picture, not the list on the left: count each name at most once per height band.
+        return names.Count(n => placed.Count(p => PlanetPageReader.Distance(PlanetPageReader.Norm(PlanetPageReader.Clean(p.Text)), n) <= Math.Max(1, n.Length / 5)) >= 2
+            || placed.Any(p => PlanetPageReader.Distance(PlanetPageReader.Norm(PlanetPageReader.Clean(p.Text)), n) <= Math.Max(1, n.Length / 5)) && !ListShows(placed));
+    }
+
+    /// <summary>The Discoveries view's left list is on screen (it names the bodies too).</summary>
+    private static bool ListShows(IReadOnlyList<(string Text, double Y)> placed) =>
+        placed.Any(p => p.Text.Contains("VISITED SYSTEMS", StringComparison.OrdinalIgnoreCase));
+
+    public static ulong? SystemView(IReadOnlyList<(string Text, double Y)> placed)
+    {
+        var lines = placed.Select(p => p.Text).ToList();
+        // "3 PLANETS / 3 MOONS" - the number can be read as its own line ("5" | "PLANETS / MOON").
+        int header = lines.FindIndex(l => Regex.IsMatch(l, @"^\s*(\d+\s*)?PLANETS?\b", RegexOptions.IgnoreCase)
+            && !l.Contains("Celestial", StringComparison.OrdinalIgnoreCase));
         if (header < 0) return null;
         // A pop-up or a planet page covers the planets.
         if (lines.Any(l => l.Contains("Galaxy:", StringComparison.OrdinalIgnoreCase) || l.Contains("RENAME AND UPLOAD", StringComparison.OrdinalIgnoreCase)
             || l.Trim().Equals("Planet Data", StringComparison.OrdinalIgnoreCase)))
             return null;
-        for (int i = header - 1; i >= 0 && i >= header - 6; i--)
+        // The name: the big title right above "Discovered <when> by <who>", by height on screen -
+        // in reading order the visited-systems list and other lines get in between (2026-10-17).
+        var by = placed.FirstOrDefault(p => Regex.IsMatch(p.Text, @"Discovered\s.*\bby\b", RegexOptions.IgnoreCase)
+            && !p.Text.Contains("Discovered by", StringComparison.OrdinalIgnoreCase));
+        if (by.Text is null) return null;
+        foreach (var (text, y) in placed.Where(p => by.Y - p.Y > 15 && by.Y - p.Y < 90).OrderBy(p => by.Y - p.Y))
         {
-            string line = PlanetPageReader.Clean(lines[i]);
-            if (line.Count(char.IsLetter) < 3 || Regex.IsMatch(line, @"\bby\b|Discovered", RegexOptions.IgnoreCase)) continue;
-            // Other lines can land in between ("Online Discovery Services", 2026-10-17): keep looking.
-            if (Match(line) is ulong found) return found;
+            string line = PlanetPageReader.Clean(text);
+            if (line.Count(char.IsLetter) >= 3 && Match(line) is ulong found) return found;
         }
         return null;
     }

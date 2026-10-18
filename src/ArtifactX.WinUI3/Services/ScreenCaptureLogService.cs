@@ -133,8 +133,15 @@ public static class ScreenCaptureLogService
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "body pop-up: error " + ex.Message; }
         try
         {
-            if (SystemPageReader.SystemView(lines) is ulong viewed && await SaveSystemPictureAsync(viewed, pixels, w, h))
-                read = (read is null ? "" : read + " | ") + $"system picture saved for {UniverseInfo.SystemName(viewed)}";
+            if (SystemPageReader.SystemView(placed) is ulong viewed)
+            {
+                int labels = SystemPageReader.LabelsShown(viewed, placed);
+                var facts = UniverseInfo.For(viewed);
+                int bodies = facts.PlanetCount + facts.MoonCount;
+                // Settled view only (most labels readable), and only a better frame replaces the picture.
+                if (labels * 2 >= bodies && await SaveSystemPictureAsync(viewed, pixels, w, h, labels))
+                    read = (read is null ? "" : read + " | ") + $"system picture saved for {UniverseInfo.SystemName(viewed)} ({labels}/{bodies} labels)";
+            }
         }
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "system picture: error " + ex.Message; }
 
@@ -199,7 +206,8 @@ public static class ScreenCaptureLogService
 
     /// <summary>Raised (any thread) when a system's picture was saved.</summary>
     public static event Action<ulong>? SystemPictureSaved;
-    private static readonly HashSet<ulong> PicturedThisSession = new();
+    // Labels shown by the picture kept for each system this session: a frame showing more replaces it.
+    private static readonly Dictionary<ulong, int> PicturedThisSession = new();
 
     private static string PicturePath(ulong system) =>
         Path.Combine(LocalAppDataPaths.GetSubfolder("system-pictures"), system.ToString("X", System.Globalization.CultureInfo.InvariantCulture) + ".jpg");
@@ -210,9 +218,13 @@ public static class ScreenCaptureLogService
     /// <summary>Crops the planets from a system's Discoveries view (right of the list, below
     /// the name: x 46-93%, y 32-87%) and keeps it for the Planets page, once a session per
     /// system - kept apart from the recordings, so clearing those never removes it.</summary>
-    private static async Task<bool> SaveSystemPictureAsync(ulong system, byte[] px, int w, int h)
+    private static async Task<bool> SaveSystemPictureAsync(ulong system, byte[] px, int w, int h, int labels)
     {
-        lock (PicturedThisSession) if (!PicturedThisSession.Add(system)) return false;
+        lock (PicturedThisSession)
+        {
+            if (PicturedThisSession.TryGetValue(system, out int best) && best >= labels) return false;
+            PicturedThisSession[system] = labels;
+        }
         int x0 = w * 46 / 100, y0 = h * 32 / 100, cw = w * 47 / 100, ch = h * 55 / 100;
         var crop = new byte[cw * ch * 4];
         for (int y = 0; y < ch; y++) System.Buffer.BlockCopy(px, ((y0 + y) * w + x0) * 4, crop, y * cw * 4, cw * 4);
