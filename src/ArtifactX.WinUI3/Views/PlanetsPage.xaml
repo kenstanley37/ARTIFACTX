@@ -223,7 +223,7 @@
                             <StackPanel Spacing="10">
                                 <TextBlock Text="READ FROM THE GAME - WHICH PLANET IS THIS?" Style="{StaticResource ThemeEyebrowStyle}"/>
                                 <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
-                                           Text="These names were read off the game screen but aren't the names ArtifactX knows - usually because the player who discovered the system renamed its planets. Easiest: land on the planet - your save then records its name and ArtifactX places the reading by itself. Or pick it here if you know which one it is."/>
+                                           Text="These names were read off the game screen but aren't the names ArtifactX knows - usually a planet someone renamed. Most renamed planets are learned from your save by themselves; for these, landing on the planet also teaches ArtifactX its name. Or pick it here if you know which one it is."/>
                                 <StackPanel x:Name="UnmatchedRows" Spacing="8"/>
                             </StackPanel>
                         </Border>

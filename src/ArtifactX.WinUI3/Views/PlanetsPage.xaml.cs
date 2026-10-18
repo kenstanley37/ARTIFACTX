@@ -1784,10 +1784,10 @@ public sealed partial class PlanetsPage : Page
             }
             return combo;
         }
-        // The name the game shows. Its discoverer may have renamed it - the new
-        // name is on the game's servers, not in the save - so the player can type
-        // it (2026-10-15: a renamed planet didn't match until they landed, when
-        // the save's "On Planet (...)" line taught it). Empty = the original name.
+        // The name the game shows. Its discoverer may have renamed it - the save's
+        // discovery records usually carry the new name (q5u, learned on every save
+        // read since 2026-10-18), but not for every planet, so the player can still
+        // type it. Empty = the original name.
         string original = UniverseInfo.GeneratedPlanetName(system, planet.PlanetIndex);
         string indexKey = planet.PlanetIndex.ToString(CultureInfo.InvariantCulture);
         string currentName = SystemNotesService.Get(system)?.PlanetNames.TryGetValue(indexKey, out var named) == true ? named : "";
