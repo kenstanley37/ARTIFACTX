@@ -131,6 +131,19 @@ public static class CreatureListService
                 // or one already recorded here: a big model can lie across the list and garble every
                 // row while the title reads cleanly (Z. Donkeisae's antennae, 2026-10-18).
                 || On(system, planet).Any(c => NameKey(c.Name) == NameKey(n)));
+        // A title partly covered by the model ("C. Grainnos • m", its dish over the name, 2026-10-18):
+        // the one listed name it's close to.
+        if (selected is null && by.Text is not null)
+        {
+            var known = rows.Select(r => r.Name).Concat(On(system, planet).Select(c => c.Name)).DistinctBy(NameKey).ToList();
+            foreach (var p in left.Where(p => by.Y - p.Y > 10 && by.Y - p.Y < 80).OrderBy(p => by.Y - p.Y))
+            {
+                string read = Regex.Replace(NameKey(CleanName(p.Text)), @"[^\p{L}]", "");
+                if (read.Length < 5) continue;
+                var close = known.Where(k => PlanetPageReader.Distance(read, Regex.Replace(NameKey(k), @"[^\p{L}]", "")) <= Math.Max(2, NameKey(k).Length / 4)).ToList();
+                if (close.Count == 1) { selected = close[0]; break; }
+            }
+        }
         if (selected is not null && !rows.Any(r => NameKey(r.Name) == NameKey(selected)))
             rows.Add((selected, "", "", ""));
         string gender = selected is null ? "" : ValueBelow(left, "Gender");
