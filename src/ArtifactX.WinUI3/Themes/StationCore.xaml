@@ -15,8 +15,8 @@
     <SolidColorBrush x:Key="ThemeAccentAltBrush" Color="#7C4DFF"/>
     <SolidColorBrush x:Key="ThemeDoneBrush" Color="#FFC62E"/>
     <SolidColorBrush x:Key="ThemeTextBrush" Color="#E9ECF6"/>
-    <SolidColorBrush x:Key="ThemeTextDimBrush" Color="#9AA3BF"/>
-    <SolidColorBrush x:Key="ThemeTextFaintBrush" Color="#67708D"/>
+    <SolidColorBrush x:Key="ThemeTextDimBrush" Color="#B4BCD6"/> <!-- 8.9:1 on panels; was 6.8 (2026-10-18, grey-on-dark too hard to read) -->
+    <SolidColorBrush x:Key="ThemeTextFaintBrush" Color="#8E97B4"/> <!-- 5.8:1, passes WCAG AA; was 3.5 -->
     <SolidColorBrush x:Key="ThemeOnAccentBrush" Color="#070912"/>
     <SolidColorBrush x:Key="ThemeBandTextBrush" Color="#FFFFFF"/>
     <!-- Fill behind a selected choice button (ship picker, Class S/A/B/C...). -->
