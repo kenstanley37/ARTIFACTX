@@ -55,7 +55,7 @@ public static class CreatureListService
     public static IReadOnlyList<Creature> On(ulong system, int planet)
     {
         lock (Lock) return All.TryGetValue(PlanetKey(system, planet), out var list)
-            ? list.Values.OrderBy(c => c.Rarity == "Extinct").ThenBy(c => c.Name, StringComparer.CurrentCulture).ToList() : new List<Creature>();
+            ? list.Values.OrderBy(c => c.Rarity == "Extinct").ThenBy(c => NameKey(c.Name), StringComparer.Ordinal).ToList() : new List<Creature>();
     }
 
     /// <summary>Whether a recorded creature on the planet lives underwater.</summary>

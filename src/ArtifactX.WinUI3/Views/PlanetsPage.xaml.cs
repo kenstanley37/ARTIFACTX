@@ -2305,6 +2305,11 @@ public sealed partial class PlanetsPage : Page
     /// <summary>Creatures were read off the game screen: refresh the open planet's card and the finder.</summary>
     private void OnCreaturesChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
     {
+        // Only when something shown changed: rebuilding on every reading made the cards
+        // reshuffle and the pictures reload while the fauna list was open (2026-10-18).
+        string shown = CreaturesShown(system, planet);
+        if (_creaturesShown.TryGetValue((system, planet), out var before) && before == shown) return;
+        _creaturesShown[(system, planet)] = shown;
         if (_openPlanet is KnownPlanet open && open.SystemAddress == system && open.PlanetIndex == planet && _creaturesCard is not null)
         {
             ((StackPanel)_creaturesCard.Child).Children[1] = CreaturesBody(open);
@@ -2312,6 +2317,17 @@ public sealed partial class PlanetsPage : Page
         }
         RefreshFinder();
     });
+
+    private readonly Dictionary<(ulong, int), string> _creaturesShown = new();
+
+    /// <summary>Everything the creatures card shows for a planet, as one string to compare.</summary>
+    private static string CreaturesShown(ulong system, int planet) => string.Join("\n",
+        CreatureListService.On(system, planet).Select(c =>
+        {
+            string path = CreatureListService.PicturePath(system, planet, c.Name);
+            long picture = c.Picture && File.Exists(path) ? File.GetLastWriteTimeUtc(path).Ticks : 0;
+            return $"{c.Name}|{c.Rarity}|{c.Habitat}|{c.Activity}|{c.Gender}|{c.Size}|{picture}";
+        }));
 
     private UIElement SaveFacts(KnownPlanet planet, bool inThisSystem)
     {
