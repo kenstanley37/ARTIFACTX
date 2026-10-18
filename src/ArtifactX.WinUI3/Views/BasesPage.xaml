@@ -48,7 +48,12 @@
             </Grid>
         </Border>
 
-        <ctcontrols:WrapPanel Grid.Row="2" HorizontalSpacing="14" VerticalSpacing="10">
+        <Grid x:Name="ListArea" Grid.Row="2" Grid.RowSpan="2" RowSpacing="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <ctcontrols:WrapPanel Grid.Row="0" HorizontalSpacing="14" VerticalSpacing="10">
             <ComboBox x:Name="ShowBox" Header="Show" Width="230" SelectionChanged="ShowBox_SelectionChanged"
                       ToolTipService.ToolTip="Placed objects: everything you've built outside a base - beacons, signal boosters, save points, refiners, garages - so you can find them again.">
                 <ComboBoxItem Content="Bases"/>
@@ -72,7 +77,7 @@
 
         <!-- Cards, not full-width rows (rows cut words off, 2026-10-14). Uniform
              size so the grid stays tidy; long text wraps, with the full text on hover. -->
-        <GridView Grid.Row="3" x:Name="BasesList" SelectionMode="None" IsItemClickEnabled="False">
+        <GridView Grid.Row="1" x:Name="BasesList" SelectionMode="None" IsItemClickEnabled="True" ItemClick="BasesList_ItemClick">
             <GridView.ItemsPanel>
                 <ItemsPanelTemplate>
                     <ItemsWrapGrid Orientation="Horizontal" ItemWidth="430" ItemHeight="300"/>
@@ -153,5 +158,24 @@
                 </DataTemplate>
             </GridView.ItemTemplate>
         </GridView>
+        </Grid>
+
+        <!-- A base's parts, one row per kind, biggest first (user request 2026-10-18). -->
+        <Grid x:Name="DetailArea" Grid.Row="2" Grid.RowSpan="2" RowSpacing="14" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <StackPanel Spacing="4">
+                <Button Content="‹ All bases" Click="DetailBack_Click" Padding="10,4" Margin="0,0,0,6"/>
+                <TextBlock x:Name="DetailTitleTxt" Style="{StaticResource ThemeBodyTextStyle}" FontSize="20" FontWeight="SemiBold"/>
+                <TextBlock x:Name="DetailSubTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"/>
+                <TextBlock x:Name="DetailPartsTxt" FontSize="14" FontWeight="SemiBold"/>
+                <TextBlock x:Name="DetailKindsTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
+            </StackPanel>
+            <ScrollViewer Grid.Row="1">
+                <ctcontrols:WrapPanel x:Name="DetailList" HorizontalSpacing="10" VerticalSpacing="8"/>
+            </ScrollViewer>
+        </Grid>
     </Grid>
 </Page>

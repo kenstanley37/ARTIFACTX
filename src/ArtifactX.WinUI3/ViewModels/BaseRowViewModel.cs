@@ -25,6 +25,9 @@ public sealed class BaseRowViewModel
     public string PartsLabel { get; init; } = "";
     public Brush? PartsBrush { get; init; }
 
+    /// <summary>The base's save entry, for its parts list (null for placed objects).</summary>
+    public Newtonsoft.Json.Linq.JObject? Base { get; init; }
+
     // Sort keys
     public required double SortDistance { get; init; }
     public required int Galaxy { get; init; }

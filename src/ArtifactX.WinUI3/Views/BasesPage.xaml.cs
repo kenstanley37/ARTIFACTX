@@ -137,6 +137,7 @@ public sealed partial class BasesPage : Page
                     AreaOpacity = AreaText(address, planetIndex, galaxy, code).Length > 0 ? 1.0 : 0.55,
                     SortDistance = distance ?? double.MaxValue,
                     Galaxy = galaxy,
+                    Base = b,
                 });
             }
         }
@@ -279,6 +280,57 @@ public sealed partial class BasesPage : Page
     }
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => Apply();
+
+    /// <summary>A base clicked: its parts, one row per kind ("Wooden Floor · 600"), biggest first
+    /// (user request 2026-10-18) - what to thin out when a base is near its limit.</summary>
+    private async void BasesList_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is not BaseRowViewModel { Base: JObject b } row) return;
+        var objects = (b["@ZJ"] as JArray ?? new JArray()).OfType<JObject>()
+            .Select(o => o["r<7"]?.Value<string>() ?? "").Where(id => id != "^BASE_FLAG").ToList();
+        var groups = objects.GroupBy(id => id).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).ToList();
+        await CatalogService.WarmCacheAsync(groups.Select(g => g.Key));
+
+        DetailTitleTxt.Text = row.Name;
+        DetailSubTxt.Text = row.Detail;
+        DetailPartsTxt.Text = row.PartsLabel;
+        DetailPartsTxt.Foreground = row.PartsBrush;
+        DetailKindsTxt.Text = $"{groups.Count:N0} kinds of part";
+        DetailList.Children.Clear();
+        foreach (var g in groups)
+        {
+            var entry = CatalogService.TryGet(g.Key);
+            string name = entry?.DisplayName is { Length: > 0 } n ? n
+                : CultureInfo.CurrentCulture.TextInfo.ToTitleCase(g.Key.TrimStart('^').Replace('_', ' ').ToLowerInvariant());
+            var line = new Grid { ColumnSpacing = 12, Padding = new Thickness(10, 6, 14, 6), Width = 360 };
+            line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+            line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            if (entry?.Icon is { } icon) line.Children.Add(new Image { Source = icon, Width = 32, Height = 32 });
+            var label = new TextBlock { Text = name, FontSize = 14, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis,
+                Foreground = (Brush)Application.Current.Resources["ThemeTextBrush"] };
+            ToolTipService.SetToolTip(label, name);
+            Grid.SetColumn(label, 1);
+            line.Children.Add(label);
+            var count = new TextBlock { Text = g.Count().ToString("N0", CultureInfo.CurrentCulture), FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["ThemeAccentBrush"] };
+            Grid.SetColumn(count, 2);
+            line.Children.Add(count);
+            DetailList.Children.Add(new Border
+            {
+                Child = line, CornerRadius = new CornerRadius(6), BorderThickness = new Thickness(1),
+                Background = (Brush)Application.Current.Resources["ThemePanelAltBrush"], BorderBrush = (Brush)Application.Current.Resources["ThemeLineBrush"],
+            });
+        }
+        ListArea.Visibility = Visibility.Collapsed;
+        DetailArea.Visibility = Visibility.Visible;
+    }
+
+    private void DetailBack_Click(object sender, RoutedEventArgs e)
+    {
+        DetailArea.Visibility = Visibility.Collapsed;
+        ListArea.Visibility = Visibility.Visible;
+    }
 
     private void SortBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
