@@ -312,8 +312,10 @@
                             <ComboBox x:Name="WealthFilterBox" Header="Wealth" Width="180" SelectionChanged="Filter_Changed"/>
                             <ComboBox x:Name="ConflictFilterBox" Header="Conflict" Width="180" SelectionChanged="Filter_Changed"/>
                             <ComboBox x:Name="RaceFilterBox" Header="Race" Width="180" SelectionChanged="Filter_Changed"/>
-                            <CheckBox x:Name="WaterFilterBox" Content="Water (your notes)" Click="Filter_Click" VerticalAlignment="Bottom"/>
-                            <CheckBox x:Name="DissonantFilterBox" Content="Dissonant (your notes)" Click="Filter_Click" VerticalAlignment="Bottom"/>
+                            <CheckBox x:Name="WaterFilterBox" Content="Water (your notes)" Click="Filter_Click" VerticalAlignment="Bottom"
+                                      ToolTipService.ToolTip="Only systems recorded as having water - read off a Galaxy Map system card, or ticked in your notes. Systems not recorded yet are left out."/>
+                            <CheckBox x:Name="DissonantFilterBox" Content="Dissonant (your notes)" Click="Filter_Click" VerticalAlignment="Bottom"
+                                      ToolTipService.ToolTip="Only systems recorded as dissonant - read off the game screen, or ticked in your notes. Systems not recorded yet are left out."/>
                             <ComboBox x:Name="ShipFilterBox" Header="Ships seen" Width="180" SelectionChanged="Filter_Changed"/>
                             <ComboBox x:Name="SentinelsFilterBox" Header="Sentinels" Width="200" SelectionChanged="Filter_Changed"/>
                             <ComboBox x:Name="FloraFilterBox" Header="Flora" Width="180" SelectionChanged="Filter_Changed"/>

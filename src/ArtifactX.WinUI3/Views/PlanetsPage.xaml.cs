@@ -1191,10 +1191,10 @@ public sealed partial class PlanetsPage : Page
         Refill(RaceFilterBox, Known(RaceOf));
 
         int water = notes.Count(n => n.Water), dissonant = notes.Count(n => n.Dissonant), moons = notes.Count(n => n.Moons is not null);
-        WaterFilterBox.Content = $"Water ({water})";
+        WaterFilterBox.Content = $"Water ({water} {(water == 1 ? "system" : "systems")})";
         WaterFilterBox.Visibility = water > 0 ? Visibility.Visible : Visibility.Collapsed;
         if (water == 0) WaterFilterBox.IsChecked = false;
-        DissonantFilterBox.Content = $"Dissonant ({dissonant})";
+        DissonantFilterBox.Content = $"Dissonant ({dissonant} {(dissonant == 1 ? "system" : "systems")})";
         DissonantFilterBox.Visibility = dissonant > 0 ? Visibility.Visible : Visibility.Collapsed;
         if (dissonant == 0) DissonantFilterBox.IsChecked = false;
         BodiesFilterBox.Visibility = moons > 0 ? Visibility.Visible : Visibility.Collapsed;
