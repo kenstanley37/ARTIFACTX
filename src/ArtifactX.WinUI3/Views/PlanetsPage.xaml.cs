@@ -841,7 +841,8 @@ public sealed partial class PlanetsPage : Page
             for (int b = 1; b <= count; b++)
             {
                 string kind = BodyKindsService.IsMoon(system, b) ? "Moon" : "Planet";
-                pick.Items.Add(new ComboBoxItem { Content = $"{kind} {b} · {UniverseInfo.PlanetName(system, b)}", Tag = b });
+                string type = planets.FirstOrDefault(p => p.PlanetIndex == b)?.TypeName is { Length: > 0 } t ? $" · {t}" : "";
+                pick.Items.Add(new ComboBoxItem { Content = $"{kind} {b} · {UniverseInfo.PlanetName(system, b)}{type}", Tag = b });
             }
             var save = new Button { Content = "Save", IsEnabled = false };
             pick.SelectionChanged += (_, _) => save.IsEnabled = pick.SelectedItem is not null;

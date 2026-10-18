@@ -64,6 +64,7 @@ public static class ScreenCaptureLogService
     {
         PlanetPageReader.Start();
         SystemPageReader.Start();
+        UnmatchedBodiesService.Start();
         GameProcessMonitorService.RunningStateChanged += (_, _) => Update();
         Update();
     }

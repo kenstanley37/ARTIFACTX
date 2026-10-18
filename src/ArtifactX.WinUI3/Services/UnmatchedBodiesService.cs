@@ -23,6 +23,28 @@ public static class UnmatchedBodiesService
 
     public static event Action<ulong>? Changed;
 
+    /// <summary>Landing on a planet makes the save record its name as the game shows it
+    /// ("On Planet (Aeniladust Edog)"): learn it from every save, then place any held
+    /// reading that now matches - the player needn't pick at all.</summary>
+    public static void Start()
+    {
+        FishCatchRecorder.SnapshotSeen += snapshot =>
+        {
+            ulong? system = ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ReadSystemAddress(snapshot.Universe);
+            SystemNameLearner.Learn(system, (int?)snapshot.Universe?["oZw"]?["jsv"] ?? 0, snapshot.Summary);
+            Retry();
+        };
+    }
+
+    private static void Retry()
+    {
+        List<Held> held;
+        lock (Lock) held = Items.ToList();
+        foreach (var h in held)
+            if (PlanetPageReader.MatchBody(h.Name) is (ulong system, int body, _) && system == h.System)
+                Assign(h, body, rememberName: false);
+    }
+
     public static IReadOnlyList<Held> For(ulong system)
     {
         lock (Lock) return Items.Where(h => h.System == system).ToList();
@@ -46,12 +68,15 @@ public static class UnmatchedBodiesService
     }
 
     /// <summary>The player said which body it is: remember the name, then apply what was read.</summary>
-    public static void Assign(Held held, int body)
+    public static void Assign(Held held, int body, bool rememberName = true)
     {
         lock (Lock) Items.Remove(held);
-        var note = SystemNotesService.Get(held.System) ?? new SystemNote();
-        note.PlanetNames[body.ToString(CultureInfo.InvariantCulture)] = held.Name;
-        SystemNotesService.Save(held.System, note, source: "user");
+        if (rememberName)
+        {
+            var note = SystemNotesService.Get(held.System) ?? new SystemNote();
+            note.PlanetNames[body.ToString(CultureInfo.InvariantCulture)] = held.Name;
+            SystemNotesService.Save(held.System, note, source: "user");
+        }
         if (held.Details is { } details)
         {
             var existing = PlanetDetailsService.Get(held.System, body);
