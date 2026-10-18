@@ -278,7 +278,7 @@
                     <TextBlock x:Name="DetailKindsTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
                 </StackPanel>
                 <!-- The system and planet at a glance, so nothing needs another page (user, 2026-10-18). -->
-                <Border Grid.Column="1" VerticalAlignment="Top" Padding="16,12" MaxWidth="720" HorizontalAlignment="Left"
+                <Border Grid.Column="1" VerticalAlignment="Top" Padding="16,12" MaxWidth="720" HorizontalAlignment="Right"
                         Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                         CornerRadius="{ThemeResource ThemeCardCornerRadius}">
                     <StackPanel Spacing="8">
