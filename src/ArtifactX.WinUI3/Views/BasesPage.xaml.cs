@@ -341,11 +341,17 @@ public sealed partial class BasesPage : Page
         DetailCopyBtn.Tag = row.PortalCode;
         ToolTipService.SetToolTip(DetailCopyBtn, row.PortalCode);
         DetailList.Children.Clear();
+        string NameOf(string id) => CatalogService.TryGet(id)?.DisplayName is { Length: > 0 } n ? n
+            : CultureInfo.CurrentCulture.TextInfo.ToTitleCase(id.TrimStart('^').Replace('_', ' ').ToLowerInvariant());
+        // Kinds sharing a name are numbered as the game numbers them: CONTAINER0..9 are ten
+        // separate "Storage Container"s, told apart only by the digit on their icons (2026-10-18).
+        var shared = groups.GroupBy(g => NameOf(g.Key)).Where(n => n.Count() > 1).Select(n => n.Key).ToHashSet();
         foreach (var g in groups)
         {
             var entry = CatalogService.TryGet(g.Key);
-            string name = entry?.DisplayName is { Length: > 0 } n ? n
-                : CultureInfo.CurrentCulture.TextInfo.ToTitleCase(g.Key.TrimStart('^').Replace('_', ' ').ToLowerInvariant());
+            string name = NameOf(g.Key);
+            if (shared.Contains(name) && System.Text.RegularExpressions.Regex.Match(g.Key, @"\d+$") is { Success: true } number)
+                name = $"{name} {number.Value}";
             var line = new Grid { ColumnSpacing = 12, Padding = new Thickness(10, 6, 14, 6), Width = 360 };
             line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
             line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
