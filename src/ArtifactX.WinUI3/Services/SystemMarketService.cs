@@ -139,7 +139,9 @@ public static class SystemMarketService
             {
                 string name = PlanetPageReader.Snap(PlanetPageReader.Clean(above.Text), allNames);
                 if (name.Length < 3 || !_itemIds.TryGetValue(name, out var id)) continue;
-                change = Regex.Replace(change.Replace(" ", "").Replace('−', '-'), @"(0/0|o/o)$", "%", RegexOptions.IgnoreCase);
+                // Tidy a percentage only - "No data" keeps its space (showed as "Nodata", 2026-10-18).
+                if (!illegal && !noData)
+                    change = Regex.Replace(change.Replace(" ", "").Replace('−', '-'), @"(0/0|o/o)$", "%", RegexOptions.IgnoreCase);
                 items.Add((id, Title(name), change, above.Y));
                 break;
             }
