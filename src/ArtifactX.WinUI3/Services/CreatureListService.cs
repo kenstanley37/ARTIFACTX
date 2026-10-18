@@ -205,7 +205,10 @@ public static class CreatureListService
     {
         if (!NameVotes.TryGetValue(key, out var votes)) NameVotes[key] = votes = new(StringComparer.Ordinal);
         votes[name] = votes.GetValueOrDefault(name) + 1;
-        return votes.OrderByDescending(v => v.Value).ThenByDescending(v => v.Key.Length).First().Key;
+        // A garbled row loses the initial, it never adds one: a spelling with one wins ("Robuvus"
+        // outvoted "G. Robuvus" while Z. Donkeisae's antennae covered the list, 2026-10-18).
+        return votes.OrderByDescending(v => Regex.IsMatch(v.Key, @"^\p{Lu}\.\s")).ThenByDescending(v => v.Value)
+            .ThenByDescending(v => v.Key.Length).First().Key;
     }
 
     private static string CleanName(string text) =>
