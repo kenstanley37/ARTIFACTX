@@ -700,6 +700,7 @@ public sealed partial class PlanetsPage : Page
             Style = (Style)Application.Current.Resources["ThemeBodyTextStyle"],
             FontWeight = FontWeights.SemiBold,
         });
+        if (OriginalNameLine(planet.SystemAddress, planet.PlanetIndex, 11) is { } originally) names.Children.Add(originally);
         names.Children.Add(DimLine(typeText));
         Grid.SetColumn(names, 1);
         header.Children.Add(names);
@@ -926,6 +927,19 @@ public sealed partial class PlanetsPage : Page
     {
         SettingsStore.Set(SettingsStore.Scope.Profile, MarketCollapsedKey, MarketCollapsed ? "0" : "1");
         ApplyMarketCollapsed();
+    }
+
+    /// <summary>"Originally Irskya XIX" under a renamed planet's name (user request 2026-10-18):
+    /// guides and other players may still use the game's original name. Null when not renamed.</summary>
+    private TextBlock? OriginalNameLine(ulong system, int planet, double fontSize)
+    {
+        string shown = UniverseInfo.PlanetName(system, planet), original = UniverseInfo.GeneratedPlanetName(system, planet);
+        if (string.Equals(shown, original, StringComparison.OrdinalIgnoreCase)) return null;
+        return new TextBlock
+        {
+            Text = $"Originally {original}", FontSize = fontSize, FontStyle = Windows.UI.Text.FontStyle.Italic,
+            Foreground = ThemeBrush("ThemeTextDimBrush"), TextTrimming = TextTrimming.CharacterEllipsis,
+        };
     }
 
     private string PlaceName(ulong system, string place) => place == "station" ? "Space station"
@@ -2129,6 +2143,7 @@ public sealed partial class PlanetsPage : Page
             Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"],
         });
         titles.Children.Add(new TextBlock { Text = UniverseInfo.PlanetName(planet.SystemAddress, planet.PlanetIndex), Style = (Style)Application.Current.Resources["ThemePageTitleStyle"] });
+        if (OriginalNameLine(planet.SystemAddress, planet.PlanetIndex, 13) is { } originally) titles.Children.Add(originally);
         titles.Children.Add(new TextBlock
         {
             Text = string.Join(" · ", new[] { planet.HasRings ? $"{planet.TypeName} with rings" : planet.TypeName, GalaxyLabel(planet.Galaxy), UniverseInfo.Compact(planet.SystemAddress), planet.Source }.Where(x => x.Length > 0)),
