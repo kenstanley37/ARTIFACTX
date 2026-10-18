@@ -2332,10 +2332,14 @@ public sealed partial class PlanetsPage : Page
 
         cards.Children.Add(left);
         cards.Children.Add(detailsCard);
-        _creaturesCard = DetailCard("CREATURES", CreaturesBody(planet), 1118);
+        // Full page width, below the other cards (user, 2026-10-18).
+        _creaturesCard = DetailCard("CREATURES", CreaturesBody(planet));
+        _creaturesCard.Width = double.NaN;
+        _creaturesCard.HorizontalAlignment = HorizontalAlignment.Stretch;
+        _creaturesCard.Margin = new Thickness(0, 18, 0, 0);
         _creaturesCard.Visibility = CreatureListService.On(planet.SystemAddress, planet.PlanetIndex).Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        cards.Children.Add(_creaturesCard);
         DetailPanel.Children.Add(cards);
+        DetailPanel.Children.Add(_creaturesCard);
     }
 
     private Border? _creaturesCard;

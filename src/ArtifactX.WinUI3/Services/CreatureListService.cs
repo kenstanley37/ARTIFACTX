@@ -32,7 +32,7 @@ public static class CreatureListService
     private static Dictionary<string, Dictionary<string, Creature>>? _byPlanet;
 
     private static readonly string[] Rarities = { "Common", "Uncommon", "Rare", "Extinct" };
-    private static readonly HashSet<string> Words = new(StringComparer.Ordinal) { "Underwater", "Always Active", "Nocturnal", "Diurnal" };
+    private static readonly HashSet<string> Words = new(StringComparer.Ordinal) { "Underwater", "Always Active", "Nocturnal", "Diurnal", "Mostly Diurnal", "Mostly Nocturnal" };
     // Where each creature was placed this session, so a frame whose notes don't name the planet still lands.
     private static readonly Dictionary<string, (ulong System, int Planet)> PlacedThisSession = new();
     // The selected creature, and how many frames it has been selected - the picture waits for a settled one.
