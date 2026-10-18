@@ -54,6 +54,8 @@ public static class UnmatchedBodiesService
     /// planet/moon from several readings of the same name are merged.</summary>
     public static void Hold(string name, PlanetDetails? details, bool? moon)
     {
+        // Not a name: the view's "5 PLANETS / 1 MOON" header was once taken for one (2026-10-17).
+        if (name.Contains('/') || System.Text.RegularExpressions.Regex.IsMatch(name, @"(PLANETS?|MOONS?)|^\W*\d")) return;
         ulong system = PlanetPageReader.Recent().FirstOrDefault();
         if (system == 0) return;
         string key = PlanetPageReader.Norm(name);
