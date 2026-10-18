@@ -195,14 +195,32 @@ public static class SystemPageReader
             .SelectMany(b => new[] { UniverseInfo.PlanetName(system, b), UniverseInfo.GeneratedPlanetName(system, b) })
             .Concat(UnmatchedBodiesService.For(system).Select(h => h.Name))
             .Select(PlanetPageReader.Norm).Distinct().ToList();
-        // Labels on the picture, not the list on the left: count each name at most once per height band.
-        return names.Count(n => placed.Count(p => PlanetPageReader.Distance(PlanetPageReader.Norm(PlanetPageReader.Clean(p.Text)), n) <= Math.Max(1, n.Length / 5)) >= 2
-            || placed.Any(p => PlanetPageReader.Distance(PlanetPageReader.Norm(PlanetPageReader.Clean(p.Text)), n) <= Math.Max(1, n.Length / 5)) && !ListShows(placed));
+        var hits = names.Select(n => placed.Where(p => PlanetPageReader.Distance(PlanetPageReader.Norm(PlanetPageReader.Clean(p.Text)), n) <= Math.Max(1, n.Length / 5))
+            .Select(p => p.Y).ToList()).ToList();
+        // Labels on the picture, not the list on the left: a name read twice is on both; a name read
+        // once counts unless the system is unfolded in the list (folded, the bodies are only on the
+        // picture - Amazing Planet Biomes, 2026-10-18).
+        bool listOpen = ListRows(hits.SelectMany(h => h).ToList(), Math.Min(3, f.PlanetCount + f.MoonCount));
+        return hits.Count(h => h.Count >= 2 || h.Count == 1 && !listOpen);
     }
 
-    /// <summary>The Discoveries view's left list is on screen (it names the bodies too).</summary>
-    private static bool ListShows(IReadOnlyList<(string Text, double Y)> placed) =>
-        placed.Any(p => p.Text.Contains("VISITED SYSTEMS", StringComparison.OrdinalIgnoreCase));
+    /// <summary>The system is unfolded in the left list: some of its bodies' names sit in evenly
+    /// spaced rows (the list's rows), which the labels scattered over the picture never do.</summary>
+    private static bool ListRows(List<double> ys, int needed)
+    {
+        if (needed < 2) return false;
+        // Any chain y, y+step, y+2*step... (a label may fall between two rows, so not just neighbours).
+        foreach (double a in ys)
+            foreach (double b in ys)
+            {
+                double step = b - a;
+                if (step < 25 || step > 120) continue;
+                int chain = 2;
+                while (chain < needed && ys.Any(y => Math.Abs(y - (a + chain * step)) <= 4)) chain++;
+                if (chain >= needed) return true;
+            }
+        return false;
+    }
 
     public static ulong? SystemView(IReadOnlyList<(string Text, double Y)> placed)
     {
