@@ -140,6 +140,8 @@ public static class PlanetPageReader
     {
         var lines = placed.Select(p => p.Text).ToList();
         if (lines.Any(l => l.Trim().Equals("Planet Data", StringComparison.OrdinalIgnoreCase))) return null; // the Discoveries page
+        // The teleporter lists the same four for the DESTINATION's planet, not this one (2026-10-18).
+        if (lines.Any(l => Regex.IsMatch(l, @"TELEPORTATION\s+TERMINAL|^\s*Warp\s+to\b|Last\s+edited\s+by", RegexOptions.IgnoreCase))) return null;
         var labels = new[] { "Weather", "Sentinels", "Flora", "Fauna" };
         var found = labels.Select(lb => placed.FirstOrDefault(p => p.Text.Trim().Equals(lb, StringComparison.OrdinalIgnoreCase))).ToList();
         if (found.Count(f => f.Text is not null) < 3) return null;
