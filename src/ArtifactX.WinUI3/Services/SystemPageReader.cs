@@ -36,7 +36,9 @@ public static class SystemPageReader
             && lines.Any(l => l.Contains("Conflict level", StringComparison.OrdinalIgnoreCase));
         // The Galaxy Map card: "REGION : ..." under the system's name, then Race / Economy / Conflict.
         int region = lines.ToList().FindIndex(l => Regex.IsMatch(l, @"\bR\S{1,4}ON\S*\s*:", RegexOptions.IgnoreCase));
-        bool card = region > 0 && lines.Skip(region).Take(12).Any(l => Is(PlanetPageReader.Clean(l), "Race"));
+        bool card = region > 0 && (lines.Skip(region).Take(12).Any(l => Is(PlanetPageReader.Clean(l), "Race"))
+            // An uncharted system's card has no Race/Economy/Conflict, just "Y2// Dissonant".
+            || lines.Skip(region + 1).Take(3).Any(l => l.Contains('/') && Regex.IsMatch(l, @"(?<![A-Za-z])[OBAFGKMEXY]\d{1,2}[a-z]{0,3}(?![A-Za-z])")));
         // Another system's card starts its star line with the distance ("32 LY // G2f // Water");
         // the one you're in has none ("G5pf // Water"). A hovered neighbour's card was stored
         // on the current system once (Sekinai-Musi onto Amogat-Aizu XIV, 2026-10-17): never again.
@@ -95,6 +97,7 @@ public static class SystemPageReader
                 {
                     read.StarClass = cls.Groups[1].Value;
                     read.Water = Regex.IsMatch(lines[i], @"W\w{0,2}ter", RegexOptions.IgnoreCase);
+                    read.Dissonant = Regex.IsMatch(lines[i], @"Diss\w*nant", RegexOptions.IgnoreCase);
                 }
                 else if (Is(line, "Race") && i + 1 < lines.Count) read.Race = RaceWord(lines[i + 1]);
                 else if (Is(line, "Economy") && i + 1 < lines.Count) read.Economy = Word("Economy", lines[i + 1]);
@@ -169,8 +172,9 @@ public static class SystemPageReader
         if (read.StarClass.Length > 0 && SystemNotesService.ColourForClass(read.StarClass) is { } colour)
             Set(colour, () => note.StarColour, v => note.StarColour = v);
         if (read.StarClass.Length > 0 && read.Water && !note.Water) { note.Water = true; changed = true; }
+        if (read.Dissonant && !note.Dissonant) { note.Dissonant = true; changed = true; }
         if (read.Moons is int moons && note.Moons != moons) { note.Moons = moons; changed = true; }
-        string what = string.Join(" / ", new[] { read.StarClass, read.Water ? "Water" : "", read.Race, read.Economy, read.Wealth, read.Conflict,
+        string what = string.Join(" / ", new[] { read.StarClass, read.Water ? "Water" : "", read.Dissonant ? "Dissonant" : "", read.Race, read.Economy, read.Wealth, read.Conflict,
             read.Moons is int n ? $"{n} moons" : "" }.Where(s => s.Length > 0));
         if (!changed) return $"system page {name}: already up to date ({what})";
         SystemNotesService.Save(system, note, source: "captured");
@@ -184,7 +188,8 @@ public static class SystemPageReader
     /// the view the Planets page borrows a picture of. Null for anything else.</summary>
     public static ulong? SystemView(IReadOnlyList<string> lines)
     {
-        int header = lines.ToList().FindIndex(l => Regex.IsMatch(l, @"\d+\s*PLANETS?\s*/", RegexOptions.IgnoreCase));
+        int header = lines.ToList().FindIndex(l => Regex.IsMatch(l, @"^\s*\d+\s*PLANETS?\b", RegexOptions.IgnoreCase)
+            && !l.Contains("Celestial", StringComparison.OrdinalIgnoreCase)); // "3 PLANETS" alone when there are no moons
         if (header < 0) return null;
         // A pop-up or a planet page covers the planets.
         if (lines.Any(l => l.Contains("Galaxy:", StringComparison.OrdinalIgnoreCase) || l.Contains("RENAME AND UPLOAD", StringComparison.OrdinalIgnoreCase)
@@ -233,6 +238,14 @@ public static class SystemPageReader
     /// stray icon reads ("9").</summary>
     private static string? PopupName(IReadOnlyList<string> lines)
     {
+        // The title sits right above "Discovered by:". A base in the system adds its own
+        // line ("Arid - Fishing") above "Galaxy:", which was taken as the name (2026-10-17).
+        int by = lines.ToList().FindIndex(l => l.Contains("Discovered by", StringComparison.OrdinalIgnoreCase));
+        for (int i = by - 1; by > 0 && i >= 0 && i >= by - 2; i--)
+        {
+            string line = PlanetPageReader.Clean(lines[i]);
+            if (line.Count(char.IsLetter) >= 3 && !line.Contains("Discovered", StringComparison.OrdinalIgnoreCase)) return line;
+        }
         int galaxy = lines.ToList().FindIndex(l => l.Contains("Galaxy:", StringComparison.OrdinalIgnoreCase));
         for (int i = galaxy - 1; i >= 0 && i >= galaxy - 4; i--)
         {

@@ -813,8 +813,22 @@ public sealed partial class PlanetsPage : Page
         var items = SystemMarketService.For(system);
         MarketEmptyTxt.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         MarketSeenTxt.Text = items.Count == 0 ? "" : $"{items.Count} item{(items.Count == 1 ? "" : "s")} · last seen {SeenAgo(items.Max(i => i.SeenAt))}";
+        bool places = items.Select(i => i.Place).Distinct().Count() > 1 || items.Any(i => i.Place != "station");
+        string? lastPlace = null;
         foreach (var item in items)
         {
+            // Station and each trading post under their own heading, when there's more than the station.
+            if (places && item.Place != lastPlace)
+            {
+                lastPlace = item.Place;
+                string where = item.Place == "station" ? "Space station"
+                    : int.TryParse(item.Place.Replace("planet:", ""), out int p) ? $"Trading post on {UniverseInfo.PlanetName(system, p)}" : item.Place;
+                MarketItemsPanel.Children.Add(new TextBlock
+                {
+                    Text = where.ToUpperInvariant(), Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"],
+                    Width = 2000, Margin = new Thickness(0, lastPlace == items[0].Place ? 0 : 8, 0, 0),
+                });
+            }
             // Fixed width, so the cards line up in columns whatever the name's length.
             var chip = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Padding = new Thickness(8, 6, 12, 6), Width = 290 };
             if (CatalogService.TryGet(item.ItemId)?.Icon is { } icon)

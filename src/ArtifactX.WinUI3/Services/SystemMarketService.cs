@@ -9,7 +9,9 @@ using System.Threading.Tasks;
 namespace ArtifactX.WinUI3.Services;
 
 /// <summary>One item a station sells, as its trade terminal last showed it.</summary>
-public sealed record MarketItem(string ItemId, string Name, int Price, string Change, int Stock, string SeenAt);
+/// <param name="Place">Where in the system: "station" (the space station) or "planet:N" (a trading
+/// post on planet N) - their terminals sell different stock at different prices (2026-10-17).</param>
+public sealed record MarketItem(string ItemId, string Name, int Price, string Change, int Stock, string SeenAt, string Place = "station");
 
 /// <summary>
 /// What each system's space station sells (GitHub #9, 2026-10-17), read off the trade
@@ -29,7 +31,8 @@ public static class SystemMarketService
     public static event Action<ulong>? Changed;
     public static int Read { get; private set; }
 
-    private static string Key(ulong system) => system.ToString("X", CultureInfo.InvariantCulture);
+    private static string Hex(ulong system) => system.ToString("X", CultureInfo.InvariantCulture);
+    private static string Key(ulong system, string place) => $"{Hex(system)}|{place}";
 
     private static Dictionary<string, List<MarketItem>> Markets
     {
@@ -43,12 +46,13 @@ public static class SystemMarketService
                 {
                     using var connection = UserDatabase.Open();
                     using var cmd = connection.CreateCommand();
-                    cmd.CommandText = "SELECT system_address, item_id, name, price, change, stock, seen_at FROM system_market WHERE deleted = 0";
+                    cmd.CommandText = "SELECT system_address, place, item_id, name, price, change, stock, seen_at FROM market_items WHERE deleted = 0";
                     using var r = cmd.ExecuteReader();
                     while (r.Read())
                     {
-                        if (!_markets.TryGetValue(r.GetString(0), out var list)) _markets[r.GetString(0)] = list = new();
-                        list.Add(new MarketItem(r.GetString(1), r.GetString(2), r.GetInt32(3), r.GetString(4), r.GetInt32(5), r.GetString(6)));
+                        string key = $"{r.GetString(0)}|{r.GetString(1)}";
+                        if (!_markets.TryGetValue(key, out var list)) _markets[key] = list = new();
+                        list.Add(new MarketItem(r.GetString(2), r.GetString(3), r.GetInt32(4), r.GetString(5), r.GetInt32(6), r.GetString(7), r.GetString(1)));
                     }
                 }
                 catch (Exception ex)
@@ -60,10 +64,13 @@ public static class SystemMarketService
         }
     }
 
-    /// <summary>What the system's station sells, A-Z.</summary>
+    /// <summary>What's sold in the system - its station and any trading posts - by place, then A-Z.</summary>
     public static IReadOnlyList<MarketItem> For(ulong system)
     {
-        lock (Lock) return Markets.TryGetValue(Key(system), out var list) ? list.OrderBy(i => i.Name, StringComparer.CurrentCulture).ToList() : new List<MarketItem>();
+        string prefix = Hex(system) + "|";
+        lock (Lock)
+            return Markets.Where(kv => kv.Key.StartsWith(prefix, StringComparison.Ordinal)).SelectMany(kv => kv.Value)
+                .OrderBy(i => i.Place == "station" ? "" : i.Place, StringComparer.Ordinal).ThenBy(i => i.Name, StringComparer.CurrentCulture).ToList();
     }
 
     /// <summary>Every system known to sell an item ("where can I buy X?").</summary>
@@ -71,7 +78,7 @@ public static class SystemMarketService
     {
         lock (Lock)
             return Markets.SelectMany(kv => kv.Value.Where(i => i.ItemId.Equals(itemId, StringComparison.OrdinalIgnoreCase))
-                .Select(i => (ulong.Parse(kv.Key, NumberStyles.HexNumber, CultureInfo.InvariantCulture), i))).ToList();
+                .Select(i => (ulong.Parse(kv.Key.Split('|')[0], NumberStyles.HexNumber, CultureInfo.InvariantCulture), i))).ToList();
     }
 
     /// <summary>A screen's OCR lines with their height on screen (centre, pixels).</summary>
@@ -83,6 +90,8 @@ public static class SystemMarketService
 
         string systemName = Regex.Replace(banner.Text, @"^\s*System\s*[-–—]\s*", "", RegexOptions.IgnoreCase).Trim();
         if (SystemPageReader.MatchSystem(systemName) is not ulong system) return $"trade terminal \"{systemName}\": not a system you were recently in";
+        // The station or a planet's trading post: where the save last put the player.
+        string place = PlanetPageReader.CurrentPlanet(system) is int planet and > 0 ? $"planet:{planet}" : "station";
 
         if (_itemIds is null)
         {
@@ -123,25 +132,26 @@ public static class SystemMarketService
         foreach (var buy in buys)
         {
             if (Regex.Match(buy.Text, @"([\d][\d,.]*)\s*$") is not { Success: true } price
-                || !int.TryParse(price.Groups[1].Value.Replace(",", "").Replace(".", ""), NumberStyles.Integer, CultureInfo.InvariantCulture, out int units)) continue;
+                || !int.TryParse(price.Groups[1].Value.Replace(",", "").Replace(".", ""), NumberStyles.Integer, CultureInfo.InvariantCulture, out int units)
+                || units <= 0) continue; // a hovered row reads "0" (Magno-Gold, 2026-10-17)
             var item = items.OrderBy(it => Math.Abs(it.Y - buy.Y)).First();
             if (Math.Abs(item.Y - buy.Y) > rowGap / 2) continue;
             var stock = stocks.Where(s => s.Y > buy.Y && s.Y - buy.Y < rowGap / 2).OrderBy(s => s.Y - buy.Y).FirstOrDefault();
             int left = 0;
             if (stock.Text is not null && Regex.Match(stock.Text, @"/\s*([\d,]+)") is { Success: true } st)
                 int.TryParse(st.Groups[1].Value.Replace(",", ""), NumberStyles.Integer, CultureInfo.InvariantCulture, out left);
-            saved.Add(new MarketItem(item.Id, item.Name, units, item.Change, left, now));
+            saved.Add(new MarketItem(item.Id, item.Name, units, item.Change, left, now, place));
         }
         if (saved.Count == 0) return "trade terminal: no prices matched to items";
 
-        Save(system, saved);
+        Save(system, place, saved);
         // The banner's "High Tech // Prosperous" is the system's economy and wealth too.
         var economy = lines.FirstOrDefault(l => l.Y > banner.Y && l.Text.Contains("//", StringComparison.Ordinal));
         string extra = "";
         if (economy.Text is not null && await SystemPageReader.TryReadEconomyAsync(system, economy.Text) is { } e) extra = $"; {e}";
         Read++;
         Changed?.Invoke(system);
-        return $"trade terminal {UniverseInfo.SystemName(system)}: {string.Join(", ", saved.Select(s => $"{s.Name} {s.Price:N0} ({s.Change}) x{s.Stock}"))}{extra}";
+        return $"trade terminal {UniverseInfo.SystemName(system)} ({place}): {string.Join(", ", saved.Select(s => $"{s.Name} {s.Price:N0} ({s.Change}) x{s.Stock}"))}{extra}";
     }
 
     private static string Title(string s) => s.Any(char.IsLower) ? s : CultureInfo.InvariantCulture.TextInfo.ToTitleCase(s.ToLowerInvariant());
@@ -150,9 +160,9 @@ public static class SystemMarketService
     // a single misread ("950" for 350) overwrote a good price once (2026-10-17).
     private static readonly Dictionary<(string, string), int> PendingPrice = new();
 
-    private static void Save(ulong system, List<MarketItem> items)
+    private static void Save(ulong system, string place, List<MarketItem> items)
     {
-        string key = Key(system);
+        string key = Key(system, place);
         lock (Lock)
         {
             if (Markets.TryGetValue(key, out var known))
@@ -185,11 +195,12 @@ public static class SystemMarketService
                 using var cmd = connection.CreateCommand();
                 cmd.Transaction = tx;
                 cmd.CommandText = @"
-                    INSERT INTO system_market (system_address, item_id, name, price, change, stock, seen_at, updated_at, source, synced_at, deleted, added_by)
-                    VALUES ($s, $id, $name, $price, $change, $stock, $now, $now, 'captured', NULL, 0, $by)
-                    ON CONFLICT(system_address, item_id) DO UPDATE SET name = $name, price = $price, change = $change, stock = $stock,
+                    INSERT INTO market_items (system_address, place, item_id, name, price, change, stock, seen_at, updated_at, source, synced_at, deleted, added_by)
+                    VALUES ($s, $place, $id, $name, $price, $change, $stock, $now, $now, 'captured', NULL, 0, $by)
+                    ON CONFLICT(system_address, place, item_id) DO UPDATE SET name = $name, price = $price, change = $change, stock = $stock,
                         seen_at = $now, updated_at = $now, synced_at = NULL, deleted = 0";
-                cmd.Parameters.AddWithValue("$s", key);
+                cmd.Parameters.AddWithValue("$s", Hex(system));
+                cmd.Parameters.AddWithValue("$place", place);
                 cmd.Parameters.AddWithValue("$id", item.ItemId);
                 cmd.Parameters.AddWithValue("$name", item.Name);
                 cmd.Parameters.AddWithValue("$price", item.Price);

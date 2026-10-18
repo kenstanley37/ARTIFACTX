@@ -398,6 +398,32 @@ public static class UserDatabase
             PRIMARY KEY (system_address, item_id)
         );
         """,
+
+        // 17 - market by place (2026-10-17): a planet's trading post sells other stock at
+        // other prices than the system's space station. place = "station" or "planet:N".
+        // Rows from step 16 are copied in as "station"; system_market is left unused.
+        """
+        CREATE TABLE market_items (
+            system_address TEXT NOT NULL,
+            place          TEXT NOT NULL DEFAULT 'station',
+            item_id        TEXT NOT NULL,
+            name           TEXT NOT NULL DEFAULT '',
+            price          INTEGER NOT NULL DEFAULT 0,
+            change         TEXT NOT NULL DEFAULT '',
+            stock          INTEGER NOT NULL DEFAULT 0,
+            seen_at        TEXT NOT NULL,
+            updated_at     TEXT NOT NULL,
+            source         TEXT NOT NULL DEFAULT 'captured',
+            synced_at      TEXT NULL,
+            deleted        INTEGER NOT NULL DEFAULT 0,
+            profile_id     TEXT NOT NULL DEFAULT '',
+            added_by       TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (system_address, place, item_id)
+        );
+        INSERT INTO market_items (system_address, place, item_id, name, price, change, stock, seen_at, updated_at, source, synced_at, deleted, profile_id, added_by)
+            SELECT system_address, 'station', item_id, name, price, change, stock, seen_at, updated_at, source, synced_at, deleted, profile_id, added_by
+            FROM system_market WHERE price > 0;
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;

@@ -25,6 +25,15 @@ public static class PlanetPageReader
     private static readonly object Lock = new();
     // The systems the live save put the player in, newest first (the save lags behind a warp).
     private static readonly List<ulong> RecentSystems = new();
+    // Where the last save put the player: the system and planet (0 = in space / the station).
+    private static (ulong System, int Planet)? _here;
+
+    /// <summary>The planet the player is on in that system per the last save (0 in space or
+    /// at the station), or null when the save puts them elsewhere.</summary>
+    internal static int? CurrentPlanet(ulong system)
+    {
+        lock (Lock) return _here is { } h && h.System == system ? h.Planet : null;
+    }
     private static List<(string Word, string Group, string Tier)>? _words;
     private static List<string>? _resources;
 
@@ -40,6 +49,7 @@ public static class PlanetPageReader
             {
                 RecentSystems.Remove(system);
                 RecentSystems.Insert(0, system);
+                _here = (system, (int?)snapshot.Universe?["oZw"]?["jsv"] ?? 0);
                 if (RecentSystems.Count > 3) RecentSystems.RemoveAt(3);
             }
         };
