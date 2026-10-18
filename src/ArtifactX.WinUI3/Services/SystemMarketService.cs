@@ -107,14 +107,23 @@ public static class SystemMarketService
         var items = new List<(string Id, string Name, string Change, double Y)>();
         for (int i = 0; i < lines.Count; i++)
         {
-            var m = Regex.Match(lines[i].Text, @"^\s*(Price|Demand)\s*:\s*([+\-−]?\s*[\d.,]+\s*%)", RegexOptions.IgnoreCase);
+            var m = Regex.Match(lines[i].Text, @"^\s*(Price|Demand)\s*:\s*([+\-−]?\s*[\d.,]+\s*%)?", RegexOptions.IgnoreCase);
             if (!m.Success) continue;
             double y = lines[i].Y;
+            string change = m.Groups[2].Value;
+            // "Demand:" and its "-6.0%" can be read as two lines (Gold, alone on a page,
+            // 2026-10-17): take the percentage at the same height.
+            if (change.Length == 0)
+            {
+                var pct = lines.Where(l => Math.Abs(l.Y - y) < 12 && Regex.IsMatch(l.Text, @"^\s*[+\-−]?\s*[\d.,]+\s*%\s*$")).FirstOrDefault();
+                if (pct.Text is null) continue;
+                change = pct.Text.Trim();
+            }
             foreach (var above in lines.Where(l => y - l.Y > 5 && y - l.Y < 50).OrderBy(l => y - l.Y))
             {
                 string name = PlanetPageReader.Snap(PlanetPageReader.Clean(above.Text), allNames);
                 if (name.Length < 3 || !_itemIds.TryGetValue(name, out var id)) continue;
-                items.Add((id, Title(name), m.Groups[2].Value.Replace(" ", "").Replace('−', '-'), above.Y));
+                items.Add((id, Title(name), change.Replace(" ", "").Replace('−', '-'), above.Y));
                 break;
             }
         }
