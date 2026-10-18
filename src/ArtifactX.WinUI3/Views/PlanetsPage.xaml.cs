@@ -92,6 +92,7 @@ public sealed partial class PlanetsPage : Page
         CreatureListService.Changed += OnCreaturesChanged;
         Unloaded += Page_Unloaded;
         JumpPlanner.RangeChanged += ApplyFilters;
+        ApplySystemCompact();
         _ = LoadPageAsync();
     }
 
@@ -814,14 +815,16 @@ public sealed partial class PlanetsPage : Page
             SystemPictureImage.Source = image;
             SystemPictureImage.Visibility = Visibility.Visible;
             SystemCanvas.Visibility = Visibility.Collapsed;
-            SystemViewFrame.Width = 540; // the picture's own shape (about 3:2), not the square orbit view
+            _systemPictureShown = true;
+            ApplySystemFrameSize();
         }
         else
         {
             SystemPictureImage.Source = null;
             SystemPictureImage.Visibility = Visibility.Collapsed;
             SystemCanvas.Visibility = Visibility.Visible;
-            SystemViewFrame.Width = 360;
+            _systemPictureShown = false;
+            ApplySystemFrameSize();
         }
     }
 
@@ -915,6 +918,38 @@ public sealed partial class PlanetsPage : Page
         }
         ApplyMarketCollapsed();
         _ = WarmMarketIconsAsync(system, items);
+    }
+
+    private const string SystemCompactKey = "PlanetsSystemCompact";
+    private bool SystemCompact => SettingsStore.Get(SettingsStore.Scope.Profile, SystemCompactKey) == "1";
+
+    /// <summary>"Show less": a small picture, the name, the facts line and the glyphs - the
+    /// System Data box, explanation and text code hidden - so the planet cards show without
+    /// scrolling (user request 2026-10-18). Remembered.</summary>
+    private void ApplySystemCompact()
+    {
+        bool small = SystemCompact;
+        ApplySystemFrameSize();
+        foreach (var e in new UIElement[] { SystemDataBox, SystemSourcesTxt, SystemCodeRow, LocationEyebrow, PortalEyebrow })
+            e.Visibility = small ? Visibility.Collapsed : Visibility.Visible;
+        CurrentSystemBody.Padding = small ? new Thickness(20, 12, 20, 14) : new Thickness(20, 16, 20, 20);
+        SystemCompactBtn.Content = small ? "Show more" : "Show less";
+    }
+
+    private bool _systemPictureShown;
+
+    /// <summary>Square for the orbit drawing, about 3:2 for the game's picture; smaller with "Show less".</summary>
+    private void ApplySystemFrameSize()
+    {
+        double h = SystemCompact ? 150 : 360;
+        SystemViewFrame.Height = h;
+        SystemViewFrame.Width = _systemPictureShown ? h * 1.5 : h;
+    }
+
+    private void SystemCompact_Click(object sender, RoutedEventArgs e)
+    {
+        SettingsStore.Set(SettingsStore.Scope.Profile, SystemCompactKey, SystemCompact ? "0" : "1");
+        ApplySystemCompact();
     }
 
     private const string MarketCollapsedKey = "PlanetsMarketCollapsed";
