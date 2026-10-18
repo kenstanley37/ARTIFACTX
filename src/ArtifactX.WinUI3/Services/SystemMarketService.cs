@@ -116,8 +116,8 @@ public static class SystemMarketService
             if (change.Length == 0)
             {
                 var pct = lines.Where(l => Math.Abs(l.Y - y) < 12 && Regex.IsMatch(l.Text, @"^\s*[+\-−]?\s*[\d.,]+\s*%\s*$")).FirstOrDefault();
-                if (pct.Text is null) continue;
-                change = pct.Text.Trim();
+                // Sometimes the percentage isn't read at all (Microprocessor "+0.0%"): keep the item.
+                change = pct.Text?.Trim() ?? "";
             }
             foreach (var above in lines.Where(l => y - l.Y > 5 && y - l.Y < 50).OrderBy(l => y - l.Y))
             {
@@ -140,8 +140,10 @@ public static class SystemMarketService
         string now = UserDatabase.Now();
         foreach (var buy in buys)
         {
-            if (Regex.Match(buy.Text, @"([\d][\d,.]*)\s*$") is not { Success: true } price
-                || !int.TryParse(price.Groups[1].Value.Replace(",", "").Replace(".", ""), NumberStyles.Integer, CultureInfo.InvariantCulture, out int units)
+            // Everything after "Buy for": OCR can put a space inside the number ("42,01 5").
+            string digits = new string(Regex.Replace(buy.Text, @"^.*?Buy\s*f\w{0,2}r", "", RegexOptions.IgnoreCase).Where(char.IsDigit).ToArray());
+            if (digits.Length == 0 || digits.Length > 9
+                || !int.TryParse(digits, NumberStyles.Integer, CultureInfo.InvariantCulture, out int units)
                 || units <= 0) continue; // a hovered row reads "0" (Magno-Gold, 2026-10-17)
             var item = items.OrderBy(it => Math.Abs(it.Y - buy.Y)).First();
             if (Math.Abs(item.Y - buy.Y) > rowGap / 2) continue;

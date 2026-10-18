@@ -926,6 +926,9 @@ public sealed partial class PlanetsPage : Page
             : uncharted ? "- Data Unavailable -" : null;
         Row("Economy", economy, f.Uncharted ? "None" : $"{f.EconomyLabel} // {f.WealthLabel}");
         Row("Conflict level", note?.Conflict is { Length: > 0 } c ? c : uncharted ? "- Data Unavailable -" : null, f.Uncharted ? "None" : f.ConflictLabel);
+        // The station's name: the save's marker for it, else what the save once called it.
+        string station = ReadMarkers(system).Station is { Length: > 0 } marker ? marker : note?.StationName ?? "";
+        if (station.Length > 0) Row("Space Station", station, "");
         Row("Star", note?.StarClass is { Length: > 0 } cls ? $"{cls} ({note.StarColour})" : note?.StarColour is { Length: > 0 } sc ? sc : null, f.StarLabel);
         if (note?.Water == true) Row("Water", "Yes", "");
         if (note?.Dissonant == true) Row("Dissonance", "Detected", "");
