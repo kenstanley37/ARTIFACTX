@@ -866,15 +866,12 @@ public sealed partial class PlanetsPage : Page
         var placeList = items.Select(i => i.Place).Distinct().OrderBy(p => p == "station" ? "" : p, StringComparer.Ordinal).ToList();
         // "Sold at the station" only when the station is all there is; a trading post makes it the market.
         MarketHeadingTxt.Text = placeList.All(p => p == "station") ? "SOLD AT THE STATION" : "MARKET";
-        MarketCompareGrid.Visibility = placeList.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
-        MarketItemsPanel.Visibility = placeList.Count > 1 ? Visibility.Collapsed : Visibility.Visible;
-        if (placeList.Count > 1)
-        {
-            BuildMarketCompare(system, items, placeList);
-            ApplyMarketCollapsed();
-            _ = WarmMarketIconsAsync(system, items);
-            return;
-        }
+        // Each place keeps its own cards; the table compares only what more than one place sells -
+        // a station and a trading post mostly stock different goods, and a full table was mostly
+        // "not sold" cells (2026-10-18).
+        var shared = items.GroupBy(i => i.ItemId).Where(g => g.Select(i => i.Place).Distinct().Count() > 1).SelectMany(g => g).ToList();
+        MarketCompareGrid.Visibility = shared.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (shared.Count > 0) BuildMarketCompare(system, shared, placeList);
         bool places = items.Select(i => i.Place).Distinct().Count() > 1 || items.Any(i => i.Place != "station");
         string? lastPlace = null;
         foreach (var item in items)
@@ -900,7 +897,7 @@ public sealed partial class PlanetsPage : Page
             ToolTipService.SetToolTip(chip, item.Name);
             text.Children.Add(new TextBlock
             {
-                Text = $"{item.Price:N0} units · {item.Change}{(item.Stock > 0 ? $" · {item.Stock} in stock" : "")}",
+                Text = string.Join(" · ", new[] { $"{item.Price:N0} units", item.Change, item.Stock > 0 ? $"{item.Stock} in stock" : "" }.Where(s => s.Length > 0)),
                 FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush"), TextTrimming = TextTrimming.CharacterEllipsis,
             });
             chip.Children.Add(text);
@@ -944,7 +941,7 @@ public sealed partial class PlanetsPage : Page
 
         void Add(FrameworkElement e, int row, int col) { Grid.SetRow(e, row); Grid.SetColumn(e, col); grid.Children.Add(e); }
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        Add(new TextBlock { Text = "ITEM", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] }, 0, 0);
+        Add(new TextBlock { Text = placeList.Count == 2 ? "SOLD AT BOTH" : "SOLD IN MORE THAN ONE PLACE", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] }, 0, 0);
         for (int c = 0; c < placeList.Count; c++)
             Add(new TextBlock { Text = PlaceName(system, placeList[c]).ToUpperInvariant(), Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"], TextTrimming = TextTrimming.CharacterEllipsis }, 0, c + 1);
 
@@ -975,7 +972,7 @@ public sealed partial class PlanetsPage : Page
                     });
                     cell.Children.Add(new TextBlock
                     {
-                        Text = $"{at.Change}{(at.Stock > 0 ? $" · {at.Stock} in stock" : "")}", FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush"),
+                        Text = string.Join(" · ", new[] { at.Change, at.Stock > 0 ? $"{at.Stock} in stock" : "" }.Where(s => s.Length > 0)), FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush"),
                     });
                 }
                 Add(cell, row, c + 1);
