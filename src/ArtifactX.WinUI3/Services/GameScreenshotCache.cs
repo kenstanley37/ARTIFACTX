@@ -21,12 +21,64 @@ public static class GameScreenshotCache
 
     /// <summary>The newest picture for this address (a renamed station or base keeps its
     /// old files too, so an exact-name match wins), or null when the game has none.</summary>
-    public static async Task<WriteableBitmap?> LoadAsync(string? platformFolder, ulong address, string name)
+    /// <param name="faded">For a page backdrop: the edges fade to transparent (Fade).</param>
+    /// <param name="aspect">Width / height of the area it will fill, so the fade lands on the part shown.</param>
+    public static async Task<WriteableBitmap?> LoadAsync(string? platformFolder, ulong address, string name, bool faded = false, double aspect = 0)
     {
         byte[]? pixels = await Task.Run(() => ReadPixels(platformFolder, address, name));
         if (pixels is null) return null;
+        if (faded) Fade(pixels, Width, Height, aspect);
+        return await ToBitmapAsync(pixels, Width, Height);
+    }
 
-        var bitmap = new WriteableBitmap(Width, Height);
+    /// <summary>A picture file (the system pictures screen recording keeps), faded for a backdrop.</summary>
+    public static async Task<WriteableBitmap?> LoadFadedFileAsync(string path, double aspect = 0)
+    {
+        try
+        {
+            var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(path);
+            using var stream = await file.OpenAsync(Windows.Storage.FileAccessMode.Read);
+            var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(stream);
+            using var soft = await decoder.GetSoftwareBitmapAsync(Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8, Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied);
+            var pixels = new byte[soft.PixelWidth * soft.PixelHeight * 4];
+            soft.CopyToBuffer(pixels.AsBuffer());
+            Fade(pixels, soft.PixelWidth, soft.PixelHeight, aspect);
+            return await ToBitmapAsync(pixels, soft.PixelWidth, soft.PixelHeight);
+        }
+        catch (Exception) { return null; }
+    }
+
+    /// <summary>Fades a picture to transparent at its edges - most at the bottom, a little at the
+    /// sides - so a backdrop melts into the page instead of ending in a hard line against the
+    /// theme's gradient (2026-10-18). Pixels are BGRA, premultiplied, as WriteableBitmap wants.</summary>
+    /// The fade is measured on the part a UniformToFill brush shows in an area of the given
+    /// aspect (a wide header crops the top and bottom off), so it ends exactly at the area's edge.
+    public static void Fade(byte[] bgra, int w, int h, double aspect = 0)
+    {
+        double shownH = h, shownW = w;
+        if (aspect > 0 && aspect > (double)w / h) shownH = w / aspect; else if (aspect > 0) shownW = h * aspect;
+        double y0 = (h - shownH) / 2, x0 = (w - shownW) / 2;
+        for (int y = 0; y < h; y++)
+        {
+            double fy = Math.Clamp((y - y0) / shownH, 0, 1);
+            double vertical = fy < 0.35 ? 1 : Math.Max(0, 1 - (fy - 0.35) / 0.65);
+            for (int x = 0; x < w; x++)
+            {
+                double fx = Math.Clamp((x - x0) / shownW, 0, 1);
+                double side = Math.Min(1, Math.Min(fx, 1 - fx) / 0.12);
+                double a = vertical * vertical * side;
+                int i = (y * w + x) * 4;
+                bgra[i] = (byte)(bgra[i] * a);
+                bgra[i + 1] = (byte)(bgra[i + 1] * a);
+                bgra[i + 2] = (byte)(bgra[i + 2] * a);
+                bgra[i + 3] = (byte)(255 * a);
+            }
+        }
+    }
+
+    private static async Task<WriteableBitmap> ToBitmapAsync(byte[] pixels, int w, int h)
+    {
+        var bitmap = new WriteableBitmap(w, h);
         using (var stream = bitmap.PixelBuffer.AsStream())
             await stream.WriteAsync(pixels);
         bitmap.Invalidate();

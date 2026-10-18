@@ -255,17 +255,8 @@
                 <Border.Background>
                     <ImageBrush x:Name="DetailBackdropBrush" Stretch="UniformToFill" Opacity="0.28"/>
                 </Border.Background>
-                <Border>
-                    <Border.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                            <GradientStop Color="#00070912" Offset="0"/>
-                            <GradientStop Color="#99070912" Offset="0.7"/>
-                            <GradientStop Color="#FF070912" Offset="1"/>
-                        </LinearGradientBrush>
-                    </Border.Background>
-                </Border>
             </Border>
-            <Grid ColumnSpacing="24">
+            <Grid x:Name="DetailHeaderGrid" ColumnSpacing="24" SizeChanged="DetailHeader_SizeChanged">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" MinWidth="360"/>
                     <ColumnDefinition Width="*"/>

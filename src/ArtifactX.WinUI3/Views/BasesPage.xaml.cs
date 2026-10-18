@@ -329,8 +329,9 @@ public sealed partial class BasesPage : Page
         DetailKindsTxt.Text = $"{groups.Count:N0} kinds of part";
         DetailPicture.Source = row.Picture;
         DetailPictureBorder.Visibility = row.PictureVisibility;
-        DetailBackdropBrush.ImageSource = row.Picture;
-        DetailBackdrop.Visibility = row.PictureVisibility;
+        _backdropBase = row.Picture is null ? null : b;
+        _backdropAspect = 0;
+        DetailBackdrop.Visibility = Visibility.Collapsed;
         DetailFactsTxt.Text = row.Facts;
         DetailAreaTxt.Text = row.AreaLabel;
         DetailAreaTxt.Opacity = row.AreaOpacity;
@@ -367,6 +368,35 @@ public sealed partial class BasesPage : Page
         }
         ListArea.Visibility = Visibility.Collapsed;
         DetailArea.Visibility = Visibility.Visible;
+        DetailHeaderGrid.UpdateLayout();
+        await ShowBackdropAsync();
+    }
+
+    private JObject? _backdropBase;
+    private double _backdropAspect;
+
+    /// <summary>The base's picture behind the header, faded to transparent at the edges of the
+    /// area it fills - so it melts into the page with no seam (2026-10-18). Redone when the
+    /// header's shape changes much (window resized).</summary>
+    private async System.Threading.Tasks.Task ShowBackdropAsync()
+    {
+        if (_backdropBase is not JObject b || S.ParsePackedAddress(b["oZw"]) is not ulong address) return;
+        double w = DetailHeaderGrid.ActualWidth + 24, h = DetailHeaderGrid.ActualHeight + 14;
+        if (w < 50 || h < 50) return;
+        double aspect = w / h;
+        if (_backdropAspect > 0 && Math.Abs(aspect / _backdropAspect - 1) < 0.08) return;
+        _backdropAspect = aspect;
+        if (await GameScreenshotCache.LoadAsync(SaveSessionManager.ActivePlatformFolder, address, b["NKm"]?.Value<string>() ?? "", faded: true, aspect: aspect) is { } faded
+            && _backdropBase == b)
+        {
+            DetailBackdropBrush.ImageSource = faded;
+            DetailBackdrop.Visibility = Visibility.Visible;
+        }
+    }
+
+    private void DetailHeader_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (DetailArea.Visibility == Visibility.Visible) _ = ShowBackdropAsync();
     }
 
     private void DetailBack_Click(object sender, RoutedEventArgs e)

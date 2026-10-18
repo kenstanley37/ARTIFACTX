@@ -2184,7 +2184,25 @@ public sealed partial class PlanetsPage : Page
         titles.Children.Add(glyphRow);
         Grid.SetColumn(titles, 1);
         header.Children.Add(titles);
-        DetailPanel.Children.Add(header);
+        // The system's picture faintly behind the header, faded to nothing at its edges, as on a
+        // base's page (2026-10-18). Only when screen recording has taken one.
+        var headerArea = new Grid();
+        if (ScreenCaptureLogService.SystemPicture(planet.SystemAddress) is string picturePath)
+        {
+            var brush = new ImageBrush { Stretch = Stretch.UniformToFill, Opacity = 0.3 };
+            var backdrop = new Border { Margin = new Thickness(-12, -8, -12, -8), Background = brush, CornerRadius = ThemeResources.CardCornerRadius };
+            headerArea.Children.Add(backdrop);
+            double shownAspect = 0;
+            headerArea.SizeChanged += async (_, e) =>
+            {
+                double aspect = (e.NewSize.Width + 24) / Math.Max(1, e.NewSize.Height + 16);
+                if (shownAspect > 0 && Math.Abs(aspect / shownAspect - 1) < 0.08) return;
+                shownAspect = aspect;
+                if (await GameScreenshotCache.LoadFadedFileAsync(picturePath, aspect) is { } faded) brush.ImageSource = faded;
+            };
+        }
+        headerArea.Children.Add(header);
+        DetailPanel.Children.Add(headerArea);
 
         var cards = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 18, VerticalSpacing = 18 };
         var left = new StackPanel { Spacing = 18, VerticalAlignment = VerticalAlignment.Top };
