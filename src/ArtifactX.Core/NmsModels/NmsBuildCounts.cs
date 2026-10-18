@@ -24,15 +24,21 @@ public static class NmsBuildCounts
         (bases ?? new JArray()).OfType<JObject>()
             .Select(b => (Type: b["peI"]?["DPp"]?.Value<string>() ?? "", Base: b))
             .Where(b => b.Type.Length > 0 && b.Type != "ExternalPlanetBase")
-            .Select(b => new BuildCount(b.Type, b.Base["NKm"]?.Value<string>() ?? "", (b.Base["@ZJ"] as JArray)?.Count ?? 0, b.Base))
+            .Select(b => new BuildCount(b.Type, b.Base["NKm"]?.Value<string>() ?? "", Parts(b.Base["@ZJ"] as JArray), b.Base))
             .OrderByDescending(b => b.Parts).ToList();
+
+    /// <summary>A base's parts as the game counts them: all but the base computer (^BASE_FLAG) -
+    /// the build menu read 3,031 where the save held 3,032, one more both before and after a
+    /// save point was placed, and the base computer is the base's one part that isn't built.</summary>
+    private static int Parts(JArray? objects) =>
+        objects?.Count(o => o["r<7"]?.Value<string>() != "^BASE_FLAG") ?? 0;
 
     /// <summary>Everything placed: every base's parts plus the loose objects.</summary>
     public static int Total(JArray? bases, JArray? looseObjects) => PerBase(bases).Sum(b => b.Parts) + (looseObjects?.Count ?? 0);
 
     /// <summary>A planet base with more parts than this can't be uploaded for other players to
-    /// see - the game's build menu says "Base Not Uploadable (3030/3000)", and its count matched
-    /// @ZJ's exactly, base computer included (First Base on the test save, 2026-10-18). Not the
+    /// see - the game's build menu says "Base Not Uploadable (3031/3000)", and its count is
+    /// @ZJ's less the base computer (First Base on the test save, 2026-10-18). Not the
     /// building cap: the game let parts be placed past it.</summary>
     public const int UploadLimit = 3000;
 
