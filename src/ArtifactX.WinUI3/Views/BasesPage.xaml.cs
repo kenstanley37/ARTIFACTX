@@ -122,7 +122,9 @@ public sealed partial class BasesPage : Page
                     Detail = $"{UniverseInfo.PlanetName(address, planetIndex)} ({type})"
                         + (NmsPlanetCoordinates.OfBase(b) is { } at ? $" at {NmsPlanetCoordinates.Format(at.Latitude, at.Longitude)}" : "")
                         + $" · {UniverseInfo.SystemName(address)} · {galaxyName}"
-                        + (counts.TryGetValue(b, out int parts) ? $" · {NmsBuildCounts.UploadLabel(parts)}" : ""),
+                        ,
+                    PartsLabel = counts.TryGetValue(b, out int parts) ? NmsBuildCounts.UploadLabel(parts) : "",
+                    PartsBrush = new SolidColorBrush(LevelColour(NmsBuildCounts.UploadLevel(parts))),
                     Facts = UniverseInfo.Compact(address),
                     Swatch = new SolidColorBrush(ParseColour(planet is null ? "#777777" : NmsPlanets.TypeColour(planet.BiomeIndex))),
                     PortalCode = code,
@@ -286,6 +288,14 @@ public sealed partial class BasesPage : Page
         var images = code.Select(c => CatalogService.TryGet($"PORTALSYMBOL_{c}")?.Icon).ToList();
         return images.Any(i => i is null) ? new() : images.Cast<ImageSource>().ToList();
     }
+
+    /// <summary>Green with room to spare, yellow when close, red when over (user request 2026-10-18).</summary>
+    private static Windows.UI.Color LevelColour(int level) => level switch
+    {
+        2 => Windows.UI.Color.FromArgb(255, 0xFF, 0x5A, 0x5A),
+        1 => Windows.UI.Color.FromArgb(255, 0xF5, 0xC5, 0x42),
+        _ => Windows.UI.Color.FromArgb(255, 0x3D, 0xDC, 0x84),
+    };
 
     private static Windows.UI.Color ParseColour(string hex)
     {

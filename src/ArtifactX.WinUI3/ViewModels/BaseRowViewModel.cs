@@ -20,6 +20,11 @@ public sealed class BaseRowViewModel
     public required string AreaLabel { get; init; }
     public required double AreaOpacity { get; init; }
 
+    /// <summary>"3,031 / 3,000 parts · too many to upload", coloured green / yellow / red
+    /// by how close the base is to the upload limit. Empty for placed objects.</summary>
+    public string PartsLabel { get; init; } = "";
+    public Brush? PartsBrush { get; init; }
+
     // Sort keys
     public required double SortDistance { get; init; }
     public required int Galaxy { get; init; }

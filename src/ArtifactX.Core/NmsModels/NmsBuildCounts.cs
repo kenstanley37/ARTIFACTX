@@ -47,6 +47,9 @@ public static class NmsBuildCounts
         ? $"{parts:N0} / {UploadLimit:N0} parts · too many to upload"
         : $"{parts:N0} / {UploadLimit:N0} parts · {UploadLimit - parts:N0} left to upload";
 
+    /// <summary>0 = plenty of room, 1 = close (80% or more), 2 = over the upload limit.</summary>
+    public static int UploadLevel(int parts) => parts > UploadLimit ? 2 : parts >= UploadLimit * 8 / 10 ? 1 : 0;
+
     /// <summary>"Planet bases", "Claimed space stations"... for a base type.</summary>
     public static string TypeLabel(string type) => type switch
     {
