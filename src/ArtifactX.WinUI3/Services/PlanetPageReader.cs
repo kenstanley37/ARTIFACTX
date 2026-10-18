@@ -65,6 +65,10 @@ public static class PlanetPageReader
     {
         int arrive = lines.ToList().FindIndex(l => Regex.IsMatch(l, @"Arrive\s+in\b", RegexOptions.IgnoreCase));
         if (arrive < 0) return null;
+        // A station / ship marker says "ARRIVE IN: 0:33" - a planet card has no colon ("SPACE STATION"
+        // was held as a planet name, 2026-10-18).
+        if (Regex.IsMatch(lines[arrive], @"Arrive\s+in\s*:", RegexOptions.IgnoreCase)
+            || lines.Any(l => Regex.IsMatch(l.Trim(), @"^(SPACE|ATLAS)\s+STATION$", RegexOptions.IgnoreCase))) return null;
         int type = -1;
         for (int i = arrive + 1; i < lines.Count && i <= arrive + 4; i++)
             // "Metallurgic Planet", "Poisonous Moon" - or an exotic's own words ("Harsh Blue Globe", 2026-10-17).
