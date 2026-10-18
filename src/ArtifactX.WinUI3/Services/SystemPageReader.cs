@@ -217,7 +217,8 @@ public static class SystemPageReader
             return null;
         // The name: the big title right above "Discovered <when> by <who>", by height on screen -
         // in reading order the visited-systems list and other lines get in between (2026-10-17).
-        var by = placed.FirstOrDefault(p => Regex.IsMatch(p.Text, @"Discovered\s.*\bby\b", RegexOptions.IgnoreCase)
+        // The line can come apart: "Discovered" | "today by Neophyte" (Belezna, 2026-10-17).
+        var by = placed.FirstOrDefault(p => Regex.IsMatch(p.Text, @"Discovered\s.*\bby\b|^\s*Discovered\s*$|\b(today|yesterday|ago)\s+by\b", RegexOptions.IgnoreCase)
             && !p.Text.Contains("Discovered by", StringComparison.OrdinalIgnoreCase));
         if (by.Text is null) return null;
         foreach (var (text, y) in placed.Where(p => by.Y - p.Y > 15 && by.Y - p.Y < 90).OrderBy(p => by.Y - p.Y))
