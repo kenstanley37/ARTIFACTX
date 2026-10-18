@@ -69,6 +69,10 @@ public static class CreatureListService
     {
         var species = placed.FirstOrDefault(p => Regex.IsMatch(p.Text, @"Species\s+Discovered", RegexOptions.IgnoreCase));
         if (species.Text is null || !placed.Any(p => p.Text.Trim() == "Fauna")) return null;
+        // The creature's menu (Rename and upload / View / Add to Wonders) covers the list - its
+        // "Add Discovery to Personal Records" was read as a creature (2026-10-18).
+        if (placed.Any(p => Regex.IsMatch(p.Text, @"RENAME\s+AND\s+UPLOAD|ADD\s+TO\s+WONDERS|View\s+fauna\s+data|Personal\s+Records", RegexOptions.IgnoreCase)))
+            return "fauna list: menu open, skipped";
         var list = placed.Where(p => p.X > 0.55 && p.Y > species.Y + 10).ToList();
         var left = placed.Where(p => p.X < 0.5).ToList();
 
@@ -80,13 +84,11 @@ public static class CreatureListService
             if (t.Length > 60 || !(t.Contains('/') || Rarities.Contains(t))) continue;
             var (rarity, habitat, activity) = Traits(line.Text);
             if (rarity.Length == 0 && habitat.Length == 0 && activity.Length == 0) continue;
-            var above = list.Where(p => line.Y - p.Y > 12 && line.Y - p.Y < 45 && !p.Text.Contains('/'))
+            // The name sits right above its details line, starting at the same left edge.
+            var above = list.Where(p => line.Y - p.Y > 12 && line.Y - p.Y < 45 && !p.Text.Contains('/') && Math.Abs(p.X - line.X) < 0.03)
                 .OrderBy(p => line.Y - p.Y).FirstOrDefault();
             if (above.Text is null) continue;
             string name = CleanName(above.Text);
-            // A symbol before the name is the round icon of a named creature ("@Hoydroibolima"):
-            // remember it, so the same icon read as an initial ("Q. Hoydroibolima") is dropped.
-            if (Regex.IsMatch(above.Text.Trim(), @"^[^\p{L}\s]")) lock (Lock) IconNames.Add(NameKey(name));
             // A creature's name: one or two words, maybe after an initial ("E. Zeronatonae").
             if (!Regex.IsMatch(name, @"^(\p{Lu}\.\s?)?\p{Lu}[\p{L}'-]{2,}(\s\p{Lu}[\p{L}'-]+)?$") || Traits(name) != ("", "", "")) continue;
             rows.Add((name, rarity, habitat, activity));
@@ -174,17 +176,19 @@ public static class CreatureListService
         return (rarity, habitat, activity);
     }
 
-    // How often each spelling of a name was read: an icon can read as an initial ("Q. Hoydroibolima"),
-    // a cut row can lose one ("Alderhukkeum") - the spelling read most wins.
+    // How often each spelling of a name was read: a cut row can lose its initial ("Alderhukkeum"),
+    // an icon can come out as a symbol - the spelling read most wins. ("Q. Hoydroibolima" is the
+    // game's own name, the Q. isn't the icon - checked against its title, 2026-10-18.)
     private static readonly Dictionary<string, Dictionary<string, int>> NameVotes = new();
-    private static readonly HashSet<string> IconNames = new(StringComparer.Ordinal);
+    // How many frames read each creature this session, per planet; it's kept from the second.
+    private static readonly Dictionary<(string Planet, string Key), int> ReadCount = new();
+    private const int Confirmations = 2;
 
     private static string VotedName(string key, string name)
     {
         if (!NameVotes.TryGetValue(key, out var votes)) NameVotes[key] = votes = new(StringComparer.Ordinal);
         votes[name] = votes.GetValueOrDefault(name) + 1;
-        string best = votes.OrderByDescending(v => v.Value).ThenByDescending(v => v.Key.Length).First().Key;
-        return IconNames.Contains(key) ? Regex.Replace(best, @"^[QO0]\.\s*", "") : best;
+        return votes.OrderByDescending(v => v.Value).ThenByDescending(v => v.Key.Length).First().Key;
     }
 
     private static string CleanName(string text) =>
@@ -253,10 +257,10 @@ public static class CreatureListService
             if (!All.TryGetValue(planetKey, out var list)) All[planetKey] = list = new(StringComparer.Ordinal);
             // The whole list was on screen: what isn't in it was a misreading (a gender read as a name).
             if (complete)
-                // Only what wasn't read as a row this session: a frame can miss a real row (the
-                // extinct one at the bottom), and removing it made it flicker (Oreniuite, 2026-10-18).
+                // Not what was confirmed this session: a frame can miss a real row (the extinct
+                // one at the bottom), and removing it made it flicker (Oreniuite, 2026-10-18).
                 foreach (var key in list.Keys.Where(k => !rows.Any(r => NameKey(r.Name) == k)
-                    && !(PlacedThisSession.TryGetValue(k, out var seen) && seen == (system, planet))).ToList())
+                    && ReadCount.GetValueOrDefault((planetKey, k)) < Confirmations).ToList())
                 {
                     list.Remove(key);
                     removed.Add(key);
@@ -264,6 +268,18 @@ public static class CreatureListService
             foreach (var row in rows)
             {
                 string key = NameKey(row.Name);
+                // Kept once read in two frames: a name caught mid-animation ("Alde" for Alderhukkeum)
+                // or another line taken for one ("Add Records") rarely comes back (2026-10-18).
+                ReadCount[(planetKey, key)] = ReadCount.GetValueOrDefault((planetKey, key)) + 1;
+                if (ReadCount[(planetKey, key)] < Confirmations) continue;
+                // A piece of a longer name is that name, cut off; a longer name replaces a stored piece.
+                if (list.Keys.Concat(rows.Select(r => NameKey(r.Name))).Any(k => k != key && k.Length > key.Length && k.Contains(key, StringComparison.Ordinal)))
+                    continue;
+                foreach (var piece in list.Keys.Where(k => k != key && key.Contains(k, StringComparison.Ordinal)).ToList())
+                {
+                    list.Remove(piece);
+                    removed.Add(piece);
+                }
                 PlacedThisSession[key] = (system, planet);
                 bool isSelected = selected is not null && NameKey(selected) == key;
                 list.TryGetValue(key, out var old);
