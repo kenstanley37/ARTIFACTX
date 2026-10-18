@@ -107,7 +107,8 @@ public static class SystemMarketService
         var items = new List<(string Id, string Name, string Change, double Y)>();
         for (int i = 0; i < lines.Count; i++)
         {
-            var m = Regex.Match(lines[i].Text, @"^\s*(Price|Demand)\s*:\s*([+\-−]?\s*[\d.,]+\s*%)?", RegexOptions.IgnoreCase);
+            // OCR reads "Demand:" as "Demand." and "%" as "0/0" ("+1.40/0" for +1.4%, Belezna 2026-10-17).
+            var m = Regex.Match(lines[i].Text, @"^\s*(Price|Demand)\s*[:.;,]?\s*([+\-−]?\s*[\d.,]+?\s*(?:%|0/0|o/o))?", RegexOptions.IgnoreCase);
             // Black market goods show "Illegal Black Market Goods" where others show a price change.
             bool illegal = !m.Success && Regex.IsMatch(lines[i].Text, @"Illegal\s+Black\s+Market", RegexOptions.IgnoreCase);
             if (!m.Success && !illegal) continue;
@@ -117,7 +118,7 @@ public static class SystemMarketService
             // 2026-10-17): take the percentage at the same height.
             if (change.Length == 0 && !illegal)
             {
-                var pct = lines.Where(l => Math.Abs(l.Y - y) < 12 && Regex.IsMatch(l.Text, @"^\s*[+\-−]?\s*[\d.,]+\s*%\s*$")).FirstOrDefault();
+                var pct = lines.Where(l => Math.Abs(l.Y - y) < 12 && Regex.IsMatch(l.Text, @"^\s*[+\-−]?\s*[\d.,]+?\s*(%|0/0|o/o)\s*$", RegexOptions.IgnoreCase)).FirstOrDefault();
                 // Sometimes the percentage isn't read at all (Microprocessor "+0.0%"): keep the item.
                 change = pct.Text?.Trim() ?? "";
             }
@@ -125,7 +126,8 @@ public static class SystemMarketService
             {
                 string name = PlanetPageReader.Snap(PlanetPageReader.Clean(above.Text), allNames);
                 if (name.Length < 3 || !_itemIds.TryGetValue(name, out var id)) continue;
-                items.Add((id, Title(name), change.Replace(" ", "").Replace('−', '-'), above.Y));
+                change = Regex.Replace(change.Replace(" ", "").Replace('−', '-'), @"(0/0|o/o)$", "%", RegexOptions.IgnoreCase);
+                items.Add((id, Title(name), change, above.Y));
                 break;
             }
         }
