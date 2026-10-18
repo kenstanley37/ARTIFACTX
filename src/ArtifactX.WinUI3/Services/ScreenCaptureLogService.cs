@@ -106,11 +106,15 @@ public static class ScreenCaptureLogService
         string text = "";
         var lines = new List<string>();
         var placed = new List<(string Text, double Y)>();
+        // With the left edge too (share of the width), for screens laid out in columns.
+        var placedX = new List<(string Text, double X, double Y)>();
         if (OcrEngine.TryCreateFromUserProfileLanguages() is { } ocr)
         {
             var result = await ocr.RecognizeAsync(bitmap);
             lines = result.Lines.Select(l => l.Text).ToList();
             placed = result.Lines.Select(l => (l.Text, l.Words.Count == 0 ? 0 : l.Words.Average(wd => wd.BoundingRect.Y + wd.BoundingRect.Height / 2))).ToList();
+            placedX = result.Lines.Select(l => (l.Text, l.Words.Count == 0 ? 0 : l.Words.Min(wd => wd.BoundingRect.X) / w,
+                l.Words.Count == 0 ? 0 : l.Words.Average(wd => wd.BoundingRect.Y + wd.BoundingRect.Height / 2))).ToList();
             text = string.Join(Environment.NewLine, lines);
         }
         // Same words as the last kept screen (the cursor moved over the same list): skip it.
@@ -128,7 +132,7 @@ public static class ScreenCaptureLogService
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "trade terminal: error " + ex.Message; }
         try
         {
-            if (await CreatureListService.TryReadAsync(placed, path => SaveCreaturePictureAsync(pixels, w, h, path)) is { } creatures)
+            if (await CreatureListService.TryReadAsync(placedX, path => SaveCreaturePictureAsync(pixels, w, h, path)) is { } creatures)
                 read = (read is null ? "" : read + " | ") + creatures;
         }
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "fauna list: error " + ex.Message; }

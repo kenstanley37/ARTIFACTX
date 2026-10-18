@@ -61,23 +61,26 @@ public static class CreatureListService
     /// <summary>Whether a recorded creature on the planet lives underwater.</summary>
     public static bool AnyUnderwater(ulong system, int planet) => On(system, planet).Any(c => c.Habitat == "Underwater");
 
+    /// <param name="placed">Each line with its left edge (share of the width) and height: the list
+    /// is on the right, the selected creature's details on the left, at the same heights - by
+    /// height alone the gender ("Prime") was taken for a creature (2026-10-18).</param>
     /// <param name="savePicture">Saves the creature part of the frame to the given path.</param>
-    public static async Task<string?> TryReadAsync(IReadOnlyList<(string Text, double Y)> placed, Func<string, Task<bool>>? savePicture = null)
+    public static async Task<string?> TryReadAsync(IReadOnlyList<(string Text, double X, double Y)> placed, Func<string, Task<bool>>? savePicture = null)
     {
         var species = placed.FirstOrDefault(p => Regex.IsMatch(p.Text, @"Species\s+Discovered", RegexOptions.IgnoreCase));
         if (species.Text is null || !placed.Any(p => p.Text.Trim() == "Fauna")) return null;
+        var list = placed.Where(p => p.X > 0.55 && p.Y > species.Y + 10).ToList();
+        var left = placed.Where(p => p.X < 0.5).ToList();
 
         // The list: each details line has its name just above it.
         var rows = new List<(string Name, string Rarity, string Habitat, string Activity)>();
-        foreach (var line in placed.Where(p => p.Y > species.Y + 10))
+        foreach (var line in list)
         {
-            // A details line is short and has slashes ("Rare / Underwater / Always Active"), or is one word
-            // ("Extinct") - the selected creature's notes, at the same heights, are sentences.
             string t = line.Text.Trim();
             if (t.Length > 60 || !(t.Contains('/') || Rarities.Contains(t))) continue;
             var (rarity, habitat, activity) = Traits(line.Text);
             if (rarity.Length == 0 && habitat.Length == 0 && activity.Length == 0) continue;
-            var above = placed.Where(p => line.Y - p.Y > 12 && line.Y - p.Y < 45 && !p.Text.Contains('/'))
+            var above = list.Where(p => line.Y - p.Y > 12 && line.Y - p.Y < 45 && !p.Text.Contains('/'))
                 .OrderBy(p => line.Y - p.Y).FirstOrDefault();
             if (above.Text is null) continue;
             string name = CleanName(above.Text);
@@ -86,9 +89,15 @@ public static class CreatureListService
             rows.Add((name, rarity, habitat, activity));
         }
         if (rows.Count == 0) return "fauna list: no creatures read";
+        // The whole list on screen ("7/7 Species Discovered" and 7 creatures besides the extinct
+        // ones): anything recorded for the planet that isn't in it was a misreading.
+        bool complete = Regex.Match(species.Text, @"(\d+)\s*/\s*\d+") is { Success: true } count
+            && int.TryParse(count.Groups[1].Value, out int discovered)
+            && rows.Select(r => NameKey(r.Name)).Distinct().Count() == rows.Count
+            && rows.Count(r => r.Rarity != "Extinct") == discovered;
 
         // The planet: named in the selected creature's notes, or known from an earlier frame.
-        string text = string.Join(" ", placed.Select(p => p.Text));
+        string text = string.Join(" ", left.Select(p => p.Text));
         (ulong System, int Planet)? where = PlanetIn(text);
         lock (Lock)
             where ??= rows.Select(r => PlacedThisSession.TryGetValue(NameKey(r.Name), out var at) ? at : ((ulong, int)?)null)
@@ -96,11 +105,11 @@ public static class CreatureListService
         if (where is not (ulong system, int planet)) return $"fauna list: {rows.Count} creatures, planet not named on screen";
 
         // The selected creature (left side): its name is the big title above "Discovered ... by".
-        var by = placed.FirstOrDefault(p => p.Y < species.Y + 60 && Regex.IsMatch(p.Text, @"Discovered\s.*\bby\b|\bago\s+by\b|today\s+by\b", RegexOptions.IgnoreCase));
-        string? selected = by.Text is null ? null : placed.Where(p => by.Y - p.Y > 10 && by.Y - p.Y < 80).OrderBy(p => by.Y - p.Y)
+        var by = left.FirstOrDefault(p => Regex.IsMatch(p.Text, @"Discovered\s.*\bby\b|\bago\s+by\b|today\s+by\b", RegexOptions.IgnoreCase));
+        string? selected = by.Text is null ? null : left.Where(p => by.Y - p.Y > 10 && by.Y - p.Y < 80).OrderBy(p => by.Y - p.Y)
             .Select(p => CleanName(p.Text)).FirstOrDefault(n => rows.Any(r => NameKey(r.Name) == NameKey(n)));
-        string gender = selected is null ? "" : ValueBelow(placed, "Gender");
-        string size = selected is null ? "" : ValueBelow(placed, "Weight / Height").Replace(" ", "").Replace("/", " / ");
+        string gender = selected is null ? "" : ValueBelow(left, "Gender");
+        string size = selected is null ? "" : ValueBelow(left, "Weight / Height").Replace(" ", "").Replace("/", " / ");
         if (!Regex.IsMatch(size, @"^[\d.]+\s*kg\s*/\s*[\d.]+\s*m$", RegexOptions.IgnoreCase)) size = "";
         if (gender.Count(char.IsLetter) < 3 || gender.Contains('/')) gender = "";
 
@@ -122,7 +131,7 @@ public static class CreatureListService
             }
         }
 
-        var (added, changed) = Merge(system, planet, rows, selected, gender, size, picture);
+        var (added, changed) = Merge(system, planet, rows, selected, gender, size, picture, complete);
         if (rows.Any(r => r.Habitat == "Underwater") && PlanetWaterService.Get(system, planet) is null)
             PlanetWaterService.Set(system, planet, true, source: "captured");
         if (changed > 0) Changed?.Invoke(system, planet);
@@ -162,10 +171,22 @@ public static class CreatureListService
         return (rarity, habitat, activity);
     }
 
-    private static string CleanName(string text) =>
-        Regex.Replace(Regex.Replace(text.Trim(), @"^(?:[^\p{L}]+|[Oo0@]\s+)+", ""), @"\s+", " ").Trim();
+    // How often each spelling of a name was read: an icon can read as an initial ("Q. Hoydroibolima"),
+    // a cut row can lose one ("Alderhukkeum") - the spelling read most wins.
+    private static readonly Dictionary<string, Dictionary<string, int>> NameVotes = new();
 
-    private static string ValueBelow(IReadOnlyList<(string Text, double Y)> placed, string label)
+    private static string VotedName(string key, string name)
+    {
+        if (!NameVotes.TryGetValue(key, out var votes)) NameVotes[key] = votes = new(StringComparer.Ordinal);
+        votes[name] = votes.GetValueOrDefault(name) + 1;
+        return votes.OrderByDescending(v => v.Value).ThenByDescending(v => v.Key.Length).First().Key;
+    }
+
+    private static string CleanName(string text) =>
+        // Icons read as symbols before the name ("@Hoydroibolima") and dots after it ("Z. Donkeisae ::").
+        Regex.Replace(Regex.Replace(Regex.Replace(text.Trim(), @"^(?:[^\p{L}]+|[Oo0@]\s+)+", ""), @"[^\p{L}.']+$", ""), @"\s+", " ").Trim().TrimEnd('.');
+
+    private static string ValueBelow(IReadOnlyList<(string Text, double X, double Y)> placed, string label)
     {
         var at = placed.FirstOrDefault(p => p.Text.Trim().Equals(label, StringComparison.OrdinalIgnoreCase));
         if (at.Text is null) return "";
@@ -216,14 +237,22 @@ public static class CreatureListService
     /// <summary>Fills what each reading has; never empties a field already known. Returns how many
     /// creatures are new and how many changed.</summary>
     private static (int Added, int Changed) Merge(ulong system, int planet, List<(string Name, string Rarity, string Habitat, string Activity)> rows,
-        string? selected, string gender, string size, bool picture)
+        string? selected, string gender, string size, bool picture, bool complete)
     {
         string now = UserDatabase.Now(), planetKey = PlanetKey(system, planet);
         var changed = new List<(string Key, Creature Creature)>();
+        var removed = new List<string>();
         int added = 0;
         lock (Lock)
         {
             if (!All.TryGetValue(planetKey, out var list)) All[planetKey] = list = new(StringComparer.Ordinal);
+            // The whole list was on screen: what isn't in it was a misreading (a gender read as a name).
+            if (complete)
+                foreach (var key in list.Keys.Where(k => !rows.Any(r => NameKey(r.Name) == k)).ToList())
+                {
+                    list.Remove(key);
+                    removed.Add(key);
+                }
             foreach (var row in rows)
             {
                 string key = NameKey(row.Name);
@@ -233,7 +262,7 @@ public static class CreatureListService
                 if (old is null) added++;
                 static string Keep(string fresh, string? kept) => fresh.Length > 0 ? fresh : kept ?? "";
                 var next = new Creature(
-                    old is not null && old.Name.Length >= row.Name.Length ? old.Name : row.Name,
+                    VotedName(key, row.Name),
                     Keep(row.Rarity, old?.Rarity), Keep(row.Habitat, old?.Habitat), Keep(row.Activity, old?.Activity),
                     isSelected ? Keep(gender, old?.Gender) : old?.Gender ?? "", isSelected ? Keep(size, old?.Size) : old?.Size ?? "",
                     (old?.Picture ?? false) || (isSelected && picture), now);
@@ -242,12 +271,23 @@ public static class CreatureListService
                 changed.Add((key, next));
             }
         }
-        if (changed.Count == 0) return (added, 0);
+        if (changed.Count == 0 && removed.Count == 0) return (added, 0);
         try
         {
             using var connection = UserDatabase.Open();
             using var tx = connection.BeginTransaction();
             string build = FieldSources.GameBuild;
+            foreach (var key in removed)
+            {
+                using var cmd = connection.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = "UPDATE planet_creatures SET deleted = 1, updated_at = $now, synced_at = NULL WHERE system_address = $s AND planet_index = $p AND name_key = $k";
+                cmd.Parameters.AddWithValue("$s", Hex(system));
+                cmd.Parameters.AddWithValue("$p", planet);
+                cmd.Parameters.AddWithValue("$k", key);
+                cmd.Parameters.AddWithValue("$now", now);
+                cmd.ExecuteNonQuery();
+            }
             foreach (var (key, c) in changed)
             {
                 using var cmd = connection.CreateCommand();
@@ -277,7 +317,7 @@ public static class CreatureListService
             tx.Commit();
         }
         catch (Exception ex) { Debug.WriteLine($"[CreatureListService] {ex.Message}"); }
-        return (added, changed.Count);
+        return (added, changed.Count + removed.Count);
     }
 
     /// <summary>Drops the in-memory copy (after a user.db import).</summary>
