@@ -144,6 +144,9 @@
                                     <TextBlock x:Name="MarketEmptyTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
                                                Text="Nothing recorded yet. With game screen recording on, open the station's trade terminal and scroll through its Buy list."/>
                                     <ctcontrols:WrapPanel x:Name="MarketItemsPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+                                    <!-- More than one place sells here: one row per item, a column per place,
+                                         the cheapest price in green (2026-10-17: two card lists were hard to compare). -->
+                                    <Grid x:Name="MarketCompareGrid" ColumnSpacing="24" RowSpacing="2" HorizontalAlignment="Left" Visibility="Collapsed"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>

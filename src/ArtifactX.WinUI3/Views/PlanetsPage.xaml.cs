@@ -825,6 +825,16 @@ public sealed partial class PlanetsPage : Page
         var items = SystemMarketService.For(system);
         MarketEmptyTxt.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         MarketSeenTxt.Text = items.Count == 0 ? "" : $"{items.Count} item{(items.Count == 1 ? "" : "s")} · last seen {SeenAgo(items.Max(i => i.SeenAt))}";
+        var placeList = items.Select(i => i.Place).Distinct().OrderBy(p => p == "station" ? "" : p, StringComparer.Ordinal).ToList();
+        MarketCompareGrid.Visibility = placeList.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+        MarketItemsPanel.Visibility = placeList.Count > 1 ? Visibility.Collapsed : Visibility.Visible;
+        if (placeList.Count > 1)
+        {
+            BuildMarketCompare(system, items, placeList);
+            ApplyMarketCollapsed();
+            _ = WarmMarketIconsAsync(system, items);
+            return;
+        }
         bool places = items.Select(i => i.Place).Distinct().Count() > 1 || items.Any(i => i.Place != "station");
         string? lastPlace = null;
         foreach (var item in items)
@@ -877,6 +887,61 @@ public sealed partial class PlanetsPage : Page
     {
         SettingsStore.Set(SettingsStore.Scope.Profile, MarketCollapsedKey, MarketCollapsed ? "0" : "1");
         ApplyMarketCollapsed();
+    }
+
+    private string PlaceName(ulong system, string place) => place == "station" ? "Space station"
+        : int.TryParse(place.Replace("planet:", ""), out int p) ? $"Trading post · {UniverseInfo.PlanetName(system, p)}" : place;
+
+    /// <summary>One row per item; per place its price and change, the cheapest in green.</summary>
+    private void BuildMarketCompare(ulong system, IReadOnlyList<MarketItem> items, List<string> placeList)
+    {
+        var grid = MarketCompareGrid;
+        grid.Children.Clear();
+        grid.RowDefinitions.Clear();
+        grid.ColumnDefinitions.Clear();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
+        foreach (var _ in placeList) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
+
+        void Add(FrameworkElement e, int row, int col) { Grid.SetRow(e, row); Grid.SetColumn(e, col); grid.Children.Add(e); }
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        Add(new TextBlock { Text = "ITEM", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] }, 0, 0);
+        for (int c = 0; c < placeList.Count; c++)
+            Add(new TextBlock { Text = PlaceName(system, placeList[c]).ToUpperInvariant(), Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"], TextTrimming = TextTrimming.CharacterEllipsis }, 0, c + 1);
+
+        int row = 1;
+        foreach (var group in items.GroupBy(i => i.ItemId).OrderBy(g => g.First().Name, StringComparer.CurrentCulture))
+        {
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(40) });
+            var first = group.First();
+            var name = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+            if (CatalogService.TryGet(first.ItemId)?.Icon is { } icon) name.Children.Add(new Image { Source = icon, Width = 28, Height = 28 });
+            name.Children.Add(new TextBlock { Text = first.Name, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Foreground = ThemeBrush("ThemeTextBrush") });
+            Add(name, row, 0);
+            int cheapest = group.Count() > 1 ? group.Min(i => i.Price) : -1;
+            for (int c = 0; c < placeList.Count; c++)
+            {
+                var at = group.FirstOrDefault(i => i.Place == placeList[c]);
+                var cell = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+                if (at is null)
+                    cell.Children.Add(new TextBlock { Text = "not sold", FontSize = 12, Foreground = ThemeBrush("ThemeTextFaintBrush") });
+                else
+                {
+                    bool best = at.Price == cheapest && group.Count(i => i.Price == cheapest) == 1;
+                    cell.Children.Add(new TextBlock
+                    {
+                        Text = $"{at.Price:N0} units" + (best ? "  · cheapest" : ""),
+                        FontSize = 13, FontWeight = best ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal,
+                        Foreground = best ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x3D, 0xDC, 0x84)) : ThemeBrush("ThemeTextBrush"),
+                    });
+                    cell.Children.Add(new TextBlock
+                    {
+                        Text = $"{at.Change}{(at.Stock > 0 ? $" · {at.Stock} in stock" : "")}", FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush"),
+                    });
+                }
+                Add(cell, row, c + 1);
+            }
+            row++;
+        }
     }
 
     private async Task WarmMarketIconsAsync(ulong system, IReadOnlyList<MarketItem> items)
