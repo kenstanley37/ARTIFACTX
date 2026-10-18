@@ -105,8 +105,20 @@ public static class CreatureListService
         string text = string.Join(" ", left.Select(p => p.Text));
         (ulong System, int Planet)? where = PlanetIn(text);
         lock (Lock)
+        {
             where ??= rows.Select(r => PlacedThisSession.TryGetValue(NameKey(r.Name), out var at) ? at : ((ulong, int)?)null)
                 .FirstOrDefault(at => at is not null);
+            // Or the creatures themselves: names already recorded on one planet (kept across restarts).
+            if (where is null)
+            {
+                var keys = rows.Select(r => NameKey(r.Name)).ToHashSet();
+                var known = All.Where(kv => kv.Value.Keys.Count(keys.Contains) >= 2).Select(kv => kv.Key).ToList();
+                if (known.Count == 1 && known[0].Split('|') is [var hex, var index]
+                    && ulong.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out ulong s)
+                    && int.TryParse(index, out int b))
+                    where = (s, b);
+            }
+        }
         if (where is not (ulong system, int planet)) return $"fauna list: {rows.Count} creatures, planet not named on screen";
 
         // The selected creature (left side): its name is the big title above "Discovered ... by".
@@ -212,7 +224,8 @@ public static class CreatureListService
             var f = UniverseInfo.For(system);
             for (int b = 1; b <= f.PlanetCount + f.MoonCount; b++)
                 foreach (var name in new[] { UniverseInfo.PlanetName(system, b), UniverseInfo.GeneratedPlanetName(system, b) }.Distinct())
-                    if (name.Length > 2 && Regex.IsMatch(norm, $@"\b(planet|moon)\s+{Regex.Escape(name)}(?![\p{{L}}])", RegexOptions.IgnoreCase))
+                    // The name alone: the model can cover the words before it ("Di" | "lanet Waterworld", 2026-10-18).
+                    if (name.Length > 3 && Regex.IsMatch(norm, $@"(?<![\p{{L}}]){Regex.Escape(name)}(?![\p{{L}}])", RegexOptions.IgnoreCase))
                         found.Add((system, b));
         }
         found = found.Distinct().ToList();
