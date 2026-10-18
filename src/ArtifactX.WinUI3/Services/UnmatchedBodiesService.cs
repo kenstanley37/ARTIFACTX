@@ -32,6 +32,8 @@ public static class UnmatchedBodiesService
         {
             ulong? system = ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ReadSystemAddress(snapshot.Universe);
             SystemNameLearner.Learn(system, (int?)snapshot.Universe?["oZw"]?["jsv"] ?? 0, snapshot.Summary);
+            // Renamed planets the save's discovery records name ("Waterworld") place held readings too.
+            SystemNameLearner.LearnDiscoveryNames(snapshot.Discoveries);
             Retry();
         };
     }

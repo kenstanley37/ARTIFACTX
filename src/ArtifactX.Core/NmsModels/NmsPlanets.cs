@@ -189,6 +189,27 @@ public static class NmsPlanets
             kv.Value.Planets.Count, kv.Value.Mine, kv.Value.Latest)).ToList();
     }
 
+    /// <summary>Names players gave planets and systems, as the game shows them: a discovery
+    /// record's q9a/q5u ("Waterworld" for planet 6 of 04275B6DA013, 2026-10-18). The save
+    /// holds the player's own renames and those of other players' discoveries it has cached.
+    /// Planet = 0 for a system's own name.</summary>
+    public static List<(ulong System, int Planet, string Name)> ReadCustomNames(JArray? discoveries)
+    {
+        var names = new List<(ulong, int, string)>();
+        if (discoveries is null) return names;
+        foreach (var record in discoveries.OfType<JObject>())
+        {
+            string? type = record["8P3"]?["<Dn"]?.Value<string>();
+            if (type is not ("Planet" or "SolarSystem")) continue;
+            if (record["q9a"]?["q5u"]?.Value<string>()?.Trim() is not { Length: > 0 } name) continue;
+            if (NmsSpaceStationPaths.ParsePackedAddress(record["8P3"]?["5L6"]) is not ulong address) continue;
+            ulong system = NmsSpaceStationPaths.ToSystemAddress(address);
+            if ((system & 0xFFF_0000_FFFF_FFFFUL) == 0) continue;
+            names.Add((system, type == "Planet" ? (int)((address >> 52) & 0xF) : 0, name));
+        }
+        return names;
+    }
+
     /// <summary>Fauna/flora/mineral record counts per planet address.</summary>
     public static Dictionary<ulong, PlanetDiscoveryCounts> CountDiscoveries(JArray? discoveries)
     {

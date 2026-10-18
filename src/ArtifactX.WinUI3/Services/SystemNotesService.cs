@@ -462,6 +462,32 @@ public static class SystemNameLearner
         if (changed) SystemNotesService.Save(address, note, source: "save");
         return changed;
     }
+
+    /// <summary>Names players gave planets and systems, from the save's discovery records
+    /// (NmsPlanets.ReadCustomNames) - a renamed planet is then known before it's ever landed
+    /// on ("Waterworld", renamed by the player under an earlier name, 2026-10-18). Fills only
+    /// names not known yet: a name learned from where the player stands is newer.</summary>
+    public static int LearnDiscoveryNames(Newtonsoft.Json.Linq.JArray? discoveries)
+    {
+        int learned = 0;
+        foreach (var group in ArtifactX.Core.NmsModels.NmsPlanets.ReadCustomNames(discoveries).GroupBy(n => n.System))
+        {
+            var note = SystemNotesService.Get(group.Key) ?? new SystemNote();
+            bool changed = false;
+            foreach (var (_, planet, name) in group)
+            {
+                if (planet == 0)
+                {
+                    if (note.SystemName.Length == 0) { note.SystemName = name; changed = true; }
+                    continue;
+                }
+                string key = planet.ToString(CultureInfo.InvariantCulture);
+                if (!note.PlanetNames.ContainsKey(key)) { note.PlanetNames[key] = name; changed = true; }
+            }
+            if (changed) { SystemNotesService.Save(group.Key, note, source: "save"); learned++; }
+        }
+        return learned;
+    }
 }
 
 [JsonSerializable(typeof(Dictionary<string, SystemNote>))]
