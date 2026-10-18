@@ -20,14 +20,15 @@ namespace ArtifactX.WinUI3.Services;
 /// on in Settings. Every 2 seconds, while No Man's Sky is running AND is the active
 /// window (never another app - borderless capture reads the screen, not the game),
 /// it grabs the game's window, skips frames that look like the last one kept, reads
-/// the text with Windows' own offline OCR, and keeps the picture and text in
-/// %AppData%\ArtifactX\capture-log\&lt;date&gt;\. Oldest days go once it passes 1 GB.
-/// Nothing is understood or filled in yet; nothing leaves the PC.
+/// the text with Windows' own offline OCR, hands it to the readers (planet, system, market,
+/// creatures...), and keeps the text it read - not the picture - in
+/// %AppData%\ArtifactX\capture-log\&lt;date&gt;\. Oldest go past 200 MB. Nothing leaves the PC.
+/// (System and creature pictures the readers choose to keep live in their own folders.)
 /// </summary>
 public static class ScreenCaptureLogService
 {
     private const string SettingKey = "ScreenCaptureLog";
-    private const long MaxBytes = 1L << 30;
+    private const long MaxBytes = 200L << 20;
     // "A new screen": enough small cells of a 96x54 grey thumbnail changed clearly. A
     // whole-screen average missed scrolling a list - only the list moves, so a trade
     // terminal's later pages weren't kept for a minute (2026-10-17).
@@ -65,6 +66,17 @@ public static class ScreenCaptureLogService
         PlanetPageReader.Start();
         SystemPageReader.Start();
         UnmatchedBodiesService.Start();
+        // Pictures kept by earlier versions go: only the text is kept now.
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                if (Directory.Exists(Folder))
+                    foreach (var jpg in Directory.EnumerateFiles(Folder, "*.jpg", SearchOption.AllDirectories))
+                        try { File.Delete(jpg); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            }
+            catch (IOException) { }
+        });
         GameProcessMonitorService.RunningStateChanged += (_, _) => Update();
         Update();
     }
@@ -159,14 +171,8 @@ public static class ScreenCaptureLogService
         string day = Path.Combine(Folder, now.ToString("yyyy-MM-dd"));
         Directory.CreateDirectory(day);
         string name = now.ToString("HHmmss_fff");
-        using (var file = new FileStream(Path.Combine(day, name + ".jpg"), FileMode.Create, FileAccess.ReadWrite))
-        using (var stream = file.AsRandomAccessStream())
-        {
-            var options = new BitmapPropertySet { ["ImageQuality"] = new BitmapTypedValue(0.8, Windows.Foundation.PropertyType.Single) };
-            var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, stream, options);
-            encoder.SetSoftwareBitmap(bitmap);
-            await encoder.FlushAsync();
-        }
+        // Only the text read from the frame is kept, not the picture: the pictures were for
+        // testing the readers and reached 1.1 GB (user, 2026-10-18).
         var info = new StringBuilder()
             .AppendLine($"time: {now:yyyy-MM-dd HH:mm:ss.fff}")
             .AppendLine($"window: {w}x{h}")
