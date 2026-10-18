@@ -88,6 +88,7 @@ public sealed partial class PlanetsPage : Page
         BodyKindsService.Captured += OnSystemCaptured;
         UnmatchedBodiesService.Changed += OnSystemCaptured;
         SystemMarketService.Changed += OnSystemCaptured;
+        CreatureListService.Changed += OnCreaturesChanged;
         Unloaded += Page_Unloaded;
         JumpPlanner.RangeChanged += ApplyFilters;
         _ = LoadPageAsync();
@@ -127,6 +128,7 @@ public sealed partial class PlanetsPage : Page
         BodyKindsService.Captured -= OnSystemCaptured;
         UnmatchedBodiesService.Changed -= OnSystemCaptured;
         SystemMarketService.Changed -= OnSystemCaptured;
+        CreatureListService.Changed -= OnCreaturesChanged;
         JumpPlanner.RangeChanged -= ApplyFilters;
         StopOrbitAnimations();
         StopWatching();
@@ -1180,7 +1182,8 @@ public sealed partial class PlanetsPage : Page
         var set = new HashSet<ulong>();
         foreach (var system in _allPlanets.GroupBy(p => p.SystemAddress))
             if (SystemNotesService.Get(system.Key)?.Water == true
-                || system.Any(p => p.TypeName == "Water World" || FishCatchService.CaughtOn(p.SystemAddress, p.PlanetIndex).Count > 0))
+                || system.Any(p => p.TypeName == "Water World" || PlanetWaterService.Get(p.SystemAddress, p.PlanetIndex) == true
+                    || FishCatchService.CaughtOn(p.SystemAddress, p.PlanetIndex).Count > 0))
                 set.Add(system.Key);
         return set;
     }
@@ -1488,7 +1491,9 @@ public sealed partial class PlanetsPage : Page
     private string SearchText(KnownPlanet p) => string.Join(" ",
         UniverseInfo.PlanetName(p.SystemAddress, p.PlanetIndex), UniverseInfo.SystemName(p.SystemAddress), p.TypeName,
         DetailsSummary(PlanetDetailsService.Get(p.SystemAddress, p.PlanetIndex), PlanetWaterService.Get(p.SystemAddress, p.PlanetIndex)),
-        NoteSummary(SystemNotesService.Get(p.SystemAddress)));
+        NoteSummary(SystemNotesService.Get(p.SystemAddress)),
+        // Creatures read off the fauna list - "Zeronatonae", "Underwater", "Nocturnal" find their planet.
+        string.Join(" ", CreatureListService.On(p.SystemAddress, p.PlanetIndex).Select(c => $"{c.Name} {c.Rarity} {c.Habitat} {c.Activity}")));
 
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _searchTimer;
 
@@ -2076,7 +2081,7 @@ public sealed partial class PlanetsPage : Page
     private void ClosePlanet()
     {
         _openPlanet = null;
-        _saveFactsCard = _fishCard = null;
+        _saveFactsCard = _fishCard = _creaturesCard = null;
         DetailScroll.Visibility = Visibility.Collapsed;
         MainScroll.Visibility = Visibility.Visible;
         BuildCurrentSystem(_lastCounts); // show anything edited on the planet's page
@@ -2226,8 +2231,62 @@ public sealed partial class PlanetsPage : Page
 
         cards.Children.Add(left);
         cards.Children.Add(detailsCard);
+        _creaturesCard = DetailCard("CREATURES", CreaturesBody(planet), 1118);
+        _creaturesCard.Visibility = CreatureListService.On(planet.SystemAddress, planet.PlanetIndex).Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        cards.Children.Add(_creaturesCard);
         DetailPanel.Children.Add(cards);
     }
+
+    private Border? _creaturesCard;
+
+    /// <summary>The creatures read off the game's fauna list (CreatureListService): a picture
+    /// when one was taken, the name, rarity / habitat / activity, and gender and size.</summary>
+    private UIElement CreaturesBody(KnownPlanet planet)
+    {
+        var creatures = CreatureListService.On(planet.SystemAddress, planet.PlanetIndex);
+        var tiles = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 10, VerticalSpacing = 10 };
+        foreach (var c in creatures)
+        {
+            var tile = new StackPanel { Width = 250, Spacing = 2 };
+            string path = CreatureListService.PicturePath(planet.SystemAddress, planet.PlanetIndex, c.Name);
+            if (c.Picture && File.Exists(path))
+            {
+                var image = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage();
+                using (var stream = new MemoryStream(File.ReadAllBytes(path)))
+                    image.SetSource(stream.AsRandomAccessStream());
+                tile.Children.Add(new Border
+                {
+                    CornerRadius = new CornerRadius(6), Height = 140, Margin = new Thickness(0, 0, 0, 4),
+                    Child = new Image { Source = image, Stretch = Stretch.UniformToFill },
+                });
+            }
+            tile.Children.Add(new TextBlock { Text = c.Name, FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = ThemeBrush("ThemeTextBrush"), IsTextSelectionEnabled = true });
+            string traits = string.Join(" · ", new[] { c.Rarity, c.Habitat, c.Activity }.Where(s => s.Length > 0));
+            if (traits.Length > 0) tile.Children.Add(DimLine(traits));
+            string body = string.Join(" · ", new[] { c.Gender, c.Size }.Where(s => s.Length > 0));
+            if (body.Length > 0) tile.Children.Add(DimLine(body));
+            tiles.Children.Add(new Border
+            {
+                Child = tile, Padding = new Thickness(10), CornerRadius = new CornerRadius(6),
+                Background = ThemeBrush("ThemeVoidBrush"), BorderBrush = ThemeBrush("ThemeLineBrush"), BorderThickness = new Thickness(1),
+            });
+        }
+        var stack = new StackPanel { Spacing = 8 };
+        stack.Children.Add(DimLine("Read off the game's Discoveries fauna list with screen recording on - open a creature there to add its picture, gender and size."));
+        stack.Children.Add(tiles);
+        return stack;
+    }
+
+    /// <summary>Creatures were read off the game screen: refresh the open planet's card and the finder.</summary>
+    private void OnCreaturesChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_openPlanet is KnownPlanet open && open.SystemAddress == system && open.PlanetIndex == planet && _creaturesCard is not null)
+        {
+            ((StackPanel)_creaturesCard.Child).Children[1] = CreaturesBody(open);
+            _creaturesCard.Visibility = Visibility.Visible;
+        }
+        RefreshFinder();
+    });
 
     private UIElement SaveFacts(KnownPlanet planet, bool inThisSystem)
     {

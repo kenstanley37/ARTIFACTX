@@ -128,6 +128,12 @@ public static class ScreenCaptureLogService
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "trade terminal: error " + ex.Message; }
         try
         {
+            if (await CreatureListService.TryReadAsync(placed, path => SaveCreaturePictureAsync(pixels, w, h, path)) is { } creatures)
+                read = (read is null ? "" : read + " | ") + creatures;
+        }
+        catch (Exception ex) { read = (read is null ? "" : read + " | ") + "fauna list: error " + ex.Message; }
+        try
+        {
             if (BodyKindsService.TryRead(lines) is { } body) read = (read is null ? "" : read + " | ") + body;
         }
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "body pop-up: error " + ex.Message; }
@@ -269,6 +275,25 @@ public static class ScreenCaptureLogService
             await encoder.FlushAsync();
         }
         SystemPictureSaved?.Invoke(system);
+        return true;
+    }
+
+    /// <summary>The creature shown on the Discoveries fauna screen (left of the list, below the
+    /// title: x 8-66%, y 30-92%), kept for the Planets page beside its traits (2026-10-18).</summary>
+    private static async Task<bool> SaveCreaturePictureAsync(byte[] px, int w, int h, string path)
+    {
+        int x0 = w * 8 / 100, y0 = h * 30 / 100, cw = w * 58 / 100, ch = h * 62 / 100;
+        var crop = new byte[cw * ch * 4];
+        for (int y = 0; y < ch; y++) System.Buffer.BlockCopy(px, ((y0 + y) * w + x0) * 4, crop, y * cw * 4, cw * 4);
+        using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(crop.AsBuffer(), BitmapPixelFormat.Bgra8, cw, ch, BitmapAlphaMode.Ignore);
+        using (var file = new FileStream(path, FileMode.Create, FileAccess.ReadWrite))
+        using (var stream = file.AsRandomAccessStream())
+        {
+            var options = new BitmapPropertySet { ["ImageQuality"] = new BitmapTypedValue(0.88, Windows.Foundation.PropertyType.Single) };
+            var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, stream, options);
+            encoder.SetSoftwareBitmap(bitmap);
+            await encoder.FlushAsync();
+        }
         return true;
     }
 

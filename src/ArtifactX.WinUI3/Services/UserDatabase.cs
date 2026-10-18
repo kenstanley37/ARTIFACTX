@@ -447,6 +447,34 @@ public static class UserDatabase
         );
         ALTER TABLE market_items ADD COLUMN game_build TEXT NOT NULL DEFAULT '';
         """,
+
+        // 19 - creatures on a planet (2026-10-18), read off the game's Discoveries fauna list
+        // (CreatureListService). The save keeps one record per creature but only its seeds,
+        // not its name or traits. name_key = the name without its "E. " initial, which the
+        // reading sometimes drops. picture = a picture was kept in creature-pictures.
+        """
+        CREATE TABLE planet_creatures (
+            system_address TEXT NOT NULL,
+            planet_index   INTEGER NOT NULL,
+            name_key       TEXT NOT NULL,
+            name           TEXT NOT NULL DEFAULT '',
+            rarity         TEXT NOT NULL DEFAULT '',
+            habitat        TEXT NOT NULL DEFAULT '',
+            activity       TEXT NOT NULL DEFAULT '',
+            gender         TEXT NOT NULL DEFAULT '',
+            size           TEXT NOT NULL DEFAULT '',
+            picture        INTEGER NOT NULL DEFAULT 0,
+            seen_at        TEXT NOT NULL,
+            updated_at     TEXT NOT NULL,
+            source         TEXT NOT NULL DEFAULT 'captured',
+            game_build     TEXT NOT NULL DEFAULT '',
+            synced_at      TEXT NULL,
+            deleted        INTEGER NOT NULL DEFAULT 0,
+            profile_id     TEXT NOT NULL DEFAULT '',
+            added_by       TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (system_address, planet_index, name_key)
+        );
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;
