@@ -122,7 +122,7 @@ public sealed partial class BasesPage : Page
                     Detail = $"{UniverseInfo.PlanetName(address, planetIndex)} ({type})"
                         + (NmsPlanetCoordinates.OfBase(b) is { } at ? $" at {NmsPlanetCoordinates.Format(at.Latitude, at.Longitude)}" : "")
                         + $" · {UniverseInfo.SystemName(address)} · {galaxyName}"
-                        + (counts.TryGetValue(b, out int parts) ? $" · {parts:N0} parts" : ""),
+                        + (counts.TryGetValue(b, out int parts) ? $" · {NmsBuildCounts.UploadLabel(parts)}" : ""),
                     Facts = UniverseInfo.Compact(address),
                     Swatch = new SolidColorBrush(ParseColour(planet is null ? "#777777" : NmsPlanets.TypeColour(planet.BiomeIndex))),
                     PortalCode = code,

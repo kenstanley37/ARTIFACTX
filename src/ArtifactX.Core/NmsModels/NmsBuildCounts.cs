@@ -30,6 +30,17 @@ public static class NmsBuildCounts
     /// <summary>Everything placed: every base's parts plus the loose objects.</summary>
     public static int Total(JArray? bases, JArray? looseObjects) => PerBase(bases).Sum(b => b.Parts) + (looseObjects?.Count ?? 0);
 
+    /// <summary>A planet base with more parts than this can't be uploaded for other players to
+    /// see - the game's build menu says "Base Not Uploadable (3030/3000)", and its count matched
+    /// @ZJ's exactly, base computer included (First Base on the test save, 2026-10-18). Not the
+    /// building cap: the game let parts be placed past it.</summary>
+    public const int UploadLimit = 3000;
+
+    /// <summary>"2,400 / 3,000 parts · 600 left to upload" or "3,032 / 3,000 parts · too many to upload".</summary>
+    public static string UploadLabel(int parts) => parts > UploadLimit
+        ? $"{parts:N0} / {UploadLimit:N0} parts · too many to upload"
+        : $"{parts:N0} / {UploadLimit:N0} parts · {UploadLimit - parts:N0} left to upload";
+
     /// <summary>"Planet bases", "Claimed space stations"... for a base type.</summary>
     public static string TypeLabel(string type) => type switch
     {
