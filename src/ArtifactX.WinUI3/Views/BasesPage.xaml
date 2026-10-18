@@ -249,6 +249,22 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
+            <!-- The base's picture, faint, behind the whole header (user idea 2026-10-18 - to try),
+                 faded out toward the bottom so the text stays readable. -->
+            <Border x:Name="DetailBackdrop" Margin="-12,-8,-12,-6" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Visibility="Collapsed">
+                <Border.Background>
+                    <ImageBrush x:Name="DetailBackdropBrush" Stretch="UniformToFill" Opacity="0.28"/>
+                </Border.Background>
+                <Border>
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                            <GradientStop Color="#00070912" Offset="0"/>
+                            <GradientStop Color="#99070912" Offset="0.7"/>
+                            <GradientStop Color="#FF070912" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+            </Border>
             <Grid ColumnSpacing="24">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" MinWidth="360"/>

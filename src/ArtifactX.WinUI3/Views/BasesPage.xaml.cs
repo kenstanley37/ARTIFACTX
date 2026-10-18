@@ -329,6 +329,8 @@ public sealed partial class BasesPage : Page
         DetailKindsTxt.Text = $"{groups.Count:N0} kinds of part";
         DetailPicture.Source = row.Picture;
         DetailPictureBorder.Visibility = row.PictureVisibility;
+        DetailBackdropBrush.ImageSource = row.Picture;
+        DetailBackdrop.Visibility = row.PictureVisibility;
         DetailFactsTxt.Text = row.Facts;
         DetailAreaTxt.Text = row.AreaLabel;
         DetailAreaTxt.Opacity = row.AreaOpacity;
