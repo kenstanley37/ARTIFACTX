@@ -31,6 +31,7 @@ public sealed partial class BasesPage : Page
     {
         InitializeComponent();
         SortBox.SelectedIndex = 0;
+        ShowBox.SelectedIndex = 0;
         _live = new LiveSaveWatcher(DispatcherQueue);
         _live.SnapshotRead += OnLiveSnapshot;
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
@@ -78,7 +79,8 @@ public sealed partial class BasesPage : Page
     {
         _lastSnapshot = snapshot;
         ulong? here = S.ReadSystemAddress(snapshot.Universe);
-        string key = $"{here}|{snapshot.Bases?.Count}|{snapshot.LooseObjects?.Count}|{NmsBuildCounts.Total(snapshot.Bases, snapshot.LooseObjects)}|{string.Join(",", snapshot.Bases?.OfType<JObject>().Select(b => b["NKm"]?.Value<string>()) ?? Enumerable.Empty<string?>())}";
+        bool objects = ShowBox.SelectedIndex == 1;
+        string key = $"{objects}|{here}|{snapshot.Bases?.Count}|{snapshot.LooseObjects?.Count}|{NmsBuildCounts.Total(snapshot.Bases, snapshot.LooseObjects)}|{string.Join(",", snapshot.Bases?.OfType<JObject>().Select(b => b["NKm"]?.Value<string>()) ?? Enumerable.Empty<string?>())}";
         if (key == _lastKey) return;
         _lastKey = key;
 
@@ -91,6 +93,12 @@ public sealed partial class BasesPage : Page
             .GroupBy(p => p.Address).ToDictionary(g => g.Key, g => g.First());
 
         _rows = new();
+        if (objects)
+        {
+            BuildPlacedObjects(snapshot, here, planets);
+            Apply();
+            return;
+        }
         if (snapshot.Bases is JArray bases)
         {
             foreach (var b in bases.OfType<JObject>())
@@ -129,6 +137,70 @@ public sealed partial class BasesPage : Page
             }
         }
         Apply();
+    }
+
+    /// <summary>Everything placed outside a base (the save's c5s list): beacons, signal
+    /// boosters, save points, refiners, garages, decor - easily forgotten, and each one counts
+    /// toward the game's building cap (user, 2026-10-18). Each has its type, its planet's
+    /// address, its position from the planet's centre (so the scanner's coordinates) and the
+    /// time it was placed.</summary>
+    private void BuildPlacedObjects(PlanetSnapshot snapshot, ulong? here, Dictionary<ulong, KnownPlanet> planets)
+    {
+        var placed = (snapshot.LooseObjects ?? new JArray()).OfType<JObject>().ToList();
+        var ids = placed.Select(o => o["r<7"]?.Value<string>()).Where(id => id is not null).Distinct().ToList();
+        if (!_warmedObjects && ids.Any(id => CatalogService.TryGet(id) is null))
+        {
+            // Names and icons for these ids aren't loaded yet: load them, then build again.
+            _warmedObjects = true;
+            _ = CatalogService.WarmCacheAsync(ids).ContinueWith(_ => DispatcherQueue.TryEnqueue(() =>
+            {
+                _lastKey = "";
+                if (_lastSnapshot is not null) Build(_lastSnapshot);
+            }), System.Threading.Tasks.TaskScheduler.Default);
+        }
+        foreach (var o in placed)
+        {
+            if (S.ParsePackedAddress(o["oZw"]) is not ulong address) continue;
+            string id = o["r<7"]?.Value<string>() ?? "";
+            string name = CatalogService.TryGet(id)?.DisplayName is { Length: > 0 } n ? n
+                : CultureInfo.CurrentCulture.TextInfo.ToTitleCase(id.TrimStart('^').Replace('_', ' ').ToLowerInvariant());
+            int planetIndex = (int)((address >> 52) & 0xF);
+            int galaxy = S.GalaxyNumber(address);
+            planets.TryGetValue(address, out var planet);
+            string type = planet is null ? "Planet" : planet.TypeName;
+            string galaxyName = NmsGalaxyNames.ForNumber(galaxy) is string g ? $"{g} ({galaxy})" : $"Galaxy {galaxy}";
+            double? distance = here is ulong h ? NmsPlanets.DistanceLightYears(h, S.ToSystemAddress(address)) : null;
+            string code = S.PortalAddress(address, planetIndex);
+            long placedAt = o["b1:"]?.Value<long>() ?? 0;
+            _rows.Add(new BaseRowViewModel
+            {
+                Name = name,
+                Detail = $"{UniverseInfo.PlanetName(address, planetIndex)} ({type})"
+                    + (NmsPlanetCoordinates.OfBase(o) is { } at ? $" at {NmsPlanetCoordinates.Format(at.Latitude, at.Longitude)}" : "")
+                    + $" · {UniverseInfo.SystemName(address)} · {galaxyName}",
+                Facts = placedAt > 0 ? $"Placed {DateTimeOffset.FromUnixTimeSeconds(placedAt).LocalDateTime:d}" : "",
+                Swatch = new SolidColorBrush(ParseColour(planet is null ? "#777777" : NmsPlanets.TypeColour(planet.BiomeIndex))),
+                PortalCode = code,
+                Glyphs = GlyphsFor(code),
+                DistanceLabel = DistanceText(here, address, distance),
+                AreaLabel = AreaText(address, planetIndex, galaxy, code),
+                AreaOpacity = 1.0,
+                SortDistance = distance ?? double.MaxValue,
+                Galaxy = galaxy,
+            });
+        }
+    }
+
+    private bool _warmedObjects;
+
+    private void ShowBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (IntroTxt is null) return;
+        IntroTxt.Text = ShowBox.SelectedIndex == 1
+            ? "Everything you've built outside a base - beacons, signal boosters, save points, refiners, garages - with where it is, so you can go back for it. Each one counts toward the game's building limit. This page only reads your save."
+            : "Every planet base in this save, with the portal address to dial to get back to it. Handy for old bases you've lost track of. This page only reads your save.";
+        _lastKey = "";
+        if (_lastSnapshot is not null) Build(_lastSnapshot);
     }
 
     /// <summary>"Resources: Paraffinium, Copper, Silver, Ancient Bones · Infrequent
@@ -189,7 +261,9 @@ public sealed partial class BasesPage : Page
         };
         var list = shown.ToList();
         BasesList.ItemsSource = list;
-        CountTxt.Text = _rows.Count == 0 ? "No planet bases in this save" : $"{list.Count} of {_rows.Count} bases";
+        bool objects = ShowBox.SelectedIndex == 1;
+        CountTxt.Text = _rows.Count == 0 ? (objects ? "Nothing placed outside a base" : "No planet bases in this save")
+            : $"{list.Count} of {_rows.Count} {(objects ? "placed objects" : "bases")}";
     }
 
     private async void ExportCsv_Click(object sender, RoutedEventArgs e)

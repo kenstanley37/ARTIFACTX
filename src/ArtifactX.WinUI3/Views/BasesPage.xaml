@@ -43,13 +43,18 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                <TextBlock Grid.Column="1" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"
+                <TextBlock x:Name="IntroTxt" Grid.Column="1" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
                            Text="Every planet base in this save, with the portal address to dial to get back to it. Handy for old bases you've lost track of. This page only reads your save."/>
             </Grid>
         </Border>
 
         <ctcontrols:WrapPanel Grid.Row="2" HorizontalSpacing="14" VerticalSpacing="10">
-            <TextBox x:Name="SearchBox" Header="Search" Width="280" PlaceholderText="Base names, resources, notes..." TextChanged="SearchBox_TextChanged"/>
+            <ComboBox x:Name="ShowBox" Header="Show" Width="230" SelectionChanged="ShowBox_SelectionChanged"
+                      ToolTipService.ToolTip="Placed objects: everything you've built outside a base - beacons, signal boosters, save points, refiners, garages - so you can find them again.">
+                <ComboBoxItem Content="Bases"/>
+                <ComboBoxItem Content="Placed objects (outside bases)"/>
+            </ComboBox>
+            <TextBox x:Name="SearchBox" Header="Search" Width="280" PlaceholderText="Names, resources, notes..." TextChanged="SearchBox_TextChanged"/>
             <ComboBox x:Name="SortBox" Header="Sort" Width="200" SelectionChanged="SortBox_SelectionChanged">
                 <ComboBoxItem Content="Nearest to you first"/>
                 <ComboBoxItem Content="Name (A-Z)"/>
