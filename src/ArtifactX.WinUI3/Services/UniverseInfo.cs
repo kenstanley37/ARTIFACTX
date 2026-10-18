@@ -168,8 +168,12 @@ public static class UniverseInfo
     {
         var f = For(address);
         if (f.Uncharted) return $"{f.StarLabel} star · Uncharted - no race, economy or station";
-        var parts = new System.Collections.Generic.List<string> { $"{f.StarLabel} star", f.RaceLabel, Economy(address), $"{Wealth(address)} wealth", $"{Conflict(address)} conflict" };
-        if (f.Pirate) parts.Add("Pirate-controlled");
+        // Pirate systems' own words read as-is ("Black Market", "Pirate Controlled"), not "... wealth/conflict".
+        string wealth = Wealth(address), conflict = Conflict(address);
+        bool pirateConflict = conflict.Contains("Pirate", System.StringComparison.OrdinalIgnoreCase);
+        var parts = new System.Collections.Generic.List<string> { $"{f.StarLabel} star", f.RaceLabel, Economy(address),
+            wealth == "Black Market" ? wealth : $"{wealth} wealth", pirateConflict ? conflict : $"{conflict} conflict" };
+        if (f.Pirate && !pirateConflict) parts.Add("Pirate-controlled");
         return string.Join(" · ", parts);
     }
 }
