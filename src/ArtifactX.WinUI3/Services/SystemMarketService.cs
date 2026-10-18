@@ -111,9 +111,13 @@ public static class SystemMarketService
             var m = Regex.Match(lines[i].Text, @"^\s*(Price|Demand)\s*[:.;,]?\s*([+\-−]?\s*[\d.,]+?\s*(?:%|0/0|o/o))?", RegexOptions.IgnoreCase);
             // Black market goods show "Illegal Black Market Goods" where others show a price change.
             bool illegal = !m.Success && Regex.IsMatch(lines[i].Text, @"Illegal\s+Black\s+Market", RegexOptions.IgnoreCase);
-            if (!m.Success && !illegal) continue;
+            // An abandoned system's terminal shows static instead ("kzzzkt", "ERROR", "Data Missing",
+            // "Connection Lost", "Economy Data Unavailable" - Degtyab-Famil, 2026-10-18): no price change.
+            bool noData = !m.Success && !illegal && Regex.IsMatch(lines[i].Text.Trim(),
+                @"^(k\w{0,2}z+\w{0,2}t|ERR?OR|Data\s+Missing|Connection\s+Lost|Economy\s+Data\s+Unavailable)$", RegexOptions.IgnoreCase);
+            if (!m.Success && !illegal && !noData) continue;
             double y = lines[i].Y;
-            string change = illegal ? "Illegal" : m.Groups[2].Value;
+            string change = illegal ? "Illegal" : noData ? "No data" : m.Groups[2].Value;
             // "Demand:" and its "-6.0%" can be read as two lines (Gold, alone on a page,
             // 2026-10-17): take the percentage at the same height.
             if (change.Length == 0 && !illegal)

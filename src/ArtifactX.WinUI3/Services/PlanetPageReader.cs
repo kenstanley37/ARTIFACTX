@@ -79,7 +79,7 @@ public static class PlanetPageReader
             string line = Clean(lines[i]);
             // The distance can come out garbled ("261,933u" read as "26T,i33u", 2026-10-17): test the raw line, numbers and all.
             if (Regex.IsMatch(line, @"discovered|^\d|ks$|\bu$|^(Moon|Planet)\s+of\b", RegexOptions.IgnoreCase) || line.Count(char.IsLetter) < 3
-                || lines[i].Count(char.IsDigit) >= 2 || Regex.IsMatch(lines[i].Trim(), @"\du$")) continue;
+                || LooksLikeDistance(lines[i])) continue;
             name = line;
             break;
         }
@@ -125,6 +125,11 @@ public static class PlanetPageReader
         Filled++;
         return $"flight card {matched}: saved ({sentinels} / {string.Join(", ", resources)})";
     }
+
+    /// <summary>A distance ("261,933u", even garbled as "26T,i33u"): a digit beside a comma, or
+    /// digits ending in "u". Names can hold digits ("Mino 68/P1"), never a thousands comma.</summary>
+    public static bool LooksLikeDistance(string raw) =>
+        Regex.IsMatch(raw.Trim(), @"\d\s*,|,\s*\S{0,2}\d|\d\w{0,2}u$", RegexOptions.IgnoreCase);
 
     /// <summary>On a planet: the box shown after landing and the analysis visor list Weather /
     /// Sentinels / Flora / Fauna with each value beside its label (2026-10-17). Values are paired
@@ -258,7 +263,7 @@ public static class PlanetPageReader
         _resources = (await CatalogService.GetSubstanceNamesAsync())
             .Concat(_words.Where(w => w.Group == "Resource").Select(w => w.Word))
             .Concat((await CatalogService.GetItemNamesAsync()).Values.Select(TitleCase))
-            .Concat(new[] { "Dissonance detected", "Vile Brood Detected" })
+            .Concat(new[] { "Dissonance detected", "Vile Brood Detected", "Swarm Debris" })
             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
