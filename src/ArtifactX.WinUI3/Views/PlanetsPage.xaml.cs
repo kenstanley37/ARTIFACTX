@@ -59,9 +59,21 @@ public sealed partial class PlanetsPage : Page
     private FileSystemWatcher? _saveWatcher;
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _liveTimer;
 
-    public PlanetsPage()
+    /// <summary>The page is shown as two nav pages (2026-10-17, the user: "too much on the
+    /// Planets page"): Current System (the system you're in and its planets) and Planet Finder
+    /// (the finder and the glyph decoder). One class, so both share the live follow, the
+    /// details editor and the planet page.</summary>
+    public bool FinderMode { get; }
+
+    public PlanetsPage() : this(false) { }
+
+    public PlanetsPage(bool finderMode)
     {
+        FinderMode = finderMode;
         InitializeComponent();
+        PageTitleTxt.Text = finderMode ? "PLANET FINDER" : "CURRENT SYSTEM";
+        CurrentSystemCard.Visibility = finderMode ? Visibility.Collapsed : Visibility.Visible;
+        GlyphDecoderCard.Visibility = PlanetFinderCard.Visibility = finderMode ? Visibility.Visible : Visibility.Collapsed;
         // Set here, not in XAML: a XAML SelectedIndex fires SelectionChanged
         // mid-InitializeComponent, before the checkboxes below it exist.
         _suppressFilterEvents = true;

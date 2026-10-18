@@ -24,7 +24,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="PLANETS" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="PageTitleTxt" Text="CURRENT SYSTEM" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
                 <!-- Live follow: the page re-reads the save whenever the game writes it. -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
                             ToolTipService.ToolTip="This page follows your game: each time No Man's Sky saves, it shows your new location and discoveries. It only reads the save; it never changes it.">
@@ -64,7 +64,7 @@
             </Border>
 
             <!-- Current system: animated orbit view + one tile per known planet. -->
-            <Border Style="{StaticResource ThemeCardStyle}">
+            <Border x:Name="CurrentSystemCard" Style="{StaticResource ThemeCardStyle}">
                 <StackPanel>
                     <Border Style="{StaticResource ThemeBandStyle}">
                         <TextBlock Text="CURRENT SYSTEM" Style="{StaticResource ThemeBandTextStyle}"/>
@@ -236,7 +236,7 @@
             </Border>
 
             <!-- Glyph decoder: paste a code someone shared, see the glyphs to dial. -->
-            <Border Style="{StaticResource ThemeCardStyle}">
+            <Border x:Name="GlyphDecoderCard" Style="{StaticResource ThemeCardStyle}">
                 <StackPanel>
                     <Border Style="{StaticResource ThemeBandStyle}">
                         <TextBlock Text="GLYPH DECODER" Style="{StaticResource ThemeBandTextStyle}"/>
@@ -256,7 +256,7 @@
             </Border>
 
             <!-- Planet finder: every planet in the save's discovery list. -->
-            <Border Style="{StaticResource ThemeCardStyle}">
+            <Border x:Name="PlanetFinderCard" Style="{StaticResource ThemeCardStyle}">
                 <StackPanel>
                     <Border Style="{StaticResource ThemeBandStyle}">
                         <TextBlock Text="PLANET FINDER" Style="{StaticResource ThemeBandTextStyle}"/>

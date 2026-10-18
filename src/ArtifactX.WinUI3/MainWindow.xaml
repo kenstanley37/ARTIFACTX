@@ -291,9 +291,14 @@
                         <FontIcon Glyph="&#xE909;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.MenuItems>
-                        <NavigationViewItem x:Name="PlanetsNavItem" Content="Planets" Tag="Planets">
+                        <NavigationViewItem x:Name="PlanetsNavItem" Content="Current System" Tag="Planets">
                             <NavigationViewItem.Icon>
                                 <PathIcon x:Name="PlanetsPathIcon"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem x:Name="PlanetFinderNavItem" Content="Planet Finder" Tag="PlanetFinder">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE721;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem Content="Finds" Tag="Finds">

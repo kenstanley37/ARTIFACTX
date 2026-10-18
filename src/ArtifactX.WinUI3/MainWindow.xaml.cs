@@ -413,6 +413,7 @@ public sealed partial class MainWindow : Window
                 "Settlement" => typeof(SettlementPage),
                 "SpaceStations" => typeof(SpaceStationsPage),
                 "Planets" => typeof(PlanetsPage),
+                "PlanetFinder" => typeof(PlanetFinderPage),
                 "Bases" => typeof(BasesPage),
                 "Finds" => typeof(FindsPage),
                 "Fishing" => typeof(FishingPage),
@@ -488,6 +489,7 @@ public sealed partial class MainWindow : Window
         ExploreNavItem.Visibility = Visibility.Visible;
         ReferenceNavItem.Visibility = Visibility.Visible;
         PlanetsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        PlanetFinderNavItem.Visibility = PlanetsNavItem.Visibility;
         NearCoreNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         BasesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SaveEditorNavItem.Visibility = SaveSessionManager.IsSaveLoaded || SaveSessionManager.HasActivePlatform
@@ -698,6 +700,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(SettlementPage) => "Settlement",
             Type t when t == typeof(SpaceStationsPage) => "SpaceStations",
             Type t when t == typeof(PlanetsPage) => "Planets",
+            Type t when t == typeof(PlanetFinderPage) => "PlanetFinder",
             Type t when t == typeof(BasesPage) => "Bases",
             Type t when t == typeof(FindsPage) => "Finds",
             Type t when t == typeof(FishingPage) => "Fishing",
