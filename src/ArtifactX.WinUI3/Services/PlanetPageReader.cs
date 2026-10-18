@@ -67,7 +67,8 @@ public static class PlanetPageReader
         if (arrive < 0) return null;
         int type = -1;
         for (int i = arrive + 1; i < lines.Count && i <= arrive + 4; i++)
-            if (Regex.IsMatch(lines[i].Trim(), @"^[\p{L} \[\]'-]{2,30}\s(Planet|Moon)$", RegexOptions.IgnoreCase)) { type = i; break; }
+            // "Metallurgic Planet", "Poisonous Moon" - or an exotic's own words ("Harsh Blue Globe", 2026-10-17).
+            if (Regex.IsMatch(lines[i].Trim(), @"^[\p{L}\[\]'-]+(\s[\p{L}\[\]'-]+){1,3}$") && !lines[i].Contains("Arrive", StringComparison.OrdinalIgnoreCase)) { type = i; break; }
         if (type < 0) return null;
         await EnsureWordsAsync();
 
@@ -76,7 +77,7 @@ public static class PlanetPageReader
         for (int i = arrive - 1; i >= 0 && i >= arrive - 4; i--)
         {
             string line = Clean(lines[i]);
-            if (Regex.IsMatch(line, @"discovered|^\d|ks$|\bu$", RegexOptions.IgnoreCase) || line.Count(char.IsLetter) < 3) continue;
+            if (Regex.IsMatch(line, @"discovered|^\d|ks$|\bu$|^(Moon|Planet)\s+of\b", RegexOptions.IgnoreCase) || line.Count(char.IsLetter) < 3) continue;
             name = line;
             break;
         }
@@ -100,6 +101,11 @@ public static class PlanetPageReader
             else if (resources.Count > 0) break;
         }
         if (resources.Count == 0 && sentinels.Length == 0) return "flight card: nothing readable";
+        // "Dissonance detected" on the card marks the system dissonant (the card shows it last, 2026-10-17).
+        bool dissonant = resources.Remove("Dissonance detected") | lines.Skip(type + 1).Take(10)
+            .Any(l => l.Contains("Dissonance detected", StringComparison.OrdinalIgnoreCase));
+        if (dissonant && (MatchBody(name)?.Item1 ?? Recent().FirstOrDefault()) is ulong here && here != 0)
+            SystemPageReader.MarkDissonant(here);
 
         if (MatchBody(name) is not (ulong system, int body, string matched))
         {
@@ -250,7 +256,7 @@ public static class PlanetPageReader
         _resources = (await CatalogService.GetSubstanceNamesAsync())
             .Concat(_words.Where(w => w.Group == "Resource").Select(w => w.Word))
             .Concat((await CatalogService.GetItemNamesAsync()).Values.Select(TitleCase))
-            .Concat(new[] { "Dissonance detected" })
+            .Concat(new[] { "Dissonance detected", "Vile Brood Detected" })
             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
