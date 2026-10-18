@@ -221,11 +221,15 @@ public static class SystemPageReader
         var by = placed.FirstOrDefault(p => Regex.IsMatch(p.Text, @"Discovered\s.*\bby\b|^\s*Discovered\s*$|\b(today|yesterday|ago)\s+by\b", RegexOptions.IgnoreCase)
             && !p.Text.Contains("Discovered by", StringComparison.OrdinalIgnoreCase));
         if (by.Text is null) return null;
-        foreach (var (text, y) in placed.Where(p => by.Y - p.Y > 15 && by.Y - p.Y < 90).OrderBy(p => by.Y - p.Y))
-        {
-            string line = PlanetPageReader.Clean(text);
+        var band = placed.Where(p => by.Y - p.Y > 15 && by.Y - p.Y < 90).OrderBy(p => by.Y - p.Y)
+            .Select(p => PlanetPageReader.Clean(p.Text)).Where(l => l.Count(char.IsLetter) >= 2).ToList();
+        foreach (var line in band)
             if (line.Count(char.IsLetter) >= 3 && Match(line) is ulong found) return found;
-        }
+        // A long title can come apart: "Amazin" | "Dlanet Biomes" (2026-10-18). Try the pieces
+        // joined, in either order - the read gives no left-to-right position.
+        for (int i = 0; i < band.Count; i++)
+            for (int j = 0; j < band.Count; j++)
+                if (i != j && Match(band[i] + " " + band[j]) is ulong joined) return joined;
         return null;
     }
 
