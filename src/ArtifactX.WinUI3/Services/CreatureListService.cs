@@ -331,7 +331,9 @@ public static class CreatureListService
                     VotedName(key, row.Name),
                     Keep(row.Rarity, old?.Rarity), Keep(row.Habitat, old?.Habitat), Keep(row.Activity, old?.Activity),
                     isSelected ? Keep(gender, old?.Gender) : old?.Gender ?? "", isSelected ? Keep(size, old?.Size) : old?.Size ?? "",
-                    (old?.Picture ?? false) || (isSelected && picture), now);
+                    // The file decides: a picture taken on a frame before the creature was confirmed
+                    // (kept from its second reading) was never flagged (Z. Xenoexogum, 2026-10-18).
+                    (old?.Picture ?? false) || (isSelected && picture) || File.Exists(PicturePath(system, planet, row.Name)), now);
                 if (old is not null && old with { SeenAt = now } == next) continue;
                 list[key] = next;
                 changed.Add((key, next));
