@@ -86,6 +86,7 @@ public sealed partial class PlanetsPage : Page
         SystemPageReader.Captured += OnSystemCaptured;
         ScreenCaptureLogService.SystemPictureSaved += OnSystemPictureSaved;
         BodyKindsService.Captured += OnSystemCaptured;
+        UnmatchedBodiesService.Changed += OnSystemCaptured;
         SystemMarketService.Changed += OnSystemCaptured;
         Unloaded += Page_Unloaded;
         JumpPlanner.RangeChanged += ApplyFilters;
@@ -124,6 +125,7 @@ public sealed partial class PlanetsPage : Page
         SystemPageReader.Captured -= OnSystemCaptured;
         ScreenCaptureLogService.SystemPictureSaved -= OnSystemPictureSaved;
         BodyKindsService.Captured -= OnSystemCaptured;
+        UnmatchedBodiesService.Changed -= OnSystemCaptured;
         SystemMarketService.Changed -= OnSystemCaptured;
         JumpPlanner.RangeChanged -= ApplyFilters;
         StopOrbitAnimations();
@@ -483,6 +485,7 @@ public sealed partial class PlanetsPage : Page
         ShowSystemPicture(system);
         BuildSystemData(system, note);
         BuildMarket(system);
+        BuildUnmatched(system, planets);
 
         NoSystemPlanetsTxt.Visibility = planets.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         AnyFishPanel.Visibility = Visibility.Collapsed; // each card counts every fish it can have now
@@ -815,6 +818,40 @@ public sealed partial class PlanetsPage : Page
             SystemPictureImage.Visibility = Visibility.Collapsed;
             SystemCanvas.Visibility = Visibility.Visible;
             SystemViewFrame.Width = 360;
+        }
+    }
+
+    /// <summary>Held readings for this system: name, a body picker, Save / Dismiss.</summary>
+    private void BuildUnmatched(ulong system, List<KnownPlanet> planets)
+    {
+        UnmatchedRows.Children.Clear();
+        var held = UnmatchedBodiesService.For(system);
+        UnmatchedPanel.Visibility = held.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        int count = UniverseInfo.For(system).PlanetCount + UniverseInfo.For(system).MoonCount;
+        foreach (var h in held)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+            string what = h.Moon is bool m ? (m ? " (moon)" : " (planet)") : "";
+            row.Children.Add(new TextBlock
+            {
+                Text = h.Name + what, FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Width = 240,
+                VerticalAlignment = VerticalAlignment.Center, Foreground = ThemeBrush("ThemeWarningBrush"), TextTrimming = TextTrimming.CharacterEllipsis,
+            });
+            var pick = new ComboBox { PlaceholderText = "Which planet?", MinWidth = 280 };
+            for (int b = 1; b <= count; b++)
+            {
+                string kind = BodyKindsService.IsMoon(system, b) ? "Moon" : "Planet";
+                pick.Items.Add(new ComboBoxItem { Content = $"{kind} {b} · {UniverseInfo.PlanetName(system, b)}", Tag = b });
+            }
+            var save = new Button { Content = "Save", IsEnabled = false };
+            pick.SelectionChanged += (_, _) => save.IsEnabled = pick.SelectedItem is not null;
+            save.Click += (_, _) => { if (pick.SelectedItem is ComboBoxItem { Tag: int body }) UnmatchedBodiesService.Assign(h, body); };
+            var dismiss = new HyperlinkButton { Content = "Not in this system", VerticalAlignment = VerticalAlignment.Center };
+            dismiss.Click += (_, _) => UnmatchedBodiesService.Dismiss(h);
+            row.Children.Add(pick);
+            row.Children.Add(save);
+            row.Children.Add(dismiss);
+            UnmatchedRows.Children.Add(row);
         }
     }
 

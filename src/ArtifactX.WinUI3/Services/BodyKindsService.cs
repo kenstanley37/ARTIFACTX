@@ -110,7 +110,10 @@ public static class BodyKindsService
         }
         if (name is null) return "body pop-up: no name";
         if (PlanetPageReader.MatchBody(name) is not (ulong system, int body, string matched))
-            return $"body pop-up \"{name}\": no single matching body in recent systems";
+        {
+            UnmatchedBodiesService.Hold(name, null, moon);
+            return $"body pop-up \"{name}\": unknown name - held for you to place on Current System";
+        }
 
         // The list pop-up also lists the body's resources: fill them in (the full page
         // adds weather, sentinels, flora and fauna).
@@ -145,6 +148,32 @@ public static class BodyKindsService
         }
         Captured?.Invoke(system);
         return $"body pop-up {matched}: saved as a {(moon ? "moon" : "planet")}{check}{resources}";
+    }
+
+    /// <summary>Stores a body's kind as the game showed it (also from the Current System picker).</summary>
+    public static void Store(ulong system, int body, bool moon)
+    {
+        lock (Lock) CapturedKinds[(Key(system), body)] = moon;
+        try
+        {
+            using var connection = UserDatabase.Open();
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+                INSERT INTO body_kinds (system_address, planet_index, is_moon, updated_at, source, synced_at, deleted, added_by)
+                VALUES ($s, $p, $moon, $now, 'captured', NULL, 0, $by)
+                ON CONFLICT(system_address, planet_index) DO UPDATE SET is_moon = $moon, updated_at = $now, synced_at = NULL, deleted = 0";
+            cmd.Parameters.AddWithValue("$s", Key(system));
+            cmd.Parameters.AddWithValue("$p", body);
+            cmd.Parameters.AddWithValue("$moon", moon ? 1 : 0);
+            cmd.Parameters.AddWithValue("$now", UserDatabase.Now());
+            cmd.Parameters.AddWithValue("$by", GameAccountsService.ActiveKey);
+            cmd.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[BodyKindsService] {ex.Message}");
+        }
+        Captured?.Invoke(system);
     }
 
     /// <summary>Drops the in-memory copy (after a user.db import).</summary>

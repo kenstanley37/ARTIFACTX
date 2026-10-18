@@ -195,11 +195,12 @@ public static class SystemPageReader
         if (lines.Any(l => l.Contains("Galaxy:", StringComparison.OrdinalIgnoreCase) || l.Contains("RENAME AND UPLOAD", StringComparison.OrdinalIgnoreCase)
             || l.Trim().Equals("Planet Data", StringComparison.OrdinalIgnoreCase)))
             return null;
-        for (int i = header - 1; i >= 0 && i >= header - 4; i--)
+        for (int i = header - 1; i >= 0 && i >= header - 6; i--)
         {
             string line = PlanetPageReader.Clean(lines[i]);
             if (line.Count(char.IsLetter) < 3 || Regex.IsMatch(line, @"\bby\b|Discovered", RegexOptions.IgnoreCase)) continue;
-            return Match(line);
+            // Other lines can land in between ("Online Discovery Services", 2026-10-17): keep looking.
+            if (Match(line) is ulong found) return found;
         }
         return null;
     }

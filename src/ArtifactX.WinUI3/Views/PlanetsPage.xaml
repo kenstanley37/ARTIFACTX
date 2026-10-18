@@ -216,6 +216,18 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Planets read off the game screen under a name ArtifactX doesn't know
+                             (renamed by another player): the player says which body it is. -->
+                        <Border x:Name="UnmatchedPanel" Visibility="Collapsed" BorderBrush="{ThemeResource ThemeWarningBrush}" BorderThickness="1"
+                                Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,12,16,14">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="READ FROM THE GAME - WHICH PLANET IS THIS?" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
+                                           Text="These names were read off the game screen but aren't the names ArtifactX knows - usually because the player who discovered the system renamed its planets. Pick each one's planet once; after that it's recognised every time."/>
+                                <StackPanel x:Name="UnmatchedRows" Spacing="8"/>
+                            </StackPanel>
+                        </Border>
+
                         <TextBlock x:Name="NoSystemPlanetsTxt" Style="{StaticResource ThemeDimTextStyle}" Visibility="Collapsed"
                                    Text="No planets in this system are in your discoveries yet. Scan or land on one in-game, then save."/>
                         <!-- Fish found on any planet with water: once here, not on every card. -->

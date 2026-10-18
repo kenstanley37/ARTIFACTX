@@ -81,13 +81,18 @@ public static class PlanetPageReader
 
         var titles = new List<string>();
         if (Title(lines) is { } fromScreen) titles.Add(fromScreen);
+        string? cropTitle = null;
         if (titleReads is not null)
             foreach (var read in await titleReads())
-                if (Clean(read) is { Length: >= 3 } t && !IsHud(t)) titles.Add(t);
+                if (Clean(read) is { Length: >= 3 } t && !IsHud(t)) { titles.Add(t); cropTitle ??= t; }
         if (titles.Count == 0) return "planet page: no planet name";
         var match = Match(titles);
         if (match is not (ulong system, int planet, string name))
-            return $"planet page \"{string.Join("\" / \"", titles.Distinct())}\": no single matching planet in recent systems";
+        {
+            // A name ArtifactX doesn't know (another player renamed it): held for the player to place.
+            UnmatchedBodiesService.Hold(cropTitle ?? titles[0], details, null);
+            return $"planet page \"{string.Join("\" / \"", titles.Distinct())}\": unknown name - held for you to place on Current System";
+        }
 
         // The player's own notes stay; the fields are what the game showed.
         var existing = PlanetDetailsService.Get(system, planet);
@@ -228,7 +233,7 @@ public static class PlanetPageReader
     // ------------------------------------------------------------- the planet
 
     /// <summary>The systems the save recently put the player in, newest first.</summary>
-    internal static List<ulong> Recent()
+    public static List<ulong> Recent()
     {
         List<ulong> systems;
         lock (Lock) systems = RecentSystems.ToList();
@@ -303,7 +308,7 @@ public static class PlanetPageReader
     }
 
     /// <summary>Lower-case letters and digits, with the usual OCR swaps folded (8/B, 0/O, 1/l/I, 5/S).</summary>
-    internal static string Norm(string s)
+    public static string Norm(string s)
     {
         var chars = s.ToUpperInvariant().Where(char.IsLetterOrDigit).Select(c => c switch
         {
