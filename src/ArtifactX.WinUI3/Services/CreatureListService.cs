@@ -119,6 +119,9 @@ public static class CreatureListService
                     where = (s, b);
             }
         }
+        // Not named: the planet whose discovered-fauna count in the save matches "4/4 Species Discovered".
+        if (where is null && Regex.Match(species.Text, @"(\d+)\s*/\s*\d+") is { Success: true } seen && int.TryParse(seen.Groups[1].Value, out int seenCount))
+            where = PlanetPageReader.PlanetWithFauna(seenCount);
         if (where is not (ulong system, int planet)) return $"fauna list: {rows.Count} creatures, planet not named on screen";
 
         // The selected creature (left side): its name is the big title above "Discovered ... by".

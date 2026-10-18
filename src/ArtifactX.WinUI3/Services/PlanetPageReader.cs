@@ -30,6 +30,28 @@ public static class PlanetPageReader
 
     /// <summary>The planet the player is on in that system per the last save (0 in space or
     /// at the station), or null when the save puts them elsewhere.</summary>
+    // Kinds of fauna the player has discovered per planet address, from the last save.
+    private static Dictionary<ulong, int> _faunaFound = new();
+
+    /// <summary>The planet whose fauna list this is, when the screen doesn't name it: the save
+    /// counts the animals you've discovered on each planet, and the list says "4/4 Species
+    /// Discovered". The planet you're on wins when its count matches; else the only planet of
+    /// a recent system with that count. Synthetic planets' notes are code, not "planet X"
+    /// (Karat 46/H3, 2026-10-18).</summary>
+    internal static (ulong System, int Planet)? PlanetWithFauna(int discovered)
+    {
+        if (discovered <= 0) return null;
+        Dictionary<ulong, int> found;
+        (ulong System, int Planet)? here;
+        lock (Lock) { found = _faunaFound; here = _here; }
+        var recent = Recent();
+        var matches = found.Where(kv => kv.Value == discovered)
+            .Select(kv => (System: NmsSpaceStationPaths.ToSystemAddress(kv.Key), Planet: (int)((kv.Key >> 52) & 0xF)))
+            .Where(m => recent.Contains(m.System)).Distinct().ToList();
+        if (here is { } h && matches.Contains(h)) return h;
+        return matches.Count == 1 ? matches[0] : null;
+    }
+
     internal static int? CurrentPlanet(ulong system)
     {
         lock (Lock) return _here is { } h && h.System == system ? h.Planet : null;
@@ -50,6 +72,8 @@ public static class PlanetPageReader
                 RecentSystems.Remove(system);
                 RecentSystems.Insert(0, system);
                 _here = (system, (int?)snapshot.Universe?["oZw"]?["jsv"] ?? 0);
+                _faunaFound = ArtifactX.Core.NmsModels.NmsPlanets.CountDiscoveries(snapshot.Discoveries)
+                    .Where(kv => kv.Value.Fauna > 0).ToDictionary(kv => kv.Key, kv => kv.Value.Fauna);
                 if (RecentSystems.Count > 3) RecentSystems.RemoveAt(3);
             }
         };
