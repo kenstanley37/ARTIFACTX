@@ -40,7 +40,21 @@ public sealed partial class AppTitleBar : UserControl
         ScreenCaptureLogService.RecordingChanged += () => DispatcherQueue.TryEnqueue(RefreshScreenRecording);
         RefreshScreenRecording();
 
+        // Parts placed follow the game's saves live, like the Bases page (2026-10-18).
+        FishCatchRecorder.SnapshotSeen += snapshot =>
+            DispatcherQueue.TryEnqueue(() => { if (SaveSessionManager.IsSaveLoaded) ShowParts(snapshot.Bases, snapshot.LooseObjects); });
+
         Refresh();
+    }
+
+    /// <summary>Every part placed (all bases and loose objects), with the breakdown on hover.
+    /// The game caps them per base and overall but shows no count; its caps aren't in its data
+    /// files, so this shows the count alone (NmsBuildCounts).</summary>
+    private void ShowParts(Newtonsoft.Json.Linq.JArray? bases, Newtonsoft.Json.Linq.JArray? loose)
+    {
+        PartsTxt.Text = $"{NmsBuildCounts.Total(bases, loose):N0} PARTS PLACED";
+        ToolTipService.SetToolTip(PartsRegion, "Building parts you've placed - the game caps them per base and in total.\n"
+            + NmsBuildCounts.Breakdown(bases, loose).Replace(" · ", "\n"));
     }
 
     private void RefreshScreenRecording()
@@ -204,6 +218,8 @@ public sealed partial class AppTitleBar : UserControl
         long nanites = NmsPlayerStateData.ToDisplayValue(SaveSessionManager.GetLong(NmsPlayerStateData.NanitesPath) ?? 0);
         long quicksilver = NmsPlayerStateData.ToDisplayValue(SaveSessionManager.GetLong(NmsPlayerStateData.QuicksilverPath) ?? 0);
 
+        ShowParts(SaveSessionManager.GetValue("vLc", "6f=", "F?0") as Newtonsoft.Json.Linq.JArray,
+            SaveSessionManager.GetValue(NmsBuildCounts.LooseObjectsPath) as Newtonsoft.Json.Linq.JArray);
         UnitsTxt.Text = $"{units:N0} UNITS";
         NanitesTxt.Text = $"{nanites:N0} NANITES";
         QuicksilverTxt.Text = $"{quicksilver:N0} QUICKSILVER";

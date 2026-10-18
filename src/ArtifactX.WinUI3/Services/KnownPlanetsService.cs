@@ -107,7 +107,7 @@ public static class KnownPlanetsService
 /// Spawn (rnc) and PlanetPositions (aHM) give the player's coordinates on the
 /// planet (NmsPlanetCoordinates).</summary>
 public sealed record PlanetSnapshot(JToken? Universe, JArray? StatGroups, JArray? Discoveries, string? Summary = null, JArray? Markers = null, JArray? Bases = null, JToken? Fishing = null,
-    JToken? Spawn = null, JToken? PlanetPositions = null)
+    JToken? Spawn = null, JToken? PlanetPositions = null, JArray? LooseObjects = null)
 {
     /// <summary>The player's coordinates on the planet they're on, if any.</summary>
     public (double Latitude, double Longitude)? Coordinates =>
@@ -133,7 +133,7 @@ public static class LiveSaveReader
             var player = context?["6f="];
             return new PlanetSnapshot(player?["yhJ"], player?["gUR"] as JArray, root["fDu"]?["ETO"]?["OsQ"]?["?fB"] as JArray,
                 player?["n:R"]?.Value<string>(), player?["nlG"] as JArray, player?["F?0"] as JArray, player?["bTf"],
-                context?["rnc"], player?["aHM"]);
+                context?["rnc"], player?["aHM"], player?["c5s"] as JArray);
         }
         catch (Exception ex)
         {
@@ -171,7 +171,8 @@ public sealed class LiveSaveWatcher : IDisposable
         SaveSessionManager.GetValue("vLc", "6f=", "F?0") as JArray,
         SaveSessionManager.GetValue(NmsFishingPaths.RecordContainerPath),
         SaveSessionManager.GetValue(NmsPlanetCoordinates.SpawnStatePath),
-        SaveSessionManager.GetValue(NmsPlanetCoordinates.PlanetPositionsPath));
+        SaveSessionManager.GetValue(NmsPlanetCoordinates.PlanetPositionsPath),
+        SaveSessionManager.GetValue(NmsBuildCounts.LooseObjectsPath) as JArray);
 
     public void Start()
     {

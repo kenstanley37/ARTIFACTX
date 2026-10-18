@@ -59,6 +59,10 @@
             <Button x:Name="ExportBtn" Content="Export CSV" Click="ExportCsv_Click" VerticalAlignment="Bottom"
                     ToolTipService.ToolTip="Save the list as shown (with your filters) as a spreadsheet file"/>
             <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
+            <StackPanel VerticalAlignment="Bottom" Margin="0,0,0,6" Spacing="2">
+                <TextBlock x:Name="PartsTotalTxt" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" FontWeight="SemiBold"/>
+                <TextBlock x:Name="PartsBreakdownTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" MaxWidth="900"/>
+            </StackPanel>
         </ctcontrols:WrapPanel>
 
         <!-- Cards, not full-width rows (rows cut words off, 2026-10-14). Uniform

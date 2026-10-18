@@ -78,9 +78,14 @@ public sealed partial class BasesPage : Page
     {
         _lastSnapshot = snapshot;
         ulong? here = S.ReadSystemAddress(snapshot.Universe);
-        string key = $"{here}|{snapshot.Bases?.Count}|{string.Join(",", snapshot.Bases?.OfType<JObject>().Select(b => b["NKm"]?.Value<string>()) ?? Enumerable.Empty<string?>())}";
+        string key = $"{here}|{snapshot.Bases?.Count}|{snapshot.LooseObjects?.Count}|{NmsBuildCounts.Total(snapshot.Bases, snapshot.LooseObjects)}|{string.Join(",", snapshot.Bases?.OfType<JObject>().Select(b => b["NKm"]?.Value<string>()) ?? Enumerable.Empty<string?>())}";
         if (key == _lastKey) return;
         _lastKey = key;
+
+        // Parts placed: the game caps them per base and in total (2026-10-18).
+        var counts = NmsBuildCounts.PerBase(snapshot.Bases).ToDictionary(c => c.Base, c => c.Parts);
+        PartsTotalTxt.Text = $"{NmsBuildCounts.Total(snapshot.Bases, snapshot.LooseObjects):N0} building parts placed in all";
+        PartsBreakdownTxt.Text = NmsBuildCounts.Breakdown(snapshot.Bases, snapshot.LooseObjects);
 
         var planets = NmsPlanets.ReadAll(snapshot.Discoveries)
             .GroupBy(p => p.Address).ToDictionary(g => g.Key, g => g.First());
@@ -108,7 +113,8 @@ public sealed partial class BasesPage : Page
                     // Where on the planet, as the game's scanner shows it (2026-10-14).
                     Detail = $"{UniverseInfo.PlanetName(address, planetIndex)} ({type})"
                         + (NmsPlanetCoordinates.OfBase(b) is { } at ? $" at {NmsPlanetCoordinates.Format(at.Latitude, at.Longitude)}" : "")
-                        + $" · {UniverseInfo.SystemName(address)} · {galaxyName}",
+                        + $" · {UniverseInfo.SystemName(address)} · {galaxyName}"
+                        + (counts.TryGetValue(b, out int parts) ? $" · {parts:N0} parts" : ""),
                     Facts = UniverseInfo.Compact(address),
                     Swatch = new SolidColorBrush(ParseColour(planet is null ? "#777777" : NmsPlanets.TypeColour(planet.BiomeIndex))),
                     PortalCode = code,
