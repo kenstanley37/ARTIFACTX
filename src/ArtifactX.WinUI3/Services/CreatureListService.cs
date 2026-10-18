@@ -67,8 +67,13 @@ public static class CreatureListService
     /// <param name="savePicture">Saves the creature part of the frame to the given path.</param>
     public static async Task<string?> TryReadAsync(IReadOnlyList<(string Text, double X, double Y)> placed, Func<string, Task<bool>>? savePicture = null)
     {
-        var species = placed.FirstOrDefault(p => Regex.IsMatch(p.Text, @"Species\s+Discovered", RegexOptions.IgnoreCase));
+        // Above the list: "4/4 Species Discovered", or "Complete to Receive 2,000 Nanites" while
+        // some are still undiscovered - then the count is the ring's "6/8" (Much E34, 2026-10-18).
+        var species = placed.FirstOrDefault(p => Regex.IsMatch(p.Text, @"Species\s+Discovered|Complete\s+to\s+Receive", RegexOptions.IgnoreCase));
         if (species.Text is null || !placed.Any(p => p.Text.Trim() == "Fauna")) return null;
+        if (!Regex.IsMatch(species.Text, @"\d+\s*/\s*\d+")
+            && placed.FirstOrDefault(p => Regex.IsMatch(p.Text.Trim(), @"^\d+\s*/\s*\d+$")) is { Text: not null } ring)
+            species = (ring.Text + " " + species.Text, species.X, species.Y);
         // The creature's menu (Rename and upload / View / Add to Wonders) covers the list - its
         // "Add Discovery to Personal Records" was read as a creature (2026-10-18).
         if (placed.Any(p => Regex.IsMatch(p.Text, @"RENAME\s+AND\s+UPLOAD|ADD\s+TO\s+WONDERS|View\s+fauna\s+data|Personal\s+Records", RegexOptions.IgnoreCase)))
