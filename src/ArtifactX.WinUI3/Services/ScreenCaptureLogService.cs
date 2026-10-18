@@ -282,11 +282,12 @@ public static class ScreenCaptureLogService
         return true;
     }
 
-    /// <summary>The creature shown on the Discoveries fauna screen (left of the list, below the
-    /// title: x 8-66%, y 30-92%), kept for the Planets page beside its traits (2026-10-18).</summary>
+    /// <summary>The creature shown on the Discoveries fauna screen (left of the list, with its
+    /// title: x 6-66%, y 15-93%), kept for the Planets page beside its traits (2026-10-18). Title,
+    /// gender, size and notes are kept in it on purpose, for a larger view later (user).</summary>
     private static async Task<bool> SaveCreaturePictureAsync(byte[] px, int w, int h, string path)
     {
-        int x0 = w * 8 / 100, y0 = h * 30 / 100, cw = w * 58 / 100, ch = h * 62 / 100;
+        int x0 = w * 6 / 100, y0 = h * 15 / 100, cw = w * 60 / 100, ch = h * 78 / 100;
         var crop = new byte[cw * ch * 4];
         for (int y = 0; y < ch; y++) System.Buffer.BlockCopy(px, ((y0 + y) * w + x0) * 4, crop, y * cw * 4, cw * 4);
         using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(crop.AsBuffer(), BitmapPixelFormat.Bgra8, cw, ch, BitmapAlphaMode.Ignore);

@@ -49,7 +49,7 @@ public static class CreatureListService
     public static string NameKey(string name) => Regex.Replace(name.Trim(), @"^\p{Lu}\.\s*", "").ToUpperInvariant();
 
     public static string PicturePath(ulong system, int planet, string name) =>
-        Path.Combine(LocalAppDataPaths.GetSubfolder("creature-pictures"), $"{Hex(system)}_{planet}_{Regex.Replace(NameKey(name), @"[^\p{L}\p{N}]+", "_")}.jpg");
+        Path.Combine(LocalAppDataPaths.GetSubfolder("creature-pictures"), $"{Hex(system)}_{planet}_{Regex.Replace(NameKey(name), @"[^\p{L}\p{N}]+", "_")}_v2.jpg"); // v2: taller crop with the title (2026-10-18)
 
     /// <summary>The creatures recorded on a planet, by name.</summary>
     public static IReadOnlyList<Creature> On(ulong system, int planet)
