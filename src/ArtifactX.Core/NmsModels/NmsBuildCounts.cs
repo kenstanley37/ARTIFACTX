@@ -11,7 +11,7 @@ public sealed record BuildCount(string Type, string Name, int Parts, JObject Bas
 /// each base in F?0 lists its parts in @ZJ (planet bases, the freighter, claimed space
 /// stations - about 260 parts each - space and ship bases), and c5s lists the loose
 /// objects placed anywhere else (beacons, signal boosters, save points, garages, decor:
-/// 161 on the test save). Other players' bases the save has cached (ExternalPlanetBase)
+/// 161 on the test save). Other players' bases and stations the save has cached (ExternalPlanetBase, ExternalSpaceStationBase)
 /// aren't the player's and don't count. The caps themselves aren't in the game's data
 /// files, so only the counts are known.
 /// </summary>
@@ -23,7 +23,7 @@ public static class NmsBuildCounts
     public static List<BuildCount> PerBase(JArray? bases) =>
         (bases ?? new JArray()).OfType<JObject>()
             .Select(b => (Type: b["peI"]?["DPp"]?.Value<string>() ?? "", Base: b))
-            .Where(b => b.Type.Length > 0 && b.Type != "ExternalPlanetBase")
+            .Where(b => b.Type.Length > 0 && !b.Type.StartsWith("External", StringComparison.Ordinal))
             .Select(b => new BuildCount(b.Type, b.Base["NKm"]?.Value<string>() ?? "", Parts(b.Base["@ZJ"] as JArray), b.Base))
             .OrderByDescending(b => b.Parts).ToList();
 
