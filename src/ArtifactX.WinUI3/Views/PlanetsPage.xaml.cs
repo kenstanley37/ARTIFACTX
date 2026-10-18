@@ -1429,7 +1429,10 @@ public sealed partial class PlanetsPage : Page
     {
         if (word.Length == 0) return "";
         var match = _planetWords.FirstOrDefault(w => w.Group == group && string.Equals(w.Word, word, StringComparison.OrdinalIgnoreCase));
-        return match.Word is null ? word : LevelName(match.Tier);
+        if (match.Word is null) return word;
+        string level = LevelName(match.Tier);
+        // Sentinels' top level is what the game calls it: "Aggressive Sentinels".
+        return group == "Sentinels" && level == "High" ? "Aggressive" : level;
     }
 
     /// <summary>"Sentinels: Infrequent · Flora: Generous · Paraffinium, Silver · Water · ..."</summary>

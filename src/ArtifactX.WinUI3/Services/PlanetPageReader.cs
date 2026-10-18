@@ -57,6 +57,67 @@ public static class PlanetPageReader
 
     /// <summary>Called with each recorded screen's text lines. Returns a short note of
     /// what happened (for the capture log), or null when it isn't a planet page.</summary>
+    /// <summary>The card the game shows as you fly towards a planet (2026-10-17): name, "Arrive in
+    /// 00:00:28", type ("Metallurgic Planet"), resources and sentinel level ("Aggressive Sentinels").
+    /// Fills resources and sentinels only where the planet has none yet - the planet page's exact
+    /// word wins. A name ArtifactX doesn't know is held for the player to place.</summary>
+    public static async Task<string?> TryReadFlightCardAsync(IReadOnlyList<string> lines)
+    {
+        int arrive = lines.ToList().FindIndex(l => Regex.IsMatch(l, @"Arrive\s+in\b", RegexOptions.IgnoreCase));
+        if (arrive < 0) return null;
+        int type = -1;
+        for (int i = arrive + 1; i < lines.Count && i <= arrive + 4; i++)
+            if (Regex.IsMatch(lines[i].Trim(), @"^[\p{L} \[\]'-]{2,30}\s(Planet|Moon)$", RegexOptions.IgnoreCase)) { type = i; break; }
+        if (type < 0) return null;
+        await EnsureWordsAsync();
+
+        // The name: above the distance line, past "You discovered this" / "Discovered by ...".
+        string? name = null;
+        for (int i = arrive - 1; i >= 0 && i >= arrive - 4; i--)
+        {
+            string line = Clean(lines[i]);
+            if (Regex.IsMatch(line, @"discovered|^\d|ks$|\bu$", RegexOptions.IgnoreCase) || line.Count(char.IsLetter) < 3) continue;
+            name = line;
+            break;
+        }
+        if (name is null) return "flight card: no planet name";
+        bool moon = lines[type].Trim().EndsWith("Moon", StringComparison.OrdinalIgnoreCase);
+
+        var resources = new List<string>();
+        string sentinels = "";
+        var sentinelWords = _words!.Where(w => w.Group == "Sentinels").Select(w => w.Word).ToList();
+        for (int i = type + 1; i < lines.Count && i <= type + 8; i++)
+        {
+            string line = Clean(lines[i]);
+            if (Regex.Match(line, @"^(.+?)\s+Sentinels$", RegexOptions.IgnoreCase) is { Success: true } sm)
+            {
+                string word = Snap(sm.Groups[1].Value, sentinelWords);
+                if (sentinelWords.Contains(word, StringComparer.OrdinalIgnoreCase)) sentinels = word;
+                break;
+            }
+            string res = Snap(line, _resources!);
+            if (_resources!.Contains(res, StringComparer.OrdinalIgnoreCase) && !resources.Contains(res, StringComparer.OrdinalIgnoreCase)) resources.Add(res);
+            else if (resources.Count > 0) break;
+        }
+        if (resources.Count == 0 && sentinels.Length == 0) return "flight card: nothing readable";
+
+        if (MatchBody(name) is not (ulong system, int body, string matched))
+        {
+            UnmatchedBodiesService.Hold(name, new PlanetDetails { Sentinels = sentinels, Resources = resources }, moon);
+            return $"flight card \"{name}\": unknown name - held for you to place on Current System";
+        }
+        BodyKindsService.Store(system, body, moon);
+        var existing = PlanetDetailsService.Get(system, body);
+        var details = existing?.Copy() ?? new PlanetDetails();
+        bool changed = false;
+        if (details.Sentinels.Length == 0 && sentinels.Length > 0) { details.Sentinels = sentinels; changed = true; }
+        if (details.Resources.Count == 0 && resources.Count > 0) { details.Resources = resources; changed = true; }
+        if (!changed) return $"flight card {matched}: already known";
+        PlanetDetailsService.Save(system, body, details, source: "captured");
+        Filled++;
+        return $"flight card {matched}: saved ({sentinels} / {string.Join(", ", resources)})";
+    }
+
     /// <param name="titleReads">Reads the title area again on its own: the big planet name
     /// is often missed in the whole-screen read ("Guhul VI" read as nothing, 2026-10-17),
     /// while a tight, shrunk crop of it reads well.</param>
