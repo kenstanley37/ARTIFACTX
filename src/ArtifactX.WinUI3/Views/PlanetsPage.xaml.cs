@@ -1170,6 +1170,21 @@ public sealed partial class PlanetsPage : Page
     /// actually recorded, with how many systems have each - unlike the note
     /// entry dropdowns, which list every possible word. A filter with nothing
     /// recorded is hidden, and the current selection is kept where possible.</summary>
+    private HashSet<ulong> _waterSystems = new();
+
+    /// <summary>Systems known to have water: recorded as such (a Galaxy Map card, or the
+    /// player's notes), a Water World among their planets, or a fish caught on one of them -
+    /// you can't catch a fish without water (Waterworld, 2026-10-18).</summary>
+    private HashSet<ulong> WaterSystems()
+    {
+        var set = new HashSet<ulong>();
+        foreach (var system in _allPlanets.GroupBy(p => p.SystemAddress))
+            if (SystemNotesService.Get(system.Key)?.Water == true
+                || system.Any(p => p.TypeName == "Water World" || FishCatchService.CaughtOn(p.SystemAddress, p.PlanetIndex).Count > 0))
+                set.Add(system.Key);
+        return set;
+    }
+
     private void RefreshNoteFilters()
     {
         var notes = SystemNotesService.All;
@@ -1190,7 +1205,8 @@ public sealed partial class PlanetsPage : Page
         Refill(ConflictFilterBox, Known(UniverseInfo.Conflict));
         Refill(RaceFilterBox, Known(RaceOf));
 
-        int water = notes.Count(n => n.Water), dissonant = notes.Count(n => n.Dissonant), moons = notes.Count(n => n.Moons is not null);
+        _waterSystems = WaterSystems();
+        int water = _waterSystems.Count, dissonant = notes.Count(n => n.Dissonant), moons = notes.Count(n => n.Moons is not null);
         WaterFilterBox.Content = $"Water ({water} {(water == 1 ? "system" : "systems")})";
         WaterFilterBox.Visibility = water > 0 ? Visibility.Visible : Visibility.Collapsed;
         if (water == 0) WaterFilterBox.IsChecked = false;
@@ -2439,7 +2455,7 @@ public sealed partial class PlanetsPage : Page
                     && (wealth == "" || UniverseInfo.Wealth(p.SystemAddress) == wealth)
                     && (conflict == "" || UniverseInfo.Conflict(p.SystemAddress) == conflict)
                     && (race == "" || RaceOf(p.SystemAddress) == race)
-                    && (!water || SystemNotesService.Get(p.SystemAddress)?.Water == true)
+                    && (!water || _waterSystems.Contains(p.SystemAddress))
                     && (!dissonant || SystemNotesService.Get(p.SystemAddress)?.Dissonant == true)))
             .Where(p => (sentinels == "" && flora == "" && fauna == "" && resource == "")
                 || PlanetDetailsService.Get(p.SystemAddress, p.PlanetIndex) is { } d

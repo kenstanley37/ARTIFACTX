@@ -313,7 +313,7 @@
                             <ComboBox x:Name="ConflictFilterBox" Header="Conflict" Width="180" SelectionChanged="Filter_Changed"/>
                             <ComboBox x:Name="RaceFilterBox" Header="Race" Width="180" SelectionChanged="Filter_Changed"/>
                             <CheckBox x:Name="WaterFilterBox" Content="Water (your notes)" Click="Filter_Click" VerticalAlignment="Bottom"
-                                      ToolTipService.ToolTip="Only systems recorded as having water - read off a Galaxy Map system card, or ticked in your notes. Systems not recorded yet are left out."/>
+                                      ToolTipService.ToolTip="Systems known to have water: a Water World among their planets, a fish you caught there, a Galaxy Map card that said Water, or ticked in your notes."/>
                             <CheckBox x:Name="DissonantFilterBox" Content="Dissonant (your notes)" Click="Filter_Click" VerticalAlignment="Bottom"
                                       ToolTipService.ToolTip="Only systems recorded as dissonant - read off the game screen, or ticked in your notes. Systems not recorded yet are left out."/>
                             <ComboBox x:Name="ShipFilterBox" Header="Ships seen" Width="180" SelectionChanged="Filter_Changed"/>
