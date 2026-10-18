@@ -247,6 +247,9 @@ public static class SystemNotesService
         return result;
     }
 
+    private static readonly string[] SystemFields =
+        { "name", "station", "star_class", "star_colour", "economy", "wealth", "conflict", "race", "moons", "water", "dissonant", "ships" };
+
     /// <summary>Upserts one system's row, planet names and notes list. Rows are
     /// never deleted: removed planet names / notes and emptied systems are
     /// marked deleted = 1 (see UserDatabase's sync columns).</summary>
@@ -254,6 +257,8 @@ public static class SystemNotesService
         string key, int galaxy, SystemNote note, string source)
     {
         string now = UserDatabase.Now();
+        var rowArgs = new Dictionary<string, object> { ["$a"] = key };
+        var before = FieldSources.ReadRow(c, tx, "systems", "address = $a", rowArgs, SystemFields);
 
         using (var cmd = c.CreateCommand())
         {
@@ -288,6 +293,7 @@ public static class SystemNotesService
             cmd.Parameters.AddWithValue("$deleted", note.IsEmpty ? 1 : 0);
             cmd.ExecuteNonQuery();
         }
+        FieldSources.Record(c, tx, "system", key, before, FieldSources.ReadRow(c, tx, "systems", "address = $a", rowArgs, SystemFields), source);
 
         // Planet names: upsert the current ones, soft-delete any that are gone.
         var existingNames = new Dictionary<int, string>();
@@ -303,6 +309,8 @@ public static class SystemNotesService
         {
             if (!int.TryParse(indexText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int index)) continue;
             if (existingNames.TryGetValue(index, out var old) && old == name) continue;
+            FieldSources.Record(c, tx, "planet", $"{key}|{index}", new Dictionary<string, string> { ["name"] = old ?? "" },
+                new Dictionary<string, string> { ["name"] = name }, source);
             using var cmd = c.CreateCommand();
             cmd.Transaction = tx;
             cmd.CommandText = @"

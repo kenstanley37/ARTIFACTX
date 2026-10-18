@@ -102,6 +102,8 @@ public static class PlanetDetailsService
         }
     }
 
+    private static readonly string[] PlanetFields = { "weather", "sentinels", "flora", "fauna", "resources", "fauna_total" };
+
     private static List<string> SplitResources(string text) =>
         text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
 
@@ -145,6 +147,8 @@ public static class PlanetDetailsService
             using var connection = UserDatabase.Open();
             using var tx = connection.BeginTransaction();
             string now = UserDatabase.Now();
+            var rowArgs = new Dictionary<string, object> { ["$s"] = system, ["$p"] = planet };
+            var before = FieldSources.ReadRow(connection, tx, "planet_details", "system_address = $s AND planet_index = $p", rowArgs, PlanetFields);
 
             using (var cmd = connection.CreateCommand())
             {
@@ -172,6 +176,8 @@ public static class PlanetDetailsService
                 cmd.Parameters.AddWithValue("$deleted", noFields ? 1 : 0);
                 cmd.ExecuteNonQuery();
             }
+            FieldSources.Record(connection, tx, "planet", $"{system}|{planet}", before,
+                FieldSources.ReadRow(connection, tx, "planet_details", "system_address = $s AND planet_index = $p", rowArgs, PlanetFields), source);
 
             // Notes: keep rows whose text is still there (in order, duplicates
             // allowed), soft-delete the rest, insert the new ones.

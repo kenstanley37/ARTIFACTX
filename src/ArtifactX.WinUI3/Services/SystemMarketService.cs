@@ -212,10 +212,10 @@ public static class SystemMarketService
                 using var cmd = connection.CreateCommand();
                 cmd.Transaction = tx;
                 cmd.CommandText = @"
-                    INSERT INTO market_items (system_address, place, item_id, name, price, change, stock, seen_at, updated_at, source, synced_at, deleted, added_by)
-                    VALUES ($s, $place, $id, $name, $price, $change, $stock, $now, $now, 'captured', NULL, 0, $by)
+                    INSERT INTO market_items (system_address, place, item_id, name, price, change, stock, seen_at, updated_at, source, synced_at, deleted, added_by, game_build)
+                    VALUES ($s, $place, $id, $name, $price, $change, $stock, $now, $now, 'captured', NULL, 0, $by, $build)
                     ON CONFLICT(system_address, place, item_id) DO UPDATE SET name = $name, price = $price, change = $change, stock = $stock,
-                        seen_at = $now, updated_at = $now, synced_at = NULL, deleted = 0";
+                        seen_at = $now, updated_at = $now, synced_at = NULL, deleted = 0, game_build = $build";
                 cmd.Parameters.AddWithValue("$s", Hex(system));
                 cmd.Parameters.AddWithValue("$place", place);
                 cmd.Parameters.AddWithValue("$id", item.ItemId);
@@ -225,6 +225,7 @@ public static class SystemMarketService
                 cmd.Parameters.AddWithValue("$stock", item.Stock);
                 cmd.Parameters.AddWithValue("$now", item.SeenAt);
                 cmd.Parameters.AddWithValue("$by", GameAccountsService.ActiveKey);
+                cmd.Parameters.AddWithValue("$build", FieldSources.GameBuild);
                 cmd.ExecuteNonQuery();
             }
             tx.Commit();

@@ -424,6 +424,29 @@ public static class UserDatabase
             SELECT system_address, 'station', item_id, name, price, change, stock, seen_at, updated_at, source, synced_at, deleted, profile_id, added_by
             FROM system_market WHERE price > 0;
         """,
+
+        // 18 - provenance (2026-10-17, for the future shared database): which source set each
+        // value - "captured" off a game screen, "user" typed, "save" learned from a save - and
+        // the game build it was seen on, field by field (FieldSources). entity = "planet"
+        // (key "<system hex>|<index>") or "system" (key "<system hex>"). Market rows are a
+        // single reading each, so they just get the build column.
+        """
+        CREATE TABLE field_sources (
+            entity      TEXT NOT NULL,
+            entity_key  TEXT NOT NULL,
+            field       TEXT NOT NULL,
+            value       TEXT NOT NULL DEFAULT '',
+            source      TEXT NOT NULL DEFAULT '',
+            game_build  TEXT NOT NULL DEFAULT '',
+            recorded_at TEXT NOT NULL,
+            synced_at   TEXT NULL,
+            deleted     INTEGER NOT NULL DEFAULT 0,
+            profile_id  TEXT NOT NULL DEFAULT '',
+            added_by    TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (entity, entity_key, field)
+        );
+        ALTER TABLE market_items ADD COLUMN game_build TEXT NOT NULL DEFAULT '';
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;
