@@ -122,7 +122,9 @@ public static class SystemMarketService
                 @"^(k\w{0,2}z+\w{0,2}t|ERR?OR|Data\s+Missing|Connection\s+Lost|Economy\s+Data\s+Unavailable)$", RegexOptions.IgnoreCase);
             if (!m.Success && !illegal && !noData) continue;
             double y = lines[i].Y;
-            string change = illegal ? "Illegal" : noData ? "No data" : m.Groups[2].Value;
+            // The game's own word, spelled as it shows it - each row keeps the same one on every
+            // visit (Copper "ERROR", Microprocessor "kzzzkt", 2026-10-18).
+            string change = illegal ? "Illegal" : noData ? StaticWord(lines[i].Text) : m.Groups[2].Value;
             // "Demand:" and its "-6.0%" can be read as two lines (Gold, alone on a page,
             // 2026-10-17): take the percentage at the same height.
             if (change.Length == 0 && !illegal)
@@ -185,6 +187,16 @@ public static class SystemMarketService
         Read++;
         Changed?.Invoke(system);
         return $"trade terminal {UniverseInfo.SystemName(system)} ({place}): {string.Join(", ", saved.Select(s => $"{s.Name} {s.Price:N0} ({s.Change}) x{s.Stock}"))}{extra}";
+    }
+
+    private static string StaticWord(string text)
+    {
+        string t = text.Trim();
+        if (Regex.IsMatch(t, @"^ERR?OR$", RegexOptions.IgnoreCase)) return "ERROR";
+        if (Regex.IsMatch(t, @"^k\w{0,2}z+\w{0,2}t$", RegexOptions.IgnoreCase)) return "kzzzkt";
+        if (Regex.IsMatch(t, @"Missing", RegexOptions.IgnoreCase)) return "Data Missing";
+        if (Regex.IsMatch(t, @"Lost", RegexOptions.IgnoreCase)) return "Connection Lost";
+        return "Economy Data Unavailable";
     }
 
     private static string Title(string s) => s.Any(char.IsLower) ? s : CultureInfo.InvariantCulture.TextInfo.ToTitleCase(s.ToLowerInvariant());
