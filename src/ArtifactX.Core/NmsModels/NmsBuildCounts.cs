@@ -47,6 +47,21 @@ public static class NmsBuildCounts
         ? $"{parts:N0} / {UploadLimit:N0} parts · too many to upload"
         : $"{parts:N0} / {UploadLimit:N0} parts · {UploadLimit - parts:N0} left to upload";
 
+    /// <summary>The game's cap on everything placed: "Cannot Build / Construction Limit Reached".
+    /// Measured 2026-10-18 on the creative test save filled to just under it: refused at 21,010
+    /// by this count (the game likely leaves out the 9 build beacons and 1 broken entry there).
+    /// The main save showed 21,330 when refused - claiming a space station adds its ~260 parts
+    /// without the check, so the count can sit above the cap.</summary>
+    public const int GlobalLimit = 21000;
+
+    /// <summary>0 = plenty of room, 1 = close (90% or more), 2 = at or over the cap.</summary>
+    public static int GlobalLevel(int parts) => parts >= GlobalLimit ? 2 : parts >= GlobalLimit * 9 / 10 ? 1 : 0;
+
+    /// <summary>"13,189 / 21,000 parts · 7,811 left" or "21,010 / 21,000 parts · at the limit".</summary>
+    public static string GlobalLabel(int parts) => parts >= GlobalLimit
+        ? $"{parts:N0} / {GlobalLimit:N0} parts · at the limit"
+        : $"{parts:N0} / {GlobalLimit:N0} parts · {GlobalLimit - parts:N0} left";
+
     /// <summary>0 = plenty of room, 1 = close (80% or more), 2 = over the upload limit.</summary>
     public static int UploadLevel(int parts) => parts > UploadLimit ? 2 : parts >= UploadLimit * 8 / 10 ? 1 : 0;
 

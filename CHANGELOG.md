@@ -14,7 +14,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - **3D previews of multi-tools**, built from your game files, including crafted staffs (head, core and pole) in their real colours.
 - **Multi-tool kinds and names**: the Type shows the game's own names (Alien, Atlantid, Voltaic Staff and so on), Pistol or Rifle is worked out by the game's own rule, and unnamed tools show the name the game gives them.
 - **Starship names**: unnamed ships show the name the game gives them.
-- **Building parts placed**: the title bar shows how many building parts you've placed in all - every base, your freighter, claimed space stations and loose objects like beacons and save points - and the Bases page breaks it down per base. The game caps these per base and overall but never shows a count, so you can see how close you're getting.
+- **Building parts placed**: the title bar shows how many building parts you've placed in all - every base, your freighter, claimed space stations and loose objects like beacons and save points - and the Bases page breaks it down per base. Shown against the game's construction limit of 21,000 (green, yellow from 90%, red at the limit), and each planet base against the 3,000-part limit for uploading it.
 - **Live save updates**: while you play, ArtifactX follows the game's saves without reloading the page you're on. Newly acquired ships and tools appear on their own.
 
 ### Improved

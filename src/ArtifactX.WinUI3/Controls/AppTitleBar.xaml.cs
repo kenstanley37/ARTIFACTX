@@ -48,12 +48,19 @@ public sealed partial class AppTitleBar : UserControl
     }
 
     /// <summary>Every part placed (all bases and loose objects), with the breakdown on hover.
-    /// The game caps them per base and overall but shows no count; its caps aren't in its data
-    /// files, so this shows the count alone (NmsBuildCounts).</summary>
+    /// Against the game's construction limit (NmsBuildCounts.GlobalLimit, measured 2026-10-18):
+    /// green with room, yellow from 90%, red at the limit.</summary>
     private void ShowParts(Newtonsoft.Json.Linq.JArray? bases, Newtonsoft.Json.Linq.JArray? loose)
     {
-        PartsTxt.Text = $"{NmsBuildCounts.Total(bases, loose):N0} PARTS PLACED";
-        ToolTipService.SetToolTip(PartsRegion, "Building parts you've placed - the game caps them per base and in total.\n"
+        int total = NmsBuildCounts.Total(bases, loose);
+        PartsTxt.Text = $"{total:N0} / {NmsBuildCounts.GlobalLimit:N0} PARTS";
+        PartsTxt.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(NmsBuildCounts.GlobalLevel(total) switch
+        {
+            2 => Windows.UI.Color.FromArgb(255, 0xFF, 0x5A, 0x5A),
+            1 => Windows.UI.Color.FromArgb(255, 0xF5, 0xC5, 0x42),
+            _ => Windows.UI.Color.FromArgb(255, 0x3D, 0xDC, 0x84),
+        });
+        ToolTipService.SetToolTip(PartsRegion, $"{NmsBuildCounts.GlobalLabel(total)} - at {NmsBuildCounts.GlobalLimit:N0} the game says \"Construction Limit Reached\".\n"
             + NmsBuildCounts.Breakdown(bases, loose).Replace(" · ", "\n"));
     }
 

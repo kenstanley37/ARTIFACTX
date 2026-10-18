@@ -86,7 +86,9 @@ public sealed partial class BasesPage : Page
 
         // Parts placed: the game caps them per base and in total (2026-10-18).
         var counts = NmsBuildCounts.PerBase(snapshot.Bases).ToDictionary(c => c.Base, c => c.Parts);
-        PartsTotalTxt.Text = $"{NmsBuildCounts.Total(snapshot.Bases, snapshot.LooseObjects):N0} building parts placed in all";
+        int total = NmsBuildCounts.Total(snapshot.Bases, snapshot.LooseObjects);
+        PartsTotalTxt.Text = $"Building parts placed: {NmsBuildCounts.GlobalLabel(total)} before the game's construction limit";
+        PartsTotalTxt.Foreground = new SolidColorBrush(LevelColour(NmsBuildCounts.GlobalLevel(total)));
         PartsBreakdownTxt.Text = NmsBuildCounts.Breakdown(snapshot.Bases, snapshot.LooseObjects);
 
         var planets = NmsPlanets.ReadAll(snapshot.Discoveries)
