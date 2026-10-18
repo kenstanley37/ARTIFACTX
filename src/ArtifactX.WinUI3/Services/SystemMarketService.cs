@@ -108,12 +108,14 @@ public static class SystemMarketService
         for (int i = 0; i < lines.Count; i++)
         {
             var m = Regex.Match(lines[i].Text, @"^\s*(Price|Demand)\s*:\s*([+\-−]?\s*[\d.,]+\s*%)?", RegexOptions.IgnoreCase);
-            if (!m.Success) continue;
+            // Black market goods show "Illegal Black Market Goods" where others show a price change.
+            bool illegal = !m.Success && Regex.IsMatch(lines[i].Text, @"Illegal\s+Black\s+Market", RegexOptions.IgnoreCase);
+            if (!m.Success && !illegal) continue;
             double y = lines[i].Y;
-            string change = m.Groups[2].Value;
+            string change = illegal ? "Illegal" : m.Groups[2].Value;
             // "Demand:" and its "-6.0%" can be read as two lines (Gold, alone on a page,
             // 2026-10-17): take the percentage at the same height.
-            if (change.Length == 0)
+            if (change.Length == 0 && !illegal)
             {
                 var pct = lines.Where(l => Math.Abs(l.Y - y) < 12 && Regex.IsMatch(l.Text, @"^\s*[+\-−]?\s*[\d.,]+\s*%\s*$")).FirstOrDefault();
                 // Sometimes the percentage isn't read at all (Microprocessor "+0.0%"): keep the item.
