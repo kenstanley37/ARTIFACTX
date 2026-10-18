@@ -997,7 +997,9 @@ public sealed partial class PlanetsPage : Page
         Row("Star", note?.StarClass is { Length: > 0 } cls ? $"{cls} ({note.StarColour})" : note?.StarColour is { Length: > 0 } sc ? sc : null, f.StarLabel);
         if (note?.Water == true) Row("Water", "Yes", "");
         if (note?.Dissonant == true) Row("Dissonance", "Detected", "");
-        if (f.Pirate) Row("Pirates", null, "Pirate-controlled");
+        // The game says it in the conflict line ("Pirate Controlled"): gold once that was read.
+        bool piratesSeen = note?.Conflict?.Contains("Pirate", StringComparison.OrdinalIgnoreCase) == true;
+        if (f.Pirate || piratesSeen) Row("Pirates", piratesSeen ? "Pirate-controlled" : null, "Pirate-controlled");
     }
 
     private static string DiscoveredText(PlanetDiscoveryCounts? tally, ulong address)
