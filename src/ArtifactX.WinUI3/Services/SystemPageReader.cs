@@ -261,6 +261,9 @@ public static class SystemPageReader
         text = PlanetPageReader.Clean(text);
         if (text.Length == 0) return "";
         var words = _words!.Where(w => w.Group == group).Select(w => w.Word).ToList();
+        // Pirate systems' own words, not in the game's tiered lists (Lagoda, 2026-10-17).
+        if (group == "Wealth") words.Add("Black Market");
+        if (group == "Conflict") words.Add("Pirate Controlled");
         string word = PlanetPageReader.Snap(text, words);
         return words.Contains(word, StringComparer.OrdinalIgnoreCase) ? word : "";
     }
