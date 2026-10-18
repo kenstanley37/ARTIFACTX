@@ -894,10 +894,12 @@ public sealed partial class PlanetsPage : Page
                 chip.Children.Add(new Image { Source = icon, Width = 32, Height = 32, VerticalAlignment = VerticalAlignment.Center });
             var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Width = 226 };
             text.Children.Add(new TextBlock { Text = item.Name, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = ThemeBrush("ThemeTextBrush"), TextTrimming = TextTrimming.CharacterEllipsis });
-            ToolTipService.SetToolTip(chip, item.Name);
+            // Stock before the change: a long word ("Economy Data Unavailable") then only cuts its own end.
+            string details = string.Join(" · ", new[] { $"{item.Price:N0} units", item.Stock > 0 ? $"{item.Stock} in stock" : "", item.Change }.Where(s => s.Length > 0));
+            ToolTipService.SetToolTip(chip, $"{item.Name}\n{details}");
             text.Children.Add(new TextBlock
             {
-                Text = string.Join(" · ", new[] { $"{item.Price:N0} units", item.Change, item.Stock > 0 ? $"{item.Stock} in stock" : "" }.Where(s => s.Length > 0)),
+                Text = details,
                 FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush"), TextTrimming = TextTrimming.CharacterEllipsis,
             });
             chip.Children.Add(text);
