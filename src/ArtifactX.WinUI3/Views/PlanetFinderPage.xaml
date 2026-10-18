@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Planet Finder (and the glyph decoder) as its own nav page: the Planets page in finder mode
+     (PlanetsPage.FinderMode), split out 2026-10-17. A real XAML page - a code-only Page isn't in
+     the generated XAML type info, and navigating to it closed the app. -->
+<Page
+    x:Class="ArtifactX.WinUI3.Views.PlanetFinderPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <ContentControl x:Name="Host" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+</Page>
