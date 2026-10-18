@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
 using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
@@ -2260,11 +2261,35 @@ public sealed partial class PlanetsPage : Page
                     Child = new Image { Source = image, Stretch = Stretch.UniformToFill },
                 });
             }
+            else
+            {
+                // Same size as a picture, so the cards line up; says why there's none.
+                tile.Children.Add(new Border
+                {
+                    CornerRadius = new CornerRadius(6), Height = 140, Margin = new Thickness(0, 0, 0, 4),
+                    Background = ThemeBrush("ThemePanelAltBrush"), BorderBrush = ThemeBrush("ThemeLineBrush"), BorderThickness = new Thickness(1),
+                    Child = new TextBlock
+                    {
+                        Text = c.Rarity == "Extinct" ? "Extinct - once lived here" : "No picture yet - select it in the game's fauna list",
+                        FontSize = 12, Foreground = ThemeBrush("ThemeTextFaintBrush"), TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center,
+                        HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 12, 0),
+                    },
+                });
+            }
             tile.Children.Add(new TextBlock { Text = c.Name, FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = ThemeBrush("ThemeTextBrush"), IsTextSelectionEnabled = true });
             string traits = string.Join(" · ", new[] { c.Rarity, c.Habitat, c.Activity }.Where(s => s.Length > 0));
             if (traits.Length > 0) tile.Children.Add(DimLine(traits));
             string body = string.Join(" · ", new[] { c.Gender, c.Size }.Where(s => s.Length > 0));
             if (body.Length > 0) tile.Children.Add(DimLine(body));
+            // Only what's certain: the game decides adoption in its code, not its data files.
+            // Underwater and extinct creatures can't be adopted; flyers can't either, once
+            // their habitat word has been read (2026-10-18).
+            string? noPet = c.Rarity == "Extinct" ? "extinct" : c.Habitat == "Underwater" ? "lives underwater"
+                : Regex.IsMatch(c.Habitat, @"Fly|Flight|Air|Sky", RegexOptions.IgnoreCase) ? "flies" : null;
+            if (noPet is not null) tile.Children.Add(new TextBlock
+            {
+                Text = $"Can't be a companion - {noPet}", FontSize = 11, Foreground = ThemeBrush("ThemeTextFaintBrush"), Margin = new Thickness(0, 2, 0, 0),
+            });
             tiles.Children.Add(new Border
             {
                 Child = tile, Padding = new Thickness(10), CornerRadius = new CornerRadius(6),
