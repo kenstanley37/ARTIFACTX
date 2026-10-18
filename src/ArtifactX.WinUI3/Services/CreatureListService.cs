@@ -55,7 +55,7 @@ public static class CreatureListService
     public static IReadOnlyList<Creature> On(ulong system, int planet)
     {
         lock (Lock) return All.TryGetValue(PlanetKey(system, planet), out var list)
-            ? list.Values.OrderBy(c => c.Name, StringComparer.CurrentCulture).ToList() : new List<Creature>();
+            ? list.Values.OrderBy(c => c.Rarity == "Extinct").ThenBy(c => c.Name, StringComparer.CurrentCulture).ToList() : new List<Creature>();
     }
 
     /// <summary>Whether a recorded creature on the planet lives underwater.</summary>
@@ -84,6 +84,9 @@ public static class CreatureListService
                 .OrderBy(p => line.Y - p.Y).FirstOrDefault();
             if (above.Text is null) continue;
             string name = CleanName(above.Text);
+            // A symbol before the name is the round icon of a named creature ("@Hoydroibolima"):
+            // remember it, so the same icon read as an initial ("Q. Hoydroibolima") is dropped.
+            if (Regex.IsMatch(above.Text.Trim(), @"^[^\p{L}\s]")) lock (Lock) IconNames.Add(NameKey(name));
             // A creature's name: one or two words, maybe after an initial ("E. Zeronatonae").
             if (!Regex.IsMatch(name, @"^(\p{Lu}\.\s?)?\p{Lu}[\p{L}'-]{2,}(\s\p{Lu}[\p{L}'-]+)?$") || Traits(name) != ("", "", "")) continue;
             rows.Add((name, rarity, habitat, activity));
@@ -174,12 +177,14 @@ public static class CreatureListService
     // How often each spelling of a name was read: an icon can read as an initial ("Q. Hoydroibolima"),
     // a cut row can lose one ("Alderhukkeum") - the spelling read most wins.
     private static readonly Dictionary<string, Dictionary<string, int>> NameVotes = new();
+    private static readonly HashSet<string> IconNames = new(StringComparer.Ordinal);
 
     private static string VotedName(string key, string name)
     {
         if (!NameVotes.TryGetValue(key, out var votes)) NameVotes[key] = votes = new(StringComparer.Ordinal);
         votes[name] = votes.GetValueOrDefault(name) + 1;
-        return votes.OrderByDescending(v => v.Value).ThenByDescending(v => v.Key.Length).First().Key;
+        string best = votes.OrderByDescending(v => v.Value).ThenByDescending(v => v.Key.Length).First().Key;
+        return IconNames.Contains(key) ? Regex.Replace(best, @"^[QO0]\.\s*", "") : best;
     }
 
     private static string CleanName(string text) =>
@@ -248,7 +253,10 @@ public static class CreatureListService
             if (!All.TryGetValue(planetKey, out var list)) All[planetKey] = list = new(StringComparer.Ordinal);
             // The whole list was on screen: what isn't in it was a misreading (a gender read as a name).
             if (complete)
-                foreach (var key in list.Keys.Where(k => !rows.Any(r => NameKey(r.Name) == k)).ToList())
+                // Only what wasn't read as a row this session: a frame can miss a real row (the
+                // extinct one at the bottom), and removing it made it flicker (Oreniuite, 2026-10-18).
+                foreach (var key in list.Keys.Where(k => !rows.Any(r => NameKey(r.Name) == k)
+                    && !(PlacedThisSession.TryGetValue(k, out var seen) && seen == (system, planet))).ToList())
                 {
                     list.Remove(key);
                     removed.Add(key);
