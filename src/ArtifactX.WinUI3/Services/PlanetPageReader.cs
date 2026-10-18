@@ -118,6 +118,62 @@ public static class PlanetPageReader
         return $"flight card {matched}: saved ({sentinels} / {string.Join(", ", resources)})";
     }
 
+    /// <summary>On a planet: the box shown after landing and the analysis visor list Weather /
+    /// Sentinels / Flora / Fauna with each value beside its label (2026-10-17). Values are paired
+    /// by height on screen - reading order mixes them up, and flora and fauna use the same words.
+    /// The planet is the one the last save put the player on. Only empty fields are filled; the
+    /// visor's "Available Resources" fill resources when none are recorded.</summary>
+    public static async Task<string?> TryReadOnPlanetAsync(IReadOnlyList<(string Text, double Y)> placed)
+    {
+        var lines = placed.Select(p => p.Text).ToList();
+        if (lines.Any(l => l.Trim().Equals("Planet Data", StringComparison.OrdinalIgnoreCase))) return null; // the Discoveries page
+        var labels = new[] { "Weather", "Sentinels", "Flora", "Fauna" };
+        var found = labels.Select(lb => placed.FirstOrDefault(p => p.Text.Trim().Equals(lb, StringComparison.OrdinalIgnoreCase))).ToList();
+        if (found.Count(f => f.Text is not null) < 3) return null;
+        ulong system = Recent().FirstOrDefault();
+        if (system == 0 || CurrentPlanet(system) is not int body || body <= 0) return "planet box: not on a planet per the save";
+        await EnsureWordsAsync();
+
+        string Value(int k, string group)
+        {
+            if (found[k].Text is null) return "";
+            var words = _words!.Where(w => w.Group == group).Select(w => w.Word).ToList();
+            foreach (var p in placed.Where(p => Math.Abs(p.Y - found[k].Y) < 12 && !labels.Contains(p.Text.Trim(), StringComparer.OrdinalIgnoreCase)))
+            {
+                string word = Snap(Clean(p.Text), words);
+                if (words.Contains(word, StringComparer.OrdinalIgnoreCase)) return word;
+            }
+            return "";
+        }
+        var read = new PlanetDetails
+        {
+            Weather = Value(0, "Weather"), Sentinels = Value(1, "Sentinels"), Flora = Value(2, "Life"), Fauna = Value(3, "Life"),
+        };
+        int avail = lines.FindIndex(l => l.Contains("Available Resources", StringComparison.OrdinalIgnoreCase));
+        if (avail >= 0)
+            for (int i = avail + 1; i < lines.Count && i <= avail + 8; i++)
+            {
+                string r = Snap(Clean(Regex.Replace(lines[i], @"[^\p{L}\s-]+$", "")), _resources!);
+                if (_resources!.Contains(r, StringComparer.OrdinalIgnoreCase)) { if (!read.Resources.Contains(r, StringComparer.OrdinalIgnoreCase)) read.Resources.Add(r); }
+                else if (read.Resources.Count > 0) break;
+            }
+
+        var existing = PlanetDetailsService.Get(system, body);
+        var details = existing?.Copy() ?? new PlanetDetails();
+        bool changed = false;
+        void Fill(string value, Func<string> get, Action<string> set) { if (value.Length > 0 && get().Length == 0) { set(value); changed = true; } }
+        Fill(read.Weather, () => details.Weather, v => details.Weather = v);
+        Fill(read.Sentinels, () => details.Sentinels, v => details.Sentinels = v);
+        Fill(read.Flora, () => details.Flora, v => details.Flora = v);
+        Fill(read.Fauna, () => details.Fauna, v => details.Fauna = v);
+        if (details.Resources.Count == 0 && read.Resources.Count > 0) { details.Resources = read.Resources; changed = true; }
+        string what = $"{read.Weather} / {read.Sentinels} / {read.Flora} / {read.Fauna}{(read.Resources.Count > 0 ? " / " + string.Join(", ", read.Resources) : "")}";
+        if (!changed) return $"planet box {UniverseInfo.PlanetName(system, body)}: nothing new ({what})";
+        PlanetDetailsService.Save(system, body, details, source: "captured");
+        Filled++;
+        return $"planet box {UniverseInfo.PlanetName(system, body)}: saved ({what})";
+    }
+
     /// <param name="titleReads">Reads the title area again on its own: the big planet name
     /// is often missed in the whole-screen read ("Guhul VI" read as nothing, 2026-10-17),
     /// while a tight, shrunk crop of it reads well.</param>
