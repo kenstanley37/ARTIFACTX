@@ -55,7 +55,7 @@ public static class UnmatchedBodiesService
     public static void Hold(string name, PlanetDetails? details, bool? moon)
     {
         // Not a name: the view's "5 PLANETS / 1 MOON" header was once taken for one (2026-10-17).
-        if (name.Contains('/') || System.Text.RegularExpressions.Regex.IsMatch(name, @"\b(PLANETS?|MOONS?)\b|^\W*\d")) return;
+        if (name.Contains('/') || System.Text.RegularExpressions.Regex.IsMatch(name, @"\b(PLANETS?|MOONS?)\b|^\W*\d|\d.*\d")) return; // two digits: a misread number, not a name
         ulong system = PlanetPageReader.Recent().FirstOrDefault();
         if (system == 0) return;
         string key = PlanetPageReader.Norm(name);

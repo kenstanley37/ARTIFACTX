@@ -77,7 +77,9 @@ public static class PlanetPageReader
         for (int i = arrive - 1; i >= 0 && i >= arrive - 4; i--)
         {
             string line = Clean(lines[i]);
-            if (Regex.IsMatch(line, @"discovered|^\d|ks$|\bu$|^(Moon|Planet)\s+of\b", RegexOptions.IgnoreCase) || line.Count(char.IsLetter) < 3) continue;
+            // The distance can come out garbled ("261,933u" read as "26T,i33u", 2026-10-17): test the raw line, numbers and all.
+            if (Regex.IsMatch(line, @"discovered|^\d|ks$|\bu$|^(Moon|Planet)\s+of\b", RegexOptions.IgnoreCase) || line.Count(char.IsLetter) < 3
+                || lines[i].Count(char.IsDigit) >= 2 || Regex.IsMatch(lines[i].Trim(), @"\du$")) continue;
             name = line;
             break;
         }

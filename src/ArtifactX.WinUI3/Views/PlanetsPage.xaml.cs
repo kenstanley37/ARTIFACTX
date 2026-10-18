@@ -864,6 +864,8 @@ public sealed partial class PlanetsPage : Page
         MarketEmptyTxt.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         MarketSeenTxt.Text = items.Count == 0 ? "" : $"{items.Count} item{(items.Count == 1 ? "" : "s")} · last seen {SeenAgo(items.Max(i => i.SeenAt))}";
         var placeList = items.Select(i => i.Place).Distinct().OrderBy(p => p == "station" ? "" : p, StringComparer.Ordinal).ToList();
+        // "Sold at the station" only when the station is all there is; a trading post makes it the market.
+        MarketHeadingTxt.Text = placeList.All(p => p == "station") ? "SOLD AT THE STATION" : "MARKET";
         MarketCompareGrid.Visibility = placeList.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
         MarketItemsPanel.Visibility = placeList.Count > 1 ? Visibility.Collapsed : Visibility.Visible;
         if (placeList.Count > 1)

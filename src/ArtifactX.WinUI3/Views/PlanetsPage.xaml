@@ -135,7 +135,7 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="SOLD AT THE STATION" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="MarketHeadingTxt" Text="SOLD AT THE STATION" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
                                     <TextBlock Grid.Column="1" x:Name="MarketSeenTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                     <Button Grid.Column="2" x:Name="MarketToggleBtn" Click="MarketToggle_Click" Padding="10,4"/>
