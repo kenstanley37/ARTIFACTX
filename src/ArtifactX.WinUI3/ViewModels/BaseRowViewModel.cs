@@ -28,6 +28,10 @@ public sealed class BaseRowViewModel
     /// <summary>The base's save entry, for its parts list (null for placed objects).</summary>
     public Newtonsoft.Json.Linq.JObject? Base { get; init; }
 
+    /// <summary>The picture the game uploaded of the base (GameScreenshotCache), if any.</summary>
+    public ImageSource? Picture { get; init; }
+    public Microsoft.UI.Xaml.Visibility PictureVisibility => Picture is null ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+
     // Sort keys
     public required double SortDistance { get; init; }
     public required int Galaxy { get; init; }

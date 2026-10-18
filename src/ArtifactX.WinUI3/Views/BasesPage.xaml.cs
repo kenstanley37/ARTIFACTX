@@ -140,6 +140,7 @@ public sealed partial class BasesPage : Page
                     SortDistance = distance ?? double.MaxValue,
                     Galaxy = galaxy,
                     Base = b,
+                    Picture = Picture(address, name),
                 });
             }
         }
@@ -201,6 +202,26 @@ public sealed partial class BasesPage : Page
     private bool _warmedObjects;
 
     private bool _showObjects;
+
+    // Base pictures from the game's cache, by planet address; loaded once, then the cards rebuilt.
+    private readonly Dictionary<ulong, Microsoft.UI.Xaml.Media.Imaging.WriteableBitmap?> _pictures = new();
+    private readonly HashSet<ulong> _picturesLoading = new();
+
+    private ImageSource? Picture(ulong address, string name)
+    {
+        if (_pictures.TryGetValue(address, out var picture)) return picture;
+        if (_picturesLoading.Add(address))
+            _ = LoadPictureAsync(address, name);
+        return null;
+    }
+
+    private async System.Threading.Tasks.Task LoadPictureAsync(ulong address, string name)
+    {
+        _pictures[address] = await GameScreenshotCache.LoadAsync(SaveSessionManager.ActivePlatformFolder, address, name);
+        if (_pictures[address] is null || _lastSnapshot is null) return;
+        _lastKey = "";
+        Build(_lastSnapshot);
+    }
 
     private void ShowBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
@@ -274,12 +295,12 @@ public sealed partial class BasesPage : Page
         // A placed object has less to show than a base: shorter, narrower cards (2026-10-18).
         if (BasesList.ItemsPanelRoot is ItemsWrapGrid panel)
         {
-            panel.ItemHeight = _showObjects ? 205 : 300;
+            panel.ItemHeight = _showObjects ? 205 : 450;
             panel.ItemWidth = _showObjects ? 400 : 430;
         }
         else BasesList.Loaded += (_, _) =>
         {
-            if (BasesList.ItemsPanelRoot is ItemsWrapGrid p) { p.ItemHeight = _showObjects ? 205 : 300; p.ItemWidth = _showObjects ? 400 : 430; }
+            if (BasesList.ItemsPanelRoot is ItemsWrapGrid p) { p.ItemHeight = _showObjects ? 205 : 450; p.ItemWidth = _showObjects ? 400 : 430; }
         };
         bool objects = _showObjects;
         CountTxt.Text = _rows.Count == 0 ? (objects ? "Nothing placed outside a base" : "No planet bases in this save")
@@ -311,6 +332,8 @@ public sealed partial class BasesPage : Page
         DetailPartsTxt.Text = row.PartsLabel;
         DetailPartsTxt.Foreground = row.PartsBrush;
         DetailKindsTxt.Text = $"{groups.Count:N0} kinds of part";
+        DetailPicture.Source = row.Picture;
+        DetailPictureBorder.Visibility = row.PictureVisibility;
         DetailFactsTxt.Text = row.Facts;
         DetailAreaTxt.Text = row.AreaLabel;
         DetailAreaTxt.Opacity = row.AreaOpacity;

@@ -33,8 +33,6 @@ public sealed partial class SpaceStationsPage : Page
     // The game caches a 640x360 RGBA screenshot per base/station in the
     // platform folder's cache/ dir, named "<16-hex address>.Normal.<name>.<uid>.DDS"
     // despite having no DDS header - raw pixels only (confirmed 2026-10-10).
-    private const int ScreenshotWidth = 640;
-    private const int ScreenshotHeight = 360;
     private const double TileWidth = 224;
     private const double TileHeight = 126;
 
@@ -682,52 +680,10 @@ public sealed partial class SpaceStationsPage : Page
     {
         if (!_screenshots.TryGetValue(address, out var task))
         {
-            task = LoadScreenshotAsync(SaveSessionManager.ActivePlatformFolder, address, name);
+            task = GameScreenshotCache.LoadAsync(SaveSessionManager.ActivePlatformFolder, address, name);
             _screenshots[address] = task;
         }
         return task;
-    }
-
-    private static async Task<WriteableBitmap?> LoadScreenshotAsync(string? platformFolder, ulong address, string name)
-    {
-        byte[]? pixels = await Task.Run(() => ReadScreenshotPixels(platformFolder, address, name));
-        if (pixels is null) return null;
-
-        var bitmap = new WriteableBitmap(ScreenshotWidth, ScreenshotHeight);
-        using (var stream = bitmap.PixelBuffer.AsStream())
-            await stream.WriteAsync(pixels);
-        bitmap.Invalidate();
-        return bitmap;
-    }
-
-    /// <summary>Newest cached screenshot for this address (renamed stations
-    /// keep their old files too, so an exact-name match wins), with the game's
-    /// RGBA pixels swapped to the BGRA order WriteableBitmap wants.</summary>
-    private static byte[]? ReadScreenshotPixels(string? platformFolder, ulong address, string name)
-    {
-        try
-        {
-            if (platformFolder is null) return null;
-            string cacheFolder = System.IO.Path.Combine(platformFolder, "cache");
-            if (!Directory.Exists(cacheFolder)) return null;
-
-            var newest = new DirectoryInfo(cacheFolder)
-                .GetFiles($"{address:x16}.*.DDS")
-                .Where(f => f.Length == ScreenshotWidth * ScreenshotHeight * 4)
-                .OrderByDescending(f => name.Length > 0 && f.Name.Contains($".{name}.", StringComparison.Ordinal))
-                .ThenByDescending(f => f.LastWriteTimeUtc)
-                .FirstOrDefault();
-            if (newest is null) return null;
-
-            byte[] pixels = File.ReadAllBytes(newest.FullName);
-            for (int i = 0; i < pixels.Length; i += 4)
-                (pixels[i], pixels[i + 2]) = (pixels[i + 2], pixels[i]);
-            return pixels;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return null;
-        }
     }
 
     // ---------------------------------------------------------------- claims in progress
