@@ -193,12 +193,12 @@ public static class SystemMarketService
             {
                 var item = items[k];
                 // A hovered row's stock reads badly (arrows around it): keep the last good one.
-                var known = list.FirstOrDefault(i => i.ItemId.Equals(item.ItemId, StringComparison.OrdinalIgnoreCase));
-                if (item.Stock == 0 && known is { Stock: > 0 })
-                    items[k] = item = item with { Stock = known.Stock };
+                var last = list.FirstOrDefault(i => i.ItemId.Equals(item.ItemId, StringComparison.OrdinalIgnoreCase));
+                if (item.Stock == 0 && last is { Stock: > 0 })
+                    items[k] = item = item with { Stock = last.Stock };
                 // A price change not read this time keeps the last one (Viscous Fluids lost its "+1.1%").
-                if (item.Change.Length == 0 && known is { Change.Length: > 0 })
-                    items[k] = item = item with { Change = known.Change };
+                if (item.Change.Length == 0 && last is { Change.Length: > 0 })
+                    items[k] = item = item with { Change = last.Change };
                 list.RemoveAll(i => i.ItemId.Equals(item.ItemId, StringComparison.OrdinalIgnoreCase));
                 list.Add(item);
             }
