@@ -2260,7 +2260,54 @@ public sealed partial class PlanetsPage : Page
         saveRow.Children.Add(saveBtn);
         saveRow.Children.Add(status);
         editor.Children.Add(saveRow);
-        var detailsCard = DetailCard("YOUR DETAILS", editor, 640);
+
+        // Shown as a short summary, the editor behind "Edit" - screen reading fills most of it,
+        // and the open editor took the whole page height (user, 2026-10-18).
+        var detailsHolder = new StackPanel { Spacing = 10 };
+        var summary = new StackPanel { Spacing = 6 };
+        var editBtn = new Button { Content = "Edit details", HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(12, 4, 12, 4) };
+        void ShowSummary()
+        {
+            summary.Children.Clear();
+            var d = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex);
+            bool? water = PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex);
+            void Line(string label, string value)
+            {
+                if (value.Length == 0) return;
+                var row = new Grid { ColumnSpacing = 12 };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.Children.Add(new TextBlock { Text = label, FontSize = 13, Foreground = ThemeBrush("ThemeTextDimBrush") });
+                var v = new TextBlock { Text = value, FontSize = 13, TextWrapping = TextWrapping.Wrap, Foreground = ThemeBrush("ThemeTextBrush"), IsTextSelectionEnabled = true };
+                Grid.SetColumn(v, 1);
+                row.Children.Add(v);
+                summary.Children.Add(row);
+            }
+            Line("Weather", d?.Weather ?? "");
+            Line("Sentinels", d?.Sentinels ?? "");
+            Line("Flora", d?.Flora ?? "");
+            Line("Fauna", d?.Fauna ?? "");
+            Line("Water", water switch { true => "Yes", false => "No", _ => "" });
+            Line("Resources", d is null ? "" : string.Join(", ", d.Resources));
+            Line("Notes", d is null ? "" : string.Join(" · ", d.Notes));
+            if (summary.Children.Count == 0)
+                summary.Children.Add(DimLine("Nothing recorded yet - open this planet in the game's Discoveries with screen reading on, or add it yourself."));
+        }
+        ShowSummary();
+        editor.Visibility = Visibility.Collapsed;
+        editBtn.Click += (_, _) =>
+        {
+            bool open = editor.Visibility == Visibility.Collapsed;
+            editor.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+            summary.Visibility = open ? Visibility.Collapsed : Visibility.Visible;
+            editBtn.Content = open ? "Close editor" : "Edit details";
+            if (!open) ShowSummary();
+        };
+        saveBtn.Click += (_, _) => ShowSummary();
+        detailsHolder.Children.Add(summary);
+        detailsHolder.Children.Add(editBtn);
+        detailsHolder.Children.Add(editor);
+        var detailsCard = DetailCard("YOUR DETAILS", detailsHolder, 640);
 
         _fishCard = DetailCard("FISH", FishBody(planet));
         _fishCard.Visibility = ((StackPanel)((StackPanel)_fishCard.Child).Children[1]).Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
