@@ -82,7 +82,12 @@ public static class SystemMarketService
     }
 
     /// <summary>A screen's OCR lines with their height on screen (centre, pixels).</summary>
-    public static async Task<string?> TryReadAsync(IReadOnlyList<(string Text, double Y)> lines)
+    /// <param name="readStrip">Reads one strip of the frame on its own, enlarged (left and right
+    /// edge as fractions of the width, centre height in pixels): the whole-screen read skips short
+    /// text like "1 / 5" or "-4.1%" now and then, while the strip reads it (tested on the
+    /// Belezna frames, 2026-10-18). Only used for values the whole-screen read missed.</param>
+    public static async Task<string?> TryReadAsync(IReadOnlyList<(string Text, double Y)> lines,
+        Func<double, double, double, Task<string>>? readStrip = null)
     {
         var banner = lines.FirstOrDefault(l => Regex.IsMatch(l.Text, @"^\s*System\s*[-–—]\s*\S", RegexOptions.IgnoreCase));
         var buys = lines.Where(l => Regex.IsMatch(l.Text, @"Buy\s*f\w{0,2}r", RegexOptions.IgnoreCase)).ToList();
@@ -123,8 +128,12 @@ public static class SystemMarketService
             if (change.Length == 0 && !illegal)
             {
                 var pct = lines.Where(l => Math.Abs(l.Y - y) < 12 && Regex.IsMatch(l.Text, @"^\s*[+\-−]?\s*[\d.,]+?\s*(%|0/0|o/o)\s*$", RegexOptions.IgnoreCase)).FirstOrDefault();
-                // Sometimes the percentage isn't read at all (Microprocessor "+0.0%"): keep the item.
+                // Sometimes the percentage isn't read at all (Microprocessor "+0.0%"): read that
+                // strip again on its own; failing that, keep the item without it.
                 change = pct.Text?.Trim() ?? "";
+                if (change.Length == 0 && readStrip is not null
+                    && Regex.Match(await readStrip(0.58, 0.79, y), @"[+\-−]?\s*[\d.,]+?\s*(?:%|0/0|o/o)", RegexOptions.IgnoreCase) is { Success: true } again)
+                    change = again.Value;
             }
             foreach (var above in lines.Where(l => y - l.Y > 5 && y - l.Y < 50).OrderBy(l => y - l.Y))
             {
@@ -157,7 +166,10 @@ public static class SystemMarketService
             if (Math.Abs(item.Y - buy.Y) > rowGap / 2) continue;
             var stock = stocks.Where(s => s.Y > buy.Y && s.Y - buy.Y < rowGap / 2).OrderBy(s => s.Y - buy.Y).FirstOrDefault();
             int left = 0;
-            if (stock.Text is not null && Regex.Match(stock.Text, @"/\s*([\d,]+)") is { Success: true } st)
+            string? stockText = stock.Text;
+            // Not read: the "1 / N" bar sits about a third of a row below the price - read it alone.
+            if (stockText is null && readStrip is not null) stockText = await readStrip(0.79, 0.94, buy.Y + rowGap * 35 / 110);
+            if (stockText is not null && Regex.Match(stockText, @"^\s*\d+\s*/\s*([\d,]+)") is { Success: true } st)
                 int.TryParse(st.Groups[1].Value.Replace(",", ""), NumberStyles.Integer, CultureInfo.InvariantCulture, out left);
             saved.Add(new MarketItem(item.Id, item.Name, units, item.Change, left, now, place));
         }

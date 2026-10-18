@@ -123,7 +123,7 @@ public static class ScreenCaptureLogService
         catch (Exception ex) { read = "planet page: error " + ex.Message; }
         try
         {
-            if (await SystemMarketService.TryReadAsync(placed) is { } market) read = (read is null ? "" : read + " | ") + market;
+            if (await SystemMarketService.TryReadAsync(placed, (x0, x1, y) => ReadStripAsync(pixels, w, h, x0, x1, y)) is { } market) read = (read is null ? "" : read + " | ") + market;
         }
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "trade terminal: error " + ex.Message; }
         try
@@ -202,6 +202,37 @@ public static class ScreenCaptureLogService
             if (result.Lines.FirstOrDefault()?.Text is { } line) reads.Add(line);
         }
         return reads;
+    }
+
+    /// <summary>One strip of the frame read on its own at twice the size (grey, dark margin):
+    /// x from <paramref name="fx0"/> to <paramref name="fx1"/> of the width, 32 px tall at
+    /// 1080p around <paramref name="yCentre"/>. Read "1/5" and "-4.1%" where the whole
+    /// screen gave nothing (Belezna's trading post, 2026-10-18). "" when nothing is read.</summary>
+    private static async Task<string> ReadStripAsync(byte[] px, int w, int h, double fx0, double fx1, double yCentre)
+    {
+        if (OcrEngine.TryCreateFromUserProfileLanguages() is not { } ocr) return "";
+        int half = Math.Max(8, h * 16 / 1080);
+        int x0 = (int)(w * fx0), cw = (int)(w * (fx1 - fx0)), y0 = (int)yCentre - half, ch = 2 * half;
+        if (cw <= 0 || y0 < 0 || y0 + ch > h || x0 + cw > w) return "";
+        const int pad = 20;
+        const double scale = 2;
+        int ow = (int)(cw * scale) + 2 * pad, oh = (int)(ch * scale) + 2 * pad;
+        var o = new byte[ow * oh * 4];
+        for (int y = 0; y < oh; y++)
+            for (int x = 0; x < ow; x++)
+            {
+                int sx = (int)((x - pad) / scale), sy = (int)((y - pad) / scale), j = (y * ow + x) * 4;
+                byte l = 0;
+                if (sx >= 0 && sy >= 0 && sx < cw && sy < ch)
+                {
+                    int k = ((y0 + sy) * w + x0 + sx) * 4;
+                    l = (byte)((px[k] * 29 + px[k + 1] * 150 + px[k + 2] * 77) >> 8);
+                }
+                o[j] = o[j + 1] = o[j + 2] = l; o[j + 3] = 255;
+            }
+        using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(o.AsBuffer(), BitmapPixelFormat.Bgra8, ow, oh, BitmapAlphaMode.Ignore);
+        var result = await ocr.RecognizeAsync(bitmap);
+        return string.Join(" ", result.Lines.Select(l => l.Text));
     }
 
     /// <summary>Raised (any thread) when a system's picture was saved.</summary>
