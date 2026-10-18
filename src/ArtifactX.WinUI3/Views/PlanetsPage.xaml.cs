@@ -920,9 +920,12 @@ public sealed partial class PlanetsPage : Page
         int total = f.PlanetCount + f.MoonCount;
         Row("Celestial Bodies", note?.Moons is int m ? bodies(total - m, m) : null, bodies(f.PlanetCount, f.MoonCount));
         Row("Dominant Lifeform", note?.Race is { Length: > 0 } r ? r : null, f.RaceLabel);
-        string? economy = note?.Economy is { Length: > 0 } e ? (note.Wealth is { Length: > 0 } w ? $"{e} // {w}" : e) : null;
+        // The game itself shows "Data Unavailable" for an uncharted system's economy and conflict.
+        bool uncharted = note?.Race == "None (uncharted)";
+        string? economy = note?.Economy is { Length: > 0 } e ? (note.Wealth is { Length: > 0 } w ? $"{e} // {w}" : e)
+            : uncharted ? "- Data Unavailable -" : null;
         Row("Economy", economy, f.Uncharted ? "None" : $"{f.EconomyLabel} // {f.WealthLabel}");
-        Row("Conflict level", note?.Conflict is { Length: > 0 } c ? c : null, f.Uncharted ? "None" : f.ConflictLabel);
+        Row("Conflict level", note?.Conflict is { Length: > 0 } c ? c : uncharted ? "- Data Unavailable -" : null, f.Uncharted ? "None" : f.ConflictLabel);
         Row("Star", note?.StarClass is { Length: > 0 } cls ? $"{cls} ({note.StarColour})" : note?.StarColour is { Length: > 0 } sc ? sc : null, f.StarLabel);
         if (note?.Water == true) Row("Water", "Yes", "");
         if (note?.Dissonant == true) Row("Dissonance", "Detected", "");
