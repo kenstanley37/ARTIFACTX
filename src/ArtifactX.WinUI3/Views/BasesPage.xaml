@@ -82,7 +82,7 @@
         <GridView Grid.Row="2" x:Name="BasesList" SelectionMode="None" IsItemClickEnabled="True" ItemClick="BasesList_ItemClick">
             <GridView.ItemsPanel>
                 <ItemsPanelTemplate>
-                    <ItemsWrapGrid Orientation="Horizontal" ItemWidth="430" ItemHeight="450"/>
+                    <ItemsWrapGrid Orientation="Horizontal" ItemWidth="430" ItemHeight="470"/>
                 </ItemsPanelTemplate>
             </GridView.ItemsPanel>
             <GridView.ItemContainerStyle>
@@ -95,12 +95,23 @@
             </GridView.ItemContainerStyle>
             <GridView.ItemTemplate>
                 <DataTemplate x:DataType="viewmodels:BaseRowViewModel">
+                    <!-- The picture runs edge to edge across the top, like the Space Stations
+                         tiles - framed inside the padding it looked off (2026-10-18). -->
                     <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                             Background="{ThemeResource ThemePanelAltBrush}"
-                            CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,12,16,12">
-                        <Grid RowSpacing="8">
+                            CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                        <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Height="170" CornerRadius="7,7,0,0" Visibility="{x:Bind PictureVisibility}">
+                                <Border.Background>
+                                    <ImageBrush ImageSource="{x:Bind Picture}" Stretch="UniformToFill"/>
+                                </Border.Background>
+                            </Border>
+                        <Grid Grid.Row="1" RowSpacing="8" Padding="16,12,16,12">
+                            <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
@@ -108,13 +119,8 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <!-- The picture the game uploaded of the base (its cache folder), 2026-10-18. -->
-                            <Border Height="150" CornerRadius="6" Visibility="{x:Bind PictureVisibility}">
-                                <Image Source="{x:Bind Picture}" Stretch="UniformToFill"/>
-                            </Border>
-
                             <!-- Name and where -->
-                            <Grid Grid.Row="1" ColumnSpacing="12">
+                            <Grid ColumnSpacing="12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
@@ -127,17 +133,86 @@
                                 </StackPanel>
                             </Grid>
 
-                            <TextBlock Grid.Row="2" Text="{x:Bind Facts}" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Row="1" Text="{x:Bind Facts}" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
 
                             <!-- What you've recorded about the area: you can teleport to a
                                  base, so this is often more useful than its glyphs. -->
-                            <TextBlock Grid.Row="3" Text="{x:Bind AreaLabel}" Opacity="{x:Bind AreaOpacity}"
+                            <TextBlock Grid.Row="2" Text="{x:Bind AreaLabel}" Opacity="{x:Bind AreaOpacity}"
                                        FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
                                        ToolTipService.ToolTip="{x:Bind AreaLabel}" IsTextSelectionEnabled="True"/>
 
-                            <TextBlock Grid.Row="4" Text="{x:Bind DistanceLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Row="3" Text="{x:Bind DistanceLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
 
-                            <Grid Grid.Row="5" ColumnSpacing="10">
+                            <Grid Grid.Row="4" ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <controls:GlyphStrip Code="{x:Bind PortalCode}" VerticalAlignment="Center" HorizontalAlignment="Left">
+                                    <ItemsControl ItemsSource="{x:Bind Glyphs}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" Spacing="2"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="ImageSource">
+                                                <Border Width="24" Height="24" Background="{ThemeResource ThemeVoidBrush}">
+                                                    <Image Source="{x:Bind}" Width="20" Height="20"/>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </controls:GlyphStrip>
+                                <Button Grid.Column="1" Content="Copy" Tag="{x:Bind PortalCode}" Click="CopyCode_Click"
+                                        VerticalAlignment="Center" Padding="10,3" ToolTipService.ToolTip="{x:Bind PortalCode}"/>
+                            </Grid>
+                        </Grid>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </GridView.ItemTemplate>
+        </GridView>
+
+        <!-- Placed objects: compact cards of their own - an object has far less to show (2026-10-18). -->
+        <GridView Grid.Row="2" x:Name="ObjectsList" SelectionMode="None" Visibility="Collapsed">
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsWrapGrid Orientation="Horizontal" ItemWidth="400" ItemHeight="150"/>
+                </ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+            <GridView.ItemContainerStyle>
+                <Style TargetType="GridViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Margin" Value="0,0,10,10"/>
+                </Style>
+            </GridView.ItemContainerStyle>
+            <GridView.ItemTemplate>
+                <DataTemplate x:DataType="viewmodels:BaseRowViewModel">
+                    <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                            Background="{ThemeResource ThemePanelAltBrush}"
+                            CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,10">
+                        <Grid RowSpacing="6">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="40"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Image Source="{x:Bind Icon}" Width="36" Height="36" VerticalAlignment="Top"/>
+                                <StackPanel Grid.Column="1" Spacing="1">
+                                    <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Detail}"/>
+                                    <TextBlock Text="{x:Bind Facts}" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                    <TextBlock Text="{x:Bind DistanceLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind DistanceLabel}"/>
+                                </StackPanel>
+                            </Grid>
+                            <Grid Grid.Row="1" ColumnSpacing="10">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>

@@ -170,7 +170,8 @@ public sealed partial class BasesPage : Page
         {
             if (S.ParsePackedAddress(o["oZw"]) is not ulong address) continue;
             string id = o["r<7"]?.Value<string>() ?? "";
-            string name = CatalogService.TryGet(id)?.DisplayName is { Length: > 0 } n ? n
+            var entry = CatalogService.TryGet(id);
+            string name = entry?.DisplayName is { Length: > 0 } n ? n
                 : CultureInfo.CurrentCulture.TextInfo.ToTitleCase(id.TrimStart('^').Replace('_', ' ').ToLowerInvariant());
             int planetIndex = (int)((address >> 52) & 0xF);
             int galaxy = S.GalaxyNumber(address);
@@ -186,6 +187,7 @@ public sealed partial class BasesPage : Page
                 Detail = $"{UniverseInfo.PlanetName(address, planetIndex)} ({type})"
                     + (NmsPlanetCoordinates.OfBase(o) is { } at ? $" at {NmsPlanetCoordinates.Format(at.Latitude, at.Longitude)}" : "")
                     + $" · {UniverseInfo.SystemName(address)} · {galaxyName}",
+                Icon = entry?.Icon,
                 Facts = placedAt > 0 ? $"Placed {DateTimeOffset.FromUnixTimeSeconds(placedAt).LocalDateTime:d}" : "",
                 Swatch = new SolidColorBrush(ParseColour(planet is null ? "#777777" : NmsPlanets.TypeColour(planet.BiomeIndex))),
                 PortalCode = code,
@@ -291,17 +293,10 @@ public sealed partial class BasesPage : Page
             _ => shown.OrderBy(r => r.SortDistance).ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase),
         };
         var list = shown.ToList();
-        BasesList.ItemsSource = list;
-        // A placed object has less to show than a base: shorter, narrower cards (2026-10-18).
-        if (BasesList.ItemsPanelRoot is ItemsWrapGrid panel)
-        {
-            panel.ItemHeight = _showObjects ? 205 : 450;
-            panel.ItemWidth = _showObjects ? 400 : 430;
-        }
-        else BasesList.Loaded += (_, _) =>
-        {
-            if (BasesList.ItemsPanelRoot is ItemsWrapGrid p) { p.ItemHeight = _showObjects ? 205 : 450; p.ItemWidth = _showObjects ? 400 : 430; }
-        };
+        // Bases and placed objects have their own card layouts.
+        BasesList.Visibility = _showObjects ? Visibility.Collapsed : Visibility.Visible;
+        ObjectsList.Visibility = _showObjects ? Visibility.Visible : Visibility.Collapsed;
+        if (_showObjects) ObjectsList.ItemsSource = list; else BasesList.ItemsSource = list;
         bool objects = _showObjects;
         CountTxt.Text = _rows.Count == 0 ? (objects ? "Nothing placed outside a base" : "No planet bases in this save")
             : $"{list.Count} of {_rows.Count} {(objects ? "placed objects" : "bases")}";
@@ -309,7 +304,7 @@ public sealed partial class BasesPage : Page
 
     private async void ExportCsv_Click(object sender, RoutedEventArgs e)
     {
-        var rows = BasesList.ItemsSource as List<BaseRowViewModel> ?? new();
+        var rows = (_showObjects ? ObjectsList.ItemsSource : BasesList.ItemsSource) as List<BaseRowViewModel> ?? new();
         await CsvExportService.ExportAsync(ExportBtn, "ArtifactX bases",
             new[] { "Base", "Planet", "Portal code", "Distance" },
             rows.Select(r => new[] { r.Name, r.Detail, r.PortalCode, r.DistanceLabel }));

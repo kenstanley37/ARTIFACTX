@@ -30,6 +30,9 @@ public sealed class BaseRowViewModel
 
     /// <summary>The picture the game uploaded of the base (GameScreenshotCache), if any.</summary>
     public ImageSource? Picture { get; init; }
+
+    /// <summary>A placed object's icon from the catalog.</summary>
+    public ImageSource? Icon { get; init; }
     public Microsoft.UI.Xaml.Visibility PictureVisibility => Picture is null ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
 
     // Sort keys
