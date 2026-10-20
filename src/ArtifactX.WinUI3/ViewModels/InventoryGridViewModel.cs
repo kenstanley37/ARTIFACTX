@@ -392,8 +392,8 @@ public partial class InventoryGridViewModel : ObservableObject
         int hashIdx = baseId.IndexOf('#');
         if (hashIdx >= 0) baseId = baseId[..hashIdx];
 
-        int newSeed = Random.Shared.Next(10000, 100000);
-        string newItemId = $"{baseId}#{newSeed}";
+        int newSeed = Random.Shared.Next(0, 100000);
+        string newItemId = $"{baseId}#{newSeed:D5}";
 
         var entries = Cells.Where(c => c.IsOccupied && (c.X, c.Y) != (x, y))
             .Select(c => (c.X, c.Y, c.ItemId, c.Amount, c.MaxAmount, c.CategoryLabel, c.IsFunctional, c.MalfunctionSeverity))

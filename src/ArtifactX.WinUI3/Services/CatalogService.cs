@@ -232,6 +232,15 @@ public static class CatalogService
               AND c.TemplateType IN ({typePlaceholders})
               AND (i.NameEnglish LIKE @q OR i.NameLowerEnglish LIKE @q OR i.GameId LIKE @q)
               {usageClause}
+            ORDER BY
+              CASE
+                WHEN LOWER(COALESCE(i.NameEnglish, i.NameLowerEnglish)) = @rawQ THEN 1
+                WHEN LOWER(COALESCE(i.NameEnglish, i.NameLowerEnglish)) LIKE @prefixQ THEN 2
+                WHEN LOWER(COALESCE(i.NameEnglish, i.NameLowerEnglish)) LIKE @wordQ THEN 3
+                ELSE 4
+              END,
+              LENGTH(COALESCE(i.NameEnglish, i.NameLowerEnglish)),
+              COALESCE(i.NameEnglish, i.NameLowerEnglish)
             LIMIT @max";
 
         for (int i = 0; i < allowedTemplateTypes.Length; i++)
@@ -243,6 +252,10 @@ public static class CatalogService
                 command.Parameters.AddWithValue($"@u{i}", allowedUsageCategories[i]);
         }
 
+        string qLower = query.ToLowerInvariant();
+        command.Parameters.AddWithValue("@rawQ", qLower);
+        command.Parameters.AddWithValue("@prefixQ", $"{qLower}%");
+        command.Parameters.AddWithValue("@wordQ", $"% {qLower}%");
         command.Parameters.AddWithValue("@q", $"%{query}%");
         command.Parameters.AddWithValue("@max", maxResults);
 

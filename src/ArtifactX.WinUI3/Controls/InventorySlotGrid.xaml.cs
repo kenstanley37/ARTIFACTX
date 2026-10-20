@@ -365,9 +365,6 @@ public sealed partial class InventorySlotGrid : UserControl
             flyout.Items.Add(rerollSeedItem);
         }
 
-        var editDetailsItem = new MenuFlyoutItem { Text = isProcedural ? "Edit item details / seed..." : "Edit item details..." };
-        editDetailsItem.Click += async (_, _) => await PromptCustomItemAsync(anchor, cell);
-        flyout.Items.Add(editDetailsItem);
 
         if (SupportsRepair)
         {
@@ -441,9 +438,6 @@ public sealed partial class InventorySlotGrid : UserControl
         addItem.Click += (_, _) => ShowAddItemFlyout(anchor, cell);
         flyout.Items.Add(addItem);
 
-        var addCustomItem = new MenuFlyoutItem { Text = "Add custom item..." };
-        addCustomItem.Click += async (_, _) => await PromptCustomItemAsync(anchor, cell);
-        flyout.Items.Add(addCustomItem);
 
         if (SupportsSupercharge)
         {
@@ -501,9 +495,9 @@ public sealed partial class InventorySlotGrid : UserControl
             if (string.IsNullOrWhiteSpace(query) || AllowedTemplateTypes is null) return;
 
             var matches = await CatalogService.SearchAsync(query, AllowedTemplateTypes, AllowedUsageCategories,
-                maxResults: AllowedItemIds is null ? 30 : 400);
+                maxResults: AllowedItemIds is null ? 60 : 400);
             if (AllowedItemIds is not null)
-                matches = matches.Where(m => AllowedItemIds.Contains(m.GameId)).Take(30).ToList();
+                matches = matches.Where(m => AllowedItemIds.Contains(m.GameId)).Take(60).ToList();
             await CatalogService.WarmCacheAsync(matches.Select(m => m.GameId));
 
             foreach (var match in matches)
@@ -556,8 +550,8 @@ public sealed partial class InventorySlotGrid : UserControl
             string finalId = match.GameId;
             if (match.IsProcedural)
             {
-                int seed = Random.Shared.Next(10000, 100000);
-                finalId = $"{match.GameId}#{seed}";
+                int seed = Random.Shared.Next(0, 100000);
+                finalId = $"{match.GameId}#{seed:D5}";
                 maxAmount = match.MaxStackSize ?? 1;
             }
 
@@ -567,33 +561,11 @@ public sealed partial class InventorySlotGrid : UserControl
             flyout.Hide();
         };
 
-        var customBtn = new Button
-        {
-            Content = "Custom / Procedural item...",
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            Margin = new Thickness(0, 4, 0, 0),
-        };
-        customBtn.Click += async (_, _) =>
-        {
-            flyout.Hide();
-            await PromptCustomItemAsync(anchor, cell);
-        };
-        panel.Children.Add(customBtn);
 
         FlyoutBase.SetAttachedFlyout(anchor, flyout);
         FlyoutBase.ShowAttachedFlyout(anchor);
     }
 
-    private async Task PromptCustomItemAsync(FrameworkElement anchor, InventorySlotViewModel cell)
-    {
-        int defaultMax = StackCapFor("Product", 1);
-        var result = await CustomItemDialog.ShowAsync(anchor.XamlRoot, cell.IsOccupied ? cell : null, defaultMax);
-        if (result is null) return;
-
-        ViewModel?.AddItem(cell.X, cell.Y, result.ItemId, result.CategoryLabel, result.Amount, result.MaxAmount);
-        Refresh();
-        CellChanged?.Invoke(this, EventArgs.Empty);
-    }
 
     /// <summary>A full stack of an item in this container: technology is 100
     /// (durability, not a count), products use their stack size times this
