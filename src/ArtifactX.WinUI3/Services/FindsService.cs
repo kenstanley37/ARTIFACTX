@@ -45,6 +45,9 @@ public static class FindsService
     private static readonly object Lock = new();
     private static List<Find>? _finds;
 
+    /// <summary>Raised whenever a find is added, modified, deleted, or reloaded.</summary>
+    public static event Action? Changed;
+
     public static IReadOnlyList<Find> All
     {
         get { lock (Lock) return (_finds ??= Load()).ToList(); }
@@ -127,6 +130,8 @@ public static class FindsService
         {
             Debug.WriteLine($"[FindsService] Couldn't save find: {ex.Message}");
         }
+
+        Changed?.Invoke();
         return saved;
     }
 
@@ -146,11 +151,14 @@ public static class FindsService
         {
             Debug.WriteLine($"[FindsService] Couldn't delete find: {ex.Message}");
         }
+
+        Changed?.Invoke();
     }
 
     /// <summary>Drops the in-memory copy (after a user.db import).</summary>
     public static void Reload()
     {
         lock (Lock) _finds = null;
+        Changed?.Invoke();
     }
 }

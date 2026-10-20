@@ -54,6 +54,13 @@ public sealed partial class PlanetDetailsPage : Page
         CreatureListService.Changed += OnCreaturesChanged;
         ScreenCaptureLogService.SystemPictureSaved += OnSystemPictureSaved;
         FishCatchRecorder.SnapshotSeen += OnSnapshotSeen;
+        PlanetDetailsService.Captured += OnPlanetDetailsCaptured;
+        PlanetDetailsService.Changed += OnPlanetDetailsChanged;
+        PlanetWaterService.Changed += OnWaterChanged;
+        SystemNotesService.Changed += OnSystemNotesChanged;
+        SystemPageReader.Captured += OnSystemNotesChanged;
+        BodyKindsService.Captured += OnSystemNotesChanged;
+        FindsService.Changed += OnFindsChanged;
 
         if (e.Parameter is KnownPlanet planet)
         {
@@ -67,7 +74,54 @@ public sealed partial class PlanetDetailsPage : Page
         CreatureListService.Changed -= OnCreaturesChanged;
         ScreenCaptureLogService.SystemPictureSaved -= OnSystemPictureSaved;
         FishCatchRecorder.SnapshotSeen -= OnSnapshotSeen;
+        PlanetDetailsService.Captured -= OnPlanetDetailsCaptured;
+        PlanetDetailsService.Changed -= OnPlanetDetailsChanged;
+        PlanetWaterService.Changed -= OnWaterChanged;
+        SystemNotesService.Changed -= OnSystemNotesChanged;
+        SystemPageReader.Captured -= OnSystemNotesChanged;
+        BodyKindsService.Captured -= OnSystemNotesChanged;
+        FindsService.Changed -= OnFindsChanged;
     }
+
+    private void OnPlanetDetailsCaptured(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_planet is KnownPlanet open && (system == open.SystemAddress || system == 0) && (planet == open.PlanetIndex || planet == -1))
+        {
+            UpdateDetails(open);
+        }
+    });
+
+    private void OnPlanetDetailsChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_planet is KnownPlanet open && (system == open.SystemAddress || system == 0) && (planet == open.PlanetIndex || planet == -1))
+        {
+            UpdateDetails(open);
+        }
+    });
+
+    private void OnWaterChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_planet is KnownPlanet open && (system == open.SystemAddress || system == 0) && (planet == open.PlanetIndex || planet == -1))
+        {
+            UpdateDetails(open);
+        }
+    });
+
+    private void OnSystemNotesChanged(ulong system) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_planet is KnownPlanet open && (system == open.SystemAddress || system == 0))
+        {
+            UpdateHeaderTitles(open);
+        }
+    });
+
+    private void OnFindsChanged() => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_planet is KnownPlanet open)
+        {
+            RenderFinds(open);
+        }
+    });
 
     private void OnCreaturesChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
     {
@@ -160,26 +214,9 @@ public sealed partial class PlanetDetailsPage : Page
         LoadHeaderBackdrop(planet.SystemAddress);
         PlanetDrawingFrame.Child = PlanetDrawingHelper.CreatePlanetDrawing(planet, 76, isHere);
 
-        string systemName = UniverseInfo.SystemName(planet.SystemAddress);
-        PlanetEyebrowTxt.Text = $"{(isMoon ? "MOON" : $"PLANET {planet.PlanetIndex}")} OF {systemName.ToUpperInvariant()}";
-        string planetName = UniverseInfo.PlanetName(planet.SystemAddress, planet.PlanetIndex);
-        PlanetTitleTxt.Text = planetName;
-
-        string originalName = UniverseInfo.GeneratedPlanetName(planet.SystemAddress, planet.PlanetIndex);
-        if (!string.Equals(planetName, originalName, StringComparison.OrdinalIgnoreCase))
-        {
-            OriginalNameTxt.Text = $"Originally named: {originalName}";
-            OriginalNameTxt.Visibility = Visibility.Visible;
-        }
-        else
-        {
-            OriginalNameTxt.Visibility = Visibility.Collapsed;
-        }
-
         BiomeTxt.Text = planet.HasRings ? $"{planet.TypeName} with rings" : planet.TypeName;
-        SystemNameTxt.Text = systemName;
         GalaxyTxt.Text = GalaxyLabel(planet.Galaxy);
-        CoordsTxt.Text = UniverseInfo.Compact(planet.SystemAddress);
+        UpdateHeaderTitles(planet);
 
         UpdateHereStatus(planet);
 
@@ -212,7 +249,50 @@ public sealed partial class PlanetDetailsPage : Page
         GlyphContainer.Children.Add(glyphStrip);
         GlyphContainer.Children.Add(copyBtn);
 
-        // 3. Top Container: Integrated Environmental Conditions & Resources
+        // 3. Top Container & Details Summary
+        UpdateDetails(planet);
+
+        // 5. Left Column: Save Facts
+        RenderSaveFacts(planet);
+
+        // 6. Left Column: Registered Bases
+        RenderBases(planet);
+
+        // 7. Left Column: Recorded Finds
+        RenderFinds(planet);
+
+        // 8. Right Column: Fishing Catches
+        RenderFish(planet);
+
+        // 9. Full Width Bottom: Creatures Discovery Catalog
+        RenderCreatures(planet);
+    }
+
+    private void UpdateHeaderTitles(KnownPlanet planet)
+    {
+        bool isMoon = BodyKindsService.IsMoon(planet.SystemAddress, planet.PlanetIndex);
+        string systemName = UniverseInfo.SystemName(planet.SystemAddress);
+        PlanetEyebrowTxt.Text = $"{(isMoon ? "MOON" : $"PLANET {planet.PlanetIndex}")} OF {systemName.ToUpperInvariant()}";
+        string planetName = UniverseInfo.PlanetName(planet.SystemAddress, planet.PlanetIndex);
+        PlanetTitleTxt.Text = planetName;
+
+        string originalName = UniverseInfo.GeneratedPlanetName(planet.SystemAddress, planet.PlanetIndex);
+        if (!string.Equals(planetName, originalName, StringComparison.OrdinalIgnoreCase))
+        {
+            OriginalNameTxt.Text = $"Originally named: {originalName}";
+            OriginalNameTxt.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            OriginalNameTxt.Visibility = Visibility.Collapsed;
+        }
+
+        SystemNameTxt.Text = systemName;
+        CoordsTxt.Text = UniverseInfo.Compact(planet.SystemAddress);
+    }
+
+    private void UpdateDetails(KnownPlanet planet)
+    {
         var details = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex);
         bool? water = PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex);
 
@@ -252,24 +332,12 @@ public sealed partial class PlanetDetailsPage : Page
             }
         }
 
-        // 4. Left Column: Details Summary & Manual Editor
         RenderDetailsSummary(planet, details);
-        PrepareDetailsEditor(planet, details);
-
-        // 5. Left Column: Save Facts
-        RenderSaveFacts(planet);
-
-        // 6. Left Column: Registered Bases
-        RenderBases(planet);
-
-        // 7. Left Column: Recorded Finds
-        RenderFinds(planet);
-
-        // 8. Right Column: Fishing Catches
+        if (DetailsEditorPanel.Visibility != Visibility.Visible)
+        {
+            PrepareDetailsEditor(planet, details);
+        }
         RenderFish(planet);
-
-        // 9. Full Width Bottom: Creatures Discovery Catalog
-        RenderCreatures(planet);
     }
 
     private void UpdateHereStatus(KnownPlanet planet)

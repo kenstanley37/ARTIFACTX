@@ -157,10 +157,14 @@ public static class SystemNotesService
 
     public static int Count => Notes.Count;
 
+    /// <summary>Raised (on any thread) when notes, names, or flags for a system are added, modified, or reloaded.</summary>
+    public static event Action<ulong>? Changed;
+
     /// <summary>Drops the in-memory copy so the next read comes from user.db (after an import).</summary>
     public static void Reload()
     {
         lock (Lock) _notes = null;
+        Changed?.Invoke(0);
     }
 
     /// <summary>Every recorded system's notes (for building search filters).</summary>
@@ -190,6 +194,7 @@ public static class SystemNotesService
         {
             System.Diagnostics.Debug.WriteLine($"[SystemNotesService] Couldn't save notes: {ex.Message}");
         }
+        Changed?.Invoke(systemAddress);
     }
 
     private static int NmsGalaxy(ulong address) => (int)((address >> 32) & 0xFF) + 1;

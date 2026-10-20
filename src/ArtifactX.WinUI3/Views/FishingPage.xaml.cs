@@ -51,14 +51,30 @@ public sealed partial class FishingPage : Page
         _live.SnapshotRead += OnLiveSnapshot;
         ApplyOverviewHidden();
         JumpPlanner.RangeChanged += UpdateWhere;
+        PlanetWaterService.Changed += OnWaterChanged;
+        PlanetDetailsService.Captured += OnDetailsChanged;
+        PlanetDetailsService.Changed += OnDetailsChanged;
         Unloaded += (_, _) =>
         {
             JumpPlanner.RangeChanged -= UpdateWhere;
+            PlanetWaterService.Changed -= OnWaterChanged;
+            PlanetDetailsService.Captured -= OnDetailsChanged;
+            PlanetDetailsService.Changed -= OnDetailsChanged;
             _live.SnapshotRead -= OnLiveSnapshot;
             _live.Dispose();
         };
         _ = LoadAsync();
     }
+
+    private void OnWaterChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
+    {
+        UpdateWhere();
+    });
+
+    private void OnDetailsChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
+    {
+        UpdateWhere();
+    });
 
     private async Task LoadAsync()
     {

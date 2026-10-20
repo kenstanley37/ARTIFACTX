@@ -84,6 +84,10 @@ public sealed partial class PlanetsPage : Page
         SetLiveHelpVisible(!AppSettingsService.GetFlag(LiveHelpHiddenKey));
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         PlanetDetailsService.Captured += OnDetailsCaptured;
+        PlanetDetailsService.Changed += OnDetailsCaptured;
+        PlanetWaterService.Changed += OnWaterChanged;
+        FindsService.Changed += OnFindsChanged;
+        SystemNotesService.Changed += OnSystemCaptured;
         SystemPageReader.Captured += OnSystemCaptured;
         ScreenCaptureLogService.SystemPictureSaved += OnSystemPictureSaved;
         BodyKindsService.Captured += OnSystemCaptured;
@@ -102,7 +106,7 @@ public sealed partial class PlanetsPage : Page
     private void OnDetailsCaptured(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
     {
         if (_snapshot is null) return;
-        if (system == _currentSystem) BuildCurrentSystem(_lastCounts);
+        if (system == _currentSystem || system == 0) BuildCurrentSystem(_lastCounts);
         RefreshFinder();
     });
 
@@ -110,11 +114,25 @@ public sealed partial class PlanetsPage : Page
     /// anything half-typed in the new-note box.</summary>
     private void OnSystemCaptured(ulong system) => DispatcherQueue.TryEnqueue(() =>
     {
-        if (_snapshot is null || system != _currentSystem) { RefreshFinder(); return; }
+        if (_snapshot is null || (system != _currentSystem && system != 0)) { RefreshFinder(); return; }
         string typing = NewNoteBox.Text;
         LoadSystemNote();
         NewNoteBox.Text = typing;
         BuildCurrentSystem(_lastCounts);
+        RefreshFinder();
+    });
+
+    private void OnWaterChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_snapshot is null) return;
+        if (system == _currentSystem || system == 0) BuildCurrentSystem(_lastCounts);
+        RefreshFinder();
+    });
+
+    private void OnFindsChanged() => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_snapshot is null) return;
+        if (_currentSystem != 0) BuildCurrentSystem(_lastCounts);
         RefreshFinder();
     });
 
@@ -125,6 +143,10 @@ public sealed partial class PlanetsPage : Page
     {
         SaveSessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
         PlanetDetailsService.Captured -= OnDetailsCaptured;
+        PlanetDetailsService.Changed -= OnDetailsCaptured;
+        PlanetWaterService.Changed -= OnWaterChanged;
+        FindsService.Changed -= OnFindsChanged;
+        SystemNotesService.Changed -= OnSystemCaptured;
         SystemPageReader.Captured -= OnSystemCaptured;
         ScreenCaptureLogService.SystemPictureSaved -= OnSystemPictureSaved;
         BodyKindsService.Captured -= OnSystemCaptured;

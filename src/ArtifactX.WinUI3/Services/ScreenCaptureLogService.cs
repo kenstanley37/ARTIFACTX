@@ -103,11 +103,21 @@ public static class ScreenCaptureLogService
     {
         if (!Enabled || !GameProcessMonitorService.IsGameRunning) return;
         IntPtr hwnd = GameWindow();
-        // Only the game, only when it's in front: alt-tabbed to a browser = nothing captured.
-        if (hwnd == IntPtr.Zero || GetForegroundWindow() != hwnd || IsIconic(hwnd)) return;
+        if (hwnd == IntPtr.Zero || IsIconic(hwnd)) return;
         if (!GetWindowRect(hwnd, out var r)) return;
         int w = r.Right - r.Left, h = r.Bottom - r.Top;
         if (w < 320 || h < 200) return;
+
+        // Capture whenever the game is unobstructed. If another window is in the foreground (e.g. browser),
+        // check if it actually overlaps the game rect. If foreground is on a secondary monitor or
+        // non-overlapping (e.g. side-by-side ArtifactX), continue capturing so the screen reader
+        // works continuously without requiring the game to have focus.
+        IntPtr fg = GetForegroundWindow();
+        if (fg != IntPtr.Zero && fg != hwnd && !IsIconic(fg) && GetWindowRect(fg, out var fgRect))
+        {
+            bool overlaps = !(fgRect.Right <= r.Left || fgRect.Left >= r.Right || fgRect.Bottom <= r.Top || fgRect.Top >= r.Bottom);
+            if (overlaps) return;
+        }
 
         byte[] pixels = Grab(r.Left, r.Top, w, h);
         byte[] thumb = Thumb(pixels, w, h);

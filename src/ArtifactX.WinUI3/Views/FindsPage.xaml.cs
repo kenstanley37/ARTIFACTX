@@ -52,14 +52,41 @@ public sealed partial class FindsPage : Page
         _live = new LiveSaveWatcher(DispatcherQueue);
         _live.SnapshotRead += OnLiveSnapshot;
         JumpPlanner.RangeChanged += Apply;
+        FindsService.Changed += OnFindsChanged;
+        PlanetDetailsService.Captured += OnPlanetDetailsCaptured;
+        PlanetDetailsService.Changed += OnPlanetDetailsCaptured;
+        SystemNotesService.Changed += OnSystemNotesChanged;
+        SystemPageReader.Captured += OnSystemNotesChanged;
         Unloaded += (_, _) =>
         {
             JumpPlanner.RangeChanged -= Apply;
+            FindsService.Changed -= OnFindsChanged;
+            PlanetDetailsService.Captured -= OnPlanetDetailsCaptured;
+            PlanetDetailsService.Changed -= OnPlanetDetailsCaptured;
+            SystemNotesService.Changed -= OnSystemNotesChanged;
+            SystemPageReader.Captured -= OnSystemNotesChanged;
             _live.SnapshotRead -= OnLiveSnapshot;
             _live.Dispose();
         };
         _ = LoadAsync();
     }
+
+    private void OnFindsChanged() => DispatcherQueue.TryEnqueue(() =>
+    {
+        RefreshTypeFilter();
+        Apply();
+    });
+
+    private void OnPlanetDetailsCaptured(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
+    {
+        Apply();
+    });
+
+    private void OnSystemNotesChanged(ulong system) => DispatcherQueue.TryEnqueue(() =>
+    {
+        UpdateHere();
+        Apply();
+    });
 
     private async Task LoadAsync()
     {

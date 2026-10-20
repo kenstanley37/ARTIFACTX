@@ -41,9 +41,13 @@ public sealed partial class NearCorePage : Page
         _live.SnapshotRead += OnLiveSnapshot;
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
         JumpPlanner.RangeChanged += OnRangeChanged;
+        SystemNotesService.Changed += OnSystemNotesChanged;
+        SystemPageReader.Captured += OnSystemCaptured;
         Unloaded += (_, _) =>
         {
             JumpPlanner.RangeChanged -= OnRangeChanged;
+            SystemNotesService.Changed -= OnSystemNotesChanged;
+            SystemPageReader.Captured -= OnSystemCaptured;
             SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
             _live.SnapshotRead -= OnLiveSnapshot;
             _live.Dispose();
@@ -54,6 +58,16 @@ public sealed partial class NearCorePage : Page
     /// <summary>The game saved: pick up newly discovered systems and your new
     /// position. The list is only rebuilt when something actually changed, so
     /// an unrelated save doesn't reset your scroll position.</summary>
+    private void OnSystemNotesChanged(ulong system) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_thisSave.Count > 0) Apply();
+    });
+
+    private void OnSystemCaptured(ulong system) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_thisSave.Count > 0) Apply();
+    });
+
     private void OnLiveSnapshot(PlanetSnapshot snapshot)
     {
         var systems = NmsPlanets.ReadSystems(snapshot.Discoveries);

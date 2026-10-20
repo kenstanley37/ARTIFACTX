@@ -16,6 +16,9 @@ public static class PlanetWaterService
     private static readonly object Lock = new();
     private static Dictionary<string, bool>? _water;
 
+    /// <summary>Raised when a planet's water status is recorded, updated, or reloaded.</summary>
+    public static event Action<ulong, int>? Changed;
+
     private static string Key(ulong systemAddress, int planet) =>
         $"{systemAddress.ToString("X", CultureInfo.InvariantCulture)}|{planet}";
 
@@ -82,11 +85,14 @@ public static class PlanetWaterService
         {
             Debug.WriteLine($"[PlanetWaterService] Couldn't save planet water: {ex.Message}");
         }
+
+        Changed?.Invoke(systemAddress, planet);
     }
 
     /// <summary>Drops the in-memory copy (after a user.db import).</summary>
     public static void Reload()
     {
         lock (Lock) _water = null;
+        Changed?.Invoke(0, 0);
     }
 }

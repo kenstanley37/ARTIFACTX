@@ -35,11 +35,25 @@ public sealed partial class BasesPage : Page
         _live.SnapshotRead += OnLiveSnapshot;
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
         JumpPlanner.RangeChanged += OnRangeChanged;
+        PlanetDetailsService.Captured += OnDataChanged;
+        PlanetDetailsService.Changed += OnDataChanged;
+        PlanetWaterService.Changed += OnDataChanged;
+        FindsService.Changed += OnFindsChanged;
+        SystemNotesService.Changed += OnSystemChanged;
+        SystemPageReader.Captured += OnSystemChanged;
+        CreatureListService.Changed += OnCreaturesChanged;
         Unloaded += (_, _) =>
         {
             JumpPlanner.RangeChanged -= OnRangeChanged;
             SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
             _live.SnapshotRead -= OnLiveSnapshot;
+            PlanetDetailsService.Captured -= OnDataChanged;
+            PlanetDetailsService.Changed -= OnDataChanged;
+            PlanetWaterService.Changed -= OnDataChanged;
+            FindsService.Changed -= OnFindsChanged;
+            SystemNotesService.Changed -= OnSystemChanged;
+            SystemPageReader.Captured -= OnSystemChanged;
+            CreatureListService.Changed -= OnCreaturesChanged;
             _live.Dispose();
         };
         _ = LoadAsync();
@@ -50,6 +64,30 @@ public sealed partial class BasesPage : Page
         LiveStatusTxt.Text = $"Following your game · updated {DateTime.Now:t}";
         Build(snapshot);
     }
+
+    private void OnDataChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
+    {
+        _lastKey = "";
+        if (_lastSnapshot is not null) Build(_lastSnapshot);
+    });
+
+    private void OnSystemChanged(ulong system) => DispatcherQueue.TryEnqueue(() =>
+    {
+        _lastKey = "";
+        if (_lastSnapshot is not null) Build(_lastSnapshot);
+    });
+
+    private void OnFindsChanged() => DispatcherQueue.TryEnqueue(() =>
+    {
+        _lastKey = "";
+        if (_lastSnapshot is not null) Build(_lastSnapshot);
+    });
+
+    private void OnCreaturesChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
+    {
+        _lastKey = "";
+        if (_lastSnapshot is not null) Build(_lastSnapshot);
+    });
 
     private void OnSessionChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() => _ = LoadAsync());
 
