@@ -38,4 +38,5 @@ public sealed class BaseRowViewModel
     // Sort keys
     public required double SortDistance { get; init; }
     public required int Galaxy { get; init; }
+    public string Category { get; init; } = "Planetary Bases";
 }
