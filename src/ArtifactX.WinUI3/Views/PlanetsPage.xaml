@@ -26,11 +26,22 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock x:Name="PageTitleTxt" Text="CURRENT SYSTEM" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
                 <!-- Live follow: the page re-reads the save whenever the game writes it. -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
-                            ToolTipService.ToolTip="This page follows your game: each time No Man's Sky saves, it shows your new location and discoveries. It only reads the save; it never changes it.">
-                    <Ellipse Width="8" Height="8" Fill="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="LiveStatusTxt" Text="Following your game" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center"/>
-                    <HyperlinkButton x:Name="ShowLiveHelpLink" Content="How it works" Click="ShowLiveHelp_Click" Padding="4,0" FontSize="12" Visibility="Collapsed"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Button x:Name="PageCaptureBtn" Click="PageCaptureBtn_Click"
+                            Padding="8,4" VerticalAlignment="Center"
+                            ToolTipService.ToolTip="Capture game screen and parse with OCR now">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon x:Name="PageCaptureIcon" Glyph="&#xE722;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                            <ProgressRing x:Name="PageCaptureSpinner" IsActive="False" Width="12" Height="12" Visibility="Collapsed"/>
+                            <TextBlock x:Name="PageCaptureTxt" Text="Capture screen" FontSize="11" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
+                                ToolTipService.ToolTip="This page follows your game: each time No Man's Sky saves, it shows your new location and discoveries. It only reads the save; it never changes it.">
+                        <Ellipse Width="8" Height="8" Fill="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="LiveStatusTxt" Text="Following your game" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center"/>
+                        <HyperlinkButton x:Name="ShowLiveHelpLink" Content="How it works" Click="ShowLiveHelp_Click" Padding="4,0" FontSize="12" Visibility="Collapsed"/>
+                    </StackPanel>
                 </StackPanel>
             </Grid>
 

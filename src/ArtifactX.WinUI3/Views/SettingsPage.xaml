@@ -95,6 +95,12 @@
                                    Text="Reads what No Man's Sky shows, about every 2 seconds when the screen changes, and fills in what your save doesn't have: planet weather, sentinels and resources, system economy and conflict, market prices, creatures, renamed planets and system pictures. Only while the game is running and is the window in front: other apps are never read. Only the text read is kept, not screenshots. Everything stays on this PC. Works with the game in borderless or windowed mode."/>
                         <ToggleSwitch x:Name="CaptureLogSwitch" Header="Record game screens" Toggled="CaptureLog_Toggled"/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="ManualCaptureSettingsBtn" Click="ManualCaptureSettingsBtn_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE722;" FontSize="13" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                    <TextBlock Text="Capture screenshot now"/>
+                                </StackPanel>
+                            </Button>
                             <Button Content="Open log folder" Click="OpenCaptureLog_Click"/>
                             <Button Content="Delete log..." Click="DeleteCaptureLog_Click"/>
                         </StackPanel>

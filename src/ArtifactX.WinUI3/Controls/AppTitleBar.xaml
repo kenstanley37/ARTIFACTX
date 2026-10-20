@@ -49,6 +49,26 @@
         </StackPanel>
 
         <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,12,0">
+            <Button x:Name="ManualCaptureBtn" Click="ManualCaptureBtn_Click"
+                    ToolTipService.ToolTip="Capture game screen and parse with OCR now"
+                    Padding="8,5" VerticalAlignment="Center">
+                <FlyoutBase.AttachedFlyout>
+                    <Flyout x:Name="CaptureResultFlyout">
+                        <StackPanel MaxWidth="320" Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon x:Name="CaptureResultIcon" Glyph="&#xE73E;" FontSize="16" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                <TextBlock x:Name="CaptureResultTitle" Text="Screen Captured" FontWeight="SemiBold" FontSize="13"/>
+                            </StackPanel>
+                            <TextBlock x:Name="CaptureResultDetails" TextWrapping="Wrap" FontSize="12" Opacity="0.85"/>
+                        </StackPanel>
+                    </Flyout>
+                </FlyoutBase.AttachedFlyout>
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon x:Name="CaptureCameraIcon" Glyph="&#xE722;" FontSize="13" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                    <ProgressRing x:Name="CaptureSpinner" IsActive="False" Width="12" Height="12" Visibility="Collapsed"/>
+                    <TextBlock x:Name="CaptureBtnText" Text="Capture" FontSize="11" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
             <TextBlock x:Name="PendingChangesTxt" Text="" FontSize="11" Opacity="0.7"
                        VerticalAlignment="Center" Visibility="Collapsed"/>
             <Button x:Name="ResetBtn" Content="Reset" Click="ResetBtn_Click" Visibility="Collapsed"/>

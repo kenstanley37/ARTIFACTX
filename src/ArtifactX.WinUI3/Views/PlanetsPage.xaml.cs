@@ -101,6 +101,31 @@ public sealed partial class PlanetsPage : Page
         _ = LoadPageAsync();
     }
 
+    private async void PageCaptureBtn_Click(object sender, RoutedEventArgs e)
+    {
+        PageCaptureBtn.IsEnabled = false;
+        PageCaptureIcon.Visibility = Visibility.Collapsed;
+        PageCaptureSpinner.Visibility = Visibility.Visible;
+        PageCaptureSpinner.IsActive = true;
+        PageCaptureTxt.Text = "Capturing...";
+        try
+        {
+            var result = await ScreenCaptureLogService.CaptureNowAsync();
+            if (!result.Success || result.ReadInfo is null)
+            {
+                ToolTipService.SetToolTip(PageCaptureBtn, result.Message);
+            }
+        }
+        finally
+        {
+            PageCaptureSpinner.IsActive = false;
+            PageCaptureSpinner.Visibility = Visibility.Collapsed;
+            PageCaptureIcon.Visibility = Visibility.Visible;
+            PageCaptureTxt.Text = "Capture screen";
+            PageCaptureBtn.IsEnabled = true;
+        }
+    }
+
     /// <summary>A planet's details were read off the game screen while this page is open
     /// (game screen recording): show them straight away. An open planet's own editor isn't
     /// rebuilt under the player - it shows them next time it opens.</summary>

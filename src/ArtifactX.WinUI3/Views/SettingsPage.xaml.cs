@@ -191,6 +191,21 @@ public sealed partial class SettingsPage : Page
             + (ScreenCaptureLogService.Enabled && !GameProcessMonitorService.IsGameRunning ? " Recording starts when you start No Man's Sky." : "");
     }
 
+    private async void ManualCaptureSettingsBtn_Click(object sender, RoutedEventArgs e)
+    {
+        ManualCaptureSettingsBtn.IsEnabled = false;
+        try
+        {
+            var result = await ScreenCaptureLogService.CaptureNowAsync();
+            RefreshCaptureLogStatus();
+            CaptureLogStatusTxt.Text = result.Message;
+        }
+        finally
+        {
+            ManualCaptureSettingsBtn.IsEnabled = true;
+        }
+    }
+
     private void OpenCaptureLog_Click(object sender, RoutedEventArgs e) =>
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = ScreenCaptureLogService.Folder, UseShellExecute = true });
 
