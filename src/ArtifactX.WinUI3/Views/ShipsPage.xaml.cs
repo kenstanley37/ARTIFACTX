@@ -81,6 +81,7 @@ public sealed partial class ShipsPage : Page
         Unloaded += Page_Unloaded;
 
         ApplyDetailsCollapsed();
+        RestoreExpandStates();
         LoadShipList();
         _ = RefreshTemplatesListAsync();
         _ = RefreshFullBuildTemplatesListAsync();
@@ -1047,20 +1048,37 @@ public sealed partial class ShipsPage : Page
 
     /// <summary>Toggles between the compact, game-matching preview height and
     /// showing every row at once - same pattern as ExosuitPage.</summary>
+    private void RestoreExpandStates()
+    {
+        bool techExpanded = AppSettingsService.GetFlag("ShipsTechExpanded", false);
+        TechScrollViewer.MaxHeight = techExpanded ? double.PositiveInfinity : TechCollapsedHeight;
+        TechExpandIcon.Glyph = techExpanded ? ChevronUpGlyph : ChevronDownGlyph;
+        ToolTipService.SetToolTip(TechExpandBtn, techExpanded ? "Collapse" : "Expand");
+
+        bool cargoExpanded = AppSettingsService.GetFlag("ShipsCargoExpanded", false);
+        CargoScrollViewer.MaxHeight = cargoExpanded ? double.PositiveInfinity : CargoCollapsedHeight;
+        CargoExpandIcon.Glyph = cargoExpanded ? ChevronUpGlyph : ChevronDownGlyph;
+        ToolTipService.SetToolTip(CargoExpandBtn, cargoExpanded ? "Collapse" : "Expand");
+    }
+
     private void TechExpandBtn_Click(object sender, RoutedEventArgs e)
     {
         bool isCollapsed = TechScrollViewer.MaxHeight < double.PositiveInfinity;
-        TechScrollViewer.MaxHeight = isCollapsed ? double.PositiveInfinity : TechCollapsedHeight;
-        TechExpandIcon.Glyph = isCollapsed ? ChevronUpGlyph : ChevronDownGlyph;
-        ToolTipService.SetToolTip(TechExpandBtn, isCollapsed ? "Collapse" : "Expand");
+        bool willExpand = isCollapsed;
+        TechScrollViewer.MaxHeight = willExpand ? double.PositiveInfinity : TechCollapsedHeight;
+        TechExpandIcon.Glyph = willExpand ? ChevronUpGlyph : ChevronDownGlyph;
+        ToolTipService.SetToolTip(TechExpandBtn, willExpand ? "Collapse" : "Expand");
+        AppSettingsService.SetFlag("ShipsTechExpanded", willExpand);
     }
 
     private void CargoExpandBtn_Click(object sender, RoutedEventArgs e)
     {
         bool isCollapsed = CargoScrollViewer.MaxHeight < double.PositiveInfinity;
-        CargoScrollViewer.MaxHeight = isCollapsed ? double.PositiveInfinity : CargoCollapsedHeight;
-        CargoExpandIcon.Glyph = isCollapsed ? ChevronUpGlyph : ChevronDownGlyph;
-        ToolTipService.SetToolTip(CargoExpandBtn, isCollapsed ? "Collapse" : "Expand");
+        bool willExpand = isCollapsed;
+        CargoScrollViewer.MaxHeight = willExpand ? double.PositiveInfinity : CargoCollapsedHeight;
+        CargoExpandIcon.Glyph = willExpand ? ChevronUpGlyph : ChevronDownGlyph;
+        ToolTipService.SetToolTip(CargoExpandBtn, willExpand ? "Collapse" : "Expand");
+        AppSettingsService.SetFlag("ShipsCargoExpanded", willExpand);
     }
 
     /// <summary>Copies the currently selected ship's entire tech loadout onto

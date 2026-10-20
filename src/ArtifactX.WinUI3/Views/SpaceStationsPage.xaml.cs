@@ -70,6 +70,9 @@ public sealed partial class SpaceStationsPage : Page
     {
         InitializeComponent();
         BuildHowToSteps();
+        bool howToOpen = AppSettingsService.GetFlag("SpaceStationsHowToExpanded", false);
+        HowToSteps.Visibility = howToOpen ? Visibility.Visible : Visibility.Collapsed;
+        HowToGlyph.Text = howToOpen ? "–" : "+";
 
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionChanged;
@@ -276,6 +279,7 @@ public sealed partial class SpaceStationsPage : Page
         bool open = HowToSteps.Visibility != Visibility.Visible;
         HowToSteps.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
         HowToGlyph.Text = open ? "–" : "+";
+        AppSettingsService.SetFlag("SpaceStationsHowToExpanded", open);
     }
 
     private void ShowOwnedStations(List<OwnedStation> owned)

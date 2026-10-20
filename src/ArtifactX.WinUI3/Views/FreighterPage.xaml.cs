@@ -68,6 +68,7 @@ public sealed partial class FreighterPage : Page
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
         Unloaded += Page_Unloaded;
 
+        RestoreExpandStates();
         LoadGrids();
         _ = RefreshTemplatesListAsync();
         _ = RefreshFullBuildTemplatesListAsync();
@@ -594,20 +595,37 @@ public sealed partial class FreighterPage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
+    private void RestoreExpandStates()
+    {
+        bool techExpanded = AppSettingsService.GetFlag("FreighterTechExpanded", false);
+        TechScrollViewer.MaxHeight = techExpanded ? double.PositiveInfinity : TechCollapsedHeight;
+        TechExpandIcon.Glyph = techExpanded ? ChevronUpGlyph : ChevronDownGlyph;
+        ToolTipService.SetToolTip(TechExpandBtn, techExpanded ? "Collapse" : "Expand");
+
+        bool cargoExpanded = AppSettingsService.GetFlag("FreighterCargoExpanded", false);
+        CargoScrollViewer.MaxHeight = cargoExpanded ? double.PositiveInfinity : CargoCollapsedHeight;
+        CargoExpandIcon.Glyph = cargoExpanded ? ChevronUpGlyph : ChevronDownGlyph;
+        ToolTipService.SetToolTip(CargoExpandBtn, cargoExpanded ? "Collapse" : "Expand");
+    }
+
     private void TechExpandBtn_Click(object sender, RoutedEventArgs e)
     {
         bool isCollapsed = TechScrollViewer.MaxHeight < double.PositiveInfinity;
-        TechScrollViewer.MaxHeight = isCollapsed ? double.PositiveInfinity : TechCollapsedHeight;
-        TechExpandIcon.Glyph = isCollapsed ? ChevronUpGlyph : ChevronDownGlyph;
-        ToolTipService.SetToolTip(TechExpandBtn, isCollapsed ? "Collapse" : "Expand");
+        bool willExpand = isCollapsed;
+        TechScrollViewer.MaxHeight = willExpand ? double.PositiveInfinity : TechCollapsedHeight;
+        TechExpandIcon.Glyph = willExpand ? ChevronUpGlyph : ChevronDownGlyph;
+        ToolTipService.SetToolTip(TechExpandBtn, willExpand ? "Collapse" : "Expand");
+        AppSettingsService.SetFlag("FreighterTechExpanded", willExpand);
     }
 
     private void CargoExpandBtn_Click(object sender, RoutedEventArgs e)
     {
         bool isCollapsed = CargoScrollViewer.MaxHeight < double.PositiveInfinity;
-        CargoScrollViewer.MaxHeight = isCollapsed ? double.PositiveInfinity : CargoCollapsedHeight;
-        CargoExpandIcon.Glyph = isCollapsed ? ChevronUpGlyph : ChevronDownGlyph;
-        ToolTipService.SetToolTip(CargoExpandBtn, isCollapsed ? "Collapse" : "Expand");
+        bool willExpand = isCollapsed;
+        CargoScrollViewer.MaxHeight = willExpand ? double.PositiveInfinity : CargoCollapsedHeight;
+        CargoExpandIcon.Glyph = willExpand ? ChevronUpGlyph : ChevronDownGlyph;
+        ToolTipService.SetToolTip(CargoExpandBtn, willExpand ? "Collapse" : "Expand");
+        AppSettingsService.SetFlag("FreighterCargoExpanded", willExpand);
     }
 
     /// <summary>No "Copy Tech Stack..." button on this page unlike Ships/

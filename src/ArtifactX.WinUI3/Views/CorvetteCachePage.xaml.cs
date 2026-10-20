@@ -54,6 +54,7 @@ public sealed partial class CorvetteCachePage : Page
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
         Unloaded += Page_Unloaded;
+        RestoreExpandStates();
         LoadGrid();
 
         // Every part a corvette is built from, to click into the cache - and
@@ -130,11 +131,21 @@ public sealed partial class CorvetteCachePage : Page
 
     /// <summary>Toggles between the compact, ~10-row preview height and
     /// showing every row at once - same pattern as ExosuitPage/etc.</summary>
+    private void RestoreExpandStates()
+    {
+        bool expanded = AppSettingsService.GetFlag("CorvetteCacheExpanded", false);
+        CacheScrollViewer.MaxHeight = expanded ? double.PositiveInfinity : CollapsedHeight;
+        CacheExpandIcon.Glyph = expanded ? ChevronUpGlyph : ChevronDownGlyph;
+        ToolTipService.SetToolTip(CacheExpandBtn, expanded ? "Collapse" : "Expand");
+    }
+
     private void CacheExpandBtn_Click(object sender, RoutedEventArgs e)
     {
         bool isCollapsed = CacheScrollViewer.MaxHeight < double.PositiveInfinity;
-        CacheScrollViewer.MaxHeight = isCollapsed ? double.PositiveInfinity : CollapsedHeight;
-        CacheExpandIcon.Glyph = isCollapsed ? ChevronUpGlyph : ChevronDownGlyph;
-        ToolTipService.SetToolTip(CacheExpandBtn, isCollapsed ? "Collapse" : "Expand");
+        bool willExpand = isCollapsed;
+        CacheScrollViewer.MaxHeight = willExpand ? double.PositiveInfinity : CollapsedHeight;
+        CacheExpandIcon.Glyph = willExpand ? ChevronUpGlyph : ChevronDownGlyph;
+        ToolTipService.SetToolTip(CacheExpandBtn, willExpand ? "Collapse" : "Expand");
+        AppSettingsService.SetFlag("CorvetteCacheExpanded", willExpand);
     }
 }

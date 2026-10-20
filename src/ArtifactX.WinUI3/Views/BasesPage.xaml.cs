@@ -32,11 +32,11 @@ public sealed partial class BasesPage : Page
     public const string CategorySettlements = "Settlements";
     public const string CategoryPlaced = "Placed Equipment (No Base)";
 
-    private bool _freighterExpanded = true;
-    private bool _planetaryExpanded = true;
-    private bool _stationsExpanded = true;
-    private bool _settlementsExpanded = true;
-    private bool _placedExpanded = true;
+    private bool _freighterExpanded = AppSettingsService.GetFlag("Bases.FreighterExpanded", true);
+    private bool _planetaryExpanded = AppSettingsService.GetFlag("Bases.PlanetaryExpanded", true);
+    private bool _stationsExpanded = AppSettingsService.GetFlag("Bases.StationsExpanded", true);
+    private bool _settlementsExpanded = AppSettingsService.GetFlag("Bases.SettlementsExpanded", true);
+    private bool _placedExpanded = AppSettingsService.GetFlag("Bases.PlacedExpanded", true);
 
     // Base pictures from the game's cache, by planet/system address
     private readonly Dictionary<ulong, Microsoft.UI.Xaml.Media.Imaging.WriteableBitmap?> _pictures = new();
@@ -664,6 +664,12 @@ public sealed partial class BasesPage : Page
             StationsSectionCard.Visibility = Visibility.Visible;
             SettlementsSectionCard.Visibility = Visibility.Visible;
             PlacedSectionCard.Visibility = Visibility.Visible;
+
+            _freighterExpanded = AppSettingsService.GetFlag("Bases.FreighterExpanded", true);
+            _planetaryExpanded = AppSettingsService.GetFlag("Bases.PlanetaryExpanded", true);
+            _stationsExpanded = AppSettingsService.GetFlag("Bases.StationsExpanded", true);
+            _settlementsExpanded = AppSettingsService.GetFlag("Bases.SettlementsExpanded", true);
+            _placedExpanded = AppSettingsService.GetFlag("Bases.PlacedExpanded", true);
         }
 
         UpdateCategoryExpansions();
@@ -679,18 +685,23 @@ public sealed partial class BasesPage : Page
         {
             case "Freighter":
                 _freighterExpanded = !_freighterExpanded;
+                AppSettingsService.SetFlag("Bases.FreighterExpanded", _freighterExpanded);
                 break;
             case "Planetary":
                 _planetaryExpanded = !_planetaryExpanded;
+                AppSettingsService.SetFlag("Bases.PlanetaryExpanded", _planetaryExpanded);
                 break;
             case "Stations":
                 _stationsExpanded = !_stationsExpanded;
+                AppSettingsService.SetFlag("Bases.StationsExpanded", _stationsExpanded);
                 break;
             case "Settlements":
                 _settlementsExpanded = !_settlementsExpanded;
+                AppSettingsService.SetFlag("Bases.SettlementsExpanded", _settlementsExpanded);
                 break;
             case "Placed":
                 _placedExpanded = !_placedExpanded;
+                AppSettingsService.SetFlag("Bases.PlacedExpanded", _placedExpanded);
                 break;
         }
         UpdateCategoryExpansions();
