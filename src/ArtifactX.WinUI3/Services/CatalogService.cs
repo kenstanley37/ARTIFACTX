@@ -95,7 +95,7 @@ public static class CatalogService
             return;
         }
 
-        Dictionary<string, (string DisplayName, byte[]? IconPng)> rows;
+        Dictionary<string, (string DisplayName, byte[]? IconPng, string? CatalogGroup, string? TemplateType)> rows;
         try
         {
             rows = await Task.Run(() => QueryRows(dbPath, toFetch));
@@ -154,7 +154,13 @@ public static class CatalogService
                 }
             }
 
-            Cache[id] = new CatalogEntry { DisplayName = row.DisplayName, Icon = icon };
+            Cache[id] = new CatalogEntry
+            {
+                DisplayName = row.DisplayName,
+                Icon = icon,
+                CatalogGroup = row.CatalogGroup,
+                TemplateType = row.TemplateType,
+            };
         }
     }
 
@@ -287,9 +293,9 @@ public static class CatalogService
         _ => "Product"
     };
 
-    private static Dictionary<string, (string DisplayName, byte[]? IconPng)> QueryRows(string dbPath, List<string> gameIds)
+    private static Dictionary<string, (string DisplayName, byte[]? IconPng, string? CatalogGroup, string? TemplateType)> QueryRows(string dbPath, List<string> gameIds)
     {
-        var result = new Dictionary<string, (string, byte[]?)>();
+        var result = new Dictionary<string, (string, byte[]?, string?, string?)>();
 
         using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
         connection.Open();
@@ -305,11 +311,22 @@ public static class CatalogService
         string placeholders = string.Join(",", gameIds.Select((_, i) => $"@p{i}"));
         using var command = connection.CreateCommand();
         command.CommandText = $@"
-            SELECT i.GameId, COALESCE(i.NameEnglish, i.NameLowerEnglish) AS DisplayName, b.PngData
+            SELECT i.GameId, COALESCE(i.NameEnglish, i.NameLowerEnglish) AS DisplayName, b.PngData, i.CatalogGroup, c.TemplateType
             FROM Items i
+            JOIN Categories c ON c.Id = i.CategoryId
             LEFT JOIN Icons ic ON ic.ItemId = i.Id
             LEFT JOIN IconBlobs b ON b.Id = ic.IconBlobId
-            WHERE (i.NameEnglish IS NOT NULL OR i.NameLowerEnglish IS NOT NULL) AND i.GameId IN ({placeholders})";
+            WHERE (i.NameEnglish IS NOT NULL OR i.NameLowerEnglish IS NOT NULL) AND i.GameId IN ({placeholders})
+            ORDER BY
+              CASE c.TemplateType
+                WHEN 'GcTechnologyTable' THEN 1
+                WHEN 'GcProceduralTechnologyTable' THEN 2
+                WHEN 'GcProductTable' THEN 3
+                WHEN 'GcSubstanceTable' THEN 4
+                WHEN 'ProceduralProducts' THEN 5
+                ELSE 10
+              END,
+              CASE WHEN b.PngData IS NOT NULL THEN 1 ELSE 2 END";
 
         for (int i = 0; i < gameIds.Count; i++)
             command.Parameters.AddWithValue($"@p{i}", gameIds[i]);
@@ -322,7 +339,9 @@ public static class CatalogService
 
             string name = reader.GetString(1);
             byte[]? png = reader.IsDBNull(2) ? null : (byte[])reader["PngData"];
-            result[gameId] = (name, png);
+            string? catalogGroup = reader.IsDBNull(3) ? null : reader.GetString(3);
+            string? templateType = reader.IsDBNull(4) ? null : reader.GetString(4);
+            result[gameId] = (name, png, catalogGroup, templateType);
         }
         return result;
     }

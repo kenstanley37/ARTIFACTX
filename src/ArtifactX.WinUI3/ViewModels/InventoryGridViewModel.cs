@@ -299,25 +299,77 @@ public partial class InventoryGridViewModel : ObservableObject
     }
 
     /// <summary>Re-packs every item into the unlocked slots in reading order,
-    /// grouped by kind (technology, product, substance) and then by name, so
-    /// identical items end up next to each other. Returns false when nothing
-    /// moved.</summary>
+    /// grouped by category (Technology, Raw Materials/Substances, Crafted Components,
+    /// Curiosities & Artifacts, Consumables/Navigation, Cooking & Edibles, Trade Goods,
+    /// Construction Parts) and secondarily alphabetically by name. Returns false when
+    /// nothing moved.</summary>
     public bool SortItems()
     {
         var occupied = Cells.Where(c => c.IsOccupied).ToList();
         if (occupied.Count == 0) return false;
 
-        static int KindOrder(string? category) => category switch
+        static int CategoryOrder(InventorySlotViewModel cell, CatalogEntry? entry)
         {
-            "Technology" => 0,
-            "Product" => 1,
-            "Substance" => 2,
-            _ => 3,
-        };
+            string rawId = (cell.ItemId ?? "").TrimStart('^');
+            int hash = rawId.IndexOf('#');
+            if (hash >= 0) rawId = rawId[..hash];
+
+            // 0. Technology
+            if (cell.CategoryLabel == "Technology" ||
+                entry?.TemplateType is "GcTechnologyTable" or "GcProceduralTechnologyTable" ||
+                rawId.StartsWith("UP_", StringComparison.OrdinalIgnoreCase))
+                return 0;
+
+            // 1. Raw Materials (Elements, Minerals, Substances)
+            if (cell.CategoryLabel == "Substance" ||
+                entry?.TemplateType == "GcSubstanceTable" ||
+                entry?.CatalogGroup == "Raw Materials")
+                return 1;
+
+            // 2. Crafted Components & Alloys
+            if (entry?.CatalogGroup == "Crafted Products")
+                return 2;
+
+            // 3. Curiosities, Artifacts & Procedural items
+            if (entry?.CatalogGroup == "Curiosities" ||
+                entry?.TemplateType == "ProceduralProducts" ||
+                rawId.StartsWith("PROC_", StringComparison.OrdinalIgnoreCase))
+                return 3;
+
+            // 4. Consumables & Navigation / Maps
+            if (entry?.CatalogGroup == "Constructed Technology" ||
+                rawId.Contains("CHART", StringComparison.OrdinalIgnoreCase) ||
+                rawId.Contains("MAP", StringComparison.OrdinalIgnoreCase) ||
+                rawId.Contains("WARP", StringComparison.OrdinalIgnoreCase))
+                return 4;
+
+            // 5. Cooking & Edibles
+            if (entry?.CatalogGroup == "Cooking Products" ||
+                rawId.StartsWith("FOOD_", StringComparison.OrdinalIgnoreCase) ||
+                rawId.StartsWith("COOK_", StringComparison.OrdinalIgnoreCase) ||
+                rawId.StartsWith("BAIT_", StringComparison.OrdinalIgnoreCase) ||
+                CatalogService.IsFishSpecies(rawId))
+                return 5;
+
+            // 6. Trade Goods & Commodities
+            if (entry?.CatalogGroup == "Trade Goods" ||
+                rawId.StartsWith("TRA_", StringComparison.OrdinalIgnoreCase) ||
+                rawId.StartsWith("ILLEGAL_", StringComparison.OrdinalIgnoreCase))
+                return 6;
+
+            // 7. Construction Parts
+            if (entry?.CatalogGroup == "Construction Parts" ||
+                rawId.StartsWith("BASE_", StringComparison.OrdinalIgnoreCase) ||
+                rawId.StartsWith("BLD_", StringComparison.OrdinalIgnoreCase))
+                return 7;
+
+            // 8. Miscellaneous Products / Uncategorized
+            return 8;
+        }
 
         var sorted = occupied
-            .OrderBy(c => KindOrder(c.CategoryLabel))
-            .ThenBy(c => CatalogService.TryGet(c.ItemId)?.DisplayName ?? c.ItemId, System.StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => CategoryOrder(c, CatalogService.TryGet(c.ItemId)))
+            .ThenBy(c => CatalogService.TryGet(c.ItemId)?.DisplayName ?? c.ShortLabel, System.StringComparer.OrdinalIgnoreCase)
             .ThenBy(c => c.ItemId, System.StringComparer.Ordinal)
             .ThenByDescending(c => c.Amount)
             .ToList();

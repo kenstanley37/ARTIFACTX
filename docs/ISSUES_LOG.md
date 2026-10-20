@@ -15,6 +15,7 @@ The following items from the notes are already fully addressed in the codebase o
 | **#29** | *On details page, fish could be far right because it grows, and everything else to the left.* | **Completed**: `PlanetDetailsPage` now uses a multi-column body with the manual details editor, save facts, and bases in the left column, and the auto-sizing `FISH` card in the dedicated far-right column (460px width). |
 | **#10** | *Support procedural curiosities & expedition items in inventory editor.* | **Completed**: Added `ProceduralProducts` to cargo grids, enhanced item search with relevance ranking, automatic 5-digit seed generation (`#NNNNN`) and full icon caching directly in the standard "Add item..." search picker, plus an in-slot "Re-roll seed" context action on branch `feature/procedural-items-editor`. |
 | **#27** | *Show user.db database size in UI.* | **Completed**: Added database size calculation (including WAL breakdown), schema version, full file path, and an "Open data folder" button directly to the ArtifactX Data card on `SettingsPage` on branch `feature/user-db-size-display`. |
+| **#22** | *Inventory sorting: sort by category/type then by name.* | **Completed**: Enhanced `InventoryGridViewModel.SortItems` with category taxonomy (Technology, Raw Materials/Substances, Crafted Components, Curiosities & Artifacts, Consumables/Navigation, Cooking & Edibles, Trade Goods, Construction Parts) and secondary A-Z alphabetical sorting on branch `feature/inventory-category-sorting`. |
 
 ---
 
