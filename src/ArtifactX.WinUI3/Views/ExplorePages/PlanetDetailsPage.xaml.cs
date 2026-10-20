@@ -1037,7 +1037,7 @@ public sealed partial class PlanetDetailsPage : Page
 
         try
         {
-            var result = await ScreenCaptureLogService.CaptureNowAsync();
+            var result = await ScreenCaptureLogService.CaptureNowAsync(_planet?.SystemAddress);
             if (_planet != null)
             {
                 RenderCreatures(_planet);

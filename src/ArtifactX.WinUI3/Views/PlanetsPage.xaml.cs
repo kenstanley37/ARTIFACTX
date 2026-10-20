@@ -118,7 +118,7 @@ public sealed partial class PlanetsPage : Page
 
         try
         {
-            var result = await ScreenCaptureLogService.CaptureNowAsync();
+            var result = await ScreenCaptureLogService.CaptureNowAsync(_currentSystem);
             if (_currentSystem is ulong system)
             {
                 ShowSystemPicture(system);

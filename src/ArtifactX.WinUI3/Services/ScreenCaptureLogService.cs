@@ -134,7 +134,7 @@ public static class ScreenCaptureLogService
     /// Manually captures the game screen immediately and runs OCR and all discovery/market/fauna readers.
     /// Does not require background recording to be enabled. Bypasses frame duplicate heuristics.
     /// </summary>
-    public static async Task<CaptureResult> CaptureNowAsync()
+    public static async Task<CaptureResult> CaptureNowAsync(ulong? hintSystem = null)
     {
         if (!await _gate.WaitAsync(TimeSpan.FromSeconds(3)))
             return new CaptureResult(false, "Screen capture is busy processing another frame.");
@@ -194,7 +194,7 @@ public static class ScreenCaptureLogService
                 SetForegroundWindow(appHwnd);
             }
 
-            var (ocrSuccess, readInfo, text) = await ProcessFrameAsync(pixels, w, h, force: true);
+            var (ocrSuccess, readInfo, text) = await ProcessFrameAsync(pixels, w, h, force: true, hintSystem);
             if (!ocrSuccess)
                 return new CaptureResult(false, "Windows OCR engine could not be initialized for the current user language.");
 
@@ -214,7 +214,7 @@ public static class ScreenCaptureLogService
         }
     }
 
-    private static async Task<(bool OcrSuccess, string? ReadInfo, string Text)> ProcessFrameAsync(byte[] pixels, int w, int h, bool force)
+    private static async Task<(bool OcrSuccess, string? ReadInfo, string Text)> ProcessFrameAsync(byte[] pixels, int w, int h, bool force, ulong? hintSystem = null)
     {
         using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(pixels.AsBuffer(), BitmapPixelFormat.Bgra8, w, h, BitmapAlphaMode.Ignore);
         string text = "";
@@ -260,13 +260,13 @@ public static class ScreenCaptureLogService
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "body pop-up: error " + ex.Message; }
         try
         {
-            if (SystemPageReader.SystemView(placed) is ulong viewed)
+            if (SystemPageReader.SystemView(placed, hintSystem) is ulong viewed)
             {
                 int labels = SystemPageReader.LabelsShown(viewed, placed);
                 var facts = UniverseInfo.For(viewed);
                 int bodies = facts.PlanetCount + facts.MoonCount;
                 // Settled view only (most labels readable), or forced manual capture if at least 1 label visible.
-                bool shouldSave = (labels * 2 >= bodies) || (force && labels > 0);
+                bool shouldSave = force || (labels * 2 >= bodies);
                 if (shouldSave && await SaveSystemPictureAsync(viewed, pixels, w, h, labels, force))
                     read = (read is null ? "" : read + " | ") + $"system picture saved for {UniverseInfo.SystemName(viewed)} ({labels}/{bodies} labels)";
             }
