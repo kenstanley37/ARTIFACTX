@@ -27,24 +27,18 @@ public sealed partial class BaseDetailsPage : Page
     private List<IGrouping<string, string>> _groups = new();
     private readonly HashSet<string> _selectedPartKeys = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>The base's parts as they stand after this page's deletes - null when the
+    /// parts shown aren't one base's own array (a settlement gathers them from several
+    /// places), so they can be listed but not deleted.</summary>
+    private JArray? _parts;
+
     private static readonly Dictionary<string, (string Name, string Glyph)> KnownPartOverrides = new(StringComparer.OrdinalIgnoreCase)
     {
         ["BASE_FLAG"] = ("Base Computer", "\uE909"),
-        ["BUILDFLAG"] = ("Base Computer Flag", "\uE909"),
         ["STACONNECT"] = ("Station Connector", "\uE74C"),
         ["BRIDGECONNECTOR"] = ("Bridge Connector", "\uE74C"),
         ["STATION_CORE"] = ("Station Core Terminal", "\uE916"),
         ["U_PARAGON"] = ("Station Paragon Reactor", "\uE950"),
-        ["STATION_DESK"] = ("Station Directorate Desk", "\uE80F"),
-        ["STATION_CHAIR"] = ("Station Concourse Chair", "\uE80F"),
-        ["STATION_BENCH"] = ("Station Concourse Bench", "\uE80F"),
-        ["STATION_CRATE"] = ("Station Cargo Crate", "\uE80F"),
-        ["STATION_CARGO"] = ("Station Cargo Container", "\uE80F"),
-        ["STATION_DOOR"] = ("Station Bulkhead Door", "\uE80F"),
-        ["STATION_WINDOW"] = ("Station Observation Window", "\uE80F"),
-        ["STATION_WALL"] = ("Station Interior Wall", "\uE80F"),
-        ["STATION_LIGHT"] = ("Station Lighting", "\uE838"),
-        ["STATION_SIGN"] = ("Station Concession Sign", "\uE80F"),
     };
 
     public BaseDetailsPage()
@@ -84,9 +78,10 @@ public sealed partial class BaseDetailsPage : Page
                 await CatalogService.WarmCacheAsync(_groups.Select(g => g.Key));
                 BaseKindsTxt.Text = $"{_groups.Count:N0} kinds of placed part";
                 PartSearchBox.Visibility = Visibility.Visible;
-                SelectAllPartsBtn.Visibility = Visibility.Visible;
-                DeselectAllPartsBtn.Visibility = Visibility.Visible;
-                DeletePartsBtn.Visibility = Visibility.Visible;
+                SelectAllPartsBtn.Visibility = Visibility.Collapsed;
+                DeselectAllPartsBtn.Visibility = Visibility.Collapsed;
+                DeletePartsBtn.Visibility = Visibility.Collapsed;
+                _parts = null;
                 PartSearchBox.Header = "Filter parts placed in settlement";
                 RenderSettlementWithParts();
             }
@@ -103,7 +98,8 @@ public sealed partial class BaseDetailsPage : Page
         }
         else if (row.Base is JObject b)
         {
-            var objects = (b["@ZJ"] as JArray ?? new JArray()).OfType<JObject>()
+            _parts = b["@ZJ"] as JArray ?? new JArray();
+            var objects = _parts.OfType<JObject>()
                 .Select(o => o["r<7"]?.Value<string>() ?? "").Where(id => !string.IsNullOrEmpty(id)).ToList();
             _groups = objects.GroupBy(id => id).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).ToList();
             await CatalogService.WarmCacheAsync(_groups.Select(g => g.Key));
@@ -224,7 +220,7 @@ public sealed partial class BaseDetailsPage : Page
             bool isBaseComputer = string.Equals(CatalogService.NormalizeId(g.Key), "BASE_FLAG", StringComparison.OrdinalIgnoreCase);
             if (isBaseComputer)
             {
-                name = "Base Computer (Anchor Core)";
+                name = "Base Computer";
             }
             else if (shared.Contains(name) && Regex.Match(g.Key, @"\d+$") is { Success: true } number)
             {
@@ -259,7 +255,7 @@ public sealed partial class BaseDetailsPage : Page
                 }
             };
             Grid.SetColumn(checkBox, 0);
-            line.Children.Add(checkBox);
+            if (_parts is not null) line.Children.Add(checkBox);
 
             if (entry?.Icon is { } icon)
             {
@@ -489,7 +485,7 @@ public sealed partial class BaseDetailsPage : Page
 
     private async void DeleteParts_Click(object sender, RoutedEventArgs e)
     {
-        if (_row?.Base is null || _selectedPartKeys.Count == 0) return;
+        if (_row?.Base is null || _parts is null || _selectedPartKeys.Count == 0) return;
 
         bool isBaseComputerSelected = _selectedPartKeys.Contains("^BASE_FLAG") || _selectedPartKeys.Contains("BASE_FLAG");
         int selectedCount = _groups.Where(g => _selectedPartKeys.Contains(g.Key)).Sum(g => g.Count());
@@ -557,10 +553,7 @@ public sealed partial class BaseDetailsPage : Page
                 var updatedBases = new JArray();
                 foreach (var token in currentBases)
                 {
-                    if (token is JObject b && (ReferenceEquals(b, _row.Base) ||
-                        (JToken.DeepEquals(b["oZw"], _row.Base["oZw"]) &&
-                         b["NKm"]?.Value<string>() == _row.Base["NKm"]?.Value<string>() &&
-                         b["peI"]?["DPp"]?.Value<string>() == _row.Base["peI"]?["DPp"]?.Value<string>())))
+                    if (token is JObject b && BasesPage.SameBase(b, _row.Base))
                     {
                         continue;
                     }
@@ -575,7 +568,7 @@ public sealed partial class BaseDetailsPage : Page
         }
         else
         {
-            if (_row.Base["@ZJ"] is JArray partsArr)
+            if (_parts is JArray partsArr)
             {
                 var updatedParts = new JArray();
                 foreach (var token in partsArr)
@@ -587,16 +580,13 @@ public sealed partial class BaseDetailsPage : Page
                     updatedParts.Add(token);
                 }
 
-                _row.Base["@ZJ"] = updatedParts;
+                _parts = updatedParts;
 
                 if (SaveSessionManager.GetValue(S.BasesPath) is JArray currentBases)
                 {
                     for (int i = 0; i < currentBases.Count; i++)
                     {
-                        if (currentBases[i] is JObject b && (ReferenceEquals(b, _row.Base) ||
-                            (JToken.DeepEquals(b["oZw"], _row.Base["oZw"]) &&
-                             b["NKm"]?.Value<string>() == _row.Base["NKm"]?.Value<string>() &&
-                             b["peI"]?["DPp"]?.Value<string>() == _row.Base["peI"]?["DPp"]?.Value<string>())))
+                        if (currentBases[i] is JObject b && BasesPage.SameBase(b, _row.Base))
                         {
                             var basePath = S.BasesPath.Append(i.ToString(CultureInfo.InvariantCulture)).Append("@ZJ").ToArray();
                             SaveSessionManager.StageEdit(updatedParts, basePath);

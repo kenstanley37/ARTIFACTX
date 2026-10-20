@@ -49,4 +49,12 @@ public partial class BaseRowViewModel : ObservableObject
     public required double SortDistance { get; init; }
     public required int Galaxy { get; init; }
     public string Category { get; init; } = "Planetary Bases";
+
+    /// <summary>Whether it can be selected for deleting: planet bases and loose placed
+    /// objects only. The freighter base is its interior, a claimed station's base goes
+    /// with its claim, and a settlement isn't one entry in the save.</summary>
+    public bool CanDelete { get; init; }
+
+    public Microsoft.UI.Xaml.Visibility SelectVisibility =>
+        CanDelete ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
 }

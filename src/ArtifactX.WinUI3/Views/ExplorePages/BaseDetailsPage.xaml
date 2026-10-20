@@ -101,7 +101,7 @@
                     <Button x:Name="DeselectAllPartsBtn" Content="Deselect All" Click="DeselectAllParts_Click"
                             ToolTipService.ToolTip="Deselect all part types"/>
                     <Button x:Name="DeletePartsBtn" Content="Delete Selected" Click="DeleteParts_Click"
-                            IsEnabled="False" Style="{StaticResource AccentButtonStyle}"
+                            IsEnabled="False" Style="{StaticResource ThemeAccentButtonStyle}"
                             ToolTipService.ToolTip="Delete selected parts from this base"/>
                 </StackPanel>
                 <TextBlock x:Name="PartsSummaryCountTxt" Grid.Column="3" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,6"/>

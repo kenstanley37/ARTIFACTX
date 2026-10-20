@@ -484,30 +484,6 @@ public static class UserDatabase
 
     public static int SchemaVersion => Migrations.Length;
 
-    /// <summary>Returns the total size on disk of user.db (including WAL/SHM companion files if present).</summary>
-    public static long GetDatabaseSizeBytes()
-    {
-        long total = 0;
-        try
-        {
-            if (File.Exists(FilePath))
-                total += new FileInfo(FilePath).Length;
-
-            string wal = FilePath + "-wal";
-            if (File.Exists(wal))
-                total += new FileInfo(wal).Length;
-
-            string shm = FilePath + "-shm";
-            if (File.Exists(shm))
-                total += new FileInfo(shm).Length;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[UserDatabase] Failed to get database size: {ex.Message}");
-        }
-        return total;
-    }
-
     /// <summary>Returns size details for user.db, WAL, and total bytes.</summary>
     public static (long MainBytes, long WalBytes, long TotalBytes) GetDatabaseSizeDetails()
     {

@@ -222,6 +222,7 @@ public sealed partial class BasesPage : Page
                 SortDistance = r.SortDistance,
                 Galaxy = r.Galaxy,
                 Category = r.Category,
+                CanDelete = r.Category is CategoryPlanetary or CategoryPlaced,
                 Icon = r.PlacedIconId != null ? CatalogService.TryGet(r.PlacedIconId)?.Icon : null,
             };
             vm.PropertyChanged += Row_PropertyChanged;
@@ -643,10 +644,7 @@ public sealed partial class BasesPage : Page
         PlacedEmptyTxt.Visibility = placed.Count == 0 && !isSearching ? Visibility.Visible : Visibility.Collapsed;
 
         // Visibility of section action bars
-        if (FreighterActionsBar != null) FreighterActionsBar.Visibility = freighters.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         if (PlanetaryActionsBar != null) PlanetaryActionsBar.Visibility = planetaries.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        if (StationsActionsBar != null) StationsActionsBar.Visibility = stations.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        if (SettlementsActionsBar != null) SettlementsActionsBar.Visibility = settlements.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         if (PlacedActionsBar != null) PlacedActionsBar.Visibility = placed.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
         // During search, auto-expand categories that have matches, and hide categories with 0 matches
@@ -788,7 +786,7 @@ public sealed partial class BasesPage : Page
         };
         if (targetCategory == null) return;
 
-        foreach (var r in GetFilteredRows().Where(r => r.Category == targetCategory))
+        foreach (var r in GetFilteredRows().Where(r => r.Category == targetCategory && r.CanDelete))
         {
             r.IsSelected = true;
         }
@@ -849,9 +847,19 @@ public sealed partial class BasesPage : Page
         }
     }
 
+    /// <summary>Whether two base entries are the same base. A row's entry can come from
+    /// the newest save read from disk while the game runs (LiveSaveWatcher), not from the
+    /// loaded save that edits go to, so entries are matched by address, name and type
+    /// rather than by reference.</summary>
+    internal static bool SameBase(JObject a, JObject b) =>
+        ReferenceEquals(a, b) ||
+        (JToken.DeepEquals(a["oZw"], b["oZw"]) &&
+         a["NKm"]?.Value<string>() == b["NKm"]?.Value<string>() &&
+         a["peI"]?["DPp"]?.Value<string>() == b["peI"]?["DPp"]?.Value<string>());
+
     private async void DeleteSelected_Click(object sender, RoutedEventArgs e)
     {
-        var selected = _rows.Where(r => r.IsSelected).ToList();
+        var selected = _rows.Where(r => r.IsSelected && r.CanDelete).ToList();
         if (selected.Count == 0) return;
 
         var planetaryBases = selected.Where(r => r.Category == CategoryPlanetary).ToList();
@@ -929,8 +937,8 @@ public sealed partial class BasesPage : Page
         var result = await dialog.ShowAsync();
         if (result != ContentDialogResult.Primary) return;
 
-        var basesToRemove = selected.Where(r => r.Base != null).Select(r => r.Base).ToHashSet();
-        var looseToRemove = selected.Where(r => r.LooseObject != null).Select(r => r.LooseObject).ToHashSet();
+        var basesToRemove = selected.Select(r => r.Base).OfType<JObject>().ToList();
+        var looseToRemove = selected.Select(r => r.LooseObject).OfType<JObject>().ToList();
 
         bool stagedAny = false;
 
@@ -939,7 +947,7 @@ public sealed partial class BasesPage : Page
             var updatedBases = new JArray();
             foreach (var token in currentBases)
             {
-                if (token is JObject b && basesToRemove.Contains(b)) continue;
+                if (token is JObject b && basesToRemove.Any(r => SameBase(b, r))) continue;
                 updatedBases.Add(token);
             }
             SaveSessionManager.StageEdit(updatedBases, S.BasesPath);
@@ -951,7 +959,7 @@ public sealed partial class BasesPage : Page
             var updatedLoose = new JArray();
             foreach (var token in currentLoose)
             {
-                if (token is JObject o && looseToRemove.Contains(o)) continue;
+                if (token is JObject o && looseToRemove.Any(r => ReferenceEquals(o, r) || JToken.DeepEquals(o, r))) continue;
                 updatedLoose.Add(token);
             }
             SaveSessionManager.StageEdit(updatedLoose, NmsBuildCounts.LooseObjectsPath);
