@@ -642,6 +642,13 @@ public sealed partial class BasesPage : Page
         SettlementsEmptyTxt.Visibility = settlements.Count == 0 && !isSearching ? Visibility.Visible : Visibility.Collapsed;
         PlacedEmptyTxt.Visibility = placed.Count == 0 && !isSearching ? Visibility.Visible : Visibility.Collapsed;
 
+        // Visibility of section action bars
+        if (FreighterActionsBar != null) FreighterActionsBar.Visibility = freighters.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (PlanetaryActionsBar != null) PlanetaryActionsBar.Visibility = planetaries.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (StationsActionsBar != null) StationsActionsBar.Visibility = stations.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (SettlementsActionsBar != null) SettlementsActionsBar.Visibility = settlements.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (PlacedActionsBar != null) PlacedActionsBar.Visibility = placed.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
         // During search, auto-expand categories that have matches, and hide categories with 0 matches
         if (isSearching)
         {
@@ -726,23 +733,6 @@ public sealed partial class BasesPage : Page
         PlacedChevron.Glyph = _placedExpanded ? "\uE70E" : "\uE70D";
     }
 
-    private void BaseCard_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
-    {
-        if (e.OriginalSource is DependencyObject dep)
-        {
-            var cur = dep;
-            while (cur != null && !ReferenceEquals(cur, sender))
-            {
-                if (cur is Microsoft.UI.Xaml.Controls.Primitives.ButtonBase) return;
-                cur = VisualTreeHelper.GetParent(cur);
-            }
-        }
-        if ((sender as FrameworkElement)?.DataContext is BaseRowViewModel row)
-        {
-            Frame.Navigate(typeof(ExplorePages.BaseDetailsPage), row);
-        }
-    }
-
     private void OpenCard_Click(object sender, RoutedEventArgs e)
     {
         var row = (sender as FrameworkElement)?.DataContext as BaseRowViewModel
@@ -784,11 +774,44 @@ public sealed partial class BasesPage : Page
             || r.Category.Contains(search, StringComparison.CurrentCultureIgnoreCase));
     }
 
-    private void SelectAll_Click(object sender, RoutedEventArgs e)
+    private void SelectSection_Click(object sender, RoutedEventArgs e)
     {
-        foreach (var r in GetFilteredRows())
+        if (sender is not FrameworkElement fe || fe.Tag is not string categoryKey) return;
+        string? targetCategory = categoryKey switch
+        {
+            "Freighter" => CategoryFreighter,
+            "Planetary" => CategoryPlanetary,
+            "Stations" => CategoryStations,
+            "Settlements" => CategorySettlements,
+            "Placed" => CategoryPlaced,
+            _ => null
+        };
+        if (targetCategory == null) return;
+
+        foreach (var r in GetFilteredRows().Where(r => r.Category == targetCategory))
         {
             r.IsSelected = true;
+        }
+        UpdateSelectionToolbar();
+    }
+
+    private void DeselectSection_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.Tag is not string categoryKey) return;
+        string? targetCategory = categoryKey switch
+        {
+            "Freighter" => CategoryFreighter,
+            "Planetary" => CategoryPlanetary,
+            "Stations" => CategoryStations,
+            "Settlements" => CategorySettlements,
+            "Placed" => CategoryPlaced,
+            _ => null
+        };
+        if (targetCategory == null) return;
+
+        foreach (var r in _rows.Where(r => r.Category == targetCategory))
+        {
+            r.IsSelected = false;
         }
         UpdateSelectionToolbar();
     }
@@ -813,6 +836,10 @@ public sealed partial class BasesPage : Page
     private void UpdateSelectionToolbar()
     {
         int selectedCount = _rows.Count(r => r.IsSelected);
+        if (DeselectAllBtn != null)
+        {
+            DeselectAllBtn.IsEnabled = selectedCount > 0;
+        }
         if (DeleteSelectedBtn != null)
         {
             DeleteSelectedBtn.IsEnabled = selectedCount > 0;

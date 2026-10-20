@@ -19,8 +19,7 @@
             <Border Width="420" Margin="0,0,12,12"
                     BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                     Background="{ThemeResource ThemePanelAltBrush}"
-                    CornerRadius="{ThemeResource ThemeCardCornerRadius}"
-                    Tapped="BaseCard_Tapped">
+                    CornerRadius="{ThemeResource ThemeCardCornerRadius}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -160,10 +159,9 @@
                 <Button x:Name="ExportBtn" Content="Export CSV" Click="ExportCsv_Click" VerticalAlignment="Bottom"
                         ToolTipService.ToolTip="Save the list as shown (with your filters) as a spreadsheet file"/>
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
-                    <Button x:Name="SelectAllBtn" Content="Select All" Click="SelectAll_Click"
-                            ToolTipService.ToolTip="Select all visible bases and placed equipment"/>
                     <Button x:Name="DeselectAllBtn" Content="Deselect All" Click="DeselectAll_Click"
-                            ToolTipService.ToolTip="Deselect all items"/>
+                            IsEnabled="False"
+                            ToolTipService.ToolTip="Deselect all items across all sections"/>
                     <Button x:Name="DeleteSelectedBtn" Content="Delete Selected" Click="DeleteSelected_Click"
                             IsEnabled="False" Style="{StaticResource AccentButtonStyle}"
                             ToolTipService.ToolTip="Delete selected bases and placed equipment from save file"/>
@@ -207,13 +205,23 @@
                                 </Grid>
                             </Button>
                             <Border x:Name="FreighterContentArea" Padding="14,4,14,14">
-                                <ItemsControl x:Name="FreighterItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                </ItemsControl>
+                                <StackPanel Spacing="10">
+                                    <StackPanel x:Name="FreighterActionsBar" Orientation="Horizontal" Spacing="8">
+                                        <Button Content="Select All" Click="SelectSection_Click" Tag="Freighter"
+                                                Padding="10,4" FontSize="11"
+                                                ToolTipService.ToolTip="Select freighter base"/>
+                                        <Button Content="Deselect" Click="DeselectSection_Click" Tag="Freighter"
+                                                Padding="10,4" FontSize="11"
+                                                ToolTipService.ToolTip="Deselect freighter base"/>
+                                    </StackPanel>
+                                    <ItemsControl x:Name="FreighterItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </StackPanel>
                             </Border>
                             <TextBlock x:Name="FreighterEmptyTxt" Text="No freighter base in this save"
                                        Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Margin="14,0,14,14" Visibility="Collapsed"/>
@@ -248,13 +256,23 @@
                                 </Grid>
                             </Button>
                             <Border x:Name="PlanetaryContentArea" Padding="14,4,14,14">
-                                <ItemsControl x:Name="PlanetaryItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                </ItemsControl>
+                                <StackPanel Spacing="10">
+                                    <StackPanel x:Name="PlanetaryActionsBar" Orientation="Horizontal" Spacing="8">
+                                        <Button Content="Select All" Click="SelectSection_Click" Tag="Planetary"
+                                                Padding="10,4" FontSize="11"
+                                                ToolTipService.ToolTip="Select all planetary bases in this section"/>
+                                        <Button Content="Deselect" Click="DeselectSection_Click" Tag="Planetary"
+                                                Padding="10,4" FontSize="11"
+                                                ToolTipService.ToolTip="Deselect all planetary bases in this section"/>
+                                    </StackPanel>
+                                    <ItemsControl x:Name="PlanetaryItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </StackPanel>
                             </Border>
                             <TextBlock x:Name="PlanetaryEmptyTxt" Text="No planet bases found"
                                        Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Margin="14,0,14,14" Visibility="Collapsed"/>
@@ -289,13 +307,23 @@
                                 </Grid>
                             </Button>
                             <Border x:Name="StationsContentArea" Padding="14,4,14,14">
-                                <ItemsControl x:Name="StationsItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                </ItemsControl>
+                                <StackPanel Spacing="10">
+                                    <StackPanel x:Name="StationsActionsBar" Orientation="Horizontal" Spacing="8">
+                                        <Button Content="Select All" Click="SelectSection_Click" Tag="Stations"
+                                                Padding="10,4" FontSize="11"
+                                                ToolTipService.ToolTip="Select all claimed space stations &amp; outposts in this section"/>
+                                        <Button Content="Deselect" Click="DeselectSection_Click" Tag="Stations"
+                                                Padding="10,4" FontSize="11"
+                                                ToolTipService.ToolTip="Deselect claimed space stations &amp; outposts in this section"/>
+                                    </StackPanel>
+                                    <ItemsControl x:Name="StationsItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </StackPanel>
                             </Border>
                             <TextBlock x:Name="StationsEmptyTxt" Text="No claimed space stations or space outposts in this save"
                                        Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Margin="14,0,14,14" Visibility="Collapsed"/>
@@ -330,13 +358,23 @@
                                 </Grid>
                             </Button>
                             <Border x:Name="SettlementsContentArea" Padding="14,4,14,14">
-                                <ItemsControl x:Name="SettlementsItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                </ItemsControl>
+                                <StackPanel Spacing="10">
+                                    <StackPanel x:Name="SettlementsActionsBar" Orientation="Horizontal" Spacing="8">
+                                        <Button Content="Select All" Click="SelectSection_Click" Tag="Settlements"
+                                                Padding="10,4" FontSize="11"
+                                                ToolTipService.ToolTip="Select all settlements in this section"/>
+                                        <Button Content="Deselect" Click="DeselectSection_Click" Tag="Settlements"
+                                                Padding="10,4" FontSize="11"
+                                                ToolTipService.ToolTip="Deselect settlements in this section"/>
+                                    </StackPanel>
+                                    <ItemsControl x:Name="SettlementsItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </StackPanel>
                             </Border>
                             <TextBlock x:Name="SettlementsEmptyTxt" Text="No settlements governed in this save"
                                        Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Margin="14,0,14,14" Visibility="Collapsed"/>
@@ -371,13 +409,23 @@
                                 </Grid>
                             </Button>
                             <Border x:Name="PlacedContentArea" Padding="14,4,14,14">
-                                <ItemsControl x:Name="PlacedItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                </ItemsControl>
+                                <StackPanel Spacing="10">
+                                    <StackPanel x:Name="PlacedActionsBar" Orientation="Horizontal" Spacing="8">
+                                        <Button Content="Select All" Click="SelectSection_Click" Tag="Placed"
+                                                Padding="10,4" FontSize="11"
+                                                ToolTipService.ToolTip="Select all placed equipment on planets"/>
+                                        <Button Content="Deselect" Click="DeselectSection_Click" Tag="Placed"
+                                                Padding="10,4" FontSize="11"
+                                                ToolTipService.ToolTip="Deselect placed equipment on planets"/>
+                                    </StackPanel>
+                                    <ItemsControl x:Name="PlacedItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </StackPanel>
                             </Border>
                             <TextBlock x:Name="PlacedEmptyTxt" Text="No equipment left outside bases in this save"
                                        Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Margin="14,0,14,14" Visibility="Collapsed"/>
