@@ -3,6 +3,7 @@
 ## Git & Branching Strategy
 - **Never edit the `development` branch directly**: Always create a dedicated branch for each feature/task (e.g. `feature/...` or `refactor/...`).
 - **Merge only with user approval**: Keep changes on the feature branch until the user reviews and approves merging into `development`.
+- **Tag every release**: Always create an annotated git tag (`git tag -a vX.Y.Z -m "Release vX.Y.Z"`) for every production release to ensure the exact build state is permanently preserved and reproducible. Use hotfix branches (`hotfix/...`) off release tags if historical patching is required.
 
 ## Autonomous Execution & Decision Making
 - **Bias for action**: Execute tasks directly end-to-end without stopping for confirmation, check-ins, or follow-ups.
