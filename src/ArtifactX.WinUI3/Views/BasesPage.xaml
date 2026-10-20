@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). Read-only Tools page: lists
-     the player's planet bases with portal addresses so they can get back to them. -->
+     the player's bases, stations, settlements, and standalone placed equipment across all galaxies. -->
 <Page
     x:Class="ArtifactX.WinUI3.Views.BasesPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -26,9 +26,9 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <Border Height="170" CornerRadius="7,7,0,0" Visibility="{x:Bind PictureVisibility}">
+                    <Border Height="170" CornerRadius="7,7,0,0" Visibility="{x:Bind PictureVisibility, Mode=OneWay}">
                         <Border.Background>
-                            <ImageBrush ImageSource="{x:Bind Picture}" Stretch="UniformToFill"/>
+                            <ImageBrush ImageSource="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill"/>
                         </Border.Background>
                     </Border>
                     <Grid Grid.Row="1" RowSpacing="8" Padding="16,12,16,12">
@@ -47,7 +47,10 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <Ellipse Width="26" Height="26" Fill="{x:Bind Swatch}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                            <Grid Width="28" Height="28" VerticalAlignment="Top" Margin="0,2,0,0">
+                                <Ellipse Fill="{x:Bind Swatch}"/>
+                                <Image Source="{x:Bind Icon}" Width="24" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
                             <StackPanel Grid.Column="1" Spacing="2">
                                 <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
                                 <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
@@ -55,7 +58,7 @@
                             </StackPanel>
                             <Button Grid.Column="2" Content="Open ›" Click="OpenCard_Click" Tag="{x:Bind}"
                                     VerticalAlignment="Top" Padding="8,4" FontSize="11"
-                                    ToolTipService.ToolTip="View parts breakdown and system details"/>
+                                    ToolTipService.ToolTip="View parts breakdown and telemetry"/>
                         </Grid>
 
                         <TextBlock Grid.Row="1" Text="{x:Bind Facts}" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
@@ -128,277 +131,248 @@
                 </Grid.ColumnDefinitions>
                 <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
                 <TextBlock x:Name="IntroTxt" Grid.Column="1" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
-                           Text="Every base in this save - your capital freighter, planetary outposts, claimed space stations, and governed settlements - with coordinates and portal addresses. This page only reads your save."/>
+                           Text="Every base in this save - your capital freighter, planetary outposts, claimed space stations, governed settlements, and standalone equipment placed across the galaxy - with coordinates, regions, and portal addresses."/>
             </Grid>
         </Border>
 
-        <Grid x:Name="ListArea" Grid.Row="2" RowSpacing="14">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-        <!-- Tabs, not a dropdown: placed objects were hidden in one (2026-10-18). -->
-        <SelectorBar x:Name="ShowBar" SelectionChanged="ShowBar_SelectionChanged">
-            <SelectorBarItem x:Name="BasesTab" Text="Bases" IsSelected="True"/>
-            <SelectorBarItem x:Name="ObjectsTab" Text="Placed objects"
-                             ToolTipService.ToolTip="Everything you've built outside a base - beacons, signal boosters, save points, refiners, garages - so you can find them again."/>
-        </SelectorBar>
-        <ctcontrols:WrapPanel Grid.Row="1" HorizontalSpacing="14" VerticalSpacing="10">
-            <TextBox x:Name="SearchBox" Header="Search" Width="280" PlaceholderText="Names, resources, notes..." TextChanged="SearchBox_TextChanged"/>
-            <ComboBox x:Name="SortBox" Header="Sort" Width="200" SelectionChanged="SortBox_SelectionChanged">
-                <ComboBoxItem Content="Nearest to you first"/>
-                <ComboBoxItem Content="Name (A-Z)"/>
-                <ComboBoxItem Content="Galaxy"/>
-            </ComboBox>
-            <controls:HyperdriveRangeBox VerticalAlignment="Bottom"/>
-            <Button x:Name="ExportBtn" Content="Export CSV" Click="ExportCsv_Click" VerticalAlignment="Bottom"
-                    ToolTipService.ToolTip="Save the list as shown (with your filters) as a spreadsheet file"/>
-            <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
-            <StackPanel VerticalAlignment="Bottom" Margin="0,0,0,6" Spacing="2">
-                <TextBlock x:Name="PartsTotalTxt" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" FontWeight="SemiBold"/>
-                <TextBlock x:Name="PartsBreakdownTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" MaxWidth="900"/>
-            </StackPanel>
-        </ctcontrols:WrapPanel>
+        <!-- Loading spinner shown immediately upon navigation so the previous page never freezes -->
+        <ProgressRing x:Name="LoadingRing" Grid.Row="2" IsActive="True" Visibility="Visible" Width="44" Height="44"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,40,0,0"/>
 
-        <!-- Categorized Collapsible Bases Scroll -->
-        <ScrollViewer Grid.Row="2" x:Name="BasesCategorizedScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="16" Margin="0,0,12,16">
+        <Grid x:Name="ListArea" Grid.Row="2" RowSpacing="14" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-                <!-- 1. Freighter Base (pinned at top) -->
-                <Border x:Name="FreighterSectionCard" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                        Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
-                    <StackPanel>
-                        <Button x:Name="FreighterHeaderBtn" Click="CategoryToggle_Click" Tag="Freighter"
-                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                                Background="Transparent" BorderThickness="0" Padding="14,10">
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Glyph="&#xEB9F;" FontSize="15" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="FREIGHTER BASE" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="Bold" VerticalAlignment="Center"/>
-                                    <Border Background="{ThemeResource ThemeVoidBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
-                                        <TextBlock x:Name="FreighterCountTxt" Text="0" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" FontWeight="SemiBold"/>
-                                    </Border>
-                                </StackPanel>
-                                <TextBlock x:Name="FreighterSummaryTxt" Grid.Column="2" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0,0,0"/>
-                                <FontIcon x:Name="FreighterChevron" Grid.Column="3" Glyph="&#xE70E;" FontSize="12"
-                                          Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
-                            </Grid>
-                        </Button>
-                        <Border x:Name="FreighterContentArea" Padding="14,4,14,14">
-                            <ItemsControl x:Name="FreighterItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                            </ItemsControl>
-                        </Border>
-                        <TextBlock x:Name="FreighterEmptyTxt" Text="No freighter base in this save"
-                                   Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Margin="14,0,14,14" Visibility="Collapsed"/>
-                    </StackPanel>
-                </Border>
+            <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
+                <TextBox x:Name="SearchBox" Header="Search" Width="280" PlaceholderText="Names, regions, resources, notes..." TextChanged="SearchBox_TextChanged"/>
+                <ComboBox x:Name="SortBox" Header="Sort" Width="200" SelectionChanged="SortBox_SelectionChanged">
+                    <ComboBoxItem Content="Nearest to you first"/>
+                    <ComboBoxItem Content="Name (A-Z)"/>
+                    <ComboBoxItem Content="Galaxy"/>
+                </ComboBox>
+                <controls:HyperdriveRangeBox VerticalAlignment="Bottom"/>
+                <Button x:Name="ExportBtn" Content="Export CSV" Click="ExportCsv_Click" VerticalAlignment="Bottom"
+                        ToolTipService.ToolTip="Save the list as shown (with your filters) as a spreadsheet file"/>
+                <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
+                <StackPanel VerticalAlignment="Bottom" Margin="0,0,0,6" Spacing="2">
+                    <TextBlock x:Name="PartsTotalTxt" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="PartsBreakdownTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" MaxWidth="900"/>
+                </StackPanel>
+            </ctcontrols:WrapPanel>
 
-                <!-- 2. Planetary Bases -->
-                <Border x:Name="PlanetarySectionCard" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                        Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
-                    <StackPanel>
-                        <Button x:Name="PlanetaryHeaderBtn" Click="CategoryToggle_Click" Tag="Planetary"
-                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                                Background="Transparent" BorderThickness="0" Padding="14,10">
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Glyph="&#xE909;" FontSize="15" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="PLANETARY BASES" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="Bold" VerticalAlignment="Center"/>
-                                    <Border Background="{ThemeResource ThemeVoidBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
-                                        <TextBlock x:Name="PlanetaryCountTxt" Text="0" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" FontWeight="SemiBold"/>
-                                    </Border>
-                                </StackPanel>
-                                <TextBlock x:Name="PlanetarySummaryTxt" Grid.Column="2" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0,0,0"/>
-                                <FontIcon x:Name="PlanetaryChevron" Grid.Column="3" Glyph="&#xE70E;" FontSize="12"
-                                          Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
-                            </Grid>
-                        </Button>
-                        <Border x:Name="PlanetaryContentArea" Padding="14,4,14,14">
-                            <ItemsControl x:Name="PlanetaryItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                            </ItemsControl>
-                        </Border>
-                        <TextBlock x:Name="PlanetaryEmptyTxt" Text="No planet bases found"
-                                   Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Margin="14,0,14,14" Visibility="Collapsed"/>
-                    </StackPanel>
-                </Border>
+            <!-- Categorized Collapsible Bases Scroll -->
+            <ScrollViewer Grid.Row="1" x:Name="BasesCategorizedScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="16" Margin="0,0,12,16">
 
-                <!-- 3. Claimed Space Stations & Outposts -->
-                <Border x:Name="StationsSectionCard" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                        Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
-                    <StackPanel>
-                        <Button x:Name="StationsHeaderBtn" Click="CategoryToggle_Click" Tag="Stations"
-                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                                Background="Transparent" BorderThickness="0" Padding="14,10">
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Glyph="&#xE916;" FontSize="15" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="CLAIMED SPACE STATIONS &amp; OUTPOSTS" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="Bold" VerticalAlignment="Center"/>
-                                    <Border Background="{ThemeResource ThemeVoidBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
-                                        <TextBlock x:Name="StationsCountTxt" Text="0" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" FontWeight="SemiBold"/>
-                                    </Border>
-                                </StackPanel>
-                                <TextBlock x:Name="StationsSummaryTxt" Grid.Column="2" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0,0,0"/>
-                                <FontIcon x:Name="StationsChevron" Grid.Column="3" Glyph="&#xE70E;" FontSize="12"
-                                          Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
-                            </Grid>
-                        </Button>
-                        <Border x:Name="StationsContentArea" Padding="14,4,14,14">
-                            <ItemsControl x:Name="StationsItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                            </ItemsControl>
-                        </Border>
-                        <TextBlock x:Name="StationsEmptyTxt" Text="No claimed space stations or space outposts in this save"
-                                   Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Margin="14,0,14,14" Visibility="Collapsed"/>
-                    </StackPanel>
-                </Border>
-
-                <!-- 4. Settlements -->
-                <Border x:Name="SettlementsSectionCard" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                        Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
-                    <StackPanel>
-                        <Button x:Name="SettlementsHeaderBtn" Click="CategoryToggle_Click" Tag="Settlements"
-                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                                Background="Transparent" BorderThickness="0" Padding="14,10">
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Glyph="&#xE716;" FontSize="15" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="SETTLEMENTS" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="Bold" VerticalAlignment="Center"/>
-                                    <Border Background="{ThemeResource ThemeVoidBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
-                                        <TextBlock x:Name="SettlementsCountTxt" Text="0" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" FontWeight="SemiBold"/>
-                                    </Border>
-                                </StackPanel>
-                                <TextBlock x:Name="SettlementsSummaryTxt" Grid.Column="2" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0,0,0"/>
-                                <FontIcon x:Name="SettlementsChevron" Grid.Column="3" Glyph="&#xE70E;" FontSize="12"
-                                          Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
-                            </Grid>
-                        </Button>
-                        <Border x:Name="SettlementsContentArea" Padding="14,4,14,14">
-                            <ItemsControl x:Name="SettlementsItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                            </ItemsControl>
-                        </Border>
-                        <TextBlock x:Name="SettlementsEmptyTxt" Text="No settlements governed in this save"
-                                   Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Margin="14,0,14,14" Visibility="Collapsed"/>
-                    </StackPanel>
-                </Border>
-
-            </StackPanel>
-        </ScrollViewer>
-
-        <!-- Placed objects: compact cards of their own - an object has far less to show (2026-10-18). -->
-        <GridView Grid.Row="2" x:Name="ObjectsList" SelectionMode="None" Visibility="Collapsed">
-            <GridView.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <ItemsWrapGrid Orientation="Horizontal" ItemWidth="400" ItemHeight="150"/>
-                </ItemsPanelTemplate>
-            </GridView.ItemsPanel>
-            <GridView.ItemContainerStyle>
-                <Style TargetType="GridViewItem">
-                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                    <Setter Property="VerticalContentAlignment" Value="Stretch"/>
-                    <Setter Property="Padding" Value="0"/>
-                    <Setter Property="Margin" Value="0,0,10,10"/>
-                </Style>
-            </GridView.ItemContainerStyle>
-            <GridView.ItemTemplate>
-                <DataTemplate x:DataType="viewmodels:BaseRowViewModel">
-                    <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                            Background="{ThemeResource ThemePanelAltBrush}"
-                            CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,10">
-                        <Grid RowSpacing="6">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <Grid ColumnSpacing="10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="40"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Image Source="{x:Bind Icon}" Width="36" Height="36" VerticalAlignment="Top"/>
-                                <StackPanel Grid.Column="1" Spacing="1">
-                                    <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Detail}"/>
-                                    <TextBlock Text="{x:Bind Facts}" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                    <TextBlock Text="{x:Bind DistanceLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind DistanceLabel}"/>
-                                </StackPanel>
-                            </Grid>
-                            <Grid Grid.Row="1" ColumnSpacing="10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <controls:GlyphStrip Code="{x:Bind PortalCode}" VerticalAlignment="Center" HorizontalAlignment="Left">
-                                    <ItemsControl ItemsSource="{x:Bind Glyphs}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal" Spacing="2"/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="ImageSource">
-                                                <Border Width="24" Height="24" Background="{ThemeResource ThemeVoidBrush}">
-                                                    <Image Source="{x:Bind}" Width="20" Height="20"/>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </controls:GlyphStrip>
-                                <Button Grid.Column="1" Content="Copy" Tag="{x:Bind PortalCode}" Click="CopyCode_Click"
-                                        VerticalAlignment="Center" Padding="10,3" ToolTipService.ToolTip="{x:Bind PortalCode}"/>
-                            </Grid>
-                        </Grid>
+                    <!-- 1. Freighter Base (pinned at top) -->
+                    <Border x:Name="FreighterSectionCard" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                            Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                        <StackPanel>
+                            <Button x:Name="FreighterHeaderBtn" Click="CategoryToggle_Click" Tag="Freighter"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                    Background="Transparent" BorderThickness="0" Padding="14,10">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xEB9F;" FontSize="15" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="FREIGHTER BASE" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        <Border Background="{ThemeResource ThemeVoidBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                            <TextBlock x:Name="FreighterCountTxt" Text="0" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" FontWeight="SemiBold"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock x:Name="FreighterSummaryTxt" Grid.Column="2" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0,0,0"/>
+                                    <FontIcon x:Name="FreighterChevron" Grid.Column="3" Glyph="&#xE70E;" FontSize="12"
+                                              Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Button>
+                            <Border x:Name="FreighterContentArea" Padding="14,4,14,14">
+                                <ItemsControl x:Name="FreighterItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                            </Border>
+                            <TextBlock x:Name="FreighterEmptyTxt" Text="No freighter base in this save"
+                                       Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Margin="14,0,14,14" Visibility="Collapsed"/>
+                        </StackPanel>
                     </Border>
-                </DataTemplate>
-            </GridView.ItemTemplate>
-        </GridView>
+
+                    <!-- 2. Planetary Bases -->
+                    <Border x:Name="PlanetarySectionCard" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                            Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                        <StackPanel>
+                            <Button x:Name="PlanetaryHeaderBtn" Click="CategoryToggle_Click" Tag="Planetary"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                    Background="Transparent" BorderThickness="0" Padding="14,10">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE909;" FontSize="15" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="PLANETARY BASES" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        <Border Background="{ThemeResource ThemeVoidBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                            <TextBlock x:Name="PlanetaryCountTxt" Text="0" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" FontWeight="SemiBold"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock x:Name="PlanetarySummaryTxt" Grid.Column="2" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0,0,0"/>
+                                    <FontIcon x:Name="PlanetaryChevron" Grid.Column="3" Glyph="&#xE70E;" FontSize="12"
+                                              Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Button>
+                            <Border x:Name="PlanetaryContentArea" Padding="14,4,14,14">
+                                <ItemsControl x:Name="PlanetaryItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                            </Border>
+                            <TextBlock x:Name="PlanetaryEmptyTxt" Text="No planet bases found"
+                                       Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Margin="14,0,14,14" Visibility="Collapsed"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 3. Claimed Space Stations & Outposts -->
+                    <Border x:Name="StationsSectionCard" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                            Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                        <StackPanel>
+                            <Button x:Name="StationsHeaderBtn" Click="CategoryToggle_Click" Tag="Stations"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                    Background="Transparent" BorderThickness="0" Padding="14,10">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE916;" FontSize="15" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="CLAIMED SPACE STATIONS &amp; OUTPOSTS" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        <Border Background="{ThemeResource ThemeVoidBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                            <TextBlock x:Name="StationsCountTxt" Text="0" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" FontWeight="SemiBold"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock x:Name="StationsSummaryTxt" Grid.Column="2" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0,0,0"/>
+                                    <FontIcon x:Name="StationsChevron" Grid.Column="3" Glyph="&#xE70E;" FontSize="12"
+                                              Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Button>
+                            <Border x:Name="StationsContentArea" Padding="14,4,14,14">
+                                <ItemsControl x:Name="StationsItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                            </Border>
+                            <TextBlock x:Name="StationsEmptyTxt" Text="No claimed space stations or space outposts in this save"
+                                       Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Margin="14,0,14,14" Visibility="Collapsed"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 4. Settlements -->
+                    <Border x:Name="SettlementsSectionCard" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                            Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                        <StackPanel>
+                            <Button x:Name="SettlementsHeaderBtn" Click="CategoryToggle_Click" Tag="Settlements"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                    Background="Transparent" BorderThickness="0" Padding="14,10">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE716;" FontSize="15" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="SETTLEMENTS" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        <Border Background="{ThemeResource ThemeVoidBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                            <TextBlock x:Name="SettlementsCountTxt" Text="0" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" FontWeight="SemiBold"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock x:Name="SettlementsSummaryTxt" Grid.Column="2" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0,0,0"/>
+                                    <FontIcon x:Name="SettlementsChevron" Grid.Column="3" Glyph="&#xE70E;" FontSize="12"
+                                              Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Button>
+                            <Border x:Name="SettlementsContentArea" Padding="14,4,14,14">
+                                <ItemsControl x:Name="SettlementsItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                            </Border>
+                            <TextBlock x:Name="SettlementsEmptyTxt" Text="No settlements governed in this save"
+                                       Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Margin="14,0,14,14" Visibility="Collapsed"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 5. Placed Equipment (No Base) -->
+                    <Border x:Name="PlacedSectionCard" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                            Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                        <StackPanel>
+                            <Button x:Name="PlacedHeaderBtn" Click="CategoryToggle_Click" Tag="Placed"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                    Background="Transparent" BorderThickness="0" Padding="14,10">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE909;" FontSize="15" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="PLACED EQUIPMENT (NO BASE)" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        <Border Background="{ThemeResource ThemeVoidBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                            <TextBlock x:Name="PlacedCountTxt" Text="0" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" FontWeight="SemiBold"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock x:Name="PlacedSummaryTxt" Grid.Column="2" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0,0,0"/>
+                                    <FontIcon x:Name="PlacedChevron" Grid.Column="3" Glyph="&#xE70E;" FontSize="12"
+                                              Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Button>
+                            <Border x:Name="PlacedContentArea" Padding="14,4,14,14">
+                                <ItemsControl x:Name="PlacedItemsList" ItemTemplate="{StaticResource BaseCardTemplate}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                            </Border>
+                            <TextBlock x:Name="PlacedEmptyTxt" Text="No equipment left outside bases in this save"
+                                       Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Margin="14,0,14,14" Visibility="Collapsed"/>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
         </Grid>
     </Grid>
 </Page>

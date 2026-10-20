@@ -1,10 +1,11 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Media;
 using System.Collections.Generic;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
 /// <summary>One row on BasesPage - a planet base with its portal address. Read-only.</summary>
-public sealed class BaseRowViewModel
+public partial class BaseRowViewModel : ObservableObject
 {
     public required string Name { get; init; }
     public required string Detail { get; init; }
@@ -29,7 +30,9 @@ public sealed class BaseRowViewModel
     public Newtonsoft.Json.Linq.JObject? Base { get; init; }
 
     /// <summary>The picture the game uploaded of the base (GameScreenshotCache), if any.</summary>
-    public ImageSource? Picture { get; init; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PictureVisibility))]
+    private ImageSource? picture;
 
     /// <summary>A placed object's icon from the catalog.</summary>
     public ImageSource? Icon { get; init; }

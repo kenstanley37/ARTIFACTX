@@ -25,6 +25,33 @@ public sealed partial class BaseDetailsPage : Page
     private BaseRowViewModel? _row;
     private List<IGrouping<string, string>> _groups = new();
 
+    private static readonly Dictionary<string, (string Name, string Glyph)> KnownPartOverrides = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["STACONNECT"] = ("Station Connector", "\uE74C"),
+        ["BRIDGECONNECTOR"] = ("Bridge Connector", "\uE74C"),
+        ["STATION_CORE"] = ("Station Core Terminal", "\uE916"),
+        ["U_PARAGON"] = ("Station Paragon Reactor", "\uE950"),
+        ["STATION_SOFA"] = ("Station Lounge Sofa", "\uE80F"),
+        ["STATION_LCASE"] = ("Station Display Case", "\uE80F"),
+        ["STATION_DESK"] = ("Station Directorate Desk", "\uE80F"),
+        ["STATION_CHAIR"] = ("Station Concourse Chair", "\uE80F"),
+        ["STATION_BENCH"] = ("Station Concourse Bench", "\uE80F"),
+        ["STATION_CRATE"] = ("Station Cargo Crate", "\uE80F"),
+        ["STATION_CARGO"] = ("Station Cargo Container", "\uE80F"),
+        ["STATION_DOOR"] = ("Station Bulkhead Door", "\uE80F"),
+        ["STATION_WINDOW"] = ("Station Observation Window", "\uE80F"),
+        ["STATION_WALL"] = ("Station Interior Wall", "\uE80F"),
+        ["STATION_LIGHT"] = ("Station Lighting", "\uE838"),
+        ["STATION_SIGN"] = ("Station Concession Sign", "\uE80F"),
+        ["BASE_FLAG"] = ("Base Computer Terminal", "\uE909"),
+        ["BUILDFLAG"] = ("Base Computer Flag", "\uE909"),
+        ["PORTABLE_REFINER"] = ("Portable Refiner", "\uE909"),
+        ["SAVE_POINT"] = ("Save Point", "\uE909"),
+        ["SAVE_BEACON"] = ("Save Beacon", "\uE909"),
+        ["SIGNAL_SCANNER"] = ("Signal Booster", "\uE909"),
+        ["ANTENNA"] = ("Communication Station", "\uE909"),
+    };
+
     public BaseDetailsPage()
     {
         InitializeComponent();
@@ -59,24 +86,56 @@ public sealed partial class BaseDetailsPage : Page
             BaseKindsTxt.Text = $"{_groups.Count:N0} kinds of part";
             RenderParts();
         }
-        else
+        else if (row.Category.Contains("Settlement", StringComparison.OrdinalIgnoreCase))
         {
             _groups = new();
             BaseKindsTxt.Text = "Settlement Administration";
             RenderSettlementCard();
         }
+        else
+        {
+            _groups = new();
+            BaseKindsTxt.Text = "Standalone Placed Equipment";
+            RenderPlacedEquipmentCard();
+        }
+    }
+
+    private static string ResolvePartName(string rawId)
+    {
+        string norm = CatalogService.NormalizeId(rawId);
+        if (KnownPartOverrides.TryGetValue(norm, out var known))
+            return known.Name;
+
+        if (CatalogService.TryGet(norm)?.DisplayName is { Length: > 0 } catalogName)
+            return catalogName;
+
+        string cleaned = norm.Replace('_', ' ');
+        cleaned = Regex.Replace(cleaned, @"([a-z])([A-Z])", "$1 $2");
+        return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(cleaned.ToLowerInvariant());
+    }
+
+    private static string ResolvePartGlyph(string rawId)
+    {
+        string norm = CatalogService.NormalizeId(rawId);
+        if (KnownPartOverrides.TryGetValue(norm, out var known))
+            return known.Glyph;
+
+        string upper = norm.ToUpperInvariant();
+        if (upper.Contains("LIGHT") || upper.Contains("LAMP")) return "\uE838"; // Light
+        if (upper.Contains("CONNECT") || upper.Contains("BRIDGE") || upper.Contains("LINK") || upper.Contains("PIPE") || upper.Contains("WIRE")) return "\uE74C"; // Link
+        if (upper.Contains("CORE") || upper.Contains("REACTOR") || upper.Contains("TERMINAL")) return "\uE916"; // Terminal / Facility
+        if (upper.Contains("BEACON") || upper.Contains("SCANNER") || upper.Contains("REFINER") || upper.Contains("FLAG")) return "\uE909"; // Marker / Base
+        return "\uE80F"; // Building / Structure
     }
 
     private void RenderParts(string filter = "")
     {
         PartsPanel.Children.Clear();
-        string NameOf(string id) => CatalogService.TryGet(id)?.DisplayName is { Length: > 0 } n ? n
-            : CultureInfo.CurrentCulture.TextInfo.ToTitleCase(id.TrimStart('^').Replace('_', ' ').ToLowerInvariant());
 
         var filtered = _groups.Where(g =>
         {
             if (string.IsNullOrWhiteSpace(filter)) return true;
-            string name = NameOf(g.Key);
+            string name = ResolvePartName(g.Key);
             return name.Contains(filter, StringComparison.CurrentCultureIgnoreCase)
                 || g.Key.Contains(filter, StringComparison.CurrentCultureIgnoreCase);
         }).ToList();
@@ -85,11 +144,11 @@ public sealed partial class BaseDetailsPage : Page
             ? $"{_groups.Count:N0} part types"
             : $"{filtered.Count:N0} of {_groups.Count:N0} part types matching \"{filter}\"";
 
-        var shared = filtered.GroupBy(g => NameOf(g.Key)).Where(n => n.Count() > 1).Select(n => n.Key).ToHashSet();
+        var shared = filtered.GroupBy(g => ResolvePartName(g.Key)).Where(n => n.Count() > 1).Select(n => n.Key).ToHashSet();
         foreach (var g in filtered)
         {
             var entry = CatalogService.TryGet(g.Key);
-            string name = NameOf(g.Key);
+            string name = ResolvePartName(g.Key);
             if (shared.Contains(name) && Regex.Match(g.Key, @"\d+$") is { Success: true } number)
                 name = $"{name} {number.Value}";
 
@@ -101,6 +160,28 @@ public sealed partial class BaseDetailsPage : Page
             if (entry?.Icon is { } icon)
             {
                 line.Children.Add(new Image { Source = icon, Width = 32, Height = 32, VerticalAlignment = VerticalAlignment.Center });
+            }
+            else
+            {
+                // Fallback icon badge ensures every part has a visually balanced, high-contrast glyph
+                var iconBadge = new Border
+                {
+                    Width = 32,
+                    Height = 32,
+                    CornerRadius = new CornerRadius(6),
+                    Background = (Brush)Application.Current.Resources["ThemeVoidBrush"],
+                    BorderBrush = (Brush)Application.Current.Resources["ThemeLineBrush"],
+                    BorderThickness = new Thickness(1),
+                    Child = new FontIcon
+                    {
+                        Glyph = ResolvePartGlyph(g.Key),
+                        FontSize = 14,
+                        Foreground = (Brush)Application.Current.Resources["ThemeAccentBrush"],
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    }
+                };
+                line.Children.Add(iconBadge);
             }
 
             var label = new TextBlock
@@ -172,6 +253,44 @@ public sealed partial class BaseDetailsPage : Page
         };
         btn.Click += (_, _) => Frame.Navigate(typeof(SettlementPage));
         stack.Children.Add(btn);
+
+        card.Child = stack;
+        PartsPanel.Children.Add(card);
+    }
+
+    private void RenderPlacedEquipmentCard()
+    {
+        PartsPanel.Children.Clear();
+        PartSearchBox.Visibility = Visibility.Collapsed;
+        PartsSummaryCountTxt.Text = "Placed Equipment Overview";
+
+        var card = new Border
+        {
+            Padding = new Thickness(20, 18, 20, 18),
+            Background = (Brush)Application.Current.Resources["ThemePanelAltBrush"],
+            BorderBrush = (Brush)Application.Current.Resources["ThemeLineBrush"],
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            MaxWidth = 680,
+            HorizontalAlignment = HorizontalAlignment.Left
+        };
+
+        var stack = new StackPanel { Spacing = 10 };
+        stack.Children.Add(new TextBlock { Text = "EQUIPMENT PLACED OUTSIDE BASES", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] });
+        stack.Children.Add(new TextBlock
+        {
+            Text = "This equipment (portable refiner, save beacon, save point, signal booster, or geobay) was placed directly on a planet surface outside of a registered base perimeter. Each item placed across the galaxy counts towards your global 21,000 part construction limit.",
+            Style = (Style)Application.Current.Resources["ThemeBodyTextStyle"],
+            FontSize = 14,
+            TextWrapping = TextWrapping.Wrap
+        });
+        stack.Children.Add(new TextBlock
+        {
+            Text = "To reclaim building budget, dial the portal address shown above and fly to the recorded coordinates to pick up or dismantle the equipment in-game.",
+            Style = (Style)Application.Current.Resources["ThemeDimTextStyle"],
+            FontSize = 13,
+            TextWrapping = TextWrapping.Wrap
+        });
 
         card.Child = stack;
         PartsPanel.Children.Add(card);
