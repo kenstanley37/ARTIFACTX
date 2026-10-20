@@ -59,7 +59,8 @@ public sealed partial class BasesPage : Page
         string Category,
         ulong Address,
         string ScreenshotName,
-        string? PlacedIconId
+        string? PlacedIconId,
+        JObject? LooseObject = null
     );
 
     private sealed record BasesComputationResult(
@@ -217,11 +218,13 @@ public sealed partial class BasesPage : Page
                 PartsLabel = r.PartsLabel,
                 PartsBrush = r.PartsLevel >= 0 ? new SolidColorBrush(LevelColour(r.PartsLevel)) : null,
                 Base = r.Base,
+                LooseObject = r.LooseObject,
                 SortDistance = r.SortDistance,
                 Galaxy = r.Galaxy,
                 Category = r.Category,
                 Icon = r.PlacedIconId != null ? CatalogService.TryGet(r.PlacedIconId)?.Icon : null,
             };
+            vm.PropertyChanged += Row_PropertyChanged;
 
             if (r.Address != 0)
             {
@@ -233,6 +236,7 @@ public sealed partial class BasesPage : Page
 
         _rows = rows;
         Apply();
+        UpdateSelectionToolbar();
 
         LoadingRing.IsActive = false;
         LoadingRing.Visibility = Visibility.Collapsed;
@@ -515,7 +519,8 @@ public sealed partial class BasesPage : Page
                     Category: CategoryPlaced,
                     Address: address,
                     ScreenshotName: "",
-                    PlacedIconId: id
+                    PlacedIconId: id,
+                    LooseObject: o
                 ));
             }
         }
@@ -755,6 +760,172 @@ public sealed partial class BasesPage : Page
         await CsvExportService.ExportAsync(ExportBtn, "ArtifactX bases and equipment",
             new[] { "Category", "Item / Base", "Location", "Portal code", "Distance", "Parts / Status" },
             list.Select(r => new[] { r.Category, r.Name, r.Detail, r.PortalCode, r.DistanceLabel, r.PartsLabel }));
+    }
+
+    private IEnumerable<BaseRowViewModel> GetFilteredRows()
+    {
+        string search = SearchBox?.Text.Trim() ?? "";
+        bool isSearching = search.Length > 0;
+        return _rows.Where(r => !isSearching || r.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)
+            || (r.AreaOpacity > 0.9 && r.AreaLabel.Contains(search, StringComparison.CurrentCultureIgnoreCase))
+            || r.Detail.Contains(search, StringComparison.CurrentCultureIgnoreCase)
+            || r.Facts.Contains(search, StringComparison.CurrentCultureIgnoreCase)
+            || r.Category.Contains(search, StringComparison.CurrentCultureIgnoreCase));
+    }
+
+    private void SelectAll_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var r in GetFilteredRows())
+        {
+            r.IsSelected = true;
+        }
+        UpdateSelectionToolbar();
+    }
+
+    private void DeselectAll_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var r in _rows)
+        {
+            r.IsSelected = false;
+        }
+        UpdateSelectionToolbar();
+    }
+
+    private void Row_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(BaseRowViewModel.IsSelected))
+        {
+            UpdateSelectionToolbar();
+        }
+    }
+
+    private void UpdateSelectionToolbar()
+    {
+        int selectedCount = _rows.Count(r => r.IsSelected);
+        if (DeleteSelectedBtn != null)
+        {
+            DeleteSelectedBtn.IsEnabled = selectedCount > 0;
+            DeleteSelectedBtn.Content = selectedCount > 0
+                ? $"Delete Selected ({selectedCount:N0})"
+                : "Delete Selected";
+        }
+    }
+
+    private async void DeleteSelected_Click(object sender, RoutedEventArgs e)
+    {
+        var selected = _rows.Where(r => r.IsSelected).ToList();
+        if (selected.Count == 0) return;
+
+        var planetaryBases = selected.Where(r => r.Category == CategoryPlanetary).ToList();
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = this.XamlRoot,
+            Title = planetaryBases.Count > 0 ? "⚠️ Warning: Deleting Base Computer(s)" : "Delete Selected Items",
+            PrimaryButtonText = planetaryBases.Count > 0 ? "Delete Permanently" : "Delete",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close,
+        };
+
+        var contentStack = new StackPanel { Spacing = 12 };
+
+        if (planetaryBases.Count > 0)
+        {
+            contentStack.Children.Add(new TextBlock
+            {
+                Text = $"You have selected {selected.Count:N0} item(s) for deletion, including {planetaryBases.Count:N0} Planetary Base(s) containing Base Computers:",
+                Style = (Style)Application.Current.Resources["ThemeBodyTextStyle"],
+                TextWrapping = TextWrapping.Wrap,
+            });
+
+            var namesList = new StackPanel { Spacing = 4, Margin = new Thickness(12, 0, 0, 0) };
+            foreach (var pb in planetaryBases.Take(6))
+            {
+                namesList.Children.Add(new TextBlock
+                {
+                    Text = $"• {pb.Name} ({pb.Detail})",
+                    Style = (Style)Application.Current.Resources["ThemeDimTextStyle"],
+                    FontSize = 12,
+                    TextWrapping = TextWrapping.Wrap
+                });
+            }
+            if (planetaryBases.Count > 6)
+            {
+                namesList.Children.Add(new TextBlock
+                {
+                    Text = $"• ...and {planetaryBases.Count - 6:N0} more planetary base(s)",
+                    Style = (Style)Application.Current.Resources["ThemeDimTextStyle"],
+                    FontSize = 12
+                });
+            }
+            contentStack.Children.Add(namesList);
+
+            contentStack.Children.Add(new TextBlock
+            {
+                Text = "WARNING: Deleting a Base Computer permanently dismantles and deletes that entire base and all of its placed components from your save file! This cannot be undone once saved.",
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                Foreground = (Brush)Application.Current.Resources["ThemeDamagedBrush"],
+                TextWrapping = TextWrapping.Wrap,
+            });
+
+            contentStack.Children.Add(new TextBlock
+            {
+                Text = "Tip: You can cancel now and deselect your planetary bases if you only wish to delete standalone equipment or unwanted outposts.",
+                Style = (Style)Application.Current.Resources["ThemeDimTextStyle"],
+                FontSize = 12,
+                TextWrapping = TextWrapping.Wrap,
+            });
+        }
+        else
+        {
+            contentStack.Children.Add(new TextBlock
+            {
+                Text = $"Are you sure you want to delete {selected.Count:N0} selected item(s) (standalone placed equipment / structures) from your save file?",
+                Style = (Style)Application.Current.Resources["ThemeBodyTextStyle"],
+                TextWrapping = TextWrapping.Wrap,
+            });
+        }
+
+        dialog.Content = contentStack;
+
+        var result = await dialog.ShowAsync();
+        if (result != ContentDialogResult.Primary) return;
+
+        var basesToRemove = selected.Where(r => r.Base != null).Select(r => r.Base).ToHashSet();
+        var looseToRemove = selected.Where(r => r.LooseObject != null).Select(r => r.LooseObject).ToHashSet();
+
+        bool stagedAny = false;
+
+        if (basesToRemove.Count > 0 && SaveSessionManager.GetValue(S.BasesPath) is JArray currentBases)
+        {
+            var updatedBases = new JArray();
+            foreach (var token in currentBases)
+            {
+                if (token is JObject b && basesToRemove.Contains(b)) continue;
+                updatedBases.Add(token);
+            }
+            SaveSessionManager.StageEdit(updatedBases, S.BasesPath);
+            stagedAny = true;
+        }
+
+        if (looseToRemove.Count > 0 && SaveSessionManager.GetValue(NmsBuildCounts.LooseObjectsPath) is JArray currentLoose)
+        {
+            var updatedLoose = new JArray();
+            foreach (var token in currentLoose)
+            {
+                if (token is JObject o && looseToRemove.Contains(o)) continue;
+                updatedLoose.Add(token);
+            }
+            SaveSessionManager.StageEdit(updatedLoose, NmsBuildCounts.LooseObjectsPath);
+            stagedAny = true;
+        }
+
+        if (stagedAny)
+        {
+            LiveSaveWatcher.LatestSnapshot = null;
+            _lastKey = "";
+            await LoadAsync();
+        }
     }
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => Apply();

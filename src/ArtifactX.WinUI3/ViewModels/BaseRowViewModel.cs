@@ -29,10 +29,17 @@ public partial class BaseRowViewModel : ObservableObject
     /// <summary>The base's save entry, for its parts list (null for placed objects).</summary>
     public Newtonsoft.Json.Linq.JObject? Base { get; init; }
 
+    /// <summary>The loose placed object's save entry in c5s (null for bases).</summary>
+    public Newtonsoft.Json.Linq.JObject? LooseObject { get; init; }
+
+    /// <summary>Selection state for bulk operations.</summary>
+    [ObservableProperty]
+    public partial bool IsSelected { get; set; }
+
     /// <summary>The picture the game uploaded of the base (GameScreenshotCache), if any.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PictureVisibility))]
-    private ImageSource? picture;
+    public partial ImageSource? Picture { get; set; }
 
     /// <summary>A placed object's icon from the catalog.</summary>
     public ImageSource? Icon { get; init; }
