@@ -515,11 +515,20 @@ public sealed partial class PlanetsPage : Page
 
         NoSystemPlanetsTxt.Visibility = planets.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         AnyFishPanel.Visibility = Visibility.Collapsed; // each card counts every fish it can have now
+        var cards = new List<Border>();
         foreach (var planet in planets)
         {
             counts.TryGetValue(planet.Address, out var tally);
-            CurrentPlanetsPanel.Children.Add(BuildPlanetTile(planet, tally, ReadPlanetStats(planet.Address), planet.PlanetIndex == currentPlanet,
-                BodyKindsService.IsMoon(system, planet.PlanetIndex)));
+            var card = BuildPlanetTile(planet, tally, ReadPlanetStats(planet.Address), planet.PlanetIndex == currentPlanet,
+                BodyKindsService.IsMoon(system, planet.PlanetIndex));
+            card.Measure(new Windows.Foundation.Size(372, double.PositiveInfinity));
+            cards.Add(card);
+        }
+        double maxHeight = cards.Count > 0 ? cards.Max(c => c.DesiredSize.Height) : 0;
+        foreach (var card in cards)
+        {
+            if (maxHeight > 0) card.MinHeight = maxHeight;
+            CurrentPlanetsPanel.Children.Add(card);
         }
     }
 
@@ -763,7 +772,18 @@ public sealed partial class PlanetsPage : Page
         copy.Click += CopyCode_Click;
         ToolTipService.SetToolTip(copy, $"Copy portal address {planet.PortalCode}");
         glyphRow.Children.Add(copy);
-        stack.Children.Add(glyphRow);
+
+        var cardGrid = new Grid();
+        cardGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        cardGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        cardGrid.Children.Add(stack);
+        Grid.SetRow(stack, 0);
+
+        glyphRow.Margin = new Thickness(0, 12, 0, 0);
+        glyphRow.VerticalAlignment = VerticalAlignment.Bottom;
+        cardGrid.Children.Add(glyphRow);
+        Grid.SetRow(glyphRow, 1);
 
         var card = new Border
         {
@@ -773,7 +793,7 @@ public sealed partial class PlanetsPage : Page
             BorderBrush = ThemeBrush(here ? "ThemeAccentBrush" : "ThemeLineBrush"),
             BorderThickness = new Thickness(1),
             CornerRadius = ThemeResources.CardCornerRadius,
-            Child = stack,
+            Child = cardGrid,
         };
         ToolTipService.SetToolTip(card, "Click to open this planet");
         // The whole card opens the planet - except clicks meant for its own

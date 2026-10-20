@@ -101,6 +101,8 @@
                                 <TextBlock x:Name="SystemFactsTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextWrapping="Wrap"
                                            Foreground="{ThemeResource ThemeAccentBrush}"/>
                                 <TextBlock x:Name="SystemStationTxt" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" Visibility="Collapsed"/>
+                                <TextBlock x:Name="SystemSourcesTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                           Text="Planet types, rings and your discoveries come from your save. Names, star colour, race, economy, wealth and conflict come from the game's own generator - the same formula the game uses, right about 99% of the time. Your notes below win if you record something different. Weather and resources aren't covered."/>
                                 <StackPanel Spacing="6" Margin="0,6,0,0">
                                     <TextBlock x:Name="PortalEyebrow" Text="SYSTEM PORTAL ADDRESS" Style="{StaticResource ThemeEyebrowStyle}"/>
                                     <controls:GlyphStrip x:Name="SystemGlyphStrip"><StackPanel x:Name="SystemGlyphsPanel" Orientation="Horizontal" Spacing="3"/></controls:GlyphStrip>
@@ -113,8 +115,6 @@
                                         <Button x:Name="CopySystemCodeBtn" Content="Copy" Click="CopyCode_Click" Padding="10,3"/>
                                     </StackPanel>
                                 </StackPanel>
-                                <TextBlock x:Name="SystemSourcesTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                           Text="Planet types, rings and your discoveries come from your save. Names, star colour, race, economy, wealth and conflict come from the game's own generator - the same formula the game uses, right about 99% of the time. Your notes below win if you record something different. Weather and resources aren't covered."/>
                             </StackPanel>
 
                             <!-- The system at a glance, laid out like the game's Discoveries pop-up

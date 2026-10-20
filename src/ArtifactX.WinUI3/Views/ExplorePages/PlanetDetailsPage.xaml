@@ -61,12 +61,12 @@
                                     <TextBlock Text="·" Foreground="{ThemeResource ThemeTextFaintBrush}" FontSize="13"/>
                                     <TextBlock x:Name="CoordsTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
                                 </StackPanel>
-                                <StackPanel x:Name="GlyphContainer" Orientation="Horizontal" Spacing="4" Margin="0,4,0,0"/>
                                 <Border x:Name="HereBadge" Visibility="Collapsed" HorizontalAlignment="Left" Margin="0,4,0,0"
                                         Background="{ThemeResource ThemeDoneBrush}" Padding="8,3" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
                                     <TextBlock x:Name="HereBadgeTxt" Text="◆  YOU ARE HERE" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold"
                                                FontSize="11" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
                                 </Border>
+                                <StackPanel x:Name="GlyphContainer" Orientation="Horizontal" Spacing="4" Margin="0,4,0,0"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">

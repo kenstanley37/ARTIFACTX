@@ -825,13 +825,7 @@ public sealed partial class SpaceStationsPage : Page
         stack.Children.Add(Requirement($"{guild.Name ?? "Guild"} standing", guild.Value, S.GuildStandingRequired));
         stack.Children.Add(Requirement("Salvage contracts", S.ReadStat(stats.Group, S.SalvageContractsStatId), S.SalvageContractsRequired));
 
-        // Glyphs (click to enlarge) and distance
-        string code = S.PortalAddress(address, 0);
-        var tiles = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
-        foreach (char c in code)
-            if (CatalogService.TryGet($"PORTALSYMBOL_{c}")?.Icon is ImageSource glyph)
-                tiles.Children.Add(new Border { Width = 20, Height = 20, Background = ThemeBrush("ThemeVoidBrush"), Child = new Image { Source = glyph, Width = 17, Height = 17 } });
-        stack.Children.Add(new ArtifactX.WinUI3.Controls.GlyphStrip { Content = tiles, Code = code, Title = name });
+        // Distance
         double? distance = ClaimDistance(address);
         stack.Children.Add(new TextBlock
         {
@@ -845,6 +839,22 @@ public sealed partial class SpaceStationsPage : Page
             FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush"),
         });
 
+        // Glyphs (click to enlarge) anchored at bottom
+        string code = S.PortalAddress(address, 0);
+        var tiles = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
+        foreach (char c in code)
+            if (CatalogService.TryGet($"PORTALSYMBOL_{c}")?.Icon is ImageSource glyph)
+                tiles.Children.Add(new Border { Width = 20, Height = 20, Background = ThemeBrush("ThemeVoidBrush"), Child = new Image { Source = glyph, Width = 17, Height = 17 } });
+        var glyphStrip = new ArtifactX.WinUI3.Controls.GlyphStrip { Content = tiles, Code = code, Title = name, Margin = new Thickness(0, 10, 0, 0), VerticalAlignment = VerticalAlignment.Bottom };
+
+        var cardGrid = new Grid();
+        cardGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        cardGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        cardGrid.Children.Add(stack);
+        Grid.SetRow(stack, 0);
+        cardGrid.Children.Add(glyphStrip);
+        Grid.SetRow(glyphStrip, 1);
+
         return new Border
         {
             Width = 330,
@@ -854,7 +864,7 @@ public sealed partial class SpaceStationsPage : Page
             BorderBrush = ThemeBrush(here ? "ThemeAccentBrush" : "ThemeLineBrush"),
             Background = ThemeBrush("ThemePanelBrush"),
             Opacity = hidden ? 0.55 : 1,
-            Child = stack,
+            Child = cardGrid,
         };
     }
 

@@ -236,6 +236,7 @@
                                                    FontSize="12" TextWrapping="Wrap"/>
                                         <TextBlock Text="You marked this planet as having no water" Visibility="{x:Bind NoWaterVisibility}"
                                                    Foreground="{ThemeResource ThemeWarningBrush}" FontSize="12" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{x:Bind Distance}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"/>
                                         <Grid ColumnSpacing="8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
@@ -260,7 +261,6 @@
                                             <Button Grid.Column="1" Content="Copy" Tag="{x:Bind PortalCode}" Click="CopyCode_Click" Padding="8,2"
                                                     ToolTipService.ToolTip="{x:Bind PortalCode}"/>
                                         </Grid>
-                                        <TextBlock Text="{x:Bind Distance}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"/>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>

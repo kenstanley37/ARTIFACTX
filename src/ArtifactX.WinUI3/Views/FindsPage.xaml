@@ -229,7 +229,9 @@
                                            MaxLines="3" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Notes}"/>
                             </StackPanel>
 
-                            <Grid Grid.Row="3" ColumnSpacing="8">
+                            <TextBlock Grid.Row="3" Text="{x:Bind Distance}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"
+                                       TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                            <Grid Grid.Row="4" ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
@@ -253,8 +255,6 @@
                                 <Button Grid.Column="1" Content="Copy" Tag="{x:Bind PortalCode}" Click="CopyCode_Click" Padding="8,2"
                                         ToolTipService.ToolTip="Copy the portal address"/>
                             </Grid>
-                            <TextBlock Grid.Row="4" Text="{x:Bind Distance}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"
-                                       TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
                         </Grid>
                     </Border>
                 </DataTemplate>
