@@ -102,7 +102,6 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -133,7 +132,7 @@
             </Grid>
         </Border>
 
-        <Grid x:Name="ListArea" Grid.Row="2" Grid.RowSpan="2" RowSpacing="14">
+        <Grid x:Name="ListArea" Grid.Row="2" RowSpacing="14">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -400,69 +399,6 @@
                 </DataTemplate>
             </GridView.ItemTemplate>
         </GridView>
-        </Grid>
-
-        <!-- A base's parts, one row per kind, biggest first (user request 2026-10-18). -->
-        <Grid x:Name="DetailArea" Grid.Row="2" Grid.RowSpan="2" RowSpacing="14" Visibility="Collapsed">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <!-- The base's picture, faint, behind the whole header (user idea 2026-10-18 - to try),
-                 faded out toward the bottom so the text stays readable. -->
-            <Border x:Name="DetailBackdrop" Margin="-12,-8,-12,-6" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Visibility="Collapsed">
-                <Border.Background>
-                    <ImageBrush x:Name="DetailBackdropBrush" Stretch="UniformToFill" Opacity="0.28"/>
-                </Border.Background>
-            </Border>
-            <Grid x:Name="DetailHeaderGrid" ColumnSpacing="24" SizeChanged="DetailHeader_SizeChanged">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" MinWidth="360"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel Spacing="4" MaxWidth="560">
-                    <Button Content="‹ All bases" Click="DetailBack_Click" Padding="10,4" Margin="0,0,0,6"/>
-                    <TextBlock x:Name="DetailTitleTxt" Style="{StaticResource ThemeBodyTextStyle}" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                    <TextBlock x:Name="DetailSubTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"/>
-                    <TextBlock x:Name="DetailPartsTxt" FontSize="14" FontWeight="SemiBold"/>
-                    <TextBlock x:Name="DetailKindsTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
-                </StackPanel>
-                <!-- The system and planet at a glance, so nothing needs another page (user, 2026-10-18). -->
-                <Border Grid.Column="1" VerticalAlignment="Top" Padding="16,12" MaxWidth="720" HorizontalAlignment="Right"
-                        Background="Transparent">  <!-- no panel: it sits on the faded backdrop (user, 2026-10-18) -->
-                    <StackPanel Spacing="8">
-                        <Border x:Name="DetailPictureBorder" Height="200" CornerRadius="6" Visibility="Collapsed">
-                            <Image x:Name="DetailPicture" Stretch="UniformToFill"/>
-                        </Border>
-                        <TextBlock Text="SYSTEM AND PLANET" Style="{StaticResource ThemeEyebrowStyle}"/>
-                        <TextBlock x:Name="DetailFactsTxt" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
-                        <TextBlock x:Name="DetailAreaTxt" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                        <TextBlock x:Name="DetailDistanceTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <controls:GlyphStrip x:Name="DetailGlyphStrip" VerticalAlignment="Center">
-                                <ItemsControl x:Name="DetailGlyphs">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal" Spacing="2"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="ImageSource">
-                                            <Border Width="24" Height="24" Background="{ThemeResource ThemeVoidBrush}">
-                                                <Image Source="{x:Bind}" Width="20" Height="20"/>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </controls:GlyphStrip>
-                            <Button x:Name="DetailCopyBtn" Content="Copy" Click="CopyCode_Click" Padding="10,3" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-            </Grid>
-            <ScrollViewer Grid.Row="1">
-                <ctcontrols:WrapPanel x:Name="DetailList" HorizontalSpacing="10" VerticalSpacing="8"/>
-            </ScrollViewer>
         </Grid>
     </Grid>
 </Page>

@@ -613,7 +613,7 @@ public sealed partial class BasesPage : Page
         }
         if ((sender as FrameworkElement)?.DataContext is BaseRowViewModel row)
         {
-            ShowDetail(row);
+            Frame.Navigate(typeof(ExplorePages.BaseDetailsPage), row);
         }
     }
 
@@ -621,7 +621,7 @@ public sealed partial class BasesPage : Page
     {
         var row = (sender as FrameworkElement)?.DataContext as BaseRowViewModel
             ?? (sender as FrameworkElement)?.Tag as BaseRowViewModel;
-        if (row != null) ShowDetail(row);
+        if (row != null) Frame.Navigate(typeof(ExplorePages.BaseDetailsPage), row);
     }
 
     private async void ExportCsv_Click(object sender, RoutedEventArgs e)
@@ -657,136 +657,6 @@ public sealed partial class BasesPage : Page
     }
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => Apply();
-
-    /// <summary>A base clicked: its parts, one row per kind ("Wooden Floor · 600"), biggest first
-    /// (user request 2026-10-18) - what to thin out when a base is near its limit.</summary>
-    private async void ShowDetail(BaseRowViewModel row)
-    {
-        DetailTitleTxt.Text = row.Name;
-        DetailSubTxt.Text = row.Detail;
-        DetailPartsTxt.Text = row.PartsLabel;
-        DetailPartsTxt.Foreground = row.PartsBrush;
-        DetailPicture.Source = row.Picture;
-        DetailPictureBorder.Visibility = row.PictureVisibility;
-        DetailFactsTxt.Text = row.Facts;
-        DetailAreaTxt.Text = row.AreaLabel;
-        DetailAreaTxt.Opacity = row.AreaOpacity;
-        DetailDistanceTxt.Text = row.DistanceLabel;
-        DetailGlyphStrip.Code = row.PortalCode;
-        DetailGlyphs.ItemsSource = row.Glyphs;
-        DetailCopyBtn.Tag = row.PortalCode;
-        ToolTipService.SetToolTip(DetailCopyBtn, row.PortalCode);
-        DetailList.Children.Clear();
-
-        if (row.Base is JObject b)
-        {
-            _backdropBase = row.Picture is null ? null : b;
-            _backdropAspect = 0;
-            DetailBackdrop.Visibility = Visibility.Collapsed;
-
-            var objects = (b["@ZJ"] as JArray ?? new JArray()).OfType<JObject>()
-                .Select(o => o["r<7"]?.Value<string>() ?? "").Where(id => id != "^BASE_FLAG").ToList();
-            var groups = objects.GroupBy(id => id).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).ToList();
-            await CatalogService.WarmCacheAsync(groups.Select(g => g.Key));
-            DetailKindsTxt.Text = $"{groups.Count:N0} kinds of part";
-
-            string NameOf(string id) => CatalogService.TryGet(id)?.DisplayName is { Length: > 0 } n ? n
-                : CultureInfo.CurrentCulture.TextInfo.ToTitleCase(id.TrimStart('^').Replace('_', ' ').ToLowerInvariant());
-            // Kinds sharing a name are numbered as the game numbers them: CONTAINER0..9 are ten
-            // separate "Storage Container"s, told apart only by the digit on their icons (2026-10-18).
-            var shared = groups.GroupBy(g => NameOf(g.Key)).Where(n => n.Count() > 1).Select(n => n.Key).ToHashSet();
-            foreach (var g in groups)
-            {
-                var entry = CatalogService.TryGet(g.Key);
-                string name = NameOf(g.Key);
-                if (shared.Contains(name) && System.Text.RegularExpressions.Regex.Match(g.Key, @"\d+$") is { Success: true } number)
-                    name = $"{name} {number.Value}";
-                var line = new Grid { ColumnSpacing = 12, Padding = new Thickness(10, 6, 14, 6), Width = 360 };
-                line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
-                line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                if (entry?.Icon is { } icon) line.Children.Add(new Image { Source = icon, Width = 32, Height = 32 });
-                var label = new TextBlock { Text = name, FontSize = 14, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis,
-                    Foreground = (Brush)Application.Current.Resources["ThemeTextBrush"] };
-                ToolTipService.SetToolTip(label, name);
-                Grid.SetColumn(label, 1);
-                line.Children.Add(label);
-                var count = new TextBlock { Text = g.Count().ToString("N0", CultureInfo.CurrentCulture), FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                    VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["ThemeAccentBrush"] };
-                Grid.SetColumn(count, 2);
-                line.Children.Add(count);
-                DetailList.Children.Add(new Border
-                {
-                    Child = line, CornerRadius = new CornerRadius(6), BorderThickness = new Thickness(1),
-                    Background = (Brush)Application.Current.Resources["ThemePanelAltBrush"], BorderBrush = (Brush)Application.Current.Resources["ThemeLineBrush"],
-                });
-            }
-        }
-        else
-        {
-            _backdropBase = null;
-            DetailBackdrop.Visibility = Visibility.Collapsed;
-            DetailKindsTxt.Text = "Settlement Administration";
-
-            var infoCard = new Border
-            {
-                Padding = new Thickness(16, 14, 16, 14),
-                Background = (Brush)Application.Current.Resources["ThemePanelAltBrush"],
-                BorderBrush = (Brush)Application.Current.Resources["ThemeLineBrush"],
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(8),
-                Child = new StackPanel
-                {
-                    Spacing = 6,
-                    Children =
-                    {
-                        new TextBlock { Text = "SETTLEMENT OVERVIEW", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] },
-                        new TextBlock { Text = "Settlement buildings and citizen decisions are managed from your Overseer's Office.", Style = (Style)Application.Current.Resources["ThemeBodyTextStyle"], FontSize = 14 },
-                        new TextBlock { Text = "You can view full debt, productivity, happiness, and active features on the Settlements page.", Style = (Style)Application.Current.Resources["ThemeDimTextStyle"], FontSize = 12 }
-                    }
-                }
-            };
-            DetailList.Children.Add(infoCard);
-        }
-
-        ListArea.Visibility = Visibility.Collapsed;
-        DetailArea.Visibility = Visibility.Visible;
-        DetailHeaderGrid.UpdateLayout();
-        await ShowBackdropAsync();
-    }
-
-    private JObject? _backdropBase;
-    private double _backdropAspect;
-
-    /// <summary>The base's picture behind the header, faded to transparent at the edges of the
-    /// area it fills - so it melts into the page with no seam (2026-10-18). Redone when the
-    /// header's shape changes much (window resized).</summary>
-    private async System.Threading.Tasks.Task ShowBackdropAsync()
-    {
-        if (_backdropBase is not JObject b || S.ParsePackedAddress(b["oZw"]) is not ulong address) return;
-        double w = DetailHeaderGrid.ActualWidth + 24, h = DetailHeaderGrid.ActualHeight + 14;
-        if (w < 50 || h < 50) return;
-        double aspect = w / h;
-        if (_backdropAspect > 0 && Math.Abs(aspect / _backdropAspect - 1) < 0.08) return;
-        _backdropAspect = aspect;
-        if (await GameScreenshotCache.LoadAsync(SaveSessionManager.ActivePlatformFolder, address, b["NKm"]?.Value<string>() ?? "", faded: true, aspect: aspect) is { } faded
-            && _backdropBase == b)
-        {
-            DetailBackdropBrush.ImageSource = faded;
-            DetailBackdrop.Visibility = Visibility.Visible;
-        }
-    }
-
-    private void DetailHeader_SizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        if (DetailArea.Visibility == Visibility.Visible) _ = ShowBackdropAsync();
-    }
-
-    private void DetailBack_Click(object sender, RoutedEventArgs e)
-    {
-        DetailArea.Visibility = Visibility.Collapsed;
-        ListArea.Visibility = Visibility.Visible;
-    }
 
     private void SortBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {

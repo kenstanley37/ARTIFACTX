@@ -252,6 +252,9 @@
     <Page Update="Views\ExplorePages\PlanetDetailsPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Update="Views\ExplorePages\BaseDetailsPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Views\EditorPages\" />
