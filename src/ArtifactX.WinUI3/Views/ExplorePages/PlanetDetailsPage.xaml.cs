@@ -42,9 +42,13 @@ public sealed partial class PlanetDetailsPage : Page
     private List<string> _editingResources = new();
     private List<string> _editingNotes = new();
 
+    private const string FishCollapsedKey = "PlanetDetailsFishCollapsed";
+
     public PlanetDetailsPage()
     {
         this.InitializeComponent();
+        this.Loaded += (_, _) => EqualizeSystemCards();
+        this.SizeChanged += (_, _) => EqualizeSystemCards();
     }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
@@ -266,6 +270,9 @@ public sealed partial class PlanetDetailsPage : Page
 
         // 9. Full Width Bottom: Creatures Discovery Catalog
         RenderCreatures(planet);
+
+        // 10. Equalize system cards height
+        EqualizeSystemCards();
     }
 
     private void UpdateHeaderTitles(KnownPlanet planet)
@@ -338,6 +345,7 @@ public sealed partial class PlanetDetailsPage : Page
             PrepareDetailsEditor(planet, details);
         }
         RenderFish(planet);
+        EqualizeSystemCards();
     }
 
     private void UpdateHereStatus(KnownPlanet planet)
@@ -564,6 +572,7 @@ public sealed partial class PlanetDetailsPage : Page
         DetailsEditorPanel.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
         DetailsSummaryPanel.Visibility = open ? Visibility.Collapsed : Visibility.Visible;
         EditDetailsToggleBtn.Content = open ? "Close editor" : "Edit details";
+        EqualizeSystemCards();
     }
 
     private void SaveDetails_Click(object sender, RoutedEventArgs e)
@@ -659,6 +668,7 @@ public sealed partial class PlanetDetailsPage : Page
         AddFact("System address", $"0x{planet.SystemAddress:X16}");
 
         SaveFactsContainer.Children.Add(grid);
+        EqualizeSystemCards();
     }
 
     private static string DiscoveredText(PlanetDiscoveryCounts? tally, ulong address)
@@ -723,6 +733,7 @@ public sealed partial class PlanetDetailsPage : Page
         if (bases.Count == 0)
         {
             BasesListPanel.Children.Add(DimLine("No bases or outposts registered on this planet."));
+            EqualizeSystemCards();
             return;
         }
 
@@ -772,6 +783,7 @@ public sealed partial class PlanetDetailsPage : Page
             card.Child = grid;
             BasesListPanel.Children.Add(card);
         }
+        EqualizeSystemCards();
     }
 
     // ---------------------------------------------------------------- Recorded Finds
@@ -782,6 +794,7 @@ public sealed partial class PlanetDetailsPage : Page
         if (finds.Count == 0)
         {
             FindsCard.Visibility = Visibility.Collapsed;
+            EqualizeSystemCards();
             return;
         }
 
@@ -799,6 +812,7 @@ public sealed partial class PlanetDetailsPage : Page
                 IsTextSelectionEnabled = true
             });
         }
+        EqualizeSystemCards();
     }
 
     // ---------------------------------------------------------------- Fishing Catches (Far Right Column)
@@ -808,7 +822,7 @@ public sealed partial class PlanetDetailsPage : Page
         FishContainerPanel.Children.Clear();
         if (_fish.Count == 0)
         {
-            FishCard.Visibility = Visibility.Collapsed;
+            FishingColumnPanel.Visibility = Visibility.Collapsed;
             return;
         }
         var caughtHere = FishCatchService.CaughtOn(planet.SystemAddress, planet.PlanetIndex);
@@ -816,15 +830,34 @@ public sealed partial class PlanetDetailsPage : Page
         bool hasWater = water == true || caughtHere.Count > 0 || (water is null && NmsPlanets.AlwaysHasWater(planet.BiomeIndex));
         if (!hasWater)
         {
-            FishCard.Visibility = Visibility.Collapsed;
+            FishingColumnPanel.Visibility = Visibility.Collapsed;
             return;
         }
 
-        FishCard.Visibility = Visibility.Visible;
+        FishingColumnPanel.Visibility = Visibility.Visible;
+        bool isCollapsed = AppSettingsService.GetFlag(FishCollapsedKey);
+        UpdateFishCollapseView(isCollapsed);
 
         var own = _fish.Where(f => f.LivesOn(planet.BiomeIndex) && !f.Biomes.Contains(FishInfo.AnyPlanet)).ToList();
         var anywhere = _fish.Where(f => f.Biomes.Contains(FishInfo.AnyPlanet)).ToList();
         int Caught(List<FishInfo> fish) => fish.Count(f => _caught.ContainsKey(f.Id));
+
+        int totalHere = caughtHere.Values.Sum();
+        if (totalHere > 0)
+        {
+            FishCollapsedBadgeTxt.Text = $"{totalHere}";
+            ToolTipService.SetToolTip(FishCardCollapsed, $"{totalHere} fish caught on this planet · Click to expand");
+        }
+        else if (own.Count > 0)
+        {
+            FishCollapsedBadgeTxt.Text = $"{Caught(own)}/{own.Count}";
+            ToolTipService.SetToolTip(FishCardCollapsed, $"{Caught(own)} of {own.Count} biome species caught · Click to expand");
+        }
+        else
+        {
+            FishCollapsedBadgeTxt.Text = $"{_fish.Count}";
+            ToolTipService.SetToolTip(FishCardCollapsed, "Fishing pane · Click to expand");
+        }
 
         if (own.Count > 0)
         {
@@ -838,7 +871,6 @@ public sealed partial class PlanetDetailsPage : Page
             ? $"✓ All {anywhere.Count} fish found on any planet with water caught"
             : $"Plus {anywhere.Count} fish found on any planet with water - you've caught {Caught(anywhere)}."));
 
-        int totalHere = caughtHere.Values.Sum();
         FishContainerPanel.Children.Add(new TextBlock
         {
             Text = totalHere == 0 ? "Caught here: none yet"
@@ -900,6 +932,63 @@ public sealed partial class PlanetDetailsPage : Page
                 FishContainerPanel.Children.Add(list);
             }
         }
+    }
+
+    private void CollapseFishBtn_Click(object sender, RoutedEventArgs e) => SetFishCollapsed(true);
+
+    private void ExpandFishBtn_Click(object sender, RoutedEventArgs e) => SetFishCollapsed(false);
+
+    private void SetFishCollapsed(bool collapsed)
+    {
+        AppSettingsService.SetFlag(FishCollapsedKey, collapsed);
+        UpdateFishCollapseView(collapsed);
+    }
+
+    private void UpdateFishCollapseView(bool collapsed)
+    {
+        FishCard.Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
+        FishCardCollapsed.Visibility = collapsed ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void EqualizeSystemCards()
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            var cards = new[] { DetailsCard, SaveFactsCard, BasesCard, FindsCard }
+                .Where(c => c is not null && c.Visibility == Visibility.Visible)
+                .ToList();
+            if (cards.Count == 0) return;
+
+            foreach (var card in cards)
+            {
+                card.ClearValue(FrameworkElement.HeightProperty);
+                card.MinHeight = 0;
+            }
+
+            double maxDesired = 270;
+            foreach (var card in cards)
+            {
+                if (card == DetailsCard && DetailsEditorPanel.Visibility == Visibility.Visible)
+                    continue;
+
+                double w = card.Width > 0 ? card.Width : 385;
+                card.Measure(new Windows.Foundation.Size(w, double.PositiveInfinity));
+                if (card.DesiredSize.Height > maxDesired)
+                    maxDesired = card.DesiredSize.Height;
+            }
+
+            double uniformHeight = Math.Min(Math.Max(maxDesired, 270), 320);
+
+            foreach (var card in cards)
+            {
+                card.Height = uniformHeight;
+            }
+
+            if (FishCardCollapsed is not null)
+            {
+                FishCardCollapsed.MinHeight = uniformHeight;
+            }
+        });
     }
 
     private string FishName(string id)
