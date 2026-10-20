@@ -5,6 +5,7 @@ using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Shapes;
@@ -101,28 +102,55 @@ public sealed partial class PlanetsPage : Page
         _ = LoadPageAsync();
     }
 
-    private async void PageCaptureBtn_Click(object sender, RoutedEventArgs e)
+    private bool _isCapturingSystem;
+
+    private async void CaptureSystemPicture_Click(object sender, RoutedEventArgs e)
     {
-        PageCaptureBtn.IsEnabled = false;
-        PageCaptureIcon.Visibility = Visibility.Collapsed;
-        PageCaptureSpinner.Visibility = Visibility.Visible;
-        PageCaptureSpinner.IsActive = true;
-        PageCaptureTxt.Text = "Capturing...";
+        if (_isCapturingSystem) return;
+        _isCapturingSystem = true;
+
+        CaptureSystemPictureBtn.IsEnabled = false;
+        OverlayCaptureSystemBtn.IsEnabled = false;
+        CaptureSystemIcon.Visibility = Visibility.Collapsed;
+        CaptureSystemSpinner.Visibility = Visibility.Visible;
+        CaptureSystemSpinner.IsActive = true;
+        CaptureSystemTxt.Text = "Capturing...";
+
         try
         {
             var result = await ScreenCaptureLogService.CaptureNowAsync();
-            if (!result.Success || result.ReadInfo is null)
+            if (_currentSystem is ulong system)
             {
-                ToolTipService.SetToolTip(PageCaptureBtn, result.Message);
+                ShowSystemPicture(system);
             }
+
+            SystemCaptureFlyoutIcon.Glyph = result.Success ? "\uE73E" : "\uE7BA";
+            SystemCaptureFlyoutIcon.Foreground = result.Success
+                ? (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["ThemeAccentBrush"]
+                : (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["ThemeWarningBrush"];
+            SystemCaptureFlyoutTitle.Text = result.Success
+                ? (result.ReadInfo != null ? "Discovery Captured" : "System Screenshot Captured")
+                : "Capture Not Ready";
+            SystemCaptureFlyoutDetails.Text = result.Message;
+
+            FlyoutBase.ShowAttachedFlyout(CaptureSystemPictureBtn);
+        }
+        catch (Exception ex)
+        {
+            SystemCaptureFlyoutIcon.Glyph = "\uE7BA";
+            SystemCaptureFlyoutTitle.Text = "Capture Error";
+            SystemCaptureFlyoutDetails.Text = ex.Message;
+            FlyoutBase.ShowAttachedFlyout(CaptureSystemPictureBtn);
         }
         finally
         {
-            PageCaptureSpinner.IsActive = false;
-            PageCaptureSpinner.Visibility = Visibility.Collapsed;
-            PageCaptureIcon.Visibility = Visibility.Visible;
-            PageCaptureTxt.Text = "Capture screen";
-            PageCaptureBtn.IsEnabled = true;
+            CaptureSystemSpinner.IsActive = false;
+            CaptureSystemSpinner.Visibility = Visibility.Collapsed;
+            CaptureSystemIcon.Visibility = Visibility.Visible;
+            CaptureSystemTxt.Text = "Capture system";
+            CaptureSystemPictureBtn.IsEnabled = true;
+            OverlayCaptureSystemBtn.IsEnabled = true;
+            _isCapturingSystem = false;
         }
     }
 

@@ -1,6 +1,5 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using System;
@@ -12,7 +11,6 @@ namespace ArtifactX.WinUI3.Controls;
 public sealed partial class AppTitleBar : UserControl
 {
     private bool _isSaving;
-    private bool _isCapturing;
 
     // Tracks the previously-shown label so Refresh() can tell "the active save
     // actually switched to a different one" apart from "Refresh ran again for
@@ -41,7 +39,6 @@ public sealed partial class AppTitleBar : UserControl
         RefreshRecording();
         ScreenCaptureLogService.RecordingChanged += () => DispatcherQueue.TryEnqueue(RefreshScreenRecording);
         RefreshScreenRecording();
-        RefreshManualCaptureTooltip();
 
         // Parts placed follow the game's saves live, like the Bases page (2026-10-18).
         FishCatchRecorder.SnapshotSeen += snapshot =>
@@ -78,56 +75,6 @@ public sealed partial class AppTitleBar : UserControl
     {
         ScreenRecordingFlyout.Hide();
         ScreenCaptureLogService.Enabled = false;
-    }
-
-    private void RefreshManualCaptureTooltip()
-    {
-        ToolTipService.SetToolTip(ManualCaptureBtn, GameProcessMonitorService.IsGameRunning
-            ? "Capture game screen and parse with OCR now"
-            : "Capture game screen and parse with OCR now (No Man's Sky is not running)");
-    }
-
-    private async void ManualCaptureBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_isCapturing) return;
-        _isCapturing = true;
-        ManualCaptureBtn.IsEnabled = false;
-        CaptureCameraIcon.Visibility = Visibility.Collapsed;
-        CaptureSpinner.Visibility = Visibility.Visible;
-        CaptureSpinner.IsActive = true;
-        CaptureBtnText.Text = "Capturing...";
-
-        try
-        {
-            var result = await ScreenCaptureLogService.CaptureNowAsync();
-
-            CaptureResultIcon.Glyph = result.Success ? "\uE73E" : "\uE7BA";
-            CaptureResultIcon.Foreground = result.Success
-                ? (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["ThemeAccentBrush"]
-                : (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["ThemeWarningBrush"];
-            CaptureResultTitle.Text = result.Success
-                ? (result.ReadInfo != null ? "Discovery Captured" : "Screen Captured")
-                : "Capture Not Ready";
-            CaptureResultDetails.Text = result.Message;
-
-            FlyoutBase.ShowAttachedFlyout(ManualCaptureBtn);
-        }
-        catch (Exception ex)
-        {
-            CaptureResultIcon.Glyph = "\uE7BA";
-            CaptureResultTitle.Text = "Capture Error";
-            CaptureResultDetails.Text = ex.Message;
-            FlyoutBase.ShowAttachedFlyout(ManualCaptureBtn);
-        }
-        finally
-        {
-            CaptureSpinner.IsActive = false;
-            CaptureSpinner.Visibility = Visibility.Collapsed;
-            CaptureCameraIcon.Visibility = Visibility.Visible;
-            CaptureBtnText.Text = "Capture";
-            ManualCaptureBtn.IsEnabled = true;
-            _isCapturing = false;
-        }
     }
 
     private void RefreshRecording()
@@ -204,7 +151,6 @@ public sealed partial class AppTitleBar : UserControl
         DispatcherQueue.TryEnqueue(() =>
         {
             Refresh();
-            RefreshManualCaptureTooltip();
             if (!isRunning)
                 SaveSessionManager.CheckForExternalChanges();
         });

@@ -14,6 +14,7 @@ using ArtifactX.WinUI3.Services;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Navigation;
@@ -1015,17 +1016,76 @@ public sealed partial class PlanetDetailsPage : Page
 
     // ---------------------------------------------------------------- Creatures (Fauna Scans with images)
 
+    private bool _isCapturingCreature;
+
+    private async void CaptureCreatureBtn_Click(object sender, RoutedEventArgs e)
+    {
+        await PerformCreatureCaptureAsync(CaptureCreatureBtn);
+    }
+
+    private async Task PerformCreatureCaptureAsync(Button? sourceBtn)
+    {
+        if (_isCapturingCreature) return;
+        _isCapturingCreature = true;
+
+        if (sourceBtn != null) sourceBtn.IsEnabled = false;
+        CaptureCreatureBtn.IsEnabled = false;
+        CaptureCreatureIcon.Visibility = Visibility.Collapsed;
+        CaptureCreatureSpinner.Visibility = Visibility.Visible;
+        CaptureCreatureSpinner.IsActive = true;
+        CaptureCreatureTxt.Text = "Capturing...";
+
+        try
+        {
+            var result = await ScreenCaptureLogService.CaptureNowAsync();
+            if (_planet != null)
+            {
+                RenderCreatures(_planet);
+            }
+
+            CreatureCaptureFlyoutIcon.Glyph = result.Success ? "\uE73E" : "\uE7BA";
+            CreatureCaptureFlyoutIcon.Foreground = result.Success
+                ? (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["ThemeAccentBrush"]
+                : (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["ThemeWarningBrush"];
+            CreatureCaptureFlyoutTitle.Text = result.Success
+                ? (result.ReadInfo != null ? "Fauna / Discovery Captured" : "Screen Captured")
+                : "Capture Not Ready";
+            CreatureCaptureFlyoutDetails.Text = result.Message;
+
+            FlyoutBase.ShowAttachedFlyout(CaptureCreatureBtn);
+        }
+        catch (Exception ex)
+        {
+            CreatureCaptureFlyoutIcon.Glyph = "\uE7BA";
+            CreatureCaptureFlyoutTitle.Text = "Capture Error";
+            CreatureCaptureFlyoutDetails.Text = ex.Message;
+            FlyoutBase.ShowAttachedFlyout(CaptureCreatureBtn);
+        }
+        finally
+        {
+            CaptureCreatureSpinner.IsActive = false;
+            CaptureCreatureSpinner.Visibility = Visibility.Collapsed;
+            CaptureCreatureIcon.Visibility = Visibility.Visible;
+            CaptureCreatureTxt.Text = "Capture creature";
+            CaptureCreatureBtn.IsEnabled = true;
+            if (sourceBtn != null) sourceBtn.IsEnabled = true;
+            _isCapturingCreature = false;
+        }
+    }
+
     private void RenderCreatures(KnownPlanet planet)
     {
         var creatures = CreatureListService.On(planet.SystemAddress, planet.PlanetIndex);
+        CreaturesCard.Visibility = Visibility.Visible;
+        CreaturesWrapPanel.Children.Clear();
+
         if (creatures.Count == 0)
         {
-            CreaturesCard.Visibility = Visibility.Collapsed;
+            NoCreaturesPanel.Visibility = Visibility.Visible;
             return;
         }
 
-        CreaturesCard.Visibility = Visibility.Visible;
-        CreaturesWrapPanel.Children.Clear();
+        NoCreaturesPanel.Visibility = Visibility.Collapsed;
 
         foreach (var c in creatures)
         {
@@ -1046,6 +1106,44 @@ public sealed partial class PlanetDetailsPage : Page
             }
             else
             {
+                var noPicStack = new StackPanel
+                {
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Spacing = 8
+                };
+                noPicStack.Children.Add(new TextBlock
+                {
+                    Text = c.Rarity == "Extinct" ? "Extinct - once lived here" : "No picture yet",
+                    FontSize = 12,
+                    Foreground = ThemeBrush("ThemeTextFaintBrush"),
+                    TextAlignment = TextAlignment.Center
+                });
+                if (c.Rarity != "Extinct")
+                {
+                    var picCaptureBtn = new Button
+                    {
+                        Padding = new Thickness(8, 4, 8, 4),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Content = new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Spacing = 6,
+                            Children =
+                            {
+                                new FontIcon { Glyph = "\uE722", FontSize = 12, Foreground = ThemeBrush("ThemeAccentBrush") },
+                                new TextBlock { Text = "Capture picture", FontSize = 11, VerticalAlignment = VerticalAlignment.Center }
+                            }
+                        }
+                    };
+                    ToolTipService.SetToolTip(picCaptureBtn, $"Open '{c.Name}' in the game's fauna list and click to capture its picture");
+                    picCaptureBtn.Click += async (s, args) =>
+                    {
+                        await PerformCreatureCaptureAsync(picCaptureBtn);
+                    };
+                    noPicStack.Children.Add(picCaptureBtn);
+                }
+
                 tile.Children.Add(new Border
                 {
                     CornerRadius = new CornerRadius(6),
@@ -1054,17 +1152,7 @@ public sealed partial class PlanetDetailsPage : Page
                     Background = ThemeBrush("ThemePanelAltBrush"),
                     BorderBrush = ThemeBrush("ThemeLineBrush"),
                     BorderThickness = new Thickness(1),
-                    Child = new TextBlock
-                    {
-                        Text = c.Rarity == "Extinct" ? "Extinct - once lived here" : "No picture yet - select it in the game's fauna list",
-                        FontSize = 12,
-                        Foreground = ThemeBrush("ThemeTextFaintBrush"),
-                        TextWrapping = TextWrapping.Wrap,
-                        TextAlignment = TextAlignment.Center,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        Margin = new Thickness(12, 0, 12, 0)
-                    }
+                    Child = noPicStack
                 });
             }
 
@@ -1085,6 +1173,22 @@ public sealed partial class PlanetDetailsPage : Page
             Grid.SetColumn(nameTxt, 0);
             nameHeaderGrid.Children.Add(nameTxt);
 
+            var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
+            var retakeBtn = new Button
+            {
+                Content = new FontIcon { Glyph = "\uE722", FontSize = 12, Foreground = ThemeBrush("ThemeAccentBrush") },
+                Padding = new Thickness(6, 4, 6, 4),
+                Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                BorderThickness = new Thickness(0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            ToolTipService.SetToolTip(retakeBtn, $"Capture or update picture for '{c.Name}' from game screen");
+            retakeBtn.Click += async (s, args) =>
+            {
+                await PerformCreatureCaptureAsync(retakeBtn);
+            };
+            btnRow.Children.Add(retakeBtn);
+
             var deleteBtn = new Button
             {
                 Content = new FontIcon { Glyph = "\uE74D", FontSize = 12 },
@@ -1099,8 +1203,10 @@ public sealed partial class PlanetDetailsPage : Page
             {
                 CreatureListService.Delete(planet.SystemAddress, planet.PlanetIndex, cName);
             };
-            Grid.SetColumn(deleteBtn, 1);
-            nameHeaderGrid.Children.Add(deleteBtn);
+            btnRow.Children.Add(deleteBtn);
+
+            Grid.SetColumn(btnRow, 1);
+            nameHeaderGrid.Children.Add(btnRow);
 
             tile.Children.Add(nameHeaderGrid);
 
