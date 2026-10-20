@@ -467,6 +467,7 @@ public sealed partial class BasesPage : Page
 
     private void Apply()
     {
+        if (SearchBox is null || FreighterItemsList is null) return;
         string search = SearchBox.Text.Trim();
         bool isSearching = search.Length > 0;
 
@@ -789,7 +790,7 @@ public sealed partial class BasesPage : Page
 
     private void SortBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_rows is not null) Apply();
+        if (_rows is not null && FreighterItemsList is not null) Apply();
     }
 
     private static List<ImageSource> GlyphsFor(string code)

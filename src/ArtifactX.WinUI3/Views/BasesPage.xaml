@@ -190,7 +190,7 @@
                                 <TextBlock x:Name="FreighterSummaryTxt" Grid.Column="2" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0,0,0"/>
                                 <FontIcon x:Name="FreighterChevron" Grid.Column="3" Glyph="&#xE70E;" FontSize="12"
-                                          Foreground="{ThemeResource ThemeDimBrush}" VerticalAlignment="Center"/>
+                                          Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
                             </Grid>
                         </Button>
                         <Border x:Name="FreighterContentArea" Padding="14,4,14,14">
@@ -231,7 +231,7 @@
                                 <TextBlock x:Name="PlanetarySummaryTxt" Grid.Column="2" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0,0,0"/>
                                 <FontIcon x:Name="PlanetaryChevron" Grid.Column="3" Glyph="&#xE70E;" FontSize="12"
-                                          Foreground="{ThemeResource ThemeDimBrush}" VerticalAlignment="Center"/>
+                                          Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
                             </Grid>
                         </Button>
                         <Border x:Name="PlanetaryContentArea" Padding="14,4,14,14">
@@ -272,7 +272,7 @@
                                 <TextBlock x:Name="StationsSummaryTxt" Grid.Column="2" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0,0,0"/>
                                 <FontIcon x:Name="StationsChevron" Grid.Column="3" Glyph="&#xE70E;" FontSize="12"
-                                          Foreground="{ThemeResource ThemeDimBrush}" VerticalAlignment="Center"/>
+                                          Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
                             </Grid>
                         </Button>
                         <Border x:Name="StationsContentArea" Padding="14,4,14,14">
@@ -313,7 +313,7 @@
                                 <TextBlock x:Name="SettlementsSummaryTxt" Grid.Column="2" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0,0,0"/>
                                 <FontIcon x:Name="SettlementsChevron" Grid.Column="3" Glyph="&#xE70E;" FontSize="12"
-                                          Foreground="{ThemeResource ThemeDimBrush}" VerticalAlignment="Center"/>
+                                          Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
                             </Grid>
                         </Button>
                         <Border x:Name="SettlementsContentArea" Padding="14,4,14,14">
