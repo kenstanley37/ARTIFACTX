@@ -249,7 +249,7 @@ public static class ScreenCaptureLogService
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "trade terminal: error " + ex.Message; }
         try
         {
-            if (await CreatureListService.TryReadAsync(placedX, path => SaveCreaturePictureAsync(pixels, w, h, path)) is { } creatures)
+            if (await CreatureListService.TryReadAsync(placedX, path => SaveCreaturePictureAsync(pixels, w, h, path), force) is { } creatures)
                 read = (read is null ? "" : read + " | ") + creatures;
         }
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "fauna list: error " + ex.Message; }
