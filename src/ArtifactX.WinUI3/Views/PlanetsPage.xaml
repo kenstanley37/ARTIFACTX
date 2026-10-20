@@ -420,8 +420,5 @@
             </Border>
         </StackPanel>
     </ScrollViewer>
-    <ScrollViewer x:Name="DetailScroll" Visibility="Collapsed">
-        <StackPanel x:Name="DetailPanel" Padding="28,22,28,40" Spacing="20"/>
-    </ScrollViewer>
     </Grid>
 </Page>

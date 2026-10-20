@@ -168,7 +168,6 @@ public sealed partial class MainWindow : Window
         SettlementsPathIcon.Data = G(NavIconGeometries.Settlements);
         SpaceStationsPathIcon.Data = G(NavIconGeometries.SpaceStations);
         PlanetsPathIcon.Data = G(NavIconGeometries.Planets);
-        PlanetDetailsPathIcon.Data = G(NavIconGeometries.Planets);
         MilestonesPathIcon.Data = G(NavIconGeometries.Milestones);
         GekLanguagePathIcon.Data = G(NavIconGeometries.Language);
         VyKeenLanguagePathIcon.Data = G(NavIconGeometries.Language);
@@ -492,7 +491,6 @@ public sealed partial class MainWindow : Window
         ExploreNavItem.Visibility = Visibility.Visible;
         ReferenceNavItem.Visibility = Visibility.Visible;
         PlanetsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        PlanetDetalNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         PlanetFinderNavItem.Visibility = PlanetsNavItem.Visibility;
         NearCoreNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         BasesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
@@ -704,7 +702,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(SettlementPage) => "Settlement",
             Type t when t == typeof(SpaceStationsPage) => "SpaceStations",
             Type t when t == typeof(PlanetsPage) => "Planets",
-            Type t when t == typeof(PlanetDetailsPage) => "PlanetDetails",
+            Type t when t == typeof(PlanetDetailsPage) => "Planets",
             Type t when t == typeof(PlanetFinderPage) => "PlanetFinder",
             Type t when t == typeof(BasesPage) => "Bases",
             Type t when t == typeof(FindsPage) => "Finds",

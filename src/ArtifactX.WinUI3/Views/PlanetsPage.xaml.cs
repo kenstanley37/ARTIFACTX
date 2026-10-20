@@ -255,9 +255,9 @@ public sealed partial class PlanetsPage : Page
         }
 
         if (!live || systemChanged || planetsChanged) RefreshFinder();
-        if (live) RefreshPlanetPageLive();
+
         UpdateHereText(_hereCardText);
-        UpdateHereText(_herePageText);
+
     }
 
 
@@ -1614,14 +1614,14 @@ public sealed partial class PlanetsPage : Page
 
     // The "YOU ARE HERE" badges on the current planet's card and its open page,
     // kept so each new save can update the coordinates without a rebuild.
-    private TextBlock? _hereCardText, _herePageText;
+    private TextBlock? _hereCardText;
 
     /// <summary>"YOU ARE HERE", plus the coordinates the game shows on the
     /// ship's dashboard when the save has them (NmsPlanetCoordinates).</summary>
     private Border HereBadge(bool page)
     {
         var text = new TextBlock { FontSize = 10, FontWeight = FontWeights.Bold, Foreground = ThemeBrush("ThemeOnAccentBrush"), IsTextSelectionEnabled = true };
-        if (page) _herePageText = text; else _hereCardText = text;
+        _hereCardText = text;
         UpdateHereText(text);
         var badge = new Border
         {
@@ -2097,33 +2097,10 @@ public sealed partial class PlanetsPage : Page
 
     // ---------------------------------------------------------------- one planet
 
-    private KnownPlanet? _openPlanet;
-    private double _overviewOffset;
-    private Border? _saveFactsCard, _fishCard;
-
-    /// <summary>Shows one planet in full, in place of the overview (user,
-    /// 2026-10-13: more room for each planet). The overview is only hidden, so
-    /// Back returns to it as it was - scroll, filters and all.</summary>
+    /// <summary>Drills into the planet details page for the selected planet.</summary>
     private void OpenPlanet(KnownPlanet planet)
     {
-        if (_openPlanet is null) _overviewOffset = MainScroll.VerticalOffset;
-        _openPlanet = planet;
-        RenderPlanetPage();
-        MainScroll.Visibility = Visibility.Collapsed;
-        DetailScroll.Visibility = Visibility.Visible;
-        DetailScroll.ChangeView(null, 0, null, disableAnimation: true);
-    }
-
-    private void ClosePlanet()
-    {
-        _openPlanet = null;
-        _saveFactsCard = _fishCard = _creaturesCard = null;
-        DetailScroll.Visibility = Visibility.Collapsed;
-        MainScroll.Visibility = Visibility.Visible;
-        BuildCurrentSystem(_lastCounts); // show anything edited on the planet's page
-        RefreshNoteFilters();
-        ApplyFilters();
-        DispatcherQueue.TryEnqueue(() => MainScroll.ChangeView(null, _overviewOffset, null, disableAnimation: true));
+        Frame.Navigate(typeof(ExplorePages.PlanetDetailsPage), planet);
     }
 
     private void ResultsList_ItemClick(object sender, ItemClickEventArgs e)
@@ -2131,372 +2108,8 @@ public sealed partial class PlanetsPage : Page
         if (e.ClickedItem is PlanetRowViewModel row) OpenPlanet(row.Planet);
     }
 
-    /// <summary>The other planets of the open planet's system, for Prev / Next.</summary>
-    private List<KnownPlanet> SystemPlanets(KnownPlanet planet) =>
-        (planet.SystemAddress == _currentSystem ? _thisSave : _allPlanets)
-            .Where(p => p.SystemAddress == planet.SystemAddress)
-            .GroupBy(p => p.PlanetIndex).Select(g => g.First())
-            .OrderBy(p => p.PlanetIndex).ToList();
+    private void OnCreaturesChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(RefreshFinder);
 
-    private Border DetailCard(string title, UIElement body, double width = 460) => new()
-    {
-        Width = width,
-        Padding = new Thickness(18, 14, 18, 16),
-        Background = ThemeBrush("ThemePanelAltBrush"),
-        BorderBrush = ThemeBrush("ThemeLineBrush"),
-        BorderThickness = new Thickness(1),
-        CornerRadius = ThemeResources.CardCornerRadius,
-        VerticalAlignment = VerticalAlignment.Top,
-        Child = new StackPanel
-        {
-            Spacing = 10,
-            Children = { new TextBlock { Text = title, Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] }, body },
-        },
-    };
-
-    private void RenderPlanetPage()
-    {
-        if (_openPlanet is not KnownPlanet planet) return;
-        DetailPanel.Children.Clear();
-        bool inThisSystem = planet.SystemAddress == _currentSystem;
-        bool here = inThisSystem && planet.PlanetIndex == _currentPlanet;
-
-        // Back + Prev / Next.
-        var bar = new Grid { ColumnSpacing = 8 };
-        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var back = new Button { Content = "‹  Back to Planets", Style = (Style)Application.Current.Resources["ThemeAccentButtonStyle"] };
-        back.Click += (_, _) => ClosePlanet();
-        bar.Children.Add(back);
-        var siblings = SystemPlanets(planet);
-        int at = siblings.FindIndex(p => p.PlanetIndex == planet.PlanetIndex);
-        if (siblings.Count > 1 && at >= 0)
-        {
-            var nav = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-            var prev = new Button { Content = "‹ Previous planet", IsEnabled = at > 0 };
-            prev.Click += (_, _) => OpenPlanet(siblings[at - 1]);
-            var next = new Button { Content = "Next planet ›", IsEnabled = at < siblings.Count - 1 };
-            next.Click += (_, _) => OpenPlanet(siblings[at + 1]);
-            nav.Children.Add(prev);
-            nav.Children.Add(next);
-            Grid.SetColumn(nav, 2);
-            bar.Children.Add(nav);
-        }
-        DetailPanel.Children.Add(bar);
-
-        // Header.
-        var header = new Grid { ColumnSpacing = 20 };
-        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var drawing = PlanetDrawing(planet, 76, here);
-        drawing.VerticalAlignment = VerticalAlignment.Center;
-        header.Children.Add(drawing);
-        var titles = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
-        bool isMoon = BodyKindsService.IsMoon(planet.SystemAddress, planet.PlanetIndex);
-        titles.Children.Add(new TextBlock
-        {
-            Text = $"{(isMoon ? "MOON" : $"PLANET {planet.PlanetIndex}")} OF {UniverseInfo.SystemName(planet.SystemAddress).ToUpperInvariant()}",
-            Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"],
-        });
-        titles.Children.Add(new TextBlock { Text = UniverseInfo.PlanetName(planet.SystemAddress, planet.PlanetIndex), Style = (Style)Application.Current.Resources["ThemePageTitleStyle"] });
-        if (OriginalNameLine(planet.SystemAddress, planet.PlanetIndex, 13) is { } originally) titles.Children.Add(originally);
-        titles.Children.Add(new TextBlock
-        {
-            Text = string.Join(" · ", new[] { planet.HasRings ? $"{planet.TypeName} with rings" : planet.TypeName, GalaxyLabel(planet.Galaxy), UniverseInfo.Compact(planet.SystemAddress), planet.Source }.Where(x => x.Length > 0)),
-            Style = (Style)Application.Current.Resources["ThemeDimTextStyle"],
-            TextWrapping = TextWrapping.Wrap,
-        });
-        if (here) titles.Children.Add(HereBadge(page: true));
-        var glyphRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 3, Margin = new Thickness(0, 6, 0, 0) };
-        var glyphTiles = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 3 };
-        foreach (var glyph in GlyphsFor(planet.PortalCode))
-            glyphTiles.Children.Add(GlyphTile(glyph, 34));
-        glyphRow.Children.Add(new ArtifactX.WinUI3.Controls.GlyphStrip { Content = glyphTiles, Code = planet.PortalCode, VerticalAlignment = VerticalAlignment.Center });
-        var copy = new Button { Content = "Copy", Tag = planet.PortalCode, Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-        copy.Click += CopyCode_Click;
-        glyphRow.Children.Add(copy);
-        titles.Children.Add(glyphRow);
-        Grid.SetColumn(titles, 1);
-        header.Children.Add(titles);
-        // The system's picture faintly behind the header, faded to nothing at its edges, as on a
-        // base's page (2026-10-18). Only when screen recording has taken one.
-        var headerArea = new Grid();
-        if (ScreenCaptureLogService.SystemPicture(planet.SystemAddress) is string picturePath)
-        {
-            var brush = new ImageBrush { Stretch = Stretch.UniformToFill, Opacity = 0.3 };
-            var backdrop = new Border { Margin = new Thickness(-12, -8, -12, -8), Background = brush, CornerRadius = ThemeResources.CardCornerRadius };
-            headerArea.Children.Add(backdrop);
-            double shownAspect = 0;
-            headerArea.SizeChanged += async (_, e) =>
-            {
-                double aspect = (e.NewSize.Width + 24) / Math.Max(1, e.NewSize.Height + 16);
-                if (shownAspect > 0 && Math.Abs(aspect / shownAspect - 1) < 0.08) return;
-                shownAspect = aspect;
-                if (await GameScreenshotCache.LoadFadedFileAsync(picturePath, aspect) is { } faded) brush.ImageSource = faded;
-            };
-        }
-        headerArea.Children.Add(header);
-        DetailPanel.Children.Add(headerArea);
-
-        var cards = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 18, VerticalSpacing = 18 };
-        var left = new StackPanel { Spacing = 18, VerticalAlignment = VerticalAlignment.Top };
-
-        // What the save knows (live: refreshed by RefreshPlanetPageLive).
-        _saveFactsCard = DetailCard("FROM YOUR SAVE", SaveFacts(planet, inThisSystem));
-        left.Children.Add(_saveFactsCard);
-
-        // Your details: edited right here.
-        var (editor, commit) = BuildDetailsEditor(planet);
-        var status = new TextBlock { FontSize = 12, Foreground = ThemeBrush("ThemeDoneBrush"), VerticalAlignment = VerticalAlignment.Center };
-        var saveBtn = new Button { Content = "Save details", Style = (Style)Application.Current.Resources["ThemeAccentButtonStyle"] };
-        saveBtn.Click += (_, _) =>
-        {
-            commit();
-            status.Text = $"Saved {DateTime.Now:t}";
-            RefreshPlanetPageLive();
-        };
-        var saveRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Margin = new Thickness(0, 6, 0, 0) };
-        saveRow.Children.Add(saveBtn);
-        saveRow.Children.Add(status);
-        editor.Children.Add(saveRow);
-
-        // Shown as a short summary, the editor behind "Edit" - screen reading fills most of it,
-        // and the open editor took the whole page height (user, 2026-10-18).
-        var detailsHolder = new StackPanel { Spacing = 10 };
-        var summary = new StackPanel { Spacing = 6 };
-        var editBtn = new Button { Content = "Edit details", HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(12, 4, 12, 4) };
-        void ShowSummary()
-        {
-            summary.Children.Clear();
-            var d = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex);
-            bool? water = PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex);
-            void Line(string label, string value)
-            {
-                if (value.Length == 0) return;
-                var row = new Grid { ColumnSpacing = 12 };
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                row.Children.Add(new TextBlock { Text = label, FontSize = 13, Foreground = ThemeBrush("ThemeTextDimBrush") });
-                var v = new TextBlock { Text = value, FontSize = 13, TextWrapping = TextWrapping.Wrap, Foreground = ThemeBrush("ThemeTextBrush"), IsTextSelectionEnabled = true };
-                Grid.SetColumn(v, 1);
-                row.Children.Add(v);
-                summary.Children.Add(row);
-            }
-            Line("Weather", d?.Weather ?? "");
-            Line("Sentinels", d?.Sentinels ?? "");
-            Line("Flora", d?.Flora ?? "");
-            Line("Fauna", d?.Fauna ?? "");
-            Line("Water", water switch { true => "Yes", false => "No", _ => "" });
-            Line("Resources", d is null ? "" : string.Join(", ", d.Resources));
-            Line("Notes", d is null ? "" : string.Join(" · ", d.Notes));
-            if (summary.Children.Count == 0)
-                summary.Children.Add(DimLine("Nothing recorded yet - open this planet in the game's Discoveries with screen reading on, or add it yourself."));
-        }
-        ShowSummary();
-        editor.Visibility = Visibility.Collapsed;
-        editBtn.Click += (_, _) =>
-        {
-            bool open = editor.Visibility == Visibility.Collapsed;
-            editor.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
-            summary.Visibility = open ? Visibility.Collapsed : Visibility.Visible;
-            editBtn.Content = open ? "Close editor" : "Edit details";
-            if (!open) ShowSummary();
-        };
-        saveBtn.Click += (_, _) => ShowSummary();
-        detailsHolder.Children.Add(summary);
-        detailsHolder.Children.Add(editBtn);
-        detailsHolder.Children.Add(editor);
-        var detailsCard = DetailCard("YOUR DETAILS", detailsHolder, 640);
-
-        _fishCard = DetailCard("FISH", FishBody(planet));
-        _fishCard.Visibility = ((StackPanel)((StackPanel)_fishCard.Child).Children[1]).Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        left.Children.Add(_fishCard);
-
-        // Your Finds on this planet (Finds page).
-        var finds = FindsService.All.Where(f => f.PortalCode == planet.PortalCode && f.Galaxy == planet.Galaxy).ToList();
-        if (finds.Count > 0)
-        {
-            var list = new StackPanel { Spacing = 6 };
-            foreach (var find in finds)
-                list.Children.Add(new TextBlock
-                {
-                    Text = string.Join(" · ", new[] { find.Type, find.Title, find.Class, find.Location }.Where(x => x.Length > 0)),
-                    FontSize = 13,
-                    Foreground = ThemeBrush("ThemeTextBrush"),
-                    TextWrapping = TextWrapping.Wrap,
-                    IsTextSelectionEnabled = true,
-                });
-            left.Children.Add(DetailCard("YOUR FINDS HERE", list));
-        }
-
-        cards.Children.Add(left);
-        cards.Children.Add(detailsCard);
-        // Full page width, below the other cards (user, 2026-10-18).
-        _creaturesCard = DetailCard("CREATURES", CreaturesBody(planet));
-        _creaturesCard.Width = double.NaN;
-        _creaturesCard.HorizontalAlignment = HorizontalAlignment.Stretch;
-        _creaturesCard.Margin = new Thickness(0, 18, 0, 0);
-        _creaturesCard.Visibility = CreatureListService.On(planet.SystemAddress, planet.PlanetIndex).Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        DetailPanel.Children.Add(cards);
-        DetailPanel.Children.Add(_creaturesCard);
-    }
-
-    private Border? _creaturesCard;
-
-    /// <summary>The creatures read off the game's fauna list (CreatureListService): a picture
-    /// when one was taken, the name, rarity / habitat / activity, and gender and size.</summary>
-    private UIElement CreaturesBody(KnownPlanet planet)
-    {
-        var creatures = CreatureListService.On(planet.SystemAddress, planet.PlanetIndex);
-        var tiles = new CommunityToolkit.WinUI.Controls.WrapPanel { HorizontalSpacing = 10, VerticalSpacing = 10 };
-        foreach (var c in creatures)
-        {
-            var tile = new StackPanel { Width = 250, Spacing = 2 };
-            string path = CreatureListService.PicturePath(planet.SystemAddress, planet.PlanetIndex, c.Name);
-            if (c.Picture && File.Exists(path))
-            {
-                var image = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage();
-                using (var stream = new MemoryStream(File.ReadAllBytes(path)))
-                    image.SetSource(stream.AsRandomAccessStream());
-                tile.Children.Add(new Border
-                {
-                    CornerRadius = new CornerRadius(6), Height = 140, Margin = new Thickness(0, 0, 0, 4),
-                    Child = new Image { Source = image, Stretch = Stretch.UniformToFill },
-                });
-            }
-            else
-            {
-                // Same size as a picture, so the cards line up; says why there's none.
-                tile.Children.Add(new Border
-                {
-                    CornerRadius = new CornerRadius(6), Height = 140, Margin = new Thickness(0, 0, 0, 4),
-                    Background = ThemeBrush("ThemePanelAltBrush"), BorderBrush = ThemeBrush("ThemeLineBrush"), BorderThickness = new Thickness(1),
-                    Child = new TextBlock
-                    {
-                        Text = c.Rarity == "Extinct" ? "Extinct - once lived here" : "No picture yet - select it in the game's fauna list",
-                        FontSize = 12, Foreground = ThemeBrush("ThemeTextFaintBrush"), TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center,
-                        HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 12, 0),
-                    },
-                });
-            }
-            tile.Children.Add(new TextBlock { Text = c.Name, FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = ThemeBrush("ThemeTextBrush"), IsTextSelectionEnabled = true });
-            string traits = string.Join(" · ", new[] { c.Rarity, c.Habitat, c.Activity }.Where(s => s.Length > 0));
-            if (traits.Length > 0) tile.Children.Add(DimLine(traits));
-            string body = string.Join(" · ", new[] { c.Gender, c.Size }.Where(s => s.Length > 0));
-            if (body.Length > 0) tile.Children.Add(DimLine(body));
-            // Only what's certain: the game decides adoption in its code, not its data files.
-            // Underwater and extinct creatures can't be adopted; flyers can't either, once
-            // their habitat word has been read (2026-10-18).
-            string? noPet = c.Rarity == "Extinct" ? "extinct" : c.Habitat == "Underwater" ? "lives underwater"
-                : Regex.IsMatch(c.Habitat, @"Fly|Flight|Air|Sky", RegexOptions.IgnoreCase) ? "flies" : null;
-            if (noPet is not null) tile.Children.Add(new TextBlock
-            {
-                Text = $"Can't be a companion - {noPet}", FontSize = 11, Foreground = ThemeBrush("ThemeTextFaintBrush"), Margin = new Thickness(0, 2, 0, 0),
-            });
-            tiles.Children.Add(new Border
-            {
-                Child = tile, Padding = new Thickness(10), CornerRadius = new CornerRadius(6),
-                Background = ThemeBrush("ThemeVoidBrush"), BorderBrush = ThemeBrush("ThemeLineBrush"), BorderThickness = new Thickness(1),
-            });
-        }
-        var stack = new StackPanel { Spacing = 8 };
-        stack.Children.Add(DimLine("Read off the game's Discoveries fauna list with screen recording on - open a creature there to add its picture, gender and size."));
-        stack.Children.Add(tiles);
-        return stack;
-    }
-
-    /// <summary>Creatures were read off the game screen: refresh the open planet's card and the finder.</summary>
-    private void OnCreaturesChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
-    {
-        // Only when something shown changed: rebuilding on every reading made the cards
-        // reshuffle and the pictures reload while the fauna list was open (2026-10-18).
-        string shown = CreaturesShown(system, planet);
-        if (_creaturesShown.TryGetValue((system, planet), out var before) && before == shown) return;
-        _creaturesShown[(system, planet)] = shown;
-        if (_openPlanet is KnownPlanet open && open.SystemAddress == system && open.PlanetIndex == planet && _creaturesCard is not null)
-        {
-            ((StackPanel)_creaturesCard.Child).Children[1] = CreaturesBody(open);
-            _creaturesCard.Visibility = Visibility.Visible;
-        }
-        RefreshFinder();
-    });
-
-    private readonly Dictionary<(ulong, int), string> _creaturesShown = new();
-
-    /// <summary>Everything the creatures card shows for a planet, as one string to compare.</summary>
-    private static string CreaturesShown(ulong system, int planet) => string.Join("\n",
-        CreatureListService.On(system, planet).Select(c =>
-        {
-            string path = CreatureListService.PicturePath(system, planet, c.Name);
-            long picture = c.Picture && File.Exists(path) ? File.GetLastWriteTimeUtc(path).Ticks : 0;
-            return $"{c.Name}|{c.Rarity}|{c.Habitat}|{c.Activity}|{c.Gender}|{c.Size}|{picture}";
-        }));
-
-    private UIElement SaveFacts(KnownPlanet planet, bool inThisSystem)
-    {
-        var facts = new FactTable();
-        _lastCounts.TryGetValue(planet.Address, out var tally);
-        facts.Add("You found", inThisSystem || tally is not null ? DiscoveredText(tally, planet.Address) : "");
-        facts.Add("Visited", VisitText(ReadPlanetStats(planet.Address)));
-        // Bases with where they are on the planet (2026-10-14) - the save
-        // stores each base's position from the planet's centre.
-        string At(JObject b) => NmsPlanetCoordinates.OfBase(b) is { } at ? $" at {NmsPlanetCoordinates.Format(at.Latitude, at.Longitude)}" : "";
-        var mine = (_snapshot.Bases ?? new JArray()).OfType<JObject>()
-            .Where(b => b["peI"]?["DPp"]?.Value<string>() == "HomePlanetBase" && S.ParsePackedAddress(b["oZw"]) == planet.Address)
-            .Select(b => $"{(b["NKm"]?.Value<string>() is { Length: > 0 } n ? n : "Unnamed base")}{At(b)}")
-            .ToList();
-        if (mine.Count == 0 && inThisSystem && _baseNames.TryGetValue(planet.PlanetIndex, out var baseNames)) mine = baseNames.ToList();
-        if (mine.Count > 0) facts.Add(mine.Count == 1 ? "Your base" : "Your bases", string.Join(", ", mine));
-        // Other players' bases on this planet: the save keeps them as
-        // ExternalPlanetBase entries, and the game counts them in its "& 1 other
-        // bases" (Ippianes III, 2026-10-14: "Аванпост Isvil" by Bihram).
-        var others = (_snapshot.Bases ?? new JArray()).OfType<JObject>()
-            .Where(b => b["peI"]?["DPp"]?.Value<string>() == "ExternalPlanetBase"
-                && S.ParsePackedAddress(b["oZw"]) == planet.Address)
-            .Select(b => $"{(b["NKm"]?.Value<string>() is { Length: > 0 } n ? n : "Unnamed")} ({b["3?K"]?["V?:"]?.Value<string>() ?? "another player"}){At(b)}")
-            .ToList();
-        if (others.Count > 0) facts.Add("Others' bases", string.Join(", ", others));
-        facts.Add("Waypoints", tally is { Waypoints: > 0 } w ? w.Waypoints.ToString(CultureInfo.CurrentCulture) : "");
-        facts.Add("Found by", planet.DiscoveredHere ? "You" : planet.Discoverer);
-        facts.Add("Found on", FormatDate(planet.DiscoveredUnixSeconds));
-        facts.Add("Portal code", planet.PortalCode);
-        return facts.Grid;
-    }
-
-    private StackPanel FishBody(KnownPlanet planet)
-    {
-        var holder = new StackPanel();
-        AddPlanetFish(holder, planet, full: true);
-        // AddPlanetFish adds its own titled section; use its contents only.
-        if (holder.Children.FirstOrDefault() is StackPanel section)
-        {
-            holder.Children.Clear();
-            var body = new StackPanel { Spacing = 6 };
-            foreach (var child in section.Children.Skip(2).ToList()) // skip the rule and heading
-            {
-                section.Children.Remove(child);
-                body.Children.Add(child);
-            }
-            return body;
-        }
-        return holder;
-    }
-
-    /// <summary>A new save while a planet is open: refresh what the save says
-    /// about it (discoveries, time, fish) without touching the details editor.</summary>
-    private void RefreshPlanetPageLive()
-    {
-        if (_openPlanet is not KnownPlanet planet || _saveFactsCard is null || _fishCard is null) return;
-        var latest = _thisSave.FirstOrDefault(p => p.Address == planet.Address);
-        if (latest is not null) _openPlanet = planet = latest;
-        ((StackPanel)_saveFactsCard.Child).Children[1] = SaveFacts(planet, planet.SystemAddress == _currentSystem);
-        var fish = FishBody(planet);
-        ((StackPanel)_fishCard.Child).Children[1] = fish;
-        _fishCard.Visibility = fish.Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    /// <summary>Adds whatever is typed in the new-note box; returns whether it added one.</summary>
     private bool CommitPendingNote()
     {
         string text = NewNoteBox.Text.Trim();
