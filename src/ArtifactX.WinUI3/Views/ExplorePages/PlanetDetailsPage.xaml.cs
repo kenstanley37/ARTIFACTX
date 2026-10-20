@@ -1,15 +1,3 @@
-using ArtifactX.Core;
-using ArtifactX.Core.NmsModels;
-using ArtifactX.WinUI3.Services;
-using ArtifactX.WinUI3.ViewModels.ExploreViewModels;
-using Microsoft.UI;
-using Microsoft.UI.Text;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
-using Microsoft.UI.Xaml.Navigation;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -17,73 +5,136 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using ArtifactX.Core.NmsModels;
+using ArtifactX.GameData;
+using ArtifactX.GameData.Models;
+using ArtifactX.GameData.Services;
+using ArtifactX.WinUI3.Models;
+using ArtifactX.WinUI3.Services;
+using Microsoft.UI.Text;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.UI.Xaml.Navigation;
+using Newtonsoft.Json.Linq;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Storage.Streams;
 using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
 
 namespace ArtifactX.WinUI3.Views.ExplorePages;
 
-/// <summary>
-/// Dedicated drill-down page for viewing and editing full planet details,
-/// save telemetry, recorded resources, creature photos, fish catches, and notes.
-/// </summary>
 public sealed partial class PlanetDetailsPage : Page
 {
     private KnownPlanet? _planet;
-    private List<KnownPlanet> _siblings = new();
     private PlanetSnapshot? _snapshot;
-    private ulong? _currentSystem;
+    private ulong _currentSystem;
     private int _currentPlanet;
-    private List<string> _editingResources = new();
-    private List<string> _editingNotes = new();
+    private List<KnownPlanet> _siblings = new();
+    private Dictionary<ulong, PlanetDiscoveryCounts> _lastCounts = new();
+
     private List<(string Word, string Group, string Tier)> _planetWords = new();
     private List<string> _substances = new();
+    private List<FishInfo> _fish = new();
+    private Dictionary<string, string> _itemNames = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, (uint Count, float Largest)> _caught = new(StringComparer.OrdinalIgnoreCase);
 
-    public PlanetDetailsViewModel ViewModel { get; } = new();
+    private List<string> _editingResources = new();
+    private List<string> _editingNotes = new();
 
     public PlanetDetailsPage()
     {
-        InitializeComponent();
-        this.DataContext = ViewModel;
+        this.InitializeComponent();
     }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
 
+        CreatureListService.Changed += OnCreaturesChanged;
+        ScreenCaptureLogService.SystemPictureSaved += OnSystemPictureSaved;
+        FishCatchRecorder.SnapshotSeen += OnSnapshotSeen;
+
         if (e.Parameter is KnownPlanet planet)
         {
             await LoadPlanetAsync(planet);
         }
-        else if (e.Parameter is string planetName && !string.IsNullOrEmpty(planetName))
-        {
-            PlanetTitleTxt.Text = planetName;
-        }
     }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        CreatureListService.Changed -= OnCreaturesChanged;
+        ScreenCaptureLogService.SystemPictureSaved -= OnSystemPictureSaved;
+        FishCatchRecorder.SnapshotSeen -= OnSnapshotSeen;
+    }
+
+    private void OnCreaturesChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_planet is KnownPlanet open && open.SystemAddress == system && open.PlanetIndex == planet)
+        {
+            RenderCreatures(open);
+        }
+    });
+
+    private void OnSystemPictureSaved(ulong system) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_planet is KnownPlanet open && open.SystemAddress == system)
+        {
+            LoadHeaderBackdrop(open.SystemAddress);
+        }
+    });
+
+    private void OnSnapshotSeen(PlanetSnapshot snapshot) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_planet is null) return;
+        _snapshot = snapshot;
+        _currentSystem = S.ReadSystemAddress(snapshot.Universe) ?? 0;
+        _currentPlanet = snapshot.Universe?["oZw"]?["jsv"]?.Value<int>() ?? 0;
+        _lastCounts = NmsPlanets.CountDiscoveries(snapshot.Discoveries);
+        _caught = FishCatchService.ReadCaught(snapshot.Fishing);
+
+        RenderSaveFacts(_planet);
+        RenderFish(_planet);
+        RenderBases(_planet);
+        UpdateHereStatus(_planet);
+    });
 
     private async Task LoadPlanetAsync(KnownPlanet planet)
     {
         _planet = planet;
 
-        // Load vocabulary descriptors asynchronously if not cached
+        // Ensure catalog vocabulary and fish data
         try
         {
-            var words = await CatalogService.GetPlanetDescriptorsAsync();
-            _planetWords = words ?? new();
-            var substances = await CatalogService.GetSubstanceNamesAsync();
-            _substances = (substances ?? new())
+            var wordsTask = CatalogService.GetPlanetDescriptorsAsync();
+            var substancesTask = CatalogService.GetSubstanceNamesAsync();
+            var fishTask = CatalogService.GetFishAsync();
+            var namesTask = CatalogService.GetItemNamesAsync();
+
+            await Task.WhenAll(wordsTask, substancesTask, fishTask, namesTask);
+
+            _planetWords = await wordsTask ?? new();
+            _substances = ((await substancesTask) ?? new())
                 .Concat(_planetWords.Where(w => w.Group == "Resource").Select(w => w.Word))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase).ToList();
+
+            _fish = ((await fishTask) ?? new()).Where(f => CatalogService.IsFishSpecies(f.Id) && !f.NeedsMission).ToList();
+            _itemNames = await namesTask ?? new(StringComparer.OrdinalIgnoreCase);
         }
         catch
         {
-            // Fallback gracefully if catalog isn't loaded
+            // Catalog fallback
         }
 
         // Snapshot of current save
         _snapshot = LiveSaveWatcher.FromSession();
-        _currentSystem = S.ReadSystemAddress(_snapshot.Universe);
+        _currentSystem = S.ReadSystemAddress(_snapshot.Universe) ?? 0;
         _currentPlanet = _snapshot.Universe?["oZw"]?["jsv"]?.Value<int>() ?? 0;
+        _lastCounts = NmsPlanets.CountDiscoveries(_snapshot.Discoveries);
+        _caught = FishCatchService.ReadCaught(_snapshot.Fishing);
+
         bool isHere = _currentSystem == planet.SystemAddress && _currentPlanet == planet.PlanetIndex;
         bool isMoon = BodyKindsService.IsMoon(planet.SystemAddress, planet.PlanetIndex);
 
@@ -105,8 +156,10 @@ public sealed partial class PlanetDetailsPage : Page
             SiblingNavPanel.Visibility = Visibility.Collapsed;
         }
 
-        // 2. Hero Header
+        // 2. Header Container: Titles & Drawing
+        LoadHeaderBackdrop(planet.SystemAddress);
         PlanetDrawingFrame.Child = PlanetDrawingHelper.CreatePlanetDrawing(planet, 76, isHere);
+
         string systemName = UniverseInfo.SystemName(planet.SystemAddress);
         PlanetEyebrowTxt.Text = $"{(isMoon ? "MOON" : $"PLANET {planet.PlanetIndex}")} OF {systemName.ToUpperInvariant()}";
         string planetName = UniverseInfo.PlanetName(planet.SystemAddress, planet.PlanetIndex);
@@ -123,9 +176,12 @@ public sealed partial class PlanetDetailsPage : Page
             OriginalNameTxt.Visibility = Visibility.Collapsed;
         }
 
-        SystemNameTxt.Text = systemName;
         BiomeTxt.Text = planet.HasRings ? $"{planet.TypeName} with rings" : planet.TypeName;
-        HereBadge.Visibility = isHere ? Visibility.Visible : Visibility.Collapsed;
+        SystemNameTxt.Text = systemName;
+        GalaxyTxt.Text = GalaxyLabel(planet.Galaxy);
+        CoordsTxt.Text = UniverseInfo.Compact(planet.SystemAddress);
+
+        UpdateHereStatus(planet);
 
         // Portal Glyphs
         GlyphContainer.Children.Clear();
@@ -139,7 +195,7 @@ public sealed partial class PlanetDetailsPage : Page
                 {
                     Width = 32,
                     Height = 32,
-                    Background = (Brush)Application.Current.Resources["ThemeVoidBrush"],
+                    Background = ThemeBrush("ThemeVoidBrush"),
                     CornerRadius = ThemeResources.CardCornerRadius,
                     Child = new Image { Source = icon, Width = 28, Height = 28 }
                 });
@@ -156,127 +212,123 @@ public sealed partial class PlanetDetailsPage : Page
         GlyphContainer.Children.Add(glyphStrip);
         GlyphContainer.Children.Add(copyBtn);
 
-        // 3. Environmental Stats
+        // 3. Top Container: Integrated Environmental Conditions & Resources
         var details = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex);
-        WeatherTypeTxt.Text = !string.IsNullOrEmpty(details?.Weather) ? details.Weather : "Not Recorded";
-        WeatherDescTxt.Text = planet.TypeName;
-        SentinelActivityTxt.Text = !string.IsNullOrEmpty(details?.Sentinels) ? details.Sentinels : "Standard Activity";
-        FloraDensityTxt.Text = !string.IsNullOrEmpty(details?.Flora) ? details.Flora : "Uncharted";
-        FaunaAbundanceTxt.Text = !string.IsNullOrEmpty(details?.Fauna) ? details.Fauna : (details?.FaunaTotal is int ft ? $"{ft} Species" : "Uncharted");
+        bool? water = PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex);
 
-        // 4. Detected Resources
-        ResourcesWrapPanel.Children.Clear();
+        WeatherValTxt.Text = !string.IsNullOrEmpty(details?.Weather) ? details.Weather : $"{planet.TypeName} (Not Recorded)";
+        SentinelsValTxt.Text = !string.IsNullOrEmpty(details?.Sentinels) ? details.Sentinels : "Standard Activity";
+        FloraValTxt.Text = !string.IsNullOrEmpty(details?.Flora) ? details.Flora : "Uncharted";
+        FaunaValTxt.Text = !string.IsNullOrEmpty(details?.Fauna) ? details.Fauna : (details?.FaunaTotal is int ft ? $"{ft} Species" : "Uncharted");
+        WaterValTxt.Text = water switch { true => "Yes", false => "No", _ => "Not Recorded" };
+
+        TopResourcesWrapPanel.Children.Clear();
         var resList = details?.Resources ?? new List<string>();
         if (resList.Count == 0)
         {
-            ResourcesWrapPanel.Children.Add(new TextBlock
-            {
-                Text = "No resources recorded yet. Use 'Edit details' below or survey the planet in-game.",
-                Style = (Style)Application.Current.Resources["ThemeDimTextStyle"],
-                FontSize = 13
-            });
+            TopResourcesWrapPanel.Children.Add(DimLine("None recorded yet — edit details below or survey in-game"));
         }
         else
         {
             foreach (var r in resList)
             {
-                var card = new Border
+                var chip = new Border
                 {
-                    Background = (Brush)Application.Current.Resources["ThemePanelAltBrush"],
-                    BorderBrush = (Brush)Application.Current.Resources["ThemeLineBrush"],
+                    Background = ThemeBrush("ThemePanelBrush"),
+                    BorderBrush = ThemeBrush("ThemeLineBrush"),
                     BorderThickness = new Thickness(1),
                     CornerRadius = ThemeResources.CardCornerRadius,
-                    Padding = new Thickness(14, 10, 14, 10),
-                    Width = 260
-                };
-                var grid = new Grid();
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                var iconBox = new Border
-                {
-                    Width = 36,
-                    Height = 36,
-                    Background = (Brush)Application.Current.Resources["ThemeVoidBrush"],
-                    BorderBrush = (Brush)Application.Current.Resources["ThemeLineBrush"],
-                    BorderThickness = new Thickness(1),
-                    CornerRadius = ThemeResources.CardCornerRadius,
-                    Margin = new Thickness(0, 0, 12, 0),
-                    Child = new FontIcon
+                    Padding = new Thickness(8, 3, 8, 3),
+                    Child = new TextBlock
                     {
-                        Glyph = "\uE8EC",
-                        FontSize = 16,
-                        Foreground = (Brush)Application.Current.Resources["ThemeAccentBrush"],
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center
+                        Text = r,
+                        FontSize = 12,
+                        Foreground = ThemeBrush("ThemeTextBrush"),
+                        FontFamily = (FontFamily)Application.Current.Resources["ThemeDisplayFont"],
+                        FontWeight = FontWeights.SemiBold
                     }
                 };
-                var textStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-                textStack.Children.Add(new TextBlock
-                {
-                    Text = r,
-                    FontFamily = (FontFamily)Application.Current.Resources["ThemeDisplayFont"],
-                    FontWeight = FontWeights.SemiBold,
-                    FontSize = 14,
-                    Foreground = (Brush)Application.Current.Resources["ThemeTextBrush"]
-                });
-                textStack.Children.Add(new TextBlock
-                {
-                    Text = "Planet Resource",
-                    Style = (Style)Application.Current.Resources["ThemeDimTextStyle"],
-                    FontSize = 11
-                });
-                Grid.SetColumn(iconBox, 0);
-                Grid.SetColumn(textStack, 1);
-                grid.Children.Add(iconBox);
-                grid.Children.Add(textStack);
-                card.Child = grid;
-                ResourcesWrapPanel.Children.Add(card);
+                TopResourcesWrapPanel.Children.Add(chip);
             }
         }
 
-        // 5. Recorded Details Summary & Editor
+        // 4. Left Column: Details Summary & Manual Editor
         RenderDetailsSummary(planet, details);
         PrepareDetailsEditor(planet, details);
 
-        // 6. Save Facts
+        // 5. Left Column: Save Facts
         RenderSaveFacts(planet);
 
-        // 7. Creatures
-        RenderCreatures(planet);
-
-        // 8. Fishing
-        RenderFish(planet);
-
-        // 9. Bases
+        // 6. Left Column: Registered Bases
         RenderBases(planet);
 
-        // 10. Finds
+        // 7. Left Column: Recorded Finds
         RenderFinds(planet);
+
+        // 8. Right Column: Fishing Catches
+        RenderFish(planet);
+
+        // 9. Full Width Bottom: Creatures Discovery Catalog
+        RenderCreatures(planet);
     }
+
+    private void UpdateHereStatus(KnownPlanet planet)
+    {
+        bool isHere = _currentSystem == planet.SystemAddress && _currentPlanet == planet.PlanetIndex;
+        if (isHere)
+        {
+            HereBadge.Visibility = Visibility.Visible;
+            HereBadgeTxt.Text = _snapshot?.Coordinates is { } at
+                ? $"◆  YOU ARE HERE · {NmsPlanetCoordinates.Format(at.Latitude, at.Longitude)}"
+                : "◆  YOU ARE HERE";
+        }
+        else
+        {
+            HereBadge.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void LoadHeaderBackdrop(ulong system)
+    {
+        if (ScreenCaptureLogService.SystemPicture(system) is string picturePath && File.Exists(picturePath))
+        {
+            var brush = new ImageBrush { Stretch = Stretch.UniformToFill, Opacity = 0.25 };
+            HeaderBackdrop.Background = brush;
+            _ = GameScreenshotCache.LoadFadedFileAsync(picturePath, 3.0).ContinueWith(t =>
+            {
+                if (t.Result is { } img) DispatcherQueue.TryEnqueue(() => brush.ImageSource = img);
+            });
+        }
+        else
+        {
+            HeaderBackdrop.Background = null;
+        }
+    }
+
+    // ---------------------------------------------------------------- Manual Details Editor & Summary
 
     private void RenderDetailsSummary(KnownPlanet planet, PlanetDetails? details)
     {
         DetailsSummaryPanel.Children.Clear();
         bool? water = PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex);
 
-        void AddRow(string label, string val)
+        void Line(string label, string val)
         {
             if (string.IsNullOrEmpty(val)) return;
-            var row = new Grid { ColumnSpacing = 16 };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+            var row = new Grid { ColumnSpacing = 12 };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             row.Children.Add(new TextBlock
             {
                 Text = label,
                 FontSize = 13,
-                Foreground = (Brush)Application.Current.Resources["ThemeTextDimBrush"]
+                Foreground = ThemeBrush("ThemeTextDimBrush")
             });
             var valTxt = new TextBlock
             {
                 Text = val,
                 FontSize = 13,
-                Foreground = (Brush)Application.Current.Resources["ThemeTextBrush"],
+                Foreground = ThemeBrush("ThemeTextBrush"),
                 TextWrapping = TextWrapping.Wrap,
                 IsTextSelectionEnabled = true
             };
@@ -285,22 +337,17 @@ public sealed partial class PlanetDetailsPage : Page
             DetailsSummaryPanel.Children.Add(row);
         }
 
-        AddRow("Weather", details?.Weather ?? "");
-        AddRow("Sentinels", details?.Sentinels ?? "");
-        AddRow("Flora", details?.Flora ?? "");
-        AddRow("Fauna", details?.Fauna ?? "");
-        AddRow("Water", water switch { true => "Yes", false => "No", _ => "" });
-        AddRow("Resources", details is not null && details.Resources.Count > 0 ? string.Join(", ", details.Resources) : "");
-        AddRow("Notes", details is not null && details.Notes.Count > 0 ? string.Join(" · ", details.Notes) : "");
+        Line("Weather", details?.Weather ?? "");
+        Line("Sentinels", details?.Sentinels ?? "");
+        Line("Flora", details?.Flora ?? "");
+        Line("Fauna", details?.Fauna ?? "");
+        Line("Water", water switch { true => "Yes", false => "No", _ => "" });
+        Line("Resources", details is not null && details.Resources.Count > 0 ? string.Join(", ", details.Resources) : "");
+        Line("Notes", details is not null && details.Notes.Count > 0 ? string.Join(" · ", details.Notes) : "");
 
         if (DetailsSummaryPanel.Children.Count == 0)
         {
-            DetailsSummaryPanel.Children.Add(new TextBlock
-            {
-                Text = "Nothing recorded yet — click 'Edit details' to record weather, sentinels, resources or notes.",
-                Style = (Style)Application.Current.Resources["ThemeDimTextStyle"],
-                FontSize = 13
-            });
+            DetailsSummaryPanel.Children.Add(DimLine("Nothing recorded yet — click 'Edit details' to record weather, sentinels, resources or notes."));
         }
     }
 
@@ -488,23 +535,26 @@ public sealed partial class PlanetDetailsPage : Page
         _ = LoadPlanetAsync(planet);
     }
 
+    // ---------------------------------------------------------------- From Your Save
+
     private void RenderSaveFacts(KnownPlanet planet)
     {
         SaveFactsContainer.Children.Clear();
-        var grid = new Grid { ColumnSpacing = 16, RowSpacing = 6 };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+        var grid = new Grid { ColumnSpacing = 12, RowSpacing = 4 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         int row = 0;
         void AddFact(string label, string val)
         {
+            if (string.IsNullOrEmpty(val)) return;
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            var l = new TextBlock { Text = label, FontSize = 12, Foreground = (Brush)Application.Current.Resources["ThemeTextDimBrush"] };
+            var l = new TextBlock { Text = label, FontSize = 12, Foreground = ThemeBrush("ThemeTextDimBrush") };
             var v = new TextBlock
             {
-                Text = !string.IsNullOrEmpty(val) ? val : "—",
+                Text = val,
                 FontSize = 13,
-                Foreground = (Brush)Application.Current.Resources["ThemeTextBrush"],
+                Foreground = ThemeBrush("ThemeTextBrush"),
                 TextWrapping = TextWrapping.Wrap,
                 IsTextSelectionEnabled = true
             };
@@ -516,151 +566,82 @@ public sealed partial class PlanetDetailsPage : Page
             row++;
         }
 
-        AddFact("Discovered by", planet.DiscoveredHere ? "You" : (string.IsNullOrEmpty(planet.Discoverer) ? "Unrecorded" : planet.Discoverer));
-        DateTime date = DateTimeOffset.FromUnixTimeSeconds(planet.DiscoveredUnixSeconds).LocalDateTime;
-        AddFact("Discovered on", planet.DiscoveredUnixSeconds > 0 ? date.ToString("d MMMM yyyy", CultureInfo.CurrentCulture) : "Not recorded");
+        _lastCounts.TryGetValue(planet.Address, out var tally);
+        bool inThisSystem = planet.SystemAddress == _currentSystem;
+        AddFact("You found", inThisSystem || tally is not null ? DiscoveredText(tally, planet.Address) : "");
+        AddFact("Visited", VisitText(ReadPlanetStats(planet.Address)));
+
+        string At(JObject b) => NmsPlanetCoordinates.OfBase(b) is { } at ? $" at {NmsPlanetCoordinates.Format(at.Latitude, at.Longitude)}" : "";
+        var mine = (_snapshot?.Bases ?? new JArray()).OfType<JObject>()
+            .Where(b => b["peI"]?["DPp"]?.Value<string>() == "HomePlanetBase" && S.ParsePackedAddress(b["oZw"]) == planet.Address)
+            .Select(b => $"{(b["NKm"]?.Value<string>() is { Length: > 0 } n ? n : "Unnamed base")}{At(b)}")
+            .ToList();
+        if (mine.Count > 0) AddFact(mine.Count == 1 ? "Your base" : "Your bases", string.Join(", ", mine));
+
+        var others = (_snapshot?.Bases ?? new JArray()).OfType<JObject>()
+            .Where(b => b["peI"]?["DPp"]?.Value<string>() == "ExternalPlanetBase" && S.ParsePackedAddress(b["oZw"]) == planet.Address)
+            .Select(b => $"{(b["NKm"]?.Value<string>() is { Length: > 0 } n ? n : "Unnamed")} ({b["3?K"]?["V?:"]?.Value<string>() ?? "another player"}){At(b)}")
+            .ToList();
+        if (others.Count > 0) AddFact("Others' bases", string.Join(", ", others));
+
+        if (tally is { Waypoints: > 0 } w) AddFact("Waypoints", w.Waypoints.ToString(CultureInfo.CurrentCulture));
+        AddFact("Found by", planet.DiscoveredHere ? "You" : (string.IsNullOrEmpty(planet.Discoverer) ? "Unrecorded" : planet.Discoverer));
+        AddFact("Found on", planet.DiscoveredUnixSeconds > 0 ? DateTimeOffset.FromUnixTimeSeconds(planet.DiscoveredUnixSeconds).LocalDateTime.ToString("d MMMM yyyy", CultureInfo.CurrentCulture) : "");
         AddFact("Portal code", planet.PortalCode);
-        AddFact("System Address", $"0x{planet.SystemAddress:X16}");
+        AddFact("System address", $"0x{planet.SystemAddress:X16}");
 
         SaveFactsContainer.Children.Add(grid);
     }
 
-    private void RenderCreatures(KnownPlanet planet)
+    private static string DiscoveredText(PlanetDiscoveryCounts? tally, ulong address)
     {
-        var creatures = CreatureListService.On(planet.SystemAddress, planet.PlanetIndex);
-        if (creatures.Count == 0)
-        {
-            CreaturesCard.Visibility = Visibility.Collapsed;
-            return;
-        }
-
-        CreaturesCard.Visibility = Visibility.Visible;
-        CreaturesWrapPanel.Children.Clear();
-
-        foreach (var c in creatures)
-        {
-            var tile = new StackPanel { Width = 240, Spacing = 3 };
-            string path = CreatureListService.PicturePath(planet.SystemAddress, planet.PlanetIndex, c.Name);
-            if (c.Picture && File.Exists(path))
-            {
-                var image = new BitmapImage();
-                using var stream = new MemoryStream(File.ReadAllBytes(path));
-                image.SetSource(stream.AsRandomAccessStream());
-                tile.Children.Add(new Border
-                {
-                    CornerRadius = ThemeResources.CardCornerRadius,
-                    Height = 130,
-                    Margin = new Thickness(0, 0, 0, 4),
-                    Child = new Image { Source = image, Stretch = Stretch.UniformToFill }
-                });
-            }
-            else
-            {
-                tile.Children.Add(new Border
-                {
-                    CornerRadius = ThemeResources.CardCornerRadius,
-                    Height = 130,
-                    Margin = new Thickness(0, 0, 0, 4),
-                    Background = (Brush)Application.Current.Resources["ThemePanelAltBrush"],
-                    BorderBrush = (Brush)Application.Current.Resources["ThemeLineBrush"],
-                    BorderThickness = new Thickness(1),
-                    Child = new TextBlock
-                    {
-                        Text = c.Rarity == "Extinct" ? "Extinct — once lived here" : "No picture captured",
-                        FontSize = 11,
-                        Foreground = (Brush)Application.Current.Resources["ThemeTextFaintBrush"],
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center
-                    }
-                });
-            }
-
-            tile.Children.Add(new TextBlock
-            {
-                Text = c.Name,
-                FontSize = 13,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = (Brush)Application.Current.Resources["ThemeTextBrush"],
-                IsTextSelectionEnabled = true
-            });
-
-            string traits = string.Join(" · ", new[] { c.Rarity, c.Habitat, c.Activity }.Where(s => s.Length > 0));
-            if (traits.Length > 0)
-                tile.Children.Add(new TextBlock { Text = traits, Style = (Style)Application.Current.Resources["ThemeDimTextStyle"], FontSize = 11 });
-
-            string bio = string.Join(" · ", new[] { c.Gender, c.Size }.Where(s => s.Length > 0));
-            if (bio.Length > 0)
-                tile.Children.Add(new TextBlock { Text = bio, Style = (Style)Application.Current.Resources["ThemeDimTextStyle"], FontSize = 11 });
-
-            var borderWrapper = new Border
-            {
-                Child = tile,
-                Padding = new Thickness(10),
-                CornerRadius = ThemeResources.CardCornerRadius,
-                Background = (Brush)Application.Current.Resources["ThemeVoidBrush"],
-                BorderBrush = (Brush)Application.Current.Resources["ThemeLineBrush"],
-                BorderThickness = new Thickness(1)
-            };
-            CreaturesWrapPanel.Children.Add(borderWrapper);
-        }
+        var t = tally ?? new PlanetDiscoveryCounts(0, 0, 0);
+        int? total = PlanetDetailsService.Get(S.ToSystemAddress(address), (int)((address >> 52) & 0xF))?.FaunaTotal;
+        string fauna = total switch { 0 => "no fauna", int n => $"{t.Fauna} / {n} fauna", _ => $"{t.Fauna} fauna" };
+        return $"{fauna} · {t.Flora} flora · {t.Minerals} minerals";
     }
 
-    private void RenderFish(KnownPlanet planet)
+    private static string VisitText(Dictionary<string, double> stats)
     {
-        var caughtHere = FishCatchService.CaughtOn(planet.SystemAddress, planet.PlanetIndex);
-        if (caughtHere.Count == 0)
-        {
-            FishCard.Visibility = Visibility.Collapsed;
-            return;
-        }
-
-        FishCard.Visibility = Visibility.Visible;
-        FishContainerPanel.Children.Clear();
-
-        var spots = FishCatchService.SpotsOn(planet.SystemAddress, planet.PlanetIndex);
-        string FormatFishName(string id)
-        {
-            string name = CatalogService.TryGet(id)?.DisplayName is { Length: > 0 } shown ? shown : id;
-            return name == name.ToUpperInvariant() ? CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name.ToLowerInvariant()) : name;
-        }
-
-        var ordered = caughtHere.OrderByDescending(c => c.Value).ThenBy(c => FormatFishName(c.Key)).ToList();
-
-        foreach (var c in ordered)
-        {
-            var row = new Grid { ColumnSpacing = 12, Margin = new Thickness(0, 2, 0, 2) };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            string displayName = FormatFishName(c.Key);
-            string countText = c.Value > 1 ? $" ×{c.Value}" : "";
-
-            var textStack = new StackPanel { Orientation = Orientation.Vertical, Spacing = 2 };
-            textStack.Children.Add(new TextBlock
-            {
-                Text = $"{displayName}{countText}",
-                Style = (Style)Application.Current.Resources["ThemeBodyTextStyle"],
-                FontWeight = FontWeights.SemiBold
-            });
-
-            if (spots.TryGetValue(c.Key, out var coords) && coords.Count > 0)
-            {
-                var shown = coords.Select(a => NmsPlanetCoordinates.Format(a.Latitude, a.Longitude)).Distinct().ToList();
-                string where = string.Join("  ·  ", shown.Take(3)) + (shown.Count > 3 ? $"  (+{shown.Count - 3} more)" : "");
-                textStack.Children.Add(new TextBlock
-                {
-                    Text = $"Caught at {where}",
-                    Style = (Style)Application.Current.Resources["ThemeDimTextStyle"],
-                    FontSize = 11
-                });
-            }
-
-            Grid.SetColumn(textStack, 0);
-            row.Children.Add(textStack);
-
-            FishContainerPanel.Children.Add(row);
-        }
+        var visit = new List<string>();
+        if (stats.TryGetValue("^TIME", out double secondsHere) && secondsHere >= 1)
+            visit.Add(FormatDuration(secondsHere));
+        if (stats.TryGetValue("^DIST_WALKED", out double walked) && walked >= 1)
+            visit.Add($"{walked:N0} m walked");
+        return string.Join(" · ", visit);
     }
+
+    private static string FormatDuration(double seconds)
+    {
+        var span = TimeSpan.FromSeconds(seconds);
+        return span.TotalHours >= 1 ? $"{(int)span.TotalHours}h {span.Minutes}m"
+             : span.TotalMinutes >= 1 ? $"{span.Minutes}m {span.Seconds}s"
+             : $"{span.Seconds}s";
+    }
+
+    private Dictionary<string, double> ReadPlanetStats(ulong planetAddress)
+    {
+        var result = new Dictionary<string, double>();
+        if (_snapshot?.StatGroups is not JArray groups) return result;
+
+        var group = groups.OfType<JObject>().FirstOrDefault(g =>
+            g[":rc"]?.Value<string>() == "^PLANET_STATS" && S.ParsePackedAddress(g["2Ak"]) == planetAddress);
+        if (group is null) return result;
+
+        if (group["j6C"] is JArray ints)
+            foreach (var stat in ints.OfType<JObject>())
+                if (stat["H1>"]?.Value<string>() is { } k && stat[">vs"]?.Value<double>() is { } v)
+                    result[k] = v;
+
+        if (group["1;0"] is JArray floats)
+            foreach (var stat in floats.OfType<JObject>())
+                if (stat["H1>"]?.Value<string>() is { } k && stat["eoL"]?.Value<double>() is { } v)
+                    result[k] = v;
+
+        return result;
+    }
+
+    // ---------------------------------------------------------------- Registered Bases
 
     private void RenderBases(KnownPlanet planet)
     {
@@ -673,12 +654,7 @@ public sealed partial class PlanetDetailsPage : Page
 
         if (bases.Count == 0)
         {
-            BasesListPanel.Children.Add(new TextBlock
-            {
-                Text = "No bases or outposts registered on this planet.",
-                Style = (Style)Application.Current.Resources["ThemeDimTextStyle"],
-                FontSize = 13
-            });
+            BasesListPanel.Children.Add(DimLine("No bases or outposts registered on this planet."));
             return;
         }
 
@@ -689,9 +665,9 @@ public sealed partial class PlanetDetailsPage : Page
 
             var card = new Border
             {
-                Padding = new Thickness(14, 10, 14, 10),
-                Background = (Brush)Application.Current.Resources["ThemePanelAltBrush"],
-                BorderBrush = (Brush)Application.Current.Resources["ThemeLineBrush"],
+                Padding = new Thickness(12, 8, 12, 8),
+                Background = ThemeBrush("ThemePanelAltBrush"),
+                BorderBrush = ThemeBrush("ThemeLineBrush"),
                 BorderThickness = new Thickness(1),
                 CornerRadius = ThemeResources.CardCornerRadius
             };
@@ -701,14 +677,14 @@ public sealed partial class PlanetDetailsPage : Page
 
             var icon = new Border
             {
-                Width = 34,
-                Height = 34,
-                Background = (Brush)Application.Current.Resources["ThemeVoidBrush"],
-                BorderBrush = (Brush)Application.Current.Resources["ThemeLineBrush"],
+                Width = 32,
+                Height = 32,
+                Background = ThemeBrush("ThemeVoidBrush"),
+                BorderBrush = ThemeBrush("ThemeLineBrush"),
                 BorderThickness = new Thickness(1),
                 CornerRadius = ThemeResources.CardCornerRadius,
-                Margin = new Thickness(0, 0, 12, 0),
-                Child = new FontIcon { Glyph = "\uEB49", FontSize = 16, Foreground = (Brush)Application.Current.Resources["ThemeAccentBrush"] }
+                Margin = new Thickness(0, 0, 10, 0),
+                Child = new FontIcon { Glyph = "\uEB49", FontSize = 14, Foreground = ThemeBrush("ThemeAccentBrush") }
             };
             var st = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             st.Children.Add(new TextBlock
@@ -716,10 +692,10 @@ public sealed partial class PlanetDetailsPage : Page
                 Text = $"{name}{At(b)}",
                 FontFamily = (FontFamily)Application.Current.Resources["ThemeDisplayFont"],
                 FontWeight = FontWeights.SemiBold,
-                FontSize = 14,
-                Foreground = (Brush)Application.Current.Resources["ThemeTextBrush"]
+                FontSize = 13,
+                Foreground = ThemeBrush("ThemeTextBrush")
             });
-            st.Children.Add(new TextBlock { Text = type, Style = (Style)Application.Current.Resources["ThemeDimTextStyle"], FontSize = 12 });
+            st.Children.Add(new TextBlock { Text = type, Style = (Style)Application.Current.Resources["ThemeDimTextStyle"], FontSize = 11 });
 
             Grid.SetColumn(icon, 0);
             Grid.SetColumn(st, 1);
@@ -729,6 +705,8 @@ public sealed partial class PlanetDetailsPage : Page
             BasesListPanel.Children.Add(card);
         }
     }
+
+    // ---------------------------------------------------------------- Recorded Finds
 
     private void RenderFinds(KnownPlanet planet)
     {
@@ -754,6 +732,228 @@ public sealed partial class PlanetDetailsPage : Page
             });
         }
     }
+
+    // ---------------------------------------------------------------- Fishing Catches (Far Right Column)
+
+    private void RenderFish(KnownPlanet planet)
+    {
+        FishContainerPanel.Children.Clear();
+        if (_fish.Count == 0)
+        {
+            FishCard.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var caughtHere = FishCatchService.CaughtOn(planet.SystemAddress, planet.PlanetIndex);
+        bool? water = PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex);
+        bool hasWater = water == true || caughtHere.Count > 0 || (water is null && NmsPlanets.AlwaysHasWater(planet.BiomeIndex));
+        if (!hasWater)
+        {
+            FishCard.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        FishCard.Visibility = Visibility.Visible;
+
+        var own = _fish.Where(f => f.LivesOn(planet.BiomeIndex) && !f.Biomes.Contains(FishInfo.AnyPlanet)).ToList();
+        var anywhere = _fish.Where(f => f.Biomes.Contains(FishInfo.AnyPlanet)).ToList();
+        int Caught(List<FishInfo> fish) => fish.Count(f => _caught.ContainsKey(f.Id));
+
+        if (own.Count > 0)
+        {
+            if (Caught(own) >= own.Count)
+                FishContainerPanel.Children.Add(DimLine($"✓ All {own.Count} {planet.TypeName} fish caught (on any {planet.TypeName} planet)"));
+            else
+                FishContainerPanel.Children.Add(ProgressRow($"{planet.TypeName} fish - on any {planet.TypeName} planet", Caught(own), own.Count));
+        }
+
+        FishContainerPanel.Children.Add(DimLine(Caught(anywhere) >= anywhere.Count
+            ? $"✓ All {anywhere.Count} fish found on any planet with water caught"
+            : $"Plus {anywhere.Count} fish found on any planet with water - you've caught {Caught(anywhere)}."));
+
+        int totalHere = caughtHere.Values.Sum();
+        FishContainerPanel.Children.Add(new TextBlock
+        {
+            Text = totalHere == 0 ? "Caught here: none yet"
+                : $"Caught here: {totalHere:N0} fish · {caughtHere.Count} kind{(caughtHere.Count == 1 ? "" : "s")}",
+            FontSize = 13,
+            Foreground = ThemeBrush("ThemeTextBrush"),
+            FontWeight = FontWeights.SemiBold
+        });
+
+        var missingOwn = own.Where(f => !_caught.ContainsKey(f.Id)).Select(f => FishName(f.Id)).OrderBy(x => x).ToList();
+        var missingAny = anywhere.Where(f => !_caught.ContainsKey(f.Id)).Select(f => FishName(f.Id)).OrderBy(x => x).ToList();
+        int missing = missingOwn.Count + missingAny.Count;
+
+        if (missing == 0 && caughtHere.Count == 0)
+        {
+            FishContainerPanel.Children.Add(DimLine("You've caught every fish you can find here."));
+            return;
+        }
+
+        void Heading(string text) => FishContainerPanel.Children.Add(new TextBlock { Text = text, FontSize = 11, Foreground = ThemeBrush("ThemeTextDimBrush"), Margin = new Thickness(0, 6, 0, 0) });
+
+        if (missingOwn.Count > 0)
+        {
+            Heading($"STILL TO CATCH - ONLY ON {planet.TypeName.ToUpperInvariant()} PLANETS ({missingOwn.Count})");
+            FishContainerPanel.Children.Add(NameList(missingOwn));
+        }
+        if (missingAny.Count > 0)
+        {
+            Heading($"STILL TO CATCH - ANY PLANET WITH WATER ({missingAny.Count})");
+            FishContainerPanel.Children.Add(NameList(missingAny));
+        }
+        if (caughtHere.Count > 0)
+        {
+            Heading($"CAUGHT ON THIS PLANET ({caughtHere.Count} KIND{(caughtHere.Count == 1 ? "" : "S")})");
+            var spots = FishCatchService.SpotsOn(planet.SystemAddress, planet.PlanetIndex);
+            string Name(KeyValuePair<string, int> c) => c.Value > 1 ? $"{FishName(c.Key)} ×{c.Value}" : FishName(c.Key);
+            var ordered = caughtHere.OrderByDescending(c => c.Value).ThenBy(c => FishName(c.Key)).ToList();
+            var located = ordered.Where(c => spots.ContainsKey(c.Key)).Select(c =>
+            {
+                var shown = spots[c.Key].Select(a => NmsPlanetCoordinates.Format(a.Latitude, a.Longitude)).Distinct().ToList();
+                string where = string.Join("  ·  ", shown.Take(3)) + (shown.Count > 3 ? $"  (+{shown.Count - 3} more)" : "");
+                return $"{Name(c)}  —  at {where}";
+            }).ToList();
+            var unlocated = ordered.Where(c => !spots.ContainsKey(c.Key)).Select(Name).ToList();
+
+            const string Recorded = "Recorded by ArtifactX while it followed your game. Catches from before, or while it was closed, aren't known - the save doesn't record where a fish was caught.";
+            if (located.Count > 0)
+            {
+                var list = NameList(Array.Empty<string>());
+                list.Text = string.Join(Environment.NewLine, located);
+                ToolTipService.SetToolTip(list, Recorded + " Coordinates are where you were when the game next saved - the numbers your ship's dashboard and scanner show.");
+                FishContainerPanel.Children.Add(list);
+            }
+            if (unlocated.Count > 0)
+            {
+                if (located.Count > 0) Heading("CAUGHT HERE BEFORE LOCATIONS WERE KEPT");
+                var list = NameList(unlocated);
+                ToolTipService.SetToolTip(list, Recorded);
+                FishContainerPanel.Children.Add(list);
+            }
+        }
+    }
+
+    private string FishName(string id)
+    {
+        string name = _itemNames.TryGetValue(id, out var n) ? n
+            : CatalogService.TryGet(id)?.DisplayName is { Length: > 0 } shown ? shown : id;
+        return name == name.ToUpperInvariant() ? CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name.ToLowerInvariant()) : name;
+    }
+
+    private static StackPanel ProgressRow(string label, int done, int total)
+    {
+        var block = new StackPanel { Spacing = 2 };
+        block.Children.Add(new TextBlock { Text = label, FontSize = 12, Foreground = ThemeBrush("ThemeTextDimBrush") });
+        var row = new Grid { ColumnSpacing = 10 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.Children.Add(new ProgressBar { Maximum = Math.Max(1, total), Value = done, VerticalAlignment = VerticalAlignment.Center });
+        var count = new TextBlock { Text = $"{done} / {total} caught", FontSize = 13, Foreground = ThemeBrush("ThemeTextBrush") };
+        Grid.SetColumn(count, 1);
+        row.Children.Add(count);
+        block.Children.Add(row);
+        return block;
+    }
+
+    // ---------------------------------------------------------------- Creatures (Fauna Scans with images)
+
+    private void RenderCreatures(KnownPlanet planet)
+    {
+        var creatures = CreatureListService.On(planet.SystemAddress, planet.PlanetIndex);
+        if (creatures.Count == 0)
+        {
+            CreaturesCard.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        CreaturesCard.Visibility = Visibility.Visible;
+        CreaturesWrapPanel.Children.Clear();
+
+        foreach (var c in creatures)
+        {
+            var tile = new StackPanel { Width = 250, Spacing = 2 };
+            string path = CreatureListService.PicturePath(planet.SystemAddress, planet.PlanetIndex, c.Name);
+            if (c.Picture && File.Exists(path))
+            {
+                var image = new BitmapImage();
+                using (var stream = new MemoryStream(File.ReadAllBytes(path)))
+                    image.SetSource(stream.AsRandomAccessStream());
+                tile.Children.Add(new Border
+                {
+                    CornerRadius = new CornerRadius(6),
+                    Height = 140,
+                    Margin = new Thickness(0, 0, 0, 4),
+                    Child = new Image { Source = image, Stretch = Stretch.UniformToFill }
+                });
+            }
+            else
+            {
+                tile.Children.Add(new Border
+                {
+                    CornerRadius = new CornerRadius(6),
+                    Height = 140,
+                    Margin = new Thickness(0, 0, 0, 4),
+                    Background = ThemeBrush("ThemePanelAltBrush"),
+                    BorderBrush = ThemeBrush("ThemeLineBrush"),
+                    BorderThickness = new Thickness(1),
+                    Child = new TextBlock
+                    {
+                        Text = c.Rarity == "Extinct" ? "Extinct - once lived here" : "No picture yet - select it in the game's fauna list",
+                        FontSize = 12,
+                        Foreground = ThemeBrush("ThemeTextFaintBrush"),
+                        TextWrapping = TextWrapping.Wrap,
+                        TextAlignment = TextAlignment.Center,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(12, 0, 12, 0)
+                    }
+                });
+            }
+
+            tile.Children.Add(new TextBlock
+            {
+                Text = c.Name,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = ThemeBrush("ThemeTextBrush"),
+                IsTextSelectionEnabled = true
+            });
+
+            string traits = string.Join(" · ", new[] { c.Rarity, c.Habitat, c.Activity }.Where(s => s.Length > 0));
+            if (traits.Length > 0) tile.Children.Add(DimLine(traits));
+
+            string body = string.Join(" · ", new[] { c.Gender, c.Size }.Where(s => s.Length > 0));
+            if (body.Length > 0) tile.Children.Add(DimLine(body));
+
+            string? noPet = c.Rarity == "Extinct" ? "extinct"
+                : c.Habitat == "Underwater" ? "lives underwater"
+                : Regex.IsMatch(c.Habitat, @"Fly|Flight|Air|Sky", RegexOptions.IgnoreCase) ? "flies"
+                : null;
+            if (noPet is not null)
+            {
+                tile.Children.Add(new TextBlock
+                {
+                    Text = $"Can't be a companion - {noPet}",
+                    FontSize = 11,
+                    Foreground = ThemeBrush("ThemeTextFaintBrush"),
+                    Margin = new Thickness(0, 2, 0, 0)
+                });
+            }
+
+            CreaturesWrapPanel.Children.Add(new Border
+            {
+                Child = tile,
+                Padding = new Thickness(10),
+                CornerRadius = new CornerRadius(6),
+                Background = ThemeBrush("ThemeVoidBrush"),
+                BorderBrush = ThemeBrush("ThemeLineBrush"),
+                BorderThickness = new Thickness(1)
+            });
+        }
+    }
+
+    // ---------------------------------------------------------------- Navigation & Action Helpers
 
     private void BackButton_Click(object sender, RoutedEventArgs e)
     {
@@ -800,4 +1000,25 @@ public sealed partial class PlanetDetailsPage : Page
 
         await exportDialog.ShowAsync();
     }
+
+    private static Brush ThemeBrush(string resourceKey) => (Brush)Application.Current.Resources[resourceKey];
+
+    private static TextBlock DimLine(string text) => new()
+    {
+        Text = text,
+        Style = (Style)Application.Current.Resources["ThemeDimTextStyle"],
+        FontSize = 12
+    };
+
+    private static TextBlock NameList(IEnumerable<string> names) => new()
+    {
+        Text = string.Join(", ", names),
+        FontSize = 12,
+        Foreground = ThemeBrush("ThemeTextBrush"),
+        TextWrapping = TextWrapping.Wrap,
+        IsTextSelectionEnabled = true
+    };
+
+    private static string GalaxyLabel(int galaxy) =>
+        NmsGalaxyNames.ForNumber(galaxy) is string name ? $"{name} ({galaxy})" : $"Galaxy {galaxy}";
 }
