@@ -222,32 +222,60 @@ public static class SystemPageReader
         return false;
     }
 
-    public static ulong? SystemView(IReadOnlyList<(string Text, double Y)> placed)
+    public static ulong? SystemView(IReadOnlyList<(string Text, double Y)> placed, ulong? hintSystem = null)
     {
         var lines = placed.Select(p => p.Text).ToList();
-        // "3 PLANETS / 3 MOONS" - the number can be read as its own line ("5" | "PLANETS / MOON").
-        int header = lines.FindIndex(l => Regex.IsMatch(l, @"^\s*(\d+\s*)?PLANETS?\b", RegexOptions.IgnoreCase)
-            && !l.Contains("Celestial", StringComparison.OrdinalIgnoreCase));
-        if (header < 0) return null;
         // A pop-up or a planet page covers the planets.
         if (lines.Any(l => l.Contains("Galaxy:", StringComparison.OrdinalIgnoreCase) || l.Contains("RENAME AND UPLOAD", StringComparison.OrdinalIgnoreCase)
             || l.Trim().Equals("Planet Data", StringComparison.OrdinalIgnoreCase)))
             return null;
+
+        // Is this the system discoveries view?
+        bool isSystemView = lines.Any(l => Regex.IsMatch(l, @"\b(VISITED SYSTEMS|All Visited Systems|DISCOVERIES|PLANETS?)\b", RegexOptions.IgnoreCase))
+            || placed.Any(p => Regex.IsMatch(p.Text, @"\bDiscovered\b|\bby\b", RegexOptions.IgnoreCase));
+
+        if (!isSystemView) return null;
+
+        // If a hint system is provided (e.g. from the active page), check if its name or planets are on screen.
+        if (hintSystem is ulong hint && hint != 0)
+        {
+            string hName = UniverseInfo.SystemName(hint);
+            if (lines.Any(l => PlanetPageReader.Distance(PlanetPageReader.Norm(PlanetPageReader.Clean(Regex.Replace(l, @"^[@•\s\d]+", ""))), PlanetPageReader.Norm(hName)) <= Math.Max(1, hName.Length / 4)))
+                return hint;
+
+            var knownBodies = UnmatchedBodiesService.For(hint).Select(h => h.Name)
+                .Concat(Enumerable.Range(1, 6).Select(i => UniverseInfo.PlanetName(hint, i)))
+                .Where(n => !string.IsNullOrEmpty(n))
+                .Select(PlanetPageReader.Norm).ToList();
+            int bodyHits = knownBodies.Count(b => lines.Any(l => PlanetPageReader.Distance(PlanetPageReader.Norm(PlanetPageReader.Clean(l)), b) <= Math.Max(1, b.Length / 4)));
+            if (bodyHits >= 2) return hint;
+        }
+
         // The name: the big title right above "Discovered <when> by <who>", by height on screen -
         // in reading order the visited-systems list and other lines get in between (2026-10-17).
         // The line can come apart: "Discovered" | "today by Neophyte" (Belezna, 2026-10-17).
-        var by = placed.FirstOrDefault(p => Regex.IsMatch(p.Text, @"Discovered\s.*\bby\b|^\s*Discovered\s*$|\b(today|yesterday|ago)\s+by\b|^\s*Discovered\s+(today|yesterday|.*\bago)\s*$", RegexOptions.IgnoreCase)
-            && !p.Text.Contains("Discovered by", StringComparison.OrdinalIgnoreCase));
-        if (by.Text is null) return null;
-        var band = placed.Where(p => by.Y - p.Y > 15 && by.Y - p.Y < 90).OrderBy(p => by.Y - p.Y)
-            .Select(p => PlanetPageReader.Clean(p.Text)).Where(l => l.Count(char.IsLetter) >= 2).ToList();
-        foreach (var line in band)
-            if (line.Count(char.IsLetter) >= 3 && Match(line) is ulong found) return found;
-        // A long title can come apart: "Amazin" | "Dlanet Biomes" (2026-10-18). Try the pieces
-        // joined, in either order - the read gives no left-to-right position.
-        for (int i = 0; i < band.Count; i++)
-            for (int j = 0; j < band.Count; j++)
-                if (i != j && Match(band[i] + " " + band[j]) is ulong joined) return joined;
+        var by = placed.FirstOrDefault(p => Regex.IsMatch(p.Text, @"Discovered\s.*\bby\b|^\s*Discovered\s*$|\b(today|yesterday|ago)\s+by\b|^\s*Discovered\s+(today|yesterday|.*\bago)\s*$", RegexOptions.IgnoreCase));
+        if (by.Text is not null)
+        {
+            var band = placed.Where(p => by.Y - p.Y > 5 && by.Y - p.Y < 160).OrderBy(p => by.Y - p.Y)
+                .Select(p => PlanetPageReader.Clean(p.Text)).Where(l => l.Count(char.IsLetter) >= 2).ToList();
+            foreach (var line in band)
+                if (line.Count(char.IsLetter) >= 3 && Match(line) is ulong found) return found;
+            // A long title can come apart: "Amazin" | "Dlanet Biomes" (2026-10-18). Try the pieces
+            // joined, in either order - the read gives no left-to-right position.
+            for (int i = 0; i < band.Count; i++)
+                for (int j = 0; j < band.Count; j++)
+                    if (i != j && Match(band[i] + " " + band[j]) is ulong joined) return joined;
+        }
+
+        // Fallback: check all placed text lines (stripping leading selection bullets/icons like @ or •)
+        foreach (var p in placed)
+        {
+            string clean = PlanetPageReader.Clean(Regex.Replace(p.Text, @"^[@•\s\d]+", ""));
+            if (clean.Length >= 3 && Match(clean) is ulong match)
+                return match;
+        }
+
         return null;
     }
 

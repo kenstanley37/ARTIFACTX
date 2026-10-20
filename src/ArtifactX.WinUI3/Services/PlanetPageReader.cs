@@ -395,10 +395,28 @@ public static class PlanetPageReader
     /// <summary>The systems the save recently put the player in, newest first.</summary>
     public static List<ulong> Recent()
     {
-        List<ulong> systems;
-        lock (Lock) systems = RecentSystems.ToList();
-        if (systems.Count == 0 && NmsSpaceStationPaths.ReadSystemAddress(LiveSaveWatcher.FromSession().Universe) is ulong current) systems.Add(current);
-        return systems;
+        var systems = new HashSet<ulong>();
+        lock (Lock)
+        {
+            foreach (var s in RecentSystems) systems.Add(s);
+        }
+        if (NmsSpaceStationPaths.ReadSystemAddress(LiveSaveWatcher.FromSession().Universe) is ulong current && current != 0)
+            systems.Add(current);
+
+        try
+        {
+            var snap = LiveSaveWatcher.FromSession();
+            if (snap.Discoveries is not null)
+            {
+                foreach (var p in NmsPlanets.ReadAll(snap.Discoveries))
+                {
+                    if (p.SystemAddress != 0) systems.Add(p.SystemAddress);
+                }
+            }
+        }
+        catch { }
+
+        return systems.ToList();
     }
 
     /// <summary>Resources from a Discoveries list pop-up: the lines after its "Verdant Planet"

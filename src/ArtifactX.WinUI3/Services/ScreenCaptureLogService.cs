@@ -14,6 +14,9 @@ using Windows.Storage.Streams;
 
 namespace ArtifactX.WinUI3.Services;
 
+/// <summary>Result returned by a manual or forced screen capture.</summary>
+public readonly record struct CaptureResult(bool Success, string Message, string? ReadInfo = null);
+
 /// <summary>
 /// Records what the game shows, to learn which screens could be read for planet and
 /// system details (GitHub #18, first step, 2026-10-17). Off unless the player turns it
@@ -37,7 +40,7 @@ public static class ScreenCaptureLogService
     private const double ChangedFraction = 0.015; // share of cells that must change
 
     private static Timer? _timer;
-    private static int _busy;
+    private static readonly SemaphoreSlim _gate = new(1, 1);
     private static byte[]? _lastThumb;
     private static int _savedSinceCheck;
     private static bool _recording;
@@ -93,10 +96,10 @@ public static class ScreenCaptureLogService
 
     private static void Tick()
     {
-        if (Interlocked.Exchange(ref _busy, 1) == 1) return;
+        if (!_gate.Wait(0)) return;
         try { CaptureOnce().GetAwaiter().GetResult(); }
         catch (Exception ex) { Debug.WriteLine($"[ScreenCaptureLog] {ex.Message}"); }
-        finally { _busy = 0; }
+        finally { _gate.Release(); }
     }
 
     private static async Task CaptureOnce()
@@ -124,26 +127,149 @@ public static class ScreenCaptureLogService
         if (_lastThumb is not null && ChangedShare(thumb, _lastThumb) < ChangedFraction) return;
         _lastThumb = thumb;
 
+        await ProcessFrameAsync(pixels, w, h, force: false);
+    }
+
+    /// <summary>
+    /// Manually captures the game screen immediately and runs OCR and all discovery/market/fauna readers.
+    /// Does not require background recording to be enabled. Bypasses frame duplicate heuristics.
+    /// Supports forcing system picture crop or specific creature picture crop.
+    /// </summary>
+    public static async Task<CaptureResult> CaptureNowAsync(
+        ulong? hintSystem = null,
+        bool forceSystemPicture = false,
+        (ulong System, int Planet, string Name)? forceCreaturePicture = null,
+        (ulong System, int Planet)? hintPlanet = null)
+    {
+        if (!await _gate.WaitAsync(TimeSpan.FromSeconds(3)))
+            return new CaptureResult(false, "Screen capture is busy processing another frame.");
+
+        try
+        {
+            if (!GameProcessMonitorService.IsGameRunning)
+                return new CaptureResult(false, "No Man's Sky is not currently running. Launch the game before capturing screens.");
+
+            IntPtr hwnd = GameWindow();
+            if (hwnd == IntPtr.Zero)
+                return new CaptureResult(false, "No Man's Sky game window was not found.");
+
+            if (IsIconic(hwnd))
+            {
+                ShowWindow(hwnd, 9 /* SW_RESTORE */);
+                await Task.Delay(250);
+            }
+
+            if (IsIconic(hwnd))
+                return new CaptureResult(false, "No Man's Sky is minimized. Please restore the game window to capture.");
+
+            if (!GetWindowRect(hwnd, out var r))
+                return new CaptureResult(false, "Could not determine game window location.");
+
+            int w = r.Right - r.Left, h = r.Bottom - r.Top;
+            if (w < 320 || h < 200)
+                return new CaptureResult(false, $"Game window is too small ({w}x{h}).");
+
+            IntPtr fg = GetForegroundWindow();
+            bool overlaps = false;
+            if (fg != IntPtr.Zero && fg != hwnd && !IsIconic(fg) && GetWindowRect(fg, out var fgRect))
+            {
+                overlaps = !(fgRect.Right <= r.Left || fgRect.Left >= r.Right || fgRect.Bottom <= r.Top || fgRect.Top >= r.Bottom);
+            }
+
+            IntPtr appHwnd = IntPtr.Zero;
+            if (overlaps)
+            {
+                try
+                {
+                    if (App.MainWindowInstance is not null)
+                        appHwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindowInstance);
+                }
+                catch { }
+
+                SetForegroundWindow(hwnd);
+                await Task.Delay(250);
+            }
+
+            byte[] pixels = Grab(r.Left, r.Top, w, h);
+            byte[] thumb = Thumb(pixels, w, h);
+            _lastThumb = thumb;
+
+            if (appHwnd != IntPtr.Zero)
+            {
+                SetForegroundWindow(appHwnd);
+            }
+
+            var (ocrSuccess, readInfo, text) = await ProcessFrameAsync(
+                pixels, w, h,
+                force: true,
+                hintSystem: hintSystem,
+                forceSystemPicture: forceSystemPicture,
+                forceCreaturePicture: forceCreaturePicture,
+                hintPlanet: hintPlanet);
+            if (!ocrSuccess)
+                return new CaptureResult(false, "Windows OCR engine could not be initialized for the current user language.");
+
+            if (!string.IsNullOrWhiteSpace(readInfo))
+                return new CaptureResult(true, $"Capture successful:\n{readInfo}", readInfo);
+
+            int lineCount = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries).Length;
+            return new CaptureResult(true, $"Screen captured ({w}x{h}, {lineCount} text lines recognized), but no discovery or station screen was matched.", null);
+        }
+        catch (Exception ex)
+        {
+            return new CaptureResult(false, $"Capture error: {ex.Message}");
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private static async Task<(bool OcrSuccess, string? ReadInfo, string Text)> ProcessFrameAsync(
+        byte[] pixels,
+        int w,
+        int h,
+        bool force,
+        ulong? hintSystem = null,
+        bool forceSystemPicture = false,
+        (ulong System, int Planet, string Name)? forceCreaturePicture = null,
+        (ulong System, int Planet)? hintPlanet = null)
+    {
         using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(pixels.AsBuffer(), BitmapPixelFormat.Bgra8, w, h, BitmapAlphaMode.Ignore);
         string text = "";
         var lines = new List<string>();
         var placed = new List<(string Text, double Y)>();
         // With the left edge too (share of the width), for screens laid out in columns.
         var placedX = new List<(string Text, double X, double Y)>();
-        if (OcrEngine.TryCreateFromUserProfileLanguages() is { } ocr)
+        if (OcrEngine.TryCreateFromUserProfileLanguages() is not { } ocr)
         {
-            var result = await ocr.RecognizeAsync(bitmap);
-            lines = result.Lines.Select(l => l.Text).ToList();
-            placed = result.Lines.Select(l => (l.Text, l.Words.Count == 0 ? 0 : l.Words.Average(wd => wd.BoundingRect.Y + wd.BoundingRect.Height / 2))).ToList();
-            placedX = result.Lines.Select(l => (l.Text, l.Words.Count == 0 ? 0 : l.Words.Min(wd => wd.BoundingRect.X) / w,
-                l.Words.Count == 0 ? 0 : l.Words.Average(wd => wd.BoundingRect.Y + wd.BoundingRect.Height / 2))).ToList();
-            text = string.Join(Environment.NewLine, lines);
+            if (forceSystemPicture && hintSystem is ulong forcedSysNoOcr && forcedSysNoOcr != 0)
+            {
+                await SaveSystemPictureAsync(forcedSysNoOcr, pixels, w, h, labels: 0, force: true);
+                return (true, $"system picture saved for {UniverseInfo.SystemName(forcedSysNoOcr)} (manual capture, no OCR)", "");
+            }
+            if (forceCreaturePicture is { } fcp)
+            {
+                string picPath = CreatureListService.PicturePath(fcp.System, fcp.Planet, fcp.Name);
+                await SaveCreaturePictureAsync(pixels, w, h, picPath);
+                CreatureListService.RecordPictureSaved(fcp.System, fcp.Planet, fcp.Name);
+                return (true, $"creature picture saved for '{fcp.Name}' (manual override, no OCR)", "");
+            }
+            return (false, null, "");
         }
-        // Same words as the last kept screen (the cursor moved over the same list): skip it.
-        // The first log showed half the frames were such repeats (2026-10-17).
+
+        var result = await ocr.RecognizeAsync(bitmap);
+        lines = result.Lines.Select(l => l.Text).ToList();
+        placed = result.Lines.Select(l => (l.Text, l.Words.Count == 0 ? 0 : l.Words.Average(wd => wd.BoundingRect.Y + wd.BoundingRect.Height / 2))).ToList();
+        placedX = result.Lines.Select(l => (l.Text, l.Words.Count == 0 ? 0 : l.Words.Min(wd => wd.BoundingRect.X) / w,
+            l.Words.Count == 0 ? 0 : l.Words.Average(wd => wd.BoundingRect.Y + wd.BoundingRect.Height / 2))).ToList();
+        text = string.Join(Environment.NewLine, lines);
+
+        // Same words as the last kept screen (the cursor moved over the same list): skip it unless forced.
         string words = new string(text.Where(char.IsLetter).ToArray());
-        if (words.Length > 0 && words == _lastText) return;
+        if (!force && words.Length > 0 && words == _lastText) return (true, null, text);
         _lastText = words;
+
         string? read = null;
         try { read = await PlanetPageReader.TryReadAsync(lines, () => ReadTitleAsync(pixels, w, h)) ?? await PlanetPageReader.TryReadFlightCardAsync(lines) ?? await PlanetPageReader.TryReadOnPlanetAsync(placed) ?? await SystemPageReader.TryReadAsync(lines); }
         catch (Exception ex) { read = "planet page: error " + ex.Message; }
@@ -154,28 +280,60 @@ public static class ScreenCaptureLogService
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "trade terminal: error " + ex.Message; }
         try
         {
-            if (await CreatureListService.TryReadAsync(placedX, path => SaveCreaturePictureAsync(pixels, w, h, path)) is { } creatures)
+            if (await CreatureListService.TryReadAsync(placedX, path => SaveCreaturePictureAsync(pixels, w, h, path), force, hintPlanet, forceCreaturePicture) is { } creatures)
                 read = (read is null ? "" : read + " | ") + creatures;
         }
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "fauna list: error " + ex.Message; }
+
+        if (forceCreaturePicture is { } forcedCp)
+        {
+            string picPath = CreatureListService.PicturePath(forcedCp.System, forcedCp.Planet, forcedCp.Name);
+            bool saved = await SaveCreaturePictureAsync(pixels, w, h, picPath);
+            if (saved)
+            {
+                var (gender, size) = CreatureListService.ExtractGenderAndSize(placedX);
+                CreatureListService.RecordPictureSaved(forcedCp.System, forcedCp.Planet, forcedCp.Name, gender, size);
+                if (read == null || !read.Contains("picture saved"))
+                {
+                    read = (read is null ? "" : read + " | ") + $"creature picture saved for '{forcedCp.Name}' (manual override)";
+                }
+            }
+        }
         try
         {
             if (BodyKindsService.TryRead(lines) is { } body) read = (read is null ? "" : read + " | ") + body;
         }
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "body pop-up: error " + ex.Message; }
+        bool systemPicSaved = false;
         try
         {
-            if (SystemPageReader.SystemView(placed) is ulong viewed)
+            if (SystemPageReader.SystemView(placed, hintSystem) is ulong viewed)
             {
                 int labels = SystemPageReader.LabelsShown(viewed, placed);
                 var facts = UniverseInfo.For(viewed);
                 int bodies = facts.PlanetCount + facts.MoonCount;
-                // Settled view only (most labels readable), and only a better frame replaces the picture.
-                if (labels * 2 >= bodies && await SaveSystemPictureAsync(viewed, pixels, w, h, labels))
+                // Settled view only (most labels readable), or forced manual capture if at least 1 label visible.
+                bool shouldSave = force || (labels * 2 >= bodies);
+                if (shouldSave && await SaveSystemPictureAsync(viewed, pixels, w, h, labels, force))
+                {
+                    systemPicSaved = true;
                     read = (read is null ? "" : read + " | ") + $"system picture saved for {UniverseInfo.SystemName(viewed)} ({labels}/{bodies} labels)";
+                }
             }
         }
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "system picture: error " + ex.Message; }
+
+        if (forceSystemPicture && hintSystem is ulong forcedSys && forcedSys != 0 && !systemPicSaved)
+        {
+            try
+            {
+                if (await SaveSystemPictureAsync(forcedSys, pixels, w, h, labels: 0, force: true))
+                {
+                    read = (read is null ? "" : read + " | ") + $"system picture saved for {UniverseInfo.SystemName(forcedSys)} (manual capture)";
+                }
+            }
+            catch (Exception ex) { read = (read is null ? "" : read + " | ") + "system picture manual override: error " + ex.Message; }
+        }
 
         var now = DateTime.Now;
         string day = Path.Combine(Folder, now.ToString("yyyy-MM-dd"));
@@ -186,14 +344,17 @@ public static class ScreenCaptureLogService
         var info = new StringBuilder()
             .AppendLine($"time: {now:yyyy-MM-dd HH:mm:ss.fff}")
             .AppendLine($"window: {w}x{h}")
+            .AppendLine($"mode: {(force ? "manual" : "auto")}")
             .AppendLine($"save: {SaveSessionManager.ActiveLabel ?? "-"}")
             .AppendLine($"read: {read ?? "-"}")
             .AppendLine("--- text ---")
             .AppendLine(text);
         await File.WriteAllTextAsync(Path.Combine(day, name + ".txt"), info.ToString());
-        if (read is not null) await File.AppendAllTextAsync(Path.Combine(day, "read.log"), $"{now:HH:mm:ss} {read}{Environment.NewLine}");
+        if (read is not null) await File.AppendAllTextAsync(Path.Combine(day, "read.log"), $"{now:HH:mm:ss} {(force ? "[MANUAL] " : "")}{read}{Environment.NewLine}");
 
         if (++_savedSinceCheck >= 50) { _savedSinceCheck = 0; Trim(); }
+
+        return (true, read, text);
     }
 
     /// <summary>The planet name at the top left of a Discoveries page, read on its own:
@@ -275,11 +436,11 @@ public static class ScreenCaptureLogService
     /// <summary>Crops the planets from a system's Discoveries view (right of the list, below
     /// the name: x 46-93%, y 32-87%) and keeps it for the Planets page, once a session per
     /// system - kept apart from the recordings, so clearing those never removes it.</summary>
-    private static async Task<bool> SaveSystemPictureAsync(ulong system, byte[] px, int w, int h, int labels)
+    private static async Task<bool> SaveSystemPictureAsync(ulong system, byte[] px, int w, int h, int labels, bool force = false)
     {
         lock (PicturedThisSession)
         {
-            if (PicturedThisSession.TryGetValue(system, out int best) && best >= labels) return false;
+            if (!force && PicturedThisSession.TryGetValue(system, out int best) && best >= labels) return false;
             PicturedThisSession[system] = labels;
         }
         int x0 = w * 46 / 100, y0 = h * 32 / 100, cw = w * 47 / 100, ch = h * 55 / 100;
@@ -344,7 +505,16 @@ public static class ScreenCaptureLogService
     private static IntPtr GameWindow()
     {
         var processes = Process.GetProcessesByName("NMS");
-        try { return processes.Select(p => p.MainWindowHandle).FirstOrDefault(h => h != IntPtr.Zero); }
+        try
+        {
+            foreach (var p in processes)
+            {
+                if (p.MainWindowHandle != IntPtr.Zero) return p.MainWindowHandle;
+            }
+            IntPtr found = FindWindow(null, "No Man's Sky");
+            if (found != IntPtr.Zero) return found;
+            return IntPtr.Zero;
+        }
         finally { foreach (var p in processes) p.Dispose(); }
     }
 
@@ -399,6 +569,9 @@ public static class ScreenCaptureLogService
         public uint biCompression, biSizeImage; public int biXPelsPerMeter, biYPelsPerMeter; public uint biClrUsed, biClrImportant;
     }
 
+    [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)] private static extern IntPtr FindWindow(string? lpClassName, string? lpWindowName);
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr hWnd);
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
