@@ -228,9 +228,9 @@ public static class CatalogService
             SELECT i.GameId, c.TemplateType, i.MaxStackSize
             FROM Items i
             JOIN Categories c ON c.Id = i.CategoryId
-            WHERE i.NameEnglish IS NOT NULL
+            WHERE (i.NameEnglish IS NOT NULL OR i.NameLowerEnglish IS NOT NULL)
               AND c.TemplateType IN ({typePlaceholders})
-              AND i.NameEnglish LIKE @q
+              AND (i.NameEnglish LIKE @q OR i.NameLowerEnglish LIKE @q OR i.GameId LIKE @q)
               {usageClause}
             LIMIT @max";
 
@@ -251,11 +251,13 @@ public static class CatalogService
         {
             string gameId = reader.GetString(0);
             if (!seen.Add(gameId)) continue;
+            string templateType = reader.GetString(1);
 
             results.Add(new CatalogSearchResult
             {
                 GameId = gameId,
-                CategoryLabel = ElvLabelFor(reader.GetString(1)),
+                TemplateType = templateType,
+                CategoryLabel = ElvLabelFor(templateType),
                 MaxStackSize = reader.IsDBNull(2) ? null : reader.GetInt32(2)
             });
         }

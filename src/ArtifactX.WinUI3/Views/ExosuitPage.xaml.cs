@@ -40,7 +40,7 @@ public sealed partial class ExosuitPage : Page
         TechGrid.AllowedUsageCategories = new[] { "Suit" };
 
         CargoGrid.AllowedCategories = new[] { "Substance", "Product" };
-        CargoGrid.AllowedTemplateTypes = new[] { "GcProductTable", "GcSubstanceTable" };
+        CargoGrid.AllowedTemplateTypes = new[] { "GcProductTable", "GcSubstanceTable", "ProceduralProducts" };
         CargoGrid.SupportsSupercharge = false;
         CargoGrid.SupportsRepair = false;
         CargoGrid.ProductStorageMultiplier = 10;

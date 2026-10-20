@@ -36,7 +36,16 @@ public sealed class InventorySlotViewModel
     public double PixelX => X * 68;
     public double PixelY => Y * 68;
 
-    public string ShortLabel => IsOccupied ? (ItemId?.TrimStart('^') ?? "") : "";
+    public string ShortLabel
+    {
+        get
+        {
+            if (!IsOccupied || ItemId is null) return "";
+            string raw = ItemId.TrimStart('^');
+            int hash = raw.IndexOf('#');
+            return hash >= 0 ? raw[..hash] : raw;
+        }
+    }
 
     public string DisplayText => !IsOccupied ? ""
         : MaxAmount > 1 ? $"{Amount}/{MaxAmount}"

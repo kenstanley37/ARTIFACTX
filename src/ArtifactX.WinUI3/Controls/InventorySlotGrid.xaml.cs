@@ -8,6 +8,7 @@ using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Linq;
 using Windows.UI;
 
@@ -209,7 +210,7 @@ public sealed partial class InventorySlotGrid : UserControl
                 border.ContextFlyout = BuildOccupiedFlyout(border, cell);
                 ToolTipService.SetToolTip(border, isDamaged
                     ? "Malfunctioning - right-click to repair"
-                    : "Right-click for options - edit, duplicate, remove");
+                    : $"{entry?.DisplayName ?? cell.ShortLabel} ({cell.ItemId})\nRight-click for options - edit, duplicate, remove");
 
                 border.CanDrag = true;
                 border.DragStarting += (_, args) =>
@@ -351,6 +352,23 @@ public sealed partial class InventorySlotGrid : UserControl
         };
         flyout.Items.Add(maxQtyItem);
 
+        bool isProcedural = cell.ItemId?.Contains('#') == true || cell.ItemId?.StartsWith("^PROC_", StringComparison.OrdinalIgnoreCase) == true;
+        if (isProcedural)
+        {
+            var rerollSeedItem = new MenuFlyoutItem { Text = "Re-roll seed" };
+            rerollSeedItem.Click += (_, _) =>
+            {
+                ViewModel?.RerollSeed(cell.X, cell.Y);
+                Refresh();
+                CellChanged?.Invoke(this, EventArgs.Empty);
+            };
+            flyout.Items.Add(rerollSeedItem);
+        }
+
+        var editDetailsItem = new MenuFlyoutItem { Text = isProcedural ? "Edit item details / seed..." : "Edit item details..." };
+        editDetailsItem.Click += async (_, _) => await PromptCustomItemAsync(anchor, cell);
+        flyout.Items.Add(editDetailsItem);
+
         if (SupportsRepair)
         {
             var repairItem = new MenuFlyoutItem { Text = "Repair" };
@@ -422,6 +440,10 @@ public sealed partial class InventorySlotGrid : UserControl
         var addItem = new MenuFlyoutItem { Text = "Add item..." };
         addItem.Click += (_, _) => ShowAddItemFlyout(anchor, cell);
         flyout.Items.Add(addItem);
+
+        var addCustomItem = new MenuFlyoutItem { Text = "Add custom item..." };
+        addCustomItem.Click += async (_, _) => await PromptCustomItemAsync(anchor, cell);
+        flyout.Items.Add(addCustomItem);
 
         if (SupportsSupercharge)
         {
@@ -531,15 +553,46 @@ public sealed partial class InventorySlotGrid : UserControl
             // value people actually want, and trimming down is easier (sell/drop
             // in-game) than topping up here.
             int maxAmount = StackCapFor(match.CategoryLabel, match.MaxStackSize);
+            string finalId = match.GameId;
+            if (match.IsProcedural)
+            {
+                int seed = Random.Shared.Next(10000, 100000);
+                finalId = $"{match.GameId}#{seed}";
+                maxAmount = match.MaxStackSize ?? 1;
+            }
 
-            ViewModel?.AddItem(cell.X, cell.Y, match.GameId, match.CategoryLabel, maxAmount, maxAmount);
+            ViewModel?.AddItem(cell.X, cell.Y, finalId, match.CategoryLabel, maxAmount, maxAmount);
             Refresh();
             CellChanged?.Invoke(this, EventArgs.Empty);
             flyout.Hide();
         };
 
+        var customBtn = new Button
+        {
+            Content = "Custom / Procedural item...",
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Margin = new Thickness(0, 4, 0, 0),
+        };
+        customBtn.Click += async (_, _) =>
+        {
+            flyout.Hide();
+            await PromptCustomItemAsync(anchor, cell);
+        };
+        panel.Children.Add(customBtn);
+
         FlyoutBase.SetAttachedFlyout(anchor, flyout);
         FlyoutBase.ShowAttachedFlyout(anchor);
+    }
+
+    private async Task PromptCustomItemAsync(FrameworkElement anchor, InventorySlotViewModel cell)
+    {
+        int defaultMax = StackCapFor("Product", 1);
+        var result = await CustomItemDialog.ShowAsync(anchor.XamlRoot, cell.IsOccupied ? cell : null, defaultMax);
+        if (result is null) return;
+
+        ViewModel?.AddItem(cell.X, cell.Y, result.ItemId, result.CategoryLabel, result.Amount, result.MaxAmount);
+        Refresh();
+        CellChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>A full stack of an item in this container: technology is 100

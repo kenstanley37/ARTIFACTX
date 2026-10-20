@@ -381,6 +381,29 @@ public partial class InventoryGridViewModel : ObservableObject
         return true;
     }
 
+    /// <summary>Re-rolls the procedural seed of the item at (x, y) to a new random
+    /// integer, preserving the item type, quantity, and health status.</summary>
+    public bool RerollSeed(int x, int y)
+    {
+        var cell = Cells.FirstOrDefault(c => c.X == x && c.Y == y);
+        if (cell is null || !cell.IsOccupied || string.IsNullOrEmpty(cell.ItemId)) return false;
+
+        string baseId = cell.ItemId;
+        int hashIdx = baseId.IndexOf('#');
+        if (hashIdx >= 0) baseId = baseId[..hashIdx];
+
+        int newSeed = Random.Shared.Next(10000, 100000);
+        string newItemId = $"{baseId}#{newSeed}";
+
+        var entries = Cells.Where(c => c.IsOccupied && (c.X, c.Y) != (x, y))
+            .Select(c => (c.X, c.Y, c.ItemId, c.Amount, c.MaxAmount, c.CategoryLabel, c.IsFunctional, c.MalfunctionSeverity))
+            .Append((x, y, newItemId, cell.Amount, cell.MaxAmount, cell.CategoryLabel, cell.IsFunctional, cell.MalfunctionSeverity));
+
+        StageWholeArray(entries);
+        Load();
+        return true;
+    }
+
     /// <summary>Places a new item at (x, y), overwriting whatever was there.
     /// Returns false if the slot isn't unlocked. Used by both the catalog
     /// search "Add item" flow and cross-grid drag/drop. Starts healthy (true/0.0),

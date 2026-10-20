@@ -190,7 +190,7 @@ public sealed partial class BaseStoragePage : Page
 
         StorageGrid.ViewModel = _gridViewModel;
         StorageGrid.AllowedCategories = new[] { "Substance", "Product" };
-        StorageGrid.AllowedTemplateTypes = new[] { "GcProductTable", "GcSubstanceTable" };
+        StorageGrid.AllowedTemplateTypes = new[] { "GcProductTable", "GcSubstanceTable", "ProceduralProducts" };
         StorageGrid.SupportsSupercharge = false;
         StorageGrid.SupportsRepair = false;
         StorageGrid.ProductStorageMultiplier = 10;

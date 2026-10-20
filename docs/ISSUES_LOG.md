@@ -13,6 +13,7 @@ The following items from the notes are already fully addressed in the codebase o
 | **#4** | *PlanetDetails page missing from src; PlanetsPage too massive; need dedicated drill-down page.* | **Completed**: Split out `PlanetDetailsPage.xaml` and `PlanetDetailsPage.xaml.cs` into a dedicated drill-down page under `Views/ExplorePages/`. Removed ~400 lines of procedural UI from `PlanetsPage.xaml.cs`. |
 | **#15** | *Make portal glyphs always on the bottom of cards so they look standard across all planets.* | **Completed**: Glyph strip is anchored at the base of every planet summary card on `PlanetsPage.xaml.cs`. |
 | **#29** | *On details page, fish could be far right because it grows, and everything else to the left.* | **Completed**: `PlanetDetailsPage` now uses a multi-column body with the manual details editor, save facts, and bases in the left column, and the auto-sizing `FISH` card in the dedicated far-right column (460px width). |
+| **#10** | *Support procedural curiosities & expedition items in inventory editor.* | **Completed**: Added `ProceduralProducts` to cargo grid catalog queries, auto-seeded search selection, a dedicated `CustomItemDialog` with presets (bones, documents, organics, freighter logs, salvage, expedition items), manual ID/seed entry, and in-slot 'Re-roll seed' / 'Edit item details & seed...' actions on branch `feature/procedural-items-editor`. |
 
 ---
 

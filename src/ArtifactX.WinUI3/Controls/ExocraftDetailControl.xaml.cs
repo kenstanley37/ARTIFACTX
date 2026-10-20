@@ -51,7 +51,7 @@ public sealed partial class ExocraftDetailControl : UserControl
         CargoGrid.SupportsUnlock = false;
 
         CargoGrid.AllowedCategories = new[] { "Substance", "Product" };
-        CargoGrid.AllowedTemplateTypes = new[] { "GcProductTable", "GcSubstanceTable" };
+        CargoGrid.AllowedTemplateTypes = new[] { "GcProductTable", "GcSubstanceTable", "ProceduralProducts" };
         CargoGrid.SupportsSupercharge = false;
         CargoGrid.SupportsRepair = false;
         CargoGrid.ProductStorageMultiplier = 10;

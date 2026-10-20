@@ -565,7 +565,7 @@ public sealed partial class ShipsPage : Page
 
         CargoGrid.ViewModel = _cargoViewModel;
         CargoGrid.AllowedCategories = new[] { "Substance", "Product" };
-        CargoGrid.AllowedTemplateTypes = new[] { "GcProductTable", "GcSubstanceTable" };
+        CargoGrid.AllowedTemplateTypes = new[] { "GcProductTable", "GcSubstanceTable", "ProceduralProducts" };
         CargoGrid.SupportsSupercharge = false;
         CargoGrid.SupportsRepair = false;
         CargoGrid.ProductStorageMultiplier = 10;
