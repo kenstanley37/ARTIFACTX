@@ -66,7 +66,7 @@ public static class UnmatchedBodiesService
             var old = Items.FirstOrDefault(h => h.System == system && PlanetPageReader.Norm(h.Name) == key);
             if (old is not null) Items.Remove(old);
             Items.Add(new Held(system, old is not null && old.Name.Length > name.Length ? old.Name : name,
-                details ?? old?.Details, moon ?? old?.Moon));
+                MergeDetails(old?.Details, details), moon ?? old?.Moon));
         }
         Changed?.Invoke(system);
     }
@@ -84,11 +84,28 @@ public static class UnmatchedBodiesService
         if (held.Details is { } details)
         {
             var existing = PlanetDetailsService.Get(held.System, body);
-            details.Notes = existing?.Notes.ToList() ?? new();
-            PlanetDetailsService.Save(held.System, body, details, source: "captured");
+            var merged = MergeDetails(existing, details) ?? details;
+            merged.Notes = existing?.Notes.ToList() ?? new();
+            PlanetDetailsService.Save(held.System, body, merged, source: "captured");
         }
         if (held.Moon is bool moon) BodyKindsService.Store(held.System, body, moon);
         Changed?.Invoke(held.System);
+    }
+
+    private static PlanetDetails? MergeDetails(PlanetDetails? oldDetails, PlanetDetails? newDetails)
+    {
+        if (oldDetails is null && newDetails is null) return null;
+        var merged = oldDetails?.Copy() ?? new PlanetDetails();
+        if (newDetails is not null)
+        {
+            if (!string.IsNullOrEmpty(newDetails.Descriptor)) merged.Descriptor = newDetails.Descriptor;
+            if (!string.IsNullOrEmpty(newDetails.Sentinels)) merged.Sentinels = newDetails.Sentinels;
+            if (!string.IsNullOrEmpty(newDetails.Weather)) merged.Weather = newDetails.Weather;
+            if (!string.IsNullOrEmpty(newDetails.Flora)) merged.Flora = newDetails.Flora;
+            if (!string.IsNullOrEmpty(newDetails.Fauna)) merged.Fauna = newDetails.Fauna;
+            if (newDetails.Resources.Count > 0) merged.Resources = newDetails.Resources.ToList();
+        }
+        return merged;
     }
 
     public static void Dismiss(Held held)

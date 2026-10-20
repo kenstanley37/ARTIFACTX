@@ -586,7 +586,7 @@ public sealed partial class FishingPage : Page
     private FishPlanetRowViewModel ToWhereRow(KnownPlanet p, double? distance, Dictionary<string, Find> spots, FishInfo fish, int caughtTimes = 0)
     {
         string planetName = UniverseInfo.PlanetName(p.SystemAddress, p.PlanetIndex);
-        var detail = new List<string> { p.HasRings ? $"{p.TypeName} · rings" : p.TypeName };
+        var detail = new List<string> { p.Classification(PlanetDetailsService.Get(p.SystemAddress, p.PlanetIndex)?.Descriptor, ringSuffix: " · rings") };
         detail.Add(UniverseInfo.SystemName(p.SystemAddress));
         detail.Add(UniverseInfo.Compact(p.SystemAddress));
         detail.Add(GalaxyLabel(p.Galaxy));

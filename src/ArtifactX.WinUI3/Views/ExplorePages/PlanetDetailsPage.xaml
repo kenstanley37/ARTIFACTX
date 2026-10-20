@@ -156,6 +156,7 @@
                                         <!-- Inline Editor View -->
                                         <StackPanel x:Name="DetailsEditorPanel" Spacing="12" Visibility="Collapsed">
                                             <TextBox x:Name="NameInGameBox" Header="Name in game" HorizontalAlignment="Stretch"/>
+                                            <TextBox x:Name="DescriptorBox" Header="Descriptor (e.g. Crimson Planet, Paradise Planet)" HorizontalAlignment="Stretch" PlaceholderText="e.g. Crimson Planet, Paradise Planet, Verdant Moon"/>
                                             <controls:WrapPanel HorizontalSpacing="10" VerticalSpacing="10">
                                                 <ComboBox x:Name="SentinelsPicker" Header="Sentinels" Width="165" IsEditable="True"/>
                                                 <ComboBox x:Name="FloraPicker" Header="Flora" Width="165" IsEditable="True"/>

@@ -18,6 +18,9 @@ public sealed record KnownPlanet(
     public ulong SystemAddress => NmsSpaceStationPaths.ToSystemAddress(Address);
     public string PortalCode => NmsSpaceStationPaths.PortalAddress(Address, PlanetIndex);
     public string TypeName => NmsPlanets.TypeName(BiomeIndex);
+    public string BiomeGroup => NmsPlanets.BiomeGroup(BiomeIndex);
+    public string Classification(string? descriptor, string ringSuffix = " with rings") =>
+        NmsPlanets.FormatClassification(BiomeIndex, descriptor, HasRings, ringSuffix);
 
     /// <summary>Where this planet was read from, e.g. "Slot 3" - set by
     /// callers that merge several saves; empty for the loaded save.</summary>
@@ -90,6 +93,44 @@ public static class NmsPlanets
 
     public static string TypeColour(int biome) =>
         biome >= 0 && biome < TypeColours.Length ? TypeColours[biome] : "#777777";
+
+    /// <summary>Broad biome classification group (e.g. Red / Exotic, Green / Exotic, Blue / Exotic for chromatic worlds).</summary>
+    public static string BiomeGroup(int biome) => biome switch
+    {
+        8 => "Red / Exotic",
+        9 => "Green / Exotic",
+        10 => "Blue / Exotic",
+        _ => TypeName(biome),
+    };
+
+    /// <summary>Dual classification format combining specific planetary descriptor with broad biome group
+    /// (e.g. "Crimson Planet (Red / Exotic)" or "Paradise Planet (Lush)"). If no descriptor is recorded,
+    /// cleanly falls back to the broad biome group.</summary>
+    public static string FormatClassification(int biome, string? descriptor, bool hasRings = false, string ringSuffix = " with rings")
+    {
+        string group = BiomeGroup(biome);
+        string baseText;
+        if (string.IsNullOrWhiteSpace(descriptor))
+        {
+            baseText = group;
+        }
+        else
+        {
+            string desc = descriptor.Trim();
+            if (string.Equals(desc, group, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(desc, TypeName(biome), StringComparison.OrdinalIgnoreCase)
+                || desc.EndsWith($"({group})", StringComparison.OrdinalIgnoreCase))
+            {
+                baseText = desc;
+            }
+            else
+            {
+                baseText = $"{desc} ({group})";
+            }
+        }
+
+        return hasRings ? $"{baseText}{ringSuffix}" : baseText;
+    }
 
     /// <summary>Real planet types that can actually occur (excludes Test).</summary>
     public static IEnumerable<int> SelectableTypes => Enumerable.Range(0, TypeNames.Length).Where(i => i != 11);
