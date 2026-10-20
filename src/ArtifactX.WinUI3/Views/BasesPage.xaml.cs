@@ -526,48 +526,14 @@ public sealed partial class BasesPage : Page
         return new BasesComputationResult(key, totalBases, placedCount, total, NmsBuildCounts.GlobalLevel(total), breakdown, rawItems);
     }
 
-    private static readonly Dictionary<string, string> PlacedItemFriendlyNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["BUILDBEACON"] = "Save Beacon",
-        ["BUILDSAVE"] = "Save Point",
-        ["BUILDSIGNAL"] = "Signal Booster",
-        ["BUILD_REFINER1"] = "Portable Refiner",
-        ["PORTABLE_REFINER"] = "Portable Refiner",
-        ["REFINER"] = "Portable Refiner",
-        ["COOKER"] = "Nutrient Processor",
-        ["SUMMON_GARAGE"] = "Exocraft Summoning Station",
-        ["BUILDHARVESTER"] = "Autonomous Mining Unit",
-        ["BUILDTERMINAL"] = "Galactic Trade Terminal",
-        ["BASE_FLAG"] = "Base Computer",
-        ["GARAGE_M"] = "Roamer Geobay",
-        ["GARAGE_B"] = "Colossus Geobay",
-        ["GARAGE_S"] = "Nomad Geobay",
-        ["GARAGE_SUB"] = "Nautilon Chamber",
-        ["GARAGE_MECH"] = "Minotaur Geobay",
-        ["WATERBUBBLE"] = "Marine Shelter",
-        ["BASE_BEAMSTONE"] = "Light Fissure",
-        ["BASE_HYDROPOD"] = "Calcishroom",
-        ["BASE_SHELLWHITE"] = "Capillary Shell",
-        ["BASE_MEDGEOMETR"] = "Hexplate Bush",
-        ["BASE_SHARD"] = "Glitching Separator",
-        ["BASE_ENGINEORB"] = "Terbium Growth",
-        ["BASE_STARJOINT"] = "Ossified Star",
-        ["ANTENNA"] = "Communications Station",
-        ["MESSAGEMODULE"] = "Message Module",
-        ["TELEPORTER"] = "Base Teleport Module",
-    };
-
     private static string ResolvePlacedName(string id)
     {
         string norm = CatalogService.NormalizeId(id);
-        if (PlacedItemFriendlyNames.TryGetValue(norm, out var friendly))
-            return friendly;
-
-        if (CatalogService.TryGet(id)?.DisplayName is { Length: > 0 } n)
+        if (CatalogService.TryGet(norm)?.DisplayName is { Length: > 0 } n)
             return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(n.ToLowerInvariant());
 
         string cleaned = norm.TrimStart('^').Replace('_', ' ');
-        cleaned = Regex.Replace(cleaned, @"([a-z])([A-Z])", "$1 $2");
+        cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"([a-z])([A-Z])", "$1 $2");
         return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(cleaned.ToLowerInvariant());
     }
 

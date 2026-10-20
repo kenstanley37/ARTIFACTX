@@ -36,7 +36,41 @@ public static class CatalogService
     {
         if (string.IsNullOrEmpty(gameId)) return null;
         string key = NormalizeId(gameId);
-        return Cache.TryGetValue(key, out var entry) ? entry : null;
+        lock (Cache)
+        {
+            if (Cache.TryGetValue(key, out var entry)) return entry;
+        }
+
+        // On cache miss, query SQLite database directly for the genuine in-game display name
+        string? dbPath = ResolveDbPath();
+        if (dbPath != null)
+        {
+            try
+            {
+                var rows = QueryRows(dbPath, new List<string> { key });
+                if (rows.TryGetValue(key, out var row))
+                {
+                    var fetched = new CatalogEntry
+                    {
+                        DisplayName = row.DisplayName,
+                        Icon = null,
+                        CatalogGroup = row.CatalogGroup,
+                        TemplateType = row.TemplateType,
+                    };
+                    lock (Cache)
+                    {
+                        Cache[key] = fetched;
+                    }
+                    return fetched;
+                }
+            }
+            catch
+            {
+                // Fall through to null if query fails
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Strips the leading "^" every save-file item id carries, plus a
