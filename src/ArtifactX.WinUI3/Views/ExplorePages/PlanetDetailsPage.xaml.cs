@@ -1082,20 +1082,6 @@ public sealed partial class PlanetDetailsPage : Page
         }
     }
 
-    private async void ExportDataButton_Click(object sender, RoutedEventArgs e)
-    {
-        ContentDialog exportDialog = new ContentDialog
-        {
-            Title = "Telemetry Exported",
-            Content = $"Successfully saved survey data for {PlanetTitleTxt.Text} to your workspace exports.",
-            CloseButtonText = "OK",
-            XamlRoot = this.XamlRoot,
-            RequestedTheme = this.ActualTheme
-        };
-
-        await exportDialog.ShowAsync();
-    }
-
     private static Brush ThemeBrush(string resourceKey) => (Brush)Application.Current.Resources[resourceKey];
 
     private static TextBlock DimLine(string text) => new()
