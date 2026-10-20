@@ -54,6 +54,7 @@ public sealed partial class SettingsPage : Page
         RefreshGameData();
         RefreshFolder();
         RefreshDataBackups();
+        RefreshUserDbInfo();
         _ = RefreshSaveBackupsAsync();
         RefreshUpdateStatus();
     }
@@ -223,6 +224,7 @@ public sealed partial class SettingsPage : Page
         await Task.Run(() => UserDatabase.Backup("manual"));
         Status(DataStatusTxt, "Backed up.");
         RefreshDataBackups();
+        RefreshUserDbInfo();
     }
 
     private async void ExportData_Click(object sender, RoutedEventArgs e)
@@ -292,7 +294,21 @@ public sealed partial class SettingsPage : Page
         }
         Status(DataStatusTxt, error ?? $"Restored the backup from {label}. Your data from before is in the list below.");
         RefreshDataBackups();
+        RefreshUserDbInfo();
     }
+
+    private void RefreshUserDbInfo()
+    {
+        var (main, wal, total) = UserDatabase.GetDatabaseSizeDetails();
+        string sizeText = wal > 0
+            ? $"{Size(total)} (main: {Size(main)}, WAL: {Size(wal)})"
+            : Size(total);
+
+        UserDbInfoTxt.Text = $"Database: {Path.GetFileName(UserDatabase.FilePath)} ({sizeText})  ·  Schema v{UserDatabase.SchemaVersion}\nLocation: {UserDatabase.FilePath}";
+    }
+
+    private async void OpenDataFolder_Click(object sender, RoutedEventArgs e) =>
+        await Launcher.LaunchFolderPathAsync(LocalAppDataPaths.RootFolder);
 
     private void RefreshDataBackups()
     {
@@ -466,9 +482,9 @@ public sealed partial class SettingsPage : Page
 
     private static string Size(long bytes) => bytes switch
     {
-        >= 1L << 30 => (bytes / (double)(1L << 30)).ToString("0.0", CultureInfo.CurrentCulture) + " GB",
-        >= 1L << 20 => (bytes / (double)(1L << 20)).ToString("0", CultureInfo.CurrentCulture) + " MB",
-        >= 1L << 10 => (bytes / (double)(1L << 10)).ToString("0", CultureInfo.CurrentCulture) + " KB",
+        >= 1L << 30 => (bytes / (double)(1L << 30)).ToString("0.#", CultureInfo.CurrentCulture) + " GB",
+        >= 1L << 20 => (bytes / (double)(1L << 20)).ToString("0.#", CultureInfo.CurrentCulture) + " MB",
+        >= 1L << 10 => (bytes / (double)(1L << 10)).ToString("0.#", CultureInfo.CurrentCulture) + " KB",
         _ => $"{bytes} bytes",
     };
 }

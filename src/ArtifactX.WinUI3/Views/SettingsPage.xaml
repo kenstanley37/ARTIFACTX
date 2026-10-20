@@ -66,6 +66,7 @@
                     <StackPanel Padding="18,14,18,18" Spacing="12">
                         <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
                                    Text="Everything ArtifactX keeps for you - templates, settings, account nicknames, system notes and learned names, finds, guides, pins and planet marks - in one file, separate from your game saves. Restoring keeps this PC's own window position and save-folder list."/>
+                        <TextBlock x:Name="UserDbInfoTxt" FontSize="13" TextWrapping="Wrap" IsTextSelectionEnabled="True" Foreground="{ThemeResource ThemeTextBrush}"/>
                         <StackPanel Orientation="Horizontal" Spacing="16">
                             <ToggleSwitch x:Name="DailyBackupSwitch" Header="Back up automatically once a day" Toggled="DailyBackup_Toggled"/>
                             <ComboBox x:Name="DataKeepBox" Header="Keep the newest" MinWidth="150" SelectionChanged="DataKeep_SelectionChanged"/>
@@ -74,6 +75,7 @@
                             <Button Content="Back up now" Click="BackUpDataNow_Click"/>
                             <Button Content="Save a copy to a file..." Click="ExportData_Click"/>
                             <Button Content="Restore from a file..." Click="RestoreDataFromFile_Click"/>
+                            <Button Content="Open data folder" Click="OpenDataFolder_Click"/>
                         </StackPanel>
                         <TextBlock x:Name="DataStatusTxt" Visibility="Collapsed" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                         <TextBlock Text="BACKUPS" Style="{StaticResource ThemeEyebrowStyle}"/>
