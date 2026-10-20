@@ -296,6 +296,11 @@
                                 <PathIcon x:Name="PlanetsPathIcon"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
+                        <NavigationViewItem x:Name="PlanetDetalNavItem" Content="Planet Details" Tag="PlanetDetails">
+                            <NavigationViewItem.Icon>
+                                <PathIcon x:Name="PlanetDetailsPathIcon"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
                         <NavigationViewItem x:Name="PlanetFinderNavItem" Content="Planet Finder" Tag="PlanetFinder">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE721;" FontFamily="Segoe MDL2 Assets"/>
