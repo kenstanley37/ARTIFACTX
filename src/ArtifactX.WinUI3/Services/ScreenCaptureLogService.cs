@@ -133,8 +133,13 @@ public static class ScreenCaptureLogService
     /// <summary>
     /// Manually captures the game screen immediately and runs OCR and all discovery/market/fauna readers.
     /// Does not require background recording to be enabled. Bypasses frame duplicate heuristics.
+    /// Supports forcing system picture crop or specific creature picture crop.
     /// </summary>
-    public static async Task<CaptureResult> CaptureNowAsync(ulong? hintSystem = null)
+    public static async Task<CaptureResult> CaptureNowAsync(
+        ulong? hintSystem = null,
+        bool forceSystemPicture = false,
+        (ulong System, int Planet, string Name)? forceCreaturePicture = null,
+        (ulong System, int Planet)? hintPlanet = null)
     {
         if (!await _gate.WaitAsync(TimeSpan.FromSeconds(3)))
             return new CaptureResult(false, "Screen capture is busy processing another frame.");
@@ -194,7 +199,13 @@ public static class ScreenCaptureLogService
                 SetForegroundWindow(appHwnd);
             }
 
-            var (ocrSuccess, readInfo, text) = await ProcessFrameAsync(pixels, w, h, force: true, hintSystem);
+            var (ocrSuccess, readInfo, text) = await ProcessFrameAsync(
+                pixels, w, h,
+                force: true,
+                hintSystem: hintSystem,
+                forceSystemPicture: forceSystemPicture,
+                forceCreaturePicture: forceCreaturePicture,
+                hintPlanet: hintPlanet);
             if (!ocrSuccess)
                 return new CaptureResult(false, "Windows OCR engine could not be initialized for the current user language.");
 
@@ -214,7 +225,15 @@ public static class ScreenCaptureLogService
         }
     }
 
-    private static async Task<(bool OcrSuccess, string? ReadInfo, string Text)> ProcessFrameAsync(byte[] pixels, int w, int h, bool force, ulong? hintSystem = null)
+    private static async Task<(bool OcrSuccess, string? ReadInfo, string Text)> ProcessFrameAsync(
+        byte[] pixels,
+        int w,
+        int h,
+        bool force,
+        ulong? hintSystem = null,
+        bool forceSystemPicture = false,
+        (ulong System, int Planet, string Name)? forceCreaturePicture = null,
+        (ulong System, int Planet)? hintPlanet = null)
     {
         using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(pixels.AsBuffer(), BitmapPixelFormat.Bgra8, w, h, BitmapAlphaMode.Ignore);
         string text = "";
@@ -224,6 +243,18 @@ public static class ScreenCaptureLogService
         var placedX = new List<(string Text, double X, double Y)>();
         if (OcrEngine.TryCreateFromUserProfileLanguages() is not { } ocr)
         {
+            if (forceSystemPicture && hintSystem is ulong forcedSysNoOcr && forcedSysNoOcr != 0)
+            {
+                await SaveSystemPictureAsync(forcedSysNoOcr, pixels, w, h, labels: 0, force: true);
+                return (true, $"system picture saved for {UniverseInfo.SystemName(forcedSysNoOcr)} (manual capture, no OCR)", "");
+            }
+            if (forceCreaturePicture is { } fcp)
+            {
+                string picPath = CreatureListService.PicturePath(fcp.System, fcp.Planet, fcp.Name);
+                await SaveCreaturePictureAsync(pixels, w, h, picPath);
+                CreatureListService.RecordPictureSaved(fcp.System, fcp.Planet, fcp.Name);
+                return (true, $"creature picture saved for '{fcp.Name}' (manual override, no OCR)", "");
+            }
             return (false, null, "");
         }
 
@@ -249,15 +280,31 @@ public static class ScreenCaptureLogService
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "trade terminal: error " + ex.Message; }
         try
         {
-            if (await CreatureListService.TryReadAsync(placedX, path => SaveCreaturePictureAsync(pixels, w, h, path), force) is { } creatures)
+            if (await CreatureListService.TryReadAsync(placedX, path => SaveCreaturePictureAsync(pixels, w, h, path), force, hintPlanet, forceCreaturePicture) is { } creatures)
                 read = (read is null ? "" : read + " | ") + creatures;
         }
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "fauna list: error " + ex.Message; }
+
+        if (forceCreaturePicture is { } forcedCp)
+        {
+            string picPath = CreatureListService.PicturePath(forcedCp.System, forcedCp.Planet, forcedCp.Name);
+            bool saved = await SaveCreaturePictureAsync(pixels, w, h, picPath);
+            if (saved)
+            {
+                var (gender, size) = CreatureListService.ExtractGenderAndSize(placedX);
+                CreatureListService.RecordPictureSaved(forcedCp.System, forcedCp.Planet, forcedCp.Name, gender, size);
+                if (read == null || !read.Contains("picture saved"))
+                {
+                    read = (read is null ? "" : read + " | ") + $"creature picture saved for '{forcedCp.Name}' (manual override)";
+                }
+            }
+        }
         try
         {
             if (BodyKindsService.TryRead(lines) is { } body) read = (read is null ? "" : read + " | ") + body;
         }
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "body pop-up: error " + ex.Message; }
+        bool systemPicSaved = false;
         try
         {
             if (SystemPageReader.SystemView(placed, hintSystem) is ulong viewed)
@@ -268,10 +315,25 @@ public static class ScreenCaptureLogService
                 // Settled view only (most labels readable), or forced manual capture if at least 1 label visible.
                 bool shouldSave = force || (labels * 2 >= bodies);
                 if (shouldSave && await SaveSystemPictureAsync(viewed, pixels, w, h, labels, force))
+                {
+                    systemPicSaved = true;
                     read = (read is null ? "" : read + " | ") + $"system picture saved for {UniverseInfo.SystemName(viewed)} ({labels}/{bodies} labels)";
+                }
             }
         }
         catch (Exception ex) { read = (read is null ? "" : read + " | ") + "system picture: error " + ex.Message; }
+
+        if (forceSystemPicture && hintSystem is ulong forcedSys && forcedSys != 0 && !systemPicSaved)
+        {
+            try
+            {
+                if (await SaveSystemPictureAsync(forcedSys, pixels, w, h, labels: 0, force: true))
+                {
+                    read = (read is null ? "" : read + " | ") + $"system picture saved for {UniverseInfo.SystemName(forcedSys)} (manual capture)";
+                }
+            }
+            catch (Exception ex) { read = (read is null ? "" : read + " | ") + "system picture manual override: error " + ex.Message; }
+        }
 
         var now = DateTime.Now;
         string day = Path.Combine(Folder, now.ToString("yyyy-MM-dd"));

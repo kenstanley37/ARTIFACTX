@@ -118,7 +118,7 @@ public sealed partial class PlanetsPage : Page
 
         try
         {
-            var result = await ScreenCaptureLogService.CaptureNowAsync(_currentSystem);
+            var result = await ScreenCaptureLogService.CaptureNowAsync(_currentSystem, forceSystemPicture: true);
             if (_currentSystem is ulong system)
             {
                 ShowSystemPicture(system);
@@ -133,14 +133,16 @@ public sealed partial class PlanetsPage : Page
                 : "Capture Not Ready";
             SystemCaptureFlyoutDetails.Text = result.Message;
 
-            FlyoutBase.ShowAttachedFlyout(CaptureSystemPictureBtn);
+            var anchor = (sender as FrameworkElement) ?? CaptureSystemPictureBtn;
+            SystemCaptureFlyout.ShowAt(anchor);
         }
         catch (Exception ex)
         {
             SystemCaptureFlyoutIcon.Glyph = "\uE7BA";
             SystemCaptureFlyoutTitle.Text = "Capture Error";
             SystemCaptureFlyoutDetails.Text = ex.Message;
-            FlyoutBase.ShowAttachedFlyout(CaptureSystemPictureBtn);
+            var anchor = (sender as FrameworkElement) ?? CaptureSystemPictureBtn;
+            SystemCaptureFlyout.ShowAt(anchor);
         }
         finally
         {

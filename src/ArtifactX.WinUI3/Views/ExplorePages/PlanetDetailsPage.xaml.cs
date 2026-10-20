@@ -1020,10 +1020,10 @@ public sealed partial class PlanetDetailsPage : Page
 
     private async void CaptureCreatureBtn_Click(object sender, RoutedEventArgs e)
     {
-        await PerformCreatureCaptureAsync(CaptureCreatureBtn);
+        await PerformCreatureCaptureAsync(CaptureCreatureBtn, null);
     }
 
-    private async Task PerformCreatureCaptureAsync(Button? sourceBtn)
+    private async Task PerformCreatureCaptureAsync(Button? sourceBtn, string? targetCreatureName = null)
     {
         if (_isCapturingCreature) return;
         _isCapturingCreature = true;
@@ -1037,7 +1037,17 @@ public sealed partial class PlanetDetailsPage : Page
 
         try
         {
-            var result = await ScreenCaptureLogService.CaptureNowAsync(_planet?.SystemAddress);
+            (ulong System, int Planet, string Name)? forcedCreature = null;
+            if (_planet != null && !string.IsNullOrWhiteSpace(targetCreatureName))
+            {
+                forcedCreature = (_planet.SystemAddress, _planet.PlanetIndex, targetCreatureName);
+            }
+
+            var result = await ScreenCaptureLogService.CaptureNowAsync(
+                hintSystem: _planet?.SystemAddress,
+                forceCreaturePicture: forcedCreature,
+                hintPlanet: _planet != null ? (_planet.SystemAddress, _planet.PlanetIndex) : null);
+
             if (_planet != null)
             {
                 RenderCreatures(_planet);
@@ -1052,14 +1062,16 @@ public sealed partial class PlanetDetailsPage : Page
                 : "Capture Not Ready";
             CreatureCaptureFlyoutDetails.Text = result.Message;
 
-            FlyoutBase.ShowAttachedFlyout(CaptureCreatureBtn);
+            var anchor = (sourceBtn != null && sourceBtn.IsLoaded) ? sourceBtn : CaptureCreatureBtn;
+            CreatureCaptureFlyout.ShowAt(anchor);
         }
         catch (Exception ex)
         {
             CreatureCaptureFlyoutIcon.Glyph = "\uE7BA";
             CreatureCaptureFlyoutTitle.Text = "Capture Error";
             CreatureCaptureFlyoutDetails.Text = ex.Message;
-            FlyoutBase.ShowAttachedFlyout(CaptureCreatureBtn);
+            var anchor = (sourceBtn != null && sourceBtn.IsLoaded) ? sourceBtn : CaptureCreatureBtn;
+            CreatureCaptureFlyout.ShowAt(anchor);
         }
         finally
         {
@@ -1137,9 +1149,10 @@ public sealed partial class PlanetDetailsPage : Page
                         }
                     };
                     ToolTipService.SetToolTip(picCaptureBtn, $"Open '{c.Name}' in the game's fauna list and click to capture its picture");
+                    string cNameForPic = c.Name;
                     picCaptureBtn.Click += async (s, args) =>
                     {
-                        await PerformCreatureCaptureAsync(picCaptureBtn);
+                        await PerformCreatureCaptureAsync(picCaptureBtn, cNameForPic);
                     };
                     noPicStack.Children.Add(picCaptureBtn);
                 }
@@ -1183,9 +1196,10 @@ public sealed partial class PlanetDetailsPage : Page
                 VerticalAlignment = VerticalAlignment.Center
             };
             ToolTipService.SetToolTip(retakeBtn, $"Capture or update picture for '{c.Name}' from game screen");
+            string cNameForRetake = c.Name;
             retakeBtn.Click += async (s, args) =>
             {
-                await PerformCreatureCaptureAsync(retakeBtn);
+                await PerformCreatureCaptureAsync(retakeBtn, cNameForRetake);
             };
             btnRow.Children.Add(retakeBtn);
 

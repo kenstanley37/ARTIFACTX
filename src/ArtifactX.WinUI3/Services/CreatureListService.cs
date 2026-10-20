@@ -144,24 +144,114 @@ public static class CreatureListService
     /// <summary>Whether a recorded creature on the planet lives underwater.</summary>
     public static bool AnyUnderwater(ulong system, int planet) => On(system, planet).Any(c => c.Habitat == "Underwater");
 
+    /// <summary>Extracts gender and size strings from the left column of a Discoveries fauna frame if visible.</summary>
+    public static (string Gender, string Size) ExtractGenderAndSize(IReadOnlyList<(string Text, double X, double Y)> placedX)
+    {
+        var left = placedX.Where(p => p.X < 0.5).ToList();
+        string gender = ValueBelow(left, "Gender");
+        string size = ValueBelow(left, "Weight / Height").Replace(" ", "").Replace("/", " / ");
+        if (!Regex.IsMatch(size, @"^[\d.]+\s*kg\s*/\s*[\d.]+\s*m$", RegexOptions.IgnoreCase)) size = "";
+        if (gender.Count(char.IsLetter) < 3 || gender.Contains('/')) gender = "";
+        return (gender, size);
+    }
+
+    /// <summary>Records that a picture was manually captured/saved for a creature, updating in-memory cache and database.</summary>
+    public static void RecordPictureSaved(ulong system, int planet, string name, string? gender = null, string? size = null)
+    {
+        string key = NameKey(name);
+        string planetKey = PlanetKey(system, planet);
+        string now = UserDatabase.Now();
+        Creature? updated = null;
+
+        lock (Lock)
+        {
+            if (!All.TryGetValue(planetKey, out var list)) All[planetKey] = list = new(StringComparer.Ordinal);
+            if (list.TryGetValue(key, out var old))
+            {
+                string g = !string.IsNullOrWhiteSpace(gender) ? gender : old.Gender;
+                string s = !string.IsNullOrWhiteSpace(size) ? size : old.Size;
+                updated = old with { Picture = true, Gender = g, Size = s, SeenAt = now };
+                list[key] = updated;
+            }
+            else
+            {
+                updated = new Creature(name, "", "", "", gender ?? "", size ?? "", true, now);
+                list[key] = updated;
+            }
+        }
+
+        try
+        {
+            using var connection = UserDatabase.Open();
+            using var cmd = connection.CreateCommand();
+            string build = FieldSources.GameBuild;
+            cmd.CommandText = @"
+                INSERT INTO planet_creatures (system_address, planet_index, name_key, name, rarity, habitat, activity, gender, size, picture,
+                                              seen_at, updated_at, source, game_build, synced_at, deleted, added_by)
+                VALUES ($s, $p, $k, $name, $rarity, $habitat, $activity, $gender, $size, 1, $now, $now, 'captured', $build, NULL, 0, $by)
+                ON CONFLICT(system_address, planet_index, name_key) DO UPDATE SET
+                    picture = 1,
+                    gender = CASE WHEN $gender != '' THEN $gender ELSE gender END,
+                    size = CASE WHEN $size != '' THEN $size ELSE size END,
+                    seen_at = $now,
+                    updated_at = $now,
+                    game_build = $build,
+                    synced_at = NULL,
+                    deleted = 0";
+            cmd.Parameters.AddWithValue("$s", Hex(system));
+            cmd.Parameters.AddWithValue("$p", planet);
+            cmd.Parameters.AddWithValue("$k", key);
+            cmd.Parameters.AddWithValue("$name", updated.Name);
+            cmd.Parameters.AddWithValue("$rarity", updated.Rarity);
+            cmd.Parameters.AddWithValue("$habitat", updated.Habitat);
+            cmd.Parameters.AddWithValue("$activity", updated.Activity);
+            cmd.Parameters.AddWithValue("$gender", updated.Gender);
+            cmd.Parameters.AddWithValue("$size", updated.Size);
+            cmd.Parameters.AddWithValue("$now", now);
+            cmd.Parameters.AddWithValue("$build", build);
+            cmd.Parameters.AddWithValue("$by", GameAccountsService.ActiveKey);
+            cmd.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CreatureListService] RecordPictureSaved DB error: {ex.Message}");
+        }
+
+        Changed?.Invoke(system, planet);
+    }
+
     /// <param name="placed">Each line with its left edge (share of the width) and height: the list
     /// is on the right, the selected creature's details on the left, at the same heights - by
     /// height alone the gender ("Prime") was taken for a creature (2026-10-18).</param>
     /// <param name="savePicture">Saves the creature part of the frame to the given path.</param>
-    public static async Task<string?> TryReadAsync(IReadOnlyList<(string Text, double X, double Y)> placed, Func<string, Task<bool>>? savePicture = null, bool force = false)
+    public static async Task<string?> TryReadAsync(
+        IReadOnlyList<(string Text, double X, double Y)> placed,
+        Func<string, Task<bool>>? savePicture = null,
+        bool force = false,
+        (ulong System, int Planet)? hintPlanet = null,
+        (ulong System, int Planet, string Name)? forceCreature = null)
     {
         // Above the list: "4/4 Species Discovered", or "Complete to Receive 2,000 Nanites" while
         // some are still undiscovered - then the count is the ring's "6/8" (Much E34, 2026-10-18).
         var species = placed.FirstOrDefault(p => Regex.IsMatch(p.Text, @"Species\s+Discovered|Complete\s+to\s+Receive", RegexOptions.IgnoreCase));
-        if (species.Text is null || !placed.Any(p => p.Text.Trim() == "Fauna")) return null;
-        if (!Regex.IsMatch(species.Text, @"\d+\s*/\s*\d+")
+        bool hasFaunaHeader = placed.Any(p => Regex.IsMatch(p.Text.Trim(), @"^Fauna\b", RegexOptions.IgnoreCase));
+        bool hasFaunaLabels = placed.Any(p => p.Text.Trim().Equals("Gender", StringComparison.OrdinalIgnoreCase))
+            || placed.Any(p => p.Text.Contains("Weight / Height", StringComparison.OrdinalIgnoreCase));
+
+        if ((species.Text is null && !hasFaunaLabels && forceCreature is null)
+            || (!hasFaunaHeader && !hasFaunaLabels && !force && forceCreature is null))
+            return null;
+
+        if (species.Text is not null && !Regex.IsMatch(species.Text, @"\d+\s*/\s*\d+")
             && placed.FirstOrDefault(p => Regex.IsMatch(p.Text.Trim(), @"^\d+\s*/\s*\d+$")) is { Text: not null } ring)
             species = (ring.Text + " " + species.Text, species.X, species.Y);
         // The creature's menu (Rename and upload / View / Add to Wonders) covers the list - its
         // "Add Discovery to Personal Records" was read as a creature (2026-10-18).
         if (placed.Any(p => Regex.IsMatch(p.Text, @"RENAME\s+AND\s+UPLOAD|ADD\s+TO\s+WONDERS|View\s+fauna\s+data|Personal\s+Records", RegexOptions.IgnoreCase)))
             return "fauna list: menu open, skipped";
-        var list = placed.Where(p => p.X > 0.55 && p.Y > species.Y + 10).ToList();
+
+        double minY = species.Text != null ? species.Y + 10 : 50;
+        var list = placed.Where(p => p.X > 0.55 && p.Y > minY).ToList();
         var left = placed.Where(p => p.X < 0.5).ToList();
 
         // The list: each details line has its name just above it.
@@ -182,10 +272,11 @@ public static class CreatureListService
             if (IsGarbageName(name)) continue;
             rows.Add((name, rarity, habitat, activity));
         }
-        if (rows.Count == 0) return "fauna list: no creatures read";
+        if (rows.Count == 0 && forceCreature is null) return "fauna list: no creatures read";
         // The whole list on screen ("7/7 Species Discovered" and 7 creatures besides the extinct
         // ones): anything recorded for the planet that isn't in it was a misreading.
-        bool complete = Regex.Match(species.Text, @"(\d+)\s*/\s*\d+") is { Success: true } count
+        bool complete = species.Text is not null
+            && Regex.Match(species.Text, @"(\d+)\s*/\s*\d+") is { Success: true } count
             && int.TryParse(count.Groups[1].Value, out int discovered)
             && rows.Select(r => NameKey(r.Name)).Distinct().Count() == rows.Count
             && rows.Count(r => r.Rarity != "Extinct") == discovered;
@@ -209,37 +300,61 @@ public static class CreatureListService
             }
         }
         // Not named: the planet whose discovered-fauna count in the save matches "4/4 Species Discovered".
-        if (where is null && Regex.Match(species.Text, @"(\d+)\s*/\s*\d+") is { Success: true } seen && int.TryParse(seen.Groups[1].Value, out int seenCount))
+        if (where is null && species.Text is not null && Regex.Match(species.Text, @"(\d+)\s*/\s*\d+") is { Success: true } seen && int.TryParse(seen.Groups[1].Value, out int seenCount))
             where = PlanetPageReader.PlanetWithFauna(seenCount);
+
+        where ??= hintPlanet ?? (forceCreature.HasValue ? (forceCreature.Value.System, forceCreature.Value.Planet) : null);
+
         if (where is not (ulong system, int planet)) return $"fauna list: {rows.Count} creatures, planet not named on screen";
 
-        // The selected creature (left side): its name is the big title above "Discovered ... by".
-        var by = left.FirstOrDefault(p => Regex.IsMatch(p.Text, @"Discovered|today\s+b|ago\s+b|\bby\s+\p{L}+", RegexOptions.IgnoreCase));
-        string? selected = by.Text is null ? null : left.Where(p => by.Y - p.Y > 10 && by.Y - p.Y < 120).OrderBy(p => by.Y - p.Y)
-            .Select(p => CleanName(p.Text)).FirstOrDefault(n => rows.Any(r => NameKey(r.Name) == NameKey(n))
-                // or one already recorded here: a big model can lie across the list and garble every
-                // row while the title reads cleanly (Z. Donkeisae's antennae, 2026-10-18).
-                || On(system, planet).Any(c => NameKey(c.Name) == NameKey(n)));
-        // A title partly covered by the model ("C. Grainnos • m", its dish over the name, 2026-10-18):
-        // the one listed name it's close to.
-        if (selected is null && by.Text is not null)
+        string? selected = null;
+        if (forceCreature is { } fc && fc.System == system && fc.Planet == planet)
         {
-            var known = rows.Select(r => r.Name).Concat(On(system, planet).Select(c => c.Name)).DistinctBy(NameKey).ToList();
-            foreach (var p in left.Where(p => by.Y - p.Y > 10 && by.Y - p.Y < 120).OrderBy(p => by.Y - p.Y))
+            selected = fc.Name;
+        }
+        else
+        {
+            // The selected creature (left side): its name is the big title above "Discovered ... by".
+            var by = left.FirstOrDefault(p => Regex.IsMatch(p.Text, @"Discovered|today\s+b|ago\s+b|\bby\s+\p{L}+", RegexOptions.IgnoreCase));
+            selected = by.Text is null ? null : left.Where(p => by.Y - p.Y > 10 && by.Y - p.Y < 120).OrderBy(p => by.Y - p.Y)
+                .Select(p => CleanName(p.Text)).FirstOrDefault(n => rows.Any(r => NameKey(r.Name) == NameKey(n))
+                    // or one already recorded here: a big model can lie across the list and garble every
+                    // row while the title reads cleanly (Z. Donkeisae's antennae, 2026-10-18).
+                    || On(system, planet).Any(c => NameKey(c.Name) == NameKey(n)));
+            // A title partly covered by the model ("C. Grainnos • m", its dish over the name, 2026-10-18):
+            // the one listed name it's close to.
+            if (selected is null && by.Text is not null)
             {
-                string read = Regex.Replace(NameKey(CleanName(p.Text)), @"[^\p{L}]", "");
-                if (read.Length < 4) continue;
-                var candidates = known.Select(k => (
-                    Creature: k,
-                    Key: Regex.Replace(NameKey(k), @"[^\p{L}]", ""),
-                    Dist: PlanetPageReader.Distance(read, Regex.Replace(NameKey(k), @"[^\p{L}]", ""))
-                )).ToList();
-
-                var close = candidates.Where(c => c.Dist <= Math.Max(3, (int)Math.Ceiling(c.Key.Length * 0.35))).OrderBy(c => c.Dist).ToList();
-                if (close.Count == 1 || (close.Count > 1 && close[0].Dist < close[1].Dist))
+                var known = rows.Select(r => r.Name).Concat(On(system, planet).Select(c => c.Name)).DistinctBy(NameKey).ToList();
+                foreach (var p in left.Where(p => by.Y - p.Y > 10 && by.Y - p.Y < 120).OrderBy(p => by.Y - p.Y))
                 {
-                    selected = close[0].Creature;
-                    break;
+                    string read = Regex.Replace(NameKey(CleanName(p.Text)), @"[^\p{L}]", "");
+                    if (read.Length < 4) continue;
+                    var candidates = known.Select(k => (
+                        Creature: k,
+                        Key: Regex.Replace(NameKey(k), @"[^\p{L}]", ""),
+                        Dist: PlanetPageReader.Distance(read, Regex.Replace(NameKey(k), @"[^\p{L}]", ""))
+                    )).ToList();
+
+                    var close = candidates.Where(c => c.Dist <= Math.Max(3, (int)Math.Ceiling(c.Key.Length * 0.35))).OrderBy(c => c.Dist).ToList();
+                    if (close.Count == 1 || (close.Count > 1 && close[0].Dist < close[1].Dist))
+                    {
+                        selected = close[0].Creature;
+                        break;
+                    }
+                }
+            }
+
+            // Fallback: look above the "Gender" label on the left side
+            if (selected is null)
+            {
+                var genderLabel = left.FirstOrDefault(p => p.Text.Trim().Equals("Gender", StringComparison.OrdinalIgnoreCase)
+                    || p.Text.Trim().StartsWith("Gender", StringComparison.OrdinalIgnoreCase));
+                if (genderLabel.Text is not null)
+                {
+                    selected = left.Where(p => genderLabel.Y - p.Y > 15 && genderLabel.Y - p.Y < 250).OrderBy(p => genderLabel.Y - p.Y)
+                        .Select(p => CleanName(p.Text)).FirstOrDefault(n => rows.Any(r => NameKey(r.Name) == NameKey(n))
+                            || On(system, planet).Any(c => NameKey(c.Name) == NameKey(n)));
                 }
             }
         }
@@ -261,14 +376,14 @@ public static class CreatureListService
             bool hasPicture = File.Exists(PicturePath(system, planet, selected));
             bool retake;
             lock (Lock) retake = _selected.Frames == 2 && _firstFramePicture == key;
-            if (savePicture is not null && (!hasPicture || retake || force))
+            if (savePicture is not null && (!hasPicture || retake || force || forceCreature is not null))
             {
                 picture = await savePicture(PicturePath(system, planet, selected));
                 lock (Lock) _firstFramePicture = picture && _selected.Frames == 1 ? key : null;
             }
         }
 
-        var (added, changed) = Merge(system, planet, rows, selected, gender, size, picture, complete, force);
+        var (added, changed) = Merge(system, planet, rows, selected, gender, size, picture, complete, force || forceCreature is not null);
         if (rows.Any(r => r.Habitat == "Underwater") && PlanetWaterService.Get(system, planet) is null)
             PlanetWaterService.Set(system, planet, true, source: "captured");
         if (changed > 0) Changed?.Invoke(system, planet);
