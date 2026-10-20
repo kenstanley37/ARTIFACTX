@@ -84,6 +84,7 @@ public static class BodyKindsService
         int mark = list.FindIndex(l => Regex.IsMatch(l, @"MARK\s*(MOON|PLANET)", RegexOptions.IgnoreCase)
             || Regex.IsMatch(l, @"Pin\s+(moon|planet)\s+location", RegexOptions.IgnoreCase));
         bool moon;
+        string? type = null;
         if (mark >= 0)
             moon = Regex.IsMatch(list[mark], @"MOON", RegexOptions.IgnoreCase)
                 || (mark + 1 < list.Count && Regex.IsMatch(list[mark + 1], @"Pin\s+moon", RegexOptions.IgnoreCase));
@@ -93,7 +94,7 @@ public static class BodyKindsService
             // "Contaminated Moon", "Verdant Planet" (2026-10-17).
             int by0 = list.FindIndex(l => l.Contains("Discovered by", StringComparison.OrdinalIgnoreCase));
             if (by0 < 0) return null;
-            var type = list.Skip(by0 + 1).Take(3).Select(l => l.Trim())
+            type = list.Skip(by0 + 1).Take(3).Select(l => l.Trim())
                 .FirstOrDefault(l => Regex.IsMatch(l, @"^[\p{L} \[\]'-]{3,30}\s(Moon|Planet)$", RegexOptions.IgnoreCase)); // "[REDACTED] Planet" too
             if (type is null) return null;
             moon = type.EndsWith("Moon", StringComparison.OrdinalIgnoreCase);
@@ -111,13 +112,23 @@ public static class BodyKindsService
         if (name is null) return "body pop-up: no name";
         if (PlanetPageReader.MatchBody(name) is not (ulong system, int body, string matched))
         {
-            UnmatchedBodiesService.Hold(name, null, moon);
+            UnmatchedBodiesService.Hold(name, !string.IsNullOrEmpty(type) ? new PlanetDetails { Descriptor = type } : null, moon);
             return $"body pop-up \"{name}\": unknown name - held for you to place on Current System";
         }
 
         // The list pop-up also lists the body's resources: fill them in (the full page
         // adds weather, sentinels, flora and fauna).
         string resources = PlanetPageReader.ReadPopupResources(list, mark, system, body);
+        if (!string.IsNullOrEmpty(type))
+        {
+            var existingDetails = PlanetDetailsService.Get(system, body);
+            var details = existingDetails?.Copy() ?? new PlanetDetails();
+            if (string.IsNullOrEmpty(details.Descriptor))
+            {
+                details.Descriptor = type;
+                PlanetDetailsService.Save(system, body, details, source: "captured");
+            }
+        }
 
         bool generatorSays = UniverseInfo.Bodies(system).IsMoon(body);
         string check = generatorSays == moon ? "" : $" (the generator said {(generatorSays ? "moon" : "planet")})";

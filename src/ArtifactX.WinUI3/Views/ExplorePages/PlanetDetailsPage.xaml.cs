@@ -219,7 +219,8 @@ public sealed partial class PlanetDetailsPage : Page
         LoadHeaderBackdrop(planet.SystemAddress);
         PlanetDrawingFrame.Child = PlanetDrawingHelper.CreatePlanetDrawing(planet, 76, isHere);
 
-        BiomeTxt.Text = planet.HasRings ? $"{planet.TypeName} with rings" : planet.TypeName;
+        var details = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex);
+        BiomeTxt.Text = planet.Classification(details?.Descriptor);
         GalaxyTxt.Text = GalaxyLabel(planet.Galaxy);
         UpdateHeaderTitles(planet);
 
@@ -304,6 +305,7 @@ public sealed partial class PlanetDetailsPage : Page
         var details = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex);
         bool? water = PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex);
 
+        BiomeTxt.Text = planet.Classification(details?.Descriptor);
         WeatherValTxt.Text = !string.IsNullOrEmpty(details?.Weather) ? details.Weather : $"{planet.TypeName} (Not Recorded)";
         SentinelsValTxt.Text = !string.IsNullOrEmpty(details?.Sentinels) ? details.Sentinels : "Standard Activity";
         FloraValTxt.Text = !string.IsNullOrEmpty(details?.Flora) ? details.Flora : "Uncharted";
@@ -414,6 +416,7 @@ public sealed partial class PlanetDetailsPage : Page
             DetailsSummaryPanel.Children.Add(row);
         }
 
+        if (!string.IsNullOrEmpty(details?.Descriptor)) Line("Descriptor", details.Descriptor);
         Line("Weather", details?.Weather ?? "");
         Line("Sentinels", details?.Sentinels ?? "");
         Line("Flora", details?.Flora ?? "");
@@ -440,6 +443,7 @@ public sealed partial class PlanetDetailsPage : Page
         string orig = UniverseInfo.GeneratedPlanetName(planet.SystemAddress, planet.PlanetIndex);
         NameInGameBox.Text = currentCustom == orig ? "" : currentCustom;
         NameInGameBox.PlaceholderText = orig;
+        DescriptorBox.Text = d.Descriptor;
 
         // ComboBoxes
         List<string> Words(string group) => _planetWords.Where(w => w.Group == group)
@@ -586,6 +590,8 @@ public sealed partial class PlanetDetailsPage : Page
             Sentinels = SentinelsPicker.Text?.Trim() ?? "",
             Flora = FloraPicker.Text?.Trim() ?? "",
             Fauna = FaunaPicker.Text?.Trim() ?? "",
+            Descriptor = DescriptorBox.Text?.Trim() ?? "",
+            FaunaTotal = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex)?.FaunaTotal,
             Resources = _editingResources.ToList(),
             Notes = _editingNotes.ToList()
         };

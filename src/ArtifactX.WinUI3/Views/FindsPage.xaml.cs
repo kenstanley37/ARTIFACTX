@@ -174,7 +174,7 @@ public sealed partial class FindsPage : Page
         {
             parts.Add($"On {UniverseInfo.PlanetName(system, _herePlanet)} (planet {_herePlanet})");
             var planet = _herePlanets.FirstOrDefault(p => p.SystemAddress == system && p.PlanetIndex == _herePlanet);
-            if (planet is not null) parts.Add(planet.TypeName);
+            if (planet is not null) parts.Add(planet.Classification(PlanetDetailsService.Get(system, _herePlanet)?.Descriptor));
         }
         else parts.Add("In space");
         parts.Add(GalaxyLabel(S.GalaxyNumber(system)));

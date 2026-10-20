@@ -475,6 +475,11 @@ public static class UserDatabase
             PRIMARY KEY (system_address, planet_index, name_key)
         );
         """,
+        // 20 - specific planetary descriptor (e.g. "Crimson Planet", "Paradise Planet",
+        // "Verdant Planet", "Contaminated Moon"), captured from Discoveries pop-ups or flight cards.
+        """
+        ALTER TABLE planet_details ADD COLUMN descriptor TEXT NOT NULL DEFAULT '';
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;

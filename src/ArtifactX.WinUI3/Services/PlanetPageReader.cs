@@ -112,7 +112,8 @@ public static class PlanetPageReader
             break;
         }
         if (name is null) return "flight card: no planet name";
-        bool moon = lines[type].Trim().EndsWith("Moon", StringComparison.OrdinalIgnoreCase);
+        string flightDescriptor = lines[type].Trim();
+        bool moon = flightDescriptor.EndsWith("Moon", StringComparison.OrdinalIgnoreCase);
 
         var resources = new List<string>();
         string sentinels = "";
@@ -139,19 +140,20 @@ public static class PlanetPageReader
 
         if (MatchBody(name) is not (ulong system, int body, string matched))
         {
-            UnmatchedBodiesService.Hold(name, new PlanetDetails { Sentinels = sentinels, Resources = resources }, moon);
+            UnmatchedBodiesService.Hold(name, new PlanetDetails { Sentinels = sentinels, Resources = resources, Descriptor = flightDescriptor }, moon);
             return $"flight card \"{name}\": unknown name - held for you to place on Current System";
         }
         BodyKindsService.Store(system, body, moon);
         var existing = PlanetDetailsService.Get(system, body);
         var details = existing?.Copy() ?? new PlanetDetails();
         bool changed = false;
+        if (details.Descriptor.Length == 0 && flightDescriptor.Length > 0) { details.Descriptor = flightDescriptor; changed = true; }
         if (details.Sentinels.Length == 0 && sentinels.Length > 0) { details.Sentinels = sentinels; changed = true; }
         if (details.Resources.Count == 0 && resources.Count > 0) { details.Resources = resources; changed = true; }
         if (!changed) return $"flight card {matched}: already known";
         PlanetDetailsService.Save(system, body, details, source: "captured");
         Filled++;
-        return $"flight card {matched}: saved ({sentinels} / {string.Join(", ", resources)})";
+        return $"flight card {matched}: saved ({flightDescriptor} / {sentinels} / {string.Join(", ", resources)})";
     }
 
     /// <summary>A distance ("261,933u", even garbled as "26T,i33u"): a digit beside a comma, or
@@ -209,6 +211,11 @@ public static class PlanetPageReader
         Fill(read.Sentinels, () => details.Sentinels, v => details.Sentinels = v);
         Fill(read.Flora, () => details.Flora, v => details.Flora = v);
         Fill(read.Fauna, () => details.Fauna, v => details.Fauna = v);
+        string? onPlanetDescriptor = lines.Select(Clean).FirstOrDefault(l =>
+            Regex.IsMatch(l, @"^[\p{L} \[\]'-]{3,30}\s(Moon|Planet)$", RegexOptions.IgnoreCase)
+            && !labels.Contains(l, StringComparer.OrdinalIgnoreCase));
+        if (!string.IsNullOrEmpty(onPlanetDescriptor))
+            Fill(onPlanetDescriptor, () => details.Descriptor, v => details.Descriptor = v);
         if (details.Resources.Count == 0 && read.Resources.Count > 0) { details.Resources = read.Resources; changed = true; }
         string what = $"{read.Weather} / {read.Sentinels} / {read.Flora} / {read.Fauna}{(read.Resources.Count > 0 ? " / " + string.Join(", ", read.Resources) : "")}";
         if (!changed) return $"planet box {UniverseInfo.PlanetName(system, body)}: nothing new ({what})";
@@ -234,6 +241,7 @@ public static class PlanetPageReader
             Sentinels = Field(lines, data, "Sentinels", "Sentinels"),
             Flora = Field(lines, data, "Flora", "Life"),
             Fauna = Field(lines, data, "Fauna", "Life"),
+            Descriptor = Descriptor(lines) ?? "",
             Resources = Resources(lines, res),
             FaunaTotal = FaunaTotal(lines),
         };
@@ -265,6 +273,7 @@ public static class PlanetPageReader
             if (details.Sentinels == "") details.Sentinels = existing.Sentinels;
             if (details.Flora == "") details.Flora = existing.Flora;
             if (details.Fauna == "") details.Fauna = existing.Fauna;
+            if (details.Descriptor == "") details.Descriptor = existing.Descriptor;
         }
         // A partly covered page never shrinks a fuller list already recorded.
         if (existing is { Resources.Count: > 0 } && details.Resources.Count < existing.Resources.Count
@@ -281,6 +290,7 @@ public static class PlanetPageReader
 
     private static bool Same(PlanetDetails a, PlanetDetails b) =>
         a.Weather == b.Weather && a.Sentinels == b.Sentinels && a.Flora == b.Flora && a.Fauna == b.Fauna
+        && a.Descriptor == b.Descriptor
         && a.FaunaTotal == b.FaunaTotal
         && a.Resources.SequenceEqual(b.Resources, StringComparer.OrdinalIgnoreCase);
 
@@ -342,6 +352,24 @@ public static class PlanetPageReader
             if (Regex.Match(line.Replace('O', '0').Replace('o', '0'), @"(\d+)\s*/\s*(\d+)\s*Disc", RegexOptions.IgnoreCase) is { Success: true } m
                 && int.TryParse(m.Groups[2].Value, out int total) && total is > 0 and < 100)
                 return total;
+        return null;
+    }
+
+    /// <summary>Specific descriptor ("Crimson Planet", "Paradise Planet", "Contaminated Moon") on the discovery page.</summary>
+    private static string? Descriptor(IReadOnlyList<string> lines)
+    {
+        int data = lines.ToList().FindIndex(l => l.Trim().Equals("Planet Data", StringComparison.OrdinalIgnoreCase));
+        int by = lines.ToList().FindIndex(l => Regex.IsMatch(l, @"\bby\b", RegexOptions.IgnoreCase));
+        if (by >= 0)
+        {
+            int max = data > by ? data : Math.Min(lines.Count, by + 4);
+            for (int i = by + 1; i < max; i++)
+            {
+                string line = Clean(lines[i]);
+                if (Regex.IsMatch(line, @"^[\p{L} \[\]'-]{3,30}\s(Moon|Planet)$", RegexOptions.IgnoreCase))
+                    return line;
+            }
+        }
         return null;
     }
 

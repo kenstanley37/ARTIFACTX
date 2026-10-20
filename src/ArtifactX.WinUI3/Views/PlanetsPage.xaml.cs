@@ -786,7 +786,8 @@ public sealed partial class PlanetsPage : Page
             Text = isMoon ? "MOON" : $"PLANET {planet.PlanetIndex}",
             Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"],
         });
-        string typeText = planet.HasRings ? $"{planet.TypeName} · rings" : planet.TypeName;
+        var details = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex);
+        string typeText = planet.Classification(details?.Descriptor, ringSuffix: " · rings");
         string planetName = UniverseInfo.PlanetName(planet.SystemAddress, planet.PlanetIndex);
         names.Children.Add(new TextBlock
         {
@@ -949,7 +950,8 @@ public sealed partial class PlanetsPage : Page
             for (int b = 1; b <= count; b++)
             {
                 string kind = BodyKindsService.IsMoon(system, b) ? "Moon" : "Planet";
-                string type = planets.FirstOrDefault(p => p.PlanetIndex == b)?.TypeName is { Length: > 0 } t ? $" · {t}" : "";
+                var pl = planets.FirstOrDefault(p => p.PlanetIndex == b);
+                string type = pl is not null ? $" · {pl.Classification(PlanetDetailsService.Get(system, b)?.Descriptor)}" : "";
                 pick.Items.Add(new ComboBoxItem { Content = $"{kind} {b} · {UniverseInfo.PlanetName(system, b)}{type}", Tag = b });
             }
             var save = new Button { Content = "Save", IsEnabled = false };
@@ -1612,6 +1614,7 @@ public sealed partial class PlanetsPage : Page
         var parts = new List<string>();
         if (d is not null)
         {
+            if (d.Descriptor != "") parts.Add(d.Descriptor);
             if (d.Weather != "") parts.Add($"Weather: {d.Weather}");
             if (d.Sentinels != "") parts.Add($"Sentinels: {d.Sentinels}");
             if (d.Flora != "") parts.Add($"Flora: {d.Flora}");
@@ -1626,7 +1629,7 @@ public sealed partial class PlanetsPage : Page
 
     /// <summary>Everything the finder's search box looks through for a planet.</summary>
     private string SearchText(KnownPlanet p) => string.Join(" ",
-        UniverseInfo.PlanetName(p.SystemAddress, p.PlanetIndex), UniverseInfo.SystemName(p.SystemAddress), p.TypeName,
+        UniverseInfo.PlanetName(p.SystemAddress, p.PlanetIndex), UniverseInfo.SystemName(p.SystemAddress), p.TypeName, p.BiomeGroup,
         DetailsSummary(PlanetDetailsService.Get(p.SystemAddress, p.PlanetIndex), PlanetWaterService.Get(p.SystemAddress, p.PlanetIndex)),
         NoteSummary(SystemNotesService.Get(p.SystemAddress)),
         // Creatures read off the fauna list - "Zeronatonae", "Underwater", "Nocturnal" find their planet.
@@ -2432,7 +2435,7 @@ public sealed partial class PlanetsPage : Page
         RingVisibility = planet.HasRings ? Visibility.Visible : Visibility.Collapsed,
         LocationLabel = string.Join(" · ", new[]
         {
-            planet.HasRings ? $"{planet.TypeName} with rings" : planet.TypeName,
+            planet.Classification(PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex)?.Descriptor),
             BodyLabel(planet), GalaxyLabel(planet.Galaxy), planet.Source,
         }.Where(s => s.Length > 0)),
         PortalCode = planet.PortalCode,

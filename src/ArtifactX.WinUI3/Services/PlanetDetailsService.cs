@@ -13,6 +13,7 @@ public sealed class PlanetDetails
     public string Sentinels { get; set; } = "";
     public string Flora { get; set; } = "";
     public string Fauna { get; set; } = "";
+    public string Descriptor { get; set; } = "";
 
     /// <summary>Kinds of fauna on the planet ("0 / 6 Discovered" - 6); 0 = none; null = not known.</summary>
     public int? FaunaTotal { get; set; }
@@ -23,12 +24,12 @@ public sealed class PlanetDetails
     /// <summary>Free-form notes, one per line item.</summary>
     public List<string> Notes { get; set; } = new();
 
-    public bool IsEmpty => Weather == "" && Sentinels == "" && Flora == "" && Fauna == ""
-        && Resources.Count == 0 && Notes.Count == 0;
+    public bool IsEmpty => Weather == "" && Sentinels == "" && Flora == "" && Fauna == "" && Descriptor == ""
+        && Resources.Count == 0 && Notes.Count == 0 && FaunaTotal is null;
 
     public PlanetDetails Copy() => new()
     {
-        Weather = Weather, Sentinels = Sentinels, Flora = Flora, Fauna = Fauna, FaunaTotal = FaunaTotal,
+        Weather = Weather, Sentinels = Sentinels, Flora = Flora, Fauna = Fauna, Descriptor = Descriptor, FaunaTotal = FaunaTotal,
         Resources = Resources.ToList(), Notes = Notes.ToList(),
     };
 }
@@ -75,7 +76,7 @@ public static class PlanetDetailsService
                     }
                     using (var cmd = connection.CreateCommand())
                     {
-                        cmd.CommandText = "SELECT system_address, planet_index, weather, sentinels, flora, fauna, resources, fauna_total FROM planet_details WHERE deleted = 0";
+                        cmd.CommandText = "SELECT system_address, planet_index, weather, sentinels, flora, fauna, resources, fauna_total, descriptor FROM planet_details WHERE deleted = 0";
                         using var r = cmd.ExecuteReader();
                         while (r.Read())
                         {
@@ -86,6 +87,7 @@ public static class PlanetDetailsService
                             d.Fauna = r.GetString(5);
                             d.Resources = SplitResources(r.GetString(6));
                             d.FaunaTotal = r.IsDBNull(7) ? null : r.GetInt32(7);
+                            d.Descriptor = r.FieldCount > 8 && !r.IsDBNull(8) ? r.GetString(8) : "";
                         }
                     }
                     using (var cmd = connection.CreateCommand())
@@ -104,7 +106,7 @@ public static class PlanetDetailsService
         }
     }
 
-    private static readonly string[] PlanetFields = { "weather", "sentinels", "flora", "fauna", "resources", "fauna_total" };
+    private static readonly string[] PlanetFields = { "weather", "sentinels", "flora", "fauna", "resources", "fauna_total", "descriptor" };
 
     private static List<string> SplitResources(string text) =>
         text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
@@ -156,12 +158,12 @@ public static class PlanetDetailsService
             {
                 cmd.Transaction = tx;
                 cmd.CommandText = @"
-                    INSERT INTO planet_details (system_address, planet_index, weather, sentinels, flora, fauna, resources, fauna_total,
+                    INSERT INTO planet_details (system_address, planet_index, weather, sentinels, flora, fauna, resources, fauna_total, descriptor,
                                                 updated_at, source, synced_at, deleted, added_by)
-                    VALUES ($s, $p, $weather, $sentinels, $flora, $fauna, $resources, $faunaTotal, $now, $source, NULL, $deleted, $added_by)
+                    VALUES ($s, $p, $weather, $sentinels, $flora, $fauna, $resources, $faunaTotal, $descriptor, $now, $source, NULL, $deleted, $added_by)
                     ON CONFLICT(system_address, planet_index) DO UPDATE SET
                         weather = $weather, sentinels = $sentinels, flora = $flora, fauna = $fauna, resources = $resources,
-                        fauna_total = $faunaTotal,
+                        fauna_total = $faunaTotal, descriptor = $descriptor,
                         updated_at = $now, source = $source, synced_at = NULL, deleted = $deleted";
                 cmd.Parameters.AddWithValue("$s", system);
                 cmd.Parameters.AddWithValue("$p", planet);
@@ -171,10 +173,12 @@ public static class PlanetDetailsService
                 cmd.Parameters.AddWithValue("$fauna", saved.Fauna);
                 cmd.Parameters.AddWithValue("$resources", string.Join(", ", saved.Resources));
                 cmd.Parameters.AddWithValue("$faunaTotal", (object?)saved.FaunaTotal ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("$descriptor", saved.Descriptor);
                 cmd.Parameters.AddWithValue("$now", now);
                 cmd.Parameters.AddWithValue("$source", source);
                 cmd.Parameters.AddWithValue("$added_by", GameAccountsService.ActiveKey);
-                bool noFields = saved.Weather == "" && saved.Sentinels == "" && saved.Flora == "" && saved.Fauna == "" && saved.Resources.Count == 0;
+                bool noFields = saved.Weather == "" && saved.Sentinels == "" && saved.Flora == "" && saved.Fauna == ""
+                    && saved.Descriptor == "" && saved.Resources.Count == 0 && saved.FaunaTotal is null;
                 cmd.Parameters.AddWithValue("$deleted", noFields ? 1 : 0);
                 cmd.ExecuteNonQuery();
             }

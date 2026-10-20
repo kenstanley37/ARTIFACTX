@@ -152,7 +152,7 @@ public sealed partial class BasesPage : Page
                 int galaxy = S.GalaxyNumber(address);
                 planets.TryGetValue(address, out var planet);
                 string name = b["NKm"]?.Value<string>() is { Length: > 0 } n ? n : "Unnamed base";
-                string type = planet is null ? "Planet" : planet.HasRings ? $"{planet.TypeName} · rings" : planet.TypeName;
+                string type = planet is null ? "Planet" : planet.Classification(PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex)?.Descriptor, ringSuffix: " · rings");
                 string galaxyName = NmsGalaxyNames.ForNumber(galaxy) is string g ? $"{g} ({galaxy})" : $"Galaxy {galaxy}";
                 double? distance = here is ulong h ? NmsPlanets.DistanceLightYears(h, S.ToSystemAddress(address)) : null;
                 string code = S.PortalAddress(address, planetIndex);
@@ -214,7 +214,7 @@ public sealed partial class BasesPage : Page
             int planetIndex = (int)((address >> 52) & 0xF);
             int galaxy = S.GalaxyNumber(address);
             planets.TryGetValue(address, out var planet);
-            string type = planet is null ? "Planet" : planet.TypeName;
+            string type = planet is null ? "Planet" : planet.Classification(PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex)?.Descriptor);
             string galaxyName = NmsGalaxyNames.ForNumber(galaxy) is string g ? $"{g} ({galaxy})" : $"Galaxy {galaxy}";
             double? distance = here is ulong h ? NmsPlanets.DistanceLightYears(h, S.ToSystemAddress(address)) : null;
             string code = S.PortalAddress(address, planetIndex);
