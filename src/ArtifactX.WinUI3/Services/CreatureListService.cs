@@ -30,6 +30,7 @@ public static class CreatureListService
 {
     private static readonly object Lock = new();
     private static Dictionary<string, Dictionary<string, Creature>>? _byPlanet;
+    private static readonly HashSet<string> DeletedKeys = new(StringComparer.Ordinal);
 
     private static readonly string[] Rarities = { "Common", "Uncommon", "Rare", "Extinct" };
     private static readonly HashSet<string> Words = new(StringComparer.Ordinal) { "Underwater", "Always Active", "Nocturnal", "Diurnal", "Mostly Diurnal", "Mostly Nocturnal" };
@@ -56,6 +57,88 @@ public static class CreatureListService
     {
         lock (Lock) return All.TryGetValue(PlanetKey(system, planet), out var list)
             ? list.Values.OrderBy(c => c.Rarity == "Extinct").ThenBy(c => NameKey(c.Name), StringComparer.Ordinal).ToList() : new List<Creature>();
+    }
+
+    private static readonly HashSet<string> IgnoredNameWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Fauna", "Flora", "Minerals", "Species", "Discovered", "Discovery", "Discoveries",
+        "Complete", "Receive", "Nanites", "Units", "Rename", "Upload", "Wonders",
+        "Personal", "Records", "View", "Options", "Custom", "Marker",
+        "System", "Galaxy", "Planet", "Moon", "Unknown", "Extinct", "Gender",
+        "Weight", "Height", "Distance", "Back", "Exit", "Close", "Online", "Offline",
+        "Rare", "Common", "Uncommon", "Always Active", "Nocturnal", "Diurnal"
+    };
+
+    public static bool IsGarbageName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return true;
+        string stripped = name.Trim();
+        if (stripped.Length < 3 || stripped.Length > 45) return true;
+
+        string baseName = Regex.Replace(stripped, @"^\p{Lu}\.\s*", "").Trim();
+        if (IgnoredNameWords.Contains(stripped) || IgnoredNameWords.Contains(baseName)) return true;
+
+        var words = stripped.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Any(w => IgnoredNameWords.Contains(w))) return true;
+
+        if (Regex.IsMatch(baseName, @"^(.)\1{2,}$")) return true;
+        if (!Regex.IsMatch(baseName, @"[aeiouyAEIOUY]")) return true;
+
+        return false;
+    }
+
+    /// <summary>Deletes a creature record from a planet, deletes any picture on disk, and marks it deleted so OCR will not resurrect it.</summary>
+    public static bool Delete(ulong system, int planet, string name)
+    {
+        string key = NameKey(name);
+        string planetKey = PlanetKey(system, planet);
+        string fullKey = $"{Hex(system)}|{planet}|{key}";
+        string now = UserDatabase.Now();
+        bool removed = false;
+
+        lock (Lock)
+        {
+            DeletedKeys.Add(fullKey);
+            if (All.TryGetValue(planetKey, out var list) && list.Remove(key))
+            {
+                removed = true;
+            }
+            ReadCount.Remove((planetKey, key));
+            PlacedThisSession.Remove(key);
+            NameVotes.Remove(key);
+        }
+
+        try
+        {
+            using var connection = UserDatabase.Open();
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = "UPDATE planet_creatures SET deleted = 1, updated_at = $now, synced_at = NULL WHERE system_address = $s AND planet_index = $p AND name_key = $k";
+            cmd.Parameters.AddWithValue("$s", Hex(system));
+            cmd.Parameters.AddWithValue("$p", planet);
+            cmd.Parameters.AddWithValue("$k", key);
+            cmd.Parameters.AddWithValue("$now", now);
+            cmd.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CreatureListService] Delete DB error: {ex.Message}");
+        }
+
+        try
+        {
+            string path = PicturePath(system, planet, name);
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CreatureListService] Delete picture error: {ex.Message}");
+        }
+
+        Changed?.Invoke(system, planet);
+        return removed;
     }
 
     /// <summary>Whether a recorded creature on the planet lives underwater.</summary>
@@ -96,6 +179,7 @@ public static class CreatureListService
             string name = CleanName(above.Text);
             // A creature's name: one or two words, maybe after an initial ("E. Zeronatonae").
             if (!Regex.IsMatch(name, @"^(\p{Lu}\.\s?)?\p{Lu}[\p{L}'-]{2,}(\s\p{Lu}[\p{L}'-]+)?$") || Traits(name) != ("", "", "")) continue;
+            if (IsGarbageName(name)) continue;
             rows.Add((name, rarity, habitat, activity));
         }
         if (rows.Count == 0) return "fauna list: no creatures read";
@@ -279,6 +363,14 @@ public static class CreatureListService
                     if (!_byPlanet.TryGetValue(key, out var list)) _byPlanet[key] = list = new(StringComparer.Ordinal);
                     list[r.GetString(2)] = new Creature(r.GetString(3), r.GetString(4), r.GetString(5), r.GetString(6), r.GetString(7), r.GetString(8), r.GetInt32(9) != 0, r.GetString(10));
                 }
+
+                using var delCmd = connection.CreateCommand();
+                delCmd.CommandText = "SELECT system_address, planet_index, name_key FROM planet_creatures WHERE deleted != 0";
+                using var delR = delCmd.ExecuteReader();
+                while (delR.Read())
+                {
+                    DeletedKeys.Add($"{delR.GetString(0)}|{delR.GetInt32(1)}|{delR.GetString(2)}");
+                }
             }
             catch (Exception ex) { Debug.WriteLine($"[CreatureListService] {ex.Message}"); }
             return _byPlanet;
@@ -310,6 +402,8 @@ public static class CreatureListService
             foreach (var row in rows)
             {
                 string key = NameKey(row.Name);
+                string fullKey = $"{Hex(system)}|{planet}|{key}";
+                if (DeletedKeys.Contains(fullKey)) continue;
                 // Kept once read in two frames: a name caught mid-animation ("Alde" for Alderhukkeum)
                 // or another line taken for one ("Add Records") rarely comes back (2026-10-18).
                 ReadCount[(planetKey, key)] = ReadCount.GetValueOrDefault((planetKey, key)) + 1;
@@ -391,6 +485,10 @@ public static class CreatureListService
     /// <summary>Drops the in-memory copy (after a user.db import).</summary>
     public static void Reload()
     {
-        lock (Lock) _byPlanet = null;
+        lock (Lock)
+        {
+            _byPlanet = null;
+            DeletedKeys.Clear();
+        }
     }
 }

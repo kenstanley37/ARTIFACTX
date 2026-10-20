@@ -140,6 +140,21 @@ These items directly extend existing open GitHub issues:
 - **Note #32**
 - **Description** *(Low Priority)*: Enable players to create, save, and share custom color themes in Settings by editing primary theme brushes (accent, panel background, text, borders).
 
+### Feature 16: Space Station & Outlaw Station Vendor Inventory Scanning
+- **Description**: Add screen reader parsing and database tracking for three key specialized station vendors:
+  1. **Space Station Scrap Dealer** (e.g. *Righteous Thief Dekoureut - Vy'keen Scrap Dealer*):
+     - Sells: Suspicious Packets (Arms, Tech, Goods), Emergency Signal Scanners, Repair Kits.
+     - Currency: **Tainted Metal** (traded from derelict freighters).
+     - Goal: Catalog scrap dealer inventory offerings per system address.
+  2. **Outlaw Station Salvage Dealer** (e.g. *Salvage Dealer Inpudarz - Aftermarket Upgrades*):
+     - Sells: Aftermarket/black market X-class technology upgrade modules (Hyperdrive, Pulse Engine, Deflector Shield, Boltcaster, Mining Beam, Hazard Protection, etc.).
+     - Currency: **Nanites**.
+     - Goal: Record which X-class upgrade module types are stocked at each pirate/outlaw station.
+  3. **Outlaw Station Contraband Vendor** (*Contraband Agent*):
+     - Sells: High-value illegal trade commodities (GekNip, First Spawn Relics, Moon Ether, Prismatic Feathers, Banned Weapons, etc.) and Suspicious Packets.
+     - Currency: **Units**.
+     - Goal: Integrate contraband price and availability data with galactic trade routes and smuggling profit calculations.
+
 ---
 
 ## 5. Architectural Standards (from Code Review Notes)

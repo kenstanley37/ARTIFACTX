@@ -979,14 +979,41 @@ public sealed partial class PlanetDetailsPage : Page
                 });
             }
 
-            tile.Children.Add(new TextBlock
+            var nameHeaderGrid = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+            nameHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            nameHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var nameTxt = new TextBlock
             {
                 Text = c.Name,
                 FontSize = 14,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = ThemeBrush("ThemeTextBrush"),
-                IsTextSelectionEnabled = true
-            });
+                IsTextSelectionEnabled = true,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            Grid.SetColumn(nameTxt, 0);
+            nameHeaderGrid.Children.Add(nameTxt);
+
+            var deleteBtn = new Button
+            {
+                Content = new FontIcon { Glyph = "\uE74D", FontSize = 12 },
+                Padding = new Thickness(6, 4, 6, 4),
+                Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                BorderThickness = new Thickness(0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            ToolTipService.SetToolTip(deleteBtn, "Remove this creature record");
+            string cName = c.Name;
+            deleteBtn.Click += (s, args) =>
+            {
+                CreatureListService.Delete(planet.SystemAddress, planet.PlanetIndex, cName);
+            };
+            Grid.SetColumn(deleteBtn, 1);
+            nameHeaderGrid.Children.Add(deleteBtn);
+
+            tile.Children.Add(nameHeaderGrid);
 
             string traits = string.Join(" · ", new[] { c.Rarity, c.Habitat, c.Activity }.Where(s => s.Length > 0));
             if (traits.Length > 0) tile.Children.Add(DimLine(traits));

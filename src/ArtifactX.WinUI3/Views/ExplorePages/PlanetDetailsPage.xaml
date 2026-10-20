@@ -46,7 +46,7 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
-                            <Border Grid.Column="0" x:Name="PlanetDrawingFrame" Width="76" Height="76" VerticalAlignment="Center"/>
+                            <Border Grid.Column="0" x:Name="PlanetDrawingFrame" Width="152" Height="76" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
                                 <TextBlock x:Name="PlanetEyebrowTxt" Text="PLANET TELEMETRY" Style="{StaticResource ThemeEyebrowStyle}"/>
@@ -132,107 +132,99 @@
                 </Grid>
             </Border>
 
-            <!-- 3. Multi-Column Body: Left Column (Manual Editor, Save Facts, Finds, Bases) + Right Column (Fishing) -->
-            <Grid ColumnSpacing="18">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+            <!-- 3. Modular Responsive Cards Grid: wraps automatically across rows as viewport width permits -->
+            <controls:WrapPanel HorizontalSpacing="18" VerticalSpacing="18">
 
-                <!-- Left Column -->
-                <StackPanel Grid.Column="0" Spacing="18">
-                    <!-- Your Details & Notes Card (Manual Editor) -->
-                    <Border Style="{StaticResource ThemeCardStyle}">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <Grid>
-                                    <TextBlock Text="YOUR DETAILS &amp; NOTES" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
-                                    <Button x:Name="EditDetailsToggleBtn" Content="Edit details" HorizontalAlignment="Right" Padding="12,2" FontSize="12" Click="EditDetailsToggleBtn_Click"/>
-                                </Grid>
-                            </Border>
-                            <StackPanel Padding="18,14,18,16" Spacing="12">
-                                <!-- Summary View -->
-                                <StackPanel x:Name="DetailsSummaryPanel" Spacing="6"/>
+                <!-- Your Details & Notes Card (Manual Editor) -->
+                <Border x:Name="DetailsCard" Style="{StaticResource ThemeCardStyle}" Width="430" VerticalAlignment="Top">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <Grid>
+                                <TextBlock Text="YOUR DETAILS &amp; NOTES" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
+                                <Button x:Name="EditDetailsToggleBtn" Content="Edit details" HorizontalAlignment="Right" Padding="12,2" FontSize="12" Click="EditDetailsToggleBtn_Click"/>
+                            </Grid>
+                        </Border>
+                        <StackPanel Padding="18,14,18,16" Spacing="12">
+                            <!-- Summary View -->
+                            <StackPanel x:Name="DetailsSummaryPanel" Spacing="6"/>
 
-                                <!-- Inline Editor View -->
-                                <StackPanel x:Name="DetailsEditorPanel" Spacing="12" Visibility="Collapsed">
-                                    <TextBox x:Name="NameInGameBox" Header="Name in game" Width="360" HorizontalAlignment="Left"/>
-                                    <controls:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
-                                        <ComboBox x:Name="SentinelsPicker" Header="Sentinels" Width="200" IsEditable="True"/>
-                                        <ComboBox x:Name="FloraPicker" Header="Flora" Width="200" IsEditable="True"/>
-                                        <ComboBox x:Name="FaunaPicker" Header="Fauna" Width="200" IsEditable="True"/>
-                                        <ComboBox x:Name="WaterPicker" Header="Water" Width="140"/>
-                                    </controls:WrapPanel>
-                                    <AutoSuggestBox x:Name="WeatherSuggestBox" Header="Weather" Width="360" HorizontalAlignment="Left" PlaceholderText="e.g. Painfully Hot Rain"/>
-                                    <StackPanel Spacing="6">
-                                        <TextBlock Text="Resources Recorded" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                        <controls:WrapPanel x:Name="EditorResourceChips" HorizontalSpacing="6" VerticalSpacing="6"/>
-                                        <AutoSuggestBox x:Name="ResourceAddBox" Header="Add Resource" Width="360" HorizontalAlignment="Left" PlaceholderText="Type resource name and press Enter"/>
-                                    </StackPanel>
-                                    <StackPanel Spacing="6">
-                                        <TextBlock Text="Notes" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                        <StackPanel x:Name="EditorNotesList" Spacing="6"/>
-                                        <Grid ColumnSpacing="8" Width="440" HorizontalAlignment="Left">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="NewNoteInput" PlaceholderText="Add a note..."/>
-                                            <Button Grid.Column="1" Content="Add" Click="AddNote_Click"/>
-                                        </Grid>
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,6,0,0">
-                                        <Button Content="Save details" Click="SaveDetails_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
-                                        <TextBlock x:Name="SaveStatusTxt" Style="{StaticResource ThemeDimTextStyle}" VerticalAlignment="Center"/>
-                                    </StackPanel>
+                            <!-- Inline Editor View -->
+                            <StackPanel x:Name="DetailsEditorPanel" Spacing="12" Visibility="Collapsed">
+                                <TextBox x:Name="NameInGameBox" Header="Name in game" HorizontalAlignment="Stretch"/>
+                                <controls:WrapPanel HorizontalSpacing="10" VerticalSpacing="10">
+                                    <ComboBox x:Name="SentinelsPicker" Header="Sentinels" Width="185" IsEditable="True"/>
+                                    <ComboBox x:Name="FloraPicker" Header="Flora" Width="185" IsEditable="True"/>
+                                    <ComboBox x:Name="FaunaPicker" Header="Fauna" Width="185" IsEditable="True"/>
+                                    <ComboBox x:Name="WaterPicker" Header="Water" Width="185"/>
+                                </controls:WrapPanel>
+                                <AutoSuggestBox x:Name="WeatherSuggestBox" Header="Weather" HorizontalAlignment="Stretch" PlaceholderText="e.g. Painfully Hot Rain"/>
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Resources Recorded" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <controls:WrapPanel x:Name="EditorResourceChips" HorizontalSpacing="6" VerticalSpacing="6"/>
+                                    <AutoSuggestBox x:Name="ResourceAddBox" Header="Add Resource" HorizontalAlignment="Stretch" PlaceholderText="Type resource name and press Enter"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Notes" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <StackPanel x:Name="EditorNotesList" Spacing="6"/>
+                                    <Grid ColumnSpacing="8" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="NewNoteInput" PlaceholderText="Add a note..."/>
+                                        <Button Grid.Column="1" Content="Add" Click="AddNote_Click"/>
+                                    </Grid>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,6,0,0">
+                                    <Button Content="Save details" Click="SaveDetails_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
+                                    <TextBlock x:Name="SaveStatusTxt" Style="{StaticResource ThemeDimTextStyle}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </StackPanel>
                         </StackPanel>
-                    </Border>
+                    </StackPanel>
+                </Border>
 
-                    <!-- From Your Save Card -->
-                    <Border x:Name="SaveFactsCard" Style="{StaticResource ThemeCardStyle}">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <TextBlock Text="FROM YOUR SAVE" Style="{StaticResource ThemeBandTextStyle}"/>
-                            </Border>
-                            <Grid x:Name="SaveFactsContainer" Padding="18,14,18,16"/>
-                        </StackPanel>
-                    </Border>
+                <!-- From Your Save Card -->
+                <Border x:Name="SaveFactsCard" Style="{StaticResource ThemeCardStyle}" Width="430" VerticalAlignment="Top">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <TextBlock Text="FROM YOUR SAVE" Style="{StaticResource ThemeBandTextStyle}"/>
+                        </Border>
+                        <Grid x:Name="SaveFactsContainer" Padding="18,14,18,16"/>
+                    </StackPanel>
+                </Border>
 
-                    <!-- Registered Bases & Outposts Card -->
-                    <Border x:Name="BasesCard" Style="{StaticResource ThemeCardStyle}">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <TextBlock Text="REGISTERED BASES &amp; OUTPOSTS" Style="{StaticResource ThemeBandTextStyle}"/>
-                            </Border>
-                            <StackPanel x:Name="BasesListPanel" Padding="18,14,18,16" Spacing="10"/>
-                        </StackPanel>
-                    </Border>
+                <!-- Registered Bases & Outposts Card -->
+                <Border x:Name="BasesCard" Style="{StaticResource ThemeCardStyle}" Width="430" VerticalAlignment="Top">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <TextBlock Text="REGISTERED BASES &amp; OUTPOSTS" Style="{StaticResource ThemeBandTextStyle}"/>
+                        </Border>
+                        <StackPanel x:Name="BasesListPanel" Padding="18,14,18,16" Spacing="10"/>
+                    </StackPanel>
+                </Border>
 
-                    <!-- Recorded Finds Card -->
-                    <Border x:Name="FindsCard" Style="{StaticResource ThemeCardStyle}" Visibility="Collapsed">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <TextBlock Text="YOUR FINDS HERE" Style="{StaticResource ThemeBandTextStyle}"/>
-                            </Border>
-                            <StackPanel x:Name="FindsListPanel" Padding="18,14,18,16" Spacing="8"/>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
+                <!-- Recorded Finds Card -->
+                <Border x:Name="FindsCard" Style="{StaticResource ThemeCardStyle}" Width="430" VerticalAlignment="Top" Visibility="Collapsed">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <TextBlock Text="YOUR FINDS HERE" Style="{StaticResource ThemeBandTextStyle}"/>
+                        </Border>
+                        <StackPanel x:Name="FindsListPanel" Padding="18,14,18,16" Spacing="8"/>
+                    </StackPanel>
+                </Border>
 
-                <!-- Right Column: Fishing Card ("Fishing can go on the far right") -->
-                <StackPanel Grid.Column="1" Width="460" Spacing="18">
-                    <Border x:Name="FishCard" Style="{StaticResource ThemeCardStyle}">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <TextBlock Text="FISH" Style="{StaticResource ThemeBandTextStyle}"/>
-                            </Border>
-                            <StackPanel x:Name="FishContainerPanel" Padding="18,14,18,16" Spacing="10"/>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-            </Grid>
+                <!-- Fishing Card -->
+                <Border x:Name="FishCard" Style="{StaticResource ThemeCardStyle}" Width="430" VerticalAlignment="Top">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <TextBlock Text="FISH" Style="{StaticResource ThemeBandTextStyle}"/>
+                        </Border>
+                        <StackPanel x:Name="FishContainerPanel" Padding="18,14,18,16" Spacing="10"/>
+                    </StackPanel>
+                </Border>
+
+            </controls:WrapPanel>
 
             <!-- 4. Full-Width Bottom Section: Creatures / Fauna Discoveries (Scanned with images) -->
             <Border x:Name="CreaturesCard" Style="{StaticResource ThemeCardStyle}" Visibility="Collapsed">
