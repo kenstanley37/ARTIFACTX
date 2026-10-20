@@ -94,6 +94,7 @@ public sealed partial class PlanetsPage : Page
         UnmatchedBodiesService.Changed += OnSystemCaptured;
         SystemMarketService.Changed += OnSystemCaptured;
         CreatureListService.Changed += OnCreaturesChanged;
+        FishCatchRecorder.SnapshotSeen += OnSnapshotSeen;
         Unloaded += Page_Unloaded;
         JumpPlanner.RangeChanged += ApplyFilters;
         ApplySystemCompact();
@@ -153,6 +154,7 @@ public sealed partial class PlanetsPage : Page
         UnmatchedBodiesService.Changed -= OnSystemCaptured;
         SystemMarketService.Changed -= OnSystemCaptured;
         CreatureListService.Changed -= OnCreaturesChanged;
+        FishCatchRecorder.SnapshotSeen -= OnSnapshotSeen;
         JumpPlanner.RangeChanged -= ApplyFilters;
         StopOrbitAnimations();
         StopWatching();
@@ -225,6 +227,7 @@ public sealed partial class PlanetsPage : Page
             return;
         }
 
+        LiveSaveWatcher.LatestSnapshot = snapshot;
         ApplySnapshot(snapshot, live: true);
         LiveStatusTxt.Text = $"Following your game · updated {DateTime.Now:t}";
     }
@@ -418,7 +421,8 @@ public sealed partial class PlanetsPage : Page
         await EnsureChoicesAsync();
         int version = ++_loadVersion;
         _otherSaves = new();
-        ApplySnapshot(LiveSaveWatcher.FromSession(), live: false);
+        var initialSnapshot = await LiveSaveWatcher.GetLatestAsync();
+        ApplySnapshot(initialSnapshot, live: false);
         StartWatching();
         await LoadOtherSavesAsync(version);
     }
@@ -2151,6 +2155,11 @@ public sealed partial class PlanetsPage : Page
     }
 
     private void OnCreaturesChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(RefreshFinder);
+
+    private void OnSnapshotSeen(PlanetSnapshot snapshot) => DispatcherQueue.TryEnqueue(() =>
+    {
+        ApplySnapshot(snapshot, live: true);
+    });
 
     private bool CommitPendingNote()
     {

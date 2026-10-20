@@ -60,6 +60,7 @@ public static class FishCatchRecorder
         var live = new LiveSaveWatcher(_dispatcher);
         live.SnapshotRead += snapshot =>
         {
+            LiveSaveWatcher.LatestSnapshot = snapshot;
             FishCatchService.Observe(FishCatchService.ActiveSaveKey(), snapshot, _fish);
             SnapshotSeen?.Invoke(snapshot);
         };

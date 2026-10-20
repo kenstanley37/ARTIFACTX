@@ -161,8 +161,40 @@ public sealed class LiveSaveWatcher : IDisposable
 
     public LiveSaveWatcher(Microsoft.UI.Dispatching.DispatcherQueue dispatcher) => _dispatcher = dispatcher;
 
-    /// <summary>Snapshot of the loaded session (what the page shows before any live update).</summary>
-    public static PlanetSnapshot FromSession() => new(
+    /// <summary>The most recent live snapshot read from disk across any watcher or session.</summary>
+    public static PlanetSnapshot? LatestSnapshot { get; set; }
+
+    static LiveSaveWatcher()
+    {
+        SaveSessionManager.ActiveSessionChanged += (_, _) => LatestSnapshot = null;
+    }
+
+    /// <summary>Snapshot of the loaded session (or latest live snapshot if one has been read).</summary>
+    public static PlanetSnapshot FromSession() => LatestSnapshot ?? CreateFromSession();
+
+    /// <summary>Returns the latest live snapshot immediately, reading the newest save file from disk if not yet cached.</summary>
+    public static async Task<PlanetSnapshot> GetLatestAsync()
+    {
+        if (LatestSnapshot is not null) return LatestSnapshot;
+
+        if (SaveSessionManager.ActiveSlot is { } slot)
+        {
+            string newest = slot.Files.Select(f => f.FullPath).Where(File.Exists)
+                .OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault() ?? "";
+            if (newest.Length > 0)
+            {
+                var fresh = await LiveSaveReader.ReadAsync(newest);
+                if (fresh is not null)
+                {
+                    LatestSnapshot = fresh;
+                    return fresh;
+                }
+            }
+        }
+        return FromSession();
+    }
+
+    public static PlanetSnapshot CreateFromSession() => new(
         SaveSessionManager.GetValue(NmsSpaceStationPaths.CurrentUniverseAddressPath),
         SaveSessionManager.GetValue(NmsPlayerStatsPaths.StatGroupsArrayPath) as JArray,
         SaveSessionManager.GetValue(NmsSpaceStationPaths.DiscoveriesPath) as JArray,
@@ -243,6 +275,7 @@ public sealed class LiveSaveWatcher : IDisposable
             if (triesLeft > 1) { await Task.Delay(3000); await ReadAsync(triesLeft - 1); }
             return;
         }
+        LatestSnapshot = snapshot;
         SystemNameLearner.Learn(NmsSpaceStationPaths.ReadSystemAddress(snapshot.Universe),
             snapshot.Universe?["oZw"]?["jsv"]?.Value<int>() ?? 0, snapshot.Summary);
         SnapshotRead?.Invoke(snapshot);
