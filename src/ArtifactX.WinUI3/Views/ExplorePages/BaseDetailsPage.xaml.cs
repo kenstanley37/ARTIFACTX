@@ -46,10 +46,34 @@ public sealed partial class BaseDetailsPage : Page
         ["BASE_FLAG"] = ("Base Computer Terminal", "\uE909"),
         ["BUILDFLAG"] = ("Base Computer Flag", "\uE909"),
         ["PORTABLE_REFINER"] = ("Portable Refiner", "\uE909"),
+        ["BUILD_REFINER1"] = ("Portable Refiner", "\uE909"),
+        ["REFINER"] = ("Portable Refiner", "\uE909"),
         ["SAVE_POINT"] = ("Save Point", "\uE909"),
+        ["BUILDSAVE"] = ("Save Point", "\uE909"),
         ["SAVE_BEACON"] = ("Save Beacon", "\uE909"),
+        ["BUILDBEACON"] = ("Save Beacon", "\uE909"),
         ["SIGNAL_SCANNER"] = ("Signal Booster", "\uE909"),
-        ["ANTENNA"] = ("Communication Station", "\uE909"),
+        ["BUILDSIGNAL"] = ("Signal Booster", "\uE909"),
+        ["ANTENNA"] = ("Communications Station", "\uE909"),
+        ["MESSAGEMODULE"] = ("Message Module", "\uE909"),
+        ["TELEPORTER"] = ("Base Teleport Module", "\uE909"),
+        ["COOKER"] = ("Nutrient Processor", "\uE909"),
+        ["SUMMON_GARAGE"] = ("Exocraft Summoning Station", "\uE909"),
+        ["BUILDHARVESTER"] = ("Autonomous Mining Unit", "\uE909"),
+        ["BUILDTERMINAL"] = ("Galactic Trade Terminal", "\uE916"),
+        ["GARAGE_M"] = ("Roamer Geobay", "\uE909"),
+        ["GARAGE_B"] = ("Colossus Geobay", "\uE909"),
+        ["GARAGE_S"] = ("Nomad Geobay", "\uE909"),
+        ["GARAGE_SUB"] = ("Nautilon Chamber", "\uE909"),
+        ["GARAGE_MECH"] = ("Minotaur Geobay", "\uE909"),
+        ["WATERBUBBLE"] = ("Marine Shelter", "\uE909"),
+        ["BASE_BEAMSTONE"] = ("Light Fissure", "\uE80F"),
+        ["BASE_HYDROPOD"] = ("Calcishroom", "\uE80F"),
+        ["BASE_SHELLWHITE"] = ("Capillary Shell", "\uE80F"),
+        ["BASE_MEDGEOMETR"] = ("Hexplate Bush", "\uE80F"),
+        ["BASE_SHARD"] = ("Glitching Separator", "\uE80F"),
+        ["BASE_ENGINEORB"] = ("Terbium Growth", "\uE80F"),
+        ["BASE_STARJOINT"] = ("Ossified Star", "\uE80F"),
     };
 
     public BaseDetailsPage()
@@ -77,25 +101,43 @@ public sealed partial class BaseDetailsPage : Page
         BaseCopyBtn.Tag = row.PortalCode;
         ToolTipService.SetToolTip(BaseCopyBtn, row.PortalCode);
 
-        if (row.Base is JObject b)
+        if (row.Category.Contains("Settlement", StringComparison.OrdinalIgnoreCase))
+        {
+            if (row.Base is JObject sb && sb["@ZJ"] is JArray partsArr && partsArr.Count > 0)
+            {
+                var objects = partsArr.OfType<JObject>()
+                    .Select(o => o["r<7"]?.Value<string>() ?? "").Where(id => id != "^BASE_FLAG").ToList();
+                _groups = objects.GroupBy(id => id).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).ToList();
+                await CatalogService.WarmCacheAsync(_groups.Select(g => g.Key));
+                BaseKindsTxt.Text = $"{_groups.Count:N0} kinds of placed part";
+                PartSearchBox.Visibility = Visibility.Visible;
+                PartSearchBox.Header = "Filter parts placed in settlement";
+                RenderSettlementWithParts();
+            }
+            else
+            {
+                _groups = new();
+                BaseKindsTxt.Text = "Settlement Administration";
+                PartSearchBox.Visibility = Visibility.Collapsed;
+                RenderSettlementCard();
+            }
+        }
+        else if (row.Base is JObject b)
         {
             var objects = (b["@ZJ"] as JArray ?? new JArray()).OfType<JObject>()
                 .Select(o => o["r<7"]?.Value<string>() ?? "").Where(id => id != "^BASE_FLAG").ToList();
             _groups = objects.GroupBy(id => id).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).ToList();
             await CatalogService.WarmCacheAsync(_groups.Select(g => g.Key));
             BaseKindsTxt.Text = $"{_groups.Count:N0} kinds of part";
+            PartSearchBox.Visibility = Visibility.Visible;
+            PartSearchBox.Header = "Filter parts in base";
             RenderParts();
-        }
-        else if (row.Category.Contains("Settlement", StringComparison.OrdinalIgnoreCase))
-        {
-            _groups = new();
-            BaseKindsTxt.Text = "Settlement Administration";
-            RenderSettlementCard();
         }
         else
         {
             _groups = new();
             BaseKindsTxt.Text = "Standalone Placed Equipment";
+            PartSearchBox.Visibility = Visibility.Collapsed;
             RenderPlacedEquipmentCard();
         }
     }
@@ -107,7 +149,7 @@ public sealed partial class BaseDetailsPage : Page
             return known.Name;
 
         if (CatalogService.TryGet(norm)?.DisplayName is { Length: > 0 } catalogName)
-            return catalogName;
+            return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(catalogName.ToLowerInvariant());
 
         string cleaned = norm.Replace('_', ' ');
         cleaned = Regex.Replace(cleaned, @"([a-z])([A-Z])", "$1 $2");
@@ -131,7 +173,52 @@ public sealed partial class BaseDetailsPage : Page
     private void RenderParts(string filter = "")
     {
         PartsPanel.Children.Clear();
+        RenderPartsInternal(filter);
+    }
 
+    private void RenderSettlementWithParts(string filter = "")
+    {
+        PartsPanel.Children.Clear();
+
+        var card = new Border
+        {
+            Padding = new Thickness(18, 14, 18, 14),
+            Background = (Brush)Application.Current.Resources["ThemePanelAltBrush"],
+            BorderBrush = (Brush)Application.Current.Resources["ThemeLineBrush"],
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            MaxWidth = 680,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(0, 0, 0, 14)
+        };
+
+        var stack = new StackPanel { Spacing = 8 };
+        stack.Children.Add(new TextBlock { Text = "SETTLEMENT OVERVIEW & CITIZEN DIRECTIVE", Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] });
+        stack.Children.Add(new TextBlock
+        {
+            Text = "This planetary settlement is governed from your Overseer's Office. Colony construction, citizen decisions, debt settlement, and daily production are managed through dedicated colony records.",
+            Style = (Style)Application.Current.Resources["ThemeBodyTextStyle"],
+            FontSize = 13,
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        var btn = new Button
+        {
+            Content = "Open Settlements Page ›",
+            Margin = new Thickness(0, 4, 0, 0),
+            Padding = new Thickness(12, 5, 12, 5)
+        };
+        btn.Click += (_, _) => Frame.Navigate(typeof(SettlementPage));
+        stack.Children.Add(btn);
+
+        card.Child = stack;
+        PartsPanel.Children.Add(card);
+
+        RenderPartsInternal(filter);
+    }
+
+    private void RenderPartsInternal(string filter)
+    {
         var filtered = _groups.Where(g =>
         {
             if (string.IsNullOrWhiteSpace(filter)) return true;
@@ -298,7 +385,15 @@ public sealed partial class BaseDetailsPage : Page
 
     private void PartSearchBox_TextChanged(object sender, TextChangedEventArgs e)
     {
-        RenderParts(PartSearchBox.Text.Trim());
+        string filter = PartSearchBox.Text.Trim();
+        if (_row?.Category.Contains("Settlement", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            RenderSettlementWithParts(filter);
+        }
+        else
+        {
+            RenderParts(filter);
+        }
     }
 
     private void BackBtn_Click(object sender, RoutedEventArgs e)

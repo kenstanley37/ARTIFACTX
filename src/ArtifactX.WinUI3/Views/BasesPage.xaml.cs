@@ -178,6 +178,16 @@ public sealed partial class BasesPage : Page
             ListArea.Visibility = Visibility.Collapsed;
         }
 
+        // Warm catalog cache for placed equipment IDs so their real names and icons load immediately
+        var placedIds = (snapshot.LooseObjects as JArray)?.OfType<JObject>()
+            .Select(o => o["r<7"]?.Value<string>())
+            .Where(id => !string.IsNullOrEmpty(id))
+            .ToList();
+        if (placedIds != null && placedIds.Count > 0)
+        {
+            await CatalogService.WarmCacheAsync(placedIds);
+        }
+
         // Heavy computations, counts, and SQLite reads run off the UI thread
         var result = await Task.Run(() => ComputeBases(snapshot, here, key));
 
@@ -238,6 +248,26 @@ public sealed partial class BasesPage : Page
 
         var planets = NmsPlanets.ReadAll(snapshot.Discoveries)
             .GroupBy(p => p.Address).ToDictionary(g => g.Key, g => g.First());
+
+        // Index loose objects by planetary address to correlate with settlements
+        var looseByAddress = new Dictionary<ulong, List<JObject>>();
+        if (snapshot.LooseObjects is JArray looseArr)
+        {
+            foreach (var o in looseArr.OfType<JObject>())
+            {
+                if (S.ParsePackedAddress(o["oZw"]) is ulong address && address != 0)
+                {
+                    if (!looseByAddress.TryGetValue(address, out var list))
+                    {
+                        list = new List<JObject>();
+                        looseByAddress[address] = list;
+                    }
+                    list.Add(o);
+                }
+            }
+        }
+
+        var settlementAddresses = new HashSet<ulong>();
 
         // 1. Freighter Base (pinned at top)
         if (snapshot.Bases is JArray allBases)
@@ -372,6 +402,7 @@ public sealed partial class BasesPage : Page
                 if (!string.IsNullOrEmpty(localOnlineId) && ownerOnlineId != localOnlineId) continue;
 
                 if (S.ParsePackedAddress(s["yhJ"]) is not ulong address || address == 0) continue;
+                settlementAddresses.Add(address);
 
                 int planetIndex = (int)((address >> 52) & 0xF);
                 int galaxy = S.GalaxyNumber(address);
@@ -381,6 +412,45 @@ public sealed partial class BasesPage : Page
                 string code = S.PortalAddress(address, planetIndex > 0 ? planetIndex : 1);
                 int population = s["x3<"]?.Value<int>() ?? 0;
                 string loc = UniverseInfo.LocationWithRegion(address, galaxy);
+
+                // Collect parts placed on this settlement's planet (loose equipment + nearby home base parts)
+                var settlementParts = new JArray();
+                if (looseByAddress.TryGetValue(address, out var onPlanetLoose))
+                {
+                    foreach (var lo in onPlanetLoose)
+                    {
+                        settlementParts.Add(new JObject { ["r<7"] = lo["r<7"] });
+                    }
+                }
+
+                if (snapshot.Bases is JArray allBasesList)
+                {
+                    foreach (var b in allBasesList.OfType<JObject>())
+                    {
+                        if (S.ParsePackedAddress(b["oZw"]) == address && b["@ZJ"] is JArray baseParts)
+                        {
+                            foreach (var p in baseParts.OfType<JObject>())
+                            {
+                                if (p["r<7"]?.Value<string>() != "^BASE_FLAG")
+                                {
+                                    settlementParts.Add(p);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                int partsPlaced = settlementParts.Count;
+                var settlementBase = new JObject(s)
+                {
+                    ["@ZJ"] = settlementParts,
+                    ["peI"] = new JObject { ["DPp"] = "Settlement" },
+                    ["oZw"] = s["yhJ"]
+                };
+
+                string partsLabel = partsPlaced > 0
+                    ? $"{partsPlaced:N0} parts placed · {population:N0} citizens"
+                    : $"Population {population:N0} citizens · Overseer";
 
                 string area = AreaText(address, planetIndex, galaxy, code);
                 if (string.IsNullOrEmpty(area))
@@ -395,9 +465,9 @@ public sealed partial class BasesPage : Page
                     DistanceLabel: DistanceText(here, address, distance),
                     AreaLabel: area,
                     AreaOpacity: 1.0,
-                    PartsLabel: $"Population {population:N0} citizens · Overseer",
+                    PartsLabel: partsLabel,
                     PartsLevel: 0,
-                    Base: null,
+                    Base: settlementBase,
                     SortDistance: distance ?? double.MaxValue,
                     Galaxy: galaxy,
                     Category: CategorySettlements,
@@ -408,12 +478,14 @@ public sealed partial class BasesPage : Page
             }
         }
 
-        // 5. Placed Equipment (No Base) - refiners, save points, beacons left on planets
+        // 5. Placed Equipment (No Base) - refiners, save points, beacons left on planets without bases or settlements
         if (snapshot.LooseObjects is JArray placedObjects)
         {
             foreach (var o in placedObjects.OfType<JObject>())
             {
                 if (S.ParsePackedAddress(o["oZw"]) is not ulong address) continue;
+                if (settlementAddresses.Contains(address)) continue; // Attributed to settlement
+
                 string id = o["r<7"]?.Value<string>() ?? "";
                 int planetIndex = (int)((address >> 52) & 0xF);
                 int galaxy = S.GalaxyNumber(address);
@@ -454,17 +526,45 @@ public sealed partial class BasesPage : Page
         return new BasesComputationResult(key, totalBases, placedCount, total, NmsBuildCounts.GlobalLevel(total), breakdown, rawItems);
     }
 
+    private static readonly Dictionary<string, string> PlacedItemFriendlyNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["BUILDBEACON"] = "Save Beacon",
+        ["BUILDSAVE"] = "Save Point",
+        ["BUILDSIGNAL"] = "Signal Booster",
+        ["BUILD_REFINER1"] = "Portable Refiner",
+        ["PORTABLE_REFINER"] = "Portable Refiner",
+        ["REFINER"] = "Portable Refiner",
+        ["COOKER"] = "Nutrient Processor",
+        ["SUMMON_GARAGE"] = "Exocraft Summoning Station",
+        ["BUILDHARVESTER"] = "Autonomous Mining Unit",
+        ["BUILDTERMINAL"] = "Galactic Trade Terminal",
+        ["BASE_FLAG"] = "Base Computer",
+        ["GARAGE_M"] = "Roamer Geobay",
+        ["GARAGE_B"] = "Colossus Geobay",
+        ["GARAGE_S"] = "Nomad Geobay",
+        ["GARAGE_SUB"] = "Nautilon Chamber",
+        ["GARAGE_MECH"] = "Minotaur Geobay",
+        ["WATERBUBBLE"] = "Marine Shelter",
+        ["BASE_BEAMSTONE"] = "Light Fissure",
+        ["BASE_HYDROPOD"] = "Calcishroom",
+        ["BASE_SHELLWHITE"] = "Capillary Shell",
+        ["BASE_MEDGEOMETR"] = "Hexplate Bush",
+        ["BASE_SHARD"] = "Glitching Separator",
+        ["BASE_ENGINEORB"] = "Terbium Growth",
+        ["BASE_STARJOINT"] = "Ossified Star",
+        ["ANTENNA"] = "Communications Station",
+        ["MESSAGEMODULE"] = "Message Module",
+        ["TELEPORTER"] = "Base Teleport Module",
+    };
+
     private static string ResolvePlacedName(string id)
     {
         string norm = CatalogService.NormalizeId(id);
-        if (norm == "PORTABLE_REFINER") return "Portable Refiner";
-        if (norm == "SAVE_POINT") return "Save Point";
-        if (norm == "SAVE_BEACON") return "Save Beacon";
-        if (norm == "SIGNAL_SCANNER") return "Signal Booster";
-        if (norm == "ANTENNA") return "Communication Station";
-        if (norm == "MESSAGEMODULE") return "Message Module";
+        if (PlacedItemFriendlyNames.TryGetValue(norm, out var friendly))
+            return friendly;
 
-        if (CatalogService.TryGet(id)?.DisplayName is { Length: > 0 } n) return n;
+        if (CatalogService.TryGet(id)?.DisplayName is { Length: > 0 } n)
+            return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(n.ToLowerInvariant());
 
         string cleaned = norm.TrimStart('^').Replace('_', ' ');
         cleaned = Regex.Replace(cleaned, @"([a-z])([A-Z])", "$1 $2");
