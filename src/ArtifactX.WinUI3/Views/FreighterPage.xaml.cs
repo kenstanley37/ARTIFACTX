@@ -47,15 +47,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     private List<SceneOption>? _crewRaceOptions;
     private bool _suppressTypeSelectionEvent;
     private bool _suppressCrewRaceSelectionEvent;
-    private bool _suppressStatChangeEvent;
 
-    // Set around SetStatValue's own StageEdit call so OnSessionOrEditsChanged
-    // can skip the reload it would otherwise trigger for that same edit -
-    // same fix and reasoning as ShipsPage.SetStatValue (2026-08-01): LoadGrids
-    // recreates both InventoryGridViewModels and re-warms the catalog icon
-    // cache on every call, none of which changes when only Hyperdrive/Fleet
-    // Coordination is edited.
-    private bool _suppressReloadOnOwnStatEdit;
 
     public FreighterPage()
     {
@@ -71,7 +63,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e)
     {
-        if (_suppressReloadOnOwnStatEdit) return;
+        if (StatsBoxes.IsStaging) return; // own stat edit: nothing else changes
         DispatcherQueue.TryEnqueue(LoadGrids);
     }
 
@@ -443,90 +435,15 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     /// FREI_FLEET) into the editable NumberBoxes - same source/shape as
     /// Multi-Tool's OsQ.@bB, confirmed by real save data and cross-checked
     /// against a reference tool's own "Hyperdrive"/"Fleet Coordination" Base Stats.</summary>
+    /// <summary>The Base Stats boxes: the stat-bonus entries this page shows.</summary>
+    private static readonly (string Label, string Key)[] BaseStats = { ("Hyperdrive", "^FREI_HYPERDRIVE"), ("Fleet Coordination", "^FREI_FLEET") };
+
     private void UpdateStatDisplay()
     {
-        _suppressStatChangeEvent = true;
-
-        var bonuses = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterStatBonusesPath) as JArray;
-
-        double? Find(string key) =>
-            bonuses?.FirstOrDefault(b => b["QL1"]?.Value<string>() == key)?[">MX"]?.Value<double>();
-
-        HyperdriveStatBox.Value = Find("^FREI_HYPERDRIVE") ?? double.NaN;
-        FleetStatBox.Value = Find("^FREI_FLEET") ?? double.NaN;
-
-        _suppressStatChangeEvent = false;
+        StatsBoxes.Show(NmsInventoryContainer.FreighterStatBonusesPath, BaseStats);
     }
 
-    /// <summary>Stages a new value for one @bB entry, matched by its QL1 key,
-    /// rebuilding and staging the WHOLE @bB array at once - same reasoning as
-    /// MultiToolPage.SetStatValue (a deeper leaf-only stage isn't seen by
-    /// SaveSessionManager's staged-edit lookup, which only matches at the
-    /// exact path queried).</summary>
-    private void SetStatValue(string statKey, double newValue)
-    {
-        if (!SaveSessionManager.IsSaveLoaded || double.IsNaN(newValue)) return;
-
-        var bonusesPath = NmsInventoryContainer.FreighterStatBonusesPath;
-        var bonuses = SaveSessionManager.GetValue(bonusesPath) as JArray;
-        if (bonuses is null) return;
-
-        var updated = new JArray();
-        foreach (var entry in bonuses)
-        {
-            if (entry is JObject obj && obj["QL1"]?.Value<string>() == statKey)
-            {
-                var clone = (JObject)obj.DeepClone();
-                clone[">MX"] = newValue;
-                updated.Add(clone);
-            }
-            else
-            {
-                updated.Add(entry.DeepClone());
-            }
-        }
-
-        _suppressReloadOnOwnStatEdit = true;
-        SaveSessionManager.StageEdit(updated, bonusesPath);
-        _suppressReloadOnOwnStatEdit = false;
-    }
-
-    private void HyperdriveStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (_suppressStatChangeEvent) return;
-        SetStatValue("^FREI_HYPERDRIVE", args.NewValue);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>Redundant safety net alongside ValueChanged - some WinUI3
-    /// NumberBox versions don't reliably fire ValueChanged on a plain focus
-    /// loss, matching MultiToolPage's own DamageStatBox_LostFocus reasoning.</summary>
-    private void HyperdriveStatBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_suppressStatChangeEvent) return;
-        if (!double.IsNaN(HyperdriveStatBox.Value))
-        {
-            SetStatValue("^FREI_HYPERDRIVE", HyperdriveStatBox.Value);
-            PageResetBtn.Visibility = Visibility.Visible;
-        }
-    }
-
-    private void FleetStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (_suppressStatChangeEvent) return;
-        SetStatValue("^FREI_FLEET", args.NewValue);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void FleetStatBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_suppressStatChangeEvent) return;
-        if (!double.IsNaN(FleetStatBox.Value))
-        {
-            SetStatValue("^FREI_FLEET", FleetStatBox.Value);
-            PageResetBtn.Visibility = Visibility.Visible;
-        }
-    }
+    private void StatsBoxes_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
 
     private void UnlockAllTech_Click(object sender, RoutedEventArgs e)
     {
@@ -577,7 +494,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
         string freighterName = NameEditBox.Text?.Trim() is { Length: > 0 } n ? n : "Freighter";
         var template = _techViewModel!.ExtractTemplate(name, freighterName, "Freighter");
         template.Scope = "FullBuild";
-        template.Stats = ExtractStatsList();
+        template.Stats = StatBonusService.ReadAll(NmsInventoryContainer.FreighterStatBonusesPath);
         // Model Seed only (the hull's own look) - deliberately never the
         // Crew Seed (the captain's look, a separate concept), matching
         // NmsLoadoutTemplate.Seed's own doc comment.
@@ -727,60 +644,6 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
         LoadGrids();
     }
 
-    /// <summary>Reads the freighter's whole stat-bonus array (@bB) as a plain
-    /// key/value list, for embedding in a Full Build template - captures every
-    /// entry generically (not just the 2 keys exposed as NumberBoxes) so
-    /// nothing present but not individually surfaced gets silently dropped on
-    /// save. Only one freighter per save, so unlike ShipsPage's version this
-    /// takes no index parameter.</summary>
-    private static List<NmsLoadoutStat> ExtractStatsList()
-    {
-        var bonuses = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterStatBonusesPath) as JArray;
-        var result = new List<NmsLoadoutStat>();
-        if (bonuses is null) return result;
-
-        foreach (var entry in bonuses)
-        {
-            string? key = entry["QL1"]?.Value<string>();
-            double? value = entry[">MX"]?.Value<double>();
-            if (key is not null && value is not null)
-                result.Add(new NmsLoadoutStat { Key = key, Value = value.Value });
-        }
-
-        return result;
-    }
-
-    /// <summary>Stages a Full Build template's saved stats onto the freighter -
-    /// rebuilds the whole @bB array matched by key, same "match by key,
-    /// replace whole array" pattern as SetStatValue.</summary>
-    private static void ApplyStatsList(List<NmsLoadoutStat> stats)
-    {
-        if (stats.Count == 0) return;
-
-        var bonusesPath = NmsInventoryContainer.FreighterStatBonusesPath;
-        var bonuses = SaveSessionManager.GetValue(bonusesPath) as JArray;
-        if (bonuses is null) return;
-
-        var statsByKey = stats.ToDictionary(s => s.Key, s => s.Value);
-
-        var updated = new JArray();
-        foreach (var entry in bonuses)
-        {
-            if (entry is JObject obj && obj["QL1"]?.Value<string>() is string key && statsByKey.TryGetValue(key, out double newValue))
-            {
-                var clone = (JObject)obj.DeepClone();
-                clone[">MX"] = newValue;
-                updated.Add(clone);
-            }
-            else
-            {
-                updated.Add(entry.DeepClone());
-            }
-        }
-
-        SaveSessionManager.StageEdit(updated, bonusesPath);
-    }
-
     /// <summary>Applies a saved Full Build template's tech, stats, and Model
     /// Seed to the freighter - Class only changes if the user opts in, same
     /// as ApplyTemplateAsync.</summary>
@@ -797,7 +660,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
 
         _techViewModel.ApplyTemplate(template, alsoMatchClass);
         FreighterBuildService.ApplyInterior(template);
-        ApplyStatsList(template.Stats);
+        StatBonusService.WriteAll(NmsInventoryContainer.FreighterStatBonusesPath, template.Stats);
         if (!string.IsNullOrEmpty(template.Seed))
             SaveSessionManager.StageEdit(template.Seed, NmsInventoryContainer.FreighterModelSeedPath);
         if (!string.IsNullOrEmpty(template.TypeScenePath))

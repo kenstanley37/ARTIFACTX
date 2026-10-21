@@ -111,20 +111,7 @@
                                         <StackPanel Spacing="6">
                                             <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
                                                        ToolTipService.ToolTip="No known upper limit - extreme values won't corrupt your save, just unbalance it."/>
-                                            <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="10">
-                                                <StackPanel Width="150" Spacing="4">
-                                                    <TextBlock Text="Damage" Style="{StaticResource ThemeBodyTextStyle}"/>
-                                                    <NumberBox x:Name="DamageStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="DamageStatBox_ValueChanged" LostFocus="DamageStatBox_LostFocus"/>
-                                                </StackPanel>
-                                                <StackPanel Width="150" Spacing="4">
-                                                    <TextBlock Text="Mining" Style="{StaticResource ThemeBodyTextStyle}"/>
-                                                    <NumberBox x:Name="MiningStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="MiningStatBox_ValueChanged" LostFocus="MiningStatBox_LostFocus"/>
-                                                </StackPanel>
-                                                <StackPanel Width="150" Spacing="4">
-                                                    <TextBlock Text="Scanner" Style="{StaticResource ThemeBodyTextStyle}"/>
-                                                    <NumberBox x:Name="ScannerStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="ScannerStatBox_ValueChanged" LostFocus="ScannerStatBox_LostFocus"/>
-                                                </StackPanel>
-                                            </ctcontrols:WrapPanel>
+                                            <controls:StatBonusBoxes x:Name="StatsBoxes" Edited="StatsBoxes_Edited"/>
                                         </StackPanel>
 
                                         <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="16">

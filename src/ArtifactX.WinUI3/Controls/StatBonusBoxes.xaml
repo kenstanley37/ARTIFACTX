@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Base stats of a Multi-Tool, Starship or freighter: one number box per stat-bonus
+     entry (StatBonusService). Edits are staged as they're committed (Enter or leaving
+     the box). -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.StatBonusBoxes"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls">
+
+    <ItemsControl ItemsSource="{x:Bind Stats}">
+        <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+                <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="10"/>
+            </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="viewmodels:StatBoxViewModel">
+                <StackPanel Width="150" Spacing="4">
+                    <TextBlock Text="{x:Bind Label}" Style="{StaticResource ThemeBodyTextStyle}"/>
+                    <NumberBox Value="{x:Bind Value, Mode=TwoWay}" Minimum="0" SpinButtonPlacementMode="Hidden"
+                               AutomationProperties.Name="{x:Bind Label}"/>
+                </StackPanel>
+            </DataTemplate>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
+</UserControl>

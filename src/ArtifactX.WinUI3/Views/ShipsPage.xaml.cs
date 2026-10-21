@@ -46,13 +46,10 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
     private InventoryGridViewModel? _cargoViewModel;
     private int _selectedIndex = -1;
     private List<ShipEntry> _ships = new();
-    private bool _suppressStatChangeEvent;
 
-    // Set around SetStatValue's own StageEdit call so OnSessionOrEditsChanged
-    // can skip the reload it would otherwise trigger for that same edit - see
-    // OnSessionOrEditsChanged's doc comment for why this matters specifically
-    // on this page.
-    private bool _suppressReloadOnOwnStatEdit;
+    // Set around CommitName's own StageEdit while typing, so OnSessionOrEditsChanged
+    // skips the full reload for that edit (stat edits: StatsBoxes.IsStaging).
+    private bool _suppressReloadOnOwnNameEdit;
 
     // Ship-type/class -> max-slot lookups (GameId -> CapacityValue), loaded once
     // per page lifetime from the catalog - see StarshipCapacity for why these
@@ -81,13 +78,14 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         TemplatesPanel.Host = this;
     }
 
-    /// <summary>Skips the reload for edits SetStatValue just staged itself -
-    /// see its own doc comment for why. Everything else that can trigger this
-    /// event (switching save file, another page, TechGrid/CargoGrid cell
-    /// edits, Class/Name/Seed changes) still gets the normal full reload.</summary>
+    /// <summary>Skips the reload for this page's own stat edits (StatsBoxes) and
+    /// name typing - rebuilding both grids on each made switching boxes lag
+    /// (2026-08-01). Everything else that can trigger this event (switching save
+    /// file, another page, TechGrid/CargoGrid cell edits, Class/Seed changes)
+    /// still gets the normal full reload.</summary>
     private void OnSessionOrEditsChanged(object? sender, EventArgs e)
     {
-        if (_suppressReloadOnOwnStatEdit) return;
+        if (_suppressReloadOnOwnNameEdit || StatsBoxes.IsStaging) return;
         DispatcherQueue.TryEnqueue(LoadShipList);
     }
 
@@ -110,7 +108,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
     /// EVERY page (General/Exosuit/MultiTool/Ships/Freighter/Frigate/
     /// BaseStorage/CorvetteCache/Companions/Settlement) left a permanently
     /// subscribed dead instance behind. Editing a single NumberBox on THIS
-    /// page fires SetStatValue -> StageEdit -> PendingEditsChanged, which
+    /// page stages a stat edit -> PendingEditsChanged, which
     /// then re-ran OnSessionOrEditsChanged's full LoadShipList (rebuilding
     /// the Technology/Cargo grids, incl. catalog icon lookups) on every one
     /// of those accumulated dead instances too, all synchronously on the UI
@@ -435,10 +433,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
             ClassPicker.Visibility = Visibility.Collapsed;
             NameEditBox.Text = "";
             SeedEditBox.Text = "";
-            DamageStatBox.Value = double.NaN;
-            ShieldStatBox.Value = double.NaN;
-            HyperdriveStatBox.Value = double.NaN;
-            AgileStatBox.Value = double.NaN;
+            StatsBoxes.Clear();
             return;
         }
 
@@ -699,9 +694,9 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         if (currentShip != null && newName == (currentShip.IsUnnamed ? currentShip.GameName : currentShip.Name)) return;
 
         var namePath = new[] { "vLc", "6f=", "@Cs", _selectedIndex.ToString(), "NKm" };
-        _suppressReloadOnOwnStatEdit = typing;
+        _suppressReloadOnOwnNameEdit = typing;
         SaveSessionManager.StageEdit(newName, namePath);
-        _suppressReloadOnOwnStatEdit = false;
+        _suppressReloadOnOwnNameEdit = false;
 
         PageResetBtn.Visibility = Visibility.Visible;
         if (!typing) { LoadShipList(); return; }
@@ -733,146 +728,16 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
     /// independent of the Class letter (SetClass only ever writes B@N.1o6),
     /// which is exactly why these need their own editable fields - changing
     /// Class alone doesn't touch them.</summary>
+    /// <summary>The Base Stats boxes: the stat-bonus entries this page shows.</summary>
+    private static readonly (string Label, string Key)[] BaseStats = { ("Damage", "^SHIP_DAMAGE"), ("Shield", "^SHIP_SHIELD"), ("Hyperdrive", "^SHIP_HYPERDRIVE"), ("Maneuverability", "^SHIP_AGILE") };
+
     private void UpdateStatDisplay()
     {
-        _suppressStatChangeEvent = true;
-
-        var bonuses = _selectedIndex >= 0
-            ? SaveSessionManager.GetValue(NmsInventoryContainer.ShipStatBonusesPath(_selectedIndex)) as JArray
-            : null;
-
-        double? Find(string key) =>
-            bonuses?.FirstOrDefault(b => b["QL1"]?.Value<string>() == key)?[">MX"]?.Value<double>();
-
-        DamageStatBox.Value = Find("^SHIP_DAMAGE") ?? double.NaN;
-        ShieldStatBox.Value = Find("^SHIP_SHIELD") ?? double.NaN;
-        HyperdriveStatBox.Value = Find("^SHIP_HYPERDRIVE") ?? double.NaN;
-        AgileStatBox.Value = Find("^SHIP_AGILE") ?? double.NaN;
-
-        _suppressStatChangeEvent = false;
+        if (_selectedIndex < 0) StatsBoxes.Clear();
+        else StatsBoxes.Show(NmsInventoryContainer.ShipStatBonusesPath(_selectedIndex), BaseStats);
     }
 
-    /// <summary>Stages a new value for one @bB entry, matched by its QL1 key,
-    /// rebuilding and staging the WHOLE @bB array at once - same reasoning as
-    /// FreighterPage/MultiToolPage.SetStatValue (a deeper leaf-only stage
-    /// isn't seen by SaveSessionManager's staged-edit lookup, which only
-    /// matches at the exact path queried). Entries this page doesn't know
-    /// about (e.g. a Living Ship's "^ALIEN_SHIP") pass through untouched.
-    ///
-    /// The StageEdit call is wrapped with _suppressReloadOnOwnStatEdit
-    /// (2026-08-01 fix, real reported bug: switching between Damage/Shield/
-    /// Hyperdrive/Maneuverability had a noticeable sub-second lag on this
-    /// page specifically). StageEdit fires SaveSessionManager's static
-    /// PendingEditsChanged event, which this page's own OnSessionOrEditsChanged
-    /// reacts to by reloading the WHOLE selected ship - rebuilding both the
-    /// Technology and Cargo InventoryGridViewModels (up to 10x6 + 10x12 =
-    /// 180 cells) and re-warming the catalog icon cache for every occupied
-    /// slot, none of which changed. That reload is genuinely needed for
-    /// edits that came from elsewhere (switching save file, another page,
-    /// TechGrid/CargoGrid cell edits, Class/Name/Seed changes all still go
-    /// through un-suppressed), but not for a stat box re-confirming a value
-    /// it already displays correctly - the NumberBox is already showing what
-    /// was just typed. Other pages' grids are small enough this same
-    /// redundant-reload pattern isn't noticeable; Ships' is the heaviest in
-    /// the app, which is why the lag showed up here specifically.</summary>
-    private void SetStatValue(string statKey, double newValue)
-    {
-        if (_selectedIndex < 0 || double.IsNaN(newValue)) return;
-
-        var bonusesPath = NmsInventoryContainer.ShipStatBonusesPath(_selectedIndex);
-        var bonuses = SaveSessionManager.GetValue(bonusesPath) as JArray;
-        if (bonuses is null) return;
-
-        var updated = new JArray();
-        foreach (var entry in bonuses)
-        {
-            if (entry is JObject obj && obj["QL1"]?.Value<string>() == statKey)
-            {
-                var clone = (JObject)obj.DeepClone();
-                clone[">MX"] = newValue;
-                updated.Add(clone);
-            }
-            else
-            {
-                updated.Add(entry.DeepClone());
-            }
-        }
-
-        _suppressReloadOnOwnStatEdit = true;
-        SaveSessionManager.StageEdit(updated, bonusesPath);
-        _suppressReloadOnOwnStatEdit = false;
-    }
-
-    private void DamageStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (_suppressStatChangeEvent) return;
-        SetStatValue("^SHIP_DAMAGE", args.NewValue);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>Redundant safety net alongside ValueChanged - some WinUI3
-    /// NumberBox versions don't reliably fire ValueChanged on a plain focus
-    /// loss, matching Freighter/MultiToolPage's own *StatBox_LostFocus.</summary>
-    private void DamageStatBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_suppressStatChangeEvent) return;
-        if (!double.IsNaN(DamageStatBox.Value))
-        {
-            SetStatValue("^SHIP_DAMAGE", DamageStatBox.Value);
-            PageResetBtn.Visibility = Visibility.Visible;
-        }
-    }
-
-    private void ShieldStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (_suppressStatChangeEvent) return;
-        SetStatValue("^SHIP_SHIELD", args.NewValue);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void ShieldStatBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_suppressStatChangeEvent) return;
-        if (!double.IsNaN(ShieldStatBox.Value))
-        {
-            SetStatValue("^SHIP_SHIELD", ShieldStatBox.Value);
-            PageResetBtn.Visibility = Visibility.Visible;
-        }
-    }
-
-    private void HyperdriveStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (_suppressStatChangeEvent) return;
-        SetStatValue("^SHIP_HYPERDRIVE", args.NewValue);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void HyperdriveStatBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_suppressStatChangeEvent) return;
-        if (!double.IsNaN(HyperdriveStatBox.Value))
-        {
-            SetStatValue("^SHIP_HYPERDRIVE", HyperdriveStatBox.Value);
-            PageResetBtn.Visibility = Visibility.Visible;
-        }
-    }
-
-    private void AgileStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (_suppressStatChangeEvent) return;
-        SetStatValue("^SHIP_AGILE", args.NewValue);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void AgileStatBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_suppressStatChangeEvent) return;
-        if (!double.IsNaN(AgileStatBox.Value))
-        {
-            SetStatValue("^SHIP_AGILE", AgileStatBox.Value);
-            PageResetBtn.Visibility = Visibility.Visible;
-        }
-    }
+    private void StatsBoxes_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
 
     private void UnlockAllTech_Click(object sender, RoutedEventArgs e)
     {
@@ -1011,7 +876,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
     {
         var template = _techViewModel!.ExtractTemplate(name, source.Name, "Ship");
         template.Scope = "FullBuild";
-        template.Stats = ExtractStatsList(source.Index);
+        template.Stats = StatBonusService.ReadAll(NmsInventoryContainer.ShipStatBonusesPath(source.Index));
         template.Seed = SaveSessionManager.GetValue(NmsInventoryContainer.ShipModelSeedPath(source.Index))?.Value<string>();
         template.TypeScenePath = SaveSessionManager.GetValue(
             "vLc", "6f=", "@Cs", source.Index.ToString(), "NTx", "93M")?.Value<string>();
@@ -1046,28 +911,6 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         NewFromTemplateService.RemoveShip(ship.Index);
         _selectedIndex = -1;
         LoadShipList();
-    }
-
-    /// <summary>Reads a ship's whole stat-bonus array (@bB) as a plain key/value
-    /// list, for embedding in a Full Build template - captures every entry
-    /// generically (not just the 4 keys exposed as NumberBoxes) so nothing
-    /// present but not individually surfaced (e.g. a Living Ship's
-    /// "^ALIEN_SHIP") gets silently dropped on save.</summary>
-    private static List<NmsLoadoutStat> ExtractStatsList(int shipIndex)
-    {
-        var bonuses = SaveSessionManager.GetValue(NmsInventoryContainer.ShipStatBonusesPath(shipIndex)) as JArray;
-        var result = new List<NmsLoadoutStat>();
-        if (bonuses is null) return result;
-
-        foreach (var entry in bonuses)
-        {
-            string? key = entry["QL1"]?.Value<string>();
-            double? value = entry[">MX"]?.Value<double>();
-            if (key is not null && value is not null)
-                result.Add(new NmsLoadoutStat { Key = key, Value = value.Value });
-        }
-
-        return result;
     }
 
     /// <summary>Full Build templates add a whole new Starship in the first

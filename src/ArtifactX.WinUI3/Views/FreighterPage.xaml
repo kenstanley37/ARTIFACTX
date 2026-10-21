@@ -113,16 +113,7 @@
                                 <StackPanel Spacing="6">
                                     <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
                                                ToolTipService.ToolTip="No known upper limit - extreme values won't corrupt your save, just unbalance it."/>
-                                    <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="10">
-                                        <StackPanel Width="150" Spacing="4">
-                                            <TextBlock Text="Hyperdrive" Style="{StaticResource ThemeBodyTextStyle}"/>
-                                            <NumberBox x:Name="HyperdriveStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="HyperdriveStatBox_ValueChanged" LostFocus="HyperdriveStatBox_LostFocus"/>
-                                        </StackPanel>
-                                        <StackPanel Width="150" Spacing="4">
-                                            <TextBlock Text="Fleet Coordination" Style="{StaticResource ThemeBodyTextStyle}"/>
-                                            <NumberBox x:Name="FleetStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="FleetStatBox_ValueChanged" LostFocus="FleetStatBox_LostFocus"/>
-                                        </StackPanel>
-                                    </ctcontrols:WrapPanel>
+                                    <controls:StatBonusBoxes x:Name="StatsBoxes" Edited="StatsBoxes_Edited"/>
                                 </StackPanel>
 
                                 <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">

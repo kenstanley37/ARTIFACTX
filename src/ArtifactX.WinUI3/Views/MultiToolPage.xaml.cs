@@ -59,13 +59,6 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
     // database instead of being hardcoded here.
     private Dictionary<string, int>? _multiToolCapacity;
 
-    // Set around SetStatValue's own StageEdit call so OnSessionOrEditsChanged
-    // can skip the reload it would otherwise trigger for that same edit -
-    // same fix and reasoning as ShipsPage.SetStatValue (2026-08-01): the full
-    // reload recreates the Technology InventoryGridViewModel and re-warms the
-    // catalog icon cache on every call, none of which changes when only
-    // Damage/Mining/Scanner is edited.
-    private bool _suppressReloadOnOwnStatEdit;
 
     public MultiToolPage()
     {
@@ -82,7 +75,7 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e)
     {
-        if (_suppressReloadOnOwnStatEdit) return;
+        if (StatsBoxes.IsStaging) return; // own stat edit: nothing else changes
         DispatcherQueue.TryEnqueue(LoadToolList);
     }
 
@@ -375,9 +368,7 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
             NameEditBox.Text = "";
             SelectedToolClassTxt.Text = "—";
             SelectedToolClassBadge.Background = ThemeResources.Brush("ThemePanelAltBrush");
-            DamageStatBox.Value = double.NaN;
-            MiningStatBox.Value = double.NaN;
-            ScannerStatBox.Value = double.NaN;
+            StatsBoxes.Clear();
             TypeComboBox.SelectedItem = null;
             KindTxt.Visibility = Visibility.Collapsed;
             ShowToolPreview();
@@ -463,7 +454,6 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
     private List<MultiToolTypeOption>? _multiToolTypeOptions;
 
     private bool _suppressTypeSelectionEvent;
-    private bool _suppressStatChangeEvent;
 
     /// <summary>Loads the Type option list from the catalog once per page lifetime
     /// (options don't change mid-session), then syncs the combo's selection to the
@@ -559,119 +549,15 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
     /// every model-swap Type we tested) - so editing them here doesn't touch
     /// which model renders, only the underlying stat rolls, exactly like
     /// a reference tool's own "Base Stats" fields.</summary>
+    /// <summary>The Base Stats boxes: the stat-bonus entries this page shows.</summary>
+    private static readonly (string Label, string Key)[] BaseStats = { ("Damage", "^WEAPON_DAMAGE"), ("Mining", "^WEAPON_MINING"), ("Scanner", "^WEAPON_SCAN") };
+
     private void UpdateStatDisplay()
     {
-        _suppressStatChangeEvent = true;
-
-        var bonuses = SaveSessionManager.GetValue(NmsInventoryContainer.MultiToolTechnologyPath(_selectedIndex).Append("@bB").ToArray()) as JArray;
-
-        double? Find(string key) =>
-            bonuses?.FirstOrDefault(b => b["QL1"]?.Value<string>() == key)?[">MX"]?.Value<double>();
-
-        DamageStatBox.Value = Find("^WEAPON_DAMAGE") ?? double.NaN;
-        MiningStatBox.Value = Find("^WEAPON_MINING") ?? double.NaN;
-        ScannerStatBox.Value = Find("^WEAPON_SCAN") ?? double.NaN;
-
-        _suppressStatChangeEvent = false;
+        StatsBoxes.Show(NmsInventoryContainer.MultiToolTechnologyPath(_selectedIndex).Append("@bB").ToArray(), BaseStats);
     }
 
-    /// <summary>Stages a new value for one @bB entry, matched by its QL1 key
-    /// (WEAPON_DAMAGE/WEAPON_MINING/WEAPON_SCAN) rather than a fixed array
-    /// index, in case a future save ever orders them differently. Rebuilds and
-    /// stages the WHOLE @bB array at once - staging just the one entry's >MX
-    /// leaf looked correct but silently reverted on the next read, because
-    /// SaveSessionManager only recognizes a staged edit at the EXACT path
-    /// queried; UpdateStatDisplay reads the array as a whole, so a deeper leaf
-    /// edit was never seen by it. Same whole-array pattern :No/hl?/MMm already
-    /// use for exactly this reason. No upper bound is enforced - confirmed
-    /// the game itself doesn't enforce one either, and these are plain
-    /// floats, not structural/indexing fields, so an extreme value can
-    /// unbalance a save but won't corrupt it.</summary>
-    private void SetStatValue(string weaponKey, double newValue)
-    {
-        if (_selectedIndex < 0 || double.IsNaN(newValue)) return;
-
-        var containerPath = NmsInventoryContainer.MultiToolTechnologyPath(_selectedIndex);
-        var bonusesPath = containerPath.Append("@bB").ToArray();
-        var bonuses = SaveSessionManager.GetValue(bonusesPath) as JArray;
-        if (bonuses is null) return;
-
-        var updated = new JArray();
-        foreach (var entry in bonuses)
-        {
-            if (entry is JObject obj && obj["QL1"]?.Value<string>() == weaponKey)
-            {
-                var clone = (JObject)obj.DeepClone();
-                clone[">MX"] = newValue;
-                updated.Add(clone);
-            }
-            else
-            {
-                updated.Add(entry.DeepClone());
-            }
-        }
-
-        _suppressReloadOnOwnStatEdit = true;
-        SaveSessionManager.StageEdit(updated, bonusesPath);
-        _suppressReloadOnOwnStatEdit = false;
-    }
-
-    private void DamageStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (_suppressStatChangeEvent) return;
-        SetStatValue("^WEAPON_DAMAGE", args.NewValue);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>Redundant safety net alongside ValueChanged - some WinUI3
-    /// NumberBox versions don't reliably fire ValueChanged on a plain focus
-    /// loss (only guaranteed on Enter/certain validation triggers), which can
-    /// look like "my edit reverted" when it's really that staging never ran at
-    /// all. Reading sender.Value directly here and re-staging is a harmless,
-    /// idempotent no-op if ValueChanged already handled it correctly.</summary>
-    private void DamageStatBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_suppressStatChangeEvent) return;
-        if (!double.IsNaN(DamageStatBox.Value))
-        {
-            SetStatValue("^WEAPON_DAMAGE", DamageStatBox.Value);
-            PageResetBtn.Visibility = Visibility.Visible;
-        }
-    }
-
-    private void MiningStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (_suppressStatChangeEvent) return;
-        SetStatValue("^WEAPON_MINING", args.NewValue);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void MiningStatBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_suppressStatChangeEvent) return;
-        if (!double.IsNaN(MiningStatBox.Value))
-        {
-            SetStatValue("^WEAPON_MINING", MiningStatBox.Value);
-            PageResetBtn.Visibility = Visibility.Visible;
-        }
-    }
-
-    private void ScannerStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (_suppressStatChangeEvent) return;
-        SetStatValue("^WEAPON_SCAN", args.NewValue);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void ScannerStatBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_suppressStatChangeEvent) return;
-        if (!double.IsNaN(ScannerStatBox.Value))
-        {
-            SetStatValue("^WEAPON_SCAN", ScannerStatBox.Value);
-            PageResetBtn.Visibility = Visibility.Visible;
-        }
-    }
+    private void StatsBoxes_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
 
     /// <summary>Stages the rename when the field loses focus - not on every
     /// keystroke, since that would rebuild the selector strip (via LoadToolList,
@@ -833,7 +719,7 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
     {
         var template = _techViewModel!.ExtractTemplate(name, source.Name, "MultiTool");
         template.Scope = "FullBuild";
-        template.Stats = ExtractStatsList(source.Index);
+        template.Stats = StatBonusService.ReadAll(NmsInventoryContainer.MultiToolTechnologyPath(source.Index).Append("@bB").ToArray());
         template.TypeScenePath = SaveSessionManager.GetValue(
             "vLc", "6f=", "SuJ", source.Index.ToString(), "NTx", "93M")?.Value<string>();
         NewFromTemplateService.CaptureMultiTool(template, source.Index);
@@ -865,29 +751,6 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
         NewFromTemplateService.RemoveMultiTool(tool.Index);
         _selectedIndex = -1;
         LoadToolList();
-    }
-
-    /// <summary>Reads a tool's whole stat-bonus array (@bB, nested under its
-    /// Technology container) as a plain key/value list, for embedding in a
-    /// Full Build template - captures every entry generically (not just the 3
-    /// keys exposed as NumberBoxes) so nothing present but not individually
-    /// surfaced gets silently dropped on save.</summary>
-    private static List<NmsLoadoutStat> ExtractStatsList(int toolIndex)
-    {
-        var bonuses = SaveSessionManager.GetValue(
-            NmsInventoryContainer.MultiToolTechnologyPath(toolIndex).Append("@bB").ToArray()) as JArray;
-        var result = new List<NmsLoadoutStat>();
-        if (bonuses is null) return result;
-
-        foreach (var entry in bonuses)
-        {
-            string? key = entry["QL1"]?.Value<string>();
-            double? value = entry[">MX"]?.Value<double>();
-            if (key is not null && value is not null)
-                result.Add(new NmsLoadoutStat { Key = key, Value = value.Value });
-        }
-
-        return result;
     }
 
     /// <summary>Full Build templates add a whole new Multi-Tool in the first
