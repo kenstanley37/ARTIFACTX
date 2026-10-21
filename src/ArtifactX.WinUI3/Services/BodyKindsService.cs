@@ -114,23 +114,24 @@ public static class BodyKindsService
         {
             // Its type and resources go with it, for when it's placed (Rigie IV's were lost, 2026-10-20).
             var heldResources = PlanetPageReader.PopupResources(list, mark);
-            UnmatchedBodiesService.Hold(name, !string.IsNullOrEmpty(type) || heldResources.Count > 0
-                ? new PlanetDetails { Descriptor = type ?? "", Resources = heldResources } : null, moon);
+            string heldSentinels = PlanetPageReader.PopupSentinels(list, mark);
+            UnmatchedBodiesService.Hold(name, !string.IsNullOrEmpty(type) || heldResources.Count > 0 || heldSentinels.Length > 0
+                ? new PlanetDetails { Descriptor = type ?? "", Resources = heldResources, Sentinels = heldSentinels } : null, moon);
             return $"body pop-up \"{name}\": unknown name - held for you to place on Current System";
         }
 
         // The list pop-up also lists the body's resources: fill them in (the full page
         // adds weather, sentinels, flora and fauna).
         string resources = PlanetPageReader.ReadPopupResources(list, mark, system, body);
-        if (!string.IsNullOrEmpty(type))
+        // Its type and sentinel level, where nothing better is recorded (the planet's page gives the exact words).
+        string popupSentinels = PlanetPageReader.PopupSentinels(list, mark);
         {
             var existingDetails = PlanetDetailsService.Get(system, body);
             var details = existingDetails?.Copy() ?? new PlanetDetails();
-            if (string.IsNullOrEmpty(details.Descriptor))
-            {
-                details.Descriptor = type;
-                PlanetDetailsService.Save(system, body, details, source: "captured");
-            }
+            bool changed = false;
+            if (!string.IsNullOrEmpty(type) && string.IsNullOrEmpty(details.Descriptor)) { details.Descriptor = type; changed = true; }
+            if (popupSentinels.Length > 0 && string.IsNullOrEmpty(details.Sentinels)) { details.Sentinels = popupSentinels; changed = true; resources += $"; sentinels {popupSentinels}"; }
+            if (changed) PlanetDetailsService.Save(system, body, details, source: "captured");
         }
 
         bool generatorSays = UniverseInfo.Bodies(system).IsMoon(body);

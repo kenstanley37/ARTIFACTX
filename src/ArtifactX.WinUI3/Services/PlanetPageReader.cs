@@ -117,14 +117,12 @@ public static class PlanetPageReader
 
         var resources = new List<string>();
         string sentinels = "";
-        var sentinelWords = _words!.Where(w => w.Group == "Sentinels").Select(w => w.Word).ToList();
         for (int i = type + 1; i < lines.Count && i <= type + 8; i++)
         {
             string line = Clean(lines[i]);
-            if (Regex.Match(line, @"^(.+?)\s+Sentinels$", RegexOptions.IgnoreCase) is { Success: true } sm)
+            if (SentinelLine(line) is { } read)
             {
-                string word = Snap(sm.Groups[1].Value, sentinelWords);
-                if (sentinelWords.Contains(word, StringComparer.OrdinalIgnoreCase)) sentinels = word;
+                sentinels = read;
                 break;
             }
             string res = Snap(line, _resources!);
@@ -495,6 +493,31 @@ public static class PlanetPageReader
             if (_resources.Contains(word, StringComparer.OrdinalIgnoreCase) && !found.Contains(word, StringComparer.OrdinalIgnoreCase)) found.Add(word);
         }
         return found;
+    }
+
+    /// <summary>A sentinel line on a flight card or Discoveries pop-up ("Aggressive Sentinels",
+    /// "Low Sentinel Activity") as the game's word for it - "" when it's a sentinel line
+    /// without one of the game's words ("High Sentinel Activity": the planet's page then
+    /// gives the word), null when it isn't a sentinel line. The pop-up shows the level; the
+    /// planet's page shows the word for it (Lefredid XVI: "Aggressive Sentinels" on hover,
+    /// "Frenzied" on its page - a word of the same level), so the page's word wins.</summary>
+    internal static string? SentinelLine(string line)
+    {
+        if (Regex.Match(Clean(line), @"^(.+?)\s+Sentinel(s|\s+Activity)$", RegexOptions.IgnoreCase) is not { Success: true } m) return null;
+        var words = _words?.Where(w => w.Group == "Sentinels").Select(w => w.Word).ToList() ?? new();
+        string word = Snap(m.Groups[1].Value, words);
+        return words.Contains(word, StringComparer.OrdinalIgnoreCase) ? word : "";
+    }
+
+    /// <summary>The sentinel word a Discoveries list pop-up shows after its type line, "" if none.</summary>
+    internal static string PopupSentinels(IReadOnlyList<string> lines, int typeLine)
+    {
+        for (int i = typeLine + 1; i < lines.Count; i++)
+        {
+            if (Regex.IsMatch(lines[i], @"RENAME|VIEW|ADD TO WONDERS|MARK (PLANET|MOON)", RegexOptions.IgnoreCase)) break;
+            if (SentinelLine(lines[i]) is { } word) return word;
+        }
+        return "";
     }
 
     /// <summary>The body (planet or moon) a name points to in a recently visited system.</summary>
