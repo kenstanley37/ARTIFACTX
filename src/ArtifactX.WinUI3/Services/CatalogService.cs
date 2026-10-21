@@ -1909,6 +1909,18 @@ public sealed record FishInfo(string Id, string Quality, string Size, string Tim
 {
     public const int AnyPlanet = 16;
     public bool LivesOn(int biome) => Biomes.Contains(AnyPlanet) || Biomes.Contains(biome);
+
+    /// <summary>The rarity as the game names it: its quality enum is one step off from
+    /// the words its Fishing Records show - Rare reads "Uncommon Fish" (Caustic Urchin),
+    /// Epic "Rare Fish" (Moon Turtle), checked 2026-10-21.</summary>
+    public static string RarityName(string quality) => quality switch
+    {
+        "Rare" => "Uncommon",
+        "Epic" => "Rare",
+        _ => quality,
+    };
+
+    public string RarityName() => RarityName(Quality);
 }
 
 /// <summary>One settlement building stage's cost: BuildingClass is the

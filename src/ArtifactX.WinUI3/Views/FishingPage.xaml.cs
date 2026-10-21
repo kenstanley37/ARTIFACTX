@@ -94,7 +94,7 @@ public sealed partial class FishingPage : Page
         TimeBox.SelectedIndex = 0;
         RarityBox.Items.Add(new ComboBoxItem { Content = "Any rarity", Tag = "" });
         foreach (var q in new[] { "Common", "Rare", "Epic", "Legendary" })
-            RarityBox.Items.Add(new ComboBoxItem { Content = q, Tag = q });
+            RarityBox.Items.Add(new ComboBoxItem { Content = FishInfo.RarityName(q), Tag = q });
         RarityBox.SelectedIndex = 0;
 
         PlanetTypeBox.Items.Add(new ComboBoxItem { Content = "Where I am", Tag = WhereIAm });
@@ -405,7 +405,7 @@ public sealed partial class FishingPage : Page
             Id = f.Id,
             Name = NameOf(f.Id),
             Icon = CatalogService.TryGet(f.Id)?.Icon,
-            Rarity = f.Quality.ToUpperInvariant(),
+            Rarity = f.RarityName().ToUpperInvariant(),
             RarityBrush = new SolidColorBrush(RarityColour(f.Quality)),
             Traits = string.Join(" · ", traits),
             Habitat = habitat,
