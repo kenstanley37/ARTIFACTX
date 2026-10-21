@@ -12,6 +12,6 @@
             <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
         <TextBox x:Name="Box" LostFocus="Box_LostFocus"/>
-        <Button Grid.Column="1" Content="Generate" Click="Generate_Click"/>
+        <Button x:Name="GenerateBtn" Grid.Column="1" Content="Generate" Click="Generate_Click"/>
     </Grid>
 </UserControl>

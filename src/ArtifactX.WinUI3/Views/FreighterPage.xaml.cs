@@ -350,6 +350,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
             info.Children.Add(new TextBlock { Text = description, FontSize = 11, Opacity = 0.7, TextWrapping = TextWrapping.Wrap });
             row.Children.Add(info);
             var add = new Button { Content = "Add as my freighter", VerticalAlignment = VerticalAlignment.Center };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(add, $"Add a {name} as my freighter");
             add.Click += async (_, _) => await AddFreighterAsync(FreighterBuildService.Starter(name, scene));
             Grid.SetColumn(add, 1);
             row.Children.Add(add);
@@ -395,6 +396,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
             row.Children.Add(info);
 
             var add = new Button { Content = "Add as my freighter", VerticalAlignment = VerticalAlignment.Center };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(add, $"Add {template.Name} as my freighter");
             add.Click += async (_, _) => await AddFreighterAsync(template);
             Grid.SetColumn(add, 1);
             row.Children.Add(add);

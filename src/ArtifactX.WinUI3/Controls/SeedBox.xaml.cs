@@ -32,7 +32,11 @@ public sealed partial class SeedBox : UserControl
     public string Label
     {
         get => AutomationProperties.GetName(Box);
-        set => AutomationProperties.SetName(Box, value);
+        set
+        {
+            AutomationProperties.SetName(Box, value);
+            AutomationProperties.SetName(GenerateBtn, $"Generate a {value.ToLowerInvariant()}");
+        }
     }
 
     public string Text => Box.Text ?? "";

@@ -46,8 +46,8 @@ public static class FreighterService
     }
     /// <summary>Everything the Freighter page's details and inventories edit: tech,
     /// cargo (which holds the class and base stats), name, hull (type and model seed),
-    /// home seed and crew (race and seed). The interior and adding or deleting the
-    /// freighter live in the bases list - the title bar's Reset covers those.</summary>
+    /// home seed and crew (race and seed) - plus FreighterBuildService's interior,
+    /// facing and parking, and a pending delete.</summary>
     private static readonly string[][] PageRoots =
     {
         NmsInventoryContainer.FreighterTechnologyPath,
@@ -58,10 +58,16 @@ public static class FreighterService
         new[] { "vLc", "6f=", "Sjw" },
     };
 
-    public static bool HasPageEdits() => PageRoots.Any(p => SaveSessionManager.HasStagedEditsUnder(p));
+    public static bool HasPageEdits() =>
+        PageRoots.Concat(FreighterBuildService.PageRoots()).Any(p => SaveSessionManager.HasStagedEditsUnder(p))
+        || FreighterBuildService.HasPendingRemoval();
 
     public static void RevertPageEdits()
     {
-        foreach (var path in PageRoots) SaveSessionManager.RevertEditsUnder(path);
+        // Newest first: a freighter added after a delete sits at the end of the
+        // shortened list - undoing the delete first left that entry over another
+        // base (2026-10-21).
+        foreach (var path in PageRoots.Concat(FreighterBuildService.PageRoots().ToList())) SaveSessionManager.RevertEditsUnder(path);
+        FreighterBuildService.RevertRemoval();
     }
 }

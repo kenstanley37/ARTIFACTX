@@ -52,7 +52,8 @@
             <TextBlock x:Name="PendingChangesTxt" Text="" FontSize="11" Opacity="0.7"
                        VerticalAlignment="Center" Visibility="Collapsed"/>
             <Button x:Name="ResetBtn" Content="Reset" Click="ResetBtn_Click" Visibility="Collapsed"/>
-            <Button x:Name="SaveBtn" Style="{ThemeResource AccentButtonStyle}" Click="SaveBtn_Click" Visibility="Collapsed">
+            <Button x:Name="SaveBtn" Style="{ThemeResource AccentButtonStyle}" Click="SaveBtn_Click" Visibility="Collapsed"
+                    AutomationProperties.Name="{x:Bind SaveBtnText.Text, Mode=OneWay}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <ProgressRing x:Name="SaveSpinner" IsActive="False" Width="14" Height="14"/>
                     <TextBlock x:Name="SaveBtnText" Text="Save"/>
