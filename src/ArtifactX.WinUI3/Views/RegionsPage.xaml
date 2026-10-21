@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). Regions (RegionsViewModel): how much of a
+     region is mapped - per system its system data and, per planet, whether its Discoveries
+     hover and page were captured. Read-only. -->
+<Page
+    x:Class="ArtifactX.WinUI3.Views.RegionsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="28,26,28,24" RowSpacing="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="REGIONS" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
+                        ToolTipService.ToolTip="Updates as you play: each new save, and everything screen recording reads.">
+                <Ellipse Width="8" Height="8" Fill="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="LiveStatusTxt" Text="Following your game" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+            </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="1" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Background="{ThemeResource ThemePanelAltBrush}"
+                CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
+            <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                <TextBlock Grid.Column="1" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
+                           Text="How much of a region you've mapped. Each system shows whether its system data was read, and each planet or moon whether its Discoveries hover (type, resources) and its own page (weather, sentinels, flora, fauna) were - green: all of it, yellow: hovered only, dark: nothing yet. The game doesn't say how many systems a region has, so this counts the ones you've found."/>
+            </Grid>
+        </Border>
+
+        <ctcontrols:WrapPanel Grid.Row="2" HorizontalSpacing="14" VerticalSpacing="10">
+            <ComboBox Header="{x:Bind ViewModel.Region.Header}" Width="{x:Bind ViewModel.Region.Width}"
+                      ItemsSource="{x:Bind ViewModel.Region.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Region.Selected, Mode=TwoWay}"/>
+            <ComboBox Header="Sort" Width="220" SelectedIndex="{x:Bind ViewModel.SortIndex, Mode=TwoWay}">
+                <ComboBoxItem Content="Where you are, then newest"/>
+                <ComboBoxItem Content="Most left to capture"/>
+                <ComboBoxItem Content="Name (A-Z)"/>
+            </ComboBox>
+            <CheckBox Content="Only systems with something left to capture" IsChecked="{x:Bind ViewModel.OnlyMissing, Mode=TwoWay}" VerticalAlignment="Bottom"/>
+        </ctcontrols:WrapPanel>
+
+        <ProgressRing Grid.Row="3" IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
+                      Width="44" Height="44" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,40,0,0"/>
+
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="16" Margin="0,0,12,16">
+                <Border Style="{StaticResource ThemeCardStyle}" Padding="20,16">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="{x:Bind ViewModel.RegionTitle, Mode=OneWay}" Style="{StaticResource ThemeHeadingStyle}" FontSize="24"/>
+                        <TextBlock Text="{x:Bind ViewModel.RegionSub, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
+                        <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="6" Margin="0,4,0,0">
+                            <TextBlock Text="{x:Bind ViewModel.SystemsStat, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
+                            <TextBlock Text="{x:Bind ViewModel.SystemDataStat, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
+                            <TextBlock Text="{x:Bind ViewModel.PlanetsStat, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
+                            <TextBlock Text="{x:Bind ViewModel.HoverOnlyStat, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
+                        </ctcontrols:WrapPanel>
+                        <ProgressBar Maximum="{x:Bind ViewModel.PlanetsTotal, Mode=OneWay}" Value="{x:Bind ViewModel.PlanetsDone, Mode=OneWay}" MaxWidth="640" HorizontalAlignment="Left" Width="640"/>
+                    </StackPanel>
+                </Border>
+
+                <ItemsControl ItemsSource="{x:Bind ViewModel.Systems, Mode=OneWay}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="viewmodels:RegionSystemViewModel">
+                            <Border Margin="0,0,0,10" Padding="16,12" Background="{ThemeResource ThemePanelAltBrush}"
+                                    BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                                <Grid ColumnSpacing="20" RowSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="4">
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="15"/>
+                                            <Border Visibility="{x:Bind IsHere}" Background="{ThemeResource ThemeAccentBrush}" CornerRadius="4" Padding="6,1" VerticalAlignment="Center">
+                                                <TextBlock Text="YOU ARE HERE" FontSize="10" FontWeight="Bold" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
+                                            </Border>
+                                        </StackPanel>
+                                        <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="2">
+                                            <TextBlock Text="{x:Bind Progress}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="12"/>
+                                            <TextBlock Text="{x:Bind SystemDataLabel}" Foreground="{x:Bind SystemDataBrush}" FontSize="12"/>
+                                            <TextBlock Text="{x:Bind Visited}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                            <TextBlock Text="{x:Bind FoundBy}" Visibility="{x:Bind HasFoundBy}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                        </ctcontrols:WrapPanel>
+                                        <ItemsControl ItemsSource="{x:Bind Bodies}" Margin="0,4,0,0">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal" Spacing="6"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="viewmodels:BodyChipViewModel">
+                                                    <Button Content="{x:Bind Label}" Click="Body_Click" Tag="{x:Bind}" Width="34" Height="30" Padding="0" FontSize="12" FontWeight="SemiBold"
+                                                            Background="{x:Bind Fill}" Foreground="{x:Bind Foreground}" BorderBrush="{ThemeResource ThemeLineBrush}"
+                                                            ToolTipService.ToolTip="{x:Bind Tooltip}" AutomationProperties.Name="{x:Bind Tooltip}"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <controls:GlyphStrip Code="{x:Bind PortalCode}" Title="{x:Bind Name}" GlyphSize="20"/>
+                                        <controls:CopyCodeButton Code="{x:Bind PortalCode}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>
