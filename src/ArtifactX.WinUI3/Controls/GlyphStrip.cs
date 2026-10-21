@@ -23,6 +23,9 @@ public sealed class GlyphStrip : Button
     public static readonly DependencyProperty GlyphSizeProperty =
         DependencyProperty.Register(nameof(GlyphSize), typeof(double), typeof(GlyphStrip), new PropertyMetadata(0.0, (d, _) => ((GlyphStrip)d).DrawGlyphs()));
 
+    public static readonly DependencyProperty HighlightFirstProperty =
+        DependencyProperty.Register(nameof(HighlightFirst), typeof(bool), typeof(GlyphStrip), new PropertyMetadata(false, (d, _) => ((GlyphStrip)d).DrawGlyphs()));
+
     /// <summary>The 12-digit portal code the glyphs spell.</summary>
     public string Code
     {
@@ -36,6 +39,13 @@ public sealed class GlyphStrip : Button
     {
         get => (double)GetValue(GlyphSizeProperty);
         set => SetValue(GlyphSizeProperty, value);
+    }
+
+    /// <summary>Outlines the first glyph, the one that picks the planet.</summary>
+    public bool HighlightFirst
+    {
+        get => (bool)GetValue(HighlightFirstProperty);
+        set => SetValue(HighlightFirstProperty, value);
     }
 
     /// <summary>Optional heading for the large view, e.g. the system's name.</summary>
@@ -66,13 +76,18 @@ public sealed class GlyphStrip : Button
 
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = GlyphSize >= 24 ? 2 : 1 };
         foreach (var image in PortalGlyphs.Images(code))
+        {
+            bool outlined = HighlightFirst && row.Children.Count == 0;
             row.Children.Add(new Border
             {
                 Width = GlyphSize,
                 Height = GlyphSize,
                 Background = ThemeResources.Brush("ThemeVoidBrush"),
+                BorderBrush = outlined ? ThemeResources.Brush("ThemeAccentBrush") : null,
+                BorderThickness = new Thickness(outlined ? 1 : 0),
                 Child = new Image { Source = image, Width = GlyphSize * 0.84, Height = GlyphSize * 0.84 },
             });
+        }
         Content = row;
     }
 }
