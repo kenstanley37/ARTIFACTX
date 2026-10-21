@@ -125,59 +125,11 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         LiveItemsService.Changed -= OnLiveItemsChanged;
     }
 
-    /// <summary>Reads a ship's model scene path (to detect its real ship type -
-    /// Hauler/Fighter/Explorer/etc.) and its current Class letter, BEFORE any
-    /// InventoryGridViewModel exists for it - both are needed up front to size
-    /// the grids correctly, since capacity genuinely differs by type+class
-    /// (a Hauler has more Cargo than a Fighter - confirmed in StarshipCapacity).</summary>
-    private static (StarshipCapacity.ShipType? Type, string? ClassLetter) GetShipTypeAndClass(int shipIndex)
-    {
-        string? scenePath = SaveSessionManager.GetValue(
-            "vLc", "6f=", "@Cs", shipIndex.ToString(), "NTx", "93M")?.Value<string>();
-        var type = StarshipCapacity.DetectShipType(scenePath);
-
-        return (type, ReadShipClass(shipIndex));
-    }
-
-    /// <summary>A ship stores its Class letter on BOTH inventories (PMT and
-    /// ;l5, each B@N.1o6) and the game reads the Cargo one: found 2026-10-10
-    /// when an S-class edit written only to Technology still showed C in-game
-    /// (save had PMT=S, ;l5=C; every untouched ship has the two matching).
-    /// Every class-changing action here writes Technology via its grid view
-    /// model, so this copies that letter onto Cargo afterwards. Only called
-    /// from those actions, never on load, so it never stages an unasked edit.
-    /// ReadShipClass shows the Cargo copy (Technology only as a fallback) so
-    /// the page matches what the game displays.</summary>
-    private static string? ReadShipClass(int shipIndex)
-    {
-        if (shipIndex < 0) return null;
-        return SaveSessionManager.GetValue(NmsInventoryContainer.ShipCargoPath(shipIndex).Append("B@N").Append("1o6").ToArray())?.Value<string>()
-            ?? SaveSessionManager.GetValue(NmsInventoryContainer.ShipTechnologyPath(shipIndex).Append("B@N").Append("1o6").ToArray())?.Value<string>();
-    }
-
-    private static void SyncCargoClass(int shipIndex)
-    {
-        if (shipIndex < 0) return;
-        string? techClass = SaveSessionManager.GetValue(
-            NmsInventoryContainer.ShipTechnologyPath(shipIndex).Append("B@N").Append("1o6").ToArray())?.Value<string>();
-        var cargoClassPath = NmsInventoryContainer.ShipCargoPath(shipIndex).Append("B@N").Append("1o6").ToArray();
-        if (string.IsNullOrEmpty(techClass) || SaveSessionManager.GetValue(cargoClassPath)?.Value<string>() == techClass) return;
-        SaveSessionManager.StageEdit(techClass, cargoClassPath);
-    }
-
     private async Task<Dictionary<string, int>> GetShipCapacityAsync()
     {
         _shipCapacity ??= await CatalogService.GetShipCapacityAsync();
         return _shipCapacity;
     }
-
-    private static int LookupCargoSlots(Dictionary<string, int> capacity, StarshipCapacity.ShipType? type, string? classLetter) =>
-        type.HasValue && capacity.TryGetValue(StarshipCapacity.CargoCapacityKey(type.Value, classLetter), out int slots)
-            ? slots : StarshipCapacity.FallbackCargoSlots;
-
-    private static int LookupTechSlots(Dictionary<string, int> capacity, StarshipCapacity.ShipType? type, string? classLetter) =>
-        type.HasValue && capacity.TryGetValue(StarshipCapacity.TechCapacityKey(type.Value, classLetter), out int slots)
-            ? slots : StarshipCapacity.FallbackTechSlots;
 
     /// <summary>Re-reads the owned ship list from the current session and
     /// rebuilds the selector strip. A plain edits-changed refresh keeps
@@ -328,63 +280,6 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         LoadSelectedShip();
     }
 
-    /// <summary>Which technology a ship takes, by its model folder. Worked out
-    /// 2026-10-13 from every ship in the real saves: regular ships (and
-    /// corvettes) take AllShips + AllShipsExceptAlien + Ship tech, living ships
-    /// (S-CLASS/BIOPARTS) AllShips + AlienShip, Sentinel ships AllShips +
-    /// AllShipsExceptAlien + RobotShip (so does the Vintage Interceptor). The catalog's "Corvette" category is
-    /// only generic upgrade-module templates, so corvettes use the regular set.
-    /// The old grid rule ("Ship"/"All") missed AllShips and AllShipsExceptAlien
-    /// tech entirely and offered nothing for living or Sentinel ships.</summary>
-    private static (string[] UsageCategories, string Header) TechRuleFor(string? scenePath)
-    {
-        string path = (scenePath ?? "").ToUpperInvariant();
-        if (path.Contains("/BIOPARTS/")) return (new[] { "AllShips", "AlienShip" }, "LIVING SHIP TECHNOLOGY");
-        // The Vintage Interceptor reward is a Sentinel ship in a fighter's
-        // folder: all 8 in the real saves carry only Sentinel tech.
-        if (path.Contains("/SENTINELSHIP/") || path.Contains("/VINTAGEINTERCEPTOR.")) return (new[] { "AllShips", "AllShipsExceptAlien", "RobotShip" }, "SENTINEL SHIP TECHNOLOGY");
-        string[] regular = { "AllShips", "AllShipsExceptAlien", "Ship" };
-        return ShipBaseService.IsCorvetteModel(scenePath ?? "") ? (regular, "CORVETTE TECHNOLOGY") : (regular, "STARSHIP TECHNOLOGY");
-    }
-
-    /// <summary>The tech list's groups, in the order they're shown: by the
-    /// main stat each tech works on (the game's own BaseStat, via the catalog's
-    /// TechStats), so all the drives sit together, each weapon beside its
-    /// upgrades, and every upgrade module with the tech it upgrades (user
-    /// request 2026-10-13). Figurines and trails also use the scanner stat,
-    /// so they're told apart by name.</summary>
-    private static readonly string[] TechGroupOrder =
-        { "Hyperdrive", "Pulse engine", "Launch thrusters", "Shields", "Weapons", "Utilities", "Figurines", "Starship trails" };
-
-    private static string TechGroup(CatalogPart tech)
-    {
-        if (tech.Name.EndsWith("FIGURINE", StringComparison.OrdinalIgnoreCase)) return "Figurines";
-        if (tech.Name.Contains("STARSHIP TRAIL", StringComparison.OrdinalIgnoreCase)) return "Starship trails";
-        string stat = tech.Stat ?? "";
-        if (stat.StartsWith("Ship_Hyperdrive")) return "Hyperdrive";
-        if (stat.StartsWith("Ship_PulseDrive")) return "Pulse engine";
-        if (stat.StartsWith("Ship_Launcher")) return "Launch thrusters";
-        if (stat.StartsWith("Ship_Armour")) return "Shields";
-        if (stat.StartsWith("Ship_Weapons")) return "Weapons";
-        return "Utilities";
-    }
-
-    /// <summary>Group order, then each weapon type together (by stat), the
-    /// main item before its add-ons, upgrade modules after the tech, A to Z.</summary>
-    private static List<CatalogPart> SortTech(IEnumerable<CatalogPart> tech) =>
-        Controls.ItemListPanel.SortByGroups(tech, TechGroup, TechGroupOrder);
-
-    /// <summary>Upgrade module families each kind of ship takes, from every
-    /// ship in the real saves (2026-10-13): regular and Sentinel ships take the
-    /// station-bought UP_ modules, living ships their own UA_ ones. Corvettes'
-    /// modules (CV_) are all added by their built parts, so none are offered.</summary>
-    private static string[] ModuleFamiliesFor(string header) => header switch
-    {
-        "LIVING SHIP TECHNOLOGY" => new[] { "UA_HYP", "UA_LAUN", "UA_PULSE", "UA_SGUN", "UA_SLASR", "UA_S_SHL" },
-        "CORVETTE TECHNOLOGY" => Array.Empty<string>(),
-        _ => new[] { "UP_HYP", "UP_LAUN", "UP_PULSE", "UP_SGUN", "UP_SLASR", "UP_SMINI", "UP_SSHOT", "UP_S_SHL", "UP_SBLOB" },
-    };
-
     private async void LoadSelectedShip()
     {
         _shownIndex = _selectedIndex;
@@ -418,10 +313,10 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
 
         var selectedShip = _ships.First(s => s.Index == _selectedIndex);
 
-        var (shipType, classLetter) = GetShipTypeAndClass(_selectedIndex);
+        var (shipType, classLetter) = StarshipService.TypeAndClass(_selectedIndex);
         var capacity = await GetShipCapacityAsync();
-        int techRows = StarshipCapacity.SlotsToRows(LookupTechSlots(capacity, shipType, classLetter));
-        int cargoRows = StarshipCapacity.SlotsToRows(LookupCargoSlots(capacity, shipType, classLetter));
+        int techRows = StarshipCapacity.SlotsToRows(StarshipService.TechSlots(capacity, shipType, classLetter));
+        int cargoRows = StarshipCapacity.SlotsToRows(StarshipService.CargoSlots(capacity, shipType, classLetter));
 
         _techViewModel = new InventoryGridViewModel(
             NmsInventoryContainer.ShipTechnologyPath(_selectedIndex),
@@ -443,7 +338,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         TechGrid.ViewModel = _techViewModel;
         TechGrid.AllowedCategories = new[] { "Technology" };
         TechGrid.AllowedTemplateTypes = new[] { "GcTechnologyTable" };
-        var techRule = TechRuleFor(SaveSessionManager.GetValue(
+        var techRule = StarshipService.TechRuleFor(SaveSessionManager.GetValue(
             "vLc", "6f=", "@Cs", _selectedIndex.ToString(), "NTx", "93M")?.Value<string>());
         TechGrid.AllowedUsageCategories = techRule.UsageCategories;
 
@@ -472,16 +367,16 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         TechLayout.ShowList = true;
         TechLayout.ListTitle = techRule.Header;
         // Figurines and trails don't boost each other in game.
-        TechListPanel.NoAdjacency = p => TechGroup(p) is "Figurines" or "Starship trails";
-        TechListPanel.IsBestClass = () => ReadShipClass(_selectedIndex) == "S";
+        TechListPanel.NoAdjacency = p => StarshipService.TechGroup(p) is "Figurines" or "Starship trails";
+        TechListPanel.IsBestClass = () => StarshipService.ReadClass(_selectedIndex) == "S";
         TechListPanel.SwitchToBestClassAsync = async () =>
         {
             _techViewModel?.SetClass("S");
-            SyncCargoClass(_selectedIndex);
+            StarshipService.SyncCargoClass(_selectedIndex);
             PageResetBtn.Visibility = Visibility.Visible;
             await LoadSelectedShipAsync();
         };
-        TechListPanel.MoreRoomHint = () => ReadShipClass(_selectedIndex) == "S" ? null
+        TechListPanel.MoreRoomHint = () => StarshipService.ReadClass(_selectedIndex) == "S" ? null
             : "S class has more slots - change the class in Ship Details to fit more.";
         _ = TechListPanel.LoadAsync(TechGrid, async () =>
         {
@@ -491,9 +386,9 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
             var tech = (await CatalogService.GetTechForAsync(techRule.UsageCategories))
                 .Where(t => !string.Equals(t.GameId, "LAUNCHER_SPEC", StringComparison.OrdinalIgnoreCase)).ToList();
             TechGrid.AllowedItemIds = tech.Select(t => t.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var modules = await CatalogService.GetUpgradeModulesAsync(ModuleFamiliesFor(techRule.Header));
-            return SortTech(tech.Concat(modules));
-        }, "technology", "technologies", "Technology", TechGroup);
+            var modules = await CatalogService.GetUpgradeModulesAsync(StarshipService.ModuleFamiliesFor(techRule.Header));
+            return StarshipService.SortTech(tech.Concat(modules));
+        }, "technology", "technologies", "Technology", StarshipService.TechGroup);
         PageResetBtn.Visibility = SaveSessionManager.HasStagedEditsUnder(SelectedShipPath) ? Visibility.Visible : Visibility.Collapsed;
 
         ShowClass();
@@ -651,7 +546,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
     private void ShowClass()
     {
         ClassPicker.Visibility = _techViewModel is null ? Visibility.Collapsed : Visibility.Visible;
-        ClassPicker.SelectedClass = ReadShipClass(_selectedIndex);
+        ClassPicker.SelectedClass = StarshipService.ReadClass(_selectedIndex);
     }
 
     private void ClassPicker_ClassChosen(object? sender, string letter)
@@ -660,7 +555,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         // totals (StarshipCapacity), so both grids get fully rebuilt via
         // LoadSelectedShip rather than just refreshed in place.
         _techViewModel?.SetClass(letter);
-        SyncCargoClass(_selectedIndex);
+        StarshipService.SyncCargoClass(_selectedIndex);
         PageResetBtn.Visibility = Visibility.Visible;
         LoadSelectedShip();
     }
@@ -730,22 +625,22 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
 
         var targetShip = otherShips[pickerList.SelectedIndex];
 
-        var (targetType, targetClass) = GetShipTypeAndClass(targetShip.Index);
+        var (targetType, targetClass) = StarshipService.TypeAndClass(targetShip.Index);
         var targetCapacity = await GetShipCapacityAsync();
         var targetViewModel = new InventoryGridViewModel(
             NmsInventoryContainer.ShipTechnologyPath(targetShip.Index),
             StarshipCapacity.Columns,
-            StarshipCapacity.SlotsToRows(LookupTechSlots(targetCapacity, targetType, targetClass)));
+            StarshipCapacity.SlotsToRows(StarshipService.TechSlots(targetCapacity, targetType, targetClass)));
         targetViewModel.Load();
 
         var sourcePositions = _techViewModel.Cells.Where(c => c.IsOccupied).Select(c => (c.X, c.Y));
         var (confirmed, alsoMatchClass) = await TechStackCopyConfirmation.ShowAsync(XamlRoot,
-            $"a copy of {sourceShip.Name}'s", ReadShipClass(sourceShip.Index), sourcePositions, targetShip.Name, targetViewModel, targetViewModel.CurrentClass);
+            $"a copy of {sourceShip.Name}'s", StarshipService.ReadClass(sourceShip.Index), sourcePositions, targetShip.Name, targetViewModel, targetViewModel.CurrentClass);
 
         if (!confirmed) return;
 
         targetViewModel.CopyTechStackFrom(_techViewModel, alsoMatchClass);
-        SyncCargoClass(targetShip.Index);
+        StarshipService.SyncCargoClass(targetShip.Index);
 
         PageResetBtn.Visibility = Visibility.Visible;
         LoadShipList();
@@ -859,7 +754,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         if (!confirmed) return;
 
         _techViewModel.ApplyTemplate(template, alsoMatchClass);
-        SyncCargoClass(_selectedIndex);
+        StarshipService.SyncCargoClass(_selectedIndex);
         PageResetBtn.Visibility = Visibility.Visible;
         LoadSelectedShip();
     }

@@ -87,45 +87,13 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
         return _shipCapacity;
     }
 
-    private static string? GetFreighterClassLetter() =>
-        SaveSessionManager.GetValue(NmsInventoryContainer.FreighterClassPath)?.Value<string>();
-
-    /// <summary>The freighter hull's model scene path (bIR.93M) is empty
-    /// until the player actually owns one - confirmed 2026-08-10 against a
-    /// save that hadn't left the starting planet, where it was "" even
-    /// though the Tech/Cargo containers (0wS/8ZP) and their supercharged-slot
-    /// layout (hl?) already existed with real, non-default data. Those
-    /// containers appear to be pre-allocated by the game from the start
-    /// (same pattern as Multi-Tool/Ship's padding slots), so their mere
-    /// presence isn't a reliable ownership signal - the hull scene path is.</summary>
-    private static bool HasFreighter() =>
-        !string.IsNullOrEmpty(SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>());
-
-    /// <summary>Freighter module families, from the 24 freighters in the real
-    /// saves (2026-10-13): hyperdrive plus the six fleet ones, each topping
-    /// out at 3.</summary>
-    private static readonly string[] ModuleFamilies =
-        { "UP_FRHYP", "UP_FRCOM", "UP_FREXP", "UP_FRFUE", "UP_FRMIN", "UP_FRSPE", "UP_FRTRA" };
-
-    private static readonly string[] TechGroupOrder = { "Hyperdrive", "Fleet", "Utilities" };
-
-    /// <summary>Groups by the main stat each tech works on (the game's
-    /// BaseStat, via the catalog's TechStats), same as Starships.</summary>
-    private static string TechGroup(CatalogPart tech)
-    {
-        string stat = tech.Stat ?? "";
-        if (stat.StartsWith("Freighter_Hyperdrive")) return "Hyperdrive";
-        if (stat.StartsWith("Freighter_Fleet")) return "Fleet";
-        return "Utilities";
-    }
-
     private async void LoadGrids() => await LoadGridsAsync();
 
     private async Task LoadGridsAsync()
     {
         if (!SaveSessionManager.IsSaveLoaded) return;
 
-        if (!HasFreighter())
+        if (!FreighterService.HasFreighter())
         {
             NoFreighterPanel.Visibility = Visibility.Visible;
             HeaderGrid.Visibility = Visibility.Collapsed;
@@ -136,7 +104,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
         NoFreighterPanel.Visibility = Visibility.Collapsed;
         HeaderGrid.Visibility = Visibility.Visible;
 
-        string? classLetter = GetFreighterClassLetter();
+        string? classLetter = FreighterService.ClassLetter();
         var capacity = await GetShipCapacityAsync();
         int techRows = StarshipCapacity.SlotsToRows(
             capacity.TryGetValue(StarshipCapacity.TechCapacityKey(StarshipCapacity.ShipType.Freighter, classLetter), out int techSlots)
@@ -185,22 +153,22 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
 
         // The tech a freighter can fit, to click in - the same list limits
         // the right-click search.
-        TechListPanel.IsBestClass = () => GetFreighterClassLetter() == "S";
+        TechListPanel.IsBestClass = () => FreighterService.ClassLetter() == "S";
         TechListPanel.SwitchToBestClassAsync = async () =>
         {
             SaveSessionManager.StageEdit("S", NmsInventoryContainer.FreighterClassPath);
             PageResetBtn.Visibility = Visibility.Visible;
             await LoadGridsAsync();
         };
-        TechListPanel.MoreRoomHint = () => GetFreighterClassLetter() == "S" ? null
+        TechListPanel.MoreRoomHint = () => FreighterService.ClassLetter() == "S" ? null
             : "S class has more slots - change the class in Freighter Details to fit more.";
         _ = TechListPanel.LoadAsync(TechGrid, async () =>
         {
             var tech = await CatalogService.GetTechForAsync(new[] { "Freighter" });
             TechGrid.AllowedItemIds = tech.Select(t => t.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var modules = await CatalogService.GetUpgradeModulesAsync(ModuleFamilies);
-            return Controls.ItemListPanel.SortByGroups(tech.Concat(modules), TechGroup, TechGroupOrder);
-        }, "technology", "technologies", "Technology", TechGroup);
+            var modules = await CatalogService.GetUpgradeModulesAsync(FreighterService.ModuleFamilies);
+            return Controls.ItemListPanel.SortByGroups(tech.Concat(modules), FreighterService.TechGroup, FreighterService.TechGroupOrder);
+        }, "technology", "technologies", "Technology", FreighterService.TechGroup);
 
         ShowClass();
         NameEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterNamePath)?.Value<string>() ?? "";
@@ -298,7 +266,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     private void ShowClass()
     {
         ClassPicker.Visibility = !SaveSessionManager.IsSaveLoaded ? Visibility.Collapsed : Visibility.Visible;
-        ClassPicker.SelectedClass = GetFreighterClassLetter();
+        ClassPicker.SelectedClass = FreighterService.ClassLetter();
     }
 
     private void ClassPicker_ClassChosen(object? sender, string letter)
@@ -554,7 +522,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
             ? $"This replaces your freighter's entire tech loadout, base stats, Type, and appearance seed with {sourceLabel}."
             : $"This replaces your freighter's entire tech loadout with {sourceLabel}.";
         var choice = await TechStackCopyConfirmation.ShowAsync(XamlRoot, sourceLabel, sourceClass, sourcePositions,
-            "your freighter", _techViewModel, GetFreighterClassLetter(), summary,
+            "your freighter", _techViewModel, FreighterService.ClassLetter(), summary,
             includesStatsAndSeed ? "Confirm full build apply" : "Confirm tech stack apply", "Apply");
         return (choice.Confirmed, choice.AlsoMatchClass);
     }

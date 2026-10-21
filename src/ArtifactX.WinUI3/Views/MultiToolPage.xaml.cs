@@ -107,16 +107,6 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
         return _multiToolCapacity;
     }
 
-    private static int LookupTechSlots(Dictionary<string, int> capacity, string? classLetter) =>
-        capacity.TryGetValue(MultiToolCapacity.TechCapacityKey(classLetter), out int slots)
-            ? slots : MultiToolCapacity.FallbackTechSlots;
-
-    /// <summary>Reads a tool's Class letter directly from the save, BEFORE any
-    /// InventoryGridViewModel exists for it - needed up front to size the grid
-    /// correctly, since capacity depends on class (MultiToolCapacity).</summary>
-    private static string? GetToolClassLetter(int toolIndex) =>
-        SaveSessionManager.GetValue(NmsInventoryContainer.MultiToolTechnologyPath(toolIndex).Append("B@N").Append("1o6").ToArray())?.Value<string>();
-
     /// <summary>Re-reads the owned multi-tool list from the current session and
     /// rebuilds the selector strip. Defaults selection to the in-game active
     /// tool the first time a session loads; a plain edits-changed refresh keeps
@@ -217,13 +207,13 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
         {
             if (!t.IsUnnamed) { labelled.Add(t); continue; }
             string scene = SaveSessionManager.GetValue("vLc", "6f=", "SuJ", t.Index.ToString(), "NTx", "93M")?.Value<string>() ?? "";
-            string? gameName = SeedOf(t.Index) is ulong seed ? await MultiToolKinds.GameNameAsync(seed, scene) : null;
+            string? gameName = MultiToolService.SeedOf(t.Index) is ulong seed ? await MultiToolKinds.GameNameAsync(seed, scene) : null;
             string? label = gameName;
             if (label is null)
             {
-                string? kind = MultiToolKinds.IsMainModel(scene) ? await KindOfAsync(t.Index) : MultiToolKinds.NameFor(scene, "");
+                string? kind = MultiToolKinds.IsMainModel(scene) ? await MultiToolService.KindOfAsync(t.Index) : MultiToolKinds.NameFor(scene, "");
                 if (string.IsNullOrEmpty(kind)) { labelled.Add(t); continue; }
-                label = GetToolClassLetter(t.Index) is { Length: > 0 } cls ? $"{kind} · {cls} class" : kind;
+                label = MultiToolService.ClassLetter(t.Index) is { Length: > 0 } cls ? $"{kind} · {cls} class" : kind;
             }
             // The same tool twice (same seed) has the same name in game too.
             int n = used[label] = used.GetValueOrDefault(label) + 1;
@@ -287,27 +277,6 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
         LoadSelectedTool();
     }
 
-    /// <summary>Multi-tool module families, from the 94 tools in the real saves
-    /// (2026-10-13): each tops out at 3 per tool. UP_SENGUN is a one-off
-    /// salvaged find, so it isn't offered.</summary>
-    private static readonly string[] ModuleFamilies =
-        { "UP_LASER", "UP_SCAN", "UP_BOLT", "UP_SMG", "UP_SHOT", "UP_CANN", "UP_RAIL", "UP_GREN", "UP_TGREN" };
-
-    private static readonly string[] TechGroupOrder = { "Mining", "Scanning", "Weapons", "Utilities" };
-
-    /// <summary>Groups by the main stat each tech works on (the game's
-    /// BaseStat, via the catalog's TechStats), same as Starships.</summary>
-    private static string TechGroup(CatalogPart tech)
-    {
-        string stat = tech.Stat ?? "";
-        if (stat is "Weapon_Laser" or "Weapon_SunLaser") return "Mining";
-        if (stat.StartsWith("Weapon_Scan")) return "Scanning";
-        if (stat is "Weapon_Projectile" or "Weapon_Burst" or "Weapon_Shotgun" or "Weapon_Cannon" or "Weapon_Rail"
-            or "Weapon_Grenade" or "Weapon_MineGrenade" or "Weapon_StunGrenade" or "Weapon_Flame" or "Weapon_Stun"
-            or "Weapon_Gravity" or "Weapon_SoulLaser") return "Weapons";
-        return "Utilities";
-    }
-
     private async void LoadSelectedTool()
     {
         _shownIndex = _selectedIndex;
@@ -341,9 +310,9 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
         var selectedTool = _tools.First(t => t.Index == _selectedIndex);
         ShowToolPreview();
 
-        string? classLetter = GetToolClassLetter(_selectedIndex);
+        string? classLetter = MultiToolService.ClassLetter(_selectedIndex);
         var capacity = await GetMultiToolCapacityAsync();
-        int techRows = MultiToolCapacity.SlotsToRows(LookupTechSlots(capacity, classLetter));
+        int techRows = MultiToolCapacity.SlotsToRows(MultiToolService.TechSlots(capacity, classLetter));
 
         // Kgt looked like the safer target for editing the active tool, but a
         // real save/load test proved it wrong: edits written there (an item add
@@ -393,9 +362,9 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
         {
             var tech = await CatalogService.GetTechForAsync(new[] { "Weapon" });
             TechGrid.AllowedItemIds = tech.Select(t => t.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var modules = await CatalogService.GetUpgradeModulesAsync(ModuleFamilies);
-            return Controls.ItemListPanel.SortByGroups(tech.Concat(modules), TechGroup, TechGroupOrder);
-        }, "technology", "technologies", "Technology", TechGroup);
+            var modules = await CatalogService.GetUpgradeModulesAsync(MultiToolService.ModuleFamilies);
+            return Controls.ItemListPanel.SortByGroups(tech.Concat(modules), MultiToolService.TechGroup, MultiToolService.TechGroupOrder);
+        }, "technology", "technologies", "Technology", MultiToolService.TechGroup);
 
         ShowClass();
         // The list may have been relabelled (LabelUnnamedAsync) while this loaded.
@@ -449,21 +418,7 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
         finally { _suppressTypeSelectionEvent = false; }
     }
 
-    private Task<string?> KindAsync() => KindOfAsync(_selectedIndex);
-
-    private static async Task<string?> KindOfAsync(int index) =>
-        SeedOf(index) is ulong seed ? await MultiToolKinds.KindAsync(seed) : null;
-
-    /// <summary>A tool's own seed (SuJ[i].@EL[1]), which picks its look, kind and name.</summary>
-    private static ulong? SeedOf(int index)
-    {
-        string? seedText = index < 0 ? null
-            : SaveSessionManager.GetValue("vLc", "6f=", "SuJ", index.ToString(), "@EL", "1")?.Value<string>();
-        if (seedText is not { Length: > 2 }) return null;
-        string hex = seedText.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? seedText[2..] : seedText;
-        return ulong.TryParse(hex, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out ulong seed)
-            ? seed : null;
-    }
+    private Task<string?> KindAsync() => MultiToolService.KindOfAsync(_selectedIndex);
 
     private void TypeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -635,12 +590,12 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
 
         var targetTool = otherTools[pickerList.SelectedIndex];
 
-        string? targetClassLetter = GetToolClassLetter(targetTool.Index);
+        string? targetClassLetter = MultiToolService.ClassLetter(targetTool.Index);
         var targetCapacity = await GetMultiToolCapacityAsync();
         var targetViewModel = new InventoryGridViewModel(
             NmsInventoryContainer.MultiToolTechnologyPath(targetTool.Index),
             MultiToolCapacity.Columns,
-            MultiToolCapacity.SlotsToRows(LookupTechSlots(targetCapacity, targetClassLetter)));
+            MultiToolCapacity.SlotsToRows(MultiToolService.TechSlots(targetCapacity, targetClassLetter)));
         targetViewModel.Load();
 
         var sourcePositions = _techViewModel.Cells.Where(c => c.IsOccupied).Select(c => (c.X, c.Y));
