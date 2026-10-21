@@ -308,6 +308,10 @@ public partial class InventoryGridViewModel : ObservableObject
         var occupied = Cells.Where(c => c.IsOccupied).ToList();
         if (occupied.Count == 0) return false;
 
+        // The catalog's own group first. 1,608 of the game's products have none (checked
+        // 2026-10-20), so the id's prefix fills in for those - prefixes only: a word anywhere
+        // in an id put BLD_MAPTUBE (a building part) with the maps. Better still would be the
+        // game's own product type (GcProductData.Type) in the catalog.
         static int CategoryOrder(InventorySlotViewModel cell, CatalogEntry? entry)
         {
             string rawId = (cell.ItemId ?? "").TrimStart('^');
@@ -336,11 +340,10 @@ public partial class InventoryGridViewModel : ObservableObject
                 rawId.StartsWith("PROC_", StringComparison.OrdinalIgnoreCase))
                 return 3;
 
-            // 4. Consumables & Navigation / Maps
+            // 4. Consumables & Navigation / Maps (charts are CHART_*, navigation data NAV_*)
             if (entry?.CatalogGroup == "Constructed Technology" ||
-                rawId.Contains("CHART", StringComparison.OrdinalIgnoreCase) ||
-                rawId.Contains("MAP", StringComparison.OrdinalIgnoreCase) ||
-                rawId.Contains("WARP", StringComparison.OrdinalIgnoreCase))
+                rawId.StartsWith("CHART_", StringComparison.OrdinalIgnoreCase) ||
+                rawId.StartsWith("NAV_", StringComparison.OrdinalIgnoreCase))
                 return 4;
 
             // 5. Cooking & Edibles
