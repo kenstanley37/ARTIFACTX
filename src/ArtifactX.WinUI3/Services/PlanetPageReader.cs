@@ -452,10 +452,9 @@ public static class PlanetPageReader
             var snap = LiveSaveWatcher.FromSession();
             if (snap.Discoveries is not null)
             {
-                foreach (var p in NmsPlanets.ReadAll(snap.Discoveries))
-                {
-                    if (p.SystemAddress != 0) systems.Add(p.SystemAddress);
-                }
+                // Every system the save knows - one with no planet record yet counts too.
+                foreach (var s in NmsPlanets.ReadSystems(snap.Discoveries))
+                    systems.Add(s.SystemAddress);
             }
         }
         catch { }
