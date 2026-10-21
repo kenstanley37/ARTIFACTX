@@ -51,6 +51,8 @@
                                       ItemsSource="{x:Bind ViewModel.Type.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Type.Selected, Mode=TwoWay}"/>
                             <ComboBox Header="{x:Bind ViewModel.Galaxy.Header}" Width="{x:Bind ViewModel.Galaxy.Width}"
                                       ItemsSource="{x:Bind ViewModel.Galaxy.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Galaxy.Selected, Mode=TwoWay}"/>
+                            <ComboBox Header="{x:Bind ViewModel.Region.Header}" Width="{x:Bind ViewModel.Region.Width}"
+                                      ItemsSource="{x:Bind ViewModel.Region.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Region.Selected, Mode=TwoWay}"/>
                             <ComboBox Header="Sort" Width="200" SelectedIndex="{x:Bind ViewModel.SortIndex, Mode=TwoWay}">
                                 <ComboBoxItem Content="Nearest to you first"/>
                                 <ComboBoxItem Content="Newest first"/>

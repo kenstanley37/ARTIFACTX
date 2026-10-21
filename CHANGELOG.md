@@ -39,6 +39,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Inventory **Sort** groups items by kind (technology, raw materials, components, curiosities and so on), then A-Z.
 - Settings shows how big your ArtifactX data file is, its version and where it is, with a button to open the folder.
 - Cards you fold away or open stay that way on every page.
+- **Regions** (Explore): how much of each region you've mapped. For each system you've found there: whether its system data was read, and for every planet and moon whether its Discoveries hover and its own page were captured - so you can see what's left to do. The region also shows on Current System and a planet's page, and the Planet Finder can filter and search by it.
 
 ### Fixed
 

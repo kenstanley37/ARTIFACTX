@@ -32,12 +32,13 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
 
     public PlanetFinderViewModel()
     {
-        foreach (var filter in ChoiceFilters.Append(Type).Append(Galaxy)) filter.Changed += Apply;
+        foreach (var filter in ChoiceFilters.Append(Type).Append(Galaxy).Append(Region)) filter.Changed += Apply;
         JumpPlanner.RangeChanged += Apply;
     }
 
     public ChoiceFilter Type { get; } = new("Planet type", 220);
     public ChoiceFilter Galaxy { get; } = new("Galaxy", 220);
+    public ChoiceFilter Region { get; } = new("Region", 240);
     public ChoiceFilter Star { get; } = new("Star colour");
     public ChoiceFilter Economy { get; } = new("Economy");
     public ChoiceFilter Wealth { get; } = new("Wealth", 180);
@@ -151,6 +152,9 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         Type.Refill($"All types ({_all.Count})", NmsPlanets.SelectableTypes
             .Select(t => (Type: t, Count: _all.Count(p => p.BiomeIndex == t))).Where(t => t.Count > 0)
             .Select(t => new ChoiceItem($"{NmsPlanets.TypeName(t.Type)} ({t.Count})", t.Type.ToString(CultureInfo.InvariantCulture))));
+        Region.Refill("All regions", _all.GroupBy(p => RegionMapService.RegionKey(p.SystemAddress))
+            .OrderByDescending(g => g.Count()).ThenBy(g => UniverseInfo.Region(g.First().SystemAddress), StringComparer.CurrentCulture)
+            .Select(g => new ChoiceItem($"{UniverseInfo.Region(g.First().SystemAddress)} ({g.Count():N0})", g.Key.ToString(CultureInfo.InvariantCulture))));
         Galaxy.Refill("All galaxies", _all.GroupBy(p => p.Galaxy).OrderBy(g => g.Key)
             .Select(g => new ChoiceItem($"{PlanetText.GalaxyLabel(g.Key)} ({g.Count()})", g.Key.ToString(CultureInfo.InvariantCulture))));
 
@@ -212,6 +216,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         _searchDelay?.Cancel();
         Search = "";
         Type.Reset();
+        Region.Reset();
         Galaxy.Reset();
         BodiesIndex = 0;
         foreach (var filter in ChoiceFilters) filter.Reset();
@@ -225,6 +230,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         if (_quiet) return;
         int type = int.TryParse(Type.Value, out int t) ? t : -1;
         int galaxy = int.TryParse(Galaxy.Value, out int g) ? g : -1;
+        ulong? region = ulong.TryParse(Region.Value, out ulong rk) ? rk : null;
         string search = Search.Trim();
         var words = _vocabulary?.Words ?? [];
         bool systemFilter = Star.IsSet || Economy.IsSet || Wealth.IsSet || Conflict.IsSet || Race.IsSet || WaterOnly || DissonantOnly;
@@ -233,6 +239,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         var filtered = _all
             .Where(p => type < 0 || p.BiomeIndex == type)
             .Where(p => galaxy < 0 || p.Galaxy == galaxy)
+            .Where(p => region is null || RegionMapService.RegionKey(p.SystemAddress) == region)
             .Where(p => !RingsOnly || p.HasRings)
             .Where(p => !MineOnly || p.DiscoveredHere)
             .Where(p => !systemFilter
@@ -269,7 +276,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         };
         Results = ordered.Select(x => new PlanetRowViewModel(x.Planet, _here, x.Distance)).ToList();
         ResultCount = $"{Results.Count:N0} of {_all.Count:N0} planets";
-        ActiveFilters = new[] { search.Length > 0, Type.IsSet, Galaxy.IsSet, BodiesIndex > 0, RingsOnly, MineOnly, WaterOnly, DissonantOnly }
+        ActiveFilters = new[] { search.Length > 0, Type.IsSet, Galaxy.IsSet, Region.IsSet, BodiesIndex > 0, RingsOnly, MineOnly, WaterOnly, DissonantOnly }
             .Concat(ChoiceFilters.Select(f => f.IsSet)).Count(on => on);
     }
 }
