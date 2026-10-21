@@ -55,6 +55,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Parts the game places itself (freighter bridge connectors, station cores) have plain names instead of made-up ones.
 - Inventory **Sort** put some building parts with the maps.
 - Space Stations: the stations you direct are listed with the one you're at first, then nearest first.
+- The Bases page is now **Bases and Parts**. Corvette builds and space bases have their own sections - they were listed as claimed space stations (a corvette build showed as a station "in the system you're in"). Corvette builds show their ship's name instead of "Default".
+- Bases: on a base's parts page, the parts the game places itself are listed first.
 - Bases: claimed space stations can have their parts deleted again - claiming one adds about 140 furnishings that count toward the 21,000 build limit. The station's own structure (connectors, core, paragon) is marked "Built into the station - can't be removed" and can't be selected.
 - Bases: a base's parts page now follows your game - parts you remove in game drop off the list when the game saves.
 - Wealth you recorded from the game ("Flourishing", "Booming") sometimes showed as the bare word or with no stars, depending on which page you opened first. It now always shows its stars (High ★★★).

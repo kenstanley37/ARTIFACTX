@@ -2,13 +2,17 @@ using ArtifactX.Core.NmsModels;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
 
 namespace ArtifactX.WinUI3.Services;
 
 /// <summary>The sections of the Bases page, in the order they're shown.</summary>
-public enum BaseKind { Freighter, Planet, Station, Settlement, Placed }
+/// <summary>Corvette = a corvette's build (PlayerShipBase), SpaceBase = PlayerSpaceBase. Both
+/// were listed as claimed stations until 2026-10-21 - a corvette build named "Default" showed
+/// as a station "in the system you're in", since it travels with the player.</summary>
+public enum BaseKind { Freighter, Planet, Station, Settlement, Placed, Corvette, SpaceBase }
 
 /// <summary>One base, settlement or loose placed object as the Bases page lists it -
 /// plain data, built off the UI thread.</summary>
@@ -48,9 +52,21 @@ public static class BaseListBuilder
         BaseKind.Freighter => "Freighter base",
         BaseKind.Planet => "Planet bases",
         BaseKind.Station => "Claimed space stations",
+        BaseKind.Corvette => "Corvette builds",
+        BaseKind.SpaceBase => "Space bases",
         BaseKind.Settlement => "Settlements",
         _ => "Placed objects",
     };
+
+    /// <summary>A corvette build's name: its ship's (the build's UserData, CVX, is the ship's
+    /// slot - see ShipBaseService). The build itself is always called "Default".</summary>
+    private static string CorvetteName(JObject build)
+    {
+        if (build["CVX"]?.Type == JTokenType.Integer
+            && SaveSessionManager.GetValue("vLc", "6f=", "@Cs", build["CVX"]!.Value<long>().ToString(CultureInfo.InvariantCulture), "NKm")?.Value<string>() is { Length: > 0 } ship)
+            return ship;
+        return "Corvette";
+    }
 
     /// <summary>Reads catalog names (CatalogService.TryGet), so warm the cache for the
     /// loose objects' ids first.</summary>
@@ -125,19 +141,38 @@ public static class BaseListBuilder
         foreach (var b in bases)
         {
             string type = BaseType(b);
-            if (type is "HomePlanetBase" or "FreighterBase" || type.StartsWith("External", StringComparison.Ordinal)) continue;
+            BaseKind? kind = type switch
+            {
+                S.PlayerStationBaseType => BaseKind.Station,
+                "PlayerShipBase" => BaseKind.Corvette,
+                "PlayerSpaceBase" => BaseKind.SpaceBase,
+                _ => null,
+            };
+            if (kind is not BaseKind k) continue;
             if (S.ParsePackedAddress(b["oZw"]) is not ulong address) continue;
             int galaxy = S.GalaxyNumber(address);
-            string name = b["NKm"]?.Value<string>() is { Length: > 0 } n ? n : "Space station";
+            string name = k == BaseKind.Corvette ? CorvetteName(b)
+                : b["NKm"]?.Value<string>() is { Length: > 0 } n ? n
+                : k == BaseKind.Station ? "Space station" : "Space base";
             double? distance = Distance(address);
             int parts = counts.GetValueOrDefault(b);
-            entries.Add(new BaseListEntry(BaseKind.Station, name,
-                Detail: $"Space station · {UniverseInfo.LocationWithRegion(address, galaxy)}",
-                Facts: UniverseInfo.Compact(address),
-                SwatchHex: "#FF9800",
+            entries.Add(new BaseListEntry(k, name,
+                Detail: k switch
+                {
+                    BaseKind.Corvette => "Corvette build · travels with the ship",
+                    BaseKind.SpaceBase => $"Space base · {UniverseInfo.LocationWithRegion(address, galaxy)}",
+                    _ => $"Space station · {UniverseInfo.LocationWithRegion(address, galaxy)}",
+                },
+                Facts: k == BaseKind.Corvette ? "" : UniverseInfo.Compact(address),
+                SwatchHex: k switch { BaseKind.Corvette => "#4FC3F7", BaseKind.SpaceBase => "#BA68C8", _ => "#FF9800" },
                 PortalCode: S.PortalAddress(address, 1),
                 DistanceLabel: DistanceText(here, address, distance),
-                AreaLabel: $"Claimed station in {UniverseInfo.SystemName(address)} ({UniverseInfo.RaceLabel(address)}).",
+                AreaLabel: k switch
+                {
+                    BaseKind.Corvette => "Where the corvette was when the game last saved.",
+                    BaseKind.SpaceBase => $"Space base in {UniverseInfo.SystemName(address)} ({UniverseInfo.RaceLabel(address)}).",
+                    _ => $"Claimed station in {UniverseInfo.SystemName(address)} ({UniverseInfo.RaceLabel(address)}).",
+                },
                 AreaRecorded: true,
                 Parts: parts, PartsLabel: $"{parts:N0} parts placed",
                 PartsLevel: NmsBuildCounts.UploadLevel(parts),

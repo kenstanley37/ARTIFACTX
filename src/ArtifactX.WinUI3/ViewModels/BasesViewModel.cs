@@ -26,6 +26,8 @@ public sealed partial class BasesViewModel : ObservableObject
             new(BaseKind.Freighter, "", "No freighter base in this save"),
             new(BaseKind.Planet, "", "No planet bases in this save"),
             new(BaseKind.Station, "", "No claimed space stations in this save"),
+            new(BaseKind.SpaceBase, "", "No space bases in this save"),
+            new(BaseKind.Corvette, "", "No corvette builds in this save"),
             new(BaseKind.Settlement, "", "No settlements in this save"),
             new(BaseKind.Placed, "", "Nothing placed outside a base"),
         ];

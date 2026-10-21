@@ -131,7 +131,10 @@ public sealed partial class BaseDetailsViewModel : ObservableObject
             .Select(o => o["r<7"]?.Value<string>() ?? "")
             .Where(id => id.Length > 0 && !BasePartNames.IsBaseComputer(id))
             .GroupBy(id => id)
-            .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal)
+            // The pieces the game places itself first, so what can't go is out of the way
+            // (user, 2026-10-21); then the biggest kinds.
+            .OrderBy(g => BasePartNames.IsBuiltIn(g.Key) ? 0 : 1)
+            .ThenByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal)
             .ToList();
         // Kinds sharing a name are numbered as the game numbers them: CONTAINER0..9 are ten
         // separate "Storage Container"s, told apart only by the digit on their icons (2026-10-18).
