@@ -414,6 +414,21 @@ public static class PlanetPageReader
     internal static bool IsBodyType(string line) =>
         Regex.IsMatch(line, @"^[\p{L} \[\]'-]{3,30}\s(Moon|Planet|(?<!Space\s)Anomaly)$", RegexOptions.IgnoreCase);
 
+    /// <summary>The line under a Discoveries pop-up's "Discovered by" as the body's type when
+    /// it isn't worded "... Planet / Moon / Anomaly": exotic worlds use their own words
+    /// ("Xeno-Colony", Beulaverus Jinom, 2026-10-21). Only a short name that isn't one of the
+    /// game's resources, a sentinel line or a button - null otherwise, and while the
+    /// resource names aren't loaded (a misread resource must never become a type).</summary>
+    internal static string? PopupOwnWordsType(string line)
+    {
+        string text = Clean(line);
+        if (_resources is not { Count: > 0 } || text.Length is < 4 or > 30) return null;
+        if (!Regex.IsMatch(text, @"^[\p{L}][\p{L}'-]*(\s[\p{L}][\p{L}'-]*){0,3}$")) return null;
+        if (Regex.IsMatch(text, @"RENAME|VIEW|WONDERS|MARK|Discovered|Sentinel", RegexOptions.IgnoreCase)) return null;
+        if (_resources.Contains(Snap(text, _resources), StringComparer.OrdinalIgnoreCase)) return null;
+        return text;
+    }
+
     /// <summary>True for an anomaly's type, which doesn't say whether it's a planet or a moon.</summary>
     internal static bool IsAnomalyType(string type) => type.EndsWith("Anomaly", StringComparison.OrdinalIgnoreCase);
 

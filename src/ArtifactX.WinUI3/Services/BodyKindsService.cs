@@ -97,9 +97,16 @@ public static class BodyKindsService
             if (by0 < 0) return null;
             type = list.Skip(by0 + 1).Take(3).Select(l => l.Trim())
                 .FirstOrDefault(PlanetPageReader.IsBodyType);
-            if (type is null) return null;
+            if (type is null)
+            {
+                // An exotic's own words ("Xeno-Colony"): the line right under "Discovered by".
+                type = list.Skip(by0 + 1).Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0) is { } next
+                    ? PlanetPageReader.PopupOwnWordsType(next) : null;
+                if (type is null) return null;
+                kindUnknown = true; // its words don't say planet or moon
+            }
             moon = type.EndsWith("Moon", StringComparison.OrdinalIgnoreCase);
-            kindUnknown = PlanetPageReader.IsAnomalyType(type);
+            kindUnknown |= PlanetPageReader.IsAnomalyType(type);
             mark = by0 + 1;
         }
         // The pop-up's name: above its "Discovered by:" line, past stray icon reads.
