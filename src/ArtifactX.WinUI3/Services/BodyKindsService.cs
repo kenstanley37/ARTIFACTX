@@ -112,7 +112,10 @@ public static class BodyKindsService
         if (name is null) return "body pop-up: no name";
         if (PlanetPageReader.MatchBody(name) is not (ulong system, int body, string matched))
         {
-            UnmatchedBodiesService.Hold(name, !string.IsNullOrEmpty(type) ? new PlanetDetails { Descriptor = type } : null, moon);
+            // Its type and resources go with it, for when it's placed (Rigie IV's were lost, 2026-10-20).
+            var heldResources = PlanetPageReader.PopupResources(list, mark);
+            UnmatchedBodiesService.Hold(name, !string.IsNullOrEmpty(type) || heldResources.Count > 0
+                ? new PlanetDetails { Descriptor = type ?? "", Resources = heldResources } : null, moon);
             return $"body pop-up \"{name}\": unknown name - held for you to place on Current System";
         }
 
