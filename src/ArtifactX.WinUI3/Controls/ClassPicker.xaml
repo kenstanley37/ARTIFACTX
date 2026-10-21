@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- S / A / B / C class choice for a Multi-Tool, Starship or freighter. The current
+     class is outlined and bold; picking another raises ClassChosen. -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.ClassPicker"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <StackPanel x:Name="Choices" Orientation="Horizontal" Spacing="6">
+        <Button Content="S" Tag="S" Click="Choice_Click" Padding="14,4,14,4" AutomationProperties.Name="Class S"/>
+        <Button Content="A" Tag="A" Click="Choice_Click" Padding="14,4,14,4" AutomationProperties.Name="Class A"/>
+        <Button Content="B" Tag="B" Click="Choice_Click" Padding="14,4,14,4" AutomationProperties.Name="Class B"/>
+        <Button Content="C" Tag="C" Click="Choice_Click" Padding="14,4,14,4" AutomationProperties.Name="Class C"/>
+    </StackPanel>
+</UserControl>

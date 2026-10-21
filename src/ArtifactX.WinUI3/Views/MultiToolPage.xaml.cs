@@ -139,7 +139,7 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
             _tools = new();
             _selectedIndex = -1;
             _activeIndex = -1;
-            ToolSelectorPanel.Children.Clear();
+            ToolStrip.Items = null;
             TechGrid.ViewModel = null;
             TechGrid.Refresh();
             return;
@@ -272,80 +272,25 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
 
     private void BuildSelectorStrip()
     {
-        ToolSelectorPanel.Children.Clear();
-
-        foreach (var tool in _tools)
-        {
-            bool isSelected = tool.Index == _selectedIndex;
-
-            var content = BuildButtonContent(tool, isSelected);
-            var button = new Button
-            {
-                Content = content,
-                Padding = new Thickness(12, 6, 12, 6)
-            };
-            ThemeResources.StyleChoiceButton(button, isSelected);
-            if (LiveItemsService.IsNew(LiveCollection.MultiTools, tool.Index))
-            {
-                LiveItemVisuals.MarkNew(button, content);
-                if (!_labelsPending && LiveItemsService.TakeAnimation(LiveCollection.MultiTools, tool.Index))
-                    LiveItemVisuals.SlideIn(button);
-            }
-
-            button.Click += (_, _) =>
-            {
-                _selectedIndex = tool.Index;
-                if (LiveItemsService.IsNew(LiveCollection.MultiTools, tool.Index))
-                {
-                    LiveItemsService.Seen(LiveCollection.MultiTools, tool.Index); // Changed -> LoadToolList shows it
-                    return;
-                }
-                BuildSelectorStrip();
-                LoadSelectedTool();
-            };
-
-            ToolSelectorPanel.Children.Add(button);
-        }
-
-        foreach (var gone in LiveItemsService.Gone(LiveCollection.MultiTools))
-            ToolSelectorPanel.Children.Add(LiveItemVisuals.Gone(gone));
+        bool IsNew(int index) => LiveItemsService.IsNew(LiveCollection.MultiTools, index);
+        ToolStrip.Items = _tools
+            .Select(tool => EquipmentChipViewModel.Item(tool.Index, tool.Name, tool.Index == _selectedIndex, tool.IsGameActive,
+                isNew: IsNew(tool.Index),
+                animateIn: IsNew(tool.Index) && !_labelsPending && LiveItemsService.TakeAnimation(LiveCollection.MultiTools, tool.Index)))
+            .Concat(LiveItemsService.Gone(LiveCollection.MultiTools).Select(EquipmentChipViewModel.Gone))
+            .ToList();
     }
 
-    /// <summary>Selected state bolds the name; game-active state adds a small
-    /// green "ACTIVE" badge - the two are independent and can appear together
-    /// or separately (e.g. viewing a tool that isn't the one you're carrying).</summary>
-    private static StackPanel BuildButtonContent(ToolEntry tool, bool isSelected)
+    private void ToolStrip_ChipClicked(object? sender, EquipmentChipViewModel chip)
     {
-        var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-
-        panel.Children.Add(new TextBlock
+        _selectedIndex = chip.Index;
+        if (LiveItemsService.IsNew(LiveCollection.MultiTools, chip.Index))
         {
-            Text = tool.Name,
-            FontWeight = isSelected ? FontWeights.SemiBold : FontWeights.Normal,
-            VerticalAlignment = VerticalAlignment.Center
-        });
-
-        if (tool.IsGameActive)
-        {
-            panel.Children.Add(new Border
-            {
-                Background = ThemeResources.Brush("ThemeDoneBrush"),
-                CornerRadius = ThemeResources.CardCornerRadius,
-                Padding = new Thickness(6, 1, 6, 1),
-                VerticalAlignment = VerticalAlignment.Center,
-                Child = new TextBlock
-                {
-                    Text = "ACTIVE",
-                    FontSize = 10,
-                    FontWeight = FontWeights.Bold,
-                    FontFamily = ThemeResources.Font("ThemeDisplayFont"),
-                    CharacterSpacing = 120,
-                    Foreground = ThemeResources.Brush("ThemeOnAccentBrush"),
-                }
-            });
+            LiveItemsService.Seen(LiveCollection.MultiTools, chip.Index); // Changed -> LoadToolList shows it
+            return;
         }
-
-        return panel;
+        BuildSelectorStrip();
+        LoadSelectedTool();
     }
 
     /// <summary>Multi-tool module families, from the 94 tools in the real saves
@@ -426,7 +371,7 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
             TechGrid.Refresh();
             TechListCard.Visibility = Visibility.Collapsed;
             TechHeaderTxt.Text = "TECHNOLOGY";
-            ClassSelectorPanel.Children.Clear();
+            ClassPicker.Visibility = Visibility.Collapsed;
             NameEditBox.Text = "";
             SelectedToolClassTxt.Text = "—";
             SelectedToolClassBadge.Background = ThemeResources.Brush("ThemePanelAltBrush");
@@ -498,7 +443,7 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
             return Controls.ItemListPanel.SortByGroups(tech.Concat(modules), TechGroup, TechGroupOrder);
         }, "technology", "technologies", "Technology", TechGroup);
 
-        BuildClassSelector();
+        ShowClass();
         // The list may have been relabelled (LabelUnnamedAsync) while this loaded.
         var shown = _tools.FirstOrDefault(t => t.Index == selectedTool.Index) ?? selectedTool;
         ShowName(shown);
@@ -775,38 +720,20 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
     /// <summary>S/A/B/C rating buttons - a plain literal string field (B@N.1o6),
     /// confirmed independent of the tool's identity/appearance seed, so picking
     /// a different class here is a simple, safe single-value write.</summary>
-    private void BuildClassSelector()
+    private void ShowClass()
     {
-        ClassSelectorPanel.Children.Clear();
-        if (_techViewModel is null) return;
+        ClassPicker.Visibility = _techViewModel is null ? Visibility.Collapsed : Visibility.Visible;
+        ClassPicker.SelectedClass = _techViewModel?.CurrentClass;
+    }
 
-        foreach (var letter in new[] { "S", "A", "B", "C" })
-        {
-            bool isCurrent = string.Equals(_techViewModel.CurrentClass, letter, StringComparison.OrdinalIgnoreCase);
-
-            var button = new Button
-            {
-                Content = new TextBlock
-                {
-                    Text = letter,
-                    FontWeight = isCurrent ? FontWeights.Bold : FontWeights.Normal
-                },
-                Padding = new Thickness(14, 4, 14, 4)
-            };
-            ThemeResources.StyleChoiceButton(button, isCurrent);
-
-            button.Click += (_, _) =>
-            {
-                // A class change can change this tool's real Technology slot
-                // total (MultiToolCapacity), so the grid gets fully rebuilt via
-                // LoadSelectedTool rather than just refreshed in place.
-                _techViewModel?.SetClass(letter);
-                PageResetBtn.Visibility = Visibility.Visible;
-                LoadSelectedTool();
-            };
-
-            ClassSelectorPanel.Children.Add(button);
-        }
+    private void ClassPicker_ClassChosen(object? sender, string letter)
+    {
+        // A class change can change this tool's real Technology slot
+        // total (MultiToolCapacity), so the grid gets fully rebuilt via
+        // LoadSelectedTool rather than just refreshed in place.
+        _techViewModel?.SetClass(letter);
+        PageResetBtn.Visibility = Visibility.Visible;
+        LoadSelectedTool();
     }
 
     private void TechGrid_CellChanged(object? sender, EventArgs e) =>

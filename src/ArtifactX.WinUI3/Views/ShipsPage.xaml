@@ -87,7 +87,7 @@
                             <!-- Bounded/scrollable so a save with many ships stays usable. -->
                             <ScrollViewer MaxHeight="120" Padding="18,14,18,16" VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-                                <ctcontrols:WrapPanel x:Name="ShipSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+                                <controls:EquipmentStrip x:Name="ShipStrip" ChipClicked="ShipStrip_ChipClicked"/>
                             </ScrollViewer>
                         </StackPanel>
                     </Border>
@@ -153,7 +153,7 @@
                                                 </StackPanel>
                                                 <StackPanel Spacing="6">
                                                     <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                                    <StackPanel x:Name="ClassSelectorPanel" Orientation="Horizontal" Spacing="6"/>
+                                                    <controls:ClassPicker x:Name="ClassPicker" ClassChosen="ClassPicker_ClassChosen"/>
                                                 </StackPanel>
                                                 <StackPanel Spacing="6">
                                                     <TextBlock Text="TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>

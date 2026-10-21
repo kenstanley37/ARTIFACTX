@@ -92,7 +92,7 @@
                                  this strip is bounded and scrolls internally instead of growing the page. -->
                             <ScrollViewer MaxHeight="120" Padding="18,14,18,16" VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-                                <ctcontrols:WrapPanel x:Name="ToolSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+                                <controls:EquipmentStrip x:Name="ToolStrip" ChipClicked="ToolStrip_ChipClicked"/>
                             </ScrollViewer>
                         </StackPanel>
                     </Border>
@@ -202,7 +202,7 @@
                                         </ctcontrols:WrapPanel>
                                         <StackPanel Orientation="Horizontal" Spacing="10">
                                             <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
-                                            <StackPanel x:Name="ClassSelectorPanel" Orientation="Horizontal" Spacing="6"/>
+                                            <controls:ClassPicker x:Name="ClassPicker" ClassChosen="ClassPicker_ClassChosen"/>
                                         </StackPanel>
                                         <controls:InventorySlotGrid x:Name="TechGrid"/>
                                     </StackPanel>

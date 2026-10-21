@@ -142,7 +142,7 @@
                                         </StackPanel>
                                         <StackPanel Spacing="6">
                                             <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                            <StackPanel x:Name="ClassSelectorPanel" Orientation="Horizontal" Spacing="6"/>
+                                            <controls:ClassPicker x:Name="ClassPicker" ClassChosen="ClassPicker_ClassChosen"/>
                                         </StackPanel>
                                         <StackPanel Spacing="6">
                                             <TextBlock Text="TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>

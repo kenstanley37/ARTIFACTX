@@ -247,7 +247,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
             return Controls.ItemListPanel.SortByGroups(tech.Concat(modules), TechGroup, TechGroupOrder);
         }, "technology", "technologies", "Technology", TechGroup);
 
-        BuildClassSelector();
+        ShowClass();
         NameEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterNamePath)?.Value<string>() ?? "";
         ApplyDetailsCollapsed();
         HomeSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterHomeSeedPath)?.Value<string>() ?? "";
@@ -423,40 +423,20 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     /// SetClass (tied to 0wS, Technology) the way Ships/MultiTool's own class
     /// selectors do - see FreighterClassPath's own doc comment for why
     /// Freighter specifically needs its own separate read/write here.</summary>
-    private void BuildClassSelector()
+    private void ShowClass()
     {
-        ClassSelectorPanel.Children.Clear();
-        if (!SaveSessionManager.IsSaveLoaded) return;
+        ClassPicker.Visibility = !SaveSessionManager.IsSaveLoaded ? Visibility.Collapsed : Visibility.Visible;
+        ClassPicker.SelectedClass = GetFreighterClassLetter();
+    }
 
-        string? currentClass = GetFreighterClassLetter();
-
-        foreach (var letter in new[] { "S", "A", "B", "C" })
-        {
-            bool isCurrent = string.Equals(currentClass, letter, StringComparison.OrdinalIgnoreCase);
-
-            var button = new Button
-            {
-                Content = new TextBlock
-                {
-                    Text = letter,
-                    FontWeight = isCurrent ? FontWeights.Bold : FontWeights.Normal
-                },
-                Padding = new Thickness(14, 4, 14, 4)
-            };
-            ThemeResources.StyleChoiceButton(button, isCurrent);
-
-            button.Click += (_, _) =>
-            {
-                // A class change can change the freighter's real Tech/Cargo
-                // slot totals (StarshipCapacity), so both grids get fully
-                // rebuilt via LoadGrids rather than just refreshed in place.
-                SaveSessionManager.StageEdit(letter, NmsInventoryContainer.FreighterClassPath);
-                PageResetBtn.Visibility = Visibility.Visible;
-                LoadGrids();
-            };
-
-            ClassSelectorPanel.Children.Add(button);
-        }
+    private void ClassPicker_ClassChosen(object? sender, string letter)
+    {
+        // A class change can change the freighter's real Tech/Cargo
+        // slot totals (StarshipCapacity), so both grids get fully
+        // rebuilt via LoadGrids rather than just refreshed in place.
+        SaveSessionManager.StageEdit(letter, NmsInventoryContainer.FreighterClassPath);
+        PageResetBtn.Visibility = Visibility.Visible;
+        LoadGrids();
     }
 
     /// <summary>Loads 0wS.@bB's raw continuous stat rolls (FREI_HYPERDRIVE/

@@ -193,7 +193,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         {
             _ships = new();
             _selectedIndex = -1;
-            ShipSelectorPanel.Children.Clear();
+            ShipStrip.Items = null;
             ShipSlotsTxt.Text = "";
             TechGrid.ViewModel = null;
             TechGrid.Refresh();
@@ -295,123 +295,38 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
 
     private void BuildSelectorStrip()
     {
-        ShipSelectorPanel.Children.Clear();
-
-        foreach (var ship in _ships)
-        {
-            bool isSelected = ship.Index == _selectedIndex;
-
-            var content = BuildButtonContent(ship, isSelected);
-            var button = new Button
-            {
-                Content = content,
-                Padding = new Thickness(12, 6, 12, 6)
-            };
-            ThemeResources.StyleChoiceButton(button, isSelected);
-            if (LiveItemsService.IsNew(LiveCollection.Ships, ship.Index))
-            {
-                LiveItemVisuals.MarkNew(button, content);
-                if (LiveItemsService.TakeAnimation(LiveCollection.Ships, ship.Index))
-                    LiveItemVisuals.SlideIn(button);
-            }
-
-            button.Click += (_, _) =>
-            {
-                _selectedIndex = ship.Index;
-                if (LiveItemsService.IsNew(LiveCollection.Ships, ship.Index))
-                {
-                    LiveItemsService.Seen(LiveCollection.Ships, ship.Index); // Changed -> LoadShipList shows it
-                    return;
-                }
-                BuildSelectorStrip();
-                LoadSelectedShip();
-            };
-
-            ShipSelectorPanel.Children.Add(button);
-        }
-
-        foreach (var gone in LiveItemsService.Gone(LiveCollection.Ships))
-            ShipSelectorPanel.Children.Add(LiveItemVisuals.Gone(gone));
+        bool IsNew(int index) => LiveItemsService.IsNew(LiveCollection.Ships, index);
+        var chips = _ships
+            .Select(ship => EquipmentChipViewModel.Item(ship.Index, ship.Name, ship.Index == _selectedIndex, ship.IsGameActive,
+                isNew: IsNew(ship.Index),
+                animateIn: IsNew(ship.Index) && LiveItemsService.TakeAnimation(LiveCollection.Ships, ship.Index),
+                isCorvette: ship.IsCorvette))
+            .Concat(LiveItemsService.Gone(LiveCollection.Ships).Select(EquipmentChipViewModel.Gone))
+            .ToList();
 
         // Empty slots as faint placeholders, so how much room is left shows at a glance.
         int total = NewFromTemplateService.ShipSlotCount, free = NewFromTemplateService.FreeShipSlots;
         ShipSlotsTxt.Text = total > 0 ? $"{total - free} OF {total} SLOTS USED" : "";
         for (int i = 0; i < free; i++)
-        {
-            var empty = new Button
-            {
-                Content = new StackPanel
-                {
-                    Orientation = Orientation.Horizontal, Spacing = 6,
-                    Children = { new FontIcon { Glyph = "\uE710", FontSize = 11 }, new TextBlock { Text = "Empty slot" } },
-                },
-                Padding = new Thickness(12, 6, 12, 6), Opacity = 0.55,
-                Background = new SolidColorBrush(Colors.Transparent),
-            };
-            ToolTipService.SetToolTip(empty, "An empty starship slot. Design a ship for it in the Ship Designer, or use a Full Build template's Add as new.");
-            empty.Click += (_, _) => Frame.Navigate(typeof(ShipDesignerPage));
-            ShipSelectorPanel.Children.Add(empty);
-        }
+            chips.Add(EquipmentChipViewModel.EmptySlot("An empty starship slot. Design a ship for it in the Ship Designer, or use a Full Build template's Add as new."));
+        ShipStrip.Items = chips;
     }
 
-    /// <summary>Selected state bolds the name; game-active state adds a small
-    /// green "ACTIVE" badge - the two are independent and can appear together
-    /// or separately (e.g. viewing a ship that isn't the one you're flying).</summary>
-    private static StackPanel BuildButtonContent(ShipEntry ship, bool isSelected)
+    private void ShipStrip_ChipClicked(object? sender, EquipmentChipViewModel chip)
     {
-        var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-
-        panel.Children.Add(new TextBlock
+        if (chip.IsEmptySlot)
         {
-            Text = ship.Name,
-            FontWeight = isSelected ? FontWeights.SemiBold : FontWeights.Normal,
-            VerticalAlignment = VerticalAlignment.Center
-        });
-
-        // Corvettes are built, not found: their modules live in a separate
-        // build (ShipBaseService), so they get their own badge.
-        if (ship.IsCorvette)
-        {
-            panel.Children.Add(new Border
-            {
-                BorderBrush = ThemeResources.Brush("ThemeAccentBrush"),
-                BorderThickness = new Thickness(1),
-                CornerRadius = ThemeResources.CardCornerRadius,
-                Padding = new Thickness(6, 1, 6, 1),
-                VerticalAlignment = VerticalAlignment.Center,
-                Child = new TextBlock
-                {
-                    Text = "CORVETTE",
-                    FontSize = 10,
-                    FontWeight = FontWeights.Bold,
-                    FontFamily = ThemeResources.Font("ThemeDisplayFont"),
-                    CharacterSpacing = 120,
-                    Foreground = ThemeResources.Brush("ThemeAccentBrush"),
-                }
-            });
+            Frame.Navigate(typeof(ShipDesignerPage));
+            return;
         }
-
-        if (ship.IsGameActive)
+        _selectedIndex = chip.Index;
+        if (LiveItemsService.IsNew(LiveCollection.Ships, chip.Index))
         {
-            panel.Children.Add(new Border
-            {
-                Background = ThemeResources.Brush("ThemeDoneBrush"),
-                CornerRadius = ThemeResources.CardCornerRadius,
-                Padding = new Thickness(6, 1, 6, 1),
-                VerticalAlignment = VerticalAlignment.Center,
-                Child = new TextBlock
-                {
-                    Text = "ACTIVE",
-                    FontSize = 10,
-                    FontWeight = FontWeights.Bold,
-                    FontFamily = ThemeResources.Font("ThemeDisplayFont"),
-                    CharacterSpacing = 120,
-                    Foreground = ThemeResources.Brush("ThemeOnAccentBrush"),
-                }
-            });
+            LiveItemsService.Seen(LiveCollection.Ships, chip.Index); // Changed -> LoadShipList shows it
+            return;
         }
-
-        return panel;
+        BuildSelectorStrip();
+        LoadSelectedShip();
     }
 
     /// <summary>Which technology a ship takes, by its model folder. Worked out
@@ -517,7 +432,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
             CargoGrid.Refresh();
             TechHeaderTxt.Text = "TECHNOLOGY";
             TechListCard.Visibility = Visibility.Collapsed;
-            ClassSelectorPanel.Children.Clear();
+            ClassPicker.Visibility = Visibility.Collapsed;
             NameEditBox.Text = "";
             SeedEditBox.Text = "";
             DamageStatBox.Value = double.NaN;
@@ -608,7 +523,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         PageResetBtn.Visibility = (_techViewModel.HasLocalChanges || _cargoViewModel.HasLocalChanges)
             ? Visibility.Visible : Visibility.Collapsed;
 
-        BuildClassSelector();
+        ShowClass();
         ShowName(selectedShip);
         CorvetteNote.Visibility = selectedShip.IsCorvette ? Visibility.Visible : Visibility.Collapsed;
         CorvetteNoteTxt.Text = selectedShip.BuildParts > 0
@@ -794,39 +709,21 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         TechHeaderTxt.Text = $"TECHNOLOGY  —  {newName.ToUpperInvariant()}";
     }
 
-    private void BuildClassSelector()
+    private void ShowClass()
     {
-        ClassSelectorPanel.Children.Clear();
-        if (_techViewModel is null) return;
+        ClassPicker.Visibility = _techViewModel is null ? Visibility.Collapsed : Visibility.Visible;
+        ClassPicker.SelectedClass = ReadShipClass(_selectedIndex);
+    }
 
-        foreach (var letter in new[] { "S", "A", "B", "C" })
-        {
-            bool isCurrent = string.Equals(ReadShipClass(_selectedIndex), letter, StringComparison.OrdinalIgnoreCase);
-
-            var button = new Button
-            {
-                Content = new TextBlock
-                {
-                    Text = letter,
-                    FontWeight = isCurrent ? FontWeights.Bold : FontWeights.Normal
-                },
-                Padding = new Thickness(14, 4, 14, 4)
-            };
-            ThemeResources.StyleChoiceButton(button, isCurrent);
-
-            button.Click += (_, _) =>
-            {
-                // A class change can change this ship's real Tech/Cargo slot
-                // totals (StarshipCapacity), so both grids get fully rebuilt via
-                // LoadSelectedShip rather than just refreshed in place.
-                _techViewModel?.SetClass(letter);
-                SyncCargoClass(_selectedIndex);
-                PageResetBtn.Visibility = Visibility.Visible;
-                LoadSelectedShip();
-            };
-
-            ClassSelectorPanel.Children.Add(button);
-        }
+    private void ClassPicker_ClassChosen(object? sender, string letter)
+    {
+        // A class change can change this ship's real Tech/Cargo slot
+        // totals (StarshipCapacity), so both grids get fully rebuilt via
+        // LoadSelectedShip rather than just refreshed in place.
+        _techViewModel?.SetClass(letter);
+        SyncCargoClass(_selectedIndex);
+        PageResetBtn.Visibility = Visibility.Visible;
+        LoadSelectedShip();
     }
 
     /// <summary>Loads the selected ship's PMT.@bB raw continuous stat rolls
