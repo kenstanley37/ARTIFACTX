@@ -63,6 +63,7 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
     public MultiToolPage()
     {
         InitializeComponent();
+        TechCard.GroupOf = TechListPanel.TypeOf;
 
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
@@ -234,7 +235,7 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
         BuildSelectorStrip();
         if (_tools.FirstOrDefault(t => t.Index == _selectedIndex) is { IsUnnamed: true } selected)
         {
-            TechHeaderTxt.Text = $"TECHNOLOGY  —  {selected.Name.ToUpperInvariant()}";
+            TechCard.Title = $"TECHNOLOGY  —  {selected.Name.ToUpperInvariant()}";
             ShowName(selected);
         }
     }
@@ -307,44 +308,6 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
         return "Utilities";
     }
 
-    private void TechCargoStack_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
-    private void MainColumn_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
-
-    /// <summary>Tech list beside the tech card, as tall as it, or underneath
-    /// at a fixed height when the window is too narrow.</summary>
-    private void LayoutTechList()
-    {
-        bool beside = MainColumn.ActualWidth >= TechCargoStack.ActualWidth + TechLayoutGrid.ColumnSpacing + TechListCard.Width;
-        Grid.SetRow(TechListCard, beside ? 0 : 1);
-        Grid.SetColumn(TechListCard, beside ? 1 : 0);
-        double height = 560;
-        if (beside)
-        {
-            double chrome = TechListCard.ActualHeight - TechListPanel.ListHeight;
-            if (TechListCard.ActualHeight <= 0 || chrome <= 0) chrome = 230;
-            height = Math.Max(300, TechCargoStack.ActualHeight - chrome);
-        }
-        if (Math.Abs(height - TechListPanel.ListHeight) > 1) TechListPanel.ListHeight = height;
-    }
-
-    private void ArrangeTech_Click(object sender, RoutedEventArgs e)
-    {
-        int moved = TechGrid.ArrangeForAdjacency(TechListPanel.TypeOf);
-        if (moved > 0) PageResetBtn.Visibility = Visibility.Visible;
-        FlyoutBase.SetAttachedFlyout((FrameworkElement)sender, new Flyout
-        {
-            Content = new TextBlock
-            {
-                Text = moved > 0
-                    ? $"Moved {moved} so each type sits together. Reset undoes it."
-                    : "Already grouped - nothing to move.",
-                TextWrapping = TextWrapping.Wrap,
-                MaxWidth = 260,
-            },
-        });
-        FlyoutBase.ShowAttachedFlyout((FrameworkElement)sender);
-    }
-
     private async void LoadSelectedTool()
     {
         _shownIndex = _selectedIndex;
@@ -362,8 +325,8 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
             _techViewModel = null;
             TechGrid.ViewModel = null;
             TechGrid.Refresh();
-            TechListCard.Visibility = Visibility.Collapsed;
-            TechHeaderTxt.Text = "TECHNOLOGY";
+            TechLayout.ShowList = false;
+            TechCard.Title = "TECHNOLOGY";
             ClassPicker.Visibility = Visibility.Collapsed;
             NameEditBox.Text = "";
             SelectedToolClassTxt.Text = "—";
@@ -411,12 +374,12 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
 
         TechGrid.Refresh();
 
-        TechHeaderTxt.Text = $"TECHNOLOGY  —  {selectedTool.Name.ToUpperInvariant()}";
+        TechCard.Title = $"TECHNOLOGY  —  {selectedTool.Name.ToUpperInvariant()}";
         PageResetBtn.Visibility = _techViewModel.HasLocalChanges ? Visibility.Visible : Visibility.Collapsed;
 
         // The tech a multi-tool can fit, to click in - the same list limits
         // the right-click search.
-        TechListCard.Visibility = Visibility.Visible;
+        TechLayout.ShowList = true;
         TechListPanel.IsBestClass = () => _techViewModel?.CurrentClass == "S";
         TechListPanel.SwitchToBestClassAsync = async () =>
         {
@@ -438,7 +401,7 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
         // The list may have been relabelled (LabelUnnamedAsync) while this loaded.
         var shown = _tools.FirstOrDefault(t => t.Index == selectedTool.Index) ?? selectedTool;
         ShowName(shown);
-        TechHeaderTxt.Text = $"TECHNOLOGY  —  {shown.Name.ToUpperInvariant()}";
+        TechCard.Title = $"TECHNOLOGY  —  {shown.Name.ToUpperInvariant()}";
         ShowFoldedName();
         UpdateClassBadge();
         UpdateStatDisplay();
@@ -624,27 +587,6 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
 
     private void TechGrid_CellChanged(object? sender, EventArgs e) =>
         PageResetBtn.Visibility = Visibility.Visible;
-
-    private void UnlockAllTech_Click(object sender, RoutedEventArgs e)
-    {
-        _techViewModel?.UnlockAll();
-        TechGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void SuperchargeAllTech_Click(object sender, RoutedEventArgs e)
-    {
-        _techViewModel?.SuperchargeAll();
-        TechGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void RepairAllTech_Click(object sender, RoutedEventArgs e)
-    {
-        _techViewModel?.RepairAll();
-        TechGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
 
     /// <summary>Copies the currently selected tool's entire tech loadout onto
     /// another owned tool, after showing exactly what else that copy will
@@ -849,4 +791,6 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
 
     /// <summary>What the Details band says while folded: the multi-tool's name (or the game's name for an unnamed one).</summary>
     private void ShowFoldedName() => DetailsCard.FoldedName = NameEditBox.Text?.Trim() is { Length: > 0 } typed ? typed : NameEditBox.PlaceholderText ?? "";
+
+    private void Inventory_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
 }

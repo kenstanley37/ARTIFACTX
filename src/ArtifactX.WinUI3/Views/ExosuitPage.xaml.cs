@@ -26,6 +26,7 @@ public sealed partial class ExosuitPage : Page
     public ExosuitPage()
     {
         InitializeComponent();
+        TechCard.GroupOf = TechListPanel.TypeOf;
         TechGrid.ViewModel = _techViewModel;
         CargoGrid.ViewModel = _cargoViewModel;
 
@@ -86,45 +87,6 @@ public sealed partial class ExosuitPage : Page
         }, "technology", "technologies", "Technology", TechGroup);
     }
 
-    private void TechCargoStack_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
-    private void MainColumn_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
-
-    /// <summary>Tech list beside tech + cargo, as tall as they are, or
-    /// underneath at a fixed height when the window is too narrow.</summary>
-    private void LayoutTechList()
-    {
-        double inner = MainColumn.ActualWidth - MainColumn.Padding.Left - MainColumn.Padding.Right;
-        bool beside = inner >= TechCargoStack.ActualWidth + TechLayoutGrid.ColumnSpacing + TechListCard.Width;
-        Grid.SetRow(TechListCard, beside ? 0 : 1);
-        Grid.SetColumn(TechListCard, beside ? 1 : 0);
-        double height = 560;
-        if (beside)
-        {
-            double chrome = TechListCard.ActualHeight - TechListPanel.ListHeight;
-            if (TechListCard.ActualHeight <= 0 || chrome <= 0) chrome = 230;
-            height = Math.Max(300, TechCargoStack.ActualHeight - chrome);
-        }
-        if (Math.Abs(height - TechListPanel.ListHeight) > 1) TechListPanel.ListHeight = height;
-    }
-
-    private void ArrangeTech_Click(object sender, RoutedEventArgs e)
-    {
-        int moved = TechGrid.ArrangeForAdjacency(TechListPanel.TypeOf);
-        if (moved > 0) PageResetBtn.Visibility = Visibility.Visible;
-        FlyoutBase.SetAttachedFlyout((FrameworkElement)sender, new Flyout
-        {
-            Content = new TextBlock
-            {
-                Text = moved > 0
-                    ? $"Moved {moved} so each type sits together. Reset undoes it."
-                    : "Already grouped - nothing to move.",
-                TextWrapping = TextWrapping.Wrap,
-                MaxWidth = 260,
-            },
-        });
-        FlyoutBase.ShowAttachedFlyout((FrameworkElement)sender);
-    }
-
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(LoadGrids);
 
@@ -161,48 +123,6 @@ public sealed partial class ExosuitPage : Page
             ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void UnlockAllTech_Click(object sender, RoutedEventArgs e)
-    {
-        _techViewModel.UnlockAll();
-        TechGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void UnlockAllCargo_Click(object sender, RoutedEventArgs e)
-    {
-        _cargoViewModel.UnlockAll();
-        CargoGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void MaxAllQtyCargo_Click(object sender, RoutedEventArgs e)
-    {
-        _cargoViewModel.MaxAllQuantities();
-        CargoGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void SortCargo_Click(object sender, RoutedEventArgs e)
-    {
-        if (_cargoViewModel.SortItems() != true) return;
-        CargoGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void SuperchargeAllTech_Click(object sender, RoutedEventArgs e)
-    {
-        _techViewModel.SuperchargeAll();
-        TechGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void RepairAllTech_Click(object sender, RoutedEventArgs e)
-    {
-        _techViewModel.RepairAll();
-        TechGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
 
 
 
@@ -215,4 +135,6 @@ public sealed partial class ExosuitPage : Page
         TechListPanel.RefreshOwned();
         PageResetBtn.Visibility = Visibility.Collapsed;
     }
+
+    private void Inventory_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
 }

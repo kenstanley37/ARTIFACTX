@@ -67,6 +67,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
     public ShipsPage()
     {
         InitializeComponent();
+        TechCard.GroupOf = TechListPanel.TypeOf;
 
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
@@ -269,7 +270,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         var after = _ships.FirstOrDefault(s => s.Index == _selectedIndex);
         // Only fill the box if the player hasn't typed into it meanwhile.
         if (after is { IsUnnamed: true } && before is { IsUnnamed: true } && string.IsNullOrEmpty(typed)) ShowName(after);
-        if (after is not null) TechHeaderTxt.Text = $"TECHNOLOGY  —  {after.Name.ToUpperInvariant()}";
+        if (after is not null) TechCard.Title = $"TECHNOLOGY  —  {after.Name.ToUpperInvariant()}";
     }
 
     /// <summary>The name box: the player's name, or the one the game made up for an
@@ -346,28 +347,6 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         return ShipBaseService.IsCorvetteModel(scenePath ?? "") ? (regular, "CORVETTE TECHNOLOGY") : (regular, "STARSHIP TECHNOLOGY");
     }
 
-    private void TechCargoStack_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
-    private void MainColumn_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
-
-    /// <summary>Puts the tech list beside tech and cargo, as tall as they are
-    /// (a fixed height left a gap under the tech grid), or underneath them at a
-    /// fixed height when the window is too narrow (it was cut off at ~1500px).
-    /// 2026-10-13.</summary>
-    private void LayoutTechList()
-    {
-        bool beside = MainColumn.ActualWidth >= TechCargoStack.ActualWidth + TechLayoutGrid.ColumnSpacing + TechListCard.Width;
-        Grid.SetRow(TechListCard, beside ? 0 : 1);
-        Grid.SetColumn(TechListCard, beside ? 1 : 0);
-        double height = 560;
-        if (beside)
-        {
-            double chrome = TechListCard.ActualHeight - TechListPanel.ListHeight;
-            if (TechListCard.ActualHeight <= 0 || chrome <= 0) chrome = 230;
-            height = Math.Max(300, TechCargoStack.ActualHeight - chrome);
-        }
-        if (Math.Abs(height - TechListPanel.ListHeight) > 1) TechListPanel.ListHeight = height;
-    }
-
     /// <summary>The tech list's groups, in the order they're shown: by the
     /// main stat each tech works on (the game's own BaseStat, via the catalog's
     /// TechStats), so all the drives sit together, each weapon beside its
@@ -428,8 +407,8 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
             TechGrid.Refresh();
             CargoGrid.ViewModel = null;
             CargoGrid.Refresh();
-            TechHeaderTxt.Text = "TECHNOLOGY";
-            TechListCard.Visibility = Visibility.Collapsed;
+            TechCard.Title = "TECHNOLOGY";
+            TechLayout.ShowList = false;
             ClassPicker.Visibility = Visibility.Collapsed;
             NameEditBox.Text = "";
             SeedEditBox.Text = "";
@@ -486,12 +465,12 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         TechGrid.Refresh();
         CargoGrid.Refresh();
 
-        TechHeaderTxt.Text = $"TECHNOLOGY  —  {(_ships.FirstOrDefault(s => s.Index == selectedShip.Index) ?? selectedShip).Name.ToUpperInvariant()}";
+        TechCard.Title = $"TECHNOLOGY  —  {(_ships.FirstOrDefault(s => s.Index == selectedShip.Index) ?? selectedShip).Name.ToUpperInvariant()}";
 
         // The tech this kind of ship can fit, to click in - the same list
         // limits the right-click search.
-        TechListCard.Visibility = Visibility.Visible;
-        TechListHeaderTxt.Text = techRule.Header;
+        TechLayout.ShowList = true;
+        TechLayout.ListTitle = techRule.Header;
         // Figurines and trails don't boost each other in game.
         TechListPanel.NoAdjacency = p => TechGroup(p) is "Figurines" or "Starship trails";
         TechListPanel.IsBestClass = () => ReadShipClass(_selectedIndex) == "S";
@@ -701,7 +680,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         PageResetBtn.Visibility = Visibility.Visible;
         if (!typing) { LoadShipList(); return; }
         LoadShipList(live: true);
-        TechHeaderTxt.Text = $"TECHNOLOGY  —  {newName.ToUpperInvariant()}";
+        TechCard.Title = $"TECHNOLOGY  —  {newName.ToUpperInvariant()}";
     }
 
     private void ShowClass()
@@ -738,69 +717,6 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
     }
 
     private void StatsBoxes_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
-
-    private void UnlockAllTech_Click(object sender, RoutedEventArgs e)
-    {
-        _techViewModel?.UnlockAll();
-        TechGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void UnlockAllCargo_Click(object sender, RoutedEventArgs e)
-    {
-        _cargoViewModel?.UnlockAll();
-        CargoGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void MaxAllQtyCargo_Click(object sender, RoutedEventArgs e)
-    {
-        _cargoViewModel?.MaxAllQuantities();
-        CargoGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void SortCargo_Click(object sender, RoutedEventArgs e)
-    {
-        if (_cargoViewModel?.SortItems() != true) return;
-        CargoGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void SuperchargeAllTech_Click(object sender, RoutedEventArgs e)
-    {
-        _techViewModel?.SuperchargeAll();
-        TechGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void RepairAllTech_Click(object sender, RoutedEventArgs e)
-    {
-        _techViewModel?.RepairAll();
-        TechGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>Groups same-type tech together for the adjacency boost (see
-    /// InventoryGridViewModel.ArrangeForAdjacency); types come from the tech
-    /// list beside the grid.</summary>
-    private void ArrangeTech_Click(object sender, RoutedEventArgs e)
-    {
-        int moved = TechGrid.ArrangeForAdjacency(TechListPanel.TypeOf);
-        if (moved > 0) PageResetBtn.Visibility = Visibility.Visible;
-        FlyoutBase.SetAttachedFlyout((FrameworkElement)sender, new Flyout
-        {
-            Content = new TextBlock
-            {
-                Text = moved > 0
-                    ? $"Moved {moved} so each type sits together. Reset undoes it."
-                    : "Already grouped - nothing to move.",
-                TextWrapping = TextWrapping.Wrap,
-                MaxWidth = 260,
-            },
-        });
-        FlyoutBase.ShowAttachedFlyout((FrameworkElement)sender);
-    }
 
 
 
@@ -1014,4 +930,6 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         string type = (TypeComboBox.SelectedItem as StarshipTypeInfo)?.DisplayName ?? "";
         DetailsCard.FoldedName = name.Length > 0 && type.Length > 0 ? $"{name}  ·  {type}" : name;
     }
+
+    private void Inventory_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
 }
