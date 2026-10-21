@@ -42,6 +42,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Current System asked "which planet is this?" about game messages screen recording read as names ("Online Discovery Services Active"). A name is only asked about while the system has a body your save has no record of, and only those bodies are offered.
 - A planet's page didn't show how long you'd spent there or how far you'd walked (Visited).
 - A planet's page showed made-up values for conditions nobody had recorded ("Standard Activity" sentinels, "Uncharted" flora); it says "Not recorded".
 - Editing a planet's details: the pickers show what you recorded, words show their level ("Frenzied (High)"), a typo gets a "did you mean Cobalt?", clicking a suggested resource adds it, Enter adds a note, and Save keeps a note or resource you typed but didn't add.
