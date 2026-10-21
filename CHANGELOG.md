@@ -42,6 +42,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Hovering a planet in the game's Discoveries list didn't record its sentinels ("Aggressive Sentinels"). They're filled in from the hover until the planet's own page gives the exact word - the hover shows the level, the page a word for that level ("Aggressive" on hover, "Frenzied" on the page).
 - Screen reading missed some of a planet's details on its Discoveries page - often its sentinels on a bright sky, and the fauna count ("0 / 11"). A detail left empty is now read again from a close-up of that part of the screen.
 - Current System asked "which planet is this?" about game messages screen recording read as names ("Online Discovery Services Active"). It only asks while a planet of the system has nothing recorded for it yet, and offers just those planets. When the game names a planet differently from ArtifactX (Ehilusti's "Rigie IV", which ArtifactX called "Nigie Major") and only one planet can be it, its details go there and the name is learned without asking.
 - A planet's page didn't show how long you'd spent there or how far you'd walked (Visited).
