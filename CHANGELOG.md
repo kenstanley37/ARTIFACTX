@@ -58,6 +58,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Starships, Multi-Tool and Freighter: a Base Stats box could quietly save a stat rounded to 8 decimals after switching ships; only values you type are changed now.
 - Companions: clicking into a number (Trust, Mutation progress, Genes improved, Victories) and away counted as a change - and could nudge Trust or Mutation progress by a rounding error. Only values you type are changed now.
 - Settlements: clicking into Population and away counted as a change; it doesn't now. A feature's dropdown also shows its red/green colour when closed.
+- General: clicking into Save name, Summary, Units, Nanites or Quicksilver and away counted as a change; it doesn't now.
 - Space Stations: a claim card's tags (wealth, economy, conflict) were cut off when they didn't fit on one line, and a pirate system said "Pirate Controlled conflict" plus "Pirate"; tags now wrap and say it once.
 - Settlements' Building Materials (and Near Core) took about 1 GB of memory while reading where things are found in your other save slots; it now reads only the part of each save it needs.
 
