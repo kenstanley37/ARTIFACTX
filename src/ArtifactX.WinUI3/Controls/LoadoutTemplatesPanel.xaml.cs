@@ -116,6 +116,7 @@ public sealed partial class LoadoutTemplatesPanel : UserControl
         }
 
         var nameBox = new TextBox { PlaceholderText = placeholder };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(nameBox, label);
         var dialog = new ContentDialog
         {
             Title = title,
