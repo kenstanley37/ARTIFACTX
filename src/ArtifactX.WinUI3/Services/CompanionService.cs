@@ -55,17 +55,6 @@ public static class CompanionService
         return char.ToUpperInvariant(trimmed[0]) + trimmed[1..].ToLowerInvariant();
     }
 
-    /// <summary>Stages one entry of a fixed-size array field (mutation points, traits) by
-    /// rebuilding and staging the WHOLE array - a deeper leaf-only stage isn't seen by
-    /// SaveSessionManager's staged-edit lookup.</summary>
-    public static void StageArrayEntry(string[] path, int index, int expectedCount, Func<JToken, JToken> newValue)
-    {
-        if (SaveSessionManager.GetValue(path) is not JArray array || array.Count != expectedCount) return;
-        var updated = new JArray(array.Select(v => v.DeepClone()));
-        updated[index] = newValue(array[index]);
-        SaveSessionManager.StageEdit(updated, path);
-    }
-
     /// <summary>Rebuilds a WHOLE new osl array for a different top-level
     /// archetype choice (e.g. TREX's _TREX_4 -> _TREX_3XRARE) - needed
     /// because the top-level entry determines which child slots even exist

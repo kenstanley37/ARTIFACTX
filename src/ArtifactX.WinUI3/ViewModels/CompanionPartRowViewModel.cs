@@ -5,7 +5,11 @@ using System.Collections.Generic;
 namespace ArtifactX.WinUI3.ViewModels;
 
 /// <summary>One body-part option: the cleaned-up label and the game's own part code.</summary>
-public sealed record CompanionPartOption(string Id, string Label);
+public sealed record CompanionPartOption(string Id, string Label)
+{
+    /// <summary>What screen readers say for the option.</summary>
+    public override string ToString() => Label;
+}
 
 /// <summary>
 /// One entry of a pet's descriptor array (osl) on the Body Parts card: a dropdown of

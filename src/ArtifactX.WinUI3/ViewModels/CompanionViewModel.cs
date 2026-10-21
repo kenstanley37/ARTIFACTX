@@ -167,12 +167,12 @@ public sealed partial class CompanionViewModel : ObservableObject
     /// <summary>A trait is shown 0-100; the stored value's sign (which descriptor word
     /// it picks) isn't confirmed, so it's kept and only the magnitude typed is applied.</summary>
     private NumberFieldViewModel TraitField(int number) => Field($"Trait {number}", v =>
-        CompanionService.StageArrayEntry(P.TraitsPath(_index), number - 1, 3,
+        SaveArrays.StageEntry(P.TraitsPath(_index), number - 1, 3,
             old => (old.Value<double>() < 0 ? -1.0 : 1.0) * (v / 100.0)));
 
     /// <summary>Genetic profile points (max 10) per mutation stat.</summary>
     private NumberFieldViewModel PointsField(string label, int slot) => Field(label, v =>
-        CompanionService.StageArrayEntry(P.MutationPointsPath(_index), slot, 3, _ => (int)v));
+        SaveArrays.StageEntry(P.MutationPointsPath(_index), slot, 3, _ => (int)v));
 
     partial void OnNameChanged(string value)
     {
