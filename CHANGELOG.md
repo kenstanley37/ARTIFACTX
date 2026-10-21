@@ -54,11 +54,17 @@ What changed in each ArtifactX release, written for players. The newest release 
 - A base's own page shows its picture faded in behind the header again.
 - Parts the game places itself (freighter bridge connectors, station cores) have plain names instead of made-up ones.
 - Inventory **Sort** put some building parts with the maps.
+- Space Stations: the stations you direct are listed with the one you're at first, then nearest first.
+- The Bases page is now **Bases and Parts**. Corvette builds and space bases have their own sections - they were listed as claimed space stations (a corvette build showed as a station "in the system you're in"). Corvette builds show their ship's name instead of "Default".
+- Bases: on a base's parts page, the parts the game places itself are listed first.
+- Bases: claimed space stations can have their parts deleted again - claiming one adds about 140 furnishings that count toward the 21,000 build limit. The station's own structure (connectors, core, paragon) is marked "Built into the station - can't be removed" and can't be selected.
+- Bases: a base's parts page now follows your game - parts you remove in game drop off the list when the game saves.
 - Wealth you recorded from the game ("Flourishing", "Booming") sometimes showed as the bare word or with no stars, depending on which page you opened first. It now always shows its stars (High ★★★).
 - Space Stations: the stations you direct show their system's wealth, economy and conflict over the picture, like the claims in progress.
 - Fishing: rarity tags and the Rarity filter use the game's own words - what showed as RARE is Uncommon in game, and EPIC is Rare.
 - Fishing: **Clear filters** button (shown once you change a filter) puts the list back to every fish for the planet you're on.
 - Fishing: a fish you catch while the page is open now shows - a banner names it ("You caught your first Wispscale Darter. 30 of 42 caught.") and its card moves to the top with a NEW CATCH or JUST CAUGHT tag. Before, its card just slipped off screen.
+- Screen reading now picks up exotic planet types the game words its own way, like "Xeno-Colony", from the Discoveries pop-up.
 - Anomaly planets showed as "Green / Exotic" (or Red / Blue) - colours the game never shows - and screen reading skipped their type, "Planetary Anomaly". They now show as anomalies, with the game's own words once read.
 - Starships, Multi-Tool, Freighter and Exocraft: **Reset** now undoes every change on the page - name, seeds, type, class and crew too, not just the tech and cargo - and no longer disappears after you change a seed. On Freighter it also undoes an applied full build's interior, and adding or deleting the freighter.
 - Starships, Multi-Tool and Freighter: a Base Stats box could quietly save a stat rounded to 8 decimals after switching ships; only values you type are changed now.

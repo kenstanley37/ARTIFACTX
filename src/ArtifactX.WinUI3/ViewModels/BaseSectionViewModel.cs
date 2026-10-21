@@ -25,6 +25,8 @@ public sealed partial class BaseSectionViewModel : ObservableObject
             BaseKind.Planet => "Planetary",
             BaseKind.Station => "Stations",
             BaseKind.Settlement => "Settlements",
+            BaseKind.Corvette => "Corvettes",
+            BaseKind.SpaceBase => "SpaceBases",
             _ => "Placed",
         } + "Expanded";
         IsExpanded = AppSettingsService.GetFlag(_expandedKey, true);
@@ -78,6 +80,8 @@ public sealed partial class BaseSectionViewModel : ObservableObject
             BaseKind.Freighter => $"{parts:N0} parts placed",
             BaseKind.Planet => $"{parts:N0} parts placed across {shown.Count:N0} bases",
             BaseKind.Station => $"{parts:N0} parts placed across {shown.Count:N0} stations",
+            BaseKind.Corvette => $"{parts:N0} parts placed across {shown.Count:N0} corvettes",
+            BaseKind.SpaceBase => $"{parts:N0} parts placed across {shown.Count:N0} space bases",
             BaseKind.Settlement => shown.Count == 1 ? "1 settlement" : $"{shown.Count:N0} settlements",
             _ => shown.Count == 1 ? "1 object placed outside a base" : $"{shown.Count:N0} objects placed outside bases",
         };

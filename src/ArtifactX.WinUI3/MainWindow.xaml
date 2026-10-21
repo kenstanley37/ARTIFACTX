@@ -176,7 +176,7 @@
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="BasesNavItem" Content="Bases" Tag="Bases" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="BasesNavItem" Content="Bases and Parts" Tag="Bases" Visibility="Collapsed">
                         <NavigationViewItem.Icon>
                             <FontIcon Glyph="&#xE80F;" FontFamily="Segoe MDL2 Assets"/>
                         </NavigationViewItem.Icon>

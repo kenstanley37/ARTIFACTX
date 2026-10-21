@@ -16,7 +16,18 @@ public sealed partial class BaseDetailsPage : Page
 
     public BaseDetailsViewModel ViewModel { get; private set; } = null!;
 
-    public BaseDetailsPage() => InitializeComponent();
+    public BaseDetailsPage()
+    {
+        InitializeComponent();
+        // Parts removed in game drop off the list as soon as the game saves.
+        FishCatchRecorder.SnapshotSeen += OnLiveSnapshot;
+        Unloaded += (_, _) => FishCatchRecorder.SnapshotSeen -= OnLiveSnapshot;
+    }
+
+    private void OnLiveSnapshot(PlanetSnapshot snapshot) => DispatcherQueue.TryEnqueue(async () =>
+    {
+        if (ViewModel is not null) await ViewModel.FollowAsync(snapshot.Bases);
+    });
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {

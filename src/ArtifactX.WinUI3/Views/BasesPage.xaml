@@ -23,7 +23,7 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Text="BASES" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
+            <TextBlock Text="BASES AND PARTS" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
                         ToolTipService.ToolTip="This page follows your game: each time No Man's Sky saves, it updates.">
                 <Ellipse Width="8" Height="8" Fill="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>

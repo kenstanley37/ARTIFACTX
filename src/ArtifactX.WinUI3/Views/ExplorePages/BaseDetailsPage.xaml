@@ -139,8 +139,12 @@
                                             Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
                                         <FontIcon Glyph="{x:Bind Glyph}" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}"/>
                                     </Border>
-                                    <TextBlock Grid.Column="2" Text="{x:Bind Name}" FontSize="14" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                               Foreground="{ThemeResource ThemeTextBrush}" ToolTipService.ToolTip="{x:Bind Name}"/>
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind Name}" FontSize="14" TextTrimming="CharacterEllipsis"
+                                                   Foreground="{ThemeResource ThemeTextBrush}" ToolTipService.ToolTip="{x:Bind Name}"/>
+                                        <TextBlock Text="{x:Bind Note}" Visibility="{x:Bind HasNote}" FontSize="11" TextTrimming="CharacterEllipsis"
+                                                   Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                                    </StackPanel>
                                     <TextBlock Grid.Column="3" Text="{x:Bind CountLabel}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
                                                Foreground="{ThemeResource ThemeAccentBrush}"/>
                                 </Grid>

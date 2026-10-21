@@ -28,6 +28,10 @@ public static class BasePartNames
         ["STATION_CORE"] = "Space station core",
         ["FREIGHTER_CORE"] = "Freighter core",
         ["BASE_ROOT"] = "Base anchor",
+        // A claimed station keeps 120 STACONNECT, one BRIDGECONNECTOR, STATION_CORE and
+        // U_PARAGON after every part the game lets you remove is gone (user cleared a
+        // station by hand, 2026-10-21) - U_PARAGON was missing here and showed as "U Paragon".
+        ["U_PARAGON"] = "Station paragon",
     };
 
     public static bool IsBaseComputer(string id) =>
