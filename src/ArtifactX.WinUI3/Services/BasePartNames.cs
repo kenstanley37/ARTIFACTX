@@ -37,6 +37,10 @@ public static class BasePartNames
         // and out (Station Core, Manage Station, docking) and the exterior looked the same as
         // before. So 122 per station look removable - kept protected until a second test on a
         // fresh claim; U_PARAGON must always stay.
+        // Second test (Nasudo XVII Hub, fresh claim, furniture already cleared, then all 123
+        // built-ins removed - an EMPTY parts list): the game no longer treated the station as
+        // claimed (its core offered Claim Station) and dropped the station's base record from
+        // the save on its next save. A station must never be left with no parts.
         ["U_PARAGON"] = "Station paragon",
     };
 
