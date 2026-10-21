@@ -16,7 +16,7 @@
             </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="viewmodels:StatBoxViewModel">
+            <DataTemplate x:DataType="viewmodels:NumberFieldViewModel">
                 <StackPanel Width="150" Spacing="4">
                     <TextBlock Text="{x:Bind Label}" Style="{StaticResource ThemeBodyTextStyle}"/>
                     <NumberBox Value="{x:Bind Value, Mode=TwoWay}" Minimum="0" SpinButtonPlacementMode="Hidden"

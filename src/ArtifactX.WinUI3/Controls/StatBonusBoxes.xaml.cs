@@ -14,7 +14,7 @@ public sealed partial class StatBonusBoxes : UserControl
 
     public StatBonusBoxes() => InitializeComponent();
 
-    public ObservableCollection<StatBoxViewModel> Stats { get; } = new();
+    public ObservableCollection<NumberFieldViewModel> Stats { get; } = new();
 
     /// <summary>True while a stat edit is being staged. Staging raises
     /// SaveSessionManager.PendingEditsChanged; the page skips its reload for its own
@@ -36,7 +36,7 @@ public sealed partial class StatBonusBoxes : UserControl
         }
         Stats.Clear();
         foreach (var (label, key) in stats)
-            Stats.Add(new StatBoxViewModel(label, key, StatBonusService.Read(bonusesPath, key) ?? double.NaN, OnEdited));
+            Stats.Add(new NumberFieldViewModel(label, key, StatBonusService.Read(bonusesPath, key) ?? double.NaN, OnEdited));
     }
 
     /// <summary>Nothing selected: the boxes stay, blank.</summary>
@@ -46,7 +46,7 @@ public sealed partial class StatBonusBoxes : UserControl
         foreach (var stat in Stats) stat.Load(double.NaN);
     }
 
-    private void OnEdited(StatBoxViewModel stat)
+    private void OnEdited(NumberFieldViewModel stat)
     {
         if (_bonusesPath is null) return;
         IsStaging = true;

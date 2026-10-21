@@ -3,15 +3,15 @@ using System;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
-/// <summary>One stat-bonus box (StatBonusBoxes): "Damage" for ^SHIP_DAMAGE and its value.
-/// Blank (NaN) when the save has no such entry.</summary>
-public sealed partial class StatBoxViewModel : ObservableObject
+/// <summary>A number the player can edit (a stat-bonus box: "Damage" for ^SHIP_DAMAGE; a pet's Trust...).
+/// Blank (NaN) when the save has no such entry. Only real edits reach the callback.</summary>
+public sealed partial class NumberFieldViewModel : ObservableObject
 {
-    private readonly Action<StatBoxViewModel> _edited;
+    private readonly Action<NumberFieldViewModel> _edited;
     private bool _loading;
     private double _shown;
 
-    public StatBoxViewModel(string label, string key, double value, Action<StatBoxViewModel> edited)
+    public NumberFieldViewModel(string label, string key, double value, Action<NumberFieldViewModel> edited)
     {
         Label = label;
         Key = key;

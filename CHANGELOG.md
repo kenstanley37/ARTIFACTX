@@ -56,6 +56,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Inventory **Sort** put some building parts with the maps.
 - Starships and Multi-Tool: **Reset** now undoes every change to the selected ship or tool - its name, seed and type too, not just its tech and cargo - and no longer disappears after you change a seed.
 - Starships, Multi-Tool and Freighter: a Base Stats box could quietly save a stat rounded to 8 decimals after switching ships; only values you type are changed now.
+- Companions: clicking into a number (Trust, Mutation progress, Genes improved, Victories) and away counted as a change - and could nudge Trust or Mutation progress by a rounding error. Only values you type are changed now.
 - Space Stations: a claim card's tags (wealth, economy, conflict) were cut off when they didn't fit on one line, and a pirate system said "Pirate Controlled conflict" plus "Pirate"; tags now wrap and say it once.
 - Settlements' Building Materials (and Near Core) took about 1 GB of memory while reading where things are found in your other save slots; it now reads only the part of each save it needs.
 
