@@ -68,6 +68,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
     {
         InitializeComponent();
         TechCard.GroupOf = TechListPanel.TypeOf;
+        PartsPanel.ViewModel.SeedChosen += PartsPanel_SeedChosen;
 
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
@@ -178,7 +179,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
             string? gameName = null;
             if (unnamed)
             {
-                TryParseSeed(array[i]?["NTx"]?["@EL"]?[1]?.Value<string>(), out ulong seed);
+                ShipPartsService.TryParseSeed(array[i]?["NTx"]?["@EL"]?[1]?.Value<string>(), out ulong seed);
                 if (!GameNames.TryGetValue((seed, scenePath), out gameName)) missingNames.Add((seed, scenePath));
                 name = gameName ?? $"Starship {i + 1}";
             }

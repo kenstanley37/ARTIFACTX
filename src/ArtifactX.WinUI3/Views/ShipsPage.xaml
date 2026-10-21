@@ -146,8 +146,8 @@
                                                 <TextBlock Text="SEED" Style="{StaticResource ThemeEyebrowStyle}"
                                                            ToolTipService.ToolTip="Drives this ship's procedural look, alongside its Class and model. Paste a seed you've found elsewhere, or Generate a new random look - you'll see it next time you load the game."/>
                                                 <controls:SeedBox x:Name="SeedBox" Label="Seed" Changed="Seed_Changed"/>
-                                                <!-- The parts this seed gives (ShipsPage.Parts.cs, experiment). -->
-                                                <StackPanel x:Name="ShipPartsPanel" Spacing="6" Margin="0,6,0,0"/>
+                                                <!-- The parts this seed gives (ShipPartsPanel). -->
+                                                <controls:ShipPartsPanel x:Name="PartsPanel" Margin="0,6,0,0"/>
                                             </StackPanel>
                                         </ctcontrols:WrapPanel>
                                     </StackPanel>
