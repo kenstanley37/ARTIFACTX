@@ -235,42 +235,9 @@
                      panel moved. -->
                 <StackPanel x:Name="SidebarPanel" Grid.Row="1" Grid.Column="1" Spacing="20" VerticalAlignment="Top">
                     <Border x:Name="TemplatesBorder" Style="{StaticResource ThemeCardStyle}" Width="320">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <TextBlock Text="TEMPLATES" Style="{StaticResource ThemeBandTextStyle}"/>
-                            </Border>
-                            <!-- Tech Stack never touches Stats/Seed/Name; Full Build also carries
-                                 Stats + Type (never Name or equip state). -->
-                            <StackPanel Padding="18,14,18,18" Spacing="18">
-                                <!-- Templates other players shared as files (Share... on any template). -->
-                                <StackPanel Spacing="6">
-                                    <Button Content="Import a template file..." Click="ImportTemplateBtn_Click" FontSize="12" Padding="10,4,10,4"
-                                            ToolTipService.ToolTip="Add a template someone shared with you. Your save only changes when you click Apply."/>
-                                    <TextBlock x:Name="ImportTemplateStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"/>
-                                </StackPanel>
-                                <StackPanel Spacing="8">
-                                    <Grid>
-                                        <TextBlock Text="TECH STACK" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
-                                        <Button Content="Save Current..." Click="SaveAsTemplateBtn_Click" FontSize="11" Padding="8,3,8,3" HorizontalAlignment="Right"/>
-                                    </Grid>
-                                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                               Text="Apply replaces the selected tool's tech with this template. Never touches Stats or Class unless you opt in."/>
-                                    <StackPanel x:Name="TemplatesListPanel" Spacing="8"/>
-                                </StackPanel>
-
-                                <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="0,1,0,0"/>
-
-                                <StackPanel Spacing="8">
-                                    <Grid>
-                                        <TextBlock Text="FULL BUILD" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
-                                        <Button Content="Save Current..." Click="SaveAsFullBuildTemplateBtn_Click" FontSize="11" Padding="8,3,8,3" HorizontalAlignment="Right"/>
-                                    </Grid>
-                                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                               Text="The whole tool: tech, class, stats, type and look. Add as new puts it in an empty Multi-Tool slot - your other tools aren't changed."/>
-                                    <StackPanel x:Name="FullBuildTemplatesListPanel" Spacing="8"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </StackPanel>
+                        <controls:LoadoutTemplatesPanel x:Name="TemplatesPanel" SourceKind="MultiTool" NameExample="PvE Rifle Build" FullBuildContents="tech + stats"
+                                                      TechStackHint="Apply replaces the selected tool's tech with this template. Never touches Stats or Class unless you opt in."
+                                                      FullBuildHint="The whole tool: tech, class, stats, type and look. Add as new puts it in an empty Multi-Tool slot - your other tools aren't changed."/>
                     </Border>
                 </StackPanel>
 

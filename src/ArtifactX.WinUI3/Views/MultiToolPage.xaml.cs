@@ -18,7 +18,7 @@ using Windows.UI;
 
 namespace ArtifactX.WinUI3.Views;
 
-public sealed partial class MultiToolPage : Page
+public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
 {
     // IsGameActive is now determined by content-matching against Kgt (a top-level
     // mirror of whichever tool is currently equipped - confirmed via real save
@@ -77,8 +77,7 @@ public sealed partial class MultiToolPage : Page
         Unloaded += Page_Unloaded;
 
         LoadToolList();
-        _ = RefreshTemplatesListAsync();
-        _ = RefreshFullBuildTemplatesListAsync();
+        TemplatesPanel.Host = this;
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e)
@@ -890,8 +889,8 @@ public sealed partial class MultiToolPage : Page
         targetViewModel.Load();
 
         var sourcePositions = _techViewModel.Cells.Where(c => c.IsOccupied).Select(c => (c.X, c.Y));
-        var (confirmed, alsoMatchClass) = await ShowCopyConfirmationAsync(
-            $"a copy of {sourceTool.Name}'s", _techViewModel.CurrentClass, sourcePositions, targetTool.Name, targetViewModel);
+        var (confirmed, alsoMatchClass) = await TechStackCopyConfirmation.ShowAsync(XamlRoot,
+            $"a copy of {sourceTool.Name}'s", _techViewModel.CurrentClass, sourcePositions, targetTool.Name, targetViewModel, targetViewModel.CurrentClass);
 
         if (!confirmed) return;
 
@@ -899,186 +898,6 @@ public sealed partial class MultiToolPage : Page
 
         PageResetBtn.Visibility = Visibility.Visible;
         LoadToolList();
-    }
-
-    private async void SaveAsTemplateBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0 || _techViewModel is null) return;
-
-        var sourceTool = _tools.FirstOrDefault(t => t.Index == _selectedIndex);
-        if (sourceTool is null) return;
-
-        if (!_techViewModel.Cells.Any(c => c.IsOccupied))
-        {
-            await new ContentDialog
-            {
-                Title = "Nothing to save",
-                Content = $"{sourceTool.Name} has no tech installed, so there's nothing to capture as a template.",
-                CloseButtonText = "OK",
-                XamlRoot = this.XamlRoot
-            }.ShowAsync();
-            return;
-        }
-
-        var nameBox = new TextBox { PlaceholderText = "e.g. \"PvE Rifle Build\"" };
-        var nameDialog = new ContentDialog
-        {
-            Title = "Save as Template",
-            Content = new StackPanel
-            {
-                Spacing = 8,
-                Children = { new TextBlock { Text = "Name this loadout:" }, nameBox }
-            },
-            PrimaryButtonText = "Save",
-            CloseButtonText = "Cancel",
-            XamlRoot = this.XamlRoot
-        };
-
-        if (await nameDialog.ShowAsync() != ContentDialogResult.Primary) return;
-
-        string name = nameBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(name)) return;
-
-        var template = _techViewModel.ExtractTemplate(name, sourceTool.Name, "MultiTool");
-        await LoadoutTemplateService.SaveAsync(template);
-
-        // No confirmation popup here on purpose - the whole point of moving
-        // templates into a persistent list is that saving one should visibly
-        // show up right away, not need a separate dialog to prove it worked.
-        await RefreshTemplatesListAsync();
-    }
-
-    /// <summary>Rebuilds the persistent Tech Stack Templates list (Scope==
-    /// "TechStack" only - Full Build templates have their own separate list
-    /// below, RefreshFullBuildTemplatesListAsync). Called after saving,
-    /// deleting, or applying a template, and once on page load, so the list
-    /// visibly reflects reality at all times rather than living behind a
-    /// button the user has to remember to press.</summary>
-    /// <summary>Imports a template file someone shared (TemplateSharingService checks it first).</summary>
-    private async void ImportTemplateBtn_Click(object sender, RoutedEventArgs e)
-    {
-        var result = await TemplateSharingService.ImportAsync("MultiTool");
-        if (result is not { } r) return;
-        ImportTemplateStatusTxt.Text = r.Message;
-        ImportTemplateStatusTxt.Foreground = ThemeResources.Brush(r.Ok ? "ThemeDoneBrush" : "ThemeWarningBrush");
-        ImportTemplateStatusTxt.Visibility = Visibility.Visible;
-        if (!r.Ok) return;
-        await RefreshTemplatesListAsync();
-        await RefreshFullBuildTemplatesListAsync();
-    }
-
-    private async Task RefreshTemplatesListAsync()
-    {
-        var templates = (await LoadoutTemplateService.LoadAllAsync())
-            .Where(t => t.SourceKind == "MultiTool" && t.Scope == "TechStack")
-            .ToList();
-
-        TemplatesListPanel.Children.Clear();
-
-        if (templates.Count == 0)
-        {
-            TemplatesListPanel.Children.Add(new TextBlock
-            {
-                Text = "No templates saved yet.",
-                FontSize = 11,
-                Opacity = 0.6,
-                TextWrapping = TextWrapping.Wrap
-            });
-            return;
-        }
-
-        foreach (var template in templates)
-        {
-            string sourceInfo = template.SourceToolName is null ? "" : $" - from {template.SourceToolName}";
-
-            var row = new StackPanel { Spacing = 4 };
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{template.Name}",
-                FontWeight = FontWeights.SemiBold,
-                FontSize = 13,
-                TextWrapping = TextWrapping.Wrap
-            });
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class{sourceInfo}",
-                FontSize = 10,
-                Opacity = 0.6,
-                TextWrapping = TextWrapping.Wrap
-            });
-
-            var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-
-            var applyButton = new Button { Content = "Apply", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            applyButton.Click += async (_, _) => await ApplyTemplateAsync(template);
-            buttonRow.Children.Add(applyButton);
-
-            var shareButton = new Button { Content = "Share...", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            ToolTipService.SetToolTip(shareButton, "Save this template as a file - to give to a friend, or to keep as a backup");
-            shareButton.Click += async (_, _) => await TemplateSharingService.ExportAsync(shareButton, template);
-            buttonRow.Children.Add(shareButton);
-
-            var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            deleteButton.Click += async (_, _) =>
-            {
-                await LoadoutTemplateService.DeleteAsync(template.Id);
-                await RefreshTemplatesListAsync();
-            };
-            buttonRow.Children.Add(deleteButton);
-
-            row.Children.Add(buttonRow);
-
-            row.Children.Add(new Border
-            {
-                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
-                BorderThickness = new Thickness(0, 1, 0, 0),
-                Margin = new Thickness(0, 4, 0, 0)
-            });
-
-            TemplatesListPanel.Children.Add(row);
-        }
-    }
-
-    private async void SaveAsFullBuildTemplateBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0 || _techViewModel is null) return;
-
-        var sourceTool = _tools.FirstOrDefault(t => t.Index == _selectedIndex);
-        if (sourceTool is null) return;
-
-        if (!_techViewModel.Cells.Any(c => c.IsOccupied))
-        {
-            await new ContentDialog
-            {
-                Title = "Nothing to save",
-                Content = $"{sourceTool.Name} has no tech installed, so there's nothing to capture as a template.",
-                CloseButtonText = "OK",
-                XamlRoot = this.XamlRoot
-            }.ShowAsync();
-            return;
-        }
-
-        var nameBox = new TextBox { PlaceholderText = "e.g. \"PvE Rifle Build (Full Build)\"" };
-        var nameDialog = new ContentDialog
-        {
-            Title = "Save as Full Build Template",
-            Content = new StackPanel
-            {
-                Spacing = 8,
-                Children = { new TextBlock { Text = "Name this build (tech + stats):" }, nameBox }
-            },
-            PrimaryButtonText = "Save",
-            CloseButtonText = "Cancel",
-            XamlRoot = this.XamlRoot
-        };
-
-        if (await nameDialog.ShowAsync() != ContentDialogResult.Primary) return;
-
-        string name = nameBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(name)) return;
-
-        await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate(name, sourceTool));
-        await RefreshFullBuildTemplatesListAsync();
     }
 
     /// <summary>The selected tool as a Full Build template (Save Current, and
@@ -1114,86 +933,11 @@ public sealed partial class MultiToolPage : Page
         if (choice.SaveTemplateFirst)
         {
             await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate($"{tool.Name} (saved before deleting)", tool));
-            await RefreshFullBuildTemplatesListAsync();
+            await TemplatesPanel.RefreshAsync();
         }
         NewFromTemplateService.RemoveMultiTool(tool.Index);
         _selectedIndex = -1;
         LoadToolList();
-    }
-
-    /// <summary>Same shape as RefreshTemplatesListAsync, filtered to Scope==
-    /// "FullBuild" instead and targeting the separate FullBuildTemplatesListPanel.</summary>
-    private async Task RefreshFullBuildTemplatesListAsync()
-    {
-        var templates = (await LoadoutTemplateService.LoadAllAsync())
-            .Where(t => t.SourceKind == "MultiTool" && t.Scope == "FullBuild")
-            .ToList();
-
-        FullBuildTemplatesListPanel.Children.Clear();
-
-        if (templates.Count == 0)
-        {
-            FullBuildTemplatesListPanel.Children.Add(new TextBlock
-            {
-                Text = "No full build templates saved yet.",
-                FontSize = 11,
-                Opacity = 0.6,
-                TextWrapping = TextWrapping.Wrap
-            });
-            return;
-        }
-
-        foreach (var template in templates)
-        {
-            string sourceInfo = template.SourceToolName is null ? "" : $" - from {template.SourceToolName}";
-
-            var row = new StackPanel { Spacing = 4 };
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{template.Name}",
-                FontWeight = FontWeights.SemiBold,
-                FontSize = 13,
-                TextWrapping = TextWrapping.Wrap
-            });
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class, stats{sourceInfo}",
-                FontSize = 10,
-                Opacity = 0.6,
-                TextWrapping = TextWrapping.Wrap
-            });
-
-            var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-
-            var addButton = new Button { Content = "Add as new", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            ToolTipService.SetToolTip(addButton, "Add this whole build as a new Multi-Tool in an empty slot. Your other Multi-Tools aren't changed.");
-            addButton.Click += async (_, _) => await AddAsNewAsync(template);
-            buttonRow.Children.Add(addButton);
-
-            var shareButton = new Button { Content = "Share...", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            ToolTipService.SetToolTip(shareButton, "Save this template as a file - to give to a friend, or to keep as a backup");
-            shareButton.Click += async (_, _) => await TemplateSharingService.ExportAsync(shareButton, template);
-            buttonRow.Children.Add(shareButton);
-
-            var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            deleteButton.Click += async (_, _) =>
-            {
-                await LoadoutTemplateService.DeleteAsync(template.Id);
-                await RefreshFullBuildTemplatesListAsync();
-            };
-            buttonRow.Children.Add(deleteButton);
-
-            row.Children.Add(buttonRow);
-
-            row.Children.Add(new Border
-            {
-                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
-                BorderThickness = new Thickness(0, 1, 0, 0),
-                Margin = new Thickness(0, 4, 0, 0)
-            });
-
-            FullBuildTemplatesListPanel.Children.Add(row);
-        }
     }
 
     /// <summary>Reads a tool's whole stat-bonus array (@bB, nested under its
@@ -1277,8 +1021,8 @@ public sealed partial class MultiToolPage : Page
         if (targetTool is null) return;
 
         var sourcePositions = template.UnlockedPositions.Select(p => (p.X, p.Y));
-        var (confirmed, alsoMatchClass) = await ShowCopyConfirmationAsync(
-            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions, targetTool.Name, _techViewModel);
+        var (confirmed, alsoMatchClass) = await TechStackCopyConfirmation.ShowAsync(XamlRoot,
+            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions, targetTool.Name, _techViewModel, _techViewModel.CurrentClass);
 
         if (!confirmed) return;
 
@@ -1291,65 +1035,20 @@ public sealed partial class MultiToolPage : Page
         LoadSelectedTool();
     }
 
-    /// <summary>Shared by CopyTechStackBtn_Click and ApplyTemplateAsync - shows
-    /// the same analysis (new slots needed, class-differs opt-in checkbox) and
-    /// confirmation dialog regardless of whether the source is a live tool or a
-    /// saved template. Never assumes a class change - always an explicit
-    /// checkbox the user has to tick.</summary>
-    private async Task<(bool Confirmed, bool AlsoMatchClass)> ShowCopyConfirmationAsync(
-        string sourceLabel, string? sourceClass, IEnumerable<(int X, int Y)> sourcePositions,
-        string targetLabel, InventoryGridViewModel targetViewModel)
-    {
-        var sourcePositionSet = sourcePositions.ToHashSet();
-        var targetUnlocked = targetViewModel.Cells.Where(c => c.State != InventorySlotState.Locked).Select(c => (c.X, c.Y)).ToHashSet();
-        int newSlotsNeeded = sourcePositionSet.Except(targetUnlocked).Count();
+    // ------------------------------------------------------------ Templates sidebar (LoadoutTemplatesPanel)
 
-        bool classDiffers = !string.Equals(sourceClass, targetViewModel.CurrentClass, StringComparison.OrdinalIgnoreCase);
+    string? ILoadoutTemplateHost.CurrentName => _techViewModel is null ? null : _tools.FirstOrDefault(t => t.Index == _selectedIndex)?.Name;
 
-        var panel = new StackPanel { Spacing = 10 };
-        panel.Children.Add(new TextBlock
-        {
-            TextWrapping = TextWrapping.Wrap,
-            Text = $"This replaces {targetLabel}'s entire tech loadout with {sourceLabel}."
-        });
+    bool ILoadoutTemplateHost.HasTech => _techViewModel?.Cells.Any(c => c.IsOccupied) == true;
 
-        if (newSlotsNeeded > 0)
-        {
-            panel.Children.Add(new TextBlock
-            {
-                TextWrapping = TextWrapping.Wrap,
-                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
-                Text = $"\u26A0 {newSlotsNeeded} slot(s) will also be unlocked on {targetLabel} to fit this stack."
-            });
-        }
+    NmsLoadoutTemplate ILoadoutTemplateHost.CaptureTechStack(string name) =>
+        _techViewModel!.ExtractTemplate(name, _tools.FirstOrDefault(t => t.Index == _selectedIndex)!.Name, "MultiTool");
 
-        CheckBox? matchClassBox = null;
-        if (classDiffers)
-        {
-            panel.Children.Add(new TextBlock
-            {
-                TextWrapping = TextWrapping.Wrap,
-                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
-                Text = $"\u26A0 Class differs: {targetLabel} is currently {targetViewModel.CurrentClass ?? "unknown"}, source is {sourceClass ?? "unknown"}."
-            });
+    NmsLoadoutTemplate ILoadoutTemplateHost.CaptureFullBuild(string name) => BuildFullBuildTemplate(name, _tools.FirstOrDefault(t => t.Index == _selectedIndex)!);
 
-            matchClassBox = new CheckBox { Content = $"Also change {targetLabel}'s class to {sourceClass} to match" };
-            panel.Children.Add(matchClassBox);
-        }
+    Task ILoadoutTemplateHost.ApplyTechStackAsync(NmsLoadoutTemplate template) => ApplyTemplateAsync(template);
 
-        var dialog = new ContentDialog
-        {
-            Title = "Confirm tech stack copy",
-            Content = panel,
-            PrimaryButtonText = "Copy",
-            CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Close,
-            XamlRoot = this.XamlRoot
-        };
-
-        bool confirmed = await dialog.ShowAsync() == ContentDialogResult.Primary;
-        return (confirmed, matchClassBox?.IsChecked == true);
-    }
+    Task ILoadoutTemplateHost.UseFullBuildAsync(NmsLoadoutTemplate template) => AddAsNewAsync(template);
 
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {

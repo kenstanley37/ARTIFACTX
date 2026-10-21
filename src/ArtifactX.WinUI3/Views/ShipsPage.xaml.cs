@@ -19,7 +19,7 @@ using Windows.UI;
 
 namespace ArtifactX.WinUI3.Views;
 
-public sealed partial class ShipsPage : Page
+public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
 {
     // Matches the ScrollViewers' own XAML-declared MaxHeight - restored when a
     // section is collapsed again. Same values as ExosuitPage since ships share
@@ -78,8 +78,7 @@ public sealed partial class ShipsPage : Page
 
         ApplyDetailsCollapsed();
         LoadShipList();
-        _ = RefreshTemplatesListAsync();
-        _ = RefreshFullBuildTemplatesListAsync();
+        TemplatesPanel.Host = this;
     }
 
     /// <summary>Skips the reload for edits SetStatValue just staged itself -
@@ -1097,8 +1096,8 @@ public sealed partial class ShipsPage : Page
         targetViewModel.Load();
 
         var sourcePositions = _techViewModel.Cells.Where(c => c.IsOccupied).Select(c => (c.X, c.Y));
-        var (confirmed, alsoMatchClass) = await ShowCopyConfirmationAsync(
-            $"a copy of {sourceShip.Name}'s", ReadShipClass(sourceShip.Index), sourcePositions, targetShip.Name, targetViewModel);
+        var (confirmed, alsoMatchClass) = await TechStackCopyConfirmation.ShowAsync(XamlRoot,
+            $"a copy of {sourceShip.Name}'s", ReadShipClass(sourceShip.Index), sourcePositions, targetShip.Name, targetViewModel, targetViewModel.CurrentClass);
 
         if (!confirmed) return;
 
@@ -1107,187 +1106,6 @@ public sealed partial class ShipsPage : Page
 
         PageResetBtn.Visibility = Visibility.Visible;
         LoadShipList();
-    }
-
-    private async void SaveAsTemplateBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0 || _techViewModel is null) return;
-
-        var sourceShip = _ships.FirstOrDefault(s => s.Index == _selectedIndex);
-        if (sourceShip is null) return;
-
-        if (!_techViewModel.Cells.Any(c => c.IsOccupied))
-        {
-            await new ContentDialog
-            {
-                Title = "Nothing to save",
-                Content = $"{sourceShip.Name} has no tech installed, so there's nothing to capture as a template.",
-                CloseButtonText = "OK",
-                XamlRoot = this.XamlRoot
-            }.ShowAsync();
-            return;
-        }
-
-        var nameBox = new TextBox { PlaceholderText = "e.g. \"Combat Hauler\"" };
-        var nameDialog = new ContentDialog
-        {
-            Title = "Save as Template",
-            Content = new StackPanel
-            {
-                Spacing = 8,
-                Children = { new TextBlock { Text = "Name this loadout:" }, nameBox }
-            },
-            PrimaryButtonText = "Save",
-            CloseButtonText = "Cancel",
-            XamlRoot = this.XamlRoot
-        };
-
-        if (await nameDialog.ShowAsync() != ContentDialogResult.Primary) return;
-
-        string name = nameBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(name)) return;
-
-        var template = _techViewModel.ExtractTemplate(name, sourceShip.Name, "Ship");
-        await LoadoutTemplateService.SaveAsync(template);
-
-        // No confirmation popup here on purpose - the whole point of moving
-        // templates into a persistent list is that saving one should visibly
-        // show up right away, not need a separate dialog to prove it worked.
-        await RefreshTemplatesListAsync();
-    }
-
-    /// <summary>Rebuilds the persistent Tech Stack Templates list, filtered to
-    /// Ship-sourced, Scope=="TechStack" templates only - Multi-Tool templates
-    /// share the same on-disk pool but contain Weapon-usage tech that doesn't
-    /// belong in a ship's grid, and Full Build templates have their own
-    /// separate list below (RefreshFullBuildTemplatesListAsync) so it's
-    /// obvious which ones will touch Stats/Seed and which won't. Called after
-    /// saving, deleting, or applying a template, and once on page load.</summary>
-    /// <summary>Imports a template file someone shared (TemplateSharingService checks it first).</summary>
-    private async void ImportTemplateBtn_Click(object sender, RoutedEventArgs e)
-    {
-        var result = await TemplateSharingService.ImportAsync("Ship");
-        if (result is not { } r) return;
-        ImportTemplateStatusTxt.Text = r.Message;
-        ImportTemplateStatusTxt.Foreground = ThemeResources.Brush(r.Ok ? "ThemeDoneBrush" : "ThemeWarningBrush");
-        ImportTemplateStatusTxt.Visibility = Visibility.Visible;
-        if (!r.Ok) return;
-        await RefreshTemplatesListAsync();
-        await RefreshFullBuildTemplatesListAsync();
-    }
-
-    private async Task RefreshTemplatesListAsync()
-    {
-        var templates = (await LoadoutTemplateService.LoadAllAsync())
-            .Where(t => t.SourceKind == "Ship" && t.Scope == "TechStack")
-            .ToList();
-
-        TemplatesListPanel.Children.Clear();
-
-        if (templates.Count == 0)
-        {
-            TemplatesListPanel.Children.Add(new TextBlock
-            {
-                Text = "No templates saved yet.",
-                FontSize = 11,
-                Opacity = 0.6,
-                TextWrapping = TextWrapping.Wrap
-            });
-            return;
-        }
-
-        foreach (var template in templates)
-        {
-            string sourceInfo = template.SourceToolName is null ? "" : $" - from {template.SourceToolName}";
-
-            var row = new StackPanel { Spacing = 4 };
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{template.Name}",
-                FontWeight = FontWeights.SemiBold,
-                FontSize = 13,
-                TextWrapping = TextWrapping.Wrap
-            });
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class{sourceInfo}",
-                FontSize = 10,
-                Opacity = 0.6,
-                TextWrapping = TextWrapping.Wrap
-            });
-
-            var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-
-            var applyButton = new Button { Content = "Apply", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            applyButton.Click += async (_, _) => await ApplyTemplateAsync(template);
-            buttonRow.Children.Add(applyButton);
-
-            var shareButton = new Button { Content = "Share...", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            ToolTipService.SetToolTip(shareButton, "Save this template as a file - to give to a friend, or to keep as a backup");
-            shareButton.Click += async (_, _) => await TemplateSharingService.ExportAsync(shareButton, template);
-            buttonRow.Children.Add(shareButton);
-
-            var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            deleteButton.Click += async (_, _) =>
-            {
-                await LoadoutTemplateService.DeleteAsync(template.Id);
-                await RefreshTemplatesListAsync();
-            };
-            buttonRow.Children.Add(deleteButton);
-
-            row.Children.Add(buttonRow);
-
-            row.Children.Add(new Border
-            {
-                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
-                BorderThickness = new Thickness(0, 1, 0, 0),
-                Margin = new Thickness(0, 4, 0, 0)
-            });
-
-            TemplatesListPanel.Children.Add(row);
-        }
-    }
-
-    private async void SaveAsFullBuildTemplateBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0 || _techViewModel is null) return;
-
-        var sourceShip = _ships.FirstOrDefault(s => s.Index == _selectedIndex);
-        if (sourceShip is null) return;
-
-        if (!_techViewModel.Cells.Any(c => c.IsOccupied))
-        {
-            await new ContentDialog
-            {
-                Title = "Nothing to save",
-                Content = $"{sourceShip.Name} has no tech installed, so there's nothing to capture as a template.",
-                CloseButtonText = "OK",
-                XamlRoot = this.XamlRoot
-            }.ShowAsync();
-            return;
-        }
-
-        var nameBox = new TextBox { PlaceholderText = "e.g. \"Combat Hauler (Full Build)\"" };
-        var nameDialog = new ContentDialog
-        {
-            Title = "Save as Full Build Template",
-            Content = new StackPanel
-            {
-                Spacing = 8,
-                Children = { new TextBlock { Text = "Name this build (tech + stats + appearance):" }, nameBox }
-            },
-            PrimaryButtonText = "Save",
-            CloseButtonText = "Cancel",
-            XamlRoot = this.XamlRoot
-        };
-
-        if (await nameDialog.ShowAsync() != ContentDialogResult.Primary) return;
-
-        string name = nameBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(name)) return;
-
-        await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate(name, sourceShip));
-        await RefreshFullBuildTemplatesListAsync();
     }
 
     /// <summary>The selected ship as a Full Build template (Save Current, and
@@ -1326,87 +1144,11 @@ public sealed partial class ShipsPage : Page
         if (choice.SaveTemplateFirst)
         {
             await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate($"{ship.Name} (saved before deleting)", ship));
-            await RefreshFullBuildTemplatesListAsync();
+            await TemplatesPanel.RefreshAsync();
         }
         NewFromTemplateService.RemoveShip(ship.Index);
         _selectedIndex = -1;
         LoadShipList();
-    }
-
-    /// <summary>Same shape as RefreshTemplatesListAsync, filtered to Scope==
-    /// "FullBuild" instead and targeting the separate FullBuildTemplatesListPanel.</summary>
-    private async Task RefreshFullBuildTemplatesListAsync()
-    {
-        var templates = (await LoadoutTemplateService.LoadAllAsync())
-            .Where(t => t.SourceKind == "Ship" && t.Scope == "FullBuild")
-            .ToList();
-
-        FullBuildTemplatesListPanel.Children.Clear();
-
-        if (templates.Count == 0)
-        {
-            FullBuildTemplatesListPanel.Children.Add(new TextBlock
-            {
-                Text = "No full build templates saved yet.",
-                FontSize = 11,
-                Opacity = 0.6,
-                TextWrapping = TextWrapping.Wrap
-            });
-            return;
-        }
-
-        foreach (var template in templates)
-        {
-            string sourceInfo = template.SourceToolName is null ? "" : $" - from {template.SourceToolName}";
-
-            var row = new StackPanel { Spacing = 4 };
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{template.Name}",
-                FontWeight = FontWeights.SemiBold,
-                FontSize = 13,
-                TextWrapping = TextWrapping.Wrap
-            });
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class, stats+seed"
-                    + (ShipBaseService.HasBuild(template) ? $", corvette build ({template.InteriorObjects!.Count} parts)" : "") + sourceInfo,
-                FontSize = 10,
-                Opacity = 0.6,
-                TextWrapping = TextWrapping.Wrap
-            });
-
-            var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-
-            var addButton = new Button { Content = "Add as new", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            ToolTipService.SetToolTip(addButton, "Add this whole build as a new Starship in an empty slot. Your other Starships aren't changed.");
-            addButton.Click += async (_, _) => await AddAsNewAsync(template);
-            buttonRow.Children.Add(addButton);
-
-            var shareButton = new Button { Content = "Share...", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            ToolTipService.SetToolTip(shareButton, "Save this template as a file - to give to a friend, or to keep as a backup");
-            shareButton.Click += async (_, _) => await TemplateSharingService.ExportAsync(shareButton, template);
-            buttonRow.Children.Add(shareButton);
-
-            var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            deleteButton.Click += async (_, _) =>
-            {
-                await LoadoutTemplateService.DeleteAsync(template.Id);
-                await RefreshFullBuildTemplatesListAsync();
-            };
-            buttonRow.Children.Add(deleteButton);
-
-            row.Children.Add(buttonRow);
-
-            row.Children.Add(new Border
-            {
-                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
-                BorderThickness = new Thickness(0, 1, 0, 0),
-                Margin = new Thickness(0, 4, 0, 0)
-            });
-
-            FullBuildTemplatesListPanel.Children.Add(row);
-        }
     }
 
     /// <summary>Reads a ship's whole stat-bonus array (@bB) as a plain key/value
@@ -1490,8 +1232,8 @@ public sealed partial class ShipsPage : Page
         if (targetShip is null) return;
 
         var sourcePositions = template.UnlockedPositions.Select(p => (p.X, p.Y));
-        var (confirmed, alsoMatchClass) = await ShowCopyConfirmationAsync(
-            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions, targetShip.Name, _techViewModel);
+        var (confirmed, alsoMatchClass) = await TechStackCopyConfirmation.ShowAsync(XamlRoot,
+            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions, targetShip.Name, _techViewModel, _techViewModel.CurrentClass);
 
         if (!confirmed) return;
 
@@ -1501,63 +1243,20 @@ public sealed partial class ShipsPage : Page
         LoadSelectedShip();
     }
 
-    /// <summary>Shared confirmation dialog - identical shape to MultiToolPage's,
-    /// duplicated rather than factored out since it's a small, page-local UI
-    /// helper and the two pages have no other shared base to hang it on.</summary>
-    private async Task<(bool Confirmed, bool AlsoMatchClass)> ShowCopyConfirmationAsync(
-        string sourceLabel, string? sourceClass, IEnumerable<(int X, int Y)> sourcePositions,
-        string targetLabel, InventoryGridViewModel targetViewModel)
-    {
-        var sourcePositionSet = sourcePositions.ToHashSet();
-        var targetUnlocked = targetViewModel.Cells.Where(c => c.State != InventorySlotState.Locked).Select(c => (c.X, c.Y)).ToHashSet();
-        int newSlotsNeeded = sourcePositionSet.Except(targetUnlocked).Count();
+    // ------------------------------------------------------------ Templates sidebar (LoadoutTemplatesPanel)
 
-        bool classDiffers = !string.Equals(sourceClass, targetViewModel.CurrentClass, StringComparison.OrdinalIgnoreCase);
+    string? ILoadoutTemplateHost.CurrentName => _techViewModel is null ? null : _ships.FirstOrDefault(s => s.Index == _selectedIndex)?.Name;
 
-        var panel = new StackPanel { Spacing = 10 };
-        panel.Children.Add(new TextBlock
-        {
-            TextWrapping = TextWrapping.Wrap,
-            Text = $"This replaces {targetLabel}'s entire tech loadout with {sourceLabel}."
-        });
+    bool ILoadoutTemplateHost.HasTech => _techViewModel?.Cells.Any(c => c.IsOccupied) == true;
 
-        if (newSlotsNeeded > 0)
-        {
-            panel.Children.Add(new TextBlock
-            {
-                TextWrapping = TextWrapping.Wrap,
-                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
-                Text = $"⚠ {newSlotsNeeded} slot(s) will also be unlocked on {targetLabel} to fit this stack."
-            });
-        }
+    NmsLoadoutTemplate ILoadoutTemplateHost.CaptureTechStack(string name) =>
+        _techViewModel!.ExtractTemplate(name, _ships.FirstOrDefault(s => s.Index == _selectedIndex)!.Name, "Ship");
 
-        CheckBox? matchClassBox = null;
-        if (classDiffers)
-        {
-            panel.Children.Add(new TextBlock
-            {
-                TextWrapping = TextWrapping.Wrap,
-                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
-                Text = $"⚠ Class differs: {targetLabel} is currently {targetViewModel.CurrentClass ?? "unknown"}, source is {sourceClass ?? "unknown"}."
-            });
+    NmsLoadoutTemplate ILoadoutTemplateHost.CaptureFullBuild(string name) => BuildFullBuildTemplate(name, _ships.FirstOrDefault(s => s.Index == _selectedIndex)!);
 
-            matchClassBox = new CheckBox { Content = $"Also change {targetLabel}'s class to {sourceClass} to match" };
-            panel.Children.Add(matchClassBox);
-        }
+    Task ILoadoutTemplateHost.ApplyTechStackAsync(NmsLoadoutTemplate template) => ApplyTemplateAsync(template);
 
-        var dialog = new ContentDialog
-        {
-            Title = "Confirm tech stack copy",
-            Content = panel,
-            PrimaryButtonText = "Copy",
-            CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Close,
-            XamlRoot = this.XamlRoot
-        };
-
-        bool confirmed = await dialog.ShowAsync() == ContentDialogResult.Primary;
-        return (confirmed, matchClassBox?.IsChecked == true);
-    }
+    Task ILoadoutTemplateHost.UseFullBuildAsync(NmsLoadoutTemplate template) => AddAsNewAsync(template);
 
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
