@@ -85,10 +85,42 @@
             </Border>
 
             <!-- Where to go next: planet types with the most fish still to catch (click to filter). -->
-            <ctcontrols:WrapPanel x:Name="NextPanel" HorizontalSpacing="10" VerticalSpacing="10" Visibility="Collapsed"/>
+            <ItemsControl x:Name="NextTiles" Visibility="Collapsed">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="10"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="viewmodels:FishProgressTileViewModel">
+                        <Button Click="NextType_Click" Padding="0" Background="Transparent" BorderThickness="0"
+                                ToolTipService.ToolTip="{x:Bind Tip}" AutomationProperties.Name="{x:Bind Title}">
+                            <Border Width="210" Padding="10,7,10,9" Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                                    BorderBrush="{x:Bind Border}" BorderThickness="{x:Bind BorderThickness}">
+                                <StackPanel Spacing="4">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{x:Bind Title}" FontSize="12" TextTrimming="CharacterEllipsis" Foreground="{x:Bind TitleBrush}" FontWeight="{x:Bind TitleWeight}"/>
+                                        <TextBlock Grid.Column="1" Text="{x:Bind CountText}" FontSize="12" Foreground="{x:Bind CountBrush}" Margin="8,0,0,0"/>
+                                    </Grid>
+                                    <ProgressBar Maximum="{x:Bind Maximum}" Value="{x:Bind Value}"/>
+                                </StackPanel>
+                            </Border>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </StackPanel>
 
-        <ctcontrols:WrapPanel Grid.Row="2" HorizontalSpacing="14" VerticalSpacing="10">
+        <StackPanel Grid.Row="2" Spacing="12">
+        <!-- A catch the game just saved: without it a new catch only moved a card
+             off screen and nudged the count (2026-10-21). -->
+        <InfoBar x:Name="CatchBar" Severity="Success" IsOpen="False" IsClosable="True"
+                 AutomationProperties.LiveSetting="Polite"/>
+        <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
             <ComboBox x:Name="PlanetTypeBox" Header="Planet type" Width="240" SelectionChanged="Filter_Changed"/>
             <ComboBox x:Name="ShowBox" Header="Show" Width="200" SelectionChanged="Filter_Changed"/>
             <ComboBox x:Name="TimeBox" Header="Time of day" Width="180" SelectionChanged="Filter_Changed"/>
@@ -98,8 +130,11 @@
             <controls:HyperdriveRangeBox VerticalAlignment="Bottom"/>
             <Button x:Name="ExportBtn" Content="Export CSV" Click="ExportCsv_Click" VerticalAlignment="Bottom"
                     ToolTipService.ToolTip="Save the list as shown (with your filters) as a spreadsheet file"/>
+            <Button x:Name="ClearFiltersBtn" Content="Clear filters" Click="ClearFilters_Click" VerticalAlignment="Bottom" Visibility="Collapsed"
+                    ToolTipService.ToolTip="Back to every fish for the planet you're on"/>
             <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
         </ctcontrols:WrapPanel>
+        </StackPanel>
 
         <Grid Grid.Row="3" ColumnSpacing="14">
             <Grid.ColumnDefinitions>
@@ -139,9 +174,16 @@
                                     <Image Source="{x:Bind Icon}" Width="46" Height="46"/>
                                 </Border>
                                 <StackPanel Grid.Column="1" Spacing="2">
-                                    <Border Background="{x:Bind RarityBrush}" CornerRadius="4" Padding="6,0" HorizontalAlignment="Left">
-                                        <TextBlock Text="{x:Bind Rarity}" FontSize="10" FontWeight="Bold" Foreground="White" CharacterSpacing="60"/>
-                                    </Border>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Border Background="{x:Bind RarityBrush}" CornerRadius="4" Padding="6,0" HorizontalAlignment="Left">
+                                            <TextBlock Text="{x:Bind Rarity}" FontSize="10" FontWeight="Bold" Foreground="White" CharacterSpacing="60"/>
+                                        </Border>
+                                        <Border Background="{ThemeResource ThemeDoneBrush}" CornerRadius="4" Padding="6,0"
+                                                Visibility="{x:Bind JustCaughtVisibility, Mode=OneWay}">
+                                            <TextBlock Text="{x:Bind JustCaught, Mode=OneWay}" FontSize="10" FontWeight="Bold"
+                                                       Foreground="{ThemeResource ThemeVoidBrush}" CharacterSpacing="60"/>
+                                        </Border>
+                                    </StackPanel>
                                     <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="14"
                                                TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Name}"/>
                                     <TextBlock Text="{x:Bind Traits}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"

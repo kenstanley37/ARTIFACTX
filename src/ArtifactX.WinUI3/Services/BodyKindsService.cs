@@ -85,6 +85,7 @@ public static class BodyKindsService
             || Regex.IsMatch(l, @"Pin\s+(moon|planet)\s+location", RegexOptions.IgnoreCase));
         bool moon;
         string? type = null;
+        bool kindUnknown = false;
         if (mark >= 0)
             moon = Regex.IsMatch(list[mark], @"MOON", RegexOptions.IgnoreCase)
                 || (mark + 1 < list.Count && Regex.IsMatch(list[mark + 1], @"Pin\s+moon", RegexOptions.IgnoreCase));
@@ -95,9 +96,10 @@ public static class BodyKindsService
             int by0 = list.FindIndex(l => l.Contains("Discovered by", StringComparison.OrdinalIgnoreCase));
             if (by0 < 0) return null;
             type = list.Skip(by0 + 1).Take(3).Select(l => l.Trim())
-                .FirstOrDefault(l => Regex.IsMatch(l, @"^[\p{L} \[\]'-]{3,30}\s(Moon|Planet)$", RegexOptions.IgnoreCase)); // "[REDACTED] Planet" too
+                .FirstOrDefault(PlanetPageReader.IsBodyType);
             if (type is null) return null;
             moon = type.EndsWith("Moon", StringComparison.OrdinalIgnoreCase);
+            kindUnknown = PlanetPageReader.IsAnomalyType(type);
             mark = by0 + 1;
         }
         // The pop-up's name: above its "Discovered by:" line, past stray icon reads.
@@ -116,7 +118,8 @@ public static class BodyKindsService
             var heldResources = PlanetPageReader.PopupResources(list, mark);
             string heldSentinels = PlanetPageReader.PopupSentinels(list, mark);
             UnmatchedBodiesService.Hold(name, !string.IsNullOrEmpty(type) || heldResources.Count > 0 || heldSentinels.Length > 0
-                ? new PlanetDetails { Descriptor = type ?? "", Resources = heldResources, Sentinels = heldSentinels } : null, moon);
+                ? new PlanetDetails { Descriptor = type ?? "", Resources = heldResources, Sentinels = heldSentinels } : null,
+                kindUnknown ? null : moon);
             return $"body pop-up \"{name}\": unknown name - held for you to place on Current System";
         }
 
@@ -134,6 +137,7 @@ public static class BodyKindsService
             if (changed) PlanetDetailsService.Save(system, body, details, source: "captured");
         }
 
+        if (kindUnknown) return $"body pop-up {matched}: {type}{resources}";
         bool generatorSays = UniverseInfo.Bodies(system).IsMoon(body);
         string check = generatorSays == moon ? "" : $" (the generator said {(generatorSays ? "moon" : "planet")})";
         lock (Lock)

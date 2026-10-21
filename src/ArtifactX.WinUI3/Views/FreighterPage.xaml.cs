@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Models;
+using ArtifactX.WinUI3.Controls;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Newtonsoft.Json.Linq;
@@ -25,7 +26,7 @@ namespace ArtifactX.WinUI3.Views;
 /// a player only ever actively manages one freighter's inventory (owning a
 /// wider Frigate Fleet is a separate system, not exposed here).
 /// </summary>
-public sealed partial class FreighterPage : Page
+public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
 {
 
 
@@ -46,32 +47,24 @@ public sealed partial class FreighterPage : Page
     private List<SceneOption>? _crewRaceOptions;
     private bool _suppressTypeSelectionEvent;
     private bool _suppressCrewRaceSelectionEvent;
-    private bool _suppressStatChangeEvent;
 
-    // Set around SetStatValue's own StageEdit call so OnSessionOrEditsChanged
-    // can skip the reload it would otherwise trigger for that same edit -
-    // same fix and reasoning as ShipsPage.SetStatValue (2026-08-01): LoadGrids
-    // recreates both InventoryGridViewModels and re-warms the catalog icon
-    // cache on every call, none of which changes when only Hyperdrive/Fleet
-    // Coordination is edited.
-    private bool _suppressReloadOnOwnStatEdit;
 
     public FreighterPage()
     {
         InitializeComponent();
+        TechCard.GroupOf = TechListPanel.TypeOf;
 
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
         Unloaded += Page_Unloaded;
 
         LoadGrids();
-        _ = RefreshTemplatesListAsync();
-        _ = RefreshFullBuildTemplatesListAsync();
+        TemplatesPanel.Host = this;
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e)
     {
-        if (_suppressReloadOnOwnStatEdit) return;
+        if (StatsBoxes.IsStaging) return; // own stat edit: nothing else changes
         DispatcherQueue.TryEnqueue(LoadGrids);
     }
 
@@ -94,83 +87,13 @@ public sealed partial class FreighterPage : Page
         return _shipCapacity;
     }
 
-    private static string? GetFreighterClassLetter() =>
-        SaveSessionManager.GetValue(NmsInventoryContainer.FreighterClassPath)?.Value<string>();
-
-    /// <summary>The freighter hull's model scene path (bIR.93M) is empty
-    /// until the player actually owns one - confirmed 2026-08-10 against a
-    /// save that hadn't left the starting planet, where it was "" even
-    /// though the Tech/Cargo containers (0wS/8ZP) and their supercharged-slot
-    /// layout (hl?) already existed with real, non-default data. Those
-    /// containers appear to be pre-allocated by the game from the start
-    /// (same pattern as Multi-Tool/Ship's padding slots), so their mere
-    /// presence isn't a reliable ownership signal - the hull scene path is.</summary>
-    private static bool HasFreighter() =>
-        !string.IsNullOrEmpty(SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>());
-
-    /// <summary>Freighter module families, from the 24 freighters in the real
-    /// saves (2026-10-13): hyperdrive plus the six fleet ones, each topping
-    /// out at 3.</summary>
-    private static readonly string[] ModuleFamilies =
-        { "UP_FRHYP", "UP_FRCOM", "UP_FREXP", "UP_FRFUE", "UP_FRMIN", "UP_FRSPE", "UP_FRTRA" };
-
-    private static readonly string[] TechGroupOrder = { "Hyperdrive", "Fleet", "Utilities" };
-
-    /// <summary>Groups by the main stat each tech works on (the game's
-    /// BaseStat, via the catalog's TechStats), same as Starships.</summary>
-    private static string TechGroup(CatalogPart tech)
-    {
-        string stat = tech.Stat ?? "";
-        if (stat.StartsWith("Freighter_Hyperdrive")) return "Hyperdrive";
-        if (stat.StartsWith("Freighter_Fleet")) return "Fleet";
-        return "Utilities";
-    }
-
-    private void TechCargoStack_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
-    private void MainColumn_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
-
-    /// <summary>Tech list beside tech + cargo, as tall as they are, or
-    /// underneath at a fixed height when the window is too narrow.</summary>
-    private void LayoutTechList()
-    {
-        bool beside = MainColumn.ActualWidth >= TechCargoStack.ActualWidth + TechLayoutGrid.ColumnSpacing + TechListCard.Width;
-        Grid.SetRow(TechListCard, beside ? 0 : 1);
-        Grid.SetColumn(TechListCard, beside ? 1 : 0);
-        double height = 560;
-        if (beside)
-        {
-            double chrome = TechListCard.ActualHeight - TechListPanel.ListHeight;
-            if (TechListCard.ActualHeight <= 0 || chrome <= 0) chrome = 230;
-            height = Math.Max(300, TechCargoStack.ActualHeight - chrome);
-        }
-        if (Math.Abs(height - TechListPanel.ListHeight) > 1) TechListPanel.ListHeight = height;
-    }
-
-    private void ArrangeTech_Click(object sender, RoutedEventArgs e)
-    {
-        int moved = TechGrid.ArrangeForAdjacency(TechListPanel.TypeOf);
-        if (moved > 0) PageResetBtn.Visibility = Visibility.Visible;
-        FlyoutBase.SetAttachedFlyout((FrameworkElement)sender, new Flyout
-        {
-            Content = new TextBlock
-            {
-                Text = moved > 0
-                    ? $"Moved {moved} so each type sits together. Reset undoes it."
-                    : "Already grouped - nothing to move.",
-                TextWrapping = TextWrapping.Wrap,
-                MaxWidth = 260,
-            },
-        });
-        FlyoutBase.ShowAttachedFlyout((FrameworkElement)sender);
-    }
-
     private async void LoadGrids() => await LoadGridsAsync();
 
     private async Task LoadGridsAsync()
     {
         if (!SaveSessionManager.IsSaveLoaded) return;
 
-        if (!HasFreighter())
+        if (!FreighterService.HasFreighter())
         {
             NoFreighterPanel.Visibility = Visibility.Visible;
             HeaderGrid.Visibility = Visibility.Collapsed;
@@ -181,7 +104,7 @@ public sealed partial class FreighterPage : Page
         NoFreighterPanel.Visibility = Visibility.Collapsed;
         HeaderGrid.Visibility = Visibility.Visible;
 
-        string? classLetter = GetFreighterClassLetter();
+        string? classLetter = FreighterService.ClassLetter();
         var capacity = await GetShipCapacityAsync();
         int techRows = StarshipCapacity.SlotsToRows(
             capacity.TryGetValue(StarshipCapacity.TechCapacityKey(StarshipCapacity.ShipType.Freighter, classLetter), out int techSlots)
@@ -225,34 +148,33 @@ public sealed partial class FreighterPage : Page
         TechGrid.Refresh();
         CargoGrid.Refresh();
 
-        PageResetBtn.Visibility = (_techViewModel.HasLocalChanges || _cargoViewModel.HasLocalChanges)
-            ? Visibility.Visible : Visibility.Collapsed;
+        PageResetBtn.Visibility = FreighterService.HasPageEdits() ? Visibility.Visible : Visibility.Collapsed;
 
         // The tech a freighter can fit, to click in - the same list limits
         // the right-click search.
-        TechListPanel.IsBestClass = () => GetFreighterClassLetter() == "S";
+        TechListPanel.IsBestClass = () => FreighterService.ClassLetter() == "S";
         TechListPanel.SwitchToBestClassAsync = async () =>
         {
             SaveSessionManager.StageEdit("S", NmsInventoryContainer.FreighterClassPath);
             PageResetBtn.Visibility = Visibility.Visible;
             await LoadGridsAsync();
         };
-        TechListPanel.MoreRoomHint = () => GetFreighterClassLetter() == "S" ? null
+        TechListPanel.MoreRoomHint = () => FreighterService.ClassLetter() == "S" ? null
             : "S class has more slots - change the class in Freighter Details to fit more.";
         _ = TechListPanel.LoadAsync(TechGrid, async () =>
         {
             var tech = await CatalogService.GetTechForAsync(new[] { "Freighter" });
             TechGrid.AllowedItemIds = tech.Select(t => t.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var modules = await CatalogService.GetUpgradeModulesAsync(ModuleFamilies);
-            return Controls.ItemListPanel.SortByGroups(tech.Concat(modules), TechGroup, TechGroupOrder);
-        }, "technology", "technologies", "Technology", TechGroup);
+            var modules = await CatalogService.GetUpgradeModulesAsync(FreighterService.ModuleFamilies);
+            return Controls.ItemListPanel.SortByGroups(tech.Concat(modules), FreighterService.TechGroup, FreighterService.TechGroupOrder);
+        }, "technology", "technologies", "Technology", FreighterService.TechGroup);
 
-        BuildClassSelector();
+        ShowClass();
         NameEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterNamePath)?.Value<string>() ?? "";
-        ApplyDetailsCollapsed();
-        HomeSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterHomeSeedPath)?.Value<string>() ?? "";
-        ModelSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>() ?? "";
-        CrewSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterCrewSeedPath)?.Value<string>() ?? "";
+        ShowFoldedName();
+        HomeSeedBox.Show(NmsInventoryContainer.FreighterHomeSeedPath);
+        ModelSeedBox.Show(NmsInventoryContainer.FreighterModelSeedPath);
+        CrewSeedBox.Show(NmsInventoryContainer.FreighterCrewSeedPath);
 
         await SyncTypeComboBoxAsync();
         await SyncCrewRaceComboBoxAsync();
@@ -335,445 +257,40 @@ public sealed partial class FreighterPage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
-    private void CrewSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (!SaveSessionManager.IsSaveLoaded) return;
-
-        string newSeed = CrewSeedEditBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(newSeed)) return;
-
-        string? currentSeed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterCrewSeedPath)?.Value<string>();
-        if (newSeed == currentSeed) return;
-
-        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterCrewSeedPath);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>Rerolls the captain to a brand new random seed - see
-    /// GenerateModelSeedBtn_Click above.</summary>
-    private void GenerateCrewSeedBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (!SaveSessionManager.IsSaveLoaded) return;
-
-        string newSeed = NmsSeedGenerator.GenerateRandom();
-        CrewSeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterCrewSeedPath);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void HomeSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (!SaveSessionManager.IsSaveLoaded) return;
-
-        string newSeed = HomeSeedEditBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(newSeed)) return;
-
-        string? currentSeed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterHomeSeedPath)?.Value<string>();
-        if (newSeed == currentSeed) return;
-
-        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterHomeSeedPath);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>Same full 64-bit random range as Model/Crew Seed - a reference
-    /// tool's own Generate button does the same for Home Seed despite the
-    /// CURRENT value here often printing shorter (its underlying field isn't
-    /// zero-padded, so a numerically small GalacticAddress just shows fewer
-    /// hex digits).</summary>
-    private void GenerateHomeSeedBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (!SaveSessionManager.IsSaveLoaded) return;
-
-        string newSeed = NmsSeedGenerator.GenerateRandom();
-        HomeSeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterHomeSeedPath);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void ModelSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (!SaveSessionManager.IsSaveLoaded) return;
-
-        string newSeed = ModelSeedEditBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(newSeed)) return;
-
-        string? currentSeed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>();
-        if (newSeed == currentSeed) return;
-
-        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterModelSeedPath);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>Rerolls the hull to a brand new random seed - see
-    /// NmsSeedGenerator for why this is a plain reroll, not a targeted
-    /// picker (shared with ShipsPage's own Generate button, and with
-    /// GenerateCrewSeedBtn_Click above, so all three roll the same way).</summary>
-    private void GenerateModelSeedBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (!SaveSessionManager.IsSaveLoaded) return;
-
-        string newSeed = NmsSeedGenerator.GenerateRandom();
-        ModelSeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterModelSeedPath);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
     /// <summary>Reads/writes NmsInventoryContainer.FreighterClassPath (8ZP,
     /// Cargo) directly rather than going through _techViewModel.CurrentClass/
     /// SetClass (tied to 0wS, Technology) the way Ships/MultiTool's own class
     /// selectors do - see FreighterClassPath's own doc comment for why
     /// Freighter specifically needs its own separate read/write here.</summary>
-    private void BuildClassSelector()
+    private void ShowClass()
     {
-        ClassSelectorPanel.Children.Clear();
-        if (!SaveSessionManager.IsSaveLoaded) return;
+        ClassPicker.Visibility = !SaveSessionManager.IsSaveLoaded ? Visibility.Collapsed : Visibility.Visible;
+        ClassPicker.SelectedClass = FreighterService.ClassLetter();
+    }
 
-        string? currentClass = GetFreighterClassLetter();
-
-        foreach (var letter in new[] { "S", "A", "B", "C" })
-        {
-            bool isCurrent = string.Equals(currentClass, letter, StringComparison.OrdinalIgnoreCase);
-
-            var button = new Button
-            {
-                Content = new TextBlock
-                {
-                    Text = letter,
-                    FontWeight = isCurrent ? FontWeights.Bold : FontWeights.Normal
-                },
-                Padding = new Thickness(14, 4, 14, 4)
-            };
-            ThemeResources.StyleChoiceButton(button, isCurrent);
-
-            button.Click += (_, _) =>
-            {
-                // A class change can change the freighter's real Tech/Cargo
-                // slot totals (StarshipCapacity), so both grids get fully
-                // rebuilt via LoadGrids rather than just refreshed in place.
-                SaveSessionManager.StageEdit(letter, NmsInventoryContainer.FreighterClassPath);
-                PageResetBtn.Visibility = Visibility.Visible;
-                LoadGrids();
-            };
-
-            ClassSelectorPanel.Children.Add(button);
-        }
+    private void ClassPicker_ClassChosen(object? sender, string letter)
+    {
+        // A class change can change the freighter's real Tech/Cargo
+        // slot totals (StarshipCapacity), so both grids get fully
+        // rebuilt via LoadGrids rather than just refreshed in place.
+        SaveSessionManager.StageEdit(letter, NmsInventoryContainer.FreighterClassPath);
+        PageResetBtn.Visibility = Visibility.Visible;
+        LoadGrids();
     }
 
     /// <summary>Loads 0wS.@bB's raw continuous stat rolls (FREI_HYPERDRIVE/
     /// FREI_FLEET) into the editable NumberBoxes - same source/shape as
     /// Multi-Tool's OsQ.@bB, confirmed by real save data and cross-checked
     /// against a reference tool's own "Hyperdrive"/"Fleet Coordination" Base Stats.</summary>
+    /// <summary>The Base Stats boxes: the stat-bonus entries this page shows.</summary>
+    private static readonly (string Label, string Key)[] BaseStats = { ("Hyperdrive", "^FREI_HYPERDRIVE"), ("Fleet Coordination", "^FREI_FLEET") };
+
     private void UpdateStatDisplay()
     {
-        _suppressStatChangeEvent = true;
-
-        var bonuses = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterStatBonusesPath) as JArray;
-
-        double? Find(string key) =>
-            bonuses?.FirstOrDefault(b => b["QL1"]?.Value<string>() == key)?[">MX"]?.Value<double>();
-
-        HyperdriveStatBox.Value = Find("^FREI_HYPERDRIVE") ?? double.NaN;
-        FleetStatBox.Value = Find("^FREI_FLEET") ?? double.NaN;
-
-        _suppressStatChangeEvent = false;
+        StatsBoxes.Show(NmsInventoryContainer.FreighterStatBonusesPath, BaseStats);
     }
 
-    /// <summary>Stages a new value for one @bB entry, matched by its QL1 key,
-    /// rebuilding and staging the WHOLE @bB array at once - same reasoning as
-    /// MultiToolPage.SetStatValue (a deeper leaf-only stage isn't seen by
-    /// SaveSessionManager's staged-edit lookup, which only matches at the
-    /// exact path queried).</summary>
-    private void SetStatValue(string statKey, double newValue)
-    {
-        if (!SaveSessionManager.IsSaveLoaded || double.IsNaN(newValue)) return;
-
-        var bonusesPath = NmsInventoryContainer.FreighterStatBonusesPath;
-        var bonuses = SaveSessionManager.GetValue(bonusesPath) as JArray;
-        if (bonuses is null) return;
-
-        var updated = new JArray();
-        foreach (var entry in bonuses)
-        {
-            if (entry is JObject obj && obj["QL1"]?.Value<string>() == statKey)
-            {
-                var clone = (JObject)obj.DeepClone();
-                clone[">MX"] = newValue;
-                updated.Add(clone);
-            }
-            else
-            {
-                updated.Add(entry.DeepClone());
-            }
-        }
-
-        _suppressReloadOnOwnStatEdit = true;
-        SaveSessionManager.StageEdit(updated, bonusesPath);
-        _suppressReloadOnOwnStatEdit = false;
-    }
-
-    private void HyperdriveStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (_suppressStatChangeEvent) return;
-        SetStatValue("^FREI_HYPERDRIVE", args.NewValue);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>Redundant safety net alongside ValueChanged - some WinUI3
-    /// NumberBox versions don't reliably fire ValueChanged on a plain focus
-    /// loss, matching MultiToolPage's own DamageStatBox_LostFocus reasoning.</summary>
-    private void HyperdriveStatBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_suppressStatChangeEvent) return;
-        if (!double.IsNaN(HyperdriveStatBox.Value))
-        {
-            SetStatValue("^FREI_HYPERDRIVE", HyperdriveStatBox.Value);
-            PageResetBtn.Visibility = Visibility.Visible;
-        }
-    }
-
-    private void FleetStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (_suppressStatChangeEvent) return;
-        SetStatValue("^FREI_FLEET", args.NewValue);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void FleetStatBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_suppressStatChangeEvent) return;
-        if (!double.IsNaN(FleetStatBox.Value))
-        {
-            SetStatValue("^FREI_FLEET", FleetStatBox.Value);
-            PageResetBtn.Visibility = Visibility.Visible;
-        }
-    }
-
-    private void UnlockAllTech_Click(object sender, RoutedEventArgs e)
-    {
-        _techViewModel?.UnlockAll();
-        TechGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void UnlockAllCargo_Click(object sender, RoutedEventArgs e)
-    {
-        _cargoViewModel?.UnlockAll();
-        CargoGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void MaxAllQtyCargo_Click(object sender, RoutedEventArgs e)
-    {
-        _cargoViewModel?.MaxAllQuantities();
-        CargoGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void SortCargo_Click(object sender, RoutedEventArgs e)
-    {
-        if (_cargoViewModel?.SortItems() != true) return;
-        CargoGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void SuperchargeAllTech_Click(object sender, RoutedEventArgs e)
-    {
-        _techViewModel?.SuperchargeAll();
-        TechGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void RepairAllTech_Click(object sender, RoutedEventArgs e)
-    {
-        _techViewModel?.RepairAll();
-        TechGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-
-
-
-    /// <summary>No "Copy Tech Stack..." button on this page unlike Ships/
-    /// Multi-Tool - a save only ever has one freighter, so there's no other
-    /// owned instance to copy onto. Templates (below) are the only loadout-
-    /// sharing mechanism here, since they persist across SAVES rather than
-    /// just between instances within one save - matching the user's own
-    /// stated motivation ("a user may have multi saves and want to copy the
-    /// tech stack").</summary>
-    private async void SaveAsTemplateBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_techViewModel is null) return;
-
-        if (!_techViewModel.Cells.Any(c => c.IsOccupied))
-        {
-            await new ContentDialog
-            {
-                Title = "Nothing to save",
-                Content = "Your freighter has no tech installed, so there's nothing to capture as a template.",
-                CloseButtonText = "OK",
-                XamlRoot = this.XamlRoot
-            }.ShowAsync();
-            return;
-        }
-
-        var nameBox = new TextBox { PlaceholderText = "e.g. \"Combat Hauler\"" };
-        var nameDialog = new ContentDialog
-        {
-            Title = "Save as Template",
-            Content = new StackPanel
-            {
-                Spacing = 8,
-                Children = { new TextBlock { Text = "Name this loadout:" }, nameBox }
-            },
-            PrimaryButtonText = "Save",
-            CloseButtonText = "Cancel",
-            XamlRoot = this.XamlRoot
-        };
-
-        if (await nameDialog.ShowAsync() != ContentDialogResult.Primary) return;
-
-        string name = nameBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(name)) return;
-
-        string freighterName = NameEditBox.Text?.Trim() is { Length: > 0 } n ? n : "Freighter";
-        var template = _techViewModel.ExtractTemplate(name, freighterName, "Freighter");
-        await LoadoutTemplateService.SaveAsync(template);
-
-        // No confirmation popup here on purpose - same reasoning as
-        // ShipsPage/MultiToolPage: saving a template should visibly show up
-        // in the list right away, not need a separate dialog to prove it worked.
-        await RefreshTemplatesListAsync();
-    }
-
-    /// <summary>Rebuilds the persistent Tech Stack Templates list, filtered to
-    /// Freighter-sourced, Scope=="TechStack" templates only - Ship/Multi-Tool
-    /// templates share the same on-disk pool but don't belong in this grid.
-    /// Full Build templates have their own separate list below
-    /// (RefreshFullBuildTemplatesListAsync). Called after saving, deleting, or
-    /// applying a template, and once on page load.</summary>
-    /// <summary>Imports a template file someone shared (TemplateSharingService checks it first).</summary>
-    private async void ImportTemplateBtn_Click(object sender, RoutedEventArgs e)
-    {
-        var result = await TemplateSharingService.ImportAsync("Freighter");
-        if (result is not { } r) return;
-        ImportTemplateStatusTxt.Text = r.Message;
-        ImportTemplateStatusTxt.Foreground = ThemeResources.Brush(r.Ok ? "ThemeDoneBrush" : "ThemeWarningBrush");
-        ImportTemplateStatusTxt.Visibility = Visibility.Visible;
-        if (!r.Ok) return;
-        await RefreshTemplatesListAsync();
-        await RefreshFullBuildTemplatesListAsync();
-    }
-
-    private async Task RefreshTemplatesListAsync()
-    {
-        var templates = (await LoadoutTemplateService.LoadAllAsync())
-            .Where(t => t.SourceKind == "Freighter" && t.Scope == "TechStack")
-            .ToList();
-
-        TemplatesListPanel.Children.Clear();
-
-        if (templates.Count == 0)
-        {
-            TemplatesListPanel.Children.Add(new TextBlock
-            {
-                Text = "No templates saved yet.",
-                FontSize = 11,
-                Opacity = 0.6,
-                TextWrapping = TextWrapping.Wrap
-            });
-            return;
-        }
-
-        foreach (var template in templates)
-        {
-            string sourceInfo = template.SourceToolName is null ? "" : $" - from {template.SourceToolName}";
-
-            var row = new StackPanel { Spacing = 4 };
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{template.Name}",
-                FontWeight = FontWeights.SemiBold,
-                FontSize = 13,
-                TextWrapping = TextWrapping.Wrap
-            });
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class{sourceInfo}",
-                FontSize = 10,
-                Opacity = 0.6,
-                TextWrapping = TextWrapping.Wrap
-            });
-
-            var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-
-            var applyButton = new Button { Content = "Apply", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            applyButton.Click += async (_, _) => await ApplyTemplateAsync(template);
-            buttonRow.Children.Add(applyButton);
-
-            var shareButton = new Button { Content = "Share...", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            ToolTipService.SetToolTip(shareButton, "Save this template as a file - to give to a friend, or to keep as a backup");
-            shareButton.Click += async (_, _) => await TemplateSharingService.ExportAsync(shareButton, template);
-            buttonRow.Children.Add(shareButton);
-
-            var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            deleteButton.Click += async (_, _) =>
-            {
-                await LoadoutTemplateService.DeleteAsync(template.Id);
-                await RefreshTemplatesListAsync();
-            };
-            buttonRow.Children.Add(deleteButton);
-
-            row.Children.Add(buttonRow);
-
-            row.Children.Add(new Border
-            {
-                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
-                BorderThickness = new Thickness(0, 1, 0, 0),
-                Margin = new Thickness(0, 4, 0, 0)
-            });
-
-            TemplatesListPanel.Children.Add(row);
-        }
-    }
-
-    private async void SaveAsFullBuildTemplateBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_techViewModel is null) return;
-
-        if (!_techViewModel.Cells.Any(c => c.IsOccupied))
-        {
-            await new ContentDialog
-            {
-                Title = "Nothing to save",
-                Content = "Your freighter has no tech installed, so there's nothing to capture as a template.",
-                CloseButtonText = "OK",
-                XamlRoot = this.XamlRoot
-            }.ShowAsync();
-            return;
-        }
-
-        var nameBox = new TextBox { PlaceholderText = "e.g. \"Combat Hauler (Full Build)\"" };
-        var nameDialog = new ContentDialog
-        {
-            Title = "Save as Full Build Template",
-            Content = new StackPanel
-            {
-                Spacing = 8,
-                Children = { new TextBlock { Text = "Name this build (tech + stats + appearance):" }, nameBox }
-            },
-            PrimaryButtonText = "Save",
-            CloseButtonText = "Cancel",
-            XamlRoot = this.XamlRoot
-        };
-
-        if (await nameDialog.ShowAsync() != ContentDialogResult.Primary) return;
-
-        string name = nameBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(name)) return;
-
-        await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate(name));
-        await RefreshFullBuildTemplatesListAsync();
-    }
+    private void StatsBoxes_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
 
     /// <summary>The whole freighter as a Full Build template: tech, unlocked
     /// slots, stats, look and furnished interior.</summary>
@@ -782,7 +299,7 @@ public sealed partial class FreighterPage : Page
         string freighterName = NameEditBox.Text?.Trim() is { Length: > 0 } n ? n : "Freighter";
         var template = _techViewModel!.ExtractTemplate(name, freighterName, "Freighter");
         template.Scope = "FullBuild";
-        template.Stats = ExtractStatsList();
+        template.Stats = StatBonusService.ReadAll(NmsInventoryContainer.FreighterStatBonusesPath);
         // Model Seed only (the hull's own look) - deliberately never the
         // Crew Seed (the captain's look, a separate concept), matching
         // NmsLoadoutTemplate.Seed's own doc comment.
@@ -812,14 +329,12 @@ public sealed partial class FreighterPage : Page
         if (choice.SaveTemplateFirst)
         {
             await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate($"{(name == "your freighter" ? "Freighter" : name)} (saved before deleting)"));
-            await RefreshFullBuildTemplatesListAsync();
+            await TemplatesPanel.RefreshAsync();
         }
         FreighterBuildService.RemoveFreighter();
         LoadGrids();
     }
 
-    /// <summary>Same shape as RefreshTemplatesListAsync, filtered to Scope==
-    /// "FullBuild" instead and targeting the separate FullBuildTemplatesListPanel.</summary>
     /// <summary>The "Add a freighter" card shown when the save has none:
     /// every Freighter Full Build template, each with Add as my freighter.</summary>
     private void BuildStarterList()
@@ -835,6 +350,7 @@ public sealed partial class FreighterPage : Page
             info.Children.Add(new TextBlock { Text = description, FontSize = 11, Opacity = 0.7, TextWrapping = TextWrapping.Wrap });
             row.Children.Add(info);
             var add = new Button { Content = "Add as my freighter", VerticalAlignment = VerticalAlignment.Center };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(add, $"Add a {name} as my freighter");
             add.Click += async (_, _) => await AddFreighterAsync(FreighterBuildService.Starter(name, scene));
             Grid.SetColumn(add, 1);
             row.Children.Add(add);
@@ -880,6 +396,7 @@ public sealed partial class FreighterPage : Page
             row.Children.Add(info);
 
             var add = new Button { Content = "Add as my freighter", VerticalAlignment = VerticalAlignment.Center };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(add, $"Add {template.Name} as my freighter");
             add.Click += async (_, _) => await AddFreighterAsync(template);
             Grid.SetColumn(add, 1);
             row.Children.Add(add);
@@ -934,133 +451,6 @@ public sealed partial class FreighterPage : Page
         LoadGrids();
     }
 
-    private async Task RefreshFullBuildTemplatesListAsync()
-    {
-        var templates = (await LoadoutTemplateService.LoadAllAsync())
-            .Where(t => t.SourceKind == "Freighter" && t.Scope == "FullBuild")
-            .ToList();
-
-        FullBuildTemplatesListPanel.Children.Clear();
-
-        if (templates.Count == 0)
-        {
-            FullBuildTemplatesListPanel.Children.Add(new TextBlock
-            {
-                Text = "No full build templates saved yet.",
-                FontSize = 11,
-                Opacity = 0.6,
-                TextWrapping = TextWrapping.Wrap
-            });
-            return;
-        }
-
-        foreach (var template in templates)
-        {
-            string sourceInfo = template.SourceToolName is null ? "" : $" - from {template.SourceToolName}";
-
-            var row = new StackPanel { Spacing = 4 };
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{template.Name}",
-                FontWeight = FontWeights.SemiBold,
-                FontSize = 13,
-                TextWrapping = TextWrapping.Wrap
-            });
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class, stats+seed"
-                    + (FreighterBuildService.HasInterior(template) ? $", interior ({template.InteriorObjects!.Count} parts)" : "") + sourceInfo,
-                FontSize = 10,
-                Opacity = 0.6,
-                TextWrapping = TextWrapping.Wrap
-            });
-
-            var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-
-            var applyButton = new Button { Content = "Apply", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            applyButton.Click += async (_, _) => await ApplyFullBuildTemplateAsync(template);
-            buttonRow.Children.Add(applyButton);
-
-            var shareButton = new Button { Content = "Share...", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            ToolTipService.SetToolTip(shareButton, "Save this template as a file - to give to a friend, or to keep as a backup");
-            shareButton.Click += async (_, _) => await TemplateSharingService.ExportAsync(shareButton, template);
-            buttonRow.Children.Add(shareButton);
-
-            var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            deleteButton.Click += async (_, _) =>
-            {
-                await LoadoutTemplateService.DeleteAsync(template.Id);
-                await RefreshFullBuildTemplatesListAsync();
-            };
-            buttonRow.Children.Add(deleteButton);
-
-            row.Children.Add(buttonRow);
-
-            row.Children.Add(new Border
-            {
-                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
-                BorderThickness = new Thickness(0, 1, 0, 0),
-                Margin = new Thickness(0, 4, 0, 0)
-            });
-
-            FullBuildTemplatesListPanel.Children.Add(row);
-        }
-    }
-
-    /// <summary>Reads the freighter's whole stat-bonus array (@bB) as a plain
-    /// key/value list, for embedding in a Full Build template - captures every
-    /// entry generically (not just the 2 keys exposed as NumberBoxes) so
-    /// nothing present but not individually surfaced gets silently dropped on
-    /// save. Only one freighter per save, so unlike ShipsPage's version this
-    /// takes no index parameter.</summary>
-    private static List<NmsLoadoutStat> ExtractStatsList()
-    {
-        var bonuses = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterStatBonusesPath) as JArray;
-        var result = new List<NmsLoadoutStat>();
-        if (bonuses is null) return result;
-
-        foreach (var entry in bonuses)
-        {
-            string? key = entry["QL1"]?.Value<string>();
-            double? value = entry[">MX"]?.Value<double>();
-            if (key is not null && value is not null)
-                result.Add(new NmsLoadoutStat { Key = key, Value = value.Value });
-        }
-
-        return result;
-    }
-
-    /// <summary>Stages a Full Build template's saved stats onto the freighter -
-    /// rebuilds the whole @bB array matched by key, same "match by key,
-    /// replace whole array" pattern as SetStatValue.</summary>
-    private static void ApplyStatsList(List<NmsLoadoutStat> stats)
-    {
-        if (stats.Count == 0) return;
-
-        var bonusesPath = NmsInventoryContainer.FreighterStatBonusesPath;
-        var bonuses = SaveSessionManager.GetValue(bonusesPath) as JArray;
-        if (bonuses is null) return;
-
-        var statsByKey = stats.ToDictionary(s => s.Key, s => s.Value);
-
-        var updated = new JArray();
-        foreach (var entry in bonuses)
-        {
-            if (entry is JObject obj && obj["QL1"]?.Value<string>() is string key && statsByKey.TryGetValue(key, out double newValue))
-            {
-                var clone = (JObject)obj.DeepClone();
-                clone[">MX"] = newValue;
-                updated.Add(clone);
-            }
-            else
-            {
-                updated.Add(entry.DeepClone());
-            }
-        }
-
-        SaveSessionManager.StageEdit(updated, bonusesPath);
-    }
-
     /// <summary>Applies a saved Full Build template's tech, stats, and Model
     /// Seed to the freighter - Class only changes if the user opts in, same
     /// as ApplyTemplateAsync.</summary>
@@ -1077,7 +467,7 @@ public sealed partial class FreighterPage : Page
 
         _techViewModel.ApplyTemplate(template, alsoMatchClass);
         FreighterBuildService.ApplyInterior(template);
-        ApplyStatsList(template.Stats);
+        StatBonusService.WriteAll(NmsInventoryContainer.FreighterStatBonusesPath, template.Stats);
         if (!string.IsNullOrEmpty(template.Seed))
             SaveSessionManager.StageEdit(template.Seed, NmsInventoryContainer.FreighterModelSeedPath);
         if (!string.IsNullOrEmpty(template.TypeScenePath))
@@ -1117,80 +507,58 @@ public sealed partial class FreighterPage : Page
         LoadGrids();
     }
 
-    /// <summary>Confirmation dialog for applying a template - simpler than
-    /// Ships/MultiTool's ShowCopyConfirmationAsync since a save only ever has
-    /// one freighter: no target picker, just "apply this template to your
-    /// freighter now."</summary>
+    /// <summary>Confirms applying a template. A save only ever has one freighter, so
+    /// there's no target picker - just "apply this to your freighter". The class
+    /// compared is the real one (Cargo's, FreighterClassPath), not the grid's.</summary>
     private async Task<(bool Confirmed, bool AlsoMatchClass)> ShowApplyConfirmationAsync(
         string sourceLabel, string? sourceClass, IEnumerable<(int X, int Y)> sourcePositions, bool includesStatsAndSeed = false,
         bool replacesInterior = false)
     {
         if (_techViewModel is null) return (false, false);
 
-        var sourcePositionSet = sourcePositions.ToHashSet();
-        var targetUnlocked = _techViewModel.Cells.Where(c => c.State != InventorySlotState.Locked).Select(c => (c.X, c.Y)).ToHashSet();
-        int newSlotsNeeded = sourcePositionSet.Except(targetUnlocked).Count();
-
-        string? currentClass = GetFreighterClassLetter();
-        bool classDiffers = !string.Equals(sourceClass, currentClass, StringComparison.OrdinalIgnoreCase);
-
-        var panel = new StackPanel { Spacing = 10 };
-        panel.Children.Add(new TextBlock
-        {
-            TextWrapping = TextWrapping.Wrap,
-            Text = includesStatsAndSeed && replacesInterior
-                ? $"This replaces your freighter's entire tech loadout, base stats, Type, appearance seed and interior (every room and furnishing) with {sourceLabel}. "
-                    + "Items in your storage containers aren't affected."
-                : includesStatsAndSeed
-                ? $"This replaces your freighter's entire tech loadout, base stats, Type, and appearance seed with {sourceLabel}."
-                : $"This replaces your freighter's entire tech loadout with {sourceLabel}."
-        });
-
-        if (newSlotsNeeded > 0)
-        {
-            panel.Children.Add(new TextBlock
-            {
-                TextWrapping = TextWrapping.Wrap,
-                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
-                Text = $"⚠ {newSlotsNeeded} slot(s) will also be unlocked on your freighter to fit this stack."
-            });
-        }
-
-        CheckBox? matchClassBox = null;
-        if (classDiffers)
-        {
-            panel.Children.Add(new TextBlock
-            {
-                TextWrapping = TextWrapping.Wrap,
-                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
-                Text = $"⚠ Class differs: your freighter is currently {currentClass ?? "unknown"}, source is {sourceClass ?? "unknown"}."
-            });
-
-            matchClassBox = new CheckBox { Content = $"Also change your freighter's class to {sourceClass} to match" };
-            panel.Children.Add(matchClassBox);
-        }
-
-        var dialog = new ContentDialog
-        {
-            Title = includesStatsAndSeed ? "Confirm full build apply" : "Confirm tech stack apply",
-            Content = panel,
-            PrimaryButtonText = "Apply",
-            CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Close,
-            XamlRoot = this.XamlRoot
-        };
-
-        bool confirmed = await dialog.ShowAsync() == ContentDialogResult.Primary;
-        return (confirmed, matchClassBox?.IsChecked == true);
+        string summary = includesStatsAndSeed && replacesInterior
+            ? $"This replaces your freighter's entire tech loadout, base stats, Type, appearance seed and interior (every room and furnishing) with {sourceLabel}. "
+                + "Items in your storage containers aren't affected."
+            : includesStatsAndSeed
+            ? $"This replaces your freighter's entire tech loadout, base stats, Type, and appearance seed with {sourceLabel}."
+            : $"This replaces your freighter's entire tech loadout with {sourceLabel}.";
+        var choice = await TechStackCopyConfirmation.ShowAsync(XamlRoot, sourceLabel, sourceClass, sourcePositions,
+            "your freighter", _techViewModel, FreighterService.ClassLetter(), summary,
+            includesStatsAndSeed ? "Confirm full build apply" : "Confirm tech stack apply", "Apply");
+        return (choice.Confirmed, choice.AlsoMatchClass);
     }
 
+    // ------------------------------------------------------------ Templates sidebar (LoadoutTemplatesPanel)
+
+    string? ILoadoutTemplateHost.CurrentName => _techViewModel is null ? null : "Your freighter";
+
+    bool ILoadoutTemplateHost.HasTech => _techViewModel?.Cells.Any(c => c.IsOccupied) == true;
+
+    NmsLoadoutTemplate ILoadoutTemplateHost.CaptureTechStack(string name) =>
+        _techViewModel!.ExtractTemplate(name, NameEditBox.Text?.Trim() is { Length: > 0 } n ? n : "Freighter", "Freighter");
+
+    NmsLoadoutTemplate ILoadoutTemplateHost.CaptureFullBuild(string name) => BuildFullBuildTemplate(name);
+
+    Task ILoadoutTemplateHost.ApplyTechStackAsync(NmsLoadoutTemplate template) => ApplyTemplateAsync(template);
+
+    Task ILoadoutTemplateHost.UseFullBuildAsync(NmsLoadoutTemplate template) => ApplyFullBuildTemplateAsync(template);
+
+    /// <summary>Undoes every change made on this page - the details and seeds as well
+    /// as the grids, which were all the old Reset covered.</summary>
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
-        _techViewModel?.Revert();
-        TechGrid.Refresh();
-        _cargoViewModel?.Revert();
-        CargoGrid.Refresh();
-        TechListPanel.RefreshOwned();
+        FreighterService.RevertPageEdits();
         PageResetBtn.Visibility = Visibility.Collapsed;
+        LoadGrids();
+    }
+
+    /// <summary>What the Details band says while folded: your freighter's name.</summary>
+    private void ShowFoldedName() => DetailsCard.FoldedName = NameEditBox.Text?.Trim() ?? "";
+
+    private void Inventory_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
+
+    private void Seed_Changed(object? sender, SeedChange change)
+    {
+        PageResetBtn.Visibility = Visibility.Visible;
     }
 }

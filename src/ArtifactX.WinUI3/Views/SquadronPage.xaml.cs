@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.Almanac.Starship;
 using ArtifactX.Core.NmsModels;
+using ArtifactX.WinUI3.Controls;
 using ArtifactX.WinUI3.Services;
 using Newtonsoft.Json.Linq;
 using System;
@@ -108,11 +109,11 @@ public sealed partial class SquadronPage : Page
         RaceBox.SelectedIndex = -1;
         RankBox.Value = double.NaN;
         RankLetterTxt.Text = "";
-        NpcSeedEditBox.Text = "";
+        NpcSeedBox.Show(null);
         RemoveUnlistedShipTypeItem();
         ShipTypeBox.SelectedIndex = -1;
-        ShipSeedEditBox.Text = "";
-        TraitsSeedEditBox.Text = "";
+        ShipSeedBox.Show(null);
+        TraitsSeedBox.Show(null);
     }
 
     private void LoadSelectedPilot()
@@ -137,7 +138,7 @@ public sealed partial class SquadronPage : Page
         RankBox.Value = rank;
         RankLetterTxt.Text = RankLetterFor(rank);
 
-        NpcSeedEditBox.Text = SaveSessionManager.GetValue(NmsSquadronPaths.NpcSeedPath(_selectedIndex))?.Value<string>() ?? "";
+        NpcSeedBox.Show(NmsSquadronPaths.NpcSeedPath(_selectedIndex));
 
         string shipFilename = SaveSessionManager.GetValue(NmsSquadronPaths.ShipFilenamePath(_selectedIndex))?.Value<string>() ?? "";
         RemoveUnlistedShipTypeItem();
@@ -155,8 +156,8 @@ public sealed partial class SquadronPage : Page
         }
         ShipTypeBox.SelectedItem = matchedShipType;
 
-        ShipSeedEditBox.Text = SaveSessionManager.GetValue(NmsSquadronPaths.ShipSeedPath(_selectedIndex))?.Value<string>() ?? "";
-        TraitsSeedEditBox.Text = SaveSessionManager.GetValue(NmsSquadronPaths.TraitsSeedPath(_selectedIndex))?.Value<string>() ?? "";
+        ShipSeedBox.Show(NmsSquadronPaths.ShipSeedPath(_selectedIndex));
+        TraitsSeedBox.Show(NmsSquadronPaths.TraitsSeedPath(_selectedIndex));
 
         PageResetBtn.Visibility = SaveSessionManager.HasStagedEditsUnder(NmsSquadronPaths.PilotPath(_selectedIndex))
             ? Visibility.Visible : Visibility.Collapsed;
@@ -234,78 +235,6 @@ public sealed partial class SquadronPage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
-    private void NpcSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = NpcSeedEditBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(newSeed)) return;
-
-        string? currentSeed = SaveSessionManager.GetValue(NmsSquadronPaths.NpcSeedPath(_selectedIndex))?.Value<string>();
-        if (newSeed == currentSeed) return;
-
-        SaveSessionManager.StageEdit(newSeed, NmsSquadronPaths.NpcSeedPath(_selectedIndex));
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void GenerateNpcSeedBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = NmsSeedGenerator.GenerateRandom();
-        NpcSeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsSquadronPaths.NpcSeedPath(_selectedIndex));
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void ShipSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = ShipSeedEditBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(newSeed)) return;
-
-        string? currentSeed = SaveSessionManager.GetValue(NmsSquadronPaths.ShipSeedPath(_selectedIndex))?.Value<string>();
-        if (newSeed == currentSeed) return;
-
-        SaveSessionManager.StageEdit(newSeed, NmsSquadronPaths.ShipSeedPath(_selectedIndex));
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void GenerateShipSeedBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = NmsSeedGenerator.GenerateRandom();
-        ShipSeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsSquadronPaths.ShipSeedPath(_selectedIndex));
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void TraitsSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = TraitsSeedEditBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(newSeed)) return;
-
-        string? currentSeed = SaveSessionManager.GetValue(NmsSquadronPaths.TraitsSeedPath(_selectedIndex))?.Value<string>();
-        if (newSeed == currentSeed) return;
-
-        SaveSessionManager.StageEdit(newSeed, NmsSquadronPaths.TraitsSeedPath(_selectedIndex));
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void GenerateTraitsSeedBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = NmsSeedGenerator.GenerateRandom();
-        TraitsSeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsSquadronPaths.TraitsSeedPath(_selectedIndex));
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedIndex < 0) return;
@@ -313,5 +242,10 @@ public sealed partial class SquadronPage : Page
         SaveSessionManager.RevertEditsUnder(NmsSquadronPaths.PilotPath(_selectedIndex));
         LoadSelectedPilot();
         PageResetBtn.Visibility = Visibility.Collapsed;
+    }
+
+    private void Seed_Changed(object? sender, SeedChange change)
+    {
+        PageResetBtn.Visibility = Visibility.Visible;
     }
 }

@@ -63,7 +63,7 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <TextBox Grid.Column="0" x:Name="SearchBox" PlaceholderText="Search words..." TextChanged="SearchBox_TextChanged"/>
-                    <ComboBox Grid.Column="1" x:Name="KnownFilterBox" Width="150" SelectionChanged="Filter_Changed">
+                    <ComboBox Grid.Column="1" x:Name="KnownFilterBox" AutomationProperties.Name="Show" Width="150" SelectionChanged="Filter_Changed">
                         <ComboBoxItem Content="All Words"/>
                         <ComboBoxItem Content="Known Only"/>
                         <ComboBoxItem Content="Unknown Only"/>
@@ -116,7 +116,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <CheckBox Grid.Column="0" IsChecked="{x:Bind IsKnown, Mode=OneWay}" IsHitTestVisible="False"
+                                    <CheckBox Grid.Column="0" IsChecked="{x:Bind IsKnown, Mode=OneWay}" IsHitTestVisible="False" AutomationProperties.Name="{x:Bind DisplayName}"
                                               VerticalAlignment="Center" Padding="0" MinWidth="0"/>
                                     <TextBlock Grid.Column="1" Text="{x:Bind DisplayName}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}"
                                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>

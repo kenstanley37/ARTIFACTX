@@ -210,7 +210,7 @@ public static class PlanetPageReader
         Fill(read.Flora, () => details.Flora, v => details.Flora = v);
         Fill(read.Fauna, () => details.Fauna, v => details.Fauna = v);
         string? onPlanetDescriptor = lines.Select(Clean).FirstOrDefault(l =>
-            Regex.IsMatch(l, @"^[\p{L} \[\]'-]{3,30}\s(Moon|Planet)$", RegexOptions.IgnoreCase)
+            IsBodyType(l)
             && !labels.Contains(l, StringComparer.OrdinalIgnoreCase));
         if (!string.IsNullOrEmpty(onPlanetDescriptor))
             Fill(onPlanetDescriptor, () => details.Descriptor, v => details.Descriptor = v);
@@ -382,7 +382,7 @@ public static class PlanetPageReader
             for (int i = by + 1; i < max; i++)
             {
                 string line = Clean(lines[i]);
-                if (Regex.IsMatch(line, @"^[\p{L} \[\]'-]{3,30}\s(Moon|Planet)$", RegexOptions.IgnoreCase))
+                if (IsBodyType(line))
                     return line;
             }
         }
@@ -407,6 +407,15 @@ public static class PlanetPageReader
         s.Contains("ARTIFACT", StringComparison.OrdinalIgnoreCase)
         || new[] { "Units", "Nanites", "Quicksilver", "Discoveries", "Catalog & Guide", "Discovered" }.Any(h => s.Equals(h, StringComparison.OrdinalIgnoreCase))
         || s.Count(char.IsLetter) < 3;
+
+    /// <summary>A body's type as the game words it: "Verdant Planet", "Contaminated Moon",
+    /// "[REDACTED] Planet" - or "Planetary Anomaly" for an anomaly world, which was
+    /// skipped until 2026-10-21 (Aukel). Not "Space Anomaly", the station.</summary>
+    internal static bool IsBodyType(string line) =>
+        Regex.IsMatch(line, @"^[\p{L} \[\]'-]{3,30}\s(Moon|Planet|(?<!Space\s)Anomaly)$", RegexOptions.IgnoreCase);
+
+    /// <summary>True for an anomaly's type, which doesn't say whether it's a planet or a moon.</summary>
+    internal static bool IsAnomalyType(string type) => type.EndsWith("Anomaly", StringComparison.OrdinalIgnoreCase);
 
     internal static string Clean(string s)
     {
@@ -452,10 +461,9 @@ public static class PlanetPageReader
             var snap = LiveSaveWatcher.FromSession();
             if (snap.Discoveries is not null)
             {
-                foreach (var p in NmsPlanets.ReadAll(snap.Discoveries))
-                {
-                    if (p.SystemAddress != 0) systems.Add(p.SystemAddress);
-                }
+                // Every system the save knows - one with no planet record yet counts too.
+                foreach (var s in NmsPlanets.ReadSystems(snap.Discoveries))
+                    systems.Add(s.SystemAddress);
             }
         }
         catch { }

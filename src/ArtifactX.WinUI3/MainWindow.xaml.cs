@@ -427,6 +427,7 @@ public sealed partial class MainWindow : Window
                 "Settings" => typeof(SettingsPage),
                 "ItemValues" => typeof(ItemValuesPage),
                 "NearCore" => typeof(NearCorePage),
+                "Regions" => typeof(RegionsPage),
                 "Milestones" => typeof(MilestonesPage),
                 "AccountData" => typeof(AccountDataPage),
                 "Guide" => typeof(GuidePage),
@@ -494,6 +495,7 @@ public sealed partial class MainWindow : Window
         PlanetsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         PlanetFinderNavItem.Visibility = PlanetsNavItem.Visibility;
         NearCoreNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        RegionsNavItem.Visibility = NearCoreNavItem.Visibility;
         BasesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SaveEditorNavItem.Visibility = SaveSessionManager.IsSaveLoaded || SaveSessionManager.HasActivePlatform
             ? Visibility.Visible : Visibility.Collapsed;
@@ -716,6 +718,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(SettingsPage) => "Settings",
             Type t when t == typeof(ItemValuesPage) => "ItemValues",
             Type t when t == typeof(NearCorePage) => "NearCore",
+            Type t when t == typeof(RegionsPage) => "Regions",
             Type t when t == typeof(MilestonesPage) => "Milestones",
             Type t when t == typeof(AccountDataPage) => "AccountData",
             Type t when t == typeof(GuidePage) => "Guide",

@@ -124,7 +124,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         CanGoNext = at >= 0 && at < _siblings.Count - 1;
 
         PortalCode = planet.PortalCode;
-        GalaxyLabel = PlanetText.GalaxyLabel(planet.Galaxy);
+        GalaxyLabel = $"{UniverseInfo.Region(planet.SystemAddress)} · {PlanetText.GalaxyLabel(planet.Galaxy)}";
         ShowNames();
         ShowRecorded();
         ShowSave();

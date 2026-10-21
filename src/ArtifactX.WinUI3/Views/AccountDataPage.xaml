@@ -29,7 +29,7 @@
                      template, which predates that fix). -->
                 <CheckBox Grid.Column="0" Width="30" MinWidth="0" Padding="0" HorizontalContentAlignment="Center"
                           IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
-                          Click="ItemCheckBox_Click" Tag="{x:Bind}" VerticalAlignment="Center"/>
+                          Click="ItemCheckBox_Click" Tag="{x:Bind}" VerticalAlignment="Center" AutomationProperties.Name="{x:Bind DisplayName}"/>
                 <!-- GameId shown under every row, not just when it's ambiguous -
                      many base-building parts (straight/corner/cap connector
                      variants of the same piece) legitimately share one display

@@ -82,7 +82,7 @@
                             Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
                 </Grid>
 
-                <StackPanel x:Name="MainColumn" Grid.Row="1" Grid.Column="0" Spacing="22" SizeChanged="MainColumn_SizeChanged">
+                <StackPanel x:Name="MainColumn" Grid.Row="1" Grid.Column="0" Spacing="22">
                     <Border Style="{StaticResource ThemeCardStyle}">
                         <StackPanel>
                             <Border Style="{StaticResource ThemeBandStyle}">
@@ -92,7 +92,7 @@
                                  this strip is bounded and scrolls internally instead of growing the page. -->
                             <ScrollViewer MaxHeight="120" Padding="18,14,18,16" VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-                                <ctcontrols:WrapPanel x:Name="ToolSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+                                <controls:EquipmentStrip x:Name="ToolStrip" ChipClicked="ToolStrip_ChipClicked"/>
                             </ScrollViewer>
                         </StackPanel>
                     </Border>
@@ -102,17 +102,8 @@
                          (WEAPON_DAMAGE/WEAPON_MINING/WEAPON_SCAN) in one wrapping row, then
                          Name (NKm), class badge and Type. -->
                     <Border x:Name="ToolInfoBorder" Style="{StaticResource ThemeCardStyle}">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <Grid>
-                                    <TextBlock x:Name="DetailsHeaderTxt" Text="MULTI-TOOL DETAILS" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
-                                    <Button x:Name="DetailsToggle" Click="DetailsToggle_Click" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                            Padding="6,2" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Hide the details">
-                                        <FontIcon x:Name="DetailsToggleIcon" Glyph="&#xE70E;" FontSize="12" Foreground="{ThemeResource ThemeBandTextBrush}"/>
-                                    </Button>
-                                </Grid>
-                            </Border>
-                            <StackPanel x:Name="DetailsBody" Padding="18,14,18,18">
+                        <controls:FoldingCard x:Name="DetailsCard" Title="MULTI-TOOL DETAILS" SettingKey="MultiToolDetailsCollapsed">
+                            <StackPanel Padding="18,14,18,18">
                                 <!-- Stats, name and type on the left, the 3D preview beside them; it
                                      wraps below on narrow windows - same as Starships (2026-10-16). -->
                                 <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
@@ -120,26 +111,13 @@
                                         <StackPanel Spacing="6">
                                             <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
                                                        ToolTipService.ToolTip="No known upper limit - extreme values won't corrupt your save, just unbalance it."/>
-                                            <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="10">
-                                                <StackPanel Width="150" Spacing="4">
-                                                    <TextBlock Text="Damage" Style="{StaticResource ThemeBodyTextStyle}"/>
-                                                    <NumberBox x:Name="DamageStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="DamageStatBox_ValueChanged" LostFocus="DamageStatBox_LostFocus"/>
-                                                </StackPanel>
-                                                <StackPanel Width="150" Spacing="4">
-                                                    <TextBlock Text="Mining" Style="{StaticResource ThemeBodyTextStyle}"/>
-                                                    <NumberBox x:Name="MiningStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="MiningStatBox_ValueChanged" LostFocus="MiningStatBox_LostFocus"/>
-                                                </StackPanel>
-                                                <StackPanel Width="150" Spacing="4">
-                                                    <TextBlock Text="Scanner" Style="{StaticResource ThemeBodyTextStyle}"/>
-                                                    <NumberBox x:Name="ScannerStatBox" Minimum="0" SpinButtonPlacementMode="Hidden" ValueChanged="ScannerStatBox_ValueChanged" LostFocus="ScannerStatBox_LostFocus"/>
-                                                </StackPanel>
-                                            </ctcontrols:WrapPanel>
+                                            <controls:StatBonusBoxes x:Name="StatsBoxes" Edited="StatsBoxes_Edited"/>
                                         </StackPanel>
 
                                         <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="16">
                                             <StackPanel Width="280" Spacing="6">
                                                 <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                                <TextBox x:Name="NameEditBox" LostFocus="NameEditBox_LostFocus"/>
+                                                <TextBox x:Name="NameEditBox" AutomationProperties.Name="Name" LostFocus="NameEditBox_LostFocus"/>
                                                 <HyperlinkButton x:Name="NameUpdateLink" Content="Update game data now" Padding="0" Visibility="Collapsed" Click="NameUpdateLink_Click"/>
                                             </StackPanel>
                                             <StackPanel Spacing="6">
@@ -151,7 +129,7 @@
                                             </StackPanel>
                                             <StackPanel Width="240" Spacing="6">
                                                 <TextBlock Text="TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                                <ComboBox x:Name="TypeComboBox" HorizontalAlignment="Stretch"
+                                                <ComboBox x:Name="TypeComboBox" AutomationProperties.Name="Type" HorizontalAlignment="Stretch"
                                                           DisplayMemberPath="DisplayName"
                                                           SelectionChanged="TypeComboBox_SelectionChanged"/>
                                                 <!-- The main model's kind comes from the seed (MultiToolKinds). -->
@@ -169,58 +147,32 @@
                                     </StackPanel>
                                 </ctcontrols:WrapPanel>
                             </StackPanel>
-                        </StackPanel>
+                        </controls:FoldingCard>
                     </Border>
 
                     <!-- Tech grid with the list of tech this tool can fit beside it, or
                          underneath on a narrow window - same as Starships/Exosuit. -->
-                    <Grid x:Name="TechLayoutGrid" ColumnSpacing="22" RowSpacing="22">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        <StackPanel x:Name="TechCargoStack" VerticalAlignment="Top" SizeChanged="TechCargoStack_SizeChanged">
-                            <!-- No cargo section (multi-tools don't have one), so the full 10x6
-                                 grid is shown at once - no scroll cap needed. -->
-                            <Border Style="{StaticResource ThemeCardStyle}" HorizontalAlignment="Left" VerticalAlignment="Top">
-                                <StackPanel>
-                                    <Border Style="{StaticResource ThemeBandStyle}">
-                                        <TextBlock x:Name="TechHeaderTxt" Text="TECHNOLOGY" Style="{StaticResource ThemeBandTextStyle}"/>
-                                    </Border>
-                                    <StackPanel Padding="14,12,14,14" Spacing="12">
-                                        <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
-                                            <Button Content="Unlock All Slots" Click="UnlockAllTech_Click"/>
-                                            <Button Content="Supercharge All Slots" Click="SuperchargeAllTech_Click"/>
-                                            <Button Content="Repair All Slots" Click="RepairAllTech_Click"/>
-                                            <Button Content="Arrange for Adjacency" Click="ArrangeTech_Click"
-                                                    ToolTipService.ToolTip="Groups same-type tech side by side so it gets the game's adjacency boost. Tech in supercharged slots stays where it is."/>
-                                            <Button Content="Copy Tech Stack..." Click="CopyTechStackBtn_Click"/>
-                                        </ctcontrols:WrapPanel>
+                    <controls:InventoryLayout x:Name="TechLayout" ListTitle="MULTI-TOOL TECHNOLOGY">
+                        <controls:InventoryLayout.Inventories>
+                            <StackPanel Spacing="22">
+                                <controls:InventoryCard x:Name="TechCard" Title="TECHNOLOGY" Kind="Technology" Edited="Inventory_Edited">
+                                    <controls:InventoryCard.ExtraActions>
+                                        <Button Content="Copy Tech Stack..." Click="CopyTechStackBtn_Click"/>
+                                    </controls:InventoryCard.ExtraActions>
+                                    <controls:InventoryCard.AboveSlots>
                                         <StackPanel Orientation="Horizontal" Spacing="10">
                                             <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
-                                            <StackPanel x:Name="ClassSelectorPanel" Orientation="Horizontal" Spacing="6"/>
+                                            <controls:ClassPicker x:Name="ClassPicker" ClassChosen="ClassPicker_ClassChosen"/>
                                         </StackPanel>
-                                        <controls:InventorySlotGrid x:Name="TechGrid"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-
-                        <Border x:Name="TechListCard" Grid.Column="1" Style="{StaticResource ThemeCardStyle}" Width="340" VerticalAlignment="Top" HorizontalAlignment="Left">
-                            <StackPanel>
-                                <Border Style="{StaticResource ThemeBandStyle}">
-                                    <TextBlock Text="MULTI-TOOL TECHNOLOGY" Style="{StaticResource ThemeBandTextStyle}"/>
-                                </Border>
-                                <Border Padding="14,12,14,14">
-                                    <controls:ItemListPanel x:Name="TechListPanel"/>
-                                </Border>
+                                    </controls:InventoryCard.AboveSlots>
+                                    <controls:InventorySlotGrid x:Name="TechGrid"/>
+                                </controls:InventoryCard>
                             </StackPanel>
-                        </Border>
-                    </Grid>
+                        </controls:InventoryLayout.Inventories>
+                        <controls:InventoryLayout.List>
+                            <controls:ItemListPanel x:Name="TechListPanel"/>
+                        </controls:InventoryLayout.List>
+                    </controls:InventoryLayout>
                 </StackPanel>
 
                 <!-- SidebarPanel is one named unit (Templates + Name/Class/Type/Stats
@@ -235,42 +187,9 @@
                      panel moved. -->
                 <StackPanel x:Name="SidebarPanel" Grid.Row="1" Grid.Column="1" Spacing="20" VerticalAlignment="Top">
                     <Border x:Name="TemplatesBorder" Style="{StaticResource ThemeCardStyle}" Width="320">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <TextBlock Text="TEMPLATES" Style="{StaticResource ThemeBandTextStyle}"/>
-                            </Border>
-                            <!-- Tech Stack never touches Stats/Seed/Name; Full Build also carries
-                                 Stats + Type (never Name or equip state). -->
-                            <StackPanel Padding="18,14,18,18" Spacing="18">
-                                <!-- Templates other players shared as files (Share... on any template). -->
-                                <StackPanel Spacing="6">
-                                    <Button Content="Import a template file..." Click="ImportTemplateBtn_Click" FontSize="12" Padding="10,4,10,4"
-                                            ToolTipService.ToolTip="Add a template someone shared with you. Your save only changes when you click Apply."/>
-                                    <TextBlock x:Name="ImportTemplateStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"/>
-                                </StackPanel>
-                                <StackPanel Spacing="8">
-                                    <Grid>
-                                        <TextBlock Text="TECH STACK" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
-                                        <Button Content="Save Current..." Click="SaveAsTemplateBtn_Click" FontSize="11" Padding="8,3,8,3" HorizontalAlignment="Right"/>
-                                    </Grid>
-                                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                               Text="Apply replaces the selected tool's tech with this template. Never touches Stats or Class unless you opt in."/>
-                                    <StackPanel x:Name="TemplatesListPanel" Spacing="8"/>
-                                </StackPanel>
-
-                                <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="0,1,0,0"/>
-
-                                <StackPanel Spacing="8">
-                                    <Grid>
-                                        <TextBlock Text="FULL BUILD" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
-                                        <Button Content="Save Current..." Click="SaveAsFullBuildTemplateBtn_Click" FontSize="11" Padding="8,3,8,3" HorizontalAlignment="Right"/>
-                                    </Grid>
-                                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                               Text="The whole tool: tech, class, stats, type and look. Add as new puts it in an empty Multi-Tool slot - your other tools aren't changed."/>
-                                    <StackPanel x:Name="FullBuildTemplatesListPanel" Spacing="8"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </StackPanel>
+                        <controls:LoadoutTemplatesPanel x:Name="TemplatesPanel" SourceKind="MultiTool" NameExample="PvE Rifle Build" FullBuildContents="tech + stats"
+                                                      TechStackHint="Apply replaces the selected tool's tech with this template. Never touches Stats or Class unless you opt in."
+                                                      FullBuildHint="The whole tool: tech, class, stats, type and look. Add as new puts it in an empty Multi-Tool slot - your other tools aren't changed."/>
                     </Border>
                 </StackPanel>
 

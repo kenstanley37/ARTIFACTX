@@ -22,7 +22,7 @@
                 </Grid.ColumnDefinitions>
                 <CheckBox Grid.Column="0" Width="30" MinWidth="0" Padding="0" HorizontalContentAlignment="Center"
                           IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
-                          Click="ItemCheckBox_Click" Tag="{x:Bind}" VerticalAlignment="Center"/>
+                          Click="ItemCheckBox_Click" Tag="{x:Bind}" VerticalAlignment="Center" AutomationProperties.Name="{x:Bind DisplayName}"/>
                 <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
                     <TextBlock Text="{x:Bind DisplayName}" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource ThemeTextBrush}"/>
                     <TextBlock Text="{x:Bind GameId}" FontSize="10" Foreground="{ThemeResource ThemeTextFaintBrush}"

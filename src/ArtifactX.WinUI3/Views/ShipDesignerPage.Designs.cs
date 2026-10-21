@@ -157,6 +157,7 @@ public sealed partial class ShipDesignerPage
         var card = new Button { Content = content, Tag = design.Id, Padding = new Thickness(6), VerticalAlignment = VerticalAlignment.Stretch };
         ThemeResources.StyleChoiceButton(card, design.Id == _designId);
         ToolTipService.SetToolTip(card, $"Load \"{design.Name}\"");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(card, $"Load {design.Name}");
         // Painting a ship: a design lends its paint only (its parts would be a different ship).
         card.Click += (_, _) => { if (_paintShip is not null) UseDesignPaint(design); else LoadDesign(design, saved.Thumbnail is null); };
 
@@ -166,6 +167,7 @@ public sealed partial class ShipDesignerPage
             HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 10, 10, 0),
         };
         ToolTipService.SetToolTip(delete, "Delete this design");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(delete, $"Delete {design.Name}");
         delete.Click += async (_, _) =>
         {
             if (!await Confirm($"Delete \"{design.Name}\"?", "The design is removed from My designs. Ships you already made from it stay as they are.", "Delete")) return;

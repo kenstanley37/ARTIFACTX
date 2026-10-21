@@ -162,10 +162,10 @@
                                                     <StackPanel Orientation="Horizontal" Spacing="4" Padding="0,2">
                                                         <CheckBox Width="30" MinWidth="0" Padding="0" HorizontalContentAlignment="Center"
                                                                   IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
-                                                                  Click="UnlockedCheckBox_Click" Tag="{x:Bind}"/>
+                                                                  Click="UnlockedCheckBox_Click" Tag="{x:Bind}" AutomationProperties.Name="{x:Bind UnlockedName}"/>
                                                         <CheckBox Width="30" MinWidth="0" Padding="0" HorizontalContentAlignment="Center"
                                                                   IsChecked="{x:Bind IsSeen, Mode=OneWay}"
-                                                                  Click="SeenCheckBox_Click" Tag="{x:Bind}"/>
+                                                                  Click="SeenCheckBox_Click" Tag="{x:Bind}" AutomationProperties.Name="{x:Bind SeenName}"/>
                                                         <TextBlock Text="{x:Bind DisplayName}" VerticalAlignment="Center" Foreground="{ThemeResource ThemeTextBrush}"
                                                                    TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                                                                    MaxWidth="180"/>
@@ -185,9 +185,9 @@
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
                                                     <StackPanel Orientation="Horizontal" Spacing="4" Padding="0,2"
-                                                                Opacity="0" IsHitTestVisible="False">
-                                                        <CheckBox Width="30" MinWidth="0" Padding="0" IsTabStop="False"/>
-                                                        <CheckBox Width="30" MinWidth="0" Padding="0" IsTabStop="False"/>
+                                                                Opacity="0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw">
+                                                        <CheckBox Width="30" MinWidth="0" Padding="0" IsTabStop="False" AutomationProperties.AccessibilityView="Raw"/>
+                                                        <CheckBox Width="30" MinWidth="0" Padding="0" IsTabStop="False" AutomationProperties.AccessibilityView="Raw"/>
                                                         <TextBlock Text=" " MaxWidth="180"/>
                                                     </StackPanel>
                                                 </DataTemplate>

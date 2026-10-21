@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A starship's parts (ShipPartsViewModel): the ship-builder parts its seed gives (or
+     it was built with), and "Find a seed with the parts you want". -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.ShipPartsPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls">
+
+    <UserControl.Resources>
+        <Style x:Key="DimStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{ThemeResource ThemeTextDimBrush}"/>
+        </Style>
+    </UserControl.Resources>
+
+    <StackPanel Spacing="6">
+        <TextBlock Text="{x:Bind ViewModel.Heading, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasHeading, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}"/>
+        <ItemsControl ItemsSource="{x:Bind ViewModel.Chips}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="viewmodels:ShipPartChipViewModel">
+                    <StackPanel Width="92" Spacing="2" ToolTipService.ToolTip="{x:Bind Name}">
+                        <Image Source="{x:Bind Icon}" Width="56" Height="56" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind Name}" FontSize="11" TextWrapping="Wrap" TextAlignment="Center" MaxLines="3"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Text="{x:Bind ViewModel.Message, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasMessage, Mode=OneWay}" Style="{StaticResource DimStyle}"/>
+
+        <HyperlinkButton Content="Find a seed with the parts you want" Padding="0" Click="ToggleSearch_Click"
+                         Visibility="{x:Bind ViewModel.CanSearch, Mode=OneWay}"/>
+        <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.SearchOpen, Mode=OneWay}">
+            <ItemsControl ItemsSource="{x:Bind ViewModel.Sets}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Spacing="8"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="viewmodels:ShipPartSetChoiceViewModel">
+                        <ComboBox HorizontalAlignment="Stretch" ItemsSource="{x:Bind Choices}" SelectedIndex="{x:Bind SelectedIndex, Mode=TwoWay}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="viewmodels:ShipPartChoiceViewModel">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" Opacity="{x:Bind Opacity, Mode=OneWay}">
+                                        <Image Source="{x:Bind Icon}" Width="28" Height="28"/>
+                                        <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{x:Bind Odds, Mode=OneWay}" FontSize="11" VerticalAlignment="Center" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="{x:Bind ViewModel.OddsLine, Mode=OneWay}" Style="{StaticResource DimStyle}"/>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Content="{x:Bind ViewModel.SearchLabel, Mode=OneWay}" Click="Search_Click"/>
+                <TextBlock Text="{x:Bind ViewModel.Status, Mode=OneWay}" Style="{StaticResource DimStyle}" VerticalAlignment="Center"/>
+            </StackPanel>
+            <ItemsControl ItemsSource="{x:Bind ViewModel.Results}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Spacing="4"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="{x:Bind}" FontFamily="Cascadia Mono, Consolas" VerticalAlignment="Center" IsTextSelectionEnabled="True"/>
+                            <Button Content="Use" Padding="10,2,10,2" Click="Use_Click" AutomationProperties.Name="Use this seed"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

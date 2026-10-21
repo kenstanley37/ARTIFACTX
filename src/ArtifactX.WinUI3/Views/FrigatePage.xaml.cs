@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.Core.NmsModels;
+using ArtifactX.WinUI3.Controls;
 using ArtifactX.WinUI3.Services;
 using libMBIN.NMS.GameComponents;
 using Newtonsoft.Json.Linq;
@@ -157,8 +158,8 @@ public sealed partial class FrigatePage : Page
         FrigateClassBox.SelectedIndex = -1;
         RaceBox.SelectedIndex = -1;
         InventoryClassBox.SelectedIndex = -1;
-        ModelSeedEditBox.Text = "";
-        HomeSeedEditBox.Text = "";
+        ModelSeedBox.Show(null);
+        HomeSeedBox.Show(null);
         Stat0Box.Value = double.NaN;
         Stat1Box.Value = double.NaN;
         Stat2Box.Value = double.NaN;
@@ -190,8 +191,8 @@ public sealed partial class FrigatePage : Page
         _suppressFieldChangeEvent = true;
 
         NameEditBox.Text = SaveSessionManager.GetValue(NmsFrigatePaths.CustomNamePath(_selectedIndex))?.Value<string>() ?? "";
-        ModelSeedEditBox.Text = SaveSessionManager.GetValue(NmsFrigatePaths.ModelSeedPath(_selectedIndex))?.Value<string>() ?? "";
-        HomeSeedEditBox.Text = SaveSessionManager.GetValue(NmsFrigatePaths.HomeSeedPath(_selectedIndex))?.Value<string>() ?? "";
+        ModelSeedBox.Show(NmsFrigatePaths.ModelSeedPath(_selectedIndex));
+        HomeSeedBox.Show(NmsFrigatePaths.HomeSeedPath(_selectedIndex));
 
         string frigateClass = SaveSessionManager.GetValue(NmsFrigatePaths.FrigateClassPath(_selectedIndex))?.Value<string>() ?? "";
         FrigateClassBox.SelectedItem = FrigateClassBox.Items.Cast<ComboBoxItem>()
@@ -313,6 +314,7 @@ public sealed partial class FrigatePage : Page
             };
 
             var box = new ComboBox { Width = 340 };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(box, $"Trait {i + 1}");
             var noneItem = new ComboBoxItem { Content = "(None)", Tag = "", Foreground = NeutralTraitBrush };
             box.Items.Add(noneItem);
             foreach (var kv in sortedTraits)
@@ -399,57 +401,6 @@ public sealed partial class FrigatePage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
-    private void ModelSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = ModelSeedEditBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(newSeed)) return;
-
-        string? currentSeed = SaveSessionManager.GetValue(NmsFrigatePaths.ModelSeedPath(_selectedIndex))?.Value<string>();
-        if (newSeed == currentSeed) return;
-
-        SaveSessionManager.StageEdit(newSeed, NmsFrigatePaths.ModelSeedPath(_selectedIndex));
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>Rerolls the hull to a brand new random seed - see
-    /// NmsSeedGenerator; same plain-reroll approach FreighterPage/ShipsPage
-    /// already use for their own Model Seed buttons.</summary>
-    private void GenerateModelSeedBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = NmsSeedGenerator.GenerateRandom();
-        ModelSeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsFrigatePaths.ModelSeedPath(_selectedIndex));
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void HomeSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = HomeSeedEditBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(newSeed)) return;
-
-        string? currentSeed = SaveSessionManager.GetValue(NmsFrigatePaths.HomeSeedPath(_selectedIndex))?.Value<string>();
-        if (newSeed == currentSeed) return;
-
-        SaveSessionManager.StageEdit(newSeed, NmsFrigatePaths.HomeSeedPath(_selectedIndex));
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void GenerateHomeSeedBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = NmsSeedGenerator.GenerateRandom();
-        HomeSeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsFrigatePaths.HomeSeedPath(_selectedIndex));
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
     private void InventoryClassBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_suppressFieldChangeEvent || _selectedIndex < 0) return;
@@ -513,5 +464,10 @@ public sealed partial class FrigatePage : Page
         SaveSessionManager.RevertEditsUnder(NmsFrigatePaths.FrigatePath(_selectedIndex));
         LoadSelectedFrigate();
         PageResetBtn.Visibility = Visibility.Collapsed;
+    }
+
+    private void Seed_Changed(object? sender, SeedChange change)
+    {
+        PageResetBtn.Visibility = Visibility.Visible;
     }
 }

@@ -82,8 +82,7 @@ public static class KnownPlanetsService
         try
         {
             string json = await SaveStreamProcessor.ExtractRawJsonAsync(path);
-            var root = JObject.Parse(json.TrimEnd('\0'));
-            var discoveries = root["fDu"]?["ETO"]?["OsQ"]?["?fB"] as JArray;
+            var discoveries = NmsJsonStream.ReadAt(json.TrimEnd('\0'), "fDu", "ETO", "OsQ", "?fB") as JArray;
             planets = NmsPlanets.ReadAll(discoveries);
             systems = NmsPlanets.ReadSystems(discoveries);
         }

@@ -68,7 +68,7 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <TextBox Grid.Column="0" x:Name="SearchBox" PlaceholderText="Search fish..." TextChanged="SearchBox_TextChanged"/>
-                    <ComboBox Grid.Column="1" x:Name="CaughtFilterBox" Width="150" SelectionChanged="Filter_Changed">
+                    <ComboBox Grid.Column="1" x:Name="CaughtFilterBox" AutomationProperties.Name="Show" Width="150" SelectionChanged="Filter_Changed">
                         <ComboBoxItem Content="All Items"/>
                         <ComboBoxItem Content="Caught Only"/>
                         <ComboBoxItem Content="Uncaught Only"/>
@@ -103,7 +103,7 @@
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCaught, Mode=OneWay}" IsHitTestVisible="False"
+                                        <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCaught, Mode=OneWay}" IsHitTestVisible="False" AutomationProperties.Name="{x:Bind DisplayName}"
                                                   VerticalAlignment="Center" Padding="0" MinWidth="0"/>
                                         <Border Grid.Column="1" Width="28" Height="28" Background="{ThemeResource ThemeVoidBrush}" CornerRadius="4" VerticalAlignment="Center">
                                             <Image Source="{x:Bind Icon, Mode=OneWay}" Stretch="Uniform" Width="22" Height="22"/>

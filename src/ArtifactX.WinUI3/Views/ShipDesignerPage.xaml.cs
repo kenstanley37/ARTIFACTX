@@ -175,6 +175,7 @@ public sealed partial class ShipDesignerPage : Page
         {
             var button = new Button { Content = Title(type.Title), Padding = new Thickness(12, 5, 12, 5) };
             ThemeResources.StyleChoiceButton(button, type == _type);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, type.Title);
             button.Click += (_, _) => { if (type != _type) SelectType(type); };
             TypePanel.Children.Add(button);
         }
@@ -205,6 +206,7 @@ public sealed partial class ShipDesignerPage : Page
                 HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
             };
             ThemeResources.StyleChoiceButton(button, slot.Id == _slot);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, $"{slot.Label}: {(item is null ? "none" : PartName(item))}");
             button.Click += (_, _) =>
             {
                 if (slot.Id == _slot) return;
@@ -237,6 +239,7 @@ public sealed partial class ShipDesignerPage : Page
             var button = new Button { Content = PartCard(item.Item), Padding = new Thickness(4), VerticalAlignment = VerticalAlignment.Stretch };
             ThemeResources.StyleChoiceButton(button, _parts.GetValueOrDefault(slot.Id) == item.Item);
             ToolTipService.SetToolTip(button, PartName(item.Item));
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, PartName(item.Item));
             button.Click += (_, _) =>
             {
                 _parts[slot.Id] = item.Item;

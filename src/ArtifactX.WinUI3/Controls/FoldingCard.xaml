@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A card's band with a fold button and the card's body (Body). Folded, only the band
+     shows and names what the card is about ("SHIP DETAILS · THE WRAITH · FIGHTER").
+     Open/closed is remembered per SettingKey across visits and app restarts. -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.FoldingCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <StackPanel>
+        <Border Style="{StaticResource ThemeBandStyle}">
+            <Grid>
+                <TextBlock x:Name="HeaderTxt" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
+                <Button x:Name="ToggleBtn" Click="Toggle_Click" HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Padding="6,2" Background="Transparent" BorderThickness="0">
+                    <FontIcon x:Name="ToggleIcon" FontSize="12" Foreground="{ThemeResource ThemeBandTextBrush}"/>
+                </Button>
+            </Grid>
+        </Border>
+        <ContentPresenter x:Name="BodyPresenter" Content="{x:Bind Body, Mode=OneWay}"/>
+    </StackPanel>
+</UserControl>

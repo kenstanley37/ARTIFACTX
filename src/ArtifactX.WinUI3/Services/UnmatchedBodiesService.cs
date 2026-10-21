@@ -88,7 +88,7 @@ public static class UnmatchedBodiesService
         int body = candidates[0];
         string generated = UniverseInfo.GeneratedPlanetName(held.System, body);
         if (PlanetPageReader.Distance(FirstWord(held.Name), FirstWord(generated)) > 2) return false;
-        Assign(held, body);
+        Assign(held, body, source: "captured"); // placed by elimination, not picked by the player
         return true;
     }
 
@@ -122,14 +122,14 @@ public static class UnmatchedBodiesService
     }
 
     /// <summary>The player said which body it is: remember the name, then apply what was read.</summary>
-    public static void Assign(Held held, int body, bool rememberName = true)
+    public static void Assign(Held held, int body, bool rememberName = true, string source = "user")
     {
         lock (Lock) Items.Remove(held);
         if (rememberName)
         {
             var note = SystemNotesService.Get(held.System) ?? new SystemNote();
             note.PlanetNames[body.ToString(CultureInfo.InvariantCulture)] = held.Name;
-            SystemNotesService.Save(held.System, note, source: "user");
+            SystemNotesService.Save(held.System, note, source: source);
         }
         if (held.Details is { } details)
         {

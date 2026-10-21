@@ -11,6 +11,10 @@ public partial class GuideTopicRowViewModel : ObservableObject
 {
     public required string GameId { get; init; }
     public required string DisplayName { get; init; }
+
+    /// <summary>The two checkboxes, for screen readers.</summary>
+    public string UnlockedName => $"{DisplayName} unlocked";
+    public string SeenName => $"{DisplayName} seen";
     public required string Category { get; init; }
 
     [ObservableProperty]

@@ -39,6 +39,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Inventory **Sort** groups items by kind (technology, raw materials, components, curiosities and so on), then A-Z.
 - Settings shows how big your ArtifactX data file is, its version and where it is, with a button to open the folder.
 - Cards you fold away or open stay that way on every page.
+- **Regions** (Explore): how much of each region you've mapped. For each system you've found there: whether its system data was read, and for every planet and moon whether its Discoveries hover and its own page were captured - so you can see what's left to do. The region also shows on Current System and a planet's page, and the Planet Finder can filter and search by it.
 
 ### Fixed
 
@@ -53,6 +54,20 @@ What changed in each ArtifactX release, written for players. The newest release 
 - A base's own page shows its picture faded in behind the header again.
 - Parts the game places itself (freighter bridge connectors, station cores) have plain names instead of made-up ones.
 - Inventory **Sort** put some building parts with the maps.
+- Space Stations: the stations you direct show their system's wealth, economy and conflict over the picture, like the claims in progress.
+- Fishing: rarity tags and the Rarity filter use the game's own words - what showed as RARE is Uncommon in game, and EPIC is Rare.
+- Fishing: **Clear filters** button (shown once you change a filter) puts the list back to every fish for the planet you're on.
+- Fishing: a fish you catch while the page is open now shows - a banner names it ("You caught your first Wispscale Darter. 30 of 42 caught.") and its card moves to the top with a NEW CATCH or JUST CAUGHT tag. Before, its card just slipped off screen.
+- Anomaly planets showed as "Green / Exotic" (or Red / Blue) - colours the game never shows - and screen reading skipped their type, "Planetary Anomaly". They now show as anomalies, with the game's own words once read.
+- Starships, Multi-Tool, Freighter and Exocraft: **Reset** now undoes every change on the page - name, seeds, type, class and crew too, not just the tech and cargo - and no longer disappears after you change a seed. On Freighter it also undoes an applied full build's interior, and adding or deleting the freighter.
+- Starships, Multi-Tool and Freighter: a Base Stats box could quietly save a stat rounded to 8 decimals after switching ships; only values you type are changed now.
+- Companions: clicking into a number (Trust, Mutation progress, Genes improved, Victories) and away counted as a change - and could nudge Trust or Mutation progress by a rounding error. Only values you type are changed now.
+- Settlements: clicking into Population and away counted as a change; it doesn't now. A feature's dropdown also shows its red/green colour when closed.
+- General: clicking into Save name, Summary, Units, Nanites or Quicksilver and away counted as a change; it doesn't now.
+- Screen readers: about 110 buttons and 440 inputs had no name (Ship Designer parts and slots, Exocraft vehicles, recipe items and pins, Capture, Paint this ship, the Add a find/video and Show overview toggles, details fold buttons). Lists of checkboxes (Catalogue, Guide, language words, fish records, rewards) now read each item's name, and text boxes and dropdowns read their label. The title bar's Save button had no name either, and buttons that read the same are told apart (each seed's Generate, each Add as my freighter). Every page was checked.
+- Finds, Fishing and Near Core each read the game's save again on every autosave while open; they now share the one reading the rest of ArtifactX uses.
+- Space Stations: a claim card's tags (wealth, economy, conflict) were cut off when they didn't fit on one line, and a pirate system said "Pirate Controlled conflict" plus "Pirate"; tags now wrap and say it once.
+- Settlements' Building Materials (and Near Core) took about 1 GB of memory while reading where things are found in your other save slots; it now reads only the part of each save it needs.
 
 - 3D previews were drawn mirrored (left and right swapped).
 - Explorer wings: the left and right wing were mixed up in the preview, and an Explorer added from the designer came out with the wrong wings in game.

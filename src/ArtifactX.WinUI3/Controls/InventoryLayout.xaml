@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Inventory cards on the left with the list of what fits them (ItemListPanel) beside
+     them - its height following theirs - or underneath when the window is too narrow. -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.InventoryLayout"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid x:Name="LayoutGrid" ColumnSpacing="22" RowSpacing="22">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <ContentPresenter x:Name="InventoriesPresenter" Content="{x:Bind Inventories, Mode=OneWay}" VerticalAlignment="Top"
+                          SizeChanged="Inventories_SizeChanged"/>
+
+        <Border x:Name="ListCard" Grid.Column="1" Style="{StaticResource ThemeCardStyle}" Width="340" VerticalAlignment="Top" HorizontalAlignment="Left">
+            <StackPanel>
+                <Border Style="{StaticResource ThemeBandStyle}">
+                    <TextBlock Text="{x:Bind ListTitle, Mode=OneWay}" Style="{StaticResource ThemeBandTextStyle}"/>
+                </Border>
+                <Border Padding="14,12,14,14">
+                    <ContentPresenter Content="{x:Bind List, Mode=OneWay}"/>
+                </Border>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

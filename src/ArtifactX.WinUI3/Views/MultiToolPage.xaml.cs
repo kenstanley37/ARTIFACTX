@@ -18,7 +18,7 @@ using Windows.UI;
 
 namespace ArtifactX.WinUI3.Views;
 
-public sealed partial class MultiToolPage : Page
+public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
 {
     // IsGameActive is now determined by content-matching against Kgt (a top-level
     // mirror of whichever tool is currently equipped - confirmed via real save
@@ -59,17 +59,11 @@ public sealed partial class MultiToolPage : Page
     // database instead of being hardcoded here.
     private Dictionary<string, int>? _multiToolCapacity;
 
-    // Set around SetStatValue's own StageEdit call so OnSessionOrEditsChanged
-    // can skip the reload it would otherwise trigger for that same edit -
-    // same fix and reasoning as ShipsPage.SetStatValue (2026-08-01): the full
-    // reload recreates the Technology InventoryGridViewModel and re-warms the
-    // catalog icon cache on every call, none of which changes when only
-    // Damage/Mining/Scanner is edited.
-    private bool _suppressReloadOnOwnStatEdit;
 
     public MultiToolPage()
     {
         InitializeComponent();
+        TechCard.GroupOf = TechListPanel.TypeOf;
 
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
@@ -77,13 +71,12 @@ public sealed partial class MultiToolPage : Page
         Unloaded += Page_Unloaded;
 
         LoadToolList();
-        _ = RefreshTemplatesListAsync();
-        _ = RefreshFullBuildTemplatesListAsync();
+        TemplatesPanel.Host = this;
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e)
     {
-        if (_suppressReloadOnOwnStatEdit) return;
+        if (StatsBoxes.IsStaging) return; // own stat edit: nothing else changes
         DispatcherQueue.TryEnqueue(LoadToolList);
     }
 
@@ -114,16 +107,6 @@ public sealed partial class MultiToolPage : Page
         return _multiToolCapacity;
     }
 
-    private static int LookupTechSlots(Dictionary<string, int> capacity, string? classLetter) =>
-        capacity.TryGetValue(MultiToolCapacity.TechCapacityKey(classLetter), out int slots)
-            ? slots : MultiToolCapacity.FallbackTechSlots;
-
-    /// <summary>Reads a tool's Class letter directly from the save, BEFORE any
-    /// InventoryGridViewModel exists for it - needed up front to size the grid
-    /// correctly, since capacity depends on class (MultiToolCapacity).</summary>
-    private static string? GetToolClassLetter(int toolIndex) =>
-        SaveSessionManager.GetValue(NmsInventoryContainer.MultiToolTechnologyPath(toolIndex).Append("B@N").Append("1o6").ToArray())?.Value<string>();
-
     /// <summary>Re-reads the owned multi-tool list from the current session and
     /// rebuilds the selector strip. Defaults selection to the in-game active
     /// tool the first time a session loads; a plain edits-changed refresh keeps
@@ -140,7 +123,7 @@ public sealed partial class MultiToolPage : Page
             _tools = new();
             _selectedIndex = -1;
             _activeIndex = -1;
-            ToolSelectorPanel.Children.Clear();
+            ToolStrip.Items = null;
             TechGrid.ViewModel = null;
             TechGrid.Refresh();
             return;
@@ -224,13 +207,13 @@ public sealed partial class MultiToolPage : Page
         {
             if (!t.IsUnnamed) { labelled.Add(t); continue; }
             string scene = SaveSessionManager.GetValue("vLc", "6f=", "SuJ", t.Index.ToString(), "NTx", "93M")?.Value<string>() ?? "";
-            string? gameName = SeedOf(t.Index) is ulong seed ? await MultiToolKinds.GameNameAsync(seed, scene) : null;
+            string? gameName = MultiToolService.SeedOf(t.Index) is ulong seed ? await MultiToolKinds.GameNameAsync(seed, scene) : null;
             string? label = gameName;
             if (label is null)
             {
-                string? kind = MultiToolKinds.IsMainModel(scene) ? await KindOfAsync(t.Index) : MultiToolKinds.NameFor(scene, "");
+                string? kind = MultiToolKinds.IsMainModel(scene) ? await MultiToolService.KindOfAsync(t.Index) : MultiToolKinds.NameFor(scene, "");
                 if (string.IsNullOrEmpty(kind)) { labelled.Add(t); continue; }
-                label = GetToolClassLetter(t.Index) is { Length: > 0 } cls ? $"{kind} · {cls} class" : kind;
+                label = MultiToolService.ClassLetter(t.Index) is { Length: > 0 } cls ? $"{kind} · {cls} class" : kind;
             }
             // The same tool twice (same seed) has the same name in game too.
             int n = used[label] = used.GetValueOrDefault(label) + 1;
@@ -242,7 +225,7 @@ public sealed partial class MultiToolPage : Page
         BuildSelectorStrip();
         if (_tools.FirstOrDefault(t => t.Index == _selectedIndex) is { IsUnnamed: true } selected)
         {
-            TechHeaderTxt.Text = $"TECHNOLOGY  —  {selected.Name.ToUpperInvariant()}";
+            TechCard.Title = $"TECHNOLOGY  —  {selected.Name.ToUpperInvariant()}";
             ShowName(selected);
         }
     }
@@ -273,139 +256,25 @@ public sealed partial class MultiToolPage : Page
 
     private void BuildSelectorStrip()
     {
-        ToolSelectorPanel.Children.Clear();
+        bool IsNew(int index) => LiveItemsService.IsNew(LiveCollection.MultiTools, index);
+        ToolStrip.Items = _tools
+            .Select(tool => EquipmentChipViewModel.Item(tool.Index, tool.Name, tool.Index == _selectedIndex, tool.IsGameActive,
+                isNew: IsNew(tool.Index),
+                animateIn: IsNew(tool.Index) && !_labelsPending && LiveItemsService.TakeAnimation(LiveCollection.MultiTools, tool.Index)))
+            .Concat(LiveItemsService.Gone(LiveCollection.MultiTools).Select(EquipmentChipViewModel.Gone))
+            .ToList();
+    }
 
-        foreach (var tool in _tools)
+    private void ToolStrip_ChipClicked(object? sender, EquipmentChipViewModel chip)
+    {
+        _selectedIndex = chip.Index;
+        if (LiveItemsService.IsNew(LiveCollection.MultiTools, chip.Index))
         {
-            bool isSelected = tool.Index == _selectedIndex;
-
-            var content = BuildButtonContent(tool, isSelected);
-            var button = new Button
-            {
-                Content = content,
-                Padding = new Thickness(12, 6, 12, 6)
-            };
-            ThemeResources.StyleChoiceButton(button, isSelected);
-            if (LiveItemsService.IsNew(LiveCollection.MultiTools, tool.Index))
-            {
-                LiveItemVisuals.MarkNew(button, content);
-                if (!_labelsPending && LiveItemsService.TakeAnimation(LiveCollection.MultiTools, tool.Index))
-                    LiveItemVisuals.SlideIn(button);
-            }
-
-            button.Click += (_, _) =>
-            {
-                _selectedIndex = tool.Index;
-                if (LiveItemsService.IsNew(LiveCollection.MultiTools, tool.Index))
-                {
-                    LiveItemsService.Seen(LiveCollection.MultiTools, tool.Index); // Changed -> LoadToolList shows it
-                    return;
-                }
-                BuildSelectorStrip();
-                LoadSelectedTool();
-            };
-
-            ToolSelectorPanel.Children.Add(button);
+            LiveItemsService.Seen(LiveCollection.MultiTools, chip.Index); // Changed -> LoadToolList shows it
+            return;
         }
-
-        foreach (var gone in LiveItemsService.Gone(LiveCollection.MultiTools))
-            ToolSelectorPanel.Children.Add(LiveItemVisuals.Gone(gone));
-    }
-
-    /// <summary>Selected state bolds the name; game-active state adds a small
-    /// green "ACTIVE" badge - the two are independent and can appear together
-    /// or separately (e.g. viewing a tool that isn't the one you're carrying).</summary>
-    private static StackPanel BuildButtonContent(ToolEntry tool, bool isSelected)
-    {
-        var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-
-        panel.Children.Add(new TextBlock
-        {
-            Text = tool.Name,
-            FontWeight = isSelected ? FontWeights.SemiBold : FontWeights.Normal,
-            VerticalAlignment = VerticalAlignment.Center
-        });
-
-        if (tool.IsGameActive)
-        {
-            panel.Children.Add(new Border
-            {
-                Background = ThemeResources.Brush("ThemeDoneBrush"),
-                CornerRadius = ThemeResources.CardCornerRadius,
-                Padding = new Thickness(6, 1, 6, 1),
-                VerticalAlignment = VerticalAlignment.Center,
-                Child = new TextBlock
-                {
-                    Text = "ACTIVE",
-                    FontSize = 10,
-                    FontWeight = FontWeights.Bold,
-                    FontFamily = ThemeResources.Font("ThemeDisplayFont"),
-                    CharacterSpacing = 120,
-                    Foreground = ThemeResources.Brush("ThemeOnAccentBrush"),
-                }
-            });
-        }
-
-        return panel;
-    }
-
-    /// <summary>Multi-tool module families, from the 94 tools in the real saves
-    /// (2026-10-13): each tops out at 3 per tool. UP_SENGUN is a one-off
-    /// salvaged find, so it isn't offered.</summary>
-    private static readonly string[] ModuleFamilies =
-        { "UP_LASER", "UP_SCAN", "UP_BOLT", "UP_SMG", "UP_SHOT", "UP_CANN", "UP_RAIL", "UP_GREN", "UP_TGREN" };
-
-    private static readonly string[] TechGroupOrder = { "Mining", "Scanning", "Weapons", "Utilities" };
-
-    /// <summary>Groups by the main stat each tech works on (the game's
-    /// BaseStat, via the catalog's TechStats), same as Starships.</summary>
-    private static string TechGroup(CatalogPart tech)
-    {
-        string stat = tech.Stat ?? "";
-        if (stat is "Weapon_Laser" or "Weapon_SunLaser") return "Mining";
-        if (stat.StartsWith("Weapon_Scan")) return "Scanning";
-        if (stat is "Weapon_Projectile" or "Weapon_Burst" or "Weapon_Shotgun" or "Weapon_Cannon" or "Weapon_Rail"
-            or "Weapon_Grenade" or "Weapon_MineGrenade" or "Weapon_StunGrenade" or "Weapon_Flame" or "Weapon_Stun"
-            or "Weapon_Gravity" or "Weapon_SoulLaser") return "Weapons";
-        return "Utilities";
-    }
-
-    private void TechCargoStack_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
-    private void MainColumn_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTechList();
-
-    /// <summary>Tech list beside the tech card, as tall as it, or underneath
-    /// at a fixed height when the window is too narrow.</summary>
-    private void LayoutTechList()
-    {
-        bool beside = MainColumn.ActualWidth >= TechCargoStack.ActualWidth + TechLayoutGrid.ColumnSpacing + TechListCard.Width;
-        Grid.SetRow(TechListCard, beside ? 0 : 1);
-        Grid.SetColumn(TechListCard, beside ? 1 : 0);
-        double height = 560;
-        if (beside)
-        {
-            double chrome = TechListCard.ActualHeight - TechListPanel.ListHeight;
-            if (TechListCard.ActualHeight <= 0 || chrome <= 0) chrome = 230;
-            height = Math.Max(300, TechCargoStack.ActualHeight - chrome);
-        }
-        if (Math.Abs(height - TechListPanel.ListHeight) > 1) TechListPanel.ListHeight = height;
-    }
-
-    private void ArrangeTech_Click(object sender, RoutedEventArgs e)
-    {
-        int moved = TechGrid.ArrangeForAdjacency(TechListPanel.TypeOf);
-        if (moved > 0) PageResetBtn.Visibility = Visibility.Visible;
-        FlyoutBase.SetAttachedFlyout((FrameworkElement)sender, new Flyout
-        {
-            Content = new TextBlock
-            {
-                Text = moved > 0
-                    ? $"Moved {moved} so each type sits together. Reset undoes it."
-                    : "Already grouped - nothing to move.",
-                TextWrapping = TextWrapping.Wrap,
-                MaxWidth = 260,
-            },
-        });
-        FlyoutBase.ShowAttachedFlyout((FrameworkElement)sender);
+        BuildSelectorStrip();
+        LoadSelectedTool();
     }
 
     private async void LoadSelectedTool()
@@ -425,15 +294,13 @@ public sealed partial class MultiToolPage : Page
             _techViewModel = null;
             TechGrid.ViewModel = null;
             TechGrid.Refresh();
-            TechListCard.Visibility = Visibility.Collapsed;
-            TechHeaderTxt.Text = "TECHNOLOGY";
-            ClassSelectorPanel.Children.Clear();
+            TechLayout.ShowList = false;
+            TechCard.Title = "TECHNOLOGY";
+            ClassPicker.Visibility = Visibility.Collapsed;
             NameEditBox.Text = "";
             SelectedToolClassTxt.Text = "—";
             SelectedToolClassBadge.Background = ThemeResources.Brush("ThemePanelAltBrush");
-            DamageStatBox.Value = double.NaN;
-            MiningStatBox.Value = double.NaN;
-            ScannerStatBox.Value = double.NaN;
+            StatsBoxes.Clear();
             TypeComboBox.SelectedItem = null;
             KindTxt.Visibility = Visibility.Collapsed;
             ShowToolPreview();
@@ -443,9 +310,9 @@ public sealed partial class MultiToolPage : Page
         var selectedTool = _tools.First(t => t.Index == _selectedIndex);
         ShowToolPreview();
 
-        string? classLetter = GetToolClassLetter(_selectedIndex);
+        string? classLetter = MultiToolService.ClassLetter(_selectedIndex);
         var capacity = await GetMultiToolCapacityAsync();
-        int techRows = MultiToolCapacity.SlotsToRows(LookupTechSlots(capacity, classLetter));
+        int techRows = MultiToolCapacity.SlotsToRows(MultiToolService.TechSlots(capacity, classLetter));
 
         // Kgt looked like the safer target for editing the active tool, but a
         // real save/load test proved it wrong: edits written there (an item add
@@ -476,12 +343,12 @@ public sealed partial class MultiToolPage : Page
 
         TechGrid.Refresh();
 
-        TechHeaderTxt.Text = $"TECHNOLOGY  —  {selectedTool.Name.ToUpperInvariant()}";
-        PageResetBtn.Visibility = _techViewModel.HasLocalChanges ? Visibility.Visible : Visibility.Collapsed;
+        TechCard.Title = $"TECHNOLOGY  —  {selectedTool.Name.ToUpperInvariant()}";
+        PageResetBtn.Visibility = SaveSessionManager.HasStagedEditsUnder(SelectedToolPath) ? Visibility.Visible : Visibility.Collapsed;
 
         // The tech a multi-tool can fit, to click in - the same list limits
         // the right-click search.
-        TechListCard.Visibility = Visibility.Visible;
+        TechLayout.ShowList = true;
         TechListPanel.IsBestClass = () => _techViewModel?.CurrentClass == "S";
         TechListPanel.SwitchToBestClassAsync = async () =>
         {
@@ -495,16 +362,16 @@ public sealed partial class MultiToolPage : Page
         {
             var tech = await CatalogService.GetTechForAsync(new[] { "Weapon" });
             TechGrid.AllowedItemIds = tech.Select(t => t.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var modules = await CatalogService.GetUpgradeModulesAsync(ModuleFamilies);
-            return Controls.ItemListPanel.SortByGroups(tech.Concat(modules), TechGroup, TechGroupOrder);
-        }, "technology", "technologies", "Technology", TechGroup);
+            var modules = await CatalogService.GetUpgradeModulesAsync(MultiToolService.ModuleFamilies);
+            return Controls.ItemListPanel.SortByGroups(tech.Concat(modules), MultiToolService.TechGroup, MultiToolService.TechGroupOrder);
+        }, "technology", "technologies", "Technology", MultiToolService.TechGroup);
 
-        BuildClassSelector();
+        ShowClass();
         // The list may have been relabelled (LabelUnnamedAsync) while this loaded.
         var shown = _tools.FirstOrDefault(t => t.Index == selectedTool.Index) ?? selectedTool;
         ShowName(shown);
-        TechHeaderTxt.Text = $"TECHNOLOGY  —  {shown.Name.ToUpperInvariant()}";
-        ApplyDetailsCollapsed();
+        TechCard.Title = $"TECHNOLOGY  —  {shown.Name.ToUpperInvariant()}";
+        ShowFoldedName();
         UpdateClassBadge();
         UpdateStatDisplay();
         await SyncTypeComboBoxAsync();
@@ -519,7 +386,6 @@ public sealed partial class MultiToolPage : Page
     private List<MultiToolTypeOption>? _multiToolTypeOptions;
 
     private bool _suppressTypeSelectionEvent;
-    private bool _suppressStatChangeEvent;
 
     /// <summary>Loads the Type option list from the catalog once per page lifetime
     /// (options don't change mid-session), then syncs the combo's selection to the
@@ -552,21 +418,7 @@ public sealed partial class MultiToolPage : Page
         finally { _suppressTypeSelectionEvent = false; }
     }
 
-    private Task<string?> KindAsync() => KindOfAsync(_selectedIndex);
-
-    private static async Task<string?> KindOfAsync(int index) =>
-        SeedOf(index) is ulong seed ? await MultiToolKinds.KindAsync(seed) : null;
-
-    /// <summary>A tool's own seed (SuJ[i].@EL[1]), which picks its look, kind and name.</summary>
-    private static ulong? SeedOf(int index)
-    {
-        string? seedText = index < 0 ? null
-            : SaveSessionManager.GetValue("vLc", "6f=", "SuJ", index.ToString(), "@EL", "1")?.Value<string>();
-        if (seedText is not { Length: > 2 }) return null;
-        string hex = seedText.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? seedText[2..] : seedText;
-        return ulong.TryParse(hex, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out ulong seed)
-            ? seed : null;
-    }
+    private Task<string?> KindAsync() => MultiToolService.KindOfAsync(_selectedIndex);
 
     private void TypeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -615,119 +467,15 @@ public sealed partial class MultiToolPage : Page
     /// every model-swap Type we tested) - so editing them here doesn't touch
     /// which model renders, only the underlying stat rolls, exactly like
     /// a reference tool's own "Base Stats" fields.</summary>
+    /// <summary>The Base Stats boxes: the stat-bonus entries this page shows.</summary>
+    private static readonly (string Label, string Key)[] BaseStats = { ("Damage", "^WEAPON_DAMAGE"), ("Mining", "^WEAPON_MINING"), ("Scanner", "^WEAPON_SCAN") };
+
     private void UpdateStatDisplay()
     {
-        _suppressStatChangeEvent = true;
-
-        var bonuses = SaveSessionManager.GetValue(NmsInventoryContainer.MultiToolTechnologyPath(_selectedIndex).Append("@bB").ToArray()) as JArray;
-
-        double? Find(string key) =>
-            bonuses?.FirstOrDefault(b => b["QL1"]?.Value<string>() == key)?[">MX"]?.Value<double>();
-
-        DamageStatBox.Value = Find("^WEAPON_DAMAGE") ?? double.NaN;
-        MiningStatBox.Value = Find("^WEAPON_MINING") ?? double.NaN;
-        ScannerStatBox.Value = Find("^WEAPON_SCAN") ?? double.NaN;
-
-        _suppressStatChangeEvent = false;
+        StatsBoxes.Show(NmsInventoryContainer.MultiToolTechnologyPath(_selectedIndex).Append("@bB").ToArray(), BaseStats);
     }
 
-    /// <summary>Stages a new value for one @bB entry, matched by its QL1 key
-    /// (WEAPON_DAMAGE/WEAPON_MINING/WEAPON_SCAN) rather than a fixed array
-    /// index, in case a future save ever orders them differently. Rebuilds and
-    /// stages the WHOLE @bB array at once - staging just the one entry's >MX
-    /// leaf looked correct but silently reverted on the next read, because
-    /// SaveSessionManager only recognizes a staged edit at the EXACT path
-    /// queried; UpdateStatDisplay reads the array as a whole, so a deeper leaf
-    /// edit was never seen by it. Same whole-array pattern :No/hl?/MMm already
-    /// use for exactly this reason. No upper bound is enforced - confirmed
-    /// the game itself doesn't enforce one either, and these are plain
-    /// floats, not structural/indexing fields, so an extreme value can
-    /// unbalance a save but won't corrupt it.</summary>
-    private void SetStatValue(string weaponKey, double newValue)
-    {
-        if (_selectedIndex < 0 || double.IsNaN(newValue)) return;
-
-        var containerPath = NmsInventoryContainer.MultiToolTechnologyPath(_selectedIndex);
-        var bonusesPath = containerPath.Append("@bB").ToArray();
-        var bonuses = SaveSessionManager.GetValue(bonusesPath) as JArray;
-        if (bonuses is null) return;
-
-        var updated = new JArray();
-        foreach (var entry in bonuses)
-        {
-            if (entry is JObject obj && obj["QL1"]?.Value<string>() == weaponKey)
-            {
-                var clone = (JObject)obj.DeepClone();
-                clone[">MX"] = newValue;
-                updated.Add(clone);
-            }
-            else
-            {
-                updated.Add(entry.DeepClone());
-            }
-        }
-
-        _suppressReloadOnOwnStatEdit = true;
-        SaveSessionManager.StageEdit(updated, bonusesPath);
-        _suppressReloadOnOwnStatEdit = false;
-    }
-
-    private void DamageStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (_suppressStatChangeEvent) return;
-        SetStatValue("^WEAPON_DAMAGE", args.NewValue);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>Redundant safety net alongside ValueChanged - some WinUI3
-    /// NumberBox versions don't reliably fire ValueChanged on a plain focus
-    /// loss (only guaranteed on Enter/certain validation triggers), which can
-    /// look like "my edit reverted" when it's really that staging never ran at
-    /// all. Reading sender.Value directly here and re-staging is a harmless,
-    /// idempotent no-op if ValueChanged already handled it correctly.</summary>
-    private void DamageStatBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_suppressStatChangeEvent) return;
-        if (!double.IsNaN(DamageStatBox.Value))
-        {
-            SetStatValue("^WEAPON_DAMAGE", DamageStatBox.Value);
-            PageResetBtn.Visibility = Visibility.Visible;
-        }
-    }
-
-    private void MiningStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (_suppressStatChangeEvent) return;
-        SetStatValue("^WEAPON_MINING", args.NewValue);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void MiningStatBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_suppressStatChangeEvent) return;
-        if (!double.IsNaN(MiningStatBox.Value))
-        {
-            SetStatValue("^WEAPON_MINING", MiningStatBox.Value);
-            PageResetBtn.Visibility = Visibility.Visible;
-        }
-    }
-
-    private void ScannerStatBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (_suppressStatChangeEvent) return;
-        SetStatValue("^WEAPON_SCAN", args.NewValue);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void ScannerStatBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_suppressStatChangeEvent) return;
-        if (!double.IsNaN(ScannerStatBox.Value))
-        {
-            SetStatValue("^WEAPON_SCAN", ScannerStatBox.Value);
-            PageResetBtn.Visibility = Visibility.Visible;
-        }
-    }
+    private void StatsBoxes_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
 
     /// <summary>Stages the rename when the field loses focus - not on every
     /// keystroke, since that would rebuild the selector strip (via LoadToolList,
@@ -776,63 +524,24 @@ public sealed partial class MultiToolPage : Page
     /// <summary>S/A/B/C rating buttons - a plain literal string field (B@N.1o6),
     /// confirmed independent of the tool's identity/appearance seed, so picking
     /// a different class here is a simple, safe single-value write.</summary>
-    private void BuildClassSelector()
+    private void ShowClass()
     {
-        ClassSelectorPanel.Children.Clear();
-        if (_techViewModel is null) return;
+        ClassPicker.Visibility = _techViewModel is null ? Visibility.Collapsed : Visibility.Visible;
+        ClassPicker.SelectedClass = _techViewModel?.CurrentClass;
+    }
 
-        foreach (var letter in new[] { "S", "A", "B", "C" })
-        {
-            bool isCurrent = string.Equals(_techViewModel.CurrentClass, letter, StringComparison.OrdinalIgnoreCase);
-
-            var button = new Button
-            {
-                Content = new TextBlock
-                {
-                    Text = letter,
-                    FontWeight = isCurrent ? FontWeights.Bold : FontWeights.Normal
-                },
-                Padding = new Thickness(14, 4, 14, 4)
-            };
-            ThemeResources.StyleChoiceButton(button, isCurrent);
-
-            button.Click += (_, _) =>
-            {
-                // A class change can change this tool's real Technology slot
-                // total (MultiToolCapacity), so the grid gets fully rebuilt via
-                // LoadSelectedTool rather than just refreshed in place.
-                _techViewModel?.SetClass(letter);
-                PageResetBtn.Visibility = Visibility.Visible;
-                LoadSelectedTool();
-            };
-
-            ClassSelectorPanel.Children.Add(button);
-        }
+    private void ClassPicker_ClassChosen(object? sender, string letter)
+    {
+        // A class change can change this tool's real Technology slot
+        // total (MultiToolCapacity), so the grid gets fully rebuilt via
+        // LoadSelectedTool rather than just refreshed in place.
+        _techViewModel?.SetClass(letter);
+        PageResetBtn.Visibility = Visibility.Visible;
+        LoadSelectedTool();
     }
 
     private void TechGrid_CellChanged(object? sender, EventArgs e) =>
         PageResetBtn.Visibility = Visibility.Visible;
-
-    private void UnlockAllTech_Click(object sender, RoutedEventArgs e)
-    {
-        _techViewModel?.UnlockAll();
-        TechGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void SuperchargeAllTech_Click(object sender, RoutedEventArgs e)
-    {
-        _techViewModel?.SuperchargeAll();
-        TechGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void RepairAllTech_Click(object sender, RoutedEventArgs e)
-    {
-        _techViewModel?.RepairAll();
-        TechGrid.Refresh();
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
 
     /// <summary>Copies the currently selected tool's entire tech loadout onto
     /// another owned tool, after showing exactly what else that copy will
@@ -881,17 +590,17 @@ public sealed partial class MultiToolPage : Page
 
         var targetTool = otherTools[pickerList.SelectedIndex];
 
-        string? targetClassLetter = GetToolClassLetter(targetTool.Index);
+        string? targetClassLetter = MultiToolService.ClassLetter(targetTool.Index);
         var targetCapacity = await GetMultiToolCapacityAsync();
         var targetViewModel = new InventoryGridViewModel(
             NmsInventoryContainer.MultiToolTechnologyPath(targetTool.Index),
             MultiToolCapacity.Columns,
-            MultiToolCapacity.SlotsToRows(LookupTechSlots(targetCapacity, targetClassLetter)));
+            MultiToolCapacity.SlotsToRows(MultiToolService.TechSlots(targetCapacity, targetClassLetter)));
         targetViewModel.Load();
 
         var sourcePositions = _techViewModel.Cells.Where(c => c.IsOccupied).Select(c => (c.X, c.Y));
-        var (confirmed, alsoMatchClass) = await ShowCopyConfirmationAsync(
-            $"a copy of {sourceTool.Name}'s", _techViewModel.CurrentClass, sourcePositions, targetTool.Name, targetViewModel);
+        var (confirmed, alsoMatchClass) = await TechStackCopyConfirmation.ShowAsync(XamlRoot,
+            $"a copy of {sourceTool.Name}'s", _techViewModel.CurrentClass, sourcePositions, targetTool.Name, targetViewModel, targetViewModel.CurrentClass);
 
         if (!confirmed) return;
 
@@ -901,193 +610,13 @@ public sealed partial class MultiToolPage : Page
         LoadToolList();
     }
 
-    private async void SaveAsTemplateBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0 || _techViewModel is null) return;
-
-        var sourceTool = _tools.FirstOrDefault(t => t.Index == _selectedIndex);
-        if (sourceTool is null) return;
-
-        if (!_techViewModel.Cells.Any(c => c.IsOccupied))
-        {
-            await new ContentDialog
-            {
-                Title = "Nothing to save",
-                Content = $"{sourceTool.Name} has no tech installed, so there's nothing to capture as a template.",
-                CloseButtonText = "OK",
-                XamlRoot = this.XamlRoot
-            }.ShowAsync();
-            return;
-        }
-
-        var nameBox = new TextBox { PlaceholderText = "e.g. \"PvE Rifle Build\"" };
-        var nameDialog = new ContentDialog
-        {
-            Title = "Save as Template",
-            Content = new StackPanel
-            {
-                Spacing = 8,
-                Children = { new TextBlock { Text = "Name this loadout:" }, nameBox }
-            },
-            PrimaryButtonText = "Save",
-            CloseButtonText = "Cancel",
-            XamlRoot = this.XamlRoot
-        };
-
-        if (await nameDialog.ShowAsync() != ContentDialogResult.Primary) return;
-
-        string name = nameBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(name)) return;
-
-        var template = _techViewModel.ExtractTemplate(name, sourceTool.Name, "MultiTool");
-        await LoadoutTemplateService.SaveAsync(template);
-
-        // No confirmation popup here on purpose - the whole point of moving
-        // templates into a persistent list is that saving one should visibly
-        // show up right away, not need a separate dialog to prove it worked.
-        await RefreshTemplatesListAsync();
-    }
-
-    /// <summary>Rebuilds the persistent Tech Stack Templates list (Scope==
-    /// "TechStack" only - Full Build templates have their own separate list
-    /// below, RefreshFullBuildTemplatesListAsync). Called after saving,
-    /// deleting, or applying a template, and once on page load, so the list
-    /// visibly reflects reality at all times rather than living behind a
-    /// button the user has to remember to press.</summary>
-    /// <summary>Imports a template file someone shared (TemplateSharingService checks it first).</summary>
-    private async void ImportTemplateBtn_Click(object sender, RoutedEventArgs e)
-    {
-        var result = await TemplateSharingService.ImportAsync("MultiTool");
-        if (result is not { } r) return;
-        ImportTemplateStatusTxt.Text = r.Message;
-        ImportTemplateStatusTxt.Foreground = ThemeResources.Brush(r.Ok ? "ThemeDoneBrush" : "ThemeWarningBrush");
-        ImportTemplateStatusTxt.Visibility = Visibility.Visible;
-        if (!r.Ok) return;
-        await RefreshTemplatesListAsync();
-        await RefreshFullBuildTemplatesListAsync();
-    }
-
-    private async Task RefreshTemplatesListAsync()
-    {
-        var templates = (await LoadoutTemplateService.LoadAllAsync())
-            .Where(t => t.SourceKind == "MultiTool" && t.Scope == "TechStack")
-            .ToList();
-
-        TemplatesListPanel.Children.Clear();
-
-        if (templates.Count == 0)
-        {
-            TemplatesListPanel.Children.Add(new TextBlock
-            {
-                Text = "No templates saved yet.",
-                FontSize = 11,
-                Opacity = 0.6,
-                TextWrapping = TextWrapping.Wrap
-            });
-            return;
-        }
-
-        foreach (var template in templates)
-        {
-            string sourceInfo = template.SourceToolName is null ? "" : $" - from {template.SourceToolName}";
-
-            var row = new StackPanel { Spacing = 4 };
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{template.Name}",
-                FontWeight = FontWeights.SemiBold,
-                FontSize = 13,
-                TextWrapping = TextWrapping.Wrap
-            });
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class{sourceInfo}",
-                FontSize = 10,
-                Opacity = 0.6,
-                TextWrapping = TextWrapping.Wrap
-            });
-
-            var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-
-            var applyButton = new Button { Content = "Apply", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            applyButton.Click += async (_, _) => await ApplyTemplateAsync(template);
-            buttonRow.Children.Add(applyButton);
-
-            var shareButton = new Button { Content = "Share...", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            ToolTipService.SetToolTip(shareButton, "Save this template as a file - to give to a friend, or to keep as a backup");
-            shareButton.Click += async (_, _) => await TemplateSharingService.ExportAsync(shareButton, template);
-            buttonRow.Children.Add(shareButton);
-
-            var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            deleteButton.Click += async (_, _) =>
-            {
-                await LoadoutTemplateService.DeleteAsync(template.Id);
-                await RefreshTemplatesListAsync();
-            };
-            buttonRow.Children.Add(deleteButton);
-
-            row.Children.Add(buttonRow);
-
-            row.Children.Add(new Border
-            {
-                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
-                BorderThickness = new Thickness(0, 1, 0, 0),
-                Margin = new Thickness(0, 4, 0, 0)
-            });
-
-            TemplatesListPanel.Children.Add(row);
-        }
-    }
-
-    private async void SaveAsFullBuildTemplateBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0 || _techViewModel is null) return;
-
-        var sourceTool = _tools.FirstOrDefault(t => t.Index == _selectedIndex);
-        if (sourceTool is null) return;
-
-        if (!_techViewModel.Cells.Any(c => c.IsOccupied))
-        {
-            await new ContentDialog
-            {
-                Title = "Nothing to save",
-                Content = $"{sourceTool.Name} has no tech installed, so there's nothing to capture as a template.",
-                CloseButtonText = "OK",
-                XamlRoot = this.XamlRoot
-            }.ShowAsync();
-            return;
-        }
-
-        var nameBox = new TextBox { PlaceholderText = "e.g. \"PvE Rifle Build (Full Build)\"" };
-        var nameDialog = new ContentDialog
-        {
-            Title = "Save as Full Build Template",
-            Content = new StackPanel
-            {
-                Spacing = 8,
-                Children = { new TextBlock { Text = "Name this build (tech + stats):" }, nameBox }
-            },
-            PrimaryButtonText = "Save",
-            CloseButtonText = "Cancel",
-            XamlRoot = this.XamlRoot
-        };
-
-        if (await nameDialog.ShowAsync() != ContentDialogResult.Primary) return;
-
-        string name = nameBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(name)) return;
-
-        await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate(name, sourceTool));
-        await RefreshFullBuildTemplatesListAsync();
-    }
-
     /// <summary>The selected tool as a Full Build template (Save Current, and
     /// "save it first" when deleting).</summary>
     private NmsLoadoutTemplate BuildFullBuildTemplate(string name, ToolEntry source)
     {
         var template = _techViewModel!.ExtractTemplate(name, source.Name, "MultiTool");
         template.Scope = "FullBuild";
-        template.Stats = ExtractStatsList(source.Index);
+        template.Stats = StatBonusService.ReadAll(NmsInventoryContainer.MultiToolTechnologyPath(source.Index).Append("@bB").ToArray());
         template.TypeScenePath = SaveSessionManager.GetValue(
             "vLc", "6f=", "SuJ", source.Index.ToString(), "NTx", "93M")?.Value<string>();
         NewFromTemplateService.CaptureMultiTool(template, source.Index);
@@ -1114,109 +643,11 @@ public sealed partial class MultiToolPage : Page
         if (choice.SaveTemplateFirst)
         {
             await LoadoutTemplateService.SaveAsync(BuildFullBuildTemplate($"{tool.Name} (saved before deleting)", tool));
-            await RefreshFullBuildTemplatesListAsync();
+            await TemplatesPanel.RefreshAsync();
         }
         NewFromTemplateService.RemoveMultiTool(tool.Index);
         _selectedIndex = -1;
         LoadToolList();
-    }
-
-    /// <summary>Same shape as RefreshTemplatesListAsync, filtered to Scope==
-    /// "FullBuild" instead and targeting the separate FullBuildTemplatesListPanel.</summary>
-    private async Task RefreshFullBuildTemplatesListAsync()
-    {
-        var templates = (await LoadoutTemplateService.LoadAllAsync())
-            .Where(t => t.SourceKind == "MultiTool" && t.Scope == "FullBuild")
-            .ToList();
-
-        FullBuildTemplatesListPanel.Children.Clear();
-
-        if (templates.Count == 0)
-        {
-            FullBuildTemplatesListPanel.Children.Add(new TextBlock
-            {
-                Text = "No full build templates saved yet.",
-                FontSize = 11,
-                Opacity = 0.6,
-                TextWrapping = TextWrapping.Wrap
-            });
-            return;
-        }
-
-        foreach (var template in templates)
-        {
-            string sourceInfo = template.SourceToolName is null ? "" : $" - from {template.SourceToolName}";
-
-            var row = new StackPanel { Spacing = 4 };
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{template.Name}",
-                FontWeight = FontWeights.SemiBold,
-                FontSize = 13,
-                TextWrapping = TextWrapping.Wrap
-            });
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{template.TechItems.Count} items, {template.SourceClass ?? "?"} class, stats{sourceInfo}",
-                FontSize = 10,
-                Opacity = 0.6,
-                TextWrapping = TextWrapping.Wrap
-            });
-
-            var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-
-            var addButton = new Button { Content = "Add as new", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            ToolTipService.SetToolTip(addButton, "Add this whole build as a new Multi-Tool in an empty slot. Your other Multi-Tools aren't changed.");
-            addButton.Click += async (_, _) => await AddAsNewAsync(template);
-            buttonRow.Children.Add(addButton);
-
-            var shareButton = new Button { Content = "Share...", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            ToolTipService.SetToolTip(shareButton, "Save this template as a file - to give to a friend, or to keep as a backup");
-            shareButton.Click += async (_, _) => await TemplateSharingService.ExportAsync(shareButton, template);
-            buttonRow.Children.Add(shareButton);
-
-            var deleteButton = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(8, 3, 8, 3) };
-            deleteButton.Click += async (_, _) =>
-            {
-                await LoadoutTemplateService.DeleteAsync(template.Id);
-                await RefreshFullBuildTemplatesListAsync();
-            };
-            buttonRow.Children.Add(deleteButton);
-
-            row.Children.Add(buttonRow);
-
-            row.Children.Add(new Border
-            {
-                BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
-                BorderThickness = new Thickness(0, 1, 0, 0),
-                Margin = new Thickness(0, 4, 0, 0)
-            });
-
-            FullBuildTemplatesListPanel.Children.Add(row);
-        }
-    }
-
-    /// <summary>Reads a tool's whole stat-bonus array (@bB, nested under its
-    /// Technology container) as a plain key/value list, for embedding in a
-    /// Full Build template - captures every entry generically (not just the 3
-    /// keys exposed as NumberBoxes) so nothing present but not individually
-    /// surfaced gets silently dropped on save.</summary>
-    private static List<NmsLoadoutStat> ExtractStatsList(int toolIndex)
-    {
-        var bonuses = SaveSessionManager.GetValue(
-            NmsInventoryContainer.MultiToolTechnologyPath(toolIndex).Append("@bB").ToArray()) as JArray;
-        var result = new List<NmsLoadoutStat>();
-        if (bonuses is null) return result;
-
-        foreach (var entry in bonuses)
-        {
-            string? key = entry["QL1"]?.Value<string>();
-            double? value = entry[">MX"]?.Value<double>();
-            if (key is not null && value is not null)
-                result.Add(new NmsLoadoutStat { Key = key, Value = value.Value });
-        }
-
-        return result;
     }
 
     /// <summary>Full Build templates add a whole new Multi-Tool in the first
@@ -1277,8 +708,8 @@ public sealed partial class MultiToolPage : Page
         if (targetTool is null) return;
 
         var sourcePositions = template.UnlockedPositions.Select(p => (p.X, p.Y));
-        var (confirmed, alsoMatchClass) = await ShowCopyConfirmationAsync(
-            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions, targetTool.Name, _techViewModel);
+        var (confirmed, alsoMatchClass) = await TechStackCopyConfirmation.ShowAsync(XamlRoot,
+            $"the \"{template.Name}\" template", template.SourceClass, sourcePositions, targetTool.Name, _techViewModel, _techViewModel.CurrentClass);
 
         if (!confirmed) return;
 
@@ -1291,70 +722,35 @@ public sealed partial class MultiToolPage : Page
         LoadSelectedTool();
     }
 
-    /// <summary>Shared by CopyTechStackBtn_Click and ApplyTemplateAsync - shows
-    /// the same analysis (new slots needed, class-differs opt-in checkbox) and
-    /// confirmation dialog regardless of whether the source is a live tool or a
-    /// saved template. Never assumes a class change - always an explicit
-    /// checkbox the user has to tick.</summary>
-    private async Task<(bool Confirmed, bool AlsoMatchClass)> ShowCopyConfirmationAsync(
-        string sourceLabel, string? sourceClass, IEnumerable<(int X, int Y)> sourcePositions,
-        string targetLabel, InventoryGridViewModel targetViewModel)
-    {
-        var sourcePositionSet = sourcePositions.ToHashSet();
-        var targetUnlocked = targetViewModel.Cells.Where(c => c.State != InventorySlotState.Locked).Select(c => (c.X, c.Y)).ToHashSet();
-        int newSlotsNeeded = sourcePositionSet.Except(targetUnlocked).Count();
+    // ------------------------------------------------------------ Templates sidebar (LoadoutTemplatesPanel)
 
-        bool classDiffers = !string.Equals(sourceClass, targetViewModel.CurrentClass, StringComparison.OrdinalIgnoreCase);
+    string? ILoadoutTemplateHost.CurrentName => _techViewModel is null ? null : _tools.FirstOrDefault(t => t.Index == _selectedIndex)?.Name;
 
-        var panel = new StackPanel { Spacing = 10 };
-        panel.Children.Add(new TextBlock
-        {
-            TextWrapping = TextWrapping.Wrap,
-            Text = $"This replaces {targetLabel}'s entire tech loadout with {sourceLabel}."
-        });
+    bool ILoadoutTemplateHost.HasTech => _techViewModel?.Cells.Any(c => c.IsOccupied) == true;
 
-        if (newSlotsNeeded > 0)
-        {
-            panel.Children.Add(new TextBlock
-            {
-                TextWrapping = TextWrapping.Wrap,
-                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
-                Text = $"\u26A0 {newSlotsNeeded} slot(s) will also be unlocked on {targetLabel} to fit this stack."
-            });
-        }
+    NmsLoadoutTemplate ILoadoutTemplateHost.CaptureTechStack(string name) =>
+        _techViewModel!.ExtractTemplate(name, _tools.FirstOrDefault(t => t.Index == _selectedIndex)!.Name, "MultiTool");
 
-        CheckBox? matchClassBox = null;
-        if (classDiffers)
-        {
-            panel.Children.Add(new TextBlock
-            {
-                TextWrapping = TextWrapping.Wrap,
-                Foreground = ThemeResources.Brush("ThemeWarningBrush"),
-                Text = $"\u26A0 Class differs: {targetLabel} is currently {targetViewModel.CurrentClass ?? "unknown"}, source is {sourceClass ?? "unknown"}."
-            });
+    NmsLoadoutTemplate ILoadoutTemplateHost.CaptureFullBuild(string name) => BuildFullBuildTemplate(name, _tools.FirstOrDefault(t => t.Index == _selectedIndex)!);
 
-            matchClassBox = new CheckBox { Content = $"Also change {targetLabel}'s class to {sourceClass} to match" };
-            panel.Children.Add(matchClassBox);
-        }
+    Task ILoadoutTemplateHost.ApplyTechStackAsync(NmsLoadoutTemplate template) => ApplyTemplateAsync(template);
 
-        var dialog = new ContentDialog
-        {
-            Title = "Confirm tech stack copy",
-            Content = panel,
-            PrimaryButtonText = "Copy",
-            CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Close,
-            XamlRoot = this.XamlRoot
-        };
+    Task ILoadoutTemplateHost.UseFullBuildAsync(NmsLoadoutTemplate template) => AddAsNewAsync(template);
 
-        bool confirmed = await dialog.ShowAsync() == ContentDialogResult.Primary;
-        return (confirmed, matchClassBox?.IsChecked == true);
-    }
+    /// <summary>The selected tool's whole save entry: name, type, class, stats and tech.</summary>
+    private string[] SelectedToolPath => NmsInventoryContainer.MultiToolArrayPath.Append(_selectedIndex.ToString()).ToArray();
 
+    /// <summary>Undoes every staged change to the selected tool - its tech and also its
+    /// name and type, which the grid's own revert didn't cover.</summary>
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
-        _techViewModel?.Revert();
-        TechGrid.Refresh();
+        if (_selectedIndex >= 0) SaveSessionManager.RevertEditsUnder(SelectedToolPath);
         PageResetBtn.Visibility = Visibility.Collapsed;
+        LoadToolList();
     }
+
+    /// <summary>What the Details band says while folded: the multi-tool's name (or the game's name for an unnamed one).</summary>
+    private void ShowFoldedName() => DetailsCard.FoldedName = NameEditBox.Text?.Trim() is { Length: > 0 } typed ? typed : NameEditBox.PlaceholderText ?? "";
+
+    private void Inventory_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
 }

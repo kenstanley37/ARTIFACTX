@@ -277,7 +277,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         string where = CurrentPlanet == 0 ? "you're in space"
             : BodyKindsService.IsMoon(system, CurrentPlanet) ? "you're on a moon"
             : $"you're on planet {CurrentPlanet}";
-        string galaxyText = $"{NmsGalaxyNames.ForNumber(galaxy) ?? "Galaxy"} ({galaxy})";
+        string galaxyText = $"{UniverseInfo.Region(system)} · {NmsGalaxyNames.ForNumber(galaxy) ?? "Galaxy"} ({galaxy})";
         Sub = (planets.Count == 0 ? $"{galaxyText} · no planets discovered here yet" : $"{galaxyText} · {bodies} · {where}")
             + $" · about {NmsPlanets.DistanceToCoreLightYears(system):N0} ly from the galaxy core";
         SystemCode = S.PortalAddress(system, 0);

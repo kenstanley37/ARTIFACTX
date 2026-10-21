@@ -28,7 +28,6 @@ public sealed partial class NearCorePage : Page
     private ulong? _here;
     private bool _suppressFilterEvents;
     private int _loadVersion;
-    private readonly LiveSaveWatcher _live;
     private string? _lastName;
 
     public NearCorePage()
@@ -37,8 +36,8 @@ public sealed partial class NearCorePage : Page
         _suppressFilterEvents = true;
         SortBox.SelectedIndex = 0;
         _suppressFilterEvents = false;
-        _live = new LiveSaveWatcher(DispatcherQueue);
-        _live.SnapshotRead += OnLiveSnapshot;
+        // The app-wide feed of the game's saves (FishCatchRecorder): one reader for every page.
+        FishCatchRecorder.SnapshotSeen += OnLiveSnapshot;
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
         JumpPlanner.RangeChanged += OnRangeChanged;
         SystemNotesService.Changed += OnSystemNotesChanged;
@@ -49,8 +48,7 @@ public sealed partial class NearCorePage : Page
             SystemNotesService.Changed -= OnSystemNotesChanged;
             SystemPageReader.Captured -= OnSystemCaptured;
             SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
-            _live.SnapshotRead -= OnLiveSnapshot;
-            _live.Dispose();
+            FishCatchRecorder.SnapshotSeen -= OnLiveSnapshot;
         };
         _ = LoadAsync();
     }
@@ -98,7 +96,6 @@ public sealed partial class NearCorePage : Page
             SaveSessionManager.GetValue(S.LocationDescriptionPath)?.Value<string>());
         _otherSaves = new();
         Refresh();
-        _live.Start();
 
         if (AllSlotsBox.IsChecked == true) await LoadOtherSlotsAsync(version);
     }
