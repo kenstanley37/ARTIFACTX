@@ -31,6 +31,12 @@ public static class BasePartNames
         // A claimed station keeps 120 STACONNECT, one BRIDGECONNECTOR, STATION_CORE and
         // U_PARAGON after every part the game lets you remove is gone (user cleared a
         // station by hand, 2026-10-21) - U_PARAGON was missing here and showed as "U Paragon".
+        // Removal test the same day (Slot 8, save edited, then played and saved in game):
+        // with all four kinds removed the game put U_PARAGON back on its next save and left the
+        // rest gone; with only STACONNECT removed nothing came back. Both stations worked inside
+        // and out (Station Core, Manage Station, docking) and the exterior looked the same as
+        // before. So 122 per station look removable - kept protected until a second test on a
+        // fresh claim; U_PARAGON must always stay.
         ["U_PARAGON"] = "Station paragon",
     };
 
