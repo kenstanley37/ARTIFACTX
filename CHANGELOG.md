@@ -42,6 +42,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Screen reading missed some of a planet's details on its Discoveries page - often its sentinels on a bright sky, and the fauna count ("0 / 11"). A detail left empty is now read again from a close-up of that part of the screen.
 - Current System asked "which planet is this?" about game messages screen recording read as names ("Online Discovery Services Active"). A name is only asked about while the system has a body your save has no record of, and only those bodies are offered.
 - A planet's page didn't show how long you'd spent there or how far you'd walked (Visited).
 - A planet's page showed made-up values for conditions nobody had recorded ("Standard Activity" sentinels, "Uncharted" flora); it says "Not recorded".

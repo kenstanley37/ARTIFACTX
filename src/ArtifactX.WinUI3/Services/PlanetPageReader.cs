@@ -227,7 +227,10 @@ public static class PlanetPageReader
     /// <param name="titleReads">Reads the title area again on its own: the big planet name
     /// is often missed in the whole-screen read ("Guhul VI" read as nothing, 2026-10-17),
     /// while a tight, shrunk crop of it reads well.</param>
-    public static async Task<string?> TryReadAsync(IReadOnlyList<string> lines, Func<Task<IReadOnlyList<string>>>? titleReads = null)
+    /// <param name="dataReads">Reads the Planet Data column again on its own, for a field the
+    /// whole-screen read left empty (Lefredid XVI's sentinels, "Frenzied", 2026-10-20).</param>
+    public static async Task<string?> TryReadAsync(IReadOnlyList<string> lines, Func<Task<IReadOnlyList<string>>>? titleReads = null,
+        Func<Task<IReadOnlyList<string>>>? dataReads = null)
     {
         await EnsureWordsAsync(); // cached; also what the Discoveries pop-ups use (ReadPopupResources)
         int data = lines.ToList().FindIndex(l => l.Trim().Equals("Planet Data", StringComparison.OrdinalIgnoreCase));
@@ -245,6 +248,14 @@ public static class PlanetPageReader
             Resources = Resources(lines, res),
             FaunaTotal = FaunaTotal(lines),
         };
+        if (dataReads is not null && (details.Weather == "" || details.Sentinels == "" || details.Flora == "" || details.Fauna == ""))
+        {
+            var column = await dataReads();
+            if (details.Weather == "") details.Weather = Field(column, -1, "Weather", "Weather");
+            if (details.Sentinels == "") details.Sentinels = Field(column, -1, "Sentinels", "Sentinels");
+            if (details.Flora == "") details.Flora = Field(column, -1, "Flora", "Life");
+            if (details.Fauna == "") details.Fauna = Field(column, -1, "Fauna", "Life");
+        }
         if (details.Weather == "" && details.Sentinels == "" && details.Resources.Count == 0) return "planet page: nothing readable";
 
         var titles = new List<string>();
@@ -344,14 +355,21 @@ public static class PlanetPageReader
     }
 
     /// <summary>"0 / 6 Discovered" under Fauna (OCR reads the 0 as "O") - 6; "No Planetary Fauna" - 0.
-    /// Flora and minerals show only what you found, so only fauna has a total.</summary>
+    /// Flora and minerals show only what you found, so only fauna has a total. OCR often reads
+    /// the count and "Discovered" as two lines ("0/11" then "Discovered", Lefredid XVI,
+    /// 2026-10-20 - in crops too), so a count line followed by one is taken as well.</summary>
     private static int? FaunaTotal(IReadOnlyList<string> lines)
     {
         if (lines.Any(l => l.Contains("No Planetary Fauna", StringComparison.OrdinalIgnoreCase))) return 0;
-        foreach (var line in lines)
-            if (Regex.Match(line.Replace('O', '0').Replace('o', '0'), @"(\d+)\s*/\s*(\d+)\s*Disc", RegexOptions.IgnoreCase) is { Success: true } m
-                && int.TryParse(m.Groups[2].Value, out int total) && total is > 0 and < 100)
+        static string Digits(string s) => s.Replace('O', '0').Replace('o', '0');
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var m = Regex.Match(Digits(lines[i]), @"(\d+)\s*/\s*(\d+)\s*Disc", RegexOptions.IgnoreCase);
+            if (!m.Success && i + 1 < lines.Count && lines[i + 1].TrimStart().StartsWith("Disc", StringComparison.OrdinalIgnoreCase))
+                m = Regex.Match(Digits(lines[i]), @"^\s*(\d+)\s*/\s*(\d+)\s*$");
+            if (m.Success && int.TryParse(m.Groups[2].Value, out int total) && total is > 0 and < 100)
                 return total;
+        }
         return null;
     }
 
