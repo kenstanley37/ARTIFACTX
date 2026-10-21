@@ -72,8 +72,8 @@ public sealed partial class SpaceStationsPage : Page
         var kinds = ViewModel.FurnitureSummary();
         if (kinds.Count == 0) return;
         bool confirmed = await DeleteConfirmation.ShowListAsync(XamlRoot,
-            $"Clear {ViewModel.FurnitureCount:N0} furniture parts?",
-            $"This removes the furniture from {ViewModel.CurrentName}. The station's own structure (connectors, core, paragon) stays, and so does your directorship.",
+            $"Clear {ViewModel.FurnitureCount:N0} pieces of default furniture?",
+            $"This removes the default furniture {ViewModel.CurrentName} came with when you claimed it. The station's own structure (connectors, core, paragon) stays, and so does your directorship. Anything you build later is managed on Bases and Parts.",
             kinds);
         if (confirmed) ViewModel.ClearFurniture();
     }

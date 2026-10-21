@@ -57,7 +57,7 @@
                                     <StackPanel Visibility="{x:Bind ViewModel.ShowClearFurniture, Mode=OneWay}" Spacing="8" Margin="0,8,0,0">
                                         <TextBlock Text="{x:Bind ViewModel.FurnitureText, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"/>
                                         <Button Content="{x:Bind ViewModel.ClearFurnitureLabel, Mode=OneWay}" Click="ClearFurnitureBtn_Click"
-                                                ToolTipService.ToolTip="Removes the furniture from this station. The connectors, core and paragon the game keeps are left in place."/>
+                                                ToolTipService.ToolTip="Removes the furniture the station came with when you claimed it. The connectors, core and paragon the game keeps are left in place."/>
                                     </StackPanel>
                                     <Button Content="CLAIM STATION" Style="{StaticResource ThemeAccentButtonStyle}"
                                             Visibility="{x:Bind ViewModel.ShowClaim, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.CanClaim, Mode=OneWay}"

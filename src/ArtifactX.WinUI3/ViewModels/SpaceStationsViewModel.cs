@@ -60,15 +60,18 @@ public sealed partial class SpaceStationsViewModel : ObservableObject
 
     [ObservableProperty] public partial bool IsDirector { get; private set; }
 
-    /// <summary>Furniture parts in the station you direct here (counted toward the 21,000
-    /// build limit) - offered for clearing right after a claim (user idea, 2026-10-21).</summary>
+    /// <summary>Furniture parts in the station just claimed here (counted toward the 21,000
+    /// build limit) - offered for clearing right after a claim (user idea, 2026-10-21). Only
+    /// while the claim isn't saved yet: on a station the player has built in, the catalog-named
+    /// parts include rooms they chose (freighter rooms, storage rooms with items in them), and
+    /// those are cleared by hand on Bases and Parts instead.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowClearFurniture), nameof(FurnitureText), nameof(ClearFurnitureLabel))]
     public partial int FurnitureCount { get; private set; }
 
     public bool ShowClearFurniture => FurnitureCount > 0;
-    public string FurnitureText => $"This station has {FurnitureCount:N0} furniture parts - they count toward your 21,000 build limit. Clearing them keeps the station's own structure.";
-    public string ClearFurnitureLabel => $"Clear the furniture ({FurnitureCount:N0} parts)";
+    public string FurnitureText => $"Claiming a station comes with {FurnitureCount:N0} pieces of default furniture (sofas, lights, planters, crates...), and they count toward your 21,000 build limit. Clear them now if you don't want them - only the station's default furniture goes; its structure stays.";
+    public string ClearFurnitureLabel => $"Clear the default furniture ({FurnitureCount:N0} parts)";
     [ObservableProperty] public partial bool ShowClaim { get; private set; }
     [ObservableProperty] public partial bool CanClaim { get; private set; }
     [ObservableProperty] public partial bool ShowRequirements { get; private set; }
@@ -183,7 +186,7 @@ public sealed partial class SpaceStationsViewModel : ObservableObject
         IsDirector = isOwned;
         ShowClaim = !isOwned;
         FurnitureCount = 0;
-        if (isOwned) _ = CountFurnitureAsync(address);
+        if (isOwned && SpaceStationService.IsClaimPending()) _ = CountFurnitureAsync(address);
         CanClaim = hasStation;
         CurrentStatus = SpaceStationService.IsClaimPending()
             ? "Station claimed. Save your changes to write it to the save file."

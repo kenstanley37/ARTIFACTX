@@ -54,7 +54,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - A base's own page shows its picture faded in behind the header again.
 - Parts the game places itself (freighter bridge connectors, station cores) have plain names instead of made-up ones.
 - Inventory **Sort** put some building parts with the maps.
-- Space Stations: right after you claim a station (or any time you're at one you direct), it offers to clear the furniture the station came with - about 140 parts that count toward your 21,000 build limit. The station's own structure stays.
+- Space Stations: right after you claim a station, it offers to clear the default furniture the station came with - about 140 parts that count toward your 21,000 build limit. Only that default furniture goes; the station's structure stays, and anything you build later is managed on Bases and Parts.
 - Space Stations: the stations you direct are listed with the one you're at first, then nearest first.
 - The Bases page is now **Bases and Parts**. Corvette builds and space bases have their own sections - they were listed as claimed space stations (a corvette build showed as a station "in the system you're in"). Corvette builds show their ship's name instead of "Default".
 - Bases: on a base's parts page, the parts the game places itself are listed first.
