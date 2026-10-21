@@ -24,6 +24,7 @@ public sealed partial class FishingPage
         bool hidden = OverviewHidden;
         OverviewPanel.Visibility = hidden ? Visibility.Collapsed : Visibility.Visible;
         OverviewToggleTxt.Text = hidden ? "Show overview" : "Hide overview";
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(OverviewToggle, OverviewToggleTxt.Text);
         OverviewToggleIcon.Glyph = hidden ? "" : "";
     }
 }

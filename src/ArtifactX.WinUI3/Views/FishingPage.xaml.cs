@@ -168,10 +168,9 @@ public sealed partial class FishingPage : Page
     /// Fish found on any planet are counted separately - they're everywhere.</summary>
     private void UpdateNext()
     {
-        NextPanel.Children.Clear();
         if (!SaveSessionManager.IsSaveLoaded)
         {
-            NextPanel.Visibility = Visibility.Collapsed;
+            NextTiles.Visibility = Visibility.Collapsed;
             return;
         }
         // Collection progress (user, 2026-10-13): one bar per group of planet
@@ -187,55 +186,26 @@ public sealed partial class FishingPage : Page
         // The tile for what the list is showing gets the accent outline.
         int? typeTag = (PlanetTypeBox.SelectedItem as ComboBoxItem)?.Tag as int?;
         int? selected = _anywhereOnly ? FishInfo.AnyPlanet : typeTag == WhereIAm ? _hereBiome : typeTag is >= 0 ? typeTag : null;
-        bool allSelected = !_anywhereOnly && typeTag == AllTypes;
 
-        Border Tile(string title, int caught, int total, int? biome, bool overall = false, int[]? biomes = null)
+        var tiles = new List<FishProgressTileViewModel>
         {
-            bool isSelected = overall ? allSelected
-                : biome == FishInfo.AnyPlanet ? selected == FishInfo.AnyPlanet
-                : selected is int sel && sel != FishInfo.AnyPlanet && (biomes ?? Array.Empty<int>()).Contains(sel);
-            var stack = new StackPanel { Spacing = 4 };
-            var head = new Grid();
-            head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            head.Children.Add(new TextBlock { Text = title, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = ThemeResources.Brush(overall ? "ThemeAccentBrush" : "ThemeTextBrush"), FontWeight = overall ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal });
-            var count = new TextBlock { Text = caught == total ? "✓ all" : $"{caught} / {total}", FontSize = 12, Foreground = ThemeResources.Brush(caught == total ? "ThemeDoneBrush" : "ThemeTextDimBrush"), Margin = new Thickness(8, 0, 0, 0) };
-            Grid.SetColumn(count, 1);
-            head.Children.Add(count);
-            stack.Children.Add(head);
-            stack.Children.Add(new ProgressBar { Maximum = Math.Max(1, total), Value = caught });
-            var tile = new Border
-            {
-                Width = 210,
-                Padding = new Thickness(10, 7, 10, 9),
-                Background = ThemeResources.Brush("ThemePanelAltBrush"),
-                BorderBrush = ThemeResources.Brush(isSelected ? "ThemeAccentBrush" : "ThemeLineBrush"),
-                BorderThickness = new Thickness(isSelected ? 2 : 1),
-                CornerRadius = ThemeResources.CardCornerRadius,
-                Child = stack,
-            };
-            if (biome is int b)
-            {
-                var button = new Button { Content = tile, Padding = new Thickness(0), Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent), BorderThickness = new Thickness(0), Tag = b };
-                ToolTipService.SetToolTip(button, caught == total ? $"You've caught every {title} fish" : $"{total - caught} {title} fish still to catch - click to show them");
-                button.Click += NextType_Click;
-                return new Border { Child = button };
-            }
-            return tile;
-        }
-
-        NextPanel.Children.Add(Tile("All fish", _fish.Count(f => _caught.ContainsKey(f.Id)), _fish.Count, AllTypes, overall: true));
+            new("All fish", _fish.Count(f => _caught.ContainsKey(f.Id)), _fish.Count, AllTypes, !_anywhereOnly && typeTag == AllTypes, isOverall: true),
+        };
         foreach (var g in groups)
-            NextPanel.Children.Add(Tile(string.Join(", ", g.Biomes.Select(NmsPlanets.TypeName)), g.Caught, g.Total, g.Biomes[0], biomes: g.Biomes));
-        NextPanel.Children.Add(Tile("Any planet with water", anywhere.Count(f => _caught.ContainsKey(f.Id)), anywhere.Count, FishInfo.AnyPlanet));
-        NextPanel.Visibility = Visibility.Visible;
+            tiles.Add(new(string.Join(", ", g.Biomes.Select(NmsPlanets.TypeName)), g.Caught, g.Total, g.Biomes[0],
+                selected is int sel && sel != FishInfo.AnyPlanet && g.Biomes.Contains(sel)));
+        tiles.Add(new("Any planet with water", anywhere.Count(f => _caught.ContainsKey(f.Id)), anywhere.Count, FishInfo.AnyPlanet,
+            selected == FishInfo.AnyPlanet));
+        NextTiles.ItemsSource = tiles;
+        NextTiles.Visibility = Visibility.Visible;
     }
 
     /// <summary>Shows the uncaught fish of the clicked planet type ("Any planet
     /// with water" shows only the fish that live anywhere).</summary>
     private void NextType_Click(object sender, RoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.Tag is not int biome) return;
+        if ((sender as FrameworkElement)?.DataContext is not FishProgressTileViewModel tile) return;
+        int biome = tile.Biome;
         int typeTag = biome == FishInfo.AnyPlanet || biome == AllTypes ? AllTypes : biome;
         PlanetTypeBox.SelectedItem = PlanetTypeBox.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (int)i.Tag == typeTag) ?? PlanetTypeBox.SelectedItem;
         ShowBox.SelectedIndex = 1; // Not caught yet

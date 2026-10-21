@@ -85,7 +85,34 @@
             </Border>
 
             <!-- Where to go next: planet types with the most fish still to catch (click to filter). -->
-            <ctcontrols:WrapPanel x:Name="NextPanel" HorizontalSpacing="10" VerticalSpacing="10" Visibility="Collapsed"/>
+            <ItemsControl x:Name="NextTiles" Visibility="Collapsed">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="10"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="viewmodels:FishProgressTileViewModel">
+                        <Button Click="NextType_Click" Padding="0" Background="Transparent" BorderThickness="0"
+                                ToolTipService.ToolTip="{x:Bind Tip}" AutomationProperties.Name="{x:Bind Title}">
+                            <Border Width="210" Padding="10,7,10,9" Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                                    BorderBrush="{x:Bind Border}" BorderThickness="{x:Bind BorderThickness}">
+                                <StackPanel Spacing="4">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{x:Bind Title}" FontSize="12" TextTrimming="CharacterEllipsis" Foreground="{x:Bind TitleBrush}" FontWeight="{x:Bind TitleWeight}"/>
+                                        <TextBlock Grid.Column="1" Text="{x:Bind CountText}" FontSize="12" Foreground="{x:Bind CountBrush}" Margin="8,0,0,0"/>
+                                    </Grid>
+                                    <ProgressBar Maximum="{x:Bind Maximum}" Value="{x:Bind Value}"/>
+                                </StackPanel>
+                            </Border>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </StackPanel>
 
         <ctcontrols:WrapPanel Grid.Row="2" HorizontalSpacing="14" VerticalSpacing="10">
