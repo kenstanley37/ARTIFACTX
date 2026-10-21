@@ -14,6 +14,12 @@ public sealed record BuildCount(string Type, string Name, int Parts, JObject Bas
 /// 161 on the test save). Other players' bases and stations the save has cached (ExternalPlanetBase, ExternalSpaceStationBase)
 /// aren't the player's and don't count. The caps themselves aren't in the game's data
 /// files, so only the counts are known.
+///
+/// A claimed station's built-in parts (120 STACONNECT, BRIDGECONNECTOR, STATION_CORE,
+/// U_PARAGON - 123, not removable in game) DO count: 2026-10-21, Slot 8 filled to exactly
+/// 21,000 by this count with 6 stations (738 built-in parts) - the game allowed 8 more
+/// parts, then "Construction Limit Reached". Same ~8-10 overcount as the 2026-10-18 test
+/// (loose entries such as save beacons). The ~140 furnishings a claim adds can be deleted.
 /// </summary>
 public static class NmsBuildCounts
 {
