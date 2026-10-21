@@ -411,7 +411,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
             TechLayout.ShowList = false;
             ClassPicker.Visibility = Visibility.Collapsed;
             NameEditBox.Text = "";
-            SeedEditBox.Text = "";
+            SeedBox.Show(null);
             StatsBoxes.Clear();
             return;
         }
@@ -494,8 +494,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
             var modules = await CatalogService.GetUpgradeModulesAsync(ModuleFamiliesFor(techRule.Header));
             return SortTech(tech.Concat(modules));
         }, "technology", "technologies", "Technology", TechGroup);
-        PageResetBtn.Visibility = (_techViewModel.HasLocalChanges || _cargoViewModel.HasLocalChanges)
-            ? Visibility.Visible : Visibility.Collapsed;
+        PageResetBtn.Visibility = SaveSessionManager.HasStagedEditsUnder(SelectedShipPath) ? Visibility.Visible : Visibility.Collapsed;
 
         ShowClass();
         ShowName(selectedShip);
@@ -503,7 +502,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         CorvetteNoteTxt.Text = selectedShip.BuildParts > 0
             ? $"This is a corvette. What you built onto it - {selectedShip.BuildParts} parts: cockpit, habitat, wings, engines and the rest - is stored apart from the ship. Full Build templates include it."
             : "This is a corvette with no build of its own yet, so the game shows the default one.";
-        SeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.ShipModelSeedPath(_selectedIndex))?.Value<string>() ?? "";
+        SeedBox.Show(NmsInventoryContainer.ShipModelSeedPath(_selectedIndex));
         RefreshShipParts();
         UpdateStatDisplay();
     }
@@ -569,40 +568,6 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         if (TypeComboBox.SelectedItem is not StarshipTypeInfo type) return;
 
         SaveSessionManager.StageEdit(type.ScenePath, "vLc", "6f=", "@Cs", _selectedIndex.ToString(), "NTx", "93M");
-        PageResetBtn.Visibility = Visibility.Visible;
-        RefreshShipParts();
-    }
-
-    /// <summary>Stages the seed when the field loses focus - same plain-text
-    /// staging pattern as Freighter's ModelSeedEditBox/CrewSeedEditBox.</summary>
-    private void SeedEditBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = SeedEditBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(newSeed)) return;
-
-        var seedPath = NmsInventoryContainer.ShipModelSeedPath(_selectedIndex);
-        string? currentSeed = SaveSessionManager.GetValue(seedPath)?.Value<string>();
-        if (newSeed == currentSeed) return;
-
-        SaveSessionManager.StageEdit(newSeed, seedPath);
-        PageResetBtn.Visibility = Visibility.Visible;
-        RefreshShipParts();
-    }
-
-    /// <summary>Rerolls the selected ship to a brand new random seed - same
-    /// idea as a reference tool's own reroll, not a targeted "give me X wings" picker.
-    /// See NmsSeedGenerator for why (shared with FreighterPage's Model
-    /// Seed/Crew Seed Generate buttons, so both pages roll the same way).</summary>
-    private void GenerateSeedBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = NmsSeedGenerator.GenerateRandom();
-
-        SeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.ShipModelSeedPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
         RefreshShipParts();
     }
@@ -914,13 +879,16 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
 
     Task ILoadoutTemplateHost.UseFullBuildAsync(NmsLoadoutTemplate template) => AddAsNewAsync(template);
 
+    /// <summary>The selected ship's whole save entry: name, seed, class, stats, tech and cargo.</summary>
+    private string[] SelectedShipPath => NmsInventoryContainer.ShipArrayPath.Append(_selectedIndex.ToString()).ToArray();
+
+    /// <summary>Undoes every staged change to the selected ship - its inventories and
+    /// also its name, seed and stats, which the grids' own revert didn't cover.</summary>
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
-        _techViewModel?.Revert();
-        TechGrid.Refresh();
-        _cargoViewModel?.Revert();
-        CargoGrid.Refresh();
+        if (_selectedIndex >= 0) SaveSessionManager.RevertEditsUnder(SelectedShipPath);
         PageResetBtn.Visibility = Visibility.Collapsed;
+        LoadShipList();
     }
 
     /// <summary>What the Details band says while folded: the ship's name and type.</summary>
@@ -932,4 +900,10 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
     }
 
     private void Inventory_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
+
+    private void Seed_Changed(object? sender, SeedChange change)
+    {
+        RefreshShipParts();
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
 }

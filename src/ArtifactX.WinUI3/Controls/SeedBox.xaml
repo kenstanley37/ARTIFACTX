@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A seed in the save (a ship's model, a frigate's home, a pet's colour...) with
+     Generate for a random one. Typed seeds are staged when the box loses focus. -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.SeedBox"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid ColumnSpacing="8">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <TextBox x:Name="Box" LostFocus="Box_LostFocus"/>
+        <Button Grid.Column="1" Content="Generate" Click="Generate_Click"/>
+    </Grid>
+</UserControl>

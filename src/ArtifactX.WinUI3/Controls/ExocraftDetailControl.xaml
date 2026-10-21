@@ -94,14 +94,7 @@
                                 <TextBlock Text="MODEL SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
                                 <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                            Text="Drives this vehicle's paint and look. Paste a seed you've found elsewhere, or Generate a new random look - you'll see it next time you load the game."/>
-                                <Grid ColumnSpacing="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox x:Name="ModelSeedEditBox" LostFocus="ModelSeedEditBox_LostFocus"/>
-                                    <Button Grid.Column="1" Content="Generate" Click="GenerateModelSeedBtn_Click"/>
-                                </Grid>
+                                <controls:SeedBox x:Name="ModelSeedBox" Label="Model seed" Changed="Seed_Changed"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

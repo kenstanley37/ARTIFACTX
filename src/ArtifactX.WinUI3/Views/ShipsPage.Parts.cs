@@ -141,7 +141,7 @@ public sealed partial class ShipsPage
             return;
         }
         var root = LoadTree(ShipParts.DescriptorFor(scene));
-        bool hasSeed = TryParseSeed(SeedEditBox.Text, out ulong seed);
+        bool hasSeed = TryParseSeed(SeedBox.Text, out ulong seed);
         var built = BuiltLookOf(_selectedIndex);
         // Every ship type has a model, parts or not - except a corvette, whose
         // look is the modules built onto it, stored apart from the ship.
@@ -589,11 +589,7 @@ public sealed partial class ShipsPage
             var use = new Button { Content = "Use", Padding = new Thickness(10, 2, 10, 2) };
             use.Click += (_, _) =>
             {
-                if (_selectedIndex < 0) return;
-                SeedEditBox.Text = text;
-                SaveSessionManager.StageEdit(text, NmsInventoryContainer.ShipModelSeedPath(_selectedIndex));
-                PageResetBtn.Visibility = Visibility.Visible;
-                RefreshShipParts();
+                if (_selectedIndex >= 0) SeedBox.Set(text); // stages it; Seed_Changed refreshes the parts
             };
             results.Children.Add(new StackPanel
             {

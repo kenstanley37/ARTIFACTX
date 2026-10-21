@@ -375,7 +375,7 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
         TechGrid.Refresh();
 
         TechCard.Title = $"TECHNOLOGY  —  {selectedTool.Name.ToUpperInvariant()}";
-        PageResetBtn.Visibility = _techViewModel.HasLocalChanges ? Visibility.Visible : Visibility.Collapsed;
+        PageResetBtn.Visibility = SaveSessionManager.HasStagedEditsUnder(SelectedToolPath) ? Visibility.Visible : Visibility.Collapsed;
 
         // The tech a multi-tool can fit, to click in - the same list limits
         // the right-click search.
@@ -782,11 +782,16 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
 
     Task ILoadoutTemplateHost.UseFullBuildAsync(NmsLoadoutTemplate template) => AddAsNewAsync(template);
 
+    /// <summary>The selected tool's whole save entry: name, type, class, stats and tech.</summary>
+    private string[] SelectedToolPath => NmsInventoryContainer.MultiToolArrayPath.Append(_selectedIndex.ToString()).ToArray();
+
+    /// <summary>Undoes every staged change to the selected tool - its tech and also its
+    /// name and type, which the grid's own revert didn't cover.</summary>
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
-        _techViewModel?.Revert();
-        TechGrid.Refresh();
+        if (_selectedIndex >= 0) SaveSessionManager.RevertEditsUnder(SelectedToolPath);
         PageResetBtn.Visibility = Visibility.Collapsed;
+        LoadToolList();
     }
 
     /// <summary>What the Details band says while folded: the multi-tool's name (or the game's name for an unnamed one).</summary>

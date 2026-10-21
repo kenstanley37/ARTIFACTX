@@ -3,6 +3,7 @@
     x:Class="ArtifactX.WinUI3.Views.FrigatePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -95,27 +96,13 @@
                                 <TextBlock Text="MODEL SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
                                 <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                            Text="Drives the hull's procedural look, alongside Class/Type. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
-                                <Grid ColumnSpacing="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" x:Name="ModelSeedEditBox" Width="180" HorizontalAlignment="Left" LostFocus="ModelSeedEditBox_LostFocus"/>
-                                    <Button Grid.Column="1" Content="Generate" Click="GenerateModelSeedBtn_Click"/>
-                                </Grid>
+                                <controls:SeedBox x:Name="ModelSeedBox" Label="Model seed" Changed="Seed_Changed" BoxWidth="180"/>
                             </StackPanel>
                             <StackPanel Spacing="6" Width="300">
                                 <TextBlock Text="HOME SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
                                 <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                            Text="Drives which home system/name this frigate generates for itself. Paste a seed you've found elsewhere, or click Generate for a new random one."/>
-                                <Grid ColumnSpacing="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" x:Name="HomeSeedEditBox" Width="180" HorizontalAlignment="Left" LostFocus="HomeSeedEditBox_LostFocus"/>
-                                    <Button Grid.Column="1" Content="Generate" Click="GenerateHomeSeedBtn_Click"/>
-                                </Grid>
+                                <controls:SeedBox x:Name="HomeSeedBox" Label="Home seed" Changed="Seed_Changed" BoxWidth="180"/>
                             </StackPanel>
                         </StackPanel>
 

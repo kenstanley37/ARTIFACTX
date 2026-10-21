@@ -205,9 +205,9 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
         ShowClass();
         NameEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterNamePath)?.Value<string>() ?? "";
         ShowFoldedName();
-        HomeSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterHomeSeedPath)?.Value<string>() ?? "";
-        ModelSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>() ?? "";
-        CrewSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterCrewSeedPath)?.Value<string>() ?? "";
+        HomeSeedBox.Show(NmsInventoryContainer.FreighterHomeSeedPath);
+        ModelSeedBox.Show(NmsInventoryContainer.FreighterModelSeedPath);
+        CrewSeedBox.Show(NmsInventoryContainer.FreighterCrewSeedPath);
 
         await SyncTypeComboBoxAsync();
         await SyncCrewRaceComboBoxAsync();
@@ -287,89 +287,6 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
         if (CrewRaceComboBox.SelectedItem is not SceneOption option) return;
 
         SaveSessionManager.StageEdit(option.ScenePath, NmsInventoryContainer.FreighterCrewRacePath);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void CrewSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (!SaveSessionManager.IsSaveLoaded) return;
-
-        string newSeed = CrewSeedEditBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(newSeed)) return;
-
-        string? currentSeed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterCrewSeedPath)?.Value<string>();
-        if (newSeed == currentSeed) return;
-
-        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterCrewSeedPath);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>Rerolls the captain to a brand new random seed - see
-    /// GenerateModelSeedBtn_Click above.</summary>
-    private void GenerateCrewSeedBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (!SaveSessionManager.IsSaveLoaded) return;
-
-        string newSeed = NmsSeedGenerator.GenerateRandom();
-        CrewSeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterCrewSeedPath);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void HomeSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (!SaveSessionManager.IsSaveLoaded) return;
-
-        string newSeed = HomeSeedEditBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(newSeed)) return;
-
-        string? currentSeed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterHomeSeedPath)?.Value<string>();
-        if (newSeed == currentSeed) return;
-
-        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterHomeSeedPath);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>Same full 64-bit random range as Model/Crew Seed - a reference
-    /// tool's own Generate button does the same for Home Seed despite the
-    /// CURRENT value here often printing shorter (its underlying field isn't
-    /// zero-padded, so a numerically small GalacticAddress just shows fewer
-    /// hex digits).</summary>
-    private void GenerateHomeSeedBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (!SaveSessionManager.IsSaveLoaded) return;
-
-        string newSeed = NmsSeedGenerator.GenerateRandom();
-        HomeSeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterHomeSeedPath);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void ModelSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (!SaveSessionManager.IsSaveLoaded) return;
-
-        string newSeed = ModelSeedEditBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(newSeed)) return;
-
-        string? currentSeed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>();
-        if (newSeed == currentSeed) return;
-
-        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterModelSeedPath);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>Rerolls the hull to a brand new random seed - see
-    /// NmsSeedGenerator for why this is a plain reroll, not a targeted
-    /// picker (shared with ShipsPage's own Generate button, and with
-    /// GenerateCrewSeedBtn_Click above, so all three roll the same way).</summary>
-    private void GenerateModelSeedBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (!SaveSessionManager.IsSaveLoaded) return;
-
-        string newSeed = NmsSeedGenerator.GenerateRandom();
-        ModelSeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.FreighterModelSeedPath);
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
@@ -671,4 +588,9 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     private void ShowFoldedName() => DetailsCard.FoldedName = NameEditBox.Text?.Trim() ?? "";
 
     private void Inventory_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
+
+    private void Seed_Changed(object? sender, SeedChange change)
+    {
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
 }

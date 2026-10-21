@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Models;
+using ArtifactX.WinUI3.Controls;
 using ArtifactX.WinUI3.Services;
 using libMBIN.NMS.GameComponents;
 using Newtonsoft.Json.Linq;
@@ -158,11 +159,11 @@ public sealed partial class CompanionsPage : Page
         SpeciesTxt.Text = "";
         ClimateTxt.Text = "";
         RarityTxt.Text = "";
-        SeedEditBox.Text = "";
+        SeedBox.Show(null);
         ColourBaseSeedActiveCheckBox.IsChecked = false;
         ColourBaseSeedEditBox.Text = "";
-        BattleAbilitySeedEditBox.Text = "";
-        BattleAbilitySeed2EditBox.Text = "";
+        BattleAbilitySeedBox.Show(null);
+        BattleAbilitySeed2Box.Show(null);
         ClassLetterOverrideActiveCheckBox.IsChecked = false;
         ClassLetterHealthBox.SelectedIndex = -1;
         ClassLetterAgilityBox.SelectedIndex = -1;
@@ -214,11 +215,11 @@ public sealed partial class CompanionsPage : Page
 
         ClimateTxt.Text = SaveSessionManager.GetValue(NmsCompanionPaths.NativeClimatePath(_selectedIndex))?.Value<string>() ?? "";
 
-        SeedEditBox.Text = SaveSessionManager.GetValue(NmsCompanionPaths.SeedPath(_selectedIndex))?.Value<string>() ?? "";
+        SeedBox.Show(NmsCompanionPaths.SeedPath(_selectedIndex));
         ColourBaseSeedActiveCheckBox.IsChecked = SaveSessionManager.GetValue(NmsCompanionPaths.ColourBaseSeedActivePath(_selectedIndex))?.Value<bool>() ?? false;
         ColourBaseSeedEditBox.Text = SaveSessionManager.GetValue(NmsCompanionPaths.ColourBaseSeedPath(_selectedIndex))?.Value<string>() ?? "";
-        BattleAbilitySeedEditBox.Text = SaveSessionManager.GetValue(NmsCompanionPaths.RollSeedPrimaryPath(_selectedIndex))?.Value<string>() ?? "";
-        BattleAbilitySeed2EditBox.Text = SaveSessionManager.GetValue(NmsCompanionPaths.RollSeedSecondaryPath(_selectedIndex))?.Value<string>() ?? "";
+        BattleAbilitySeedBox.Show(NmsCompanionPaths.RollSeedPrimaryPath(_selectedIndex));
+        BattleAbilitySeed2Box.Show(NmsCompanionPaths.RollSeedSecondaryPath(_selectedIndex));
 
         ClassLetterOverrideActiveCheckBox.IsChecked = SaveSessionManager.GetValue(NmsCompanionPaths.ClassLetterOverrideActivePath(_selectedIndex))?.Value<bool>() ?? false;
         SetClassLetterSelection(ClassLetterHealthBox, SaveSessionManager.GetValue(NmsCompanionPaths.ClassLetterPath(_selectedIndex, 0))?.Value<string>());
@@ -901,42 +902,6 @@ public sealed partial class CompanionsPage : Page
         SetTrait(2, args.NewValue);
     }
 
-    /// <summary>Stages the seed when the field loses focus - same plain-text
-    /// staging pattern as Ships/Freighter's own seed fields.</summary>
-    private void SeedEditBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = SeedEditBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(newSeed)) return;
-
-        var seedPath = NmsCompanionPaths.SeedPath(_selectedIndex);
-        string? currentSeed = SaveSessionManager.GetValue(seedPath)?.Value<string>();
-        if (newSeed == currentSeed) return;
-
-        SaveSessionManager.StageEdit(newSeed, seedPath);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>Rerolls the selected pet's color to a brand new random seed -
-    /// same plain-reroll semantics as Ships/Freighter (NmsSeedGenerator), not
-    /// a targeted picker. Writes the SAME new value into both SeedPath
-    /// (CreatureSeed) and BoneScaleSeedPath (BoneScaleSeed), preserving the
-    /// mirror every real sample showed between them - see NmsCompanionPaths for
-    /// why the other two seed pairs (CreatureSecondarySeed/ColourBaseSeed)
-    /// are deliberately left untouched.</summary>
-    private void GenerateSeedBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = NmsSeedGenerator.GenerateRandom();
-
-        SeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsCompanionPaths.SeedPath(_selectedIndex));
-        SaveSessionManager.StageEdit(newSeed, NmsCompanionPaths.BoneScaleSeedPath(_selectedIndex));
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
     private void ColourBaseSeedActiveCheckBox_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedIndex < 0) return;
@@ -973,63 +938,6 @@ public sealed partial class CompanionsPage : Page
         ColourBaseSeedActiveCheckBox.IsChecked = true;
         SaveSessionManager.StageEdit(newSeed, NmsCompanionPaths.ColourBaseSeedPath(_selectedIndex));
         SaveSessionManager.StageEdit(true, NmsCompanionPaths.ColourBaseSeedActivePath(_selectedIndex));
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void BattleAbilitySeedEditBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = BattleAbilitySeedEditBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(newSeed)) return;
-
-        var rollSeedPath = NmsCompanionPaths.RollSeedPrimaryPath(_selectedIndex);
-        string? currentSeed = SaveSessionManager.GetValue(rollSeedPath)?.Value<string>();
-        if (newSeed == currentSeed) return;
-
-        SaveSessionManager.StageEdit(newSeed, rollSeedPath);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>Rerolls the selected pet's Battle Abilities badges and fancy
-    /// species name to a brand new random roll - confirmed via a real
-    /// reroll-and-revert round trip (see NmsCompanionPaths.RollSeedPrimaryPath).</summary>
-    private void GenerateBattleAbilitySeedBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = NmsSeedGenerator.GenerateRandom();
-
-        BattleAbilitySeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsCompanionPaths.RollSeedPrimaryPath(_selectedIndex));
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void BattleAbilitySeed2EditBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = BattleAbilitySeed2EditBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(newSeed)) return;
-
-        var rollSeedPath = NmsCompanionPaths.RollSeedSecondaryPath(_selectedIndex);
-        string? currentSeed = SaveSessionManager.GetValue(rollSeedPath)?.Value<string>();
-        if (newSeed == currentSeed) return;
-
-        SaveSessionManager.StageEdit(newSeed, rollSeedPath);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>Second confirmed co-input to the same roll as
-    /// GenerateBattleAbilitySeedBtn_Click - see NmsCompanionPaths.RollSeedSecondaryPath.</summary>
-    private void GenerateBattleAbilitySeed2Btn_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedIndex < 0) return;
-
-        string newSeed = NmsSeedGenerator.GenerateRandom();
-
-        BattleAbilitySeed2EditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsCompanionPaths.RollSeedSecondaryPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
@@ -1101,5 +1009,14 @@ public sealed partial class CompanionsPage : Page
         }
 
         PageResetBtn.Visibility = Visibility.Collapsed;
+    }
+
+    private void Seed_Changed(object? sender, SeedChange change)
+    {
+        // Generate rolls both of the pet's colour-seed slots together (they were
+        // always found mirrored on real saves); a pasted seed sets just the primary.
+        if (sender == SeedBox && change.Generated && _selectedIndex >= 0)
+            SaveSessionManager.StageEdit(change.Seed, NmsCompanionPaths.BoneScaleSeedPath(_selectedIndex));
+        PageResetBtn.Visibility = Visibility.Visible;
     }
 }

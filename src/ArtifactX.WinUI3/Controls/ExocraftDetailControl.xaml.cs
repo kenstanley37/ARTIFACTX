@@ -154,31 +154,7 @@ public sealed partial class ExocraftDetailControl : UserControl
         PageResetBtn.Visibility = (_techViewModel.HasLocalChanges || _cargoViewModel.HasLocalChanges)
             ? Visibility.Visible : Visibility.Collapsed;
 
-        ModelSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.ExocraftModelSeedPath(_type))?.Value<string>() ?? "";
-    }
-
-    private void ModelSeedEditBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (!SaveSessionManager.IsSaveLoaded) return;
-
-        string newSeed = ModelSeedEditBox.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(newSeed)) return;
-
-        string? currentSeed = SaveSessionManager.GetValue(NmsInventoryContainer.ExocraftModelSeedPath(_type))?.Value<string>();
-        if (newSeed == currentSeed) return;
-
-        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.ExocraftModelSeedPath(_type));
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void GenerateModelSeedBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (!SaveSessionManager.IsSaveLoaded) return;
-
-        string newSeed = NmsSeedGenerator.GenerateRandom();
-        ModelSeedEditBox.Text = newSeed;
-        SaveSessionManager.StageEdit(newSeed, NmsInventoryContainer.ExocraftModelSeedPath(_type));
-        PageResetBtn.Visibility = Visibility.Visible;
+        ModelSeedBox.Show(NmsInventoryContainer.ExocraftModelSeedPath(_type));
     }
 
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
@@ -191,4 +167,9 @@ public sealed partial class ExocraftDetailControl : UserControl
     }
 
     private void Inventory_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
+
+    private void Seed_Changed(object? sender, SeedChange change)
+    {
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
 }

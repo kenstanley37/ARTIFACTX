@@ -9,6 +9,7 @@ public sealed partial class StatBoxViewModel : ObservableObject
 {
     private readonly Action<StatBoxViewModel> _edited;
     private bool _loading;
+    private double _shown;
 
     public StatBoxViewModel(string label, string key, double value, Action<StatBoxViewModel> edited)
     {
@@ -27,12 +28,21 @@ public sealed partial class StatBoxViewModel : ObservableObject
     public void Load(double value)
     {
         _loading = true;
+        _shown = value;
         Value = value;
         _loading = false;
     }
 
+    /// <summary>The NumberBox shows 8 decimals and hands back its rounded value
+    /// (77.0675582885742 -> 77.06755829) when it reformats, e.g. after switching
+    /// items - that's not an edit, so it's never staged (found 2026-10-21).</summary>
     partial void OnValueChanged(double oldValue, double newValue)
     {
-        if (!_loading && !double.IsNaN(newValue) && !newValue.Equals(oldValue)) _edited(this);
+        if (_loading || double.IsNaN(newValue) || IsSameAsShown(newValue)) return;
+        _shown = newValue;
+        _edited(this);
     }
+
+    private bool IsSameAsShown(double value) =>
+        !double.IsNaN(_shown) && Math.Abs(value - _shown) <= 1e-7 * Math.Max(1, Math.Abs(_shown));
 }

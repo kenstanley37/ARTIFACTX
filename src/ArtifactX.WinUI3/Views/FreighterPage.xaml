@@ -148,14 +148,7 @@
                                                 <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
                                                           ToolTipService.ToolTip="Sets the hull's paint and colour pattern (the shape stays the same). Paste a value you've found elsewhere, or Generate a new one."/>
                                             </StackPanel>
-                                            <Grid ColumnSpacing="8">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBox x:Name="HomeSeedEditBox" LostFocus="HomeSeedEditBox_LostFocus"/>
-                                                <Button Grid.Column="1" Content="Generate" Click="GenerateHomeSeedBtn_Click"/>
-                                            </Grid>
+                                            <controls:SeedBox x:Name="HomeSeedBox" Label="Home seed" Changed="Seed_Changed"/>
                                         </StackPanel>
                                         <StackPanel Spacing="6">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -163,14 +156,7 @@
                                                 <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
                                                           ToolTipService.ToolTip="A second appearance seed for the hull. Its visible effect hasn't been pinned down yet - the paint scheme comes from Home Seed."/>
                                             </StackPanel>
-                                            <Grid ColumnSpacing="8">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBox x:Name="ModelSeedEditBox" LostFocus="ModelSeedEditBox_LostFocus"/>
-                                                <Button Grid.Column="1" Content="Generate" Click="GenerateModelSeedBtn_Click"/>
-                                            </Grid>
+                                            <controls:SeedBox x:Name="ModelSeedBox" Label="Model seed" Changed="Seed_Changed"/>
                                         </StackPanel>
                                     </StackPanel>
                                     <StackPanel Width="300" Spacing="12">
@@ -186,14 +172,7 @@
                                                 <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
                                                           ToolTipService.ToolTip="Drives the captain's look, alongside their Race. Paste a seed you've found elsewhere, or Generate a new one."/>
                                             </StackPanel>
-                                            <Grid ColumnSpacing="8">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBox x:Name="CrewSeedEditBox" LostFocus="CrewSeedEditBox_LostFocus"/>
-                                                <Button Grid.Column="1" Content="Generate" Click="GenerateCrewSeedBtn_Click"/>
-                                            </Grid>
+                                            <controls:SeedBox x:Name="CrewSeedBox" Label="Crew seed" Changed="Seed_Changed"/>
                                         </StackPanel>
                                     </StackPanel>
                                 </ctcontrols:WrapPanel>
