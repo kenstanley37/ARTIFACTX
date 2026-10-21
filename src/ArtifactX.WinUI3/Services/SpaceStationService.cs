@@ -87,7 +87,20 @@ public static class SpaceStationService
         + Math.Min(1.0, Best(S.GuildStats, group).Value / (double)S.GuildStandingRequired)
         + Math.Min(1.0, S.ReadStat(group, S.SalvageContractsStatId) / (double)S.SalvageContractsRequired);
 
-    public static bool IsClaimPending() => SaveSessionManager.HasStagedEditsUnder(S.BasePath(BaseCount()));
+    /// <summary>A claim staged in the system the player is in and not saved yet.</summary>
+    public static bool IsClaimPending() => PendingClaimIndex() is not null;
+
+    /// <summary>The base index of a claim staged here and not saved yet: the station record for
+    /// this system staged whole (Claim stages the full record; edits to a saved station stage
+    /// inside it). Found by system, not as "the slot after the last base" - reading the bases
+    /// list includes staged appends, so that slot was one past the claim and the claim read as
+    /// not pending: no "save your changes" line, no furniture offer, and Reset couldn't undo it
+    /// (2026-10-21).</summary>
+    private static int? PendingClaimIndex()
+    {
+        ulong? here = S.ReadSystemAddress(SaveSessionManager.GetValue(S.CurrentUniverseAddressPath));
+        return here is ulong address && DirectedStationIndex(address) is int i && SaveSessionManager.HasStagedEdit(S.BasePath(i)) ? i : null;
+    }
 
     public static bool HasEdits(StationOverview overview) =>
         (overview.CurrentGroupIndex >= 0 && SaveSessionManager.HasStagedEditsUnder(S.StatGroupPath(overview.CurrentGroupIndex)))
@@ -124,7 +137,7 @@ public static class SpaceStationService
         var kept = new JArray(parts.Where(p => p is not JObject o || !defaults.Contains(o)));
         int removed = parts.Count - kept.Count;
         if (removed == 0) return 0;
-        if (i == BaseCount())
+        if (SaveSessionManager.HasStagedEdit(S.BasePath(i))) // a claim not saved yet: restage it whole
         {
             var copy = (JObject)record.DeepClone();
             copy["@ZJ"] = kept;
@@ -183,10 +196,10 @@ public static class SpaceStationService
         if (overview.CurrentGroupIndex >= 0)
             SaveSessionManager.RevertEditsUnder(S.StatGroupPath(overview.CurrentGroupIndex));
 
-        // A saved station's cleared furniture first: the index is found while it's still there.
-        if (overview.CurrentAddress is ulong here && DirectedStationIndex(here) is int directed && directed < BaseCount())
+        // A saved station's cleared furniture (edits inside its record, not a staged claim).
+        if (PendingClaimIndex() is null && overview.CurrentAddress is ulong here && DirectedStationIndex(here) is int directed)
             SaveSessionManager.RevertEditsUnder(S.BasePath(directed));
-        SaveSessionManager.RevertEditsUnder(S.BasePath(BaseCount()));
+        if (PendingClaimIndex() is int claim) SaveSessionManager.RevertEditsUnder(S.BasePath(claim));
         if (FindStationsOwnedStat() is (int g, int s))
             SaveSessionManager.RevertEditsUnder(NmsPlayerStatsPaths.StatIntValuePath(g, s));
         if (overview.CurrentAddress is ulong address && FindStationMarkerIndex(address, out _) is int marker and >= 0)
