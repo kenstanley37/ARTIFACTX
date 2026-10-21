@@ -14,10 +14,13 @@ namespace ArtifactX.WinUI3.Services;
 /// name is stored as that body's name (system notes), so every later reading matches.
 /// Held in memory for the session only.
 ///
-/// Since 2026-10-18 the save's discovery records name every body you've scanned - renamed
-/// ones included (q5u) - so a reading is only held while the system still has a body with no
-/// record. When every body has one, a name matching none of them isn't a planet but other
-/// screen text ("Online Discovery Services Active", 2026-10-20) and is dropped.
+/// A body is "accounted for" once details were read off the screen or typed for it, or its
+/// name was learned (from where you saved, a discovery record, or typed). The generator's name
+/// is what the game shows about 99% of the time, but not always - Ehilusti's planet 1 is
+/// "Rigie IV" in game and "Nigie Major" from the generator (2026-10-20) - so a reading that
+/// matches no name is only held while the system has a body not accounted for; when every
+/// body is, it's other screen text ("Online Discovery Services Active") and is dropped. A held
+/// reading that can only be one body is placed there by itself (Place).
 /// </summary>
 public static class UnmatchedBodiesService
 {
@@ -41,6 +44,8 @@ public static class UnmatchedBodiesService
             SystemNameLearner.LearnDiscoveryNames(snapshot.Discoveries);
             Retry();
         };
+        // Another body's details read: one fewer body a held name can belong to.
+        PlanetDetailsService.Changed += (_, _) => Retry();
     }
 
     private static void Retry()
@@ -51,20 +56,43 @@ public static class UnmatchedBodiesService
         {
             if (PlanetPageReader.MatchBody(h.Name) is (ulong system, int body, _) && system == h.System)
                 Assign(h, body, rememberName: false);
-            else if (UnrecordedBodies(h.System).Count == 0)
-                Dismiss(h); // every body has a record now, and none is this name
+            else if (UnaccountedBodies(h.System).Count == 0)
+                Dismiss(h); // every body is accounted for, and none is this name
+            else
+                Place(h);
         }
     }
 
-    /// <summary>The bodies of a system with no discovery record in the save yet - the only
-    /// ones a name ArtifactX doesn't know can belong to.</summary>
-    public static IReadOnlyList<int> UnrecordedBodies(ulong system)
+    /// <summary>The bodies of a system no name or details are known for yet - the only ones a
+    /// name ArtifactX doesn't know can belong to.</summary>
+    public static IReadOnlyList<int> UnaccountedBodies(ulong system)
     {
         var info = UniverseInfo.For(system);
-        var recorded = ArtifactX.Core.NmsModels.NmsPlanets.ReadAll(LiveSaveWatcher.FromSession().Discoveries)
-            .Where(p => p.SystemAddress == system).Select(p => p.PlanetIndex).ToHashSet();
-        return Enumerable.Range(1, info.PlanetCount + info.MoonCount).Where(b => !recorded.Contains(b)).ToList();
+        var names = SystemNotesService.Get(system)?.PlanetNames;
+        return Enumerable.Range(1, info.PlanetCount + info.MoonCount)
+            .Where(b => PlanetDetailsService.Get(system, b) is null or { IsEmpty: true }
+                && names?.ContainsKey(b.ToString(CultureInfo.InvariantCulture)) != true)
+            .ToList();
     }
+
+    /// <summary>Places a held reading on the one body it can be: the only body of its kind
+    /// (planet or moon) not accounted for, whose generated name starts almost the same
+    /// ("Rigie IV" on "Nigie Major" - one letter off; screen text never is). The name is then
+    /// remembered, so later readings match. False when it could be more than one body.</summary>
+    private static bool Place(Held held)
+    {
+        var candidates = UnaccountedBodies(held.System)
+            .Where(b => held.Moon is not bool moon || BodyKindsService.IsMoon(held.System, b) == moon)
+            .ToList();
+        if (candidates.Count != 1) return false;
+        int body = candidates[0];
+        string generated = UniverseInfo.GeneratedPlanetName(held.System, body);
+        if (PlanetPageReader.Distance(FirstWord(held.Name), FirstWord(generated)) > 2) return false;
+        Assign(held, body);
+        return true;
+    }
+
+    private static string FirstWord(string name) => PlanetPageReader.Norm(name.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "");
 
     public static IReadOnlyList<Held> For(ulong system)
     {
@@ -78,7 +106,7 @@ public static class UnmatchedBodiesService
         // Not a name: the view's "5 PLANETS / 1 MOON" header was once taken for one (2026-10-17).
         if (name.Contains('/') || System.Text.RegularExpressions.Regex.IsMatch(name, @"\b(PLANETS?|MOONS?)\b|^\W*\d") || PlanetPageReader.LooksLikeDistance(name)) return;
         ulong system = PlanetPageReader.Recent().FirstOrDefault();
-        if (system == 0 || UnrecordedBodies(system).Count == 0) return;
+        if (system == 0 || UnaccountedBodies(system).Count == 0) return;
         string key = PlanetPageReader.Norm(name);
         lock (Lock)
         {
@@ -88,6 +116,9 @@ public static class UnmatchedBodiesService
                 MergeDetails(old?.Details, details), moon ?? old?.Moon));
         }
         Changed?.Invoke(system);
+        Held? added;
+        lock (Lock) added = Items.FirstOrDefault(h => h.System == system && PlanetPageReader.Norm(h.Name) == key);
+        if (added is not null) Place(added);
     }
 
     /// <summary>The player said which body it is: remember the name, then apply what was read.</summary>
