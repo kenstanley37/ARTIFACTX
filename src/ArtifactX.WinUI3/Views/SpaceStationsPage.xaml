@@ -52,6 +52,21 @@
                                     </Border>
                                     <TextBlock Text="{x:Bind ViewModel.CurrentStatus, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasStatus, Mode=OneWay}"
                                                Style="{StaticResource ThemeDimTextStyle}" Margin="0,6,0,0"/>
+                                    <!-- Right after a claim (or any time you direct the station here): the furniture
+                                         the claim came with, which counts toward the build limit. -->
+                                    <StackPanel Visibility="{x:Bind ViewModel.ShowClearFurniture, Mode=OneWay}" Spacing="8" Margin="0,8,0,0">
+                                        <TextBlock Text="{x:Bind ViewModel.FurnitureText, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"/>
+                                        <!-- Warning-styled like the app's other delete buttons ("Delete this freighter..."). -->
+                                        <Button Click="ClearFurnitureBtn_Click" HorizontalAlignment="Left"
+                                                Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
+                                                AutomationProperties.Name="{x:Bind ViewModel.ClearFurnitureLabel, Mode=OneWay}"
+                                                ToolTipService.ToolTip="Removes the furniture the station came with when you claimed it. The connectors, core and paragon the game keeps are left in place.">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <FontIcon Glyph="&#xE74D;" FontSize="14"/>
+                                                <TextBlock Text="{x:Bind ViewModel.ClearFurnitureLabel, Mode=OneWay}"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
                                     <Button Content="CLAIM STATION" Style="{StaticResource ThemeAccentButtonStyle}"
                                             Visibility="{x:Bind ViewModel.ShowClaim, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.CanClaim, Mode=OneWay}"
                                             Click="ClaimStationBtn_Click" Margin="0,8,0,0"

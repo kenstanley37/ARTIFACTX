@@ -31,6 +31,16 @@ public static class BasePartNames
         // A claimed station keeps 120 STACONNECT, one BRIDGECONNECTOR, STATION_CORE and
         // U_PARAGON after every part the game lets you remove is gone (user cleared a
         // station by hand, 2026-10-21) - U_PARAGON was missing here and showed as "U Paragon".
+        // Removal test the same day (Slot 8, save edited, then played and saved in game):
+        // with all four kinds removed the game put U_PARAGON back on its next save and left the
+        // rest gone; with only STACONNECT removed nothing came back. Both stations worked inside
+        // and out (Station Core, Manage Station, docking) and the exterior looked the same as
+        // before. So 122 per station look removable - kept protected until a second test on a
+        // fresh claim; U_PARAGON must always stay.
+        // Second test (Nasudo XVII Hub, fresh claim, furniture already cleared, then all 123
+        // built-ins removed - an EMPTY parts list): the game no longer treated the station as
+        // claimed (its core offered Claim Station) and dropped the station's base record from
+        // the save on its next save. A station must never be left with no parts.
         ["U_PARAGON"] = "Station paragon",
     };
 
@@ -39,6 +49,12 @@ public static class BasePartNames
 
     /// <summary>One of the pieces the game places itself (connectors, cores), not something the player built.</summary>
     public static bool IsBuiltIn(string id) => BuiltIn.ContainsKey(CatalogService.NormalizeId(id));
+
+    /// <summary>Whether a claimed station's part can go: never the pieces the game places
+    /// itself, and only real, buildable items the catalog names - a station's structure
+    /// isn't all known. Warm the catalog cache for the ids first.</summary>
+    public static bool CanRemoveFromStation(string id) =>
+        !IsBuiltIn(id) && CatalogService.TryGet(CatalogService.NormalizeId(id))?.DisplayName is { Length: > 0 };
 
     /// <summary>Call CatalogService.WarmCacheAsync with the ids first, for names and icons.</summary>
     public static string Name(string id)
