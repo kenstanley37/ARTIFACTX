@@ -7,7 +7,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:explore="using:ArtifactX.WinUI3.ViewModels.ExploreViewModels">
 
-    <StackPanel Padding="18,14,18,16" Spacing="10">
+    <StackPanel Padding="{x:Bind ContentPadding, Mode=OneWay}" Spacing="10">
         <StackPanel Spacing="2" Visibility="{x:Bind Fish.HasProgress, Mode=OneWay}">
             <TextBlock Text="{x:Bind Fish.ProgressLabel, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
             <Grid ColumnSpacing="10">
@@ -27,7 +27,7 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
         <TextBlock Text="{x:Bind Fish.CaughtHereLabel, Mode=OneWay}" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}"/>
-        <ItemsControl ItemsSource="{x:Bind Fish.Groups, Mode=OneWay}">
+        <ItemsControl ItemsSource="{x:Bind Fish.Groups, Mode=OneWay}" Visibility="{x:Bind ShowLists, Mode=OneWay}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="explore:FishGroup">
                     <StackPanel Spacing="2" Margin="0,6,0,0">

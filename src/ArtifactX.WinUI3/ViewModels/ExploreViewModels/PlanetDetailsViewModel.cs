@@ -124,7 +124,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         CanGoNext = at >= 0 && at < _siblings.Count - 1;
 
         PortalCode = planet.PortalCode;
-        GalaxyLabel = NmsGalaxyNames.ForNumber(planet.Galaxy) is string galaxy ? $"{galaxy} ({planet.Galaxy})" : $"Galaxy {planet.Galaxy}";
+        GalaxyLabel = PlanetText.GalaxyLabel(planet.Galaxy);
         ShowNames();
         ShowRecorded();
         ShowSave();
@@ -185,7 +185,8 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         Add("Resources", d is { Resources.Count: > 0 } ? string.Join(", ", d.Resources) : null);
         Add("Notes", d is { Notes.Count: > 0 } ? string.Join(" · ", d.Notes) : null);
         Recorded = recorded;
-        Fish = _vocabulary is null ? null : PlanetFishViewModel.For(planet, _vocabulary.Fish, FishCatchService.ReadCaught(_snapshot.Fishing), FishName);
+        Fish = _vocabulary is null ? null : PlanetFishViewModel.For(planet, _vocabulary.Fish, FishCatchService.ReadCaught(_snapshot.Fishing),
+            id => PlanetText.FishName(id, _vocabulary.ItemNames));
     }
 
     /// <summary>What the save says: discoveries, the visit, bases, who found it.</summary>
@@ -200,8 +201,8 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         var facts = new List<Fact>();
         void Add(string label, string value) { if (value.Length > 0) facts.Add(new(label, value)); }
         NmsPlanets.CountDiscoveries(_snapshot.Discoveries).TryGetValue(planet.Address, out var tally);
-        if (here == planet.SystemAddress || tally is not null) Add("You found", DiscoveredText(planet, tally));
-        Add("Visited", VisitText(PlanetStats(planet.Address)));
+        if (here == planet.SystemAddress || tally is not null) Add("You found", PlanetText.Discovered(planet.Address, tally));
+        Add("Visited", PlanetText.Visit(NmsPlanets.PlanetStats(_snapshot.StatGroups, planet.Address)));
         if (tally is { Waypoints: > 0 } w) Add("Waypoints", w.Waypoints.ToString(CultureInfo.CurrentCulture));
         Add("Found by", planet.DiscoveredHere ? "You" : planet.Discoverer is { Length: > 0 } who ? who : NotRecorded);
         Add("Found on", planet.DiscoveredUnixSeconds > 0
@@ -335,48 +336,4 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         ShowSave();
         ShowRecorded(); // fish caught
     });
-
-    // ---------------------------------------------------------------- Text
-
-    private string FishName(string id)
-    {
-        string name = _vocabulary?.ItemNames.GetValueOrDefault(id)
-            ?? (CatalogService.TryGet(id)?.DisplayName is { Length: > 0 } shown ? shown : id);
-        return name == name.ToUpperInvariant() ? CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name.ToLowerInvariant()) : name;
-    }
-
-    private static string DiscoveredText(KnownPlanet planet, PlanetDiscoveryCounts? tally)
-    {
-        var t = tally ?? new PlanetDiscoveryCounts(0, 0, 0);
-        int? total = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex)?.FaunaTotal;
-        string fauna = total switch { 0 => "no fauna", int n => $"{t.Fauna} / {n} fauna", _ => $"{t.Fauna} fauna" };
-        return $"{fauna} · {t.Flora} flora · {t.Minerals} minerals";
-    }
-
-    private static string VisitText(Dictionary<string, double> stats)
-    {
-        var visit = new List<string>();
-        if (stats.TryGetValue("^TIME", out double seconds) && seconds >= 1)
-        {
-            var span = TimeSpan.FromSeconds(seconds);
-            visit.Add(span.TotalHours >= 1 ? $"{(int)span.TotalHours}h {span.Minutes}m"
-                : span.TotalMinutes >= 1 ? $"{span.Minutes}m {span.Seconds}s" : $"{span.Seconds}s");
-        }
-        if (stats.TryGetValue("^DIST_WALKED", out double walked) && walked >= 1) visit.Add($"{walked:N0} m walked");
-        return string.Join(" · ", visit);
-    }
-
-    /// <summary>The planet's ^PLANET_STATS group: time spent there, distance walked...</summary>
-    private Dictionary<string, double> PlanetStats(ulong planetAddress)
-    {
-        var result = new Dictionary<string, double>();
-        var group = _snapshot.StatGroups?.OfType<JObject>().FirstOrDefault(g =>
-            g[":rc"]?.Value<string>() == "^PLANET_STATS" && S.ParsePackedAddress(g["2Ak"]) == planetAddress);
-        if (group is null) return result;
-        foreach (var stat in (group["j6C"] as JArray)?.OfType<JObject>() ?? [])
-            if (stat["H1>"]?.Value<string>() is { } k && stat[">vs"]?.Value<double>() is { } v) result[k] = v;
-        foreach (var stat in (group["1;0"] as JArray)?.OfType<JObject>() ?? [])
-            if (stat["H1>"]?.Value<string>() is { } k && stat["eoL"]?.Value<double>() is { } v) result[k] = v;
-        return result;
-    }
 }

@@ -90,7 +90,7 @@ public sealed partial class FindsPage : Page
 
     private async Task LoadAsync()
     {
-        await CatalogService.WarmCacheAsync(Enumerable.Range(0, 16).Select(d => $"PORTALSYMBOL_{d:X}"));
+        await PortalGlyphs.WarmAsync();
         _itemNames = await CatalogService.GetItemNamesAsync();
         // Kinds come from game data / the app's own type lists, not hand-typed here.
         // Reward ships can't be found in the wild, so they're left out.
@@ -289,7 +289,6 @@ public sealed partial class FindsPage : Page
             Facts = AddressOf(f) is ulong factsAddress ? UniverseInfo.Compact(factsAddress) : "",
             Distance = distance,
             PortalCode = f.PortalCode,
-            Glyphs = GlyphsFor(f.PortalCode),
             Notes = f.Notes,
             NotesVisibility = f.Notes.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
         };
@@ -333,13 +332,6 @@ public sealed partial class FindsPage : Page
     private void Search_TextChanged(object sender, TextChangedEventArgs e) => Apply();
     private void Filter_Changed(object sender, SelectionChangedEventArgs e) => Apply();
 
-    private void CopyCode_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is not string code || code.Length == 0) return;
-        var package = new DataPackage();
-        package.SetText(code);
-        Clipboard.SetContent(package);
-    }
 
     private async void Delete_Click(object sender, RoutedEventArgs e)
     {
@@ -447,7 +439,6 @@ public sealed partial class FindsPage : Page
     /// for a different galaxy from the player's.</summary>
     private void UpdateFormGlyphs()
     {
-        FormGlyphsPanel.Children.Clear();
         FormGlyphStrip.Code = NmsPortalCode.TryParse(FormCodeBox.Text.Trim(), out string stripCode, out _) ? stripCode : "";
         string input = FormCodeBox.Text.Trim();
         if (input.Length == 0)
@@ -464,12 +455,6 @@ public sealed partial class FindsPage : Page
         // needed when a player renamed the system. Never overwrite what the user typed.
         ulong codeAddress = NmsPortalCode.ToAddress(code, SelectedGalaxy());
         FormSystemNameBox.PlaceholderText = UniverseInfo.SystemName(codeAddress);
-        foreach (var glyph in GlyphsFor(code))
-            FormGlyphsPanel.Children.Add(new Border
-            {
-                Width = 24, Height = 24, Background = ThemeResources.Brush("ThemeVoidBrush"),
-                Child = new Image { Source = glyph, Width = 20, Height = 20 },
-            });
         int galaxy = SelectedGalaxy();
         FormCodeStatusTxt.Text = _hereSystem is ulong h && S.GalaxyNumber(h) != galaxy
             ? $"This is in {GalaxyLabel(galaxy)} - you're in {GalaxyLabel(S.GalaxyNumber(h))}. Portals can't cross galaxies."
@@ -615,10 +600,4 @@ public sealed partial class FindsPage : Page
     private static string GalaxyLabel(int galaxy) =>
         NmsGalaxyNames.ForNumber(galaxy) is string name ? $"{name} ({galaxy})" : $"Galaxy {galaxy}";
 
-    private static List<ImageSource> GlyphsFor(string code)
-    {
-        if (code.Length != 12) return new();
-        var images = code.Select(c => CatalogService.TryGet($"PORTALSYMBOL_{c}")?.Icon).ToList();
-        return images.Any(i => i is null) ? new() : images.Cast<ImageSource>().ToList();
-    }
 }

@@ -38,7 +38,7 @@ public sealed partial class PlanetDetailsPage : Page
     private void Back_Click(object sender, RoutedEventArgs e)
     {
         if (Frame.CanGoBack) Frame.GoBack();
-        else Frame.Navigate(typeof(PlanetsPage));
+        else Frame.Navigate(typeof(CurrentSystemPage));
     }
 
     private async void Previous_Click(object sender, RoutedEventArgs e) => await ViewModel.GoPreviousAsync();

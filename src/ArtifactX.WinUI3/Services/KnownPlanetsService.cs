@@ -12,7 +12,7 @@ namespace ArtifactX.WinUI3.Services;
 
 /// <summary>
 /// Reads the planets known to every OTHER save slot in a platform folder, for
-/// PlanetsPage's finder. Each slot's newest .hg file is decrypted straight from
+/// the Planet Finder. Each slot's newest .hg file is decrypted straight from
 /// disk (not the Working/ JSON cache, which can be stale) and only its
 /// discovery list is used. Results are cached per file until its timestamp
 /// changes, so revisiting the page doesn't re-decrypt anything.
@@ -99,7 +99,7 @@ public static class KnownPlanetsService
     }
 }
 
-/// <summary>What PlanetsPage needs from one save: the player's location
+/// <summary>What Current System and the Planet Finder need from one save: the player's location
 /// (yhJ), stat groups (per-planet ^PLANET_STATS), the discovery list, the
 /// "where you saved" line (n:R, e.g. "In the Plyimed system") and the map
 /// markers (nlG - named space stations and bases), plus the bases (F?0)
@@ -116,7 +116,7 @@ public sealed record PlanetSnapshot(JToken? Universe, JArray? StatGroups, JArray
 
 public static class LiveSaveReader
 {
-    /// <summary>Decrypts a save straight from disk for PlanetsPage's live
+    /// <summary>Decrypts a save straight from disk for the pages' live
     /// follow, using whichever character is active (main game, or the
     /// expedition root when XTp is "Season" - same rule as
     /// SaveSessionManager). Read-only; returns null if the file can't be read

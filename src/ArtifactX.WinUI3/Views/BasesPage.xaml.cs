@@ -13,12 +13,11 @@ namespace ArtifactX.WinUI3.Views;
 
 /// <summary>
 /// Every base in the save, in folding sections (BasesViewModel), following the game's
-/// saves while it runs. Planet bases and loose placed objects can be deleted; "Open ›"
+/// saves while it runs (FishCatchRecorder). Planet bases and loose placed objects can be deleted; "Open ›"
 /// shows a base's parts (BaseDetailsPage).
 /// </summary>
 public sealed partial class BasesPage : Page
 {
-    private readonly LiveSaveWatcher _live;
     private PlanetSnapshot? _snapshot;
     private string _lastKey = "";
 
@@ -27,8 +26,7 @@ public sealed partial class BasesPage : Page
     public BasesPage()
     {
         InitializeComponent();
-        _live = new LiveSaveWatcher(DispatcherQueue);
-        _live.SnapshotRead += OnLiveSnapshot;
+        FishCatchRecorder.SnapshotSeen += OnLiveSnapshot;
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
         JumpPlanner.RangeChanged += Rebuild;
         PlanetDetailsService.Captured += OnPlanetChanged;
@@ -40,7 +38,7 @@ public sealed partial class BasesPage : Page
         SystemPageReader.Captured += OnSystemChanged;
         Unloaded += (_, _) =>
         {
-            _live.SnapshotRead -= OnLiveSnapshot;
+            FishCatchRecorder.SnapshotSeen -= OnLiveSnapshot;
             SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
             JumpPlanner.RangeChanged -= Rebuild;
             PlanetDetailsService.Captured -= OnPlanetChanged;
@@ -50,7 +48,6 @@ public sealed partial class BasesPage : Page
             FindsService.Changed -= Rebuild;
             SystemNotesService.Changed -= OnSystemChanged;
             SystemPageReader.Captured -= OnSystemChanged;
-            _live.Dispose();
         };
         _ = LoadAsync();
     }
@@ -64,7 +61,6 @@ public sealed partial class BasesPage : Page
         await PortalGlyphs.WarmAsync();
         _lastKey = "";
         await BuildAsync(LiveSaveWatcher.FromSession());
-        _live.Start();
     }
 
     private async Task BuildAsync(PlanetSnapshot snapshot)
@@ -95,11 +91,12 @@ public sealed partial class BasesPage : Page
     private void OnSystemChanged(ulong system) => Rebuild();
     private void OnSessionChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() => _ = LoadAsync());
 
-    private void OnLiveSnapshot(PlanetSnapshot snapshot)
+    /// <summary>Each save the game writes (FishCatchRecorder reads them for the whole app).</summary>
+    private void OnLiveSnapshot(PlanetSnapshot snapshot) => DispatcherQueue.TryEnqueue(() =>
     {
         LiveStatusTxt.Text = $"Following your game · updated {DateTime.Now:t}";
         _ = BuildAsync(snapshot);
-    }
+    });
 
     private void Section_OpenRequested(object? sender, BaseRowViewModel row) =>
         Frame.Navigate(typeof(ExplorePages.BaseDetailsPage), row);

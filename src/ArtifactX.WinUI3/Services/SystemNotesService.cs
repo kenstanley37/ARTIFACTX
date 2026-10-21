@@ -33,7 +33,7 @@ public sealed class SystemNote
     public List<string> Notes { get; set; } = new();
 
     /// <summary>Names the game showed - learned from the save's "where you
-    /// saved" line as you play (PlanetsPage), or typed by the player. Planet
+    /// saved" line as you play (Current System), or typed by the player. Planet
     /// names are keyed by planet number ("1".."6").</summary>
     public string SystemName { get; set; } = "";
     public string StationName { get; set; } = "";

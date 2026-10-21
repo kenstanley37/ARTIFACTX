@@ -626,7 +626,6 @@ public sealed partial class FishingPage : Page
             Distance = distanceText,
             Swatch = new SolidColorBrush(ParseColour(NmsPlanets.TypeColour(p.BiomeIndex))),
             PortalCode = p.PortalCode,
-            Glyphs = GlyphsFor(p.PortalCode),
             BaseText = baseName is null ? "" : $"Your base: {baseName}",
             BaseVisibility = baseName is null ? Visibility.Collapsed : Visibility.Visible,
             SpotText = spotText,
@@ -643,13 +642,6 @@ public sealed partial class FishingPage : Page
         };
     }
 
-    private void CopyCode_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is not string code || code.Length == 0) return;
-        var package = new DataPackage();
-        package.SetText(code);
-        Clipboard.SetContent(package);
-    }
 
     // ---------------------------------------------------------------- helpers
 
@@ -668,12 +660,6 @@ public sealed partial class FishingPage : Page
         byte.Parse(hex.AsSpan(1, 2), NumberStyles.HexNumber), byte.Parse(hex.AsSpan(3, 2), NumberStyles.HexNumber),
         byte.Parse(hex.AsSpan(5, 2), NumberStyles.HexNumber));
 
-    private static List<ImageSource> GlyphsFor(string code)
-    {
-        if (code.Length != 12) return new();
-        var images = code.Select(c => CatalogService.TryGet($"PORTALSYMBOL_{c}")?.Icon).ToList();
-        return images.Any(i => i is null) ? new() : images.Cast<ImageSource>().ToList();
-    }
 
     private string NameOf(string id) =>
         _names.TryGetValue(id, out var n) ? n

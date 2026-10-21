@@ -1,25 +1,44 @@
-using Microsoft.UI.Xaml;
+using ArtifactX.Core.NmsModels;
+using ArtifactX.WinUI3.Services;
 using Microsoft.UI.Xaml.Media;
-using System.Collections.Generic;
+using System.Linq;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
-/// <summary>One result row in PlanetsPage's planet finder - a KnownPlanet
-/// (ArtifactX.Core.NmsModels.NmsPlanets) shaped for display. Read-only; the
-/// finder never edits anything.</summary>
+/// <summary>One result in the Planet Finder - a KnownPlanet (NmsPlanets) shaped for display.</summary>
 public sealed class PlanetRowViewModel
 {
-    public required string TypeLabel { get; init; }
-    public required string FactsLabel { get; init; }
-    public required Brush Swatch { get; init; }
-    public required Visibility RingVisibility { get; init; }
-    public required string LocationLabel { get; init; }
-    public required string PortalCode { get; init; }
-    public required List<ImageSource> Glyphs { get; init; }
-    public required string DiscoveredLabel { get; init; }
-    public required string DistanceLabel { get; init; }
-    public required string NotesLabel { get; init; }
-    public required Visibility NotesVisibility { get; init; }
-    /// <summary>The planet itself, for opening it in full.</summary>
-    public required ArtifactX.Core.NmsModels.KnownPlanet Planet { get; init; }
+    public PlanetRowViewModel(KnownPlanet planet, ulong? here, double? distance)
+    {
+        Planet = planet;
+        var details = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex);
+        NameLabel = UniverseInfo.PlanetName(planet.SystemAddress, planet.PlanetIndex);
+        FactsLabel = UniverseInfo.Compact(planet.SystemAddress);
+        LocationLabel = string.Join(" · ", new[]
+        {
+            planet.Classification(details?.Descriptor), PlanetText.Body(planet), PlanetText.GalaxyLabel(planet.Galaxy), planet.Source,
+        }.Where(s => s.Length > 0));
+        NotesLabel = string.Join(" · ", new[]
+        {
+            PlanetText.DetailsSummary(details, PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex)),
+            PlanetText.NoteSummary(SystemNotesService.Get(planet.SystemAddress)),
+        }.Where(s => s.Length > 0));
+        DistanceLabel = PlanetText.Distance(planet, here, distance);
+        DiscoveredLabel = $"{(planet.DiscoveredHere ? "You" : planet.Discoverer)} · {PlanetText.Date(planet.DiscoveredUnixSeconds)}";
+        Swatch = new SolidColorBrush(PlanetDrawingHelper.ParseColour(NmsPlanets.TypeColour(planet.BiomeIndex)));
+    }
+
+    /// <summary>The planet itself, for opening its page.</summary>
+    public KnownPlanet Planet { get; }
+
+    public string NameLabel { get; }
+    public string FactsLabel { get; }
+    public string LocationLabel { get; }
+    public string NotesLabel { get; }
+    public bool HasNotes => NotesLabel.Length > 0;
+    public string DistanceLabel { get; }
+    public string DiscoveredLabel { get; }
+    public string PortalCode => Planet.PortalCode;
+    public Brush Swatch { get; }
+    public bool HasRings => Planet.HasRings;
 }

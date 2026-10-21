@@ -28,7 +28,6 @@ public sealed class FindCardViewModel
     public required string Facts { get; init; }
     public required string Distance { get; init; }
     public required string PortalCode { get; init; }
-    public required List<ImageSource> Glyphs { get; init; }
     public required string Notes { get; init; }
     public required Visibility NotesVisibility { get; init; }
 }
