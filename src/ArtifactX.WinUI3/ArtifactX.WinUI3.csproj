@@ -252,10 +252,9 @@
     <Page Update="Views\ExplorePages\PlanetDetailsPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Views\EditorPages\" />
-    <Folder Include="Views\ReferencePages\" />
+    <Page Update="Views\ExplorePages\BaseDetailsPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
 
   <Target Name="TrimPublishLocaleFolders" AfterTargets="Publish" Condition="'$(SelfContained)' == 'true' and Exists('$(PublishDir)')">

@@ -30,8 +30,26 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Ship Designer: Add, Apply and Repaint wait until No Man's Sky is closed, so changes can't be lost to the game's autosave.
 - Starships shows how many of your starship slots are used, with the empty ones as placeholders (click one to open the Ship Designer). The Ship Designer shows slots used and free (e.g. "7/12 ship slots used · 5 free") before you add a ship.
 - The Ship Designer works in narrower windows: the layout rearranges and the page scrolls.
+- **Bases page** is grouped into Freighter, Planet bases, Claimed space stations, Settlements and Placed objects, each of which folds away. **Open** on a base shows its parts on a page of its own, and locations include the galaxy region. Bases is now in the Save Editor group, above Base Storage.
+- **Deleting bases and placed objects**: on the Bases page, select planet bases or loose placed objects (save beacons, refiners and so on) and delete them. On a base's own page, delete every part of a kind, or the whole base with **Delete base…**. Each asks you to confirm and lists what goes; the save is backed up before it's written. Your freighter, claimed stations and settlements can't be deleted here.
+- Each planet opens on a **page of its own** from Current System.
+- **Capture now** buttons on the system view and on creature cards take the picture straight away when automatic screen reading missed it.
+- Inventories: **curiosities and other items with a seed** can be added from the normal Add item search, and **Re-roll seed** gives an item in a slot a new one.
+- Planets show the game's own description and their group together, e.g. "Crimson Planet (Red / Exotic)".
+- Inventory **Sort** groups items by kind (technology, raw materials, components, curiosities and so on), then A-Z.
+- Settings shows how big your ArtifactX data file is, its version and where it is, with a button to open the folder.
+- Cards you fold away or open stay that way on every page.
 
 ### Fixed
+
+- A planet's page didn't show how long you'd spent there or how far you'd walked (Visited).
+- A planet's page showed made-up values for conditions nobody had recorded ("Standard Activity" sentinels, "Uncharted" flora); it says "Not recorded".
+- Editing a planet's details: the pickers show what you recorded, words show their level ("Frenzied (High)"), a typo gets a "did you mean Cobalt?", clicking a suggested resource adds it, Enter adds a note, and Save keeps a note or resource you typed but didn't add.
+- Removing a creature from a planet's page asks first.
+- Deleting from the Bases page while the game was running could delete nothing.
+- A base's own page shows its picture faded in behind the header again.
+- Parts the game places itself (freighter bridge connectors, station cores) have plain names instead of made-up ones.
+- Inventory **Sort** put some building parts with the maps.
 
 - 3D previews were drawn mirrored (left and right swapped).
 - Explorer wings: the left and right wing were mixed up in the preview, and an Explorer added from the designer came out with the wrong wings in game.

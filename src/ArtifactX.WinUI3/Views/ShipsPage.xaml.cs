@@ -24,11 +24,7 @@ public sealed partial class ShipsPage : Page
     // Matches the ScrollViewers' own XAML-declared MaxHeight - restored when a
     // section is collapsed again. Same values as ExosuitPage since ships share
     // the same 10x6 Technology / 10x12 Cargo best-guess capacity.
-    private const double TechCollapsedHeight = 232;
-    private const double CargoCollapsedHeight = 368;
 
-    private static readonly string ChevronDownGlyph = char.ConvertFromUtf32(0xE70D);
-    private static readonly string ChevronUpGlyph = char.ConvertFromUtf32(0xE70E);
 
     // Unlike Multi-Tool's Kgt (a full mirrored container), the currently
     // EQUIPPED ship is tracked by a plain integer index - NmsInventoryContainer.
@@ -1045,23 +1041,8 @@ public sealed partial class ShipsPage : Page
         FlyoutBase.ShowAttachedFlyout((FrameworkElement)sender);
     }
 
-    /// <summary>Toggles between the compact, game-matching preview height and
-    /// showing every row at once - same pattern as ExosuitPage.</summary>
-    private void TechExpandBtn_Click(object sender, RoutedEventArgs e)
-    {
-        bool isCollapsed = TechScrollViewer.MaxHeight < double.PositiveInfinity;
-        TechScrollViewer.MaxHeight = isCollapsed ? double.PositiveInfinity : TechCollapsedHeight;
-        TechExpandIcon.Glyph = isCollapsed ? ChevronUpGlyph : ChevronDownGlyph;
-        ToolTipService.SetToolTip(TechExpandBtn, isCollapsed ? "Collapse" : "Expand");
-    }
 
-    private void CargoExpandBtn_Click(object sender, RoutedEventArgs e)
-    {
-        bool isCollapsed = CargoScrollViewer.MaxHeight < double.PositiveInfinity;
-        CargoScrollViewer.MaxHeight = isCollapsed ? double.PositiveInfinity : CargoCollapsedHeight;
-        CargoExpandIcon.Glyph = isCollapsed ? ChevronUpGlyph : ChevronDownGlyph;
-        ToolTipService.SetToolTip(CargoExpandBtn, isCollapsed ? "Collapse" : "Expand");
-    }
+
 
     /// <summary>Copies the currently selected ship's entire tech loadout onto
     /// another owned ship - same analysis/confirmation flow as MultiToolPage's

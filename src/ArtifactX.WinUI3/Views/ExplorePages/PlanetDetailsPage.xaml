@@ -1,350 +1,352 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). Every colour, font and corner
-     comes from the active theme's Theme* keys via ThemeStyles.xaml, so the
-     same markup renders correctly in both Station Core and Galaxy Map. -->
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). A planet's own page
+     (PlanetDetailsViewModel), opened from Current System: what the save says about it,
+     what you recorded, its bases, finds, creatures and - where there's water - fish. -->
 <Page
     x:Class="ArtifactX.WinUI3.Views.ExplorePages.PlanetDetailsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:ArtifactX.WinUI3.Views.ExplorePages"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
-    mc:Ignorable="d"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:explore="using:ArtifactX.WinUI3.ViewModels.ExploreViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <ScrollViewer x:Name="PageScrollViewer" VerticalScrollBarVisibility="Auto">
+    <Page.Resources>
+        <!-- "Label   value" rows, for the recorded details and the save's facts -->
+        <DataTemplate x:Key="FactTemplate" x:DataType="explore:Fact">
+            <Grid ColumnSpacing="12" Margin="0,0,0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="90"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Bind Label}" FontSize="13" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                <TextBlock Grid.Column="1" Text="{x:Bind Value}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}"
+                           TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+            </Grid>
+        </DataTemplate>
+
+        <Style x:Key="PillStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource ThemePanelBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource ThemeLineBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="{ThemeResource ThemeCardCornerRadius}"/>
+            <Setter Property="Padding" Value="10,5"/>
+        </Style>
+
+        <Style x:Key="SystemCardStyle" TargetType="Border" BasedOn="{StaticResource ThemeCardStyle}">
+            <Setter Property="Width" Value="385"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+        </Style>
+
+        <!-- The top row's cards line up at one height and scroll inside -->
+        <Style x:Key="TopCardStyle" TargetType="Border" BasedOn="{StaticResource SystemCardStyle}">
+            <Setter Property="Height" Value="300"/>
+        </Style>
+
+    </Page.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Padding="28,22,28,40" Spacing="18">
 
-            <!-- 1. Top Navigation Bar -->
             <Grid ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Button x:Name="BackButton" Content="‹  Back to Planets" Click="BackButton_Click"
-                        Style="{StaticResource ThemeAccentButtonStyle}"/>
-                <StackPanel Grid.Column="2" x:Name="SiblingNavPanel" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
-                    <Button x:Name="PrevPlanetBtn" Content="‹ Previous planet" Click="PrevPlanetBtn_Click"/>
-                    <Button x:Name="NextPlanetBtn" Content="Next planet ›" Click="NextPlanetBtn_Click"/>
+                <Button Content="‹  Back to Planets" Click="Back_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.HasSiblings, Mode=OneWay}">
+                    <Button Content="‹ Previous planet" Click="Previous_Click" IsEnabled="{x:Bind ViewModel.CanGoPrevious, Mode=OneWay}"/>
+                    <Button Content="Next planet ›" Click="Next_Click" IsEnabled="{x:Bind ViewModel.CanGoNext, Mode=OneWay}"/>
                 </StackPanel>
             </Grid>
 
-            <!-- 2. Integrated Header Container: Planet Telemetry & Environment -->
+            <!-- Header: the planet, where it is, its glyphs and its conditions -->
             <Border Style="{StaticResource ThemeCardStyle}">
-                <Grid x:Name="HeaderAreaGrid">
-                    <!-- Faint system picture backdrop -->
-                    <Border x:Name="HeaderBackdrop" Margin="-1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Opacity="0.25"/>
+                <Grid>
+                    <Border Margin="-1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Opacity="0.25">
+                        <Border.Background>
+                            <ImageBrush ImageSource="{x:Bind ViewModel.SystemPicture, Mode=OneWay}" Stretch="UniformToFill"/>
+                        </Border.Background>
+                    </Border>
 
                     <StackPanel Padding="20,16,20,18" Spacing="14">
-                        <!-- Top Row: Planet Drawing, Titles, Glyphs -->
                         <Grid ColumnSpacing="18">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-
-                            <Border Grid.Column="0" x:Name="PlanetDrawingFrame" Width="152" Height="76" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-
+                            <controls:PlanetDrawing Planet="{x:Bind ViewModel.Planet, Mode=OneWay}" Size="76" Highlight="{x:Bind ViewModel.IsHere, Mode=OneWay}"
+                                                    Width="152" Height="76" VerticalAlignment="Center"/>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
-                                <TextBlock x:Name="PlanetEyebrowTxt" Text="PLANET TELEMETRY" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                <TextBlock x:Name="PlanetTitleTxt" Style="{StaticResource ThemeHeadingStyle}" FontSize="26"/>
-                                <TextBlock x:Name="OriginalNameTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Visibility="Collapsed"/>
-                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
-                                    <TextBlock x:Name="BiomeTxt" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold" FontSize="13" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                    <TextBlock Text="·" Foreground="{ThemeResource ThemeTextFaintBrush}" FontSize="13"/>
-                                    <TextBlock x:Name="SystemNameTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
-                                    <TextBlock Text="·" Foreground="{ThemeResource ThemeTextFaintBrush}" FontSize="13"/>
-                                    <TextBlock x:Name="GalaxyTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
-                                    <TextBlock Text="·" Foreground="{ThemeResource ThemeTextFaintBrush}" FontSize="13"/>
-                                    <TextBlock x:Name="CoordsTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
-                                </StackPanel>
-                                <Border x:Name="HereBadge" Visibility="Collapsed" HorizontalAlignment="Left" Margin="0,4,0,0"
+                                <TextBlock Text="{x:Bind ViewModel.Eyebrow, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource ThemeHeadingStyle}" FontSize="26"/>
+                                <TextBlock Text="{x:Bind ViewModel.OriginalName, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasOriginalName, Mode=OneWay}"
+                                           Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                <ctcontrols:WrapPanel HorizontalSpacing="8" Margin="0,2,0,0">
+                                    <TextBlock Text="{x:Bind ViewModel.Classification, Mode=OneWay}" FontFamily="{ThemeResource ThemeDisplayFont}"
+                                               FontWeight="SemiBold" FontSize="13" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                    <TextBlock Text="·" Foreground="{ThemeResource ThemeTextDimBrush}" FontSize="13"/>
+                                    <TextBlock Text="{x:Bind ViewModel.SystemName, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
+                                    <TextBlock Text="·" Foreground="{ThemeResource ThemeTextDimBrush}" FontSize="13"/>
+                                    <TextBlock Text="{x:Bind ViewModel.GalaxyLabel, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
+                                    <TextBlock Text="·" Foreground="{ThemeResource ThemeTextDimBrush}" FontSize="13"/>
+                                    <TextBlock Text="{x:Bind ViewModel.Coordinates, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
+                                </ctcontrols:WrapPanel>
+                                <Border Visibility="{x:Bind ViewModel.IsHere, Mode=OneWay}" HorizontalAlignment="Left" Margin="0,4,0,0"
                                         Background="{ThemeResource ThemeDoneBrush}" Padding="8,3" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
-                                    <TextBlock x:Name="HereBadgeTxt" Text="◆  YOU ARE HERE" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold"
+                                    <TextBlock Text="{x:Bind ViewModel.HereLabel, Mode=OneWay}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold"
                                                FontSize="11" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
                                 </Border>
-                                <StackPanel x:Name="GlyphContainer" Orientation="Horizontal" Spacing="4" Margin="0,4,0,0"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                                    <controls:GlyphStrip Code="{x:Bind ViewModel.PortalCode, Mode=OneWay}" Title="{x:Bind ViewModel.Title, Mode=OneWay}" GlyphSize="32"/>
+                                    <controls:CopyCodeButton Code="{x:Bind ViewModel.PortalCode, Mode=OneWay}"/>
+                                </StackPanel>
                             </StackPanel>
                         </Grid>
 
-                        <!-- Environmental Conditions & Resources Bar (Top Container) -->
-                        <Border Height="1" Background="{ThemeResource ThemeLineBrush}" Margin="0,2,0,2"/>
+                        <Border Height="1" Background="{ThemeResource ThemeLineBrush}" Margin="0,2"/>
 
                         <StackPanel Spacing="10">
-                            <TextBlock Text="ENVIRONMENTAL CONDITIONS &amp; SURVEY TELEMETRY" Style="{StaticResource ThemeEyebrowStyle}" FontSize="10"/>
-                            <controls:WrapPanel HorizontalSpacing="10" VerticalSpacing="8">
-                                <!-- Weather Pill -->
-                                <Border Background="{ThemeResource ThemePanelBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="10,5">
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <TextBlock Text="⚡ Weather:" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                        <TextBlock x:Name="WeatherValTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="12"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Sentinels Pill -->
-                                <Border Background="{ThemeResource ThemePanelBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="10,5">
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <TextBlock Text="🛡 Sentinels:" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                        <TextBlock x:Name="SentinelsValTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="12"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Flora Pill -->
-                                <Border Background="{ThemeResource ThemePanelBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="10,5">
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <TextBlock Text="🌿 Flora:" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                        <TextBlock x:Name="FloraValTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="12"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Fauna Pill -->
-                                <Border Background="{ThemeResource ThemePanelBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="10,5">
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <TextBlock Text="🐾 Fauna:" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                        <TextBlock x:Name="FaunaValTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="12"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Water Pill -->
-                                <Border Background="{ThemeResource ThemePanelBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="10,5">
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <TextBlock Text="💧 Water:" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                        <TextBlock x:Name="WaterValTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="12"/>
-                                    </StackPanel>
-                                </Border>
-                            </controls:WrapPanel>
-
-                            <!-- Detected Resources Chips -->
+                            <TextBlock Text="CONDITIONS" Style="{StaticResource ThemeEyebrowStyle}" FontSize="10"/>
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.Conditions, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="8"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="explore:Fact">
+                                        <Border Style="{StaticResource PillStyle}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{x:Bind Label}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                                <TextBlock Text="{x:Bind Value}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="12"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Resources:" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center"/>
-                                <controls:WrapPanel x:Name="TopResourcesWrapPanel" HorizontalSpacing="6" VerticalSpacing="6" VerticalAlignment="Center"/>
+                                <TextBlock Text="Resources" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center"/>
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.Resources, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasResources, Mode=OneWay}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <ctcontrols:WrapPanel HorizontalSpacing="6" VerticalSpacing="6"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <Border Style="{StaticResource PillStyle}" Padding="8,3">
+                                                <TextBlock Text="{x:Bind}" FontSize="12" FontWeight="SemiBold" FontFamily="{ThemeResource ThemeDisplayFont}"
+                                                           Foreground="{ThemeResource ThemeTextBrush}"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="None recorded yet - add them with Edit details, or read them in game with screen recording on"
+                                           Visibility="{x:Bind IsCollapsedWhen(ViewModel.HasResources), Mode=OneWay}"
+                                           Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap"/>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- 3. Main Content: System Cards & Discoveries (Column 0) + Collapsible Fishing Rail (Column 1) -->
             <Grid ColumnSpacing="18">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Left / Center Column: System Cards & Creature Scans -->
-                <StackPanel Grid.Column="0" Spacing="18">
-
-                    <!-- System Cards: Equalized Height & Responsive Wrapping -->
-                    <controls:WrapPanel x:Name="SystemCardsWrapPanel" HorizontalSpacing="18" VerticalSpacing="18">
-
-                        <!-- Your Details & Notes Card (Manual Editor) -->
-                        <Border x:Name="DetailsCard" Style="{StaticResource ThemeCardStyle}" Width="385" VerticalAlignment="Top">
+                <StackPanel Spacing="18">
+                    <ctcontrols:WrapPanel HorizontalSpacing="18" VerticalSpacing="18">
+                        <Border x:Name="DetailsCard" Style="{StaticResource SystemCardStyle}" Height="{x:Bind DetailsCardHeight(ViewModel.IsEditing), Mode=OneWay}">
                             <Grid RowDefinitions="Auto,*">
-                                <Border Grid.Row="0" Style="{StaticResource ThemeBandStyle}">
+                                <Border Style="{StaticResource ThemeBandStyle}">
                                     <Grid>
                                         <TextBlock Text="YOUR DETAILS &amp; NOTES" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
-                                        <Button x:Name="EditDetailsToggleBtn" Content="Edit details" HorizontalAlignment="Right" Padding="12,2" FontSize="12" Click="EditDetailsToggleBtn_Click"/>
+                                        <Button Content="{x:Bind ViewModel.EditLabel, Mode=OneWay}" Click="ToggleEditor_Click"
+                                                HorizontalAlignment="Right" Padding="12,2" FontSize="12"/>
                                     </Grid>
                                 </Border>
                                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                                     <StackPanel Padding="18,14,18,16" Spacing="12">
-                                        <!-- Summary View -->
-                                        <StackPanel x:Name="DetailsSummaryPanel" Spacing="6"/>
-
-                                        <!-- Inline Editor View -->
-                                        <StackPanel x:Name="DetailsEditorPanel" Spacing="12" Visibility="Collapsed">
-                                            <TextBox x:Name="NameInGameBox" Header="Name in game" HorizontalAlignment="Stretch"/>
-                                            <TextBox x:Name="DescriptorBox" Header="Descriptor (e.g. Crimson Planet, Paradise Planet)" HorizontalAlignment="Stretch" PlaceholderText="e.g. Crimson Planet, Paradise Planet, Verdant Moon"/>
-                                            <controls:WrapPanel HorizontalSpacing="10" VerticalSpacing="10">
-                                                <ComboBox x:Name="SentinelsPicker" Header="Sentinels" Width="165" IsEditable="True"/>
-                                                <ComboBox x:Name="FloraPicker" Header="Flora" Width="165" IsEditable="True"/>
-                                                <ComboBox x:Name="FaunaPicker" Header="Fauna" Width="165" IsEditable="True"/>
-                                                <ComboBox x:Name="WaterPicker" Header="Water" Width="165"/>
-                                            </controls:WrapPanel>
-                                            <AutoSuggestBox x:Name="WeatherSuggestBox" Header="Weather" HorizontalAlignment="Stretch" PlaceholderText="e.g. Painfully Hot Rain"/>
-                                            <StackPanel Spacing="6">
-                                                <TextBlock Text="Resources Recorded" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                                <controls:WrapPanel x:Name="EditorResourceChips" HorizontalSpacing="6" VerticalSpacing="6"/>
-                                                <AutoSuggestBox x:Name="ResourceAddBox" Header="Add Resource" HorizontalAlignment="Stretch" PlaceholderText="Type resource name and press Enter"/>
-                                            </StackPanel>
-                                            <StackPanel Spacing="6">
-                                                <TextBlock Text="Notes" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                                <StackPanel x:Name="EditorNotesList" Spacing="6"/>
-                                                <Grid ColumnSpacing="8" HorizontalAlignment="Stretch">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBox x:Name="NewNoteInput" PlaceholderText="Add a note..."/>
-                                                    <Button Grid.Column="1" Content="Add" Click="AddNote_Click"/>
-                                                </Grid>
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,6,0,0">
-                                                <Button Content="Save details" Click="SaveDetails_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
-                                                <TextBlock x:Name="SaveStatusTxt" Style="{StaticResource ThemeDimTextStyle}" VerticalAlignment="Center"/>
-                                            </StackPanel>
+                                        <StackPanel Visibility="{x:Bind IsCollapsedWhen(ViewModel.IsEditing), Mode=OneWay}">
+                                            <ItemsControl ItemsSource="{x:Bind ViewModel.Recorded, Mode=OneWay}" ItemTemplate="{StaticResource FactTemplate}"/>
+                                            <TextBlock Text="Nothing recorded yet - click Edit details to record weather, sentinels, resources or notes."
+                                                       Visibility="{x:Bind IsCollapsedWhen(ViewModel.HasRecorded), Mode=OneWay}"
+                                                       Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                                         </StackPanel>
+                                        <controls:PlanetDetailsEditor Editor="{x:Bind ViewModel.Editor, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay}"/>
                                     </StackPanel>
                                 </ScrollViewer>
                             </Grid>
                         </Border>
 
-                        <!-- From Your Save Card -->
-                        <Border x:Name="SaveFactsCard" Style="{StaticResource ThemeCardStyle}" Width="385" VerticalAlignment="Top">
+                        <Border Style="{StaticResource TopCardStyle}">
                             <Grid RowDefinitions="Auto,*">
-                                <Border Grid.Row="0" Style="{StaticResource ThemeBandStyle}">
+                                <Border Style="{StaticResource ThemeBandStyle}">
                                     <TextBlock Text="FROM YOUR SAVE" Style="{StaticResource ThemeBandTextStyle}"/>
                                 </Border>
                                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                                    <Grid x:Name="SaveFactsContainer" Padding="18,14,18,16"/>
+                                    <ItemsControl ItemsSource="{x:Bind ViewModel.SaveFacts, Mode=OneWay}" ItemTemplate="{StaticResource FactTemplate}" Padding="18,14,18,16"/>
                                 </ScrollViewer>
                             </Grid>
                         </Border>
 
-                        <!-- Registered Bases & Outposts Card -->
-                        <Border x:Name="BasesCard" Style="{StaticResource ThemeCardStyle}" Width="385" VerticalAlignment="Top">
+                        <Border Style="{StaticResource TopCardStyle}">
                             <Grid RowDefinitions="Auto,*">
-                                <Border Grid.Row="0" Style="{StaticResource ThemeBandStyle}">
-                                    <TextBlock Text="REGISTERED BASES &amp; OUTPOSTS" Style="{StaticResource ThemeBandTextStyle}"/>
+                                <Border Style="{StaticResource ThemeBandStyle}">
+                                    <TextBlock Text="BASES" Style="{StaticResource ThemeBandTextStyle}"/>
                                 </Border>
                                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                                    <StackPanel x:Name="BasesListPanel" Padding="18,14,18,16" Spacing="10"/>
+                                    <StackPanel Padding="18,14,18,16" Spacing="10">
+                                        <ItemsControl ItemsSource="{x:Bind ViewModel.Bases, Mode=OneWay}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="explore:PlanetBase">
+                                                    <Border Padding="12,8" Margin="0,0,0,8" Background="{ThemeResource ThemePanelAltBrush}"
+                                                            BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                                                        <Grid ColumnSpacing="10">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <Border Width="32" Height="32" Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
+                                                                    BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                                                                <FontIcon Glyph="&#xE80F;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                                            </Border>
+                                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                                <TextBlock Text="{x:Bind Name}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold" FontSize="13"
+                                                                           Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+                                                                <TextBlock Text="{x:Bind Owner}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Text="No bases on this planet." Visibility="{x:Bind IsCollapsedWhen(ViewModel.HasBases), Mode=OneWay}"
+                                                   Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                    </StackPanel>
                                 </ScrollViewer>
                             </Grid>
                         </Border>
 
-                        <!-- Recorded Finds Card -->
-                        <Border x:Name="FindsCard" Style="{StaticResource ThemeCardStyle}" Width="385" VerticalAlignment="Top" Visibility="Collapsed">
+                        <Border Style="{StaticResource TopCardStyle}" Visibility="{x:Bind ViewModel.HasFinds, Mode=OneWay}">
                             <Grid RowDefinitions="Auto,*">
-                                <Border Grid.Row="0" Style="{StaticResource ThemeBandStyle}">
+                                <Border Style="{StaticResource ThemeBandStyle}">
                                     <TextBlock Text="YOUR FINDS HERE" Style="{StaticResource ThemeBandTextStyle}"/>
                                 </Border>
                                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                                    <StackPanel x:Name="FindsListPanel" Padding="18,14,18,16" Spacing="8"/>
+                                    <ItemsControl ItemsSource="{x:Bind ViewModel.Finds, Mode=OneWay}" Padding="18,14,18,16">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="x:String">
+                                                <TextBlock Text="{x:Bind}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" TextWrapping="Wrap"
+                                                           IsTextSelectionEnabled="True" Margin="0,0,0,8"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                 </ScrollViewer>
                             </Grid>
                         </Border>
+                    </ctcontrols:WrapPanel>
 
-                    </controls:WrapPanel>
-
-                    <!-- Creatures / Fauna Discoveries (Scanned with images) -->
-                    <Border x:Name="CreaturesCard" Style="{StaticResource ThemeCardStyle}">
+                    <Border Style="{StaticResource ThemeCardStyle}">
                         <StackPanel>
                             <Border Style="{StaticResource ThemeBandStyle}">
                                 <Grid>
-                                    <TextBlock Text="CREATURES (FAUNA DISCOVERIES)" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
-                                    <Button x:Name="CaptureCreatureBtn" HorizontalAlignment="Right" Padding="8,3" VerticalAlignment="Center"
-                                            ToolTipService.ToolTip="Capture creature from game screen (open creature in game first)"
-                                            Click="CaptureCreatureBtn_Click">
+                                    <TextBlock Text="CREATURES" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
+                                    <Button x:Name="CaptureCreatureBtn" Click="CaptureCreature_Click" HorizontalAlignment="Right" Padding="8,3"
+                                            IsEnabled="{x:Bind ViewModel.CanCapture, Mode=OneWay}"
+                                            ToolTipService.ToolTip="Read the creatures from the game screen (open the Discoveries fauna list in game first)">
+                                        <!-- What a capture read; shown beside whichever button started it -->
                                         <FlyoutBase.AttachedFlyout>
-                                            <Flyout x:Name="CreatureCaptureFlyout">
+                                            <Flyout x:Name="CaptureFlyout">
                                                 <StackPanel MaxWidth="320" Spacing="8">
                                                     <StackPanel Orientation="Horizontal" Spacing="8">
-                                                        <FontIcon x:Name="CreatureCaptureFlyoutIcon" Glyph="&#xE73E;" FontSize="16" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                                        <TextBlock x:Name="CreatureCaptureFlyoutTitle" Text="Creature Captured" FontWeight="SemiBold" FontSize="13"/>
+                                                        <FontIcon x:Name="CaptureFlyoutIcon" Glyph="&#xE73E;" FontSize="16"/>
+                                                        <TextBlock x:Name="CaptureFlyoutTitle" FontWeight="SemiBold" FontSize="13"/>
                                                     </StackPanel>
-                                                    <TextBlock x:Name="CreatureCaptureFlyoutDetails" TextWrapping="Wrap" FontSize="12" Opacity="0.85"/>
+                                                    <TextBlock x:Name="CaptureFlyoutDetails" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
                                                 </StackPanel>
                                             </Flyout>
                                         </FlyoutBase.AttachedFlyout>
                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <FontIcon x:Name="CaptureCreatureIcon" Glyph="&#xE722;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                            <ProgressRing x:Name="CaptureCreatureSpinner" IsActive="False" Width="12" Height="12" Visibility="Collapsed"/>
-                                            <TextBlock x:Name="CaptureCreatureTxt" Text="Capture creature" FontSize="11" VerticalAlignment="Center"/>
+                                            <FontIcon Glyph="&#xE722;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                            <TextBlock Text="{x:Bind ViewModel.CaptureLabel, Mode=OneWay}" FontSize="11" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Button>
                                 </Grid>
                             </Border>
                             <StackPanel Padding="18,14,18,16" Spacing="10">
-                                <TextBlock Text="Read off the game's Discoveries fauna list with screen recording on — open a creature there to add its picture, gender and size."
-                                           Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                <StackPanel x:Name="NoCreaturesPanel" Spacing="8" Visibility="Collapsed" Margin="0,4,0,8">
-                                    <TextBlock Text="No fauna scanned or recorded for this planet yet." Style="{StaticResource ThemeBodyTextStyle}" Opacity="0.8"/>
-                                    <TextBlock Text="Open the Discoveries page or a creature in No Man's Sky, then click Capture creature above." Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                <TextBlock Text="Read off the game's Discoveries fauna list with screen recording on - open a creature there to add its picture, gender and size."
+                                           Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                                <StackPanel Spacing="8" Margin="0,4,0,8" Visibility="{x:Bind ViewModel.NoCreatures, Mode=OneWay}">
+                                    <TextBlock Text="No creatures recorded for this planet yet." Style="{StaticResource ThemeBodyTextStyle}"/>
+                                    <TextBlock Text="Open the Discoveries page or a creature in No Man's Sky, then click Capture creature above."
+                                               Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                                 </StackPanel>
-                                <controls:WrapPanel x:Name="CreaturesWrapPanel" HorizontalSpacing="10" VerticalSpacing="10"/>
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.Creatures, Mode=OneWay}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="10"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="explore:CreatureCardViewModel">
+                                            <controls:CreatureCard Creature="{x:Bind}" CaptureRequested="Creature_CaptureRequested" DeleteRequested="Creature_DeleteRequested"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </StackPanel>
                     </Border>
-
                 </StackPanel>
 
-                <!-- Right Column: Fishing Pane (Collapsible) -->
-                <Grid Grid.Column="1" x:Name="FishingColumnPanel" VerticalAlignment="Top">
-
-                    <!-- Expanded Fish Card -->
-                    <Border x:Name="FishCard" Style="{StaticResource ThemeCardStyle}" Width="385" VerticalAlignment="Top">
+                <!-- Fish, where there's water: a card, or folded into a narrow rail -->
+                <Grid Grid.Column="1" VerticalAlignment="Top" Visibility="{x:Bind ViewModel.HasFish, Mode=OneWay}">
+                    <Border Style="{StaticResource SystemCardStyle}" Visibility="{x:Bind ViewModel.ShowFishCard, Mode=OneWay}">
                         <Grid RowDefinitions="Auto,*">
-                            <Border Grid.Row="0" Style="{StaticResource ThemeBandStyle}">
+                            <Border Style="{StaticResource ThemeBandStyle}">
                                 <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                        <TextBlock Text="🎣" FontSize="13" VerticalAlignment="Center"/>
-                                        <TextBlock Text="FISH" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                    <Button Grid.Column="1" x:Name="CollapseFishBtn" Click="CollapseFishBtn_Click"
-                                            ToolTipService.ToolTip="Collapse fishing panel"
-                                            Padding="6,2" Background="Transparent" BorderThickness="0"
-                                            VerticalAlignment="Center">
+                                    <TextBlock Text="FISH" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
+                                    <Button Click="CollapseFish_Click" HorizontalAlignment="Right" Padding="6,2" Background="Transparent" BorderThickness="0"
+                                            ToolTipService.ToolTip="Fold the fish panel away">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
                                             <TextBlock Text="Collapse" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
-                                            <FontIcon Glyph="&#xE76C;" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
+                                            <FontIcon Glyph="&#xE76C;" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}"/>
                                         </StackPanel>
                                     </Button>
                                 </Grid>
                             </Border>
                             <ScrollViewer Grid.Row="1" MaxHeight="640" VerticalScrollBarVisibility="Auto">
-                                <StackPanel x:Name="FishContainerPanel" Padding="18,14,18,16" Spacing="10"/>
+                                <controls:PlanetFishCard Fish="{x:Bind ViewModel.Fish, Mode=OneWay}"/>
                             </ScrollViewer>
                         </Grid>
                     </Border>
 
-                    <!-- Collapsed Fish Rail -->
-                    <Border x:Name="FishCardCollapsed" Style="{StaticResource ThemeCardStyle}" Width="48"
-                            Visibility="Collapsed" VerticalAlignment="Top">
-                        <Button x:Name="ExpandFishBtn" Click="ExpandFishBtn_Click"
-                                ToolTipService.ToolTip="Expand fishing panel"
-                                Background="Transparent" BorderThickness="0" Padding="0"
-                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                                VerticalAlignment="Stretch" VerticalContentAlignment="Stretch">
+                    <Border Style="{StaticResource ThemeCardStyle}" Width="48" MinHeight="300" VerticalAlignment="Top"
+                            Visibility="{x:Bind ViewModel.ShowFishRail, Mode=OneWay}">
+                        <Button Click="ExpandFish_Click" Background="Transparent" BorderThickness="0" Padding="0"
+                                HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                ToolTipService.ToolTip="{x:Bind ViewModel.Fish.BadgeTooltip, Mode=OneWay}" AutomationProperties.Name="Show the fish panel">
                             <StackPanel HorizontalAlignment="Center" Padding="4,12" Spacing="12">
-                                <Border Width="32" Height="32" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
-                                        Background="{ThemeResource ThemePanelBrush}"
+                                <Border Width="32" Height="32" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Background="{ThemeResource ThemePanelBrush}"
                                         BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
-                                    <FontIcon Glyph="&#xE76B;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"
-                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <FontIcon Glyph="&#xE76B;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
                                 </Border>
-                                <TextBlock Text="🎣" FontSize="16" HorizontalAlignment="Center"/>
-                                <StackPanel HorizontalAlignment="Center" Spacing="3">
-                                    <TextBlock Text="F" FontSize="11" FontWeight="Bold" FontFamily="{ThemeResource ThemeDisplayFont}"
-                                               Foreground="{ThemeResource ThemeTextDimBrush}" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="I" FontSize="11" FontWeight="Bold" FontFamily="{ThemeResource ThemeDisplayFont}"
-                                               Foreground="{ThemeResource ThemeTextDimBrush}" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="S" FontSize="11" FontWeight="Bold" FontFamily="{ThemeResource ThemeDisplayFont}"
-                                               Foreground="{ThemeResource ThemeTextDimBrush}" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="H" FontSize="11" FontWeight="Bold" FontFamily="{ThemeResource ThemeDisplayFont}"
-                                               Foreground="{ThemeResource ThemeTextDimBrush}" HorizontalAlignment="Center"/>
-                                </StackPanel>
-                                <Border x:Name="FishCollapsedBadge" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
-                                        Background="{ThemeResource ThemePanelAltBrush}"
-                                        BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                                        Padding="6,2" HorizontalAlignment="Center">
-                                    <TextBlock x:Name="FishCollapsedBadgeTxt" Text="0" FontSize="10"
-                                               FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}"
-                                               HorizontalAlignment="Center"/>
+                                <TextBlock Text="F&#x0a;I&#x0a;S&#x0a;H" FontSize="11" FontWeight="Bold" FontFamily="{ThemeResource ThemeDisplayFont}" LineHeight="14"
+                                           Foreground="{ThemeResource ThemeTextDimBrush}" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                <Border CornerRadius="{ThemeResource ThemeCardCornerRadius}" Background="{ThemeResource ThemePanelAltBrush}"
+                                        BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Padding="6,2" HorizontalAlignment="Center">
+                                    <TextBlock Text="{x:Bind ViewModel.Fish.Badge, Mode=OneWay}" FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{ThemeResource ThemeAccentBrush}" HorizontalAlignment="Center"/>
                                 </Border>
                             </StackPanel>
                         </Button>
                     </Border>
                 </Grid>
-
             </Grid>
-
         </StackPanel>
     </ScrollViewer>
 </Page>

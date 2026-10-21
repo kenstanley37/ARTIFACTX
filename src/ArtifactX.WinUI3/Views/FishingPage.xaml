@@ -242,24 +242,8 @@
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <controls:GlyphStrip Code="{x:Bind PortalCode}" VerticalAlignment="Center">
-                                                <ItemsControl ItemsSource="{x:Bind Glyphs}" VerticalAlignment="Center">
-                                                    <ItemsControl.ItemsPanel>
-                                                        <ItemsPanelTemplate>
-                                                            <StackPanel Orientation="Horizontal" Spacing="1"/>
-                                                        </ItemsPanelTemplate>
-                                                    </ItemsControl.ItemsPanel>
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate x:DataType="ImageSource">
-                                                            <Border Width="20" Height="20" Background="{ThemeResource ThemeVoidBrush}">
-                                                                <Image Source="{x:Bind}" Width="17" Height="17"/>
-                                                            </Border>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            </controls:GlyphStrip>
-                                            <Button Grid.Column="1" Content="Copy" Tag="{x:Bind PortalCode}" Click="CopyCode_Click" Padding="8,2"
-                                                    ToolTipService.ToolTip="{x:Bind PortalCode}"/>
+                                            <controls:GlyphStrip Code="{x:Bind PortalCode}" VerticalAlignment="Center" GlyphSize="20"/>
+                                            <controls:CopyCodeButton Grid.Column="1" Code="{x:Bind PortalCode}"/>
                                         </Grid>
                                     </StackPanel>
                                 </Border>

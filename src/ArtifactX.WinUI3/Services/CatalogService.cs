@@ -16,7 +16,8 @@ namespace ArtifactX.WinUI3.Services;
 
 public static class CatalogService
 {
-    private static readonly Dictionary<string, CatalogEntry?> Cache = new();
+    // Read from background work too (e.g. the Bases list is built in Task.Run).
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, CatalogEntry?> Cache = new();
     private static string? _dbPath;
     private static bool _pathChecked;
 
@@ -32,11 +33,36 @@ public static class CatalogService
         _dbPath = null;
     }
 
+    /// <summary>The cached entry for an id. An id WarmCacheAsync hasn't seen is looked
+    /// up in the catalog once (name only, no icon - WarmCacheAsync still fetches that),
+    /// and an id the catalog doesn't have is remembered as missing, so it isn't
+    /// queried again. Prefer warming the ids first: this lookup is synchronous.</summary>
     public static CatalogEntry? TryGet(string? gameId)
     {
         if (string.IsNullOrEmpty(gameId)) return null;
         string key = NormalizeId(gameId);
-        return Cache.TryGetValue(key, out var entry) ? entry : null;
+        if (Cache.TryGetValue(key, out var entry)) return entry;
+
+        if (ResolveDbPath() is not string dbPath) return null;
+        CatalogEntry? fetched = null;
+        try
+        {
+            if (QueryRows(dbPath, new List<string> { key }).TryGetValue(key, out var row))
+                fetched = new CatalogEntry
+                {
+                    DisplayName = row.DisplayName,
+                    Icon = null,
+                    CatalogGroup = row.CatalogGroup,
+                    TemplateType = row.TemplateType,
+                };
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] TryGet({key}) failed: {ex.Message}");
+            return null; // not remembered: a failed read may work next time
+        }
+        Cache[key] = fetched;
+        return fetched;
     }
 
     /// <summary>Strips the leading "^" every save-file item id carries, plus a

@@ -70,6 +70,9 @@ public sealed partial class SpaceStationsPage : Page
     {
         InitializeComponent();
         BuildHowToSteps();
+        bool howToOpen = AppSettingsService.GetFlag("SpaceStationsHowToExpanded", false);
+        HowToSteps.Visibility = howToOpen ? Visibility.Visible : Visibility.Collapsed;
+        HowToGlyph.Text = howToOpen ? "–" : "+";
 
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionChanged;
@@ -276,6 +279,7 @@ public sealed partial class SpaceStationsPage : Page
         bool open = HowToSteps.Visibility != Visibility.Visible;
         HowToSteps.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
         HowToGlyph.Text = open ? "–" : "+";
+        AppSettingsService.SetFlag("SpaceStationsHowToExpanded", open);
     }
 
     private void ShowOwnedStations(List<OwnedStation> owned)
@@ -841,11 +845,7 @@ public sealed partial class SpaceStationsPage : Page
 
         // Glyphs (click to enlarge) anchored at bottom
         string code = S.PortalAddress(address, 0);
-        var tiles = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
-        foreach (char c in code)
-            if (CatalogService.TryGet($"PORTALSYMBOL_{c}")?.Icon is ImageSource glyph)
-                tiles.Children.Add(new Border { Width = 20, Height = 20, Background = ThemeBrush("ThemeVoidBrush"), Child = new Image { Source = glyph, Width = 17, Height = 17 } });
-        var glyphStrip = new ArtifactX.WinUI3.Controls.GlyphStrip { Content = tiles, Code = code, Title = name, Margin = new Thickness(0, 10, 0, 0), VerticalAlignment = VerticalAlignment.Bottom };
+        var glyphStrip = new ArtifactX.WinUI3.Controls.GlyphStrip { GlyphSize = 20, Code = code, Title = name, Margin = new Thickness(0, 10, 0, 0), VerticalAlignment = VerticalAlignment.Bottom };
 
         var cardGrid = new Grid();
         cardGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });

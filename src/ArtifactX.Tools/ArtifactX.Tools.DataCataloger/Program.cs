@@ -1236,7 +1236,8 @@ static string? DevGamePath()
 {
     var devSettings = SettingsService.Load();
     if (SettingsService.IsValid(devSettings)) return devSettings.NmsInstallationPath;
-    ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+    if (GameInstall.Find() is { } found) return found.PcbanksPath;
+    ConsoleStyle.Error("No No Man's Sky install found, and no installation path configured - run the normal build once first.");
     return null;
 }
 

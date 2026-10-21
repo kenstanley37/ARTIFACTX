@@ -54,12 +54,7 @@ public sealed partial class AppTitleBar : UserControl
     {
         int total = NmsBuildCounts.Total(bases, loose);
         PartsTxt.Text = $"{total:N0} / {NmsBuildCounts.GlobalLimit:N0} PARTS";
-        PartsTxt.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(NmsBuildCounts.GlobalLevel(total) switch
-        {
-            2 => Windows.UI.Color.FromArgb(255, 0xFF, 0x5A, 0x5A),
-            1 => Windows.UI.Color.FromArgb(255, 0xF5, 0xC5, 0x42),
-            _ => Windows.UI.Color.FromArgb(255, 0x3D, 0xDC, 0x84),
-        });
+        PartsTxt.Foreground = ThemeResources.LevelBrush(NmsBuildCounts.GlobalLevel(total));
         ToolTipService.SetToolTip(PartsRegion, $"{NmsBuildCounts.GlobalLabel(total)} - at {NmsBuildCounts.GlobalLimit:N0} the game says \"Construction Limit Reached\".\n"
             + NmsBuildCounts.Breakdown(bases, loose).Replace(" · ", "\n"));
     }

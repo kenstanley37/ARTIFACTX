@@ -97,6 +97,18 @@ public static class UniverseInfo
     public static string SystemName(ulong address) =>
         SystemNotesService.Get(SystemKey(address))?.SystemName is { Length: > 0 } recorded ? recorded : For(address).GeneratedName;
 
+    /// <summary>The region of space this system is in (e.g. "Ocopad Conflux").</summary>
+    public static string Region(ulong address) => For(address).Region;
+
+    /// <summary>Formatted location line with System, Region, and Galaxy.</summary>
+    public static string LocationWithRegion(ulong address, int galaxy, string? system = null)
+    {
+        string sys = system ?? SystemName(address);
+        string reg = Region(address);
+        string gal = ArtifactX.Core.NmsModels.NmsGalaxyNames.ForNumber(galaxy) is string g ? $"{g} ({galaxy})" : $"Galaxy {galaxy}";
+        return reg.Length > 0 ? $"{sys} · {reg} · {gal}" : $"{sys} · {gal}";
+    }
+
     /// <summary>A planet's name: recorded by the save, else generated (planet index 1-based).</summary>
     public static string PlanetName(ulong address, int planetIndex)
     {

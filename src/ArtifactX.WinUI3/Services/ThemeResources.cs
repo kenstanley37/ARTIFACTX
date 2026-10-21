@@ -17,6 +17,16 @@ public static class ThemeResources
 
     public static CornerRadius CardCornerRadius => (CornerRadius)Application.Current.Resources["ThemeCardCornerRadius"];
 
+    /// <summary>How close a count is to a limit (NmsBuildCounts' levels): green with room,
+    /// yellow when close, red at or over it. The same in every theme - it's a status, not
+    /// decoration (each theme's ThemeDoneBrush is its own colour, e.g. yellow).</summary>
+    public static Brush LevelBrush(int level) => new SolidColorBrush(level switch
+    {
+        2 => Windows.UI.Color.FromArgb(255, 0xFF, 0x5A, 0x5A),
+        1 => Windows.UI.Color.FromArgb(255, 0xF5, 0xC5, 0x42),
+        _ => Windows.UI.Color.FromArgb(255, 0x3D, 0xDC, 0x84),
+    });
+
     /// <summary>Border + fill for a toggle-style choice button (ship picker,
     /// Class selector): accent outline and tinted fill when selected.</summary>
     public static void StyleChoiceButton(Microsoft.UI.Xaml.Controls.Button button, bool isSelected)

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What the station and trading posts sell (StationMarketViewModel): a comparison of what
+     more than one place sells (the cheapest in green), then each place's full stock as cards. -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.StationMarket"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls">
+
+    <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Background="{ThemeResource ThemePanelAltBrush}"
+            CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,12,16,14">
+        <StackPanel Spacing="10">
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Bind Market.Heading, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{x:Bind Market.Seen, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <Button Grid.Column="2" Content="{x:Bind Market.ToggleLabel, Mode=OneWay}" Click="Toggle_Click" Padding="10,4"/>
+            </Grid>
+            <StackPanel Spacing="10" Visibility="{x:Bind Market.IsOpen, Mode=OneWay}">
+                <TextBlock Visibility="{x:Bind Market.IsEmpty, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
+                           Text="Nothing recorded yet. With game screen recording on, open the station's trade terminal and scroll through its Buy list."/>
+
+                <StackPanel Spacing="2" Margin="0,0,0,6" Visibility="{x:Bind Market.HasCompare, Mode=OneWay}">
+                    <StackPanel Orientation="Horizontal" Spacing="24">
+                        <TextBlock Text="{x:Bind Market.CompareHeading, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}" Width="260"/>
+                        <ItemsControl ItemsSource="{x:Bind Market.ComparePlaces, Mode=OneWay}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="24"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <TextBlock Text="{x:Bind}" Style="{StaticResource ThemeEyebrowStyle}" Width="220" TextTrimming="CharacterEllipsis"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{x:Bind Market.CompareRows, Mode=OneWay}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodels:MarketCompareRow">
+                                <StackPanel Orientation="Horizontal" Spacing="24" Height="40">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" Width="260" VerticalAlignment="Center">
+                                        <Image Source="{x:Bind Icon}" Width="28" Height="28"/>
+                                        <TextBlock Text="{x:Bind Name}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                   Foreground="{ThemeResource ThemeTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                    <ItemsControl ItemsSource="{x:Bind Cells}" VerticalAlignment="Center">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" Spacing="24"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="viewmodels:MarketCell">
+                                                <StackPanel Width="220" VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind Price}" FontSize="13"
+                                                               FontWeight="{x:Bind PriceWeight}" Foreground="{x:Bind PriceBrush}"/>
+                                                    <TextBlock Text="{x:Bind Details}" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <ItemsControl ItemsSource="{x:Bind Market.Places, Mode=OneWay}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="viewmodels:MarketPlace">
+                            <StackPanel Spacing="8" Margin="0,0,0,8">
+                                <TextBlock Text="{x:Bind Heading}" Style="{StaticResource ThemeEyebrowStyle}" Visibility="{x:Bind ShowHeading}"/>
+                                <ItemsControl ItemsSource="{x:Bind Items}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="viewmodels:MarketCard">
+                                            <!-- Fixed width, so the cards line up in columns whatever the name's length -->
+                                            <Border CornerRadius="6" Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
+                                                    BorderThickness="1" ToolTipService.ToolTip="{x:Bind Tooltip}">
+                                                <StackPanel Orientation="Horizontal" Spacing="8" Padding="8,6,12,6" Width="290">
+                                                    <Image Source="{x:Bind Icon}" Width="32" Height="32" VerticalAlignment="Center"/>
+                                                    <StackPanel VerticalAlignment="Center" Width="226">
+                                                        <TextBlock Text="{x:Bind Name}" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{x:Bind Details}" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}" TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

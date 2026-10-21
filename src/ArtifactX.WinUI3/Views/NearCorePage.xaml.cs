@@ -89,7 +89,7 @@ public sealed partial class NearCorePage : Page
     {
         if (!SaveSessionManager.IsSaveLoaded) return;
         int version = ++_loadVersion;
-        await CatalogService.WarmCacheAsync(Enumerable.Range(0, 16).Select(d => $"PORTALSYMBOL_{d:X}"));
+        await PortalGlyphs.WarmAsync();
 
         _thisSave = NmsPlanets.ReadSystems(SaveSessionManager.GetValue(S.DiscoveriesPath) as JArray);
         var universe = SaveSessionManager.GetValue(S.CurrentUniverseAddressPath);
@@ -243,7 +243,6 @@ public sealed partial class NearCorePage : Page
             CoreDistance = $"{system.DistanceToCore:N0} ly",
             FromYou = fromYou,
             PortalCode = code,
-            Glyphs = GlyphsFor(code),
             NotesLabel = notes,
             NotesVisibility = notes.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
             RowBorder = ThemeResources.Brush(isHere ? "ThemeAccentBrush" : "ThemeLineBrush"),
@@ -280,11 +279,6 @@ public sealed partial class NearCorePage : Page
     private static string GalaxyLabel(int galaxy) =>
         NmsGalaxyNames.ForNumber(galaxy) is string name ? $"{name} ({galaxy})" : $"Galaxy {galaxy}";
 
-    private static List<ImageSource> GlyphsFor(string code)
-    {
-        var images = code.Select(c => CatalogService.TryGet($"PORTALSYMBOL_{c}")?.Icon).ToList();
-        return images.Any(i => i is null) ? new() : images.Cast<ImageSource>().ToList();
-    }
 
     private async void ExportCsv_Click(object sender, RoutedEventArgs e)
     {
@@ -296,11 +290,4 @@ public sealed partial class NearCorePage : Page
 
     private void OnRangeChanged() => Apply();
 
-    private void CopyCode_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is not string code) return;
-        var package = new DataPackage();
-        package.SetText(code);
-        Clipboard.SetContent(package);
-    }
 }

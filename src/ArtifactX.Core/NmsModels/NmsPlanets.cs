@@ -251,6 +251,26 @@ public static class NmsPlanets
         return names;
     }
 
+    /// <summary>One planet's numeric ^PLANET_STATS values (stat groups ":rc", the planet in
+    /// "2Ak"; each stat in "gUR" is an id "b2n" with an int ">MX.>vs" or a float ">MX.eoL").
+    /// ^TIME / ^DIST_WALKED are seconds / metres (Cholton: 199 and 85 after a few minutes
+    /// on foot).</summary>
+    public static Dictionary<string, double> PlanetStats(JArray? statGroups, ulong planetAddress)
+    {
+        var result = new Dictionary<string, double>();
+        var group = statGroups?.OfType<JObject>().FirstOrDefault(g =>
+            g[":rc"]?.Value<string>() == "^PLANET_STATS" && NmsSpaceStationPaths.ParsePackedAddress(g["2Ak"]) == planetAddress);
+        if (group?["gUR"] is not JArray stats) return result;
+        foreach (var stat in stats.OfType<JObject>())
+        {
+            string? id = stat["b2n"]?.Value<string>();
+            var value = stat[">MX"]?[">vs"] ?? stat[">MX"]?["eoL"];
+            if (id is not null && value is not null && value.Type is JTokenType.Integer or JTokenType.Float)
+                result[id] = value.Value<double>();
+        }
+        return result;
+    }
+
     /// <summary>Fauna/flora/mineral record counts per planet address.</summary>
     public static Dictionary<ulong, PlanetDiscoveryCounts> CountDiscoveries(JArray? discoveries)
     {

@@ -27,11 +27,7 @@ namespace ArtifactX.WinUI3.Views;
 /// </summary>
 public sealed partial class FreighterPage : Page
 {
-    private const double TechCollapsedHeight = 232;
-    private const double CargoCollapsedHeight = 368;
 
-    private static readonly string ChevronDownGlyph = char.ConvertFromUtf32(0xE70D);
-    private static readonly string ChevronUpGlyph = char.ConvertFromUtf32(0xE70E);
 
     private InventoryGridViewModel? _techViewModel;
     private InventoryGridViewModel? _cargoViewModel;
@@ -594,21 +590,8 @@ public sealed partial class FreighterPage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
-    private void TechExpandBtn_Click(object sender, RoutedEventArgs e)
-    {
-        bool isCollapsed = TechScrollViewer.MaxHeight < double.PositiveInfinity;
-        TechScrollViewer.MaxHeight = isCollapsed ? double.PositiveInfinity : TechCollapsedHeight;
-        TechExpandIcon.Glyph = isCollapsed ? ChevronUpGlyph : ChevronDownGlyph;
-        ToolTipService.SetToolTip(TechExpandBtn, isCollapsed ? "Collapse" : "Expand");
-    }
 
-    private void CargoExpandBtn_Click(object sender, RoutedEventArgs e)
-    {
-        bool isCollapsed = CargoScrollViewer.MaxHeight < double.PositiveInfinity;
-        CargoScrollViewer.MaxHeight = isCollapsed ? double.PositiveInfinity : CargoCollapsedHeight;
-        CargoExpandIcon.Glyph = isCollapsed ? ChevronUpGlyph : ChevronDownGlyph;
-        ToolTipService.SetToolTip(CargoExpandBtn, isCollapsed ? "Collapse" : "Expand");
-    }
+
 
     /// <summary>No "Copy Tech Stack..." button on this page unlike Ships/
     /// Multi-Tool - a save only ever has one freighter, so there's no other
