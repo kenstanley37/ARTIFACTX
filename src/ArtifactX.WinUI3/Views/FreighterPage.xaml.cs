@@ -148,8 +148,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
         TechGrid.Refresh();
         CargoGrid.Refresh();
 
-        PageResetBtn.Visibility = (_techViewModel.HasLocalChanges || _cargoViewModel.HasLocalChanges)
-            ? Visibility.Visible : Visibility.Collapsed;
+        PageResetBtn.Visibility = FreighterService.HasPageEdits() ? Visibility.Visible : Visibility.Collapsed;
 
         // The tech a freighter can fit, to click in - the same list limits
         // the right-click search.
@@ -542,14 +541,13 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
 
     Task ILoadoutTemplateHost.UseFullBuildAsync(NmsLoadoutTemplate template) => ApplyFullBuildTemplateAsync(template);
 
+    /// <summary>Undoes every change made on this page - the details and seeds as well
+    /// as the grids, which were all the old Reset covered.</summary>
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
-        _techViewModel?.Revert();
-        TechGrid.Refresh();
-        _cargoViewModel?.Revert();
-        CargoGrid.Refresh();
-        TechListPanel.RefreshOwned();
+        FreighterService.RevertPageEdits();
         PageResetBtn.Visibility = Visibility.Collapsed;
+        LoadGrids();
     }
 
     /// <summary>What the Details band says while folded: your freighter's name.</summary>

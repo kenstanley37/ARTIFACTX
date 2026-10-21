@@ -151,18 +151,22 @@ public sealed partial class ExocraftDetailControl : UserControl
         CargoGrid.Refresh();
         TechListPanel.RefreshOwned();
 
-        PageResetBtn.Visibility = (_techViewModel.HasLocalChanges || _cargoViewModel.HasLocalChanges)
+        PageResetBtn.Visibility = _techViewModel.HasLocalChanges || _cargoViewModel.HasLocalChanges
+            || SaveSessionManager.HasStagedEditsUnder(NmsInventoryContainer.ExocraftModelSeedPath(_type))
             ? Visibility.Visible : Visibility.Collapsed;
 
         ModelSeedBox.Show(NmsInventoryContainer.ExocraftModelSeedPath(_type));
     }
 
+    /// <summary>Undoes this vehicle's tech, cargo and model seed changes.</summary>
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
         _techViewModel?.Revert();
         TechGrid.Refresh();
         _cargoViewModel?.Revert();
         CargoGrid.Refresh();
+        SaveSessionManager.RevertEditsUnder(NmsInventoryContainer.ExocraftModelSeedPath(_type));
+        ModelSeedBox.Show(NmsInventoryContainer.ExocraftModelSeedPath(_type));
         PageResetBtn.Visibility = Visibility.Collapsed;
     }
 

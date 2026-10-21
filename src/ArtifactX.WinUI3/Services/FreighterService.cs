@@ -44,4 +44,24 @@ public static class FreighterService
         if (stat.StartsWith("Freighter_Fleet")) return "Fleet";
         return "Utilities";
     }
+    /// <summary>Everything the Freighter page's details and inventories edit: tech,
+    /// cargo (which holds the class and base stats), name, hull (type and model seed),
+    /// home seed and crew (race and seed). The interior and adding or deleting the
+    /// freighter live in the bases list - the title bar's Reset covers those.</summary>
+    private static readonly string[][] PageRoots =
+    {
+        NmsInventoryContainer.FreighterTechnologyPath,
+        NmsInventoryContainer.FreighterCargoPath,
+        NmsInventoryContainer.FreighterNamePath,
+        new[] { "vLc", "6f=", "bIR" },
+        new[] { "vLc", "6f=", "kYq" },
+        new[] { "vLc", "6f=", "Sjw" },
+    };
+
+    public static bool HasPageEdits() => PageRoots.Any(p => SaveSessionManager.HasStagedEditsUnder(p));
+
+    public static void RevertPageEdits()
+    {
+        foreach (var path in PageRoots) SaveSessionManager.RevertEditsUnder(path);
+    }
 }
