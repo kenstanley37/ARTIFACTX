@@ -19,7 +19,7 @@ namespace ArtifactX.WinUI3.Views;
 /// Tools > Fishing: the fish that live on the planet you're on, from the
 /// game's fish table (CatalogService.GetFishAsync), with your catches from
 /// the save's fishing records (NmsFishingPaths). Follows the game through
-/// LiveSaveWatcher. Read-only - marking fish caught stays on the Fishing
+/// FishCatchRecorder.SnapshotSeen. Read-only - marking fish caught stays on the Fishing
 /// Records page.
 /// </summary>
 public sealed partial class FishingPage : Page
@@ -27,7 +27,6 @@ public sealed partial class FishingPage : Page
     private const int WhereIAm = -2;
     private const int AllTypes = -1;
 
-    private readonly LiveSaveWatcher _live;
     private List<FishInfo> _fish = new();
     private Dictionary<string, string> _names = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, (uint Count, float Largest)> _caught = new(StringComparer.OrdinalIgnoreCase);
@@ -47,8 +46,8 @@ public sealed partial class FishingPage : Page
     public FishingPage()
     {
         InitializeComponent();
-        _live = new LiveSaveWatcher(DispatcherQueue);
-        _live.SnapshotRead += OnLiveSnapshot;
+        // The app-wide feed of the game's saves (FishCatchRecorder): one reader for every page.
+        FishCatchRecorder.SnapshotSeen += OnLiveSnapshot;
         ApplyOverviewHidden();
         JumpPlanner.RangeChanged += UpdateWhere;
         PlanetWaterService.Changed += OnWaterChanged;
@@ -60,8 +59,7 @@ public sealed partial class FishingPage : Page
             PlanetWaterService.Changed -= OnWaterChanged;
             PlanetDetailsService.Captured -= OnDetailsChanged;
             PlanetDetailsService.Changed -= OnDetailsChanged;
-            _live.SnapshotRead -= OnLiveSnapshot;
-            _live.Dispose();
+            FishCatchRecorder.SnapshotSeen -= OnLiveSnapshot;
         };
         _ = LoadAsync();
     }
@@ -108,7 +106,6 @@ public sealed partial class FishingPage : Page
             FishCatchService.Observe(FishCatchService.ActiveSaveKey(), first, _fish); // starting counts
             ReadSnapshot(first);
             _liveKey = LiveKey();
-            _live.Start();
         }
 
         _ready = true;
@@ -116,9 +113,9 @@ public sealed partial class FishingPage : Page
         Apply();
     }
 
+    /// <summary>A new save snapshot; FishCatchRecorder has already recorded its catches.</summary>
     private void OnLiveSnapshot(PlanetSnapshot snapshot)
     {
-        FishCatchService.Observe(FishCatchService.ActiveSaveKey(), snapshot, _fish);
         ReadSnapshot(snapshot);
         LiveStatusTxt.Text = $"Following your game · updated {DateTime.Now:t}";
         // The game saves often; only touch the page when something it shows changed.

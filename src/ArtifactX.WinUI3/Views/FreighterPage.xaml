@@ -120,7 +120,7 @@
                                     <StackPanel Width="280" Spacing="12">
                                         <StackPanel Spacing="6">
                                             <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                            <TextBox x:Name="NameEditBox" LostFocus="NameEditBox_LostFocus"/>
+                                            <TextBox x:Name="NameEditBox" AutomationProperties.Name="Name" LostFocus="NameEditBox_LostFocus"/>
                                         </StackPanel>
                                         <StackPanel Spacing="6">
                                             <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}"/>
@@ -128,7 +128,7 @@
                                         </StackPanel>
                                         <StackPanel Spacing="6">
                                             <TextBlock Text="TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                            <ComboBox x:Name="TypeComboBox" HorizontalAlignment="Stretch"
+                                            <ComboBox x:Name="TypeComboBox" AutomationProperties.Name="Type" HorizontalAlignment="Stretch"
                                                       DisplayMemberPath="DisplayName"
                                                       SelectionChanged="TypeComboBox_SelectionChanged"/>
                                         </StackPanel>

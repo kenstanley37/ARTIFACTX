@@ -48,7 +48,7 @@
                     <StackPanel Padding="14,12,14,14" Spacing="12">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
-                            <TextBox x:Name="NameEditBox" Width="260" LostFocus="NameEditBox_LostFocus"/>
+                            <TextBox x:Name="NameEditBox" AutomationProperties.Name="Name" Width="260" LostFocus="NameEditBox_LostFocus"/>
                         </StackPanel>
                         <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
                             <Button Content="Unlock All Slots" Click="UnlockAllBtn_Click"/>

@@ -314,6 +314,7 @@ public sealed partial class FrigatePage : Page
             };
 
             var box = new ComboBox { Width = 340 };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(box, $"Trait {i + 1}");
             var noneItem = new ComboBoxItem { Content = "(None)", Tag = "", Foreground = NeutralTraitBrush };
             box.Items.Add(noneItem);
             foreach (var kv in sortedTraits)

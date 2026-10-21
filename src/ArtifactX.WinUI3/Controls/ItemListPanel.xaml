@@ -19,7 +19,7 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <ComboBox x:Name="GroupBox" HorizontalAlignment="Stretch" SelectionChanged="Filter_Changed"/>
+            <ComboBox x:Name="GroupBox" AutomationProperties.Name="Group" HorizontalAlignment="Stretch" SelectionChanged="Filter_Changed"/>
             <CheckBox Grid.Column="1" x:Name="HideOwnedBox" Content="Hide ones I have" Checked="Filter_Changed" Unchecked="Filter_Changed" MinWidth="0"/>
         </Grid>
         <Button x:Name="AddAllBtn" HorizontalAlignment="Stretch" Click="AddAll_Click"/>

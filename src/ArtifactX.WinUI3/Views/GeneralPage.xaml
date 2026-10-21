@@ -62,7 +62,7 @@
                                 <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="10">
                                     <StackPanel Spacing="4">
                                         <TextBlock Text="Current" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                        <ComboBox x:Name="CurrentPresetBox" Width="138" SelectionChanged="CurrentPresetBox_SelectionChanged">
+                                        <ComboBox x:Name="CurrentPresetBox" AutomationProperties.Name="Current difficulty" Width="138" SelectionChanged="CurrentPresetBox_SelectionChanged">
                                             <ComboBoxItem Content="Normal"/>
                                             <ComboBoxItem Content="Creative"/>
                                             <ComboBoxItem Content="Relaxed"/>
@@ -73,7 +73,7 @@
                                     </StackPanel>
                                     <StackPanel Spacing="4">
                                         <TextBlock Text="Easiest Used" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                        <ComboBox x:Name="EasiestPresetBox" Width="138" SelectionChanged="EasiestPresetBox_SelectionChanged">
+                                        <ComboBox x:Name="EasiestPresetBox" AutomationProperties.Name="Easiest difficulty used" Width="138" SelectionChanged="EasiestPresetBox_SelectionChanged">
                                             <ComboBoxItem Content="Normal"/>
                                             <ComboBoxItem Content="Creative"/>
                                             <ComboBoxItem Content="Relaxed"/>
@@ -83,7 +83,7 @@
                                     </StackPanel>
                                     <StackPanel Spacing="4">
                                         <TextBlock Text="Hardest Used" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                        <ComboBox x:Name="HardestPresetBox" Width="138" SelectionChanged="HardestPresetBox_SelectionChanged">
+                                        <ComboBox x:Name="HardestPresetBox" AutomationProperties.Name="Hardest difficulty used" Width="138" SelectionChanged="HardestPresetBox_SelectionChanged">
                                             <ComboBoxItem Content="Normal"/>
                                             <ComboBoxItem Content="Creative"/>
                                             <ComboBoxItem Content="Relaxed"/>

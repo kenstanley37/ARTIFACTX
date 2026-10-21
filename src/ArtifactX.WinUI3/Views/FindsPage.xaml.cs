@@ -19,12 +19,11 @@ namespace ArtifactX.WinUI3.Views;
 
 /// <summary>
 /// Tools > Finds: player-recorded finds with portal addresses (FindsService,
-/// user.db). Follows the game (LiveSaveWatcher) so "Use my current location"
+/// user.db). Follows the game (FishCatchRecorder.SnapshotSeen) so "Use my current location"
 /// and the distances stay current. Never writes to the save.
 /// </summary>
 public sealed partial class FindsPage : Page
 {
-    private readonly LiveSaveWatcher _live;
     private ulong? _hereSystem;
     private int _herePlanet;
     // The player's coordinates on that planet (NmsPlanetCoordinates), and the
@@ -49,8 +48,8 @@ public sealed partial class FindsPage : Page
     public FindsPage()
     {
         InitializeComponent();
-        _live = new LiveSaveWatcher(DispatcherQueue);
-        _live.SnapshotRead += OnLiveSnapshot;
+        // The app-wide feed of the game's saves (FishCatchRecorder): one reader for every page.
+        FishCatchRecorder.SnapshotSeen += OnLiveSnapshot;
         JumpPlanner.RangeChanged += Apply;
         FindsService.Changed += OnFindsChanged;
         PlanetDetailsService.Captured += OnPlanetDetailsCaptured;
@@ -65,8 +64,7 @@ public sealed partial class FindsPage : Page
             PlanetDetailsService.Changed -= OnPlanetDetailsCaptured;
             SystemNotesService.Changed -= OnSystemNotesChanged;
             SystemPageReader.Captured -= OnSystemNotesChanged;
-            _live.SnapshotRead -= OnLiveSnapshot;
-            _live.Dispose();
+            FishCatchRecorder.SnapshotSeen -= OnLiveSnapshot;
         };
         _ = LoadAsync();
     }
@@ -132,7 +130,6 @@ public sealed partial class FindsPage : Page
             _herePlanet = universe?["oZw"]?["jsv"]?.Value<int>() ?? 0;
             _hereCoords = LiveSaveWatcher.FromSession().Coordinates;
             _herePlanets = NmsPlanets.ReadAll(SaveSessionManager.GetValue(S.DiscoveriesPath) as JArray);
-            _live.Start();
         }
         SelectGalaxy(_hereSystem is ulong h ? S.GalaxyNumber(h) : 1);
         UseHereBtn.IsEnabled = _hereSystem is not null;

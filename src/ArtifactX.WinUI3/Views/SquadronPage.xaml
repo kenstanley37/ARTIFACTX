@@ -67,12 +67,12 @@
                         <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
                             <StackPanel Spacing="6" Width="160">
                                 <TextBlock Text="PILOT RACE" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                <ComboBox x:Name="RaceBox" Width="150" HorizontalAlignment="Left" SelectionChanged="RaceBox_SelectionChanged"/>
+                                <ComboBox x:Name="RaceBox" AutomationProperties.Name="Pilot race" Width="150" HorizontalAlignment="Left" SelectionChanged="RaceBox_SelectionChanged"/>
                             </StackPanel>
                             <StackPanel Spacing="6" Width="210">
                                 <TextBlock Text="PILOT RANK" Style="{StaticResource ThemeEyebrowStyle}"/>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <NumberBox x:Name="RankBox" Width="110" HorizontalAlignment="Left" Minimum="0" SpinButtonPlacementMode="Compact"
+                                    <NumberBox x:Name="RankBox" AutomationProperties.Name="Pilot rank" Width="110" HorizontalAlignment="Left" Minimum="0" SpinButtonPlacementMode="Compact"
                                                ValueChanged="RankBox_ValueChanged"
                                                ToolTipService.ToolTip="0 to 3 show in-game as the C, B, A or S badge next to the pilot's name."/>
                                     <TextBlock x:Name="RankLetterTxt" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
@@ -80,7 +80,7 @@
                             </StackPanel>
                             <StackPanel Spacing="6" Width="240">
                                 <TextBlock Text="SHIP TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                <ComboBox x:Name="ShipTypeBox" Width="230" HorizontalAlignment="Left" SelectionChanged="ShipTypeBox_SelectionChanged"
+                                <ComboBox x:Name="ShipTypeBox" AutomationProperties.Name="Ship type" Width="230" HorizontalAlignment="Left" SelectionChanged="ShipTypeBox_SelectionChanged"
                                           ToolTipService.ToolTip="The pilot's ship model."/>
                             </StackPanel>
                         </ctcontrols:WrapPanel>

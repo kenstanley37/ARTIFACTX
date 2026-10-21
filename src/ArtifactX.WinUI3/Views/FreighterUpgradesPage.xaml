@@ -67,13 +67,13 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBox Grid.Column="0" x:Name="SearchBox" PlaceholderText="Search upgrades..." TextChanged="SearchBox_TextChanged"/>
-                <ComboBox Grid.Column="1" x:Name="GroupFilterBox" Width="170" SelectionChanged="Filter_Changed">
+                <ComboBox Grid.Column="1" x:Name="GroupFilterBox" AutomationProperties.Name="Group" Width="170" SelectionChanged="Filter_Changed">
                     <ComboBoxItem Content="All Groups"/>
                     <ComboBoxItem Content="Frigate Upgrade"/>
                     <ComboBoxItem Content="Construction Module"/>
                     <ComboBoxItem Content="Recolouring"/>
                 </ComboBox>
-                <ComboBox Grid.Column="2" x:Name="UnlockedFilterBox" Width="150" SelectionChanged="Filter_Changed">
+                <ComboBox Grid.Column="2" x:Name="UnlockedFilterBox" AutomationProperties.Name="Show" Width="150" SelectionChanged="Filter_Changed">
                     <ComboBoxItem Content="All Items"/>
                     <ComboBoxItem Content="Unlocked Only"/>
                     <ComboBoxItem Content="Locked Only"/>
@@ -105,7 +105,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <CheckBox Grid.Column="0" IsChecked="{x:Bind IsUnlocked, Mode=OneWay}" IsHitTestVisible="False"
+                                    <CheckBox Grid.Column="0" IsChecked="{x:Bind IsUnlocked, Mode=OneWay}" IsHitTestVisible="False" AutomationProperties.Name="{x:Bind DisplayName}"
                                               VerticalAlignment="Center" Padding="0" MinWidth="0"/>
                                     <Border Grid.Column="1" Width="28" Height="28" Background="{ThemeResource ThemeVoidBrush}" CornerRadius="4" VerticalAlignment="Center">
                                         <Grid>
