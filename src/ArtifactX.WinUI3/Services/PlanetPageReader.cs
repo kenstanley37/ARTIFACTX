@@ -470,16 +470,7 @@ public static class PlanetPageReader
     /// planet's other details stay. Returns a note for the log ("" when nothing).</summary>
     internal static string ReadPopupResources(IReadOnlyList<string> lines, int typeLine, ulong system, int body)
     {
-        if (_resources is not { Count: > 0 }) return "";
-        var found = new List<string>();
-        for (int i = typeLine + 1; i < lines.Count; i++)
-        {
-            string line = Clean(lines[i]);
-            if (Regex.IsMatch(line, @"RENAME|VIEW|ADD TO WONDERS|MARK (PLANET|MOON)", RegexOptions.IgnoreCase)) break;
-            if (line.Length < 3) continue;
-            string word = Snap(line, _resources);
-            if (_resources.Contains(word, StringComparer.OrdinalIgnoreCase) && !found.Contains(word, StringComparer.OrdinalIgnoreCase)) found.Add(word);
-        }
+        var found = PopupResources(lines, typeLine);
         if (found.Count == 0) return "";
         var existing = PlanetDetailsService.Get(system, body);
         if (existing is not null && existing.Resources.Count >= found.Count
@@ -488,6 +479,22 @@ public static class PlanetPageReader
         details.Resources = found;
         PlanetDetailsService.Save(system, body, details, source: "captured");
         return $"; resources {string.Join(", ", found)}";
+    }
+
+    /// <summary>The real items a Discoveries list pop-up lists after its type line, up to its buttons.</summary>
+    internal static List<string> PopupResources(IReadOnlyList<string> lines, int typeLine)
+    {
+        var found = new List<string>();
+        if (_resources is not { Count: > 0 }) return found;
+        for (int i = typeLine + 1; i < lines.Count; i++)
+        {
+            string line = Clean(lines[i]);
+            if (Regex.IsMatch(line, @"RENAME|VIEW|ADD TO WONDERS|MARK (PLANET|MOON)", RegexOptions.IgnoreCase)) break;
+            if (line.Length < 3) continue;
+            string word = Snap(line, _resources);
+            if (_resources.Contains(word, StringComparer.OrdinalIgnoreCase) && !found.Contains(word, StringComparer.OrdinalIgnoreCase)) found.Add(word);
+        }
+        return found;
     }
 
     /// <summary>The body (planet or moon) a name points to in a recently visited system.</summary>
