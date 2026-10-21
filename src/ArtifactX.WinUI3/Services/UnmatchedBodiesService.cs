@@ -13,6 +13,11 @@ namespace ArtifactX.WinUI3.Services;
 /// player is in, and the Current System page asks which body it is. Once answered, the
 /// name is stored as that body's name (system notes), so every later reading matches.
 /// Held in memory for the session only.
+///
+/// Since 2026-10-18 the save's discovery records name every body you've scanned - renamed
+/// ones included (q5u) - so a reading is only held while the system still has a body with no
+/// record. When every body has one, a name matching none of them isn't a planet but other
+/// screen text ("Online Discovery Services Active", 2026-10-20) and is dropped.
 /// </summary>
 public static class UnmatchedBodiesService
 {
@@ -43,8 +48,22 @@ public static class UnmatchedBodiesService
         List<Held> held;
         lock (Lock) held = Items.ToList();
         foreach (var h in held)
+        {
             if (PlanetPageReader.MatchBody(h.Name) is (ulong system, int body, _) && system == h.System)
                 Assign(h, body, rememberName: false);
+            else if (UnrecordedBodies(h.System).Count == 0)
+                Dismiss(h); // every body has a record now, and none is this name
+        }
+    }
+
+    /// <summary>The bodies of a system with no discovery record in the save yet - the only
+    /// ones a name ArtifactX doesn't know can belong to.</summary>
+    public static IReadOnlyList<int> UnrecordedBodies(ulong system)
+    {
+        var info = UniverseInfo.For(system);
+        var recorded = ArtifactX.Core.NmsModels.NmsPlanets.ReadAll(LiveSaveWatcher.FromSession().Discoveries)
+            .Where(p => p.SystemAddress == system).Select(p => p.PlanetIndex).ToHashSet();
+        return Enumerable.Range(1, info.PlanetCount + info.MoonCount).Where(b => !recorded.Contains(b)).ToList();
     }
 
     public static IReadOnlyList<Held> For(ulong system)
@@ -59,7 +78,7 @@ public static class UnmatchedBodiesService
         // Not a name: the view's "5 PLANETS / 1 MOON" header was once taken for one (2026-10-17).
         if (name.Contains('/') || System.Text.RegularExpressions.Regex.IsMatch(name, @"\b(PLANETS?|MOONS?)\b|^\W*\d") || PlanetPageReader.LooksLikeDistance(name)) return;
         ulong system = PlanetPageReader.Recent().FirstOrDefault();
-        if (system == 0) return;
+        if (system == 0 || UnrecordedBodies(system).Count == 0) return;
         string key = PlanetPageReader.Norm(name);
         lock (Lock)
         {
