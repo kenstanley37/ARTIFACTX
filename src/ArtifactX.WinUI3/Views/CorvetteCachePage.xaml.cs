@@ -24,10 +24,7 @@ public sealed partial class CorvetteCachePage : Page
     // Matches the ScrollViewer's own XAML-declared MaxHeight (10 rows) -
     // restored when the section is collapsed again, same pattern as every
     // other page's Tech/Cargo expand toggle.
-    private const double CollapsedHeight = 708;
 
-    private static readonly string ChevronDownGlyph = char.ConvertFromUtf32(0xE70D);
-    private static readonly string ChevronUpGlyph = char.ConvertFromUtf32(0xE70E);
 
     private readonly InventoryGridViewModel _viewModel =
         new(NmsInventoryContainer.CorvetteCachePath, CorvetteCacheCapacity.Columns, CorvetteCacheCapacity.Rows);
@@ -54,7 +51,6 @@ public sealed partial class CorvetteCachePage : Page
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
         Unloaded += Page_Unloaded;
-        RestoreExpandStates();
         LoadGrid();
 
         // Every part a corvette is built from, to click into the cache - and
@@ -129,23 +125,5 @@ public sealed partial class CorvetteCachePage : Page
         PageResetBtn.Visibility = Visibility.Collapsed;
     }
 
-    /// <summary>Toggles between the compact, ~10-row preview height and
-    /// showing every row at once - same pattern as ExosuitPage/etc.</summary>
-    private void RestoreExpandStates()
-    {
-        bool expanded = AppSettingsService.GetFlag("CorvetteCacheExpanded", false);
-        CacheScrollViewer.MaxHeight = expanded ? double.PositiveInfinity : CollapsedHeight;
-        CacheExpandIcon.Glyph = expanded ? ChevronUpGlyph : ChevronDownGlyph;
-        ToolTipService.SetToolTip(CacheExpandBtn, expanded ? "Collapse" : "Expand");
-    }
 
-    private void CacheExpandBtn_Click(object sender, RoutedEventArgs e)
-    {
-        bool isCollapsed = CacheScrollViewer.MaxHeight < double.PositiveInfinity;
-        bool willExpand = isCollapsed;
-        CacheScrollViewer.MaxHeight = willExpand ? double.PositiveInfinity : CollapsedHeight;
-        CacheExpandIcon.Glyph = willExpand ? ChevronUpGlyph : ChevronDownGlyph;
-        ToolTipService.SetToolTip(CacheExpandBtn, willExpand ? "Collapse" : "Expand");
-        AppSettingsService.SetFlag("CorvetteCacheExpanded", willExpand);
-    }
 }

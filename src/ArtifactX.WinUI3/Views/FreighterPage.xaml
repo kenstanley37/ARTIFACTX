@@ -244,18 +244,9 @@
                                             <Button Content="Arrange for Adjacency" Click="ArrangeTech_Click"
                                                     ToolTipService.ToolTip="Groups same-type tech side by side so it gets the game's adjacency boost. Tech in supercharged slots stays where it is."/>
                                         </ctcontrols:WrapPanel>
-                                        <Grid>
-                                            <ScrollViewer x:Name="TechScrollViewer" Padding="0,28,0,0" MaxHeight="232" VerticalScrollBarVisibility="Auto"
-                                                          HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
-                                                <controls:InventorySlotGrid x:Name="TechGrid"/>
-                                            </ScrollViewer>
-                                            <Button x:Name="TechExpandBtn" Click="TechExpandBtn_Click"
-                                                    HorizontalAlignment="Right" VerticalAlignment="Top"
-                                                    Padding="6" Background="Transparent" BorderThickness="0"
-                                                    ToolTipService.ToolTip="Expand">
-                                                <FontIcon x:Name="TechExpandIcon" Glyph="&#xE70D;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                            </Button>
-                                        </Grid>
+                                        <controls:ExpandableScroll CollapsedHeight="232" SettingKey="FreighterTechExpanded">
+                                            <controls:InventorySlotGrid x:Name="TechGrid"/>
+                                        </controls:ExpandableScroll>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -272,18 +263,9 @@
                                             <Button Content="Sort" Click="SortCargo_Click"
                                                     ToolTipService.ToolTip="Groups items by kind and name, packed from the top-left, so identical items sit together."/>
                                         </StackPanel>
-                                        <Grid>
-                                            <ScrollViewer x:Name="CargoScrollViewer" Padding="0,28,0,0" MaxHeight="368" VerticalScrollBarVisibility="Auto"
-                                                          HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Left">
-                                                <controls:InventorySlotGrid x:Name="CargoGrid"/>
-                                            </ScrollViewer>
-                                            <Button x:Name="CargoExpandBtn" Click="CargoExpandBtn_Click"
-                                                    HorizontalAlignment="Right" VerticalAlignment="Top"
-                                                    Padding="6" Background="Transparent" BorderThickness="0"
-                                                    ToolTipService.ToolTip="Expand">
-                                                <FontIcon x:Name="CargoExpandIcon" Glyph="&#xE70D;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                            </Button>
-                                        </Grid>
+                                        <controls:ExpandableScroll CollapsedHeight="368" SettingKey="FreighterCargoExpanded">
+                                            <controls:InventorySlotGrid x:Name="CargoGrid"/>
+                                        </controls:ExpandableScroll>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>

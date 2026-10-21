@@ -15,12 +15,7 @@ public sealed partial class ExosuitPage : Page
 {
     // Matches the ScrollViewers' own XAML-declared MaxHeight (~3 rows for
     // Technology, ~5 for Cargo) - restored when a section is collapsed again.
-    private const double TechCollapsedHeight = 232;
-    private const double CargoCollapsedHeight = 368;
 
-    // Segoe MDL2 Assets: E70D = ChevronDown, E70E = ChevronUp.
-    private static readonly string ChevronDownGlyph = char.ConvertFromUtf32(0xE70D);
-    private static readonly string ChevronUpGlyph = char.ConvertFromUtf32(0xE70E);
 
     private readonly InventoryGridViewModel _techViewModel =
         new(NmsInventoryContainer.ExosuitTechnologyPath, ExosuitCapacity.TechnologyColumns, ExosuitCapacity.TechnologyRows);
@@ -51,7 +46,6 @@ public sealed partial class ExosuitPage : Page
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
         Unloaded += Page_Unloaded;
-        RestoreExpandStates();
         LoadGrids();
         LoadTechList();
     }
@@ -209,44 +203,8 @@ public sealed partial class ExosuitPage : Page
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
-    /// <summary>Toggles between the compact, game-matching preview height and
-    /// showing every row at once - the ScrollViewer itself already sizes to
-    /// whatever content it's given, so removing the cap (rather than
-    /// computing an exact "full" height) is all expanding needs. The chevron
-    /// flips to point the opposite direction so it always reads as "click to
-    /// do this next", not as a static state label.</summary>
-    private void RestoreExpandStates()
-    {
-        bool techExpanded = AppSettingsService.GetFlag("ExosuitTechExpanded", false);
-        TechScrollViewer.MaxHeight = techExpanded ? double.PositiveInfinity : TechCollapsedHeight;
-        TechExpandIcon.Glyph = techExpanded ? ChevronUpGlyph : ChevronDownGlyph;
-        ToolTipService.SetToolTip(TechExpandBtn, techExpanded ? "Collapse" : "Expand");
 
-        bool cargoExpanded = AppSettingsService.GetFlag("ExosuitCargoExpanded", false);
-        CargoScrollViewer.MaxHeight = cargoExpanded ? double.PositiveInfinity : CargoCollapsedHeight;
-        CargoExpandIcon.Glyph = cargoExpanded ? ChevronUpGlyph : ChevronDownGlyph;
-        ToolTipService.SetToolTip(CargoExpandBtn, cargoExpanded ? "Collapse" : "Expand");
-    }
 
-    private void TechExpandBtn_Click(object sender, RoutedEventArgs e)
-    {
-        bool isCollapsed = TechScrollViewer.MaxHeight < double.PositiveInfinity;
-        bool willExpand = isCollapsed;
-        TechScrollViewer.MaxHeight = willExpand ? double.PositiveInfinity : TechCollapsedHeight;
-        TechExpandIcon.Glyph = willExpand ? ChevronUpGlyph : ChevronDownGlyph;
-        ToolTipService.SetToolTip(TechExpandBtn, willExpand ? "Collapse" : "Expand");
-        AppSettingsService.SetFlag("ExosuitTechExpanded", willExpand);
-    }
-
-    private void CargoExpandBtn_Click(object sender, RoutedEventArgs e)
-    {
-        bool isCollapsed = CargoScrollViewer.MaxHeight < double.PositiveInfinity;
-        bool willExpand = isCollapsed;
-        CargoScrollViewer.MaxHeight = willExpand ? double.PositiveInfinity : CargoCollapsedHeight;
-        CargoExpandIcon.Glyph = willExpand ? ChevronUpGlyph : ChevronDownGlyph;
-        ToolTipService.SetToolTip(CargoExpandBtn, willExpand ? "Collapse" : "Expand");
-        AppSettingsService.SetFlag("ExosuitCargoExpanded", willExpand);
-    }
 
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
