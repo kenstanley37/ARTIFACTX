@@ -40,6 +40,12 @@ public static class BasePartNames
     /// <summary>One of the pieces the game places itself (connectors, cores), not something the player built.</summary>
     public static bool IsBuiltIn(string id) => BuiltIn.ContainsKey(CatalogService.NormalizeId(id));
 
+    /// <summary>Whether a claimed station's part can go: never the pieces the game places
+    /// itself, and only real, buildable items the catalog names - a station's structure
+    /// isn't all known. Warm the catalog cache for the ids first.</summary>
+    public static bool CanRemoveFromStation(string id) =>
+        !IsBuiltIn(id) && CatalogService.TryGet(CatalogService.NormalizeId(id))?.DisplayName is { Length: > 0 };
+
     /// <summary>Call CatalogService.WarmCacheAsync with the ids first, for names and icons.</summary>
     public static string Name(string id)
     {

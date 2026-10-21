@@ -67,5 +67,16 @@ public sealed partial class SpaceStationsPage : Page
 
     private void ClaimStationBtn_Click(object sender, RoutedEventArgs e) => ViewModel.Claim();
 
+    private async void ClearFurnitureBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var kinds = ViewModel.FurnitureSummary();
+        if (kinds.Count == 0) return;
+        bool confirmed = await DeleteConfirmation.ShowListAsync(XamlRoot,
+            $"Clear {ViewModel.FurnitureCount:N0} furniture parts?",
+            $"This removes the furniture from {ViewModel.CurrentName}. The station's own structure (connectors, core, paragon) stays, and so does your directorship.",
+            kinds);
+        if (confirmed) ViewModel.ClearFurniture();
+    }
+
     private void PageResetBtn_Click(object sender, RoutedEventArgs e) => ViewModel.Reset();
 }

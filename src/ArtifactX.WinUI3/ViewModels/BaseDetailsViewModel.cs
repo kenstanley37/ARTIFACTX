@@ -175,8 +175,7 @@ public sealed partial class BaseDetailsViewModel : ObservableObject
     /// catalog doesn't name - a station's structure isn't all known, so only real,
     /// buildable items can go.</summary>
     private bool CanDelete(string id) =>
-        !BasePartNames.IsBuiltIn(id)
-        && (Row.Kind != BaseKind.Station || CatalogService.TryGet(id)?.DisplayName is { Length: > 0 });
+        Row.Kind == BaseKind.Station ? BasePartNames.CanRemoveFromStation(id) : !BasePartNames.IsBuiltIn(id);
 
     private void Apply()
     {

@@ -91,7 +91,47 @@ public static class SpaceStationService
 
     public static bool HasEdits(StationOverview overview) =>
         (overview.CurrentGroupIndex >= 0 && SaveSessionManager.HasStagedEditsUnder(S.StatGroupPath(overview.CurrentGroupIndex)))
-        || IsClaimPending();
+        || IsClaimPending()
+        || (overview.CurrentAddress is ulong here && DirectedStationIndex(here) is int i && SaveSessionManager.HasStagedEditsUnder(S.BasePath(i)));
+
+    /// <summary>The base index of the station the player directs in this system - a claim
+    /// staged at the append slot included - or null.</summary>
+    public static int? DirectedStationIndex(ulong systemAddress)
+    {
+        int count = BaseCount();
+        for (int i = 0; i <= count; i++)
+            if (SaveSessionManager.GetValue(S.BasePath(i)) is JObject record
+                && string.Equals(record["peI"]?["DPp"]?.Value<string>(), S.PlayerStationBaseType, StringComparison.Ordinal)
+                && S.ParsePackedAddress(record["oZw"]) is ulong address && S.ToSystemAddress(address) == systemAddress)
+                return i;
+        return null;
+    }
+
+    /// <summary>The parts of the station the player directs in this system (through staged edits).</summary>
+    public static JArray? DirectedStationParts(ulong systemAddress) =>
+        DirectedStationIndex(systemAddress) is int i ? SaveSessionManager.GetValue(S.BasePath(i))?["@ZJ"] as JArray : null;
+
+    /// <summary>Removes the furniture a claim comes with (about 140 parts that count toward the
+    /// 21,000 build limit), keeping the station's own structure (BasePartNames.CanRemoveFromStation).
+    /// A claim not saved yet is restaged whole; a saved station's parts list is staged. Returns
+    /// how many parts went.</summary>
+    public static int ClearFurniture(ulong systemAddress)
+    {
+        if (DirectedStationIndex(systemAddress) is not int i || SaveSessionManager.GetValue(S.BasePath(i)) is not JObject record
+            || record["@ZJ"] is not JArray parts) return 0;
+        var kept = new JArray(parts.Where(p => !BasePartNames.CanRemoveFromStation(p["r<7"]?.Value<string>() ?? "")));
+        int removed = parts.Count - kept.Count;
+        if (removed == 0) return 0;
+        if (i == BaseCount())
+        {
+            var copy = (JObject)record.DeepClone();
+            copy["@ZJ"] = kept;
+            SaveSessionManager.StageEdit(copy, S.BasePath(i));
+        }
+        else
+            SaveSessionManager.StageEdit(kept, S.BasePath(i).Append("@ZJ").ToArray());
+        return removed;
+    }
 
     /// <summary>Replicates the in-game takeover (see NmsSpaceStationPaths for
     /// the diff it's based on): requirements, the F?0 station record,
@@ -141,6 +181,9 @@ public static class SpaceStationService
         if (overview.CurrentGroupIndex >= 0)
             SaveSessionManager.RevertEditsUnder(S.StatGroupPath(overview.CurrentGroupIndex));
 
+        // A saved station's cleared furniture first: the index is found while it's still there.
+        if (overview.CurrentAddress is ulong here && DirectedStationIndex(here) is int directed && directed < BaseCount())
+            SaveSessionManager.RevertEditsUnder(S.BasePath(directed));
         SaveSessionManager.RevertEditsUnder(S.BasePath(BaseCount()));
         if (FindStationsOwnedStat() is (int g, int s))
             SaveSessionManager.RevertEditsUnder(NmsPlayerStatsPaths.StatIntValuePath(g, s));
