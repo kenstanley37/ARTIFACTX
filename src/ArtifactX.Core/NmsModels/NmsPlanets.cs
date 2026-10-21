@@ -71,12 +71,12 @@ public sealed record PlanetDiscoveryCounts(int Fauna, int Flora, int Minerals, i
 public static class NmsPlanets
 {
     /// <summary>Display names in GcBiomeType order (libMBIN). Weird is the
-    /// game's "exotic" world; Red/Green/Blue are the colour-shifted worlds;
+    /// game's "exotic" world; Red/Green/Blue are anomalies (see BiomeGroup);
     /// Test never appears in real saves.</summary>
     private static readonly string[] TypeNames =
     {
         "Lush", "Toxic", "Scorched", "Radioactive", "Frozen", "Barren", "Dead", "Exotic",
-        "Red", "Green", "Blue", "Unknown", "Swamp", "Volcanic", "Water World", "Gas Giant",
+        "Red Anomaly", "Green Anomaly", "Blue Anomaly", "Unknown", "Swamp", "Volcanic", "Water World", "Gas Giant",
     };
 
     /// <summary>Swatch colour per type (#RRGGBB) for the planet drawings.</summary>
@@ -94,12 +94,13 @@ public static class NmsPlanets
     public static string TypeColour(int biome) =>
         biome >= 0 && biome < TypeColours.Length ? TypeColours[biome] : "#777777";
 
-    /// <summary>Broad biome classification group (e.g. Red / Exotic, Green / Exotic, Blue / Exotic for chromatic worlds).</summary>
+    /// <summary>Broad biome classification group. Red, Green and Blue are only the game's
+    /// internal names: it shows these worlds as anomalies - Aukel (Green, grey and blue
+    /// to look at) is a "Planetary Anomaly" in the game's Discoveries (2026-10-21) - so
+    /// they're grouped as Anomaly rather than by a colour the player never sees.</summary>
     public static string BiomeGroup(int biome) => biome switch
     {
-        8 => "Red / Exotic",
-        9 => "Green / Exotic",
-        10 => "Blue / Exotic",
+        8 or 9 or 10 => "Anomaly",
         _ => TypeName(biome),
     };
 
@@ -119,7 +120,8 @@ public static class NmsPlanets
             string desc = descriptor.Trim();
             if (string.Equals(desc, group, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(desc, TypeName(biome), StringComparison.OrdinalIgnoreCase)
-                || desc.EndsWith($"({group})", StringComparison.OrdinalIgnoreCase))
+                || desc.EndsWith($"({group})", StringComparison.OrdinalIgnoreCase)
+                || desc.EndsWith($" {group}", StringComparison.OrdinalIgnoreCase)) // "Planetary Anomaly"
             {
                 baseText = desc;
             }
