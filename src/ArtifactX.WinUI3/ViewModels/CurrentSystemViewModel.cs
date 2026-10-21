@@ -361,8 +361,9 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
     private static List<UnmatchedBodyViewModel> BuildUnmatched(ulong system, List<KnownPlanet> planets)
     {
-        // Only bodies without a discovery record: the others' names are known already.
-        var bodies = UnmatchedBodiesService.UnrecordedBodies(system).Select(b =>
+        // The bodies no name or details are known for (all of them when every one is).
+        var open = UnmatchedBodiesService.UnaccountedBodies(system);
+        var bodies = (open.Count > 0 ? open : Enumerable.Range(1, UniverseInfo.For(system).PlanetCount + UniverseInfo.For(system).MoonCount).ToList()).Select(b =>
         {
             string kind = BodyKindsService.IsMoon(system, b) ? "Moon" : "Planet";
             var planet = planets.FirstOrDefault(p => p.PlanetIndex == b);
