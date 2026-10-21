@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Services;
 
@@ -115,6 +116,24 @@ public static class SystemNotesService
     };
 
     private static Dictionary<(string Group, string Word), string> _categories = new();
+
+    private static Task? _descriptorsLoad;
+
+    /// <summary>Loads the descriptor words once for the whole app (started at launch).
+    /// Pages that each loaded them showed a noted "Flourishing" as the bare word - or
+    /// no stars - whenever they drew before their own load finished (2026-10-21).
+    /// Tries again when the last load found no catalog (first run, before game data is built).</summary>
+    public static Task EnsureDescriptorsAsync()
+    {
+        lock (Lock)
+        {
+            if (_descriptorsLoad is null || _descriptorsLoad.IsFaulted || (_descriptorsLoad.IsCompleted && _categories.Count == 0))
+                _descriptorsLoad = LoadDescriptorsAsync();
+            return _descriptorsLoad;
+        }
+    }
+
+    private static async Task LoadDescriptorsAsync() => SetDescriptors(await CatalogService.GetSystemDescriptorsAsync());
 
     /// <summary>Called once the descriptor words are loaded from the catalog.</summary>
     public static void SetDescriptors(IEnumerable<(string Word, string Group, string Tier)> descriptors)

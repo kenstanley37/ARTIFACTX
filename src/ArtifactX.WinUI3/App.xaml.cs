@@ -70,6 +70,10 @@ public partial class App : Application
         DevTimingLog.Write("main window activated");
         DevTimingLog.WatchUiThread(_window.DispatcherQueue);
 
+        // System descriptor words (wealth/economy/conflict tiers), for every page that
+        // shows a system - loaded now so no page draws before they're in.
+        _ = SystemNotesService.EnsureDescriptorsAsync();
+
         // The day's automatic backup of the player's own data (Settings page).
         _ = Task.Run(() =>
         {

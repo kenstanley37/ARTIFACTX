@@ -22,7 +22,6 @@ public sealed partial class SpaceStationsViewModel : ObservableObject
 
     // Static so the selected station survives navigating away and back.
     private static ulong? _selectedStationAddress;
-    private static Task<List<(string Word, string Group, string Tier)>>? _descriptorsLoad;
 
     // Decoded screenshots per address while the page is open - Load runs on every
     // edit, and re-reading ~900 KB per tile each time would be wasteful.
@@ -124,9 +123,8 @@ public sealed partial class SpaceStationsViewModel : ObservableObject
         var overview = SpaceStationService.ReadOverview();
         _overview = overview;
         ShowCurrentStation(overview);
-        ShowOwnedStations(overview);
         HasClaims = overview.Claims.Count > 0;
-        _ = RenderClaimsAsync();
+        _ = ShowStationsAsync(overview);
         HasEdits = SpaceStationService.HasEdits(overview);
     }
 
@@ -272,21 +270,32 @@ public sealed partial class SpaceStationsViewModel : ObservableObject
         _ = RenderClaimsAsync();
     }
 
-    /// <summary>Claims in progress as cards, sorted and filtered. The player's own notes
-    /// on a system (wealth, economy, conflict) need the descriptor words loaded first.</summary>
+    /// <summary>The tiles and claim cards, once the descriptor words are in: a noted
+    /// "Flourishing" only reads as High ★★★ after they load - the tiles were built first
+    /// and showed the bare word (2026-10-21).</summary>
+    private async Task ShowStationsAsync(StationOverview overview)
+    {
+        await LoadDescriptorsAsync();
+        if (!ReferenceEquals(overview, _overview)) return; // a newer Load took over
+        ShowOwnedStations(overview);
+        await RenderClaimsAsync();
+    }
+
+    /// <summary>The player's own notes on a system (wealth, economy, conflict) are game
+    /// words; the descriptor table turns them into tiers.</summary>
+    private static async Task LoadDescriptorsAsync()
+    {
+        try { await SystemNotesService.EnsureDescriptorsAsync(); }
+        catch (Exception) { } // wealth labels just show plainer; the cards still render
+    }
+
+    /// <summary>Claims in progress as cards, sorted and filtered.</summary>
     private async Task RenderClaimsAsync()
     {
         int version = ++_claimsVersion;
-        try
-        {
-            await PortalGlyphs.WarmAsync();
-            _descriptorsLoad ??= CatalogService.GetSystemDescriptorsAsync();
-            SystemNotesService.SetDescriptors(await _descriptorsLoad);
-        }
-        catch (Exception)
-        {
-            // Glyphs or wealth labels just show plainer; the cards still render.
-        }
+        try { await PortalGlyphs.WarmAsync(); }
+        catch (Exception) { } // glyphs just don't show; the cards still render
+        await LoadDescriptorsAsync();
         if (version != _claimsVersion || _overview is not { } overview) return;
 
         var all = overview.Claims

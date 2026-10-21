@@ -108,7 +108,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     {
         int version = ++_loadVersion;
         _vocabulary = await PlanetVocabulary.LoadAsync();
-        SystemNotesService.SetDescriptors(await CatalogService.GetSystemDescriptorsAsync());
+        await SystemNotesService.EnsureDescriptorsAsync();
         _otherSaves = new();
         Show(await LiveSaveWatcher.GetLatestAsync(), force: true);
         await LoadOtherSavesAsync(version);
