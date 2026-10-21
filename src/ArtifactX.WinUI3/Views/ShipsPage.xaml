@@ -160,7 +160,7 @@
                                                    Text="Shape from your game files. Colours are still being checked against the game."/>
                                         <!-- Under the ship it paints, in the amber "offer" style (the plain button
                                              in the stats column was easy to miss, 2026-10-17). -->
-                                        <Button x:Name="PaintShipBtn" Click="PaintShipBtn_Click" Margin="0,4,0,0" Visibility="Collapsed"
+                                        <Button x:Name="PaintShipBtn" Click="PaintShipBtn_Click" AutomationProperties.Name="Paint this ship" Margin="0,4,0,0" Visibility="Collapsed"
                                                 Style="{StaticResource ThemeAttentionButtonStyle}"
                                                 ToolTipService.ToolTip="Choose a paint style and colours for this ship in the Ship Designer. Its parts and name stay as they are.">
                                             <StackPanel Orientation="Horizontal" Spacing="8">

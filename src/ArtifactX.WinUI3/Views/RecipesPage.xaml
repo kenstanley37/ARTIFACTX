@@ -14,7 +14,7 @@
 
     <Page.Resources>
         <DataTemplate x:Key="RecipeItemTemplate" x:DataType="viewmodels:RecipeItemViewModel">
-            <Button Click="Item_Click" Tag="{x:Bind ItemId}" Padding="6,1" MinHeight="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+            <Button Click="Item_Click" Tag="{x:Bind ItemId}" AutomationProperties.Name="{x:Bind Label}" Padding="6,1" MinHeight="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                     Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
                     ToolTipService.ToolTip="{x:Bind Label}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
@@ -46,7 +46,7 @@
                                                TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
                                     <TextBlock Text="{x:Bind Station}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"/>
                                 </StackPanel>
-                                <Button Grid.Column="1" Click="Pin_Click" Tag="{x:Bind RecipeId}" Padding="6,4" VerticalAlignment="Top"
+                                <Button Grid.Column="1" Click="Pin_Click" Tag="{x:Bind RecipeId}" AutomationProperties.Name="{x:Bind PinTip, Mode=OneWay}" Padding="6,4" VerticalAlignment="Top"
                                         Background="Transparent" BorderThickness="0"
                                         ToolTipService.ToolTip="{x:Bind PinTip, Mode=OneWay}">
                                     <FontIcon Glyph="{x:Bind PinGlyph, Mode=OneWay}" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}"/>
@@ -82,7 +82,7 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <Button Click="Item_Click" Tag="{x:Bind Result.ItemId}" Padding="2" Background="{ThemeResource ThemeVoidBrush}" BorderThickness="0"
+                    <Button Click="Item_Click" Tag="{x:Bind Result.ItemId}" AutomationProperties.Name="{x:Bind Result.Label}" Padding="2" Background="{ThemeResource ThemeVoidBrush}" BorderThickness="0"
                             ToolTipService.ToolTip="Show recipes for this item">
                         <Image Source="{x:Bind Result.Icon}" Width="30" Height="30"/>
                     </Button>
@@ -92,7 +92,7 @@
                         <TextBlock Text="{x:Bind IngredientsText}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"
                                    TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind IngredientsText}"/>
                     </StackPanel>
-                    <Button Grid.Column="2" Click="Pin_Click" Tag="{x:Bind RecipeId}" Padding="6,4" VerticalAlignment="Center"
+                    <Button Grid.Column="2" Click="Pin_Click" Tag="{x:Bind RecipeId}" AutomationProperties.Name="Unpin this recipe" Padding="6,4" VerticalAlignment="Center"
                             Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Unpin this recipe">
                         <FontIcon Glyph="&#xE841;" FontSize="13" Foreground="{ThemeResource ThemeAccentBrush}"/>
                     </Button>

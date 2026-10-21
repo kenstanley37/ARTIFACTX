@@ -73,7 +73,7 @@
         <!-- Add / edit form, collapsed behind a button. -->
         <Border Grid.Row="3" Style="{StaticResource ThemeCardStyle}">
             <StackPanel>
-                <Button x:Name="FormToggleBtn" Click="FormToggle_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                <Button x:Name="FormToggleBtn" Click="FormToggle_Click" AutomationProperties.Name="{Binding Text, ElementName=FormTitleTxt}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                         Background="Transparent" BorderThickness="0" Padding="18,11">
                     <StackPanel Orientation="Horizontal" Spacing="10">
                         <FontIcon x:Name="FormToggleIcon" Glyph="&#xE710;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}"/>
