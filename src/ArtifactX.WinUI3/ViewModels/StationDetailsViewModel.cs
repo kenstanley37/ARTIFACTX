@@ -22,7 +22,7 @@ public sealed partial class StationDetailsViewModel : ObservableObject
         ulong address = station.Address;
         Station = station;
         Title = station.Name.ToUpperInvariant();
-        Facts = $"{UniverseInfo.SystemName(address)} system · {UniverseInfo.Compact(address)}";
+        Facts = $"{UniverseInfo.SystemName(address)} system · {UniverseInfo.Region(address)} · {UniverseInfo.Compact(address)}";
         PortalCode = S.PortalAddress(address);
 
         int galaxy = S.GalaxyNumber(address);

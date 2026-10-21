@@ -162,7 +162,7 @@ public sealed partial class FindsPage : Page
             return;
         }
         HerePanel.Visibility = Visibility.Visible;
-        HereSystemTxt.Text = UniverseInfo.SystemName(system);
+        HereSystemTxt.Text = $"{UniverseInfo.SystemName(system)} · {UniverseInfo.Region(system)}";
         // Names now come from the game's generator, so the "save in space to learn it" hint isn't needed.
         HereHintTxt.Visibility = Visibility.Collapsed;
 

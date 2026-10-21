@@ -31,7 +31,8 @@ public sealed class SettlementCardViewModel
         {
             int planet = (int)((a >> 52) & 0xF);
             int galaxy = S.GalaxyNumber(a);
-            Where = planet > 0 ? $"{UniverseInfo.PlanetName(a, planet)} · {UniverseInfo.SystemName(a)} system" : $"{UniverseInfo.SystemName(a)} system";
+            string system = $"{UniverseInfo.SystemName(a)} system · {UniverseInfo.Region(a)}";
+            Where = planet > 0 ? $"{UniverseInfo.PlanetName(a, planet)} · {system}" : system;
             string galaxyName = NmsGalaxyNames.ForNumber(galaxy) is string g ? $"{g} ({galaxy})" : $"Galaxy {galaxy}";
             GalaxyAndRace = $"{galaxyName} · {UniverseInfo.RaceLabel(a)}";
         }
