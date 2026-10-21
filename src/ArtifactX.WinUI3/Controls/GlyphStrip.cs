@@ -11,17 +11,31 @@ namespace ArtifactX.WinUI3.Controls;
 /// Looks like the row it wraps; on hover/focus it gets an outline and a
 /// magnifier badge (GlyphStripButtonStyle), and it works with the keyboard and
 /// screen readers like any button.
+///
+/// With GlyphSize set it draws the row itself from Code (the usual case: a
+/// card's address); without it, it shows whatever content it's given.
 /// </summary>
 public sealed class GlyphStrip : Button
 {
     public static readonly DependencyProperty CodeProperty =
         DependencyProperty.Register(nameof(Code), typeof(string), typeof(GlyphStrip), new PropertyMetadata("", OnCodeChanged));
 
+    public static readonly DependencyProperty GlyphSizeProperty =
+        DependencyProperty.Register(nameof(GlyphSize), typeof(double), typeof(GlyphStrip), new PropertyMetadata(0.0, (d, _) => ((GlyphStrip)d).DrawGlyphs()));
+
     /// <summary>The 12-digit portal code the glyphs spell.</summary>
     public string Code
     {
         get => (string)GetValue(CodeProperty);
         set => SetValue(CodeProperty, value);
+    }
+
+    /// <summary>The size of each glyph's square when the strip draws the row itself:
+    /// 24 on cards, 20 in compact lists. 0 (the default) leaves the content alone.</summary>
+    public double GlyphSize
+    {
+        get => (double)GetValue(GlyphSizeProperty);
+        set => SetValue(GlyphSizeProperty, value);
     }
 
     /// <summary>Optional heading for the large view, e.g. the system's name.</summary>
@@ -40,5 +54,25 @@ public sealed class GlyphStrip : Button
         string code = e.NewValue as string ?? "";
         strip.IsEnabled = code.Length == 12;
         AutomationProperties.SetName(strip, code.Length == 12 ? $"Portal address {code}. Click to enlarge the glyphs." : "Portal address");
+        strip.DrawGlyphs();
+    }
+
+    private async void DrawGlyphs()
+    {
+        if (GlyphSize <= 0) return;
+        string code = Code;
+        await PortalGlyphs.WarmAsync();
+        if (code != Code) return; // changed while the pictures loaded
+
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = GlyphSize >= 24 ? 2 : 1 };
+        foreach (var image in PortalGlyphs.Images(code))
+            row.Children.Add(new Border
+            {
+                Width = GlyphSize,
+                Height = GlyphSize,
+                Background = ThemeResources.Brush("ThemeVoidBrush"),
+                Child = new Image { Source = image, Width = GlyphSize * 0.84, Height = GlyphSize * 0.84 },
+            });
+        Content = row;
     }
 }

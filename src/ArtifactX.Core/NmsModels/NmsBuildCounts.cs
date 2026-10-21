@@ -19,6 +19,9 @@ public static class NmsBuildCounts
 {
     public static readonly string[] LooseObjectsPath = { "vLc", "6f=", "c5s" };
 
+    /// <summary>The base computer's part id (r<7) - the one part of a base that isn't built.</summary>
+    public const string BaseComputerId = "^BASE_FLAG";
+
     /// <summary>The player's own bases with their part counts, biggest first.</summary>
     public static List<BuildCount> PerBase(JArray? bases) =>
         (bases ?? new JArray()).OfType<JObject>()
@@ -31,7 +34,7 @@ public static class NmsBuildCounts
     /// the build menu read 3,031 where the save held 3,032, one more both before and after a
     /// save point was placed, and the base computer is the base's one part that isn't built.</summary>
     private static int Parts(JArray? objects) =>
-        objects?.Count(o => o["r<7"]?.Value<string>() != "^BASE_FLAG") ?? 0;
+        objects?.Count(o => o["r<7"]?.Value<string>() != BaseComputerId) ?? 0;
 
     /// <summary>Everything placed: every base's parts plus the loose objects.</summary>
     public static int Total(JArray? bases, JArray? looseObjects) => PerBase(bases).Sum(b => b.Parts) + (looseObjects?.Count ?? 0);
