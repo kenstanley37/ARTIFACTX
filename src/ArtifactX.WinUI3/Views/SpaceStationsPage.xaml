@@ -218,17 +218,19 @@
                                                     <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill"/>
                                                     <Rectangle Fill="{ThemeResource ThemeTileFadeBrush}"/>
                                                     <!-- The system's wealth, economy and conflict over the picture, as on the
-                                                         claim cards (user request 2026-10-21); solid chips stay readable on any screenshot. -->
+                                                         claim cards (user request 2026-10-21); solid chips stay readable on any
+                                                         screenshot. One per line, so every tile reads in the same order - wrapped
+                                                         side by side they broke differently on each tile. -->
                                                     <StackPanel VerticalAlignment="Bottom" Margin="10,0,10,8" Spacing="4">
                                                         <ItemsControl ItemsSource="{x:Bind Badges}">
                                                             <ItemsControl.ItemsPanel>
                                                                 <ItemsPanelTemplate>
-                                                                    <ctcontrols:WrapPanel HorizontalSpacing="4" VerticalSpacing="4"/>
+                                                                    <StackPanel Spacing="3"/>
                                                                 </ItemsPanelTemplate>
                                                             </ItemsControl.ItemsPanel>
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate x:DataType="viewmodels:StationBadgeViewModel">
-                                                                    <Border CornerRadius="4" Padding="5,0,5,1" Background="{ThemeResource ThemeVoidBrush}"
+                                                                    <Border CornerRadius="4" Padding="5,0,5,1" Background="{ThemeResource ThemeVoidBrush}" HorizontalAlignment="Left"
                                                                             BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" ToolTipService.ToolTip="{x:Bind Tip}">
                                                                         <TextBlock Text="{x:Bind Text}" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}"/>
                                                                     </Border>
