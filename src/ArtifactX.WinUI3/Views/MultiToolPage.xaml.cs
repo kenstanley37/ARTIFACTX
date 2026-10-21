@@ -448,7 +448,7 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
         var shown = _tools.FirstOrDefault(t => t.Index == selectedTool.Index) ?? selectedTool;
         ShowName(shown);
         TechHeaderTxt.Text = $"TECHNOLOGY  —  {shown.Name.ToUpperInvariant()}";
-        ApplyDetailsCollapsed();
+        ShowFoldedName();
         UpdateClassBadge();
         UpdateStatDisplay();
         await SyncTypeComboBoxAsync();
@@ -983,4 +983,7 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
         TechGrid.Refresh();
         PageResetBtn.Visibility = Visibility.Collapsed;
     }
+
+    /// <summary>What the Details band says while folded: the multi-tool's name (or the game's name for an unnamed one).</summary>
+    private void ShowFoldedName() => DetailsCard.FoldedName = NameEditBox.Text?.Trim() is { Length: > 0 } typed ? typed : NameEditBox.PlaceholderText ?? "";
 }

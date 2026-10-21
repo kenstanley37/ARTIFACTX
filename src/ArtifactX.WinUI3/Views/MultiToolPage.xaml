@@ -102,17 +102,8 @@
                          (WEAPON_DAMAGE/WEAPON_MINING/WEAPON_SCAN) in one wrapping row, then
                          Name (NKm), class badge and Type. -->
                     <Border x:Name="ToolInfoBorder" Style="{StaticResource ThemeCardStyle}">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <Grid>
-                                    <TextBlock x:Name="DetailsHeaderTxt" Text="MULTI-TOOL DETAILS" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
-                                    <Button x:Name="DetailsToggle" Click="DetailsToggle_Click" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                            Padding="6,2" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Hide the details">
-                                        <FontIcon x:Name="DetailsToggleIcon" Glyph="&#xE70E;" FontSize="12" Foreground="{ThemeResource ThemeBandTextBrush}"/>
-                                    </Button>
-                                </Grid>
-                            </Border>
-                            <StackPanel x:Name="DetailsBody" Padding="18,14,18,18">
+                        <controls:FoldingCard x:Name="DetailsCard" Title="MULTI-TOOL DETAILS" SettingKey="MultiToolDetailsCollapsed">
+                            <StackPanel Padding="18,14,18,18">
                                 <!-- Stats, name and type on the left, the 3D preview beside them; it
                                      wraps below on narrow windows - same as Starships (2026-10-16). -->
                                 <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
@@ -169,7 +160,7 @@
                                     </StackPanel>
                                 </ctcontrols:WrapPanel>
                             </StackPanel>
-                        </StackPanel>
+                        </controls:FoldingCard>
                     </Border>
 
                     <!-- Tech grid with the list of tech this tool can fit beside it, or

@@ -96,7 +96,7 @@ public sealed partial class ShipsPage
     /// <summary>Rebuilds the parts list for the selected ship's type and the seed in the box.</summary>
     private async void RefreshShipParts()
     {
-        ApplyDetailsCollapsed(); // the closed band names the ship shown
+        ShowFoldedName(); // the closed band names the ship shown
         ShipPartsPanel.Children.Clear();
         // Hide the last ship's model (and drop a build still running for it), or
         // a ship that shows no parts kept the previous ship's model (2026-10-15).

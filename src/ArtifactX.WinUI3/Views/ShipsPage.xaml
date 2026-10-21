@@ -95,19 +95,10 @@
                     <!-- The selected ship's own details, full width above its tech
                          (user 2026-10-15: a ship page shouldn't hide them bottom right).
                          Wide and short - three groups that wrap on narrow windows - and
-                         collapsible (ShipDetailsToggle_Click, remembered). -->
+                         collapsible (FoldingCard, remembered). -->
                     <Border x:Name="ShipInfoBorder" Style="{StaticResource ThemeCardStyle}">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <Grid>
-                                    <TextBlock x:Name="ShipDetailsHeaderTxt" Text="SHIP DETAILS" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
-                                    <Button x:Name="ShipDetailsToggle" Click="ShipDetailsToggle_Click" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                            Padding="6,2" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Hide the details">
-                                        <FontIcon x:Name="ShipDetailsToggleIcon" Glyph="&#xE70E;" FontSize="12" Foreground="{ThemeResource ThemeBandTextBrush}"/>
-                                    </Button>
-                                </Grid>
-                            </Border>
-                            <StackPanel x:Name="ShipDetailsBody" Padding="18,14,18,18" Spacing="16">
+                        <controls:FoldingCard x:Name="DetailsCard" Title="SHIP DETAILS" SettingKey="StarshipsDetailsCollapsed">
+                            <StackPanel Padding="18,14,18,18" Spacing="16">
                                 <!-- Shown for corvettes: their build lives apart from the ship (ShipBaseService). -->
                                 <Border x:Name="CorvetteNote" Visibility="Collapsed" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="1"
                                         CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,8">
@@ -205,7 +196,7 @@
 
                                 </ctcontrols:WrapPanel>
                             </StackPanel>
-                        </StackPanel>
+                        </controls:FoldingCard>
                     </Border>
 
                     <!-- Tech and cargo stacked, with the list of tech this ship can fit

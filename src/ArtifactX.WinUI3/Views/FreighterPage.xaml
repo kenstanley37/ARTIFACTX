@@ -108,17 +108,8 @@
                          scene-path swaps (bIR.93M / Sjw.93M); Model Seed and Crew Seed are
                          the matching @EL seeds. -->
                     <Border x:Name="FreighterInfoBorder" Style="{StaticResource ThemeCardStyle}">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <Grid>
-                                    <TextBlock x:Name="DetailsHeaderTxt" Text="FREIGHTER DETAILS" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
-                                    <Button x:Name="DetailsToggle" Click="DetailsToggle_Click" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                            Padding="6,2" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Hide the details">
-                                        <FontIcon x:Name="DetailsToggleIcon" Glyph="&#xE70E;" FontSize="12" Foreground="{ThemeResource ThemeBandTextBrush}"/>
-                                    </Button>
-                                </Grid>
-                            </Border>
-                            <StackPanel x:Name="DetailsBody" Padding="18,14,18,18" Spacing="16">
+                        <controls:FoldingCard x:Name="DetailsCard" Title="FREIGHTER DETAILS" SettingKey="FreighterDetailsCollapsed">
+                            <StackPanel Padding="18,14,18,18" Spacing="16">
                                 <StackPanel Spacing="6">
                                     <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
                                                ToolTipService.ToolTip="No known upper limit - extreme values won't corrupt your save, just unbalance it."/>
@@ -216,7 +207,7 @@
                                     </StackPanel>
                                 </ctcontrols:WrapPanel>
                             </StackPanel>
-                        </StackPanel>
+                        </controls:FoldingCard>
                     </Border>
 
                     <!-- Tech and cargo stacked, with the list of tech the freighter can fit

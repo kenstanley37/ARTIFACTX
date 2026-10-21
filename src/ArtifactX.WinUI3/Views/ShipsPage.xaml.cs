@@ -76,7 +76,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         LiveItemsService.Changed += OnLiveItemsChanged;
         Unloaded += Page_Unloaded;
 
-        ApplyDetailsCollapsed();
+        ShowFoldedName();
         LoadShipList();
         TemplatesPanel.Host = this;
     }
@@ -1162,5 +1162,13 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         _cargoViewModel?.Revert();
         CargoGrid.Refresh();
         PageResetBtn.Visibility = Visibility.Collapsed;
+    }
+
+    /// <summary>What the Details band says while folded: the ship's name and type.</summary>
+    private void ShowFoldedName()
+    {
+        string name = NameEditBox.Text?.Trim() ?? "";
+        string type = (TypeComboBox.SelectedItem as StarshipTypeInfo)?.DisplayName ?? "";
+        DetailsCard.FoldedName = name.Length > 0 && type.Length > 0 ? $"{name}  ·  {type}" : name;
     }
 }

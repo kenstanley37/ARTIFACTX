@@ -249,7 +249,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
 
         ShowClass();
         NameEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterNamePath)?.Value<string>() ?? "";
-        ApplyDetailsCollapsed();
+        ShowFoldedName();
         HomeSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterHomeSeedPath)?.Value<string>() ?? "";
         ModelSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>() ?? "";
         CrewSeedEditBox.Text = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterCrewSeedPath)?.Value<string>() ?? "";
@@ -882,4 +882,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
         TechListPanel.RefreshOwned();
         PageResetBtn.Visibility = Visibility.Collapsed;
     }
+
+    /// <summary>What the Details band says while folded: your freighter's name.</summary>
+    private void ShowFoldedName() => DetailsCard.FoldedName = NameEditBox.Text?.Trim() ?? "";
 }
