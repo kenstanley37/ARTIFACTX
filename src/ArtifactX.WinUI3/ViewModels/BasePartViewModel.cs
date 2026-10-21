@@ -19,6 +19,10 @@ public sealed partial class BasePartViewModel : ObservableObject
     /// connector...), which the player can't remove in game either.</summary>
     public required bool CanSelect { get; init; }
 
+    /// <summary>Why it can't be selected ("Built into the station - can't be removed"), or empty.</summary>
+    public string Note { get; init; } = "";
+    public bool HasNote => Note.Length > 0;
+
     public string CountLabel => Count.ToString("N0", CultureInfo.CurrentCulture);
     public bool HasIcon => Icon is not null;
     public bool ShowGlyph => Icon is null;

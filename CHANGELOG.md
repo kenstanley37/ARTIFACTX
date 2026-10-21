@@ -54,6 +54,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 - A base's own page shows its picture faded in behind the header again.
 - Parts the game places itself (freighter bridge connectors, station cores) have plain names instead of made-up ones.
 - Inventory **Sort** put some building parts with the maps.
+- Bases: claimed space stations can have their parts deleted again - claiming one adds about 140 furnishings that count toward the 21,000 build limit. The station's own structure (connectors, core, paragon) is marked "Built into the station - can't be removed" and can't be selected.
+- Bases: a base's parts page now follows your game - parts you remove in game drop off the list when the game saves.
 - Wealth you recorded from the game ("Flourishing", "Booming") sometimes showed as the bare word or with no stars, depending on which page you opened first. It now always shows its stars (High ★★★).
 - Space Stations: the stations you direct show their system's wealth, economy and conflict over the picture, like the claims in progress.
 - Fishing: rarity tags and the Rarity filter use the game's own words - what showed as RARE is Uncommon in game, and EPIC is Rare.
