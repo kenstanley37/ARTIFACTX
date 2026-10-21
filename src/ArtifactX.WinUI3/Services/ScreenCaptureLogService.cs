@@ -271,7 +271,7 @@ public static class ScreenCaptureLogService
         _lastText = words;
 
         string? read = null;
-        try { read = await PlanetPageReader.TryReadAsync(lines, () => ReadTitleAsync(pixels, w, h)) ?? await PlanetPageReader.TryReadFlightCardAsync(lines) ?? await PlanetPageReader.TryReadOnPlanetAsync(placed) ?? await SystemPageReader.TryReadAsync(lines); }
+        try { read = await PlanetPageReader.TryReadAsync(lines, () => ReadTitleAsync(pixels, w, h), () => ReadPlanetDataAsync(pixels, w, h)) ?? await PlanetPageReader.TryReadFlightCardAsync(lines) ?? await PlanetPageReader.TryReadOnPlanetAsync(placed) ?? await SystemPageReader.TryReadAsync(lines); }
         catch (Exception ex) { read = "planet page: error " + ex.Message; }
         try
         {
@@ -357,52 +357,14 @@ public static class ScreenCaptureLogService
         return (true, read, text);
     }
 
-    /// <summary>The planet name at the top left of a Discoveries page, read on its own:
-    /// a tight crop shrunk to 60% and 75% (with a dark margin) reads the big title far
-    /// better than the whole screen does. Tested on the recorded pages: "Guhul VI",
-    /// "Euben XIII" and "Izent 62/B4" in full, where the whole screen gave nothing,
-    /// "Euben" and "Izent 62/84".</summary>
-    private static async Task<IReadOnlyList<string>> ReadTitleAsync(byte[] px, int w, int h)
+    /// <summary>A part of the frame made ready for OCR on its own: grey, scaled, with a dark
+    /// margin. Windows OCR misses words on a whole busy screen that it reads in a tight crop -
+    /// the planet title (2026-10-17), a trading post's stock (2026-10-18), a planet's
+    /// sentinels on a bright sky (Lefredid XVI's "Frenzied", 2026-10-20). Null when the area
+    /// isn't inside the frame.</summary>
+    private static SoftwareBitmap? Crop(byte[] px, int w, int h, int x0, int y0, int cw, int ch, double scale, int pad)
     {
-        var reads = new List<string>();
-        if (OcrEngine.TryCreateFromUserProfileLanguages() is not { } ocr) return reads;
-        int x0 = w * 11 / 100, y0 = h * 17 / 100, cw = w * 34 / 100, ch = h * 9 / 100;
-        foreach (double scale in new[] { 0.6, 0.75 })
-        {
-            const int pad = 40;
-            int ow = (int)(cw * scale) + 2 * pad, oh = (int)(ch * scale) + 2 * pad;
-            var o = new byte[ow * oh * 4];
-            for (int y = 0; y < oh; y++)
-                for (int x = 0; x < ow; x++)
-                {
-                    int sx = (int)((x - pad) / scale), sy = (int)((y - pad) / scale), j = (y * ow + x) * 4;
-                    byte l = 0;
-                    if (sx >= 0 && sy >= 0 && sx < cw && sy < ch)
-                    {
-                        int k = ((y0 + sy) * w + x0 + sx) * 4;
-                        l = (byte)((px[k] * 29 + px[k + 1] * 150 + px[k + 2] * 77) >> 8);
-                    }
-                    o[j] = o[j + 1] = o[j + 2] = l; o[j + 3] = 255;
-                }
-            using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(o.AsBuffer(), BitmapPixelFormat.Bgra8, ow, oh, BitmapAlphaMode.Ignore);
-            var result = await ocr.RecognizeAsync(bitmap);
-            if (result.Lines.FirstOrDefault()?.Text is { } line) reads.Add(line);
-        }
-        return reads;
-    }
-
-    /// <summary>One strip of the frame read on its own at twice the size (grey, dark margin):
-    /// x from <paramref name="fx0"/> to <paramref name="fx1"/> of the width, 32 px tall at
-    /// 1080p around <paramref name="yCentre"/>. Read "1/5" and "-4.1%" where the whole
-    /// screen gave nothing (Belezna's trading post, 2026-10-18). "" when nothing is read.</summary>
-    private static async Task<string> ReadStripAsync(byte[] px, int w, int h, double fx0, double fx1, double yCentre)
-    {
-        if (OcrEngine.TryCreateFromUserProfileLanguages() is not { } ocr) return "";
-        int half = Math.Max(8, h * 16 / 1080);
-        int x0 = (int)(w * fx0), cw = (int)(w * (fx1 - fx0)), y0 = (int)yCentre - half, ch = 2 * half;
-        if (cw <= 0 || y0 < 0 || y0 + ch > h || x0 + cw > w) return "";
-        const int pad = 20;
-        const double scale = 2;
+        if (cw <= 0 || ch <= 0 || x0 < 0 || y0 < 0 || x0 + cw > w || y0 + ch > h) return null;
         int ow = (int)(cw * scale) + 2 * pad, oh = (int)(ch * scale) + 2 * pad;
         var o = new byte[ow * oh * 4];
         for (int y = 0; y < oh; y++)
@@ -417,10 +379,49 @@ public static class ScreenCaptureLogService
                 }
                 o[j] = o[j + 1] = o[j + 2] = l; o[j + 3] = 255;
             }
-        using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(o.AsBuffer(), BitmapPixelFormat.Bgra8, ow, oh, BitmapAlphaMode.Ignore);
-        var result = await ocr.RecognizeAsync(bitmap);
-        return string.Join(" ", result.Lines.Select(l => l.Text));
+        return SoftwareBitmap.CreateCopyFromBuffer(o.AsBuffer(), BitmapPixelFormat.Bgra8, ow, oh, BitmapAlphaMode.Ignore);
     }
+
+    private static async Task<IReadOnlyList<string>> ReadCropAsync(byte[] px, int w, int h, int x0, int y0, int cw, int ch, double scale, int pad)
+    {
+        if (OcrEngine.TryCreateFromUserProfileLanguages() is not { } ocr) return [];
+        using var bitmap = Crop(px, w, h, x0, y0, cw, ch, scale, pad);
+        if (bitmap is null) return [];
+        return (await ocr.RecognizeAsync(bitmap)).Lines.Select(l => l.Text).ToList();
+    }
+
+    /// <summary>The planet name at the top left of a Discoveries page, read on its own:
+    /// a tight crop shrunk to 60% and 75% (with a dark margin) reads the big title far
+    /// better than the whole screen does. Tested on the recorded pages: "Guhul VI",
+    /// "Euben XIII" and "Izent 62/B4" in full, where the whole screen gave nothing,
+    /// "Euben" and "Izent 62/84".</summary>
+    private static async Task<IReadOnlyList<string>> ReadTitleAsync(byte[] px, int w, int h)
+    {
+        var reads = new List<string>();
+        foreach (double scale in new[] { 0.6, 0.75 })
+            if ((await ReadCropAsync(px, w, h, w * 11 / 100, h * 17 / 100, w * 34 / 100, h * 9 / 100, scale, pad: 40)).FirstOrDefault() is { } line)
+                reads.Add(line);
+        return reads;
+    }
+
+    /// <summary>The Planet Data column of a Discoveries page (Weather, Sentinels, Flora, Fauna
+    /// with their values: x 11.5-30%, y 30-53%) read on its own at 1.5x. On Lefredid XVI the
+    /// whole screen read "Sentinels" with no value under it; every crop of the column read
+    /// "Frenzied" (tested on the frame at 1x, 1.5x, 2x and 3x, 2026-10-20).</summary>
+    private static Task<IReadOnlyList<string>> ReadPlanetDataAsync(byte[] px, int w, int h) =>
+        ReadCropAsync(px, w, h, w * 115 / 1000, h * 30 / 100, w * 185 / 1000, h * 23 / 100, 1.5, pad: 30);
+
+    /// <summary>One strip of the frame read on its own at twice the size (grey, dark margin):
+    /// x from <paramref name="fx0"/> to <paramref name="fx1"/> of the width, 32 px tall at
+    /// 1080p around <paramref name="yCentre"/>. Read "1/5" and "-4.1%" where the whole
+    /// screen gave nothing (Belezna's trading post, 2026-10-18). "" when nothing is read.</summary>
+    private static async Task<string> ReadStripAsync(byte[] px, int w, int h, double fx0, double fx1, double yCentre)
+    {
+        int half = Math.Max(8, h * 16 / 1080);
+        var lines = await ReadCropAsync(px, w, h, (int)(w * fx0), (int)yCentre - half, (int)(w * (fx1 - fx0)), 2 * half, 2, pad: 20);
+        return string.Join(" ", lines);
+    }
+
 
     /// <summary>Raised (any thread) when a system's picture was saved.</summary>
     public static event Action<ulong>? SystemPictureSaved;
