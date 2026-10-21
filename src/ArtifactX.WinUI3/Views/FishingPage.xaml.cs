@@ -345,10 +345,29 @@ public sealed partial class FishingPage : Page
         int caughtCount = planetFish.Count(f => _caught.ContainsKey(f.Id));
         (_shownCaught, _shownTotal) = (caughtCount, planetFish.Count);
         UpdateNext(); // highlight the tile for what's shown
+        ClearFiltersBtn.Visibility = FiltersSet() ? Visibility.Visible : Visibility.Collapsed;
         CountTxt.Text = (_anywhereOnly ? "Fish found on any planet · " : "") + $"Showing {shown.Count} · {caughtCount} of {planetFish.Count} caught";
     }
 
     private int _shownCaught, _shownTotal;
+
+    /// <summary>Anything picked away from how the page opens.</summary>
+    private bool FiltersSet() =>
+        PlanetTypeBox.SelectedIndex != 0 || ShowBox.SelectedIndex != 0 || TimeBox.SelectedIndex != 0 || RarityBox.SelectedIndex != 0
+        || SearchBox.Text.Length > 0 || AnywhereBox.IsChecked != true || _anywhereOnly;
+
+    /// <summary>Back to how the page opens: every fish for where you are.</summary>
+    private void ClearFilters_Click(object sender, RoutedEventArgs e)
+    {
+        _ready = false; // one Apply at the end, not one per box
+        PlanetTypeBox.SelectedIndex = ShowBox.SelectedIndex = TimeBox.SelectedIndex = RarityBox.SelectedIndex = 0;
+        SearchBox.Text = "";
+        AnywhereBox.IsChecked = true;
+        _anywhereOnly = false;
+        _ready = true;
+        Apply();
+        PlanetTypeBox.Focus(FocusState.Programmatic); // the button hides; keep keyboard focus on the filters
+    }
 
     /// <summary>Fish just caught come first, newest first.</summary>
     private int JustCaughtRank(string id)
