@@ -58,7 +58,7 @@ public sealed partial class RegionsViewModel : ObservableObject
     private List<RegionSystemViewModel> _all = new();
     private bool _loading;
 
-    public ChoiceFilter Region { get; } = new("Region", 360);
+    public ChoiceFilter Region { get; } = new("Region", 460);
 
     public RegionsViewModel() => Region.Changed += () => _ = ShowRegionAsync();
 
