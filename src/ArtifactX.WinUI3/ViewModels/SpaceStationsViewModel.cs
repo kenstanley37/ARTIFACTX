@@ -1,3 +1,4 @@
+using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Media;
@@ -202,7 +203,14 @@ public sealed partial class SpaceStationsViewModel : ObservableObject
             : owned.FirstOrDefault()?.Address;
 
         OwnedStations.Clear();
-        foreach (var station in owned)
+        // The station you're at first, then the nearest (user, 2026-10-21) - they were in
+        // the save's order. Stations in another galaxy have no distance and go last.
+        ulong? here = overview.CurrentAddress;
+        var ordered = owned
+            .OrderBy(o => o.Address == here ? 0 : 1)
+            .ThenBy(o => here is ulong from ? NmsPlanets.DistanceLightYears(from, o.Address) ?? double.MaxValue : 0)
+            .ThenBy(o => o.Name, StringComparer.CurrentCultureIgnoreCase);
+        foreach (var station in ordered)
         {
             var tile = new StationTileViewModel(station, station.Address == overview.CurrentAddress)
             {
