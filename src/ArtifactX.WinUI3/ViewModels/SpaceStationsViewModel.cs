@@ -202,17 +202,17 @@ public sealed partial class SpaceStationsViewModel : ObservableObject
     private async Task CountFurnitureAsync(ulong address)
     {
         if (SpaceStationService.DirectedStationParts(address) is not JArray parts) return;
-        var ids = parts.OfType<JObject>().Select(p => p["r<7"]?.Value<string>() ?? "").Where(id => id.Length > 0).ToList();
-        await CatalogService.WarmCacheAsync(ids.Distinct());
+        var defaults = S.MatchDefaultFurniture(parts);
+        await CatalogService.WarmCacheAsync(defaults.Select(p => p["r<7"]?.Value<string>() ?? "").Distinct());
         if (_overview?.CurrentAddress != address) return; // moved on meanwhile
-        FurnitureCount = ids.Count(BasePartNames.CanRemoveFromStation);
+        FurnitureCount = defaults.Count;
     }
 
     /// <summary>The furniture kinds and counts, for the confirmation.</summary>
     public IReadOnlyList<string> FurnitureSummary()
     {
         if (_overview?.CurrentAddress is not ulong address || SpaceStationService.DirectedStationParts(address) is not JArray parts) return [];
-        return parts.OfType<JObject>().Select(p => p["r<7"]?.Value<string>() ?? "").Where(BasePartNames.CanRemoveFromStation)
+        return S.MatchDefaultFurniture(parts).Select(p => p["r<7"]?.Value<string>() ?? "")
             .GroupBy(id => id).OrderByDescending(g => g.Count())
             .Select(g => $"{BasePartNames.Name(g.Key)} · {g.Count():N0}").ToList();
     }

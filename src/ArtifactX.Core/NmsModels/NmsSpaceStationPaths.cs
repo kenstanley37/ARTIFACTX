@@ -108,6 +108,42 @@ public static class NmsSpaceStationPaths
         return reader.ReadToEnd();
     });
 
+    /// <summary>The furniture every claim comes with: the template's parts minus the station's
+    /// own structure. Identical on every station - checked 2026-10-21 on the 25 untouched
+    /// claims of a real save (Gek, Korvax and Vy'keen systems): the same 137 pieces at the same
+    /// positions (station-local), matching this template exactly.</summary>
+    public static IReadOnlyList<(string Id, double[] Position)> DefaultFurniture => _defaultFurniture.Value;
+
+    private static readonly string[] StructureIds = { "^STACONNECT", "^BRIDGECONNECTOR", "^STATION_CORE", "^U_PARAGON" };
+
+    private static readonly Lazy<List<(string Id, double[] Position)>> _defaultFurniture = new(() =>
+        (JObject.Parse(_stationTemplateJson.Value)["@ZJ"] as JArray ?? new JArray()).OfType<JObject>()
+            .Select(o => (Id: o["r<7"]?.Value<string>() ?? "", Position: o["wMC"]?.ToObject<double[]>() ?? Array.Empty<double>()))
+            .Where(p => p.Id.Length > 0 && p.Position.Length == 3 && !StructureIds.Contains(p.Id))
+            .ToList());
+
+    /// <summary>The parts of a station that are its untouched default furniture - same kind at the
+    /// same position (within 5 cm) as the claim template's, each default matched once. Moved
+    /// pieces and anything the player built aren't included.</summary>
+    public static HashSet<JObject> MatchDefaultFurniture(JArray parts)
+    {
+        var unused = DefaultFurniture.ToList();
+        var matched = new HashSet<JObject>(ReferenceEqualityComparer.Instance);
+        foreach (var part in parts.OfType<JObject>())
+        {
+            string id = part["r<7"]?.Value<string>() ?? "";
+            if (part["wMC"] is not JArray { Count: 3 } at) continue;
+            int i = unused.FindIndex(d => d.Id == id
+                && Math.Abs(d.Position[0] - at[0]!.Value<double>()) < 0.05
+                && Math.Abs(d.Position[1] - at[1]!.Value<double>()) < 0.05
+                && Math.Abs(d.Position[2] - at[2]!.Value<double>()) < 0.05);
+            if (i < 0) continue;
+            matched.Add(part);
+            unused.RemoveAt(i);
+        }
+        return matched;
+    }
+
     /// <summary>Builds the F?0 record the game writes on takeover, from the
     /// embedded template. <paramref name="owner"/> is a 3?K owner block copied
     /// from one of the player's existing bases (Steam id, username, platform).</summary>

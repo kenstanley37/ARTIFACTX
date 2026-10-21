@@ -111,15 +111,17 @@ public static class SpaceStationService
     public static JArray? DirectedStationParts(ulong systemAddress) =>
         DirectedStationIndex(systemAddress) is int i ? SaveSessionManager.GetValue(S.BasePath(i))?["@ZJ"] as JArray : null;
 
-    /// <summary>Removes the furniture a claim comes with (about 140 parts that count toward the
-    /// 21,000 build limit), keeping the station's own structure (BasePartNames.CanRemoveFromStation).
-    /// A claim not saved yet is restaged whole; a saved station's parts list is staged. Returns
-    /// how many parts went.</summary>
+    /// <summary>Removes the default furniture a claim comes with (137 parts that count toward the
+    /// 21,000 build limit): only pieces matching the claim template's by kind and position
+    /// (NmsSpaceStationPaths.MatchDefaultFurniture), so the structure, moved pieces and anything
+    /// built stay. A claim not saved yet is restaged whole; a saved station's parts list is
+    /// staged. Returns how many parts went.</summary>
     public static int ClearFurniture(ulong systemAddress)
     {
         if (DirectedStationIndex(systemAddress) is not int i || SaveSessionManager.GetValue(S.BasePath(i)) is not JObject record
             || record["@ZJ"] is not JArray parts) return 0;
-        var kept = new JArray(parts.Where(p => !BasePartNames.CanRemoveFromStation(p["r<7"]?.Value<string>() ?? "")));
+        var defaults = S.MatchDefaultFurniture(parts);
+        var kept = new JArray(parts.Where(p => p is not JObject o || !defaults.Contains(o)));
         int removed = parts.Count - kept.Count;
         if (removed == 0) return 0;
         if (i == BaseCount())
