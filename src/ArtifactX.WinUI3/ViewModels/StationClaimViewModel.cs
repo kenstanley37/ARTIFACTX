@@ -29,17 +29,8 @@ public sealed class StationClaimViewModel
         SystemLine = $"{UniverseInfo.SystemName(address)} · {NmsGalaxyNames.ForNumber(galaxy) ?? "Galaxy"} ({galaxy})";
         PortalCode = S.PortalAddress(address, 0);
 
-        var note = SystemNotesService.Get(address);
-        static string Source(string? noted) => noted is { Length: > 0 } ? $"{noted} (your notes)" : "from the game's generator";
         if (IsHere) Badges.Add(new StationBadgeViewModel("YOU ARE HERE", accent: true));
-        Badges.Add(new StationBadgeViewModel(UniverseInfo.Wealth(address), false, $"Wealth - {Source(note?.Wealth)}"));
-        Badges.Add(new StationBadgeViewModel(UniverseInfo.Economy(address), false, $"Economy - {Source(note?.Economy)}"));
-        // A "Pirate Controlled" note already says it all: no "conflict" suffix, no second Pirate badge.
-        string conflict = UniverseInfo.Conflict(address);
-        bool pirateNoted = conflict.Contains("Pirate", System.StringComparison.OrdinalIgnoreCase);
-        Badges.Add(new StationBadgeViewModel(pirateNoted ? conflict : $"{conflict} conflict", false, $"Conflict - {Source(note?.Conflict)}"));
-        if (UniverseInfo.For(address).Pirate && !pirateNoted)
-            Badges.Add(new StationBadgeViewModel("Pirate", false, "Pirate-controlled system (the game's generator)"));
+        Badges.AddRange(StationBadgeViewModel.ForSystem(address));
 
         var race = SpaceStationService.Best(S.RaceStats, stats.Group);
         var guild = SpaceStationService.Best(S.GuildStats, stats.Group);

@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using System;
+using System.Collections.Generic;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
@@ -43,6 +44,27 @@ public sealed class StationBadgeViewModel(string text, bool accent, string? tip 
     public Brush? Border { get; } = accent ? null : ThemeResources.Brush("ThemeLineBrush");
     public Thickness BorderThickness { get; } = new(accent ? 0 : 1);
     public Brush Foreground { get; } = ThemeResources.Brush(accent ? "ThemeOnAccentBrush" : "ThemeTextBrush");
+
+    /// <summary>What's known about a station's system - wealth, economy, conflict, pirates -
+    /// from the player's notes, else the game's generator. Shared by the claim cards and
+    /// the tiles of stations the player directs.</summary>
+    public static List<StationBadgeViewModel> ForSystem(ulong address)
+    {
+        var note = SystemNotesService.Get(address);
+        static string Source(string? noted) => noted is { Length: > 0 } ? $"{noted} (your notes)" : "from the game's generator";
+        var badges = new List<StationBadgeViewModel>
+        {
+            new(UniverseInfo.Wealth(address), false, $"Wealth - {Source(note?.Wealth)}"),
+            new(UniverseInfo.Economy(address), false, $"Economy - {Source(note?.Economy)}"),
+        };
+        // A "Pirate Controlled" note already says it all: no "conflict" suffix, no second Pirate badge.
+        string conflict = UniverseInfo.Conflict(address);
+        bool pirateNoted = conflict.Contains("Pirate", StringComparison.OrdinalIgnoreCase);
+        badges.Add(new(pirateNoted ? conflict : $"{conflict} conflict", false, $"Conflict - {Source(note?.Conflict)}"));
+        if (UniverseInfo.For(address).Pirate && !pirateNoted)
+            badges.Add(new("Pirate", false, "Pirate-controlled system (the game's generator)"));
+        return badges;
+    }
 }
 
 /// <summary>Local standing in a station's details: a bar scaled so the claim requirement
@@ -91,7 +113,14 @@ public sealed partial class StationTileViewModel : ObservableObject
     {
         Station = station;
         IsCurrent = isCurrent;
+        Badges = StationBadgeViewModel.ForSystem(station.Address);
     }
+
+    /// <summary>Wealth, economy and conflict, shown over the picture as on the claim cards.</summary>
+    public List<StationBadgeViewModel> Badges { get; }
+
+    /// <summary>The tile's name plus its badges, for screen readers.</summary>
+    public string AccessibleName => $"{Name}, {string.Join(", ", Badges.ConvertAll(b => b.Text))}";
 
     public OwnedStation Station { get; }
     public ulong Address => Station.Address;

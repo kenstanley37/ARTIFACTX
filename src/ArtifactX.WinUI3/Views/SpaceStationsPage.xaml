@@ -213,13 +213,31 @@
                                             <Button Click="StationTile_Click" Padding="0" Background="{ThemeResource ThemePanelAltBrush}"
                                                     BorderBrush="{x:Bind Border, Mode=OneWay}" BorderThickness="{x:Bind BorderThickness, Mode=OneWay}"
                                                     CornerRadius="{ThemeResource ThemeCardCornerRadius}"
-                                                    ToolTipService.ToolTip="{x:Bind Name}" AutomationProperties.Name="{x:Bind Name}">
+                                                    ToolTipService.ToolTip="{x:Bind Name}" AutomationProperties.Name="{x:Bind AccessibleName}">
                                                 <Grid Width="224" Height="126" Background="{ThemeResource ThemePanelAltBrush}">
                                                     <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill"/>
                                                     <Rectangle Fill="{ThemeResource ThemeTileFadeBrush}"/>
-                                                    <TextBlock Text="{x:Bind Name}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold" FontSize="14"
-                                                               TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"
-                                                               VerticalAlignment="Bottom" Margin="10,0,10,8"/>
+                                                    <!-- The system's wealth, economy and conflict over the picture, as on the
+                                                         claim cards (user request 2026-10-21); solid chips stay readable on any screenshot. -->
+                                                    <StackPanel VerticalAlignment="Bottom" Margin="10,0,10,8" Spacing="4">
+                                                        <ItemsControl ItemsSource="{x:Bind Badges}">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <ctcontrols:WrapPanel HorizontalSpacing="4" VerticalSpacing="4"/>
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="viewmodels:StationBadgeViewModel">
+                                                                    <Border CornerRadius="4" Padding="5,0,5,1" Background="{ThemeResource ThemeVoidBrush}"
+                                                                            BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" ToolTipService.ToolTip="{x:Bind Tip}">
+                                                                        <TextBlock Text="{x:Bind Text}" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}"/>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                        <TextBlock Text="{x:Bind Name}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold" FontSize="14"
+                                                                   TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
+                                                    </StackPanel>
                                                     <Border Visibility="{x:Bind IsCurrent}" Background="{ThemeResource ThemeDoneBrush}" Padding="7,3,7,3"
                                                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8">
                                                         <TextBlock Text="CURRENT" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="Bold" FontSize="10"
