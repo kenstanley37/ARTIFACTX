@@ -30,6 +30,9 @@ public sealed partial class FishingPage : Page
     private List<FishInfo> _fish = new();
     private Dictionary<string, string> _names = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, (uint Count, float Largest)> _caught = new(StringComparer.OrdinalIgnoreCase);
+    // Fish the game saved a catch of while this page was open, newest first, and
+    // whether it was the first ever: shown at the top with a pill.
+    private readonly List<(string Id, bool First)> _justCaught = new();
     private ulong? _hereSystem;
     private int _herePlanet;
     private int? _hereBiome;
@@ -116,15 +119,48 @@ public sealed partial class FishingPage : Page
     /// <summary>A new save snapshot; FishCatchRecorder has already recorded its catches.</summary>
     private void OnLiveSnapshot(PlanetSnapshot snapshot)
     {
+        var before = _caught;
         ReadSnapshot(snapshot);
+        var landed = _caught
+            .Where(c => !before.TryGetValue(c.Key, out var was) || c.Value.Count > was.Count)
+            .Select(c => (Id: c.Key, First: !before.ContainsKey(c.Key)))
+            .ToList();
+        // Before the page has its starting counts, or a jump no rod makes (another
+        // save's records), every fish would read as just caught.
+        if (!_ready || landed.Count > 5) landed.Clear();
         LiveStatusTxt.Text = $"Following your game · updated {DateTime.Now:t}";
         // The game saves often; only touch the page when something it shows changed.
         string key = LiveKey();
         if (key == _liveKey) return;
         _liveKey = key;
+        if (landed.Count > 0) NoteCatches(landed);
         UpdateHere();
         Apply();
         UpdateWhere();
+        if (landed.Count > 0) ShowCatchBar(landed);
+    }
+
+    private void NoteCatches(List<(string Id, bool First)> landed)
+    {
+        foreach (var catchNow in landed)
+        {
+            // A repeat catch of a fish first caught a moment ago stays a first.
+            int was = _justCaught.FindIndex(j => j.Id.Equals(catchNow.Id, StringComparison.OrdinalIgnoreCase));
+            bool first = catchNow.First || (was >= 0 && _justCaught[was].First);
+            if (was >= 0) _justCaught.RemoveAt(was);
+            _justCaught.Insert(0, (catchNow.Id, first));
+        }
+    }
+
+    /// <summary>"You caught your first Wispscale Darter" - the count line reads how
+    /// many of the fish shown are now caught.</summary>
+    private void ShowCatchBar(List<(string Id, bool First)> landed)
+    {
+        string Line((string Id, bool First) c) =>
+            c.First ? $"your first {NameOf(c.Id)}" : $"a {NameOf(c.Id)} ({_caught[c.Id].Count:N0} times now)";
+        CatchBar.Title = landed.Any(c => c.First) ? "New fish caught" : "Fish caught";
+        CatchBar.Message = $"You caught {string.Join(", ", landed.Select(Line))}. {_shownCaught} of {_shownTotal} caught.";
+        CatchBar.IsOpen = true;
     }
 
     /// <summary>Everything the page shows that a new save can change: where you
@@ -284,7 +320,8 @@ public sealed partial class FishingPage : Page
             .Where(f => time.Length == 0 || f.Time == time || f.Time == "Both")
             .Where(f => rarity.Length == 0 || f.Quality == rarity)
             .Where(f => text.Length == 0 || NameOf(f.Id).Contains(text, StringComparison.CurrentCultureIgnoreCase))
-            .OrderBy(f => _caught.ContainsKey(f.Id))
+            .OrderBy(f => JustCaughtRank(f.Id))
+            .ThenBy(f => _caught.ContainsKey(f.Id))
             .ThenBy(f => RarityRank(f.Quality))
             .ThenBy(f => NameOf(f.Id), StringComparer.CurrentCultureIgnoreCase)
             .ToList();
@@ -306,8 +343,18 @@ public sealed partial class FishingPage : Page
                     () => scroller.ChangeView(null, offset, null, disableAnimation: true));
         }
         int caughtCount = planetFish.Count(f => _caught.ContainsKey(f.Id));
+        (_shownCaught, _shownTotal) = (caughtCount, planetFish.Count);
         UpdateNext(); // highlight the tile for what's shown
         CountTxt.Text = (_anywhereOnly ? "Fish found on any planet · " : "") + $"Showing {shown.Count} · {caughtCount} of {planetFish.Count} caught";
+    }
+
+    private int _shownCaught, _shownTotal;
+
+    /// <summary>Fish just caught come first, newest first.</summary>
+    private int JustCaughtRank(string id)
+    {
+        int i = _justCaught.FindIndex(j => j.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        return i < 0 ? int.MaxValue : i;
     }
 
     /// <summary>Fishing spots recorded on the Finds page, by fish id.</summary>
@@ -332,6 +379,7 @@ public sealed partial class FishingPage : Page
             ? "Any planet with water"
             : string.Join(", ", f.Biomes.Select(NmsPlanets.TypeName)) + " planets";
         spots.TryGetValue(f.Id, out var spotList);
+        int just = JustCaughtRank(f.Id);
 
         return new FishCardViewModel
         {
@@ -345,8 +393,9 @@ public sealed partial class FishingPage : Page
             Caught = caught
                 ? $"Caught {record.Count:N0} time{(record.Count == 1 ? "" : "s")}{(record.Largest > 0 ? $" · largest {record.Largest:0.##} kg" : "")}"
                 : "Not caught yet",
+            JustCaught = just == int.MaxValue ? "" : _justCaught[just].First ? "NEW CATCH" : "JUST CAUGHT",
             CaughtBrush = ThemeResources.Brush(caught ? "ThemeDoneBrush" : "ThemeWarningBrush"),
-            CardOpacity = caught ? 0.6 : 1.0,
+            CardOpacity = caught && just == int.MaxValue ? 0.6 : 1.0,
             Spots = spotList is null ? "" : $"Your spots: {string.Join(", ", spotList)}",
             SpotsVisibility = spotList is null ? Visibility.Collapsed : Visibility.Visible,
             CardBorder = ThemeResources.Brush(f.Id == _whereFish?.Id ? "ThemeAccentBrush" : "ThemeLineBrush"),

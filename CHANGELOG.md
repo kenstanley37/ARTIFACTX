@@ -54,6 +54,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - A base's own page shows its picture faded in behind the header again.
 - Parts the game places itself (freighter bridge connectors, station cores) have plain names instead of made-up ones.
 - Inventory **Sort** put some building parts with the maps.
+- Fishing: a fish you catch while the page is open now shows - a banner names it ("You caught your first Wispscale Darter. 30 of 42 caught.") and its card moves to the top with a NEW CATCH or JUST CAUGHT tag. Before, its card just slipped off screen.
 - Anomaly planets showed as "Green / Exotic" (or Red / Blue) - colours the game never shows - and screen reading skipped their type, "Planetary Anomaly". They now show as anomalies, with the game's own words once read.
 - Starships, Multi-Tool, Freighter and Exocraft: **Reset** now undoes every change on the page - name, seeds, type, class and crew too, not just the tech and cargo - and no longer disappears after you change a seed. On Freighter it also undoes an applied full build's interior, and adding or deleting the freighter.
 - Starships, Multi-Tool and Freighter: a Base Stats box could quietly save a stat rounded to 8 decimals after switching ships; only values you type are changed now.

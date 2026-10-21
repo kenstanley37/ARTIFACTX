@@ -19,6 +19,7 @@ public sealed class FishCardViewModel : INotifyPropertyChanged
     public required string Habitat { get; init; }
 
     private string _caught = "";
+    private string _justCaught = "";
     private Brush? _caughtBrush;
     private double _cardOpacity = 1;
     private string _spots = "";
@@ -27,6 +28,15 @@ public sealed class FishCardViewModel : INotifyPropertyChanged
     private Brush? _cardBackground;
 
     public string Caught { get => _caught; set => Set(ref _caught, value); }
+
+    /// <summary>"JUST CAUGHT" / "NEW CATCH" for a fish the game saved a catch of while the page was open.</summary>
+    public string JustCaught
+    {
+        get => _justCaught;
+        set { Set(ref _justCaught, value); OnChanged(nameof(JustCaughtVisibility)); }
+    }
+
+    public Visibility JustCaughtVisibility => JustCaught.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Brush? CaughtBrush { get => _caughtBrush; set => Set(ref _caughtBrush, value); }
     public double CardOpacity { get => _cardOpacity; set => Set(ref _cardOpacity, value); }
     public string Spots { get => _spots; set => Set(ref _spots, value); }
@@ -38,6 +48,7 @@ public sealed class FishCardViewModel : INotifyPropertyChanged
     public void UpdateFrom(FishCardViewModel other)
     {
         Caught = other.Caught;
+        JustCaught = other.JustCaught;
         CaughtBrush = other.CaughtBrush;
         CardOpacity = other.CardOpacity;
         Spots = other.Spots;
@@ -52,6 +63,8 @@ public sealed class FishCardViewModel : INotifyPropertyChanged
     {
         if (Equals(field, value)) return;
         field = value;
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        OnChanged(name);
     }
+
+    private void OnChanged(string? name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
