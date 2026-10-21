@@ -54,6 +54,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - A base's own page shows its picture faded in behind the header again.
 - Parts the game places itself (freighter bridge connectors, station cores) have plain names instead of made-up ones.
 - Inventory **Sort** put some building parts with the maps.
+- Settlements' Building Materials (and Near Core) took about 1 GB of memory while reading where things are found in your other save slots; it now reads only the part of each save it needs.
 
 - 3D previews were drawn mirrored (left and right swapped).
 - Explorer wings: the left and right wing were mixed up in the preview, and an Explorer added from the designer came out with the wrong wings in game.

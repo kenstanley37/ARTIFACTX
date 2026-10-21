@@ -85,7 +85,8 @@
              while it's open (FishCatchRecorder), so say so while it's following. -->
         <Button x:Name="RecordingBtn" Background="Transparent" BorderThickness="0" MinHeight="0" Grid.Row="1" Grid.Column="2" Padding="6,0" Margin="0,0,12,0"
                          HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="Collapsed"
-                         ToolTipService.ToolTip="Keep ArtifactX open while you play - click for why">
+                         ToolTipService.ToolTip="Keep ArtifactX open while you play - click for why"
+                         AutomationProperties.Name="Recording as you play">
             <Button.Flyout>
                 <Flyout>
                     <TextBlock MaxWidth="320" TextWrapping="Wrap" FontSize="12"
@@ -101,7 +102,8 @@
         <!-- Game screen recording is on (ScreenCaptureLogService): say so, with a one-click off. -->
         <Button x:Name="ScreenRecordingBtn" Background="Transparent" BorderThickness="0" MinHeight="0" Grid.Row="1" Grid.Column="2" Padding="6,0" Margin="0,0,170,0"
                 HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="Collapsed"
-                ToolTipService.ToolTip="ArtifactX is recording game screens - click to stop">
+                ToolTipService.ToolTip="ArtifactX is recording game screens - click to stop"
+                AutomationProperties.Name="Recording screens">
             <Button.Flyout>
                 <Flyout x:Name="ScreenRecordingFlyout">
                     <StackPanel MaxWidth="300" Spacing="10">
