@@ -26,7 +26,7 @@ public sealed class StationClaimViewModel
         Wealth = UniverseInfo.WealthStars(address);
 
         int galaxy = S.GalaxyNumber(address);
-        SystemLine = $"{UniverseInfo.SystemName(address)} · {NmsGalaxyNames.ForNumber(galaxy) ?? "Galaxy"} ({galaxy})";
+        SystemLine = UniverseInfo.LocationWithRegion(address, galaxy);
         PortalCode = S.PortalAddress(address, 0);
 
         if (IsHere) Badges.Add(new StationBadgeViewModel("YOU ARE HERE", accent: true));

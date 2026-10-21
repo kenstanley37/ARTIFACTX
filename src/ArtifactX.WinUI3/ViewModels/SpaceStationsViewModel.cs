@@ -162,7 +162,10 @@ public sealed partial class SpaceStationsViewModel : ObservableObject
 
     private void ShowCurrentStation(StationOverview overview)
     {
-        CurrentLocation = overview.Location;
+        // Where the station is, as the game's Galaxy Map says it: region and galaxy (user, 2026-10-21).
+        CurrentLocation = overview.CurrentAddress is ulong at
+            ? $"{overview.Location} · {UniverseInfo.Region(at)} · {NmsGalaxyNames.ForNumber(S.GalaxyNumber(at)) ?? "Galaxy"} ({S.GalaxyNumber(at)})"
+            : overview.Location;
 
         if (overview.CurrentAddress is not ulong address)
         {
