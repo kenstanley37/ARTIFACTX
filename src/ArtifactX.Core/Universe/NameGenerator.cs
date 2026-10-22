@@ -81,33 +81,38 @@ public static class NameGenerator
         int register = (int)rng.Next((uint)(maxLength - minLength + 1)) + minLength - 3;
         int add = register;
 
+        // The loop below follows NMS.exe's own routine (build 180836, 0x140e81780, read
+        // 2026-10-22), which differs from the reference port on the give-up path:
+        // the next letter is looked up from the name's LAST three letters; a fresh chunk
+        // comes from the ORIGINAL alphaset; the vowel test looks at name[i + 3] (i already
+        // stepped back); and a joining vowel goes in only between two consonants.
         if (register > 0)
         {
+            int startAlphaset = alphasetIndex;
             int tries = 8;
             int i = 0;
             while (i < register)
             {
-                string key = name.ToString(i, Math.Min(3, name.Length - i));
+                string key = name.ToString(Math.Max(0, name.Length - 3), Math.Min(3, name.Length));
                 weights[alphasetIndex & 7].TryGetValue(key, out var charWeights);
-                double target = rng.NextWord() * TinyDouble;
+                double target = (float)(rng.NextWord() * TinyDouble);
                 if (charWeights is null)
                 {
                     tries--;
                     i--;
-                    alphasetIndex = (alphasetIndex + 1) & 0x08000007;
-                    if (alphasetIndex < 0) alphasetIndex = -alphasetIndex;
+                    alphasetIndex = (alphasetIndex + 1) & 7;
 
                     if (tries == 0)
                     {
                         if (add < 3) break;
-                        string temp = CharactersFromAlphaset(rng, alphasetIndex);
-                        if (Vowels.Contains(name[i + 2]) && Vowels.Contains(temp[0]))
-                            name.Append('\'');
-                        else if (!Vowels.Contains(temp[0]))
-                            name.Append(Vowels[(int)(rng.Next(5) & 0xFF)]);
+                        string temp = CharactersFromAlphaset(rng, startAlphaset);
+                        bool before = i + 3 >= 0 && i + 3 < name.Length && Vowels.Contains(name[i + 3]);
+                        bool after = Vowels.Contains(temp[0]);
+                        i += 3;
+                        if (before && after) name.Append('\'');
+                        else if (!before && !after) name.Append(Vowels[(int)rng.Next(5)]);
                         name.Append(temp);
                         tries = 1;
-                        i += 2;
                         add -= 3;
                     }
                 }
@@ -134,7 +139,7 @@ public static class NameGenerator
                     add--;
                 }
 
-                if (name.Length > 63) name.Length = 64;
+                if (name.Length > 63) name.Length = 63;
                 i++;
             }
         }
@@ -180,7 +185,89 @@ public static class NameGenerator
             consonance += (int)rng.Next(3) + 1;
             result = InsertVowel(result, rng, consonance);
         }
-        return result;
+        return Clean(rng, result);
+    }
+
+    /// <summary>The game's rude-word filter, the last step of every generated word (NMS.exe
+    /// build 180836, 0x140e83680 calling 0x140e82390 per letter; the reference port lacks it).
+    /// At each position, the first word found starting there has one letter swapped for a
+    /// random pick - a draw that also shifts every later pick, which is why names such as
+    /// "Rigie IV" (not "Nigie Major") came out wrong before (2026-10-22). Rules read
+    /// straight from the routine: word, letter to swap, replacements.</summary>
+    private static readonly (string Word, int Swap, string With)[] RudeWords =
+    {
+        ("anal", 1, "tdwzx"),
+        ("anus", 1, "tdwzx"),
+        ("ass", 0, "eo"),
+        ("bitch", 3, "ao"),
+        ("blow", 0, "caog"),
+        ("boner", 0, "lvsz"),
+        ("clit", 3, "cpfn"),
+        ("cock", 0, "smlth"),
+        ("cuck", 3, "aeiou"),
+        ("cum", 0, "rgsn"),
+        ("cunt", 1, "eio"),
+        ("dick", 2, "aeol"),
+        ("dong", 3, "teo"),
+        ("fag", 0, "nmtz"),
+        ("felch", 0, "njkmp"),
+        ("fuck", 0, "zlbw"),
+        ("gook", 3, "lnrb"),
+        ("hitler", 0, "vmpl"),
+        ("homo", 1, "eiu"),
+        ("jizz", 0, "zrwl"),
+        ("kike", 2, "rbl"),
+        ("kunt", 3, "aeo"),
+        ("love", 2, "mpbt"),
+        ("minge", 3, "amlz"),
+        ("mong", 3, "aoik"),
+        ("nazi", 0, "ryvn"),
+        ("negr", 0, "rvlt"),
+        ("nig", 0, "rvxb"),
+        ("orgy", 2, "vlos"),
+        ("paedo", 0, "tmvs"),
+        ("paki", 2, "ntr"),
+        ("pedo", 0, "tmvs"),
+        ("penis", 0, "klsr"),
+        ("piss", 2, "cokl"),
+        ("porn", 0, "tvbr"),
+        ("prick", 0, "stbc"),
+        ("puss", 0, "brsl"),
+        ("quee", 2, "nlr"),
+        ("rape", 2, "cnys"),
+        ("semen", 2, "tzrv"),
+        ("sex", 0, "tdrp"),
+        ("shag", 3, "nml"),
+        ("shit", 3, "nvsl"),
+        ("slag", 3, "dnvy"),
+        ("slut", 2, "aeo"),
+        ("spaz", 3, "nlr"),
+        ("spic", 3, "nlr"),
+        ("spunk", 1, "lh"),
+        ("tard", 0, "jcgwz"),
+        ("tit", 2, "nmbc"),
+        ("turd", 3, "nbtp"),
+        ("twat", 1, "ehi"),
+        ("wank", 3, "aei"),
+        ("whore", 0, "csa"),
+        ("wog", 0, "cslv"),
+        ("wop", 0, "csld"),
+    };
+
+    private static string Clean(UniverseRandom rng, string word)
+    {
+        var letters = word.ToCharArray();
+        for (int i = 0; i < letters.Length; i++)
+            foreach (var (bad, swap, with) in RudeWords)
+            {
+                if (i + bad.Length > letters.Length) continue;
+                int k = 0;
+                while (k < bad.Length && letters[i + k] == bad[k]) k++;
+                if (k < bad.Length) continue;
+                letters[i + swap] = with[(int)rng.Next((uint)with.Length)];
+                break;
+            }
+        return new string(letters);
     }
 
     /// <summary>Python's str.capitalize(): first letter upper, the rest lower.</summary>
