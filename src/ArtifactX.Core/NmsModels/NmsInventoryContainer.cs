@@ -181,6 +181,13 @@ public class NmsInventoryContainer
     public static readonly string[] FreighterTypePath = { "vLc", "6f=", "bIR", "93M" };
     public static readonly string[] FreighterModelSeedPath = { "vLc", "6f=", "bIR", "@EL", "1" };
 
+    /// <summary>The freighter's engine flare (GcPlayerStateData.FreighterEngineEffect), e.g.
+    /// "^RED" (Crimson) or "^TURQUOISE" (Hadal) - found by applying the Hadal flare in the
+    /// freighter's Customisation and saving (Slot 8, 2026-10-22: "^RED" -> "^TURQUOISE"). The
+    /// unlockable flares are the FREI_TRAIL_* items. Custom paint is a separate record:
+    /// character customisation entry 15 (l:j).</summary>
+    public static readonly string[] FreighterEngineEffectPath = { "vLc", "6f=", "1@y" };
+
     /// <summary>The freighter's "Home Seed" - a top-level [bool, hex] pair
     /// directly under the freighter object (same shape as Model Seed's
     /// bIR.@EL and Crew Seed's Sjw.@EL, but its own separate field, "kYq"),
