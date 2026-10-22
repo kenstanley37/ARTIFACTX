@@ -397,6 +397,7 @@ public sealed partial class FindsPage : Page
             "Starship" => _shipKinds,
             "Multi-Tool" => _toolKinds,
             "Freighter" => _freighterKinds,
+            "Creature" => FindsService.CreatureKinds.ToList(),
             _ => new List<string>(),
         };
         FormSubtypeBox.Items.Clear();

@@ -34,10 +34,16 @@ public static class FindsService
     /// <summary>Find types, in the order the page offers them.</summary>
     public static readonly string[] Types =
     {
-        "Starship", "Multi-Tool", "Freighter", "Sells items", "Fishing spot", "Freighter upgrades", "Point of interest", "Other",
+        "Starship", "Multi-Tool", "Freighter", "Creature", "Sells items", "Fishing spot", "Freighter upgrades", "Point of interest", "Other",
     };
 
-    public static bool HasClass(string type) => type is "Starship" or "Multi-Tool" or "Freighter";
+    /// <summary>Types with a class letter. A creature's is its best battle ability class
+    /// (the survey screen grades Combat Effectiveness, Agility and Health - user's companion
+    /// Horsippo, 2026-10-21).</summary>
+    public static bool HasClass(string type) => type is "Starship" or "Multi-Tool" or "Freighter" or "Creature";
+
+    /// <summary>A creature find's kinds: wild (still roaming) or a companion the player keeps.</summary>
+    public static readonly string[] CreatureKinds = { "Wild", "Companion", "Battle creature" };
 
     /// <summary>Types whose ItemIds hold picked catalog items: items sold, or fish caught.</summary>
     public static bool HasItems(string type) => type is "Sells items" or "Fishing spot";
