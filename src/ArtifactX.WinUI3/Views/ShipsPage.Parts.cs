@@ -113,6 +113,20 @@ public sealed partial class ShipsPage
             return;
         }
         if (version != _previewVersion) return;
+        // Sentinel Interceptors: one painted surface (SENTINELSHIPMAT + DETMAT, 98% of the
+        // ship), coloured from the palette table built from the seed itself - DudeWing
+        // (0xB1B6D078DC9DAD83, Slot 1) came out pale grey with dark trim like in game
+        // (2026-10-22); the first-child rule made it blue. Other seed-made types stay a
+        // hologram: their texture-option picks aren't reproduced yet (see above).
+        if (mesh is not null && scene.Contains("SENTINELSHIP", StringComparison.OrdinalIgnoreCase)
+            && await ModelPreviewService.SeedColoursAsync(seed, rawSeed: true) is { } seedColours)
+        {
+            var textures = await ModelPreviewService.PaintAsync(models, mesh, seedColours, seed);
+            if (version != _previewVersion) return;
+            ShipPreviewView.Show(mesh, material => ShipPartsService.MaterialColour(material, look), m => textures.GetValueOrDefault(m));
+            ShipPreviewNote.Text = "Shape and colours from your game files and the ship's seed - drag to turn. Colours are close to the game's, not always exact.";
+            return;
+        }
         // A hologram, not grey - plain grey read as a broken paint job (2026-10-17).
         if (mesh is null) ShipPreviewView.ShowMessage("This ship's model couldn't be read from your game files.");
         else ShipPreviewView.Show(mesh, material => ShipPartsService.MaterialColour(material, look), hologram: true);
