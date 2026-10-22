@@ -54,7 +54,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - A base's own page shows its picture faded in behind the header again.
 - Parts the game places itself (freighter bridge connectors, station cores) have plain names instead of made-up ones.
 - Inventory **Sort** put some building parts with the maps.
-- **Frigates** page redone: your fleet as cards - class rating badge, role, crew race, the stat its role uses and expeditions flown - with a fleet summary ("30 frigates · 8 Trade · 6 Combat..."). Crew races show as Gek, Vy'keen and Korvax instead of the game's internal Traders, Warriors and Explorers.
+- **Frigates** page redone: your fleet as cards - class rating badge, role, crew race, the stat its role uses and expeditions flown - with a fleet summary ("30 frigates · 8 Trade · 6 Combat..."). Crew races (and a settlement's culture) show as Gek, Vy'keen and Korvax instead of the game's internal Traders, Warriors and Explorers.
 - Fishing: each fish says how to catch it - the water depth its size bites in (shallow, 5-15 m, 30-65 m or 45-90 m; deeper on water worlds, any depth on gas giants) and the bait that favours it most, both from your own game files. Update the game data (Settings) once to get it.
 - Templates: **Preview** shows what a template holds before you use it - class, where it came from, slots, model, interior, base stats and every tech item with its name - and flags items your installed game version doesn't have. Also in the freighter's "Add a freighter" list.
 - Finds: a **Creature** type (wild, companion or battle creature), with its best battle class.
