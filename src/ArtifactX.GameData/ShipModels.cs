@@ -47,7 +47,9 @@ public sealed partial class ShipModels
     // ENGINEGLOWPOLY is a freighter's engine light: a few huge flat cards across the whole
     // stern that the game draws as soft additive glow - solid, they covered the engines like
     // "green paper" (2026-10-22). The nozzles' own ENGINEGLOW discs stay.
-    private static readonly Regex Hidden = new("(?<!MULTITOOL)DECAL|SHADOW|MASKMAT|DEPTHMASK|ENGINEJET|ENGINEGLOWPOLY");
+    // FREIGHTERSHIELD is the Dreadnought's shield: a smooth shell round the whole ship that
+    // hid the hull inside it - the preview showed only a plain wedge (2026-10-22).
+    private static readonly Regex Hidden = new("(?<!MULTITOOL)DECAL|SHADOW|MASKMAT|DEPTHMASK|ENGINEJET|ENGINEGLOWPOLY|FREIGHTERSHIELD");
 
     public ShipModels(GameInstall game)
     {
