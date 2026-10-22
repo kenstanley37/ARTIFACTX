@@ -27,6 +27,19 @@ public static class ThemeResources
         _ => Windows.UI.Color.FromArgb(255, 0x3D, 0xDC, 0x84),
     });
 
+    /// <summary>The game's class-tier colours (S gold, A purple, B blue, C green) for class
+    /// badges - fixed, not themed, as they're the game's own. Transparent for anything else.</summary>
+    public static Windows.UI.Color ClassColour(string? cls) => cls switch
+    {
+        "S" => Windows.UI.Color.FromArgb(255, 201, 151, 34),
+        "A" => Windows.UI.Color.FromArgb(255, 130, 80, 200),
+        "B" => Windows.UI.Color.FromArgb(255, 60, 110, 200),
+        "C" => Windows.UI.Color.FromArgb(255, 60, 150, 90),
+        _ => Microsoft.UI.Colors.Transparent,
+    };
+
+    public static Brush ClassBrush(string? cls) => new SolidColorBrush(ClassColour(cls));
+
     /// <summary>Border + fill for a toggle-style choice button (ship picker,
     /// Class selector): accent outline and tinted fill when selected.</summary>
     public static void StyleChoiceButton(Microsoft.UI.Xaml.Controls.Button button, bool isSelected)
