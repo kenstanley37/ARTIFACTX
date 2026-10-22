@@ -1215,11 +1215,13 @@ public static partial class CatalogSteps
         IPakReaderService fishPakReader = new PakReaderService();
         var fishExtraction = new ExtractionService();
         libMBIN.NMS.GameComponents.GcFishTable? fishTable = null;
+        libMBIN.NMS.Globals.GcFishingGlobals? fishingGlobals = null;
+        libMBIN.NMS.GameComponents.GcBaitTable? baitTable = null;
         string fishSource = "";
 
         foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
         {
-            if (fishTable is not null) break;
+            if (fishTable is not null && fishingGlobals is not null && baitTable is not null) break;
             PakHeader header;
             IReadOnlyList<PakEntry> entries;
             try
@@ -1229,9 +1231,12 @@ public static partial class CatalogSteps
             }
             catch { continue; }
 
+            // The fish table, the fishing globals (gcfishingglobals.global.mbin: how depth picks a
+            // fish's size) and the bait table (metadata/reality/tables/baitdatatable.mbin).
             foreach (var entry in entries.Where(e => !string.IsNullOrEmpty(e.FileName)
                          && e.FileName.EndsWith(".mbin", StringComparison.OrdinalIgnoreCase)
-                         && e.FileName.Contains("fish", StringComparison.OrdinalIgnoreCase)))
+                         && !e.FileName.Contains("/anims/", StringComparison.OrdinalIgnoreCase)
+                         && (e.FileName.Contains("fish", StringComparison.OrdinalIgnoreCase) || e.FileName.Contains("bait", StringComparison.OrdinalIgnoreCase))))
             {
                 byte[]? bytes;
                 try { bytes = fishExtraction.ExtractEntryBytes(pak.FullPath, entry, header); }
@@ -1243,11 +1248,18 @@ public static partial class CatalogSteps
                     using var ms = new MemoryStream(bytes);
                     var mbin = new MBINFile(ms);
                     mbin.Load();
-                    if (mbin.GetData() is libMBIN.NMS.GameComponents.GcFishTable table)
+                    switch (mbin.GetData())
                     {
-                        fishTable = table;
-                        fishSource = entry.FileName!;
-                        break;
+                        case libMBIN.NMS.GameComponents.GcFishTable table when fishTable is null:
+                            fishTable = table;
+                            fishSource = entry.FileName!;
+                            break;
+                        case libMBIN.NMS.Globals.GcFishingGlobals globals when fishingGlobals is null:
+                            fishingGlobals = globals;
+                            break;
+                        case libMBIN.NMS.GameComponents.GcBaitTable baits when baitTable is null:
+                            baitTable = baits;
+                            break;
                     }
                 }
                 catch { continue; }
@@ -1309,7 +1321,81 @@ public static partial class CatalogSteps
         fishDb.SaveChanges();
 
         ConsoleStyle.Success($"Wrote {fishRows.Count} fish to {fishDbPath}.");
+        AddFishingRules(fishDb, fishingGlobals, baitTable);
         return;
+    }
+
+    /// <summary>Category "FishingRules" (#23): how the game picks a fish's size from the water's
+    /// depth and what each bait favours, from the player's own game files. Rows:
+    /// "DEPTH:&lt;size&gt;" (and "DEPTH:&lt;size&gt;:&lt;biome&gt;" for the planet types that override it -
+    /// Waterworld, GasGiant) with JSON {"size","biome","base","mod","min","max"} - GcFishSizeProbability;
+    /// "BAIT:&lt;product&gt;" with JSON {"id","rarity":[Junk..Legendary],"size":[S..XL],"day","night","storm"} -
+    /// GcBaitData. Read 2026-10-22: Small 0-1 (base 50, depth barely matters), Medium 5-15, Large 30-65,
+    /// ExtraLarge 45-90; water worlds 50-900; gas giants ignore depth. The game's own descriptions
+    /// agree ("shallower water", "deep water", "the deepest of water").</summary>
+    private static void AddFishingRules(CatalogDbContext db, libMBIN.NMS.Globals.GcFishingGlobals? globals, libMBIN.NMS.GameComponents.GcBaitTable? baits)
+    {
+        var existing = db.Categories.FirstOrDefault(c => c.TemplateType == "FishingRules");
+        if (existing != null)
+        {
+            db.Items.RemoveRange(db.Items.Where(i => i.CategoryId == existing.Id));
+            db.Categories.Remove(existing);
+            db.SaveChanges();
+        }
+        if (globals is null && baits is null)
+        {
+            ConsoleStyle.Error("No fishing globals or bait table found - fishing rules left out.");
+            return;
+        }
+
+        string[] sizes = { "Small", "Medium", "Large", "ExtraLarge" };
+        var rows = new List<CatalogItem>();
+        void Depth(libMBIN.NMS.GameComponents.GcFishSizeProbability[] weights, string? biome)
+        {
+            for (int i = 0; i < weights.Length && i < sizes.Length; i++)
+            {
+                var w = weights[i];
+                rows.Add(new CatalogItem
+                {
+                    GameId = "DEPTH:" + sizes[i] + (biome is null ? "" : ":" + biome),
+                    NameEnglish = sizes[i],
+                    DescriptionEnglish = new System.Text.Json.Nodes.JsonObject
+                    {
+                        ["size"] = sizes[i], ["biome"] = biome ?? "",
+                        ["base"] = w.BaseWeight, ["mod"] = w.DepthModifier, ["min"] = w.DepthRangeMin, ["max"] = w.DepthRangeMax,
+                    }.ToJsonString(),
+                });
+            }
+        }
+        if (globals?.SizeWeights is { } general) Depth(general, null);
+        foreach (var o in globals?.SizeWeightsBiomeOverrides ?? new())
+            if (o.SizeWeights is { } w) Depth(w, o.Biome?.Biome.ToString());
+
+        foreach (var bait in baits?.Bait ?? new())
+        {
+            string id = bait.ProductID?.Value ?? "";
+            if (id.Length == 0) continue;
+            rows.Add(new CatalogItem
+            {
+                GameId = "BAIT:" + id,
+                NameEnglish = id,
+                DescriptionEnglish = new System.Text.Json.Nodes.JsonObject
+                {
+                    ["id"] = id,
+                    ["rarity"] = new System.Text.Json.Nodes.JsonArray((bait.RarityBoosts ?? Array.Empty<float>()).Select(v => (System.Text.Json.Nodes.JsonNode)(double)v).ToArray()),
+                    ["size"] = new System.Text.Json.Nodes.JsonArray((bait.SizeBoosts ?? Array.Empty<float>()).Select(v => (System.Text.Json.Nodes.JsonNode)(double)v).ToArray()),
+                    ["day"] = bait.DayTimeBoost, ["night"] = bait.NightTimeBoost, ["storm"] = bait.StormBoost,
+                }.ToJsonString(),
+            });
+        }
+
+        var category = new CatalogCategory { TemplateType = "FishingRules", RowType = "GcFishSizeProbability/GcBaitData", SourceMbinPath = "gcfishingglobals.global.mbin + baitdatatable.mbin" };
+        db.Categories.Add(category);
+        db.SaveChanges();
+        foreach (var row in rows) row.CategoryId = category.Id;
+        db.Items.AddRange(rows);
+        db.SaveChanges();
+        ConsoleStyle.Success($"Wrote {rows.Count} fishing rules (depth by size, baits).");
     }
 
     /// <summary>"DataCataloger add-item-values &lt;target-catalog-db-path&gt;" adds the base Units value and trade data of every product and substance (GcProductTable / GcRealitySubstanceTable: BaseValue, TradeCategory, Legality, Rarity) as category "ItemValues". GameId = "VALUE:" + item id (prefixed so it never collides with the item's own catalog row in id lookups), NameEnglish = readable name, UsageCategory = TradeCategory (Mineral, Tech, Commodity, Component, Alloy, Exotic, Energy, None, SpecialShop), DescriptionEnglish = JSON {"id","value","legality","rarity","kind"}. Added 2026-10-11 for the Item Values tool; idempotent, same patch-in-place pattern as add-recipes.</summary>

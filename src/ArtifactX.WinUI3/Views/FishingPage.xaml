@@ -145,7 +145,7 @@
         <GridView x:Name="FishList" SelectionMode="None" IsItemClickEnabled="True" ItemClick="FishList_ItemClick">
             <GridView.ItemsPanel>
                 <ItemsPanelTemplate>
-                    <ItemsWrapGrid Orientation="Horizontal" ItemWidth="300" ItemHeight="150"/>
+                    <ItemsWrapGrid Orientation="Horizontal" ItemWidth="300" ItemHeight="182"/>
                 </ItemsPanelTemplate>
             </GridView.ItemsPanel>
             <GridView.ItemContainerStyle>
@@ -158,7 +158,7 @@
             </GridView.ItemContainerStyle>
             <GridView.ItemTemplate>
                 <DataTemplate x:DataType="viewmodels:FishCardViewModel">
-                    <Border Width="290" Height="140" BorderBrush="{x:Bind CardBorder, Mode=OneWay}" BorderThickness="2"
+                    <Border Width="290" Height="172" BorderBrush="{x:Bind CardBorder, Mode=OneWay}" BorderThickness="2"
                             Background="{x:Bind CardBackground, Mode=OneWay}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,10">
                         <Grid RowSpacing="4">
                             <Grid.RowDefinitions>
@@ -190,6 +190,12 @@
                                                TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Traits}"/>
                                     <TextBlock Text="{x:Bind Habitat}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                                TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Habitat}"/>
+                                    <TextBlock Text="{x:Bind Depth}" Visibility="{x:Bind DepthVisibility}" FontSize="12"
+                                               Foreground="{ThemeResource ThemeAccentBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                               ToolTipService.ToolTip="Where this fish's size bites, from the game's fishing rules"/>
+                                    <TextBlock Text="{x:Bind Bait}" Visibility="{x:Bind BaitVisibility}" FontSize="12"
+                                               Foreground="{ThemeResource ThemeAccentBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                               ToolTipService.ToolTip="The bait that makes this fish most likely - by its rarity, time of day or storms"/>
                                 </StackPanel>
                             </Grid>
                             <StackPanel Grid.Row="1" Spacing="0">

@@ -54,6 +54,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - A base's own page shows its picture faded in behind the header again.
 - Parts the game places itself (freighter bridge connectors, station cores) have plain names instead of made-up ones.
 - Inventory **Sort** put some building parts with the maps.
+- Fishing: each fish says how to catch it - the water depth its size bites in (shallow, 5-15 m, 30-65 m or 45-90 m; deeper on water worlds, any depth on gas giants) and the bait that favours it most, both from your own game files. Update the game data (Settings) once to get it.
 - Templates: **Preview** shows what a template holds before you use it - class, where it came from, slots, model, interior, base stats and every tech item with its name - and flags items your installed game version doesn't have. Also in the freighter's "Add a freighter" list.
 - Finds: a **Creature** type (wild, companion or battle creature), with its best battle class.
 - **Alliance** page (under Milestones): your totals for the five stats a Galactic Alliance is graded on - systems, plants, minerals and creatures discovered, and stations claimed - laid out like the game's alliance screen, with what makes up each number and how to raise it.
