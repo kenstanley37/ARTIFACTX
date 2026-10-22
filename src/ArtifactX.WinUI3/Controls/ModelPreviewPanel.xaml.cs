@@ -26,7 +26,9 @@ public sealed partial class ModelPreviewPanel : UserControl
 
     /// <summary>Builds and shows the model for a scene and seed ("0x2B2F...", null = the scene's
     /// default parts). A newer call replaces one still building.</summary>
-    public async Task ShowAsync(string? scene, string? seedText)
+    /// <param name="customColours">Colours the player picked in game, from the save's customisation
+    /// entry (StoredColours) - shown painted when there are any, else as a hologram.</param>
+    public async Task ShowAsync(string? scene, string? seedText, Dictionary<(string, string), float[]>? customColours = null)
     {
         int version = ++_version;
         if (string.IsNullOrEmpty(scene) || GameDataService.Game is not { } game)
@@ -61,7 +63,15 @@ public sealed partial class ModelPreviewPanel : UserControl
             Preview.ShowMessage("This model couldn't be read from your game files.");
             return;
         }
+        if (customColours is { Count: > 0 })
+        {
+            var textures = await ModelPreviewService.PaintAsync(models, mesh, ModelPreviewService.StoredColourLookup(customColours), seed);
+            if (version != _version) return;
+            Preview.Show(mesh, material => ShipPartsService.MaterialColour(material, ShipPartsService.Look), m => textures.GetValueOrDefault(m));
+            NoteTxt.Text = $"This {Subject}'s own shape in the colours you picked in game. Drag to turn.";
+            return;
+        }
         Preview.Show(mesh, material => ShipPartsService.MaterialColour(material, ShipPartsService.Look), hologram: true);
-        NoteTxt.Text = $"Shape scan - the parts are this {Subject}'s own, from its seed and your game files; its colours can't be shown yet. Drag to turn.";
+        NoteTxt.Text = $"Shape scan - the parts are this {Subject}'s own, from its seed and your game files. Its colours show once you pick custom colours for it in game (Customisation). Drag to turn.";
     }
 }
