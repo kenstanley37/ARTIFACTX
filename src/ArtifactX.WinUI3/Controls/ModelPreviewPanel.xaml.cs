@@ -14,6 +14,13 @@ public sealed partial class ModelPreviewPanel : UserControl
 
     public ModelPreviewPanel() => InitializeComponent();
 
+    /// <summary>Half a turn (π) for models whose bow points along -Z, like freighters.</summary>
+    public double StartYawOffset
+    {
+        get => Preview.StartYawOffset;
+        set => Preview.StartYawOffset = (float)value;
+    }
+
     /// <summary>What to call the model in messages ("freighter").</summary>
     public string Subject { get; set; } = "model";
 
