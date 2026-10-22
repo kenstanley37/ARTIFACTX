@@ -175,6 +175,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
         HomeSeedBox.Show(NmsInventoryContainer.FreighterHomeSeedPath);
         ModelSeedBox.Show(NmsInventoryContainer.FreighterModelSeedPath);
         CrewSeedBox.Show(NmsInventoryContainer.FreighterCrewSeedPath);
+        ShowEngineFlare();
 
         await SyncTypeComboBoxAsync();
         await SyncCrewRaceComboBoxAsync();
@@ -525,6 +526,28 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     private void ShowFoldedName() => DetailsCard.FoldedName = NameEditBox.Text?.Trim() ?? "";
 
     private void Inventory_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
+
+    /// <summary>One of the game's seven engine flares (NmsInventoryContainer.FreighterEngineEffects).</summary>
+    private sealed record EngineFlare(string Name, string Value);
+
+    private bool _loadingFlare;
+
+    private void ShowEngineFlare()
+    {
+        _loadingFlare = true;
+        EngineFlareBox.ItemsSource ??= NmsInventoryContainer.FreighterEngineEffects.Select(f => new EngineFlare(f.Name, f.Value)).ToList();
+        string current = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterEngineEffectPath)?.Value<string>() ?? "";
+        EngineFlareBox.SelectedItem = ((List<EngineFlare>)EngineFlareBox.ItemsSource).FirstOrDefault(f => string.Equals(f.Value, current, StringComparison.OrdinalIgnoreCase));
+        _loadingFlare = false;
+    }
+
+    private void EngineFlareBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loadingFlare || EngineFlareBox.SelectedItem is not EngineFlare flare) return;
+        if (flare.Value == SaveSessionManager.GetValue(NmsInventoryContainer.FreighterEngineEffectPath)?.Value<string>()) return;
+        SaveSessionManager.StageEdit(flare.Value, NmsInventoryContainer.FreighterEngineEffectPath);
+        PageResetBtn.Visibility = Visibility.Visible;
+    }
 
     private void Seed_Changed(object? sender, SeedChange change)
     {

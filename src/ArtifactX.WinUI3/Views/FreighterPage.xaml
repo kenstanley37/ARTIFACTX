@@ -206,6 +206,12 @@
                                                     </StackPanel>
                                                     <controls:SeedBox x:Name="CrewSeedBox" Label="Crew seed" Changed="Seed_Changed"/>
                                                 </StackPanel>
+                                                <StackPanel Spacing="6">
+                                                    <TextBlock Text="ENGINE FLARE" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                                    <ComboBox x:Name="EngineFlareBox" AutomationProperties.Name="Engine flare" HorizontalAlignment="Stretch"
+                                                              DisplayMemberPath="Name" SelectionChanged="EngineFlareBox_SelectionChanged"
+                                                              ToolTipService.ToolTip="The colour of the freighter's engine glow, as Customisation sets it in game."/>
+                                                </StackPanel>
                                             </StackPanel>
                                         </ctcontrols:WrapPanel>
                                         <!-- Base stats under who it is (user, 2026-10-22 - they were first). -->

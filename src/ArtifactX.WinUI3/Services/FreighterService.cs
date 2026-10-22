@@ -56,6 +56,7 @@ public static class FreighterService
         new[] { "vLc", "6f=", "bIR" },
         new[] { "vLc", "6f=", "kYq" },
         new[] { "vLc", "6f=", "Sjw" },
+        NmsInventoryContainer.FreighterEngineEffectPath,
     };
 
     public static bool HasPageEdits() =>
