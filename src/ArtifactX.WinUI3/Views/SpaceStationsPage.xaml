@@ -254,6 +254,8 @@
                                                         </ItemsControl>
                                                         <TextBlock Text="{x:Bind Name}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold" FontSize="14"
                                                                    TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
+                                                        <TextBlock Text="{x:Bind GameName}" Visibility="{x:Bind HasGameName}" FontSize="11"
+                                                                   TextTrimming="CharacterEllipsis" Foreground="{ThemeResource ThemeTextBrush}" Margin="0,-4,0,0"/>
                                                     </StackPanel>
                                                     <Border Visibility="{x:Bind IsCurrent}" Background="{ThemeResource ThemeDoneBrush}" Padding="7,3,7,3"
                                                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8">

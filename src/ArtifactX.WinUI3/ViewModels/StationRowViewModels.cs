@@ -109,18 +109,23 @@ public sealed class StationHowToStep(int number, string text)
 /// <summary>A station the player directs, as a screenshot tile.</summary>
 public sealed partial class StationTileViewModel : ObservableObject
 {
-    public StationTileViewModel(OwnedStation station, bool isCurrent)
+    public StationTileViewModel(OwnedStation station, bool isCurrent, string gameName = "")
     {
         Station = station;
         IsCurrent = isCurrent;
+        GameName = gameName;
         Badges = StationBadgeViewModel.ForSystem(station.Address);
     }
+
+    /// <summary>The game's name for a renamed station (#27), shown under the rename; empty otherwise.</summary>
+    public string GameName { get; }
+    public bool HasGameName => GameName.Length > 0;
 
     /// <summary>Wealth, economy and conflict, shown over the picture as on the claim cards.</summary>
     public List<StationBadgeViewModel> Badges { get; }
 
     /// <summary>The tile's name plus its badges, for screen readers.</summary>
-    public string AccessibleName => $"{Name}, {string.Join(", ", Badges.ConvertAll(b => b.Text))}";
+    public string AccessibleName => $"{Name}{(HasGameName ? $" ({GameName})" : "")}, {string.Join(", ", Badges.ConvertAll(b => b.Text))}";
 
     public OwnedStation Station { get; }
     public ulong Address => Station.Address;
