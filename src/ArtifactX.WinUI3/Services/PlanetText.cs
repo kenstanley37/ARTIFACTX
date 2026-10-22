@@ -232,10 +232,16 @@ public static class PlanetText
     /// sentinel difficulty is changed.</summary>
     private const int NormalDifficulty = 2;
 
-    /// <summary>The three mined resources, most common first ("Copper, Ammonia, Cobalt").</summary>
-    public static IReadOnlyList<string> Resources(Core.Universe.PlanetProfile profile, IReadOnlyDictionary<string, string> itemNames) =>
-        new[] { profile.Common, profile.Uncommon, profile.Rare }.Where(id => id.Length > 0)
-            .Select(id => ItemName(id, itemNames)).Distinct().ToList();
+    /// <summary>What the scanner lists, in its order: the planet's plant, the three mined
+    /// resources (most common first), then other hints ("Cactus Flesh, Copper, Pyrite, Salt").</summary>
+    public static IReadOnlyList<string> Resources(Core.Universe.PlanetProfile profile, IReadOnlyDictionary<string, string> itemNames)
+    {
+        string Hint(string id) => PlanetTypesService.HintName(id) ?? ItemName(id, itemNames);
+        var plants = profile.Hints.Where(h => itemNames.ContainsKey(h)).Select(h => ItemName(h, itemNames));
+        var mined = new[] { profile.Common, profile.Uncommon, profile.Rare }.Where(id => id.Length > 0).Select(id => ItemName(id, itemNames));
+        var others = profile.Hints.Where(h => !itemNames.ContainsKey(h)).Select(Hint);
+        return plants.Concat(mined).Concat(others).Distinct().ToList();
+    }
 }
 
 /// <summary>"Coblat isn't one of the game's resources - did you mean Cobalt?": the closest of

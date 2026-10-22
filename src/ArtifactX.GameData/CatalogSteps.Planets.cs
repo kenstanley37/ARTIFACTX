@@ -77,6 +77,12 @@ public static partial class CatalogSteps
             rows.Add(new CatalogItem { GameId = "BIOMETABLES", NameEnglish = "BiomeTables", DescriptionEnglish = JsonSerializer.Serialize(tables) });
 
             var details = ProfileTables(files, biomes, Decode);
+            if (details is not null)
+            {
+                var groups = HintGroups(files);
+                var keys = groups.SelectMany(g => g.Hints).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                details = details with { HintGroups = groups, HintNames = EnglishTexts(index, extraction, keys) };
+            }
             if (details is null) ConsoleStyle.Warning("Planet detail tables not found - planet resources and weather left out.");
             else rows.Add(new CatalogItem { GameId = "PLANETPROFILE", NameEnglish = "PlanetProfileTables", DescriptionEnglish = JsonSerializer.Serialize(details) });
         }
@@ -84,6 +90,19 @@ public static partial class CatalogSteps
         Replace(db, "PlanetGeneration", "GcBiomeListPerStarType/GcBiomeFileList", BiomeListFile.ToLowerInvariant(), rows);
         ConsoleStyle.Success($"Wrote the planet generation tables to {catalogPath}.");
     }
+
+    /// <summary>The optional object lists whose hints are certain (Core HintGroup): always
+    /// active, every option placed, at least one hint.</summary>
+    private static HintGroup[] HintGroups(GcBiomeFileList files) => (files.OptionalExternalObjectLists ?? new())
+        .Where(g => g.ProbabilityOfBeingActive >= 1f && g.ExternalObjectFiles is { Count: > 0 } options
+            && g.MinFilesToChoose >= options.Count
+            && !g.OnlyOnDeepWater && !g.OnlyOnScrapWorlds && !g.NotOnScrapWorlds
+            && options.Any(o => !string.IsNullOrEmpty(o.ResourceHint?.Value)))
+        .Select(g => new HintGroup((int)g.OnlyOnBiome.Biome,
+            g.ExternalObjectFiles.Select(o => o.ResourceHint?.Value ?? "").Where(h => h.Length > 0).Distinct().ToArray(),
+            g.NotOnInfested, g.OnlyOnInfested, g.NotOnStartPlanets, g.NotOnDeadPlanets, g.NotOnWeirdPlanets,
+            g.NotOnExtremePlanets, g.NotOnGasGiant, g.OnlyOnExtremeWeather, g.OnlyOnCorruptSentinels, g.OnlyOnExtremeSentinels))
+        .ToArray();
 
     private static PlanetProfileTables? ProfileTables(GcBiomeFileList files, GcBiomeListPerStarType biomes, Func<string, NMSTemplate?> decode)
     {

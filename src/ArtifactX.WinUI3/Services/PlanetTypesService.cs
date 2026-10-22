@@ -100,6 +100,11 @@ public static class PlanetTypesService
         return index >= 0 && index < all.Length ? all[index] : null;
     }
 
+    /// <summary>The game's English text for a scanner hint that isn't an item
+    /// ("UI_BUGS_HINT" - "Vile Brood Detected"), or null.</summary>
+    public static string? HintName(string id) =>
+        _profileTables?.HintNames is { } names && names.TryGetValue(id, out var name) ? name : null;
+
     private static (ulong Portal, int Galaxy) Portal(ulong system) =>
         ((((system >> 40) & 0xFFF) << 32) | (system & 0xFFFFFFFF), (int)((system >> 32) & 0xFF));
 

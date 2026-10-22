@@ -24,7 +24,23 @@ public sealed record PlanetProfileTables(
     float[] FloraChance,
     float[] AbandonedFloraChance,
     float[] FaunaChance,
-    SentinelTables Sentinels);
+    SentinelTables Sentinels,
+    HintGroup[]? HintGroups = null,
+    Dictionary<string, string>? HintNames = null);
+
+/// <summary>
+/// One of biomefilenames' OptionalExternalObjectLists that is always placed with all its
+/// options (active chance 1, files to choose = options), so its scanner hints are certain:
+/// each biome's farm plant (PLANT_LUSH = Star Bulb...) and swamp bugs. Matched to the
+/// planet's biome as the game sees it there - Swamp and Lava subtypes count as the Swamp
+/// and Lava types, which is why swamp lush worlds have no Star Bulb (records 2026-10-22:
+/// plants 731 of 737, swamp bugs 19 of 19). Groups with a chance (bones, scrap, bugs
+/// elsewhere) or conditions not worked out here (deep water, scrap worlds) are left out.
+/// </summary>
+/// <param name="Biome">GcBiomeType, 16 = any.</param>
+public sealed record HintGroup(int Biome, string[] Hints, bool NotOnInfested, bool OnlyOnInfested, bool NotOnStartPlanets,
+    bool NotOnDeadPlanets, bool NotOnWeirdPlanets, bool NotOnExtremePlanets, bool NotOnGasGiant,
+    bool OnlyOnExtremeWeather, bool OnlyOnCorruptSentinels, bool OnlyOnExtremeSentinels);
 
 /// <summary>A weather type's storm odds (GcWeatherProperties LowStormsChance, HighStormsChance).</summary>
 public sealed record StormChance(float Low, float High);
@@ -43,8 +59,9 @@ public sealed record SentinelTables(
 /// <param name="Flora">Life level, 0 none to 3 full (the game words it with a random adjective); Fauna likewise.</param>
 /// <param name="Sentinels">Per difficulty slot (GcCombatTimerDifficultyOption order, 2 = normal):
 /// 0 low, 1 normal, 2 aggressive, 3 corrupted (dissonant).</param>
+/// <param name="Hints">Certain scanner hints (ResourceHint ids, e.g. PLANT_DUST, UI_BUGS_HINT); see HintGroup.</param>
 public sealed record PlanetProfile(string Common, string Uncommon, string Rare, int WeatherType, bool Extreme, int Storms,
-    int Flora, int Fauna, int[] Sentinels);
+    int Flora, int Fauna, int[] Sentinels, string[] Hints);
 
 /// <summary>
 /// A planet's resources, weather, life and sentinels from its seed - a port of NMS.exe's
@@ -130,7 +147,35 @@ public static class PlanetProfileGenerator
                 ? (0.15f > f ? t.MiningBiome[Swamp] : 0.33f > f ? t.MiningBiome[16] : 0.66f > f ? t.MiningBiome[0] : t.MiningBiome[Swamp])
                 : t.MiningBiome[Math.Clamp(biome, 0, t.MiningBiome.Length - 1)];
         string common = extreme ? t.MiningStarExtreme[star] : t.MiningStar[star];
-        return new PlanetProfile(common, uncommon, t.MiningRare[rareIndex], weather, extreme, storms, flora, fauna, sentinels);
+        return new PlanetProfile(common, uncommon, t.MiningRare[rareIndex], weather, extreme, storms, flora, fauna, sentinels,
+            Hints(t, biome, subType, planetClass, extreme, sentinels));
+    }
+
+    private const int Infested = 0x18, AnyBiome = 16;
+
+    /// <summary>The certain scanner hints (HintGroup), in list order.</summary>
+    private static string[] Hints(PlanetProfileTables t, int biome, int subType, int planetClass, bool extreme, int[] sentinels)
+    {
+        if (t.HintGroups is not { } groups) return Array.Empty<string>();
+        int seen = subType == SwampSub ? Swamp : subType == LavaSub ? Lava : biome;
+        bool infested = subType == Infested;
+        int sentinel = sentinels.Length > 2 ? sentinels[2] : 1;
+        var hints = new List<string>();
+        foreach (var g in groups)
+        {
+            if (g.Biome != AnyBiome && g.Biome != seen) continue;
+            if ((g.NotOnInfested && infested) || (g.OnlyOnInfested && !infested)) continue;
+            if (g.NotOnStartPlanets && planetClass == 1) continue;
+            if (g.NotOnDeadPlanets && biome == Dead) continue;
+            if (g.NotOnWeirdPlanets && biome == Weird) continue;
+            if (g.NotOnExtremePlanets && extreme) continue;
+            if (g.NotOnGasGiant && biome == GasGiant) continue;
+            if (g.OnlyOnExtremeWeather && !extreme) continue;
+            if (g.OnlyOnCorruptSentinels && sentinel != 3) continue;
+            if (g.OnlyOnExtremeSentinels && sentinel < 2) continue;
+            foreach (var h in g.Hints) if (!hints.Contains(h)) hints.Add(h);
+        }
+        return hints.ToArray();
     }
 
     /// <summary>The life step (0x1416956c0): flora, fauna, a resource draw, then sentinels.</summary>
