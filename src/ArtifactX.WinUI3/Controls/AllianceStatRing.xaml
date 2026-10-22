@@ -19,8 +19,12 @@
         </StackPanel>
         <Grid Grid.Column="1" Width="78" Height="78">
             <Ellipse Fill="{ThemeResource ThemeVoidBrush}" Stroke="{ThemeResource ThemeLineBrush}" StrokeThickness="2"/>
-            <Ellipse Margin="5" Stroke="{ThemeResource ThemeAccentBrush}" StrokeThickness="3"/>
-            <FontIcon Glyph="{x:Bind Stat.Glyph, Mode=OneWay}" FontSize="28" Foreground="{ThemeResource ThemeTextBrush}"/>
+            <!-- A plain ring: the game's arc is the alliance's progress to its next class, which
+                 isn't in the save (server-side) - a full accent ring would read as 100% (#29). -->
+            <Ellipse Margin="5" Stroke="{ThemeResource ThemeTextDimBrush}" StrokeThickness="2" Opacity="0.6"/>
+            <Viewbox Width="34" Height="34">
+                <PathIcon Data="{x:Bind Stat.Icon, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}"/>
+            </Viewbox>
         </Grid>
         <StackPanel x:Name="RightText" Grid.Column="2" VerticalAlignment="Center" Spacing="0">
             <TextBlock Text="{x:Bind Stat.Label, Mode=OneWay}" FontSize="15" Foreground="{ThemeResource ThemeAccentBrush}"/>

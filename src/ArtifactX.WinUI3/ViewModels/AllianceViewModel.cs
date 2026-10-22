@@ -9,10 +9,14 @@ namespace ArtifactX.WinUI3.ViewModels;
 
 /// <summary>One of the five stats a Galactic Alliance is graded on, as the player's own
 /// lifetime count, with what makes up the number and how to raise it.</summary>
-public sealed class AllianceStatViewModel(string label, string glyph, int value, string breakdown, string howTo)
+public sealed class AllianceStatViewModel(string label, string iconData, int value, string breakdown, string howTo)
 {
     public string Label { get; } = label;
-    public string Glyph { get; } = glyph;
+
+    /// <summary>A new Geometry on every read: one Geometry can't be shown by two elements (the
+    /// ring and the card each bind it). Made in code - a keyed Geometry resource crashes WinUI.</summary>
+    public Microsoft.UI.Xaml.Media.Geometry Icon =>
+        (Microsoft.UI.Xaml.Media.Geometry)Microsoft.UI.Xaml.Markup.XamlBindingHelper.ConvertValue(typeof(Microsoft.UI.Xaml.Media.Geometry), iconData);
     public string Value { get; } = value.ToString("N0");
     public string Breakdown { get; } = breakdown;
     public bool HasBreakdown => Breakdown.Length > 0;
@@ -69,20 +73,20 @@ public sealed partial class AllianceViewModel : ObservableObject
 
         Stats =
         [
-            new("Systems Discovered", "", Stat("^DISC_SYSTEMS"),
+            new("Systems Discovered", ArtifactX.WinUI3.Resources.NavIconGeometries.Planets, Stat("^DISC_SYSTEMS"),
                 Parts(("rare", "^DISC_RARE_SYS"), ("abandoned", "^DISC_ABAND"), ("pirate", "^PIRATE_SYSTEMS")),
                 "Warp to systems nobody has named yet - Near Core and Planet Finder list the ones within your hyperdrive range."),
-            new("Plants Discovered", "", Stat("^DISC_FLORA"),
+            new("Plants Discovered", ArtifactX.WinUI3.Resources.NavIconGeometries.Plant, Stat("^DISC_FLORA"),
                 Parts(("lush", "^DIS_FLORA_LUSH"), ("toxic", "^DIS_FLORA_TOXIC"), ("hot", "^DIS_FLORA_HOT"), ("frozen", "^DIS_FLORA_FROZ"),
                       ("radioactive", "^DIS_FLORA_RADIO"), ("barren", "^DIS_FLORA_BARR"), ("volcanic", "^DIS_FLORA_LAVA"), ("swamp", "^DIS_FLORA_SWAMP"), ("exotic", "^DIS_FLORA_WEIRD")),
                 "Scan plants on planets you haven't finished - Current System shows how many each planet has left."),
-            new("Minerals Discovered", "", Stat("^DISC_MINERALS"), "",
+            new("Minerals Discovered", ArtifactX.WinUI3.Resources.NavIconGeometries.Crystal, Stat("^DISC_MINERALS"), "",
                 "Scan rocks and crystals with your analysis visor on planets you haven't finished."),
-            new("Creatures Discovered", "", Stat("^DISC_CREATURES"),
+            new("Creatures Discovered", ArtifactX.WinUI3.Resources.NavIconGeometries.Companions, Stat("^DISC_CREATURES"),
                 Parts(("on land", "^DISC_CRE_LAND"), ("flying", "^DISC_CRE_AIR"), ("in water", "^DISC_CRE_WATER"), ("in caves", "^DISC_CRE_CAVE"),
                       ("robotic", "^DISC_CRE_ROBOT"), ("exotic", "^DISC_CRE_WEIRD")),
                 "Scan creatures on planets where the fauna count isn't complete - Current System shows found / total for each planet."),
-            new("Stations Claimed", "", Stat("^STATIONS_OWNED"), "",
+            new("Stations Claimed", ArtifactX.WinUI3.Resources.NavIconGeometries.SpaceStations, Stat("^STATIONS_OWNED"), "",
                 "Claim stations - Space Stations lists your claims in progress. Each claim keeps 123 build parts you can never remove; clear its default furniture to save the rest."),
         ];
         (Systems, Plants, Minerals, Creatures, Stations) = (Stats[0], Stats[1], Stats[2], Stats[3], Stats[4]);

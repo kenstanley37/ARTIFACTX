@@ -100,10 +100,12 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="viewmodels:AllianceStatViewModel">
-                        <Border Width="340" Style="{StaticResource ThemeCardStyle}">
+                        <Border Width="340" Style="{StaticResource ThemeCardStyle}" Padding="16,12">
                             <StackPanel Spacing="6">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
+                                    <Viewbox Width="18" Height="18" VerticalAlignment="Center">
+                                        <PathIcon Data="{x:Bind Icon}" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                    </Viewbox>
                                     <TextBlock Text="{x:Bind Label}" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
                                     <TextBlock Text="{x:Bind Value}" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
@@ -117,7 +119,7 @@
             </ItemsControl>
 
             <!-- The author's own alliance, which advertises the app (#29). -->
-            <Border Style="{StaticResource ThemeCardStyle}" MaxWidth="720" HorizontalAlignment="Left">
+            <Border Style="{StaticResource ThemeCardStyle}" MaxWidth="720" HorizontalAlignment="Left" Padding="16,12">
                 <StackPanel Spacing="6">
                     <TextBlock Text="JOIN THE ARTIFACTX ALLIANCE" Style="{StaticResource ThemeEyebrowStyle}"/>
                     <TextBlock Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" TextWrapping="Wrap"
