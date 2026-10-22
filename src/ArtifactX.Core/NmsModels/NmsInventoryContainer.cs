@@ -181,12 +181,24 @@ public class NmsInventoryContainer
     public static readonly string[] FreighterTypePath = { "vLc", "6f=", "bIR", "93M" };
     public static readonly string[] FreighterModelSeedPath = { "vLc", "6f=", "bIR", "@EL", "1" };
 
-    /// <summary>The freighter's engine flare (GcPlayerStateData.FreighterEngineEffect), e.g.
-    /// "^RED" (Crimson) or "^TURQUOISE" (Hadal) - found by applying the Hadal flare in the
-    /// freighter's Customisation and saving (Slot 8, 2026-10-22: "^RED" -> "^TURQUOISE"). The
-    /// unlockable flares are the FREI_TRAIL_* items. Custom paint is a separate record:
-    /// character customisation entry 15 (l:j).</summary>
+    /// <summary>The freighter's engine flare (GcPlayerStateData.FreighterEngineEffect). Each of the
+    /// game's seven was applied in the freighter's Customisation and saved, one at a time (Slot 8,
+    /// 2026-10-22) - see FreighterEngineEffects. The unlockable ones are the FREI_TRAIL_* items.
+    /// Custom paint is a separate record: character customisation entry 15 (l:j).</summary>
     public static readonly string[] FreighterEngineEffectPath = { "vLc", "6f=", "1@y" };
+
+    /// <summary>The engine flares in the game's menu order: its name, the value the save keeps,
+    /// and the trail item that unlocks it (null: Standard needs none). Every value confirmed in game.</summary>
+    public static readonly (string Name, string Value, string? UnlockItem)[] FreighterEngineEffects =
+    {
+        ("Standard", "^DEFAULT", null),
+        ("Emeril", "^GREEN", "FREI_TRAIL_GRE"),
+        ("Gravity Drive", "^BLACKHOLE", "FREI_TRAIL_GRAV"),
+        ("Golden", "^YELLOW", "FREI_TRAIL_YEL"),
+        ("Antimatter", "^PURPLE", "FREI_TRAIL_PUR"),
+        ("Hadal", "^TURQUOISE", "FREI_TRAIL_TUR"),
+        ("Crimson", "^RED", "FREI_TRAIL_RED"),
+    };
 
     /// <summary>The freighter's "Home Seed" - a top-level [bool, hex] pair
     /// directly under the freighter object (same shape as Model Seed's
