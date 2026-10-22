@@ -65,6 +65,15 @@ public sealed partial class BaseRowViewModel : ObservableObject
 
     public bool HasPicture => Picture is not null;
 
+    /// <summary>What the picture area says while there's no picture: how to get one where the
+    /// game takes one (Capture New Base Screenshot at a base computer or station core).</summary>
+    public string PicturePlaceholder => Kind switch
+    {
+        BaseKind.Planet or BaseKind.Station or BaseKind.Freighter or BaseKind.SpaceBase =>
+            "No picture yet - in game, choose Capture New Base Screenshot at its base computer or station core",
+        _ => "No picture",
+    };
+
     public bool Matches(string search) =>
         search.Length == 0
         || Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)

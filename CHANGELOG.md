@@ -55,6 +55,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Parts the game places itself (freighter bridge connectors, station cores) have plain names instead of made-up ones.
 - Inventory **Sort** put some building parts with the maps.
 - Space Stations: a station you renamed also shows the game's name for it, the only name the game's teleporter and alliance lists use.
+- Bases and Parts: cards without a picture keep the picture space, with a note on how to take one in game, so every card lines up.
 - Bases and Parts: claimed stations show how many of their parts are removable and unremovable (the 123-part structure every station keeps, which still counts toward the build limit).
 - Bases and Parts says how many parts clearing your claimed stations' default furniture would free, and clears it from all of them in one go. Only the furniture every claim comes with goes; stations' structure and anything you built or moved stay.
 - The title bar shows the open save's name next to its slot ("Slot 8 · DELETEME").
