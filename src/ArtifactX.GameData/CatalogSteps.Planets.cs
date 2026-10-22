@@ -16,6 +16,8 @@ public static partial class CatalogSteps
     private const string BiomeArchiveFile = "METADATA/SIMULATION/SOLARSYSTEM/BIOMES/BIOMEFILENAMESARCHIVE.MBIN";
     private const string WeatherListFile = "METADATA/SIMULATION/SOLARSYSTEM/WEATHER/WEATHERLIST.MBIN";
     private const string CreatureDataFile = "METADATA/SIMULATION/ECOSYSTEM/CREATUREGENERATIONDATA.MBIN";
+    private const string VoxelSettingsFile = "METADATA/SIMULATION/SOLARSYSTEM/VOXELGENERATORSETTINGS.MBIN";
+    private const string BuildingTableFile = "METADATA/SIMULATION/ENVIRONMENT/PLANETBUILDINGTABLE.MBIN";
 
     /// <summary>
     /// What planets are generated from (2026-10-22, ArtifactX.Core PlanetGenerator and
@@ -27,7 +29,9 @@ public static partial class CatalogSteps
     /// - "PLANETPROFILE": JSON in the shape of Core's PlanetProfileTables - mined resources
     ///   (gcterrainglobals), extreme weather odds (gcsolargenerationglobals), each biome
     ///   file's weather weights, each weather type's storm odds (weatherlist.mbin), life
-    ///   odds and sentinel odds (gcgameplayglobals).
+    ///   odds and sentinel odds (gcgameplayglobals), scrapyard density (planetbuildingtable.mbin),
+    ///   and what the terrain and object steps read (voxelgeneratorsettings.mbin, each biome
+    ///   file's terrain chances and object lists, biomefilenames' common and optional lists).
     /// </summary>
     public static void AddPlanetGeneration(string catalogPath, string pcbanksPath)
     {
@@ -77,11 +81,10 @@ public static partial class CatalogSteps
             rows.Add(new CatalogItem { GameId = "BIOMETABLES", NameEnglish = "BiomeTables", DescriptionEnglish = JsonSerializer.Serialize(tables) });
 
             var details = ProfileTables(files, biomes, Decode);
-            if (details is not null)
+            if (details?.Objects is { } objects)
             {
-                var groups = HintGroups(files);
-                var keys = groups.SelectMany(g => g.Hints).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                details = details with { HintGroups = groups, HintNames = EnglishTexts(index, extraction, keys) };
+                var keys = objects.Groups.SelectMany(g => g.Files).Select(f => f.Hint).Where(h => h.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                details = details with { HintNames = EnglishTexts(index, extraction, keys) };
             }
             if (details is null) ConsoleStyle.Warning("Planet detail tables not found - planet resources and weather left out.");
             else rows.Add(new CatalogItem { GameId = "PLANETPROFILE", NameEnglish = "PlanetProfileTables", DescriptionEnglish = JsonSerializer.Serialize(details) });
@@ -91,18 +94,38 @@ public static partial class CatalogSteps
         ConsoleStyle.Success($"Wrote the planet generation tables to {catalogPath}.");
     }
 
-    /// <summary>The optional object lists whose hints are certain (Core HintGroup): always
-    /// active, every option placed, at least one hint.</summary>
-    private static HintGroup[] HintGroups(GcBiomeFileList files) => (files.OptionalExternalObjectLists ?? new())
-        .Where(g => g.ProbabilityOfBeingActive >= 1f && g.ExternalObjectFiles is { Count: > 0 } options
-            && g.MinFilesToChoose >= options.Count
-            && !g.OnlyOnDeepWater && !g.OnlyOnScrapWorlds && !g.NotOnScrapWorlds
-            && options.Any(o => !string.IsNullOrEmpty(o.ResourceHint?.Value)))
-        .Select(g => new HintGroup((int)g.OnlyOnBiome.Biome,
-            g.ExternalObjectFiles.Select(o => o.ResourceHint?.Value ?? "").Where(h => h.Length > 0).Distinct().ToArray(),
-            g.NotOnInfested, g.OnlyOnInfested, g.NotOnStartPlanets, g.NotOnDeadPlanets, g.NotOnWeirdPlanets,
-            g.NotOnExtremePlanets, g.NotOnGasGiant, g.OnlyOnExtremeWeather, g.OnlyOnCorruptSentinels, g.OnlyOnExtremeSentinels))
-        .ToArray();
+    private static ObjectList Objects(GcExternalObjectListOptions o) => new(o.Name?.Value ?? "", o.Order, o.Probability,
+        (int)o.TileType.TileType, o.Options?.Count ?? 0, o.ResourceHint?.Value ?? "");
+
+    private static ObjectGroup Group(GcExternalObjectFileList g)
+    {
+        var rules = ObjectGroupRules.None;
+        void Rule(bool on, ObjectGroupRules rule) { if (on) rules |= rule; }
+        Rule(g.NotOnDeadPlanets, ObjectGroupRules.NotOnDeadPlanets); Rule(g.NotOnExtremePlanets, ObjectGroupRules.NotOnExtremePlanets);
+        Rule(g.NotOnGasGiant, ObjectGroupRules.NotOnGasGiant); Rule(g.NotOnInfested, ObjectGroupRules.NotOnInfested);
+        Rule(g.NotOnScrapWorlds, ObjectGroupRules.NotOnScrapWorlds); Rule(g.NotOnStartPlanets, ObjectGroupRules.NotOnStartPlanets);
+        Rule(g.NotOnWeirdPlanets, ObjectGroupRules.NotOnWeirdPlanets); Rule(g.OnlyOnCorruptSentinels, ObjectGroupRules.OnlyOnCorruptSentinels);
+        Rule(g.OnlyOnDeepWater, ObjectGroupRules.OnlyOnDeepWater); Rule(g.OnlyOnExtremeSentinels, ObjectGroupRules.OnlyOnExtremeSentinels);
+        Rule(g.OnlyOnExtremeWeather, ObjectGroupRules.OnlyOnExtremeWeather); Rule(g.OnlyOnInfested, ObjectGroupRules.OnlyOnInfested);
+        Rule(g.OnlyOnScrapWorlds, ObjectGroupRules.OnlyOnScrapWorlds);
+        return new ObjectGroup(g.Id?.Value ?? "", (g.ExternalObjectFiles ?? new()).Select(Objects).ToArray(), g.MinFilesToChoose, g.MaxFilesToChoose,
+            (int)g.OnlyOnBiome.Biome, g.ProbabilityOfBeingActive, g.SubBiomeProbability?.ToArray() ?? Array.Empty<float>(), rules);
+    }
+
+    /// <summary>The terrain step's inputs (Core TerrainTables): each voxelgeneratorsettings entry's
+    /// Min layers and caves, gcterrainglobals' index ranges and sea levels.</summary>
+    private static TerrainTables? Terrain(GcTerrainGlobals terrain, Func<string, NMSTemplate?> decode)
+    {
+        if (decode(VoxelSettingsFile) is not libMBIN.NMS.Toolkit.TkVoxelGeneratorSettingsArray voxel) return null;
+        var settings = voxel.TerrainSettings.Select(e => new TerrainSetting(
+            e.Min.NoiseLayers.Select(l => l.Active).ToArray(),
+            e.Min.NoiseLayers.Select(l => (int)l.VoxelType.NoiseVoxelType).ToArray(),
+            e.Min.Features.Select(f => f.Active).ToArray(),
+            e.Min.Caves.Length > 0 && e.Min.Caves[0].Mouth.Active)).ToArray();
+        return new TerrainTables(settings, terrain.TerrainPrimeIndexStart, terrain.TerrainPurpleSystemIndexStart,
+            terrain.DebugLockTerrainSettingsIndex, terrain.SeaLevelMoon, terrain.SeaLevelGasGiant, terrain.SeaLevelWaterWorld,
+            terrain.SeaLevelHigh, terrain.SeaLevelStandard, terrain.PurpleSystemMaxHighWaterChance, terrain.ForcePurpleSystemHighWater);
+    }
 
     private static PlanetProfileTables? ProfileTables(GcBiomeFileList files, GcBiomeListPerStarType biomes, Func<string, NMSTemplate?> decode)
     {
@@ -115,23 +138,28 @@ public static partial class CatalogSteps
 
         static string[] Ids(IEnumerable<libMBIN.NMS.NMSString0x10>? list) => (list ?? Enumerable.Empty<libMBIN.NMS.NMSString0x10>()).Select(s => s?.Value ?? "").ToArray();
 
-        // Each biome file's weather weights, by type and subtype (a file shared by several
-        // options is read once).
-        var cache = new Dictionary<string, float[][]?>(StringComparer.OrdinalIgnoreCase);
+        // Each biome file's weather weights and object data, by type and subtype (a file
+        // shared by several options is read once).
+        var cache = new Dictionary<string, GcBiomeData?>(StringComparer.OrdinalIgnoreCase);
         var weather = new float[][]?[files.BiomeFiles.Length][];
+        var objects = new BiomeObjects?[files.BiomeFiles.Length][];
         for (int b = 0; b < weather.Length; b++)
         {
             var options = files.BiomeFiles[b].FileOptions ?? new();
             int subTypes = options.Count == 0 ? 0 : options.Max(o => (int)o.SubType.BiomeSubType) + 1;
             weather[b] = new float[][]?[subTypes];
+            objects[b] = new BiomeObjects?[subTypes];
             foreach (var o in options)
             {
                 string path = o.Filename?.Value ?? "";
-                if (!cache.TryGetValue(path, out var weights))
-                    cache[path] = weights = decode(path) is GcBiomeData data
-                        ? data.WeatherOptions.Select(w => w.WeatherWeightings.ToArray()).ToArray()
-                        : null;
-                weather[b][(int)o.SubType.BiomeSubType] = weights;
+                if (!cache.TryGetValue(path, out var data)) cache[path] = data = decode(path) as GcBiomeData;
+                if (data is null) continue;
+                int sub = (int)o.SubType.BiomeSubType;
+                weather[b][sub] = data.WeatherOptions.Select(w => w.WeatherWeightings.ToArray()).ToArray();
+                var t = data.Terrain;
+                objects[b][sub] = new BiomeObjects(t.WaterActiveFrequency, t.HighWaterActiveFrequency, t.RockTileFrequency,
+                    t.SubstanceTileFrequency, t.NoiseLayers.ToArray(), t.Features.ToArray(), t.Caves.Length > 0 ? t.Caves[0] : 0f,
+                    (data.ExternalObjectLists ?? new()).Select(Objects).ToArray());
             }
         }
         var storms = weatherList.Table.Select(path => decode(path?.Value ?? "") is GcWeatherProperties p
@@ -147,6 +175,14 @@ public static partial class CatalogSteps
             new SentinelTables(gameplay.LowSentinelProbability, gameplay.AggressiveSentinelProbability,
                 gameplay.LowSentinelProbabilitySurvival, gameplay.AggressiveSentinelProbabilitySurvival,
                 gameplay.NonAggressiveLushSurvivalProbabability, gameplay.ViciousSentinelProbability,
-                gameplay.CorruptSentinelProbability, (int)solar.CorruptSentinelBuildingCheckDifficulty.CombatTimerDifficultyOption));
+                gameplay.CorruptSentinelProbability, (int)solar.CorruptSentinelBuildingCheckDifficulty.CombatTimerDifficultyOption),
+            Terrain(terrain, decode) is { } terrainTables
+                ? new ObjectTables(objects, (files.CommonExternalObjectLists ?? new()).Select(Objects).ToArray(),
+                    (files.OptionalExternalObjectLists ?? new()).Select(Group).ToArray(), terrainTables)
+                : null,
+            ScrapYardDensity: decode(BuildingTableFile) is GcBuildingDefinitionTable buildings
+                && (int)GcBuildingClassification.BuildingClassEnum.ScrapYard < buildings.BuildingPlacement.Length
+                ? buildings.BuildingPlacement[(int)GcBuildingClassification.BuildingClassEnum.ScrapYard].Density.ToArray()
+                : null);
     }
 }

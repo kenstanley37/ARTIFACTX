@@ -25,8 +25,9 @@ public sealed record BiomeTables(
     BiomeFileOption[][]? ArchiveFiles = null);
 
 /// <summary>A body's type (GcBiomeType) and subtype (GcBiomeSubType), in save order, and
-/// its class (GcPlanetClass: 1 the safe start planet).</summary>
-public sealed record PlanetType(int Biome, int SubType, int Class = 0);
+/// its class (GcPlanetClass: 1 the safe start planet). BodyClass: size 0-2, 3 moon, 4 giant;
+/// Prime: one of the system's prime bodies; DeadToWeird: a dead world turned weird.</summary>
+public sealed record PlanetType(int Biome, int SubType, int Class = 0, int BodyClass = 0, bool Prime = false, bool DeadToWeird = false);
 
 /// <summary>
 /// Planet and moon types from a system's address, without visiting it - a port of
@@ -103,6 +104,7 @@ public static class PlanetGenerator
         var biome = new int[total];
         var sub = new int[total];
         var kinds = new int[total];
+        var weirded = new bool[total];
 
         // Layout draws.
         var rng = Rng.Start(address);
@@ -170,6 +172,7 @@ public static class PlanetGenerator
                 if (biome[i] != Dead) continue;
                 if (!(t.ConvertDeadToWeird > Rng.Fraction(weird.Next()))) continue;
                 biome[i] = Weird;
+                weirded[i] = true;
                 var options = t.Files[Weird];
                 uint word = weird.Next();
                 if (options.Length > 0) sub[i] = options[(int)(((ulong)word * (ulong)options.Length) >> 32)].SubType;
@@ -193,7 +196,7 @@ public static class PlanetGenerator
             sub[i] = SubType(ref p, t.Files[pick], Archive(t, pick), star, false);
         }
 
-        return biome.Select((b, i) => new PlanetType(b, sub[i], kinds[i])).ToArray();
+        return biome.Select((b, i) => new PlanetType(b, sub[i], kinds[i], cls[i], i >= primary, weirded[i])).ToArray();
     }
 
     private static float Sum(float[] weights, int count)

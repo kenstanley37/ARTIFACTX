@@ -90,7 +90,7 @@ public static class PlanetTypesService
                 var attributes = SystemGenerator.Attributes(portal, galaxy);
                 var seeds = SystemGenerator.Bodies(portal, galaxy).PlanetSeeds;
                 for (int i = 0; i < types.Length && i < seeds.Length; i++)
-                    profiles[i] = PlanetProfileGenerator.Generate(seeds[i], i, types[i].Biome, types[i].SubType, types[i].Class,
+                    profiles[i] = PlanetProfileGenerator.Generate(seeds[i], i, types[i],
                         (int)attributes.Star, PlanetGenerator.GalaxyType(galaxy), attributes.GasGiantPlanet, tables);
             }
             catch { /* leave the rest unknown */ }
