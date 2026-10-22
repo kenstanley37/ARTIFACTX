@@ -16,6 +16,19 @@ namespace ArtifactX.WinUI3.Services;
 /// </summary>
 public static class StatBonusService
 {
+    /// <summary>The base stats each kind of equipment shows (details card, template preview).</summary>
+    public static readonly (string Label, string Key)[] MultiToolStats = { ("Damage", "^WEAPON_DAMAGE"), ("Mining", "^WEAPON_MINING"), ("Scanner", "^WEAPON_SCAN") };
+    public static readonly (string Label, string Key)[] ShipStats = { ("Damage", "^SHIP_DAMAGE"), ("Shield", "^SHIP_SHIELD"), ("Hyperdrive", "^SHIP_HYPERDRIVE"), ("Maneuverability", "^SHIP_AGILE") };
+    public static readonly (string Label, string Key)[] FreighterStats = { ("Hyperdrive", "^FREI_HYPERDRIVE"), ("Fleet Coordination", "^FREI_FLEET") };
+
+    /// <summary>The base stats for a template's SourceKind ("MultiTool", "Ship", "Freighter").</summary>
+    public static (string Label, string Key)[] StatsFor(string sourceKind) => sourceKind switch
+    {
+        "Ship" => ShipStats,
+        "Freighter" => FreighterStats,
+        _ => MultiToolStats,
+    };
+
     public static double? Read(string[] bonusesPath, string key) =>
         (SaveSessionManager.GetValue(bonusesPath) as JArray)?
             .FirstOrDefault(b => b["QL1"]?.Value<string>() == key)?[">MX"]?.Value<double>();

@@ -569,7 +569,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
     /// which is exactly why these need their own editable fields - changing
     /// Class alone doesn't touch them.</summary>
     /// <summary>The Base Stats boxes: the stat-bonus entries this page shows.</summary>
-    private static readonly (string Label, string Key)[] BaseStats = { ("Damage", "^SHIP_DAMAGE"), ("Shield", "^SHIP_SHIELD"), ("Hyperdrive", "^SHIP_HYPERDRIVE"), ("Maneuverability", "^SHIP_AGILE") };
+    private static readonly (string Label, string Key)[] BaseStats = StatBonusService.ShipStats;
 
     private void UpdateStatDisplay()
     {

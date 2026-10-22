@@ -283,7 +283,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     /// Multi-Tool's OsQ.@bB, confirmed by real save data and cross-checked
     /// against a reference tool's own "Hyperdrive"/"Fleet Coordination" Base Stats.</summary>
     /// <summary>The Base Stats boxes: the stat-bonus entries this page shows.</summary>
-    private static readonly (string Label, string Key)[] BaseStats = { ("Hyperdrive", "^FREI_HYPERDRIVE"), ("Fleet Coordination", "^FREI_FLEET") };
+    private static readonly (string Label, string Key)[] BaseStats = StatBonusService.FreighterStats;
 
     private void UpdateStatDisplay()
     {
@@ -398,8 +398,15 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
             var add = new Button { Content = "Add as my freighter", VerticalAlignment = VerticalAlignment.Center };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(add, $"Add {template.Name} as my freighter");
             add.Click += async (_, _) => await AddFreighterAsync(template);
-            Grid.SetColumn(add, 1);
-            row.Children.Add(add);
+            // See what it holds before adding it (#24).
+            var preview = new Button { Content = "Preview", VerticalAlignment = VerticalAlignment.Center };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(preview, $"Preview {template.Name}");
+            preview.Click += async (_, _) => await TemplatePreview.ShowAsync(XamlRoot, template);
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+            buttons.Children.Add(preview);
+            buttons.Children.Add(add);
+            Grid.SetColumn(buttons, 1);
+            row.Children.Add(buttons);
             AddFreighterListPanel.Children.Add(row);
         }
     }

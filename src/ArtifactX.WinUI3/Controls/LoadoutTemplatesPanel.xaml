@@ -45,6 +45,8 @@
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <Button Content="Apply" Click="ApplyTechStack_Click" FontSize="11" Padding="8,3,8,3"
                                             AutomationProperties.Name="{x:Bind ApplyName}"/>
+                                    <Button Content="Preview" Click="Preview_Click" FontSize="11" Padding="8,3,8,3"
+                                            AutomationProperties.Name="{x:Bind PreviewName}" ToolTipService.ToolTip="See what this template holds before using it"/>
                                     <Button Content="Share..." Click="Share_Click" FontSize="11" Padding="8,3,8,3"
                                             ToolTipService.ToolTip="Save this template as a file - to give to a friend, or to keep as a backup"/>
                                     <Button Content="Delete" Click="Delete_Click" FontSize="11" Padding="8,3,8,3"
@@ -82,6 +84,8 @@
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <Button Content="{x:Bind FullBuildAction}" Click="UseFullBuild_Click" FontSize="11" Padding="8,3,8,3"
                                             ToolTipService.ToolTip="{x:Bind FullBuildTip}" AutomationProperties.Name="{x:Bind FullBuildActionName}"/>
+                                    <Button Content="Preview" Click="Preview_Click" FontSize="11" Padding="8,3,8,3"
+                                            AutomationProperties.Name="{x:Bind PreviewName}" ToolTipService.ToolTip="See what this template holds before using it"/>
                                     <Button Content="Share..." Click="Share_Click" FontSize="11" Padding="8,3,8,3"
                                             ToolTipService.ToolTip="Save this template as a file - to give to a friend, or to keep as a backup"/>
                                     <Button Content="Delete" Click="Delete_Click" FontSize="11" Padding="8,3,8,3"

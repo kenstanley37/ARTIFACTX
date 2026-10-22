@@ -85,6 +85,11 @@ public sealed partial class LoadoutTemplatesPanel : UserControl
         if (Host is not null && RowOf(sender) is { } row) await Host.UseFullBuildAsync(row.Template);
     }
 
+    private async void Preview_Click(object sender, RoutedEventArgs e)
+    {
+        if (RowOf(sender) is { } row) await TemplatePreview.ShowAsync(XamlRoot, row.Template);
+    }
+
     private async void Share_Click(object sender, RoutedEventArgs e)
     {
         if (RowOf(sender) is { } row) await TemplateSharingService.ExportAsync((Button)sender, row.Template);
