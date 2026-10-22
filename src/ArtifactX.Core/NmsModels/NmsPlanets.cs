@@ -25,6 +25,10 @@ public sealed record KnownPlanet(
     /// <summary>Where this planet was read from, e.g. "Slot 3" - set by
     /// callers that merge several saves; empty for the loaded save.</summary>
     public string Source { get; init; } = "";
+
+    /// <summary>Not in the save: a body nobody has discovered here yet, its type worked
+    /// out by the game's own generator (PlanetGenerator).</summary>
+    public bool Predicted { get; init; }
 }
 
 /// <summary>One star system the save knows about: every discovery record

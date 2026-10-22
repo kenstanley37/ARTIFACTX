@@ -25,7 +25,14 @@ public sealed record SystemAttributes(
     SystemRace Race,     // None when uncharted
     bool Uncharted,
     bool Abandoned,
-    bool Pirate);
+    bool Pirate)
+{
+    /// <summary>A gas-giant system whose first body is itself the gas giant (and six
+    /// prime bodies) - the inner 66% roll. Without it a gas-giant system still lays its
+    /// moons around the first body, but that body's type is picked as usual
+    /// (NMS.exe attribute output +0x2d vs +0x2c, 2026-10-22).</summary>
+    public bool GasGiantPlanet { get; init; }
+}
 
 public sealed record VoxelAttributes(int GuideStarCount, int BlackHoleCount, int AtlasStationCount, int InsideGap, int GuideStarRenegadeCount);
 
@@ -192,7 +199,7 @@ public static class SystemGenerator
         if (diffCount < 1) primeCount = 0;
         else if (rng.Next(100) >= 33 || diffCount < 2) primeCount = 1;
 
-        bool gasGiant = false;
+        bool gasGiant = false, gasGiantPlanet = false;
         if (starType == 4)
         {
             primeCount += planetCount;
@@ -202,6 +209,7 @@ public static class SystemGenerator
                 gasGiant = true;
                 if (rng.Next(100) < 66)
                 {
+                    gasGiantPlanet = true;
                     planetCount = 0;
                     primeCount = 6;
                 }
@@ -217,7 +225,7 @@ public static class SystemGenerator
         }
 
         return new SystemAttributes(planetCount, primeCount, safeStart, gasGiant, (StarColour)starType,
-            (SystemEconomy)economy, wealth, conflict, (SystemRace)race, uncharted, abandoned, pirate);
+            (SystemEconomy)economy, wealth, conflict, (SystemRace)race, uncharted, abandoned, pirate) { GasGiantPlanet = gasGiantPlanet };
     }
 
     // ------------------------------------------------------------------ planets and moons
