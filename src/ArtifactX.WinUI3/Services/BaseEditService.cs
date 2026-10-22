@@ -3,6 +3,7 @@ using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
 
 namespace ArtifactX.WinUI3.Services;
@@ -76,21 +77,30 @@ public static class BaseEditService
             .ToList();
 
     /// <summary>Removes the default furniture from these stations, found again in the loaded save
-    /// (SameBase); structure, moved pieces and anything built stay. Returns how many parts went.</summary>
-    public static int ClearStationDefaultFurniture(IReadOnlyCollection<JObject> stations)
+    /// (SameBase); structure, moved pieces and anything built stay. The matching runs off the UI
+    /// thread (5,000+ parts on a big save) and the edits are staged in one go. Returns how many
+    /// parts went.</summary>
+    public static async Task<int> ClearStationDefaultFurnitureAsync(IReadOnlyCollection<JObject> stations)
     {
         if (stations.Count == 0 || SaveSessionManager.GetValue(S.BasesPath) is not JArray current) return 0;
-        int removed = 0;
-        for (int i = 0; i < current.Count; i++)
+        var (edits, removed) = await Task.Run(() =>
         {
-            if (current[i] is not JObject b || !stations.Any(s => SameBase(b, s)) || b["@ZJ"] is not JArray parts) continue;
-            var defaults = S.MatchDefaultFurniture(parts);
-            if (defaults.Count == 0) continue;
-            SaveSessionManager.StageEdit(new JArray(parts.Where(p => p is not JObject o || !defaults.Contains(o))),
-                S.BasesPath.Append(i.ToString(CultureInfo.InvariantCulture)).Append("@ZJ").ToArray());
-            removed += defaults.Count;
-        }
-        if (removed > 0) Changed();
+            var list = new List<(JToken? Value, string[] Path)>();
+            int count = 0;
+            for (int i = 0; i < current.Count; i++)
+            {
+                if (current[i] is not JObject b || !stations.Any(s => SameBase(b, s)) || b["@ZJ"] is not JArray parts) continue;
+                var defaults = S.MatchDefaultFurniture(parts);
+                if (defaults.Count == 0) continue;
+                list.Add((new JArray(parts.Where(p => p is not JObject o || !defaults.Contains(o))),
+                    S.BasesPath.Append(i.ToString(CultureInfo.InvariantCulture)).Append("@ZJ").ToArray()));
+                count += defaults.Count;
+            }
+            return (list, count);
+        });
+        if (edits.Count == 0) return 0;
+        SaveSessionManager.StageEdits(edits);
+        Changed();
         return removed;
     }
 

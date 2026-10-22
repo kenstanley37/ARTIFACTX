@@ -97,6 +97,13 @@ public sealed partial class BaseSectionViewModel : ObservableObject
     public partial int FreeableParts { get; private set; }
 
     public bool ShowFreeable => Kind == BaseKind.Station && FreeableParts > 0;
+
+    /// <summary>Clearing is running and has taken more than a second: a spinner shows.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanClear))]
+    public partial bool IsClearing { get; set; }
+
+    public bool CanClear => !IsClearing;
     public string FreeableText => FurnishedStations.Count == 1
         ? $"About {FreeableParts:N0} parts can be freed by clearing the default furniture from 1 claimed station - the sofas, lights, planters and crates every claim comes with. Its structure and anything you built stay."
         : $"About {FreeableParts:N0} parts can be freed by clearing the default furniture from {FurnishedStations.Count:N0} claimed stations - the sofas, lights, planters and crates every claim comes with. Their structure and anything you built stay.";

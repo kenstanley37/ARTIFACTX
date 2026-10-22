@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
@@ -140,7 +141,16 @@ public sealed partial class BasesPage : Page
             $"This removes the default furniture from {Count(stations.Count, "claimed station")} - only the pieces every claim comes with, where the claim put them. Each station's structure, anything you moved and anything you built stay, and so do your directorships.",
             stations.Select(s => $"{s.Name} · {s.Count:N0}").ToList());
         if (!confirmed) return;
-        if (BaseEditService.ClearStationDefaultFurniture(stations.Select(s => s.Base).ToList()) == 0) return;
+        // A big save has 5,000+ parts to match: the spinner shows if it takes over a second.
+        var work = ClearAndRebuildAsync(stations.Select(s => s.Base).ToList());
+        if (await Task.WhenAny(work, Task.Delay(1000)) != work) section.IsClearing = true;
+        try { await work; }
+        finally { section.IsClearing = false; }
+    }
+
+    private async Task ClearAndRebuildAsync(List<JObject> stations)
+    {
+        if (await BaseEditService.ClearStationDefaultFurnitureAsync(stations) == 0) return;
         _lastKey = "";
         await BuildAsync(LiveSaveWatcher.FromSession());
     }

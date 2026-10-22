@@ -178,6 +178,10 @@ public static class SaveSessionManager
     public static bool? GetBool(params string[] path) => _session?.GetBool(MapToActiveContext(path));
 
     public static void StageEdit(JToken? newValue, params string[] path) => _session?.StageEdit(newValue, MapToActiveContext(path));
+
+    /// <summary>Several edits, one change notice (see SaveEditSession.StageEdits).</summary>
+    public static void StageEdits(IEnumerable<(JToken? Value, string[] Path)> edits) =>
+        _session?.StageEdits(edits.Select(e => (e.Value, MapToActiveContext(e.Path))).ToList());
     public static void RevertEdit(params string[] path) => _session?.RevertEdit(MapToActiveContext(path));
     public static bool HasStagedEdit(params string[] path) => _session?.HasStagedEdit(MapToActiveContext(path)) ?? false;
     public static bool HasStagedEditsUnder(params string[] pathPrefix) => _session?.HasStagedEditsUnder(MapToActiveContext(pathPrefix)) ?? false;
