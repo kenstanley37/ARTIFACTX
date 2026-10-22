@@ -15,9 +15,11 @@ public sealed record FrigateSummary(int Index, string CustomName, string Role, s
 /// </summary>
 public static class FrigateService
 {
-    /// <summary>The 11 stat slots in GcFrigateStatType order.</summary>
+    /// <summary>The 11 stat slots in GcFrigateStatType order, in the game's words where it shows
+    /// them - the frigate screen reads Combat, Exploration, Industrial, Trade (enum Mining and
+    /// Diplomatic; checked against SS-2 Ujimitam on Slot 8, 2026-10-22: 21 / 1 / 2 / 2).</summary>
     public static readonly string[] StatNames =
-        { "Combat", "Exploration", "Mining", "Diplomatic", "Fuel Burn Rate", "Fuel Capacity", "Speed", "Extra Loot", "Repair", "Invulnerable", "Stealth" };
+        { "Combat", "Exploration", "Industrial", "Trade", "Fuel Burn Rate", "Fuel Capacity", "Speed", "Extra Loot", "Repair", "Invulnerable", "Stealth" };
 
     public static bool HasFreighter() =>
         !string.IsNullOrEmpty(SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>());
