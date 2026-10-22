@@ -54,6 +54,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - A base's own page shows its picture faded in behind the header again.
 - Parts the game places itself (freighter bridge connectors, station cores) have plain names instead of made-up ones.
 - Inventory **Sort** put some building parts with the maps.
+- The title bar shows the open save's name next to its slot ("Slot 8 · DELETEME").
 - The region a system is in (as the game's Galaxy Map names it) now shows on Space Stations (current station, claims in progress, station details), settlement cards and the Finds "you are here" line.
 - Space Stations: after Claim Station, the "save your changes" line was missing and Reset Station Changes couldn't undo the claim.
 - Space Stations: right after you claim a station, it offers to clear the default furniture the station came with - about 140 parts that count toward your 21,000 build limit. Only that default furniture goes; the station's structure stays, and anything you build later is managed on Bases and Parts.
