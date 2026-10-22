@@ -131,12 +131,12 @@ public sealed partial class BasesPage : Page
         await BuildAsync(LiveSaveWatcher.FromSession());
     }
 
-    private async void ClearAllFurniture_Click(object sender, RoutedEventArgs e)
+    private async void Section_ClearFurnitureRequested(object? sender, BaseSectionViewModel section)
     {
-        var stations = ViewModel.FurnishedStations;
+        var stations = section.FurnishedStations;
         if (stations.Count == 0) return;
         bool confirmed = await DeleteConfirmation.ShowListAsync(XamlRoot,
-            $"Clear {ViewModel.FreeableParts:N0} pieces of default furniture?",
+            $"Clear {section.FreeableParts:N0} pieces of default furniture?",
             $"This removes the default furniture from {Count(stations.Count, "claimed station")} - only the pieces every claim comes with, where the claim put them. Each station's structure, anything you moved and anything you built stay, and so do your directorships.",
             stations.Select(s => $"{s.Name} · {s.Count:N0}").ToList());
         if (!confirmed) return;

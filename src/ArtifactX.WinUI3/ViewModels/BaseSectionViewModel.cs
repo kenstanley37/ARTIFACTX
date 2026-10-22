@@ -1,5 +1,6 @@
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -86,6 +87,26 @@ public sealed partial class BaseSectionViewModel : ObservableObject
             _ => shown.Count == 1 ? "1 object placed outside a base" : $"{shown.Count:N0} objects placed outside bases",
         };
         OnPropertyChanged(nameof(ShowEmpty));
+    }
+
+    /// <summary>Stations still holding the default furniture every claim comes with (#28).</summary>
+    public IReadOnlyList<(JObject Base, string Name, int Count)> FurnishedStations { get; private set; } = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowFreeable), nameof(FreeableText), nameof(ClearAllLabel))]
+    public partial int FreeableParts { get; private set; }
+
+    public bool ShowFreeable => Kind == BaseKind.Station && FreeableParts > 0;
+    public string FreeableText => FurnishedStations.Count == 1
+        ? $"About {FreeableParts:N0} parts can be freed by clearing the default furniture from 1 claimed station - the sofas, lights, planters and crates every claim comes with. Its structure and anything you built stay."
+        : $"About {FreeableParts:N0} parts can be freed by clearing the default furniture from {FurnishedStations.Count:N0} claimed stations - the sofas, lights, planters and crates every claim comes with. Their structure and anything you built stay.";
+    public string ClearAllLabel => $"Clear default furniture from all stations ({FreeableParts:N0} parts)";
+
+    public void ShowFurnished(List<(JObject Base, string Name, int Count)> stations)
+    {
+        FurnishedStations = stations;
+        FreeableParts = -1; // always notify: the station list can change at the same total
+        FreeableParts = stations.Sum(s => s.Count);
     }
 
     public void SelectAll()

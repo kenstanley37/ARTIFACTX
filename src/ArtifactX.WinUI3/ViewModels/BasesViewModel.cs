@@ -59,25 +59,9 @@ public sealed partial class BasesViewModel : ObservableObject
     [ObservableProperty]
     public partial string PartsBreakdown { get; private set; } = "";
 
-    /// <summary>Stations still holding the default furniture every claim comes with (#28).</summary>
-    public IReadOnlyList<(JObject Base, string Name, int Count)> FurnishedStations { get; private set; } = [];
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowFreeable), nameof(FreeableText), nameof(ClearAllLabel))]
-    public partial int FreeableParts { get; private set; }
-
-    public bool ShowFreeable => FreeableParts > 0;
-    public string FreeableText => FurnishedStations.Count == 1
-        ? $"About {FreeableParts:N0} parts can be freed by clearing the default furniture from 1 claimed station - the sofas, lights, planters and crates every claim comes with. Its structure and anything you built stay."
-        : $"About {FreeableParts:N0} parts can be freed by clearing the default furniture from {FurnishedStations.Count:N0} claimed stations - the sofas, lights, planters and crates every claim comes with. Their structure and anything you built stay.";
-    public string ClearAllLabel => $"Clear default furniture from all stations ({FreeableParts:N0} parts)";
-
-    public void ShowFurnished(List<(JObject Base, string Name, int Count)> stations)
-    {
-        FurnishedStations = stations;
-        FreeableParts = -1; // always notify: the station list can change at the same total
-        FreeableParts = stations.Sum(s => s.Count);
-    }
+    /// <summary>Stations still holding default furniture - shown in the claimed stations section (#28).</summary>
+    public void ShowFurnished(List<(JObject Base, string Name, int Count)> stations) =>
+        Sections.First(s => s.Kind == BaseKind.Station).ShowFurnished(stations);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelection), nameof(DeleteLabel))]
