@@ -135,9 +135,6 @@
                                                 <!-- The main model's kind comes from the seed (MultiToolKinds). -->
                                                 <TextBlock x:Name="KindTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"/>
                                             </StackPanel>
-                                            <Button Content="Delete this Multi-Tool..." Click="DeleteToolBtn_Click" VerticalAlignment="Bottom"
-                                                    Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
-                                                    ToolTipService.ToolTip="Remove this Multi-Tool from the save. You can keep it as a template first."/>
                                         </ctcontrols:WrapPanel>
                                     </StackPanel>
                                     <StackPanel x:Name="ToolPreviewGroup" Width="420" Spacing="6" Visibility="Collapsed">
@@ -146,6 +143,8 @@
                                         <TextBlock x:Name="ToolPreviewNote" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </ctcontrols:WrapPanel>
+                                <!-- Destructive, so out of the way: always the card's bottom right (user, 2026-10-22). -->
+                                <Button HorizontalAlignment="Right" Content="Delete this Multi-Tool..." Click="DeleteToolBtn_Click" Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}" ToolTipService.ToolTip="Remove this Multi-Tool from the save. You can keep it as a template first."/>
                             </StackPanel>
                         </controls:FoldingCard>
                     </Border>

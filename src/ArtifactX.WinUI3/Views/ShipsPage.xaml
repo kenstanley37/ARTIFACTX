@@ -136,9 +136,6 @@
                                                               SelectionChanged="TypeComboBox_SelectionChanged"
                                                               ToolTipService.ToolTip="The ship's model. Changing it swaps the hull you fly in-game."/>
                                                 </StackPanel>
-                                                <Button Content="Delete this ship..." Click="DeleteShipBtn_Click" Margin="0,4,0,0"
-                                                        Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
-                                                        ToolTipService.ToolTip="Remove this ship from the save. You can keep it as a template first."/>
                                             </StackPanel>
 
                                             <!-- How it looks -->
@@ -171,6 +168,8 @@
                                     </StackPanel>
 
                                 </ctcontrols:WrapPanel>
+                                <!-- Destructive, so out of the way: always the card's bottom right (user, 2026-10-22). -->
+                                <Button HorizontalAlignment="Right" Content="Delete this ship..." Click="DeleteShipBtn_Click" Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}" ToolTipService.ToolTip="Remove this ship from the save. You can keep it as a template first."/>
                             </StackPanel>
                         </controls:FoldingCard>
                     </Border>
