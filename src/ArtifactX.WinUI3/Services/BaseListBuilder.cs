@@ -35,7 +35,8 @@ public sealed record BaseListEntry(
     int Galaxy,
     ulong Address,
     string ScreenshotName,
-    string? PlacedItemId);
+    string? PlacedItemId,
+    int Locked = 0);
 
 public sealed record BaseList(int PartsTotal, int PartsLevel, string PartsBreakdown, IReadOnlyList<BaseListEntry> Entries);
 
@@ -156,6 +157,10 @@ public static class BaseListBuilder
                 : k == BaseKind.Station ? "Space station" : "Space base";
             double? distance = Distance(address);
             int parts = counts.GetValueOrDefault(b);
+            // A claimed station's structure (connectors, core, paragon - 123 parts) counts toward
+            // the build limit but the game won't let anyone remove it (tested 2026-10-21).
+            int locked = k == BaseKind.Station
+                ? (b["@ZJ"] as JArray)?.Count(o => BasePartNames.IsBuiltIn(o["r<7"]?.Value<string>() ?? "")) ?? 0 : 0;
             entries.Add(new BaseListEntry(k, name,
                 Detail: k switch
                 {
@@ -174,11 +179,11 @@ public static class BaseListBuilder
                     _ => $"Claimed station in {UniverseInfo.SystemName(address)} ({UniverseInfo.RaceLabel(address)}).",
                 },
                 AreaRecorded: true,
-                Parts: parts, PartsLabel: $"{parts:N0} parts placed",
+                Parts: parts, PartsLabel: k == BaseKind.Station ? $"{parts:N0} parts placed · {parts - locked:N0} removable · {locked:N0} unremovable" : $"{parts:N0} parts placed",
                 PartsLevel: NmsBuildCounts.UploadLevel(parts),
                 Base: b, LooseObject: null,
                 SortDistance: distance ?? double.MaxValue, Galaxy: galaxy, Address: address,
-                ScreenshotName: name, PlacedItemId: null));
+                ScreenshotName: name, PlacedItemId: null, Locked: locked));
         }
 
         // A settlement isn't a base entry: its card gathers the parts on its planet -

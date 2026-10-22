@@ -3,6 +3,7 @@ using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
 
 namespace ArtifactX.WinUI3.Services;
@@ -62,6 +63,45 @@ public static class BaseEditService
             return kept;
         }
         return null;
+    }
+
+    /// <summary>Claimed stations still holding default furniture (the 137 pieces every claim
+    /// comes with, matched by kind and position - NmsSpaceStationPaths.MatchDefaultFurniture),
+    /// with how many each has. Anything moved or built is never counted (#28).</summary>
+    public static List<(JObject Base, string Name, int Count)> StationsWithDefaultFurniture(JArray? bases) =>
+        (bases ?? new JArray()).OfType<JObject>()
+            .Where(b => b["peI"]?["DPp"]?.Value<string>() == S.PlayerStationBaseType && b["@ZJ"] is JArray)
+            .Select(b => (Base: b, Name: b["NKm"]?.Value<string>() ?? "Space station", Count: S.MatchDefaultFurniture((JArray)b["@ZJ"]!).Count))
+            .Where(s => s.Count > 0)
+            .OrderByDescending(s => s.Count).ThenBy(s => s.Name, System.StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+    /// <summary>Removes the default furniture from these stations, found again in the loaded save
+    /// (SameBase); structure, moved pieces and anything built stay. The matching runs off the UI
+    /// thread (5,000+ parts on a big save) and the edits are staged in one go. Returns how many
+    /// parts went.</summary>
+    public static async Task<int> ClearStationDefaultFurnitureAsync(IReadOnlyCollection<JObject> stations)
+    {
+        if (stations.Count == 0 || SaveSessionManager.GetValue(S.BasesPath) is not JArray current) return 0;
+        var (edits, removed) = await Task.Run(() =>
+        {
+            var list = new List<(JToken? Value, string[] Path)>();
+            int count = 0;
+            for (int i = 0; i < current.Count; i++)
+            {
+                if (current[i] is not JObject b || !stations.Any(s => SameBase(b, s)) || b["@ZJ"] is not JArray parts) continue;
+                var defaults = S.MatchDefaultFurniture(parts);
+                if (defaults.Count == 0) continue;
+                list.Add((new JArray(parts.Where(p => p is not JObject o || !defaults.Contains(o))),
+                    S.BasesPath.Append(i.ToString(CultureInfo.InvariantCulture)).Append("@ZJ").ToArray()));
+                count += defaults.Count;
+            }
+            return (list, count);
+        });
+        if (edits.Count == 0) return 0;
+        SaveSessionManager.StageEdits(edits);
+        Changed();
+        return removed;
     }
 
     // The live snapshot no longer matches the loaded save; the next read takes the edited one.

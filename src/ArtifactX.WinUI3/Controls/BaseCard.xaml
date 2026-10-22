@@ -16,11 +16,21 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            <Border Height="170" CornerRadius="7,7,0,0" Visibility="{x:Bind Row.HasPicture, Mode=OneWay}">
-                <Border.Background>
-                    <ImageBrush ImageSource="{x:Bind Row.Picture, Mode=OneWay}" Stretch="UniformToFill"/>
-                </Border.Background>
-            </Border>
+            <!-- Always 170 px, picture or not, so the text lines up across a row of cards (user,
+                 2026-10-21); without a picture it says how to get one. -->
+            <Grid Height="170" CornerRadius="7,7,0,0" Background="{ThemeResource ThemeVoidBrush}">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8" Padding="24,0">
+                    <Image Source="{x:Bind Row.Icon}" Width="110" Height="110" Visibility="{x:Bind Row.ShowBigIcon}"/>
+                    <FontIcon Glyph="{x:Bind Row.PlaceholderGlyph}" FontSize="32" Foreground="{ThemeResource ThemeTextDimBrush}" Visibility="{x:Bind Row.ShowPlaceholderGlyph}"/>
+                    <TextBlock Text="{x:Bind Row.PicturePlaceholder, Mode=OneWay}" Visibility="{x:Bind Row.HasPicturePlaceholder}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                               TextWrapping="Wrap" TextAlignment="Center" MaxWidth="320"/>
+                </StackPanel>
+                <Border Visibility="{x:Bind Row.HasPicture, Mode=OneWay}">
+                    <Border.Background>
+                        <ImageBrush ImageSource="{x:Bind Row.Picture, Mode=OneWay}" Stretch="UniformToFill"/>
+                    </Border.Background>
+                </Border>
+            </Grid>
             <Grid Grid.Row="1" RowSpacing="8" Padding="16,12,16,12">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>

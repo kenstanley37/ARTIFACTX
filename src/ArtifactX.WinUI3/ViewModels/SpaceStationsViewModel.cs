@@ -255,7 +255,7 @@ public sealed partial class SpaceStationsViewModel : ObservableObject
             .ThenBy(o => o.Name, StringComparer.CurrentCultureIgnoreCase);
         foreach (var station in ordered)
         {
-            var tile = new StationTileViewModel(station, station.Address == overview.CurrentAddress)
+            var tile = new StationTileViewModel(station, station.Address == overview.CurrentAddress, overview.GameNameIfRenamed(station))
             {
                 IsSelected = station.Address == _selectedStationAddress,
             };
@@ -295,7 +295,7 @@ public sealed partial class SpaceStationsViewModel : ObservableObject
         }
         if (version != _detailsVersion) return; // a newer selection won
 
-        var details = new StationDetailsViewModel(station);
+        var details = new StationDetailsViewModel(station, _overview?.GameNameIfRenamed(station) ?? "");
         Details = details;
         details.Screenshot = await GetScreenshotAsync(station.Address, station.Name);
         details.ScreenshotLoaded = true;

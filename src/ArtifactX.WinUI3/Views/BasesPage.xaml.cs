@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
@@ -74,9 +75,10 @@ public sealed partial class BasesPage : Page
         var placedIds = snapshot.LooseObjects?.OfType<JObject>().Select(o => o["r<7"]?.Value<string>() ?? "").Where(id => id.Length > 0).ToList();
         if (placedIds is { Count: > 0 }) await CatalogService.WarmCacheAsync(placedIds);
 
-        var list = await Task.Run(() => BaseListBuilder.Build(snapshot, here));
+        var (list, furnished) = await Task.Run(() => (BaseListBuilder.Build(snapshot, here), BaseEditService.StationsWithDefaultFurniture(snapshot.Bases)));
         if (key != _lastKey) return; // a newer snapshot arrived meanwhile
         ViewModel.Show(list);
+        ViewModel.ShowFurnished(furnished);
         await ViewModel.LoadPicturesAsync(SaveSessionManager.ActivePlatformFolder);
     }
 
@@ -126,6 +128,29 @@ public sealed partial class BasesPage : Page
         bool changed = BaseEditService.RemoveBases(bases.Select(r => r.Base!).ToList());
         changed |= BaseEditService.RemoveLooseObjects(placed.Select(r => r.LooseObject!).ToList());
         if (!changed) return;
+        _lastKey = "";
+        await BuildAsync(LiveSaveWatcher.FromSession());
+    }
+
+    private async void Section_ClearFurnitureRequested(object? sender, BaseSectionViewModel section)
+    {
+        var stations = section.FurnishedStations;
+        if (stations.Count == 0) return;
+        bool confirmed = await DeleteConfirmation.ShowListAsync(XamlRoot,
+            $"Clear {section.FreeableParts:N0} pieces of default furniture?",
+            $"This removes the default furniture from {Count(stations.Count, "claimed station")} - only the pieces every claim comes with, where the claim put them. Each station's structure, anything you moved and anything you built stay, and so do your directorships.",
+            stations.Select(s => $"{s.Name} · {s.Count:N0}").ToList());
+        if (!confirmed) return;
+        // A big save has 5,000+ parts to match: the spinner shows if it takes over a second.
+        var work = ClearAndRebuildAsync(stations.Select(s => s.Base).ToList());
+        if (await Task.WhenAny(work, Task.Delay(1000)) != work) section.IsClearing = true;
+        try { await work; }
+        finally { section.IsClearing = false; }
+    }
+
+    private async Task ClearAndRebuildAsync(List<JObject> stations)
+    {
+        if (await BaseEditService.ClearStationDefaultFurnitureAsync(stations) == 0) return;
         _lastKey = "";
         await BuildAsync(LiveSaveWatcher.FromSession());
     }

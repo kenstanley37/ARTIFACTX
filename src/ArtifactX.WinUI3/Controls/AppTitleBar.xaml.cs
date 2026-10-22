@@ -197,9 +197,13 @@ public sealed partial class AppTitleBar : UserControl
             SaveSwitchFlash.Begin();
         _lastActiveLabel = currentLabel;
 
+        // The name the player gave the save (General page), so it's clear which save is
+        // open - "Slot 8 · DELETEME" (#26). Not part of the flash check: renaming isn't switching.
+        string saveName = SaveSessionManager.IsSaveLoaded && SaveSessionManager.GetString(NmsSaveHeader.SaveNamePath) is { Length: > 0 } n
+            ? $" · {n}" : "";
         ActiveSaveTxt.Text = currentLabel is null
             ? string.Empty
-            : SaveSessionManager.IsExpeditionActive ? $"•  {currentLabel} (Expedition)" : $"•  {currentLabel}";
+            : SaveSessionManager.IsExpeditionActive ? $"•  {currentLabel}{saveName} (Expedition)" : $"•  {currentLabel}{saveName}";
 
         if (!SaveSessionManager.IsSaveLoaded)
         {

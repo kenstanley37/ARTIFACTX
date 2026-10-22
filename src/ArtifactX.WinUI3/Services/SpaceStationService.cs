@@ -29,6 +29,17 @@ public sealed record StationOverview(
 
     public string StationName(ulong address) =>
         StationNames.TryGetValue(address, out var name) ? name : $"Station in {UniverseInfo.SystemName(address)}";
+
+    /// <summary>What the game calls a station the player directs, when the player renamed it -
+    /// the game's own lists (teleporter, alliance stations) only ever show this name, never the
+    /// rename (#27). The station's marker name, else its system ("Izawac VII system": not every
+    /// station has a marker). Empty when the station keeps its game name.</summary>
+    public string GameNameIfRenamed(OwnedStation station)
+    {
+        string game = StationNames.TryGetValue(station.Address, out var marker) ? marker : $"{UniverseInfo.SystemName(station.Address)} system";
+        return station.Name.StartsWith(UniverseInfo.SystemName(station.Address), StringComparison.CurrentCultureIgnoreCase)
+            || string.Equals(game, station.Name, StringComparison.CurrentCultureIgnoreCase) ? "" : game;
+    }
 }
 
 /// <summary>When a station's system was discovered (and by whom) and when it was claimed, as Unix seconds (0 = unknown).</summary>

@@ -65,6 +65,24 @@ public sealed partial class BaseRowViewModel : ObservableObject
 
     public bool HasPicture => Picture is not null;
 
+    /// <summary>What the picture area says while there's no picture: how to get one where the
+    /// game takes one (Capture New Base Screenshot at a base computer or station core).</summary>
+    public string PicturePlaceholder => Kind switch
+    {
+        BaseKind.Planet or BaseKind.Station or BaseKind.SpaceBase =>
+            "No picture yet - in game, choose Capture New Base Screenshot at its base computer or station core",
+        // The game takes no freighter picture; a 3D preview from its model is planned (#25).
+        BaseKind.Freighter => "Freighter picture coming - built from its model, like the Starships preview",
+        _ => "",
+    };
+
+    /// <summary>Settlements and loose objects never get a game picture: the picture area shows
+    /// the object's own icon large instead (a Geobay for a Geobay), or a settlement glyph.</summary>
+    public bool ShowBigIcon => Icon is not null;
+    public bool ShowPlaceholderGlyph => Icon is null;
+    public string PlaceholderGlyph => Kind == BaseKind.Settlement ? "" : "";
+    public bool HasPicturePlaceholder => PicturePlaceholder.Length > 0;
+
     public bool Matches(string search) =>
         search.Length == 0
         || Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)

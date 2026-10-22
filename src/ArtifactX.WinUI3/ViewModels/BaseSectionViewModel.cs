@@ -1,5 +1,6 @@
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -79,13 +80,40 @@ public sealed partial class BaseSectionViewModel : ObservableObject
         {
             BaseKind.Freighter => $"{parts:N0} parts placed",
             BaseKind.Planet => $"{parts:N0} parts placed across {shown.Count:N0} bases",
-            BaseKind.Station => $"{parts:N0} parts placed across {shown.Count:N0} stations",
+            BaseKind.Station => $"{parts:N0} parts placed across {shown.Count:N0} stations · {parts - shown.Sum(r => r.Entry.Locked):N0} removable · {shown.Sum(r => r.Entry.Locked):N0} unremovable (each station's structure)",
             BaseKind.Corvette => $"{parts:N0} parts placed across {shown.Count:N0} corvettes",
             BaseKind.SpaceBase => $"{parts:N0} parts placed across {shown.Count:N0} space bases",
             BaseKind.Settlement => shown.Count == 1 ? "1 settlement" : $"{shown.Count:N0} settlements",
             _ => shown.Count == 1 ? "1 object placed outside a base" : $"{shown.Count:N0} objects placed outside bases",
         };
         OnPropertyChanged(nameof(ShowEmpty));
+    }
+
+    /// <summary>Stations still holding the default furniture every claim comes with (#28).</summary>
+    public IReadOnlyList<(JObject Base, string Name, int Count)> FurnishedStations { get; private set; } = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowFreeable), nameof(FreeableText), nameof(ClearAllLabel))]
+    public partial int FreeableParts { get; private set; }
+
+    public bool ShowFreeable => Kind == BaseKind.Station && FreeableParts > 0;
+
+    /// <summary>Clearing is running and has taken more than a second: a spinner shows.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanClear))]
+    public partial bool IsClearing { get; set; }
+
+    public bool CanClear => !IsClearing;
+    public string FreeableText => FurnishedStations.Count == 1
+        ? $"About {FreeableParts:N0} parts can be freed by clearing the default furniture from 1 claimed station - the sofas, lights, planters and crates every claim comes with. Its structure and anything you built stay."
+        : $"About {FreeableParts:N0} parts can be freed by clearing the default furniture from {FurnishedStations.Count:N0} claimed stations - the sofas, lights, planters and crates every claim comes with. Their structure and anything you built stay.";
+    public string ClearAllLabel => $"Clear default furniture from all stations ({FreeableParts:N0} parts)";
+
+    public void ShowFurnished(List<(JObject Base, string Name, int Count)> stations)
+    {
+        FurnishedStations = stations;
+        FreeableParts = -1; // always notify: the station list can change at the same total
+        FreeableParts = stations.Sum(s => s.Count);
     }
 
     public void SelectAll()

@@ -3,6 +3,7 @@ using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -57,6 +58,10 @@ public sealed partial class BasesViewModel : ObservableObject
 
     [ObservableProperty]
     public partial string PartsBreakdown { get; private set; } = "";
+
+    /// <summary>Stations still holding default furniture - shown in the claimed stations section (#28).</summary>
+    public void ShowFurnished(List<(JObject Base, string Name, int Count)> stations) =>
+        Sections.First(s => s.Kind == BaseKind.Station).ShowFurnished(stations);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelection), nameof(DeleteLabel))]
