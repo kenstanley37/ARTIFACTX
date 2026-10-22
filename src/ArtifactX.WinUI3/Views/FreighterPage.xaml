@@ -6,11 +6,34 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Page.Resources>
+        <!-- A way to get a freighter on a save with none (AddFreighterChoiceViewModel): a starter
+             hull or a saved Full Build template, with Preview (templates) and Add as my freighter. -->
+        <DataTemplate x:Key="AddFreighterChoiceTemplate" x:DataType="viewmodels:AddFreighterChoiceViewModel">
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="2">
+                    <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" FontSize="13" TextWrapping="Wrap"/>
+                    <TextBlock Text="{x:Bind Detail}" FontSize="11" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Button Content="Preview" Click="AddFreighterPreview_Click" Visibility="{x:Bind CanPreview}" AutomationProperties.Name="{x:Bind PreviewName}"
+                            ToolTipService.ToolTip="See what this template holds before adding it"/>
+                    <Button Content="Add as my freighter" Click="AddFreighterChoice_Click" AutomationProperties.Name="{x:Bind AddName}"/>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+    </Page.Resources>
 
     <ScrollViewer>
         <!-- On the page's root element: AdaptiveTriggers attached to a nested
@@ -59,7 +82,13 @@
                         <TextBlock Text="START FRESH" Style="{StaticResource ThemeEyebrowStyle}"/>
                         <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
                                    Text="A brand-new freighter, just like the game gives you: C class, a hyperdrive and scanner, the starter interior and a random look. Build it up yourself - change its look, class and tech once it's yours."/>
-                        <StackPanel x:Name="StarterListPanel" Spacing="10"/>
+                        <ItemsControl x:Name="StarterList" ItemTemplate="{StaticResource AddFreighterChoiceTemplate}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="10"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
                     </StackPanel>
                 </Border>
 
@@ -71,7 +100,14 @@
                                    Text="Freighter Full Build templates - yours, or one a friend shared. Save one from a save that has the freighter you want (Freighter page, Full Build, Save Current...)."/>
                         <Button Content="Import a template file..." Click="AddFreighterImport_Click" HorizontalAlignment="Left"/>
                         <TextBlock x:Name="AddFreighterStatusTxt" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"/>
-                        <StackPanel x:Name="AddFreighterListPanel" Spacing="10"/>
+                        <TextBlock x:Name="NoFreighterTemplatesTxt" Text="No freighter templates yet." FontSize="12" Style="{StaticResource ThemeDimTextStyle}" Visibility="Collapsed"/>
+                        <ItemsControl x:Name="AddFreighterList" ItemTemplate="{StaticResource AddFreighterChoiceTemplate}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="10"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
                     </StackPanel>
                 </Border>
             </StackPanel>
