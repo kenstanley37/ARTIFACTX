@@ -9,11 +9,13 @@ namespace ArtifactX.WinUI3.ViewModels;
 
 /// <summary>One planet's card on Current System: what the save knows (a label / value table -
 /// 2026-10-13: a stack of small dim lines was hard to read), its fish where there's water,
-/// a line of what you recorded, and its glyphs. "You found" and "Visited" update in place
+/// a line of what you recorded, and its glyphs. Weather, sentinels and resources come from
+/// the game's own generator (PlanetTypesService), for found and unfound bodies alike. "You found" and "Visited" update in place
 /// as you play, so the card doesn't redraw (no blink).</summary>
 public sealed partial class PlanetTileViewModel : ObservableObject
 {
-    public PlanetTileViewModel(KnownPlanet planet, bool here, IReadOnlyList<string> baseNames, PlanetFishViewModel? fish)
+    public PlanetTileViewModel(KnownPlanet planet, bool here, IReadOnlyList<string> baseNames, PlanetFishViewModel? fish,
+        IReadOnlyDictionary<string, string> itemNames)
     {
         Planet = planet;
         IsHere = here;
@@ -29,6 +31,12 @@ public sealed partial class PlanetTileViewModel : ObservableObject
         Bases = string.Join(", ", baseNames);
         FoundBy = planet.Predicted ? "Not discovered yet" : planet.DiscoveredHere ? "You" : planet.Discoverer;
         Fish = fish;
+        if (PlanetTypesService.Profile(planet.SystemAddress, planet.PlanetIndex) is { } profile)
+        {
+            Weather = PlanetText.Weather(profile);
+            Sentinels = PlanetText.Sentinels(profile);
+            Resources = string.Join(", ", PlanetText.Resources(profile, itemNames));
+        }
         string summary = PlanetText.CardSummary(details);
         DetailsSummary = summary.Length > 0 ? summary : "None yet - open the planet to add weather, sentinels, resources and notes.";
         HasDetails = summary.Length > 0;
@@ -45,6 +53,10 @@ public sealed partial class PlanetTileViewModel : ObservableObject
     public string Bases { get; }
     public bool HasBases => Bases.Length > 0;
     public string FoundBy { get; }
+    public string Weather { get; } = "";
+    public string Sentinels { get; } = "";
+    public string Resources { get; } = "";
+    public bool HasProfile => Weather.Length > 0;
     public PlanetFishViewModel? Fish { get; }
     public bool HasFish => Fish is not null;
     public string DetailsSummary { get; }

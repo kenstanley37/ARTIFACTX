@@ -295,7 +295,8 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         {
             var fish = _vocabulary is null ? null
                 : PlanetFishViewModel.For(p, _vocabulary.Fish, _caught, id => PlanetText.FishName(id, _vocabulary.ItemNames));
-            return new PlanetTileViewModel(p, p.PlanetIndex == CurrentPlanet, bases.GetValueOrDefault(p.PlanetIndex) ?? [], fish);
+            return new PlanetTileViewModel(p, p.PlanetIndex == CurrentPlanet, bases.GetValueOrDefault(p.PlanetIndex) ?? [], fish,
+                _vocabulary?.ItemNames ?? new Dictionary<string, string>());
         }).ToList();
         UpdateTiles();
         _ = RefreshPictureAsync();
