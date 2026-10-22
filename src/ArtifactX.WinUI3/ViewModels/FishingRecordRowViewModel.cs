@@ -14,6 +14,9 @@ public partial class FishingRecordRowViewModel : ObservableObject
     public required string GameId { get; init; }
     public required string DisplayName { get; init; }
 
+    /// <summary>A flotsam catch (coral, boot, bottle...) rather than a fish.</summary>
+    public bool IsFlotsam { get; init; }
+
     [ObservableProperty]
     private bool isCaught;
 

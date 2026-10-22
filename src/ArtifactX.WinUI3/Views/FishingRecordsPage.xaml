@@ -11,6 +11,30 @@
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
+    <Page.Resources>
+        <DataTemplate x:Key="RecordTileTemplate" x:DataType="viewmodels:FishingRecordRowViewModel">
+            <Border Width="300" Padding="10,8" CornerRadius="{ThemeResource ThemeCardCornerRadius}" BorderThickness="1"
+                    Tapped="Tile_Tapped" Tag="{x:Bind}"
+                    BorderBrush="{ThemeResource ThemeLineBrush}"
+                    Background="{x:Bind IsCaught, Mode=OneWay, Converter={StaticResource BoolToActiveBackgroundConverter}}">
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCaught, Mode=OneWay}" IsHitTestVisible="False" AutomationProperties.Name="{x:Bind DisplayName}"
+                              VerticalAlignment="Center" Padding="0" MinWidth="0"/>
+                    <Border Grid.Column="1" Width="28" Height="28" Background="{ThemeResource ThemeVoidBrush}" CornerRadius="4" VerticalAlignment="Center">
+                        <Image Source="{x:Bind Icon, Mode=OneWay}" Stretch="Uniform" Width="22" Height="22"/>
+                    </Border>
+                    <TextBlock Grid.Column="2" Text="{x:Bind DisplayName}" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxLines="2"/>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </Page.Resources>
+
     <Grid Padding="28,26,28,24" RowSpacing="18">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -85,36 +109,25 @@
                      doc comment for why: not virtualized, but ~210 rows is small
                      enough that this is a non-issue). -->
                 <ScrollViewer Grid.Row="2">
-                    <ItemsControl x:Name="ItemsListView">
+                  <StackPanel Spacing="14">
+                    <ItemsControl x:Name="ItemsListView" ItemTemplate="{StaticResource RecordTileTemplate}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="8"/>
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="viewmodels:FishingRecordRowViewModel">
-                                <Border Width="300" Padding="10,8" CornerRadius="{ThemeResource ThemeCardCornerRadius}" BorderThickness="1"
-                                        Tapped="Tile_Tapped" Tag="{x:Bind}"
-                                        BorderBrush="{ThemeResource ThemeLineBrush}"
-                                        Background="{x:Bind IsCaught, Mode=OneWay, Converter={StaticResource BoolToActiveBackgroundConverter}}">
-                                    <Grid ColumnSpacing="8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCaught, Mode=OneWay}" IsHitTestVisible="False" AutomationProperties.Name="{x:Bind DisplayName}"
-                                                  VerticalAlignment="Center" Padding="0" MinWidth="0"/>
-                                        <Border Grid.Column="1" Width="28" Height="28" Background="{ThemeResource ThemeVoidBrush}" CornerRadius="4" VerticalAlignment="Center">
-                                            <Image Source="{x:Bind Icon, Mode=OneWay}" Stretch="Uniform" Width="22" Height="22"/>
-                                        </Border>
-                                        <TextBlock Grid.Column="2" Text="{x:Bind DisplayName}" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"
-                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxLines="2"/>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
+
                     </ItemsControl>
+                    <!-- The game's own second list in Fishing Records: catches that aren't fish. -->
+                    <TextBlock x:Name="FlotsamHeader" Text="COLLECTED FLOTSAM" Style="{StaticResource ThemeEyebrowStyle}" Margin="0,6,0,0"/>
+                    <ItemsControl x:Name="FlotsamList" ItemTemplate="{StaticResource RecordTileTemplate}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="8"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                  </StackPanel>
                 </ScrollViewer>
             </Grid>
         </Grid>
