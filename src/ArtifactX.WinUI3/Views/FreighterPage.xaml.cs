@@ -187,11 +187,29 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     /// Custom colours the player picked in game are character-customisation entry 15 (l:j) -
     /// found by a paint diff on Slot 8, 2026-10-22: Paint/Alternative2 = accent, Freighter/
     /// Primary = secondary, Freighter/Alternative2 = primary.
-    private Task ShowFreighterPreviewAsync() => FreighterPreview.ShowAsync(
-        SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>(),
-        SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>(),
-        ModelPreviewService.StoredColours(SaveSessionManager.GetValue("vLc", "6f=", "l:j", "15", "wnR", "Aak")),
-        FlareColour(SaveSessionManager.GetValue(NmsInventoryContainer.FreighterEngineEffectPath)?.Value<string>()));
+    /// A Dreadnought's are kept in its own entry instead, tagged with its model ("@6c":
+    /// "^PIRATEFREIGHTER" in T>1, entry 23 on Slot 1) with PirateBase/PirateAlt palettes -
+    /// exactly what its textures ask for (2026-10-22).
+    private Task ShowFreighterPreviewAsync()
+    {
+        string? scene = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>();
+        return FreighterPreview.ShowAsync(
+            scene,
+            SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>(),
+            ModelPreviewService.StoredColours(CustomisationFor(scene)?["wnR"]?["Aak"]),
+            FlareColour(SaveSessionManager.GetValue(NmsInventoryContainer.FreighterEngineEffectPath)?.Value<string>()));
+    }
+
+    /// <summary>The customisation entry holding this freighter model's colours: the one tagged
+    /// with the model's name, else entry 15.</summary>
+    private static JToken? CustomisationFor(string? scene)
+    {
+        if (SaveSessionManager.GetValue("vLc", "6f=", "l:j") is not JArray entries) return null;
+        string model = "^" + System.IO.Path.GetFileName(scene ?? "").Split('.')[0];
+        return entries.FirstOrDefault(e => e["wnR"]?["T>1"] is JArray tags
+                && tags.Any(t => string.Equals(t["@6c"]?.ToString(), model, StringComparison.OrdinalIgnoreCase)))
+            ?? (entries.Count > 15 ? entries[15] : null);
+    }
 
     /// <summary>Each flare's glow, picked by eye from the game's Customisation screen (2026-10-22).</summary>
     private static uint FlareColour(string? value) => value?.ToUpperInvariant() switch

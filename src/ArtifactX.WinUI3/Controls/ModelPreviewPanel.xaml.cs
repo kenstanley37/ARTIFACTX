@@ -78,6 +78,12 @@ public sealed partial class ModelPreviewPanel : UserControl
         NoteTxt.Text = $"Shape scan - the parts are this {Subject}'s own, from its seed and your game files. Its colours show once you pick custom colours for it in game (Customisation). Drag to turn.";
     }
 
-    private static bool IsGlow(string material) =>
-        System.IO.Path.GetFileName(material).Contains("ENGINEGLOW", StringComparison.OrdinalIgnoreCase);
+    /// <summary>Engine glow: ENGINEGLOW materials, and a Dreadnought's thruster glow
+    /// (PIRATEFREIGHTERTHRUSTER0/REDGLOWGRAD_MAT).</summary>
+    private static bool IsGlow(string material)
+    {
+        string name = System.IO.Path.GetFileName(material);
+        return name.Contains("ENGINEGLOW", StringComparison.OrdinalIgnoreCase)
+            || (material.Contains("THRUSTER", StringComparison.OrdinalIgnoreCase) && name.Contains("GLOW", StringComparison.OrdinalIgnoreCase));
+    }
 }
