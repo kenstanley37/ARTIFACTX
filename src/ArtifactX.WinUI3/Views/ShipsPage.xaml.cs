@@ -12,6 +12,7 @@ using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Globalization;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -73,6 +74,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
         LiveItemsService.Changed += OnLiveItemsChanged;
+        SaveSessionManager.GameSavedLoadedSlot += OnGameSaved;
         Unloaded += Page_Unloaded;
 
         ShowFoldedName();
@@ -124,6 +126,42 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         SaveSessionManager.ActiveSessionChanged -= OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged -= OnSessionOrEditsChanged;
         LiveItemsService.Changed -= OnLiveItemsChanged;
+        SaveSessionManager.GameSavedLoadedSlot -= OnGameSaved;
+    }
+
+    /// <summary>What follows the game for the ship on screen (LiveFieldsService), with
+    /// the field that shows it. The class is kept on both inventories, so both class
+    /// fields come before the inventories - a class change flashes the class, not the
+    /// grids. The ship's customisation entry holds its paint and parts.</summary>
+    private (string[] Path, Func<UIElement> Field)[] LiveFields(int ship)
+    {
+        string i = ship.ToString(CultureInfo.InvariantCulture);
+        return new (string[], Func<UIElement>)[]
+        {
+            (new[] { "vLc", "6f=", "@Cs", i, "NKm" }, () => NameEditBox),
+            (new[] { "vLc", "6f=", "@Cs", i, "NTx", "93M" }, () => TypeComboBox),
+            (NmsInventoryContainer.ShipModelSeedPath(ship), () => SeedBox),
+            (NmsInventoryContainer.ShipTechnologyPath(ship).Append("B@N").Append("1o6").ToArray(), () => ClassPicker),
+            (NmsInventoryContainer.ShipCargoPath(ship).Append("B@N").Append("1o6").ToArray(), () => ClassPicker),
+            (NmsInventoryContainer.ShipStatBonusesPath(ship), () => StatsBoxes),
+            (NmsInventoryContainer.ShipTechnologyPath(ship), () => TechGrid),
+            (NmsInventoryContainer.ShipCargoPath(ship), () => CargoGrid),
+            (new[] { "vLc", "6f=", "l:j", NewFromTemplateService.ShipCustomisationIndex(ship).ToString(CultureInfo.InvariantCulture) }, () => PartsPanel),
+        };
+    }
+
+    /// <summary>The game saved: the ship on screen takes its values where nothing is
+    /// edited here, and each changed field pulses once - no reload (2026-10-22).</summary>
+    private void OnGameSaved(JObject disk)
+    {
+        if (_selectedIndex < 0) return;
+        var fields = LiveFields(_selectedIndex);
+        var changed = LiveFieldsService.Adopt(disk, fields.Select(f => f.Path),
+            fields.Where(f => f.Field() == TechGrid || f.Field() == CargoGrid).Select(f => f.Path).ToList());
+        if (changed.Count == 0) return;
+        LoadShipList();
+        foreach (var field in fields.Where(f => changed.Contains(f.Path)).Select(f => f.Field()).Distinct())
+            FieldHighlight.Flash(field);
     }
 
     private async Task<Dictionary<string, int>> GetShipCapacityAsync()

@@ -109,7 +109,8 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     {
         if (!FreighterService.HasFreighter()) return;
         var fields = LiveFields();
-        var changed = LiveFieldsService.Adopt(disk, fields.Select(f => f.Path));
+        var changed = LiveFieldsService.Adopt(disk, fields.Select(f => f.Path),
+            fields.Where(f => f.Field() == TechGrid || f.Field() == CargoGrid).Select(f => f.Path).ToList());
         if (changed.Count == 0) return;
         await LoadGridsAsync();
         foreach (var (path, field) in fields)

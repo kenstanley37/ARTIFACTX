@@ -1,5 +1,6 @@
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ArtifactX.WinUI3.Services;
 
@@ -13,8 +14,11 @@ namespace ArtifactX.WinUI3.Services;
 public static class LiveFieldsService
 {
     /// <summary>Takes the game's value for each path that differs and has no unsaved
-    /// edits, in order; returns the paths that changed. "vLc" paths, as AdoptFromGame.</summary>
-    public static List<string[]> Adopt(JObject disk, IEnumerable<string[]> paths)
+    /// edits, in order; returns the paths that changed. "vLc" paths, as AdoptFromGame.
+    /// An inventory (a path in <paramref name="inventories"/>) is still taken when only
+    /// charge levels moved - fuel and ammo change on nearly every save - but counts as
+    /// changed only when an item was added, removed or moved.</summary>
+    public static List<string[]> Adopt(JObject disk, IEnumerable<string[]> paths, ICollection<string[]>? inventories = null)
     {
         var changed = new List<string[]>();
         if (SaveSessionManager.IsMidExpedition(disk) != SaveSessionManager.IsExpeditionActive) return changed;
@@ -28,9 +32,18 @@ public static class LiveFieldsService
                     JObject obj => obj[key],
                     _ => null,
                 };
-            if (theirs is null || JToken.DeepEquals(theirs, SaveSessionManager.GetValue(path))) continue;
-            if (SaveSessionManager.AdoptFromGame(disk, path)) changed.Add(path);
+            var ours = SaveSessionManager.GetValue(path);
+            if (theirs is null || JToken.DeepEquals(theirs, ours)) continue;
+            bool shows = inventories?.Contains(path) != true || Layout(theirs) != Layout(ours);
+            if (SaveSessionManager.AdoptFromGame(disk, path) && shows) changed.Add(path);
         }
         return changed;
     }
+
+    /// <summary>What an inventory holds where: each slot's item id and position
+    /// (":No" slots, "b2n" id, "3ZH" position), plus its class.</summary>
+    private static string Layout(JToken? inventory) =>
+        inventory?["B@N"]?.ToString(Newtonsoft.Json.Formatting.None) + "|" + string.Join(";",
+            (inventory?[":No"] as JArray ?? new JArray()).Select(slot =>
+                $"{slot["b2n"]}@{slot["3ZH"]?[">Qh"]},{slot["3ZH"]?["XJ>"]}"));
 }

@@ -11,6 +11,7 @@ using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Globalization;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -68,6 +69,7 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
         LiveItemsService.Changed += OnLiveItemsChanged;
+        SaveSessionManager.GameSavedLoadedSlot += OnGameSaved;
         Unloaded += Page_Unloaded;
 
         LoadToolList();
@@ -87,6 +89,36 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
         if (list == LiveCollection.MultiTools) DispatcherQueue.TryEnqueue(() => LoadToolList(live: true));
     }
 
+    /// <summary>What follows the game for the tool on screen (LiveFieldsService), with
+    /// the field that shows it; the class and stats before the inventory holding them.</summary>
+    private (string[] Path, Func<UIElement> Field)[] LiveFields(int tool)
+    {
+        string i = tool.ToString(CultureInfo.InvariantCulture);
+        var tech = NmsInventoryContainer.MultiToolTechnologyPath(tool);
+        return new (string[], Func<UIElement>)[]
+        {
+            (new[] { "vLc", "6f=", "SuJ", i, "NKm" }, () => NameEditBox),
+            (new[] { "vLc", "6f=", "SuJ", i, "NTx" }, () => TypeComboBox),
+            (tech.Append("B@N").Append("1o6").ToArray(), () => ClassPicker),
+            (tech.Append("@bB").ToArray(), () => StatsBoxes),
+            (tech, () => TechGrid),
+        };
+    }
+
+    /// <summary>The game saved: the tool on screen takes its values where nothing is
+    /// edited here, and each changed field pulses once - no reload (2026-10-22).</summary>
+    private void OnGameSaved(JObject disk)
+    {
+        if (_selectedIndex < 0) return;
+        var fields = LiveFields(_selectedIndex);
+        var changed = LiveFieldsService.Adopt(disk, fields.Select(f => f.Path),
+            fields.Where(f => f.Field() == TechGrid).Select(f => f.Path).ToList());
+        if (changed.Count == 0) return;
+        LoadToolList();
+        foreach (var field in fields.Where(f => changed.Contains(f.Path)).Select(f => f.Field()).Distinct())
+            FieldHighlight.Flash(field);
+    }
+
     /// <summary>Without this, the constructor's subscriptions above never
     /// get released across page navigation (Frame.Navigate makes a fresh
     /// Page instance every visit, no NavigationCacheMode set anywhere in
@@ -99,6 +131,7 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
         SaveSessionManager.ActiveSessionChanged -= OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged -= OnSessionOrEditsChanged;
         LiveItemsService.Changed -= OnLiveItemsChanged;
+        SaveSessionManager.GameSavedLoadedSlot -= OnGameSaved;
     }
 
     private async Task<Dictionary<string, int>> GetMultiToolCapacityAsync()
