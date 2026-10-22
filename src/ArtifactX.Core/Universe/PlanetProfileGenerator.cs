@@ -25,22 +25,9 @@ public sealed record PlanetProfileTables(
     float[] AbandonedFloraChance,
     float[] FaunaChance,
     SentinelTables Sentinels,
-    HintGroup[]? HintGroups = null,
-    Dictionary<string, string>? HintNames = null);
-
-/// <summary>
-/// One of biomefilenames' OptionalExternalObjectLists that is always placed with all its
-/// options (active chance 1, files to choose = options), so its scanner hints are certain:
-/// each biome's farm plant (PLANT_LUSH = Star Bulb...) and swamp bugs. Matched to the
-/// planet's biome as the game sees it there - Swamp and Lava subtypes count as the Swamp
-/// and Lava types, which is why swamp lush worlds have no Star Bulb (records 2026-10-22:
-/// plants 731 of 737, swamp bugs 19 of 19). Groups with a chance (bones, scrap, bugs
-/// elsewhere) or conditions not worked out here (deep water, scrap worlds) are left out.
-/// </summary>
-/// <param name="Biome">GcBiomeType, 16 = any.</param>
-public sealed record HintGroup(int Biome, string[] Hints, bool NotOnInfested, bool OnlyOnInfested, bool NotOnStartPlanets,
-    bool NotOnDeadPlanets, bool NotOnWeirdPlanets, bool NotOnExtremePlanets, bool NotOnGasGiant,
-    bool OnlyOnExtremeWeather, bool OnlyOnCorruptSentinels, bool OnlyOnExtremeSentinels);
+    ObjectTables? Objects = null,
+    Dictionary<string, string>? HintNames = null,
+    float[]? ScrapYardDensity = null);
 
 /// <summary>A weather type's storm odds (GcWeatherProperties LowStormsChance, HighStormsChance).</summary>
 public sealed record StormChance(float Low, float High);
@@ -59,9 +46,11 @@ public sealed record SentinelTables(
 /// <param name="Flora">Life level, 0 none to 3 full (the game words it with a random adjective); Fauna likewise.</param>
 /// <param name="Sentinels">Per difficulty slot (GcCombatTimerDifficultyOption order, 2 = normal):
 /// 0 low, 1 normal, 2 aggressive, 3 corrupted (dissonant).</param>
-/// <param name="Hints">Certain scanner hints (ResourceHint ids, e.g. PLANT_DUST, UI_BUGS_HINT); see HintGroup.</param>
+/// <param name="ScrapWorld">Scrapyard planet (Salvageable Scrap on the scanner; no bones there).</param>
+/// <param name="Hints">Scanner hints (ResourceHint ids, e.g. PLANT_DUST, UI_BONES_HINT), in placing order.</param>
+/// <param name="Water">Has a sea (and so underwater objects).</param>
 public sealed record PlanetProfile(string Common, string Uncommon, string Rare, int WeatherType, bool Extreme, int Storms,
-    int Flora, int Fauna, int[] Sentinels, string[] Hints);
+    int Flora, int Fauna, int[] Sentinels, string[] Hints, bool ScrapWorld = false, bool Water = false);
 
 /// <summary>
 /// A planet's resources, weather, life and sentinels from its seed - a port of NMS.exe's
@@ -71,10 +60,11 @@ public sealed record PlanetProfile(string Common, string Uncommon, string Rare, 
 /// step (0x141696760) from child 12 and the resource step (0x141696dc0) from child 19.
 /// Checked against the game's own code run in an emulator (808 planets: sentinels 807,
 /// weather type 807, resources 803, the rest the emulator's own gaps) and against a real
-/// save's screen-reader records (extreme weather right on all but 5 of ~800).
+/// save's screen-reader records (extreme weather right on all but 5 of ~800). Terrain (child 4)
+/// and the placed objects behind scanner hints (child 7) are in PlanetProfileGenerator.Objects.cs.
 /// Left out: engine-state special cases (the player's start system, settlements, debug options).
 /// </summary>
-public static class PlanetProfileGenerator
+public static partial class PlanetProfileGenerator
 {
     private const ulong Multiplier = 0x5A76F899;
     private const double Fraction = 2.3283064370807974e-10;
@@ -121,17 +111,18 @@ public static class PlanetProfileGenerator
     }
 
     /// <param name="planetIndex">The body's 0-based index in its system (save planet index - 1).</param>
-    /// <param name="planetClass">GcPlanetClass from the planet's key (1 = the start planet).</param>
+    /// <param name="body">The body's type from PlanetGenerator (biome, the game's subtype - not the
+    /// save's -, class: 1 the start planet, body class, prime, dead turned weird).</param>
     /// <param name="galaxyType">1 harsh, 2 empty, 3 lush, 4 normal (PlanetGenerator.GalaxyType).</param>
-    /// <param name="subType">The game's subtype for the planet (PlanetGenerator), not the save's.</param>
     /// <param name="inGasGiantSystem">The system's first body is a gas giant (SystemGenerator
     /// GasGiantPlanet - the flag the system hands each planet, 0x755): its other planets roll
     /// no extreme weather or storms.</param>
-    public static PlanetProfile Generate(ulong planetSeed, int planetIndex, int biome, int subType, int planetClass, int star,
+    public static PlanetProfile Generate(ulong planetSeed, int planetIndex, PlanetType body, int star,
         int galaxyType, bool inGasGiantSystem, PlanetProfileTables t)
     {
+        int biome = body.Biome, subType = body.SubType, planetClass = body.Class;
         var seeds = ChildSeeds(planetSeed);
-        var (flora, fauna, sentinels) = Life(Rng.Start(seeds[0]), planetIndex, biome, subType, planetClass, star, galaxyType, t);
+        var (flora, fauna, sentinels, scrap) = Life(Rng.Start(seeds[0]), planetIndex, biome, subType, planetClass, star, galaxyType, t);
         bool corrupted = sentinels[Math.Clamp(t.Sentinels.CheckDifficulty, 0, 3)] == 3;
         var (weather, extreme, storms) = Weather(Rng.Start(seeds[12]), biome, subType, planetClass, star, galaxyType, inGasGiantSystem, corrupted, t);
 
@@ -147,39 +138,25 @@ public static class PlanetProfileGenerator
                 ? (0.15f > f ? t.MiningBiome[Swamp] : 0.33f > f ? t.MiningBiome[16] : 0.66f > f ? t.MiningBiome[0] : t.MiningBiome[Swamp])
                 : t.MiningBiome[Math.Clamp(biome, 0, t.MiningBiome.Length - 1)];
         string common = extreme ? t.MiningStarExtreme[star] : t.MiningStar[star];
-        return new PlanetProfile(common, uncommon, t.MiningRare[rareIndex], weather, extreme, storms, flora, fauna, sentinels,
-            Hints(t, biome, subType, planetClass, extreme, sentinels));
-    }
 
-    private const int Infested = 0x18, AnyBiome = 16;
-
-    /// <summary>The certain scanner hints (HintGroup), in list order.</summary>
-    private static string[] Hints(PlanetProfileTables t, int biome, int subType, int planetClass, bool extreme, int[] sentinels)
-    {
-        if (t.HintGroups is not { } groups) return Array.Empty<string>();
-        int seen = subType == SwampSub ? Swamp : subType == LavaSub ? Lava : biome;
-        bool infested = subType == Infested;
-        int sentinel = sentinels.Length > 2 ? sentinels[2] : 1;
-        var hints = new List<string>();
-        foreach (var g in groups)
+        string[] hints = Array.Empty<string>();
+        bool water = false;
+        if (t.Objects is { } objects && BiomeFile(objects, biome, subType) is { } file)
         {
-            if (g.Biome != AnyBiome && g.Biome != seen) continue;
-            if ((g.NotOnInfested && infested) || (g.OnlyOnInfested && !infested)) continue;
-            if (g.NotOnStartPlanets && planetClass == 1) continue;
-            if (g.NotOnDeadPlanets && biome == Dead) continue;
-            if (g.NotOnWeirdPlanets && biome == Weird) continue;
-            if (g.NotOnExtremePlanets && extreme) continue;
-            if (g.NotOnGasGiant && biome == GasGiant) continue;
-            if (g.OnlyOnExtremeWeather && !extreme) continue;
-            if (g.OnlyOnCorruptSentinels && sentinel != 3) continue;
-            if (g.OnlyOnExtremeSentinels && sentinel < 2) continue;
-            foreach (var h in g.Hints) if (!hints.Contains(h)) hints.Add(h);
+            var terrain = Terrain(Rng.Start(seeds[4]), file, objects.Terrain, body, star);
+            water = terrain.Sea > 0f;
+            var planet = new PlanetFacts(biome, subType, planetClass, sentinels.Length > 2 ? sentinels[2] : 1,
+                ExtremeLooking(biome, subType, weather, extreme), scrap, terrain.Sea, terrain.Caves, objects.Terrain.SeaStandard);
+            hints = PlacedHints(Rng.Start(seeds[7]), file, objects, planet);
         }
-        return hints.ToArray();
+        return new PlanetProfile(common, uncommon, t.MiningRare[rareIndex], weather, extreme, storms, flora, fauna, sentinels,
+            hints, scrap, water);
     }
+
+    private const int Infested = 0x18;
 
     /// <summary>The life step (0x1416956c0): flora, fauna, a resource draw, then sentinels.</summary>
-    private static (int Flora, int Fauna, int[] Sentinels) Life(Rng rng, int planetIndex, int biome, int subType, int planetClass,
+    private static (int Flora, int Fauna, int[] Sentinels, bool Scrap) Life(Rng rng, int planetIndex, int biome, int subType, int planetClass,
         int star, int galaxyType, PlanetProfileTables t)
     {
         bool harsh = galaxyType == 1;
@@ -219,7 +196,16 @@ public static class PlanetProfileGenerator
             int level = Slot(slot);
             sentinels[slot] = level == 3 && check != 3 ? 2 : level;
         }
-        return (flora, fauna, sentinels);
+        // Scrap world: the next draw against 0.2 (a constant in NMS.exe), where scrapyards may
+        // stand at this planet's building density (planetbuildingtable.mbin ScrapYard Density).
+        bool scrap = false;
+        if (biome != Weird && 0.2f >= rng.NextFraction())
+        {
+            int density = planetClass == 1 ? 3 : biome == Weird ? 4 : subType == Infested ? 5
+                : biome == Waterworld ? 6 : biome == GasGiant ? 7 : biome == Dead ? 0 : 2;
+            scrap = t.ScrapYardDensity is { } d && density < d.Length && d[density] != 0f;
+        }
+        return (flora, fauna, sentinels, scrap);
     }
 
     /// <summary>A 4-level weighted pick: the first level whose running total passes the target.</summary>
