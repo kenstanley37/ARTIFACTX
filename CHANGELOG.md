@@ -57,6 +57,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Fishing Records: a **Collected Flotsam** section, like the game's - Kelp Strand, Tangleweed, Sea Sponge, the corals, Old Boot, Rusted Technology and Message in a Bottle, ticked when you've caught them.
 - Freighter: a **3D preview** of your freighter's own shape, built from its type and model seed and your game files (drag to turn) - painted in the colours you picked in game once you've customised it, otherwise a shape scan.
 - Freighter: an **Engine flare** choice - Standard, Emeril, Gravity Drive, Golden, Antimatter, Hadal or Crimson, the same seven the game's Customisation offers.
+- Generated planet and system names now match the game's: every planet in a fully mapped region (86 of 86) instead of about 4 in 5. The game runs each name through a word filter that the old name rules didn't know about.
 - Starships preview: Sentinel Interceptors show in their seed's colours (checked against one in game: off-white with black trim).
 - Starships preview: fixed-look ships (The Wraith, Boundary Herald, Starborn Runner and Phoenix, Vintage Interceptor, Golden Vector, Corvettes) show in their own colours instead of a hologram.
 - Multi-Tool preview: fixed-look tools (found Voltaic Staffs, expedition tools like the Swarm) show in their own colours - bone and gold, stone and teal - instead of plain grey.
