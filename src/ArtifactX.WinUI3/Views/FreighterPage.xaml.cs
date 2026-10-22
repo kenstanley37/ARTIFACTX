@@ -56,6 +56,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
 
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
+        SaveSessionManager.GameSavedLoadedSlot += OnGameSaved;
         Unloaded += Page_Unloaded;
 
         LoadGrids();
@@ -79,6 +80,40 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     {
         SaveSessionManager.ActiveSessionChanged -= OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged -= OnSessionOrEditsChanged;
+        SaveSessionManager.GameSavedLoadedSlot -= OnGameSaved;
+    }
+
+    /// <summary>What follows the game (LiveFieldsService), with the field that shows it.
+    /// Single fields come before the inventories holding them (class and stats are in
+    /// the cargo inventory), so a class picked in game flashes the class, not the cargo.
+    /// The customisation list holds the paint the preview uses.</summary>
+    private (string[] Path, Func<UIElement> Field)[] LiveFields() => new (string[], Func<UIElement>)[]
+    {
+        (NmsInventoryContainer.FreighterNamePath, () => NameEditBox),
+        (NmsInventoryContainer.FreighterTypePath, () => TypeComboBox),
+        (NmsInventoryContainer.FreighterModelSeedPath, () => ModelSeedBox),
+        (NmsInventoryContainer.FreighterHomeSeedPath, () => HomeSeedBox),
+        (NmsInventoryContainer.FreighterCrewRacePath, () => CrewRaceComboBox),
+        (NmsInventoryContainer.FreighterCrewSeedPath, () => CrewSeedBox),
+        (NmsInventoryContainer.FreighterEngineEffectPath, () => EngineFlareBox),
+        (NmsInventoryContainer.FreighterClassPath, () => ClassPicker),
+        (NmsInventoryContainer.FreighterStatBonusesPath, () => StatsBoxes),
+        (NmsInventoryContainer.FreighterTechnologyPath, () => TechGrid),
+        (NmsInventoryContainer.FreighterCargoPath, () => CargoGrid),
+        (new[] { "vLc", "6f=", "l:j" }, () => FreighterPreview),
+    };
+
+    /// <summary>The game saved: fields not edited here take its values, and each one
+    /// that changed pulses once - no reload (user choice 2026-10-22).</summary>
+    private async void OnGameSaved(JObject disk)
+    {
+        if (!FreighterService.HasFreighter()) return;
+        var fields = LiveFields();
+        var changed = LiveFieldsService.Adopt(disk, fields.Select(f => f.Path));
+        if (changed.Count == 0) return;
+        await LoadGridsAsync();
+        foreach (var (path, field) in fields)
+            if (changed.Contains(path)) FieldHighlight.Flash(field());
     }
 
     private async Task<Dictionary<string, int>> GetShipCapacityAsync()
@@ -193,12 +228,18 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     private Task ShowFreighterPreviewAsync()
     {
         string? scene = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>();
-        return FreighterPreview.ShowAsync(
-            scene,
-            SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>(),
-            ModelPreviewService.StoredColours(CustomisationFor(scene)?["wnR"]?["Aak"]),
-            FlareColour(SaveSessionManager.GetValue(NmsInventoryContainer.FreighterEngineEffectPath)?.Value<string>()));
+        string? seed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>();
+        var paint = CustomisationFor(scene)?["wnR"]?["Aak"];
+        string? flare = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterEngineEffectPath)?.Value<string>();
+        // The page reloads on every edit and game save; a Dreadnought is ~2 million
+        // triangles, so the model is only rebuilt when something it shows changed.
+        string key = $"{scene}|{seed}|{flare}|{paint?.ToString(Newtonsoft.Json.Formatting.None)}";
+        if (key == _previewKey) return Task.CompletedTask;
+        _previewKey = key;
+        return FreighterPreview.ShowAsync(scene, seed, ModelPreviewService.StoredColours(paint), FlareColour(flare));
     }
+
+    private string? _previewKey;
 
     /// <summary>The customisation entry holding this freighter model's colours: the one tagged
     /// with the model's name, else entry 15.</summary>
