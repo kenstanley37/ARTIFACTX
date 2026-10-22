@@ -103,6 +103,16 @@ public sealed partial class ShipsPage
         // colours, but which slot lands on the hull comes from texture-option picks we
         // don't reproduce yet (Hauler blue hull came out red, Explorers' black hulls
         // white/olive) - 2 of 6 right is too few to show as the ship's real colours.
+        // A fixed-look ship (Boundary Herald, Starborn Runner, The Wraith...) keeps its
+        // colours in its own textures, so it can be shown as the game shows it.
+        if (mesh is not null && await ModelPreviewService.FixedLookAsync(models, mesh) is { } own)
+        {
+            if (version != _previewVersion) return;
+            ShipPreviewView.Show(mesh, material => ShipPartsService.MaterialColour(material, look), m => own.GetValueOrDefault(m));
+            ShipPreviewNote.Text = "Shape and colours from your game files - drag to turn.";
+            return;
+        }
+        if (version != _previewVersion) return;
         // A hologram, not grey - plain grey read as a broken paint job (2026-10-17).
         if (mesh is null) ShipPreviewView.ShowMessage("This ship's model couldn't be read from your game files.");
         else ShipPreviewView.Show(mesh, material => ShipPartsService.MaterialColour(material, look), hologram: true);
