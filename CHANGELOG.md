@@ -56,6 +56,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Inventory **Sort** put some building parts with the maps.
 - Fishing Records: a **Collected Flotsam** section, like the game's - Kelp Strand, Tangleweed, Sea Sponge, the corals, Old Boot, Rusted Technology and Message in a Bottle, ticked when you've caught them.
 - Freighter: a **3D preview** of your freighter's own shape, built from its type and model seed and your game files (drag to turn) - painted in the colours you picked in game once you've customised it, otherwise a shape scan.
+- Freighter: an **Engine flare** choice - Standard, Emeril, Gravity Drive, Golden, Antimatter, Hadal or Crimson, the same seven the game's Customisation offers.
+- Freighter preview: the engines show as round nozzles glowing in your flare's colour, no longer hidden behind flat sheets of colour.
 - Starships, Multi-Tool, Freighter: name, class and type come first in the details, base stats below, and Delete sits at the card's bottom right.
 - **Frigates** page redone: your fleet as cards - class rating badge, role, crew race, the stat its role uses and expeditions flown - with a fleet summary ("30 frigates · 8 Trade · 6 Combat..."). Crew races (and a settlement's culture) show as Gek, Vy'keen and Korvax instead of the game's internal Traders, Warriors and Explorers.
 - Fishing: each fish says how to catch it - the water depth its size bites in (shallow, 5-15 m, 30-65 m or 45-90 m; deeper on water worlds, any depth on gas giants) and the bait that favours it most, both from your own game files. Update the game data (Settings) once to get it.

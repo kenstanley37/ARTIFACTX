@@ -44,7 +44,10 @@ public sealed partial class ShipModels
     // of a long barrel's top cover went missing without it, 2026-10-16).
     // ENGINEJET is the engine exhaust, drawn only in flight: big purple cones behind
     // every ship in the preview (2026-10-16, the user: "doesn't need to be there").
-    private static readonly Regex Hidden = new("(?<!MULTITOOL)DECAL|SHADOW|MASKMAT|DEPTHMASK|ENGINEJET");
+    // ENGINEGLOWPOLY is a freighter's engine light: a few huge flat cards across the whole
+    // stern that the game draws as soft additive glow - solid, they covered the engines like
+    // "green paper" (2026-10-22). The nozzles' own ENGINEGLOW discs stay.
+    private static readonly Regex Hidden = new("(?<!MULTITOOL)DECAL|SHADOW|MASKMAT|DEPTHMASK|ENGINEJET|ENGINEGLOWPOLY");
 
     public ShipModels(GameInstall game)
     {
