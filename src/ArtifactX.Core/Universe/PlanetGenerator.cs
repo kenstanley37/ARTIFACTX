@@ -7,10 +7,13 @@ public sealed record BiomeFileOption(float PurpleSystemWeight, int SubType, floa
 /// <summary>
 /// The game data the planet-type picker reads, from the player's own game files:
 /// metadata/simulation/solarsystem/biomes/biomelistperstartype.mbin (odds per star) and
-/// biomefilenames.mbin (valid start/giant/purple-moon types and each type's file options).
+/// biomefilenames.mbin (valid start/giant/purple-moon types and each type's file options)
+/// and biomefilenamesarchive.mbin (the older file options, which decide Infested).
 /// </summary>
 /// <param name="Normal">BiomeProbability by list: Yellow, Green, Blue, Red, Purple, LushYellow, AbandonedYellow.</param>
 /// <param name="Prime">PrimeBiomeProbability, same lists.</param>
+/// <param name="ArchiveFiles">The archive list's options per type; null in catalogs built before
+/// format 16, which then keep the first pick.</param>
 public sealed record BiomeTables(
     float[][] Normal,
     float[][] Prime,
@@ -18,10 +21,12 @@ public sealed record BiomeTables(
     int[] ValidGiantPlanetBiome,
     int[] ValidPurpleMoonBiome,
     int[] ValidStartPlanetBiome,
-    BiomeFileOption[][] Files);
+    BiomeFileOption[][] Files,
+    BiomeFileOption[][]? ArchiveFiles = null);
 
-/// <summary>A body's type (GcBiomeType) and subtype (GcBiomeSubType), in save order.</summary>
-public sealed record PlanetType(int Biome, int SubType);
+/// <summary>A body's type (GcBiomeType) and subtype (GcBiomeSubType), in save order, and
+/// its class (GcPlanetClass: 1 the safe start planet).</summary>
+public sealed record PlanetType(int Biome, int SubType, int Class = 0);
 
 /// <summary>
 /// Planet and moon types from a system's address, without visiting it - a port of
@@ -43,6 +48,9 @@ public static class PlanetGenerator
     /// <summary>Galaxy type by galaxy number mod 20 (code data in NMS.exe at 0x144a33d10):
     /// 1 harsh, 2 empty, 3 lush, 4 normal.</summary>
     private static readonly int[] GalaxyTypes = { 4, 4, 2, 4, 4, 4, 1, 4, 4, 3, 4, 1, 4, 4, 2, 4, 4, 4, 3, 4 };
+
+    /// <summary>A galaxy's type (galaxy number 0-based): 1 harsh, 2 empty, 3 lush, 4 normal.</summary>
+    public static int GalaxyType(int galaxy) => GalaxyTypes[((galaxy % 20) + 20) % 20];
 
     private struct Rng
     {
@@ -94,6 +102,7 @@ public static class PlanetGenerator
 
         var biome = new int[total];
         var sub = new int[total];
+        var kinds = new int[total];
 
         // Layout draws.
         var rng = Rng.Start(address);
@@ -137,7 +146,8 @@ public static class PlanetGenerator
             }
             if (attributes.GasGiantPlanet && index == 0) pick = GasGiant;
             biome[index] = pick;
-            sub[index] = PrimarySubType(ref rng, t.Files[pick], star, kind == 1 && galaxyType == 4);
+            kinds[index] = kind;
+            sub[index] = SubType(ref rng, t.Files[pick], Archive(t, pick), star, kind == 1 && galaxyType == 4);
 
             bool differs = index == 0 || biome[index] != biome[index - 1] || nonZero <= 1;
             bool avoid = false;
@@ -180,10 +190,10 @@ public static class PlanetGenerator
             else pick = Subtract(null, prime, f * sumPrime, 0);
             if (attributes.GasGiantPlanet && i == 0) pick = GasGiant;
             biome[i] = pick;
-            sub[i] = PrimeSubType(ref p, t.Files[pick], star);
+            sub[i] = SubType(ref p, t.Files[pick], Archive(t, pick), star, false);
         }
 
-        return biome.Select((b, i) => new PlanetType(b, sub[i])).ToArray();
+        return biome.Select((b, i) => new PlanetType(b, sub[i], kinds[i])).ToArray();
     }
 
     private static float Sum(float[] weights, int count)
@@ -231,50 +241,40 @@ public static class PlanetGenerator
         return options.Length - 1;
     }
 
-    /// <summary>A primary body's subtype (0x14164d890 and the look-ahead after it).</summary>
-    private static int PrimarySubType(ref Rng rng, BiomeFileOption[] options, int star, bool noInfested)
-    {
-        if (options.Length == 0) return 1;
-        Func<BiomeFileOption, float> weight = o => o.SubType == Infested && noInfested ? 0f : star == 4 ? o.PurpleSystemWeight : o.Weight;
-        float total = 0f;
-        foreach (var o in options) total += weight(o);
-        int result = options[SubtractOption(options, weight, Rng.Fraction(rng.Next()) * total)].SubType;
-        if (star == 4) return result;
+    private static BiomeFileOption[]? Archive(BiomeTables t, int biome) =>
+        t.ArchiveFiles is { } a && biome < a.Length ? a[biome] : null;
 
-        // A look-ahead on a copy of the state: Infested is decided again here.
-        var look = rng;
+    /// <summary>
+    /// A body's subtype (0x14164d890 and what follows it, for primary and prime bodies alike):
+    /// one draw on the current file options. Outside purple systems the game then looks
+    /// again from the state before that draw, on the archive options: Infested there wins;
+    /// an Infested first pick is re-drawn on the archive options without Infested (which is
+    /// how Swamp and Lava subtypes come about, 2026-10-22). The look-ahead doesn't move the
+    /// stream on.
+    /// </summary>
+    private static int SubType(ref Rng rng, BiomeFileOption[] options, BiomeFileOption[]? archive, int star, bool noInfested)
+    {
+        var before = rng;
+        int result = 1;
+        if (options.Length > 0)
+        {
+            Func<BiomeFileOption, float> weight = o => o.SubType == Infested && noInfested ? 0f : star == 4 ? o.PurpleSystemWeight : o.Weight;
+            result = options[SubtractOption(options, weight, Rng.Fraction(rng.Next()) * Total(options, weight))].SubType;
+        }
+        if (star == 4 || archive is not { Length: > 0 }) return result;
+
+        var look = before;
         Func<BiomeFileOption, float> plain = o => o.SubType == Infested && noInfested ? 0f : o.Weight;
-        float t1 = 0f;
-        foreach (var o in options) t1 += plain(o);
-        if (options[SubtractOption(options, plain, Rng.Fraction(look.Next()) * t1)].SubType == Infested) return Infested;
+        if (archive[SubtractOption(archive, plain, Rng.Fraction(look.Next()) * Total(archive, plain))].SubType == Infested) return Infested;
         if (result != Infested) return result;
         Func<BiomeFileOption, float> noInf = o => o.SubType == Infested ? 0f : o.Weight;
-        float t2 = 0f;
-        foreach (var o in options) t2 += noInf(o);
-        return options[SubtractOption(options, noInf, Rng.Fraction(look.Next()) * t2)].SubType;
+        return archive[SubtractOption(archive, noInf, Rng.Fraction(look.Next()) * Total(archive, noInf))].SubType;
     }
 
-    /// <summary>A prime body's subtype, on the prime stream.</summary>
-    private static int PrimeSubType(ref Rng p, BiomeFileOption[] options, int star)
+    private static float Total(BiomeFileOption[] options, Func<BiomeFileOption, float> weight)
     {
-        if (options.Length == 0) return 1;
-        var before = p;
-        Func<BiomeFileOption, float> weight = o => star == 4 ? o.PurpleSystemWeight : o.Weight;
         float total = 0f;
         foreach (var o in options) total += weight(o);
-        int result = options[SubtractOption(options, weight, Rng.Fraction(p.Next()) * total)].SubType;
-        if (star == 4) return result;
-
-        // The game repeats the draw from the same state, then re-decides Infested.
-        var look = before;
-        Func<BiomeFileOption, float> plain = o => o.Weight;
-        float t1 = 0f;
-        foreach (var o in options) t1 += plain(o);
-        if (options[SubtractOption(options, plain, Rng.Fraction(look.Next()) * t1)].SubType == Infested) return Infested;
-        if (result != Infested) return result;
-        Func<BiomeFileOption, float> noInf = o => o.SubType == Infested ? 0f : o.Weight;
-        float t2 = 0f;
-        foreach (var o in options) t2 += noInf(o);
-        return options[SubtractOption(options, noInf, Rng.Fraction(look.Next()) * t2)].SubType;
+        return total;
     }
 }

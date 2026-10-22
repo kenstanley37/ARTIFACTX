@@ -1120,8 +1120,16 @@ public static class CatalogService
     }
 
     /// <summary>What planet types are picked from (catalog "PlanetGeneration", step
-    /// "Planet types"); null on game data built before it was collected.</summary>
-    public static async Task<ArtifactX.Core.Universe.BiomeTables?> GetBiomeTablesAsync()
+    /// "Planet generation"); null on game data built before it was collected.</summary>
+    public static Task<ArtifactX.Core.Universe.BiomeTables?> GetBiomeTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.BiomeTables>("BIOMETABLES");
+
+    /// <summary>What a planet's resources, weather and sentinels are picked from (same step);
+    /// null on game data built before catalog format 16.</summary>
+    public static Task<ArtifactX.Core.Universe.PlanetProfileTables?> GetPlanetProfileTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.PlanetProfileTables>("PLANETPROFILE");
+
+    private static async Task<T?> GetPlanetGenerationRowAsync<T>(string gameId) where T : class
     {
         string? dbPath = ResolveDbPath();
         if (dbPath is null) return null;
@@ -1135,15 +1143,14 @@ public static class CatalogService
                 command.CommandText = @"
                     SELECT i.DescriptionEnglish
                     FROM Items i JOIN Categories c ON c.Id = i.CategoryId
-                    WHERE c.TemplateType = 'PlanetGeneration' AND i.GameId = 'BIOMETABLES'";
-                return command.ExecuteScalar() is string json
-                    ? System.Text.Json.JsonSerializer.Deserialize<ArtifactX.Core.Universe.BiomeTables>(json)
-                    : null;
+                    WHERE c.TemplateType = 'PlanetGeneration' AND i.GameId = $id";
+                command.Parameters.AddWithValue("$id", gameId);
+                return command.ExecuteScalar() is string json ? System.Text.Json.JsonSerializer.Deserialize<T>(json) : null;
             });
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[CatalogService] GetBiomeTablesAsync failed: {ex.Message}");
+            Debug.WriteLine($"[CatalogService] Reading planet generation row {gameId} failed: {ex.Message}");
             return null;
         }
     }

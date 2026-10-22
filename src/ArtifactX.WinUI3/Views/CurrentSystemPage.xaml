@@ -118,7 +118,7 @@
                                     <TextBlock Text="{x:Bind ViewModel.Station, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasStation, Mode=OneWay}"
                                                Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
                                     <TextBlock Visibility="{x:Bind ViewModel.ShowFullDetails, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
-                                               Text="Planet types, rings and your discoveries come from your save. Names, star colour, race, economy, wealth and conflict come from the game's own generator - the same formula the game uses, right about 99% of the time. Your notes below win if you record something different. Weather and resources aren't covered."/>
+                                               Text="Planet types, rings and your discoveries come from your save. Names, star colour, race, economy, wealth and conflict - and each planet's weather, sentinels and resources - come from the game's own generator, the same formula the game uses, right about 99% of the time. Your notes below win if you record something different."/>
                                     <StackPanel Spacing="6" Margin="0,6,0,0">
                                         <TextBlock Text="SYSTEM PORTAL ADDRESS" Style="{StaticResource ThemeEyebrowStyle}" Visibility="{x:Bind ViewModel.ShowFullDetails, Mode=OneWay}"/>
                                         <controls:GlyphStrip Code="{x:Bind ViewModel.SystemCode, Mode=OneWay}" Title="{x:Bind ViewModel.Heading, Mode=OneWay}" GlyphSize="28"/>

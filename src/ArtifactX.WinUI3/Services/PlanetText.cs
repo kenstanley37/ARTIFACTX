@@ -182,11 +182,65 @@ public static class PlanetText
     }
 
     /// <summary>A fish's name in normal case ("Glass Angel", not "GLASS ANGEL").</summary>
-    public static string FishName(string id, IReadOnlyDictionary<string, string> itemNames)
+    public static string FishName(string id, IReadOnlyDictionary<string, string> itemNames) => ItemName(id, itemNames);
+
+    /// <summary>An item's name in normal case ("Magnetized Ferrite", not "MAGNETIZED FERRITE").</summary>
+    public static string ItemName(string id, IReadOnlyDictionary<string, string> itemNames)
     {
         string name = itemNames.TryGetValue(id, out var n) ? n
             : CatalogService.TryGet(id)?.DisplayName is { Length: > 0 } shown ? shown : id;
         return name == name.ToUpperInvariant() ? CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name.ToLowerInvariant()) : name;
+    }
+
+    // ---------------------------------------------------------------- Generated profiles
+
+    /// <summary>Weather types in GcWeatherOptions order, worded plainly (the game picks one
+    /// of several flowery words per type - "Frost", "Icy Blasts" - in its text step).</summary>
+    private static readonly string[] WeatherTypes =
+    {
+        "Clear", "Dusty", "Humid", "Snowy", "Toxic", "Scorching", "Radioactive", "Exotic", "Exotic", "Exotic",
+        "Swampy", "Volcanic", "Bubbling", "Anomalous", "Burning", "Cold", "Gas giant",
+    };
+
+    /// <summary>"Extreme toxic · frequent storms" for a generated profile.</summary>
+    public static string Weather(Core.Universe.PlanetProfile profile)
+    {
+        string type = profile.WeatherType >= 0 && profile.WeatherType < WeatherTypes.Length ? WeatherTypes[profile.WeatherType] : "Unknown";
+        string weather = profile.Extreme ? $"Extreme {type.ToLowerInvariant()}" : type;
+        return profile.Storms switch
+        {
+            1 => $"{weather} · occasional storms",
+            2 => $"{weather} · frequent storms",
+            _ => weather,
+        };
+    }
+
+    /// <summary>The sentinel level at normal difficulty, worded like the game's Discoveries
+    /// quick view: nothing shown there is "Low", level 1 is "High Sentinel Activity" (its
+    /// scanner words "Frequent", "Observant"...), 2 "Aggressive Sentinels", 3 the dissonant,
+    /// corrupted kind (checked against 800 recorded words, 2026-10-22).</summary>
+    public static string Sentinels(Core.Universe.PlanetProfile profile) =>
+        (profile.Sentinels.Length > NormalDifficulty ? profile.Sentinels[NormalDifficulty] : 1) switch
+        {
+            0 => "Low",
+            2 => "Aggressive",
+            3 => "Corrupted",
+            _ => "High",
+        };
+
+    /// <summary>GcCombatTimerDifficultyOption Normal - the slot the game uses unless the save's
+    /// sentinel difficulty is changed.</summary>
+    private const int NormalDifficulty = 2;
+
+    /// <summary>What the scanner lists, in its order: the planet's plant, the three mined
+    /// resources (most common first), then other hints ("Cactus Flesh, Copper, Pyrite, Salt").</summary>
+    public static IReadOnlyList<string> Resources(Core.Universe.PlanetProfile profile, IReadOnlyDictionary<string, string> itemNames)
+    {
+        string Hint(string id) => PlanetTypesService.HintName(id) ?? ItemName(id, itemNames);
+        var plants = profile.Hints.Where(h => itemNames.ContainsKey(h)).Select(h => ItemName(h, itemNames));
+        var mined = new[] { profile.Common, profile.Uncommon, profile.Rare }.Where(id => id.Length > 0).Select(id => ItemName(id, itemNames));
+        var others = profile.Hints.Where(h => !itemNames.ContainsKey(h)).Select(Hint);
+        return plants.Concat(mined).Concat(others).Distinct().ToList();
     }
 }
 

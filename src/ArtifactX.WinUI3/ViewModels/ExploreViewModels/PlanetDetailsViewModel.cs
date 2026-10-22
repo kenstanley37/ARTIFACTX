@@ -164,15 +164,20 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         string Or(string? value) => string.IsNullOrEmpty(value) ? NotRecorded : value;
 
         Classification = planet.Classification(d?.Descriptor);
+        // Weather, sentinels and resources from the game's own generator where the game data
+        // has its tables (format 16+); what was recorded otherwise.
+        var profile = PlanetTypesService.Profile(planet.SystemAddress, planet.PlanetIndex);
         Conditions =
         [
-            new("Weather", Or(d?.Weather)),
-            new("Sentinels", Or(d?.Sentinels)),
+            new("Weather", profile is not null ? PlanetText.Weather(profile) : Or(d?.Weather)),
+            new("Sentinels", profile is not null ? PlanetText.Sentinels(profile) : Or(d?.Sentinels)),
             new("Flora", Or(d?.Flora)),
             new("Fauna", Or(d?.Fauna is { Length: > 0 } fauna ? fauna : d?.FaunaTotal is int n ? $"{n} kinds" : null)),
             new("Water", water switch { true => "Yes", false => "No", _ => NotRecorded }),
         ];
-        Resources = d?.Resources.ToList() ?? new();
+        Resources = profile is not null && _vocabulary is not null
+            ? PlanetText.Resources(profile, _vocabulary.ItemNames).ToList()
+            : d?.Resources.ToList() ?? new();
 
         var recorded = new List<Fact>();
         void Add(string label, string? value) { if (!string.IsNullOrEmpty(value)) recorded.Add(new(label, value)); }
