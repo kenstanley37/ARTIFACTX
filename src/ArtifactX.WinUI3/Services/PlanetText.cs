@@ -215,15 +215,17 @@ public static class PlanetText
         };
     }
 
-    /// <summary>The sentinel level at normal difficulty, in the levels the editor uses
-    /// (sentinels' top level is "Aggressive"; level 3 is the dissonant, corrupted kind).</summary>
+    /// <summary>The sentinel level at normal difficulty, worded like the game's Discoveries
+    /// quick view: nothing shown there is "Low", level 1 is "High Sentinel Activity" (its
+    /// scanner words "Frequent", "Observant"...), 2 "Aggressive Sentinels", 3 the dissonant,
+    /// corrupted kind (checked against 800 recorded words, 2026-10-22).</summary>
     public static string Sentinels(Core.Universe.PlanetProfile profile) =>
         (profile.Sentinels.Length > NormalDifficulty ? profile.Sentinels[NormalDifficulty] : 1) switch
         {
             0 => "Low",
             2 => "Aggressive",
             3 => "Corrupted",
-            _ => "Medium",
+            _ => "High",
         };
 
     /// <summary>GcCombatTimerDifficultyOption Normal - the slot the game uses unless the save's
