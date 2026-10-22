@@ -59,7 +59,7 @@ public sealed partial class MultiToolPage
         bool fromSeed = false;
         if (models is not null && mesh is not null)
         {
-            Func<string, string, float[]?>? colour = null;
+            Func<string, string, float[]?> colour;
             ulong? textureSeed = null;
             if (storedColours.Count > 0)
                 colour = (palette, slot) => storedColours.GetValueOrDefault((palette, slot));
@@ -69,12 +69,14 @@ public sealed partial class MultiToolPage
                 textureSeed = seed;
                 fromSeed = true;
             }
-            if (colour is not null)
-            {
-                var textures = await ModelPreviewService.PaintAsync(models, mesh, colour, textureSeed);
-                if (version != _previewVersion) return;
-                painted = m => textures.GetValueOrDefault(m);
-            }
+            // Seed 0 (staffs found in game, expedition tools like the Swarm): a fixed look,
+            // painted in its model's own textures - bone and gold, stone and teal glow
+            // (2026-10-22: these showed plain grey because only seed colours were tried).
+            else
+                colour = (_, _) => null;
+            var textures = await ModelPreviewService.PaintAsync(models, mesh, colour, textureSeed);
+            if (version != _previewVersion) return;
+            painted = m => textures.GetValueOrDefault(m);
         }
 
         ToolPreviewView.Show(mesh, MaterialColour, painted);
@@ -84,7 +86,9 @@ public sealed partial class MultiToolPage
                 ? "Shape from your game files - drag to turn."
                 : fromSeed
                     ? "Shape and colours from your game files and the tool's seed - drag to turn. Colours are close to the game's, not always exact."
-                    : "Shape and colours from your game files and save - drag to turn.";
+                    : storedColours.Count > 0
+                        ? "Shape and colours from your game files and save - drag to turn."
+                        : "Shape and colours from your game files - drag to turn.";
     }
 
     /// <summary>The colours a tool keeps in the save, by (palette, slot) - e.g.

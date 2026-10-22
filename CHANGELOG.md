@@ -57,6 +57,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Fishing Records: a **Collected Flotsam** section, like the game's - Kelp Strand, Tangleweed, Sea Sponge, the corals, Old Boot, Rusted Technology and Message in a Bottle, ticked when you've caught them.
 - Freighter: a **3D preview** of your freighter's own shape, built from its type and model seed and your game files (drag to turn) - painted in the colours you picked in game once you've customised it, otherwise a shape scan.
 - Freighter: an **Engine flare** choice - Standard, Emeril, Gravity Drive, Golden, Antimatter, Hadal or Crimson, the same seven the game's Customisation offers.
+- Multi-Tool preview: fixed-look tools (found Voltaic Staffs, expedition tools like the Swarm) show in their own colours - bone and gold, stone and teal - instead of plain grey.
 - Starships and Multi-Tool pages follow the game the same way for the ship or tool on screen (name, type, seed, class, stats, tech, cargo, paint). Inventories only pulse when an item is added, removed or moved - fuel and ammo levels update quietly.
 - Freighter page follows the game: when the game saves, anything you changed in game (engine flare, paint, name, class, cargo...) shows up with a brief pulse - no reload, and fields you're editing in ArtifactX are never touched.
 - Freighter preview: a Dreadnought is painted in the colours you picked for it in game, and its engines glow in your flare's colour.
