@@ -179,7 +179,7 @@ public static class BaseListBuilder
                     _ => $"Claimed station in {UniverseInfo.SystemName(address)} ({UniverseInfo.RaceLabel(address)}).",
                 },
                 AreaRecorded: true,
-                Parts: parts, PartsLabel: locked > 0 ? $"{parts:N0} parts placed · {locked:N0} can't be removed" : $"{parts:N0} parts placed",
+                Parts: parts, PartsLabel: k == BaseKind.Station ? $"{parts:N0} parts placed · {parts - locked:N0} removable · {locked:N0} unremovable" : $"{parts:N0} parts placed",
                 PartsLevel: NmsBuildCounts.UploadLevel(parts),
                 Base: b, LooseObject: null,
                 SortDistance: distance ?? double.MaxValue, Galaxy: galaxy, Address: address,

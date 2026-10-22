@@ -80,7 +80,7 @@ public sealed partial class BaseSectionViewModel : ObservableObject
         {
             BaseKind.Freighter => $"{parts:N0} parts placed",
             BaseKind.Planet => $"{parts:N0} parts placed across {shown.Count:N0} bases",
-            BaseKind.Station => $"{parts:N0} parts placed across {shown.Count:N0} stations · {shown.Sum(r => r.Entry.Locked):N0} can't be removed (each station's structure)",
+            BaseKind.Station => $"{parts:N0} parts placed across {shown.Count:N0} stations · {parts - shown.Sum(r => r.Entry.Locked):N0} removable · {shown.Sum(r => r.Entry.Locked):N0} unremovable (each station's structure)",
             BaseKind.Corvette => $"{parts:N0} parts placed across {shown.Count:N0} corvettes",
             BaseKind.SpaceBase => $"{parts:N0} parts placed across {shown.Count:N0} space bases",
             BaseKind.Settlement => shown.Count == 1 ? "1 settlement" : $"{shown.Count:N0} settlements",
