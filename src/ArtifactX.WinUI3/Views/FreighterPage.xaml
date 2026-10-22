@@ -211,6 +211,8 @@
                                             <controls:SeedBox x:Name="CrewSeedBox" Label="Crew seed" Changed="Seed_Changed"/>
                                         </StackPanel>
                                     </StackPanel>
+                                    <!-- The freighter's own shape from its Type and Model seed (#25). -->
+                                    <controls:ModelPreviewPanel x:Name="FreighterPreview" Subject="freighter" Width="420"/>
                                 </ctcontrols:WrapPanel>
                             </StackPanel>
                         </controls:FoldingCard>
