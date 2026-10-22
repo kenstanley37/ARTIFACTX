@@ -1879,7 +1879,7 @@ public static class CatalogService
     /// <summary>Same rule as FilterFishSpecies, for a single id.</summary>
     public static bool IsFishSpecies(string gameId) => FishSpeciesPattern.IsMatch(gameId);
 
-    private static string? ResolveDbPath()
+    internal static string? ResolveDbPath()
     {
         if (_pathChecked) return _dbPath;
         _pathChecked = true;

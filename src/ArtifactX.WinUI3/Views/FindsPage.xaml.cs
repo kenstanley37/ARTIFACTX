@@ -291,15 +291,7 @@ public sealed partial class FindsPage : Page
         };
     }
 
-    // Game class-tier colours (same as the Multi-Tool page's badge) - fixed, not themed.
-    private static Windows.UI.Color ClassColour(string cls) => cls switch
-    {
-        "S" => Windows.UI.Color.FromArgb(255, 201, 151, 34),
-        "A" => Windows.UI.Color.FromArgb(255, 130, 80, 200),
-        "B" => Windows.UI.Color.FromArgb(255, 60, 110, 200),
-        "C" => Windows.UI.Color.FromArgb(255, 60, 150, 90),
-        _ => Colors.Transparent,
-    };
+    private static Windows.UI.Color ClassColour(string cls) => ThemeResources.ClassColour(cls);
 
     private async void ExportCsv_Click(object sender, RoutedEventArgs e)
     {

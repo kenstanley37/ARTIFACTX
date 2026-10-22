@@ -18,6 +18,14 @@ public sealed class FishCardViewModel : INotifyPropertyChanged
     public required string Traits { get; init; }
     public required string Habitat { get; init; }
 
+    /// <summary>"Deep water (30-65 m)" (#23); empty before the catalog has the rules.</summary>
+    public string Depth { get; init; } = "";
+    public Visibility DepthVisibility => Depth.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>"Best bait: Spicy Chum ×5" - empty when no bait helps much.</summary>
+    public string Bait { get; init; } = "";
+    public Visibility BaitVisibility => Bait.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
     private string _caught = "";
     private string _justCaught = "";
     private Brush? _caughtBrush;

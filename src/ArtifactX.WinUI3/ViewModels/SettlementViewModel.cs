@@ -96,7 +96,7 @@ public sealed partial class SettlementViewModel : ObservableObject
     /// <summary>A name was committed: the picker's labels change.</summary>
     public event EventHandler? NameChanged;
 
-    public static IReadOnlyList<string> Races { get; } = Enum.GetNames<GcAlienRace.AlienRaceEnum>();
+    public static IReadOnlyList<RaceChoice> Races { get; } = Enum.GetNames<GcAlienRace.AlienRaceEnum>().Select(r => new RaceChoice(r)).ToList();
 
     [ObservableProperty] public partial string Name { get; set; } = "";
     [ObservableProperty] public partial string Owner { get; private set; } = "";
@@ -136,7 +136,7 @@ public sealed partial class SettlementViewModel : ObservableObject
         string platform = Read<string>(P.OwnerPlatformPath(index)) ?? "";
         Owner = username.Length == 0 ? "" : $"{username} ({platform})";
         string race = Read<string>(P.RacePath(index)) ?? "";
-        RaceIndex = Races.ToList().FindIndex(r => string.Equals(r, race, StringComparison.OrdinalIgnoreCase));
+        RaceIndex = Races.ToList().FindIndex(r => string.Equals(r.Value, race, StringComparison.OrdinalIgnoreCase));
         Population.Load(Read<double?>(P.PopulationPath(index)) ?? 0);
         var stats = SaveSessionManager.GetValue(P.StatsPath(index)) as JArray;
         for (int i = 0; i < Stats.Count; i++)
@@ -157,7 +157,7 @@ public sealed partial class SettlementViewModel : ObservableObject
     partial void OnRaceIndexChanged(int value)
     {
         if (_loading || _index < 0 || value < 0) return;
-        if (Races[value] != (Read<string>(P.RacePath(_index)) ?? "")) SaveSessionManager.StageEdit(Races[value], P.RacePath(_index));
+        if (Races[value].Value != (Read<string>(P.RacePath(_index)) ?? "")) SaveSessionManager.StageEdit(Races[value].Value, P.RacePath(_index));
     }
 
     // ------------------------------------------------------------ features (perks)

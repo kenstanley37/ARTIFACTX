@@ -28,6 +28,7 @@ public sealed partial class FishingPage : Page
     private const int AllTypes = -1;
 
     private List<FishInfo> _fish = new();
+    private FishingRules _rules = new([], []);
     private Dictionary<string, string> _names = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, (uint Count, float Largest)> _caught = new(StringComparer.OrdinalIgnoreCase);
     // Fish the game saved a catch of while this page was open, newest first, and
@@ -82,6 +83,8 @@ public sealed partial class FishingPage : Page
         // Only the 210 real species - junk catches and mission-only fish are left out,
         // the same set the Fishing Records page shows.
         _fish = (await CatalogService.GetFishAsync()).Where(f => CatalogService.IsFishSpecies(f.Id) && !f.NeedsMission).ToList();
+        _rules = await FishingRules.LoadAsync();
+        await CatalogService.WarmCacheAsync(_rules.Baits.Select(b => b.Id));
         _names = await CatalogService.GetItemNamesAsync();
         await CatalogService.WarmCacheAsync(_fish.Select(f => f.Id)
             .Concat(Enumerable.Range(0, 16).Select(d => $"PORTALSYMBOL_{d:X}")));
@@ -409,6 +412,8 @@ public sealed partial class FishingPage : Page
             RarityBrush = new SolidColorBrush(RarityColour(f.Quality)),
             Traits = string.Join(" · ", traits),
             Habitat = habitat,
+            Depth = _rules.DepthText(f),
+            Bait = _rules.BestBait(f) is { Length: > 0 } bait ? $"Best bait: {bait}" : "",
             Caught = caught
                 ? $"Caught {record.Count:N0} time{(record.Count == 1 ? "" : "s")}{(record.Largest > 0 ? $" · largest {record.Largest:0.##} kg" : "")}"
                 : "Not caught yet",

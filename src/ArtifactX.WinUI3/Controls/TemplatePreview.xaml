@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What a saved template holds (TemplatePreviewViewModel), shown in a dialog before it's
+     used (#24): facts, base stats, its tech as icons and whether this game version knows them. -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.TemplatePreview"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls">
+
+    <StackPanel Spacing="14" MaxWidth="620">
+        <TextBlock Text="{x:Bind Preview.Heading, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}"/>
+
+        <ItemsControl ItemsSource="{x:Bind Preview.Facts, Mode=OneWay}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ctcontrols:WrapPanel HorizontalSpacing="22" VerticalSpacing="8"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="viewmodels:TemplatePreviewStat">
+                    <StackPanel>
+                        <TextBlock Text="{x:Bind Label}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"/>
+                        <TextBlock Text="{x:Bind Value}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <StackPanel Spacing="6" Visibility="{x:Bind Preview.HasStats, Mode=OneWay}">
+            <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"/>
+            <ItemsControl ItemsSource="{x:Bind Preview.Stats, Mode=OneWay}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <ctcontrols:WrapPanel HorizontalSpacing="22" VerticalSpacing="6"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="viewmodels:TemplatePreviewStat">
+                        <StackPanel>
+                            <TextBlock Text="{x:Bind Label}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"/>
+                            <TextBlock Text="{x:Bind Value}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+            <TextBlock Text="TECH" Style="{StaticResource ThemeEyebrowStyle}"/>
+            <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{x:Bind Preview.Items, Mode=OneWay}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <ctcontrols:WrapPanel HorizontalSpacing="6" VerticalSpacing="6"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="viewmodels:TemplatePreviewItemViewModel">
+                            <StackPanel Width="84" Spacing="3" Opacity="{x:Bind Opacity}"
+                                        ToolTipService.ToolTip="{x:Bind Tip}" AutomationProperties.Name="{x:Bind Tip}">
+                                <Border Width="60" Height="60" CornerRadius="6" Background="{ThemeResource ThemeVoidBrush}"
+                                        BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" HorizontalAlignment="Center">
+                                    <Grid>
+                                        <Image Source="{x:Bind Icon}" Width="50" Height="50" Visibility="{x:Bind HasIcon}"/>
+                                        <FontIcon Glyph="&#xE9CE;" FontSize="22" Foreground="{ThemeResource ThemeWarningBrush}" Visibility="{x:Bind NoIcon}"/>
+                                    </Grid>
+                                </Border>
+                                <TextBlock Text="{x:Bind Name}" FontSize="10" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"
+                                           TextAlignment="Center" Foreground="{ThemeResource ThemeTextBrush}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </StackPanel>
+
+        <TextBlock Text="{x:Bind Preview.Compatibility, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+    </StackPanel>
+</UserControl>

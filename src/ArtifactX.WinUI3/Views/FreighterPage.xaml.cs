@@ -283,7 +283,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     /// Multi-Tool's OsQ.@bB, confirmed by real save data and cross-checked
     /// against a reference tool's own "Hyperdrive"/"Fleet Coordination" Base Stats.</summary>
     /// <summary>The Base Stats boxes: the stat-bonus entries this page shows.</summary>
-    private static readonly (string Label, string Key)[] BaseStats = { ("Hyperdrive", "^FREI_HYPERDRIVE"), ("Fleet Coordination", "^FREI_FLEET") };
+    private static readonly (string Label, string Key)[] BaseStats = StatBonusService.FreighterStats;
 
     private void UpdateStatDisplay()
     {
@@ -335,73 +335,31 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
         LoadGrids();
     }
 
-    /// <summary>The "Add a freighter" card shown when the save has none:
-    /// every Freighter Full Build template, each with Add as my freighter.</summary>
-    private void BuildStarterList()
-    {
-        if (StarterListPanel.Children.Count > 0) return;
-        foreach (var (name, description, scene) in FreighterBuildService.StarterHulls)
-        {
-            var row = new Grid { ColumnSpacing = 12 };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var info = new StackPanel { Spacing = 2 };
-            info.Children.Add(new TextBlock { Text = name, FontWeight = FontWeights.SemiBold, FontSize = 13 });
-            info.Children.Add(new TextBlock { Text = description, FontSize = 11, Opacity = 0.7, TextWrapping = TextWrapping.Wrap });
-            row.Children.Add(info);
-            var add = new Button { Content = "Add as my freighter", VerticalAlignment = VerticalAlignment.Center };
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(add, $"Add a {name} as my freighter");
-            add.Click += async (_, _) => await AddFreighterAsync(FreighterBuildService.Starter(name, scene));
-            Grid.SetColumn(add, 1);
-            row.Children.Add(add);
-            StarterListPanel.Children.Add(row);
-        }
-    }
-
+    /// <summary>The cards shown when the save has no freighter: the starter hulls ("Start
+    /// fresh") and every Freighter Full Build template ("Add a freighter").</summary>
     private async Task RefreshAddFreighterListAsync()
     {
-        BuildStarterList();
+        StarterList.ItemsSource ??= FreighterBuildService.StarterHulls
+            .Select(h => AddFreighterChoiceViewModel.Starter(h.Name, h.Description, h.ScenePath)).ToList();
         var templates = (await LoadoutTemplateService.LoadAllAsync())
             .Where(t => t.SourceKind == "Freighter" && t.Scope == "FullBuild")
-            .ToList();
+            .Select(AddFreighterChoiceViewModel.FromTemplate).ToList();
+        AddFreighterList.ItemsSource = templates;
+        NoFreighterTemplatesTxt.Visibility = templates.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
 
-        AddFreighterListPanel.Children.Clear();
-        if (templates.Count == 0)
-        {
-            AddFreighterListPanel.Children.Add(new TextBlock
-            {
-                Text = "No freighter templates yet.",
-                FontSize = 12,
-                Opacity = 0.7,
-            });
-            return;
-        }
+    private static AddFreighterChoiceViewModel? ChoiceOf(object sender) =>
+        (sender as FrameworkElement)?.DataContext as AddFreighterChoiceViewModel;
 
-        foreach (var template in templates)
-        {
-            var row = new Grid { ColumnSpacing = 12 };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var info = new StackPanel { Spacing = 2 };
-            info.Children.Add(new TextBlock { Text = template.Name, FontWeight = FontWeights.SemiBold, FontSize = 13, TextWrapping = TextWrapping.Wrap });
-            info.Children.Add(new TextBlock
-            {
-                Text = $"{template.SourceClass ?? "?"} class, {template.TechItems.Count} tech"
-                    + (FreighterBuildService.HasInterior(template) ? $", interior with {template.InteriorObjects!.Count} parts" : ", default interior (saved before interiors were included)")
-                    + (template.SourceToolName is { Length: > 0 } source ? $" - from {source}" : ""),
-                FontSize = 11,
-                Opacity = 0.7,
-                TextWrapping = TextWrapping.Wrap,
-            });
-            row.Children.Add(info);
+    private async void AddFreighterChoice_Click(object sender, RoutedEventArgs e)
+    {
+        if (ChoiceOf(sender) is { } choice) await AddFreighterAsync(choice.Template);
+    }
 
-            var add = new Button { Content = "Add as my freighter", VerticalAlignment = VerticalAlignment.Center };
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(add, $"Add {template.Name} as my freighter");
-            add.Click += async (_, _) => await AddFreighterAsync(template);
-            Grid.SetColumn(add, 1);
-            row.Children.Add(add);
-            AddFreighterListPanel.Children.Add(row);
-        }
+    /// <summary>See what a template holds before adding it (#24).</summary>
+    private async void AddFreighterPreview_Click(object sender, RoutedEventArgs e)
+    {
+        if (ChoiceOf(sender) is { } choice) await TemplatePreview.ShowAsync(XamlRoot, choice.Template);
     }
 
     private async void AddFreighterImport_Click(object sender, RoutedEventArgs e)

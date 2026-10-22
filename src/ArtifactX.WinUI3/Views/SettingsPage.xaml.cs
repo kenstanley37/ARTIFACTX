@@ -1,4 +1,5 @@
 using ArtifactX.WinUI3.Services;
+using ArtifactX.WinUI3.ViewModels;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -327,44 +328,27 @@ public sealed partial class SettingsPage : Page
 
     private void RefreshDataBackups()
     {
-        DataBackupsPanel.Children.Clear();
         List<UserDatabase.DataBackup> backups;
         try { backups = UserDatabase.ListBackups(); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { backups = new(); }
+        DataBackupsList.ItemsSource = backups.Select(b => new DataBackupRowViewModel(b.Path,
+            $"{b.Created:ddd MMM d, yyyy  h:mm tt}  ·  {ReasonLabel(b.Reason)}  ·  {Size(b.Bytes)}", $"{b.Created:MMM d, h:mm tt}")).ToList();
+        NoDataBackupsTxt.Visibility = backups.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
 
-        if (backups.Count == 0)
-        {
-            DataBackupsPanel.Children.Add(new TextBlock { Text = "No backups yet.", FontSize = 12, Opacity = 0.7 });
-            return;
-        }
-        foreach (var backup in backups)
-        {
-            var row = new Grid { ColumnSpacing = 10 };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{backup.Created:ddd MMM d, yyyy  h:mm tt}  ·  {ReasonLabel(backup.Reason)}  ·  {Size(backup.Bytes)}",
-                FontSize = 13,
-                VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-            });
-            var restore = new Button { Content = "Restore", FontSize = 12, Padding = new Thickness(10, 3, 10, 3) };
-            restore.Click += async (_, _) => await RestoreAsync(backup.Path, $"{backup.Created:MMM d, h:mm tt}");
-            Grid.SetColumn(restore, 1);
-            row.Children.Add(restore);
-            var delete = new Button { Content = "Delete", FontSize = 12, Padding = new Thickness(10, 3, 10, 3) };
-            delete.Click += (_, _) =>
-            {
-                try { UserDatabase.DeleteBackup(backup.Path); }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Status(DataStatusTxt, $"Couldn't delete it: {ex.Message}"); }
-                RefreshDataBackups();
-            };
-            Grid.SetColumn(delete, 2);
-            row.Children.Add(delete);
-            DataBackupsPanel.Children.Add(row);
-        }
+    private static DataBackupRowViewModel? BackupOf(object sender) => (sender as FrameworkElement)?.DataContext as DataBackupRowViewModel;
+
+    private async void RestoreBackup_Click(object sender, RoutedEventArgs e)
+    {
+        if (BackupOf(sender) is { } backup) await RestoreAsync(backup.Path, backup.ShortDate);
+    }
+
+    private void DeleteBackup_Click(object sender, RoutedEventArgs e)
+    {
+        if (BackupOf(sender) is not { } backup) return;
+        try { UserDatabase.DeleteBackup(backup.Path); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Status(DataStatusTxt, $"Couldn't delete it: {ex.Message}"); }
+        RefreshDataBackups();
     }
 
     private static string ReasonLabel(string reason) => reason switch
@@ -395,24 +379,11 @@ public sealed partial class SettingsPage : Page
         CleanUpBtn.Content = extra > 0 ? $"Clean up now — frees {Size(freeable)}" : "Nothing to clean up";
         CleanUpBtn.IsEnabled = extra > 0;
 
-        SaveBackupsPanel.Children.Clear();
-        foreach (var account in groups.GroupBy(g => g.AccountFolder))
-        {
-            var block = new StackPanel { Spacing = 4 };
-            block.Children.Add(new TextBlock { Text = BackupService.AccountLabel(account.Key), FontWeight = FontWeights.SemiBold, FontSize = 13 });
-            foreach (var group in account.OrderBy(g => GroupOrder(g.Group)))
-            {
-                string beyond = group.CountBeyondKeep > 0 ? $"  ·  {group.CountBeyondKeep} older than the newest {keep}" : "";
-                block.Children.Add(new TextBlock
-                {
-                    Text = $"{GroupLabel(group.Group)}  ·  {group.Count} backups  ·  {Size(group.Bytes)}  ·  newest {group.Newest:MMM d, h:mm tt}{beyond}",
-                    FontSize = 12,
-                    Opacity = 0.85,
-                    TextWrapping = TextWrapping.Wrap,
-                });
-            }
-            SaveBackupsPanel.Children.Add(block);
-        }
+        SaveBackupsList.ItemsSource = groups.GroupBy(g => g.AccountFolder).Select(account => new SaveBackupAccountViewModel(
+            BackupService.AccountLabel(account.Key),
+            account.OrderBy(g => GroupOrder(g.Group)).Select(group =>
+                $"{GroupLabel(group.Group)}  ·  {group.Count} backups  ·  {Size(group.Bytes)}  ·  newest {group.Newest:MMM d, h:mm tt}"
+                + (group.CountBeyondKeep > 0 ? $"  ·  {group.CountBeyondKeep} older than the newest {keep}" : "")).ToList())).ToList();
     }
 
     private static string GroupLabel(string group) =>

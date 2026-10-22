@@ -468,7 +468,7 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
     /// which model renders, only the underlying stat rolls, exactly like
     /// a reference tool's own "Base Stats" fields.</summary>
     /// <summary>The Base Stats boxes: the stat-bonus entries this page shows.</summary>
-    private static readonly (string Label, string Key)[] BaseStats = { ("Damage", "^WEAPON_DAMAGE"), ("Mining", "^WEAPON_MINING"), ("Scanner", "^WEAPON_SCAN") };
+    private static readonly (string Label, string Key)[] BaseStats = StatBonusService.MultiToolStats;
 
     private void UpdateStatDisplay()
     {

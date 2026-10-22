@@ -1,197 +1,184 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). Frigates (FrigatesViewModel): the fleet as
+     cards - class rating, role, crew race, the stat its role uses, expeditions flown - and the
+     selected frigate's details below. Every edit is staged as it's made; Reset undoes this
+     frigate's. -->
 <Page
     x:Class="ArtifactX.WinUI3.Views.FrigatePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Page.Resources>
+        <DataTemplate x:Key="NumberFieldTemplate" x:DataType="viewmodels:NumberFieldViewModel">
+            <StackPanel Width="130" Spacing="4">
+                <TextBlock Text="{x:Bind Label}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                <NumberBox Value="{x:Bind Value, Mode=TwoWay}" SpinButtonPlacementMode="Hidden" AutomationProperties.Name="{x:Bind Label}"/>
+            </StackPanel>
+        </DataTemplate>
+    </Page.Resources>
 
     <ScrollViewer>
         <StackPanel Padding="28,26,28,40" Spacing="22">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="FRIGATES" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
-                <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Frigate Changes" Click="PageResetBtn_Click"
-                        Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+                <TextBlock Text="FRIGATES" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Content="Reset Frigate Changes" Click="Reset_Click" Visibility="{x:Bind ViewModel.HasEdits, Mode=OneWay}"
+                        Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
             </Grid>
 
-            <!-- Shown instead of ContentPanel when the player doesn't own a
-                 freighter yet - confirmed 2026-08-11 via a real before/after
-                 save diff (user placed one storage container and got their
-                 first freighter): the ";Du" (FleetFrigates) array already had
-                 one fully-rolled-looking entry on a save with zero real
-                 progress, but every field on it stayed byte-for-byte frozen
-                 across the diff EXCEPT Crew Race, which only changed once the
-                 freighter's own hull scene path (bIR.93M) went from empty to
-                 real - frigates are commanded from your freighter, so you
-                 can't have a real one without owning one either. -->
-            <TextBlock x:Name="NoFreighterTxt" Style="{StaticResource ThemeDimTextStyle}"
-                       MaxWidth="600" HorizontalAlignment="Left" Visibility="Collapsed"
+            <!-- No freighter, no fleet: frigates are commanded from your freighter (a save with
+                 none still holds one frozen placeholder frigate - see NmsFrigatePaths). -->
+            <TextBlock Visibility="{x:Bind ViewModel.NoFreighter, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" MaxWidth="600" HorizontalAlignment="Left"
                        Text="You don't own a freighter yet, so you don't have a Frigate Fleet to manage. Buy or claim a freighter in-game, then come back here."/>
 
-            <StackPanel x:Name="ContentPanel" Spacing="22" HorizontalAlignment="Stretch">
+            <StackPanel Visibility="{x:Bind ViewModel.HasFreighter, Mode=OneWay}" Spacing="22">
                 <Border Style="{StaticResource ThemeCardStyle}">
                     <StackPanel>
                         <Border Style="{StaticResource ThemeBandStyle}">
-                            <TextBlock Text="OWNED FRIGATES" Style="{StaticResource ThemeBandTextStyle}"/>
+                            <Grid>
+                                <TextBlock Text="YOUR FLEET" Style="{StaticResource ThemeBandTextStyle}"/>
+                                <TextBlock Text="{x:Bind ViewModel.FleetSummary, Mode=OneWay}" Style="{StaticResource ThemeBandTextStyle}" HorizontalAlignment="Right" Opacity="0.85"/>
+                            </Grid>
                         </Border>
-                        <ScrollViewer MaxHeight="120" Padding="18,14,18,16" VerticalScrollBarVisibility="Auto"
-                                      HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-                            <ctcontrols:WrapPanel x:Name="FrigateSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+                        <ScrollViewer MaxHeight="360" Padding="18,14,18,16" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.Cards}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="10"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="viewmodels:FrigateCardViewModel">
+                                        <Button Click="Card_Click" Padding="0" Background="{ThemeResource ThemePanelAltBrush}"
+                                                BorderBrush="{x:Bind Border, Mode=OneWay}" BorderThickness="{x:Bind BorderThickness, Mode=OneWay}"
+                                                CornerRadius="{ThemeResource ThemeCardCornerRadius}" AutomationProperties.Name="{x:Bind AccessibleName}">
+                                            <Grid Width="230" Height="88" Padding="12,10" ColumnSpacing="10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border Width="34" Height="34" CornerRadius="6" Background="{x:Bind RatingBrush}" VerticalAlignment="Top">
+                                                    <TextBlock Text="{x:Bind Rating}" FontSize="18" FontWeight="Bold" Foreground="White"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <StackPanel Grid.Column="1" Spacing="2">
+                                                    <TextBlock Text="{x:Bind Title}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold"
+                                                               TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Title}"/>
+                                                    <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="NoWrap"
+                                                               TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Detail}"/>
+                                                    <TextBlock Text="{x:Bind Expeditions}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </ScrollViewer>
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource ThemeCardStyle}">
-                  <StackPanel>
-                    <Border Style="{StaticResource ThemeBandStyle}">
-                        <TextBlock Text="FRIGATE DETAILS" Style="{StaticResource ThemeBandTextStyle}"/>
-                    </Border>
-                    <StackPanel Spacing="20" Padding="20,16,20,20">
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
-                            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" MaxWidth="700" HorizontalAlignment="Left"
-                                       Text="Leave empty for an auto-generated name (e.g. &quot;SS-2 Akeosc's Gamble&quot;) - that flavor text isn't stored in the save at all, it's generated from the frigate's class/race/seeds each time, so ArtifactX can't show or reproduce it here. Set a value to override it, same as Settlement Name."/>
-                            <TextBox x:Name="NameEditBox" AutomationProperties.Name="Name" Width="300" HorizontalAlignment="Left" LostFocus="NameEditBox_LostFocus"/>
-                        </StackPanel>
+                <Border Style="{StaticResource ThemeCardStyle}" Visibility="{x:Bind ViewModel.HasSelection, Mode=OneWay}">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <TextBlock Text="FRIGATE DETAILS" Style="{StaticResource ThemeBandTextStyle}"/>
+                        </Border>
+                        <StackPanel Spacing="20" Padding="20,16,20,20">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" MaxWidth="700" HorizontalAlignment="Left" TextWrapping="Wrap"
+                                           Text="Leave empty for the game's own generated name (e.g. &quot;SS-2 Akeosc's Gamble&quot;). That name isn't stored in the save - the game makes it from the frigate's class, race and seeds - so ArtifactX shows the frigate by its role instead. Type a name to override it."/>
+                                <TextBox Text="{x:Bind ViewModel.Name, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" LostFocus="Name_LostFocus"
+                                         AutomationProperties.Name="Name" Width="300" HorizontalAlignment="Left"/>
+                            </StackPanel>
 
-                        <StackPanel Orientation="Horizontal" Spacing="32">
-                            <StackPanel Spacing="6" Width="180">
-                                <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                <ComboBox x:Name="FrigateClassBox" AutomationProperties.Name="Class" Width="170" HorizontalAlignment="Left" SelectionChanged="FrigateClassBox_SelectionChanged"
-                                          ToolTipService.ToolTip="The frigate's role, shown as the pill next to it in-game (Combat, Exploration, Industrial, Trade, Support and so on)."/>
-                            </StackPanel>
-                            <StackPanel Spacing="6" Width="150">
-                                <TextBlock Text="CREW RACE" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                <ComboBox x:Name="RaceBox" AutomationProperties.Name="Crew race" Width="140" HorizontalAlignment="Left" SelectionChanged="RaceBox_SelectionChanged"/>
-                            </StackPanel>
-                            <StackPanel Spacing="6" Width="150">
-                                <TextBlock Text="CLASS RATING" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                <ComboBox x:Name="InventoryClassBox" AutomationProperties.Name="Class rating" Width="140" HorizontalAlignment="Left" SelectionChanged="InventoryClassBox_SelectionChanged"
-                                          ToolTipService.ToolTip="The S/A/B/C badge shown next to each frigate in-game."/>
-                            </StackPanel>
-                        </StackPanel>
-
-                        <StackPanel Orientation="Horizontal" Spacing="32">
-                            <!-- Grid, not a plain horizontal StackPanel - the old
-                                 version let the TextBox+Button pair size to its
-                                 natural content width (180 + spacing + the
-                                 button's own text-driven width) inside a
-                                 narrower fixed-width parent, so the button
-                                 silently overflowed/clipped instead of shrinking
-                                 to fit. An Auto column reserves exactly the
-                                 button's real width first, and both seed rows
-                                 use the identical column layout regardless of
-                                 seed length, so they line up pixel-for-pixel
-                                 with each other too (2026-08-07 user report). -->
-                            <StackPanel Spacing="6" Width="300">
-                                <TextBlock Text="MODEL SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                           Text="Drives the hull's procedural look, alongside Class/Type. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
-                                <controls:SeedBox x:Name="ModelSeedBox" Label="Model seed" Changed="Seed_Changed" BoxWidth="180"/>
-                            </StackPanel>
-                            <StackPanel Spacing="6" Width="300">
-                                <TextBlock Text="HOME SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                           Text="Drives which home system/name this frigate generates for itself. Paste a seed you've found elsewhere, or click Generate for a new random one."/>
-                                <controls:SeedBox x:Name="HomeSeedBox" Label="Home seed" Changed="Seed_Changed" BoxWidth="180"/>
-                            </StackPanel>
-                        </StackPanel>
-
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="STATS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                            <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="12">
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Combat" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat0Box" AutomationProperties.Name="Combat" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat0Box_ValueChanged"/>
+                            <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="12">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <ComboBox ItemsSource="{x:Bind ViewModel.Roles}" SelectedItem="{x:Bind ViewModel.Role, Mode=TwoWay}" Width="170"
+                                              AutomationProperties.Name="Class" ToolTipService.ToolTip="The frigate's role, shown as the pill next to it in-game (Combat, Exploration, Industrial, Trade, Support and so on)."/>
                                 </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Exploration" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat1Box" AutomationProperties.Name="Exploration" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat1Box_ValueChanged"/>
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="CREW RACE" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <ComboBox ItemsSource="{x:Bind ViewModel.Races}" SelectedItem="{x:Bind ViewModel.Race, Mode=TwoWay}" Width="140" AutomationProperties.Name="Crew race"/>
                                 </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Mining" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat2Box" AutomationProperties.Name="Mining" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat2Box_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Diplomatic" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat3Box" AutomationProperties.Name="Diplomatic" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat3Box_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Fuel Burn Rate" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat4Box" AutomationProperties.Name="Fuel Burn Rate" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat4Box_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Fuel Capacity" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat5Box" AutomationProperties.Name="Fuel Capacity" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat5Box_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Speed" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat6Box" AutomationProperties.Name="Speed" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat6Box_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Extra Loot" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat7Box" AutomationProperties.Name="Extra Loot" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat7Box_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Repair" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat8Box" AutomationProperties.Name="Repair" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat8Box_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Invulnerable" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat9Box" AutomationProperties.Name="Invulnerable" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat9Box_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Stealth" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat10Box" AutomationProperties.Name="Stealth" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat10Box_ValueChanged"/>
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="CLASS RATING" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <ComboBox ItemsSource="{x:Bind ViewModel.Ratings}" SelectedItem="{x:Bind ViewModel.Rating, Mode=TwoWay}" Width="140"
+                                              AutomationProperties.Name="Class rating" ToolTipService.ToolTip="The S/A/B/C badge shown next to each frigate in-game."/>
                                 </StackPanel>
                             </ctcontrols:WrapPanel>
-                        </StackPanel>
 
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="EXPEDITION RECORD" Style="{StaticResource ThemeEyebrowStyle}"/>
-                            <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="12">
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Expeditions" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="ExpeditionsBox" AutomationProperties.Name="Expeditions" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="ExpeditionsBox_ValueChanged"/>
+                            <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="12">
+                                <StackPanel Spacing="6" Width="300">
+                                    <TextBlock Text="MODEL SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
+                                               Text="Drives the hull's procedural look, alongside Class/Type. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
+                                    <controls:SeedBox x:Name="ModelSeedBox" Label="Model seed" Changed="Seed_Changed" BoxWidth="180"/>
                                 </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Successes" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="SuccessesBox" AutomationProperties.Name="Successes" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="SuccessesBox_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Failures" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="FailuresBox" AutomationProperties.Name="Failures" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="FailuresBox_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Times Damaged" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="TimesDamagedBox" AutomationProperties.Name="Times Damaged" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="TimesDamagedBox_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Repairs Made" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="RepairsMadeBox" AutomationProperties.Name="Repairs Made" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="RepairsMadeBox_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Damage Taken" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="DamageTakenBox" AutomationProperties.Name="Damage Taken" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="DamageTakenBox_ValueChanged"/>
+                                <StackPanel Spacing="6" Width="300">
+                                    <TextBlock Text="HOME SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
+                                               Text="Drives which home system/name this frigate generates for itself. Paste a seed you've found elsewhere, or click Generate for a new random one."/>
+                                    <controls:SeedBox x:Name="HomeSeedBox" Label="Home seed" Changed="Seed_Changed" BoxWidth="180"/>
                                 </StackPanel>
                             </ctcontrols:WrapPanel>
-                        </StackPanel>
 
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="TRAITS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                            <ctcontrols:WrapPanel x:Name="TraitsPanel" HorizontalSpacing="16" VerticalSpacing="16"/>
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="STATS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.Stats, Mode=OneWay}" ItemTemplate="{StaticResource NumberFieldTemplate}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="12"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="EXPEDITION RECORD" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.Record, Mode=OneWay}" ItemTemplate="{StaticResource NumberFieldTemplate}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="12"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="TRAITS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.Traits, Mode=OneWay}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <ctcontrols:WrapPanel HorizontalSpacing="20" VerticalSpacing="10"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="viewmodels:FrigateTraitSlotViewModel">
+                                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                                <TextBlock Text="{x:Bind Label}" Width="56" FontSize="12" VerticalAlignment="Center" Style="{StaticResource ThemeDimTextStyle}"/>
+                                                <ComboBox ItemsSource="{x:Bind Choices}" SelectedItem="{x:Bind Selected, Mode=TwoWay}" Width="340" AutomationProperties.Name="{x:Bind Label}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="viewmodels:FrigateTraitChoice">
+                                                            <TextBlock Text="{x:Bind Label}" Foreground="{x:Bind Brush}"/>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <Ellipse Width="14" Height="14" Fill="{x:Bind Swatch, Mode=OneWay}" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
-                  </StackPanel>
                 </Border>
             </StackPanel>
         </StackPanel>

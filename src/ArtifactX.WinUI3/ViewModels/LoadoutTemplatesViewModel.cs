@@ -22,6 +22,7 @@ public sealed class LoadoutTemplateRowViewModel(NmsLoadoutTemplate template, str
     public string ApplyName => $"Apply {Name}";
     public string FullBuildActionName => $"{FullBuildAction} {Name}";
     public string DeleteName => $"Delete {Name}";
+    public string PreviewName => $"Preview {Name}";
 
     /// <summary>"12 items, S class, stats+seed, interior (40 parts) - from Serenity".</summary>
     public string Summary
