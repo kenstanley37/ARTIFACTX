@@ -190,7 +190,20 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     private Task ShowFreighterPreviewAsync() => FreighterPreview.ShowAsync(
         SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>(),
         SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>(),
-        ModelPreviewService.StoredColours(SaveSessionManager.GetValue("vLc", "6f=", "l:j", "15", "wnR", "Aak")));
+        ModelPreviewService.StoredColours(SaveSessionManager.GetValue("vLc", "6f=", "l:j", "15", "wnR", "Aak")),
+        FlareColour(SaveSessionManager.GetValue(NmsInventoryContainer.FreighterEngineEffectPath)?.Value<string>()));
+
+    /// <summary>Each flare's glow, picked by eye from the game's Customisation screen (2026-10-22).</summary>
+    private static uint FlareColour(string? value) => value?.ToUpperInvariant() switch
+    {
+        "^GREEN" => 0x3DFF7A,
+        "^BLACKHOLE" => 0xC58BFF,
+        "^YELLOW" => 0xFFE44A,
+        "^PURPLE" => 0xF04AE0,
+        "^TURQUOISE" => 0x3FEFF0,
+        "^RED" => 0xFF4A35,
+        _ => 0x4A8CFF, // ^DEFAULT: Standard blue
+    };
 
     private void GridCellChanged(object? sender, EventArgs e) =>
         PageResetBtn.Visibility = Visibility.Visible;
@@ -547,6 +560,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
         if (flare.Value == SaveSessionManager.GetValue(NmsInventoryContainer.FreighterEngineEffectPath)?.Value<string>()) return;
         SaveSessionManager.StageEdit(flare.Value, NmsInventoryContainer.FreighterEngineEffectPath);
         PageResetBtn.Visibility = Visibility.Visible;
+        _ = ShowFreighterPreviewAsync();
     }
 
     private void Seed_Changed(object? sender, SeedChange change)
