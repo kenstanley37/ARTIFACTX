@@ -288,6 +288,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
         // Every body, discovered or not: the ones nobody has found yet with the type the
         // game's own generator gives them (PlanetTypesService).
+        if (!PlanetTypesService.IsReady) _ = PlanetTypesService.EnsureLoadedAsync();
         var known = planets.Select(p => p.PlanetIndex).ToHashSet();
         var allBodies = planets.Concat(PlanetTypesService.Undiscovered(system, known)).OrderBy(p => p.PlanetIndex).ToList();
         Tiles = allBodies.Select(p =>

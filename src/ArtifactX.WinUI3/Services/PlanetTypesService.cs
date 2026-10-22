@@ -26,12 +26,27 @@ public static class PlanetTypesService
 
     public static bool IsReady => _tables is not null;
 
-    public static Task EnsureLoadedAsync() => _loading ??= LoadAsync();
+    /// <summary>Loads the tables once they exist. Tried again while they're missing, and
+    /// again after a game data rebuild - the app asked before a rebuild had finished, kept
+    /// "none" and never showed a type (2026-10-22).</summary>
+    public static Task EnsureLoadedAsync()
+    {
+        if (!_subscribed)
+        {
+            _subscribed = true;
+            GameDataService.BuildFinished += error => { _tables = null; _loading = null; Cache.Clear(); _ = EnsureLoadedAsync(); };
+        }
+        return _loading ??= LoadAsync();
+    }
+
+    private static bool _subscribed;
 
     private static async Task LoadAsync()
     {
         _tables = await CatalogService.GetBiomeTablesAsync();
-        if (_tables is not null) Loaded?.Invoke();
+        if (_tables is null) { _loading = null; return; }
+        Cache.Clear();
+        Loaded?.Invoke();
     }
 
     /// <summary>Each body's type in planet order (index 0 = planet 1); empty until the
