@@ -27,7 +27,7 @@ public sealed partial class PlanetTileViewModel : ObservableObject
         TypeText = planet.Classification(details?.Descriptor, ringSuffix: " · rings");
         BasesLabel = baseNames.Count == 1 ? "Your base" : "Your bases";
         Bases = string.Join(", ", baseNames);
-        FoundBy = planet.DiscoveredHere ? "You" : planet.Discoverer;
+        FoundBy = planet.Predicted ? "Not discovered yet" : planet.DiscoveredHere ? "You" : planet.Discoverer;
         Fish = fish;
         string summary = PlanetText.CardSummary(details);
         DetailsSummary = summary.Length > 0 ? summary : "None yet - open the planet to add weather, sentinels, resources and notes.";

@@ -286,7 +286,11 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         Market.Show(system);
         Unmatched = BuildUnmatched(system, planets);
 
-        Tiles = planets.Select(p =>
+        // Every body, discovered or not: the ones nobody has found yet with the type the
+        // game's own generator gives them (PlanetTypesService).
+        var known = planets.Select(p => p.PlanetIndex).ToHashSet();
+        var allBodies = planets.Concat(PlanetTypesService.Undiscovered(system, known)).OrderBy(p => p.PlanetIndex).ToList();
+        Tiles = allBodies.Select(p =>
         {
             var fish = _vocabulary is null ? null
                 : PlanetFishViewModel.For(p, _vocabulary.Fish, _caught, id => PlanetText.FishName(id, _vocabulary.ItemNames));

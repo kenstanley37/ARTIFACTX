@@ -1119,6 +1119,35 @@ public static class CatalogService
         }
     }
 
+    /// <summary>What planet types are picked from (catalog "PlanetGeneration", step
+    /// "Planet types"); null on game data built before it was collected.</summary>
+    public static async Task<ArtifactX.Core.Universe.BiomeTables?> GetBiomeTablesAsync()
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return null;
+        try
+        {
+            return await Task.Run(() =>
+            {
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'PlanetGeneration' AND i.GameId = 'BIOMETABLES'";
+                return command.ExecuteScalar() is string json
+                    ? System.Text.Json.JsonSerializer.Deserialize<ArtifactX.Core.Universe.BiomeTables>(json)
+                    : null;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetBiomeTablesAsync failed: {ex.Message}");
+            return null;
+        }
+    }
+
     /// <summary>Every starship part tree (catalog "ShipDescriptors"), by
     /// lower-case descriptor path, as stored JSON (ShipParts.ParseTree).</summary>
     public static async Task<Dictionary<string, string>> GetShipPartTreesAsync()

@@ -31,6 +31,7 @@ public sealed partial class CurrentSystemPage : Page
         UnmatchedBodiesService.Changed += OnSystemChanged;
         SystemMarketService.Changed += OnMarketChanged;
         ScreenCaptureLogService.SystemPictureSaved += OnPictureSaved;
+        PlanetTypesService.Loaded += OnPlanetTypesLoaded;
         Unloaded += (_, _) =>
         {
             ViewModel.SystemArrived -= ShowSystemChange;
@@ -46,10 +47,15 @@ public sealed partial class CurrentSystemPage : Page
             UnmatchedBodiesService.Changed -= OnSystemChanged;
             SystemMarketService.Changed -= OnMarketChanged;
             ScreenCaptureLogService.SystemPictureSaved -= OnPictureSaved;
+            PlanetTypesService.Loaded -= OnPlanetTypesLoaded;
             _bannerStoryboard?.Stop();
         };
         if (SaveSessionManager.IsSaveLoaded) _ = ViewModel.LoadAsync();
+        _ = PlanetTypesService.EnsureLoadedAsync();
     }
+
+    /// <summary>The planet type tables arrived: show the bodies nobody has discovered yet.</summary>
+    private void OnPlanetTypesLoaded() => DispatcherQueue.TryEnqueue(() => ViewModel.Refresh(notes: false));
 
     private void OnSessionChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() => _ = ViewModel.LoadAsync());
 
