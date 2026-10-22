@@ -1876,6 +1876,16 @@ public static class CatalogService
     public static List<CatalogUnlockableItem> FilterFishSpecies(IEnumerable<CatalogUnlockableItem> catalogItems) =>
         catalogItems.Where(c => FishSpeciesPattern.IsMatch(c.GameId)).OrderBy(c => c.DisplayName).ToList();
 
+    /// <summary>The non-fish catches the game lists as "Collected Flotsam" in its Fishing Records:
+    /// F_TRASH_1..8 (Kelp Strand, Tangleweed, Sea Sponge, Bleached Coral, Expired Braincoral,
+    /// Ossified Coral, Old Boot, Rusted Technology) and F_BOTTLE (Message in a Bottle). They're
+    /// recorded in the same fishing-record arrays as fish - a Bleached Coral catch on Slot 8
+    /// (2026-10-22) added "^F_TRASH_4" with count 1 and a largest size, like any fish.</summary>
+    private static readonly Regex FlotsamPattern = new(@"^F_(TRASH_\d+|BOTTLE)$", RegexOptions.Compiled);
+
+    public static List<CatalogUnlockableItem> FilterFlotsam(IEnumerable<CatalogUnlockableItem> catalogItems) =>
+        catalogItems.Where(c => FlotsamPattern.IsMatch(c.GameId)).OrderBy(c => c.GameId, StringComparer.Ordinal).ToList();
+
     /// <summary>Same rule as FilterFishSpecies, for a single id.</summary>
     public static bool IsFishSpecies(string gameId) => FishSpeciesPattern.IsMatch(gameId);
 

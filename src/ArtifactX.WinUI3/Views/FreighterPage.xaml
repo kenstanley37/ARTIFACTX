@@ -146,72 +146,80 @@
                     <Border x:Name="FreighterInfoBorder" Style="{StaticResource ThemeCardStyle}">
                         <controls:FoldingCard x:Name="DetailsCard" Title="FREIGHTER DETAILS" SettingKey="FreighterDetailsCollapsed">
                             <StackPanel Padding="18,14,18,18" Spacing="16">
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
-                                               ToolTipService.ToolTip="No known upper limit - extreme values won't corrupt your save, just unbalance it."/>
-                                    <controls:StatBonusBoxes x:Name="StatsBoxes" Edited="StatsBoxes_Edited"/>
-                                </StackPanel>
-
+                                <!-- Stats and details on the left, the preview beside them at the top right, as on
+                                     Starships; it wraps below on narrow windows (user, 2026-10-22). -->
                                 <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
-                                    <StackPanel Width="280" Spacing="12">
-                                        <StackPanel Spacing="6">
-                                            <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                            <TextBox x:Name="NameEditBox" AutomationProperties.Name="Name" LostFocus="NameEditBox_LostFocus"/>
-                                        </StackPanel>
-                                        <StackPanel Spacing="6">
-                                            <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                            <controls:ClassPicker x:Name="ClassPicker" ClassChosen="ClassPicker_ClassChosen"/>
-                                        </StackPanel>
-                                        <StackPanel Spacing="6">
-                                            <TextBlock Text="TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                            <ComboBox x:Name="TypeComboBox" AutomationProperties.Name="Type" HorizontalAlignment="Stretch"
-                                                      DisplayMemberPath="DisplayName"
-                                                      SelectionChanged="TypeComboBox_SelectionChanged"/>
-                                        </StackPanel>
-                                        <Button Content="Delete this freighter..." Click="DeleteFreighterBtn_Click" Margin="0,4,0,0"
-                                                    Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
-                                                    ToolTipService.ToolTip="Remove your freighter from the save. You can keep it as a template first."/>
-                                    </StackPanel>
-                                    <StackPanel Width="300" Spacing="12">
-                                        <!-- Home Seed: also the freighter's registered home-system address,
-                                             but 2 isolated in-game tests showed it drives the hull's paint/
-                                             texture too (shape stays, colours reroll). Model Seed matches a
-                                             reference tool's field; 2 tests regenerating it showed no visible
-                                             change - what it controls is still unconfirmed. -->
-                                        <StackPanel Spacing="6">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <TextBlock Text="HOME SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                                <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
-                                                          ToolTipService.ToolTip="Sets the hull's paint and colour pattern (the shape stays the same). Paste a value you've found elsewhere, or Generate a new one."/>
+                                    <StackPanel MaxWidth="692" Spacing="16">
+
+                                        <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
+                                            <StackPanel Width="280" Spacing="12">
+                                                <StackPanel Spacing="6">
+                                                    <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                                    <TextBox x:Name="NameEditBox" AutomationProperties.Name="Name" LostFocus="NameEditBox_LostFocus"/>
+                                                </StackPanel>
+                                                <StackPanel Spacing="6">
+                                                    <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                                    <controls:ClassPicker x:Name="ClassPicker" ClassChosen="ClassPicker_ClassChosen"/>
+                                                </StackPanel>
+                                                <StackPanel Spacing="6">
+                                                    <TextBlock Text="TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                                    <ComboBox x:Name="TypeComboBox" AutomationProperties.Name="Type" HorizontalAlignment="Stretch"
+                                                              DisplayMemberPath="DisplayName"
+                                                              SelectionChanged="TypeComboBox_SelectionChanged"/>
+                                                </StackPanel>
                                             </StackPanel>
-                                            <controls:SeedBox x:Name="HomeSeedBox" Label="Home seed" Changed="Seed_Changed"/>
-                                        </StackPanel>
-                                        <StackPanel Spacing="6">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <TextBlock Text="MODEL SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                                <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
-                                                          ToolTipService.ToolTip="A second appearance seed for the hull. Its visible effect hasn't been pinned down yet - the paint scheme comes from Home Seed."/>
+                                            <StackPanel Width="300" Spacing="12">
+                                                <!-- Home Seed: also the freighter's registered home-system address,
+                                                     but 2 isolated in-game tests showed it drives the hull's paint/
+                                                     texture too (shape stays, colours reroll). Model Seed matches a
+                                                     reference tool's field; 2 tests regenerating it showed no visible
+                                                     change - what it controls is still unconfirmed. -->
+                                                <StackPanel Spacing="6">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <TextBlock Text="HOME SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                                        <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
+                                                                  ToolTipService.ToolTip="Sets the hull's paint and colour pattern (the shape stays the same). Paste a value you've found elsewhere, or Generate a new one."/>
+                                                    </StackPanel>
+                                                    <controls:SeedBox x:Name="HomeSeedBox" Label="Home seed" Changed="Seed_Changed"/>
+                                                </StackPanel>
+                                                <StackPanel Spacing="6">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <TextBlock Text="MODEL SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                                        <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
+                                                                  ToolTipService.ToolTip="A second appearance seed for the hull. Its visible effect hasn't been pinned down yet - the paint scheme comes from Home Seed."/>
+                                                    </StackPanel>
+                                                    <controls:SeedBox x:Name="ModelSeedBox" Label="Model seed" Changed="Seed_Changed"/>
+                                                </StackPanel>
                                             </StackPanel>
-                                            <controls:SeedBox x:Name="ModelSeedBox" Label="Model seed" Changed="Seed_Changed"/>
+                                            <StackPanel Width="300" Spacing="12">
+                                                <StackPanel Spacing="6">
+                                                    <TextBlock Text="CREW RACE" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                                    <ComboBox x:Name="CrewRaceComboBox" HorizontalAlignment="Stretch"
+                                                              DisplayMemberPath="DisplayName"
+                                                              SelectionChanged="CrewRaceComboBox_SelectionChanged"/>
+                                                </StackPanel>
+                                                <StackPanel Spacing="6">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <TextBlock Text="CREW SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                                        <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
+                                                                  ToolTipService.ToolTip="Drives the captain's look, alongside their Race. Paste a seed you've found elsewhere, or Generate a new one."/>
+                                                    </StackPanel>
+                                                    <controls:SeedBox x:Name="CrewSeedBox" Label="Crew seed" Changed="Seed_Changed"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </ctcontrols:WrapPanel>
+                                        <!-- Base stats under who it is (user, 2026-10-22 - they were first). -->
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
+                                                       ToolTipService.ToolTip="No known upper limit - extreme values won't corrupt your save, just unbalance it."/>
+                                            <controls:StatBonusBoxes x:Name="StatsBoxes" Edited="StatsBoxes_Edited"/>
                                         </StackPanel>
                                     </StackPanel>
-                                    <StackPanel Width="300" Spacing="12">
-                                        <StackPanel Spacing="6">
-                                            <TextBlock Text="CREW RACE" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                            <ComboBox x:Name="CrewRaceComboBox" HorizontalAlignment="Stretch"
-                                                      DisplayMemberPath="DisplayName"
-                                                      SelectionChanged="CrewRaceComboBox_SelectionChanged"/>
-                                        </StackPanel>
-                                        <StackPanel Spacing="6">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <TextBlock Text="CREW SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                                <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
-                                                          ToolTipService.ToolTip="Drives the captain's look, alongside their Race. Paste a seed you've found elsewhere, or Generate a new one."/>
-                                            </StackPanel>
-                                            <controls:SeedBox x:Name="CrewSeedBox" Label="Crew seed" Changed="Seed_Changed"/>
-                                        </StackPanel>
-                                    </StackPanel>
+                                    <!-- The freighter's own shape from its Type and Model seed (#25). -->
+                                    <controls:ModelPreviewPanel x:Name="FreighterPreview" Subject="freighter" StartYawOffset="3.14159" Width="420"/>
                                 </ctcontrols:WrapPanel>
+                                <!-- Destructive, so out of the way: always the card's bottom right (user, 2026-10-22). -->
+                                <Button HorizontalAlignment="Right" Content="Delete this freighter..." Click="DeleteFreighterBtn_Click" Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}" ToolTipService.ToolTip="Remove your freighter from the save. You can keep it as a template first."/>
                             </StackPanel>
                         </controls:FoldingCard>
                     </Border>

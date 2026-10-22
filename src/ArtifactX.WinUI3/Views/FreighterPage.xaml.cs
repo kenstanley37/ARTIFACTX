@@ -179,7 +179,17 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
         await SyncTypeComboBoxAsync();
         await SyncCrewRaceComboBoxAsync();
         UpdateStatDisplay();
+        _ = ShowFreighterPreviewAsync();
     }
+
+    /// <summary>The 3D preview from the freighter's Type and Model seed, through staged edits.</summary>
+    /// Custom colours the player picked in game are character-customisation entry 15 (l:j) -
+    /// found by a paint diff on Slot 8, 2026-10-22: Paint/Alternative2 = accent, Freighter/
+    /// Primary = secondary, Freighter/Alternative2 = primary.
+    private Task ShowFreighterPreviewAsync() => FreighterPreview.ShowAsync(
+        SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>(),
+        SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>(),
+        ModelPreviewService.StoredColours(SaveSessionManager.GetValue("vLc", "6f=", "l:j", "15", "wnR", "Aak")));
 
     private void GridCellChanged(object? sender, EventArgs e) =>
         PageResetBtn.Visibility = Visibility.Visible;
@@ -228,6 +238,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
 
         SaveSessionManager.StageEdit(option.ScenePath, NmsInventoryContainer.FreighterTypePath);
         PageResetBtn.Visibility = Visibility.Visible;
+        _ = ShowFreighterPreviewAsync();
     }
 
     private async Task SyncCrewRaceComboBoxAsync()
@@ -518,5 +529,6 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     private void Seed_Changed(object? sender, SeedChange change)
     {
         PageResetBtn.Visibility = Visibility.Visible;
+        if (sender == ModelSeedBox) _ = ShowFreighterPreviewAsync();
     }
 }

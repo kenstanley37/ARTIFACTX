@@ -77,8 +77,9 @@ public sealed partial class FishingRecordsPage : Page
 
         var catalogItems = await CatalogService.GetAllUnlockableItemsAsync();
         var fishItems = CatalogService.FilterFishSpecies(catalogItems);
+        var flotsamItems = CatalogService.FilterFlotsam(catalogItems);
 
-        await CatalogService.WarmCacheAsync(fishItems.Select(c => c.GameId));
+        await CatalogService.WarmCacheAsync(fishItems.Concat(flotsamItems).Select(c => c.GameId));
 
         LoadFishingRecordArrays();
 
@@ -88,7 +89,14 @@ public sealed partial class FishingRecordsPage : Page
             DisplayName = ToDisplayCase(c.DisplayName),
             IsCaught = _caughtIdSet.Contains(c.GameId),
             Icon = CatalogService.TryGet(c.GameId)?.Icon
-        }).ToList();
+        }).Concat(flotsamItems.Select(c => new FishingRecordRowViewModel
+        {
+            GameId = c.GameId,
+            DisplayName = ToDisplayCase(c.DisplayName),
+            IsCaught = _caughtIdSet.Contains(c.GameId),
+            Icon = CatalogService.TryGet(c.GameId)?.Icon,
+            IsFlotsam = true,
+        })).ToList();
 
         LoadingRing.IsActive = false;
         LoadingRing.Visibility = Visibility.Collapsed;
@@ -151,8 +159,13 @@ public sealed partial class FishingRecordsPage : Page
             filtered = filtered.Where(i => !i.IsCaught);
 
         _currentlyVisibleRows = filtered.ToList();
-        ItemsListView.ItemsSource = _currentlyVisibleRows;
-        ResultCountTxt.Text = $"{_currentlyVisibleRows.Count:N0} of {_allItems.Count:N0} species";
+        // Fish, then the game's "Collected Flotsam" in a section of its own (2026-10-22).
+        ItemsListView.ItemsSource = _currentlyVisibleRows.Where(r => !r.IsFlotsam).ToList();
+        var flotsam = _currentlyVisibleRows.Where(r => r.IsFlotsam).ToList();
+        FlotsamList.ItemsSource = flotsam;
+        FlotsamHeader.Visibility = flotsam.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        int fish = _allItems.Count(r => !r.IsFlotsam);
+        ResultCountTxt.Text = $"{_currentlyVisibleRows.Count(r => !r.IsFlotsam):N0} of {fish:N0} species · {flotsam.Count} of {_allItems.Count - fish} flotsam";
     }
 
     /// <summary>Keeps all three parallel arrays in lockstep and exactly

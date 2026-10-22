@@ -37,6 +37,11 @@ public sealed class ShipPreview : UserControl
     // "weird"). Ships face +Z; a negative pitch looks down on the hull.
     private const float StartYaw = MathF.PI + 0.75f, StartPitch = -0.52f;
     private float _yaw = StartYaw, _pitch = StartPitch;
+
+    /// <summary>Added to the opening turn for models whose front isn't +Z: freighters point
+    /// their bow along -Z (capital freighter z -3,210..+459, a fighter's -3..+8), so they
+    /// open with a half turn (2026-10-22).</summary>
+    public float StartYawOffset { get; set; }
     private readonly TextBlock _status = new()
     {
         FontSize = 13, Opacity = 0.7, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center,
@@ -93,7 +98,7 @@ public sealed class ShipPreview : UserControl
         _status.Visibility = Visibility.Collapsed;
         _hologram = hologram;
         _mesh = mesh;
-        _yaw = StartYaw; _pitch = StartPitch; // each ship opens on its front
+        _yaw = StartYaw + StartYawOffset; _pitch = StartPitch; // each ship opens on its front
         if (mesh is null) { _image.Source = null; return; }
         var colours = new uint[mesh.Materials.Length];
         var cache = new Dictionary<string, uint>();
@@ -128,7 +133,8 @@ public sealed class ShipPreview : UserControl
     {
         if (_mesh is null) return Task.FromResult<byte[]?>(null);
         var mesh = _mesh; var colours = _triColours; var textures = _triTextures; var centre = _centre; bool holo = _hologram;
-        return Task.Run(() => (byte[]?)Render(mesh, colours, textures, centre, StartYaw, StartPitch, width, height, holo));
+        float yaw = StartYaw + StartYawOffset;
+        return Task.Run(() => (byte[]?)Render(mesh, colours, textures, centre, yaw, StartPitch, width, height, holo));
     }
 
     private void OnPointerMoved(object sender, PointerRoutedEventArgs e)

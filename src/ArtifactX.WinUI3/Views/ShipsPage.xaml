@@ -105,16 +105,10 @@
                                     <TextBlock x:Name="CorvetteNoteTxt" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
                                 </Border>
 
-                                <!-- Stats over who/seed on the left, the preview beside the whole block
+                                <!-- Who/seed then stats on the left, the preview beside the whole block
                                      (no gap above it, 2026-10-15); it wraps below on narrow windows. -->
                                 <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
                                     <StackPanel MaxWidth="692" Spacing="16">
-                                        <!-- Its rolled stats: one wrapping row at the top, so the card stays short (2026-10-15). -->
-                                        <StackPanel Spacing="6">
-                                            <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
-                                                       ToolTipService.ToolTip="The ship's own rolled bonus stats - changing Class doesn't change them by itself. No known upper limit; extreme values won't corrupt your save, just unbalance it."/>
-                                            <controls:StatBonusBoxes x:Name="StatsBoxes" Edited="StatsBoxes_Edited"/>
-                                        </StackPanel>
 
                                         <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
                                             <!-- Who it is -->
@@ -136,9 +130,6 @@
                                                               SelectionChanged="TypeComboBox_SelectionChanged"
                                                               ToolTipService.ToolTip="The ship's model. Changing it swaps the hull you fly in-game."/>
                                                 </StackPanel>
-                                                <Button Content="Delete this ship..." Click="DeleteShipBtn_Click" Margin="0,4,0,0"
-                                                        Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
-                                                        ToolTipService.ToolTip="Remove this ship from the save. You can keep it as a template first."/>
                                             </StackPanel>
 
                                             <!-- How it looks -->
@@ -150,6 +141,12 @@
                                                 <controls:ShipPartsPanel x:Name="PartsPanel" Margin="0,6,0,0"/>
                                             </StackPanel>
                                         </ctcontrols:WrapPanel>
+                                        <!-- Base stats under who it is (user, 2026-10-22 - they were first). -->
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
+                                                       ToolTipService.ToolTip="The ship's own rolled bonus stats - changing Class doesn't change them by itself. No known upper limit; extreme values won't corrupt your save, just unbalance it."/>
+                                            <controls:StatBonusBoxes x:Name="StatsBoxes" Edited="StatsBoxes_Edited"/>
+                                        </StackPanel>
                                     </StackPanel>
 
                                     <!-- What the seed looks like (ShipsPage.Parts.cs, experiment) -->
@@ -171,6 +168,8 @@
                                     </StackPanel>
 
                                 </ctcontrols:WrapPanel>
+                                <!-- Destructive, so out of the way: always the card's bottom right (user, 2026-10-22). -->
+                                <Button HorizontalAlignment="Right" Content="Delete this ship..." Click="DeleteShipBtn_Click" Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}" ToolTipService.ToolTip="Remove this ship from the save. You can keep it as a template first."/>
                             </StackPanel>
                         </controls:FoldingCard>
                     </Border>
