@@ -54,6 +54,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - A base's own page shows its picture faded in behind the header again.
 - Parts the game places itself (freighter bridge connectors, station cores) have plain names instead of made-up ones.
 - Inventory **Sort** put some building parts with the maps.
+- **Alliance** page (under Milestones): your totals for the five stats a Galactic Alliance is graded on - systems, plants, minerals and creatures discovered, and stations claimed - laid out like the game's alliance screen, with what makes up each number and how to raise it.
 - Space Stations: a station you renamed also shows the game's name for it, the only name the game's teleporter and alliance lists use.
 - Bases and Parts: cards without a picture keep the picture space, with a note on how to take one in game, so every card lines up.
 - Bases and Parts: claimed stations show how many of their parts are removable and unremovable (the 123-part structure every station keeps, which still counts toward the build limit).

@@ -248,6 +248,7 @@
                         </NavigationViewItem.Icon>
                         <NavigationViewItem.MenuItems>
                             <NavigationViewItem Content="Milestones" Tag="Milestones" Icon="Flag"/>
+                            <NavigationViewItem Content="Alliance" Tag="Alliance" Icon="People"/>
                             <NavigationViewItem Content="Gek Language" Tag="LanguageGek">
                                 <NavigationViewItem.Icon>
                                     <PathIcon x:Name="GekLanguagePathIcon"/>
