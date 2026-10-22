@@ -184,11 +184,13 @@
                                                        Foreground="{ThemeResource ThemeVoidBrush}" CharacterSpacing="60"/>
                                         </Border>
                                     </StackPanel>
+                                    <!-- Everything below the name is what it takes to catch it, in one colour
+                                         (the accent is the easiest to read - user, 2026-10-22). -->
                                     <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="14"
                                                TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Name}"/>
-                                    <TextBlock Text="{x:Bind Traits}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                    <TextBlock Text="{x:Bind Traits}" Foreground="{ThemeResource ThemeAccentBrush}" FontSize="12"
                                                TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Traits}"/>
-                                    <TextBlock Text="{x:Bind Habitat}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                    <TextBlock Text="{x:Bind Habitat}" Foreground="{ThemeResource ThemeAccentBrush}" FontSize="12"
                                                TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Habitat}"/>
                                     <TextBlock Text="{x:Bind Depth}" Visibility="{x:Bind DepthVisibility}" FontSize="12"
                                                Foreground="{ThemeResource ThemeAccentBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
