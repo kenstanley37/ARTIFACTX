@@ -150,11 +150,6 @@
                                      Starships; it wraps below on narrow windows (user, 2026-10-22). -->
                                 <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
                                     <StackPanel MaxWidth="692" Spacing="16">
-                                        <StackPanel Spacing="6">
-                                            <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
-                                                       ToolTipService.ToolTip="No known upper limit - extreme values won't corrupt your save, just unbalance it."/>
-                                            <controls:StatBonusBoxes x:Name="StatsBoxes" Edited="StatsBoxes_Edited"/>
-                                        </StackPanel>
 
                                         <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
                                             <StackPanel Width="280" Spacing="12">
@@ -213,6 +208,12 @@
                                                 </StackPanel>
                                             </StackPanel>
                                         </ctcontrols:WrapPanel>
+                                        <!-- Base stats under who it is (user, 2026-10-22 - they were first). -->
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
+                                                       ToolTipService.ToolTip="No known upper limit - extreme values won't corrupt your save, just unbalance it."/>
+                                            <controls:StatBonusBoxes x:Name="StatsBoxes" Edited="StatsBoxes_Edited"/>
+                                        </StackPanel>
                                     </StackPanel>
                                     <!-- The freighter's own shape from its Type and Model seed (#25). -->
                                     <controls:ModelPreviewPanel x:Name="FreighterPreview" Subject="freighter" StartYawOffset="3.14159" Width="420"/>

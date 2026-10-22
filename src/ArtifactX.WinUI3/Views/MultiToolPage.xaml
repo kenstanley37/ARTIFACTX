@@ -108,11 +108,6 @@
                                      wraps below on narrow windows - same as Starships (2026-10-16). -->
                                 <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
                                     <StackPanel MaxWidth="692" Spacing="16">
-                                        <StackPanel Spacing="6">
-                                            <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
-                                                       ToolTipService.ToolTip="No known upper limit - extreme values won't corrupt your save, just unbalance it."/>
-                                            <controls:StatBonusBoxes x:Name="StatsBoxes" Edited="StatsBoxes_Edited"/>
-                                        </StackPanel>
 
                                         <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="16">
                                             <StackPanel Width="280" Spacing="6">
@@ -136,6 +131,12 @@
                                                 <TextBlock x:Name="KindTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"/>
                                             </StackPanel>
                                         </ctcontrols:WrapPanel>
+                                        <!-- Base stats under who it is (user, 2026-10-22 - they were first). -->
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
+                                                       ToolTipService.ToolTip="No known upper limit - extreme values won't corrupt your save, just unbalance it."/>
+                                            <controls:StatBonusBoxes x:Name="StatsBoxes" Edited="StatsBoxes_Edited"/>
+                                        </StackPanel>
                                     </StackPanel>
                                     <StackPanel x:Name="ToolPreviewGroup" Width="420" Spacing="6" Visibility="Collapsed">
                                         <TextBlock Text="PREVIEW" Style="{StaticResource ThemeEyebrowStyle}"/>

@@ -105,16 +105,10 @@
                                     <TextBlock x:Name="CorvetteNoteTxt" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
                                 </Border>
 
-                                <!-- Stats over who/seed on the left, the preview beside the whole block
+                                <!-- Who/seed then stats on the left, the preview beside the whole block
                                      (no gap above it, 2026-10-15); it wraps below on narrow windows. -->
                                 <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
                                     <StackPanel MaxWidth="692" Spacing="16">
-                                        <!-- Its rolled stats: one wrapping row at the top, so the card stays short (2026-10-15). -->
-                                        <StackPanel Spacing="6">
-                                            <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
-                                                       ToolTipService.ToolTip="The ship's own rolled bonus stats - changing Class doesn't change them by itself. No known upper limit; extreme values won't corrupt your save, just unbalance it."/>
-                                            <controls:StatBonusBoxes x:Name="StatsBoxes" Edited="StatsBoxes_Edited"/>
-                                        </StackPanel>
 
                                         <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
                                             <!-- Who it is -->
@@ -147,6 +141,12 @@
                                                 <controls:ShipPartsPanel x:Name="PartsPanel" Margin="0,6,0,0"/>
                                             </StackPanel>
                                         </ctcontrols:WrapPanel>
+                                        <!-- Base stats under who it is (user, 2026-10-22 - they were first). -->
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
+                                                       ToolTipService.ToolTip="The ship's own rolled bonus stats - changing Class doesn't change them by itself. No known upper limit; extreme values won't corrupt your save, just unbalance it."/>
+                                            <controls:StatBonusBoxes x:Name="StatsBoxes" Edited="StatsBoxes_Edited"/>
+                                        </StackPanel>
                                     </StackPanel>
 
                                     <!-- What the seed looks like (ShipsPage.Parts.cs, experiment) -->
