@@ -81,6 +81,26 @@ public static class ModelPreviewService
         Func<string, string, float[]?> colour, ulong? textureSeed, ISet<string>? styles = null) =>
         Task.Run(() => mesh.Materials.Distinct().ToDictionary(m => m, m => models.Painted(m, colour, 512, textureSeed, styles)));
 
+    /// <summary>A fixed-look model painted in its own textures - reward ships like the
+    /// Boundary Herald, Starborn Runner and The Wraith keep their colours in the texture
+    /// files instead of seed palettes (2026-10-22: 94-100% of their triangles; seed-made
+    /// ships are 70-98% palette-painted). Null when under <paramref name="share"/> of the
+    /// triangles are fixed - those stay a hologram until seed colours are solved.</summary>
+    public static Task<Dictionary<string, ModelTexture?>?> FixedLookAsync(ShipModels models, ShipMesh mesh, double share = 0.8) =>
+        Task.Run(() =>
+        {
+            var textures = new Dictionary<string, ModelTexture?>();
+            long fixedTriangles = 0;
+            foreach (var group in mesh.Materials.GroupBy(m => m))
+            {
+                bool usesPalette = false;
+                var texture = models.Painted(group.Key, (_, _) => { usesPalette = true; return null; });
+                textures[group.Key] = texture;
+                if (texture is not null && !usesPalette) fixedTriangles += group.Count();
+            }
+            return fixedTriangles >= share * mesh.Materials.Length ? textures : null;
+        });
+
     /// <summary>Colours kept in the save (a customisation entry's Aak list: crafted staffs,
     /// ships built at a station), by (palette, slot) - ("Paint", "Alternative1") - as RGB 0-1.</summary>
     public static Dictionary<(string, string), float[]> StoredColours(Newtonsoft.Json.Linq.JToken? entries)
