@@ -1,4 +1,5 @@
 using ArtifactX.Core.NmsModels;
+using ArtifactX.Core.Universe;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels.ExploreViewModels;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -73,6 +74,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     public StationMarketViewModel Market { get; } = new();
     public SystemNotesViewModel Notes { get; } = new();
     public SystemStarshipsViewModel Starships { get; } = new();
+    public SystemMultiToolsViewModel MultiTools { get; } = new();
 
     [ObservableProperty] public partial ulong? SystemAddress { get; private set; }
     [ObservableProperty] public partial int CurrentPlanet { get; private set; }
@@ -295,6 +297,18 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         if (!PlanetTypesService.IsReady) _ = PlanetTypesService.EnsureLoadedAsync();
         var known = planets.Select(p => p.PlanetIndex).ToHashSet();
         var allBodies = planets.Concat(PlanetTypesService.Undiscovered(system, known)).OrderBy(p => p.PlanetIndex).ToList();
+        var seeds = SystemGenerator.Bodies(portalCode, galaxy).PlanetSeeds;
+        var planetPoolInputs = allBodies
+            .Select(p =>
+            {
+                int idx = p.PlanetIndex - 1;
+                ulong seed = (idx >= 0 && idx < seeds.Length) ? seeds[idx] : 0UL;
+                return (PlanetSeed: seed, p.PlanetIndex, Name: UniverseInfo.PlanetName(system, p.PlanetIndex));
+            })
+            .Where(p => p.PlanetSeed != 0)
+            .ToList();
+        _ = MultiTools.LoadAsync(system, portalCode, planetPoolInputs);
+
         Tiles = allBodies.Select(p =>
         {
             var fish = _vocabulary is null ? null

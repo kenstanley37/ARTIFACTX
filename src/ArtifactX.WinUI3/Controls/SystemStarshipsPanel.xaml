@@ -52,7 +52,7 @@
                 </ItemsControl>
 
                 <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
-                           Text="These 21 starships are native to this star system and visit the Space Station and Trading Posts. Copy a seed to inspect or apply it in the Ship Designer."/>
+                           Text="Native starships, Sentinel Interceptor, Freighters and Dreadnought for this star system. Copy a seed to inspect or apply it in the Ship Designer."/>
 
                 <!-- Starships List -->
                 <ItemsControl ItemsSource="{x:Bind Starships.FilteredShips, Mode=OneWay}">

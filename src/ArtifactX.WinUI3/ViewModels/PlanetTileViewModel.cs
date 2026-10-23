@@ -9,7 +9,7 @@ namespace ArtifactX.WinUI3.ViewModels;
 
 /// <summary>One planet's card on Current System: what the save knows (a label / value table -
 /// 2026-10-13: a stack of small dim lines was hard to read), its fish where there's water,
-/// a line of what you recorded, and its glyphs. Weather, sentinels and resources come from
+/// a line of what you recorded, and its glyphs. Weather, sentinels, fauna and resources come from
 /// the game's own generator (PlanetTypesService), for found and unfound bodies alike. "You found" and "Visited" update in place
 /// as you play, so the card doesn't redraw (no blink).</summary>
 public sealed partial class PlanetTileViewModel : ObservableObject
@@ -36,6 +36,14 @@ public sealed partial class PlanetTileViewModel : ObservableObject
             Weather = PlanetText.Weather(profile);
             Sentinels = PlanetText.Sentinels(profile);
             Resources = string.Join(", ", PlanetText.Resources(profile, itemNames));
+            if (profile.FaunaCount is int count)
+            {
+                Fauna = count == 0 ? "None" : (count == 1 ? "1 species" : $"{count} species");
+            }
+            else if (profile.Fauna == 0)
+            {
+                Fauna = "None";
+            }
         }
         string summary = PlanetText.CardSummary(details);
         DetailsSummary = summary.Length > 0 ? summary : "None yet - open the planet to add weather, sentinels, resources and notes.";
@@ -56,7 +64,9 @@ public sealed partial class PlanetTileViewModel : ObservableObject
     public string Weather { get; } = "";
     public string Sentinels { get; } = "";
     public string Resources { get; } = "";
+    public string Fauna { get; } = "";
     public bool HasProfile => Weather.Length > 0;
+    public bool HasFauna => Fauna.Length > 0;
     public PlanetFishViewModel? Fish { get; }
     public bool HasFish => Fish is not null;
     public string DetailsSummary { get; }
