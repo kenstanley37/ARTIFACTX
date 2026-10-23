@@ -7,6 +7,7 @@
     x:Class="ArtifactX.WinUI3.Controls.PlanetEquipmentPanel"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
     xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
     xmlns:explore="using:ArtifactX.WinUI3.ViewModels.ExploreViewModels"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls">
@@ -153,17 +154,11 @@
         </Border>
 
         <!-- 3. Crashed Ships & Starships on this Planet -->
-        <Border Style="{StaticResource ThemeCardStyle}">
-            <StackPanel>
-                <Border Style="{StaticResource ThemeBandStyle}">
-                    <Grid>
-                        <TextBlock Text="{x:Bind Equipment.StarshipsHeading, Mode=OneWay}" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
-                        <Button Content="{x:Bind Equipment.ShipsToggleLabel, Mode=OneWay}" Click="ToggleShips_Click"
-                                HorizontalAlignment="Right" Padding="10,2" FontSize="12"
-                                AutomationProperties.Name="Toggle planet starships visibility"/>
-                    </Grid>
-                </Border>
-                <StackPanel Padding="18,14,18,16" Spacing="12" Visibility="{x:Bind Equipment.ShowAllShips, Mode=OneWay}">
+        <controls:FoldingCard Title="{x:Bind Equipment.StarshipsHeading, Mode=OneWay}"
+                              FoldedName="{x:Bind Equipment.StarshipsSummary, Mode=OneWay}"
+                              SettingKey="PlanetDetailsStarshipsCollapsed">
+            <Border Style="{StaticResource ThemeCardStyle}" Padding="16,12,16,14">
+                <StackPanel Spacing="12">
                     <TextBlock Text="{x:Bind Equipment.StarshipsSummary, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}"
                                FontSize="12" TextWrapping="Wrap"/>
 
@@ -237,8 +232,8 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </StackPanel>
-            </StackPanel>
-        </Border>
+            </Border>
+        </controls:FoldingCard>
 
     </StackPanel>
 </UserControl>

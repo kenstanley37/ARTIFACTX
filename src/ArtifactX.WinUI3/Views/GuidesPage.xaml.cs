@@ -43,22 +43,36 @@ public sealed partial class GuidesPage : Page
 
     private async Task LoadAsync()
     {
-        _itemNames = await CatalogService.GetItemNamesAsync();
-        await CatalogService.WarmCacheAsync(GuidesService.All.SelectMany(g => g.ItemIds));
+        LoadingOverlay.Visibility = Visibility.Visible;
+        try
+        {
+            // Let the first frame draw before touching SQLite or warming catalog entries.
+            await Task.Yield();
+            var guidesTask = GuidesService.GetAllAsync();
+            var namesTask = CatalogService.GetItemNamesAsync();
+            await Task.WhenAll(guidesTask, namesTask);
+            var guides = await guidesTask;
+            _itemNames = await namesTask;
+            await CatalogService.WarmCacheAsync(guides.SelectMany(g => g.ItemIds));
 
-        FormTopicBox.Items.Add(new ComboBoxItem { Content = "-", Tag = "" });
-        foreach (var topic in GuidesService.Topics) FormTopicBox.Items.Add(new ComboBoxItem { Content = topic, Tag = topic });
-        FormTopicBox.SelectedIndex = 0;
+            FormTopicBox.Items.Add(new ComboBoxItem { Content = "-", Tag = "" });
+            foreach (var topic in GuidesService.Topics) FormTopicBox.Items.Add(new ComboBoxItem { Content = topic, Tag = topic });
+            FormTopicBox.SelectedIndex = 0;
 
-        foreach (var (label, tag) in new[] { ("Any platform", ""), (VideoLink.YouTube, VideoLink.YouTube), (VideoLink.Twitch, VideoLink.Twitch), (VideoLink.TikTok, VideoLink.TikTok) })
-            PlatformFilterBox.Items.Add(new ComboBoxItem { Content = label, Tag = tag });
-        PlatformFilterBox.SelectedIndex = 0;
-        foreach (var label in new[] { "Newest first", "Title (A to Z)", "Creator (A to Z)" }) SortBox.Items.Add(label);
-        SortBox.SelectedIndex = 0;
+            foreach (var (label, tag) in new[] { ("Any platform", ""), (VideoLink.YouTube, VideoLink.YouTube), (VideoLink.Twitch, VideoLink.Twitch), (VideoLink.TikTok, VideoLink.TikTok) })
+                PlatformFilterBox.Items.Add(new ComboBoxItem { Content = label, Tag = tag });
+            PlatformFilterBox.SelectedIndex = 0;
+            foreach (var label in new[] { "Newest first", "Title (A to Z)", "Creator (A to Z)" }) SortBox.Items.Add(label);
+            SortBox.SelectedIndex = 0;
 
-        _ready = true;
-        RefreshTopicFilter();
-        Apply();
+            _ready = true;
+            RefreshTopicFilter();
+            Apply();
+        }
+        finally
+        {
+            LoadingOverlay.Visibility = Visibility.Collapsed;
+        }
     }
 
     // ---------------------------------------------------------------- list

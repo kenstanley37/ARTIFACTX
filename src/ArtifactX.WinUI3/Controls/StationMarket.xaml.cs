@@ -17,5 +17,4 @@ public sealed partial class StationMarket : UserControl
 
     public StationMarket() => InitializeComponent();
 
-    private void Toggle_Click(object sender, RoutedEventArgs e) => Market?.Toggle();
 }

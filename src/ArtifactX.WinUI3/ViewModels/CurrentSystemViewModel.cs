@@ -74,7 +74,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     public StationMarketViewModel Market { get; } = new();
     public SystemNotesViewModel Notes { get; } = new();
     public SystemStarshipsViewModel Starships { get; } = new();
-    public SystemMultiToolsViewModel MultiTools { get; } = new();
 
     [ObservableProperty] public partial ulong? SystemAddress { get; private set; }
     [ObservableProperty] public partial int CurrentPlanet { get; private set; }
@@ -83,6 +82,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     [ObservableProperty] public partial string Facts { get; private set; } = "";
     [ObservableProperty] public partial string Station { get; private set; } = "";
     [ObservableProperty] public partial string SystemCode { get; private set; } = "";
+    [ObservableProperty] public partial bool IsLoading { get; private set; }
     [ObservableProperty] public partial IReadOnlyList<KnownPlanet> Bodies { get; private set; } = [];
     [ObservableProperty] public partial IReadOnlyList<SystemDataRow> SystemData { get; private set; } = [];
     [ObservableProperty] public partial IReadOnlyList<UnmatchedBodyViewModel> Unmatched { get; private set; } = [];
@@ -107,6 +107,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     public bool ShowOrbits => SystemPicture is null;
     public bool HasUnmatched => Unmatched.Count > 0;
     public bool NoPlanets => Tiles.Count == 0;
+    public string PlanetSectionSummary => Tiles.Count == 0 ? "No planets yet" : $"{Tiles.Count} bodies";
     public string CaptureLabel => IsCapturing ? "Capturing..." : "Capture system";
     public bool CanCapture => !IsCapturing;
 
@@ -123,7 +124,11 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
     partial void OnStationChanged(string value) => OnPropertyChanged(nameof(HasStation));
     partial void OnUnmatchedChanged(IReadOnlyList<UnmatchedBodyViewModel> value) => OnPropertyChanged(nameof(HasUnmatched));
-    partial void OnTilesChanged(IReadOnlyList<PlanetTileViewModel> value) => OnPropertyChanged(nameof(NoPlanets));
+    partial void OnTilesChanged(IReadOnlyList<PlanetTileViewModel> value)
+    {
+        OnPropertyChanged(nameof(NoPlanets));
+        OnPropertyChanged(nameof(PlanetSectionSummary));
+    }
     partial void OnSystemPictureChanged(ImageSource? value)
     {
         OnPropertyChanged(nameof(HasPicture));
@@ -148,16 +153,21 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
     public async Task LoadAsync()
     {
-        await PortalGlyphs.WarmAsync();
-        _vocabulary = await PlanetVocabulary.LoadAsync();
-        if (!_descriptorsLoaded)
+        IsLoading = true;
+        try
         {
-            var descriptors = await CatalogService.GetSystemDescriptorsAsync();
-            SystemNotesService.SetDescriptors(descriptors);
-            Notes.FillChoices(descriptors);
-            _descriptorsLoaded = true;
+            await PortalGlyphs.WarmAsync();
+            _vocabulary = await PlanetVocabulary.LoadAsync();
+            if (!_descriptorsLoaded)
+            {
+                var descriptors = await CatalogService.GetSystemDescriptorsAsync();
+                SystemNotesService.SetDescriptors(descriptors);
+                Notes.FillChoices(descriptors);
+                _descriptorsLoaded = true;
+            }
+            Show(await LiveSaveWatcher.GetLatestAsync(), live: false);
         }
-        Show(await LiveSaveWatcher.GetLatestAsync(), live: false);
+        finally { IsLoading = false; }
     }
 
     /// <summary>Shows a save, redrawing only what changed.</summary>
@@ -302,17 +312,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
         var known = planets.Select(p => p.PlanetIndex).ToHashSet();
         var allBodies = planets.Concat(PlanetTypesService.Undiscovered(system, known)).OrderBy(p => p.PlanetIndex).ToList();
-        var seeds = SystemGenerator.Bodies(portalCode, galaxy).PlanetSeeds;
-        var planetPoolInputs = allBodies
-            .Select(p =>
-            {
-                int idx = p.PlanetIndex - 1;
-                ulong seed = (idx >= 0 && idx < seeds.Length) ? seeds[idx] : 0UL;
-                return (PlanetSeed: seed, p.PlanetIndex, Name: UniverseInfo.PlanetName(system, p.PlanetIndex));
-            })
-            .Where(p => p.PlanetSeed != 0)
-            .ToList();
-        _ = MultiTools.LoadAsync(system, portalCode, facts, planetPoolInputs);
 
         Tiles = allBodies.Select(p =>
         {

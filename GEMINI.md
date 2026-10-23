@@ -74,3 +74,10 @@ ArtifactX is a No Man's Sky save editor and companion app for ordinary players (
 - `UserControl.Padding` is ignored - wrap the content in a padded `Border`.
 - `NumberBox` rounds to 8 decimals and pushes the value back through TwoWay binding - use `NumberFieldViewModel`, which ignores that echo, or Reset buttons appear without a real edit.
 - `LostFocus` handlers must not stage a value that didn't change.
+
+## 8. Recent handoff notes
+
+- **2026-10-23 — App-wide fold headers:** Reused `FoldingCard` for Current System's station stock, system notes and possible starships, plus Planet Details' crashed ships/starship pool. It matches Planets and Moons with a gradient header and explicit Show/Hide button, supports a one-line summary, and keeps each existing preference key. Inventory `ExpandableScroll` is a height-limited grid, so it remains specialized but now says Show all/Show less instead of using a chevron. Forms and help tips have separate behavior and are not section folds.
+- **2026-10-23 — Current System loading state:** Loading uses a full-viewport translucent grey overlay and centered spinner only; keep it free of loading text or a boxed card.
+- **2026-10-23 — Guides navigation:** `GuidesService.All` performs a lazy SQLite read; don't call it for the first time from the page's UI-thread load path. Use `GetAllAsync()` and yield once before loading so the spinner gets a frame. `CatalogService.GetItemNamesAsync` and cache warming are already asynchronous.
+- **2026-10-23 — Guide navigation (singular):** This is `GuidePage`, separate from `GuidesPage`. It has row/category ViewModels but still owns load/filter/edit orchestration in code-behind; the page-level MVVM refactor has not reached it. Its topic cards now use a virtualizing `GridView`, and its account/catalog load paints a full-page grey spinner first. Keep future Guide work in a page ViewModel/service where practical, and preserve category-card layout plus per-topic Unlocked/Seen staging.

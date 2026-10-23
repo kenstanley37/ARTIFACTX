@@ -53,6 +53,9 @@ public static class GuidesService
         get { lock (Lock) return (_guides ??= Load()).ToList(); }
     }
 
+    /// <summary>Loads the local guide list without blocking the page that first opens it.</summary>
+    public static Task<IReadOnlyList<Guide>> GetAllAsync() => Task.Run(() => All);
+
     /// <summary>Saved guides tagged with this catalog item.</summary>
     public static IReadOnlyList<Guide> About(string itemId) =>
         All.Where(g => g.ItemIds.Contains(itemId, StringComparer.OrdinalIgnoreCase)).ToList();

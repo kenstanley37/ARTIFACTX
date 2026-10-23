@@ -94,15 +94,9 @@ public sealed record StarshipFilterOption(string Label, string FilterKey, int Co
 /// </summary>
 public sealed partial class SystemStarshipsViewModel : ObservableObject
 {
-    private const string CollapsedKey = "SystemStarshipsCollapsed";
-
     private List<SystemStarshipItemViewModel> _allShips = new();
     private ulong? _currentSystem;
     private bool _lastCorrupted;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ToggleLabel))]
-    public partial bool IsOpen { get; set; } = SettingsStore.Get(SettingsStore.Scope.Profile, CollapsedKey) != "1";
 
     [ObservableProperty] public partial string Heading { get; private set; } = "POSSIBLE SYSTEM STARSHIPS";
     [ObservableProperty] public partial string Subtitle { get; private set; } = "";
@@ -111,14 +105,6 @@ public sealed partial class SystemStarshipsViewModel : ObservableObject
     [ObservableProperty] public partial IReadOnlyList<SystemStarshipItemViewModel> FilteredShips { get; private set; } = [];
     [ObservableProperty] public partial IReadOnlyList<StarshipFilterOption> FilterOptions { get; private set; } = [];
     [ObservableProperty] public partial string SelectedFilter { get; set; } = "All";
-
-    public string ToggleLabel => IsOpen ? "Hide ships" : $"Show ships ({_allShips.Count})";
-
-    public void Toggle()
-    {
-        IsOpen = !IsOpen;
-        SettingsStore.Set(SettingsStore.Scope.Profile, CollapsedKey, IsOpen ? "0" : "1");
-    }
 
     /// <summary>
     /// Loads the starships for the system address and attributes, computing S-Class base stats and spawn probabilities.
@@ -188,7 +174,6 @@ public sealed partial class SystemStarshipsViewModel : ObservableObject
         Subtitle = string.Join(" · ", parts);
         UpdateFilterOptions();
         ApplyFilter();
-        OnPropertyChanged(nameof(ToggleLabel));
     }
 
     public void SelectFilter(string filterKey)

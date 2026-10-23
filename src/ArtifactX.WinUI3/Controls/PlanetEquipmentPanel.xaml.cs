@@ -18,8 +18,6 @@ public sealed partial class PlanetEquipmentPanel : UserControl
 
     public PlanetEquipmentPanel() => InitializeComponent();
 
-    private void ToggleShips_Click(object sender, RoutedEventArgs e) => Equipment?.ToggleShips();
-
     private void ShipFilter_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: string key })

@@ -67,14 +67,6 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     [ObservableProperty] public partial IReadOnlyList<StarshipFilterOption> ShipFilterOptions { get; private set; } = [];
     [ObservableProperty] public partial string SelectedShipFilter { get; set; } = "All";
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShipsToggleLabel))]
-    public partial bool ShowAllShips { get; set; } = true;
-
-    public string ShipsToggleLabel => ShowAllShips ? "Hide starships" : $"Show starships ({_allShips.Count})";
-
-    public void ToggleShips() => ShowAllShips = !ShowAllShips;
-
     partial void OnLocatedSitesChanged(IReadOnlyList<PlanetLocatedSite> value)
     {
         HasLocatedSites = value.Count > 0;
@@ -283,7 +275,6 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
 
         UpdateShipFilterOptions();
         ApplyShipFilter();
-        OnPropertyChanged(nameof(ShipsToggleLabel));
     }
 
     /// <summary>
@@ -291,6 +282,18 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     /// to show exact [Lat, Lon] coordinates of located crashed ships, multi-tool cabinets, and buildings.
     /// </summary>
     public void UpdateLocations(KnownPlanet planet, PlanetSnapshot snapshot)
+    {
+        var sites = ReadLocatedSites(planet, snapshot);
+
+        LocatedSites = sites;
+        LocatedSitesHeading = $"LOCATED SITES, CRASHED SHIPS & CABINETS ON THIS PLANET ({sites.Count})";
+        LocatedSitesHint = sites.Count > 0
+            ? "Exact planetary coordinates (+Lat, +Lon) read directly from active markers/charts in your save and your logged Finds."
+            : "No active Crashed Ship, Minor Settlement, or Sentinel Pillar markers are currently open on this planet in your save. Use a Planetary Chart, Sentinel Boundary Map, Echo Locator, or Signal Booster in game and save to see its exact +Lat, +Lon coordinates here automatically.";
+    }
+
+    /// <summary>Reads active markers and player-recorded Finds with exact locations for one planet.</summary>
+    public static IReadOnlyList<PlanetLocatedSite> ReadLocatedSites(KnownPlanet planet, PlanetSnapshot snapshot)
     {
         var sites = new List<PlanetLocatedSite>();
 
@@ -340,11 +343,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
             sites.Add(new PlanetLocatedSite(badge, title, coords, details, true));
         }
 
-        LocatedSites = sites;
-        LocatedSitesHeading = $"LOCATED SITES, CRASHED SHIPS & CABINETS ON THIS PLANET ({sites.Count})";
-        LocatedSitesHint = sites.Count > 0
-            ? "Exact planetary coordinates (+Lat, +Lon) read directly from active markers/charts in your save and your logged Finds."
-            : "No active Crashed Ship, Minor Settlement, or Sentinel Pillar markers are currently open on this planet in your save. Use a Planetary Chart, Sentinel Boundary Map, Echo Locator, or Signal Booster in game and save to see its exact +Lat, +Lon coordinates here automatically.";
+        return sites;
     }
 
     private static (string Badge, string Title, string Details, bool IsHighlight) DescribeScanEvent(string buildingClass, string eventId)

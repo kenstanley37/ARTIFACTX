@@ -24,7 +24,6 @@ public sealed partial class ShipSeen(string type) : ObservableObject
 public sealed partial class SystemNotesViewModel : ObservableObject
 {
     private const string NotRecorded = "Not recorded";
-    private const string CollapsedKey = "PlanetsSystemNotesCollapsed";
     private ulong? _system;
     private bool _loading;
 
@@ -62,15 +61,6 @@ public sealed partial class SystemNotesViewModel : ObservableObject
     [ObservableProperty] public partial string NewNote { get; set; } = "";
     [ObservableProperty] public partial string Summary { get; private set; } = "";
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsOpen), nameof(ToggleLabel), nameof(CollapsedSummary))]
-    public partial bool IsCollapsed { get; private set; } = SettingsStore.Get(SettingsStore.Scope.Profile, CollapsedKey) == "1";
-
-    public bool IsOpen => !IsCollapsed;
-    public string ToggleLabel => IsCollapsed ? "Show" : "Hide";
-    public string CollapsedSummary => !IsCollapsed ? "" : Summary.Length > 0 ? Summary : "Nothing recorded yet";
-
-    partial void OnSummaryChanged(string value) => OnPropertyChanged(nameof(CollapsedSummary));
     partial void OnWaterChanged(bool value) => Save();
     partial void OnDissonantChanged(bool value) => Save();
 
@@ -127,12 +117,6 @@ public sealed partial class SystemNotesViewModel : ObservableObject
         foreach (string text in note?.Notes ?? []) Notes.Add(text);
         _loading = false;
         Summary = PlanetText.NoteSummary(note);
-    }
-
-    public void Toggle()
-    {
-        IsCollapsed = !IsCollapsed;
-        SettingsStore.Set(SettingsStore.Scope.Profile, CollapsedKey, IsCollapsed ? "1" : "0");
     }
 
     /// <summary>Adds what's typed in the new-note box; false when it's empty.</summary>

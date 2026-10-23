@@ -18,6 +18,9 @@ public sealed partial class FoldingCard : UserControl
     public static readonly DependencyProperty FoldedNameProperty =
         DependencyProperty.Register(nameof(FoldedName), typeof(string), typeof(FoldingCard), new PropertyMetadata("", (d, _) => ((FoldingCard)d).Show()));
 
+    public static readonly DependencyProperty SummaryProperty =
+        DependencyProperty.Register(nameof(Summary), typeof(string), typeof(FoldingCard), new PropertyMetadata("", (d, _) => ((FoldingCard)d).Show()));
+
     public FoldingCard()
     {
         InitializeComponent();
@@ -38,11 +41,18 @@ public sealed partial class FoldingCard : UserControl
     }
 
     /// <summary>Added to the title while folded, so the band says what's selected
-    /// ("THE WRAITH · FIGHTER"). Empty adds nothing.</summary>
+    /// ("THE WRAITH - FIGHTER"). Empty adds nothing.</summary>
     public string FoldedName
     {
         get => (string)GetValue(FoldedNameProperty);
         set => SetValue(FoldedNameProperty, value);
+    }
+
+    /// <summary>Optional status text displayed beside the title in the coloured band.</summary>
+    public string Summary
+    {
+        get => (string)GetValue(SummaryProperty);
+        set => SetValue(SummaryProperty, value);
     }
 
     /// <summary>Where open/closed is remembered (the profile's settings), e.g. "StarshipsDetailsCollapsed".</summary>
@@ -60,10 +70,11 @@ public sealed partial class FoldingCard : UserControl
     {
         bool folded = IsFolded;
         BodyPresenter.Visibility = folded ? Visibility.Collapsed : Visibility.Visible;
-        ToggleIcon.Glyph = folded ? "" : ""; // chevron down / up
-        string action = folded ? "Show the details" : "Hide the details";
-        ToolTipService.SetToolTip(ToggleBtn, action);
-        AutomationProperties.SetName(ToggleBtn, action);
-        HeaderTxt.Text = folded && FoldedName.Length > 0 ? $"{Title}  ·  {FoldedName.ToUpperInvariant()}" : Title;
+        string action = folded ? "Show" : "Hide";
+        ToggleBtn.Content = action;
+        ToolTipService.SetToolTip(ToggleBtn, folded ? "Show the details" : "Hide the details");
+        AutomationProperties.SetName(ToggleBtn, folded ? $"Show {Title}" : $"Hide {Title}");
+        SummaryTxt.Text = Summary;
+        HeaderTxt.Text = folded && FoldedName.Length > 0 ? $"{Title} - {FoldedName.ToUpperInvariant()}" : Title;
     }
 }

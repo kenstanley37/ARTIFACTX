@@ -20,8 +20,6 @@ public sealed partial class SystemNotesPanel : UserControl
 
     public SystemNotesPanel() => InitializeComponent();
 
-    private void Toggle_Click(object sender, RoutedEventArgs e) => Notes?.Toggle();
-
     private void Text_LostFocus(object sender, RoutedEventArgs e) => Notes?.Save();
 
     private void NewNote_KeyDown(object sender, KeyRoutedEventArgs e)

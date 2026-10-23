@@ -26,6 +26,11 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Improved
 
+- **Current System**: the system-change notice stays centered in the app window, even when the page is scrolled.
+- **Current System**: a full-page grey overlay with a centered spinner appears while system data is being prepared.
+- **Collapsible sections**: Explore sections use the same themed gradient header and explicit Show/Hide button, with their open state remembered. Inventory grids use **Show all**/**Show less** labels instead of a chevron.
+- **Guides**: opens with a full-page grey loading overlay and centered spinner while the guide list and catalog data load off the UI thread.
+- **Guide**: opens with the same loading overlay; category cards are virtualized so opening the page doesn't create every card at once.
 - Explore: **renamed planets and systems** show the name the game shows, read from your save - your own renames and other players' - with the original name underneath ("Originally Irskya XIX"). No need to land on each one first.
 - Explore: the Planets page is split in two. **Current System** shows the system you're in and its planets, with a System Data box laid out like the game's own; **Planet Finder** has the finder and the glyph decoder. Moons are now shown around the right planet.
 - Starships: ships you found or bought are shown as a cyan **hologram scan** (their exact parts, but colours can't be shown yet). Ships built at a station, or repainted, show their real paint.
@@ -48,6 +53,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Current System keeps planets and moons in a collapsible section before station stock.
+- Current System no longer shows generated Multi-Tool pool possibilities.
 - Hovering a planet in the game's Discoveries list didn't record its sentinels ("Aggressive Sentinels"). They're filled in from the hover until the planet's own page gives the exact word - the hover shows the level, the page a word for that level ("Aggressive" on hover, "Frenzied" on the page).
 - Screen reading missed some of a planet's details on its Discoveries page - often its sentinels on a bright sky, and the fauna count ("0 / 11"). A detail left empty is now read again from a close-up of that part of the screen.
 - Current System asked "which planet is this?" about game messages screen recording read as names ("Online Discovery Services Active"). It only asks while a planet of the system has nothing recorded for it yet, and offers just those planets. When the game names a planet differently from ArtifactX (Ehilusti's "Rigie IV", which ArtifactX called "Nigie Major") and only one planet can be it, its details go there and the name is learned without asking.

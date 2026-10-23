@@ -17,8 +17,6 @@ public sealed partial class SystemStarshipsPanel : UserControl
 
     public SystemStarshipsPanel() => InitializeComponent();
 
-    private void Toggle_Click(object sender, RoutedEventArgs e) => Starships?.Toggle();
-
     private void Filter_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: string key })

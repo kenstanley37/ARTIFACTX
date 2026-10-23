@@ -5,7 +5,6 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
-    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
@@ -101,64 +100,34 @@
                             ToolTipService.ToolTip="Sets every topic currently shown below to unlocked/seen (respects the search box)"/>
                 </Grid>
 
-                <!-- Cards (one per category), not a flat full-width list - user
-                     feedback 2026-08-12 ("they can be in block (cards) next to
-                     each other and responsive to app width"), same wrapping
-                     approach as Squadron/Catalogue's own responsive layouts.
-                     Built in code-behind (BuildCategoryCards) rather than a
-                     grouped ListView/CollectionViewSource - simpler to keep in
-                     sync with search filtering, which needs to hide a whole
-                     card when none of its topics match. -->
-                <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <ItemsControl x:Name="CategoriesItemsControl">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="16"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="viewmodels:GuideCategoryGroupViewModel">
-                                <Border Style="{StaticResource ThemeCardStyle}" Width="320" VerticalAlignment="Top">
-                                  <StackPanel>
+                <!-- GridView virtualizes category cards so opening Guide does not
+                     create every category card in a single UI pass. -->
+                <GridView x:Name="CategoriesGridView" Grid.Row="3"
+                          SelectionMode="None" IsItemClickEnabled="False"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                          ScrollViewer.VerticalScrollBarVisibility="Auto"
+                          ScrollViewer.HorizontalScrollMode="Disabled"
+                          ScrollViewer.VerticalScrollMode="Enabled">
+                    <GridView.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <ItemsWrapGrid Orientation="Horizontal" ItemWidth="336"/>
+                        </ItemsPanelTemplate>
+                    </GridView.ItemsPanel>
+                    <GridView.ItemTemplate>
+                        <DataTemplate x:DataType="viewmodels:GuideCategoryGroupViewModel">
+                            <Border Style="{StaticResource ThemeCardStyle}" Width="320" Margin="0,0,16,16" VerticalAlignment="Top">
+                                <StackPanel>
                                     <Border Style="{StaticResource ThemeBandStyle}">
                                         <TextBlock Text="{x:Bind HeaderUpper}" Style="{StaticResource ThemeBandTextStyle}" TextTrimming="CharacterEllipsis"/>
                                     </Border>
                                     <StackPanel Spacing="6" Padding="14,10,14,14">
-
-                                        <!-- Persistent column labels, not hover-only tooltips - user
-                                             feedback 2026-08-12: "no one is going to know what the
-                                             checkbox columns actually do". Widths match the CheckBox
-                                             Width below exactly so the labels sit directly above their
-                                             own column regardless of window width. -->
                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <TextBlock Text="Unlock" Width="30" FontSize="9" TextAlignment="Center"
-                                                       Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                            <TextBlock Text="Seen" Width="30" FontSize="9" TextAlignment="Center"
-                                                       Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                            <TextBlock Text="Unlock" Width="30" FontSize="9" TextAlignment="Center" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                            <TextBlock Text="Seen" Width="30" FontSize="9" TextAlignment="Center" Foreground="{ThemeResource ThemeAccentBrush}"/>
                                         </StackPanel>
-
                                         <ItemsControl ItemsSource="{x:Bind Topics}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate x:DataType="viewmodels:GuideTopicRowViewModel">
-                                                    <!-- Plain horizontal StackPanel, not a Grid with a
-                                                         Width="*" column - a Star column needs a bounded
-                                                         parent width to divide up, which this row doesn't
-                                                         reliably get while nested inside a WrapPanel-hosted
-                                                         ItemsControl (WrapPanel sizes its children to their
-                                                         OWN desired size, so a Star column here measured
-                                                         against an effectively unbounded width instead of
-                                                         the card's real 320px - user feedback 2026-08-12:
-                                                         checkboxes bunched left, name text stranded far
-                                                         right with a huge gap). A StackPanel just places
-                                                         each child at its own natural width immediately
-                                                         after the last, regardless of the parent's
-                                                         measurement pass.
-                                                         Each CheckBox also gets an explicit small Width/
-                                                         Padding="0" - the default WinUI3 CheckBox style
-                                                         reserves a generous touch-target/content area even
-                                                         with no Content set, which still read as "too far
-                                                         apart" with Spacing alone (2nd round of the same
-                                                         user feedback). -->
                                                     <StackPanel Orientation="Horizontal" Spacing="4" Padding="0,2">
                                                         <CheckBox Width="30" MinWidth="0" Padding="0" HorizontalContentAlignment="Center"
                                                                   IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
@@ -167,20 +136,11 @@
                                                                   IsChecked="{x:Bind IsSeen, Mode=OneWay}"
                                                                   Click="SeenCheckBox_Click" Tag="{x:Bind}" AutomationProperties.Name="{x:Bind SeenName}"/>
                                                         <TextBlock Text="{x:Bind DisplayName}" VerticalAlignment="Center" Foreground="{ThemeResource ThemeTextBrush}"
-                                                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
-                                                                   MaxWidth="180"/>
+                                                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxWidth="180"/>
                                                     </StackPanel>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-
-                                        <!-- Invisible "ghost" rows padding this card up to the
-                                             tallest visible card's topic count - user feedback
-                                             2026-08-12 ("all containers should match the tallest
-                                             container"). Uses the EXACT same row template as a real
-                                             topic (just hidden) rather than a guessed pixel Height,
-                                             so it always matches whatever the real row height
-                                             actually renders as. See PaddingCount's own doc comment. -->
                                         <ItemsControl ItemsSource="{x:Bind PaddingIndices}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
@@ -194,12 +154,16 @@
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                     </StackPanel>
-                                  </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </GridView.ItemTemplate>
+                </GridView>
+            </Grid>
+            <Grid x:Name="LoadingOverlay" Background="#990D1220" Visibility="Visible"
+                  IsHitTestVisible="True" Canvas.ZIndex="10">
+                <ProgressRing Width="44" Height="44" IsActive="True"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Grid>
         </Grid>
     </Grid>

@@ -36,7 +36,6 @@ public sealed record MarketCompareRow(ImageSource? Icon, string Name, IReadOnlyL
 /// </summary>
 public sealed partial class StationMarketViewModel : ObservableObject
 {
-    private const string CollapsedKey = "PlanetsMarketCollapsed";
     private ulong _system;
 
     [ObservableProperty] public partial string Heading { get; private set; } = "SOLD AT THE STATION";
@@ -47,21 +46,9 @@ public sealed partial class StationMarketViewModel : ObservableObject
     [ObservableProperty] public partial IReadOnlyList<MarketCompareRow> CompareRows { get; private set; } = [];
     [ObservableProperty] public partial string CompareHeading { get; private set; } = "";
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsOpen), nameof(ToggleLabel))]
-    public partial bool IsCollapsed { get; private set; } = SettingsStore.Get(SettingsStore.Scope.Profile, CollapsedKey) == "1";
-
-    public bool IsOpen => !IsCollapsed;
-    public string ToggleLabel => IsCollapsed ? "Show" : "Hide";
     public bool HasCompare => CompareRows.Count > 0;
 
     partial void OnCompareRowsChanged(IReadOnlyList<MarketCompareRow> value) => OnPropertyChanged(nameof(HasCompare));
-
-    public void Toggle()
-    {
-        IsCollapsed = !IsCollapsed;
-        SettingsStore.Set(SettingsStore.Scope.Profile, CollapsedKey, IsCollapsed ? "1" : "0");
-    }
 
     public void Show(ulong system)
     {

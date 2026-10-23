@@ -168,5 +168,10 @@
                 </DataTemplate>
             </GridView.ItemTemplate>
         </GridView>
+
+        <Grid x:Name="LoadingOverlay" Grid.RowSpan="5" Background="#AA777B84">
+            <ProgressRing IsActive="True" Width="42" Height="42" HorizontalAlignment="Center" VerticalAlignment="Center"
+                          AutomationProperties.Name="Loading guides"/>
+        </Grid>
     </Grid>
 </Page>

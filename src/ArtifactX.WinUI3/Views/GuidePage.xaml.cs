@@ -29,6 +29,7 @@ public sealed partial class GuidePage : Page
     private HashSet<string> _unlockedIdSet = new(StringComparer.Ordinal);
     private List<string> _seenFullIds = new();
     private HashSet<string> _seenIdSet = new(StringComparer.Ordinal);
+    private int _loadGeneration;
 
     public GuidePage()
     {
@@ -60,39 +61,59 @@ public sealed partial class GuidePage : Page
 
     private async Task LoadGuideAsync()
     {
+        int generation = ++_loadGeneration;
+        LoadingOverlay.Visibility = Visibility.Visible;
         ContentPanel.Visibility = Visibility.Collapsed;
         NoAccountDataTxt.Visibility = Visibility.Collapsed;
 
-        bool loaded = await AccountSessionManager.LoadAsync();
-        if (!loaded)
+        // Give WinUI a chance to paint the overlay before account/catalog work.
+        await Task.Yield();
+        try
         {
-            NoAccountDataTxt.Visibility = Visibility.Visible;
-            return;
+            bool loaded = await AccountSessionManager.LoadAsync();
+            if (generation != _loadGeneration) return;
+            if (!loaded)
+            {
+                NoAccountDataTxt.Visibility = Visibility.Visible;
+                return;
+            }
+
+            ActivePlatformTxt.Text = SaveSessionManager.ActivePlatformDisplayName ?? "";
+
+            var unlockedArray = AccountSessionManager.GetValue(NmsAccountData.GuideUnlockedPath) as JArray;
+            _unlockedFullIds = unlockedArray?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
+            _unlockedIdSet = new HashSet<string>(_unlockedFullIds.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
+
+            var seenArray = AccountSessionManager.GetValue(NmsAccountData.GuideSeenPath) as JArray;
+            _seenFullIds = seenArray?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
+            _seenIdSet = new HashSet<string>(_seenFullIds.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
+
+            var topics = await CatalogService.GetGuideTopicsAsync();
+            if (generation != _loadGeneration) return;
+
+            // Build the observable row objects away from the UI thread. This list can
+            // contain hundreds of topics and the page may be reopened from a warm cache.
+            var unlockedIds = _unlockedIdSet;
+            var seenIds = _seenIdSet;
+            _allItems = await Task.Run(() => topics.Select(t => new GuideTopicRowViewModel
+            {
+                GameId = t.GameId,
+                DisplayName = t.DisplayName,
+                Category = t.Category,
+                IsUnlocked = unlockedIds.Contains(t.GameId),
+                IsSeen = seenIds.Contains(t.GameId)
+            }).ToList());
+            if (generation != _loadGeneration) return;
+
+            ContentPanel.Visibility = Visibility.Visible;
+            ApplyFilters();
+            UpdateEditButtons();
         }
-
-        ActivePlatformTxt.Text = SaveSessionManager.ActivePlatformDisplayName ?? "";
-
-        var unlockedArray = AccountSessionManager.GetValue(NmsAccountData.GuideUnlockedPath) as JArray;
-        _unlockedFullIds = unlockedArray?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
-        _unlockedIdSet = new HashSet<string>(_unlockedFullIds.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
-
-        var seenArray = AccountSessionManager.GetValue(NmsAccountData.GuideSeenPath) as JArray;
-        _seenFullIds = seenArray?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
-        _seenIdSet = new HashSet<string>(_seenFullIds.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
-
-        var topics = await CatalogService.GetGuideTopicsAsync();
-        _allItems = topics.Select(t => new GuideTopicRowViewModel
+        finally
         {
-            GameId = t.GameId,
-            DisplayName = t.DisplayName,
-            Category = t.Category,
-            IsUnlocked = _unlockedIdSet.Contains(t.GameId),
-            IsSeen = _seenIdSet.Contains(t.GameId)
-        }).ToList();
-
-        ContentPanel.Visibility = Visibility.Visible;
-        ApplyFilters();
-        UpdateEditButtons();
+            if (generation == _loadGeneration)
+                LoadingOverlay.Visibility = Visibility.Collapsed;
+        }
     }
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilters();
@@ -125,7 +146,7 @@ public sealed partial class GuidePage : Page
         // GuideCategoryGroupViewModel.PaddingCount's own doc comment.
         int maxCount = groups.Count > 0 ? groups.Max(g => g.Count) : 0;
 
-        CategoriesItemsControl.ItemsSource = groups
+        CategoriesGridView.ItemsSource = groups
             .Select(g => new GuideCategoryGroupViewModel
             {
                 Category = g[0].Category,

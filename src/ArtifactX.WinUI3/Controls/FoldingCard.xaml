@@ -10,11 +10,17 @@
     <StackPanel>
         <Border Style="{StaticResource ThemeBandStyle}">
             <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
                 <TextBlock x:Name="HeaderTxt" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
-                <Button x:Name="ToggleBtn" Click="Toggle_Click" HorizontalAlignment="Right" VerticalAlignment="Center"
-                        Padding="6,2" Background="Transparent" BorderThickness="0">
-                    <FontIcon x:Name="ToggleIcon" FontSize="12" Foreground="{ThemeResource ThemeBandTextBrush}"/>
-                </Button>
+                <TextBlock x:Name="SummaryTxt" Grid.Column="1" Margin="12,0" FontSize="12"
+                           Foreground="{ThemeResource ThemeBandTextBrush}" Opacity="0.8"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <Button x:Name="ToggleBtn" Grid.Column="2" Click="Toggle_Click" HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Padding="10,4" Content="Hide"/>
             </Grid>
         </Border>
         <ContentPresenter x:Name="BodyPresenter" Content="{x:Bind Body, Mode=OneWay}"/>

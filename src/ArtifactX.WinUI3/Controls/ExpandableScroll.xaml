@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- An inventory grid (or anything) shown at a short preview height, with a chevron to
-     show it all; whether it's open is remembered (ExpandableScroll.SettingKey). -->
+<!-- An inventory grid (or anything) shown at a short preview height, with a button to
+     show all rows; whether it's expanded is remembered (ExpandableScroll.SettingKey). -->
 <UserControl
     x:Class="ArtifactX.WinUI3.Controls.ExpandableScroll"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -12,8 +12,6 @@
             <ContentPresenter Content="{x:Bind ScrollContent, Mode=OneWay}"/>
         </ScrollViewer>
         <Button x:Name="ToggleBtn" Click="Toggle_Click" HorizontalAlignment="Right" VerticalAlignment="Top"
-                Padding="6" Background="Transparent" BorderThickness="0">
-            <FontIcon x:Name="Chevron" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
-        </Button>
+                Padding="10,4" Content="Show all"/>
     </Grid>
 </UserControl>

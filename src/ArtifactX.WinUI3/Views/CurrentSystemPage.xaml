@@ -11,7 +11,8 @@
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <ScrollViewer>
+    <Grid>
+      <ScrollViewer>
         <StackPanel Padding="28,26,28,40" Spacing="22">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -153,64 +154,76 @@
                                 </Border>
                             </ctcontrols:WrapPanel>
 
-                            <controls:StationMarket Market="{x:Bind ViewModel.Market}"/>
-                            <controls:SystemNotesPanel Notes="{x:Bind ViewModel.Notes}"/>
-                            <controls:SystemStarshipsPanel Starships="{x:Bind ViewModel.Starships}"/>
-                            <controls:SystemMultiToolsPanel MultiTools="{x:Bind ViewModel.MultiTools}"/>
+                            <!-- Planet discovery and detail cards come before station stock. -->
+                            <controls:FoldingCard Title="PLANETS AND MOONS" FoldedName="{x:Bind ViewModel.PlanetSectionSummary, Mode=OneWay}"
+                                                  SettingKey="CurrentSystemPlanetsCollapsed">
+                                <StackPanel Spacing="18">
+                                    <!-- Planets read off the game screen under a name ArtifactX doesn't know (renamed by another player). -->
+                                    <Border Visibility="{x:Bind ViewModel.HasUnmatched, Mode=OneWay}" BorderBrush="{ThemeResource ThemeWarningBrush}" BorderThickness="1"
+                                            Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,12,16,14">
+                                        <StackPanel Spacing="10">
+                                            <TextBlock Text="READ FROM THE GAME - WHICH PLANET IS THIS?" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
+                                                       Text="These names were read off the game screen but aren't the names ArtifactX knows - usually a planet someone renamed. Most renamed planets are learned from your save by themselves; for these, landing on the planet also teaches ArtifactX its name. Or pick it here if you know which one it is."/>
+                                            <ItemsControl ItemsSource="{x:Bind ViewModel.Unmatched, Mode=OneWay}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="viewmodels:UnmatchedBodyViewModel">
+                                                        <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,8">
+                                                            <TextBlock Text="{x:Bind Name}" FontSize="14" FontWeight="SemiBold" Width="240" VerticalAlignment="Center"
+                                                                       Foreground="{ThemeResource ThemeWarningBrush}" TextTrimming="CharacterEllipsis"/>
+                                                            <ComboBox PlaceholderText="Which planet?" MinWidth="280" ItemsSource="{x:Bind Bodies}" SelectedItem="{x:Bind Selected, Mode=TwoWay}"/>
+                                                            <Button Content="Save" Click="AssignUnmatched_Click" Tag="{x:Bind}" IsEnabled="{x:Bind CanSave, Mode=OneWay}"/>
+                                                            <HyperlinkButton Content="Not in this system" Click="DismissUnmatched_Click" Tag="{x:Bind}" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
 
-                            <!-- Planets read off the game screen under a name ArtifactX doesn't know (renamed by another player). -->
-                            <Border Visibility="{x:Bind ViewModel.HasUnmatched, Mode=OneWay}" BorderBrush="{ThemeResource ThemeWarningBrush}" BorderThickness="1"
-                                    Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,12,16,14">
-                                <StackPanel Spacing="10">
-                                    <TextBlock Text="READ FROM THE GAME - WHICH PLANET IS THIS?" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
-                                               Text="These names were read off the game screen but aren't the names ArtifactX knows - usually a planet someone renamed. Most renamed planets are learned from your save by themselves; for these, landing on the planet also teaches ArtifactX its name. Or pick it here if you know which one it is."/>
-                                    <ItemsControl ItemsSource="{x:Bind ViewModel.Unmatched, Mode=OneWay}">
+                                    <TextBlock Visibility="{x:Bind ViewModel.NoPlanets, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"
+                                               Text="No planets in this system are in your discoveries yet. Scan or land on one in-game, then save."/>
+                                    <ItemsControl ItemsSource="{x:Bind ViewModel.Tiles, Mode=OneWay}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <controls:EqualHeightWrapPanel HorizontalSpacing="14" VerticalSpacing="14"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="viewmodels:UnmatchedBodyViewModel">
-                                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,8">
-                                                    <TextBlock Text="{x:Bind Name}" FontSize="14" FontWeight="SemiBold" Width="240" VerticalAlignment="Center"
-                                                               Foreground="{ThemeResource ThemeWarningBrush}" TextTrimming="CharacterEllipsis"/>
-                                                    <ComboBox PlaceholderText="Which planet?" MinWidth="280" ItemsSource="{x:Bind Bodies}" SelectedItem="{x:Bind Selected, Mode=TwoWay}"/>
-                                                    <Button Content="Save" Click="AssignUnmatched_Click" Tag="{x:Bind}" IsEnabled="{x:Bind CanSave, Mode=OneWay}"/>
-                                                    <HyperlinkButton Content="Not in this system" Click="DismissUnmatched_Click" Tag="{x:Bind}" VerticalAlignment="Center"/>
-                                                </StackPanel>
+                                            <DataTemplate x:DataType="viewmodels:PlanetTileViewModel">
+                                                <controls:PlanetTile Tile="{x:Bind}" OpenRequested="Tile_OpenRequested"/>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </StackPanel>
-                            </Border>
+                            </controls:FoldingCard>
 
-                            <TextBlock Visibility="{x:Bind ViewModel.NoPlanets, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"
-                                       Text="No planets in this system are in your discoveries yet. Scan or land on one in-game, then save."/>
-                            <ItemsControl ItemsSource="{x:Bind ViewModel.Tiles, Mode=OneWay}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <controls:EqualHeightWrapPanel HorizontalSpacing="14" VerticalSpacing="14"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="viewmodels:PlanetTileViewModel">
-                                        <controls:PlanetTile Tile="{x:Bind}" OpenRequested="Tile_OpenRequested"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            <controls:StationMarket Market="{x:Bind ViewModel.Market}"/>
+                            <controls:SystemNotesPanel Notes="{x:Bind ViewModel.Notes}"/>
+                            <controls:SystemStarshipsPanel Starships="{x:Bind ViewModel.Starships}"/>
+
                         </StackPanel>
 
-                        <!-- Shown briefly when live follow sees you arrive in a new system. -->
-                        <Border x:Name="SystemChangeOverlay" Visibility="Collapsed" IsHitTestVisible="False"
-                                HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,150,0,0" Padding="34,18"
-                                Background="{ThemeResource ThemeAccentBrush}" BorderBrush="{ThemeResource ThemeTextBrush}" BorderThickness="2"
-                                CornerRadius="{ThemeResource ThemeCardCornerRadius}">
-                            <StackPanel Spacing="4" HorizontalAlignment="Center">
-                                <TextBlock Text="SYSTEM CHANGE DETECTED" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="Bold" FontSize="22"
-                                           CharacterSpacing="160" Foreground="{ThemeResource ThemeOnAccentBrush}" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="SystemChangeDetailTxt" FontSize="14" Foreground="{ThemeResource ThemeOnAccentBrush}" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </Border>
                     </Grid>
                 </StackPanel>
             </Border>
         </StackPanel>
-    </ScrollViewer>
+      </ScrollViewer>
+      <Grid Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}" Background="#AA777B84">
+          <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" Width="42" Height="42"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        AutomationProperties.Name="Loading current system"/>
+      </Grid>
+      <!-- Viewport-level notification stays centered even when the page is scrolled. -->
+      <Border x:Name="SystemChangeOverlay" Visibility="Collapsed" IsHitTestVisible="False"
+              HorizontalAlignment="Center" VerticalAlignment="Center" Padding="34,18"
+              Background="{ThemeResource ThemeAccentBrush}" BorderBrush="{ThemeResource ThemeTextBrush}" BorderThickness="2"
+              CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+          <StackPanel Spacing="4" HorizontalAlignment="Center">
+              <TextBlock Text="SYSTEM CHANGE DETECTED" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="Bold" FontSize="22"
+                         CharacterSpacing="160" Foreground="{ThemeResource ThemeOnAccentBrush}" HorizontalAlignment="Center"/>
+              <TextBlock x:Name="SystemChangeDetailTxt" FontSize="14" Foreground="{ThemeResource ThemeOnAccentBrush}" HorizontalAlignment="Center"/>
+          </StackPanel>
+      </Border>
+    </Grid>
 </Page>
