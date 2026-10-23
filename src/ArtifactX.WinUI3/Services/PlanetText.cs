@@ -19,7 +19,9 @@ public static class PlanetText
     public static string Discovered(ulong planetAddress, PlanetDiscoveryCounts? tally)
     {
         var t = tally ?? new PlanetDiscoveryCounts(0, 0, 0);
-        int? total = PlanetDetailsService.Get(S.ToSystemAddress(planetAddress), (int)((planetAddress >> 52) & 0xF))?.FaunaTotal;
+        int planetIndex = (int)((planetAddress >> 52) & 0xF);
+        int? total = PlanetDetailsService.Get(S.ToSystemAddress(planetAddress), planetIndex)?.FaunaTotal
+            ?? PlanetTypesService.Profile(planetAddress, planetIndex)?.FaunaCount;
         string fauna = total switch { 0 => "no fauna", int n => $"{t.Fauna} / {n} fauna", _ => $"{t.Fauna} fauna" };
         return $"{fauna} · {t.Flora} flora · {t.Minerals} minerals";
     }

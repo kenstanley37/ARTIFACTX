@@ -91,7 +91,8 @@ public static class PlanetTypesService
                 var seeds = SystemGenerator.Bodies(portal, galaxy).PlanetSeeds;
                 for (int i = 0; i < types.Length && i < seeds.Length; i++)
                     profiles[i] = PlanetProfileGenerator.Generate(seeds[i], i, types[i],
-                        (int)attributes.Star, PlanetGenerator.GalaxyType(galaxy), attributes.GasGiantPlanet, tables);
+                        (int)attributes.Star, PlanetGenerator.GalaxyType(galaxy), attributes.GasGiantPlanet, tables,
+                        attributes.Uncharted, attributes.Abandoned);
             }
             catch { /* leave the rest unknown */ }
             return profiles;

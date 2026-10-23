@@ -1,4 +1,4 @@
-﻿using ArtifactX.Core.NmsModels;
+using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Dispatching;
@@ -172,7 +172,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
             new("Weather", profile is not null ? PlanetText.Weather(profile) : Or(d?.Weather)),
             new("Sentinels", profile is not null ? PlanetText.Sentinels(profile) : Or(d?.Sentinels)),
             new("Flora", Or(d?.Flora)),
-            new("Fauna", Or(d?.Fauna is { Length: > 0 } fauna ? fauna : d?.FaunaTotal is int n ? $"{n} kinds" : null)),
+            new("Fauna", Or(d?.Fauna is { Length: > 0 } fauna ? fauna : (d?.FaunaTotal ?? profile?.FaunaCount) is int n ? (n == 0 ? "None" : $"{n} kinds") : null)),
             new("Water", water switch { true => "Yes", false => "No", _ => NotRecorded }),
         ];
         Resources = profile is not null && _vocabulary is not null

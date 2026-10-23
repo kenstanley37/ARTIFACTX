@@ -16,6 +16,9 @@ public static partial class CatalogSteps
     private const string BiomeArchiveFile = "METADATA/SIMULATION/SOLARSYSTEM/BIOMES/BIOMEFILENAMESARCHIVE.MBIN";
     private const string WeatherListFile = "METADATA/SIMULATION/SOLARSYSTEM/WEATHER/WEATHERLIST.MBIN";
     private const string CreatureDataFile = "METADATA/SIMULATION/ECOSYSTEM/CREATUREGENERATIONDATA.MBIN";
+    private const string CreatureArchetypesFile = "METADATA/SIMULATION/ECOSYSTEM/CREATUREGENERATIONARCHETYPES.MBIN";
+    private const string CreatureDataTableFile = "METADATA/SIMULATION/ECOSYSTEM/CREATUREDATATABLE.MBIN";
+    private const string CreatureFilenameTableFile = "METADATA/SIMULATION/ECOSYSTEM/CREATUREFILENAMETABLE.MBIN";
     private const string VoxelSettingsFile = "METADATA/SIMULATION/SOLARSYSTEM/VOXELGENERATORSETTINGS.MBIN";
     private const string BuildingTableFile = "METADATA/SIMULATION/ENVIRONMENT/PLANETBUILDINGTABLE.MBIN";
 
@@ -183,6 +186,133 @@ public static partial class CatalogSteps
             ScrapYardDensity: decode(BuildingTableFile) is GcBuildingDefinitionTable buildings
                 && (int)GcBuildingClassification.BuildingClassEnum.ScrapYard < buildings.BuildingPlacement.Length
                 ? buildings.BuildingPlacement[(int)GcBuildingClassification.BuildingClassEnum.ScrapYard].Density.ToArray()
-                : null);
+                : null,
+            Creatures: Creatures(creatures, decode));
+    }
+
+    private static CreatureTables? Creatures(GcCreatureGenerationData cgen, Func<string, NMSTemplate?> decode)
+    {
+        if (decode(CreatureArchetypesFile) is not GcCreatureGenerationArchetypes carch
+            || decode(CreatureDataTableFile) is not GcCreatureDataTable cdt
+            || decode(CreatureFilenameTableFile) is not GcCreatureFilenameTable cfnt)
+            return null;
+
+        var globals = new CreatureGlobals(
+            cgen.SandwormPresenceChance.ToArray(),
+            cgen.AirGroupsPerKm.ToArray(),
+            cgen.CaveGroupsPerKm.ToArray(),
+            cgen.DensityModifiers.ToArray(),
+            cgen.GroundGroupsPerKm.ToArray(),
+            cgen.LifeChance.ToArray(),
+            cgen.LifeLevelDensityModifiers.ToArray(),
+            cgen.RarityFrequencyModifiers.ToArray(),
+            cgen.RoleFrequencyModifiers.ToArray(),
+            cgen.WaterGroupsPerKm.ToArray(),
+            cgen.HerdCreaturePenalty);
+
+        var validIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (cfnt.Table is not null)
+        {
+            foreach (var f in cfnt.Table)
+                if (!string.IsNullOrEmpty(f.ID?.Value))
+                    validIds.Add(f.ID.Value);
+        }
+
+        var creatures = new List<CreatureEntry>();
+        if (cdt.Table is not null)
+        {
+            foreach (var c in cdt.Table)
+            {
+                string id = c.Id?.Value ?? "";
+                if (!validIds.Contains(id)) continue;
+                var tags = (c.Tags ?? new()).Select(t => t.Tag?.Value ?? "").Where(t => t.Length > 0).ToArray();
+                creatures.Add(new CreatureEntry(
+                    id,
+                    (int)c.ForceType.CreatureType,
+                    c.EcoSystemCreature,
+                    c.OnlySpawnWhenIdIsForced,
+                    (int)c.HerbivoreProbabilityModifier.CreatureRoleFrequencyModifier,
+                    (int)c.PredatorProbabilityModifier.CreatureRoleFrequencyModifier,
+                    (int)c.Rarity.CreatureRarity,
+                    tags));
+            }
+        }
+
+        static CreatureDomainWeightedLists MapDomainLists(GcCreatureGenerationWeightedList w) =>
+            new(
+                (w.Air ?? new()).Select(e => new CreatureWeightedEntry(e.Archetype?.Value ?? "", e.Weight)).ToArray(),
+                (w.Cave ?? new()).Select(e => new CreatureWeightedEntry(e.Archetype?.Value ?? "", e.Weight)).ToArray(),
+                (w.Ground ?? new()).Select(e => new CreatureWeightedEntry(e.Archetype?.Value ?? "", e.Weight)).ToArray(),
+                (w.Water ?? new()).Select(e => new CreatureWeightedEntry(e.Archetype?.Value ?? "", e.Weight)).ToArray());
+
+        static CreatureOptWeightedList MapOptList(GcCreatureGenerationOptionalWeightedList opt) =>
+            new(opt.Probability, MapDomainLists(opt.Archetypes));
+
+        var subBiomes = (cgen.SubBiomeSpecific ?? Array.Empty<GcCreatureGenerationOptionalWeightedList>()).Select(MapOptList).ToArray();
+        var biomes = (cgen.BiomeSpecific ?? Array.Empty<GcCreatureGenerationOptionalWeightedList>()).Select(MapOptList).ToArray();
+        var abandoned = MapOptList(cgen.AbandonedSystemSpecific);
+        var empty = MapOptList(cgen.EmptySystemSpecific);
+        var purple = MapOptList(cgen.PurpleSystemSpecific);
+        var generic = MapDomainLists(cgen.Generic);
+        var airEmpty = (cgen.AirArchetypesForEmptyGround ?? new()).Select(e => new CreatureWeightedEntry(e.Archetype?.Value ?? "", e.Weight)).ToArray();
+
+        var archetypeLists = new CreatureArchetypeLists(subBiomes, biomes, abandoned, empty, purple, generic, airEmpty);
+
+        static Dictionary<string, CreatureDomainArchetype> MapDomainArchetypes(List<GcCreatureGenerationDomainTable>? list)
+        {
+            var dict = new Dictionary<string, CreatureDomainArchetype>(StringComparer.OrdinalIgnoreCase);
+            if (list is null) return dict;
+            foreach (var dt in list)
+            {
+                string id = dt.Id?.Value ?? "";
+                var tables = (dt.Tables ?? new()).Select(t => new CreatureDomainTableEntry(t.File?.Value ?? "", (int)t.DensityModifier.Density)).ToArray();
+                var additional = (dt.AdditionalTables ?? new()).Select(a => new CreatureDomainAdditional(
+                    (a.Tables ?? new()).Select(t => new CreatureDomainTableEntry(t.File?.Value ?? "", (int)t.DensityModifier.Density)).ToArray(),
+                    a.MaxTablesToAdd,
+                    a.ChanceOfHemisphereLimit,
+                    a.MaxToHemisphereLimit)).ToArray();
+                dict[id] = new CreatureDomainArchetype(dt.ChanceOfHemisphereLimit, dt.MaxToHemisphereLimit, tables, additional);
+            }
+            return dict;
+        }
+
+        var domainArchetypes = new Dictionary<string, Dictionary<string, CreatureDomainArchetype>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["air"] = MapDomainArchetypes(carch.AirArchetypes),
+            ["cave"] = MapDomainArchetypes(carch.CaveArchetypes),
+            ["ground"] = MapDomainArchetypes(carch.GroundArchetypes),
+            ["water"] = MapDomainArchetypes(carch.WaterArchetypes)
+        };
+
+        var allTableFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var d in domainArchetypes.Values)
+        {
+            foreach (var arch in d.Values)
+            {
+                foreach (var t in arch.Tables)
+                    if (!string.IsNullOrEmpty(t.Table)) allTableFiles.Add(t.Table);
+                foreach (var a in arch.Additional)
+                    foreach (var t in a.Tables)
+                        if (!string.IsNullOrEmpty(t.Table)) allTableFiles.Add(t.Table);
+            }
+        }
+
+        var ecosystemTables = new Dictionary<string, CreatureRoleCandidate[]>(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in allTableFiles)
+        {
+            if (decode(path) is GcCreatureRoleDescriptionTable rdt && rdt.RoleDescription is not null)
+            {
+                var roles = rdt.RoleDescription.Select(r => new CreatureRoleCandidate(
+                    r.ForceID?.Value ?? "",
+                    r.RequireTag?.Value ?? "",
+                    (int)r.Density.Density,
+                    (int)r.ForceType.CreatureType,
+                    r.ProbabilityOfBeingEnabled,
+                    (int)r.Role.CreatureRole)).ToArray();
+                ecosystemTables[path] = roles;
+            }
+        }
+
+        return new CreatureTables(globals, creatures.ToArray(), archetypeLists, domainArchetypes, ecosystemTables);
     }
 }

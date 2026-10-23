@@ -27,7 +27,8 @@ public sealed record PlanetProfileTables(
     SentinelTables Sentinels,
     ObjectTables? Objects = null,
     Dictionary<string, string>? HintNames = null,
-    float[]? ScrapYardDensity = null);
+    float[]? ScrapYardDensity = null,
+    CreatureTables? Creatures = null);
 
 /// <summary>A weather type's storm odds (GcWeatherProperties LowStormsChance, HighStormsChance).</summary>
 public sealed record StormChance(float Low, float High);
@@ -50,7 +51,7 @@ public sealed record SentinelTables(
 /// <param name="Hints">Scanner hints (ResourceHint ids, e.g. PLANT_DUST, UI_BONES_HINT), in placing order.</param>
 /// <param name="Water">Has a sea (and so underwater objects).</param>
 public sealed record PlanetProfile(string Common, string Uncommon, string Rare, int WeatherType, bool Extreme, int Storms,
-    int Flora, int Fauna, int[] Sentinels, string[] Hints, bool ScrapWorld = false, bool Water = false);
+    int Flora, int Fauna, int[] Sentinels, string[] Hints, bool ScrapWorld = false, bool Water = false, int? FaunaCount = null);
 
 /// <summary>
 /// A planet's resources, weather, life and sentinels from its seed - a port of NMS.exe's
@@ -118,7 +119,8 @@ public static partial class PlanetProfileGenerator
     /// GasGiantPlanet - the flag the system hands each planet, 0x755): its other planets roll
     /// no extreme weather or storms.</param>
     public static PlanetProfile Generate(ulong planetSeed, int planetIndex, PlanetType body, int star,
-        int galaxyType, bool inGasGiantSystem, PlanetProfileTables t)
+        int galaxyType, bool inGasGiantSystem, PlanetProfileTables t,
+        bool emptySystem = false, bool abandonedSystem = false)
     {
         int biome = body.Biome, subType = body.SubType, planetClass = body.Class;
         var seeds = ChildSeeds(planetSeed);
@@ -141,16 +143,23 @@ public static partial class PlanetProfileGenerator
 
         string[] hints = Array.Empty<string>();
         bool water = false;
+        float sea = 0f;
+        bool caves = false;
         if (t.Objects is { } objects && BiomeFile(objects, biome, subType) is { } file)
         {
             var terrain = Terrain(Rng.Start(seeds[4]), file, objects.Terrain, body, star);
-            water = terrain.Sea > 0f;
+            sea = terrain.Sea;
+            caves = terrain.Caves;
+            water = sea > 0f;
             var planet = new PlanetFacts(biome, subType, planetClass, sentinels.Length > 2 ? sentinels[2] : 1,
                 ExtremeLooking(biome, subType, weather, extreme), scrap, terrain.Sea, terrain.Caves, objects.Terrain.SeaStandard);
             hints = PlacedHints(Rng.Start(seeds[7]), file, objects, planet);
         }
+        int? faunaCount = t.Creatures is not null
+            ? (fauna <= 0 ? 0 : GenerateFaunaCount(planetSeed, biome, subType, planetClass, star, fauna, sea, caves, emptySystem, abandonedSystem, t.Creatures))
+            : null;
         return new PlanetProfile(common, uncommon, t.MiningRare[rareIndex], weather, extreme, storms, flora, fauna, sentinels,
-            hints, scrap, water);
+            hints, scrap, water, faunaCount);
     }
 
     private const int Infested = 0x18;
