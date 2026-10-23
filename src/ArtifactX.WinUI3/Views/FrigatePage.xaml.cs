@@ -63,6 +63,8 @@ public sealed partial class FrigatePage : Page
 
     private void Name_LostFocus(object sender, RoutedEventArgs e) => ViewModel.CommitName();
 
+    private void UseGeneratedName_Click(object sender, RoutedEventArgs e) => ViewModel.UseGeneratedName();
+
     private void Seed_Changed(object? sender, SeedChange change) => ViewModel.Edited();
 
     private void Reset_Click(object sender, RoutedEventArgs e)

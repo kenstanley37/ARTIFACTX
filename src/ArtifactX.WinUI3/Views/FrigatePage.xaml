@@ -94,8 +94,13 @@
                                 <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
                                 <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" MaxWidth="700" HorizontalAlignment="Left" TextWrapping="Wrap"
                                            Text="Leave empty for the game's own generated name (e.g. &quot;SS-2 Akeosc's Gamble&quot;). That name isn't stored in the save - the game makes it from the frigate's class, race and seeds - so ArtifactX shows the frigate by its role instead. Type a name to override it."/>
-                                <TextBox Text="{x:Bind ViewModel.Name, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" LostFocus="Name_LostFocus"
-                                         AutomationProperties.Name="Name" Width="300" HorizontalAlignment="Left"/>
+                                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Left">
+                                    <TextBox Text="{x:Bind ViewModel.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" LostFocus="Name_LostFocus"
+                                             AutomationProperties.Name="Name" Width="300"/>
+                                    <Button Content="Use generated name" Click="UseGeneratedName_Click"
+                                            AutomationProperties.Name="Restore the frigate's game-generated name"
+                                            ToolTipService.ToolTip="Clear your custom name so No Man's Sky generates the name again."/>
+                                </StackPanel>
                             </StackPanel>
 
                             <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="12">

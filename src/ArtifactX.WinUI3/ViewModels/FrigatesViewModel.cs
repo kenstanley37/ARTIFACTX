@@ -110,6 +110,15 @@ public sealed partial class FrigatesViewModel : ObservableObject
         if (SelectedIndex >= 0 && FrigateService.SetText(NmsFrigatePaths.CustomNamePath(SelectedIndex), Name.Trim())) Edited();
     }
 
+    /// <summary>Clear the custom name so the game generates the frigate's name again.</summary>
+    public void UseGeneratedName()
+    {
+        if (SelectedIndex < 0) return;
+        Name = "";
+        CommitName();
+        RefreshCards();
+    }
+
     partial void OnRoleChanged(string? value) => SetChoice(value, NmsFrigatePaths.FrigateClassPath);
     partial void OnRaceChanged(RaceChoice? value) => SetChoice(value?.Value, NmsFrigatePaths.RacePath);
     partial void OnRatingChanged(string? value) => SetChoice(value, NmsFrigatePaths.InventoryClassPath);
