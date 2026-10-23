@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Planet Equipment & Locations Panel (PlanetEquipmentViewModel): shows exact located sites
+     (crashed ships, weapon cabinets, sentinel pillars, buildings) from the save, building spawn
+     rules for this planet, this planet's 4-tool Multi-Tool pool with S-Class stats, and Crashed Ships /
+     Starships on this planet with S-Class stats and spawn chances. -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.PlanetEquipmentPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:explore="using:ArtifactX.WinUI3.ViewModels.ExploreViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls">
+
+    <StackPanel Spacing="18">
+
+        <!-- 1. Exact Located Sites, Crashed Ships & Cabinets on this Planet + Building Availability -->
+        <Border Style="{StaticResource ThemeCardStyle}">
+            <StackPanel>
+                <Border Style="{StaticResource ThemeBandStyle}">
+                    <TextBlock Text="{x:Bind Equipment.LocatedSitesHeading, Mode=OneWay}" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Padding="18,14,18,16" Spacing="14">
+                    <TextBlock Text="{x:Bind Equipment.LocatedSitesHint, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+
+                    <!-- Active Located Sites from Save / Finds -->
+                    <ItemsControl ItemsSource="{x:Bind Equipment.LocatedSites, Mode=OneWay}" Visibility="{x:Bind Equipment.HasLocatedSites, Mode=OneWay}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="10"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="explore:PlanetLocatedSite">
+                                <Border Width="370" Padding="12,10" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                                        Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
+                                    <StackPanel Spacing="4">
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Background="{x:Bind BadgeBackground}" Padding="6,1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" VerticalAlignment="Center">
+                                                <TextBlock Text="{x:Bind CategoryBadge}" FontSize="10" FontWeight="Bold"
+                                                           FontFamily="{ThemeResource ThemeDisplayFont}" CharacterSpacing="100"
+                                                           Foreground="{x:Bind BadgeForeground}"/>
+                                            </Border>
+                                            <TextBlock Grid.Column="1" Text="{x:Bind Coordinates}" FontSize="12" FontWeight="Bold"
+                                                       FontFamily="{ThemeResource ThemeDisplayFont}" Foreground="{ThemeResource ThemeAccentBrush}"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center" IsTextSelectionEnabled="True"/>
+                                        </Grid>
+                                        <TextBlock Text="{x:Bind Title}" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                                        <TextBlock Text="{x:Bind Details}" FontSize="11"
+                                                   Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Border Height="1" Background="{ThemeResource ThemeLineBrush}" Margin="0,2"/>
+
+                    <!-- Building & Cabinet Availability Rules on this Planet -->
+                    <TextBlock Text="BUILDING &amp; CABINET AVAILABILITY ON THIS PLANET" Style="{StaticResource ThemeEyebrowStyle}" FontSize="10"/>
+                    <ItemsControl ItemsSource="{x:Bind Equipment.BuildingRules, Mode=OneWay}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="10"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="explore:PlanetBuildingRule">
+                                <Border Width="370" Padding="12,10" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                                        Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
+                                    <StackPanel Spacing="4">
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{x:Bind BuildingName}" FontSize="13" FontWeight="SemiBold"
+                                                       Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+                                            <TextBlock Grid.Column="1" Text="{x:Bind StatusText}" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{x:Bind StatusBrush}" VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <TextBlock Text="{x:Bind Purpose}" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{x:Bind HowToLocate}" FontSize="11"
+                                                   Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- 2. Planet Multi-Tool Pool & How to Find -->
+        <Border Style="{StaticResource ThemeCardStyle}">
+            <StackPanel>
+                <Border Style="{StaticResource ThemeBandStyle}">
+                    <TextBlock Text="{x:Bind Equipment.MultiToolsHeading, Mode=OneWay}" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Padding="18,14,18,16" Spacing="12">
+                    <TextBlock Text="{x:Bind Equipment.MultiToolsSummary, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}"
+                               FontSize="12" TextWrapping="Wrap"/>
+
+                    <ItemsControl ItemsSource="{x:Bind Equipment.MultiTools, Mode=OneWay}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="10"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodels:SystemMultiToolItemViewModel">
+                                <Border Width="370" Padding="12,10" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                                        Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
+                                    <Grid ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="4" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Border Background="{x:Bind BadgeBackground, Mode=OneWay}" Padding="6,1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind KindLabel, Mode=OneWay}" FontSize="10" FontWeight="Bold"
+                                                               FontFamily="{ThemeResource ThemeDisplayFont}" CharacterSpacing="120"
+                                                               Foreground="{x:Bind BadgeForeground, Mode=OneWay}"/>
+                                                </Border>
+                                                <TextBlock Text="{x:Bind IndexLabel}" FontSize="11" Foreground="{ThemeResource ThemeTextFaintBrush}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{x:Bind SeedHex}" FontSize="11" FontFamily="{ThemeResource ThemeDisplayFont}"
+                                                           Foreground="{ThemeResource ThemeTextDimBrush}" CharacterSpacing="30"
+                                                           VerticalAlignment="Center" IsTextSelectionEnabled="True"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{x:Bind DefaultName}" FontSize="13" FontWeight="SemiBold"
+                                                       Foreground="{ThemeResource ThemeTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{x:Bind SClassStatsSummary, Mode=OneWay}" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{x:Bind HowToFindSummary, Mode=OneWay}" FontSize="11"
+                                                       Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="{x:Bind CopyButtonText, Mode=OneWay}" Click="CopyTool_Click" Tag="{x:Bind}"
+                                                Padding="8,4" VerticalAlignment="Top" FontSize="12"
+                                                AutomationProperties.Name="{x:Bind AutomationName}" ToolTipService.ToolTip="{x:Bind TooltipText}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- 3. Crashed Ships & Starships on this Planet -->
+        <Border Style="{StaticResource ThemeCardStyle}">
+            <StackPanel>
+                <Border Style="{StaticResource ThemeBandStyle}">
+                    <Grid>
+                        <TextBlock Text="{x:Bind Equipment.StarshipsHeading, Mode=OneWay}" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
+                        <Button Content="{x:Bind Equipment.ShipsToggleLabel, Mode=OneWay}" Click="ToggleShips_Click"
+                                HorizontalAlignment="Right" Padding="10,2" FontSize="12"
+                                AutomationProperties.Name="Toggle planet starships visibility"/>
+                    </Grid>
+                </Border>
+                <StackPanel Padding="18,14,18,16" Spacing="12" Visibility="{x:Bind Equipment.ShowAllShips, Mode=OneWay}">
+                    <TextBlock Text="{x:Bind Equipment.StarshipsSummary, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}"
+                               FontSize="12" TextWrapping="Wrap"/>
+
+                    <!-- Ship Class Filter Pills -->
+                    <ItemsControl ItemsSource="{x:Bind Equipment.ShipFilterOptions, Mode=OneWay}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ctcontrols:WrapPanel HorizontalSpacing="6" VerticalSpacing="6"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodels:StarshipFilterOption">
+                                <Button Click="ShipFilter_Click" Tag="{x:Bind FilterKey}" Padding="10,3"
+                                        BorderThickness="1" BorderBrush="{ThemeResource ThemeLineBrush}"
+                                        CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                                        AutomationProperties.Name="{x:Bind Label}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="{x:Bind Label}" FontSize="12" VerticalAlignment="Center"/>
+                                        <Border CornerRadius="4" Background="{ThemeResource ThemeVoidBrush}" Padding="5,0" VerticalAlignment="Center">
+                                            <TextBlock Text="{x:Bind Count}" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Ships Grid -->
+                    <ItemsControl ItemsSource="{x:Bind Equipment.FilteredShips, Mode=OneWay}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="10"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodels:SystemStarshipItemViewModel">
+                                <Border Width="370" Padding="12,10" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                                        Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
+                                    <Grid ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="4" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Border Background="{x:Bind BadgeBackground}" Padding="6,1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind TypeLabel}" FontSize="10" FontWeight="Bold"
+                                                               FontFamily="{ThemeResource ThemeDisplayFont}" CharacterSpacing="120"
+                                                               Foreground="{x:Bind BadgeForeground}"/>
+                                                </Border>
+                                                <TextBlock Text="{x:Bind IndexLabel}" FontSize="11" Foreground="{ThemeResource ThemeTextFaintBrush}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{x:Bind SeedHex}" FontSize="11" FontFamily="{ThemeResource ThemeDisplayFont}"
+                                                           Foreground="{ThemeResource ThemeTextDimBrush}" CharacterSpacing="30"
+                                                           VerticalAlignment="Center" IsTextSelectionEnabled="True"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{x:Bind DefaultName}" FontSize="13" FontWeight="SemiBold"
+                                                       Foreground="{ThemeResource ThemeTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{x:Bind SClassStatsSummary}" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{x:Bind SClassSlotsSummary}" FontSize="11"
+                                                       Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                                            <TextBlock Text="{x:Bind SpawnChanceSummary}" FontSize="11"
+                                                       Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="{x:Bind CopyButtonText, Mode=OneWay}" Click="CopyShip_Click" Tag="{x:Bind}"
+                                                Padding="8,4" VerticalAlignment="Top" FontSize="12"
+                                                AutomationProperties.Name="{x:Bind AutomationName}" ToolTipService.ToolTip="{x:Bind TooltipText}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+    </StackPanel>
+</UserControl>
+

@@ -93,16 +93,18 @@ public static class SystemStarshipGenerator
     }
 
     /// <summary>
-    /// Generates native starships and fleet vehicles for the system with the given portal code and attributes.
-    /// By default includes the 21 standard starships, the 6 native freighters, the native Sentinel Interceptor,
-    /// and the native Pirate Dreadnought.
+    /// Generates native starships for the system with the given portal code and attributes.
+    /// By default includes the 21 standard starships (plus the native Sentinel Interceptor #36 when
+    /// <paramref name="includeSentinel"/> is true). Set <paramref name="includeFleet"/> to true to also
+    /// include the 6 system freighters and pirate dreadnought.
     /// </summary>
     public static IReadOnlyList<SystemStarship> Generate(
         ulong portalCode,
         SystemRace race,
         bool isPirate,
         Func<string, IReadOnlyList<string>?>? words = null,
-        bool includeFleet = true)
+        bool includeFleet = false,
+        bool includeSentinel = false)
     {
         uint lo = (uint)portalCode;
         uint hi = (uint)(portalCode >> 32);
@@ -199,7 +201,7 @@ public static class SystemStarshipGenerator
             ships.Add(new SystemStarship(shipIndex++, SystemStarshipType.Exotic, seed, name, "Starship"));
         }
 
-        if (!includeFleet)
+        if (!includeFleet && !includeSentinel)
             return ships;
 
         // Ships #22..#27: 6 System Freighters
@@ -207,9 +209,13 @@ public static class SystemStarshipGenerator
         {
             uint low = rng.NextWord();
             uint high = rng.NextWord();
-            ulong seed = Mix64(((ulong)high << 32) | low);
-            string name = words != null ? ShipNames.Generate(seed, words) ?? $"Freighter {seed:X16}" : $"Freighter {seed:X16}";
-            ships.Add(new SystemStarship(shipIndex++, SystemStarshipType.Freighter, seed, name, "Freighter"));
+            if (includeFleet)
+            {
+                ulong seed = Mix64(((ulong)high << 32) | low);
+                string name = words != null ? ShipNames.Generate(seed, words) ?? $"Freighter {seed:X16}" : $"Freighter {seed:X16}";
+                ships.Add(new SystemStarship(shipIndex, SystemStarshipType.Freighter, seed, name, "Freighter"));
+            }
+            shipIndex++;
         }
 
         // Ships #28..#35: 8 System Frigates (advance PRNG 16 words)
@@ -221,10 +227,17 @@ public static class SystemStarshipGenerator
         {
             uint low = rng.NextWord();
             uint high = rng.NextWord();
-            ulong seed = Mix64(((ulong)high << 32) | low);
-            string name = words != null ? ShipNames.Generate(seed, words) ?? $"Sentinel Interceptor {seed:X16}" : $"Sentinel Interceptor {seed:X16}";
-            ships.Add(new SystemStarship(shipIndex++, SystemStarshipType.SentinelInterceptor, seed, name, "Sentinel"));
+            if (includeSentinel || includeFleet)
+            {
+                ulong seed = Mix64(((ulong)high << 32) | low);
+                string name = words != null ? ShipNames.Generate(seed, words) ?? $"Sentinel Interceptor {seed:X16}" : $"Sentinel Interceptor {seed:X16}";
+                ships.Add(new SystemStarship(shipIndex, SystemStarshipType.SentinelInterceptor, seed, name, "Sentinel"));
+            }
+            shipIndex++;
         }
+
+        if (!includeFleet)
+            return ships;
 
         // Ship #37: Sentinel Capital Ship (2 words)
         rng.Step(); rng.Step();
@@ -262,6 +275,7 @@ public static class SystemStarshipGenerator
         ulong portalCode,
         SystemAttributes attributes,
         Func<string, IReadOnlyList<string>?>? words = null,
-        bool includeFleet = true) =>
-        Generate(portalCode, attributes.Race, attributes.Pirate, words, includeFleet);
+        bool includeFleet = false,
+        bool includeSentinel = false) =>
+        Generate(portalCode, attributes.Race, attributes.Pirate, words, includeFleet, includeSentinel);
 }

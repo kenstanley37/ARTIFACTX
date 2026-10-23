@@ -20,6 +20,7 @@ public static class PlanetTypesService
 {
     private static BiomeTables? _tables;
     private static PlanetProfileTables? _profileTables;
+    private static InventoryGenerationTables? _inventoryTables;
     private static Task? _loading;
     private static readonly ConcurrentDictionary<ulong, PlanetType[]> Cache = new();
     private static readonly ConcurrentDictionary<ulong, PlanetProfile?[]> Profiles = new();
@@ -28,6 +29,7 @@ public static class PlanetTypesService
     public static event Action? Loaded;
 
     public static bool IsReady => _tables is not null;
+    public static InventoryGenerationTables? InventoryTables => _inventoryTables;
 
     /// <summary>Loads the tables once they exist. Tried again while they're missing, and
     /// again after a game data rebuild - the app asked before a rebuild had finished, kept
@@ -39,7 +41,7 @@ public static class PlanetTypesService
             _subscribed = true;
             GameDataService.BuildFinished += error =>
             {
-                _tables = null; _profileTables = null; _loading = null;
+                _tables = null; _profileTables = null; _inventoryTables = null; _loading = null;
                 Cache.Clear(); Profiles.Clear();
                 _ = EnsureLoadedAsync();
             };
@@ -54,6 +56,7 @@ public static class PlanetTypesService
         _tables = await CatalogService.GetBiomeTablesAsync();
         if (_tables is null) { _loading = null; return; }
         _profileTables = await CatalogService.GetPlanetProfileTablesAsync();
+        _inventoryTables = await CatalogService.GetInventoryGenerationTablesAsync();
         Cache.Clear();
         Profiles.Clear();
         Loaded?.Invoke();
@@ -105,6 +108,29 @@ public static class PlanetTypesService
     /// ("UI_BUGS_HINT" - "Vile Brood Detected"), or null.</summary>
     public static string? HintName(string id) =>
         _profileTables?.HintNames is { } names && names.TryGetValue(id, out var name) ? name : null;
+
+    /// <summary>Whether the given planet (1-based index) has Corrupted Sentinels (Dissonant).</summary>
+    public static bool HasCorruptedSentinels(ulong system, int planetIndex)
+    {
+        if (Profile(system, planetIndex) is { Sentinels: { Length: > 2 } s } && s[2] == 3)
+            return true;
+        var details = PlanetDetailsService.Get(system, planetIndex);
+        return details?.Sentinels?.Contains("Corrupt", StringComparison.OrdinalIgnoreCase) == true
+            || details?.Sentinels?.Contains("Dissonan", StringComparison.OrdinalIgnoreCase) == true
+            || details?.Descriptor?.Contains("Dissonan", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    /// <summary>Whether any planet or moon in the system has Corrupted Sentinels (Dissonant).</summary>
+    public static bool SystemHasCorruptedPlanet(ulong system)
+    {
+        if (SystemNotesService.Get(system)?.Dissonant == true) return true;
+        var types = For(system);
+        for (int i = 1; i <= types.Length; i++)
+        {
+            if (HasCorruptedSentinels(system, i)) return true;
+        }
+        return false;
+    }
 
     private static (ulong Portal, int Galaxy) Portal(ulong system) =>
         ((((system >> 40) & 0xFFF) << 32) | (system & 0xFFFFFFFF), (int)((system >> 32) & 0xFF));

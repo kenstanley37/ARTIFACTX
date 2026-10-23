@@ -55,6 +55,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
     [ObservableProperty] public partial IReadOnlyList<string> Finds { get; private set; } = [];
     [ObservableProperty] public partial PlanetFishViewModel? Fish { get; private set; }
     [ObservableProperty] public partial IReadOnlyList<CreatureCardViewModel> Creatures { get; private set; } = [];
+    public PlanetEquipmentViewModel Equipment { get; } = new();
 
     [ObservableProperty] public partial bool HasSiblings { get; private set; }
     [ObservableProperty] public partial bool CanGoPrevious { get; private set; }
@@ -129,6 +130,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         ShowRecorded();
         ShowSave();
         ShowFinds();
+        await Equipment.LoadAsync(planet, _snapshot);
         await ShowCreaturesAsync();
         await LoadSystemPictureAsync();
     }
@@ -331,7 +333,11 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
 
     private void OnPlanetChanged(ulong system, int planet) => OnUi(() => { if (IsThisPlanet(system, planet)) ShowRecorded(); });
     private void OnSystemChanged(ulong system) => OnUi(() => { if (IsThisPlanet(system, -1)) ShowNames(); });
-    private void OnFindsChanged() => OnUi(ShowFinds);
+    private void OnFindsChanged() => OnUi(() =>
+    {
+        ShowFinds();
+        if (Planet is { } p) Equipment.UpdateLocations(p, _snapshot);
+    });
     private void OnCreaturesChanged(ulong system, int planet) => OnUi(() => { if (IsThisPlanet(system, planet)) _ = ShowCreaturesAsync(); });
     private void OnSystemPictureSaved(ulong system) => OnUi(() => { if (IsThisPlanet(system, -1)) _ = LoadSystemPictureAsync(); });
 
@@ -340,5 +346,6 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         _snapshot = snapshot;
         ShowSave();
         ShowRecorded(); // fish caught
+        if (Planet is { } p) Equipment.UpdateLocations(p, _snapshot);
     });
 }

@@ -100,17 +100,22 @@ public static class SystemMultiToolGenerator
     }
 
     /// <summary>
-    /// Generates all native multi-tool pools for a star system: the Space Station pool and each planet's pool.
+    /// Generates all native multi-tool pools for a star system: the Space Station pool (when the system
+    /// has an inhabited Space Station) and each planet's pool.
     /// </summary>
     public static IReadOnlyList<SystemMultiTool> GenerateSystem(
         ulong portalCode,
         IReadOnlyList<(ulong PlanetSeed, int PlanetIndex, string Name)> planets,
-        Func<string, IReadOnlyList<string>?>? words = null)
+        Func<string, IReadOnlyList<string>?>? words = null,
+        bool hasSpaceStationCabinet = true)
     {
         var allTools = new List<SystemMultiTool>();
 
-        // 1. Space Station Pool
-        allTools.AddRange(GeneratePool(portalCode, MultiToolPoolSource.SpaceStation, "Space Station", words));
+        // 1. Space Station Pool (only in inhabited systems with a Space Station weapon cabinet)
+        if (hasSpaceStationCabinet)
+        {
+            allTools.AddRange(GeneratePool(portalCode, MultiToolPoolSource.SpaceStation, "Space Station", words));
+        }
 
         // 2. Planet Pools
         foreach (var p in planets)

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- System Starships Panel (SystemStarshipsViewModel): shows the fixed pool of 21
-     native starships for the current star system, with class filtering and 1-click seed copy. -->
+<!-- System Starships Panel (SystemStarshipsViewModel): shows the native starship models
+     for the current star system, with S-Class spawn probabilities, S-Class base stats,
+     max slot capacities, class filtering, and 1-click seed copy. -->
 <UserControl
     x:Class="ArtifactX.WinUI3.Controls.SystemStarshipsPanel"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -26,6 +27,13 @@
             </Grid>
 
             <StackPanel Spacing="12" Visibility="{x:Bind Starships.IsOpen, Mode=OneWay}">
+                <!-- S-Class Spawn & Economy Summary Banner -->
+                <Border Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                        CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,8">
+                    <TextBlock Text="{x:Bind Starships.SpawnRulesSummary, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}"
+                               FontSize="12" TextWrapping="Wrap"/>
+                </Border>
+
                 <!-- Filter Pills -->
                 <ItemsControl ItemsSource="{x:Bind Starships.FilterOptions, Mode=OneWay}">
                     <ItemsControl.ItemsPanel>
@@ -51,9 +59,6 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
-                           Text="Native starships, Sentinel Interceptor, Freighters and Dreadnought for this star system. Copy a seed to inspect or apply it in the Ship Designer."/>
-
                 <!-- Starships List -->
                 <ItemsControl ItemsSource="{x:Bind Starships.FilteredShips, Mode=OneWay}">
                     <ItemsControl.ItemsPanel>
@@ -63,7 +68,7 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="viewmodels:SystemStarshipItemViewModel">
-                            <Border Width="300" Padding="12,10" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                            <Border Width="375" Padding="12,10" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
                                     Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
                                 <Grid ColumnSpacing="10">
                                     <Grid.ColumnDefinitions>
@@ -79,14 +84,21 @@
                                             </Border>
                                             <TextBlock Text="{x:Bind IndexLabel}"
                                                        FontSize="11" Foreground="{ThemeResource ThemeTextFaintBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{x:Bind SeedHex}" FontSize="11" FontFamily="{ThemeResource ThemeDisplayFont}"
+                                                       Foreground="{ThemeResource ThemeTextDimBrush}" CharacterSpacing="30"
+                                                       VerticalAlignment="Center" IsTextSelectionEnabled="True"/>
                                         </StackPanel>
                                         <TextBlock Text="{x:Bind DefaultName}" FontSize="13" FontWeight="SemiBold"
                                                    Foreground="{ThemeResource ThemeTextBrush}" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{x:Bind SeedHex}" FontSize="11" FontFamily="{ThemeResource ThemeDisplayFont}"
-                                                   Foreground="{ThemeResource ThemeTextDimBrush}" CharacterSpacing="40" IsTextSelectionEnabled="True"/>
+                                        <TextBlock Text="{x:Bind SClassStatsSummary}" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{x:Bind SClassSlotsSummary}" FontSize="11"
+                                                   Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                                        <TextBlock Text="{x:Bind SpawnChanceSummary}" FontSize="11"
+                                                   Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
                                     </StackPanel>
                                     <Button Grid.Column="1" Content="{x:Bind CopyButtonText, Mode=OneWay}" Click="Copy_Click" Tag="{x:Bind}"
-                                            Padding="8,4" VerticalAlignment="Center" FontSize="12"
+                                            Padding="8,4" VerticalAlignment="Top" FontSize="12"
                                             AutomationProperties.Name="{x:Bind AutomationName}" ToolTipService.ToolTip="{x:Bind TooltipText}"/>
                                 </Grid>
                             </Border>

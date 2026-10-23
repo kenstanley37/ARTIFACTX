@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.Sqlite;
+using Microsoft.Data.Sqlite;
 using Microsoft.UI.Xaml.Media.Imaging;
 using ArtifactX.WinUI3.Models;
 using System;
@@ -1131,6 +1131,11 @@ public static class CatalogService
     /// null on game data built before catalog format 16.</summary>
     public static Task<ArtifactX.Core.Universe.PlanetProfileTables?> GetPlanetProfileTablesAsync() =>
         GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.PlanetProfileTables>("PLANETPROFILE");
+
+    /// <summary>S-Class base stat roll ranges, class spawn probabilities, max inventory slot capacities,
+    /// and planetary building placement densities (catalog "PlanetGeneration", row "INVENTORYGENERATION").</summary>
+    public static Task<ArtifactX.Core.Universe.InventoryGenerationTables?> GetInventoryGenerationTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.InventoryGenerationTables>("INVENTORYGENERATION");
 
     private static async Task<T?> GetPlanetGenerationRowAsync<T>(string gameId) where T : class
     {

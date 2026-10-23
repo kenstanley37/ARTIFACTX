@@ -68,6 +68,11 @@ public static class NmsPlanetCoordinates
     public static (double Latitude, double Longitude)? OfBase(JToken? baseEntry) =>
         Vector(baseEntry?["wMC"]) is { } at ? From(at, (0, 0, 0)) : null;
 
+    /// <summary>Coordinates of an active planetary scan event (A1f entry, GcScanEventSave):
+    /// its TWn (BuildingLocation) is measured from the planet's centre (2026-10-23).</summary>
+    public static (double Latitude, double Longitude)? OfScanEvent(JToken? eventEntry) =>
+        Vector(eventEntry?["TWn"]) is { } at ? From(at, (0, 0, 0)) : null;
+
     /// <summary>As the game writes them: "+8.92, -29.91".</summary>
     public static string Format(double latitude, double longitude) =>
         $"{Signed(latitude)}, {Signed(longitude)}";

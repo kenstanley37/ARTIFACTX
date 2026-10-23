@@ -21,10 +21,11 @@ public static partial class CatalogSteps
     private const string CreatureFilenameTableFile = "METADATA/SIMULATION/ECOSYSTEM/CREATUREFILENAMETABLE.MBIN";
     private const string VoxelSettingsFile = "METADATA/SIMULATION/SOLARSYSTEM/VOXELGENERATORSETTINGS.MBIN";
     private const string BuildingTableFile = "METADATA/SIMULATION/ENVIRONMENT/PLANETBUILDINGTABLE.MBIN";
+    private const string InventoryTableFile = "METADATA/REALITY/TABLES/INVENTORYTABLE.MBIN";
 
     /// <summary>
     /// What planets are generated from (2026-10-22, ArtifactX.Core PlanetGenerator and
-    /// PlanetProfileGenerator). Category "PlanetGeneration", two rows:
+    /// PlanetProfileGenerator). Category "PlanetGeneration", rows:
     /// - "BIOMETABLES": JSON in the shape of Core's BiomeTables - biomelistperstartype.mbin
     ///   (odds per star colour, prime odds, the lush/harsh-galaxy yellow lists, dead-to-weird
     ///   chance) and biomefilenames.mbin + biomefilenamesarchive.mbin (the types a start,
@@ -35,6 +36,9 @@ public static partial class CatalogSteps
     ///   odds and sentinel odds (gcgameplayglobals), scrapyard density (planetbuildingtable.mbin),
     ///   and what the terrain and object steps read (voxelgeneratorsettings.mbin, each biome
     ///   file's terrain chances and object lists, biomefilenames' common and optional lists).
+    /// - "INVENTORYGENERATION": JSON in the shape of Core's InventoryGenerationTables - S-Class
+    ///   base stat roll ranges, class probabilities, max inventory slot capacities
+    ///   (inventorytable.mbin) and planetary building placement densities (planetbuildingtable.mbin).
     /// </summary>
     public static void AddPlanetGeneration(string catalogPath, string pcbanksPath)
     {
@@ -92,6 +96,10 @@ public static partial class CatalogSteps
             if (details is null) ConsoleStyle.Warning("Planet detail tables not found - planet resources and weather left out.");
             else rows.Add(new CatalogItem { GameId = "PLANETPROFILE", NameEnglish = "PlanetProfileTables", DescriptionEnglish = JsonSerializer.Serialize(details) });
         }
+
+        if (InventoryTables(Decode) is { } invTables)
+            rows.Add(new CatalogItem { GameId = "INVENTORYGENERATION", NameEnglish = "InventoryGenerationTables", DescriptionEnglish = JsonSerializer.Serialize(invTables) });
+
         using var db = new CatalogDbContext(catalogPath);
         Replace(db, "PlanetGeneration", "GcBiomeListPerStarType/GcBiomeFileList", BiomeListFile.ToLowerInvariant(), rows);
         ConsoleStyle.Success($"Wrote the planet generation tables to {catalogPath}.");
@@ -314,5 +322,59 @@ public static partial class CatalogSteps
         }
 
         return new CreatureTables(globals, creatures.ToArray(), archetypeLists, domainArchetypes, ecosystemTables);
+    }
+
+    private static InventoryGenerationTables? InventoryTables(Func<string, NMSTemplate?> decode)
+    {
+        if (decode(InventoryTableFile) is not GcInventoryTable inv) return null;
+
+        const int sClassIndex = (int)GcInventoryClass.InventoryClassEnum.S;
+
+        var shipStats = (inv.ShipBaseStatsData ?? Array.Empty<GcInventoryGenerationBaseStatData>())
+            .Select(d => d?.BaseStatsPerClass != null && sClassIndex < d.BaseStatsPerClass.Length && d.BaseStatsPerClass[sClassIndex]?.BaseStats != null
+                ? d.BaseStatsPerClass[sClassIndex].BaseStats
+                    .Select(e => new BaseStatRange(e.BaseStatID?.Value ?? "", e.Min, e.Max))
+                    .ToArray()
+                : Array.Empty<BaseStatRange>())
+            .ToArray();
+
+        var weaponStats = (inv.WeaponBaseStatsData ?? Array.Empty<GcInventoryGenerationBaseStatData>())
+            .Select(d => d?.BaseStatsPerClass != null && sClassIndex < d.BaseStatsPerClass.Length && d.BaseStatsPerClass[sClassIndex]?.BaseStats != null
+                ? d.BaseStatsPerClass[sClassIndex].BaseStats
+                    .Select(e => new BaseStatRange(e.BaseStatID?.Value ?? "", e.Min, e.Max))
+                    .ToArray()
+                : Array.Empty<BaseStatRange>())
+            .ToArray();
+
+        var classProbs = (inv.ClassProbabilityData ?? Array.Empty<GcInventoryClassProbabilities>())
+            .Select(p => p?.ClassProbabilities?.ToArray() ?? Array.Empty<float>())
+            .ToArray();
+
+        var shipMaxCargo = (inv.ShipInventoryMaxUpgradeSize ?? Array.Empty<GcShipInventoryMaxUpgradeCapacity>())
+            .Select(c => c?.MaxInventoryCapacity != null && sClassIndex < c.MaxInventoryCapacity.Length ? c.MaxInventoryCapacity[sClassIndex] : 0)
+            .ToArray();
+
+        var shipMaxTech = (inv.ShipInventoryMaxUpgradeSize ?? Array.Empty<GcShipInventoryMaxUpgradeCapacity>())
+            .Select(c => c?.MaxTechInventoryCapacity != null && sClassIndex < c.MaxTechInventoryCapacity.Length ? c.MaxTechInventoryCapacity[sClassIndex] : 0)
+            .ToArray();
+
+        int weaponMaxTech = inv.WeaponInventoryMaxUpgradeSize?.MaxInventoryCapacity != null
+            && sClassIndex < inv.WeaponInventoryMaxUpgradeSize.MaxInventoryCapacity.Length
+            ? inv.WeaponInventoryMaxUpgradeSize.MaxInventoryCapacity[sClassIndex]
+            : 60;
+
+        Dictionary<string, float[]>? buildingDensities = null;
+        if (decode(BuildingTableFile) is GcBuildingDefinitionTable bld && bld.BuildingPlacement != null)
+        {
+            buildingDensities = new Dictionary<string, float[]>(StringComparer.OrdinalIgnoreCase);
+            var enumNames = Enum.GetNames<GcBuildingClassification.BuildingClassEnum>();
+            for (int i = 0; i < bld.BuildingPlacement.Length && i < enumNames.Length; i++)
+            {
+                if (bld.BuildingPlacement[i]?.Density is { } density)
+                    buildingDensities[enumNames[i]] = density.ToArray();
+            }
+        }
+
+        return new InventoryGenerationTables(shipStats, weaponStats, classProbs, shipMaxCargo, shipMaxTech, weaponMaxTech, buildingDensities);
     }
 }

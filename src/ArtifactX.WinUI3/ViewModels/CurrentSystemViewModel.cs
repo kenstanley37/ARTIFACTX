@@ -270,8 +270,12 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         int galaxy = S.GalaxyNumber(system);
         Heading = UniverseInfo.SystemName(system);
         Facts = UniverseInfo.Summary(system);
+        var facts = UniverseInfo.For(system);
+        bool isUncharted = facts.Uncharted || note?.Race == "None (uncharted)";
         string station = markerStation.Length > 0 ? markerStation : note?.StationName ?? "";
-        Station = station.Length > 0 ? $"Space station: {station}" : "";
+        Station = isUncharted ? "Space station: None (uncharted)"
+            : facts.Abandoned ? (station.Length > 0 ? $"Space station: {station} (Abandoned)" : $"Space station: {Heading} Station (Abandoned)")
+            : station.Length > 0 ? $"Space station: {station}" : $"Space station: {Heading} Station";
 
         int moons = planets.Count(p => BodyKindsService.IsMoon(system, p.PlanetIndex));
         string bodies = moons > 0
@@ -288,13 +292,14 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         SystemData = BuildSystemData(system, note, station);
         Market.Show(system);
         ulong portalCode = UniverseInfo.PortalCode(system, 0);
-        var facts = UniverseInfo.For(system);
-        _ = Starships.LoadAsync(system, portalCode, facts.Race, facts.Pirate);
         Unmatched = BuildUnmatched(system, planets);
 
         // Every body, discovered or not: the ones nobody has found yet with the type the
         // game's own generator gives them (PlanetTypesService).
         if (!PlanetTypesService.IsReady) _ = PlanetTypesService.EnsureLoadedAsync();
+        bool hasCorruptedPlanet = PlanetTypesService.SystemHasCorruptedPlanet(system);
+        _ = Starships.LoadAsync(system, portalCode, facts, hasCorruptedPlanet);
+
         var known = planets.Select(p => p.PlanetIndex).ToHashSet();
         var allBodies = planets.Concat(PlanetTypesService.Undiscovered(system, known)).OrderBy(p => p.PlanetIndex).ToList();
         var seeds = SystemGenerator.Bodies(portalCode, galaxy).PlanetSeeds;
@@ -307,7 +312,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             })
             .Where(p => p.PlanetSeed != 0)
             .ToList();
-        _ = MultiTools.LoadAsync(system, portalCode, planetPoolInputs);
+        _ = MultiTools.LoadAsync(system, portalCode, facts, planetPoolInputs);
 
         Tiles = allBodies.Select(p =>
         {
@@ -373,7 +378,13 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             : uncharted ? "- Data Unavailable -" : null;
         Row("Economy", economy, f.Uncharted ? "None" : $"{f.EconomyLabel} // {f.WealthLabel}");
         Row("Conflict level", note?.Conflict is { Length: > 0 } c ? c : uncharted ? "- Data Unavailable -" : null, f.Uncharted ? "None" : f.ConflictLabel);
-        if (station.Length > 0) Row("Space Station", station, "");
+        string defaultStation = $"{UniverseInfo.SystemName(system)} Station";
+        if (f.Uncharted || uncharted)
+            Row("Space Station", uncharted ? "None (uncharted)" : null, "None (uncharted)");
+        else if (f.Abandoned)
+            Row("Space Station", station.Length > 0 ? $"{station} (Abandoned)" : null, $"{defaultStation} (Abandoned)");
+        else
+            Row("Space Station", station.Length > 0 ? station : null, defaultStation);
         Row("Star", note?.StarClass is { Length: > 0 } cls ? $"{cls} ({note.StarColour})" : note?.StarColour is { Length: > 0 } sc ? sc : null, f.StarLabel);
         if (note?.Water == true) Row("Water", "Yes", "");
         if (note?.Dissonant == true) Row("Dissonance", "Detected", "");

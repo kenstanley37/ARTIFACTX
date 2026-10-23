@@ -106,7 +106,7 @@ public static class KnownPlanetsService
 /// Spawn (rnc) and PlanetPositions (aHM) give the player's coordinates on the
 /// planet (NmsPlanetCoordinates).</summary>
 public sealed record PlanetSnapshot(JToken? Universe, JArray? StatGroups, JArray? Discoveries, string? Summary = null, JArray? Markers = null, JArray? Bases = null, JToken? Fishing = null,
-    JToken? Spawn = null, JToken? PlanetPositions = null, JArray? LooseObjects = null, JArray? Settlements = null, string? LocalOnlineId = null)
+    JToken? Spawn = null, JToken? PlanetPositions = null, JArray? LooseObjects = null, JArray? Settlements = null, string? LocalOnlineId = null, JArray? ScanEvents = null)
 {
     /// <summary>The player's coordinates on the planet they're on, if any.</summary>
     public (double Latitude, double Longitude)? Coordinates =>
@@ -133,7 +133,7 @@ public static class LiveSaveReader
             return new PlanetSnapshot(player?["yhJ"], player?["gUR"] as JArray, root["fDu"]?["ETO"]?["OsQ"]?["?fB"] as JArray,
                 player?["n:R"]?.Value<string>(), player?["nlG"] as JArray, player?["F?0"] as JArray, player?["bTf"],
                 context?["rnc"], player?["aHM"], player?["c5s"] as JArray, player?["GQA"] as JArray,
-                root["<h0"]?["F=J"]?[0]?["K7E"]?.Value<string>());
+                root["<h0"]?["F=J"]?[0]?["K7E"]?.Value<string>(), player?["A1f"] as JArray);
         }
         catch (Exception ex)
         {
@@ -206,7 +206,8 @@ public sealed class LiveSaveWatcher : IDisposable
         SaveSessionManager.GetValue(NmsPlanetCoordinates.PlanetPositionsPath),
         SaveSessionManager.GetValue(NmsBuildCounts.LooseObjectsPath) as JArray,
         SaveSessionManager.GetValue(NmsSettlementPaths.SettlementArrayPath) as JArray,
-        SaveSessionManager.GetValue(NmsSettlementPaths.LocalPlayerOnlineIdPath)?.Value<string>());
+        SaveSessionManager.GetValue(NmsSettlementPaths.LocalPlayerOnlineIdPath)?.Value<string>(),
+        SaveSessionManager.GetValue("vLc", "6f=", "A1f") as JArray);
 
     public void Start()
     {

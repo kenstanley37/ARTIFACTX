@@ -251,6 +251,8 @@
                         </Border>
                     </ctcontrols:WrapPanel>
 
+                    <controls:PlanetEquipmentPanel Equipment="{x:Bind ViewModel.Equipment, Mode=OneWay}"/>
+
                     <Border Style="{StaticResource ThemeCardStyle}">
                         <StackPanel>
                             <Border Style="{StaticResource ThemeBandStyle}">
