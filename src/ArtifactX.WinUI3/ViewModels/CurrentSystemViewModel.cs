@@ -72,6 +72,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
     public StationMarketViewModel Market { get; } = new();
     public SystemNotesViewModel Notes { get; } = new();
+    public SystemStarshipsViewModel Starships { get; } = new();
 
     [ObservableProperty] public partial ulong? SystemAddress { get; private set; }
     [ObservableProperty] public partial int CurrentPlanet { get; private set; }
@@ -284,6 +285,9 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         Bodies = planets;
         SystemData = BuildSystemData(system, note, station);
         Market.Show(system);
+        ulong portalCode = UniverseInfo.PortalCode(system, 0);
+        var facts = UniverseInfo.For(system);
+        _ = Starships.LoadAsync(system, portalCode, facts.Race, facts.Pirate);
         Unmatched = BuildUnmatched(system, planets);
 
         // Every body, discovered or not: the ones nobody has found yet with the type the

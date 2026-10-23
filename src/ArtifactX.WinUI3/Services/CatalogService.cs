@@ -26,9 +26,12 @@ public static class CatalogService
     /// <summary>Forgets everything read so far - after the game data was
     /// rebuilt (GameDataService). Call on the UI thread; pages pick the new
     /// catalog up as they load.</summary>
+    private static Dictionary<string, IReadOnlyList<string>>? _namingWords;
+
     public static void Reload()
     {
         Cache.Clear();
+        _namingWords = null;
         _pathChecked = false;
         _dbPath = null;
     }
@@ -1924,6 +1927,44 @@ public static class CatalogService
 
     /// <summary>Same rule as FilterFishSpecies, for a single id.</summary>
     public static bool IsFishSpecies(string gameId) => FishSpeciesPattern.IsMatch(gameId);
+
+    /// <summary>
+    /// Word lists for procedural starship and multi-tool naming from nms_catalog.sqlite
+    /// (category MultiToolNameWords). Cached after first read.
+    /// </summary>
+    public static async Task<Dictionary<string, IReadOnlyList<string>>> GetProceduralNameWordsAsync()
+    {
+        if (_namingWords is not null) return _namingWords;
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new(StringComparer.OrdinalIgnoreCase);
+
+        return await Task.Run(() =>
+        {
+            if (_namingWords is not null) return _namingWords;
+            var dict = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                using var con = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                con.Open();
+                using var cmd = con.CreateCommand();
+                cmd.CommandText = "SELECT i.NameEnglish, i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='MultiToolNameWords'";
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    string name = reader.GetString(0);
+                    string json = reader.GetString(1);
+                    var words = System.Text.Json.JsonSerializer.Deserialize<List<string>>(json);
+                    if (words is not null) dict[name] = words;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[CatalogService] GetProceduralNameWordsAsync failed: {ex.Message}");
+            }
+            _namingWords = dict;
+            return dict;
+        });
+    }
 
     internal static string? ResolveDbPath()
     {

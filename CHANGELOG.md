@@ -20,6 +20,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - **Live save updates**: while you play, ArtifactX follows the game's saves without reloading the page you're on. Newly acquired ships and tools appear on their own.
 - **Every planet's details before you land**: Current System shows every planet and moon in the system, found or not, with its type, weather (with extreme weather and storms), sentinel level (Low, High, Aggressive or Corrupted, as the game words them) and what its scanner lists - its plant (Star Bulb, Cactus Flesh...), the three resources you can mine, and Ancient Bones, Salvageable Scrap, Vile Brood or Swarm Debris where the game puts them. They're worked out from the system's address the same way the game does it, using your own game files, so you don't need to scan or record anything. Planets you open show them too.
 - **Planet creature totals**: each planet shows how many kinds of fauna live on it ("2 / 7 fauna", or "no fauna" on barren and dead worlds) before you land or discover them, calculated using the game's creature generation tables from your install.
+- **System starships**: Current System lists the 21 starships native to the system you're in (its Exotics, Fighters, Haulers, Explorers, Shuttles and Solars), with their in-game procedural names, classes and seeds, filterable by class, and a 1-click button to copy any ship's seed to the clipboard for the Ship Designer or to share.
 
 ### Improved
 

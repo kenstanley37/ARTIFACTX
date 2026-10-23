@@ -155,6 +155,7 @@
 
                             <controls:StationMarket Market="{x:Bind ViewModel.Market}"/>
                             <controls:SystemNotesPanel Notes="{x:Bind ViewModel.Notes}"/>
+                            <controls:SystemStarshipsPanel Starships="{x:Bind ViewModel.Starships}"/>
 
                             <!-- Planets read off the game screen under a name ArtifactX doesn't know (renamed by another player). -->
                             <Border Visibility="{x:Bind ViewModel.HasUnmatched, Mode=OneWay}" BorderBrush="{ThemeResource ThemeWarningBrush}" BorderThickness="1"
