@@ -171,8 +171,8 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         [
             new("Weather", profile is not null ? PlanetText.Weather(profile) : Or(d?.Weather)),
             new("Sentinels", profile is not null ? PlanetText.Sentinels(profile) : Or(d?.Sentinels)),
-            new("Flora", Or(d?.Flora)),
-            new("Fauna", Or(d?.Fauna is { Length: > 0 } fauna ? fauna : (d?.FaunaTotal ?? profile?.FaunaCount) is int n ? (n == 0 ? "None" : $"{n} kinds") : null)),
+            new("Flora", d?.Flora is { Length: > 0 } flora ? flora : profile is not null ? PlanetText.Flora(profile) : Or(null)),
+            new("Fauna", d?.Fauna is { Length: > 0 } fauna ? fauna : profile is not null ? PlanetText.Fauna(profile) : (d?.FaunaTotal is int n ? (n == 0 ? "None" : $"{n} species") : Or(null))),
             new("Water", water switch { true => "Yes", false => "No", _ => NotRecorded }),
         ];
         Resources = profile is not null && _vocabulary is not null

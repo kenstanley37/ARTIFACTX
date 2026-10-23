@@ -35,15 +35,9 @@ public sealed partial class PlanetTileViewModel : ObservableObject
         {
             Weather = PlanetText.Weather(profile);
             Sentinels = PlanetText.Sentinels(profile);
+            Flora = details?.Flora is { Length: > 0 } fl ? fl : PlanetText.Flora(profile);
+            Fauna = details?.Fauna is { Length: > 0 } fa ? fa : PlanetText.Fauna(profile);
             Resources = string.Join(", ", PlanetText.Resources(profile, itemNames));
-            if (profile.FaunaCount is int count)
-            {
-                Fauna = count == 0 ? "None" : (count == 1 ? "1 species" : $"{count} species");
-            }
-            else if (profile.Fauna == 0)
-            {
-                Fauna = "None";
-            }
         }
         string summary = PlanetText.CardSummary(details);
         DetailsSummary = summary.Length > 0 ? summary : "None yet - open the planet to add weather, sentinels, resources and notes.";
@@ -63,9 +57,11 @@ public sealed partial class PlanetTileViewModel : ObservableObject
     public string FoundBy { get; }
     public string Weather { get; } = "";
     public string Sentinels { get; } = "";
-    public string Resources { get; } = "";
+    public string Flora { get; } = "";
     public string Fauna { get; } = "";
+    public string Resources { get; } = "";
     public bool HasProfile => Weather.Length > 0;
+    public bool HasFlora => Flora.Length > 0;
     public bool HasFauna => Fauna.Length > 0;
     public PlanetFishViewModel? Fish { get; }
     public bool HasFish => Fish is not null;
@@ -87,3 +83,4 @@ public sealed partial class PlanetTileViewModel : ObservableObject
         HereLabel = snapshot.Coordinates is { } at ? $"YOU ARE HERE · {NmsPlanetCoordinates.Format(at.Latitude, at.Longitude)}" : "YOU ARE HERE";
     }
 }
+

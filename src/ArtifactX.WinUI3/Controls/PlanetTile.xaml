@@ -54,6 +54,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <TextBlock Text="You found" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
                     <TextBlock Grid.Column="1" Text="{x:Bind Tile.Discovered, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
@@ -68,10 +69,12 @@
                     <TextBlock Grid.Row="4" Grid.Column="1" Text="{x:Bind Tile.Weather, Mode=OneWay}" Visibility="{x:Bind Tile.HasProfile, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                     <TextBlock Grid.Row="5" Text="Sentinels" Visibility="{x:Bind Tile.HasProfile, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
                     <TextBlock Grid.Row="5" Grid.Column="1" Text="{x:Bind Tile.Sentinels, Mode=OneWay}" Visibility="{x:Bind Tile.HasProfile, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                    <TextBlock Grid.Row="6" Text="Resources" Visibility="{x:Bind Tile.HasProfile, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                    <TextBlock Grid.Row="6" Grid.Column="1" Text="{x:Bind Tile.Resources, Mode=OneWay}" Visibility="{x:Bind Tile.HasProfile, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                    <TextBlock Grid.Row="6" Text="Flora" Visibility="{x:Bind Tile.HasFlora, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                    <TextBlock Grid.Row="6" Grid.Column="1" Text="{x:Bind Tile.Flora, Mode=OneWay}" Visibility="{x:Bind Tile.HasFlora, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                     <TextBlock Grid.Row="7" Text="Fauna" Visibility="{x:Bind Tile.HasFauna, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
                     <TextBlock Grid.Row="7" Grid.Column="1" Text="{x:Bind Tile.Fauna, Mode=OneWay}" Visibility="{x:Bind Tile.HasFauna, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                    <TextBlock Grid.Row="8" Text="Resources" Visibility="{x:Bind Tile.HasProfile, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                    <TextBlock Grid.Row="8" Grid.Column="1" Text="{x:Bind Tile.Resources, Mode=OneWay}" Visibility="{x:Bind Tile.HasProfile, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                 </Grid>
 
                 <StackPanel Spacing="6" Margin="0,4,0,0" Visibility="{x:Bind Tile.HasFish, Mode=OneWay}">
@@ -95,3 +98,4 @@
         </Grid>
     </Border>
 </UserControl>
+

@@ -234,6 +234,31 @@ public static class PlanetText
     /// sentinel difficulty is changed.</summary>
     private const int NormalDifficulty = 2;
 
+    /// <summary>The flora level plainly worded ("None", "Low", "Medium", "High").</summary>
+    public static string Flora(Core.Universe.PlanetProfile profile) => profile.Flora switch
+    {
+        0 => "None",
+        1 => "Low",
+        2 => "Medium",
+        3 => "High",
+        _ => "None",
+    };
+
+    /// <summary>The fauna summary ("None", "1 species", "N species", or by life level).</summary>
+    public static string Fauna(Core.Universe.PlanetProfile profile)
+    {
+        if (profile.FaunaCount is int count)
+            return count == 0 ? "None" : count == 1 ? "1 species" : $"{count} species";
+        return profile.Fauna switch
+        {
+            0 => "None",
+            1 => "Low",
+            2 => "Medium",
+            3 => "High",
+            _ => "None",
+        };
+    }
+
     /// <summary>What the scanner lists, in its order: the planet's plant, the three mined
     /// resources (most common first), then other hints ("Cactus Flesh, Copper, Pyrite, Salt").</summary>
     public static IReadOnlyList<string> Resources(Core.Universe.PlanetProfile profile, IReadOnlyDictionary<string, string> itemNames)
