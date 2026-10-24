@@ -160,16 +160,12 @@
 
                 <StackPanel Spacing="18">
                     <ctcontrols:WrapPanel HorizontalSpacing="18" VerticalSpacing="18">
-                        <Border x:Name="DetailsCard" Style="{StaticResource SystemCardStyle}" Height="{x:Bind DetailsCardHeight(ViewModel.IsEditing), Mode=OneWay}">
-                            <Grid RowDefinitions="Auto,*">
-                                <Border Style="{StaticResource ThemeBandStyle}">
-                                    <Grid>
-                                        <TextBlock Text="YOUR DETAILS &amp; NOTES" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
-                                        <Button Content="{x:Bind ViewModel.EditLabel, Mode=OneWay}" Click="ToggleEditor_Click"
-                                                HorizontalAlignment="Right" Padding="12,2" FontSize="12"/>
-                                    </Grid>
-                                </Border>
-                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <controls:FoldingCard Title="YOUR DETAILS &amp; NOTES" SettingKey="PlanetDetailsNotesCollapsed">
+                            <controls:FoldingCard.HeaderContent>
+                                <Button Content="{x:Bind ViewModel.EditLabel, Mode=OneWay}" Click="ToggleEditor_Click" Padding="12,2" FontSize="12"/>
+                            </controls:FoldingCard.HeaderContent>
+                            <Border x:Name="DetailsCard" Style="{StaticResource SystemCardStyle}" Height="{x:Bind DetailsCardHeight(ViewModel.IsEditing), Mode=OneWay}">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Padding="18,14,18,16" Spacing="12">
                                         <StackPanel Visibility="{x:Bind IsCollapsedWhen(ViewModel.IsEditing), Mode=OneWay}">
                                             <ItemsControl ItemsSource="{x:Bind ViewModel.Recorded, Mode=OneWay}" ItemTemplate="{StaticResource FactTemplate}"/>
@@ -180,26 +176,20 @@
                                         <controls:PlanetDetailsEditor Editor="{x:Bind ViewModel.Editor, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay}"/>
                                     </StackPanel>
                                 </ScrollViewer>
-                            </Grid>
-                        </Border>
+                            </Border>
+                        </controls:FoldingCard>
 
-                        <Border Style="{StaticResource TopCardStyle}">
-                            <Grid RowDefinitions="Auto,*">
-                                <Border Style="{StaticResource ThemeBandStyle}">
-                                    <TextBlock Text="FROM YOUR SAVE" Style="{StaticResource ThemeBandTextStyle}"/>
-                                </Border>
-                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <controls:FoldingCard Title="FROM YOUR SAVE" SettingKey="PlanetDetailsSaveFactsCollapsed">
+                            <Border Style="{StaticResource TopCardStyle}">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <ItemsControl ItemsSource="{x:Bind ViewModel.SaveFacts, Mode=OneWay}" ItemTemplate="{StaticResource FactTemplate}" Padding="18,14,18,16"/>
                                 </ScrollViewer>
-                            </Grid>
-                        </Border>
+                            </Border>
+                        </controls:FoldingCard>
 
-                        <Border Style="{StaticResource TopCardStyle}">
-                            <Grid RowDefinitions="Auto,*">
-                                <Border Style="{StaticResource ThemeBandStyle}">
-                                    <TextBlock Text="BASES" Style="{StaticResource ThemeBandTextStyle}"/>
-                                </Border>
-                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <controls:FoldingCard Title="BASES" SettingKey="PlanetDetailsBasesCollapsed">
+                            <Border Style="{StaticResource TopCardStyle}">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Padding="18,14,18,16" Spacing="10">
                                         <ItemsControl ItemsSource="{x:Bind ViewModel.Bases, Mode=OneWay}">
                                             <ItemsControl.ItemTemplate>
@@ -229,15 +219,12 @@
                                                    Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                     </StackPanel>
                                 </ScrollViewer>
-                            </Grid>
-                        </Border>
+                            </Border>
+                        </controls:FoldingCard>
 
-                        <Border Style="{StaticResource TopCardStyle}" Visibility="{x:Bind ViewModel.HasFinds, Mode=OneWay}">
-                            <Grid RowDefinitions="Auto,*">
-                                <Border Style="{StaticResource ThemeBandStyle}">
-                                    <TextBlock Text="YOUR FINDS HERE" Style="{StaticResource ThemeBandTextStyle}"/>
-                                </Border>
-                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <controls:FoldingCard Title="YOUR FINDS HERE" Visibility="{x:Bind ViewModel.HasFinds, Mode=OneWay}" SettingKey="PlanetDetailsFindsCollapsed">
+                            <Border Style="{StaticResource TopCardStyle}">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <ItemsControl ItemsSource="{x:Bind ViewModel.Finds, Mode=OneWay}" Padding="18,14,18,16">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="x:String">
@@ -247,18 +234,16 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </ScrollViewer>
-                            </Grid>
-                        </Border>
+                            </Border>
+                        </controls:FoldingCard>
                     </ctcontrols:WrapPanel>
 
                     <controls:PlanetEquipmentPanel Equipment="{x:Bind ViewModel.Equipment, Mode=OneWay}"/>
 
-                    <Border Style="{StaticResource ThemeCardStyle}">
-                        <StackPanel>
-                            <Border Style="{StaticResource ThemeBandStyle}">
-                                <Grid>
-                                    <TextBlock Text="CREATURES" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
-                                    <Button x:Name="CaptureCreatureBtn" Click="CaptureCreature_Click" HorizontalAlignment="Right" Padding="8,3"
+                    <controls:FoldingCard Title="CREATURES" SettingKey="PlanetDetailsCreaturesCollapsed">
+                        <Border Style="{StaticResource ThemeCardStyle}">
+                            <StackPanel>
+                                <Button x:Name="CaptureCreatureBtn" Click="CaptureCreature_Click" HorizontalAlignment="Right" Padding="8,3"
                                             IsEnabled="{x:Bind ViewModel.CanCapture, Mode=OneWay}"
                                             ToolTipService.ToolTip="Read the creatures from the game screen (open the Discoveries fauna list in game first)">
                                         <!-- What a capture read; shown beside whichever button started it -->
@@ -278,9 +263,7 @@
                                             <TextBlock Text="{x:Bind ViewModel.CaptureLabel, Mode=OneWay}" FontSize="11" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Button>
-                                </Grid>
-                            </Border>
-                            <StackPanel Padding="18,14,18,16" Spacing="10">
+                                <StackPanel Padding="18,14,18,16" Spacing="10">
                                 <TextBlock Text="Read off the game's Discoveries fauna list with screen recording on - open a creature there to add its picture, gender and size."
                                            Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                                 <StackPanel Spacing="8" Margin="0,4,0,8" Visibility="{x:Bind ViewModel.NoCreatures, Mode=OneWay}">
@@ -300,9 +283,10 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
-                    </Border>
+                        </Border>
+                    </controls:FoldingCard>
                 </StackPanel>
 
                 <!-- Fish, where there's water: a card, or folded into a narrow rail -->

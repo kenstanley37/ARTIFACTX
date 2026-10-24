@@ -6,7 +6,7 @@ using System.Linq;
 namespace ArtifactX.WinUI3.Services;
 
 /// <summary>One frigate as the Frigates page lists it.</summary>
-public sealed record FrigateSummary(int Index, string CustomName, string Role, string Rating, string Race, int[] Stats, int Expeditions);
+public sealed record FrigateSummary(int Index, string CustomName, string Role, string Rating, string Race, ulong ResourceSeed, int[] Stats, int Expeditions, string Key);
 
 /// <summary>
 /// The player's frigate fleet (;Du - see NmsFrigatePaths for the confirmed field map): reading
@@ -27,19 +27,34 @@ public static class FrigateService
     public static List<FrigateSummary> ReadAll()
     {
         var list = new List<FrigateSummary>();
+        var copies = new Dictionary<string, int>();
         if (SaveSessionManager.GetValue(NmsFrigatePaths.FrigateArrayPath) is not JArray array) return list;
         for (int i = 0; i < array.Count; i++)
         {
             var f = array[i];
+            string identity = Identity(f) ?? $"slot:{i}";
+            int copy = copies[identity] = copies.GetValueOrDefault(identity, -1) + 1;
             list.Add(new FrigateSummary(i,
                 f?["fH8"]?.Value<string>() ?? "",
                 f?["uw7"]?["uw7"]?.Value<string>() ?? "",
                 f?["1o6"]?["1o6"]?.Value<string>() ?? "",
                 f?["SS2"]?["0Hi"]?.Value<string>() ?? "",
+                ShipPartsService.TryParseSeed(f?["SLc"]?[1]?.Value<string>(), out ulong resourceSeed) ? resourceSeed : 0,
                 (f?["gUR"] as JArray)?.Select(v => v.Type == JTokenType.Integer ? v.Value<int>() : 0).ToArray() ?? [],
-                f?["5es"]?.Value<int>() ?? 0));
+                f?["5es"]?.Value<int>() ?? 0,
+                $"{identity}#{copy}"));
         }
         return list;
+    }
+
+    /// <summary>A frigate's identity across roster moves. Class, name and stats may
+    /// change; resource and home seeds identify it. Duplicate copies are counted
+    /// separately by the roster reader and LiveItemsService.</summary>
+    internal static string? Identity(JToken? frigate)
+    {
+        if (!ShipPartsService.TryParseSeed(frigate?["SLc"]?[1]?.Value<string>(), out ulong resource)) return null;
+        ShipPartsService.TryParseSeed(frigate?["@ui"]?[1]?.Value<string>(), out ulong home);
+        return $"{resource:X16}|{home:X16}";
     }
 
     public static string Text(string[] path) => SaveSessionManager.GetValue(path)?.Value<string>() ?? "";

@@ -26,11 +26,15 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Improved
 
+- **Frigates**: newly recruited ships appear quietly as the game saves. The fleet updates in place while keeping your selection and scroll position.
+- **Frigates**: fleet cards and details show generated names for conventional and organic frigates. Organic frigates are labeled Organic in the fleet summary.
+- **Planet Details**: notes, save facts, bases, finds, creatures, locations and multi-tool sections now have gradient headers with Show/Hide buttons that remember their state.
 - **Current System**: the system-change notice stays centered in the app window, even when the page is scrolled.
 - **Current System**: a full-page grey overlay with a centered spinner appears while system data is being prepared.
 - **Collapsible sections**: Explore sections use the same themed gradient header and explicit Show/Hide button, with their open state remembered. Inventory grids use **Show all**/**Show less** labels instead of a chevron.
 - **Guides**: opens with a full-page grey loading overlay and centered spinner while the guide list and catalog data load off the UI thread.
 - **Guide**: opens with the same loading overlay; category cards are virtualized so opening the page doesn't create every card at once.
+- **Frigates**: **Use generated name** clears a custom name and lets No Man's Sky name the frigate again.
 - Explore: **renamed planets and systems** show the name the game shows, read from your save - your own renames and other players' - with the original name underneath ("Originally Irskya XIX"). No need to land on each one first.
 - Explore: the Planets page is split in two. **Current System** shows the system you're in and its planets, with a System Data box laid out like the game's own; **Planet Finder** has the finder and the glyph decoder. Moons are now shown around the right planet.
 - Starships: ships you found or bought are shown as a cyan **hologram scan** (their exact parts, but colours can't be shown yet). Ships built at a station, or repainted, show their real paint.

@@ -21,6 +21,9 @@ public sealed partial class FoldingCard : UserControl
     public static readonly DependencyProperty SummaryProperty =
         DependencyProperty.Register(nameof(Summary), typeof(string), typeof(FoldingCard), new PropertyMetadata("", (d, _) => ((FoldingCard)d).Show()));
 
+    public static readonly DependencyProperty HeaderContentProperty =
+        DependencyProperty.Register(nameof(HeaderContent), typeof(object), typeof(FoldingCard), new PropertyMetadata(null, (d, _) => ((FoldingCard)d).Show()));
+
     public FoldingCard()
     {
         InitializeComponent();
@@ -55,6 +58,13 @@ public sealed partial class FoldingCard : UserControl
         set => SetValue(SummaryProperty, value);
     }
 
+    /// <summary>Optional control shown in the band beside the title and summary.</summary>
+    public object? HeaderContent
+    {
+        get => GetValue(HeaderContentProperty);
+        set => SetValue(HeaderContentProperty, value);
+    }
+
     /// <summary>Where open/closed is remembered (the profile's settings), e.g. "StarshipsDetailsCollapsed".</summary>
     public string SettingKey { get; set; } = "";
 
@@ -75,6 +85,7 @@ public sealed partial class FoldingCard : UserControl
         ToolTipService.SetToolTip(ToggleBtn, folded ? "Show the details" : "Hide the details");
         AutomationProperties.SetName(ToggleBtn, folded ? $"Show {Title}" : $"Hide {Title}");
         SummaryTxt.Text = Summary;
+        HeaderContentPresenter.Content = HeaderContent;
         HeaderTxt.Text = folded && FoldedName.Length > 0 ? $"{Title} - {FoldedName.ToUpperInvariant()}" : Title;
     }
 }

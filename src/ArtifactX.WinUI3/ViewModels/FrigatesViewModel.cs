@@ -1,4 +1,5 @@
 using ArtifactX.Core.NmsModels;
+using ArtifactX.Core.Procedural;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using libMBIN.NMS.GameComponents;
@@ -20,6 +21,7 @@ namespace ArtifactX.WinUI3.ViewModels;
 public sealed partial class FrigatesViewModel : ObservableObject
 {
     private Dictionary<string, (string DisplayName, string Description, string Category)>? _traitCatalog;
+    private Dictionary<string, IReadOnlyList<string>> _nameWords = new(StringComparer.OrdinalIgnoreCase);
     private List<FrigateTraitChoice> _traitChoices = new();
     private bool _loading;
 
@@ -35,6 +37,7 @@ public sealed partial class FrigatesViewModel : ObservableObject
     [ObservableProperty] public partial bool HasSelection { get; private set; }
 
     [ObservableProperty] public partial string Name { get; set; } = "";
+    [ObservableProperty] public partial string GeneratedName { get; private set; } = "";
     [ObservableProperty] public partial string? Role { get; set; }
     [ObservableProperty] public partial RaceChoice? Race { get; set; }
     [ObservableProperty] public partial string? Rating { get; set; }
@@ -51,6 +54,7 @@ public sealed partial class FrigatesViewModel : ObservableObject
     {
         HasFreighter = FrigateService.HasFreighter();
         _traitCatalog ??= await CatalogService.GetFrigateTraitsAsync();
+        _nameWords = await CatalogService.GetProceduralNameWordsAsync();
         _traitChoices = BuildTraitChoices(_traitCatalog);
         RefreshCards();
         Select(Cards.Any(c => c.Index == SelectedIndex) ? SelectedIndex : Cards.FirstOrDefault()?.Index ?? -1);
@@ -59,9 +63,49 @@ public sealed partial class FrigatesViewModel : ObservableObject
     /// <summary>The cards only - after an edit, so the details being typed in aren't rebuilt.</summary>
     public void RefreshCards()
     {
+        HasFreighter = FrigateService.HasFreighter();
         var fleet = HasFreighter ? FrigateService.ReadAll() : [];
-        Cards.Clear();
-        foreach (var f in fleet) Cards.Add(new FrigateCardViewModel(f) { IsSelected = f.Index == SelectedIndex });
+        SyncCards(fleet, byIdentity: false);
+    }
+
+    /// <summary>Quietly reconciles the live fleet. Keep the selected ship by its
+    /// seed identity when the game moves roster slots. Its form stays untouched
+    /// when new ships arrive. True means the seed controls need a new path.</summary>
+    public bool RefreshFromGame()
+    {
+        string? selectedKey = Cards.FirstOrDefault(c => c.Index == SelectedIndex)?.Key;
+        HasFreighter = FrigateService.HasFreighter();
+        var fleet = HasFreighter ? FrigateService.ReadAll() : [];
+        var selected = fleet.FirstOrDefault(f => f.Key == selectedKey) ?? fleet.FirstOrDefault();
+        int nextIndex = selected?.Index ?? -1;
+        bool selectionChanged = SelectedIndex != nextIndex || selectedKey != selected?.Key;
+        SyncCards(fleet, byIdentity: true);
+        if (selectionChanged) Select(nextIndex);
+        return selectionChanged;
+    }
+
+    private void SyncCards(IReadOnlyList<FrigateSummary> fleet, bool byIdentity)
+    {
+        // Reuse existing view models and move/insert only changed entries, so
+        // the ItemsControl keeps its containers, keyboard focus and scroll.
+        var existing = Cards.ToDictionary(c => byIdentity ? c.Key : c.Index.ToString());
+        for (int i = 0; i < fleet.Count; i++)
+        {
+            var f = fleet[i];
+            string key = byIdentity ? f.Key : f.Index.ToString();
+            if (!existing.TryGetValue(key, out var card))
+                card = new FrigateCardViewModel(f, GenerateName(f));
+            else
+                card.Update(f, GenerateName(f));
+
+            int position = Cards.IndexOf(card);
+            if (position < 0) Cards.Insert(i, card);
+            else if (position != i) Cards.Move(position, i);
+            card.IsSelected = f.Index == SelectedIndex;
+        }
+        while (Cards.Count > fleet.Count) Cards.RemoveAt(Cards.Count - 1);
+        var selected = fleet.FirstOrDefault(f => f.Index == SelectedIndex);
+        GeneratedName = selected is null ? "" : GenerateName(selected) ?? "";
         FleetSummary = fleet.Count == 0 ? "" : $"{fleet.Count} frigate{(fleet.Count == 1 ? "" : "s")} · " + string.Join(" · ",
             fleet.GroupBy(f => FrigateCardViewModel.RoleName(f.Role)).OrderByDescending(g => g.Count()).Select(g => $"{g.Count()} {g.Key}"));
         if (SelectedIndex >= 0) HasEdits = FrigateService.HasEdits(SelectedIndex);
@@ -76,13 +120,15 @@ public sealed partial class FrigatesViewModel : ObservableObject
 
         _loading = true;
         Name = FrigateService.Text(NmsFrigatePaths.CustomNamePath(index));
+        var selectedFrigate = FrigateService.ReadAll().FirstOrDefault(f => f.Index == index);
+        GeneratedName = selectedFrigate is null ? "" : GenerateName(selectedFrigate) ?? "";
         Role = FrigateService.Text(NmsFrigatePaths.FrigateClassPath(index));
         string race = FrigateService.Text(NmsFrigatePaths.RacePath(index));
         Race = Races.FirstOrDefault(r => r.Value == race);
         Rating = FrigateService.Text(NmsFrigatePaths.InventoryClassPath(index));
         _loading = false;
 
-        var stats = FrigateService.ReadAll().FirstOrDefault(f => f.Index == index)?.Stats ?? [];
+        var stats = selectedFrigate?.Stats ?? [];
         Stats = FrigateService.StatNames.Select((name, i) => new NumberFieldViewModel(name, i.ToString(), i < stats.Length ? stats[i] : double.NaN,
             field => { FrigateService.SetStat(index, int.Parse(field.Key), field.Value); Edited(); })).ToList();
 
@@ -110,6 +156,15 @@ public sealed partial class FrigatesViewModel : ObservableObject
         if (SelectedIndex >= 0 && FrigateService.SetText(NmsFrigatePaths.CustomNamePath(SelectedIndex), Name.Trim())) Edited();
     }
 
+    /// <summary>Clear the custom name so the game generates the frigate's name again.</summary>
+    public void UseGeneratedName()
+    {
+        if (SelectedIndex < 0) return;
+        Name = "";
+        CommitName();
+        RefreshCards();
+    }
+
     partial void OnRoleChanged(string? value) => SetChoice(value, NmsFrigatePaths.FrigateClassPath);
     partial void OnRaceChanged(RaceChoice? value) => SetChoice(value?.Value, NmsFrigatePaths.RacePath);
     partial void OnRatingChanged(string? value) => SetChoice(value, NmsFrigatePaths.InventoryClassPath);
@@ -130,6 +185,21 @@ public sealed partial class FrigatesViewModel : ObservableObject
 
     /// <summary>A seed box staged a seed.</summary>
     public void Edited() => HasEdits = true;
+
+    /// <summary>Refresh the generated name after the model seed is edited.</summary>
+    public void RefreshGeneratedName()
+    {
+        if (SelectedIndex < 0) return;
+        var frigate = FrigateService.ReadAll().FirstOrDefault(f => f.Index == SelectedIndex);
+        GeneratedName = frigate is null ? "" : GenerateName(frigate) ?? "";
+        RefreshCards();
+    }
+
+    private string? GenerateName(FrigateSummary frigate) => frigate.ResourceSeed == 0
+        ? null
+        : frigate.Role == "DeepSpaceCommon"
+            ? FrigateNames.GenerateOrganic(frigate.ResourceSeed, list => _nameWords.GetValueOrDefault(list))
+            : FrigateNames.Generate(frigate.ResourceSeed, list => _nameWords.GetValueOrDefault(list));
 
     private static List<FrigateTraitChoice> BuildTraitChoices(Dictionary<string, (string DisplayName, string Description, string Category)> catalog)
     {
