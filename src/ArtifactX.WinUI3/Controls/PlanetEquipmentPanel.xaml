@@ -15,11 +15,8 @@
     <StackPanel Spacing="18">
 
         <!-- 1. Exact Located Sites, Crashed Ships & Cabinets on this Planet + Building Availability -->
-        <Border Style="{StaticResource ThemeCardStyle}">
-            <StackPanel>
-                <Border Style="{StaticResource ThemeBandStyle}">
-                    <TextBlock Text="{x:Bind Equipment.LocatedSitesHeading, Mode=OneWay}" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
-                </Border>
+        <controls:FoldingCard Title="{x:Bind Equipment.LocatedSitesHeading, Mode=OneWay}" SettingKey="PlanetDetailsLocatedSitesCollapsed">
+            <Border Style="{StaticResource ThemeCardStyle}">
                 <StackPanel Padding="18,14,18,16" Spacing="14">
                     <TextBlock Text="{x:Bind Equipment.LocatedSitesHint, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
 
@@ -94,15 +91,12 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </StackPanel>
-            </StackPanel>
-        </Border>
+            </Border>
+        </controls:FoldingCard>
 
-        <!-- 2. Planet Multi-Tool Pool & How to Find -->
-        <Border Style="{StaticResource ThemeCardStyle}">
-            <StackPanel>
-                <Border Style="{StaticResource ThemeBandStyle}">
-                    <TextBlock Text="{x:Bind Equipment.MultiToolsHeading, Mode=OneWay}" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
-                </Border>
+        <!-- 2. Multi-Tools: retain the current explanation, but make it clear these are not confirmed locations. -->
+        <controls:FoldingCard Title="{x:Bind Equipment.MultiToolsHeading, Mode=OneWay}" SettingKey="PlanetDetailsMultiToolsCollapsed">
+            <Border Style="{StaticResource ThemeCardStyle}">
                 <StackPanel Padding="18,14,18,16" Spacing="12">
                     <TextBlock Text="{x:Bind Equipment.MultiToolsSummary, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}"
                                FontSize="12" TextWrapping="Wrap"/>
@@ -150,8 +144,8 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </StackPanel>
-            </StackPanel>
-        </Border>
+            </Border>
+        </controls:FoldingCard>
 
         <!-- 3. Crashed Ships & Starships on this Planet -->
         <controls:FoldingCard Title="{x:Bind Equipment.StarshipsHeading, Mode=OneWay}"

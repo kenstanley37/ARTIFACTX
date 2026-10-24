@@ -58,22 +58,22 @@
                                     <DataTemplate x:DataType="viewmodels:FrigateCardViewModel">
                                         <Button Click="Card_Click" Padding="0" Background="{ThemeResource ThemePanelAltBrush}"
                                                 BorderBrush="{x:Bind Border, Mode=OneWay}" BorderThickness="{x:Bind BorderThickness, Mode=OneWay}"
-                                                CornerRadius="{ThemeResource ThemeCardCornerRadius}" AutomationProperties.Name="{x:Bind AccessibleName}">
+                                                CornerRadius="{ThemeResource ThemeCardCornerRadius}" AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}">
                                             <Grid Width="230" Height="88" Padding="12,10" ColumnSpacing="10">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
-                                                <Border Width="34" Height="34" CornerRadius="6" Background="{x:Bind RatingBrush}" VerticalAlignment="Top">
-                                                    <TextBlock Text="{x:Bind Rating}" FontSize="18" FontWeight="Bold" Foreground="White"
+                                                <Border Width="34" Height="34" CornerRadius="6" Background="{x:Bind RatingBrush, Mode=OneWay}" VerticalAlignment="Top">
+                                                    <TextBlock Text="{x:Bind Rating, Mode=OneWay}" FontSize="18" FontWeight="Bold" Foreground="White"
                                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 </Border>
                                                 <StackPanel Grid.Column="1" Spacing="2">
-                                                    <TextBlock Text="{x:Bind Title}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold"
-                                                               TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Title}"/>
-                                                    <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="NoWrap"
-                                                               TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Detail}"/>
-                                                    <TextBlock Text="{x:Bind Expeditions}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                                    <TextBlock Text="{x:Bind Title, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold"
+                                                               TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Title, Mode=OneWay}"/>
+                                                    <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="NoWrap"
+                                                               TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Detail, Mode=OneWay}"/>
+                                                    <TextBlock Text="{x:Bind Expeditions, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                                                 </StackPanel>
                                             </Grid>
                                         </Button>
@@ -93,7 +93,9 @@
                             <StackPanel Spacing="6">
                                 <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
                                 <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" MaxWidth="700" HorizontalAlignment="Left" TextWrapping="Wrap"
-                                           Text="Leave empty for the game's own generated name (e.g. &quot;SS-2 Akeosc's Gamble&quot;). That name isn't stored in the save - the game makes it from the frigate's class, race and seeds - so ArtifactX shows the frigate by its role instead. Type a name to override it."/>
+                                           Text="Leave this field empty to use the generated name shown below. Enter a name to override it."/>
+                                <TextBlock Text="{x:Bind ViewModel.GeneratedName, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}"
+                                           FontSize="13" FontWeight="SemiBold" Visibility="{x:Bind HasGeneratedName(ViewModel.GeneratedName), Mode=OneWay}"/>
                                 <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Left">
                                     <TextBox Text="{x:Bind ViewModel.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" LostFocus="Name_LostFocus"
                                              AutomationProperties.Name="Name" Width="300"/>
@@ -124,13 +126,13 @@
                                 <StackPanel Spacing="6" Width="300">
                                     <TextBlock Text="MODEL SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
                                     <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
-                                               Text="Drives the hull's procedural look, alongside Class/Type. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
+                                               Text="Drives the frigate's generated name and hull appearance, alongside Class/Type. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
                                     <controls:SeedBox x:Name="ModelSeedBox" Label="Model seed" Changed="Seed_Changed" BoxWidth="180"/>
                                 </StackPanel>
                                 <StackPanel Spacing="6" Width="300">
                                     <TextBlock Text="HOME SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
                                     <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
-                                               Text="Drives which home system/name this frigate generates for itself. Paste a seed you've found elsewhere, or click Generate for a new random one."/>
+                                               Text="The frigate's home-system seed. Paste a seed you've found elsewhere, or click Generate for a new random one."/>
                                     <controls:SeedBox x:Name="HomeSeedBox" Label="Home seed" Changed="Seed_Changed" BoxWidth="180"/>
                                 </StackPanel>
                             </ctcontrols:WrapPanel>

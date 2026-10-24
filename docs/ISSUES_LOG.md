@@ -161,6 +161,13 @@ These items directly extend existing open GitHub issues:
      - Currency: **Units**.
      - Goal: Integrate contraband price and availability data with galactic trade routes and smuggling profit calculations.
 
+### Feature 17: Exact Procedural Multi-Tool Locations and Details
+- **Related notes: Original requests #5 and #6; clarified by the player on 2026-10-24.**
+- **Description**: Reverse-engineer the game's procedural data and generation rules so ArtifactX can calculate the exact multi-tools available at each location on every planet and show them on Planet Details. This is an app-generated reference, not a player-submitted Finds workflow.
+- **Required details**: the exact planet and location/building (for example, each Minor Settlement cabinet or Sentinel Pillar), XYZ coordinates where the game defines them, tool name and image, class, stats, and all other identifying details the game data can provide.
+- **Data quality rule**: Do not show possible tools, candidate pools, odds, or predictions as the actual tool at a location. Each displayed tool must be the exact result of the decoded game rules/data for that location. Where the game does not define a value such as fixed coordinates, show that honestly rather than inventing one.
+- **Goal**: Users can look up exact multi-tool locations for any system without needing the Finds page to supply the tool data.
+
 ---
 
 ## 5. Architectural Standards (from Code Review Notes)

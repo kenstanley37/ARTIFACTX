@@ -10,35 +10,51 @@ using System.Linq;
 namespace ArtifactX.WinUI3.ViewModels;
 
 /// <summary>One owned frigate as a card: rating badge, role, race, the stat its role uses and
-/// how many expeditions it has flown. The game's generated names aren't in the save, so a
-/// frigate without a custom name is shown by its role.</summary>
+/// how many expeditions it has flown. The generated game name is calculated from its
+/// ResourceSeed; a player-entered custom name takes precedence.</summary>
 public sealed partial class FrigateCardViewModel : ObservableObject
 {
-    public FrigateCardViewModel(FrigateSummary f)
+    public FrigateCardViewModel(FrigateSummary f, string? generatedName)
+        => Update(f, generatedName);
+
+    /// <summary>Refresh this card without replacing its visual or selection.</summary>
+    public void Update(FrigateSummary f, string? generatedName)
     {
         Index = f.Index;
-        Title = f.CustomName.Length > 0 ? f.CustomName : $"{RoleName(f.Role)} frigate";
+        Key = f.Key;
+        Title = f.CustomName.Length > 0 ? f.CustomName : generatedName ?? $"{RoleName(f.Role)} frigate";
         HasCustomName = f.CustomName.Length > 0;
-        Rating = f.Rating.Length > 0 ? f.Rating : "?";
-        RatingBrush = ThemeResources.ClassBrush(f.Rating);
+        string rating = f.Rating.Length > 0 ? f.Rating : "?";
+        if (Rating != rating)
+        {
+            Rating = rating;
+            RatingBrush = ThemeResources.ClassBrush(f.Rating);
+        }
         int statIndex = f.Role switch { "Combat" => 0, "Exploration" => 1, "Mining" => 2, "Diplomacy" => 3, _ => -1 };
-        // The role's in the title unless the frigate has its own name; no race shows as nothing
-        // (the Normandy and the Leviathan have "None").
+        // Include the role beside a named ship unless its main stat already
+        // identifies it. Race None has no label (organic and special frigates).
         var parts = new List<string>();
-        if (HasCustomName) parts.Add(RoleName(f.Role));
+        if ((HasCustomName || generatedName is not null) && statIndex < 0) parts.Add(RoleName(f.Role));
         if (f.Race is { Length: > 0 } race && race != "None") parts.Add(RaceNames.Display(race));
         if (statIndex >= 0 && statIndex < f.Stats.Length) parts.Add($"{RoleName(f.Role)} {f.Stats[statIndex]}");
         Detail = string.Join(" · ", parts);
         Expeditions = f.Expeditions == 1 ? "1 expedition" : $"{f.Expeditions.ToString("N0", CultureInfo.CurrentCulture)} expeditions";
     }
 
-    public int Index { get; }
-    public string Title { get; }
-    public bool HasCustomName { get; }
-    public string Rating { get; }
-    public Brush RatingBrush { get; }
-    public string Detail { get; }
-    public string Expeditions { get; }
+    public int Index { get; private set; }
+    public string Key { get; private set; } = "";
+    public bool HasCustomName { get; private set; }
+
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(AccessibleName))]
+    public partial string Title { get; private set; } = "";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(AccessibleName))]
+    public partial string Rating { get; private set; } = "";
+    [ObservableProperty]
+    public partial Brush RatingBrush { get; private set; } = ThemeResources.ClassBrush("");
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(AccessibleName))]
+    public partial string Detail { get; private set; } = "";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(AccessibleName))]
+    public partial string Expeditions { get; private set; } = "";
     public string AccessibleName => $"{Title}, class {Rating}, {Detail}, {Expeditions}";
 
     [ObservableProperty]
@@ -53,7 +69,7 @@ public sealed partial class FrigateCardViewModel : ObservableObject
     {
         "Mining" => "Industrial",
         "Diplomacy" => "Trade",
-        "DeepSpace" or "DeepSpaceCommon" => "Deep space",
+        "DeepSpace" or "DeepSpaceCommon" => "Organic",
         "GhostShip" => "Ghost ship",
         "" => "Unknown",
         _ => role,

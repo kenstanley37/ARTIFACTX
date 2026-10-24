@@ -25,12 +25,14 @@ public sealed partial class FrigatePage : Page
         InitializeComponent();
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
         SaveSessionManager.PendingEditsChanged += OnEditsChanged;
+        LiveItemsService.Changed += OnLiveItemsChanged;
         // Released on leave: each visit makes a new page, and a dead one left subscribed
         // reran its reload on every edit anywhere (the cause of an earlier slowdown).
         Unloaded += (_, _) =>
         {
             SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
             SaveSessionManager.PendingEditsChanged -= OnEditsChanged;
+            LiveItemsService.Changed -= OnLiveItemsChanged;
         };
         _ = LoadAsync();
     }
@@ -46,6 +48,15 @@ public sealed partial class FrigatePage : Page
 
     /// <summary>An edit (here or the title bar's Reset): refresh the cards, not the details being typed in.</summary>
     private void OnEditsChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(ViewModel.RefreshCards);
+
+    private void OnLiveItemsChanged(LiveCollection list)
+    {
+        if (list != LiveCollection.Frigates) return;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (ViewModel.RefreshFromGame()) ShowSeeds();
+        });
+    }
 
     private void ShowSeeds()
     {
@@ -65,7 +76,13 @@ public sealed partial class FrigatePage : Page
 
     private void UseGeneratedName_Click(object sender, RoutedEventArgs e) => ViewModel.UseGeneratedName();
 
-    private void Seed_Changed(object? sender, SeedChange change) => ViewModel.Edited();
+    private void Seed_Changed(object? sender, SeedChange change)
+    {
+        ViewModel.Edited();
+        if (ReferenceEquals(sender, ModelSeedBox)) ViewModel.RefreshGeneratedName();
+    }
+
+    public Visibility HasGeneratedName(string value) => string.IsNullOrWhiteSpace(value) ? Visibility.Collapsed : Visibility.Visible;
 
     private void Reset_Click(object sender, RoutedEventArgs e)
     {

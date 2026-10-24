@@ -7,13 +7,13 @@ using System.Linq;
 namespace ArtifactX.WinUI3.Services;
 
 /// <summary>The lists that follow the game while it plays (LiveItemsService).</summary>
-public enum LiveCollection { MultiTools, Ships }
+public enum LiveCollection { MultiTools, Ships, Frigates }
 
 /// <summary>Something the game no longer has: sold, scrapped or traded in.</summary>
 public sealed record GoneItem(string Name);
 
 /// <summary>
-/// New multi-tools and starships appear while the game plays, without the
+/// New multi-tools, starships and frigates appear while the game plays, without the
 /// page reloading (user design 2026-10-16). Each time the game saves the
 /// loaded slot (SaveSessionManager.GameSavedLoadedSlot) only these lists are
 /// compared, by what each entry is (model and seed), not by slot - the game
@@ -29,6 +29,9 @@ public sealed record GoneItem(string Name);
 /// edits always win. A move between the expedition and the main game is
 /// MainWindow's to handle (it reloads the whole save), and opening another
 /// save clears everything.
+/// Frigates update quietly: no New/Gone notices or animations. Their seed
+/// identities preserve the selected ship across roster moves, and changed
+/// stats or expedition counts refresh existing cards without replacing them.
 /// </summary>
 public static class LiveItemsService
 {
@@ -48,6 +51,7 @@ public static class LiveItemsService
     {
         [LiveCollection.MultiTools] = new State(NmsInventoryContainer.MultiToolArrayPath, "multi-tool"),
         [LiveCollection.Ships] = new State(NmsInventoryContainer.ShipArrayPath, "starship"),
+        [LiveCollection.Frigates] = new State(NmsFrigatePaths.FrigateArrayPath, "frigate"),
     };
 
     private static bool _started;
@@ -83,7 +87,7 @@ public static class LiveItemsService
 
     private static string? KeyAt(LiveCollection list, int index) =>
         SaveSessionManager.GetValue(States[list].ArrayPath) is JArray array && index >= 0 && index < array.Count
-            ? Keys(array.Select(Identity).ToList())[index] : null;
+            ? Keys(array.Select(item => Identity(list, item)).ToList())[index] : null;
 
     /// <summary>Each slot's key: identity and which copy of it this is
     /// ("...#0", "...#1"), counted in list order - the game keeps that order
@@ -120,6 +124,9 @@ public static class LiveItemsService
             SaveSessionManager.AdoptFromGame(disk, NmsInventoryContainer.MultiToolActivePath); // the tool in hand
         if (Compare(LiveCollection.Ships, disk))
             SaveSessionManager.AdoptFromGame(disk, NmsInventoryContainer.ActiveShipIndexPath); // the ship being flown
+
+        SaveSessionManager.AdoptFromGame(disk, NmsInventoryContainer.FreighterTypePath);
+        Compare(LiveCollection.Frigates, disk);
     }
 
     /// <summary>Compares one list with the game's copy and takes the game's;
@@ -131,9 +138,18 @@ public static class LiveItemsService
         foreach (var key in SaveSessionManager.MapPath(state.ArrayPath)) theirs = theirs?[key];
         if (theirs is not JArray gameArray || SaveSessionManager.GetValue(state.ArrayPath) is not JArray loadedArray) return false;
 
-        var game = gameArray.Select(Identity).ToList();
-        var loaded = loadedArray.Select(Identity).ToList();
-        if (game.SequenceEqual(loaded)) return false;
+        var game = gameArray.Select(item => Identity(list, item)).ToList();
+        var loaded = loadedArray.Select(item => Identity(list, item)).ToList();
+        if (game.SequenceEqual(loaded) && (list != LiveCollection.Frigates || JToken.DeepEquals(gameArray, loadedArray))) return false;
+
+        // Fleet updates are quiet: refresh in place, without New/Gone notices.
+        // AdoptFromGame protects staged roster edits, just as for ships and tools.
+        if (list == LiveCollection.Frigates)
+        {
+            if (!SaveSessionManager.AdoptFromGame(disk, state.ArrayPath)) return false;
+            Changed?.Invoke(list);
+            return true;
+        }
 
         // Counted, not just looked up: the same tool can be owned twice. The
         // copies already owned come first; any extra copy is the new one.
@@ -172,8 +188,9 @@ public static class LiveItemsService
     /// <summary>What's in a slot: its model and seeds, or null when it's empty.
     /// A multi-tool's seed is on the slot (SuJ[i].@EL), a ship's on its model
     /// (@Cs[i].NTx.@EL) - both are taken, so either list compares the same way.</summary>
-    private static string? Identity(JToken? slot)
+    private static string? Identity(LiveCollection list, JToken? slot)
     {
+        if (list == LiveCollection.Frigates) return FrigateService.Identity(slot);
         string scene = slot?["NTx"]?["93M"]?.Value<string>() ?? "";
         if (string.IsNullOrEmpty(scene)) return null;
         return $"{scene}|{slot?["@EL"]?[1]}|{slot?["NTx"]?["@EL"]?[1]}";

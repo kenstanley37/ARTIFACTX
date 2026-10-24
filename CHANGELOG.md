@@ -26,6 +26,9 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Improved
 
+- **Frigates**: newly recruited ships appear quietly as the game saves. The fleet updates in place while keeping your selection and scroll position.
+- **Frigates**: fleet cards and details show generated names for conventional and organic frigates. Organic frigates are labeled Organic in the fleet summary.
+- **Planet Details**: notes, save facts, bases, finds, creatures, locations and multi-tool sections now have gradient headers with Show/Hide buttons that remember their state.
 - **Current System**: the system-change notice stays centered in the app window, even when the page is scrolled.
 - **Current System**: a full-page grey overlay with a centered spinner appears while system data is being prepared.
 - **Collapsible sections**: Explore sections use the same themed gradient header and explicit Show/Hide button, with their open state remembered. Inventory grids use **Show all**/**Show less** labels instead of a chevron.
