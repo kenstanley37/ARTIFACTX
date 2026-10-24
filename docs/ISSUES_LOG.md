@@ -161,12 +161,34 @@ These items directly extend existing open GitHub issues:
      - Currency: **Units**.
      - Goal: Integrate contraband price and availability data with galactic trade routes and smuggling profit calculations.
 
-### Feature 17: Exact Procedural Multi-Tool Locations and Details
+### Feature 17: Exact Procedural Multi-Tool and Crashed Starship Locations and Details
 - **Related notes: Original requests #5 and #6; clarified by the player on 2026-10-24.**
-- **Description**: Reverse-engineer the game's procedural data and generation rules so ArtifactX can calculate the exact multi-tools available at each location on every planet and show them on Planet Details. This is an app-generated reference, not a player-submitted Finds workflow.
+- **Description**: Reverse-engineer the game's procedural data and generation rules so ArtifactX can calculate the exact multi-tools and crashed starships available at each location on every planet and show them on Planet Details. This is an app-generated reference, not a player-submitted Finds workflow.
 - **Required details**: the exact planet and location/building (for example, each Minor Settlement cabinet or Sentinel Pillar), XYZ coordinates where the game defines them, tool name and image, class, stats, and all other identifying details the game data can provide.
 - **Data quality rule**: Do not show possible tools, candidate pools, odds, or predictions as the actual tool at a location. Each displayed tool must be the exact result of the decoded game rules/data for that location. Where the game does not define a value such as fixed coordinates, show that honestly rather than inventing one.
 - **Goal**: Users can look up exact multi-tool locations for any system without needing the Finds page to supply the tool data.
+
+---
+
+- **2026-10-24 clarification**: Planet Details must omit equipment pools, odds, hypothetical S-Class stats and unlocated building possibilities until actual generated items, their actual class/stats and precise site coordinates are resolved. Saved site markers alone do not establish their equipment contents. This is procedural lookup for any system, without requiring Finds.
+- **Station reference examples (owner screenshots)**: Geometric Angle Focuser, C class, displayed damage potential 333.3 / scanner range 209.8; Mass Needler Z-C11, B class, 443.3 / 252.3. Owner bought Mass Needler on DELETEME for read-only save inspection. Station shown as Lukinog III Rendezvous, Gek, Research // Advanced, At War. Do not assume a seed or pool mapping from screenshots; match the purchased record before deriving rules. Displayed equipped stats must be distinguished from intrinsic bonuses.
+
+### Feature 18: Squadron Pilots, Editing and 3D Ships
+
+- **GitHub**: [Issue #25](https://github.com/kenstanley37/ARTIFACTX/issues/25), expanded 2026-10-24 using the owner's four Squadron Pilots screenshots.
+- Show each ship with its correctly associated pilot: name/title, race, S/A/B/C rating, actual skill labels and ratings, confirmed kills and notes where available.
+- Allow editing pilot and ship information through the real saved fields or procedural inputs. Research generated values so edits produce the intended in-game effect.
+- Reuse the Starships page's actual 3D ship preview capability.
+- Design around the four squadron slots, using the game's compact 2-by-2 ship selection layout and selected pilot/ship details area. Show empty slots clearly.
+
+### Feature 19: Storage Hangar
+
+- **GitHub**: [Issue #49](https://github.com/kenstanley37/ARTIFACTX/issues/49), requested 2026-10-24 with two in-game Storage Hangar screenshots.
+- Add a dedicated page for archived starships, with names, class ratings, available details and a 3D view of the selected ship.
+- Provide Restore ship to return an archived ship to the active fleet, respecting capacity and preserving the game's stored ship/technology data.
+- Provide Delete ship to remove an archived ship using the normal staged edit and confirmation flow.
+- The page contains stored ships only. Active Starships remain on the existing Starships page.
+- Verify the archive schema and restoration/deletion transitions with controlled test-save changes. The game's description says technology is preserved while cargo is removed when a ship is archived.
 
 ---
 
