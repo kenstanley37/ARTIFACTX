@@ -1,4 +1,3 @@
-using ArtifactX.WinUI3.ViewModels;
 using ArtifactX.WinUI3.ViewModels.ExploreViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -18,28 +17,4 @@ public sealed partial class PlanetEquipmentPanel : UserControl
 
     public PlanetEquipmentPanel() => InitializeComponent();
 
-    private void ShipFilter_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: string key })
-        {
-            Equipment?.SelectShipFilter(key);
-        }
-    }
-
-    private void CopyTool_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: SystemMultiToolItemViewModel item })
-        {
-            item.CopySeed();
-        }
-    }
-
-    private void CopyShip_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: SystemStarshipItemViewModel item })
-        {
-            item.CopySeed();
-        }
-    }
 }
-

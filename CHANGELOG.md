@@ -22,13 +22,15 @@ What changed in each ArtifactX release, written for players. The newest release 
 - **Planet creature totals**: each planet shows how many kinds of fauna live on it ("2 / 7 fauna", or "no fauna" on barren and dead worlds) before you land or discover them, calculated using the game's creature generation tables from your install.
 - **Planet creature totals**: each planet card on Current System and in planet details shows how many kinds of fauna live on it ("8 species", or "None" on dead and barren worlds) before you land or discover them, calculated using the game's creature generation tables from your install.
 - **Possible system starships, S-Class stats & spawn chances**: Current System lists the starships that can appear in the system you're in — its 21 native starships (Exotic, Fighters, Haulers, Explorers, Shuttles and Solars) plus its **Sentinel Interceptor** when a dissonant planet is present — with each ship's exact **S-Class base stats** (Damage, Shield, Hyperdrive and Maneuverability), **max S-Class slots** (Cargo and Tech), and **S-Class spawn chance** for the system's economy (or crashed-only status in uncharted and abandoned systems).
-- **Possible multi-tools & planet equipment details**: Current System lists the native multi-tool pools for the Space Station (when inhabited) and each planet, with each tool's resolved kind (Alien, Experimental, Rifle, Pistol, Exotic), exact **S-Class base stats** (Damage, Mining, Scanner) and **where to find it** (Minor Settlement & Space Station cabinets vs Sentinel Pillars). Clicking a planet opens its **Planet Details** page with that planet's 4 multi-tools, the crashed ships and starships that can be found on it, whether Minor Settlements, Sentinel Pillars, Trading Posts and Harmonic Camps spawn on that world, and the **exact `+Lat, +Lon` surface coordinates** of any Crashed Ships, Minor Settlements, Sentinel Pillars, Harmonic Camps, Trading Posts or other buildings currently marked on that planet in your save.
+- **Planet locations**: Planet Details shows surface coordinates for sites marked in your save and existing recorded Finds.
 
 ### Improved
 
+- **Planet Details**: removed possible multi-tool and starship lists, class odds and hypothetical S-Class stats, along with unlocated building availability cards. Saved site markers remain separate from actual equipment details.
+
 - **Frigates**: newly recruited ships appear quietly as the game saves. The fleet updates in place while keeping your selection and scroll position.
 - **Frigates**: fleet cards and details show generated names for conventional and organic frigates. Organic frigates are labeled Organic in the fleet summary.
-- **Planet Details**: notes, save facts, bases, finds, creatures, locations and multi-tool sections now have gradient headers with Show/Hide buttons that remember their state.
+- **Planet Details**: notes, save facts, bases, finds, creatures and locations sections now have gradient headers with Show/Hide buttons that remember their state.
 - **Current System**: the system-change notice stays centered in the app window, even when the page is scrolled.
 - **Current System**: a full-page grey overlay with a centered spinner appears while system data is being prepared.
 - **Collapsible sections**: Explore sections use the same themed gradient header and explicit Show/Hide button, with their open state remembered. Inventory grids use **Show all**/**Show less** labels instead of a chevron.

@@ -318,12 +318,19 @@ public sealed partial class FishingPage : Page
             .Where(f => anywhere || !f.Biomes.Contains(FishInfo.AnyPlanet))
             .Where(f => !_anywhereOnly || f.Biomes.Contains(FishInfo.AnyPlanet))
             .ToList();
+        int? currentBiome = biome ?? _hereBiome;
+
         var shown = planetFish
             .Where(f => show == 0 || (show == 2) == _caught.ContainsKey(f.Id))
             .Where(f => time.Length == 0 || f.Time == time || f.Time == "Both")
             .Where(f => rarity.Length == 0 || f.Quality == rarity)
             .Where(f => text.Length == 0 || NameOf(f.Id).Contains(text, StringComparison.CurrentCultureIgnoreCase))
-            .OrderBy(f => JustCaughtRank(f.Id))
+            // Current planet type's fish first, then other planet-type fish, then
+            // "anywhere" fish - keep each habitat group contiguous (issue #53).
+            .OrderBy(f => currentBiome is int cb && f.Biomes.Contains(cb) ? 0
+                        : f.Biomes.Contains(FishInfo.AnyPlanet) ? 2 : 1)
+            .ThenBy(f => string.Join(",", f.Biomes.OrderBy(b => b)))
+            .ThenBy(f => JustCaughtRank(f.Id))
             .ThenBy(f => _caught.ContainsKey(f.Id))
             .ThenBy(f => RarityRank(f.Quality))
             .ThenBy(f => NameOf(f.Id), StringComparer.CurrentCultureIgnoreCase)
