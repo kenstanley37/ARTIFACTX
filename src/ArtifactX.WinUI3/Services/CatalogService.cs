@@ -1137,6 +1137,17 @@ public static class CatalogService
     public static Task<ArtifactX.Core.Universe.InventoryGenerationTables?> GetInventoryGenerationTablesAsync() =>
         GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.InventoryGenerationTables>("INVENTORYGENERATION");
 
+    /// <summary>Solar layout values, all station scene roots, and verified standard TypeB
+    /// WeaponTerminal origins. Other station variants intentionally have no cabinet geometry.</summary>
+    public static Task<ArtifactX.Core.Universe.StationEquipmentTables?> GetStationEquipmentTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.StationEquipmentTables>("STATIONEQUIPMENT");
+
+    public static Task<ArtifactX.Core.Universe.MultiToolTechnologyTables?> GetMultiToolTechnologyTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.MultiToolTechnologyTables>("MULTITOOLTECHNOLOGY");
+
+    public static Task<ArtifactX.Core.Universe.MultiToolModelTables?> GetMultiToolModelTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.MultiToolModelTables>("MULTITOOLMODEL");
+
     private static async Task<T?> GetPlanetGenerationRowAsync<T>(string gameId) where T : class
     {
         string? dbPath = ResolveDbPath();

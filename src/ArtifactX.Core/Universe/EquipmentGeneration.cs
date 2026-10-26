@@ -6,6 +6,9 @@ namespace ArtifactX.Core.Universe;
 /// </summary>
 public sealed record BaseStatRange(string StatId, float Min, float Max);
 
+/// <summary>One ordered GcSimulationGlobals.MultitoolPool definition from the player's install.</summary>
+public sealed record MultiToolPoolDefinition(string ModelPath, int MinDraw, int MaxDraw, float Probability, string PoolType);
+
 /// <summary>
 /// Inventory generation tables extracted from the player's own game files
 /// (metadata/reality/tables/inventorytable.mbin and metadata/simulation/environment/planetbuildingtable.mbin).
@@ -18,7 +21,12 @@ public sealed record InventoryGenerationTables(
     int[] ShipSClassMaxCargo,
     int[] ShipSClassMaxTech,
     int WeaponSClassMaxTech,
-    Dictionary<string, float[]>? BuildingDensities = null);
+    Dictionary<string, float[]>? BuildingDensities = null,
+    MultiToolPoolDefinition[]? MultiToolPools = null,
+    BaseStatRange[][][]? WeaponBaseStatsByClass = null,
+    SuperchargedSlotRules? WeaponSuperchargedSlots = null,
+    MultiToolLayoutRules[]? WeaponLayouts = null,
+    Dictionary<string, string>? WeaponLayoutByInventoryTag = null);
 
 /// <summary>
 /// Deterministically rolled S-Class base stats (% bonus) and max upgrade slot capacities for a starship seed.
@@ -61,19 +69,21 @@ public sealed record MultiToolSClassStats(
 }
 
 /// <summary>
-/// Deterministic S-Class base stat calculator, class spawn probability resolver, and planetary
-/// building availability rules.
+/// Inventory intrinsic-stat rolls, hypothetical S-Class previews, class spawn probabilities,
+/// and planetary building availability rules. A preview does not identify a located item.
 ///
 /// Reverse-engineered from NMS.exe (build 180836, 2026-10-23):
 /// - GenerateBaseStats at 0x1404ceab0: when UseSeedValue (GpI[0]) is true, reseeds MWC PRNG from
-///   the 64-bit model seed:
+///   the 64-bit inventory-generation seed. For multi-tools this is the inventory/site
+///   seed (SuJ[i].CA4.@EL), which can differ from the model seed (SuJ[i].@EL):
 ///     s0 = (uint)seed == 0 ? 1u : (uint)seed
 ///     s1 = (((uint)seed >> 16) | ((uint)seed &lt;&lt; 16)) ^ (uint)(seed >> 32) ^ (uint)seed
 ///   and steps once per GcInventoryGenerationBaseStatDataEntry in BaseStatsPerClass[classIndex]:
 ///     t = (ulong)s0 * 0x5A76F899UL + s1; s0 = (uint)t; s1 = (uint)(t >> 32);
 ///     stat = min + ((float)((double)s0 * 2.3283064370807974e-10)) * (max - min)
-/// - Verified 100.0000% bit-exact against untouched starships and multi-tools in real saves
-///   (Slot 1, Slot 2, Slot 8, 2026-10-23).
+/// - Purchased Mass Needler Z-C11 (Slot 8, 2026-10-24): all three intrinsic bonuses
+///   match the saved floats exactly using its actual inventory seed and Pistol/B table.
+///   Model-seed S-Class previews do not establish its actual class or equipped stats.
 /// - Note: UpgradeBaseStats (0x1404ced30) runs when upgrading class or loading an edited item whose
 ///   existing base stats exceed the newly rolled range, taking maxss(existingStat, newlyRolledStat).
 /// </summary>
@@ -143,7 +153,9 @@ public static class EquipmentGeneration
     ];
 
     /// <summary>
-    /// Calculates the exact S-Class base stats and max slot capacities for a starship seed.
+    /// Rolls hypothetical S-Class intrinsic bonuses and maximum upgrade slot capacities
+    /// for the supplied seed. Does not establish a located ship's actual class, inventory
+    /// seed, installed technology, or equipped display stats.
     /// </summary>
     public static ShipSClassStats CalculateShipSClassStats(
         SystemStarshipType shipType,
@@ -213,7 +225,9 @@ public static class EquipmentGeneration
     };
 
     /// <summary>
-    /// Calculates the exact S-Class base stats and max tech slot capacity for a multi-tool seed and kind.
+    /// Rolls hypothetical S-Class intrinsic bonuses and maximum upgrade slot capacity
+    /// for the supplied seed and kind. A model-seed preview does not establish a cabinet's
+    /// actual item, class, inventory seed, installed technology, or equipped display stats.
     /// </summary>
     public static MultiToolSClassStats CalculateMultiToolSClassStats(
         string kind,
@@ -254,6 +268,47 @@ public static class EquipmentGeneration
 
         int maxTech = tables?.WeaponSClassMaxTech ?? 60;
         return new MultiToolSClassStats(dmg, min, scn, maxTech);
+    }
+
+    /// <summary>
+    /// Intrinsic bonuses for a known class (C=0, B=1, A=2, S=3). Does not infer
+    /// cabinet class or compute equipped Damage Potential / Scanner Range. The seed is
+    /// the inventory/site seed (SuJ[i].CA4.@EL), not the model seed (SuJ[i].@EL).
+    /// Verified against purchased Mass Needler, Slot 8 SuJ[4], 2026-10-24.
+    /// Missing catalog tables or an unresolved weapon kind return null.
+    /// </summary>
+    public static IReadOnlyDictionary<string, float>? CalculateMultiToolBaseStats(
+        string kind, ulong inventorySeed, int ratingIndex, InventoryGenerationTables? tables)
+    {
+        // This path represents an actual item: unresolved kinds must not inherit the
+        // older S-class preview's Rifle fallback. Order follows GcWeaponClasses.
+        int kindIndex = kind switch
+        {
+            "Pistol" => 0,
+            "Rifle" => 1,
+            "Experimental" or "Pristine" => 2,
+            "Alien" => 3,
+            "Exotic" or "Royal" => 4,
+            "Sentinel" or "Robot" => 5,
+            "Atlantid" or "Atlas" => 6,
+            "AtlasYellow" => 7,
+            "AtlasBlue" => 8,
+            "Staff" => 9,
+            _ => -1,
+        };
+        if (tables?.WeaponBaseStatsByClass is not { } kinds || kindIndex < 0 || kindIndex >= kinds.Length
+            || kinds[kindIndex] is not { } ratings || ratingIndex < 0 || ratingIndex >= ratings.Length
+            || ratings[ratingIndex] is not { Length: > 0 } entries) return null;
+        uint lo = (uint)inventorySeed;
+        uint carry = ((lo >> 16) | (lo << 16)) ^ (uint)(inventorySeed >> 32) ^ lo;
+        var rng = new UniverseRandom(((ulong)carry << 32) | (lo == 0 ? 1u : lo));
+        var result = new Dictionary<string, float>();
+        foreach (var entry in entries)
+        {
+            float roll = (float)(rng.NextWord() * TinyDouble);
+            result[entry.StatId] = entry.Min + roll * (entry.Max - entry.Min);
+        }
+        return result;
     }
 
     /// <summary>

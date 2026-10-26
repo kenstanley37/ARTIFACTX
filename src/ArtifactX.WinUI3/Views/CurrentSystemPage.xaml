@@ -198,6 +198,7 @@
                                 </StackPanel>
                             </controls:FoldingCard>
 
+                            <controls:StationMultiToolsPanel ViewModel="{x:Bind ViewModel.StationTools}"/>
                             <controls:StationMarket Market="{x:Bind ViewModel.Market}"/>
                             <controls:SystemNotesPanel Notes="{x:Bind ViewModel.Notes}"/>
                             <controls:SystemStarshipsPanel Starships="{x:Bind ViewModel.Starships}"/>

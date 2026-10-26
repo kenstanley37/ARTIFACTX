@@ -71,6 +71,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         Notes.MoonsChanged += Build;
     }
 
+    public StationMultiToolsViewModel StationTools { get; } = new();
     public StationMarketViewModel Market { get; } = new();
     public SystemNotesViewModel Notes { get; } = new();
     public SystemStarshipsViewModel Starships { get; } = new();
@@ -191,6 +192,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         _planets = planets;
         SystemAddress = system;
         CurrentPlanet = planet;
+        _ = StationTools.UpdateAsync(system, snapshot);
         _counts = NmsPlanets.CountDiscoveries(snapshot.Discoveries);
         // The name the save's "where you saved" line gives for where you are now.
         if (SystemNameLearner.Learn(system, planet, snapshot.Summary) && !systemChanged)
