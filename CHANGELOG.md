@@ -6,6 +6,9 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### New
 
+- **Station multi-tools after reloading a save**: Current System shows supported station cabinets with the tool's name, class, damage, scanner range and system position. Results are tied to the latest save's reload location; unsupported cases stay hidden.
+  - Includes reload locations on a system's additional prime bodies, which previously hid the section.
+  - Supports the recovered scanner module used by some station tools, allowing their inventories and scanner ranges to resolve.
 - **Ship Designer** (under Starships): build a starship the way a space station's fabricator does. Pick a ship type (Fighter, Hauler, Explorer or Solar), a part for each slot, a paint style and colours, and see it in a live 3D preview you can turn. Everything on offer comes from your own game files, so the choices match the game.
   - **Add as new ship** puts the design in an empty starship slot. **Apply to a ship…** puts it on a ship you already own, and can rename that ship to the design's name.
   - **My designs**: save designs with a picture of the ship, search them, load one to change it, save changes or save as new.

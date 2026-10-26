@@ -122,6 +122,15 @@ ArtifactX's copy is upstream **libMBIN 7.07.0** (MBINCompiler tag
 `v7.07.0-pre1`, game build 25800958), updated 2026-10-15.
 
 Changes made by ArtifactX to its copy of libMBIN:
+- `Globals/GcDebugOptions.cs`: removed `HmdShowEyeAimTarget`, absent from
+  installed build 180836 and its native serializer, and corrected subsequent
+  offset comments. The extra byte shifted the legacy-station override and
+  following flags; 457 captured native field offsets match (2026-10-25).
+- `Toolkit/TkGlobals.cs`: removed `HmdVRSRateOverride`, absent from installed
+  build 180836 and its native serializer. Corrected following offset comments
+  there and in `Globals/GcDebugOptions.cs`; the four-byte mismatch shifted
+  decoded debug options, including BootMode. Verified against the installed
+  debug-options MBIN and native field offsets (2026-10-25).
 - `Common/Async.cs`: one null-forgiving operator (`null!`) to silence a
   nullable-reference warning; no change in behaviour.
 - The DataCataloger tool's `dumpfile` command prints the full error chain when a

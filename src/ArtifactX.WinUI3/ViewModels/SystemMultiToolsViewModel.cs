@@ -202,10 +202,10 @@ public sealed partial class SystemMultiToolsViewModel : ObservableObject
 
         bool hasStationCabinet = !facts.Uncharted && !facts.Abandoned;
         var tools = await Task.Run(() => SystemMultiToolGenerator.GenerateSystem(
-            portalCode,
+            systemAddress,
             planets,
             k => words.GetValueOrDefault(k),
-            hasSpaceStationCabinet: hasStationCabinet));
+            hasSpaceStationCabinet: hasStationCabinet, definitions: invTables?.MultiToolPools));
 
         var items = new List<SystemMultiToolItemViewModel>(tools.Count);
         foreach (var t in tools)

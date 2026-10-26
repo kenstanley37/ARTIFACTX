@@ -39,6 +39,8 @@ public static partial class CatalogSteps
     /// - "INVENTORYGENERATION": JSON in the shape of Core's InventoryGenerationTables - S-Class
     ///   base stat roll ranges, class probabilities, max inventory slot capacities
     ///   (inventorytable.mbin) and planetary building placement densities (planetbuildingtable.mbin).
+    /// - "STATIONEQUIPMENT": JSON in the shape of Core's StationEquipmentTables - solar layout
+    ///   globals, station scene roots, and verified standard TypeB WeaponTerminal transforms.
     /// </summary>
     public static void AddPlanetGeneration(string catalogPath, string pcbanksPath)
     {
@@ -99,6 +101,13 @@ public static partial class CatalogSteps
 
         if (InventoryTables(Decode) is { } invTables)
             rows.Add(new CatalogItem { GameId = "INVENTORYGENERATION", NameEnglish = "InventoryGenerationTables", DescriptionEnglish = JsonSerializer.Serialize(invTables) });
+
+        if (StationEquipment(Decode) is { } stationEquipment)
+            rows.Add(new CatalogItem { GameId = "STATIONEQUIPMENT", NameEnglish = "StationEquipmentTables", DescriptionEnglish = JsonSerializer.Serialize(stationEquipment) });
+        if (MultiToolTechnology(Decode) is { } technology)
+            rows.Add(new CatalogItem { GameId = "MULTITOOLTECHNOLOGY", NameEnglish = "MultiToolTechnologyTables", DescriptionEnglish = JsonSerializer.Serialize(technology) });
+        if (MultiToolModel(Decode) is { } multiToolModel)
+            rows.Add(new CatalogItem { GameId = "MULTITOOLMODEL", NameEnglish = "MultiToolModelTables", DescriptionEnglish = JsonSerializer.Serialize(multiToolModel) });
 
         using var db = new CatalogDbContext(catalogPath);
         Replace(db, "PlanetGeneration", "GcBiomeListPerStarType/GcBiomeFileList", BiomeListFile.ToLowerInvariant(), rows);
@@ -375,6 +384,42 @@ public static partial class CatalogSteps
             }
         }
 
-        return new InventoryGenerationTables(shipStats, weaponStats, classProbs, shipMaxCargo, shipMaxTech, weaponMaxTech, buildingDensities);
+        var nativePools = (decode("GCSIMULATIONGLOBALS.GLOBAL.MBIN") as GcSimulationGlobals)?.MultitoolPool;
+        // An incomplete definition must not be skipped: that would shift the RNG stream.
+        var pools = nativePools is not null && nativePools.All(p => p is not null
+            && p.File?.Value is not null && p.PoolType is not null)
+            ? nativePools.Select(p => new MultiToolPoolDefinition(p.File.Value, p.MinDraw, p.MaxDraw,
+                p.PoolProbability, p.PoolType.MultiToolPoolType.ToString())).ToArray()
+            : null;
+        var weaponClasses = inv.WeaponBaseStatsData?
+            .Select(kind => kind?.BaseStatsPerClass?.Select(rating => rating?.BaseStats is { } entries
+                && entries.All(e => e?.BaseStatID?.Value is not null)
+                    ? entries.Select(e => new BaseStatRange(e.BaseStatID.Value, e.Min, e.Max)).ToArray()
+                    : Array.Empty<BaseStatRange>()).ToArray() ?? Array.Empty<BaseStatRange[]>()).ToArray();
+        // Native category 3 maps to WeaponMedium at 0x144a60590 in build 180836,
+        // independently of the actual tool's size. Bounds are inclusive indices.
+        var layoutRows = inv.GenerationData?.GenerationDataPerSizeType;
+        int weaponLayoutIndex = (int)GcInventoryLayoutSizeType.SizeTypeEnum.WeaponMedium;
+        var weaponLayout = layoutRows is not null && weaponLayoutIndex < layoutRows.Length
+            ? layoutRows[weaponLayoutIndex] : null;
+        var specialSlots = weaponLayout?.SpecialTechSlotMaxIndex is { } maximumIndex
+            ? new SuperchargedSlotRules(maximumIndex.X, maximumIndex.Y, weaponLayout.MaxNumSpecialTechSlots) : null;
+        var weaponLayouts = new[] { GcInventoryLayoutSizeType.SizeTypeEnum.WeaponSmall,
+                GcInventoryLayoutSizeType.SizeTypeEnum.WeaponMedium, GcInventoryLayoutSizeType.SizeTypeEnum.WeaponLarge }
+            .Where(size => layoutRows is not null && (int)size < layoutRows.Length && layoutRows[(int)size]?.TechBounds is not null)
+            .Select(size =>
+            {
+                var entry = layoutRows![(int)size];
+                var bounds = entry.TechBounds;
+                return new MultiToolLayoutRules(size.ToString(), entry.MinTechSlots, entry.MaxTechSlots,
+                    new InventoryLayoutBounds(bounds.MaxWidthSmall, bounds.MaxHeightSmall,
+                        bounds.MaxWidthStandard, bounds.MaxHeightStandard, bounds.MaxWidthLarge, bounds.MaxHeightLarge));
+            }).ToArray();
+        var weaponLayoutNames = weaponLayouts.Select(r => r.SizeType).ToHashSet(StringComparer.Ordinal);
+        var layoutByTag = (inv.Table ?? new()).Where(entry => entry.LayoutSizeType is not null
+                && weaponLayoutNames.Contains(entry.LayoutSizeType.SizeType.ToString()))
+            .ToDictionary(entry => entry.Id.Value, entry => entry.LayoutSizeType.SizeType.ToString(), StringComparer.Ordinal);
+        return new InventoryGenerationTables(shipStats, weaponStats, classProbs, shipMaxCargo, shipMaxTech,
+            weaponMaxTech, buildingDensities, pools, weaponClasses, specialSlots, weaponLayouts, layoutByTag);
     }
 }

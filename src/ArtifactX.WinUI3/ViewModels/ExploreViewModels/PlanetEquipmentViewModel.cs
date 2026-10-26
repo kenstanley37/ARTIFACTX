@@ -27,8 +27,7 @@ public sealed record PlanetLocatedSite(
 }
 
 /// <summary>
-/// Displays saved locations only. Equipment pools do not identify the actual item, class,
-/// stats or coordinates at a cabinet/crash site and must not be presented as located equipment.
+/// Displays saved planetary locations. Station equipment belongs to Current System.
 /// </summary>
 public sealed partial class PlanetEquipmentViewModel : ObservableObject
 {
