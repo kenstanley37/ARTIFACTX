@@ -1,0 +1,19 @@
+<UserControl x:Class="ArtifactX.WinUI3.Controls.StationMultiToolCard"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:controls="using:ArtifactX.WinUI3.Controls">
+ <Border Style="{StaticResource ThemeCardStyle}" Padding="16">
+  <StackPanel Spacing="8">
+   <TextBlock Text="{x:Bind ViewModel.Name, Mode=OneWay}" FontSize="18" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+   <TextBlock Text="{x:Bind ViewModel.Rating, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}"/>
+   <controls:ShipPreview x:Name="Preview" Height="240" AutomationProperties.Name="Multi-tool 3D preview. Drag to rotate."/>
+   <TextBlock x:Name="PreviewNote" Text="Building preview..." Foreground="{ThemeResource ThemeTextBrush}" FontSize="12" TextWrapping="Wrap"/>
+   <TextBlock Text="{x:Bind ViewModel.Stats, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+   <TextBlock Text="{x:Bind ViewModel.Position, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" FontSize="12" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+   <TextBlock Text="{x:Bind ViewModel.SlotSummary, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" FontSize="12" TextWrapping="Wrap"/>
+   <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled" AutomationProperties.Name="Multi-tool technology slots">
+    <controls:InventorySlotGrid Snapshot="{x:Bind ViewModel.Inventory, Mode=OneWay}" IsReadOnly="True"/>
+   </ScrollViewer>
+  </StackPanel>
+ </Border>
+</UserControl>

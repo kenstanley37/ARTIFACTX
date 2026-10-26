@@ -9,8 +9,8 @@ namespace ArtifactX.Core.Universe;
 /// <see cref="StandardTypeB"/> is null unless the current standard station root is the
 /// TypeB scene whose weapon-terminal chains ArtifactX has extracted. This legacy property
 /// retains branch A for older callers; use <see cref="StandardTypeBVariants"/> and
-/// <see cref="StationSceneSelection"/> to select the actual branch. Other station roots
-/// are retained for research and are not assigned TypeB cabinet geometry.
+/// <see cref="StationSceneSelection"/> to select the actual branch. Pirate shapes use their own descriptor and geometry; other station roots
+/// are retained without borrowed cabinet origins.
 /// </remarks>
 public sealed record StationEquipmentTables(
     SolarLayoutTables SolarLayout,
@@ -18,7 +18,9 @@ public sealed record StationEquipmentTables(
     StationEquipmentScene? StandardTypeB,
     string? StandardTypeBRootDescriptor = null,
     StationEquipmentScene[]? StandardTypeBVariants = null,
-    bool? ForceLegacySpaceStations = null);
+    bool? ForceLegacySpaceStations = null,
+    string? PirateRootDescriptor = null,
+    StationEquipmentScene[]? PirateVariants = null);
 
 /// <summary>Solar-generation values and the supported debug BootMode gate for ordinary moon placement.</summary>
 public sealed record SolarLayoutTables(
@@ -46,7 +48,8 @@ public sealed record StationEquipmentScene(
     string Variant,
     string RootScene,
     StationCabinetDefinition[] Cabinets,
-    string? LaunchReference = null);
+    string? LaunchReference = null,
+    string? RootDescriptorId = null);
 
 /// <summary>
 /// One actual WeaponTerminal interaction in a station scene. <paramref name="LocalToStationMatrix"/>

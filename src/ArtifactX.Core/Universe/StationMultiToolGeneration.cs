@@ -4,7 +4,7 @@ namespace ArtifactX.Core.Universe;
 public sealed record StationMultiToolGenerationRequest(MultiToolReloadContext Reload,
     MultiToolGenerationRuntime Runtime, bool StationPresent, bool Abandoned, bool Pirate, bool? UseLegacyStation);
 
-/// <summary>Composes address-to-cabinet generation for the supported ordinary standard station.</summary>
+/// <summary>Composes address-to-cabinet generation for the supported standard and pirate stations.</summary>
 public static class StationMultiToolGeneration
 {
     /// <summary>
@@ -18,16 +18,16 @@ public static class StationMultiToolGeneration
         MultiToolTechnologyTables technology, MultiToolModelTables models,
         Func<string, IReadOnlyList<string>?>? words = null)
     {
-        if (!request.Reload.IsValid || !request.StationPresent || request.Abandoned || request.Pirate
-            || request.UseLegacyStation is not false || stations.ForceLegacySpaceStations is true
-            || request.Runtime.NativeWealth is < 0 or > 2 || request.Runtime.HasActiveSpecialTechnology) return [];
+        if (!request.Reload.IsValid || !request.StationPresent || request.Abandoned
+            || (!request.Pirate && (request.UseLegacyStation is not false || stations.ForceLegacySpaceStations is true))
+            || request.Runtime.NativeWealth is < 0 or > 3 || request.Runtime.HasActiveSpecialTechnology) return [];
         ulong address = request.Reload.SystemAddress;
         ulong portal = ((address >> 40) & 0xFFF) << 32 | (address & 0xFFFFFFFF);
         int galaxy = (int)((address >> 32) & 255);
         var attributes = SystemGenerator.Attributes(portal, galaxy);
-        if (attributes.Uncharted || attributes.Abandoned || attributes.Pirate
+        if (attributes.Uncharted || attributes.Abandoned || attributes.Pirate != request.Pirate
             || attributes.PlanetCount + attributes.PrimePlanetCount != request.Reload.PlanetCount
-            || attributes.Wealth - 1 != request.Runtime.NativeWealth) return [];
+            || (attributes.Pirate ? 3 : attributes.Wealth - 1) != request.Runtime.NativeWealth) return [];
         var pose = StationPoseGeneration.GenerateForSystem(portal, galaxy, stations.SolarLayout);
         if (pose is null) return [];
         var locations = StationCabinetLocations.Locate(stations, pose, request.StationPresent,
@@ -41,7 +41,10 @@ public static class StationMultiToolGeneration
             var model = MultiToolModelGeneration.Resolve(contents.Tool.Seed, models);
             if (model is null) continue;
             var tool = LocatedMultiToolGeneration.Generate(contents, model, request.Runtime, inventory, technology);
-            if (tool is not null) result.Add(tool);
+            // Pirate geometry, identity, class and scanner are independently checked.
+            // The default OVERHEAT damage model does not reproduce the pirate reference;
+            // retain the record but do not expose that unverified damage value.
+            if (tool is not null) result.Add(request.Pirate ? tool with { HasSupportedDamagePotential = false } : tool);
         }
         return result;
     }

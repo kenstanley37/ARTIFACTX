@@ -21,10 +21,11 @@ public sealed record MultiToolGenerationRuntime(int NativeWealth, int RequiredLe
         => new(nativeWealth, progressionLevel, knownTechnologies, true, hasActiveSpecialTechnology);
 }
 
-/// <summary>A located cabinet item whose actual class, inventory and equipped statistics all resolved.</summary>
+/// <summary>A located cabinet item with resolved class, inventory and scanner range.</summary>
+/// <remarks>Consumers must omit DamagePotential when HasSupportedDamagePotential is false.</remarks>
 public sealed record LocatedMultiTool(StationMultiToolContents Contents, string Kind,
     GeneratedMultiToolInventory Inventory, IReadOnlyDictionary<string, float> IntrinsicBonuses,
-    float DamagePotential, float ScannerRange);
+    float DamagePotential, float ScannerRange, bool HasSupportedDamagePotential = true);
 
 /// <summary>Composes the independently verified stages for a standard station's ordinary multi-tool.</summary>
 public static class LocatedMultiToolGeneration

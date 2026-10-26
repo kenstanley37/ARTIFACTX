@@ -5,7 +5,7 @@ namespace ArtifactX.Core.Universe;
 /// <summary>An interaction origin and its position hash; does not claim an item or inventory.</summary>
 public sealed record StationCabinetLocation(StationCabinetDefinition Definition, Vector3 WorldPosition, ulong SiteSeed);
 
-/// <summary>Transforms extracted TypeB cabinet origins through a generated station pose.</summary>
+/// <summary>Transforms extracted station cabinet origins through a generated station pose.</summary>
 public static class StationCabinetLocations
 {
     /// <summary>
@@ -15,7 +15,9 @@ public static class StationCabinetLocations
     public static IReadOnlyList<StationCabinetLocation> Locate(StationEquipmentTables tables,
         StationPose pose, bool stationPresent, bool abandoned, bool pirate, bool? useLegacy)
     {
-        if (!stationPresent || abandoned || pirate || tables.ForceLegacySpaceStations is true
+        if (!stationPresent || abandoned) return [];
+        if (pirate) return Transform(StationSceneSelection.SelectPirate(tables, pose.Seed), pose);
+        if (tables.ForceLegacySpaceStations is true
             || useLegacy is not false || !string.Equals(
                 StationRootSelection.Select(tables.StationRoots, abandoned, pirate, useLegacy),
                 tables.StationRoots.Standard, StringComparison.OrdinalIgnoreCase)) return [];
@@ -30,7 +32,11 @@ public static class StationCabinetLocations
     /// </summary>
     public static IReadOnlyList<StationCabinetLocation> LocateStandardTypeB(StationEquipmentTables tables, StationPose pose)
     {
-        var scene = StationSceneSelection.SelectStandardTypeB(tables, pose.Seed);
+        return Transform(StationSceneSelection.SelectStandardTypeB(tables, pose.Seed), pose);
+    }
+
+    private static IReadOnlyList<StationCabinetLocation> Transform(StationEquipmentScene? scene, StationPose pose)
+    {
         if (scene is null || !Finite(pose.Position) || !Finite(pose.Facing)
             || pose.Facing.LengthSquared() < 1.52587890625e-05f) return [];
         Vector3 forward = Vector3.Normalize(pose.Facing);

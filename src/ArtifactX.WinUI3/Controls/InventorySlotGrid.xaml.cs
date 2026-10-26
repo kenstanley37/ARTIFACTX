@@ -45,7 +45,19 @@ public sealed partial class InventorySlotGrid : UserControl
 
     /// <summary>Display only: no menus, no dragging (Base Item Cache - the game
     /// only lets items be taken out, 2026-10-15).</summary>
-    public bool IsReadOnly { get; set; }
+    private bool _isReadOnly;
+    public bool IsReadOnly { get => _isReadOnly || Snapshot is not null; set => _isReadOnly = value; }
+
+    public static readonly DependencyProperty SnapshotProperty = DependencyProperty.Register(
+        nameof(Snapshot), typeof(InventoryGridSnapshot), typeof(InventorySlotGrid),
+        new PropertyMetadata(null, (sender, _) => ((InventorySlotGrid)sender).Refresh()));
+
+    /// <summary>Generated/read-only data. This path never receives an editable save view model.</summary>
+    public InventoryGridSnapshot? Snapshot
+    {
+        get => (InventoryGridSnapshot?)GetValue(SnapshotProperty);
+        set => SetValue(SnapshotProperty, value);
+    }
 
     /// <summary>Further restricts search to specific equipment-slot categories within
     /// a table (e.g. "Suit"/"All" for the Exosuit tech grid vs "Ship"/"All" for
@@ -117,12 +129,15 @@ public sealed partial class InventorySlotGrid : UserControl
     public void Refresh()
     {
         RootCanvas.Children.Clear();
-        if (ViewModel is null) return;
+        var cells = Snapshot?.Cells ?? (IReadOnlyList<InventorySlotViewModel>?)ViewModel?.Cells;
+        RootCanvas.Width = (Snapshot?.Columns ?? ViewModel?.Columns ?? 0) * CellSpacing;
+        RootCanvas.Height = (Snapshot?.Rows ?? ViewModel?.Rows ?? 0) * CellSpacing;
+        if (cells is null) return;
 
         // Each occupied slot's adjacency type + colour, for the boost borders.
         var adjacency = new Dictionary<(int, int), (string Type, string Colour)>();
         if (AdjacencyOf is not null)
-            foreach (var c in ViewModel.Cells.Where(c => c.IsOccupied && c.ItemId is not null))
+            foreach (var c in cells.Where(c => c.IsOccupied && c.ItemId is not null))
                 if (AdjacencyOf(c.ItemId!.TrimStart('^')) is { } a)
                     adjacency[(c.X, c.Y)] = a;
         Brush? BoostBorder(int x, int y)
@@ -133,10 +148,8 @@ public sealed partial class InventorySlotGrid : UserControl
             return linked ? BrushFromHex(me.Colour) : null;
         }
 
-        RootCanvas.Width = ViewModel.Columns * CellSpacing;
-        RootCanvas.Height = ViewModel.Rows * CellSpacing;
 
-        foreach (var cell in ViewModel.Cells)
+        foreach (var cell in cells)
         {
             bool isDamaged = cell.IsOccupied && (!cell.IsFunctional || cell.MalfunctionSeverity > 0);
             var boost = isDamaged ? null : BoostBorder(cell.X, cell.Y);
@@ -179,7 +192,7 @@ public sealed partial class InventorySlotGrid : UserControl
                     {
                         // Upper-cased like the game's own slot labels - some catalog rows only
                         // have the mixed-case NameLower ("Thermal Protection").
-                        Text = (entry?.DisplayName ?? cell.ShortLabel).ToUpperInvariant(),
+                        Text = (cell.DisplayName ?? entry?.DisplayName ?? cell.ShortLabel).ToUpperInvariant(),
                         FontFamily = (FontFamily)Application.Current.Resources["ThemeBodyFont"],
                         FontSize = 8,
                         TextWrapping = TextWrapping.Wrap,
@@ -210,7 +223,7 @@ public sealed partial class InventorySlotGrid : UserControl
                 border.ContextFlyout = BuildOccupiedFlyout(border, cell);
                 ToolTipService.SetToolTip(border, isDamaged
                     ? "Malfunctioning - right-click to repair"
-                    : $"{entry?.DisplayName ?? cell.ShortLabel} ({cell.ItemId})\nRight-click for options - edit, duplicate, remove");
+                    : $"{cell.DisplayName ?? entry?.DisplayName ?? cell.ShortLabel} ({cell.ItemId})\nRight-click for options - edit, duplicate, remove");
 
                 border.CanDrag = true;
                 border.DragStarting += (_, args) =>
@@ -277,7 +290,13 @@ public sealed partial class InventorySlotGrid : UserControl
                 border.ContextFlyout = null;
                 border.CanDrag = false;
                 border.AllowDrop = false;
-                ToolTipService.SetToolTip(border, cell.IsOccupied ? cell.DisplayText : null);
+                string label = cell.IsOccupied
+                    ? cell.DisplayName ?? CatalogService.TryGet(cell.ItemId)?.DisplayName ?? "Technology"
+                    : cell.State == InventorySlotState.Locked ? "Locked slot" : "Empty slot";
+                if (cell.IsSupercharged) label += " - Supercharged";
+                label += $"\nRow {cell.Y + 1}, column {cell.X + 1}";
+                ToolTipService.SetToolTip(border, label);
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(border, label);
             }
 
             if (cell.IsSupercharged)
