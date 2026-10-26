@@ -31,6 +31,9 @@ public sealed class InventorySlotViewModel
     /// data points exist so far (0.0 and 1.0, nothing in between observed).</summary>
     public double MalfunctionSeverity { get; init; }
 
+    public string? DisplayName { get; init; }
+    public bool ShowAmount { get; init; } = true;
+
     public bool IsOccupied => State == InventorySlotState.Occupied;
 
     public double PixelX => X * 68;
@@ -47,7 +50,7 @@ public sealed class InventorySlotViewModel
         }
     }
 
-    public string DisplayText => !IsOccupied ? ""
+    public string DisplayText => !IsOccupied || !ShowAmount ? ""
         : MaxAmount > 1 ? $"{Amount}/{MaxAmount}"
         : Amount.ToString();
 }

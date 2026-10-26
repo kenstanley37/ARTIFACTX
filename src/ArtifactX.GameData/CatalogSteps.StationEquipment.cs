@@ -13,14 +13,16 @@ public static partial class CatalogSteps
     private const string SolarGenerationGlobalsFile = "GCSOLARGENERATIONGLOBALS.GLOBAL.MBIN";
     private const string SimulationGlobalsFile = "GCSIMULATIONGLOBALS.GLOBAL.MBIN";
     private const string VerifiedStandardTypeBRoot = "MODELS/SPACE/SPACESTATION/SPACESTATIONTYPEB.SCENE.MBIN";
+    private const string VerifiedPirateRoot = "MODELS/SPACE/SPACESTATION/SPACESTATION_PIRATE.SCENE.MBIN";
+    private const string PirateWeaponCrate = "MODELS/PLANETS/BIOMES/COMMON/BUILDINGS/CRATE/CRATE_WEAPON.SCENE.MBIN";
     private const string VerifiedTypeBLaunchReference = "_AttachPoint_LaunchTubeA";
     private const string StationScenePrefix = "MODELS/SPACE/SPACESTATION/";
 
     /// <summary>
     /// Extracts station-placement globals and the current standard TypeB station's actual
     /// WeaponTerminal interaction origins per launch branch, plus the complete nested root
-    /// descriptor. Pirate, abandoned and legacy roots are recorded
-    /// but deliberately not assigned TypeB cabinet geometry.
+    /// descriptor. Pirate shapes use their own shop and shared weapon-crate chain.
+    /// Abandoned and legacy roots are recorded without borrowed cabinet geometry.
     /// </summary>
     private static StationEquipmentTables? StationEquipment(Func<string, NMSTemplate?> decode)
     {
@@ -50,17 +52,29 @@ public static partial class CatalogSteps
             debug is { BootMode: GcDebugOptions.BootModeEnum.SolarSystem }
                 ? true : null);
 
+        string? pirateDescriptor = null;
+        StationEquipmentScene[]? pirateVariants = null;
+        if (roots.Pirate.Equals(VerifiedPirateRoot, StringComparison.OrdinalIgnoreCase)
+            && decode(roots.Pirate.Replace(".SCENE.MBIN", ".DESCRIPTOR.MBIN", StringComparison.Ordinal)) is TkModelDescriptorList pirateList)
+        {
+            pirateDescriptor = System.Text.Json.JsonSerializer.Serialize(StationDescriptorGroups(pirateList));
+            pirateVariants = (pirateList.List ?? new()).SelectMany(g => g.Descriptors ?? new())
+                .Select(d => ExtractStationBranch(roots.Pirate, d.Name?.Value ?? "", decode, d.Id?.Value))
+                .OfType<StationEquipmentScene>().ToArray();
+        }
+
         if (!roots.Standard.Equals(VerifiedStandardTypeBRoot, StringComparison.OrdinalIgnoreCase))
-            return new StationEquipmentTables(layout, roots, null, ForceLegacySpaceStations: debug?.UseLegacySpaceStations);
+            return new StationEquipmentTables(layout, roots, null, ForceLegacySpaceStations: debug?.UseLegacySpaceStations,
+                PirateRootDescriptor: pirateDescriptor, PirateVariants: pirateVariants);
         var variants = new[] { "_AttachPoint_LaunchTubeA", "_AttachPoint_LaunchTubeB", "_AttachPoint_LaunchTubeC" }
-            .Select(reference => ExtractVerifiedTypeB(roots.Standard, reference, decode))
+            .Select(reference => ExtractStationBranch(roots.Standard, reference, decode))
             .OfType<StationEquipmentScene>().ToArray();
         string descriptorPath = roots.Standard.Replace(".SCENE.MBIN", ".DESCRIPTOR.MBIN", StringComparison.Ordinal);
         string? descriptor = decode(descriptorPath) is TkModelDescriptorList list
             ? System.Text.Json.JsonSerializer.Serialize(StationDescriptorGroups(list)) : null;
         return new StationEquipmentTables(layout, roots,
             variants.FirstOrDefault(v => v.LaunchReference == VerifiedTypeBLaunchReference), descriptor, variants,
-            debug?.UseLegacySpaceStations);
+            debug?.UseLegacySpaceStations, pirateDescriptor, pirateVariants);
     }
 
     // Children are List<NMSTemplate>; serializing the base type silently loses the nested
@@ -77,8 +91,11 @@ public static partial class CatalogSteps
             }).ToArray(),
         }).ToArray();
 
-    private static StationEquipmentScene? ExtractVerifiedTypeB(string rootScene, string launchReference, Func<string, NMSTemplate?> decode)
+    private static StationEquipmentScene? ExtractStationBranch(string rootScene, string launchReference, Func<string, NMSTemplate?> decode, string? rootDescriptorId = null)
     {
+        bool pirate = rootDescriptorId is { Length: > 0 };
+        bool SupportedScene(string path) => path.StartsWith(StationScenePrefix, StringComparison.OrdinalIgnoreCase)
+            || pirate && path.Equals(PirateWeaponCrate, StringComparison.OrdinalIgnoreCase);
         var cabinets = new List<StationCabinetDefinition>();
         var activeScenes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var decoded = new Dictionary<string, NMSTemplate?>(StringComparer.OrdinalIgnoreCase);
@@ -92,7 +109,7 @@ public static partial class CatalogSteps
         void WalkScene(string scenePath, Matrix4x4 parent, IReadOnlyList<StationSceneReference> chain, int depth)
         {
             scenePath = NormalizeScenePath(scenePath);
-            if (depth > 16 || !scenePath.StartsWith(StationScenePrefix, StringComparison.OrdinalIgnoreCase)
+            if (depth > 16 || !SupportedScene(scenePath)
                 || !activeScenes.Add(scenePath) || DecodeCached(scenePath) is not TkSceneNodeData root)
                 return;
 
@@ -104,6 +121,11 @@ public static partial class CatalogSteps
             IReadOnlyList<StationSceneReference> chain, int depth)
         {
             string name = node.Name?.Value ?? "";
+            // Pirate roots select a complete outer shape. Its own launch tube and shop
+            // transforms must be walked independently, including the shared weapon crate.
+            if (pirate && scenePath.Equals(rootScene, StringComparison.OrdinalIgnoreCase)
+                && parentNodePath.Equals((DecodeCached(rootScene) as TkSceneNodeData)?.Name?.Value, StringComparison.Ordinal)
+                && !name.Equals(launchReference, StringComparison.OrdinalIgnoreCase)) return;
             string nodePath = parentNodePath.Length == 0 ? name : parentNodePath + "/" + name;
             Matrix4x4 localToStation = Local(node.Transform) * parent;
 
@@ -131,10 +153,10 @@ public static partial class CatalogSteps
             string reference = NormalizeScenePath(Attribute(node, "SCENEGRAPH"));
             // Extract each launch branch independently. Its own scene graph supplies the
             // transforms; descriptor selection later chooses exactly one branch.
-            bool verifiedRootHop = chain.Count > 0
+            bool verifiedRootHop = pirate || chain.Count > 0
                 || name.Equals(launchReference, StringComparison.OrdinalIgnoreCase);
             if (verifiedRootHop && reference.Length > 0
-                && reference.StartsWith(StationScenePrefix, StringComparison.OrdinalIgnoreCase))
+                && SupportedScene(reference))
             {
                 var hop = new StationSceneReference(scenePath, nodePath, reference,
                     TransformOf(node.Transform), MatrixValues(localToStation));
@@ -156,7 +178,8 @@ public static partial class CatalogSteps
             .OrderBy(c => c.Id, StringComparer.Ordinal)
             .ThenBy(c => c.LocalPosition[2])
             .ToArray();
-        return new StationEquipmentScene("StandardTypeB" + launchReference.Replace("_AttachPoint_", ""), rootScene, exact, launchReference);
+        return new StationEquipmentScene(pirate ? "Pirate" + launchReference : "StandardTypeB" + launchReference.Replace("_AttachPoint_", ""),
+            rootScene, exact, pirate ? null : launchReference, rootDescriptorId);
     }
 
     private static GcInteractionComponentData? WeaponTerminal(string attachmentPath, Func<string, NMSTemplate?> decode)

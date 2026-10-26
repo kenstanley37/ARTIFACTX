@@ -68,16 +68,18 @@ public static class NmsMultiToolGenerationPaths
         StationEquipmentTables tables)
     {
         var saved = ReadActiveSavedState(saveRoot, 0);
-        if (saved is null || ReadSavedLegacyStationRule(saveRoot, tables) is not false) return null;
+        if (saved is null) return null;
         ulong address = saved.ReloadUniverseAddress & ~(0xFUL << 52);
         ulong portal = ((address >> 40) & 0xFFF) << 32 | (address & 0xFFFFFFFF);
         var attributes = SystemGenerator.Attributes(portal, (int)((address >> 32) & 255));
-        if (attributes.Uncharted || attributes.Abandoned || attributes.Pirate
-            || attributes.Wealth is < 1 or > 3) return null;
+        if (attributes.Uncharted || attributes.Abandoned
+            || !attributes.Pirate && (attributes.Wealth is < 1 or > 3
+                || ReadSavedLegacyStationRule(saveRoot, tables) is not false)) return null;
         var reload = new MultiToolReloadContext(address, saved.ReloadUniverseAddress,
             attributes.PlanetCount + attributes.PrimePlanetCount);
         return !reload.IsValid ? null : new StationMultiToolGenerationRequest(reload,
-            saved.Runtime with { NativeWealth = attributes.Wealth - 1 }, true, false, false, false);
+            saved.Runtime with { NativeWealth = attributes.Pirate ? 3 : attributes.Wealth - 1 },
+            true, false, attributes.Pirate, attributes.Pirate ? null : false);
     }
 
     /// <summary>

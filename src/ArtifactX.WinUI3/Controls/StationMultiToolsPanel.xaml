@@ -3,6 +3,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
     xmlns:viewModels="using:ArtifactX.WinUI3.ViewModels">
         <controls:FoldingCard Title="STATION MULTI-TOOLS AFTER RELOADING THIS SAVE"
                               SettingKey="CurrentSystemStationReloadToolsCollapsed"
@@ -12,17 +13,12 @@
                     <TextBlock Text="{x:Bind ViewModel.StationReloadHint, Mode=OneWay}" TextWrapping="Wrap"
                                Foreground="{ThemeResource ThemeTextBrush}" FontSize="13"/>
                     <ItemsControl ItemsSource="{x:Bind ViewModel.StationReloadTools, Mode=OneWay}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="14"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="viewModels:StationReloadToolCard">
-                                <StackPanel Spacing="6" Margin="0,0,0,16">
-                                    <TextBlock Text="{x:Bind Name}" FontSize="16" FontWeight="SemiBold"
-                                               Foreground="{ThemeResource ThemeTextBrush}" IsTextSelectionEnabled="True" TextWrapping="Wrap"/>
-                                    <TextBlock Text="{x:Bind Rating}" Foreground="{ThemeResource ThemeAccentBrush}" FontSize="14"/>
-                                    <TextBlock Text="{x:Bind Stats}" Foreground="{ThemeResource ThemeTextBrush}"
-                                               FontSize="13" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                                    <TextBlock Text="{x:Bind Position}" Foreground="{ThemeResource ThemeTextBrush}"
-                                               FontSize="13" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                                </StackPanel>
+                                <controls:StationMultiToolCard ViewModel="{x:Bind}"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

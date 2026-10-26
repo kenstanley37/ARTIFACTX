@@ -203,3 +203,14 @@ These items directly extend existing open GitHub issues:
    - Favor focused custom controls and shared services over monolithic page code-behind files.
 3. **Stepwise Refactoring**:
    - Always perform architectural refactoring in discrete, verifiable stages on dedicated feature branches with zero-error build verification before merging.
+
+### Feature 37: Station Multi-Tool Technology Slots
+- **Status**: Grid implemented on `fix/station-multi-tool-coverage`; user confirmed the displayed slots match perfectly on 2026-10-26. Installed module-stat details remain follow-up work.
+- **Problem**: Current System lists station multi-tools without their technology grids, leaving players unable to inspect the complete offered inventory.
+- **Proposed Solution**: Show each tool's installed technologies and upgrade modules in their actual slot positions, empty unlocked slots, supercharged slots and total unlocked-slot count. Reuse the existing inventory UserControl and catalog names/icons. Distinguish unavailable inventory details from an empty inventory, and preserve the saved-reload context.
+- **Validation**: Compare the displayed grid with the same cabinet in game, including installed module values and supercharged-slot positions.
+
+### Bug 38: Station Multi-Tool Damage Depends on Unresolved Runtime Animation State
+- **Problem**: A station tool can show a different damage potential from the app despite matching identity, class, inventory and scanner range. Himizumi's Return of War matches at 1347.8, while Kiss of Naryev-VI shows 400.0 in game versus 333.3 with the app's standard-duration assumption.
+- **Evidence**: Native execution reproduces both supplied damage values with a shared zero animation duration; the ordinary duration reproduces the lower laser value. The live preview reads an animation controller shared by both comparisons. The actual cause of the zero-duration lookup is not yet verified.
+- **Next Step**: Establish the live animation-controller state or another reliable runtime input before changing generated damage values. Do not apply a blanket class, station-type or camera correction. See `docs/research/PIRATE_STATION_MULTITOOLS.md`.

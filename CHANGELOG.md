@@ -61,6 +61,9 @@ What changed in each ArtifactX release, written for players. The newest release 
 - **Regions** (Explore): how much of each region you've mapped. For each system you've found there: whether its system data was read, and for every planet and moon whether its Discoveries hover and its own page were captured - so you can see what's left to do. The region also shows on Current System and a planet's page, and the Planet Finder can filter and search by it.
 
 ### Fixed
+- **Station multi-tool cards**: Tools now appear in cards that wrap with the window width, with a rotatable 3D preview using the existing seed-based model and colour renderer. Unchanged live updates preserve each preview.
+- **Station multi-tool technology grids**: Each listed cabinet tool now shows its generated technology layout, installed technologies, empty and locked slots, supercharged slots and slot counts in a read-only grid.
+- **Pirate station multi-tools**: Current System can now list supported pirate-station cabinets, using the selected station shape and the actual weapon-shop cabinet position. Pirate tools show their name, class and scanner range; damage is omitted until its display calculation is verified. Rebuild game data to load the new cabinet geometry.
 
 - Current System keeps planets and moons in a collapsible section before station stock.
 - Current System no longer shows generated Multi-Tool pool possibilities.
