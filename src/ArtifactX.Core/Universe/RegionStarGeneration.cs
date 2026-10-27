@@ -89,6 +89,13 @@ public static class RegionStarGeneration
         return new RegionSystemCount(FixedStars + stars, PurpleSystems);
     }
 
+    /// <summary>The region holding a packed system address (galaxy, X, Y, Z bits; system and planet ignored).</summary>
+    public static RegionSystemCount Count(ulong address, GalaxyGenerationSettings settings) =>
+        Count((int)((address >> 32) & 0xFF), (int)(address & 0xFFF), (int)((address >> 24) & 0xFF), (int)((address >> 12) & 0xFFF), settings);
+
+    /// <summary>Key shared by every system address in the same region.</summary>
+    public static ulong RegionKey(ulong address) => address & 0xFF_FFFF_FFFFUL;
+
     /// <summary>Voxel attributes 0x14132ADAB: integer distance from the centre below GoalGapVoxelDist.</summary>
     public static bool InsideGoalGap(int x, int y, int z, float goalGapVoxelDistance)
     {

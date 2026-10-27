@@ -113,6 +113,9 @@
                                     <TextBlock Text="LOCATION" Style="{StaticResource ThemeEyebrowStyle}" Visibility="{x:Bind ViewModel.ShowFullDetails, Mode=OneWay}"/>
                                     <TextBlock Text="{x:Bind ViewModel.Heading, Mode=OneWay}" Style="{StaticResource ThemeHeadingStyle}" FontSize="24"/>
                                     <TextBlock Text="{x:Bind ViewModel.Sub, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"/>
+                                    <!-- From the game's region generator (ArtifactX.Core.Universe.RegionStarGeneration). -->
+                                    <TextBlock Text="{x:Bind ViewModel.RegionSystems, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"
+                                               Visibility="{x:Bind ViewModel.HasRegionSystems, Mode=OneWay}"/>
                                     <!-- From the game's generator (ArtifactX.Core.Universe): star, race, economy, wealth, conflict. -->
                                     <TextBlock Text="{x:Bind ViewModel.Facts, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextWrapping="Wrap"
                                                Foreground="{ThemeResource ThemeAccentBrush}"/>

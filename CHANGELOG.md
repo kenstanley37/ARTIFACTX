@@ -18,6 +18,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### New
 
+- **Region system totals**: Current System shows how many star systems your current region holds (and its purple systems), worked out with the game's own galaxy generator, plus how many of them you've visited. Rebuild game data to enable it.
+
 - **Station multi-tools after reloading a save**: Current System shows supported station cabinets with the tool's name, class, damage, scanner range and system position. Results are tied to the latest save's reload location; unsupported cases stay hidden.
   - Compact cards: a small 3D preview beside the details, and a row of installed technology with class badges. **Show all slots** opens the full inventory grid.
   - Includes reload locations on a system's additional prime bodies, which previously hid the section.
