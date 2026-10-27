@@ -33,6 +33,12 @@ public static class SaveSessionManager
     public static int PendingEditCount => _session?.PendingEditCount ?? 0;
     public static IEnumerable<string> DescribePendingEdits() => _session?.DescribePendingEdits() ?? Enumerable.Empty<string>();
     public static SaveSlotGroup? ActiveSlot => _activeSlot;
+    /// <summary>
+    /// Identity of the loaded editing session. Slot metadata is replaced by AdoptSlot
+    /// after autosaves, while this identity changes only when the actual session does.
+    /// Consumers use reference equality; it is not a save-data API.
+    /// </summary>
+    internal static object? SessionIdentity => _session;
     public static string? ActiveLabel => _activeSlot?.ActiveLabel;
 
     /// <summary>The platform-account folder (e.g. "...\Steam\st_76561...") the

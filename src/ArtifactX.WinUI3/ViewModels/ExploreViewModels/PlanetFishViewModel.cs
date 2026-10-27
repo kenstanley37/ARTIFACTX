@@ -21,6 +21,12 @@ public sealed class PlanetFishViewModel
 
     private PlanetFishViewModel() { }
 
+    public bool HasSamePresentation(PlanetFishViewModel other) =>
+        (HasProgress, ProgressLabel, ProgressDone, ProgressTotal, CaughtHereLabel, Badge, BadgeTooltip)
+        == (other.HasProgress, other.ProgressLabel, other.ProgressDone, other.ProgressTotal,
+            other.CaughtHereLabel, other.Badge, other.BadgeTooltip)
+        && Notes.SequenceEqual(other.Notes) && Groups.SequenceEqual(other.Groups);
+
     public bool HasProgress { get; private init; }
     public string ProgressLabel { get; private init; } = "";
     public int ProgressDone { get; private init; }

@@ -1003,6 +1003,7 @@ public class CatalogBuildService
                             _ => null
                         },
                         IsBrokenSlotTech = row.IsBrokenSlotTech,
+                        ModuleQuality = row.ModuleQuality,
                     };
 
                     // Some Corvette upgrade modules (CV_FIT*/CV_INV*/CV_SCI*/CV_TRA*)

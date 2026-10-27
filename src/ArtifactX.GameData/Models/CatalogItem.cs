@@ -72,5 +72,10 @@ public class CatalogItem
     /// False for every non-GcTechnology row.</summary>
     public bool IsBrokenSlotTech { get; set; }
 
+    /// <summary>Procedural upgrade-module rows only: the game's QualityEnum name
+    /// (Normal/Rare/Epic/Legendary/Illegal/Sentinel/Robot/SeaTrash). The game draws
+    /// Normal..Illegal as the C/B/A/S/X badge on the module. Null for other rows.</summary>
+    public string? ModuleQuality { get; set; }
+
     public List<IconAsset> Icons { get; set; } = new();
 }

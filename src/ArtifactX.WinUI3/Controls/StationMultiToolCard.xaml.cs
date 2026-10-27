@@ -16,6 +16,7 @@ namespace ArtifactX.WinUI3.Controls;
 public sealed partial class StationMultiToolCard : UserControl
 {
     private int _version;
+    private (string Path, ulong Seed)? _previewIdentity;
     private ItemsControl? _host;
     public static readonly DependencyProperty ViewModelProperty = DependencyProperty.Register(
         nameof(ViewModel), typeof(StationReloadToolCard), typeof(StationMultiToolCard),
@@ -55,6 +56,8 @@ public sealed partial class StationMultiToolCard : UserControl
         int version = ++_version;
         var tool = ViewModel;
         if (tool is null) return;
+        if (_previewIdentity == (tool.ModelPath, tool.ModelSeed)) return;
+        _previewIdentity = null;
         Preview.ShowMessage("Building preview...");
         PreviewNote.Text = "Building preview...";
         try
@@ -77,6 +80,7 @@ public sealed partial class StationMultiToolCard : UserControl
             if (version != _version || !IsLoaded) return;
             Preview.Show(mesh, material => ShipPartsService.MaterialColour(material, ShipPartsService.Look),
                 material => textures.GetValueOrDefault(material));
+            _previewIdentity = (tool.ModelPath, tool.ModelSeed);
             PreviewNote.Text = "Drag to rotate. Colours may differ slightly from the game.";
         }
         catch (Exception error)

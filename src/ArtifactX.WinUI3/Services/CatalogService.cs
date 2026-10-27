@@ -27,11 +27,13 @@ public static class CatalogService
     /// rebuilt (GameDataService). Call on the UI thread; pages pick the new
     /// catalog up as they load.</summary>
     private static Dictionary<string, IReadOnlyList<string>>? _namingWords;
+    private static volatile IReadOnlyDictionary<string, string>? _moduleClasses;
 
     public static void Reload()
     {
         Cache.Clear();
         _namingWords = null;
+        _moduleClasses = null;
         _pathChecked = false;
         _dbPath = null;
     }
@@ -191,6 +193,46 @@ public static class CatalogService
                 TemplateType = row.TemplateType,
             };
         }
+    }
+
+    /// <summary>
+    /// The class badge the game draws on a procedural upgrade module ("UP_LASERX#92128" -> "X"),
+    /// from the catalog's extracted quality: Normal/Rare/Epic/Legendary/Illegal = C/B/A/S/X.
+    /// Sentinel, Robot and SeaTrash modules have no letter mapping yet and return null,
+    /// as does every non-module item and a catalog built before format 43.
+    /// </summary>
+    public static string? ModuleClassLetter(string? gameId)
+    {
+        if (string.IsNullOrEmpty(gameId) || !gameId.Contains('#')) return null;
+        var classes = _moduleClasses ??= LoadModuleClasses();
+        return classes.GetValueOrDefault(NormalizeId(gameId));
+    }
+
+    private static IReadOnlyDictionary<string, string> LoadModuleClasses()
+    {
+        var classes = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (ResolveDbPath() is not string dbPath) return classes;
+        try
+        {
+            using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT GameId, ModuleQuality FROM Items WHERE ModuleQuality IS NOT NULL";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                string? letter = reader.GetString(1) switch
+                {
+                    "Normal" => "C", "Rare" => "B", "Epic" => "A", "Legendary" => "S", "Illegal" => "X", _ => null,
+                };
+                if (letter is not null) classes[reader.GetString(0)] = letter;
+            }
+        }
+        catch (SqliteException ex)
+        {
+            Debug.WriteLine($"[CatalogService] Module classes unavailable (catalog before format 43?): {ex.Message}");
+        }
+        return classes;
     }
 
     /// <summary>The technology id a packaged-tech "UP_" id was cut from: an exact

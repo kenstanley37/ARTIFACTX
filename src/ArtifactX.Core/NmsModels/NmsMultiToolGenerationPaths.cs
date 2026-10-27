@@ -51,12 +51,17 @@ public static class NmsMultiToolGenerationPaths
     /// A false flag proves the early return regardless of season activity; true
     /// remains unknown without address/distance checks. Live/network season-data
     /// replacement is outside this saved-reload scenario.
+    /// After the debug override, the predicate (0x141643500..0x141643538) returns false
+    /// unless the active game mode is Unspecified or Seasonal, so the saved Main context
+    /// resolves standard even when a leftover season block has EqZ=true (Slot 1, 2026-10-27).
     /// </summary>
     public static bool? ReadSavedLegacyStationRule(JObject? saveRoot, StationEquipmentTables tables)
     {
         bool? nearStart = saveRoot?["<h0"] is JObject common && common["Rol"] is JObject season
             && season["EqZ"] is { Type: JTokenType.Boolean } flag ? flag.Value<bool>() : null;
-        return StationRootSelection.ResolveLegacy(tables, null, nearStart);
+        bool? seasonalRulesActive = saveRoot?[NmsSaveContext.ActiveContextKey] is { Type: JTokenType.String } context
+            && context.Value<string>() == "Main" ? false : null;
+        return StationRootSelection.ResolveLegacy(tables, seasonalRulesActive, nearStart);
     }
 
     /// <summary>
@@ -87,6 +92,10 @@ public static class NmsMultiToolGenerationPaths
     /// Main and Season. A populated inactive expedition does not establish activity.
     /// This resolves snapshot ownership only; seasonal station-scene rules and live
     /// reload state must still be established separately.
+    /// High-grade module rolls (0x140ec4602) take the override chance only when the
+    /// active game mode (image+0x6E8D714) is Unspecified or Seasonal. Save load
+    /// 0x1404967F0..0x1404968B4 switches to Seasonal only for active season data, so
+    /// the Main context establishes the standard roll; Season remains unestablished.
     /// </summary>
     public static SavedMultiToolGenerationState? ReadActiveSavedState(JObject? saveRoot, int nativeWealth)
     {
@@ -102,7 +111,8 @@ public static class NmsMultiToolGenerationPaths
             || universe["6f="] is not JObject player
             || ReadSavedReloadAddress(player) is not { } address
             || ReadStandardGameState(player, nativeWealth) is not { } runtime) return null;
-        return new SavedMultiToolGenerationState(context!, address, runtime);
+        return new SavedMultiToolGenerationState(context!, address,
+            runtime with { HasVerifiedStandardIllegalModuleRoll = context == "Main" });
     }
 
     /// <summary>
@@ -136,7 +146,8 @@ public static class NmsMultiToolGenerationPaths
     /// 0x140573AF9 copies raw +0x83C90 to player +0x18820; stat adjustment
     /// 0x14057A9C7 looks up that ID for an additional bonus. Empty means absent
     /// (the save encodes an empty game ID as "^", also observed in Slot8);
-    /// any nonempty ID is conservatively unsupported, without guessing its effects.
+    /// Nonempty IDs retain the guard and the product identity; display generation can
+    /// resolve the catalog's FoodBonusStat before deciding whether its effects matter.
     /// Field mapping and read-only Slot8 snapshot checked 2026-10-26. A saved
     /// snapshot does not establish the current consumable state of a running game.
     /// </summary>
@@ -145,7 +156,8 @@ public static class NmsMultiToolGenerationPaths
         if (playerState?[FoodUnitItemKey] is not { Type: JTokenType.String } token
             || token.Value<string>() is not { } id || id.Any(char.IsWhiteSpace)) return null;
         if (id.StartsWith('^')) id = id[1..];
-        return ReadStandardGameState(playerState, nativeWealth, id.Length != 0);
+        return ReadStandardGameState(playerState, nativeWealth, id.Length != 0)
+            is { } runtime ? runtime with { ActiveFoodUnitItemId = id.Length == 0 ? null : id } : null;
     }
 
     public static MultiToolGenerationRuntime? ReadStandardGameState(JObject? playerState, int nativeWealth,

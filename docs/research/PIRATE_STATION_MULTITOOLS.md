@@ -246,3 +246,80 @@ The second cabinet remains 3402.9 / 319.4. Both match the supplied screenshots.
 The runtime guard also returned true against the running game. In-app
 confirmation of the newly included cabinet still requires the owner to rebuild
 game data and run the new build. Existing standard/pirate regression checks pass.
+
+
+### Unrelated food target guard (2026-10-27)
+
+After the autosave session-identity fix, Iljeark-Ats V (0090FF67B292) showed no
+station tools. Read-only Slot 8 inspection found FoodUnitItem `^FOOD_DNUT_AJAM`.
+The product table maps this product's FoodBonusStat to stat 61 (fauna rewards),
+which is not an input to the displayed damage maximum or scanner radius.
+
+Native 0x14057a9ed..0x14057a9f6 compares ProductData+0x1BC against the exact
+stat ID at the evaluated stat entry+8. A mismatch skips food-bonus computation.
+605 native executions (all 11 displayed-stat inputs, 55 values each) returned
+bit-identical input values with food stat 61. A matching stat-61 control invoked
+the food-bonus helper, proving that the mismatch check is being exercised.
+No claim is made about the amount/formula for a matching food target.
+
+Catalog format 42 appends ProductFoodBonusStats to the multi-tool technology
+metadata, extracted from product data without hardcoded food IDs. Saved runtime
+inputs retain the normalized product identity. Both station and individual-record
+guards permit only a catalog-known target outside the damage/scanner input set.
+Missing metadata, unknown products and relevant targets remain unsupported.
+An explicit special-modifier flag without an identified food remains guarded.
+
+Using the actual saved food context, the full address-to-record pipeline returns
+two C-class Poem of Supplication records: 1362.7/200.1 and 1362.7/206.6. Both now
+have owner-provided cabinet screenshots confirming those values. This does not
+replace the need to test the newly visible cards after the format-42 data rebuild.
+
+
+### All special-quality modules and the save-derived roll context (2026-10-27)
+
+The quality branch at `0x140ec45de` reads the procedural row's quality (+0x7C):
+4 (Illegal), 5 (Sentinel) and 6 (Robot) enter the high-grade path at `0x140ec4602`;
+0..3 and 7 (SeaTrash) skip directly to the ordinary roll at `0x140ec4703`. The
+weapon candidate pool contains UP_LASERX, UP_SCANX, UP_BOLTX, UP_GRENX, UP_TGRENX,
+UP_RAILX, UP_SHOTX, UP_SMGX, UP_CANNX (quality 4), UP_SENGUN (5) and UP_LASER0,
+UP_SCAN0, UP_BOLT0 (7). Only UP_SCANX and UP_SCAN0 were previously accepted, so any
+other winner dropped the whole cabinet. `RollOrdinaryStats` now applies the native
+rule by quality. Scratch `x-all-oracle.py` captured 7,800 native rolls for all 13
+modules at chance 0, 10 and 100; all match bit for bit, as do the 7,403 ordinary
+rolls. `x-selection-oracle.py` reran the ranking/insertion oracles with those rolls
+available (the earlier files stopped at any special-quality roll): 500/500
+loadouts match, 161 containing special-quality modules.
+
+The override at `0x140ec4602` reads the **active** game mode at image+0x6E8D714
+(`mov eax,[rip+0x5FC910C]`, next instruction 0x140EC4608). image+0x6E8D718 is the
+pending mode, copied in and reset to 7 at `0x1405D5B60`; the earlier live guard read
+the pending value, so its mode clause always passed. The override applies only for
+mode 0 (Unspecified) or 6 (Seasonal, vendored `GcGameMode`) together with season-data
+flags. Save load `0x1404967F0..0x1404968B4` switches to Seasonal only when season
+data is active. `ReadActiveSavedState` therefore marks the Main context as the
+standard roll; the Season context still depends on the corrected live guard and is
+otherwise omitted. Not yet observed in game: a cabinet with a non-scanner
+special-quality module. The next owner screenshot of one should be added as a reference.
+
+### Legacy predicate game-mode gate and first non-scanner X reference (2026-10-27)
+
+Owner's Slot 1 (Main context) showed no station tools in Kettsibu, Noturbo Spur,
+Euclid (system 0x2005C6DC00C). Its CommonStateData season block carries
+EqZ (UseLegacyStationsNearStartUA) = true with radius 375.3, so the saved legacy
+rule was unknown and the whole section was hidden. The predicate `0x1416434D0`
+checks the debug override, then reads the active game mode at image+0x6E8D714
+(`0x141643500`) and returns false unless it is 0 (Unspecified) or 6 (Seasonal),
+before the season-validity helper or EqZ. `ReadSavedLegacyStationRule` now
+resolves the Main context as standard; Season with EqZ=true remains unknown.
+
+With that, the full saved-request pipeline produces both cabinets, matching the
+owner's screenshots:
+
+| Tool | Class | Damage | Scanner | Installed |
+| --- | --- | --- | --- | --- |
+| Angle Balancer DP3/V15 | C | 1347.8 | 225.3 | SCAN1, SCANBINOC1, LASER, BOLT |
+| Rizamakho's Waveform Focuser | A | 480.0 (live duration 0; 432.3 standard) | 224.8 | SCAN1, SCANBINOC1, LASER, STRONGLASER, UP_LASERX#92128, UP_LASER1#92128 |
+
+Sites 0x099DA7A02F389FE9 / 0xCC7FF3F9D6646186; model seeds 0x82443F82B152F289 /
+0x19308F219B46C487. This is the first in-game confirmation of a non-scanner
+quality-4 module (UP_LASERX, four stats).

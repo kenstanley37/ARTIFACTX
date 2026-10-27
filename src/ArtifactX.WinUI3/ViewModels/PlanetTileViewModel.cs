@@ -4,6 +4,7 @@ using ArtifactX.WinUI3.ViewModels.ExploreViewModels;
 using CommunityToolkit.Mvvm.ComponentModel;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
@@ -14,6 +15,16 @@ namespace ArtifactX.WinUI3.ViewModels;
 /// as you play, so the card doesn't redraw (no blink).</summary>
 public sealed partial class PlanetTileViewModel : ObservableObject
 {
+    /// <summary>Static card content only; live counts and coordinates update on the retained row.</summary>
+    public bool HasSamePresentation(PlanetTileViewModel other) =>
+        Planet == other.Planet && IsHere == other.IsHere
+        && new[] { Eyebrow, Name, OriginalName, TypeText, BasesLabel, Bases, FoundBy, Weather,
+            Sentinels, Flora, Fauna, Resources, DetailsSummary }.SequenceEqual(
+            new[] { other.Eyebrow, other.Name, other.OriginalName, other.TypeText, other.BasesLabel,
+                other.Bases, other.FoundBy, other.Weather, other.Sentinels, other.Flora, other.Fauna,
+                other.Resources, other.DetailsSummary })
+        && (Fish is null ? other.Fish is null : other.Fish is not null && Fish.HasSamePresentation(other.Fish));
+
     public PlanetTileViewModel(KnownPlanet planet, bool here, IReadOnlyList<string> baseNames, PlanetFishViewModel? fish,
         IReadOnlyDictionary<string, string> itemNames)
     {

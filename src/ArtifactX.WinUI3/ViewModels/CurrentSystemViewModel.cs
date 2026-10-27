@@ -1,3 +1,5 @@
+using ArtifactX.Core.Collections;
+using System.Collections.ObjectModel;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.Core.Universe;
 using ArtifactX.WinUI3.Services;
@@ -65,10 +67,18 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     private Dictionary<string, (uint Count, float Largest)> _caught = new(StringComparer.OrdinalIgnoreCase);
     private PlanetVocabulary? _vocabulary;
     private bool _descriptorsLoaded;
+    private byte[]? _pictureBytes;
+    private ulong? _pictureSystem;
+    private int _pictureVersion;
 
     public CurrentSystemViewModel()
     {
         Notes.MoonsChanged += Build;
+        Tiles.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(NoPlanets));
+            OnPropertyChanged(nameof(PlanetSectionSummary));
+        };
     }
 
     public StationMultiToolsViewModel StationTools { get; } = new();
@@ -87,7 +97,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     [ObservableProperty] public partial IReadOnlyList<KnownPlanet> Bodies { get; private set; } = [];
     [ObservableProperty] public partial IReadOnlyList<SystemDataRow> SystemData { get; private set; } = [];
     [ObservableProperty] public partial IReadOnlyList<UnmatchedBodyViewModel> Unmatched { get; private set; } = [];
-    [ObservableProperty] public partial IReadOnlyList<PlanetTileViewModel> Tiles { get; private set; } = [];
+    public ObservableCollection<PlanetTileViewModel> Tiles { get; } = new();
     [ObservableProperty] public partial ImageSource? SystemPicture { get; private set; }
 
     [ObservableProperty]
@@ -125,11 +135,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
     partial void OnStationChanged(string value) => OnPropertyChanged(nameof(HasStation));
     partial void OnUnmatchedChanged(IReadOnlyList<UnmatchedBodyViewModel> value) => OnPropertyChanged(nameof(HasUnmatched));
-    partial void OnTilesChanged(IReadOnlyList<PlanetTileViewModel> value)
-    {
-        OnPropertyChanged(nameof(NoPlanets));
-        OnPropertyChanged(nameof(PlanetSectionSummary));
-    }
     partial void OnSystemPictureChanged(ImageSource? value)
     {
         OnPropertyChanged(nameof(HasPicture));
@@ -228,14 +233,31 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
     public async Task RefreshPictureAsync()
     {
-        if (SystemAddress is not ulong system) { SystemPicture = null; return; }
-        // Read into memory so a newer picture can replace the file while it's shown.
+        int version = ++_pictureVersion;
+        if (SystemAddress is not ulong system)
+        {
+            _pictureSystem = null;
+            _pictureBytes = null;
+            SystemPicture = null;
+            return;
+        }
+        // Read off the UI thread, but retain the existing image when the bytes did not change.
         byte[]? bytes = await Task.Run(() => ScreenCaptureLogService.SystemPicture(system) is string path && File.Exists(path) ? File.ReadAllBytes(path) : null);
-        if (SystemAddress != system) return;
-        if (bytes is null) { SystemPicture = null; return; }
+        if (SystemAddress != system || version != _pictureVersion) return;
+        if (bytes is null)
+        {
+            _pictureSystem = system;
+            _pictureBytes = null;
+            SystemPicture = null;
+            return;
+        }
+        if (_pictureSystem == system && _pictureBytes is not null && bytes.AsSpan().SequenceEqual(_pictureBytes)) return;
         var image = new BitmapImage();
         using var stream = new MemoryStream(bytes);
         await image.SetSourceAsync(stream.AsRandomAccessStream());
+        if (SystemAddress != system || version != _pictureVersion) return;
+        _pictureSystem = system;
+        _pictureBytes = bytes;
         SystemPicture = image;
     }
 
@@ -271,7 +293,10 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             Bodies = [];
             SystemData = [];
             Unmatched = [];
-            Tiles = [];
+            Tiles.Clear();
+            ++_pictureVersion;
+            _pictureBytes = null;
+            _pictureSystem = null;
             SystemPicture = null;
             return;
         }
@@ -300,11 +325,15 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         Sub = (planets.Count == 0 ? $"{galaxyText} · no planets discovered here yet" : $"{galaxyText} · {bodies} · {where}")
             + $" · about {NmsPlanets.DistanceToCoreLightYears(system):N0} ly from the galaxy core";
         SystemCode = S.PortalAddress(system, 0);
-        Bodies = planets;
-        SystemData = BuildSystemData(system, note, station);
+        if (!Bodies.SequenceEqual(planets)) Bodies = planets;
+        var data = BuildSystemData(system, note, station);
+        if (!SystemData.SequenceEqual(data)) SystemData = data;
         Market.Show(system);
         ulong portalCode = UniverseInfo.PortalCode(system, 0);
-        Unmatched = BuildUnmatched(system, planets);
+        var unmatched = BuildUnmatched(system, planets);
+        if (Unmatched.Count != unmatched.Count || Unmatched.Zip(unmatched).Any(pair =>
+            pair.First.Held != pair.Second.Held || !pair.First.Bodies.SequenceEqual(pair.Second.Bodies)))
+            Unmatched = unmatched;
 
         // Every body, discovered or not: the ones nobody has found yet with the type the
         // game's own generator gives them (PlanetTypesService).
@@ -315,13 +344,15 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         var known = planets.Select(p => p.PlanetIndex).ToHashSet();
         var allBodies = planets.Concat(PlanetTypesService.Undiscovered(system, known)).OrderBy(p => p.PlanetIndex).ToList();
 
-        Tiles = allBodies.Select(p =>
+        var tiles = allBodies.Select(p =>
         {
             var fish = _vocabulary is null ? null
                 : PlanetFishViewModel.For(p, _vocabulary.Fish, _caught, id => PlanetText.FishName(id, _vocabulary.ItemNames));
             return new PlanetTileViewModel(p, p.PlanetIndex == CurrentPlanet, bases.GetValueOrDefault(p.PlanetIndex) ?? [], fish,
                 _vocabulary?.ItemNames ?? new Dictionary<string, string>());
         }).ToList();
+        ObservableCollectionSync.Apply(Tiles, tiles, tile => tile.Planet.Address,
+            (current, next) => current.HasSamePresentation(next));
         UpdateTiles();
         _ = RefreshPictureAsync();
     }

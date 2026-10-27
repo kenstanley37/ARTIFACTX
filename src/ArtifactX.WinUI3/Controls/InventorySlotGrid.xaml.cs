@@ -219,11 +219,36 @@ public sealed partial class InventorySlotGrid : UserControl
                 };
                 content.Children.Add(amountLabel);
 
+                // The game marks every rolled upgrade module with its class (C/B/A/S/X);
+                // without it an X-class module looks like an ordinary one (user, 2026-10-27).
+                string? moduleClass = CatalogService.ModuleClassLetter(cell.ItemId);
+                if (moduleClass is not null)
+                    content.Children.Add(new Border
+                    {
+                        Width = 16,
+                        Height = 16,
+                        CornerRadius = new CornerRadius(3),
+                        Background = ThemeResources.ClassBrush(moduleClass),
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        VerticalAlignment = VerticalAlignment.Bottom,
+                        IsHitTestVisible = false,
+                        Child = new TextBlock
+                        {
+                            Text = moduleClass,
+                            FontSize = 10,
+                            FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                            Foreground = new SolidColorBrush(Colors.White),
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            VerticalAlignment = VerticalAlignment.Center
+                        }
+                    });
+                string classSuffix = moduleClass is null ? "" : $" - {moduleClass}-class upgrade";
+
                 border.Child = content;
                 border.ContextFlyout = BuildOccupiedFlyout(border, cell);
                 ToolTipService.SetToolTip(border, isDamaged
                     ? "Malfunctioning - right-click to repair"
-                    : $"{cell.DisplayName ?? entry?.DisplayName ?? cell.ShortLabel} ({cell.ItemId})\nRight-click for options - edit, duplicate, remove");
+                    : $"{cell.DisplayName ?? entry?.DisplayName ?? cell.ShortLabel}{classSuffix} ({cell.ItemId})\nRight-click for options - edit, duplicate, remove");
 
                 border.CanDrag = true;
                 border.DragStarting += (_, args) =>
@@ -293,6 +318,8 @@ public sealed partial class InventorySlotGrid : UserControl
                 string label = cell.IsOccupied
                     ? cell.DisplayName ?? CatalogService.TryGet(cell.ItemId)?.DisplayName ?? "Technology"
                     : cell.State == InventorySlotState.Locked ? "Locked slot" : "Empty slot";
+                if (cell.IsOccupied && CatalogService.ModuleClassLetter(cell.ItemId) is { } readOnlyClass)
+                    label += $" - {readOnlyClass}-class upgrade";
                 if (cell.IsSupercharged) label += " - Supercharged";
                 label += $"\nRow {cell.Y + 1}, column {cell.X + 1}";
                 ToolTipService.SetToolTip(border, label);
