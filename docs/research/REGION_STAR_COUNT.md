@@ -45,6 +45,27 @@ Goal: know exactly which system indices exist in a region, so Galaxy Search
   scratchpad `emu/`), confirm the emitted count and order against the owner's Noturbo Spur
   mapping, then port the loop.
 
+### Emulated and validated (2026-10-27)
+
+Unicorn harness (session scratchpad `regionemu.py`, `regionbatch.py`, on Codex's
+`emu_sys.py` + `globals.py`): calls `0x141367810(regionAddress, slot, &offset)` with the
+per-star callback replaced by a recorder that bumps the callback's counter word.
+
+- The simplex noise reads a 16-entry float4 gradient table at `0x1459245E0` that is BSS
+  in the file. Startup initializers fill `0x145924420..0x1459246D0`; run them first:
+  `0x1401997A0, 0x140199890, 0x1401998A0, 0x1401998B0, 0x1401998C0, 0x140199930,
+  0x140199990, 0x1401999D0`. Without them every density is 0.5 and only the 122 fixed
+  stars (120 guide + black hole + Atlas, callback flag 0) are emitted.
+- Callback flag 0 = the fixed stars, flag 1 = density-grid and purple stars.
+- **Correction:** purple systems are numbered **1001..1065** (counter + 1, like every
+  star), not 1000..1064.
+- Noturbo Spur (Euclid, region X 0x00C / Y 0x5C / Z 0x6DC): **N = 540** ordinary systems
+  (1..540, contiguous) + 65 purple. All 165 systems in the owner's Slot 1 discovery
+  records are in the emitted set.
+- Every region in the Slot 1 discovery records (38 real regions across 7 galaxies):
+  all visited indices are emitted. N ranges 242..579; several regions have visits close
+  to N (506 vs 535, 474 vs 524). The only "misses" are the 0/0/0 placeholder address.
+
 ## Next
 
 1. Find the job that fills a slot (writes `dword [slot+0]` and the `+0x200` container):
