@@ -133,6 +133,19 @@ ported exactly; validate per cell against emulator hooks.
 - Edges are emitted once each (hash set), face rows 0..5 in column order, as
   `(P[i]*50, P[m]*50)` float4 pairs into `slot+0x1D0`.
 
+### Step 2 ported: fixed-star draw consumption (2026-10-27)
+
+Scratch `fixedport.py`: the region MWC state after the fixed stars matches the emulator for
+59/60 regions; the miss is 0/0/0, inside the goal gap, where the generator returns before
+any draw (`[voxel+0x8C]` InsideGoalGap -> `0x141367C1C` exits; N = 0). Voxel attributes
+`0x14132AC60`: TransitPopulationDistanceRange (5, 10), PerpDistance 5, Atlas 1, black
+hole 1, guide minimum 0x78, all zeroed inside the gap (integer distance
+`sqrt(x²+y²+z²)` < `GcGameplayGlobals.GoalGapVoxelDist`, +0x15F4); RegionColourValue
+from noise `0x142D768F0`. Draws: seed (galaxy byte as hi), 1 setup draw; loop 1 per
+segment: `len` = f32 sqrt(z² + (y² + x²)), `min = 1/(len/5)`, `max = 1/(len/10)`, skip if
+min > 1, `t = min`, per star 5 draws (`0x14136A020`) then `t += draw*(max-min) + min`
+while `t <= 1`; loop 2: 7 draws for each of the remaining `122 - loop1` stars.
+
 ## Next
 
 1. Find the job that fills a slot (writes `dword [slot+0]` and the `+0x200` container):
