@@ -84,3 +84,5 @@ Thumbs.db
 # External libraries (MBINCompiler, libMBIN, etc.)
 src/ArtifactX.Tools/External/
 src/ArtifactX.Tools/External/**
+# MSBuild binary logs
+*.binlog
