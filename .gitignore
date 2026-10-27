@@ -86,3 +86,9 @@ src/ArtifactX.Tools/External/
 src/ArtifactX.Tools/External/**
 # MSBuild binary logs
 *.binlog
+
+# Extracted game files and research outputs (never commit game data)
+*.mbin
+*.MBIN
+scripts/research/**/*.json
+scripts/research/**/*.log
