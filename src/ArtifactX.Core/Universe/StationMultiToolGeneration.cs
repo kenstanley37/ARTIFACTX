@@ -44,7 +44,7 @@ public static class StationMultiToolGeneration
             // Pirate geometry, identity, class and scanner are independently checked.
             // The default OVERHEAT damage model does not reproduce the pirate reference;
             // retain the record but do not expose that unverified damage value.
-            if (tool is not null) result.Add(request.Pirate ? tool with { HasSupportedDamagePotential = false } : tool);
+            if (tool is not null) result.Add(request.Pirate && !tool.UsesLivePreviewState ? tool with { HasSupportedDamagePotential = false } : tool);
         }
         return result;
     }

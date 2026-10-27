@@ -113,3 +113,136 @@ question is the actual live controller/name/resource state when the preview
 returns zero duration. Standard-duration and zero-duration arithmetic are both
 reproduced, but selecting one from class, station type or the offered grid alone
 would be an unsupported inference.
+
+## Native resource-readiness reproduction (2026-10-26)
+
+The duration functions read **FrameEndGame** (+0xC8), not configured FrameEnd
+(+0xC4). Both extracted standard overheat entries have FrameEnd=160,
+FrameStart=0, FrameEndGame=0 and Speed=1. `0x142D555D0` uses FrameEndGame for
+an unresolved animation handle; `0x142D55C80` also uses it on a resolved active
+animation. Consequently, the raw catalog FrameEnd calculation assumes runtime
+initialization that the preview cannot establish from an offered inventory.
+
+The native initialization fragment `0x142D3C29F`..`0x142D3C30F` checks the resource
+handle array at owner+0x40. A zero handle skips the FrameEndGame assignment. A
+nonzero handle asks `0x14183F6C0` for frame count and writes FrameEndGame as the
+configured end when valid, otherwise frameCount-1. With the extracted 161-frame
+resource and configured end 160, this writes 160. The alternate initialization
+path `0x142D5715F`..`0x142D57188` applies the same clamp.
+
+The scratch `station-damage-readiness-references.py` executes that actual native
+initialization fragment, the actual animation duration lookup/fallback, and the
+complete native weapon-mode maximum. The host supplies resource readiness,
+frame count, lookup handles, and inventory/module data; this is not a live-game
+capture. The generated Kiss/Return inventory and module rolls come from the
+previous exact system diagnostic, including their supercharged coordinates.
+
+| Reference | Resource absent, runtime end 0 | Resource present, runtime end 160 |
+| --- | --- | --- |
+| Return of War | 1347.8 | 1347.8 |
+| Kiss of Naryev-VI | 400.0 | 333.3 |
+| Bane of Silence | 420.0 | 352.3 |
+| Sleep of War | 400.0 | 333.3 |
+
+All eight native checks passed. This establishes a concrete engine mechanism
+for the observed discrepancies without changing class, technology, adjacency,
+supercharged slots or camera resources. It does **not** establish the live
+resource/controller state at the time of any supplied screenshot. Both camera
+resource files have the same 161 frames, so no camera-only correction follows.
+
+A static generated cabinet cannot establish this runtime readiness. Keep the
+unverified damage guard until a reliable runtime source or clearly differentiated
+preview-state presentation is implemented. Do not replace all laser values with
+the resource-absent maximum: that would break confirmed resource-present values
+such as Sleep of War 333.3 and Mass Needler 443.3. No production formula or
+presentation was changed during this follow-up.
+
+### Read-only live diagnostic
+
+`scripts/diagnostics/read_multitool_damage_state.py` uses only process query/read
+access (0x410), never injection, game-function execution, remote allocation or
+memory writes. It verifies the traced maximum routine's prologue before following
+build-specific pointers, limits the animation count to 2048, and prints only the
+primary mode and OVERHEAT/OVERHEAT_3P frame fields. Errors are caught without a
+native application-error dialog. Run with Python on Windows while NMS is open:
+
+```powershell
+python scripts/diagnostics/read_multitool_damage_state.py
+```
+
+The initial local attempt reported that NMS was not running or not visible.
+The diagnostic is ready for the next live cabinet observation. A zero runtime
+frame end with a present configured end would directly support the initialization
+mechanism; other results require following the active animation-handle path.
+
+### Live observation and guarded correction
+
+The user started NMS during this follow-up. The read-only diagnostic observed
+mode 20 (Gravity, from the current vendored enum), 34 animation entries, and no
+OVERHEAT or OVERHEAT_3P. Names included IDLE, GRV_EQUIP, GRV_TARGET_IDLE, GRV_GRAB,
+GRV_GRAB_IDLE, GRV_IDLE, GRV_THROW and GRV_PUSH, confirming the sampled table's
+meaning. The user reported Geometric Loop Needler at 1370.2 damage and 206.9
+scanner in the currently open cabinet. That projectile-dominated value does not
+distinguish the two duration states; no direct live observation of Bane/Kiss's
+higher value was obtained in this follow-up.
+
+The production input service now supports exactly the unambiguous absent-name
+case. It opens the process with query/read access only, validates the complete
+executable SHA-256 and the running comparison-call bytes, validates animation
+names/counts and resamples identity fields to reject an interrupted switch. It
+returns zero only when both overheat names are absent. Present animations,
+unsupported binaries, inaccessible processes and changing/invalid layouts return
+unknown. No camera state is guessed and no game functions are executed.
+
+The Core runtime accepts an explicit validated nonnegative duration; the station
+service supplies it only after the guarded read succeeds. The output marks live
+preview-state usage, and the hint explains that damage reflects the current game
+preview state. A proven duration also permits pirate damage to be displayed.
+Without it the existing standard assumption/pirate guard remains unchanged.
+
+The C# input service was run separately against the live game and returned zero.
+Composed pipeline tests reproduce Bane 420.0, Kiss 400.0 and Return 1347.8 with
+that input; negative, NaN and infinite durations are rejected. Existing default
+reference and native regression checks still pass. Present-animation readiness
+remains unresolved and is deliberately not read as a fabricated duration.
+
+
+### Inactive animation durations and missing X-scanner cabinet (2026-10-27)
+
+The runtime reader also supports present but inactive overheat definitions. Native
+handle lookup uses the active mask at table+0xE4 and definition indices in 16
+slots at table+0x244 with stride 0x180. When neither requested definition has an
+active handle, duration uses FrameStart, FrameEndGame, Speed and the 30/60 Hz
+period. All 128 native timing vectors matched exactly. Active overheat handles,
+differing camera-name durations and changing samples remain unsupported. This
+supersedes the earlier absent-name-only limitation above. The user subsequently
+confirmed the corrected build matches both Himizumi cabinets in game.
+
+Nakaok-Anj (0083FF67B291) has two distinct cabinets sharing model seed
+0x18F03D972E6840A1 and name Overload of Vimestvie-IX. Site
+0x47878890288B0A9B was dropped because its UP_SCANX module has quality 4;
+site 0xF56F67CEEDE57303 resolved normally. This was not name deduplication.
+
+Quality 4 takes an extra chance draw at 0x140ec4847 before the ordinary count
+roll. The threshold is GcPlayerGlobals.ChanceHighGradeIllegal, extracted as
+IllegalModuleHighGradeChance in catalog format 41 (10 in the tested install).
+Successful high-grade draws maximize count while retaining RNG consumption;
+each stat then consumes a second uniform draw and uses the interval selected
+by its weighting-curve index. Native comparisons cover 203 suffixes at each
+of chance 0, extracted chance 10 and chance 100: 609 exact count/order/level/
+float matches. Missing or invalid catalog chances remain unsupported.
+
+The live read-only guard validates the executable and native branch bytes,
+rejects forced-best debug mode and establishes that the network/perk branch
+at 0x140ec4602..0x140ec4636 is inactive. Without that proof the composed
+located-record path continues to omit X-scanner tools. No game function is
+called and no game memory, save or installed catalog is modified.
+
+Using the extracted format-41 tables, the full located-record diagnostic now
+resolves site 0x47878890288B0A9B as A-class, 26 unlocked slots, seven installed
+technologies, damage 440.0 with live duration zero and scanner 221.5. Its
+UP_SCANX suffix is 70472 and has fauna/flora/mineral rewards, no radius bonus.
+The second cabinet remains 3402.9 / 319.4. Both match the supplied screenshots.
+The runtime guard also returned true against the running game. In-app
+confirmation of the newly included cabinet still requires the owner to rebuild
+game data and run the new build. Existing standard/pirate regression checks pass.

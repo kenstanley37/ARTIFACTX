@@ -1,6 +1,6 @@
 # ArtifactX Issues Log & Gameplay Feedback
 
-Synthesized from player gameplay notes (`ARTIFACTX_NOTES.odt`). Each item has been evaluated against current functionality, cross-referenced with existing GitHub issues, and articulated with clear problem statements and proposed technical solutions.
+Tracks player gameplay feedback, research gaps and planned features. Sources include `ARTIFACTX_NOTES.odt` and `ARTIFACTX_MAUI-10-26-2026.odt` (notes dated 2026-10-26, incorporated 2026-10-27). Existing GitHub links are retained; newly logged local entries do not imply a GitHub issue has been created. User reports and planned behavior are distinguished from verified implementations.
 
 ---
 
@@ -111,7 +111,7 @@ These items directly extend existing open GitHub issues:
 ### Feature 7: Consolidate / Deduplicate Stacks Across All Inventory Containers
 - **Note #19**
 - **Description**: Add a one-click "Deduplicate Stacks" action across all inventories.
-- **Details**: Scans Exosuit, Starship, Freighter, and Base Storage containers, automatically merging partial stacks of the same substance or product up to maximum stack sizes.
+- **Details**: Scans Exosuit, Starship, Freighter, and Base Storage containers, automatically merging partial stacks of the same substance or product up to maximum stack sizes. See Feature 34 for consistent per-container coverage and the follow-up from the 2026-10-26 notes.
 
 ### Feature 8: Inventory Sorting: Sort by Category/Type Then by Name
 - **Note #22**
@@ -203,6 +203,116 @@ These items directly extend existing open GitHub issues:
    - Favor focused custom controls and shared services over monolithic page code-behind files.
 3. **Stepwise Refactoring**:
    - Always perform architectural refactoring in discrete, verifiable stages on dedicated feature branches with zero-error build verification before merging.
+---
+
+## 6. Latest Player Notes (2026-10-25)
+
+Synthesized from the latest `ARTIFACTX_NOTES.txt`. Cross-referenced with open GitHub issues (see links). All items now have a tracking GitHub issue.
+
+### Feature 20: Race Language Word Tracking Accuracy
+- **GitHub**: [Issue #31](https://github.com/kenstanley37/ARTIFACTX/issues/31) (bug)
+- **Note #1**
+- **Problem**: The app reports that Gek (and possibly other race) words remain learnable, but in-game the player can no longer learn them. Word-count / learnability state in ArtifactX is out of sync with the game.
+- **Proposed Solution**: Audit language-word tracking against a controlled in-game diff (learn words, save, compare) and reconcile the "remaining words" calculation with the game's actual learnable-word state. Reuse the existing language-words page and `NmsLanguageWords` paths.
+
+### Feature 21: Expedition Rewards Editor — Include Latest Expedition
+- **GitHub**: [Issue #32](https://github.com/kenstanley37/ARTIFACTX/issues/32)
+- **Note #2**
+- **Problem**: The expedition rewards editor does not list the most recent expedition, so players cannot edit rewards for it.
+- **Proposed Solution**: Add the latest expedition's reward entries to the expedition rewards data source/catalog and editor list; verify against the current save's expedition history.
+
+### Feature 22: Offline AI-Generated Corvettes
+- **GitHub**: [Issue #38](https://github.com/kenstanley37/ARTIFACTX/issues/38) (long-term)
+- **Note #3**
+- **Problem**: Players want to generate Corvette (and other) ship builds from a text spec (e.g. "Star Wars Falcon") without an online service.
+- **Proposed Solution**: Long-term: train/run an offline model that produces ship part layouts from user specs. Requires research into feasible local model sizes and the Corvette save format (see Feature 19 / archived-ship schema work).
+
+### Feature 23: Always Show Player's Current In-Game Location
+- **GitHub**: [Issue #33](https://github.com/kenstanley37/ARTIFACTX/issues/33)
+- **Note #4**
+- **Problem**: The player's current location (galaxy, region, system, planet/space station/freighter) is not consistently visible across the app.
+- **Proposed Solution**: Surface the live location (from `LiveSaveWatcher` / `UniverseInfo`) in the title bar / a persistent status area on every page, including "On Freighter", "On Planet", station name, galaxy and region.
+
+### Feature 24: Planet Details — Exact Multi-Tool (and Ship) Locations and Details
+- **GitHub**: [Issue #35](https://github.com/kenstanley37/ARTIFACTX/issues/35) (also #34)
+- **Note #5**
+- **Problem**: Planet Details does not yet show every multi-tool location with its full details (XYZ coords, stats, image, class, etc.), nor equivalent details for ships.
+- **Proposed Solution**: Extend the procedural multi-tool/ship location research (Feature 17) so Planet Details renders each exact generated item with coordinates, class, stats and image, and the same for crashed ships. No candidate pools/odds — only decoded exact results.
+
+### Feature 25: Planet Details — Greyed Placeholders for Undiscovered Fauna, Flora and Minerals
+- **GitHub**: [Issue #36](https://github.com/kenstanley37/ARTIFACTX/issues/36)
+- **Note #6**
+- **Problem**: Creatures, flora and minerals are not shown until discovered, so the player cannot see how many remain.
+- **Proposed Solution**: Render all expected species/flora/minerals as greyed-out placeholder cards on Planet Details (extending Feature 4's fauna slot placeholders to flora and minerals), filling in colour once discovered.
+
+### Feature 26: Current System — Likely NPC Starships and Encounter Odds
+- **GitHub**: [Issue #37](https://github.com/kenstanley37/ARTIFACTX/issues/37)
+- **Note #7**
+- **Problem**: The Current System page does not show which NPC-driven ships can land in the system and their encounter chances.
+- **Proposed Solution**: Add a section listing possible NPC ships with their % chance to appear, derived from system data (research required).
+
+### Feature 27: Alliance Tracking
+- **GitHub**: [Issue #29](https://github.com/kenstanley37/ARTIFACTX/issues/29)
+- **Note #8**
+- **Problem**: No tracking of alliance members, individual contributions, or overall totals.
+- **Proposed Solution**: Research the NMS.exe save structure for alliance data (may require reverse engineering), then surface members, per-member contributions and totals in a dedicated page.
+
+### Feature 28: OBS Streaming Overlay
+- **GitHub**: [Issue #39](https://github.com/kenstanley37/ARTIFACTX/issues/39)
+- **Note #9**
+- **Problem**: Streamers cannot show live game details (portal glyphs, XYZ coords, planet, ship, freighter, station, galaxy/region/system) in OBS.
+- **Proposed Solution**: Provide a configurable overlay module whose visible fields the user can pick (glyphs, coords, planet, starship, freighter, station, galaxy, region, system).
+
+### Feature 29: Discord Bot as Background Worker in the API
+- **GitHub**: [Issue #40](https://github.com/kenstanley37/ARTIFACTX/issues/40)
+- **Note #10**
+- **Problem**: Discussion needed on a Discord bot running as a background worker in the ArtifactX API.
+- **Proposed Solution**: Design discussion first; then implement bot commands surfacing live game data via the API.
+
+### Feature 30: Code Signing Research
+- **GitHub**: [Issue #50](https://github.com/kenstanley37/ARTIFACTX/issues/50)
+- **Note #11**
+- **Problem**: Need the cheapest and best method for code signing releases.
+- **Proposed Solution**: Research free/low-cost options (SignPath.io OSS program is already deferred in project memory) and document a recommendation.
+
+### Feature 31: Auto-Explore (Automated Region Mapping)
+- **GitHub**: [Issue #43](https://github.com/kenstanley37/ARTIFACTX/issues/43) (long-term)
+- **Note #12**
+- **Problem**: Manual region mapping is tedious.
+- **Proposed Solution**: Automate: warp into a system, scan it, upload results, warp to the next system, repeating across the region (long-term).
+
+### Feature 32: Star Discovery Testing
+- **GitHub**: [Issue #16](https://github.com/kenstanley37/ARTIFACTX/issues/16)
+- **Note #13**
+- **Problem**: Star discovery behaviour in saves is not yet understood.
+- **Proposed Solution**: Controlled test: back up save, fly to and discover a star, save, then diff the save files to identify what changed. Document findings.
+
+### Feature 33: Group Storage Pages into a Single "Cargo" Page
+- **GitHub**: [Issue #51](https://github.com/kenstanley37/ARTIFACTX/issues/51)
+- **Note #14**
+- **Problem**: The left nav is growing too large; storage pages (cold storage, base storage, ingredient storage, corvette cache, etc.) are scattered.
+- **Proposed Solution**: Consolidate all storage-type pages into one "Cargo" page listing the cargo types. Freighter, Starships, Exosuit and Multi-Tool remain separate. Load each cargo inventory only when the user selects it (reuse existing UserControl).
+
+### Feature 34: Sort and Merge Duplicates on All Inventory Pages
+- **GitHub**: [Issue #52](https://github.com/kenstanley37/ARTIFACTX/issues/52)
+- **Note #15**
+- **Problem**: Inventory pages lack a consistent sort + "merge duplicates" action.
+- **Proposed Solution**: Add a sort and merge-duplicates button to every inventory-type page, building on Feature 7 (deduplicate stacks) and Feature 8 (category sort).
+- **2026-10-26 notes update**: Provide a clearly named "Merge All" action on every inventory/cargo page and container that supports stackable items. Audit all container types rather than limiting this to the main equipment pages; unsupported technology-only inventories should not offer a meaningless merge action.
+- **Implementation / validation**: Reuse shared stack-merging rules and inventory controls; stage edits through `SaveSessionManager.StageEdit`. Preserve item metadata and total quantities, respect each container's stack limits, and leave incompatible items separate. Verify partial stacks, full stacks, empty containers and containers with no mergeable items. This extends existing Features 7/34 and GitHub issue #52; it is not a new duplicate request.
+
+### Feature 35: Cold Storage — Search by Rarity and Show Rarity on Each Fish
+- **GitHub**: [Issue #54](https://github.com/kenstanley37/ARTIFACTX/issues/54)
+- **Note #16**
+- **Problem**: Cold Storage cannot be filtered by fish rarity, and rarity is not shown per fish.
+- **Proposed Solution**: Add rarity-type search/filter to Cold Storage and display each fish's rarity.
+
+### Feature 36: Fishing Page — Planet-Type-First Ordering
+- **GitHub**: [Issue #53](https://github.com/kenstanley37/ARTIFACTX/issues/53)
+- **Note #17**
+- **Problem**: Fishing lists "anywhere" fish mixed in; players want fish for the current planet type listed first.
+- **Proposed Solution**: Order the fishing list so the current planet type's fish come first, then "anywhere" fish, keeping each group in its own domain.
+
 
 ### Feature 37: Station Multi-Tool Technology Slots
 - **Status**: Grid implemented on `fix/station-multi-tool-coverage`; user confirmed the displayed slots match perfectly on 2026-10-26. Installed module-stat details remain follow-up work.
@@ -211,6 +321,83 @@ These items directly extend existing open GitHub issues:
 - **Validation**: Compare the displayed grid with the same cabinet in game, including installed module values and supercharged-slot positions.
 
 ### Bug 38: Station Multi-Tool Damage Depends on Unresolved Runtime Animation State
+- **Status**: Station work accepted for merge by the owner on 2026-10-27. Guarded runtime support handles absent and present-but-inactive overheat definitions; Himizumi and the missing Nakaok-Anj case are confirmed in game. Active overheat handles and differing camera-name durations remain unsupported, not guessed. Reopen for a new observed mismatch.
 - **Problem**: A station tool can show a different damage potential from the app despite matching identity, class, inventory and scanner range. Himizumi's Return of War matches at 1347.8, while Kiss of Naryev-VI shows 400.0 in game versus 333.3 with the app's standard-duration assumption.
 - **Evidence**: Native execution reproduces both supplied damage values with a shared zero animation duration; the ordinary duration reproduces the lower laser value. The live preview reads an animation controller shared by both comparisons. The actual cause of the zero-duration lookup is not yet verified.
-- **Next Step**: Establish the live animation-controller state or another reliable runtime input before changing generated damage values. Do not apply a blanket class, station-type or camera correction. See `docs/research/PIRATE_STATION_MULTITOOLS.md`.
+- **Native follow-up (2026-10-26)**: Resource initialization leaves FrameEndGame=0 when the animation handle is absent and fills it to 160 when present. Eight native checks reproduce the resource-absent/present results for Return of War, Kiss of Naryev-VI, Bane of Silence and Sleep of War. This establishes an engine mechanism, not the live state in the screenshots.
+- **Follow-up**: Station scope is closed for now; retain guards for unsupported runtime states and investigate fresh evidence if reported. Planetary cabinets/buildings proceed separately on `feature/planet-multi-tool-locations` (Feature 24). Bug 39 remains an open page-refresh UX issue. See `docs/research/PIRATE_STATION_MULTITOOLS.md`.
+
+### Bug 39: Unchanged Current System Updates Reset Scroll and Redraw Previews
+- **Problem**: The Current System page refreshes even when nothing has changed, returns the user to the top of the page, and repeatedly redraws the 3D previews. User reported 2026-10-27. This interrupts browsing and is poor UX.
+- **Expected**: Apply only meaningful changes in place. Preserve scroll position, expanded/collapsed sections and model rotation. Unchanged snapshots must not recreate cards, replace the page or rebuild previews.
+- **Investigation**: Trace the shared snapshot handler, CurrentSystemViewModel.Show and page navigation/rebinding. The station-card display-key guard alone has not prevented the page-level reset.
+- **Validation**: Stay scrolled down with a rotated model while repeated unchanged snapshots arrive; confirm no jump, reflow or preview rebuild. Then verify real system/stock changes still appear.
+
+
+### Bug 40: Station Cabinets with X-Class Scanner Upgrades Missing
+- **Status**: Confirmed working by the owner on 2026-10-27 after testing the updated build. Implemented on `fix/station-tool-damage-runtime`; catalog format 41 is required.
+- **Evidence**: Nakaok-Anj's two A-class Overload of Vimestvie-IX cabinets share a model/name but have different inventories. The missing cabinet's quality-4 scanner upgrade caused inventory generation to fail. Both physical sites were already located correctly.
+- **Correction**: Extract the illegal high-grade chance, reproduce the native extra draws and high-grade intervals, and require verified standard runtime conditions before displaying this cabinet.
+- **Validation**: 609 native scanner-module rolls match exactly; composed cabinet results match screenshot damage/scanner values 440.0/221.5 and 3402.9/319.4. Owner returned to the previously missing-tool case and confirmed "it is working" on 2026-10-27. This confirms the reported case, not every possible station or special upgrade.
+
+
+## 7. Companion and Helper-App Notes - 2026-10-26
+
+Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are backlog requirements, not completed features. The MAUI library requirement also comes from the owner's accompanying chat request. Preserve existing edits and validate companion save behavior in Slot 8 before enabling new writes.
+
+### Feature 41: Editable Companion Area Records
+- **Source note**: "Companion Area Records Editable".
+- **Request**: Allow users to inspect and edit companion area records.
+- **Research / scope**: Identify the exact records and their in-game meaning before choosing fields or controls. The note does not establish a schema, valid ranges or safe write behavior; do not infer these from raw key names.
+- **Acceptance**: Confirm the fields through controlled save comparisons, present meaningful labels, stage edits with revert support, and verify persistence in game. Put verified schema/validation in Core and reuse existing companion controls.
+
+### Feature 42: Companion 3D Preview and Actual Creature Name
+- **Source note**: "Companions to show 3D visual and real name of creature".
+- **Request**: Display the selected companion's actual creature name and a rotatable 3D preview representing that creature.
+- **Implementation**: Reuse the existing preview pipeline where compatible; investigate creature model, descriptor, seed, scale and colour inputs. Distinguish the creature/species name from the player's pet nickname. Do not invent names or substitute a generic model as an exact preview.
+- **Acceptance**: Compare names and appearance with the same companion in game; retain preview rotation while unrelated fields change and avoid rebuilding the model on every keystroke. Track unresolved model types explicitly.
+
+### Feature 43: Egg Sequencer Helper
+- **Source note**: "Egg Sequencer helper".
+- **Request**: Help players understand egg sequencing inputs and outcomes.
+- **Research / scope**: Establish supported ingredient effects, dose behavior and egg/parent inputs using extracted game data and controlled in-game tests. Separate known effects from uncertain predictions; exact outcome generation remains research until verified.
+- **Architecture**: Put reusable sequencing rules and result models in the shared libraries so both WinUI and a future MAUI helper can use them. Keep platform UI and local save access separate.
+- **Acceptance**: Compare supported predictions with in-game sequencer results; do not require a save edit merely to use the helper.
+
+### Feature 44: Bookmark Generated Tools, Starships and Entire Systems
+- **Source note**: Bookmark multi-tools or starships from Current System / Planet Details, or bookmark the entire system; reopen the bookmark to see all its details.
+- **Request**: Add persistent bookmarks at item and system level, with a details view reachable from each bookmark.
+- **Implementation**: Reuse Finds/bookmark infrastructure where it fits. Retain galaxy/system address, item/site identity, reload context, seed and available details needed to identify the same offering. Avoid deduplicating distinct cabinets solely by shared name or appearance. Keep recorded details available even if the game/catalog context later changes, and distinguish recorded facts from regenerated results.
+- **Acceptance**: Bookmark two same-name tools separately, a starship and an entire system; restart the app and reopen each with its details and location intact. Only offer bookmarking for records actually available on the relevant page; do not introduce speculative located items.
+
+### Feature 45: Complete Planet Creature List, Tameability and Verified Quality
+- **Source note**: List all creatures on a planet, show whether they are tamable, and highlight S-class creatures once creature logic is perfected.
+- **Request**: Show the planet's creature roster with verified tameability and, once supported, S-class highlighting.
+- **Dependency**: Feature 48. Existing fauna placeholders/captured discoveries (Features 4 and 25) are not proof that the full procedural roster, class or tameability is known.
+- **Acceptance**: Verify roster identity/counts and tameability against the game. Establish what "S-class" means for creatures before implementing labels or filters; do not transfer equipment quality rules to fauna without evidence. Until verified, show unknown states and retain captured records rather than fabricating missing creatures.
+
+### Bug 46: Companion Edits Are Not Detected Until Focus Leaves the Field
+- **Source note**: "Companions page doesn't detect changes until the user leaves the field".
+- **Status**: User-reported; reproduction and correction pending.
+- **Expected**: Valid edits update the staged/dirty state promptly while typing, without requiring focus loss. Handle incomplete numeric text without discarding input or staging invalid values; avoid a full companion reload per keystroke.
+- **Investigation / validation**: Check binding update triggers, validation and change notifications in companion controls/view-models. Type, paste, clear and revert values while staying in the field; confirm dirty-state feedback and the staged value are correct.
+
+### Bug 47: Companion Editing Is Laggy
+- **Source note**: "Companions is laggy to edit".
+- **Status**: User-reported; profiling pending. Related to Bug 46 but not yet proven to share its cause.
+- **Investigation**: Measure input latency and identify synchronous catalog/save work, repeated JSON walks, control reconstruction or preview regeneration in the edit path. Keep disk/catalog work off the UI thread and update only affected state.
+- **Acceptance**: Editing text, numbers and selections remains responsive with a populated companion record; selection, focus, caret and preview rotation survive unrelated changes. Verify staged edits and revert behavior remain correct.
+
+### Feature 48: Companion and Creature Logic Reverse Engineering
+- **Source note**: "Deep research is required on the Companions. We need total Reverse Engineering".
+- **Request**: Research companion/creature generation and save behavior deeply enough to support reliable editing, previews, naming, egg sequencing and planet creature information.
+- **Approach**: Track each subsystem separately: identity/names, model descriptors/parts, colours/scale, traits and area records, egg inheritance/sequencing, roster generation, tameability and any actual quality mechanic. Use extracted tables, native reference comparisons and controlled Slot 8 tests; record supported builds and unresolved runtime inputs.
+- **Architecture**: Put verified portable algorithms/models in Core and extraction in GameData. Expose tested inputs/results to each app through shared contracts; keep Windows process reads and UI code in platform services. Do not declare complete creature generation from OCR or a few matching seeds.
+- **Acceptance**: Maintain an evidence-backed support matrix and targeted regression references before enabling each dependent feature. Features 41 through 45 depend on their respective verified portions, not a single all-or-nothing research milestone.
+
+### Feature 49: Shared Libraries for a Future MAUI Helper App
+- **Source**: Owner's 2026-10-27 chat request accompanying the notes; the MAUI project will be added to this solution later as more NMS logic is understood.
+- **Current baseline**: Core, Almanac and GameData are separate `net10.0` library projects. WinUI references all three. This is a reuse foundation, not proof of mobile compatibility; GameData includes extraction/native dependencies that need platform review.
+- **Requirement**: Continue implementing and updating reusable NMS rules in libraries rather than duplicating them in pages or WinUI services. Reuse Core for portable generation/save-domain rules, Almanac for its existing shared reference models, and GameData for local game-data extraction/catalog building. See [architecture guidance](ARCHITECTURE.md#6-shared-libraries-and-future-maui-helper).
+- **Plan**: Before adding MAUI, define the helper's target platforms and supported workflows, then identify portable catalog/result contracts and platform adapters. Keep Windows process reading, game-install discovery, OCR, renderer controls and WinUI types outside portable domain APIs. Do not assume the helper can read a PC install/process or share desktop save-write capabilities.
+- **Acceptance**: The future helper consumes shared algorithms through project references with no dependency on WinUI; supported target builds and native package compatibility are verified. Avoid copying NMS logic or adding an empty MAUI project before the intended workflows/platforms are established.

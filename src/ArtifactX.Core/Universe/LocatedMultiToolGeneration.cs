@@ -8,7 +8,8 @@ public sealed record ResolvedStandardMultiTool(ulong ModelSeed, string ModelPath
 
 /// <summary>Native inputs, either explicit or resolved for standard game-state initialization.</summary>
 public sealed record MultiToolGenerationRuntime(int NativeWealth, int RequiredLevel,
-    IReadOnlySet<string> KnownTechnologies, bool CycleInventoryRows, bool HasActiveSpecialTechnology)
+    IReadOnlySet<string> KnownTechnologies, bool CycleInventoryRows, bool HasActiveSpecialTechnology,
+    float? PreviewOverheatDuration = null, bool HasVerifiedStandardIllegalModuleRoll = false)
 {
     /// <summary>
     /// Build 180836 initializes row cycling to true at 0x140487e0e. The normal
@@ -25,7 +26,7 @@ public sealed record MultiToolGenerationRuntime(int NativeWealth, int RequiredLe
 /// <remarks>Consumers must omit DamagePotential when HasSupportedDamagePotential is false.</remarks>
 public sealed record LocatedMultiTool(StationMultiToolContents Contents, string Kind,
     GeneratedMultiToolInventory Inventory, IReadOnlyDictionary<string, float> IntrinsicBonuses,
-    float DamagePotential, float ScannerRange, bool HasSupportedDamagePotential = true);
+    float DamagePotential, float ScannerRange, bool HasSupportedDamagePotential = true, bool UsesLivePreviewState = false);
 
 /// <summary>Composes the independently verified stages for a standard station's ordinary multi-tool.</summary>
 public static class LocatedMultiToolGeneration
@@ -76,10 +77,15 @@ public static class LocatedMultiToolGeneration
             model.InventoryTag, inventoryTables, technologyTables, runtime.NativeWealth, runtime.RequiredLevel,
             runtime.KnownTechnologies, runtime.CycleInventoryRows, model.HasTechnologyOverrides);
         if (intrinsic is null || inventory is null || !intrinsic.TryGetValue("WEAPON_SCAN", out float scanBonus)) return null;
-        var damage = MultiToolDamageGeneration.StandardPotential(inventory, technologyTables, intrinsic);
+        if (!runtime.HasVerifiedStandardIllegalModuleRoll
+            && inventory.Technologies.Any(t => t.Id.StartsWith("UP_SCANX#", StringComparison.Ordinal))) return null;
+        if (runtime.PreviewOverheatDuration is { } duration && (!float.IsFinite(duration) || duration < 0)) return null;
+        var damageTables = runtime.PreviewOverheatDuration is { } actualDuration && technologyTables.DamageRules is { } rules
+            ? technologyTables with { DamageRules = rules with { OverheatDuration = actualDuration } } : technologyTables;
+        var damage = MultiToolDamageGeneration.StandardPotential(inventory, damageTables, intrinsic);
         var scan = MultiToolScannerGeneration.Range(inventory, technologyTables, scanBonus);
         return damage is { } d && scan is { } s
-            ? new LocatedMultiTool(contents, model.Kind, inventory, intrinsic, d, s) : null;
+            ? new LocatedMultiTool(contents, model.Kind, inventory, intrinsic, d, s, UsesLivePreviewState: runtime.PreviewOverheatDuration is not null) : null;
     }
 
     private static bool Finite(Vector3 value) => float.IsFinite(value.X) && float.IsFinite(value.Y) && float.IsFinite(value.Z);

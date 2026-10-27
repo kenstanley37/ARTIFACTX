@@ -48,8 +48,8 @@ public static partial class CatalogSteps
                 && Enum.TryParse<GcStatsTypes.StatsTypeEnum>(parts[0] + "_" + parts[1], out var parent))
                 parents[stat] = (int)parent;
         }
-        float[]? weights = decode("GCPLAYERGLOBALS.GLOBAL.MBIN") is GcPlayerGlobals player
-            ? player.TechRarityData?.ToArray() : null;
+        var player = decode("GCPLAYERGLOBALS.GLOBAL.MBIN") as GcPlayerGlobals;
+        float[]? weights = player?.TechRarityData?.ToArray();
         var modules = upgrades.Select(id => proceduralById[id]).Select(p => new ProceduralModuleDefinition(
             p.ID.Value, (int)p.Quality, p.NumStatsMin, p.NumStatsMax, (int)p.WeightingCurve.WeightingCurve,
             (p.StatLevels ?? new()).Select(s => new ProceduralModuleStat((int)s.Stat.StatsType,
@@ -109,6 +109,6 @@ public static partial class CatalogSteps
                     (int)GcStatsTypes.StatsTypeEnum.Weapon_Projectile_ReloadTime, damageSources[0].BaseStatID.Value);
         }
         return new MultiToolTechnologyTables(regular, upgrades, definitions, weights, parents, modules, curves, scannerRules, laserRules, boltRules,
-            MultiToolDamage(decode, laserRules));
+            MultiToolDamage(decode, laserRules), player?.ChanceHighGradeIllegal);
     }
 }

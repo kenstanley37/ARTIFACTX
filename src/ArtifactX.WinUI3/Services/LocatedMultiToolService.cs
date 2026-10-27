@@ -32,6 +32,12 @@ public static class LocatedMultiToolService
                 return Array.Empty<LocatedMultiTool>();
             var request = NmsMultiToolGenerationPaths.ReadSavedStationRequest(savedInputs, tables);
             if (request is null || request.Reload.SystemAddress != targetSystem) return Array.Empty<LocatedMultiTool>();
+            if (MultiToolPreviewRuntimeService.ReadOverheatDuration() is { } duration)
+                request = request with { Runtime = request.Runtime with { PreviewOverheatDuration = duration } };
+            request = request with { Runtime = request.Runtime with
+            {
+                HasVerifiedStandardIllegalModuleRoll = MultiToolPreviewRuntimeService.HasStandardIllegalModuleRoll()
+            } };
             var result = await GenerateStationAsync(request, cancellationToken);
             return !GameDataService.IsBuilding && GameDataService.Info?.BuiltAtUtc == stamp
                 ? result : Array.Empty<LocatedMultiTool>();

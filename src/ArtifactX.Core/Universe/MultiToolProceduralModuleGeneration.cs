@@ -17,22 +17,28 @@ public sealed record GeneratedModuleStat(int Stat, float Value, int Level);
 public static class MultiToolProceduralModuleGeneration
 {
     /// <summary>
-    /// Ordinary quality 0..3 and the verified SeaTrash UP_SCAN0 stat rolls from a module's decimal suffix. Curves are
+    /// Ordinary quality 0..3, SeaTrash UP_SCAN0 and illegal UP_SCANX stat rolls from a module's decimal suffix. Curves are
     /// extracted TkCurveType values, rather than the seven weighting-curve indices.
-    /// Special-quality runtime overrides are unsupported. Inventory selection can use
+    /// Illegal rolls require the extracted high-grade chance; the located-record caller
+    /// must separately establish that the network/perk override is inactive. Other special-quality overrides are unsupported. Inventory selection can use
     /// these bonuses; the full native materializer still needs independent validation.
     /// Verified 2026-10-25 against 3600 isolated native rolls (36 definitions x 100
     /// suffixes): counts, order, levels and float values matched, with zero ULP
     /// differences. The oracle substitutes powf with a rounded host power function.
     /// Assumes default runtime flags: no forced best stats or materializer override.
+    /// UP_SCANX consumes an extra chance draw at 0x140ec4847. A successful draw
+    /// maximizes count and consumes another uniform value per stat at 0x140ec4c3e,
+    /// mapped to the native high-grade interval according to weighting-curve index.
     /// </summary>
     public static IReadOnlyList<GeneratedModuleStat>? RollOrdinaryStats(uint suffix,
-        ProceduralModuleDefinition definition, IReadOnlyList<int> weightingCurves)
+        ProceduralModuleDefinition definition, IReadOnlyList<int> weightingCurves, int? illegalHighGradeChance = null)
     {
         bool Supported(int index) => index >= 0 && index < weightingCurves.Count
             && weightingCurves[index] is 0 or 16 or 17 or 19 or 20 or 25 or 26;
+        bool illegalScanner = definition.Quality == 4 && definition.Id == "UP_SCANX"
+            && illegalHighGradeChance is >= 0 and <= 100;
         if (suffix > 99999 || (definition.Quality is < 0 or > 3
-                && !(definition.Quality == 7 && definition.Id == "UP_SCAN0")) || definition.MinimumStats < 0
+                && !(definition.Quality == 7 && definition.Id == "UP_SCAN0") && !illegalScanner) || definition.MinimumStats < 0
             || definition.MaximumStats < definition.MinimumStats || !Supported(definition.CountCurve)
             || definition.Stats.Any(s => !Supported(s.Curve) || !float.IsFinite(s.Minimum)
                 || !float.IsFinite(s.Maximum))) return null;
@@ -45,8 +51,10 @@ public static class MultiToolProceduralModuleGeneration
         uint carry = ((mixed >> 16) | (mixed << 16)) ^ mixed;
         var rng = new UniverseRandom(((ulong)carry << 32) | (mixed == 0 ? 1u : mixed));
         rng.NextWord(); rng.NextWord(); // Independent name seed pair.
+        bool highGrade = illegalScanner && rng.Next(100) < illegalHighGradeChance!.Value;
         float Draw(int curve) => Weight((float)(rng.NextWord() * 2.3283064370807974e-10), weightingCurves[curve]);
-        float wanted = (definition.MaximumStats - definition.MinimumStats) * Draw(definition.CountCurve)
+        float countDraw = Draw(definition.CountCurve);
+        float wanted = (definition.MaximumStats - definition.MinimumStats) * (highGrade ? 1f : countDraw)
             + definition.MinimumStats;
         int count = (int)(wanted + .5f);
         var mandatory = definition.Stats.Where(s => s.AlwaysChoose).ToList();
@@ -58,8 +66,15 @@ public static class MultiToolProceduralModuleGeneration
         }
         count = Math.Min(4, Math.Min(mandatory.Count + optional.Count, count + mandatory.Count));
         return mandatory.Concat(optional).Take(count).Select(s =>
-            new GeneratedModuleStat(s.Stat, (s.Maximum - s.Minimum) * Draw(s.Curve) + s.Minimum,
-                definition.Quality + 1)).ToArray();
+        {
+            float value = Draw(s.Curve);
+            if (highGrade)
+            {
+                float extra = (float)(rng.NextWord() * 2.3283064370807974e-10);
+                value = s.Curve > 4 ? extra * .14f + .01f : extra * (1f - .85f) + .85f;
+            }
+            return new GeneratedModuleStat(s.Stat, (s.Maximum - s.Minimum) * value + s.Minimum, definition.Quality + 1);
+        }).ToArray();
     }
 
     private static float Weight(float x, int curve)
