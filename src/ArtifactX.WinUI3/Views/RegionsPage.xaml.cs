@@ -58,6 +58,8 @@ public sealed partial class RegionsPage : Page
         _refresh.Start();
     }
 
+    private void ShowMoreUnvisited_Click(object sender, RoutedEventArgs e) => ViewModel.ShowMoreUnvisited();
+
     private void Body_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is BodyChipViewModel { Body.Planet: { } planet })

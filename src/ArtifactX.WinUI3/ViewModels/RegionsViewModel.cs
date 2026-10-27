@@ -45,6 +45,15 @@ public sealed class RegionSystemViewModel(SystemCapture system, bool here)
     public bool IsComplete => System.IsComplete;
 }
 
+/// <summary>One not-yet-visited system on the Regions page: name, what it is, and its glyphs.</summary>
+public sealed class UnvisitedSystemViewModel(UnvisitedSystem system)
+{
+    public string Name { get; } = system.Name;
+    public string Detail { get; } = (system.Index > 1000 ? $"System {system.Index} (purple)" : $"System {system.Index}")
+        + (system.Summary.Length > 0 ? $" · {system.Summary}" : "");
+    public string PortalCode { get; } = S.PortalAddress(system.System, 0);
+}
+
 /// <summary>
 /// Regions: how much of each region you've found systems in is mapped - for each system, its
 /// system data and, per planet, whether its Discoveries hover and its page were captured. Built
@@ -72,6 +81,21 @@ public sealed partial class RegionsViewModel : ObservableObject
     [ObservableProperty] public partial double PlanetsDone { get; private set; }
     [ObservableProperty] public partial double PlanetsTotal { get; private set; } = 1;
     [ObservableProperty] public partial IReadOnlyList<RegionSystemViewModel> Systems { get; private set; } = [];
+    /// <summary>"539 star systems and 65 purple systems · you've visited 255 · 349 to go"; empty without generator settings.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasRegionTotal))] public partial string RegionTotalStat { get; private set; } = "";
+    public bool HasRegionTotal => RegionTotalStat.Length > 0;
+    [ObservableProperty] public partial double SystemsVisited { get; private set; }
+    [ObservableProperty] public partial double SystemsTotal { get; private set; } = 1;
+    [ObservableProperty] public partial string UnvisitedSummary { get; private set; } = "";
+    [ObservableProperty] public partial IReadOnlyList<UnvisitedSystemViewModel> Unvisited { get; private set; } = [];
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasUnvisited))] public partial int UnvisitedCount { get; private set; }
+    public bool HasUnvisited => UnvisitedCount > 0;
+    [ObservableProperty] public partial bool CanShowMoreUnvisited { get; private set; }
+
+    private const int UnvisitedPage = 50;
+    private List<UnvisitedSystem> _unvisited = new();
+    private int _unvisitedShown = UnvisitedPage;
+
     [ObservableProperty] public partial bool OnlyMissing { get; set; }
     [ObservableProperty] public partial int SortIndex { get; set; } // 0 newest first, 1 most to capture first, 2 name
 
@@ -122,12 +146,57 @@ public sealed partial class RegionsViewModel : ObservableObject
             PlanetsDone = done;
             PlanetsTotal = Math.Max(1, bodies);
             Apply();
+            await ShowUnvisitedAsync(key, systems);
         }
         finally
         {
             _loading = false;
             IsLoading = false;
         }
+    }
+
+    /// <summary>The region's total from the game's generator and the systems not in the save yet.</summary>
+    private async Task ShowUnvisitedAsync(ulong key, IReadOnlyList<SystemCapture> systems)
+    {
+        var count = await RegionSystemsService.GetAsync(key);
+        if (Region.Value != key.ToString(CultureInfo.InvariantCulture)) return;
+        if (count is null)
+        {
+            RegionTotalStat = UnvisitedSummary = "";
+            _unvisited = new();
+            UnvisitedCount = 0;
+            Unvisited = [];
+            return;
+        }
+        var visited = systems.Select(s => (int)((s.System >> 40) & 0xFFF)).ToHashSet();
+        bool keepPaging = _unvisited.Count > 0 && RegionMapService.RegionKey(_unvisited[0].System) == key;
+        _unvisited = await Task.Run(() => RegionMapService.Unvisited(key, count, visited));
+        if (!keepPaging) _unvisitedShown = UnvisitedPage;
+
+        int total = count.Ordinary + count.Purple;
+        int seen = total - _unvisited.Count;
+        RegionTotalStat = count.Ordinary == 0
+            ? "This region lies inside the galactic centre and holds no star systems"
+            : string.Create(CultureInfo.CurrentCulture,
+                $"{count.Ordinary:N0} star systems and {count.Purple} purple systems · you've visited {seen:N0} · {_unvisited.Count:N0} to go");
+        SystemsVisited = seen;
+        SystemsTotal = Math.Max(1, total);
+        UnvisitedCount = _unvisited.Count;
+        UnvisitedSummary = string.Create(CultureInfo.CurrentCulture, $"{_unvisited.Count:N0} systems");
+        ShowUnvisitedPage();
+    }
+
+    /// <summary>Shows the next page of unvisited systems (each row draws its 12 glyphs).</summary>
+    public void ShowMoreUnvisited()
+    {
+        _unvisitedShown += UnvisitedPage;
+        ShowUnvisitedPage();
+    }
+
+    private void ShowUnvisitedPage()
+    {
+        Unvisited = _unvisited.Take(_unvisitedShown).Select(s => new UnvisitedSystemViewModel(s)).ToList();
+        CanShowMoreUnvisited = _unvisited.Count > _unvisitedShown;
     }
 
     private void Apply()

@@ -18,6 +18,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### New
 
+- **Systems you haven't visited**: The Regions page shows how many star systems the region holds, how many you've visited, and lists every system you haven't been to yet with its name, star, race, economy and portal glyphs, ready to copy. Rebuild game data to enable it.
+
 - **Region system totals**: Current System shows how many star systems your current region holds (and its purple systems), worked out with the game's own galaxy generator, plus how many of them you've visited. Rebuild game data to enable it.
 
 - **Station multi-tools after reloading a save**: Current System shows supported station cabinets with the tool's name, class, damage, scanner range and system position. Results are tied to the latest save's reload location; unsupported cases stay hidden.
