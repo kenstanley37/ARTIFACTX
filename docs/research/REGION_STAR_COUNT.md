@@ -95,6 +95,29 @@ the tested globals); when a per-region roll `rsi < r14` an extra block
 random rotation (sin/cos at `0x140206D80`/`0x140206E60`), so the noise inputs must be
 ported exactly; validate per cell against emulator hooks.
 
+### Port structure (2026-10-27, scratch `regionport.py`)
+
+- Region RNG = MWC seeded from the packed region address (lo or 1, carry =
+  ror16(lo) ^ hi ^ lo); identical to Core `UniverseRandom`. Stored at `[rsp+0x30/0x34]`;
+  float draws are `(double)word * 2^-32` narrowed to float.
+- Parameters = `GcGalaxyGlobals.DefaultGeneration` (`GcGalaxyGenerationSetupData`, +0x1230),
+  blended by `0x1421C2430` toward `FinalAnimationGeneration` (+0x13B0) with
+  `FinalTransitionInterpolationValue` (+0x1FD8, 0 in normal play). Frame `rbp+0x460` = block
+  start: `+0x130 BaseGenerationThreshold` (first gate), `+0x134/0x138/0x13C BaseTurbulence
+  Gain/Lac/Scale` (4-octave density), `+0x16C SpiralFormChance` (truncated to int percent
+  vs a Next(100) roll), `+0x174 StarGenerationThreshold` (emit test).
+- Draw accounting (checkpoints matched exactly by counting MWC steps):
+  1 setup draw; **fixed-star loop 1** places stars along segments read from
+  `[slot+0x1D4/0x1D8]` (filled during generation, likely by `0x14136A930(slot+0x40, ...)`,
+  ~2.5 KB with its own seeded stream): 6 draws per star; **loop 2** places the rest of the
+  122 fixed stars at random segments: 7 draws per star; `0x14136A020` (star jitter/size) is
+  always exactly 5 draws; `0x1413547E0` draws none. Noturbo Spur: loop 1 = 65 stars (390
+  draws), loop 2 = 57 (399); region 012/5B/6DC: 55 + 67. Then 11 draws of grid setup
+  (rotation angles via sin/cos, spiral roll, ranges from `+0xF0..0x10C`).
+- Port order: (1) segment builder `0x14136A930`; (2) loops 1/2 draw counts; (3) grid setup
+  draws and rotation; (4) simplex noise `0x142D75250` + fBm `0x142D746E0`; (5) cell loop and
+  emission incl. spiral block; then C# with the same checkpoints and the live reader.
+
 ## Next
 
 1. Find the job that fills a slot (writes `dword [slot+0]` and the `+0x200` container):
