@@ -35,6 +35,7 @@ public static class ThemeResources
         "A" => Windows.UI.Color.FromArgb(255, 130, 80, 200),
         "B" => Windows.UI.Color.FromArgb(255, 60, 110, 200),
         "C" => Windows.UI.Color.FromArgb(255, 60, 150, 90),
+        "X" => Windows.UI.Color.FromArgb(255, 72, 72, 82), // the game's dark illegal-module badge
         _ => Microsoft.UI.Colors.Transparent,
     };
 

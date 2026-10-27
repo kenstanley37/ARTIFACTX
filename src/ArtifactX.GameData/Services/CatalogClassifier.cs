@@ -55,6 +55,9 @@ public class ClassifiedRow
     /// <summary>GcTechnology's "BrokenSlotTech" bool - see CatalogItem.IsBrokenSlotTech.</summary>
     public bool IsBrokenSlotTech { get; set; }
 
+    /// <summary>GcProceduralTechnologyData's Quality - see CatalogItem.ModuleQuality.</summary>
+    public string? ModuleQuality { get; set; }
+
     /// <summary>The row's raw "Group" string (a loc key on procedural upgrade
     /// modules, e.g. "BIGGS_INVENTORY" = "cargo systems"). Used by
     /// CatalogBuildService only as a last-resort name.</summary>
@@ -228,6 +231,9 @@ public static class CatalogClassifier
 
         if (brokenSlotField != null)
             row.IsBrokenSlotTech = (bool)brokenSlotField.GetValue(rowObj)!;
+
+        if (rowObj is libMBIN.NMS.GameComponents.GcProceduralTechnologyData procedural)
+            row.ModuleQuality = procedural.Quality.ToString();
 
         // Icon-shaped fields: any nested object exposing a "Filename" field (typically
         // TkTextureResource.Filename, itself a GcFilename - another Value-wrapped type,

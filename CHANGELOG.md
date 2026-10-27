@@ -10,6 +10,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 - **Station multi-tools with X-class upgrades**: Tools carrying any X-class (illegal) upgrade, a Sentinel upgrade or a salvaged "0" upgrade now appear, not just those with X-class scanners. In your normal game they no longer need No Man's Sky to be running. During an expedition they still need the game open.
 
+- **Upgrade module classes**: Upgrade modules in inventory grids now show the game's C/B/A/S/X class badge, so an X-class upgrade no longer looks like an ordinary one. This applies everywhere, including your own multi-tools, ships and exosuit. Rebuild game data to enable the badges.
+
 - **Station multi-tools in some normal saves**: Saves that still carry old expedition settings (for example "use legacy stations near the start") no longer hide every station tool in your normal game.
 
 - **Current System live updates**: Keep unchanged planet cards, station multi-tool previews, market lists and system pictures in place. Damage-only tool updates retain the model and its rotation instead of recreating every card.
