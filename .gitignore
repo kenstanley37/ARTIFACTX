@@ -92,3 +92,4 @@ src/ArtifactX.Tools/External/**
 *.MBIN
 scripts/research/**/*.json
 scripts/research/**/*.log
+__pycache__/
