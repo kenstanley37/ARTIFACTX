@@ -9,7 +9,8 @@ public sealed record ResolvedStandardMultiTool(ulong ModelSeed, string ModelPath
 /// <summary>Native inputs, either explicit or resolved for standard game-state initialization.</summary>
 public sealed record MultiToolGenerationRuntime(int NativeWealth, int RequiredLevel,
     IReadOnlySet<string> KnownTechnologies, bool CycleInventoryRows, bool HasActiveSpecialTechnology,
-    float? PreviewOverheatDuration = null, bool HasVerifiedStandardIllegalModuleRoll = false)
+    float? PreviewOverheatDuration = null, bool HasVerifiedStandardIllegalModuleRoll = false,
+    string? ActiveFoodUnitItemId = null)
 {
     /// <summary>
     /// Build 180836 initializes row cycling to true at 0x140487e0e. The normal
@@ -42,7 +43,8 @@ public static class LocatedMultiToolGeneration
         MultiToolTechnologyTables technologyTables)
     {
         if (runtime.NativeWealth is < 0 or > 3 || runtime.RequiredLevel < 0 || runtime.KnownTechnologies is null
-            || runtime.HasActiveSpecialTechnology
+            || (runtime.HasActiveSpecialTechnology
+                && !MultiToolFoodGuard.HasNoDisplayedStatEffect(runtime.ActiveFoodUnitItemId, technologyTables))
             || contents.RatingIndex is < 0 or > 3 || model.ModelSeed != contents.Tool.Seed
             || model.HasTechnologyOverrides || contents.Location.Definition.ReseedAfterRewardSuccess
             || contents.Location.Definition.InteractionType != "WeaponTerminal"

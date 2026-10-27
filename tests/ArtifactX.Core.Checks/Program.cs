@@ -1,6 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using ArtifactX.Core.Collections;
+using ArtifactX.Core.Universe;
+using ArtifactX.Core.NmsModels;
+using Newtonsoft.Json.Linq;
 
 // No desktop dependencies: run with dotnet run --project tests/ArtifactX.Core.Checks.
 try
@@ -54,6 +57,29 @@ try
                 Require(ReferenceEquals(old, row), "A surviving row was replaced");
     }
     Require(resets == 0, "A collection Reset was emitted");
+    var ids = new MultiToolDamageStatIds(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+    var tables = new MultiToolTechnologyTables([], [],
+        ScannerRules: new(57, 200, 1.25f, .1f, .1f, 3),
+        DamageRules: new(ids, "WEAPON_DAMAGE", 0, 0, []),
+        ProductFoodBonusStats: new() { ["REWARD_FOOD"] = 61 });
+    Require(MultiToolFoodGuard.HasNoDisplayedStatEffect("REWARD_FOOD", tables), "Unrelated food blocked display");
+    foreach (int stat in Enumerable.Range(1, 10).Append(57))
+    {
+        tables.ProductFoodBonusStats!["MATCHING"] = stat;
+        Require(!MultiToolFoodGuard.HasNoDisplayedStatEffect("MATCHING", tables), "A relevant food target was ignored");
+    }
+    Require(!MultiToolFoodGuard.HasNoDisplayedStatEffect("UNKNOWN", tables)
+        && !MultiToolFoodGuard.HasNoDisplayedStatEffect(null, tables)
+        && !MultiToolFoodGuard.HasNoDisplayedStatEffect("REWARD_FOOD", tables with { ProductFoodBonusStats = null })
+        && !MultiToolFoodGuard.HasNoDisplayedStatEffect("REWARD_FOOD", tables with { ScannerRules = null }),
+        "Unknown food/catalog inputs were accepted");
+    var player = new JObject { ["nsH"] = "^REWARD_FOOD", ["DtI"] = 1, ["4kj"] = new JArray() };
+    var runtime = NmsMultiToolGenerationPaths.ReadStandardGameState(player, 0);
+    Require(runtime is { HasActiveSpecialTechnology: true, ActiveFoodUnitItemId: "REWARD_FOOD" }, "Food identity lost in saved inputs");
+    player["nsH"] = "^";
+    runtime = NmsMultiToolGenerationPaths.ReadStandardGameState(player, 0);
+    Require(runtime is { HasActiveSpecialTechnology: false, ActiveFoodUnitItemId: null }, "Empty food changed default behavior");
+    Console.WriteLine("PASS: unrelated food accepted; all 11 displayed-stat targets and unknown inputs guarded; saved food identity preserved.");
     Console.WriteLine("PASS: unchanged snapshots, in-place stats, reorder, model replacement, duplicate rejection, and 1000 mixed updates; zero resets.");
 }
 catch (Exception error)

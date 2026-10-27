@@ -50,6 +50,9 @@ public static partial class CatalogSteps
         }
         var player = decode("GCPLAYERGLOBALS.GLOBAL.MBIN") as GcPlayerGlobals;
         float[]? weights = player?.TechRarityData?.ToArray();
+        var products = decode("METADATA/REALITY/TABLES/NMS_REALITY_GCPRODUCTTABLE.MBIN") as GcProductTable;
+        var foodTargets = products?.Table?.ToDictionary(p => p.ID.Value, p => (int)p.FoodBonusStat.StatsType,
+            StringComparer.Ordinal);
         var modules = upgrades.Select(id => proceduralById[id]).Select(p => new ProceduralModuleDefinition(
             p.ID.Value, (int)p.Quality, p.NumStatsMin, p.NumStatsMax, (int)p.WeightingCurve.WeightingCurve,
             (p.StatLevels ?? new()).Select(s => new ProceduralModuleStat((int)s.Stat.StatsType,
@@ -109,6 +112,6 @@ public static partial class CatalogSteps
                     (int)GcStatsTypes.StatsTypeEnum.Weapon_Projectile_ReloadTime, damageSources[0].BaseStatID.Value);
         }
         return new MultiToolTechnologyTables(regular, upgrades, definitions, weights, parents, modules, curves, scannerRules, laserRules, boltRules,
-            MultiToolDamage(decode, laserRules), player?.ChanceHighGradeIllegal);
+            MultiToolDamage(decode, laserRules), player?.ChanceHighGradeIllegal, foodTargets);
     }
 }

@@ -136,7 +136,8 @@ public static class NmsMultiToolGenerationPaths
     /// 0x140573AF9 copies raw +0x83C90 to player +0x18820; stat adjustment
     /// 0x14057A9C7 looks up that ID for an additional bonus. Empty means absent
     /// (the save encodes an empty game ID as "^", also observed in Slot8);
-    /// any nonempty ID is conservatively unsupported, without guessing its effects.
+    /// Nonempty IDs retain the guard and the product identity; display generation can
+    /// resolve the catalog's FoodBonusStat before deciding whether its effects matter.
     /// Field mapping and read-only Slot8 snapshot checked 2026-10-26. A saved
     /// snapshot does not establish the current consumable state of a running game.
     /// </summary>
@@ -145,7 +146,8 @@ public static class NmsMultiToolGenerationPaths
         if (playerState?[FoodUnitItemKey] is not { Type: JTokenType.String } token
             || token.Value<string>() is not { } id || id.Any(char.IsWhiteSpace)) return null;
         if (id.StartsWith('^')) id = id[1..];
-        return ReadStandardGameState(playerState, nativeWealth, id.Length != 0);
+        return ReadStandardGameState(playerState, nativeWealth, id.Length != 0)
+            is { } runtime ? runtime with { ActiveFoodUnitItemId = id.Length == 0 ? null : id } : null;
     }
 
     public static MultiToolGenerationRuntime? ReadStandardGameState(JObject? playerState, int nativeWealth,

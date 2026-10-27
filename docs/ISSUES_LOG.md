@@ -328,7 +328,7 @@ Synthesized from the latest `ARTIFACTX_NOTES.txt`. Cross-referenced with open Gi
 - **Follow-up**: Station scope is closed for now; retain guards for unsupported runtime states and investigate fresh evidence if reported. Planetary cabinets/buildings proceed separately on `feature/planet-multi-tool-locations` (Feature 24). Bug 39 remains an open page-refresh UX issue. See `docs/research/PIRATE_STATION_MULTITOOLS.md`.
 
 ### Bug 39: Unchanged Current System Updates Reset Scroll and Redraw Previews
-- **Status**: First correction failed the owner's autosave test on 2026-10-27. Follow-up identifies replacement SaveSlotGroup metadata as the cause of station-card clearing; panel identity now uses the loaded editing session. Re-test pending.
+- **Status**: Owner confirmed on 2026-10-27 that autosaves no longer reset the page after the session-identity correction (`741330f`). The newly reported missing tools in another system are tracked separately as Bug 51.
 - **Problem**: The Current System page refreshes even when nothing has changed, returns the user to the top of the page, and repeatedly redraws the 3D previews. User reported 2026-10-27. This interrupts browsing and is poor UX.
 - **Expected**: Apply only meaningful changes in place. Preserve scroll position, expanded/collapsed sections and model rotation. Unchanged snapshots must not recreate cards, replace the page or rebuild previews.
 - **Implementation**: Current System now reconciles planet rows by address, retains unchanged orbit-body/data/unmatched lists and system-picture bytes, and rejects stale asynchronous picture results. Station rows use site + model identity; a damage-only update retains the existing card, technology grid and model. Preview reloads reuse an already-built model, and unchanged market/comparison lists are retained. The shared save feed is unchanged; no new watcher or forced scroll restoration was added.
@@ -411,3 +411,11 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Request**: Use recognizable class images/badges and matching class colours so tools and ships stand out, rather than giving every class the same plain text treatment.
 - **Implementation**: Reuse catalog-sourced game class emblems where available and provide a shared badge UserControl for tool/ship cards. Use consistent class colours (including the purple A-class treatment shown), readable contrast in both themes and a text/accessibility label so class is never communicated by colour alone. Retain a clear fallback if an icon is unavailable.
 - **Acceptance**: Compare the badges with the game's S/A/B/C indicators on representative tool and ship cards, check both themes, and keep badge updates independent of 3D preview generation.
+
+
+### Bug 51: Unrelated Food Bonus Hides All Station Multi-Tools
+- **Status**: Correction implemented on `fix/station-tool-food-guard`; requires catalog format 42 rebuild and in-app confirmation.
+- **Report**: Iljeark-Ats V, Euclid, portal `0090FF67B292`: both C-class Poem of Supplication cabinets disappear from the app, although present in game. Screenshot references are damage/scanner 1362.7/200.1 and 1362.7/206.6.
+- **Cause**: The saved FoodUnitItem is nonempty. The prior conservative runtime guard rejected every food product, even when its bonus targets a stat unrelated to displayed weapon damage or scanner radius.
+- **Correction**: Extract each product's FoodBonusStat into the catalog, preserve the normalized saved food ID, and allow generation only when its known target is outside all 11 displayed-stat inputs. Unknown food IDs, missing tables and relevant bonus targets remain guarded; their strength is not guessed.
+- **Validation**: Native execution confirms 605 exact unchanged results when the food target differs from the evaluated stat, and confirms that a matching target invokes the bonus calculation. With the actual saved food context the composed pipeline reproduces both supplied screenshot pairs. Default references and session-transition checks remain part of regression validation.

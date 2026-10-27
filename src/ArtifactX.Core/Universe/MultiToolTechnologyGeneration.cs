@@ -6,7 +6,8 @@ public sealed record MultiToolTechnologyTables(string[] TechnologyIds, string[] 
     Dictionary<int, int>? StatParents = null, ProceduralModuleDefinition[]? ProceduralModules = null,
     int[]? WeightingCurves = null, MultiToolScannerRules? ScannerRules = null,
     MultiToolLaserRules? StandardLaserRules = null, MultiToolProjectileRules? BoltRules = null,
-    MultiToolDamageRules? DamageRules = null, int? IllegalModuleHighGradeChance = null);
+    MultiToolDamageRules? DamageRules = null, int? IllegalModuleHighGradeChance = null,
+    Dictionary<string, int>? ProductFoodBonusStats = null);
 
 /// <summary>Selection metadata from one technology, or a procedural entry's resolved template.</summary>
 public sealed record TechnologySelectionDefinition(string Id, string TechnologyId, int RarityIndex,

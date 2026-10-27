@@ -20,7 +20,9 @@ public static class StationMultiToolGeneration
     {
         if (!request.Reload.IsValid || !request.StationPresent || request.Abandoned
             || (!request.Pirate && (request.UseLegacyStation is not false || stations.ForceLegacySpaceStations is true))
-            || request.Runtime.NativeWealth is < 0 or > 3 || request.Runtime.HasActiveSpecialTechnology) return [];
+            || request.Runtime.NativeWealth is < 0 or > 3
+            || (request.Runtime.HasActiveSpecialTechnology
+                && !MultiToolFoodGuard.HasNoDisplayedStatEffect(request.Runtime.ActiveFoodUnitItemId, technology))) return [];
         ulong address = request.Reload.SystemAddress;
         ulong portal = ((address >> 40) & 0xFFF) << 32 | (address & 0xFFFFFFFF);
         int galaxy = (int)((address >> 32) & 255);

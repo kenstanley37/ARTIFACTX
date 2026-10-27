@@ -246,3 +246,30 @@ The second cabinet remains 3402.9 / 319.4. Both match the supplied screenshots.
 The runtime guard also returned true against the running game. In-app
 confirmation of the newly included cabinet still requires the owner to rebuild
 game data and run the new build. Existing standard/pirate regression checks pass.
+
+
+### Unrelated food target guard (2026-10-27)
+
+After the autosave session-identity fix, Iljeark-Ats V (0090FF67B292) showed no
+station tools. Read-only Slot 8 inspection found FoodUnitItem `^FOOD_DNUT_AJAM`.
+The product table maps this product's FoodBonusStat to stat 61 (fauna rewards),
+which is not an input to the displayed damage maximum or scanner radius.
+
+Native 0x14057a9ed..0x14057a9f6 compares ProductData+0x1BC against the exact
+stat ID at the evaluated stat entry+8. A mismatch skips food-bonus computation.
+605 native executions (all 11 displayed-stat inputs, 55 values each) returned
+bit-identical input values with food stat 61. A matching stat-61 control invoked
+the food-bonus helper, proving that the mismatch check is being exercised.
+No claim is made about the amount/formula for a matching food target.
+
+Catalog format 42 appends ProductFoodBonusStats to the multi-tool technology
+metadata, extracted from product data without hardcoded food IDs. Saved runtime
+inputs retain the normalized product identity. Both station and individual-record
+guards permit only a catalog-known target outside the damage/scanner input set.
+Missing metadata, unknown products and relevant targets remain unsupported.
+An explicit special-modifier flag without an identified food remains guarded.
+
+Using the actual saved food context, the full address-to-record pipeline returns
+two C-class Poem of Supplication records: 1362.7/200.1 and 1362.7/206.6. Both now
+have owner-provided cabinet screenshots confirming those values. This does not
+replace the need to test the newly visible cards after the format-42 data rebuild.

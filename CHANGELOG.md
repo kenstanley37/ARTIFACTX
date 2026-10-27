@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- **Station multi-tools**: Food bonuses unrelated to weapon damage or scanner range no longer hide every cabinet. Rebuild game data to enable this correction.
+
 - **Current System live updates**: Keep unchanged planet cards, station multi-tool previews, market lists and system pictures in place. Damage-only tool updates retain the model and its rotation instead of recreating every card.
 
 ### New
