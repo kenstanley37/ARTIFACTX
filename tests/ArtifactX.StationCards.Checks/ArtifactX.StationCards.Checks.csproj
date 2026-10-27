@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><LangVersion>preview</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/ArtifactX.Core/ArtifactX.Core.csproj" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <Compile Include="../../src/ArtifactX.WinUI3/ViewModels/StationMultiToolsViewModel.cs" Link="StationMultiToolsViewModel.cs" />
+    <Compile Include="../../src/ArtifactX.WinUI3/ViewModels/InventoryGridSnapshot.cs" Link="InventoryGridSnapshot.cs" />
+  </ItemGroup>
+</Project>

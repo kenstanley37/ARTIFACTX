@@ -33,7 +33,7 @@ public sealed partial class StationMultiToolsViewModel : ObservableObject
 {
     private int _stationLoadVersion;
     private ulong? _displaySystem;
-    private object? _displaySlot;
+    private object? _displaySession;
     public ObservableCollection<StationReloadToolCard> StationReloadTools { get; } = new();
     [ObservableProperty] public partial bool HasStationReloadTools { get; private set; }
     [ObservableProperty] public partial string StationReloadHint { get; private set; } = "";
@@ -41,24 +41,24 @@ public sealed partial class StationMultiToolsViewModel : ObservableObject
     public async Task UpdateAsync(ulong? system, PlanetSnapshot snapshot)
     {
         int version = ++_stationLoadVersion;
-        var slot = SaveSessionManager.ActiveSlot;
-        if (_displaySystem != system || !ReferenceEquals(slot, _displaySlot))
+        var session = SaveSessionManager.SessionIdentity;
+        if (_displaySystem != system || !ReferenceEquals(session, _displaySession))
         {
             StationReloadTools.Clear();
             HasStationReloadTools = false;
             _displaySystem = system;
-            _displaySlot = slot;
+            _displaySession = session;
         }
         if (system is null) return;
         try
         {
             var diskSnapshot = snapshot.EquipmentSaveInputs is null ? await LiveSaveWatcher.GetLatestAsync() : snapshot;
-            if (version != _stationLoadVersion || !ReferenceEquals(slot, SaveSessionManager.ActiveSlot)
+            if (version != _stationLoadVersion || !ReferenceEquals(session, SaveSessionManager.SessionIdentity)
                 || diskSnapshot.EquipmentSaveInputs is null) return;
             var tools = await LocatedMultiToolService.GenerateSavedReloadStationAsync(system.Value, diskSnapshot.EquipmentSaveInputs);
-            if (version != _stationLoadVersion || !ReferenceEquals(slot, SaveSessionManager.ActiveSlot)) return;
+            if (version != _stationLoadVersion || !ReferenceEquals(session, SaveSessionManager.SessionIdentity)) return;
             await CatalogService.WarmCacheAsync(tools.SelectMany(t => t.Inventory.Technologies).Select(t => t.Id));
-            if (version != _stationLoadVersion || !ReferenceEquals(slot, SaveSessionManager.ActiveSlot)) return;
+            if (version != _stationLoadVersion || !ReferenceEquals(session, SaveSessionManager.SessionIdentity)) return;
             var cards = tools.Select(tool => new StationReloadToolCard(tool.Contents.Tool.DefaultName,
                 tool.Contents.RatingIndex switch { 0 => "C-Class", 1 => "B-Class", 2 => "A-Class", 3 => "S-Class", _ => "" },
                 tool.HasSupportedDamagePotential
