@@ -328,9 +328,11 @@ Synthesized from the latest `ARTIFACTX_NOTES.txt`. Cross-referenced with open Gi
 - **Follow-up**: Station scope is closed for now; retain guards for unsupported runtime states and investigate fresh evidence if reported. Planetary cabinets/buildings proceed separately on `feature/planet-multi-tool-locations` (Feature 24). Bug 39 remains an open page-refresh UX issue. See `docs/research/PIRATE_STATION_MULTITOOLS.md`.
 
 ### Bug 39: Unchanged Current System Updates Reset Scroll and Redraw Previews
+- **Status**: Correction implemented on `fix/current-system-refresh`; desktop visual confirmation pending. Unchanged collections/images are retained; damage-only tool changes update text in place.
 - **Problem**: The Current System page refreshes even when nothing has changed, returns the user to the top of the page, and repeatedly redraws the 3D previews. User reported 2026-10-27. This interrupts browsing and is poor UX.
 - **Expected**: Apply only meaningful changes in place. Preserve scroll position, expanded/collapsed sections and model rotation. Unchanged snapshots must not recreate cards, replace the page or rebuild previews.
-- **Investigation**: Trace the shared snapshot handler, CurrentSystemViewModel.Show and page navigation/rebinding. The station-card display-key guard alone has not prevented the page-level reset.
+- **Implementation**: Current System now reconciles planet rows by address, retains unchanged orbit-body/data/unmatched lists and system-picture bytes, and rejects stale asynchronous picture results. Station rows use site + model identity; a damage-only update retains the existing card, technology grid and model. Preview reloads reuse an already-built model, and unchanged market/comparison lists are retained. The shared save feed is unchanged; no new watcher or forced scroll restoration was added.
+- **Automated validation**: Shared reconciliation passed 100 unchanged updates, in-place stat changes, reorder, model replacement, duplicate-key rejection and 1,000 mixed updates with no Reset events. App build passes; scroll/focus/rotation still require owner testing.
 - **Validation**: Stay scrolled down with a rotated model while repeated unchanged snapshots arrive; confirm no jump, reflow or preview rebuild. Then verify real system/stock changes still appear.
 
 

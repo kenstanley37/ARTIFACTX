@@ -61,7 +61,7 @@ public sealed partial class StationMarketViewModel : ObservableObject
         Heading = placeList.All(p => p == "station") ? "SOLD AT THE STATION" : "MARKET";
         bool headings = placeList.Count > 1 || placeList.Any(p => p != "station");
 
-        Places = items.GroupBy(i => i.Place).Select(g => new MarketPlace(
+        var places = items.GroupBy(i => i.Place).Select(g => new MarketPlace(
             (g.Key == "station" ? "Space station" : PlanetText.PlaceName(system, g.Key).Replace("Trading post · ", "Trading post on ")).ToUpperInvariant(),
             headings,
             g.Select(item => new MarketCard(
@@ -70,11 +70,15 @@ public sealed partial class StationMarketViewModel : ObservableObject
                 // Stock before the change: a long word ("Economy Data Unavailable") then only cuts its own end.
                 string.Join(" · ", new[] { $"{item.Price:N0} units", item.Stock > 0 ? $"{item.Stock} in stock" : "", item.Change }.Where(s => s.Length > 0))))
             .ToList())).ToList();
+        if (Places.Count != places.Count || Places.Zip(places).Any(pair =>
+            pair.First.Heading != pair.Second.Heading || pair.First.ShowHeading != pair.Second.ShowHeading
+            || !pair.First.Items.SequenceEqual(pair.Second.Items))) Places = places;
 
         var shared = items.GroupBy(i => i.ItemId).Where(g => g.Select(i => i.Place).Distinct().Count() > 1).ToList();
         CompareHeading = placeList.Count == 2 ? "SOLD AT BOTH" : "SOLD IN MORE THAN ONE PLACE";
-        ComparePlaces = placeList.Select(p => PlanetText.PlaceName(system, p).ToUpperInvariant()).ToList();
-        CompareRows = shared.OrderBy(g => g.First().Name, StringComparer.CurrentCulture).Select(group =>
+        var comparePlaces = placeList.Select(p => PlanetText.PlaceName(system, p).ToUpperInvariant()).ToList();
+        if (!ComparePlaces.SequenceEqual(comparePlaces)) ComparePlaces = comparePlaces;
+        var compareRows = shared.OrderBy(g => g.First().Name, StringComparer.CurrentCulture).Select(group =>
         {
             int cheapest = group.Min(i => i.Price);
             bool single = group.Count(i => i.Price == cheapest) == 1;
@@ -87,6 +91,10 @@ public sealed partial class StationMarketViewModel : ObservableObject
                     string.Join(" · ", new[] { at.Change, at.Stock > 0 ? $"{at.Stock} in stock" : "" }.Where(s => s.Length > 0)), best, true);
             }).ToList());
         }).ToList();
+
+        if (CompareRows.Count != compareRows.Count || CompareRows.Zip(compareRows).Any(pair =>
+            pair.First.Name != pair.Second.Name || !ReferenceEquals(pair.First.Icon, pair.Second.Icon)
+            || !pair.First.Cells.SequenceEqual(pair.Second.Cells))) CompareRows = compareRows;
 
         _ = WarmIconsAsync(system, items);
     }

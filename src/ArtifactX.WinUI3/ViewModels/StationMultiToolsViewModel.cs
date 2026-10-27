@@ -1,3 +1,5 @@
+using ArtifactX.Core.Collections;
+using System.Collections.ObjectModel;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using System;
@@ -9,9 +11,20 @@ using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
-public sealed record StationReloadToolCard(string Name, string Rating, string Stats, string Position, string SlotSummary, InventoryGridSnapshot Inventory, string ModelPath, ulong ModelSeed)
+public sealed partial class StationReloadToolCard(string name, string rating, string stats, string position,
+    string slotSummary, InventoryGridSnapshot inventory, string modelPath, ulong modelSeed, ulong siteSeed) : ObservableObject
 {
-    public string DisplayKey => $"{ModelPath}|{ModelSeed}|{Name}|{Rating}|{Stats}|{Position}|{SlotSummary}|"
+    public string Name { get; } = name;
+    public string Rating { get; } = rating;
+    [ObservableProperty] public partial string Stats { get; set; } = stats;
+    public string Position { get; } = position;
+    public string SlotSummary { get; } = slotSummary;
+    public InventoryGridSnapshot Inventory { get; } = inventory;
+    public string ModelPath { get; } = modelPath;
+    public ulong ModelSeed { get; } = modelSeed;
+    public ulong SiteSeed { get; } = siteSeed;
+    public (ulong Site, ulong Model, string Path) Identity => (SiteSeed, ModelSeed, ModelPath);
+    public string DisplayKey => $"{ModelPath}|{ModelSeed}|{Name}|{Rating}|{Position}|{SlotSummary}|"
         + string.Join(";", Inventory.Cells.Select(c => $"{c.X},{c.Y},{c.State},{c.ItemId},{c.IsSupercharged},{c.DisplayName}"));
 }
 
@@ -21,7 +34,7 @@ public sealed partial class StationMultiToolsViewModel : ObservableObject
     private int _stationLoadVersion;
     private ulong? _displaySystem;
     private object? _displaySlot;
-    [ObservableProperty] public partial IReadOnlyList<StationReloadToolCard> StationReloadTools { get; private set; } = [];
+    public ObservableCollection<StationReloadToolCard> StationReloadTools { get; } = new();
     [ObservableProperty] public partial bool HasStationReloadTools { get; private set; }
     [ObservableProperty] public partial string StationReloadHint { get; private set; } = "";
 
@@ -31,7 +44,7 @@ public sealed partial class StationMultiToolsViewModel : ObservableObject
         var slot = SaveSessionManager.ActiveSlot;
         if (_displaySystem != system || !ReferenceEquals(slot, _displaySlot))
         {
-            StationReloadTools = [];
+            StationReloadTools.Clear();
             HasStationReloadTools = false;
             _displaySystem = system;
             _displaySlot = slot;
@@ -54,14 +67,15 @@ public sealed partial class StationMultiToolsViewModel : ObservableObject
                 string.Create(CultureInfo.InvariantCulture,
                     $"System position: X {tool.Contents.Location.WorldPosition.X:0.00}, Y {tool.Contents.Location.WorldPosition.Y:0.00}, Z {tool.Contents.Location.WorldPosition.Z:0.00}"),
                 $"{tool.Inventory.Layout.UnlockedSlots.Length} unlocked slots, {tool.Inventory.Technologies.Count} installed technologies, {tool.Inventory.SuperchargedSlots.Count} supercharged slots",
-                StationToolInventory.Create(tool.Inventory), tool.Contents.Tool.ModelPath, tool.Contents.Tool.Seed)).ToArray();
+                StationToolInventory.Create(tool.Inventory), tool.Contents.Tool.ModelPath, tool.Contents.Tool.Seed, tool.Contents.Location.SiteSeed)).ToArray();
             StationReloadHint = "Reload this save at its saved location, then visit this system's space station. Changing where you reload can change these tools. Only supported cabinets are shown.";
             if (tools.Any(t => t.UsesLivePreviewState))
                 StationReloadHint += " Damage reflects the game's current preview state.";
             // The shared save feed also reports unchanged cabinets. Keep existing controls
             // and their rotated previews alive until a visible field actually changes.
-            if (!StationReloadTools.Select(c => c.DisplayKey).SequenceEqual(cards.Select(c => c.DisplayKey)))
-                StationReloadTools = cards;
+            ObservableCollectionSync.Apply(StationReloadTools, cards, c => c.Identity,
+                (current, next) => current.DisplayKey == next.DisplayKey,
+                (current, next) => current.Stats = next.Stats);
             HasStationReloadTools = cards.Length > 0;
         }
         catch (Exception error)

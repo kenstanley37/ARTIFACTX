@@ -4,6 +4,10 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ## Unreleased
 
+### Fixed
+
+- **Current System live updates**: Keep unchanged planet cards, station multi-tool previews, market lists and system pictures in place. Damage-only tool updates retain the model and its rotation instead of recreating every card.
+
 ### New
 
 - **Station multi-tools after reloading a save**: Current System shows supported station cabinets with the tool's name, class, damage, scanner range and system position. Results are tied to the latest save's reload location; unsupported cases stay hidden.
