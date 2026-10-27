@@ -79,6 +79,26 @@ try
     player["nsH"] = "^";
     runtime = NmsMultiToolGenerationPaths.ReadStandardGameState(player, 0);
     Require(runtime is { HasActiveSpecialTechnology: false, ActiveFoodUnitItemId: null }, "Empty food changed default behavior");
+    int[] curves = [0];
+    var stats = new[] { new ProceduralModuleStat(3, 0f, 1f, 0, false), new ProceduralModuleStat(4, 0f, 1f, 0, false) };
+    foreach (string id in new[] { "UP_LASERX", "UP_SENGUN" })
+    {
+        var module = new ProceduralModuleDefinition(id, id == "UP_SENGUN" ? 5 : 4, 1, 2, 0, stats);
+        Require(MultiToolProceduralModuleGeneration.RollOrdinaryStats(1, module, curves) is null, "High-grade roll accepted without its chance");
+        Require(MultiToolProceduralModuleGeneration.RollOrdinaryStats(1, module, curves, 100)?.Count == 2, "Certain high-grade roll did not maximize count");
+    }
+    Require(MultiToolProceduralModuleGeneration.RollOrdinaryStats(1, new("UP_LASER0", 7, 1, 2, 0, stats), curves) is not null,
+        "SeaTrash roll required an illegal chance");
+    player["yhJ"] = new JObject { ["Iis"] = 0, ["oZw"] = new JObject { ["dZj"] = 1, ["IyE"] = 2, ["uXE"] = 3, ["vby"] = 4, ["jsv"] = 0 } };
+    var saveRoot = new JObject { [NmsSaveContext.ActiveContextKey] = "Main",
+        [NmsSaveContext.MainRootKey] = new JObject { ["6f="] = player },
+        [NmsSaveContext.ExpeditionRootKey] = new JObject { ["6f="] = player.DeepClone() } };
+    Require(NmsMultiToolGenerationPaths.ReadActiveSavedState(saveRoot, 0)?.Runtime.HasVerifiedStandardIllegalModuleRoll == true,
+        "Main context did not establish the standard high-grade roll");
+    saveRoot[NmsSaveContext.ActiveContextKey] = NmsSaveContext.ExpeditionContextValue;
+    Require(NmsMultiToolGenerationPaths.ReadActiveSavedState(saveRoot, 0)?.Runtime.HasVerifiedStandardIllegalModuleRoll == false,
+        "Seasonal context assumed the standard high-grade roll");
+    Console.WriteLine("PASS: quality 4/5 high-grade rolls need the chance; SeaTrash rolls do not; only Main establishes the standard roll.");
     Console.WriteLine("PASS: unrelated food accepted; all 11 displayed-stat targets and unknown inputs guarded; saved food identity preserved.");
     Console.WriteLine("PASS: unchanged snapshots, in-place stats, reorder, model replacement, duplicate rejection, and 1000 mixed updates; zero resets.");
 }

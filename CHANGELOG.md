@@ -8,6 +8,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 - **Station multi-tools**: Food bonuses unrelated to weapon damage or scanner range no longer hide every cabinet. Rebuild game data to enable this correction.
 
+- **Station multi-tools with X-class upgrades**: Tools carrying any X-class (illegal) upgrade, a Sentinel upgrade or a salvaged "0" upgrade now appear, not just those with X-class scanners. In your normal game they no longer need No Man's Sky to be running. During an expedition they still need the game open.
+
 - **Current System live updates**: Keep unchanged planet cards, station multi-tool previews, market lists and system pictures in place. Damage-only tool updates retain the model and its rotation instead of recreating every card.
 
 ### New

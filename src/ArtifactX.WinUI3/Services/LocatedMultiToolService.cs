@@ -36,7 +36,8 @@ public static class LocatedMultiToolService
                 request = request with { Runtime = request.Runtime with { PreviewOverheatDuration = duration } };
             request = request with { Runtime = request.Runtime with
             {
-                HasVerifiedStandardIllegalModuleRoll = MultiToolPreviewRuntimeService.HasStandardIllegalModuleRoll()
+                HasVerifiedStandardIllegalModuleRoll = request.Runtime.HasVerifiedStandardIllegalModuleRoll
+                    || MultiToolPreviewRuntimeService.HasStandardIllegalModuleRoll()
             } };
             var result = await GenerateStationAsync(request, cancellationToken);
             return !GameDataService.IsBuilding && GameDataService.Info?.BuiltAtUtc == stamp

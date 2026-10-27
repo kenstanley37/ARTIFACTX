@@ -80,7 +80,7 @@ public static class LocatedMultiToolGeneration
             runtime.KnownTechnologies, runtime.CycleInventoryRows, model.HasTechnologyOverrides);
         if (intrinsic is null || inventory is null || !intrinsic.TryGetValue("WEAPON_SCAN", out float scanBonus)) return null;
         if (!runtime.HasVerifiedStandardIllegalModuleRoll
-            && inventory.Technologies.Any(t => t.Id.StartsWith("UP_SCANX#", StringComparison.Ordinal))) return null;
+            && inventory.Technologies.Any(t => NeedsHighGradeContext(t.Id, technologyTables))) return null;
         if (runtime.PreviewOverheatDuration is { } duration && (!float.IsFinite(duration) || duration < 0)) return null;
         var damageTables = runtime.PreviewOverheatDuration is { } actualDuration && technologyTables.DamageRules is { } rules
             ? technologyTables with { DamageRules = rules with { OverheatDuration = actualDuration } } : technologyTables;
@@ -88,6 +88,16 @@ public static class LocatedMultiToolGeneration
         var scan = MultiToolScannerGeneration.Range(inventory, technologyTables, scanBonus);
         return damage is { } d && scan is { } s
             ? new LocatedMultiTool(contents, model.Kind, inventory, intrinsic, d, s, UsesLivePreviewState: runtime.PreviewOverheatDuration is not null) : null;
+    }
+
+    /// <summary>Procedural IDs ("UP_LASERX#01234") whose quality takes the context-dependent high-grade draw.</summary>
+    private static bool NeedsHighGradeContext(string installedId, MultiToolTechnologyTables tables)
+    {
+        int hash = installedId.IndexOf('#');
+        if (hash <= 0) return false;
+        string id = installedId[..hash];
+        return tables.ProceduralModules?.FirstOrDefault(m => m.Id == id) is not { } module
+            || MultiToolProceduralModuleGeneration.UsesHighGradeRoll(module);
     }
 
     private static bool Finite(Vector3 value) => float.IsFinite(value.X) && float.IsFinite(value.Y) && float.IsFinite(value.Z);

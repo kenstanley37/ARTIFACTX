@@ -87,6 +87,10 @@ public static class NmsMultiToolGenerationPaths
     /// Main and Season. A populated inactive expedition does not establish activity.
     /// This resolves snapshot ownership only; seasonal station-scene rules and live
     /// reload state must still be established separately.
+    /// High-grade module rolls (0x140ec4602) take the override chance only when the
+    /// active game mode (image+0x6E8D714) is Unspecified or Seasonal. Save load
+    /// 0x1404967F0..0x1404968B4 switches to Seasonal only for active season data, so
+    /// the Main context establishes the standard roll; Season remains unestablished.
     /// </summary>
     public static SavedMultiToolGenerationState? ReadActiveSavedState(JObject? saveRoot, int nativeWealth)
     {
@@ -102,7 +106,8 @@ public static class NmsMultiToolGenerationPaths
             || universe["6f="] is not JObject player
             || ReadSavedReloadAddress(player) is not { } address
             || ReadStandardGameState(player, nativeWealth) is not { } runtime) return null;
-        return new SavedMultiToolGenerationState(context!, address, runtime);
+        return new SavedMultiToolGenerationState(context!, address,
+            runtime with { HasVerifiedStandardIllegalModuleRoll = context == "Main" });
     }
 
     /// <summary>

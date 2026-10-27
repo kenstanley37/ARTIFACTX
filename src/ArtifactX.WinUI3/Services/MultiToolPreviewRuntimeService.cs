@@ -47,7 +47,8 @@ internal static class MultiToolPreviewRuntimeService
             bool Standard()
             {
                 if (reader.Bytes(image + 0x524AEC4, 1)[0] != 0) return false;
-                int mode = reader.Int32(image + 0x6E8D718);
+                // Active mode; +0x6E8D718 is the pending mode (7 = none) copied in at 0x1405D5B60.
+                int mode = reader.Int32(image + 0x6E8D714);
                 return mode != 0 && mode != 6
                     || (reader.Bytes(manager + 0x4CCF82, 1)[0] == 0
                         && reader.Bytes(manager + 0x4CCF83, 1)[0] == 0)

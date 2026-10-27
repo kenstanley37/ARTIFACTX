@@ -273,3 +273,30 @@ Using the actual saved food context, the full address-to-record pipeline returns
 two C-class Poem of Supplication records: 1362.7/200.1 and 1362.7/206.6. Both now
 have owner-provided cabinet screenshots confirming those values. This does not
 replace the need to test the newly visible cards after the format-42 data rebuild.
+
+
+### All special-quality modules and the save-derived roll context (2026-10-27)
+
+The quality branch at `0x140ec45de` reads the procedural row's quality (+0x7C):
+4 (Illegal), 5 (Sentinel) and 6 (Robot) enter the high-grade path at `0x140ec4602`;
+0..3 and 7 (SeaTrash) skip directly to the ordinary roll at `0x140ec4703`. The
+weapon candidate pool contains UP_LASERX, UP_SCANX, UP_BOLTX, UP_GRENX, UP_TGRENX,
+UP_RAILX, UP_SHOTX, UP_SMGX, UP_CANNX (quality 4), UP_SENGUN (5) and UP_LASER0,
+UP_SCAN0, UP_BOLT0 (7). Only UP_SCANX and UP_SCAN0 were previously accepted, so any
+other winner dropped the whole cabinet. `RollOrdinaryStats` now applies the native
+rule by quality. Scratch `x-all-oracle.py` captured 7,800 native rolls for all 13
+modules at chance 0, 10 and 100; all match bit for bit, as do the 7,403 ordinary
+rolls. `x-selection-oracle.py` reran the ranking/insertion oracles with those rolls
+available (the earlier files stopped at any special-quality roll): 500/500
+loadouts match, 161 containing special-quality modules.
+
+The override at `0x140ec4602` reads the **active** game mode at image+0x6E8D714
+(`mov eax,[rip+0x5FC910C]`, next instruction 0x140EC4608). image+0x6E8D718 is the
+pending mode, copied in and reset to 7 at `0x1405D5B60`; the earlier live guard read
+the pending value, so its mode clause always passed. The override applies only for
+mode 0 (Unspecified) or 6 (Seasonal, vendored `GcGameMode`) together with season-data
+flags. Save load `0x1404967F0..0x1404968B4` switches to Seasonal only when season
+data is active. `ReadActiveSavedState` therefore marks the Main context as the
+standard roll; the Season context still depends on the corrected live guard and is
+otherwise omitted. Not yet observed in game: a cabinet with a non-scanner
+special-quality module. The next owner screenshot of one should be added as a reference.
