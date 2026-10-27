@@ -51,12 +51,17 @@ public static class NmsMultiToolGenerationPaths
     /// A false flag proves the early return regardless of season activity; true
     /// remains unknown without address/distance checks. Live/network season-data
     /// replacement is outside this saved-reload scenario.
+    /// After the debug override, the predicate (0x141643500..0x141643538) returns false
+    /// unless the active game mode is Unspecified or Seasonal, so the saved Main context
+    /// resolves standard even when a leftover season block has EqZ=true (Slot 1, 2026-10-27).
     /// </summary>
     public static bool? ReadSavedLegacyStationRule(JObject? saveRoot, StationEquipmentTables tables)
     {
         bool? nearStart = saveRoot?["<h0"] is JObject common && common["Rol"] is JObject season
             && season["EqZ"] is { Type: JTokenType.Boolean } flag ? flag.Value<bool>() : null;
-        return StationRootSelection.ResolveLegacy(tables, null, nearStart);
+        bool? seasonalRulesActive = saveRoot?[NmsSaveContext.ActiveContextKey] is { Type: JTokenType.String } context
+            && context.Value<string>() == "Main" ? false : null;
+        return StationRootSelection.ResolveLegacy(tables, seasonalRulesActive, nearStart);
     }
 
     /// <summary>

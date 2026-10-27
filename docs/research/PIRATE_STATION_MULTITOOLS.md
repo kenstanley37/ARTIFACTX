@@ -300,3 +300,26 @@ data is active. `ReadActiveSavedState` therefore marks the Main context as the
 standard roll; the Season context still depends on the corrected live guard and is
 otherwise omitted. Not yet observed in game: a cabinet with a non-scanner
 special-quality module. The next owner screenshot of one should be added as a reference.
+
+### Legacy predicate game-mode gate and first non-scanner X reference (2026-10-27)
+
+Owner's Slot 1 (Main context) showed no station tools in Kettsibu, Noturbo Spur,
+Euclid (system 0x2005C6DC00C). Its CommonStateData season block carries
+EqZ (UseLegacyStationsNearStartUA) = true with radius 375.3, so the saved legacy
+rule was unknown and the whole section was hidden. The predicate `0x1416434D0`
+checks the debug override, then reads the active game mode at image+0x6E8D714
+(`0x141643500`) and returns false unless it is 0 (Unspecified) or 6 (Seasonal),
+before the season-validity helper or EqZ. `ReadSavedLegacyStationRule` now
+resolves the Main context as standard; Season with EqZ=true remains unknown.
+
+With that, the full saved-request pipeline produces both cabinets, matching the
+owner's screenshots:
+
+| Tool | Class | Damage | Scanner | Installed |
+| --- | --- | --- | --- | --- |
+| Angle Balancer DP3/V15 | C | 1347.8 | 225.3 | SCAN1, SCANBINOC1, LASER, BOLT |
+| Rizamakho's Waveform Focuser | A | 480.0 (live duration 0; 432.3 standard) | 224.8 | SCAN1, SCANBINOC1, LASER, STRONGLASER, UP_LASERX#92128, UP_LASER1#92128 |
+
+Sites 0x099DA7A02F389FE9 / 0xCC7FF3F9D6646186; model seeds 0x82443F82B152F289 /
+0x19308F219B46C487. This is the first in-game confirmation of a non-scanner
+quality-4 module (UP_LASERX, four stats).
