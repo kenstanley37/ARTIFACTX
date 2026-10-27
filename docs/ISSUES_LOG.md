@@ -239,6 +239,8 @@ Synthesized from the latest `ARTIFACTX_NOTES.txt`. Cross-referenced with open Gi
 - **Problem**: Planet Details does not yet show every multi-tool location with its full details (XYZ coords, stats, image, class, etc.), nor equivalent details for ships.
 - **Proposed Solution**: Extend the procedural multi-tool/ship location research (Feature 17) so Planet Details renders each exact generated item with coordinates, class, stats and image, and the same for crashed ships. No candidate pools/odds — only decoded exact results.
 
+- **2026-10-27 research**: Started `feature/planet-multi-tool-locations`. GameData can survey the real shop L-system weapon-terminal references and local transforms without inferring stock/locations. The tested install yields 25 unselected rule references with no missing assets; these are not 25 distinct cabinets. Building selection and world pose remain unresolved. See [planetary research](research/PLANETARY_MULTITOOL_LOCATIONS.md).
+
 ### Feature 25: Planet Details — Greyed Placeholders for Undiscovered Fauna, Flora and Minerals
 - **GitHub**: [Issue #36](https://github.com/kenstanley37/ARTIFACTX/issues/36)
 - **Note #6**

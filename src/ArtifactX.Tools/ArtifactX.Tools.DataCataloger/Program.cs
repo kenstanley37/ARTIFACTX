@@ -10,6 +10,24 @@ using libMBIN;
 string workingFolder = Path.Combine(AppContext.BaseDirectory, "Working");
 Directory.CreateDirectory(workingFolder);
 
+// Research definitions only: no building placement or stock is inferred.
+if (args.Length > 0 && args[0].Equals("planet-shop-survey", StringComparison.OrdinalIgnoreCase))
+{
+    try
+    {
+        if (args.Length != 3) throw new ArgumentException("Usage: DataCataloger planet-shop-survey <output.json> <game folder>");
+        var game = GameInstall.Inspect(args[2]) ?? throw new ArgumentException("No No Man's Sky install found at that path.");
+        if (!Path.GetExtension(args[1]).Equals(".json", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("The survey output must be a .json file.");
+        var survey = PlanetShopWeaponSurveyService.Read(game);
+        File.WriteAllText(Path.GetFullPath(args[1]), System.Text.Json.JsonSerializer.Serialize(survey,
+            new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        Console.WriteLine($"{survey.References.Length} unselected rule references; {survey.UnresolvedPaths.Length} unresolved paths. No locations generated.");
+    }
+    catch (Exception error) { Console.Error.WriteLine(error.Message); Environment.ExitCode = 1; }
+    return;
+}
+
 // "DataCataloger build-all <output.sqlite> [game folder]" - the whole build the
 // app runs on the player's PC (GameDataBuilder): main build, every add-* step,
 // trim, game-build stamp. Game folder defaults to config.json, else the first
