@@ -27,6 +27,24 @@ Goal: know exactly which system indices exist in a region, so Galaxy Search
   `callers.py` (direct call sites + containing function), `funcof.py` (.pdata bounds),
   `bytescan.py` (byte-pattern search), `nmsdis.py` (static disassembly).
 
+### Star generator (found 2026-10-27)
+
+- Per-star callback `0x141369C30(ctx, star, flag)`: the counter word at `[ctx->+0]` (capped
+  below 0xFFF) gives the next system index (counter + 1). It calls `0x14132B3F0` for the
+  star, appends the position via `0x14136DFF0(slot+0x210, ...)` and the packed address,
+  with the index in bits 8..19 of the high dword, via `0x1413522F0(slot+0x250, ...)`, then
+  increments the counter. So **N is the number of stars the generator emits**.
+- Region generator `0x141367810` (one function, chunked to `0x141369A80`): calls the
+  voxel attributes `0x14132AC60`, then emits stars through the callback in two early loops
+  (`0x141367FED`, `0x141368253`, preceded by `0x14136A020`), then a **19 x 19 x 19 cell
+  loop** (bounds `0x13` at `0x141369580..0x1413695A8`) using `0x142D74xxx`/`0x142D757D0`
+  and `0x142D71BB0` (likely noise/density) before the third callback site `0x141369529`.
+  A second caller of the callback is `0x141369A80` (`0x141369BD7`).
+- Conclusion: the star count is the outcome of density sampling, not a closed formula.
+  Plan: emulate `0x141367810` for a region (Unicorn harness in the earlier session's
+  scratchpad `emu/`), confirm the emitted count and order against the owner's Noturbo Spur
+  mapping, then port the loop.
+
 ## Next
 
 1. Find the job that fills a slot (writes `dword [slot+0]` and the `+0x200` container):
