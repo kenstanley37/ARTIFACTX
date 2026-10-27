@@ -66,6 +66,35 @@ per-star callback replaced by a recorder that bumps the callback's counter word.
   all visited indices are emitted. N ranges 242..579; several regions have visits close
   to N (506 vs 535, 474 vs 524). The only "misses" are the 0/0/0 placeholder address.
 
+### Startup state correction and live ground truth (2026-10-27)
+
+A read-before-write scan of `.data` during the generator (`regionreads.py`) found more
+state the game fills at startup, zero in the file:
+`0x146ED3DB0 = (0.5, 0.5, 0.5, 1)` and `0x146ED3DC0 = (-47.368, -47.368, -47.368, 1)`
+(initializers `0x14003A060`, `0x14003A070`; also run `0x14003A110`) and the identity row
+`0x14720BD50 = (0, 0, 0, 1)` (`0x140031340`). With them Noturbo Spur is **N = 539**, not
+540, and many other regions shift by up to ~30. The "visited indices fit" test passed both
+before and after, so it is too weak to prove an exact count.
+
+Exact ground truth comes from the running game, read-only (`liveregions.py`, process
+access 0x410, code bytes verified first): galaxy map = `[[image+0x6E8D708] + 0x95EFB8]`,
+region pool = map + 0x50, active slot count `u32 [pool+0x54]`, slot pointers
+`[pool+0x58]`. Each slot: N = `u32 [slot+0]`, total = `u32 [slot+0x214]` (N + 65),
+region words at `+0x260` (X), `+0x262` (Z), `+0x264` (Y). The game had 175 regions
+loaded; Noturbo Spur read **N = 539, total 604**, matching the corrected emulator.
+
+**All 175 loaded regions match exactly** (N and total) between the running game and the
+emulator with full startup state (`regionlivecheck.py`, 2026-10-27, owner's game in Euclid
+around Noturbo Spur). The reader is kept as `scripts/diagnostics/read_region_star_counts.py`
+for validating the C# port the same way.
+
+Emission rule (for the port): cells pass a first density gate (`> [rbp+0x590]`, 0.55 in
+the tested globals); when a per-region roll `rsi < r14` an extra block
+`0x141368BB5..0x14136908E` runs; a star is emitted when `bl = density > [rbp+0x5D4]`
+(scaled when `rsi < r14`, `0x141369111..0x141369143`). Cell positions include a per-region
+random rotation (sin/cos at `0x140206D80`/`0x140206E60`), so the noise inputs must be
+ported exactly; validate per cell against emulator hooks.
+
 ## Next
 
 1. Find the job that fills a slot (writes `dword [slot+0]` and the `+0x200` container):
