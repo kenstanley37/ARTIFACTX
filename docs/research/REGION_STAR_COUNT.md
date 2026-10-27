@@ -146,7 +146,30 @@ segment: `len` = f32 sqrt(z² + (y² + x²)), `min = 1/(len/5)`, `max = 1/(len/1
 min > 1, `t = min`, per star 5 draws (`0x14136A020`) then `t += draw*(max-min) + min`
 while `t <= 1`; loop 2: 7 draws for each of the remaining `122 - loop1` stars.
 
-### Step 3 map: grid setup draws (read, not yet ported)
+### C# port: exact (2026-10-27)
+
+**Emission rule (verified):** a cell emits a star iff its density `> BaseGenerationThreshold`
+and `> StarGenerationThreshold` (x 1.2 when the spiral roll `Next(100)` - the first grid draw -
+is below `(int)SpiralFormChance`). The density at `[rsp+0x44]` is written once per cell and
+nothing else in the loop gates emission, so rotations, spiral pull and positions do not
+affect the count (`cellrule.py` reproduced the emulator count from per-cell densities).
+
+Density input per cell (a, b, c = outer, middle, inner index 0..18):
+`((idx * 100/19) + (-47.368423)) + region * 0.1`, times `BaseTurbulenceScale`, into the
+derivative-damped fBm (4 octaves, lacunarity, gain) on 3D simplex noise with analytic
+derivatives. Region coordinates are the signed words.
+
+Core: `GalaxySimplexNoise` (simplex + fBm, SSE lane order and mask network ported),
+`RegionPathSegments` (step 1), `RegionStarGeneration.Count(galaxy, x, y, z, settings)`
+(gap exit, fixed-star draws, spiral roll, cell loop). Settings come from the catalog
+(`GALAXYGENERATION`, format 44: `DefaultGeneration` + `GoalGapVoxelDist`; null if
+`FinalTransitionInterpolationValue` is ever non-zero). **Exact on 225/225 regions:** all 175
+regions read live from the game and 50 emulated references (random galaxies, negative
+coordinates, 7 spiral regions, both sides of the goal gap). About 4.7 ms per region.
+`tests/ArtifactX.Core.Checks` holds 12 of them as a regression check;
+`scripts/research/region-generator/RegionCheck` re-runs the full comparison.
+
+### Step 3 map: grid setup draws (positions only; not needed for the count)
 
 `0x141368262..0x141368650`, 11 draws, `P` = generation-setup block at `rbp+0x460`:
 1. d1: `rsi = Next(100)` spiral roll (vs `(int)SpiralFormChance`, `P+0x16C`).
