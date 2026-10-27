@@ -118,6 +118,21 @@ ported exactly; validate per cell against emulator hooks.
   draws and rotation; (4) simplex noise `0x142D75250` + fBm `0x142D746E0`; (5) cell loop and
   emission incl. spiral block; then C# with the same checkpoints and the live reader.
 
+### Step 1 ported: galactic path segments (2026-10-27)
+
+`0x14136A930(slot+0x40, galaxy, &regionWords, &edgeSet)` (scratch `segport.py`), exact for
+60/60 regions (40 live, region 0, 19 random galaxies/negative coordinates):
+- Region words are signed (12-bit X/Z, 8-bit Y). For each face f = 0..5 the shared face
+  coordinate tuple is `(Z-1,X,Y) (Z,X,Y) (Y-1,Z,X) (Y,Z,X) (X-1,Z,Y) (X,Z,Y)`; a
+  SuperFastHash-style mix of it seeds an MWC (`lo = h or 1`, `carry = ror16(h) ^ h`); two
+  draws u, v give the face point `(u,v,-1) (u,v,1) (u,-1,v) (u,1,v) (-1,u,v) (1,u,v)`.
+  Neighbouring regions therefore agree on shared face points.
+- Face points closer than 1.0 are linked. A centre point comes from a second MWC seeded by
+  `mix64(X | Z<<12 | Y<<24 | galaxy<<32)` (lo = h or 1, carry = ror16(lo) ^ hi ^ lo): three
+  draws minus 0.5. Every still-unlinked face entry links to the centre.
+- Edges are emitted once each (hash set), face rows 0..5 in column order, as
+  `(P[i]*50, P[m]*50)` float4 pairs into `slot+0x1D0`.
+
 ## Next
 
 1. Find the job that fills a slot (writes `dword [slot+0]` and the `+0x200` container):
