@@ -21,6 +21,12 @@ Goal: know exactly which system indices exist in a region, so Galaxy Search
 - The pool reserves 700 star entries per region (`edx = 0x2BC` at `0x141354AD1`), an
   upper bound for N + 65.
 
+- The pool lives at `galaxyMap+0x50`; the galaxy-map object is constructed at
+  `0x14132DC90` (pool init `0x1413549F0` is its only caller site, `0x14132DCF7`).
+- Static helpers kept in the session scratchpad: `riprefs.py` (rip-relative xrefs),
+  `callers.py` (direct call sites + containing function), `funcof.py` (.pdata bounds),
+  `bytescan.py` (byte-pattern search), `nmsdis.py` (static disassembly).
+
 ## Next
 
 1. Find the job that fills a slot (writes `dword [slot+0]` and the `+0x200` container):
