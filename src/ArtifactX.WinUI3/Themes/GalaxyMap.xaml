@@ -67,6 +67,9 @@
     <SolidColorBrush x:Key="ThemeSlotLockedBorderBrush" Color="#8C5A3C3C"/>
     <SolidColorBrush x:Key="ThemeSlotLabelBackgroundBrush" Color="#B3000000"/>
     <SolidColorBrush x:Key="ThemeSuperchargedBrush" Color="#FFB21E"/>
+    <!-- Station tool card stats: damage warm, scanner cool; accent is gold here, so neither reuses it. -->
+    <SolidColorBrush x:Key="ThemeDamageStatBrush" Color="#FF9E6B"/>
+    <SolidColorBrush x:Key="ThemeScannerStatBrush" Color="#6FD8FF"/>
     <SolidColorBrush x:Key="ThemeDamagedBrush" Color="#FF3B3B"/>
     <CornerRadius x:Key="ThemeSlotCornerRadius">6</CornerRadius>
 

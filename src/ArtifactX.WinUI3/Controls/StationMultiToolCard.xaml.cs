@@ -46,7 +46,14 @@ public sealed partial class StationMultiToolCard : UserControl
         };
     }
     private void HostSizeChanged(object sender, SizeChangedEventArgs args) => FitWidth();
-    private void FitWidth() => Width = Math.Min(600, Math.Max(1, _host?.ActualWidth ?? 600));
+    private void FitWidth() => Width = Math.Min(460, Math.Max(1, _host?.ActualWidth ?? 460));
+
+    private void SlotsToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        bool shown = SlotsToggle.IsChecked == true;
+        SlotsHost.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
+        SlotsToggle.Content = shown ? "Hide slots" : "Show all slots";
+    }
     private void RefreshPreview()
     {
         if (IsLoaded) _ = BuildPreviewAsync();
@@ -81,7 +88,7 @@ public sealed partial class StationMultiToolCard : UserControl
             Preview.Show(mesh, material => ShipPartsService.MaterialColour(material, ShipPartsService.Look),
                 material => textures.GetValueOrDefault(material));
             _previewIdentity = (tool.ModelPath, tool.ModelSeed);
-            PreviewNote.Text = "Drag to rotate. Colours may differ slightly from the game.";
+            PreviewNote.Text = "Colours may differ slightly.";
         }
         catch (Exception error)
         {
