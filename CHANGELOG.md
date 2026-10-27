@@ -9,6 +9,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - **Station multi-tools after reloading a save**: Current System shows supported station cabinets with the tool's name, class, damage, scanner range and system position. Results are tied to the latest save's reload location; unsupported cases stay hidden.
   - Includes reload locations on a system's additional prime bodies, which previously hid the section.
   - Supports the recovered scanner module used by some station tools, allowing their inventories and scanner ranges to resolve.
+  - Includes supported tools with X-class scanner upgrades that were previously missing from station listings. Rebuild game data to enable these cabinets.
 - **Ship Designer** (under Starships): build a starship the way a space station's fabricator does. Pick a ship type (Fighter, Hauler, Explorer or Solar), a part for each slot, a paint style and colours, and see it in a live 3D preview you can turn. Everything on offer comes from your own game files, so the choices match the game.
   - **Add as new ship** puts the design in an empty starship slot. **Apply to a ship…** puts it on a ship you already own, and can rename that ship to the design's name.
   - **My designs**: save designs with a picture of the ship, search them, load one to change it, save changes or save as new.
@@ -61,6 +62,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - **Regions** (Explore): how much of each region you've mapped. For each system you've found there: whether its system data was read, and for every planet and moon whether its Discoveries hover and its own page were captured - so you can see what's left to do. The region also shows on Current System and a planet's page, and the Planet Finder can filter and search by it.
 
 ### Fixed
+- **Station multi-tool damage**: When the supported running game has no overheat animation for the currently equipped tool, use that preview state for cabinet damage instead of assuming a loaded animation. This preserves projectile damage and corrects affected laser values.
 - **Station multi-tool cards**: Tools now appear in cards that wrap with the window width, with a rotatable 3D preview using the existing seed-based model and colour renderer. Unchanged live updates preserve each preview.
 - **Station multi-tool technology grids**: Each listed cabinet tool now shows its generated technology layout, installed technologies, empty and locked slots, supercharged slots and slot counts in a read-only grid.
 - **Pirate station multi-tools**: Current System can now list supported pirate-station cabinets, using the selected station shape and the actual weapon-shop cabinet position. Pirate tools show their name, class and scanner range; damage is omitted until its display calculation is verified. Rebuild game data to load the new cabinet geometry.

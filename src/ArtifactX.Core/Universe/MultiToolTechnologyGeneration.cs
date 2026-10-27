@@ -6,7 +6,7 @@ public sealed record MultiToolTechnologyTables(string[] TechnologyIds, string[] 
     Dictionary<int, int>? StatParents = null, ProceduralModuleDefinition[]? ProceduralModules = null,
     int[]? WeightingCurves = null, MultiToolScannerRules? ScannerRules = null,
     MultiToolLaserRules? StandardLaserRules = null, MultiToolProjectileRules? BoltRules = null,
-    MultiToolDamageRules? DamageRules = null);
+    MultiToolDamageRules? DamageRules = null, int? IllegalModuleHighGradeChance = null);
 
 /// <summary>Selection metadata from one technology, or a procedural entry's resolved template.</summary>
 public sealed record TechnologySelectionDefinition(string Id, string TechnologyId, int RarityIndex,
@@ -132,7 +132,8 @@ public static class MultiToolTechnologyGeneration
                 string? generatedId = MultiToolProceduralModuleGeneration.InitialId(chosen.Id, inventorySeed);
                 if (generatedId is null) return null;
                 uint suffix = SolarLayoutGeneration.RandomFor(inventorySeed).Next(100000);
-                moduleStats = MultiToolProceduralModuleGeneration.RollOrdinaryStats(suffix, matches[0], curves);
+                moduleStats = MultiToolProceduralModuleGeneration.RollOrdinaryStats(suffix, matches[0], curves,
+                    tables.IllegalModuleHighGradeChance);
                 if (moduleStats is null || moduleStats.Any(s => !parents.ContainsKey(s.Stat))) return null;
                 installedId = generatedId;
             }

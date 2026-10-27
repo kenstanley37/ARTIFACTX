@@ -56,6 +56,8 @@ public sealed partial class StationMultiToolsViewModel : ObservableObject
                 $"{tool.Inventory.Layout.UnlockedSlots.Length} unlocked slots, {tool.Inventory.Technologies.Count} installed technologies, {tool.Inventory.SuperchargedSlots.Count} supercharged slots",
                 StationToolInventory.Create(tool.Inventory), tool.Contents.Tool.ModelPath, tool.Contents.Tool.Seed)).ToArray();
             StationReloadHint = "Reload this save at its saved location, then visit this system's space station. Changing where you reload can change these tools. Only supported cabinets are shown.";
+            if (tools.Any(t => t.UsesLivePreviewState))
+                StationReloadHint += " Damage reflects the game's current preview state.";
             // The shared save feed also reports unchanged cabinets. Keep existing controls
             // and their rotated previews alive until a visible field actually changes.
             if (!StationReloadTools.Select(c => c.DisplayKey).SequenceEqual(cards.Select(c => c.DisplayKey)))
