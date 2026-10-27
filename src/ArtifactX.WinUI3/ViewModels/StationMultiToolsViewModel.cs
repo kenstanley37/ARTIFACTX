@@ -11,9 +11,25 @@ using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
+/// <summary>One installed technology on a compact cabinet card: its icon and, for upgrade modules, class badge.</summary>
+public sealed class StationToolTechChip(string name, Microsoft.UI.Xaml.Media.ImageSource? icon, string? classLetter)
+{
+    public string Name { get; } = name;
+    public Microsoft.UI.Xaml.Media.ImageSource? Icon { get; } = icon;
+    public string ClassLetter { get; } = classLetter ?? "";
+    public bool HasClass { get; } = classLetter is not null;
+    public Microsoft.UI.Xaml.Media.Brush ClassBrush { get; } = ThemeResources.ClassBrush(classLetter);
+    public string Label { get; } = classLetter is null ? name : $"{name} - {classLetter}-class upgrade";
+}
+
 public sealed partial class StationReloadToolCard(string name, string rating, string stats, string position,
     string slotSummary, InventoryGridSnapshot inventory, string modelPath, ulong modelSeed, ulong siteSeed) : ObservableObject
 {
+    public IReadOnlyList<StationToolTechChip> Technologies { get; } = inventory.Cells
+        .Where(c => c.IsOccupied && c.ItemId is not null)
+        .Select(c => new StationToolTechChip(c.DisplayName ?? CatalogService.TryGet(c.ItemId)?.DisplayName ?? c.ShortLabel,
+            CatalogService.TryGet(c.ItemId)?.Icon, CatalogService.ModuleClassLetter(c.ItemId)))
+        .ToArray();
     public string Name { get; } = name;
     public string Rating { get; } = rating;
     [ObservableProperty] public partial string Stats { get; set; } = stats;

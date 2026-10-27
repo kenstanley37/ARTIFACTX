@@ -19,6 +19,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 ### New
 
 - **Station multi-tools after reloading a save**: Current System shows supported station cabinets with the tool's name, class, damage, scanner range and system position. Results are tied to the latest save's reload location; unsupported cases stay hidden.
+  - Compact cards: a small 3D preview beside the details, and a row of installed technology with class badges. **Show all slots** opens the full inventory grid.
   - Includes reload locations on a system's additional prime bodies, which previously hid the section.
   - Supports the recovered scanner module used by some station tools, allowing their inventories and scanner ranges to resolve.
   - Includes supported tools with X-class scanner upgrades that were previously missing from station listings. Rebuild game data to enable these cabinets.
