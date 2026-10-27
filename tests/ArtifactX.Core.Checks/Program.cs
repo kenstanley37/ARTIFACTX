@@ -98,6 +98,23 @@ try
     saveRoot[NmsSaveContext.ActiveContextKey] = NmsSaveContext.ExpeditionContextValue;
     Require(NmsMultiToolGenerationPaths.ReadActiveSavedState(saveRoot, 0)?.Runtime.HasVerifiedStandardIllegalModuleRoll == false,
         "Seasonal context assumed the standard high-grade roll");
+    // Region system counts: the shipped GcGalaxyGlobals.DefaultGeneration / GoalGapVoxelDist as a
+    // fixture; expected counts were read live from the game (Noturbo Spur and a spiral-roll
+    // neighbour) or emulated from NMS.exe (docs/research/REGION_STAR_COUNT.md).
+    var galaxySettings = new GalaxyGenerationSettings(0.55f, 0.68f, 0.9f, 1.25f, 0.15f, 15f, 8f);
+    foreach (var (g, rx, ry, rz, expected) in new[]
+    {
+        (0, 0x00C, 0x5C, 0x6DC, 539), (0, 0x00C, 0x5B, 0x6DC, 231), (24, 0x7, 0x0, 0x0, 0), (160, 0x0, 0xF9, 0x0, 0),
+        (112, 0x17, 0xD2, 0x13C, 221), (77, 0x85F, 0xAC, 0xE87, 236), (241, 0xDB7, 0x7, 0xA16, 241),
+        (10, 0x3BD, 0x2A, 0xFBA, 552), (26, 0x818, 0xB9, 0x8CA, 506), (246, 0x1EB, 0xC1, 0x2C9, 517),
+        (48, 0x27D, 0x8F, 0x9C5, 553), (4, 0xE28, 0xBE, 0xC91, 543),
+    })
+    {
+        var regionCount = RegionStarGeneration.Count(g, rx, ry, rz, galaxySettings);
+        Require(regionCount.Ordinary == expected && regionCount.Purple == (expected == 0 ? 0 : 65),
+            $"Region {g}:{rx:X}/{ry:X}/{rz:X} has {regionCount.Ordinary} systems, expected {expected}");
+    }
+    Console.WriteLine("PASS: region system counts match the game for 12 regions (live, spiral, gap edge, random galaxies).");
     Console.WriteLine("PASS: quality 4/5 high-grade rolls need the chance; SeaTrash rolls do not; only Main establishes the standard roll.");
     Console.WriteLine("PASS: unrelated food accepted; all 11 displayed-stat targets and unknown inputs guarded; saved food identity preserved.");
     Console.WriteLine("PASS: unchanged snapshots, in-place stats, reorder, model replacement, duplicate rejection, and 1000 mixed updates; zero resets.");

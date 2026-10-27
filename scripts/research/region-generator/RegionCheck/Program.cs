@@ -1,0 +1,47 @@
+using ArtifactX.Core.Universe;
+using libMBIN;
+using libMBIN.NMS.Globals;
+using System.Diagnostics;
+using System.Text.Json;
+
+string data = Environment.GetEnvironmentVariable("NMS_EMU_DATA")!;
+T Load<T>(string name) where T : class
+{
+    var file = new MBINFile(File.OpenRead(Path.Combine(data, "globals", name)));
+    file.Load();
+    return (T)(object)file.GetData();
+}
+var galaxyGlobals = Load<GcGalaxyGlobals>("gcgalaxyglobals.global.mbin");
+var gameplay = Load<GcGameplayGlobals>("gcgameplayglobals.global.mbin");
+var g = galaxyGlobals.DefaultGeneration;
+var settings = new GalaxyGenerationSettings(g.BaseGenerationThreshold, g.StarGenerationThreshold, g.BaseTurbulenceGain,
+    g.BaseTurbulenceLac, g.BaseTurbulenceScale, g.SpiralFormChance, gameplay.GoalGapVoxelDist);
+Console.WriteLine($"settings {settings}  FinalTransitionInterpolationValue {galaxyGlobals.FinalTransitionInterpolationValue}");
+
+var rows = JsonDocument.Parse(File.ReadAllLines(args[0])[1]).RootElement;
+int exact = 0, total = 0;
+var timer = Stopwatch.StartNew();
+foreach (var row in rows.EnumerateArray())
+{
+    var w = row.GetProperty("words").EnumerateArray().Select(v => v.GetInt32()).ToArray(); // x, z, y
+    var count = RegionStarGeneration.Count(0, w[0] & 0xFFF, w[2] & 0xFF, w[1] & 0xFFF, settings);
+    int n = row.GetProperty("n").GetInt32(), t = row.GetProperty("total").GetInt32();
+    bool ok = count.Ordinary == n && count.Ordinary + count.Purple == t;
+    exact += ok ? 1 : 0; total++;
+    if (!ok) Console.WriteLine($"DIFF x={w[0]} y={w[2]} z={w[1]}: game {n}/{t}, port {count.Ordinary}/{count.Ordinary + count.Purple}");
+}
+Console.WriteLine($"{exact}/{total} live regions exact; {timer.Elapsed.TotalMilliseconds / Math.Max(1, total):0.0} ms per region");
+if (args.Length > 1)
+{
+    int vexact = 0, vtotal = 0;
+    foreach (var row in JsonDocument.Parse(File.ReadAllText(args[1])).RootElement.EnumerateArray())
+    {
+        int gx = row.GetProperty("galaxy").GetInt32(), x = row.GetProperty("x").GetInt32(), y = row.GetProperty("y").GetInt32(), z = row.GetProperty("z").GetInt32();
+        var count = RegionStarGeneration.Count(gx, x, y, z, settings);
+        int n = row.GetProperty("n").GetInt32(), t = row.GetProperty("total").GetInt32();
+        bool ok = count.Ordinary == n && count.Ordinary + count.Purple == t;
+        vexact += ok ? 1 : 0; vtotal++;
+        if (!ok) Console.WriteLine($"DIFF galaxy {gx} {x:X3}/{y:X2}/{z:X3}: emulator {n}/{t}, port {count.Ordinary}/{count.Ordinary + count.Purple}");
+    }
+    Console.WriteLine($"{vexact}/{vtotal} emulator reference regions exact");
+}

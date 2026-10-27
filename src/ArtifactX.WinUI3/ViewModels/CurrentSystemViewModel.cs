@@ -90,6 +90,9 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     [ObservableProperty] public partial int CurrentPlanet { get; private set; }
     [ObservableProperty] public partial string Heading { get; private set; } = "";
     [ObservableProperty] public partial string Sub { get; private set; } = "";
+    /// <summary>The region's system total from the game's own generator, and how many of them you've visited.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasRegionSystems))] public partial string RegionSystems { get; private set; } = "";
+    public bool HasRegionSystems => RegionSystems.Length > 0;
     [ObservableProperty] public partial string Facts { get; private set; } = "";
     [ObservableProperty] public partial string Station { get; private set; } = "";
     [ObservableProperty] public partial string SystemCode { get; private set; } = "";
@@ -325,6 +328,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         Sub = (planets.Count == 0 ? $"{galaxyText} · no planets discovered here yet" : $"{galaxyText} · {bodies} · {where}")
             + $" · about {NmsPlanets.DistanceToCoreLightYears(system):N0} ly from the galaxy core";
         SystemCode = S.PortalAddress(system, 0);
+        _ = UpdateRegionSystemsAsync(system);
         if (!Bodies.SequenceEqual(planets)) Bodies = planets;
         var data = BuildSystemData(system, note, station);
         if (!SystemData.SequenceEqual(data)) SystemData = data;
@@ -355,6 +359,34 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             (current, next) => current.HasSamePresentation(next));
         UpdateTiles();
         _ = RefreshPictureAsync();
+    }
+
+    /// <summary>
+    /// "Noturbo Spur holds 539 star systems and 65 purple systems · you've visited 165 of them".
+    /// Visited = distinct systems of this region in the save's discovery records.
+    /// </summary>
+    private async Task UpdateRegionSystemsAsync(ulong system)
+    {
+        try
+        {
+            var count = await RegionSystemsService.GetAsync(system);
+            if (SystemAddress != system) return;
+            if (count is null) { RegionSystems = ""; return; }
+            string region = UniverseInfo.Region(system);
+            if (count.Ordinary == 0)
+            {
+                RegionSystems = $"{region} lies inside the galactic centre and holds no star systems";
+                return;
+            }
+            ulong key = RegionStarGeneration.RegionKey(system);
+            int visited = NmsPlanets.ReadSystems(_snapshot.Discoveries).Count(s => RegionStarGeneration.RegionKey(s.SystemAddress) == key);
+            RegionSystems = string.Create(CultureInfo.CurrentCulture,
+                $"{region} holds {count.Ordinary:N0} star systems and {count.Purple} purple systems · you've visited {visited:N0} of them");
+        }
+        catch (Exception error)
+        {
+            System.Diagnostics.Debug.WriteLine($"[CurrentSystem] Region system count unavailable: {error.Message}");
+        }
     }
 
     private void UpdateTiles()

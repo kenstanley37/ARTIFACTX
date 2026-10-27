@@ -1190,6 +1190,11 @@ public static class CatalogService
     public static Task<ArtifactX.Core.Universe.MultiToolModelTables?> GetMultiToolModelTablesAsync() =>
         GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.MultiToolModelTables>("MULTITOOLMODEL");
 
+    /// <summary>Region star-generation settings (catalog "PlanetGeneration", row "GALAXYGENERATION");
+    /// null on game data built before catalog format 44.</summary>
+    public static Task<ArtifactX.Core.Universe.GalaxyGenerationSettings?> GetGalaxyGenerationSettingsAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.GalaxyGenerationSettings>("GALAXYGENERATION");
+
     private static async Task<T?> GetPlanetGenerationRowAsync<T>(string gameId) where T : class
     {
         string? dbPath = ResolveDbPath();
