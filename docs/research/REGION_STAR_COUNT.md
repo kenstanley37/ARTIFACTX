@@ -146,6 +146,26 @@ segment: `len` = f32 sqrt(z² + (y² + x²)), `min = 1/(len/5)`, `max = 1/(len/1
 min > 1, `t = min`, per star 5 draws (`0x14136A020`) then `t += draw*(max-min) + min`
 while `t <= 1`; loop 2: 7 draws for each of the remaining `122 - loop1` stars.
 
+### Step 3 map: grid setup draws (read, not yet ported)
+
+`0x141368262..0x141368650`, 11 draws, `P` = generation-setup block at `rbp+0x460`:
+1. d1: `rsi = Next(100)` spiral roll (vs `(int)SpiralFormChance`, `P+0x16C`).
+2. d2: low bit picks the spiral direction constant stored at `[rbp+0x928]`.
+3. d3: `lerp(SpiralInclusion.x, .y)` -> `[rbp-0x5C]` (`P+0x110`).
+4. d4: angle `f*C - k` -> sin/cos (`0x140206D80`/`0x140206E60`) -> first rotation rows
+   `[rbp+0x230/0x240]`.
+5. d5: second angle -> rows `[rbp+0x140/0x2E0/0x90/0x260]`.
+6. d6: `[rbp-0x54] = f*C + k`; `0x1401D14F0(rbp+0xC0)` combines the rotation.
+7. d7..d11: lerps of ConnectionAttractorMax (`P+0xF0`) -> `[rbp-0x64]`, ConnectionAttractorMin
+   (`P+0xF8`) -> `[rbp-0x60]`, BaseSize (`P+0xE8`) x C -> `[rbp-0x6C]`, SpiralFlex (`P+0x108`)
+   -> `[rbp-0x58]`, ConnectionDistortion (`P+0x100`) -> `[rbp-0x70]`.
+
+Then the 19³ cell loop (`0x141368650..0x1413695A8`): cell vector `(i,j,k)*step` vs the
+(0.5,0.5,0.5) centre at `0x146ED3DB0`, density = fBm `0x142D746E0(pos * BaseTurbulenceScale,
+octaves 4, gain, lacunarity)` on simplex `0x142D75250` (gradient table `0x1459245E0`,
+permutation `0x14501D440`). Port these with per-cell checks of the density call's inputs and
+output (hooks at `0x1413687D3`/`0x1413687D8`), then the emission rule above.
+
 ## Next
 
 1. Find the job that fills a slot (writes `dword [slot+0]` and the `+0x200` container):
