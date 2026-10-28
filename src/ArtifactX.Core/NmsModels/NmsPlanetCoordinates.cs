@@ -66,8 +66,23 @@ public static class NmsPlanetCoordinates
         return centres;
     }
 
-    /// <summary>The player's position in the solar system (rnc.mEH), the same space as the planet centres.</summary>
-    public static (double X, double Y, double Z)? Player(JToken? spawn) => Vector(spawn?["mEH"]);
+    /// <summary>
+    /// Where the player is in the solar system, in the planet centres' space. rnc.mEH is the player's position,
+    /// except aboard the freighter, where it's measured inside the freighter and rnc.NGn (the freighter's position)
+    /// is used. Evidence (Slot 1, Oystana, 2026-10-27): saved InShip, mEH equalled tnP (the ship's position, with
+    /// its facing vectors); saved AboardFleet 16 minutes earlier, mEH was (2.7, 31.8, -63.6) while NGn stayed the
+    /// same in both saves. Null in a space station, where mEH is also local (the station marker shows it).
+    /// </summary>
+    public static (double X, double Y, double Z)? PlayerInSystem(JToken? spawn) =>
+        spawn?["jk4"]?.Value<string>() switch
+        {
+            "AboardFleet" => Vector(spawn?["NGn"]),
+            "InStation" => null,
+            _ => Vector(spawn?["mEH"]),
+        };
+
+    /// <summary>The player's state word (rnc.jk4): OnFoot, InShip, InShipLanded, InStation, AboardFleet...</summary>
+    public static string State(JToken? spawn) => spawn?["jk4"]?.Value<string>() ?? "";
 
     /// <summary>Latitude/longitude of a system-space position on the planet
     /// whose centre is given.</summary>

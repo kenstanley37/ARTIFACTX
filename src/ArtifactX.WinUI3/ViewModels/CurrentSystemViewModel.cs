@@ -108,7 +108,10 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     public partial IReadOnlyList<SystemMapBody> MapBodies { get; private set; } = [];
 
     /// <summary>The system's space station on the map; null for uncharted systems or when it can't be placed.</summary>
-    [ObservableProperty] public partial SystemMapStation? MapStation { get; private set; }
+    [ObservableProperty] public partial SystemMapMarker? MapStation { get; private set; }
+
+    /// <summary>Where you are on the map while in space; null on a planet (that body is outlined) or in a station.</summary>
+    [ObservableProperty] public partial SystemMapMarker? MapPlayer { get; private set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CaptureLabel), nameof(CanCapture))]
@@ -311,6 +314,18 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         }).ToList();
     }
 
+    private SystemMapMarker? PlayerMarker()
+    {
+        if (CurrentPlanet != 0 || MapBodies.Count == 0 || NmsPlanetCoordinates.PlayerInSystem(_snapshot.Spawn) is not { } at) return null;
+        string detail = NmsPlanetCoordinates.State(_snapshot.Spawn) switch
+        {
+            "AboardFleet" => "Aboard your freighter",
+            "InShip" => "In your ship",
+            _ => "In space",
+        };
+        return new SystemMapMarker("You", detail, at.X / 1000, at.Y / 1000, at.Z / 1000);
+    }
+
     private List<KnownPlanet> SystemPlanets() =>
         SystemAddress is ulong system ? _planets.Where(p => p.SystemAddress == system).OrderBy(p => p.PlanetIndex).ToList() : new();
 
@@ -323,6 +338,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             Bodies = [];
             MapBodies = [];
             MapStation = null;
+            MapPlayer = null;
             SystemData = [];
             Unmatched = [];
             Tiles.Clear();
@@ -361,6 +377,8 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         if (!Bodies.SequenceEqual(planets)) Bodies = planets;
         var mapBodies = MapBodiesOf(system, planets);
         if (!MapBodies.SequenceEqual(mapBodies)) MapBodies = mapBodies;
+        var player = PlayerMarker();
+        if (player != MapPlayer) MapPlayer = player;
         _ = UpdateMapStationAsync(system, isUncharted ? null : station.Length > 0 ? station : $"{Heading} Station");
         var data = BuildSystemData(system, note, station);
         if (!SystemData.SequenceEqual(data)) SystemData = data;
@@ -402,12 +420,12 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     {
         try
         {
-            SystemMapStation? placed = null;
+            SystemMapMarker? placed = null;
             if (name is not null && await CatalogService.GetStationEquipmentTablesAsync() is { } tables)
             {
                 var (code, galaxy) = UniverseInfo.Generator(system);
                 var pose = await Task.Run(() => StationPoseGeneration.GenerateForSystem(code, galaxy, tables.SolarLayout));
-                if (pose is not null) placed = new SystemMapStation(name, pose.Position.X / 1000, pose.Position.Y / 1000, pose.Position.Z / 1000);
+                if (pose is not null) placed = new SystemMapMarker(name, "Space station", pose.Position.X / 1000, pose.Position.Y / 1000, pose.Position.Z / 1000);
             }
             if (SystemAddress == system && placed != MapStation) MapStation = placed;
         }

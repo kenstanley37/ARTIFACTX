@@ -17,7 +17,7 @@ namespace ArtifactX.WinUI3.Controls;
 /// The system you're in as a 3D map: every planet and moon at its real centre from the save
 /// (<c>6f=.aHM</c>), moons tied to the planet they orbit (system generator; moons sit 226,000 units from
 /// their planet, matched against nine save systems 2026-10-27), the body you're on outlined, and the space
-/// station (<see cref="SystemMapStation"/>) as a diamond. Discovered bodies use the planet drawing (biome
+/// station as a diamond and you, when you're in space, as a white dot (<see cref="SystemMapMarker"/>). Discovered bodies use the planet drawing (biome
 /// colour, rings; Dead planets are grey); undiscovered ones are a dashed outline. The sun isn't placed yet.
 /// Same controls as the region map (<see cref="MapCamera"/>);
 /// clicking a discovered body raises <see cref="BodyClicked"/>.
@@ -34,13 +34,22 @@ public sealed partial class SystemMap : UserControl
     }
 
     public static readonly DependencyProperty StationProperty = DependencyProperty.Register(nameof(Station),
-        typeof(SystemMapStation), typeof(SystemMap), new PropertyMetadata(null, (d, _) => ((SystemMap)d).Rebuild()));
+        typeof(SystemMapMarker), typeof(SystemMap), new PropertyMetadata(null, (d, _) => ((SystemMap)d).Rebuild()));
+    public static readonly DependencyProperty PlayerProperty = DependencyProperty.Register(nameof(Player),
+        typeof(SystemMapMarker), typeof(SystemMap), new PropertyMetadata(null, (d, _) => ((SystemMap)d).Rebuild()));
 
     /// <summary>The space station, drawn as a diamond; null leaves it out.</summary>
-    public SystemMapStation? Station
+    public SystemMapMarker? Station
     {
-        get => (SystemMapStation?)GetValue(StationProperty);
+        get => (SystemMapMarker?)GetValue(StationProperty);
         set => SetValue(StationProperty, value);
+    }
+
+    /// <summary>Where you are in space, drawn like the region map's "you are here"; null when you're on a planet or unknown.</summary>
+    public SystemMapMarker? Player
+    {
+        get => (SystemMapMarker?)GetValue(PlayerProperty);
+        set => SetValue(PlayerProperty, value);
     }
 
     /// <summary>A discovered planet or moon was clicked.</summary>
@@ -51,18 +60,20 @@ public sealed partial class SystemMap : UserControl
     private readonly List<(Line Line, SystemMapBody Moon, SystemMapBody Host)> _tethers = new();
     private readonly MapCamera _camera;
     private (double X, double Y, double Z) _middle;
-    private (Rectangle Marker, TextBlock Label)? _station;
+    private readonly List<(Shape Shape, TextBlock Label, SystemMapMarker Marker)> _markers = new();
 
     public SystemMap()
     {
         InitializeComponent();
         ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.SizeAll);
-        _camera = new MapCamera(this, Stage, 1);
+        // Planets lie close to one plane, so start looking down on it (a slight tilt keeps the 3D feel).
+        _camera = new MapCamera(this, Stage, 1, pitch: 1.35);
         _camera.Changed += Draw;
         _camera.Clicked += OnClicked;
         _camera.HomePressed += () =>
         {
-            if (_bodies.FirstOrDefault(b => b.Body.IsHere).Body is { } here) _camera.GlideTo(here.X, here.Y, here.Z);
+            if (Player is { } you) _camera.GlideTo(you.X, you.Y, you.Z);
+            else if (_bodies.FirstOrDefault(b => b.Body.IsHere).Body is { } here) _camera.GlideTo(here.X, here.Y, here.Z);
             else _camera.GlideTo(_middle.X, _middle.Y, _middle.Z);
         };
     }
@@ -72,7 +83,7 @@ public sealed partial class SystemMap : UserControl
         Stage.Children.Clear();
         _bodies.Clear();
         _tethers.Clear();
-        _station = null;
+        _markers.Clear();
         var bodies = Bodies ?? [];
         var line = ThemeResources.Brush("ThemeLineBrush");
         foreach (var moon in bodies.Where(b => b.IsMoon))
@@ -105,18 +116,20 @@ public sealed partial class SystemMap : UserControl
             Stage.Children.Add(label);
         }
 
-        if (Station is { } station && bodies.Count > 0)
+        if (bodies.Count > 0)
         {
-            var marker = new Rectangle
-            {
-                Width = 10, Height = 10, Fill = ThemeResources.Brush("ThemeAccentAltBrush"),
-                RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new RotateTransform { Angle = 45 },
-            };
-            ToolTipService.SetToolTip(marker, $"{station.Name}\nSpace station");
-            var label = new TextBlock { Text = station.Name, FontSize = 11, IsHitTestVisible = false, Foreground = ThemeResources.Brush("ThemeTextDimBrush") };
-            _station = (marker, label);
-            Stage.Children.Add(marker);
-            Stage.Children.Add(label);
+            if (Station is { } station)
+                AddMarker(station, new Rectangle
+                {
+                    Width = 10, Height = 10, Fill = ThemeResources.Brush("ThemeAccentAltBrush"),
+                    RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new RotateTransform { Angle = 45 },
+                }, "ThemeTextDimBrush");
+            if (Player is { } player)
+                AddMarker(player, new Ellipse
+                {
+                    Width = 14, Height = 14, Fill = ThemeResources.Brush("ThemeTextBrush"),
+                    Stroke = ThemeResources.Brush("ThemeDamageStatBrush"), StrokeThickness = 3,
+                }, "ThemeTextBrush");
         }
 
         // Fit the whole system, centred on its middle.
@@ -127,6 +140,15 @@ public sealed partial class SystemMap : UserControl
                 Math.Max(Math.Abs(b.Y - _middle.Y), Math.Abs(b.Z - _middle.Z))))) * 1.1;
         }
         _camera.SetPivot(_middle.X, _middle.Y, _middle.Z);
+    }
+
+    private void AddMarker(SystemMapMarker marker, Shape shape, string labelBrush)
+    {
+        ToolTipService.SetToolTip(shape, $"{marker.Name}\n{marker.Detail}");
+        var label = new TextBlock { Text = marker.Name, FontSize = 11, IsHitTestVisible = false, Foreground = ThemeResources.Brush(labelBrush) };
+        _markers.Add((shape, label, marker));
+        Stage.Children.Add(shape);
+        Stage.Children.Add(label);
     }
 
     /// <summary>Project and paint, nearest on top; labels sit right of their body.</summary>
@@ -147,16 +169,16 @@ public sealed partial class SystemMap : UserControl
             Canvas.SetZIndex(drawing, z + (body.IsHere ? 100000 : 0));
             Canvas.SetZIndex(label, z + 200000);
         }
-        if (_station is var (stationMarker, stationLabel) && Station is { } station)
+        foreach (var (shape, label, marker) in _markers)
         {
-            var p = _camera.Project(station.X, station.Y, station.Z);
-            Canvas.SetLeft(stationMarker, p.X - 5);
-            Canvas.SetTop(stationMarker, p.Y - 5);
-            Canvas.SetLeft(stationLabel, p.X + 9);
-            Canvas.SetTop(stationLabel, p.Y - 8);
+            var p = _camera.Project(marker.X, marker.Y, marker.Z);
+            Canvas.SetLeft(shape, p.X - shape.Width / 2);
+            Canvas.SetTop(shape, p.Y - shape.Height / 2);
+            Canvas.SetLeft(label, p.X + shape.Width / 2 + 4);
+            Canvas.SetTop(label, p.Y - 8);
             int z = (int)(p.Depth * 1000 / Math.Max(_camera.HalfExtent, 1)) + 10000;
-            Canvas.SetZIndex(stationMarker, z);
-            Canvas.SetZIndex(stationLabel, z + 200000);
+            Canvas.SetZIndex(shape, z + (ReferenceEquals(marker, Player) ? 150000 : 0));
+            Canvas.SetZIndex(label, z + 200000);
         }
         foreach (var (tether, moon, host) in _tethers)
         {

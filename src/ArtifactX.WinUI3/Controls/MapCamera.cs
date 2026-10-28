@@ -1,4 +1,4 @@
-using Microsoft.UI.Input;
+﻿using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -42,9 +42,11 @@ public sealed class MapCamera
     /// <summary>Home was pressed: return to the player's own place.</summary>
     public event Action? HomePressed;
 
-    public MapCamera(UserControl host, Canvas stage, double halfExtent)
+    /// <param name="pitch">The starting tilt: 0 looks side-on, 1.5 straight down.</param>
+    public MapCamera(UserControl host, Canvas stage, double halfExtent, double pitch = 0.35)
     {
         _host = host;
+        _pitch = pitch;
         _stage = stage;
         HalfExtent = halfExtent;
         Angles();
