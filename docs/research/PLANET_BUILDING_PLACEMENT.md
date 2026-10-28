@@ -550,3 +550,15 @@ altitude erosion via smoothstep of the clamped sum, amplitude *= that (first oct
 start 1.0 for one octave else 0.9). Tail: (sum + 1) / 2 when SharpToRound rounds to 0, remap + clamp, Schlick
 gain (SlopeGain) and bias (SlopeBias). Constants and tables read from NMS.exe (perm `0x144AFAEA0`, gradients
 `0x144AFADA0`). Next: the core `0x142DE3F20` / layer evaluator `0x142C3D4E0` around it, then the height function.
+
+**Simplex fBm `0x1419BBAE0` scalar path PORTED, bit-exact (2026-10-28).** `fbmport.py`: 88/88 emulator vectors
+(octaves 1-3, `emu_fbm4.py`). Its two terrain uses only run the scalar path: the site query's domain warp passes 2
+octaves (`0x14128A850`), the region mask 3 (global `0x145097F6C`, 3 in the file); the 4-octaves-per-lane SIMD path
+needs more than 3. Same simplex as the uber noise without derivatives; sum += n * amp, amp *= 0.5, freq *= 2;
+result * norm[octaves] (`0x144BE9418`). Its 256-entry gradient table `0x146F45EE0` (SIMD path only) is filled at
+start-up as gradient16[perm[i] & 15].
+Region step `0x142C37340` (per layer value): uses RegionRatio/RegionScale/Width, the region mask
+`0x142DE3E70` -> `0x1419BE730` (point + (seed%13, seed%13, seed%17) * k, / (RegionScale*Width), fBm with 3 octaves,
+then normalised by the min/max table `0x144AFAD00`), powf-shaped smoothstep, plateaus (PlateauStratas/Sharpness/
+RegionSize with a second mask at seed + 1), x Height, then quantised. Core `0x142DE3F20` for one point:
+(p + (seed%13, seed%13, seed%17) * k) / Width -> scalar uber noise.
