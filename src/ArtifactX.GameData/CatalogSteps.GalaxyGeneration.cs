@@ -29,6 +29,8 @@ public static partial class CatalogSteps
         if (decode("GCGALAXYGLOBALS.GLOBAL.MBIN") is not GcGalaxyGlobals galaxy
             || galaxy.FinalTransitionInterpolationValue != 0f || galaxy.DefaultGeneration is not { } g) return null;
         return new GalaxyPlacementSettings(g.ConnectionAttractorMax.X, g.ConnectionAttractorMax.Y, g.ConnectionAttractorMin.X,
-            g.ConnectionAttractorMin.Y, g.ConnectionDistortion.X, g.ConnectionDistortion.Y, g.ConnectionDistortionTMult, g.InnerFieldScales.Z);
+            g.ConnectionAttractorMin.Y, g.ConnectionDistortion.X, g.ConnectionDistortion.Y, g.ConnectionDistortionTMult, g.InnerFieldScales.Z,
+            g.SpiralInclusion.X, g.SpiralInclusion.Y, g.SpiralFlex.X, g.SpiralFlex.Y, g.SpiralTwistMult,
+            g.SpiralPull.X, g.SpiralPull.Y, g.SpiralPull.Z, g.InnerFieldScales.Y);
     }
 }

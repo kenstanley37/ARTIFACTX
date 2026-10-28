@@ -153,7 +153,38 @@ public static class GalaxySimplexNoise
         return sum;
     }
 
-    private static readonly float[] Gradients2 = { -1, -1, 1, 0, -1, 0, 1, 1, -1, 1, 0, -1, 0, 1, 1, -1 }; // 0x14501DC40
+    /// <summary>
+    /// Smoothstep-banded fBm (0x142D757D0), the spiral inclusion field: per octave the noise value n
+    /// at frequency f gives a = clamp(n / (f * 0.01)) and b = clamp(-n / (f * 0.01)), and the octave adds
+    /// (s(a) - s(b)) * amplitude with s(t) = ((t * 6 - 15) * t + 10) * t³. Returns the sum over the
+    /// summed amplitudes.
+    /// </summary>
+    public static float BandedFbm(float x, float y, float z, int octaves, float lacunarity, float gain)
+    {
+        float sum = 0f, total = 0f, frequency = 1f, amplitude = 1f;
+        for (int o = 0; o < octaves; o++)
+        {
+            float n = Noise(frequency * x, frequency * y, frequency * z, out _, out _, out _);
+            total += amplitude;
+            float width = frequency * 0.01f - 0f;
+            frequency *= lacunarity;
+            float a = Clamp01((n - 0f) / width), b = Clamp01((-n - 0f) / width);
+            float sa = ((a * 6f - 15f) * a + 10f) * (a * a * a);
+            float sb = ((b * 6f - 15f) * b + 10f) * (b * b * b);
+            sum += (sa - sb) * amplitude;
+            amplitude *= gain;
+        }
+        return sum / total;
+    }
+
+    /// <summary>maxss with 0 then minss with 1, operand order as in the game (NaN passes through).</summary>
+    private static float Clamp01(float v)
+    {
+        float low = 0f > v ? 0f : v;
+        return 1f < low ? 1f : low;
+    }
+
+    private static readonly float[] Gradients2 ={ -1, -1, 1, 0, -1, 0, 1, 1, -1, 1, 0, -1, 0, 1, 1, -1 }; // 0x14501DC40
     private static readonly float F2 = BitConverter.Int32BitsToSingle(0x3EBB67AE);      // (sqrt(3)-1)/2 at 0x14351AC68
     private static readonly float G2 = BitConverter.Int32BitsToSingle(0x3E58658C);      // (3-sqrt(3))/6 at 0x1435332A4
     private static readonly float TwoG2 = BitConverter.Int32BitsToSingle(0x3ED8658C);   // at 0x1435332D0

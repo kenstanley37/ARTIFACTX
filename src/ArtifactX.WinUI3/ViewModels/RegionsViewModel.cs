@@ -236,9 +236,12 @@ public sealed partial class RegionsViewModel : ObservableObject
         {
             MapStars = [];
             SelectedMapStar = null;
-            MapNote = await CatalogService.GetGalaxyPlacementSettingsAsync() is null
+            // Null stars: no placement settings, settings from before spiral regions (format 46), or the galactic centre.
+            MapNote = await CatalogService.GetGalaxyPlacementSettingsAsync() is not { } placement
                 ? "Rebuild the game data (Settings) to see the region map."
-                : "The map isn't available for this region yet: spiral-arm regions use a placement step ArtifactX can't reproduce yet.";
+                : !placement.HasSpiral
+                    ? "Rebuild the game data (Settings) to see the map of this region; it's a spiral-arm region."
+                    : "This region lies inside the galactic centre and has no stars to map.";
             _mapKey = "";
             return;
         }

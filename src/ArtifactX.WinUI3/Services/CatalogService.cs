@@ -1195,7 +1195,7 @@ public static class CatalogService
     public static Task<ArtifactX.Core.Universe.GalaxyGenerationSettings?> GetGalaxyGenerationSettingsAsync() =>
         GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.GalaxyGenerationSettings>("GALAXYGENERATION");
 
-    /// <summary>Region star-placement settings (row "GALAXYPLACEMENT"); null before catalog format 45.</summary>
+    /// <summary>Region star-placement settings (row "GALAXYPLACEMENT"); null before catalog format 45; no spiral fields before 46.</summary>
     public static Task<ArtifactX.Core.Universe.GalaxyPlacementSettings?> GetGalaxyPlacementSettingsAsync() =>
         GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.GalaxyPlacementSettings>("GALAXYPLACEMENT");
 

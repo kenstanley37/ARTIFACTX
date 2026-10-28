@@ -1,4 +1,4 @@
-using ArtifactX.Core.Universe;
+﻿using ArtifactX.Core.Universe;
 using System.Text.Json;
 
 /// <summary>Compares ported star positions with emulator dumps (regionpositions.py, POSITIONS_OUT jsonl).</summary>
@@ -47,6 +47,8 @@ static class Positions
                 if (port[i] == expected[i]) same++;
                 else if (firstDiff < 0) firstDiff = i;
             }
+            if (Environment.GetEnvironmentVariable("PATTERN") is not null)
+                Console.WriteLine(string.Concat(Enumerable.Range(0, Math.Min(port.Count, expected.Length)).Select(i => port[i] == expected[i] ? '.' : 'X')));
             Console.WriteLine($"galaxy {g} {x:X3}/{y:X2}/{z:X3}: {same}/{expected.Length} ordinary stars bit-exact (port emitted {port.Count})"
                 + (firstDiff >= 0 ? $"; first diff #{firstDiff + 1}: port {port[firstDiff]} vs game {expected[firstDiff]}" : ""));
         }
