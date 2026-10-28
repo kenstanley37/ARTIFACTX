@@ -437,8 +437,13 @@ Base) are placed relative to chain points. Positions are written at `0x141636A45
 Hunnieldebur Iomi, Ewtone Waraz): same site key, type and position (0.000 m), portals included; Ribhakyam's chain
 restarts exactly 3 times (word 606). Start-up values (0 in the file, read live): `0x145006F00` = 10,
 `0x145006EF8` = 35, chain band `0x14535178C` = 600, `0x145351790` = 500, `0x145351794` = 1000, `0x145351798` = 800;
-their globals MBIN is still to identify (needed for the port, never hard-coded).
-**Next: port to Core** - uber noise + height `0x14128AA20`, the domain-warped site query `0x1412B2D70` (noise
+sources identified: the band is **GcBuildingGlobals** StartCrashSiteMaxDistance 600 (`+0xD0C`),
+StartCrashSiteMinDistance 500, StartShelterMaxDistance 1000, StartShelterMinDistance 800 (the start area: crash
+site and shelter at set distances); 35/10 are **GcTerrainGlobals** SeaLevelGasGiant (`+0x278`) and SeaLevelMoon
+(`+0x280`) - special sea levels the override function compares against.
+**Next: port to Core.** Order: (A) the per-planet TkVoxelGeneratorData (noise layer values drawn from the terrain
+setting's ranges; Core's PlanetProfileGenerator.Terrain only picks the setting, sea level and caves) - check against
+the 8 live terrain dumps; (B) uber noise + height `0x14128AA20`, the domain-warped site query `0x1412B2D70` (noise
 `0x1419BBAE0`), the accept rule `0x141631F60`, the chain + phase 2 - each checked against the emulator.
 Crashed-ship ground truth for later: Ribhakyam, "Final Eokak III", C-class, at +66.87, +81.48 (next to the portal),
 with a distress beacon pod (owner, 2026-10-28).
