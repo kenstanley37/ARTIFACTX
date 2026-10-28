@@ -376,6 +376,23 @@ within 0.002 rad. Gaps are rejected attempts (2 words each) plus cluster placeme
 (height against sea/lava level). Exact portal prediction therefore needs that test: either port the terrain
 height (TkVoxelGenerator noise - large, but also gives exact building heights) or find a cheaper rule.
 
+**Accept test decoded (2026-10-28).** `0x141631160`: (1) warped site query `0x1412B2D70` must find a site and a
+finite point; (2) building type = Buildings[index] (`+0xC0` a flatten value, `+0xD3` class), `0x1412B5220(class)`
+-> flag; (3) **height h = `0x14128AA20(point, Terrain)`**; (4) `0x14128C350` (flatten / second terrain value; with the
+flag it replaces h); (5) `0x141631F60(h, SeaLevel = Terrain+0x1148, ...)` accepts when: not below sea (h < sea + c
+counts only when sea > 0), the type's water rule (`+0x9C`: 3 = water-only, 1-2 = land-only variants), the type's
+Min/Max height (`+0xB4`/`+0xBC`), and the second terrain value in [0, limit]. Accepted position = site point +
+normalize(point) * h (+ planet position): the record's ground position.
+**Height function `0x14128AA20`** = TkVoxelGeneratorData (libMBIN offsets): hash of BaseSeed (`+0xAB0`); layers 7
+and 6 of `NoiseLayers` (`+0xAC0`, TkNoiseUberLayerData stride 0x84: Active `+0x80`, Subtract `+0x81`, SeedOffset
+`+0x68`, Height `+0x40`) form the base (h7 + h7 / Height7 * max(h6, 0)), layers 0-3 add by max (or subtract-min when
+Subtract), then + NoSeaBaseLevel (`+0x1140`). Each layer = `0x142C3D4E0` (uber layer, ~580 instructions) ->
+uber noise core `0x142DE3F20` (~930) -> primitives `0x1419BD4C0` / `0x1419BCA30`.
+**Plan:** port the uber noise + this height function (verify against the game's own function run in the emulator
+harness on real TkVoxelGeneratorData, then against the live override records), then the accept test and the
+placement loop -> exact portal (and every override) positions with ground height. Also needed by the mobile app
+(heights, sea, ground-level markers).
+
 **Forsaken (build 183791, 2026-10-28).** PLANETBUILDINGTABLE decodes with libMBIN 7.07 and is identical to the
 180836 table. NMS.exe moved: the BuildingLevel setter is now at `0x1416C84E3` (was `0x141695B73`, +0x32970) with the
 same logic. Addresses in this file are build 180836; re-locate by byte pattern before using them.
