@@ -322,6 +322,13 @@ site key/point/class per cell, latitude/longitude, enumeration per face. Check: 
 running game (`buildingcheck_live.py` with `SITES_OUT`, `dump_planet_buildings.py`): on all 5 Oystana planets seeds
 and divisions exact, slots 1000/1000, 2,592/2,592 live records same key, built and same class, worst point 2 cm,
 1,000,000/1,000,000 random cells same class as the game's own slot table.
+**Saved markers, offline (2026-10-28, `RegionCheck markers`).** The 19 building markers in Slot 1/Slot 8 (A1f,
+10 systems, all planet sizes and many biomes) checked from address + catalog only (PlanetGenerator,
+PlanetProfileGenerator, no live game): **19/19 keys found** on the generated grid, **18/19 classes as saved**. The
+miss is a Portal: portals have density 0 everywhere and come from the override list (OverrideBuildings, not slots),
+which is not modelled. `RegionCheck suggest` lists predicted sites of chosen classes nearest a latitude/longitude
+with marker values, for the Slot 8 marker test (Observatory on Yikjav XIV, -0.84, +0.42, written at base radius).
+
 Next for the app: PLANETBUILDINGTABLE rows in the catalog, a Giant radius, then a "nearest Shop / Depot / crashed
 freighter" finder from the player's position; and for exact contents, the model chosen within a class and the
 cabinet / crashed-ship seeds.
