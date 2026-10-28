@@ -494,3 +494,20 @@ trace back from the `GcScanEventSave` writer.
 2. Find the scan-event creation path (what writes `BuildingLocation`) to learn whether markers carry
    terrain height.
 3. Emulate the site generator for a planet with saved markers and match a marker's seed and location.
+
+
+## Terrain data generation `0x1416C6BF0` (build 183791; old 0x141694280), started 2026-10-28
+
+Writes the planet's TkVoxelGeneratorData (GcPlanetData `+0x2030`) from the terrain settings table
+(generator `+0x510`, elements of 0x22A0 = a **minimum TkVoxelGeneratorData and a maximum one at `+0x1150`**), on the
+planet generator's MWC (`+0xBA4`, child seed 4 - Core's PlanetProfileGenerator.Terrain already ports the start:
+setting index `+0x32CC`, purple / prime ranges, sea level):
+- TerrainControls copied from the biome file (`+0x244..+0x2BC` -> `+0x3240`), BaseSeed from `+0x3220` -> `+0x2AE0`.
+- Noise layers 0-7 (stride 0x84): one draw against the layer's chance (`+0x3264 + 4*i`, from TerrainControls) sets
+  Active (`+0x2B70 + 0x84*i`); active layers are built by `0x1416C4F60(gen, out, min layer, max layer, controls)`
+  (draws between the min and max values) and copied in. Layer 7 has water-world / sea-level special cases
+  (`+0x3178` vs constants; Height set to sea level minus a constant, a fixed offset type 4).
+- Then the features (`+0x2EE0` area) the same way with `0x1416C6760`, and further draws (12 more MWC steps) for the
+  remaining values.
+Plan: emulate this function per planet (biome files + settings table loaded) to get exact references, then port it
+step by step; end-to-end check = the live TkVoxelGeneratorData dumps (8 planets).
