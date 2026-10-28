@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- **Marker coordinates on Planet Details**: Sites found with a planetary chart, signal booster or beacon now show their real latitude and longitude. They were worked out from the wrong point and could be far off. Where the planet's position can't be worked out exactly, the site is still listed without coordinates.
+
 - **Regions page pauses**: The page no longer freezes for a moment each time the game saves. Unchanged systems stay as they are, and only the cards on screen are drawn.
 
 - **Station multi-tools**: Food bonuses unrelated to weapon damage or scanner range no longer hide every cabinet. Rebuild game data to enable this correction.

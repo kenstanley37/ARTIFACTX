@@ -11,6 +11,44 @@ namespace ArtifactX.Core.Universe;
 /// </summary>
 public static class SolarLayoutGeneration
 {
+    /// <summary>An ordinary system's primary bodies: packed address, native body sizes and exact centres (body 1 first).</summary>
+    public sealed record SystemLayout(ulong Address, int[] Sizes, Vector3[] Centers);
+
+    /// <summary>
+    /// The primary-body layout of an ordinary system from its portal code and galaxy: native sizes and moon hosts
+    /// from the system generator, then <see cref="PrimaryCenters"/>. Null for gas-giant systems (no size-4 bodies in
+    /// the native regression set), forced layout modes and other unsupported inputs. Prime bodies are not included.
+    /// The centres round down to the save's <c>6f=.aHM</c> in four save systems checked 2026-10-27.
+    /// </summary>
+    public static SystemLayout? ForSystem(ulong portalCode, int galaxy, SolarLayoutTables tables, bool placeMoons)
+    {
+        if (galaxy is < 0 or > 255 || ((portalCode >> 32) & 0xFFF) == 0
+            || tables.GenerateForcedNumberPlanets != 0 || tables.GenerateMaximumSolarSystem)
+            return null;
+        var attributes = SystemGenerator.Attributes(portalCode, galaxy);
+        if (attributes.GasGiant) return null;
+        var bodies = SystemGenerator.Bodies(portalCode, galaxy);
+        int count = attributes.PlanetCount;
+        if (count is < 1 or > 8 || bodies.Hosts.Length < count) return null;
+        var sizes = new int[count];
+        var hosts = new int[count];
+        int sizeIndex = 0;
+        for (int i = 0; i < count; i++)
+        {
+            hosts[i] = bodies.Hosts[i] > 0 ? bodies.Hosts[i] - 1 : -1;
+            if (hosts[i] >= 0) sizes[i] = 3;
+            else
+            {
+                if (sizeIndex >= bodies.Sizes.Length) return null;
+                sizes[i] = bodies.Sizes[sizeIndex++];
+            }
+        }
+        ulong address = ((portalCode >> 32) & 0xFFF) << 40
+            | (ulong)(uint)galaxy << 32 | (portalCode & 0xFFFFFFFF);
+        var centers = PrimaryCenters(address, sizes, hosts, tables, placeMoons);
+        return centers is null ? null : new SystemLayout(address, sizes, centers);
+    }
+
     /// <summary>
     /// Exact primary centers from packed system address and native body sizes/zero-based
     /// moon hosts (-1 for planets). Moon placement must be supplied from the native gate

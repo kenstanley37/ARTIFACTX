@@ -1,4 +1,4 @@
-using ArtifactX.Core.NmsModels;
+﻿using ArtifactX.Core.NmsModels;
 using ArtifactX.Core.Universe;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -43,10 +43,13 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         NoLocatedSites = value.Count == 0;
     }
 
-    public Task LoadAsync(KnownPlanet planet, PlanetSnapshot snapshot)
+    /// <summary>The planet's exact centre (markers are in system space), or null when it can't be generated.</summary>
+    private (double X, double Y, double Z)? _centre;
+
+    public async Task LoadAsync(KnownPlanet planet, PlanetSnapshot snapshot)
     {
+        _centre = await PlanetCentreService.GetAsync(planet.Address);
         UpdateLocations(planet, snapshot);
-        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -55,7 +58,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     /// </summary>
     public void UpdateLocations(KnownPlanet planet, PlanetSnapshot snapshot)
     {
-        var sites = ReadLocatedSites(planet, snapshot);
+        var sites = ReadLocatedSites(planet, snapshot, _centre);
 
         LocatedSites = sites;
         LocatedSitesHeading = $"LOCATED SITES ON THIS PLANET ({sites.Count})";
@@ -65,7 +68,8 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     }
 
     /// <summary>Reads active markers and player-recorded Finds with exact locations for one planet.</summary>
-    public static IReadOnlyList<PlanetLocatedSite> ReadLocatedSites(KnownPlanet planet, PlanetSnapshot snapshot)
+    public static IReadOnlyList<PlanetLocatedSite> ReadLocatedSites(KnownPlanet planet, PlanetSnapshot snapshot,
+        (double X, double Y, double Z)? planetCentre)
     {
         var sites = new List<PlanetLocatedSite>();
 
@@ -74,10 +78,11 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         {
             if (S.ParsePackedAddress(ev["oZw"]) != planet.Address) continue;
 
-            var coords = NmsPlanetCoordinates.OfScanEvent(ev);
-            if (coords is null) continue;
-
-            string coordText = NmsPlanetCoordinates.Format(coords.Value.Latitude, coords.Value.Longitude);
+            if (ev["TWn"] is not JArray { Count: >= 3 } at || (at[0].Value<double>() == 0 && at[1].Value<double>() == 0 && at[2].Value<double>() == 0))
+                continue;
+            // No exact centre (gas giant or prime body): list the site without coordinates rather than guess them.
+            var coords = planetCentre is { } centre ? NmsPlanetCoordinates.OfScanEvent(ev, centre) : null;
+            string coordText = coords is { } c0 ? NmsPlanetCoordinates.Format(c0.Latitude, c0.Longitude) : "Marked in game";
             string bldClass = ev["iqv"]?["iqv"]?.Value<string>() ?? "Unknown";
             string eventId = (ev["FN5"]?.Value<string>() ?? "").TrimStart('^');
 
