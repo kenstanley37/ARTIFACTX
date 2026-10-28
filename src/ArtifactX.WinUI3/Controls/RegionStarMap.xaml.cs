@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml.Shapes;
 using Windows.System;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Windows.Foundation;
 
 namespace ArtifactX.WinUI3.Controls;
@@ -83,7 +84,11 @@ public sealed partial class RegionStarMap : UserControl
             _dots.Add((dot, star));
             Stage.Children.Add(dot);
         }
+        // Centre on the picked star, else on the middle of this region's stars (not the last region's pivot).
         if (Selected is { } selected) _pivot = (selected.X, selected.Y, selected.Z);
+        else if (_dots.Count > 0)
+            _pivot = (_dots.Average(d => d.Star.X), _dots.Average(d => d.Star.Y), _dots.Average(d => d.Star.Z));
+        StopGlide();
         Draw();
     }
 

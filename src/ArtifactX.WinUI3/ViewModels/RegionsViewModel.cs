@@ -123,6 +123,7 @@ public sealed partial class RegionsViewModel : ObservableObject
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasMapNote), nameof(ShowMapCard))] public partial string MapNote { get; private set; } = "";
     public bool HasMapNote => MapNote.Length > 0;
     private string _mapKey = "";
+    private ulong _mapRegion;
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasUnvisited))] public partial int UnvisitedCount { get; private set; }
     public bool HasUnvisited => UnvisitedCount > 0;
 
@@ -257,10 +258,13 @@ public sealed partial class RegionsViewModel : ObservableObject
                 UniverseInfo.SystemName(system), UniverseInfo.Summary(system), S.PortalAddress(system, 0), lightYears);
         }).ToList());
         if (Region.Value != key.ToString(CultureInfo.InvariantCulture)) return;
-        int? selected = SelectedMapStar?.System;
-        MapStars = built;
-        // Until a star is clicked the panel shows your own system, so there's always a reference point.
+        // A star number means a different star in another region, so the pick only survives a rebuild of the same region.
+        int? selected = _mapRegion == key ? SelectedMapStar?.System : null;
+        _mapRegion = key;
+        // Until a star is clicked the panel shows your own system, so there's always a reference point. The pick is
+        // set before the stars: the map centres on it when the stars arrive (or on the region's middle if none).
         SelectedMapStar = (selected is int keep ? built.FirstOrDefault(s => s.System == keep) : null) ?? built.FirstOrDefault(s => s.IsHere);
+        MapStars = built;
         MapNote = here != 0 ? "" : "You're not in this region, so no system is marked as yours.";
     }
 
