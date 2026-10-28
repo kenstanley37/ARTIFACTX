@@ -4,6 +4,7 @@ using libMBIN.NMS.Globals;
 using System.Diagnostics;
 using System.Text.Json;
 
+if (args.Length > 0 && args[0] == "positions") { Positions.Check(args[1]); return; }
 string data = Environment.GetEnvironmentVariable("NMS_EMU_DATA")!;
 T Load<T>(string name) where T : class
 {

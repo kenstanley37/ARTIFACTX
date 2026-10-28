@@ -23,6 +23,9 @@ n, total = rd(slot, '<I')[0], rd(slot + 0x214, '<I')[0]
 posp, addrp = rd(slot + 0x218, '<Q')[0], rd(slot + 0x258, '<Q')[0]
 stars = [dict(entry=k + 1, system=(rd(addrp + 8 * k, '<Q')[0] >> 40) & 0xFFF, pos=rd(posp + 12 * k, '<3f')) for k in range(total)]
 print('emulated n', n, 'total', total, 'first', stars[:2])
+if os.environ.get('POSITIONS_OUT'):
+    with open(os.environ['POSITIONS_OUT'], 'a') as out:
+        out.write(json.dumps(dict(galaxy=galaxy, x=x, y=y, z=z, n=n, total=total, stars=[[s['system'], *s['pos']] for s in stars])) + chr(10))
 if len(sys.argv) > 5:
     live = json.load(open(sys.argv[5]))
     same = sum(1 for a, b in zip(stars, live['stars']) if a['system'] == b['system'] and tuple(a['pos']) == tuple(b['pos']))

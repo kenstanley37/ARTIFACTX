@@ -22,3 +22,8 @@ dump('cell loop up to the density call', 0x1413685DC, 0x1413687D8)
 dump('fBm 0x142D746E0', 0x142D746E0, 0x142D74857)
 dump('simplex 0x142D75250', 0x142D75250, 0x142D7579D)
 dump('spiral factor', 0x141369111, 0x141369130)
+
+dump('fixed-star loop 1', 0x141367E39, 0x14136803C)
+dump('fixed-star loop 2', 0x141368071, 0x141368262)
+dump('star jitter 0x14136A020', 0x14136A020, 0x14136A1B4)
+dump('callback', 0x141369C30, 0x141369FF3)
