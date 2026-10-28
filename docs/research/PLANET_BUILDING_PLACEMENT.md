@@ -511,3 +511,17 @@ setting index `+0x32CC`, purple / prime ranges, sea level):
   remaining values.
 Plan: emulate this function per planet (biome files + settings table loaded) to get exact references, then port it
 step by step; end-to-end check = the live TkVoxelGeneratorData dumps (8 planets).
+
+**Layer generation decoded and checked live (2026-10-28, `voxelfit.py`).** On the planet generator's stage-4 stream
+(stage seed 4 of the planet seed, as Core's terrain step), after the terrain step's first draws (28 words here):
+- per noise layer 0-7: if the setting's layer (second data set, `+0x1150`) is not Active, no draw; else one draw
+  `unit < TerrainControls chance` (GcPlanetData `+0x3264 + 4*i`) decides Active; an active layer then draws its fields
+  in the order `+0x7C, +0x40, +0x60, +0x64, +0x08(int), +0x14(int), +0x30, +0x04, +0x18, +0x00, +0x2C, +0x38, +0x10,
+  +0x0C, +0x20, +0x1C, +0x28, +0x24, +0x3C, +0x34, +0x70, +0x6C, +0x44, +0x58, +0x50, +0x54(int)` as
+  `second + u * (first - second)` (ints `Next(first - second + 1) + second`); SeedOffset, Subtract, Offset and
+  MaximumLOD are copied from the second set, VoxelType via `0x1416C4E30` (extra draws only for random-rock types 8/9).
+- layer 0's Height is overridden by word 4 of the stream (drawn early in the terrain step).
+- after the loop: layer 4 is switched off when SeaLevel <= 0, layer 6 on moons (size 3); layer 7 has sea rules
+  (active when sea level is above a threshold or a terrain-control flag is set; Height = sea level minus a constant).
+Check on 6 planets: all varying layer fields exact (3/3 on the two planets that have any; the rest of the active
+layers are constants of their setting) and all 8 Active flags reproduced.
