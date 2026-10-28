@@ -32,34 +32,9 @@ public static class StationPoseGeneration
     /// </summary>
     public static StationPose? GenerateForSystem(ulong portalCode, int galaxy, SolarLayoutTables tables, bool placeMoons)
     {
-        if (galaxy is < 0 or > 255 || ((portalCode >> 32) & 0xFFF) == 0
-            || tables.GenerateForcedNumberPlanets != 0 || tables.GenerateMaximumSolarSystem)
-            return null;
-        var attributes = SystemGenerator.Attributes(portalCode, galaxy);
-        // The native regression set has no size-4 bodies yet.
-        if (attributes.GasGiant) return null;
-        var bodies = SystemGenerator.Bodies(portalCode, galaxy);
-        int count = attributes.PlanetCount;
-        if (count is < 1 or > 8 || bodies.Hosts.Length < count) return null;
-        var sizes = new int[count];
-        var hosts = new int[count];
-        int sizeIndex = 0;
-        for (int i = 0; i < count; i++)
-        {
-            hosts[i] = bodies.Hosts[i] > 0 ? bodies.Hosts[i] - 1 : -1;
-            if (hosts[i] >= 0) sizes[i] = 3;
-            else if (attributes.GasGiant && i == 0) sizes[i] = 4;
-            else
-            {
-                if (sizeIndex >= bodies.Sizes.Length) return null;
-                sizes[i] = bodies.Sizes[sizeIndex++];
-            }
-        }
-        ulong address = ((portalCode >> 32) & 0xFFF) << 40
-            | (ulong)(uint)galaxy << 32 | (portalCode & 0xFFFFFFFF);
-        var centers = SolarLayoutGeneration.PrimaryCenters(address, sizes, hosts, tables, placeMoons);
-        return centers is null ? null : Generate(address, true, SolarLayoutGeneration.RandomFor(address).Seed,
-            centers, sizes, count, 0, tables);
+        if (SolarLayoutGeneration.ForSystem(portalCode, galaxy, tables, placeMoons) is not { } layout) return null;
+        return Generate(layout.Address, true, SolarLayoutGeneration.RandomFor(layout.Address).Seed,
+            layout.Centers, layout.Sizes, layout.Centers.Length, 0, tables);
     }
 
     /// <summary>
