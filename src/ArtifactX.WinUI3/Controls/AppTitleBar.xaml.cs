@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using ArtifactX.Core.NmsModels;
+using ArtifactX.GameData;
 using ArtifactX.WinUI3.Services;
 using System;
 using System.Threading.Tasks;
@@ -78,13 +79,22 @@ public sealed partial class AppTitleBar : UserControl
         RefreshScreenRecording();
     }
 
-    /// <summary>The installed game's own build, read from the install (never a
-    /// version typed into ArtifactX - the old hand-written "NMS: SWARM" went a
-    /// whole major update out of date), and whether the game data matches it.</summary>
+    /// <summary>The installed game's own build, read from the install, against the release ArtifactX was tested
+    /// with (TestedGameRelease). The release name is only shown when the installed build is that one - the old
+    /// hand-written "NMS: SWARM" label went a whole major update out of date because nothing compared it with the
+    /// install. Also says whether the game data matches.</summary>
     private void RefreshGameLabel()
     {
         var game = GameDataService.Game;
-        NmsCompatTxt.Text = game is null ? "NMS: not found" : $"NMS {game.BuildLabel}";
+        string tested = $"{TestedGameRelease.Name} {TestedGameRelease.Version}";
+        NmsCompatTxt.Text = game is null ? "NMS: not found" : TestedGameRelease.Compare(game) switch
+        {
+            0 => $"NMS {tested} · {game.BuildLabel}",
+            > 0 => $"NMS {game.BuildLabel} · newer than tested",
+            < 0 => $"NMS {game.BuildLabel} · older than tested",
+            _ => $"NMS {game.BuildLabel}",
+        };
+        string testedNote = $"This version of ArtifactX was tested with No Man's Sky {tested} (build {TestedGameRelease.Build}).";
         string data = GameDataService.State switch
         {
             GameDataState.UpToDate => "ArtifactX's game data matches it.",
@@ -95,7 +105,7 @@ public sealed partial class AppTitleBar : UserControl
         };
         ToolTipService.SetToolTip(NmsCompatTxt, game is null
             ? "No Man's Sky wasn't found on this PC - choose its folder in Settings."
-            : $"Your No Man's Sky: {game.BuildLabel}{(game.SteamBuildId is { } s ? $" (Steam build {s})" : "")}, at {game.RootFolder}. {data}");
+            : $"Your No Man's Sky: {game.BuildLabel}{(game.SteamBuildId is { } s ? $" (Steam build {s})" : "")}, at {game.RootFolder}. {data} {testedNote}");
     }
 
     private void ThemeBtn_Click(object sender, RoutedEventArgs e)
