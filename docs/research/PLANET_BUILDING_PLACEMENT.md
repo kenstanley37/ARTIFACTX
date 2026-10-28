@@ -71,7 +71,8 @@ from that centre: depot 130,319, factory 130,193, player 130,242; the depot shou
 **Site check (2026-10-28).** At the Manufacturing Facility the Factory marker gave +7.72, -140.37; the visor read
 +7.71, -140.40 at the facility's save beacon, about 55 units from the marker point. The player there stood 14
 units above the marker's radius (130,207 vs 130,193), so the marker sits at ground level near the building. The
-marker left `A1f` once reached, so markers must be captured before arrival.
+marker left `A1f` once reached, so markers must be captured before arrival. At the Depot (Aeganya Encampment) the
+visor read +8.97, -61.54 against the marker's +8.96, -61.54: two of two sites match to 0.01-0.03 degrees.
 
 ## Native leads (NMS build 180836)
 
