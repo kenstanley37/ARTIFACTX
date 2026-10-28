@@ -393,6 +393,14 @@ harness on real TkVoxelGeneratorData, then against the live override records), t
 placement loop -> exact portal (and every override) positions with ground height. Also needed by the mobile app
 (heights, sea, ground-level markers).
 
+**Emulator reference for the height (2026-10-28).** `emu_height.py` runs `0x14128AA20` in Unicorn on a planet's real
+TkVoxelGeneratorData (`read_terrain_live.py`: GcPlanetData + 0x2030, 0x1150 bytes; planet position = runtime planet
++ 0xD74D0, equal to the save's aHM centre). Unvisited **Nitanya XIX: all 9 override records' heights reproduced to
+within 0.08 m** (62 to 596 m). Visited Yikjav XIV's records differ (24.7 vs 22.4, 135 vs 271...): once an area loads
+the game corrects stored heights with the full voxel terrain, so only unvisited planets show generation heights.
+Notes: stub `_aligned_malloc` (the noise allocates scratch), `roundf`; do NOT copy the live .data (its caches point
+into game memory). Sea level: Yikjav 0 (no sea; NoSeaBaseLevel 20), Nitanya 120 (lava).
+
 **Forsaken (build 183791, 2026-10-28).** PLANETBUILDINGTABLE decodes with libMBIN 7.07 and is identical to the
 180836 table. NMS.exe moved: the BuildingLevel setter is now at `0x1416C84E3` (was `0x141695B73`, +0x32970) with the
 same logic. Addresses in this file are build 180836; re-locate by byte pattern before using them.
