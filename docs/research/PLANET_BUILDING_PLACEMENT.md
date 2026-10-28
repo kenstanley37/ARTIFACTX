@@ -164,6 +164,13 @@ Both are within 0.01 of whole-number grid corners. The leftover (about 2-4 units
 jitter or the game's cube-to-sphere mapping; settle it with more sites. **The marker is that point raised to the
 ground:** the Factory's point A scaled to the marker's radius (130,193) lands within about 20 units of the marker.
 
+**Confirmed on 1,275 sites (2026-10-28).** `scripts/diagnostics/find_site_points.py 130048 546` found 3,168
+distinct `(x, y, z, 1.0)` points at the base radius in memory, in records of stride 0x530 (point A first, then
+the building parts). 1,275 of them lie within 0.02 of a grid corner, on all six faces (-X 356, -Z 301, +Z 265,
+-Y 201, +X 78, +Y 74). Their leftover is a **constant 0.005 cell** with no slope across the face; its sign is
+fixed per face and axis (-X: -,-; +X: +,+; -Z: +,+; +Z: -,-; +Y: -,+; -Y: +,-). So it's a fixed offset in the
+game's cube-to-sphere formula, not a random jitter. Work it out from the face axis convention.
+
 Open: which corners hold a building (the sector seed and slot probabilities), which building type each gets,
 how the per-site seed and yaw are made, and the exact jitter. Next: collect more sites (more booster markers, or
 read site records from memory) and find the code that writes the site records (search memory for the
