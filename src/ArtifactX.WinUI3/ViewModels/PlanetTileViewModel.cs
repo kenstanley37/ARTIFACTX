@@ -81,6 +81,22 @@ public sealed partial class PlanetTileViewModel : ObservableObject
     public double DetailsOpacity => HasDetails ? 1 : 0.7;
     public string PortalCode => Planet.PortalCode;
 
+    /// <summary>Where the planet's portal stands ("+67.09, +81.40"), worked out from the game's own placement
+    /// rules (PortalLocationService); empty until it's ready or when it can't be worked out.</summary>
+    [ObservableProperty] public partial string Portal { get; private set; } = "";
+    [ObservableProperty] public partial bool HasPortal { get; private set; }
+
+    /// <summary>Fills <see cref="Portal"/> once the system's placement is done (off the UI thread).</summary>
+    public async System.Threading.Tasks.Task LoadPortalAsync()
+    {
+        if (HasPortal) return;
+        if (await PortalLocationService.GetAsync(Planet.Address) is { } portal)
+        {
+            Portal = portal.Coordinates;
+            HasPortal = true;
+        }
+    }
+
     [ObservableProperty] public partial string Discovered { get; private set; } = "";
     [ObservableProperty] public partial string Visit { get; private set; } = "-";
     [ObservableProperty] public partial string HereLabel { get; private set; } = "YOU ARE HERE";

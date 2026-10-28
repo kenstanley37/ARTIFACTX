@@ -36,7 +36,12 @@ public static class CatalogService
         _moduleClasses = null;
         _pathChecked = false;
         _dbPath = null;
+        Reloaded?.Invoke();
     }
+
+    /// <summary>Raised after <see cref="Reload"/> (a game data rebuild), so services that keep results worked
+    /// out from catalog tables drop them.</summary>
+    public static event Action? Reloaded;
 
     /// <summary>The cached entry for an id. An id WarmCacheAsync hasn't seen is looked
     /// up in the catalog once (name only, no icon - WarmCacheAsync still fetches that),
@@ -1183,6 +1188,11 @@ public static class CatalogService
     /// WeaponTerminal origins. Other station variants intentionally have no cabinet geometry.</summary>
     public static Task<ArtifactX.Core.Universe.StationEquipmentTables?> GetStationEquipmentTablesAsync() =>
         GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.StationEquipmentTables>("STATIONEQUIPMENT");
+
+    /// <summary>Each building class's override rules (portal, shelter, base...); null on game data built before
+    /// catalog format 48.</summary>
+    public static Task<ArtifactX.Core.Universe.BuildingOverrideRule[]?> GetBuildingOverrideRulesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.BuildingOverrideRule[]>("BUILDINGOVERRIDES");
 
     public static Task<ArtifactX.Core.Universe.MultiToolTechnologyTables?> GetMultiToolTechnologyTablesAsync() =>
         GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.MultiToolTechnologyTables>("MULTITOOLTECHNOLOGY");

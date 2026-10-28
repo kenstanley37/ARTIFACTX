@@ -30,13 +30,21 @@ public sealed record BiomeObjects(float WaterActive, float HighWaterActive, floa
     float[] NoiseLayers, float[] Features, float Caves, ObjectList[] Lists);
 
 /// <summary>A voxelgeneratorsettings.mbin entry's Min settings, as far as random draws go:
-/// which noise layers (and their voxel type) and features can be on, and caves.</summary>
-public sealed record TerrainSetting(bool[] NoiseActive, int[] NoiseVoxelType, bool[] FeatureActive, bool Caves);
+/// which noise layers (and their voxel type) and features can be on, and caves. MinLayers / MaxLayers (the entry's
+/// Min and Max noise layers) and NoSeaBaseLevel are what <see cref="PlanetTerrain.Generate"/> draws a planet's terrain
+/// from; catalogs built before format 48 don't have them.</summary>
+public sealed record TerrainSetting(bool[] NoiseActive, int[] NoiseVoxelType, bool[] FeatureActive, bool Caves,
+    TerrainNoiseLayer[]? MinLayers = null, TerrainNoiseLayer[]? MaxLayers = null, float NoSeaBaseLevel = 0f);
 
 /// <summary>Terrain settings and gcterrainglobals' index ranges and sea levels.</summary>
 public sealed record TerrainTables(TerrainSetting[] Settings, int PrimeIndexStart, int PurpleIndexStart, bool LockIndex,
     float SeaMoon, float SeaGasGiant, float SeaWaterWorld, float SeaHigh, float SeaStandard,
     float PurpleMaxHighWater, bool ForcePurpleHighWater);
+
+/// <summary>The terrain step's choices that the planet's terrain data (TkVoxelGeneratorData) is built from: the
+/// voxelgeneratorsettings entry, how many draws of the step's stream come before its noise layers, the sea level and
+/// the biome file whose TerrainControls chances the layers draw against.</summary>
+public sealed record TerrainChoice(int SettingIndex, int DrawsBeforeLayers, float Sea, BiomeObjects BiomeFile);
 
 /// <param name="BiomeFiles">[biome][subtype], null where the game has no file for that subtype.</param>
 public sealed record ObjectTables(BiomeObjects?[][] BiomeFiles, ObjectList[] Common, ObjectGroup[] Groups, TerrainTables Terrain);
@@ -56,6 +64,15 @@ public static partial class PlanetProfileGenerator
         return null;
     }
 
+    /// <summary>The terrain step's choices for a planet (see <see cref="TerrainChoice"/>); null without the object tables
+    /// or a biome file. Checked 2026-10-28 against the live terrain data of the 6 planets of system 0x11476E2.</summary>
+    public static TerrainChoice? TerrainChoiceFor(ulong planetSeed, PlanetType body, int star, PlanetProfileTables t)
+    {
+        if (t.Objects is not { } objects || BiomeFile(objects, body.Biome, body.SubType) is not { } file) return null;
+        var r = Terrain(Rng.Start(ChildSeeds(planetSeed)[4]), file, objects.Terrain, body, star);
+        return new TerrainChoice(r.Index, r.DrawsBeforeLayers, r.Sea, file);
+    }
+
     /// <summary>"Extreme" as the object step tests it (0x1409aa2a0): extreme weather, but not on
     /// lush or barren worlds, nor with clear, dusty, humid, bubbling, weird or cold-clear weather.</summary>
     private static bool ExtremeLooking(int biome, int subType, int weather, bool extreme)
@@ -71,7 +88,7 @@ public static partial class PlanetProfileGenerator
     /// draws that set it up (26 or 12, plus rock/substance picks) when it is - then caves.
     /// Matched the game's code (emulated, with the voxel settings loaded) on 808 of 808 planets.
     /// </summary>
-    private static (float Sea, bool Caves) Terrain(Rng rng, BiomeObjects b, TerrainTables t, PlanetType body, int star)
+    private static (float Sea, bool Caves, int Index, int DrawsBeforeLayers) Terrain(Rng rng, BiomeObjects b, TerrainTables t, PlanetType body, int star)
     {
         int Index()
         {
@@ -105,6 +122,7 @@ public static partial class PlanetProfileGenerator
                 : high ? t.SeaHigh : t.SeaStandard;
         }
 
+        int drawsBeforeLayers = rng.Draws;
         for (int i = 0; i < setting.NoiseActive.Length; i++)
         {
             bool on = setting.NoiseActive[i] && i < b.NoiseLayers.Length && b.NoiseLayers[i] > rng.NextFraction();
@@ -126,7 +144,7 @@ public static partial class PlanetProfileGenerator
             if (setting.FeatureActive[i] && i < b.Features.Length && b.Features[i] > rng.NextFraction())
                 for (int k = 0; k < 12; k++) rng.Next();
         bool caves = setting.Caves && b.Caves > rng.NextFraction();
-        return (sea, caves);
+        return (sea, caves, Math.Clamp(index, 0, t.Settings.Length - 1), drawsBeforeLayers);
     }
 
     /// <summary>

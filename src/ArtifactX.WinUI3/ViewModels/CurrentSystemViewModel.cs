@@ -407,6 +407,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         }).ToList();
         ObservableCollectionSync.Apply(Tiles, tiles, tile => tile.Planet.Address,
             (current, next) => current.HasSamePresentation(next));
+        foreach (var tile in Tiles) _ = tile.LoadPortalAsync();
         UpdateTiles();
         _ = RefreshPictureAsync();
     }

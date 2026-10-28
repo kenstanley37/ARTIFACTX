@@ -310,6 +310,8 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         SystemPageReader.Captured += OnSystemChanged;
         BodyKindsService.Captured += OnSystemChanged;
         FindsService.Changed += OnFindsChanged;
+        GameProcessMonitorService.RunningStateChanged += OnGameRunningChanged;
+        SaveSessionManager.PendingEditsChanged += OnPendingEditsChanged;
     }
 
     public void Detach()
@@ -324,6 +326,8 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         SystemPageReader.Captured -= OnSystemChanged;
         BodyKindsService.Captured -= OnSystemChanged;
         FindsService.Changed -= OnFindsChanged;
+        GameProcessMonitorService.RunningStateChanged -= OnGameRunningChanged;
+        SaveSessionManager.PendingEditsChanged -= OnPendingEditsChanged;
     }
 
     private bool IsThisPlanet(ulong system, int planet) =>
@@ -338,6 +342,8 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         ShowFinds();
         if (Planet is { } p) Equipment.UpdateLocations(p, _snapshot);
     });
+    private void OnGameRunningChanged(object? sender, bool running) => OnUi(Equipment.RefreshPortal);
+    private void OnPendingEditsChanged(object? sender, EventArgs e) => OnUi(Equipment.RefreshPortal);
     private void OnCreaturesChanged(ulong system, int planet) => OnUi(() => { if (IsThisPlanet(system, planet)) _ = ShowCreaturesAsync(); });
     private void OnSystemPictureSaved(ulong system) => OnUi(() => { if (IsThisPlanet(system, -1)) _ = LoadSystemPictureAsync(); });
 

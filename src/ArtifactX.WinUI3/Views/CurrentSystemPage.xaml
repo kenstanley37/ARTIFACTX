@@ -165,7 +165,7 @@
                             <!-- Planet discovery and detail cards come before station stock. -->
                             <controls:FoldingCard Title="PLANETS AND MOONS" FoldedName="{x:Bind ViewModel.PlanetSectionSummary, Mode=OneWay}"
                                                   SettingKey="CurrentSystemPlanetsCollapsed">
-                                <StackPanel Spacing="18">
+                                <StackPanel Spacing="18" Margin="0,16,0,0">
                                     <!-- Planets read off the game screen under a name ArtifactX doesn't know (renamed by another player). -->
                                     <Border Visibility="{x:Bind ViewModel.HasUnmatched, Mode=OneWay}" BorderBrush="{ThemeResource ThemeWarningBrush}" BorderThickness="1"
                                             Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,12,16,14">
@@ -194,7 +194,7 @@
                                     <ItemsControl ItemsSource="{x:Bind ViewModel.Tiles, Mode=OneWay}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <controls:EqualHeightWrapPanel HorizontalSpacing="14" VerticalSpacing="14"/>
+                                                <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="14"/>
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>

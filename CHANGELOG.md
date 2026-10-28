@@ -6,9 +6,13 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- **Current System planet cards**: The cards now line up from the left and wrap onto new rows instead of sitting centred, with some space below the section heading. Cards are no longer all stretched to the height of the tallest one, so short cards don't leave a big empty gap.
+
 - **No Man's Sky Forsaken (7.10)**: ArtifactX reads the Forsaken update's game files correctly again. Before this, a game data rebuild on Forsaken left the Regions map without its star settings, the Corvette Cache without its buildable parts, and some multi-tool and space station details wrong. Rebuild game data to apply the fix. The title bar now shows the No Man's Sky release ArtifactX was tested with, and says when your game is newer than that.
 
 - **Marker coordinates on Planet Details**: Sites found with a planetary chart, signal booster or beacon now show their real latitude and longitude. They were worked out from the wrong point and could be far off. Where the planet's position can't be worked out exactly, the site is still listed without coordinates.
+
+- **Coordinates on prime planets**: Planet Details now shows marker coordinates on prime planets too, including every planet in a purple-star system. Before, these planets listed their sites without coordinates.
 
 - **Regions page pauses**: The page no longer freezes for a moment each time the game saves. Unchanged systems stay as they are, and only the cards on screen are drawn.
 
@@ -23,6 +27,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 - **Current System live updates**: Keep unchanged planet cards, station multi-tool previews, market lists and system pictures in place. Damage-only tool updates retain the model and its rotation instead of recreating every card.
 
 ### New
+
+- **Portal locations**: Every planet card on Current System shows where that planet's portal stands, in the same coordinates as your Analysis Visor. It's worked out from the game's own rules, so it works on planets nobody has visited. Open a planet to add a marker for its portal to your save; the game then leads you straight to it. Adding a marker needs No Man's Sky closed, and you save your changes as usual. Rebuild game data to enable this.
 
 - **System map**: Current System shows the system you're in as a 3D map, with every planet and moon where the game actually places them and each moon tied to the planet it orbits. The space station is marked too, and so are you when you're in space (in your ship or aboard your freighter). The map starts looking down on the planets. Discovered planets show their colour and rings, undiscovered ones are a dashed outline, and the one you're on is outlined. Turn, move and zoom it like the region map, and click a planet to open it. It takes the place of the system picture and the orbit drawing.
 

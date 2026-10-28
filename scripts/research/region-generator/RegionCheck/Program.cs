@@ -6,7 +6,13 @@ using System.Text.Json;
 
 if (args.Length > 0 && args[0] == "layout") { Layout.Show(args[1], args.Skip(2)); return; }
 if (args.Length > 0 && args[0] == "hosts") { Hosts.Show(args.Skip(1)); return; }
+if (args.Length > 0 && args[0] == "suggest") { Markers.Suggest(args[1], args[2], args[3], args[4], args[5], double.Parse(args[6]), double.Parse(args[7]), double.Parse(args[8]), double.Parse(args[9]), double.Parse(args[10])); return; }
+if (args.Length > 0 && args[0] == "markers") { Markers.Check(args[1], args[2], args[3], args[4]); return; }
+if (args.Length > 0 && args[0] == "sites") { Sites.Check(args[1], args[2], args.Skip(3)); return; }
+if (args.Length > 0 && args[0] == "buildtable") { BuildingTable.Show(args[1]); return; }
 if (args.Length > 0 && args[0] == "noise") { Noise.Check(args[1]); return; }
+if (args.Length > 0 && args[0] == "overrides") { Overrides.Check(args[1], args[2], args[3], args[4], args[5], args[6], args[7]); return; }
+if (args.Length > 0 && args[0] == "places") { Places.Write(args[1], args[2], args[3], args[4], args[5]); return; }
 if (args.Length > 0 && args[0] == "positions") { Positions.Check(args[1]); return; }
 string data = Environment.GetEnvironmentVariable("NMS_EMU_DATA")!;
 T Load<T>(string name) where T : class
