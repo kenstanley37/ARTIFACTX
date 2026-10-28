@@ -215,7 +215,27 @@ On Peak XV (2243, 130,048, 546) it returns the Depot key `52782ECF461FC6ED` and 
 units (face coordinate -273, then (48.996, 147.99) = grid (321.996, 420.99) minus 273); the third is the face
 normal. So the emulator is an exact oracle for porting the worker.
 
-Next: port `0x1419883E0` stage by stage against `voronoiemu.py`, then enumerate a planet's sites.
+**Ported: the site key from cell and seed, exact (2026-10-28).** `scripts/research/region-generator/siteport.py`.
+For face index `f` (the worker's `r9`; outward normals from table `0x1450AF190`: 0 -Z, 1 +Z, 2 +X, 3 -X, 4 -Y, 5 +Y)
+and an integer cell `(X, Y, Z)` in face units (the face axis is +-divisions/2, e.g. +-273 for Peak XV):
+
+- jitters: `a = J(bits((X*113 + Y) + Z*57))`, `b = J(bits((Y*113 + X*57) + Z))`, `c = J(bits((Y*57 + X) + Z*113))`,
+  all float ops in order, where `J(u) = (float((W(u) & 0x7FFFFF) | 0x3F800000) - 1) * 0.01` and
+  `W(u) = x ^ (x >> 15)` after `x = ((u ^ 0x3D0000) >> 16) ^ u; x *= 9; x ^= x >> 4; x *= 0x1B873593` (32-bit);
+- feature point `= (((T2+T1).x * c) + X, ((T2+T1).y * b) + Y, ((T2+T1).z * a) + Z)` with axis tables
+  `T1 = 0x1450AF140`, `T2 = 0x1450AF0F0` (indexed by `f`);
+- key `= Hash128to64(seed, Hash128to64(h3, Hash128to64(h2, h1)))`, with `hi = Mix64((bits(p_i) << 32) | bits(p_i * -2))`,
+  CityHash's `Hash128to64` (kMul `0x9DDFEA08EB382D69`) and the station/stage-seed Mix64.
+
+Checks: the Depot and Factory feature points and keys are exact, and **all 1,246 live site records on Peak XV match**
+(`sitecheck_live.py 2243 130048 546`, read-only). The 145 other candidates it reports are building-part points
+whose preceding 8 bytes are the previous point (e.g. `0xC7506E1D470248BE` = floats 33,352.7 and -53,358.1),
+not keys.
+
+So **every cell of every face is a site** with a computable key and feature point. Next: the world point of a
+site (the worker's projection of the feature point to the sphere; the emulator gives ground truth), then which sites
+get a building and of which type (`HasBuilding`, slot probabilities, the type list), and the per-site yaw (top 3
+bits of the key, then the cluster steps).
 
 Open: which corners hold a building (the sector seed and slot probabilities), which building type each gets,
 how the per-site seed and yaw are made, and the exact jitter. Next: collect more sites (more booster markers, or
