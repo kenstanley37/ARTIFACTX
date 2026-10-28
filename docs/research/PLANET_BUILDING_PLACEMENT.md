@@ -662,3 +662,14 @@ live planet. Two fixes from the placement code `0x141635D10`:
   and the last start spawn and the WaterDistressSignal are placed at random.
 Result with the closed-game inputs (centres from the live data: prime bodies): keys 54/54, within 0.28 m (the
 waterworld's centre is ~2.4 million units out). Both systems together: **103/103 records on 12 bodies**.
+
+**Prime body centres PORTED (2026-10-28).** `SolarLayoutGeneration.Centers` now places prime bodies too (build 183791
+layout `0x14167FD23`; prime loop `0x141680709..0x141680AC9`): after the primary loop, one draw per primary planet
+with moons (their directions), one draw marking a primary planet (`0x14168068C`, only with primary planets), then the
+prime loop on a copy of the stream - same angle step (from the primary planet count; 360 when there are none),
+angle and distance carried on, spacing divided by the primary planet count plus the prime planets placed so far -
+then the prime moons' directions from that copy. Checks: the native station regression set (300 systems, 239 with
+prime bodies): **all-body centres 300/300 exact, 353 prime bodies**, station poses still 300/300; and all 12 live
+bodies of the two test systems (floored to the 1,000 grid). Station placement keeps using primary bodies only
+(prime-only systems still return no pose: untested). With this, override placement runs from the address alone
+for prime planets too.

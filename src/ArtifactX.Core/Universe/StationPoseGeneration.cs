@@ -32,9 +32,11 @@ public static class StationPoseGeneration
     /// </summary>
     public static StationPose? GenerateForSystem(ulong portalCode, int galaxy, SolarLayoutTables tables, bool placeMoons)
     {
-        if (SolarLayoutGeneration.ForSystem(portalCode, galaxy, tables, placeMoons) is not { } layout) return null;
+        // Prime-only systems stay unsupported (not in the native regression set); with primary bodies present the
+        // station only searches those, so the prime centres don't change the pose.
+        if (SolarLayoutGeneration.ForSystem(portalCode, galaxy, tables, placeMoons) is not { PrimaryCount: > 0 } layout) return null;
         return Generate(layout.Address, true, SolarLayoutGeneration.RandomFor(layout.Address).Seed,
-            layout.Centers, layout.Sizes, layout.Centers.Length, 0, tables);
+            layout.Centers, layout.Sizes, layout.PrimaryCount, layout.Centers.Length - layout.PrimaryCount, tables);
     }
 
     /// <summary>
