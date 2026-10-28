@@ -106,13 +106,32 @@ offsets for native work and MBIN offsets for files; don't mix them.
    it is -1.0 when the global byte `0x14526F595` is 0.
 7. `IsPrime = [planet+0x3B92]`, `IsWaterworld = ([planet+0x3B70] == 14)`, `InitialBuildingsPlaced = false`.
 
+**Seeds (traced 2026-10-28).** The pipeline `0x14168EE20(generator, planet, input = GcPlanetGenerationInputData, ...)`
+derives 26 stage seeds from `input.Seed` (`+0x20`, valid byte `+0x28`), at `0x14168EF47..0x14168F093`:
+
+- MWC init from the 64-bit seed: `lo = seed_lo + (seed_lo == 0)`, `hi = ror16(seed_lo) ^ seed_hi ^ seed_lo` (the
+  same as `UniverseRandom`'s seed rule). An invalid seed gives `lo = 1, hi = 0`.
+- 13 iterations, two seeds each: `seed = Mix64((NextWord() second << 32) | NextWord() first)`, with the multi-tool
+  pool's Mix64 (`0x64DD81482CBD31D7`, `0xE36AA5C613612997`, shifts of 33), stored as valid GcSeeds in a
+  26-entry local table at `rsp+0x50` (stride 0x10).
+- Before each stage the generator's MWC at `generator+0xBA4` is reseeded from one table entry. The building
+  stage uses **entry 3** (`[rbp-0x80]`, valid `[rbp-0x78]`; `rbp = rsp+0x100`). Stage 19 (`[rbp+0x80]`) and
+  stage 4 (`[rbp-0x70]`) feed the two stages before it.
+- In the building stage `0x14160B500`, the only two draws are `VoronoiPointSeed = Next(10000) + 1` (`+0x33DC`)
+  and `VoronoiSectorSeed = Next(10000) + 1` (`+0x33E0`). `PlanetRadius = R` (`+0x33D0`);
+  `PlanetUA = 0x1416778A0(planet)` (`+0x33C8`). The building list (`+0x3398`) and slots (`+0x33B8`) are
+  sized from a loop over 63 building types; `+0x33A8` reserves 1000.
+
+`input.Seed` is the planet's seed, which `SystemGenerator.Bodies` already produces (`PlanetSeeds`, also used for
+planet names), so both Voronoi seeds are computable for any planet. Not yet verified by execution.
+
 Helpers: `static/importof.py` names imported CRT functions behind `jmp [rip+X]` thunks (`0x1433E4BEE` = ceilf,
 `0x1433E4BC4` = powf).
 
 ## Next
 
-1. Trace `0x14160B500` (site generation) and `0x14166BFA0` (the count `n`); find the Voronoi point and slot
-   code (runtime offsets `+0x33DC` point seed / `+0x33E0` sector seed).
+1. Trace the Voronoi point and slot code that reads `+0x33DC`/`+0x33E0` (after `0x14160B993` in `0x14160B500`,
+   and its callees `0x14160C480`, `0x14160C590`, `0x141614880`), and `0x14166BFA0` (the count `n`).
 2. Find the scan-event creation path (what writes `BuildingLocation`) to learn whether markers carry
    terrain height.
 3. Emulate the site generator for a planet with saved markers and match a marker's seed and location.
