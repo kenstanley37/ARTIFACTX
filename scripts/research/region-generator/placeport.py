@@ -18,6 +18,7 @@ CRASH_MIN, CRASH_MAX, SHELTER_MIN, SHELTER_MAX = f(500), f(600), f(800), f(1000)
 SEA_ABOVE, WATER_ONLY_DEPTH, MIN_BELOW_SEA, MAX_SLOPE = f(5), f(35), f(60), f(1)
 CHAIN_CLASSES, CHAIN_CLASSES_WATER = {2, 20, 28}, {28, 32}
 UNIT = 2.3283064370807974e-10
+SEA_MOON, SEA_GAS_GIANT = f(10), f(35)                      # GcTerrainGlobals: no water-only buildings at these levels
 UNDERWATER_ONLY = 3                                         # TkNoiseFlattenOptions.WaterPlacement
 # Ring radius of the flatness test on Prime planets for types whose OverrideRadius is -1: the game measures the model
 # (GcBuildingSpawnData.Radius = half the AABB's XZ diagonal, BuildingSizeCalculated). Values read live (build 183791):
@@ -26,13 +27,14 @@ MODEL_RADIUS = {2: f(22.641382217407227), 16: f(37.76814651489258), 28: f(10)}
 
 def override_list(table, P, npcs=True):
     """The type loop's override records (0x141635D10 step 1): per class in class order, NumOverridesToGenerate (or the
-    Waterworld count when >= 0 on biome 14); none for NPC-only classes without NPCs or UnderwaterOnly without a sea."""
+    Waterworld count when >= 0 on biome 14); none for NPC-only classes without NPCs or UnderwaterOnly without water -
+    a sea level of 0 or exactly the moon or gas giant sea level (GcTerrainGlobals SeaLevelMoon / SeaLevelGasGiant)."""
     water_world = P.biome == 14
     out = []
     for row in table:
         n = row['overridesWater'] if water_world and row['overridesWater'] >= 0 else row['overrides']
         if not row['noNpc'] and not npcs: n = 0
-        if row['water'] == UNDERWATER_ONLY and not P.sea > 0: n = 0
+        if row['water'] == UNDERWATER_ONLY and (not P.sea > 0 or P.sea in (SEA_MOON, SEA_GAS_GIANT)): n = 0
         ring = f(row['radius']) if row['radius'] > 0 else MODEL_RADIUS.get(row['cls'], f(0))
         out += [dict(cls=row['cls'], water=row['water'], minh=f(row['minh']), maxh=f(row['maxh']), ring=ring)] * max(n, 0)
     return out
@@ -118,10 +120,12 @@ def place(P, recs):
             chain, last, round_attempts = [], None, 0
     out = []
     for r in recs:
+        # 0x14163661C: DistressSignal (and WaterDistressSignal on a waterworld) take the chain's head, start spawns its
+        # back, Shelter (and 31/24 on a waterworld) the last point; once the chain is used up, a record gets a random site.
         c = r['cls']
-        if c == 20 or (water and c == 32): key, pos = chain.pop(0)
-        elif c == 28: key, pos = chain.pop()
-        elif c == 2 or (water and c in (31, 24)): key, pos = last
+        if (c == 20 or (water and c == 32)) and chain: key, pos = chain.pop(0)
+        elif c == 28 and chain: key, pos = chain.pop()
+        elif (c == 2 or (water and c in (31, 24))) and last is not None: key, pos = last
         else:
             key = pos = None
             for _ in range(5000):

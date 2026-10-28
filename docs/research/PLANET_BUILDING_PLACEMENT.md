@@ -648,3 +648,17 @@ runs the placement. System 0x11476E2: every input equal to the live planet (seed
 sector seed, divisions, prime, waterworld); centres equal after flooring to the 1,000-unit grid. **Keys 49/49,
 positions within 0.125 m.** Gap: prime bodies (planets 5 and 6 here) have no centre from SolarLayoutGeneration yet,
 so their centre came from the live data in this check.
+
+**Second system: purple star, a moon and a waterworld - 54/54 (2026-10-28).** Amazing Planet Biomes
+(0x0427005B6DA013, read live on the owner's main save; all 6 bodies prime): Scorched, a Toxic moon (sea 10), Lush,
+Dead, Frozen (purple terrain settings 21-27) and a Waterworld (sea 1500, setting 30). Every Core input equal to the
+live planet. Two fixes from the placement code `0x141635D10`:
+- Water-only override types (WaterPlacement UnderwaterOnly) count only when the sea level is above 0 **and not exactly
+  SeaLevelMoon (10) or SeaLevelGasGiant (35)**: the moon (sea 10) has no WaterDistressSignal.
+- Phase 2 (`0x14163661C`): DistressSignal always takes the chain's head (also on a waterworld), WaterDistressSignal
+  too on a waterworld; start spawns take its back; Shelter (and 31/24 on a waterworld) the last point - **each only
+  while the chain has entries**; a record finding the chain empty gets a random site like the portal. On a
+  waterworld the chain is the start spawns + WaterDistressSignal (5), so DistressSignal, three start spawns use it
+  and the last start spawn and the WaterDistressSignal are placed at random.
+Result with the closed-game inputs (centres from the live data: prime bodies): keys 54/54, within 0.28 m (the
+waterworld's centre is ~2.4 million units out). Both systems together: **103/103 records on 12 bodies**.
