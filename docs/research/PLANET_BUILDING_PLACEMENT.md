@@ -365,6 +365,17 @@ To predict portals exactly: the MWC seed (which stage seed), a port of the noise
 accept test needs terrain height (if it does, rejected attempts consume draws and the port needs the terrain).
 Ground truth: Yikjav XIV portal (face 5 (-39, -137), visor +62.43, -164.10) and Nitanya XIX's override list.
 
+**Seed and directions CONFIRMED (live, 2026-10-28).** The caller `0x141634FB0` seeds the MWC from the GcSeed at
+runtime planet `+0x3B60` (valid `+0x3B68`; lo=1, hi=0 when invalid) - live it is **the planet seed itself**
+(Yikjav XIV 896996F8AE054363, Nitanya XIX 4DB99357E93A17AD). Directions are `(r*cos(2*pi*u2), 1 - 2*u1,
+r*sin(2*pi*u2))` with u1, u2 consecutive words. Matching every override record's direction (record position minus
+the aHM centre) against consecutive word pairs of that stream: Yikjav XIV (Scorched, no sea) Shelter at word 0,
+**Portal at word 56**, Base 58; Nitanya XIX (Lava) Shelter 404, **Portal 478**, Base 482, last record 486 - all
+within 0.002 rad. Gaps are rejected attempts (2 words each) plus cluster placement; the lava world rejected about
+200 attempts before its first override, so the accept test in `0x141631160` is almost certainly terrain-based
+(height against sea/lava level). Exact portal prediction therefore needs that test: either port the terrain
+height (TkVoxelGenerator noise - large, but also gives exact building heights) or find a cheaper rule.
+
 **Forsaken (build 183791, 2026-10-28).** PLANETBUILDINGTABLE decodes with libMBIN 7.07 and is identical to the
 180836 table. NMS.exe moved: the BuildingLevel setter is now at `0x1416C84E3` (was `0x141695B73`, +0x32970) with the
 same logic. Addresses in this file are build 180836; re-locate by byte pattern before using them.
