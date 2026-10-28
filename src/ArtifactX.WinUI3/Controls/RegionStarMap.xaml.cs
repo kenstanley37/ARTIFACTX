@@ -1,4 +1,4 @@
-using ArtifactX.WinUI3.Services;
+﻿using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
+using Windows.System;
 using System;
 using System.Collections.Generic;
 using Windows.Foundation;
@@ -15,7 +16,10 @@ namespace ArtifactX.WinUI3.Controls;
 /// <summary>
 /// A region's stars in 3D from their generated positions (RegionStarPositions), drawn as dots on a
 /// canvas: unvisited systems bright, visited ones dim, unvisited purple systems violet,
-/// your system a large white dot in a ring. Drag to turn, mouse wheel to zoom, click a star to raise <see cref="StarSelected"/>.
+/// your system a large white dot in a ring. The view turns and zooms around a pivot star, as the game's
+/// galaxy map locks onto a system: the selected star (your system until another is clicked) glides to the
+/// centre. Drag to turn, right-drag or Shift+drag to move, mouse wheel to zoom, click a star to raise
+/// <see cref="StarSelected"/>; arrow keys turn, +/- zoom and Home returns to your system.
 /// Drawing the dots is the control's job, so it builds them in code; the page binds Stars and Selected.
 /// </summary>
 public sealed partial class RegionStarMap : UserControl
@@ -23,7 +27,7 @@ public sealed partial class RegionStarMap : UserControl
     public static readonly DependencyProperty StarsProperty = DependencyProperty.Register(nameof(Stars),
         typeof(IReadOnlyList<RegionMapStar>), typeof(RegionStarMap), new PropertyMetadata(null, (d, _) => ((RegionStarMap)d).Rebuild()));
     public static readonly DependencyProperty SelectedProperty = DependencyProperty.Register(nameof(Selected),
-        typeof(RegionMapStar), typeof(RegionStarMap), new PropertyMetadata(null, (d, _) => ((RegionStarMap)d).Draw()));
+        typeof(RegionMapStar), typeof(RegionStarMap), new PropertyMetadata(null, (d, _) => ((RegionStarMap)d).CentreOnSelected()));
 
     public IReadOnlyList<RegionMapStar>? Stars
     {
@@ -44,8 +48,12 @@ public sealed partial class RegionStarMap : UserControl
     private readonly List<(Ellipse Dot, RegionMapStar Star)> _dots = new();
     private readonly List<Line> _edges = new();
     private double _yaw = 0.6, _pitch = 0.35, _zoom = 1;
+    private (double X, double Y, double Z) _pivot, _glideFrom, _glideTo;
+    private DateTime _glideStart;
+    private bool _gliding;
+    private static readonly TimeSpan GlideTime = TimeSpan.FromMilliseconds(350);
     private Point? _pressed;
-    private bool _turning;
+    private bool _turning, _panning;
 
     public RegionStarMap()
     {
@@ -59,6 +67,8 @@ public sealed partial class RegionStarMap : UserControl
         Stage.PointerMoved += OnMoved;
         Stage.PointerReleased += OnReleased;
         Stage.PointerWheelChanged += OnWheel;
+        IsTabStop = true;
+        KeyDown += OnKeyDown;
         ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.SizeAll);
         for (int i = 0; i < 12; i++)
         {
@@ -79,18 +89,51 @@ public sealed partial class RegionStarMap : UserControl
             _dots.Add((dot, star));
             Stage.Children.Add(dot);
         }
+        if (Selected is { } selected) _pivot = (selected.X, selected.Y, selected.Z);
         Draw();
     }
+
+    /// <summary>Glide the pivot to the selected star (ease-out), so turning and zooming happen around it.</summary>
+    private void CentreOnSelected()
+    {
+        if (Selected is not { } star) { Draw(); return; }
+        _glideFrom = _pivot;
+        _glideTo = (star.X, star.Y, star.Z);
+        _glideStart = DateTime.UtcNow;
+        if (_gliding) return;
+        _gliding = true;
+        CompositionTarget.Rendering += OnGlideFrame;
+    }
+
+    private void StopGlide()
+    {
+        if (!_gliding) return;
+        CompositionTarget.Rendering -= OnGlideFrame;
+        _gliding = false;
+    }
+
+    private void OnGlideFrame(object? sender, object e)
+    {
+        double t = Math.Min(1, (DateTime.UtcNow - _glideStart) / GlideTime);
+        double k = 1 - Math.Pow(1 - t, 3);
+        _pivot = (_glideFrom.X + (_glideTo.X - _glideFrom.X) * k, _glideFrom.Y + (_glideTo.Y - _glideFrom.Y) * k,
+            _glideFrom.Z + (_glideTo.Z - _glideFrom.Z) * k);
+        if (t >= 1 || !IsLoaded) StopGlide();
+        Draw();
+    }
+
+    private double PixelsPerUnit => Math.Min(Stage.ActualWidth, Stage.ActualHeight) / (RegionHalf * 2.6) * _zoom;
 
     /// <summary>Rotate (yaw about the vertical axis, then pitch), project and paint, nearest on top.</summary>
     private void Draw()
     {
         double width = Stage.ActualWidth, height = Stage.ActualHeight;
         if (width <= 0 || height <= 0) return;
-        double scale = Math.Min(width, height) / (RegionHalf * 2.6) * _zoom;
+        double scale = PixelsPerUnit;
         double cy = Math.Cos(_yaw), sy = Math.Sin(_yaw), cp = Math.Cos(_pitch), sp = Math.Sin(_pitch);
         (double X, double Y, double Depth) Project(double x, double y, double z)
         {
+            x -= _pivot.X; y -= _pivot.Y; z -= _pivot.Z;
             double rx = x * cy + z * sy, rz = -x * sy + z * cy;
             double ry = y * cp - rz * sp, depth = y * sp + rz * cp;
             return (width / 2 + rx * scale, height / 2 - ry * scale, depth);
@@ -135,9 +178,28 @@ public sealed partial class RegionStarMap : UserControl
 
     private void OnPressed(object sender, PointerRoutedEventArgs e)
     {
-        _pressed = e.GetCurrentPoint(Stage).Position;
+        var point = e.GetCurrentPoint(Stage);
+        _pressed = point.Position;
         _turning = false;
+        // Right or middle button, or Shift with the left (touchpads), moves the view instead of turning it.
+        _panning = point.Properties.IsRightButtonPressed || point.Properties.IsMiddleButtonPressed
+            || (e.KeyModifiers & VirtualKeyModifiers.Shift) != 0;
+        Focus(FocusState.Pointer);
         Stage.CapturePointer(e.Pointer);
+        e.Handled = true;
+    }
+
+    /// <summary>Move the pivot so the stars follow the pointer: the screen offset turned back into region space.</summary>
+    private void Pan(double dx, double dy)
+    {
+        double scale = PixelsPerUnit;
+        if (scale <= 0) return;
+        double rx = -dx / scale, ry = dy / scale;
+        double cy = Math.Cos(_yaw), sy = Math.Sin(_yaw), cp = Math.Cos(_pitch), sp = Math.Sin(_pitch);
+        double y = ry * cp, rz = -ry * sp;
+        double x = rx * cy - rz * sy, z = rx * sy + rz * cy;
+        StopGlide();
+        _pivot = (_pivot.X + x, _pivot.Y + y, _pivot.Z + z);
     }
 
     private void OnMoved(object sender, PointerRoutedEventArgs e)
@@ -147,8 +209,12 @@ public sealed partial class RegionStarMap : UserControl
         double dx = now.X - start.X, dy = now.Y - start.Y;
         if (!_turning && Math.Abs(dx) + Math.Abs(dy) < 4) return;
         _turning = true;
-        _yaw += dx * 0.01;
-        _pitch = Math.Clamp(_pitch + dy * 0.01, -1.5, 1.5);
+        if (_panning) Pan(dx, dy);
+        else
+        {
+            _yaw += dx * 0.01;
+            _pitch = Math.Clamp(_pitch + dy * 0.01, -1.5, 1.5);
+        }
         _pressed = now;
         Draw();
     }
@@ -156,8 +222,9 @@ public sealed partial class RegionStarMap : UserControl
     private void OnReleased(object sender, PointerRoutedEventArgs e)
     {
         Stage.ReleasePointerCapture(e.Pointer);
-        bool click = !_turning;
+        bool click = !_turning && !_panning;
         _pressed = null;
+        _panning = false;
         _turning = false;
         if (!click) return;
         var point = e.GetCurrentPoint(Stage).Position;
@@ -176,7 +243,28 @@ public sealed partial class RegionStarMap : UserControl
     private void OnWheel(object sender, PointerRoutedEventArgs e)
     {
         int delta = e.GetCurrentPoint(Stage).Properties.MouseWheelDelta;
-        _zoom = Math.Clamp(_zoom * (delta > 0 ? 1.15 : 1 / 1.15), 0.6, 6);
+        _zoom = Math.Clamp(_zoom * (delta > 0 ? 1.15 : 1 / 1.15), 0.6, 12);
+        Draw();
+        e.Handled = true;
+    }
+
+    private void OnKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        const VirtualKey Plus = (VirtualKey)187, Minus = (VirtualKey)189; // the main keyboard's =/+ and - keys
+        switch (e.Key)
+        {
+            case VirtualKey.Left: _yaw -= 0.1; break;
+            case VirtualKey.Right: _yaw += 0.1; break;
+            case VirtualKey.Up: _pitch = Math.Clamp(_pitch - 0.1, -1.5, 1.5); break;
+            case VirtualKey.Down: _pitch = Math.Clamp(_pitch + 0.1, -1.5, 1.5); break;
+            case VirtualKey.Add or Plus: _zoom = Math.Min(12, _zoom * 1.15); break;
+            case VirtualKey.Subtract or Minus: _zoom = Math.Max(0.6, _zoom / 1.15); break;
+            case VirtualKey.Home:
+                foreach (var (_, star) in _dots)
+                    if (star.IsHere) { StarSelected?.Invoke(this, star); break; }
+                break;
+            default: return;
+        }
         Draw();
         e.Handled = true;
     }

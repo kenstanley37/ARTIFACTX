@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!-- A region's stars in 3D (RegionStarMap.xaml.cs): drag to turn, wheel to zoom, click a star to pick it. -->
 <UserControl
     x:Class="ArtifactX.WinUI3.Controls.RegionStarMap"
@@ -8,8 +8,8 @@
             CornerRadius="{ThemeResource ThemeCardCornerRadius}">
         <Grid>
             <Canvas x:Name="Stage" Background="Transparent" ManipulationMode="None"
-                    AutomationProperties.Name="Region map. Drag to turn, use the mouse wheel to zoom, click a star to see its details."/>
-            <TextBlock Text="Drag to turn · wheel to zoom · click a star" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"
+                    AutomationProperties.Name="Region map. Drag to turn, right-drag to move, use the mouse wheel to zoom, click a star to centre it and see its details. Arrow keys turn, plus and minus zoom, Home returns to your system."/>
+            <TextBlock Text="Drag to turn · right-drag to move · wheel to zoom · click a star to centre it · Home: your system" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"
                        HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10,0,0,8" IsHitTestVisible="False"/>
         </Grid>
     </Border>

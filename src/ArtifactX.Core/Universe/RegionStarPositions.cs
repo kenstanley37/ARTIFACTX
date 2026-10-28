@@ -20,6 +20,23 @@ public sealed record GalaxyPlacementSettings(float AttractorMaxLow, float Attrac
 /// </summary>
 public static class RegionStarPositions
 {
+    /// <summary>
+    /// Light-years per region unit. Confirmed 2026-10-27 on the galaxy map: from Hocoss-Logar (Noturbo Spur)
+    /// the stars 9.61, 10.77, 10.98, 11.04 and 12.18 units away read 38, 43, 43, 44 and 48 ly, which is
+    /// units × 4 rounded down for all five.
+    /// </summary>
+    public const float LightYearsPerUnit = 4f;
+
+    /// <summary>Straight-line distance between two stars of a region, in region units.</summary>
+    public static float Distance(RegionStar a, RegionStar b)
+    {
+        float dx = a.X - b.X, dy = a.Y - b.Y, dz = a.Z - b.Z;
+        return MathF.Sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    /// <summary>The distance as the galaxy map shows it: whole light-years, rounded down.</summary>
+    public static int LightYears(RegionStar a, RegionStar b) => (int)(Distance(a, b) * LightYearsPerUnit);
+
     private const int FixedStars = 122;
     private const float NearStep = 5f, FarStep = 10f, PerpDistance = 5f; // voxel attributes 0x14132AD38..0x14132AD4A
 

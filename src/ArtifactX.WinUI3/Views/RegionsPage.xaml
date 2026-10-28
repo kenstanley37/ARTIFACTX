@@ -88,49 +88,7 @@
                         <StackPanel Spacing="10">
                             <TextBlock Text="{x:Bind ViewModel.MapNote, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasMapNote, Mode=OneWay}"
                                        Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"/>
-                            <Grid ColumnSpacing="16" Visibility="{x:Bind ViewModel.HasMap, Mode=OneWay}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="300"/>
-                                </Grid.ColumnDefinitions>
-                                <controls:RegionStarMap Height="520" Stars="{x:Bind ViewModel.MapStars, Mode=OneWay}"
-                                                        Selected="{x:Bind ViewModel.SelectedMapStar, Mode=OneWay}" StarSelected="OnMapStarSelected"/>
-                                <StackPanel Grid.Column="1" Spacing="14">
-                                    <StackPanel Spacing="6">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <Ellipse Width="10" Height="10" Fill="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
-                                            <TextBlock Text="Not visited yet" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <Ellipse Width="10" Height="10" Fill="{ThemeResource ThemePurpleSystemBrush}" VerticalAlignment="Center"/>
-                                            <TextBlock Text="Purple system, not visited yet" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <Ellipse Width="8" Height="8" Fill="{ThemeResource ThemeTextDimBrush}" Opacity="0.55" VerticalAlignment="Center"/>
-                                            <TextBlock Text="Visited" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <Ellipse Width="14" Height="14" Fill="{ThemeResource ThemeTextBrush}" Stroke="{ThemeResource ThemeDamageStatBrush}" StrokeThickness="3" VerticalAlignment="Center"/>
-                                            <TextBlock Text="You are here" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                    <Border Padding="12,10" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
-                                            BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
-                                        <Grid>
-                                            <TextBlock Text="Click a star to see its name and portal address." Visibility="{x:Bind ViewModel.NoSelectedMapStar, Mode=OneWay}"
-                                                       Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"/>
-                                            <StackPanel Spacing="6" Visibility="{x:Bind ViewModel.HasSelectedMapStar, Mode=OneWay}">
-                                                <TextBlock Text="{x:Bind ViewModel.SelectedMapStar.Name, Mode=OneWay, FallbackValue=''}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                                                <TextBlock Text="{x:Bind ViewModel.SelectedMapStar.Status, Mode=OneWay, FallbackValue=''}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
-                                                <TextBlock Text="{x:Bind ViewModel.SelectedMapStar.Detail, Mode=OneWay, FallbackValue=''}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
-                                                <!-- Glyphs above the copy button: side by side they don't fit the 300px panel. -->
-                                                <controls:GlyphStrip Code="{x:Bind ViewModel.SelectedMapStar.PortalCode, Mode=OneWay, FallbackValue=''}" Title="{x:Bind ViewModel.SelectedMapStar.Name, Mode=OneWay, FallbackValue=''}" GlyphSize="18" Margin="0,2,0,0"/>
-                                                <controls:CopyCodeButton Code="{x:Bind ViewModel.SelectedMapStar.PortalCode, Mode=OneWay, FallbackValue=''}" HorizontalAlignment="Left"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-                                </StackPanel>
-                            </Grid>
+                            <controls:RegionMapView ViewModel="{x:Bind ViewModel}" Height="520" Visibility="{x:Bind ViewModel.HasMap, Mode=OneWay}"/>
                         </StackPanel>
                     </Border>
                 </controls:FoldingCard>
@@ -162,7 +120,15 @@
                                         <Border Padding="12,10" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
                                                 BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
                                             <StackPanel Spacing="6">
-                                                <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                    <!-- Distance from you, as the galaxy map shows it. -->
+                                                    <TextBlock Grid.Column="1" Text="{x:Bind DistanceText}" Foreground="{ThemeResource ThemeAccentBrush}" FontSize="13" FontWeight="SemiBold"/>
+                                                </Grid>
                                                 <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
                                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                                     <controls:GlyphStrip Code="{x:Bind PortalCode}" Title="{x:Bind Name}" GlyphSize="16"/>
@@ -229,5 +195,31 @@
                 </ItemsRepeater>
             </StackPanel>
         </ScrollViewer>
+
+        <!-- The region map filling the page; only built while expanded. Esc or Close returns. -->
+        <Grid x:Name="ExpandedMap" x:Load="{x:Bind ViewModel.IsMapExpanded, Mode=OneWay}" Grid.RowSpan="4" Margin="-28,-26,-28,-24"
+              Padding="24,20,24,20" RowSpacing="14" Background="{ThemeResource ThemeVoidBrush}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind ViewModel.RegionTitle, Mode=OneWay}" Style="{StaticResource ThemeHeadingStyle}" FontSize="22"/>
+                    <TextBlock Text="{x:Bind ViewModel.MapSummary, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
+                </StackPanel>
+                <Button Grid.Column="1" Content="Close map" Command="{x:Bind ViewModel.CloseMapCommand}" VerticalAlignment="Center"
+                        AutomationProperties.Name="Close the expanded region map">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="Escape"/>
+                    </Button.KeyboardAccelerators>
+                </Button>
+            </Grid>
+            <controls:RegionMapView Grid.Row="1" ViewModel="{x:Bind ViewModel}" ShowExpandButton="Collapsed"/>
+        </Grid>
     </Grid>
 </Page>
