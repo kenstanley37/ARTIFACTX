@@ -608,3 +608,5 @@ porting before the app can place a portal with no game running; the portal-regis
 Save check (game closed, 2026-10-28): the portal marker the game itself saved on Ribhakyam in Slot 8 (A1f event
 `9@i` 3, `oZw` as hex text) has exactly the predicted key `0x812726D1BA4E9FAB` and position. Predicted portal
 markers for the other 5 planets were added to Slot 8 in the same format (backup taken first) for an in-game check.
+**CONFIRMED in game (2026-10-28, owner):** all 5 predicted portal markers led straight to the portal on every planet,
+each "right on top of where you enter glyphs". (A visited marker is removed by the game.)
