@@ -336,6 +336,10 @@ showed "Observatory" from space, led to a real Observatory and read "Destination
 (predicted -0.84, +0.42). A base-radius TWn is enough: no terrain height needed for markers. The planet also scanned
 "Salvageable Scrap", as predicted (ScrapWorld). Building placement unchanged by the Forsaken update here.
 
+**Forsaken (build 183791, 2026-10-28).** PLANETBUILDINGTABLE decodes with libMBIN 7.07 and is identical to the
+180836 table. NMS.exe moved: the BuildingLevel setter is now at `0x1416C84E3` (was `0x141695B73`, +0x32970) with the
+same logic. Addresses in this file are build 180836; re-locate by byte pattern before using them.
+
 Next for the app: PLANETBUILDINGTABLE rows in the catalog, a Giant radius, then a "nearest Shop / Depot / crashed
 freighter" finder from the player's position; and for exact contents, the model chosen within a class and the
 cabinet / crashed-ship seeds.
