@@ -329,6 +329,13 @@ miss is a Portal: portals have density 0 everywhere and come from the override l
 which is not modelled. `RegionCheck suggest` lists predicted sites of chosen classes nearest a latitude/longitude
 with marker values, for the Slot 8 marker test (Observatory on Yikjav XIV, -0.84, +0.42, written at base radius).
 
+**Slot 8 marker test: CONFIRMED in game (2026-10-28, build 183791 "Forsaken", save version 4230).** One A1f entry
+added with the game closed (copied shape of a real ^OBSERVATORY marker: 9@i 1, oZw = planet address, 5bU = [true,
+predicted site key], TWn = planet centre (aHM) + site point at the base radius, iqv Observatory). In game the HUD
+showed "Observatory" from space, led to a real Observatory and read "Destination Reached" at visor -0.84, +0.40
+(predicted -0.84, +0.42). A base-radius TWn is enough: no terrain height needed for markers. The planet also scanned
+"Salvageable Scrap", as predicted (ScrapWorld). Building placement unchanged by the Forsaken update here.
+
 Next for the app: PLANETBUILDINGTABLE rows in the catalog, a Giant radius, then a "nearest Shop / Depot / crashed
 freighter" finder from the player's position; and for exact contents, the model chosen within a class and the
 cabinet / crashed-ship seeds.
