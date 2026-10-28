@@ -1,0 +1,99 @@
+# Reference vectors for NMS.exe's scalar uber noise 0x1419BCA30 (build 183791; docs/research/PLANET_BUILDING_PLACEMENT.md),
+# run in Unicorn on random points and TkNoiseUberData parameters. usage: python emu_uber.py <count> [seed] > vectors.json
+# Runs NMS.exe's terrain height function 0x14128AA20 (build 183791; docs/research/PLANET_BUILDING_PLACEMENT.md) in
+# Unicorn on a planet's real TkVoxelGeneratorData (read_terrain_live.py output) and compares it with the height of
+# each override record (|record - planet position| - radius). Ground truth for the uber-noise port.
+# usage: python emu_height.py <terrain.json> [live]   ("live": first copy NMS.exe's .data from the running game,
+#        read-only, for tables only filled at start-up)
+import struct, sys, json, math, os
+import pefile
+from unicorn import Uc, UC_ARCH_X86, UC_MODE_64, UC_HOOK_CODE, UC_HOOK_MEM_UNMAPPED, UcError, UC_PROT_ALL
+from unicorn import x86_const as X
+EXE = os.environ.get("NMS_EXE", r"D:\SteamLibrary\steamapps\common\No Man's Sky\Binaries\NMS.exe")
+data = open(EXE, 'rb').read()
+pe = pefile.PE(data=data, fast_load=True)
+pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_IMPORT"]])
+BASE = pe.OPTIONAL_HEADER.ImageBase
+mu = Uc(UC_ARCH_X86, UC_MODE_64)
+mu.mem_map(BASE, (pe.OPTIONAL_HEADER.SizeOfImage + 0xFFF) & ~0xFFF)
+for s in pe.sections:
+    mu.mem_write(BASE + s.VirtualAddress, data[s.PointerToRawData:s.PointerToRawData + min(s.SizeOfRawData, s.Misc_VirtualSize)])
+STUBS, STACK, HEAP, SENTINEL = 0x10000000, 0x20000000, 0x30000000, 0x40000000
+for a, n in ((STUBS, 0x10000), (STACK, 0x400000), (HEAP, 0x1000000), (SENTINEL, 0x1000)): mu.mem_map(a, n)
+heap = [HEAP]
+def alloc(n, align=16):
+    heap[0] = (heap[0] + align - 1) & ~(align - 1); a = heap[0]; heap[0] += max(n, 1); mu.mem_write(a, b'\0' * max(n, 1)); return a
+imports = {}
+for k, imp in enumerate(i for d in pe.DIRECTORY_ENTRY_IMPORT for i in d.imports):
+    stub = STUBS + 0x10 * k; mu.mem_write(stub, b"\xc3"); mu.mem_write(imp.address, struct.pack("<Q", stub))
+    imports[stub] = (imp.name or b"#").decode()
+used = {}
+def f32reg(r): return struct.unpack('<f', mu.reg_read(r).to_bytes(16, 'little')[:4])[0]
+def on_stub(mu, addr, size, _):
+    fn = imports.get(addr)
+    if fn is None: return
+    used[fn] = used.get(fn, 0) + 1
+    x, y = f32reg(X.UC_X86_REG_XMM0), f32reg(X.UC_X86_REG_XMM1)
+    f = {'sinf': math.sin, 'cosf': math.cos, 'sqrtf': math.sqrt, 'floorf': math.floor, 'ceilf': math.ceil, 'expf': math.exp,
+         'logf': math.log, 'roundf': lambda v: math.floor(abs(v) + 0.5) * (1 if v >= 0 else -1), 'truncf': math.trunc, 'acosf': math.acos, 'asinf': math.asin, 'tanf': math.tan}
+    if fn in f or fn in ('atan2f', 'powf', 'fmodf'):
+        v = f[fn](x) if fn in f else math.atan2(x, y) if fn == 'atan2f' else x ** y if fn == 'powf' else math.fmod(x, y)
+        mu.reg_write(X.UC_X86_REG_XMM0, int.from_bytes(struct.pack('<f', v), 'little'))
+    elif fn in ('memset', 'memcpy', 'memmove'):
+        rcx, rdx, r8 = (mu.reg_read(r) for r in (X.UC_X86_REG_RCX, X.UC_X86_REG_RDX, X.UC_X86_REG_R8))
+        if r8: mu.mem_write(rcx, bytes([rdx & 0xFF]) * r8 if fn == 'memset' else bytes(mu.mem_read(rdx, r8)))
+        mu.reg_write(X.UC_X86_REG_RAX, rcx)
+    elif fn == '_fdclass':   # MSVC: FP_NAN 2, FP_INFINITE 1, FP_ZERO 0, FP_NORMAL -1
+        v = f32reg(X.UC_X86_REG_XMM0)
+        mu.reg_write(X.UC_X86_REG_RAX, 2 if v != v else 1 if v in (float('inf'), float('-inf')) else 0 if v == 0 else 0xFFFF)
+    elif fn in ('_aligned_malloc', 'malloc', '??2@YAPEAX_K@Z'):
+        rcx, rdx = mu.reg_read(X.UC_X86_REG_RCX), mu.reg_read(X.UC_X86_REG_RDX)
+        mu.reg_write(X.UC_X86_REG_RAX, alloc(rcx, max(16, rdx if fn == '_aligned_malloc' else 16)))
+    elif fn in ('EnterCriticalSection', 'LeaveCriticalSection', 'free', '_aligned_free'):
+        mu.reg_write(X.UC_X86_REG_RAX, 0)
+    else:
+        print('UNHANDLED import', fn); mu.reg_write(X.UC_X86_REG_RAX, 0)
+mu.hook_add(UC_HOOK_CODE, on_stub, begin=STUBS, end=STUBS + 0x10000)
+zero = []
+def on_unmapped(mu, access, addr, size, value, _):
+    page = addr & ~0xFFF
+    try: mu.mem_map(page, 0x1000, UC_PROT_ALL); zero.append(addr); return True
+    except UcError: return False
+mu.hook_add(UC_HOOK_MEM_UNMAPPED, on_unmapped)
+def call(fn, args, stack_args=(), xmm=()):
+    rsp = (STACK + 0x3F0000) & ~0xF; rsp -= 0x200
+    mu.mem_write(rsp, struct.pack('<Q', SENTINEL)); mu.reg_write(X.UC_X86_REG_RSP, rsp)
+    for i, v in enumerate(stack_args): mu.mem_write(rsp + 0x28 + 8 * i, struct.pack('<f', v) + bytes(4))
+    for r, v in xmm: mu.reg_write(r, int.from_bytes(struct.pack('<f', v), 'little'))
+    for r, v in zip((X.UC_X86_REG_RCX, X.UC_X86_REG_RDX, X.UC_X86_REG_R8, X.UC_X86_REG_R9), args): mu.reg_write(r, v)
+    mu.emu_start(fn, SENTINEL, count=50_000_000)
+    return f32reg(X.UC_X86_REG_XMM0)
+
+# --- reference vectors for the scalar uber noise 0x1419BCA30 ------------------------------------------------------
+# Arguments (call site 0x142DE4310): rcx = &point (3 floats), edx = Octaves, xmm2 = PerturbFeatures,
+# xmm3 = SharpToRoundFeatures, stack: AmplifyFeatures, AltitudeErosion, RidgeErosion, SlopeErosion, Lacunarity, Gain,
+# RemapFromMin, RemapFromMax, RemapToMin, RemapToMax, SlopeGain, SlopeBias.
+import random
+rnd = random.Random(int(sys.argv[2]) if len(sys.argv) > 2 else 1)
+pt = alloc(16)
+out = []
+for i in range(int(sys.argv[1])):
+    p = [rnd.uniform(-3000, 3000) for _ in range(3)]
+    octaves = rnd.randint(1, 9)
+    args = dict(PerturbFeatures=rnd.uniform(-1, 1), SharpToRoundFeatures=rnd.uniform(-1, 1), AmplifyFeatures=rnd.uniform(0, 1),
+                AltitudeErosion=rnd.uniform(-1, 1), RidgeErosion=rnd.uniform(0, 1), SlopeErosion=rnd.uniform(0, 1),
+                Lacunarity=rnd.uniform(1.5, 2.5), Gain=rnd.uniform(0.3, 0.7), RemapFromMin=rnd.uniform(-1, 0), RemapFromMax=rnd.uniform(0.5, 1.5),
+                RemapToMin=rnd.uniform(0, 0.3), RemapToMax=rnd.uniform(0.7, 1), SlopeGain=rnd.uniform(0.2, 0.8), SlopeBias=rnd.uniform(0.2, 0.8))
+    args = {k: struct.unpack('<f', struct.pack('<f', v))[0] for k, v in args.items()}
+    p = [struct.unpack('<f', struct.pack('<f', c))[0] for c in p]
+    mu.mem_write(pt, struct.pack('<4f', *p, 0.0))
+    stack = [args[k] for k in ('AmplifyFeatures', 'AltitudeErosion', 'RidgeErosion', 'SlopeErosion', 'Lacunarity', 'Gain',
+                               'RemapFromMin', 'RemapFromMax', 'RemapToMin', 'RemapToMax', 'SlopeGain', 'SlopeBias')]
+    v = None
+    try:
+        call(0x1419BCA30, (pt, octaves), stack, ((X.UC_X86_REG_XMM2, args['PerturbFeatures']), (X.UC_X86_REG_XMM3, args['SharpToRoundFeatures'])))
+        v = f32reg(X.UC_X86_REG_XMM0)
+    except UcError as e:
+        print('emu error', e, hex(mu.reg_read(X.UC_X86_REG_RIP)))
+    out.append(dict(point=p, octaves=octaves, args=args, value=v, bits=struct.unpack('<I', struct.pack('<f', v))[0] if v is not None else None))
+json.dump(out, sys.stdout, indent=0)

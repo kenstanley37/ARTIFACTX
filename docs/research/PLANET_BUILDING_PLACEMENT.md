@@ -539,3 +539,14 @@ layers are constants of their setting) and all 8 Active flags reproduced.
 - The site query's domain warp uses `0x1419BBAE0` (869). Noise tables near the Perlin permutation `0x144AFAEA0`
   (`0x144AFAD80..0x144AFAFD0`).
 Method: port function by function, each checked bit for bit against the same function run in the emulator.
+
+**Scalar uber noise PORTED, bit-exact (2026-10-28).** `uberport.py` transcribes `0x1419BCA30` in float32 lane for lane:
+500/500 random vectors from the emulator (`emu_uber.py`) bit-identical. Arguments = TkNoiseUberData: Octaves,
+PerturbFeatures, SharpToRoundFeatures (`roundf`), AmplifyFeatures, AltitudeErosion, RidgeErosion, SlopeErosion,
+Lacunarity, Gain, RemapFrom/To Min/Max, SlopeGain, SlopeBias. Per octave: inlined simplex with derivatives (its own
+add order - NOT GalaxySimplexNoise's: falloff 0.6 - (y^2 + (x^2 + z^2)), transpose-add sums), sharp/round blend,
+slope (SlopeErosion) and ridge (x0.8) derivative accumulators, perturb offset, sum += n * ridgeAmp / (1 + slope^2),
+altitude erosion via smoothstep of the clamped sum, amplitude *= that (first octave uses Amplify + Gain, later Gain;
+start 1.0 for one octave else 0.9). Tail: (sum + 1) / 2 when SharpToRound rounds to 0, remap + clamp, Schlick
+gain (SlopeGain) and bias (SlopeBias). Constants and tables read from NMS.exe (perm `0x144AFAEA0`, gradients
+`0x144AFADA0`). Next: the core `0x142DE3F20` / layer evaluator `0x142C3D4E0` around it, then the height function.
