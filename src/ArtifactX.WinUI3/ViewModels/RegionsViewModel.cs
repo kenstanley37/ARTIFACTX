@@ -253,7 +253,8 @@ public sealed partial class RegionsViewModel : ObservableObject
         if (Region.Value != key.ToString(CultureInfo.InvariantCulture)) return;
         int? selected = SelectedMapStar?.System;
         MapStars = built;
-        SelectedMapStar = selected is int keep ? built.FirstOrDefault(s => s.System == keep) : null;
+        // Until a star is clicked the panel shows your own system, so there's always a reference point.
+        SelectedMapStar = (selected is int keep ? built.FirstOrDefault(s => s.System == keep) : null) ?? built.FirstOrDefault(s => s.IsHere);
         MapNote = here != 0 ? "" : "You're not in this region, so no system is marked as yours.";
     }
 

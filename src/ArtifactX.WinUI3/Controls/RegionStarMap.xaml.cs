@@ -14,8 +14,8 @@ namespace ArtifactX.WinUI3.Controls;
 
 /// <summary>
 /// A region's stars in 3D from their generated positions (RegionStarPositions), drawn as dots on a
-/// canvas: unvisited systems bright, visited ones dim, purple systems in the theme's second accent,
-/// your system ringed. Drag to turn, mouse wheel to zoom, click a star to raise <see cref="StarSelected"/>.
+/// canvas: unvisited systems bright, visited ones dim, unvisited purple systems violet,
+/// your system a large white dot in a ring. Drag to turn, mouse wheel to zoom, click a star to raise <see cref="StarSelected"/>.
 /// Drawing the dots is the control's job, so it builds them in code; the page binds Stars and Selected.
 /// </summary>
 public sealed partial class RegionStarMap : UserControl
@@ -108,20 +108,22 @@ public sealed partial class RegionStarMap : UserControl
 
         var visited = ThemeResources.Brush("ThemeTextDimBrush");
         var unvisited = ThemeResources.Brush("ThemeAccentBrush");
-        var purple = ThemeResources.Brush("ThemeAccentAltBrush");
+        var purple = ThemeResources.Brush("ThemePurpleSystemBrush");
         var here = ThemeResources.Brush("ThemeDamageStatBrush");
-        var selected = ThemeResources.Brush("ThemeTextBrush");
+        var white = ThemeResources.Brush("ThemeTextBrush");
         foreach (var (dot, star) in _dots)
         {
             var p = Project(star.X, star.Y, star.Z);
             double size = Math.Clamp((star.Visited ? 4.5 : 6.5) * (1 + p.Depth / (RegionHalf * 4)) * Math.Sqrt(_zoom), 2.5, 16);
             bool isSelected = ReferenceEquals(star, Selected);
-            if (star.IsHere || isSelected) size += 6;
+            // Your system: a white dot in a thick ring, bigger than anything else, so it never blends in.
+            if (star.IsHere) size = Math.Max(size, 8) + 8;
+            else if (isSelected) size += 6;
             dot.Width = dot.Height = size;
-            dot.Fill = star.IsPurple && !star.Visited ? purple : star.Visited ? visited : unvisited;
+            dot.Fill = star.IsHere ? white : star.IsPurple && !star.Visited ? purple : star.Visited ? visited : unvisited;
             dot.Opacity = star.Visited && !star.IsHere ? 0.55 : 1;
-            dot.Stroke = star.IsHere ? here : isSelected ? selected : null;
-            dot.StrokeThickness = star.IsHere || isSelected ? 2 : 0;
+            dot.Stroke = star.IsHere ? here : isSelected ? white : null;
+            dot.StrokeThickness = star.IsHere ? 3 : isSelected ? 2 : 0;
             Canvas.SetLeft(dot, p.X - size / 2);
             Canvas.SetTop(dot, p.Y - size / 2);
             Canvas.SetZIndex(dot, (int)(p.Depth * 10) + (star.IsHere || isSelected ? 100000 : 0));
