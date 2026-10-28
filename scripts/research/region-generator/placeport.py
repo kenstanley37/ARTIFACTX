@@ -3,8 +3,9 @@
 # (anchor + points 500-600 from it, the last one 800-1000), phase 2 assigns the records; every candidate direction
 # comes from the planet-seed MWC and must pass the accept test (site query, terrain height, flatness, water/height
 # rules). Checked against the game's records read live (read_planet_object_live.py bundles).
-# usage: python placeport.py <planet bundle> [...]
-import sys, struct, math, pickle
+# The record list comes from PLANETBUILDINGTABLE (tabledump -> override_table.json), not from the live records.
+# usage: python placeport.py <override_table.json> <planet bundle> [...]
+import sys, struct, math, pickle, json
 import numpy as np
 from uberport import f, ONE
 from buildingseeds import Mwc
@@ -17,6 +18,24 @@ CRASH_MIN, CRASH_MAX, SHELTER_MIN, SHELTER_MAX = f(500), f(600), f(800), f(1000)
 SEA_ABOVE, WATER_ONLY_DEPTH, MIN_BELOW_SEA, MAX_SLOPE = f(5), f(35), f(60), f(1)
 CHAIN_CLASSES, CHAIN_CLASSES_WATER = {2, 20, 28}, {28, 32}
 UNIT = 2.3283064370807974e-10
+UNDERWATER_ONLY = 3                                         # TkNoiseFlattenOptions.WaterPlacement
+# Ring radius of the flatness test on Prime planets for types whose OverrideRadius is -1: the game measures the model
+# (GcBuildingSpawnData.Radius = half the AABB's XZ diagonal, BuildingSizeCalculated). Values read live (build 183791):
+# Shelter's first type (the chain's accept test) and the Portal; the start spawns' 10 is never used by placement.
+MODEL_RADIUS = {2: f(22.641382217407227), 16: f(37.76814651489258), 28: f(10)}
+
+def override_list(table, P, npcs=True):
+    """The type loop's override records (0x141635D10 step 1): per class in class order, NumOverridesToGenerate (or the
+    Waterworld count when >= 0 on biome 14); none for NPC-only classes without NPCs or UnderwaterOnly without a sea."""
+    water_world = P.biome == 14
+    out = []
+    for row in table:
+        n = row['overridesWater'] if water_world and row['overridesWater'] >= 0 else row['overrides']
+        if not row['noNpc'] and not npcs: n = 0
+        if row['water'] == UNDERWATER_ONLY and not P.sea > 0: n = 0
+        ring = f(row['radius']) if row['radius'] > 0 else MODEL_RADIUS.get(row['cls'], f(0))
+        out += [dict(cls=row['cls'], water=row['water'], minh=f(row['minh']), maxh=f(row['maxh']), ring=ring)] * max(n, 0)
+    return out
 
 class Planet:
     def __init__(self, bundle):
@@ -63,12 +82,11 @@ def direction(rng):
     phi = f(u2 * TWO_PI)
     return [f(fp.game_cos(phi) * r), y, f(fp.game_sin(phi) * r)]
 
-def place(P):
+def place(P, recs):
     rng = Mwc(P.seed)
-    recs = P.live
     water = P.biome == 14
     chain_cls = CHAIN_CLASSES_WATER if water else CHAIN_CLASSES
-    chain_len = sum(1 for r in recs if P.types[r['type']]['cls'] in chain_cls)
+    chain_len = sum(1 for r in recs if r['cls'] in chain_cls)
     need = chain_len - 1
     chain, last = [], None
     attempts = 0; round_attempts = 0
@@ -83,7 +101,7 @@ def place(P):
             m = f(np.sqrt(f(f(f(q[0] * q[0]) + f(q[1] * q[1])) + f(q[2] * q[2]))))
             dvec = [f(c / m) for c in q]
         d = [f(c * f(P.radius)) for c in dvec]
-        ok, key, pos = accept(P, d, P.types[recs[0]['type']])
+        ok, key, pos = accept(P, d, recs[0])
         if ok and all(k != key for k, _ in chain):
             good = True
             if n_now:
@@ -100,7 +118,7 @@ def place(P):
             chain, last, round_attempts = [], None, 0
     out = []
     for r in recs:
-        c = P.types[r['type']]['cls']
+        c = r['cls']
         if c == 20 or (water and c == 32): key, pos = chain.pop(0)
         elif c == 28: key, pos = chain.pop()
         elif c == 2 or (water and c in (31, 24)): key, pos = last
@@ -108,14 +126,17 @@ def place(P):
             key = pos = None
             for _ in range(5000):
                 d = [f(c_ * f(P.radius)) for c_ in direction(rng)]
-                ok, k, p = accept(P, d, P.types[r['type']])
+                ok, k, p = accept(P, d, r)
                 if ok: key, pos = k, p; break
         out.append((key, pos))
     return out
 
 if __name__ == '__main__':
-    for b in sys.argv[1:]:
-        P = Planet(b); res = place(P)
+    table = json.load(open(sys.argv[1]))
+    for b in sys.argv[2:]:
+        P = Planet(b); recs = override_list(table, P)
+        if [r['cls'] for r in recs] != [P.types[r['type']]['cls'] for r in P.live]: print(b, 'record list differs'); continue
+        res = place(P, recs)
         if res is None: print(b, 'no chain'); continue
         ok = sum(1 for (k, p), r in zip(res, P.live) if k == r['key'])
         worst = max(math.dist(p, r['pos']) for (k, p), r in zip(res, P.live) if p)

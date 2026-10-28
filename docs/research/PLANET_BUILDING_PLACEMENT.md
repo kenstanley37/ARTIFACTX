@@ -610,3 +610,17 @@ Save check (game closed, 2026-10-28): the portal marker the game itself saved on
 markers for the other 5 planets were added to Slot 8 in the same format (backup taken first) for an in-game check.
 **CONFIRMED in game (2026-10-28, owner):** all 5 predicted portal markers led straight to the portal on every planet,
 each "right on top of where you enter glyphs". (A visited marker is removed by the game.)
+
+**Override record list from the table (2026-10-28).** `placeport.override_list` builds the records from
+`PLANETBUILDINGTABLE` (`TableDump` -> JSON) instead of the live list: per class in class order,
+NumOverridesToGenerate (NumOverridesToGenerateWaterworlds when >= 0 on biome 14), none for NPC-only classes on a
+planet without NPCs or for WaterPlacement UnderwaterOnly (3) without a sea. Forsaken table: Shelter 1, Portal 1,
+DistressSignal 1, Base 1, GameStartSpawn 4, WaterDistressSignal 1 (sea only), WaterCrashedFreighter 0 (1 on
+waterworlds). Same class sequence as the live records on all 6 planets, and still **49/49 keys, within 0.125 m**.
+Type fields used by the accept test (records are `GcBuildingSpawnData`): `+0x9C` = FlattenType.WaterPlacement,
+`+0xB4/+0xBC` Max/MinHeight, `+0xC0` Radius (the flatness ring, only on `IsPrime` planets, building data `+0x4D`;
+`+0x4E` is `IsWaterworld`). Radius = the table's OverrideRadius when > 0 (DistressSignal 35, Base 50,
+WaterDistressSignal 20), else measured from the model: half the AABB's XZ diagonal (Shelter's first type 22.64,
+Portal 37.77; the start spawns read 10, apparently a minimum, never used by placement). Those two model radii are
+constants in `placeport.MODEL_RADIUS` for now; the C# port should take them from the catalog (scene bounds).
+Still live-read: the planet inputs (terrain data, seed, radius, sector seed, position, sea level, biome, IsPrime).
