@@ -624,3 +624,18 @@ WaterDistressSignal 20), else measured from the model: half the AABB's XZ diagon
 Portal 37.77; the start spawns read 10, apparently a minimum, never used by placement). Those two model radii are
 constants in `placeport.MODEL_RADIUS` for now; the C# port should take them from the catalog (scene bounds).
 Still live-read: the planet inputs (terrain data, seed, radius, sector seed, position, sea level, biome, IsPrime).
+
+**Terrain data (what the height reads) PORTED, exact on 6/6 planets (2026-10-28).** `terrainport.py`: noise layers,
+BaseSeed and sea level of TkVoxelGeneratorData from the setting element and the stage-4 stream, compared with the
+live data byte for byte (every active layer's 0x80 data bytes + Active/Subtract, BaseSeed, NoSeaBaseLevel, sea).
+- BaseSeed = the planet seed; NoSeaBaseLevel from the setting (20 here).
+- The layer builder `0x1416C4F60` starts each layer from fixed defaults, copies SeedOffset `+0x68`, Subtract `+0x81`,
+  Offset `+0x4C`, MaximumLOD `+0x48` and WaterFade `+0x78` from the second set, picks VoxelType with `0x1416C4E30`
+  (random rock 8/9: a RockTile draw, pass -> one more draw (1 or 2 by the top bit); type 9 then a SubstanceTile draw,
+  pass -> 5 + Next(3); else 0) **before** the 26 field draws, and leaves **RegionGain at 1.0** (never drawn).
+  The earlier "layer 0 Height = word 4" was a fit artefact: with the right number of draws before the layers it is
+  Height's own draw.
+- Draws before the layers = Core's Terrain (index draw(s), the sea draw): 2 on the two planets that have one here.
+- After the loop: layer 7 off when sea > SeaStandard, forced on for dead-turned-weird worlds or sea > 1; on a sea
+  above 1 it gets Height = sea - 30 (`0x1416C7067`), `+0x50` = 0, `+0x54` = 4. Layer 4 off when sea <= 0, layer 6 off
+  on moons (size 3). The grid layers (`+0x000..+0xAB0`) and features are not read by the height.
