@@ -45,6 +45,14 @@ public static class RegionStarPositions
     /// the goal gap (no stars).
     /// </summary>
     public static IReadOnlyList<RegionStar>? Ordinary(int galaxy, int x, int y, int z,
+        GalaxyGenerationSettings settings, GalaxyPlacementSettings placement) =>
+        Stars(galaxy, x, y, z, settings, placement)?.Where(s => s.System < 1000).ToList();
+
+    /// <summary>
+    /// Every star of a region in emission order: ordinary systems 1..N, then purple systems
+    /// 1001..1065. Null where <see cref="Ordinary"/> is.
+    /// </summary>
+    public static IReadOnlyList<RegionStar>? Stars(int galaxy, int x, int y, int z,
         GalaxyGenerationSettings settings, GalaxyPlacementSettings placement)
     {
         int sx = SignExtend(x, 12), sy = SignExtend(y, 8), sz = SignExtend(z, 12);
@@ -105,9 +113,35 @@ public static class RegionStarPositions
                     float pull = ((attractorMax - attractorMin) * field + attractorMin) * length;
                     V moved = p - toStar.Scale(1f / length).Scale(pull);
                     stars.Add(new RegionStar(stars.Count + 1, moved.X, moved.Y, moved.Z));
+                    rng.Step(); // highlight roll (0x14136948F)
+                    rng.Step(); // star size in the callback (0x141369E40)
                 }
+
+        // Map clouds (0x1413695AE..0x141369A24): one draw picks one or two groups; each group
+        // takes three draws and Next(21)+4 items of ten draws each. Only the draw count matters here.
+        int groups = (int)(rng.NextWord() >> 31) + 1;
+        for (int group = 0; group < groups; group++)
+        {
+            rng.Step(); rng.Step();
+            int items = (int)rng.Next(21) + 4;
+            for (int i = 0; i < items * 10; i++) rng.Step();
+        }
+
+        // Purple systems 1001..1065 (0x141369A80..0x141369BE4): a size draw, three position
+        // draws (z, y, x) spread over the whole region, and the callback's size draw.
+        for (int k = 0; k < PurpleSystems; k++)
+        {
+            rng.Step();
+            float pz = RegionPathSegments.Unit(rng.NextWord()) * CellSpacing * 19f + 0f + CellOffset;
+            float py = RegionPathSegments.Unit(rng.NextWord()) * CellSpacing * 19f + 0f + CellOffset;
+            float px = RegionPathSegments.Unit(rng.NextWord()) * CellSpacing * 19f + 0f + CellOffset;
+            rng.Step();
+            stars.Add(new RegionStar(1001 + k, px, py, pz));
+        }
         return stars;
     }
+
+    private const int PurpleSystems = 65;
 
     private const int Grid = 19;
     private static readonly float CellOffset = BitConverter.Int32BitsToSingle(unchecked((int)0xC23D7943));

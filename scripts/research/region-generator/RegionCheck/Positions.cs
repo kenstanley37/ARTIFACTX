@@ -37,10 +37,9 @@ static class Positions
             if (line.Length == 0) continue;
             var row = JsonDocument.Parse(line).RootElement;
             int g = row.GetProperty("galaxy").GetInt32(), x = row.GetProperty("x").GetInt32(), y = row.GetProperty("y").GetInt32(), z = row.GetProperty("z").GetInt32();
-            int n = row.GetProperty("n").GetInt32();
-            var expected = row.GetProperty("stars").EnumerateArray().Take(n)
+            var expected = row.GetProperty("stars").EnumerateArray()
                 .Select(s => new RegionStar(s[0].GetInt32(), s[1].GetSingle(), s[2].GetSingle(), s[3].GetSingle())).ToArray();
-            var port = RegionStarPositions.Ordinary(g, x, y, z, settings, placement);
+            var port = RegionStarPositions.Stars(g, x, y, z, settings, placement);
             if (port is null) { Console.WriteLine($"galaxy {g} {x:X3}/{y:X2}/{z:X3}: not covered (spiral or gap)"); continue; }
             int same = 0, firstDiff = -1;
             for (int i = 0; i < Math.Min(port.Count, expected.Length); i++)
