@@ -336,6 +336,17 @@ showed "Observatory" from space, led to a real Observatory and read "Destination
 (predicted -0.84, +0.42). A base-radius TWn is enough: no terrain height needed for markers. The planet also scanned
 "Salvageable Scrap", as predicted (ScrapWorld). Building placement unchanged by the Forsaken update here.
 
+**Override buildings: portals (2026-10-28, live read on Slot 8, build 183791).** Portals have density 0, so the slot
+table never places them; both saved portal markers (Yikjav XIV face 5 (-39, -137); a galaxy-9 planet face 1 (33, -109))
+sit on ordinary grid sites predicted "none". They come from the planet's **OverrideBuildings** list (building block
++0x20, count +0x28; records 0x30 bytes): `+0x00` world position, system space, terrain height included (x, y, z
+float), `+0x0C` float about 1001, `+0x10` the site key, `+0x18` a pointer, `+0x20` index into the planet's
+building-type list, then three u32. Yikjav XIV (start planet) holds 8: Shelter, **Portal** (position
+-20478.96, 113334.71, 202123.59 and key 0x72B04B034BEA26D0, exactly the in-game marker), DistressSignal, Base and
+4 GameStartSpawn; Nitanya XIX holds 9, again one Portal. Counts follow NumOverridesToGenerate (Waterworld variant on
+water worlds). So **every planet has one guaranteed portal on a grid site**. Next: find the code that fills
+OverrideBuildings (which site each override takes) - then portal locations are exact from the address.
+
 **Forsaken (build 183791, 2026-10-28).** PLANETBUILDINGTABLE decodes with libMBIN 7.07 and is identical to the
 180836 table. NMS.exe moved: the BuildingLevel setter is now at `0x1416C84E3` (was `0x141695B73`, +0x32970) with the
 same logic. Addresses in this file are build 180836; re-locate by byte pattern before using them.
