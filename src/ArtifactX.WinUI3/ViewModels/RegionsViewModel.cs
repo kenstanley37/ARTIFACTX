@@ -1,5 +1,7 @@
+using ArtifactX.Core.Collections;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Media;
 using System;
@@ -43,6 +45,21 @@ public sealed class RegionSystemViewModel(SystemCapture system, bool here)
     public bool HasFoundBy => FoundBy.Length > 0;
     public string PortalCode => S.PortalAddress(System.System, 0);
     public bool IsComplete => System.IsComplete;
+
+    /// <summary>Everything the row shows: rows are replaced only when this changes, so a new save
+    /// does not rebuild every card and its glyphs.</summary>
+    public string DisplayKey => $"{IsHere}|{Name}|{Progress}|{System.SystemData}|{Visited}|{FoundBy}|"
+        + string.Join(",", System.Bodies.Select(b => $"{b.Index}{(b.IsMoon ? "m" : "")}{(int)b.Level}{b.FaunaTotalKnown}{b.Planet is not null}"));
+}
+
+/// <summary>One not-yet-visited system on the Regions page: name, what it is, and its glyphs.</summary>
+public sealed class UnvisitedSystemViewModel(UnvisitedSystem system)
+{
+    public ulong System { get; } = system.System;
+    public string Name { get; } = system.Name;
+    public string Detail { get; } = (system.Index > 1000 ? $"System {system.Index} (purple)" : $"System {system.Index}")
+        + (system.Summary.Length > 0 ? $" · {system.Summary}" : "");
+    public string PortalCode { get; } = S.PortalAddress(system.System, 0);
 }
 
 /// <summary>
@@ -71,7 +88,18 @@ public sealed partial class RegionsViewModel : ObservableObject
     [ObservableProperty] public partial string HoverOnlyStat { get; private set; } = "";
     [ObservableProperty] public partial double PlanetsDone { get; private set; }
     [ObservableProperty] public partial double PlanetsTotal { get; private set; } = 1;
-    [ObservableProperty] public partial IReadOnlyList<RegionSystemViewModel> Systems { get; private set; } = [];
+    /// <summary>Reconciled in place (ObservableCollectionSync) and shown virtualized (ItemsRepeater).</summary>
+    public ObservableCollection<RegionSystemViewModel> Systems { get; } = new();
+    /// <summary>"539 star systems and 65 purple systems · you've visited 255 · 349 to go"; empty without generator settings.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasRegionTotal))] public partial string RegionTotalStat { get; private set; } = "";
+    public bool HasRegionTotal => RegionTotalStat.Length > 0;
+    [ObservableProperty] public partial double SystemsVisited { get; private set; }
+    [ObservableProperty] public partial double SystemsTotal { get; private set; } = 1;
+    [ObservableProperty] public partial string UnvisitedSummary { get; private set; } = "";
+    public ObservableCollection<UnvisitedSystemViewModel> Unvisited { get; } = new();
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasUnvisited))] public partial int UnvisitedCount { get; private set; }
+    public bool HasUnvisited => UnvisitedCount > 0;
+
     [ObservableProperty] public partial bool OnlyMissing { get; set; }
     [ObservableProperty] public partial int SortIndex { get; set; } // 0 newest first, 1 most to capture first, 2 name
 
@@ -122,12 +150,44 @@ public sealed partial class RegionsViewModel : ObservableObject
             PlanetsDone = done;
             PlanetsTotal = Math.Max(1, bodies);
             Apply();
+            await ShowUnvisitedAsync(key, systems);
         }
         finally
         {
             _loading = false;
             IsLoading = false;
         }
+    }
+
+    /// <summary>The region's total from the game's generator and the systems not in the save yet.</summary>
+    private async Task ShowUnvisitedAsync(ulong key, IReadOnlyList<SystemCapture> systems)
+    {
+        var count = await RegionSystemsService.GetAsync(key);
+        if (Region.Value != key.ToString(CultureInfo.InvariantCulture)) return;
+        if (count is null)
+        {
+            RegionTotalStat = UnvisitedSummary = "";
+            UnvisitedCount = 0;
+            Unvisited.Clear();
+            return;
+        }
+        var visited = systems.Select(s => (int)((s.System >> 40) & 0xFFF)).ToHashSet();
+        var unvisited = await Task.Run(() => RegionMapService.Unvisited(key, count, visited)
+            .Select(s => new UnvisitedSystemViewModel(s)).ToList());
+        if (Region.Value != key.ToString(CultureInfo.InvariantCulture)) return;
+
+        int total = count.Ordinary + count.Purple;
+        int seen = total - unvisited.Count;
+        RegionTotalStat = count.Ordinary == 0
+            ? "This region lies inside the galactic centre and holds no star systems"
+            : string.Create(CultureInfo.CurrentCulture,
+                $"{count.Ordinary:N0} star systems and {count.Purple} purple systems · you've visited {seen:N0} · {unvisited.Count:N0} to go");
+        SystemsVisited = seen;
+        SystemsTotal = Math.Max(1, total);
+        UnvisitedCount = unvisited.Count;
+        UnvisitedSummary = string.Create(CultureInfo.CurrentCulture, $"{unvisited.Count:N0} systems");
+        // A visited system disappears; every other card (and its glyphs) stays.
+        ObservableCollectionSync.Apply(Unvisited, unvisited, s => s.System, (_, _) => true);
     }
 
     private void Apply()
@@ -139,6 +199,6 @@ public sealed partial class RegionsViewModel : ObservableObject
             2 => shown.OrderBy(s => s.Name, StringComparer.CurrentCulture),
             _ => shown.OrderByDescending(s => s.IsHere).ThenByDescending(s => s.System.LatestUnixSeconds),
         };
-        Systems = shown.ToList();
+        ObservableCollectionSync.Apply(Systems, shown.ToList(), s => s.System.System, (current, next) => current.DisplayKey == next.DisplayKey);
     }
 }

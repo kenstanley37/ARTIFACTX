@@ -30,12 +30,16 @@ public sealed record SystemCapture(ulong System, string Name, bool SystemData, b
 /// <summary>A region you've found systems in, keyed by its galactic coordinates.</summary>
 public sealed record RegionSummary(ulong Key, string Name, int Galaxy, int Systems, int SystemsMine);
 
+/// <summary>A system the game generates in a region that isn't in the save yet.</summary>
+public sealed record UnvisitedSystem(ulong System, int Index, string Name, string Summary);
+
 /// <summary>
 /// Regions and how completely their systems are mapped, for the Regions page. A region isn't
 /// stored in the save: it's the galactic coordinates of a system's address (every system of a
 /// region shares them; only the system index differs), named by the game's generator - checked
 /// 2026-10-20: Ehilusti, Otgravenu, Ulvermon VI and Azeley-Gadia all "Noturbo Spur", as in game.
-/// The game doesn't say how many systems a region has, so this counts the ones in the save.
+/// The game doesn't show how many systems a region has; RegionSystemsService works it out with
+/// the game's own region generator, which gives the systems not visited yet.
 /// </summary>
 public static class RegionMapService
 {
@@ -47,6 +51,22 @@ public static class RegionMapService
             .GroupBy(s => RegionKey(s.SystemAddress))
             .Select(g => new RegionSummary(g.Key, UniverseInfo.Region(g.First().SystemAddress), g.First().Galaxy, g.Count(), g.Count(s => s.DiscoveredHere)))
             .OrderByDescending(r => r.SystemsMine).ThenByDescending(r => r.Systems).ThenBy(r => r.Name, StringComparer.CurrentCulture)
+            .ToList();
+
+    /// <summary>
+    /// Every system the region holds (ordinary 1..N, purple 1001..1000+P, from
+    /// ArtifactX.Core.Universe.RegionStarGeneration) that is not among <paramref name="visited"/>,
+    /// in the game's numbering order: stars are numbered as the generator emits them, so
+    /// neighbouring numbers are mostly close together.
+    /// </summary>
+    public static List<UnvisitedSystem> Unvisited(ulong regionKey, ArtifactX.Core.Universe.RegionSystemCount count, IReadOnlySet<int> visited) =>
+        Enumerable.Range(1, count.Ordinary).Concat(Enumerable.Range(1001, count.Purple))
+            .Where(index => !visited.Contains(index))
+            .Select(index =>
+            {
+                ulong system = regionKey | (ulong)index << 40;
+                return new UnvisitedSystem(system, index, UniverseInfo.SystemName(system), UniverseInfo.Summary(system));
+            })
             .ToList();
 
     /// <summary>Every system of a region in the save, with what's captured of it and its bodies.</summary>

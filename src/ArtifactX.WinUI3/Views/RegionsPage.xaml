@@ -41,7 +41,7 @@
                 </Grid.ColumnDefinitions>
                 <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
                 <TextBlock Grid.Column="1" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
-                           Text="How much of a region you've mapped. Each system shows whether its system data was read, and each planet or moon whether its Discoveries hover (type, resources) and its own page (weather, sentinels, flora, fauna) were - green: all of it, yellow: hovered only, dark: nothing yet. The game doesn't say how many systems a region has, so this counts the ones you've found."/>
+                           Text="How much of a region you've mapped. Each system shows whether its system data was read, and each planet or moon whether its Discoveries hover (type, resources) and its own page (weather, sentinels, flora, fauna) were - green: all of it, yellow: hovered only, dark: nothing yet. The region's total comes from the game's own galaxy generator, so the systems you haven't visited are listed with their glyphs too."/>
             </Grid>
         </Border>
 
@@ -65,6 +65,12 @@
                     <StackPanel Spacing="8">
                         <TextBlock Text="{x:Bind ViewModel.RegionTitle, Mode=OneWay}" Style="{StaticResource ThemeHeadingStyle}" FontSize="24"/>
                         <TextBlock Text="{x:Bind ViewModel.RegionSub, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
+                        <!-- Region total from the game's generator (ArtifactX.Core.Universe.RegionStarGeneration). -->
+                        <StackPanel Spacing="4" Visibility="{x:Bind ViewModel.HasRegionTotal, Mode=OneWay}" Margin="0,4,0,0">
+                            <TextBlock Text="{x:Bind ViewModel.RegionTotalStat, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                            <ProgressBar Maximum="{x:Bind ViewModel.SystemsTotal, Mode=OneWay}" Value="{x:Bind ViewModel.SystemsVisited, Mode=OneWay}" MaxWidth="640" HorizontalAlignment="Left" Width="640"
+                                         AutomationProperties.Name="Systems visited in this region"/>
+                        </StackPanel>
                         <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="6" Margin="0,4,0,0">
                             <TextBlock Text="{x:Bind ViewModel.SystemsStat, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
                             <TextBlock Text="{x:Bind ViewModel.SystemDataStat, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
@@ -75,10 +81,44 @@
                     </StackPanel>
                 </Border>
 
-                <ItemsControl ItemsSource="{x:Bind ViewModel.Systems, Mode=OneWay}">
-                    <ItemsControl.ItemTemplate>
+                <controls:FoldingCard Title="NOT VISITED YET" Summary="{x:Bind ViewModel.UnvisitedSummary, Mode=OneWay}"
+                                      SettingKey="RegionsUnvisitedCollapsed" Visibility="{x:Bind ViewModel.HasUnvisited, Mode=OneWay}">
+                    <Border Style="{StaticResource ThemeCardStyle}" Padding="16,12,16,14">
+                        <StackPanel Spacing="10">
+                            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
+                                       Text="Every system the game generates in this region that isn't in your save yet, in the game's own numbering. Stars are numbered as the galaxy is built, so neighbouring numbers are mostly close together."/>
+                            <!-- Small cards in a virtualized grid: only the cards on screen are built. -->
+                            <ItemsRepeater ItemsSource="{x:Bind ViewModel.Unvisited}">
+                                <ItemsRepeater.Layout>
+                                    <UniformGridLayout MinItemWidth="290" MinItemHeight="136" MinRowSpacing="10" MinColumnSpacing="10" ItemsStretch="Fill"/>
+                                </ItemsRepeater.Layout>
+                                <ItemsRepeater.ItemTemplate>
+                                    <DataTemplate x:DataType="viewmodels:UnvisitedSystemViewModel">
+                                        <Border Padding="12,10" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
+                                                BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                                            <StackPanel Spacing="6">
+                                                <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <controls:GlyphStrip Code="{x:Bind PortalCode}" Title="{x:Bind Name}" GlyphSize="16"/>
+                                                    <controls:CopyCodeButton Code="{x:Bind PortalCode}"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsRepeater.ItemTemplate>
+                            </ItemsRepeater>
+                        </StackPanel>
+                    </Border>
+                </controls:FoldingCard>
+
+                <ItemsRepeater ItemsSource="{x:Bind ViewModel.Systems}">
+                    <ItemsRepeater.Layout>
+                        <StackLayout Spacing="10"/>
+                    </ItemsRepeater.Layout>
+                    <ItemsRepeater.ItemTemplate>
                         <DataTemplate x:DataType="viewmodels:RegionSystemViewModel">
-                            <Border Margin="0,0,0,10" Padding="16,12" Background="{ThemeResource ThemePanelAltBrush}"
+                            <Border Padding="16,12" Background="{ThemeResource ThemePanelAltBrush}"
                                     BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
                                 <Grid ColumnSpacing="20" RowSpacing="8">
                                     <Grid.ColumnDefinitions>
@@ -120,8 +160,8 @@
                                 </Grid>
                             </Border>
                         </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    </ItemsRepeater.ItemTemplate>
+                </ItemsRepeater>
             </StackPanel>
         </ScrollViewer>
     </Grid>

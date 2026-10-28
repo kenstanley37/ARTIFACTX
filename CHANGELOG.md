@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- **Regions page pauses**: The page no longer freezes for a moment each time the game saves. Unchanged systems stay as they are, and only the cards on screen are drawn.
+
 - **Station multi-tools**: Food bonuses unrelated to weapon damage or scanner range no longer hide every cabinet. Rebuild game data to enable this correction.
 
 - **Station multi-tools with X-class upgrades**: Tools carrying any X-class (illegal) upgrade, a Sentinel upgrade or a salvaged "0" upgrade now appear, not just those with X-class scanners. In your normal game they no longer need No Man's Sky to be running. During an expedition they still need the game open.
@@ -17,6 +19,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 - **Current System live updates**: Keep unchanged planet cards, station multi-tool previews, market lists and system pictures in place. Damage-only tool updates retain the model and its rotation instead of recreating every card.
 
 ### New
+
+- **Systems you haven't visited**: The Regions page shows how many star systems the region holds, how many you've visited, and lists every system you haven't been to yet with its name, star, race, economy and portal glyphs, ready to copy. Rebuild game data to enable it.
 
 - **Region system totals**: Current System shows how many star systems your current region holds (and its purple systems), worked out with the game's own galaxy generator, plus how many of them you've visited. Rebuild game data to enable it.
 
