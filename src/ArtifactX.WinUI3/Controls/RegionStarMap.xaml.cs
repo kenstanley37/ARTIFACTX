@@ -44,9 +44,9 @@ public sealed partial class RegionStarMap : UserControl
     /// <summary>A star was clicked.</summary>
     public event EventHandler<RegionMapStar>? StarSelected;
 
-    private const double RegionHalf = 50; // positions run about -50..50 on each axis
+    // Positions run about -50..50 on each axis, a few grid stars slightly beyond, so no region box is drawn.
+    private const double RegionHalf = 50;
     private readonly List<(Ellipse Dot, RegionMapStar Star)> _dots = new();
-    private readonly List<Line> _edges = new();
     private double _yaw = 0.6, _pitch = 0.35, _zoom = 1;
     private (double X, double Y, double Z) _pivot, _glideFrom, _glideTo;
     private DateTime _glideStart;
@@ -70,12 +70,6 @@ public sealed partial class RegionStarMap : UserControl
         IsTabStop = true;
         KeyDown += OnKeyDown;
         ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.SizeAll);
-        for (int i = 0; i < 12; i++)
-        {
-            var edge = new Line { Stroke = ThemeResources.Brush("ThemeLineBrush"), StrokeThickness = 1, IsHitTestVisible = false };
-            _edges.Add(edge);
-            Stage.Children.Add(edge);
-        }
     }
 
     private void Rebuild()
@@ -139,16 +133,6 @@ public sealed partial class RegionStarMap : UserControl
             return (width / 2 + rx * scale, height / 2 - ry * scale, depth);
         }
 
-        int[,] cube = { { 0, 1 }, { 1, 3 }, { 3, 2 }, { 2, 0 }, { 4, 5 }, { 5, 7 }, { 7, 6 }, { 6, 4 }, { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 } };
-        for (int i = 0; i < 12; i++)
-        {
-            var a = Corner(cube[i, 0]);
-            var b = Corner(cube[i, 1]);
-            var pa = Project(a.X, a.Y, a.Z);
-            var pb = Project(b.X, b.Y, b.Z);
-            (_edges[i].X1, _edges[i].Y1, _edges[i].X2, _edges[i].Y2) = (pa.X, pa.Y, pb.X, pb.Y);
-        }
-
         var visited = ThemeResources.Brush("ThemeTextDimBrush");
         var unvisited = ThemeResources.Brush("ThemeAccentBrush");
         var purple = ThemeResources.Brush("ThemePurpleSystemBrush");
@@ -172,9 +156,6 @@ public sealed partial class RegionStarMap : UserControl
             Canvas.SetZIndex(dot, (int)(p.Depth * 10) + (star.IsHere || isSelected ? 100000 : 0));
         }
     }
-
-    private static (double X, double Y, double Z) Corner(int i) =>
-        ((i & 1) != 0 ? RegionHalf : -RegionHalf, (i & 2) != 0 ? RegionHalf : -RegionHalf, (i & 4) != 0 ? RegionHalf : -RegionHalf);
 
     private void OnPressed(object sender, PointerRoutedEventArgs e)
     {
