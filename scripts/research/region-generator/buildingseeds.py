@@ -24,7 +24,8 @@ def stage_seeds(planet_seed):
         first = rng.word(); second = rng.word()
         out.append(mix64((second << 32) | first))
     return out
-for text in sys.argv[1:]:
+if __name__ == '__main__':
+  for text in sys.argv[1:]:
     seeds = stage_seeds(int(text, 16))
     rng = Mwc(seeds[3])
     point, sector = rng.next(10000) + 1, rng.next(10000) + 1

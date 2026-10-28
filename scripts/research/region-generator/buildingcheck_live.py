@@ -1,5 +1,6 @@
 # READ-ONLY check of the building-choice rule against the running game (docs/research/PLANET_BUILDING_PLACEMENT.md).
 # usage: python buildingcheck_live.py <building data block hex> <radius> <depot key hex> [more keys...]
+# Set SITES_OUT=<file> to also write the genuine site records (face, cell, key, point) as JSON for RegionCheck sites.
 # Reads the planet's slot table (1000 x 12 bytes) and building types (stride 0xE0, classification byte +0xD3), then
 # for every live site record (key +0x00, points from +0x10) predicts building / no building with: MWC seeded from the
 # key and stepped once; slot = (int)(Next() * 999); built when slot.HasBuilding and slot.Probability > Next() and slot.Index != -1.
@@ -74,12 +75,19 @@ head2 = read(block + 0x38, 0x14)
 divisions = int(struct.unpack_from('<f', head2, 8)[0]); half = divisions // 2
 sector = struct.unpack_from('<I', head2, 0x10)[0]
 agree, genuine = Counter(), 0
+errs = []
+exported = []
 samples = Counter()
 for k, (built, p, packed) in records.items():
     ax = max(range(3), key=lambda i: abs(p[i])); sign = 1 if p[ax] > 0 else -1
     q = [c / abs(p[ax]) * half for c in p]; cell = [round(c) for c in q]; cell[ax] = sign * half
     if site_key(feature(FACE[(ax, sign)], *cell), sector) != k: continue   # not a genuine site record
     genuine += 1
+    exported.append(dict(key=f'{k:016X}', face=FACE[(ax, sign)], cell=cell, point=list(p)))
+    fp = feature(FACE[(ax, sign)], *cell); n = sum(c * c for c in fp) ** 0.5
+    proj = [c / n * radius for c in fp]
+    err = sum((a - b) ** 2 for a, b in zip(proj, p)) ** 0.5
+    errs.append(err)
     pred = choose(k)
     agree[(bool(built), pred is not None)] += 1
     samples[(FACE[(ax, sign)], tuple(cell))] = 1
@@ -97,6 +105,32 @@ for (face, cell) in list(present):
             pred = choose(site_key(feature(face, *c), sector))
             if pred is None: empty_ok += 1
             else: empty_bad += 1
+# Enclosed test: a predicted-built cell with no record, but with records on all four sides within REACH cells on its
+# face, lies inside the queried area - so a missing record there means terrain (or something else) dropped it.
+enclosed_ok = enclosed_bad = 0
+seen = set()
+REACH = 6
+for (face, cell) in list(present):
+    ax = next(i for i in range(3) if abs(cell[i]) == half)
+    oth = [i for i in range(3) if i != ax]
+    for da in range(-REACH, REACH + 1):
+        for db in range(-REACH, REACH + 1):
+            c = list(cell); c[oth[0]] += da; c[oth[1]] += db
+            if (face, tuple(c)) in seen: continue
+            seen.add((face, tuple(c)))
+            if (face, tuple(c)) in present or abs(c[oth[0]]) >= half or abs(c[oth[1]]) >= half: continue
+            def side(i, sgn):
+                for k in range(1, REACH + 1):
+                    d = list(c); d[oth[i]] += sgn * k
+                    if (face, tuple(d)) in present: return True
+                return False
+            if not all(side(i, sg) for i in (0, 1) for sg in (-1, 1)): continue
+            if choose(site_key(feature(face, *c), sector)) is not None: enclosed_bad += 1
+            else: enclosed_ok += 1
+print(f'enclosed cells with no record: predicted empty {enclosed_ok // 1}, predicted built {enclosed_bad}')
+import os, json
+if os.environ.get('SITES_OUT'):   # genuine site records for RegionCheck's 'sites' check
+    json.dump(dict(divisions=divisions, sector=sector, radius=radius, records=exported), open(os.environ['SITES_OUT'], 'w'))
 import random
 rnd = random.Random(1); base = 0
 for _ in range(20000):
@@ -106,4 +140,5 @@ for _ in range(20000):
     if choose(site_key(feature(face, *c), sector)) is not None: base += 1
 print(f'random cells predicted built: {base / 200:.1f}%')
 print(f'neighbouring cells with no record: predicted empty {empty_ok}, predicted built {empty_bad}')
+errs.sort(); print('projection error (m): min', errs[0], 'median', errs[len(errs)//2], 'max', errs[-1]) if errs else None
 print(f'{genuine} genuine site records: (has parts, predicted building) -> count: {dict(agree)}')

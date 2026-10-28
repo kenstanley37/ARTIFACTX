@@ -297,8 +297,34 @@ overrides + models, where:
   adds them twice (two races?) and uses the Hub's density (`0x141648E50` maps 37-44, 46-50, 58 to 36 and 59 to 57).
   `BuildingFiles` is `[race 0-8][class 0-62]` (9 x 63 x 0x60).
 For **site placement only classes with density > 0 matter**, so the class at a site is predictable from: the level,
-the four restriction flags and the NPC rule. Still needed from generation: the Sentinel level per difficulty and
-`HasScrap` (neither is in Core yet).
+the four restriction flags and the NPC rule. The NPC rule only touches the two settlement hubs (36, 57: density
+0.05); every other density class has EnabledWhenPlanetHasNoNPCs.
+
+**Life / Sentinel / scrap stage `0x1416956C0` (stage seed entry 0).** Re-derived and checked live (`lifeport.py`,
+`read_planet_life_inputs.py`): ResourceLevel (draw > 0.75), sentinel level per difficulty [Peak XV 0,1,1,2;
+Ilfordo VII 0,0,3,3; Akui 0,0,0,0; Epsh X 0,0,0,0; Varijing 0,0,0,1] and HasScrap [0,1,0,1,0], 5/5 exact.
+Thresholds are NMS.exe globals (`0x145260E18` .55, `0x145260E1C` .25, `0x145260B20` .13, `0x145260F40` .5,
+`0x1452612FC` .25, `0x145260C44` .25) and `.rdata` 0.2 for scrap. **This stage was already in Core**
+(`PlanetProfileGenerator.Life`, with corrupted = sentinels[CheckDifficulty] == 3, ScrapWorld and Water from the
+terrain step), so the four restriction flags all come from Core. Water = terrain SeaLevel (`+0x2030 + 0x1148`) > 0.
+
+**Terrain drops: rare.** The earlier "about 30% of predicted-built cells have no record" was an edge effect (cells
+beside the loaded area are simply not queried). Counting only cells with records on all four sides within 6 cells:
+45 cells without a record, 44 predicted empty, 1 predicted built (Peak XV).
+
+**Site point = normalize(feature) x PlanetRadius**, within 2 cm of every live record (2,592). Radius by
+PlanetSize from the live planets: Large 130048, Medium 98304, Small 64512, Moon 15360 (Giant not seen).
+
+## Core port: `ArtifactX.Core.Universe.PlanetBuildingSites` (2026-10-28)
+
+Voronoi seeds, divisions, density level, slot table from `BuildingClassPlacement` rows + `BuildingPlanetFacts`,
+site key/point/class per cell, latitude/longitude, enumeration per face. Check: `RegionCheck sites` against the
+running game (`buildingcheck_live.py` with `SITES_OUT`, `dump_planet_buildings.py`): on all 5 Oystana planets seeds
+and divisions exact, slots 1000/1000, 2,592/2,592 live records same key, built and same class, worst point 2 cm,
+1,000,000/1,000,000 random cells same class as the game's own slot table.
+Next for the app: PLANETBUILDINGTABLE rows in the catalog, a Giant radius, then a "nearest Shop / Depot / crashed
+freighter" finder from the player's position; and for exact contents, the model chosen within a class and the
+cabinet / crashed-ship seeds.
 
 So **every cell of every face is a site** with a computable key and feature point. Next: the world point of a
 site (the worker's projection of the feature point to the sphere; the emulator gives ground truth), then which sites

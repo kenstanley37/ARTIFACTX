@@ -40,7 +40,7 @@ while k32.VirtualQueryEx(h, ctypes.c_void_p(addr), ctypes.byref(mbi), ctypes.siz
                         level, = struct.unpack('<I', read(data + 0x3528, 4))
                         race, = struct.unpack('<I', read(data + 0x3534, 4))
                         name = read(data + 0x3A4E, 0x80).split(b'\0')[0].decode('utf-8', 'replace')
-                        print(f'{ua:016X} {name:24} biome {BIOMES[biome] if biome < 17 else biome:11} sub {sub:2} class {cls}'
+                        print(f'{block:X} {ua:016X} {name:24} biome {BIOMES[biome] if biome < 17 else biome:11} sub {sub:2} class {cls}'
                               f' level {LEVELS[level] if level < 8 else level} race {race}')
                 i = chunk.find(SPACING, i + 1)
     addr = start + size
