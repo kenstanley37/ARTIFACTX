@@ -169,6 +169,23 @@ coordinates, 7 spiral regions, both sides of the goal gap). About 4.7 ms per reg
 `tests/ArtifactX.Core.Checks` holds 12 of them as a regression check;
 `scripts/research/region-generator/RegionCheck` re-runs the full comparison.
 
+### Star positions: ground truth (2026-10-27)
+
+`scripts/diagnostics/read_region_star_positions.py` (read-only, same rules as the count reader)
+dumps a loaded slot's star list: entry k has packed address `[slot+0x258][k]` and position
+`[slot+0x218] + 12k` (x, y, z floats, region-local, about ±50). Noturbo Spur live: entries
+1..539 carry system indices 1..539 and entries 540..604 carry **1001..1065** (purple numbering
+confirmed). `scripts/research/region-generator/regionpositions.py` runs the generator with the
+game's real per-star callback: **604/604 entries identical to the live game, index and
+bit-exact position.** The emulator is therefore exact ground truth for positions as well.
+
+Position sources to port: fixed stars = segment point (loop 1: `start + dir*len*t`; loop 2:
+random segment `Next(count)`, random t) offset by `0x14136A020`: `r1 = d1*PerpDistance`,
+`r2 = PerpDistance - r1`, each negated by the low bit of d2 / d3, along two basis vectors
+perpendicular to the segment (built at `0x141367EA5..0x141367F2E`); d4/d5 set the star's
+size fields. Grid stars: `0x1413689AF..0x14136951E` (attractors, distortion, spiral pull,
+rotation; uses the grid-setup draws below). Then the callback `0x141369C30` stores the result.
+
 ### Step 3 map: grid setup draws (positions only; not needed for the count)
 
 `0x141368262..0x141368650`, 11 draws, `P` = generation-setup block at `rbp+0x460`:
