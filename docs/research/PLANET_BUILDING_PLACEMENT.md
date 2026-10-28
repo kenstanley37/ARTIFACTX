@@ -591,3 +591,17 @@ byte `+0x4D` is set - around the site, a Rodrigues rotation of the tangent built
 by i*pi/4 with the game's own sin/cos (`0x140201600` / `0x140201520`, Core GameTrig); slope = max |h0 - hi| / 64;
 also the ring min/max). 20/20 on 2 planets. Settlement types (classes 0x24..0x3B, `0x1412B5220`) take a second
 ring and an engine check - not needed for portals.
+
+**Override placement PORTED end to end: 49/49 records (2026-10-28).** `placeport.py` = `0x141635D10` in Python:
+accept test (`0x141631160`: site query -> site point -> full height -> flatness -> water/height/slope rule ->
+ground position A + normalize(A)*h + planet position), phase 1 start-area chain (uniform random directions from the
+planet-seed MWC, later points normalize(anchor + dir*(s + 600)), the last s + 1000, s = (attempts*0.002)^2, band
+500..600 / 800..1000, reset every 101 attempts, cap 20,000, duplicate keys rejected) and phase 2 (distress signal =
+chain head, start spawns from the back, shelter = the last point, portal and base = random directions up to 5,000
+tries). Against the game's live override records of all 6 planets of system 0x11476E2 (portal, shelter, base,
+distress signal, start spawns): **keys 49/49, positions within 0.125 m** (float32 at ~1,000,000 units; the site
+point uses fp/|fp|*R, sub-mm from the game's own sequence, which never changed a key or an accept decision).
+Runtime: ~3 s per planet in Python. Open: the record list (which override types a planet gets, and in what order)
+still comes from the live records - it is built from `PLANETBUILDINGTABLE` overrides in the type loop and needs
+porting before the app can place a portal with no game running; the portal-registry uniqueness check
+(`planet+0x3BA0`) did not trigger here.
