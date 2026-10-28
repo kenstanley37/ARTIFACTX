@@ -63,4 +63,6 @@ public sealed partial class RegionsPage : Page
         if ((sender as FrameworkElement)?.Tag is BodyChipViewModel { Body.Planet: { } planet })
             Frame.Navigate(typeof(ExplorePages.PlanetDetailsPage), planet);
     }
+
+    private void OnMapStarSelected(object? sender, RegionMapStar star) => ViewModel.SelectMapStar(star);
 }

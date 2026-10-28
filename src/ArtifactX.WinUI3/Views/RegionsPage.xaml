@@ -81,12 +81,78 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Star positions from the game's generator (ArtifactX.Core.Universe.RegionStarPositions). -->
+                <controls:FoldingCard Title="REGION MAP" Summary="{x:Bind ViewModel.MapSummary, Mode=OneWay}"
+                                      SettingKey="RegionsMapCollapsed" Visibility="{x:Bind ViewModel.ShowMapCard, Mode=OneWay}">
+                    <Border Style="{StaticResource ThemeCardStyle}" Padding="16,12,16,14">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="{x:Bind ViewModel.MapNote, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasMapNote, Mode=OneWay}"
+                                       Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"/>
+                            <Grid ColumnSpacing="16" Visibility="{x:Bind ViewModel.HasMap, Mode=OneWay}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="300"/>
+                                </Grid.ColumnDefinitions>
+                                <controls:RegionStarMap Height="520" Stars="{x:Bind ViewModel.MapStars, Mode=OneWay}"
+                                                        Selected="{x:Bind ViewModel.SelectedMapStar, Mode=OneWay}" StarSelected="OnMapStarSelected"/>
+                                <StackPanel Grid.Column="1" Spacing="14">
+                                    <StackPanel Spacing="6">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Ellipse Width="10" Height="10" Fill="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Not visited yet" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Ellipse Width="10" Height="10" Fill="{ThemeResource ThemeAccentAltBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Purple system, not visited yet" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Ellipse Width="8" Height="8" Fill="{ThemeResource ThemeTextDimBrush}" Opacity="0.55" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Visited" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Ellipse Width="12" Height="12" Stroke="{ThemeResource ThemeDamageStatBrush}" StrokeThickness="2" VerticalAlignment="Center"/>
+                                            <TextBlock Text="You are here" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Border Padding="12,10" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
+                                            BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                                        <Grid>
+                                            <TextBlock Text="Click a star to see its name and portal address." Visibility="{x:Bind ViewModel.NoSelectedMapStar, Mode=OneWay}"
+                                                       Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"/>
+                                            <StackPanel Spacing="6" Visibility="{x:Bind ViewModel.HasSelectedMapStar, Mode=OneWay}">
+                                                <TextBlock Text="{x:Bind ViewModel.SelectedMapStar.Name, Mode=OneWay, FallbackValue=''}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{x:Bind ViewModel.SelectedMapStar.Status, Mode=OneWay, FallbackValue=''}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
+                                                <TextBlock Text="{x:Bind ViewModel.SelectedMapStar.Detail, Mode=OneWay, FallbackValue=''}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <controls:GlyphStrip Code="{x:Bind ViewModel.SelectedMapStar.PortalCode, Mode=OneWay, FallbackValue=''}" Title="{x:Bind ViewModel.SelectedMapStar.Name, Mode=OneWay, FallbackValue=''}" GlyphSize="18"/>
+                                                    <controls:CopyCodeButton Code="{x:Bind ViewModel.SelectedMapStar.PortalCode, Mode=OneWay, FallbackValue=''}"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </controls:FoldingCard>
+
                 <controls:FoldingCard Title="NOT VISITED YET" Summary="{x:Bind ViewModel.UnvisitedSummary, Mode=OneWay}"
                                       SettingKey="RegionsUnvisitedCollapsed" Visibility="{x:Bind ViewModel.HasUnvisited, Mode=OneWay}">
                     <Border Style="{StaticResource ThemeCardStyle}" Padding="16,12,16,14">
                         <StackPanel Spacing="10">
-                            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
-                                       Text="Every system the game generates in this region that isn't in your save yet, in the game's own numbering. Stars are numbered as the galaxy is built, so neighbouring numbers are mostly close together."/>
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
+                                           Text="Every system the game generates in this region that isn't in your save yet. In the game's own numbering, neighbouring numbers are mostly close together; nearest to you uses the map's star positions."/>
+                                <ComboBox Grid.Column="1" Width="200" SelectedIndex="{x:Bind ViewModel.UnvisitedSortIndex, Mode=TwoWay}"
+                                          AutomationProperties.Name="Sort systems not visited yet">
+                                    <ComboBoxItem Content="Game numbering"/>
+                                    <ComboBoxItem Content="Nearest to you"/>
+                                </ComboBox>
+                            </Grid>
                             <!-- Small cards in a virtualized grid: only the cards on screen are built. -->
                             <ItemsRepeater ItemsSource="{x:Bind ViewModel.Unvisited}">
                                 <ItemsRepeater.Layout>

@@ -1195,6 +1195,10 @@ public static class CatalogService
     public static Task<ArtifactX.Core.Universe.GalaxyGenerationSettings?> GetGalaxyGenerationSettingsAsync() =>
         GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.GalaxyGenerationSettings>("GALAXYGENERATION");
 
+    /// <summary>Region star-placement settings (row "GALAXYPLACEMENT"); null before catalog format 45.</summary>
+    public static Task<ArtifactX.Core.Universe.GalaxyPlacementSettings?> GetGalaxyPlacementSettingsAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.GalaxyPlacementSettings>("GALAXYPLACEMENT");
+
     private static async Task<T?> GetPlanetGenerationRowAsync<T>(string gameId) where T : class
     {
         string? dbPath = ResolveDbPath();

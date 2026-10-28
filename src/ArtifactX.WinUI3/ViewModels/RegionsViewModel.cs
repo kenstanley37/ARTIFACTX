@@ -1,4 +1,4 @@
-using ArtifactX.Core.Collections;
+﻿using ArtifactX.Core.Collections;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using System.Collections.ObjectModel;
@@ -56,6 +56,7 @@ public sealed class RegionSystemViewModel(SystemCapture system, bool here)
 public sealed class UnvisitedSystemViewModel(UnvisitedSystem system)
 {
     public ulong System { get; } = system.System;
+    public int Index { get; } = system.Index;
     public string Name { get; } = system.Name;
     public string Detail { get; } = (system.Index > 1000 ? $"System {system.Index} (purple)" : $"System {system.Index}")
         + (system.Summary.Length > 0 ? $" · {system.Summary}" : "");
@@ -97,6 +98,25 @@ public sealed partial class RegionsViewModel : ObservableObject
     [ObservableProperty] public partial double SystemsTotal { get; private set; } = 1;
     [ObservableProperty] public partial string UnvisitedSummary { get; private set; } = "";
     public ObservableCollection<UnvisitedSystemViewModel> Unvisited { get; } = new();
+    /// <summary>0: game numbering, 1: nearest to the system you're in.</summary>
+    [ObservableProperty] public partial int UnvisitedSortIndex { get; set; }
+    partial void OnUnvisitedSortIndexChanged(int value)
+    {
+        // A new order moves nearly every card; starting empty is cheaper than ~600 moves.
+        Unvisited.Clear();
+        _ = ShowRegionAsync();
+    }
+
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasMap), nameof(ShowMapCard), nameof(MapSummary))] public partial IReadOnlyList<RegionMapStar> MapStars { get; private set; } = [];
+    public bool HasMap => MapStars.Count > 0;
+    public bool ShowMapCard => HasMap || HasMapNote;
+    public string MapSummary => HasMap ? string.Create(CultureInfo.CurrentCulture, $"{MapStars.Count:N0} stars · {MapStars.Count(s => !s.Visited):N0} not visited") : "";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasSelectedMapStar), nameof(NoSelectedMapStar))] public partial RegionMapStar? SelectedMapStar { get; set; }
+    public bool HasSelectedMapStar => SelectedMapStar is not null;
+    public bool NoSelectedMapStar => SelectedMapStar is null;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasMapNote), nameof(ShowMapCard))] public partial string MapNote { get; private set; } = "";
+    public bool HasMapNote => MapNote.Length > 0;
+    private string _mapKey = "";
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasUnvisited))] public partial int UnvisitedCount { get; private set; }
     public bool HasUnvisited => UnvisitedCount > 0;
 
@@ -169,12 +189,23 @@ public sealed partial class RegionsViewModel : ObservableObject
             RegionTotalStat = UnvisitedSummary = "";
             UnvisitedCount = 0;
             Unvisited.Clear();
+            await ShowMapAsync(key, null, [], 0);
             return;
         }
         var visited = systems.Select(s => (int)((s.System >> 40) & 0xFFF)).ToHashSet();
-        var unvisited = await Task.Run(() => RegionMapService.Unvisited(key, count, visited)
-            .Select(s => new UnvisitedSystemViewModel(s)).ToList());
+        var stars = await RegionSystemsService.GetStarsAsync(key);
+        ulong? hereSystem = S.ReadSystemAddress(_snapshot.Universe);
+        int here = hereSystem is ulong h && RegionMapService.RegionKey(h) == key ? (int)((h >> 40) & 0xFFF) : 0;
+        var positions = stars?.ToDictionary(s => s.System) ?? new Dictionary<int, ArtifactX.Core.Universe.RegionStar>();
+        positions.TryGetValue(here, out var herePosition);
+        bool byDistance = UnvisitedSortIndex == 1 && here != 0 && positions.Count > 0;
+        var unvisited = await Task.Run(() =>
+        {
+            var rows = RegionMapService.Unvisited(key, count, visited).Select(s => new UnvisitedSystemViewModel(s));
+            return (byDistance ? rows.OrderBy(r => positions.TryGetValue(r.Index, out var p) ? Distance(p, herePosition) : float.MaxValue) : rows).ToList();
+        });
         if (Region.Value != key.ToString(CultureInfo.InvariantCulture)) return;
+        await ShowMapAsync(key, stars, visited, here);
 
         int total = count.Ordinary + count.Purple;
         int seen = total - unvisited.Count;
@@ -189,6 +220,44 @@ public sealed partial class RegionsViewModel : ObservableObject
         // A visited system disappears; every other card (and its glyphs) stays.
         ObservableCollectionSync.Apply(Unvisited, unvisited, s => s.System, (_, _) => true);
     }
+
+    private static float Distance(ArtifactX.Core.Universe.RegionStar a, ArtifactX.Core.Universe.RegionStar b)
+    {
+        float dx = a.X - b.X, dy = a.Y - b.Y, dz = a.Z - b.Z;
+        return MathF.Sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    /// <summary>The region map: every generated star, coloured by whether you've been there. Rebuilt only
+    /// when the visited set or your system changes, so a save does not redraw 600 stars.</summary>
+    private async Task ShowMapAsync(ulong key, IReadOnlyList<ArtifactX.Core.Universe.RegionStar>? stars, HashSet<int> visited, int here)
+    {
+        if (stars is null)
+        {
+            MapStars = [];
+            SelectedMapStar = null;
+            MapNote = await CatalogService.GetGalaxyPlacementSettingsAsync() is null
+                ? "Rebuild the game data (Settings) to see the region map."
+                : "The map isn't available for this region yet: spiral-arm regions use a placement step ArtifactX can't reproduce yet.";
+            _mapKey = "";
+            return;
+        }
+        string mapKey = $"{key}|{here}|{string.Join(",", visited.Order())}";
+        if (mapKey == _mapKey) return;
+        _mapKey = mapKey;
+        var built = await Task.Run(() => stars.Select(s =>
+        {
+            ulong system = key | (ulong)s.System << 40;
+            return new RegionMapStar(s.System, s.X, s.Y, s.Z, visited.Contains(s.System), s.System == here,
+                UniverseInfo.SystemName(system), UniverseInfo.Summary(system), S.PortalAddress(system, 0));
+        }).ToList());
+        if (Region.Value != key.ToString(CultureInfo.InvariantCulture)) return;
+        int? selected = SelectedMapStar?.System;
+        MapStars = built;
+        SelectedMapStar = selected is int keep ? built.FirstOrDefault(s => s.System == keep) : null;
+        MapNote = here != 0 ? "" : "You're not in this region, so no system is marked as yours.";
+    }
+
+    public void SelectMapStar(RegionMapStar star) => SelectedMapStar = star;
 
     private void Apply()
     {

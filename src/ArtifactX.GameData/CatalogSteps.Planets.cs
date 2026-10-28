@@ -110,6 +110,8 @@ public static partial class CatalogSteps
             rows.Add(new CatalogItem { GameId = "MULTITOOLMODEL", NameEnglish = "MultiToolModelTables", DescriptionEnglish = JsonSerializer.Serialize(multiToolModel) });
         if (GalaxyGeneration(Decode) is { } galaxyGeneration)
             rows.Add(new CatalogItem { GameId = "GALAXYGENERATION", NameEnglish = "GalaxyGenerationSettings", DescriptionEnglish = JsonSerializer.Serialize(galaxyGeneration) });
+        if (GalaxyPlacement(Decode) is { } galaxyPlacement)
+            rows.Add(new CatalogItem { GameId = "GALAXYPLACEMENT", NameEnglish = "GalaxyPlacementSettings", DescriptionEnglish = JsonSerializer.Serialize(galaxyPlacement) });
 
         using var db = new CatalogDbContext(catalogPath);
         Replace(db, "PlanetGeneration", "GcBiomeListPerStarType/GcBiomeFileList", BiomeListFile.ToLowerInvariant(), rows);

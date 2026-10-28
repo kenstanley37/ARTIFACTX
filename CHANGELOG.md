@@ -20,6 +20,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### New
 
+- **Region map**: The Regions page has a 3D map of every star in the region, placed where the game puts them. Unvisited systems are bright, visited ones are dim, purple systems have their own colour and your system is ringed. Drag to turn it, use the mouse wheel to zoom, and click a star to see its name and portal glyphs. The list of systems you haven't visited can now be sorted by distance from you. The map isn't available yet for spiral-arm regions. Rebuild game data to enable it.
+
 - **Systems you haven't visited**: The Regions page shows how many star systems the region holds, how many you've visited, and lists every system you haven't been to yet with its name, star, race, economy and portal glyphs, ready to copy. Rebuild game data to enable it.
 
 - **Region system totals**: Current System shows how many star systems your current region holds (and its purple systems), worked out with the game's own galaxy generator, plus how many of them you've visited. Rebuild game data to enable it.
