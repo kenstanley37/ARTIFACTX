@@ -575,3 +575,11 @@ float32 system-space positions at about 1,000,000 units). Emulator lesson: the g
 then read the noise value as x) - `emu_height.py` reference heights before that fix were wrong.
 Next: the domain-warped site query `0x1412B2D70` (its fBm is ported), the accept rule `0x141631F60`, the chain +
 phase 2 placement; then all of it to C# in Core.
+
+**Site query (which site a point falls in) PORTED, exact (2026-10-28).** The single-point query `0x1412B2D70` calls
+the Voronoi wrapper `0x142DE7B30` (worker `0x1419BE7E0`) on the raw point - no domain warp (only the batched query
+warps). `siteport.nearest_site`: for each face the point faces, cells around its projection (floor +-2); a cell counts
+for a face only if its jittered feature point lies on that face (edge cells belong to the face their jitter keeps
+them on - the 9 misses of a "own face only" rule were all edge cells); nearest feature point on the sphere wins.
+600/600 against the emulator (`voronoi183791.py`: 300 random, 300 near cube edges and corners). The worker's float
+output is that distance; its third output is the face normal.
