@@ -1,4 +1,4 @@
-﻿using ArtifactX.GameData;
+using ArtifactX.GameData;
 using ArtifactX.GameData.Data;
 using ArtifactX.GameData.Models;
 using ArtifactX.GameData.Services;
@@ -207,6 +207,7 @@ if (args.Length > 2 && args[0].Equals("extract", StringComparison.OrdinalIgnoreC
     ConsoleStyle.Success($"{written} file(s) written.");
     return;
 }
+
 
 // "DataCataloger grep <substring>" decodes every MBIN and deep-searches its actual
 // FIELD VALUES (not filenames) for the given substring, regardless of whether the

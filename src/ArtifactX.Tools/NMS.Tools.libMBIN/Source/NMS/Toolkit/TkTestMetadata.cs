@@ -5,7 +5,7 @@ using System;
 
 namespace libMBIN.NMS.Toolkit
 {
-    [NMS(GUID = 0x21CDD775CD5F4DDD, NameHash = 0x69A0FDE1)]
+    [NMS(GUID = 0x7BB05D760C5196B5, NameHash = 0x69A0FDE1)]
     public class TkTestMetadata : NMSTemplate
     {
         [NMS(Index = 47)]
@@ -59,7 +59,7 @@ namespace libMBIN.NMS.Toolkit
         [NMS(Index = 54, Size = 0x5, EnumType = typeof(TkEqualityEnum.EqualityEnumEnum))]
         /* 0x0270 */ public float[] TestExternalEnumArray;
         // size: 0x4
-        public enum TestEnumArrayEnum {
+        public enum TestEnumArrayEnum : uint {
             Default,
             Option1,
             Option2,
@@ -93,10 +93,10 @@ namespace libMBIN.NMS.Toolkit
         /* 0x02AC */ public GcAudioWwiseEvents TestAudioEvent;
         // size: 0x4
         public enum TestEnumEnum : uint {
-            Default = 0x0,
-            Option1 = 0x1,
-            Option2 = 0x45,
-            Option3 = 0x46,
+            Default = 0,
+            Option1 = 1,
+            Option2 = 69,
+            Option3 = 70,
         }
         [NMS(Index = 10)]
         /* 0x02B0 */ public TestEnumEnum TestEnum;
@@ -110,6 +110,7 @@ namespace libMBIN.NMS.Toolkit
         [NMS(Index = 11)]
         /* 0x02B4 */ public TestEnumClassEnum TestEnumClass;
         // size: 0x4
+        [Flags]
         public enum TestEnumUInt32BitFieldEnum : uint {
             None = 0x0,
             Enum1 = 0x1,
