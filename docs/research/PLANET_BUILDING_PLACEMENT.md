@@ -130,6 +130,18 @@ Helpers: `static/importof.py` names imported CRT functions behind `jmp [rip+X]` 
 
 ## Next
 
+**Where the Voronoi points are built: not found yet (2026-10-28).** The runtime building data starts at
+`planet+0x3398` with exactly libMBIN's `GcPlanetBuildingData` layout (point seed `+0x44`, sector seed `+0x48`,
+divisions `+0x40`, radius `+0x38`), so consumers read it through a pointer with small offsets that a byte scan
+can't single out. Ruled out: `0x141E1CB20` reads `+0x33D0`/`+0x33D8` only to compare fields with defaults (a
+serializer); `0x1418C62DA..0x1418C62EC` writes defaults (Spacing, divisions 1.0, sector seed); `0x14160B500`'s
+type loop (`0x14160B9C0..`) builds the per-planet building-type list from `PLANETBUILDINGTABLE` densities via
+`0x141648DE0` (is the type allowed) and does not place sites.
+Next approaches: (a) callers of the building-data getters and of `lea reg, [planet+0x3398]`;
+(b) functions that read `+0x38`, `+0x40`, `+0x44` and `+0x48` from the same base register (a disp8 scan
+grouped by `.pdata` function); (c) the scan-event path that fills `BuildingLocation` must look up sites, so
+trace back from the `GcScanEventSave` writer.
+
 1. Trace the Voronoi point and slot code that reads `+0x33DC`/`+0x33E0` (after `0x14160B993` in `0x14160B500`,
    and its callees `0x14160C480`, `0x14160C590`, `0x141614880`), and `0x14166BFA0` (the count `n`).
 2. Find the scan-event creation path (what writes `BuildingLocation`) to learn whether markers carry
