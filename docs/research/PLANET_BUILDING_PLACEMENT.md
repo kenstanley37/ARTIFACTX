@@ -639,3 +639,12 @@ live data byte for byte (every active layer's 0x80 data bytes + Active/Subtract,
 - After the loop: layer 7 off when sea > SeaStandard, forced on for dead-turned-weird worlds or sea > 1; on a sea
   above 1 it gets Height = sea - 30 (`0x1416C7067`), `+0x50` = 0, `+0x54` = 4. Layer 4 off when sea <= 0, layer 6 off
   on moons (size 3). The grid layers (`+0x000..+0xAB0`) and features are not read by the height.
+
+**Placement with the game closed: 49/49 (2026-10-28).** `RegionCheck places <address> ...` writes every planet input
+from Core alone (planet seed, type, prime, `PlanetProfileGenerator.TerrainChoiceFor` = setting index, draws before
+the layers, sea level and the biome file's chances; radius, Voronoi seeds, divisions; solar centre) using the
+catalog's PlanetGeneration rows; `closedport.py` builds the terrain data (terrainport), the record list (table) and
+runs the placement. System 0x11476E2: every input equal to the live planet (seed, setting, sea, biome, size, radius,
+sector seed, divisions, prime, waterworld); centres equal after flooring to the 1,000-unit grid. **Keys 49/49,
+positions within 0.125 m.** Gap: prime bodies (planets 5 and 6 here) have no centre from SolarLayoutGeneration yet,
+so their centre came from the live data in this check.

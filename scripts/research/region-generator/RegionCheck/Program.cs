@@ -11,6 +11,7 @@ if (args.Length > 0 && args[0] == "markers") { Markers.Check(args[1], args[2], a
 if (args.Length > 0 && args[0] == "sites") { Sites.Check(args[1], args[2], args.Skip(3)); return; }
 if (args.Length > 0 && args[0] == "buildtable") { BuildingTable.Show(args[1]); return; }
 if (args.Length > 0 && args[0] == "noise") { Noise.Check(args[1]); return; }
+if (args.Length > 0 && args[0] == "places") { Places.Write(args[1], args[2], args[3], args[4], args[5]); return; }
 if (args.Length > 0 && args[0] == "positions") { Positions.Check(args[1]); return; }
 string data = Environment.GetEnvironmentVariable("NMS_EMU_DATA")!;
 T Load<T>(string name) where T : class

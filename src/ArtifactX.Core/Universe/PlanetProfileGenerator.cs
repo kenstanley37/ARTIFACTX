@@ -76,6 +76,8 @@ public static partial class PlanetProfileGenerator
     private struct Rng
     {
         public uint S0, S1;
+        /// <summary>Draws taken so far (the terrain data port needs how many come before the noise layers).</summary>
+        public int Draws;
         public static Rng Start(ulong seed)
         {
             uint lo = (uint)seed, hi = (uint)(seed >> 32);
@@ -86,6 +88,7 @@ public static partial class PlanetProfileGenerator
             ulong t = S0 * Multiplier + S1;
             S0 = (uint)t;
             S1 = (uint)(t >> 32);
+            Draws++;
             return S0;
         }
         public float NextFraction() => (float)(Next() * Fraction);
