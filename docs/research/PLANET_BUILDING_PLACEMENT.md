@@ -410,6 +410,17 @@ suspect: the container allocator `0x142C8E290` (global allocator object empty in
 placed points. **Also found: the game only fills OverrideBuildings when the player approaches a planet** - right
 after warping to a new system all records are zero (even the type index), so fresh ground truth needs an approach.
 
+**Ground truth set 2 (2026-10-28, system 00FE00011476E2, build 183791, after approaching).** All 6 planets placed;
+Ribhakyam (Frozen start planet) portal record +67.11, +81.40, visor at the portal +67.09, +81.40. Word index in the
+planet-seed stream of each record's direction (seeds from SystemGenerator: C11D1E6EE8A8FD60, B6B082CA23FE0DDC,
+10430ECD09C556F1, 0D5CBCAACF0B2404, 447553726422F63C, 7752D26E93C5A40F):
+Ribhakyam cluster 606, portal 644, base 646; Loisense XIII cluster 606, portal 662, base 664; Nikong Beta cluster
+1414, portal 1444, base 1446 (+ class 62 at 1450); Hunnieldebur Iomi cluster 1414, portal 1462, base 1472;
+Ewtone Waraz cluster 215/404, portal 432, base 434; Withe (Weird) has no portal (types 0, 20, 23, 26, 35-38).
+Order everywhere: start cluster anchor, then the portal a few dozen words later, base 2 words after the portal.
+Open: two planet pairs share the same anchor index (606, 1414) despite different seeds - either a fixed rule picks
+the anchor or the matcher is wrong; check before porting. Live override JSONs kept locally (scratch, not committed).
+
 **Forsaken (build 183791, 2026-10-28).** PLANETBUILDINGTABLE decodes with libMBIN 7.07 and is identical to the
 180836 table. NMS.exe moved: the BuildingLevel setter is now at `0x1416C84E3` (was `0x141695B73`, +0x32970) with the
 same logic. Addresses in this file are build 180836; re-locate by byte pattern before using them.
