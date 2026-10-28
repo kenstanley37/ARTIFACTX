@@ -4,6 +4,14 @@ namespace ArtifactX.Core.Universe;
 public readonly record struct RegionStar(int System, float X, float Y, float Z);
 
 /// <summary>
+/// The generation-setup fields star placement reads (<c>GcGalaxyGlobals.DefaultGeneration</c>):
+/// ConnectionAttractorMax/Min and ConnectionDistortion ranges (x, y), ConnectionDistortionTMult,
+/// and InnerFieldScales.z.
+/// </summary>
+public sealed record GalaxyPlacementSettings(float AttractorMaxLow, float AttractorMaxHigh, float AttractorMinLow,
+    float AttractorMinHigh, float DistortionLow, float DistortionHigh, float DistortionTMult, float InnerFieldZ);
+
+/// <summary>
 /// Where the galaxy map places each star of a region (NMS build 180836 <c>0x141367810</c>),
 /// as stored in the region slot the game reads. Work in progress: the 122 fixed stars
 /// (guide stars, black hole, Atlas station) laid along the region's path segments.
@@ -29,7 +37,88 @@ public static class RegionStarPositions
     private static readonly V Up = new(0f, 1f, 0f), Forward = new(0f, 0f, 1f);
 
     /// <summary>The fixed stars of a region, in emission order (systems 1..122).</summary>
-    public static IReadOnlyList<RegionStar> FixedStarsOf(int galaxy, int x, int y, int z)
+    public static IReadOnlyList<RegionStar> FixedStarsOf(int galaxy, int x, int y, int z) => Fixed(galaxy, x, y, z).Stars;
+
+    /// <summary>
+    /// Every ordinary star of a region in emission order (systems 1..N), or null for a region the
+    /// port does not cover yet: spiral regions (their spiral pull is not ported) and regions inside
+    /// the goal gap (no stars).
+    /// </summary>
+    public static IReadOnlyList<RegionStar>? Ordinary(int galaxy, int x, int y, int z,
+        GalaxyGenerationSettings settings, GalaxyPlacementSettings placement)
+    {
+        int sx = SignExtend(x, 12), sy = SignExtend(y, 8), sz = SignExtend(z, 12);
+        if (RegionStarGeneration.InsideGoalGap(sx, sy, sz, settings.GoalGapVoxelDistance)) return null;
+        var (fixedStars, rng, segments) = Fixed(galaxy, x, y, z);
+        var stars = new List<RegionStar>(fixedStars);
+
+        // Grid setup (0x141368262..0x1413685D4): eleven draws.
+        bool spiral = rng.Next(100) < (int)settings.SpiralFormChance;
+        if (spiral) return null;
+        for (int i = 0; i < 5; i++) rng.Step();                      // direction, inclusion, two angles, [rbp-0x54]
+        float attractorMax = Lerp(rng, placement.AttractorMaxLow, placement.AttractorMaxHigh);
+        float attractorMin = Lerp(rng, placement.AttractorMinLow, placement.AttractorMinHigh);
+        rng.Step(); rng.Step();                                        // base size, spiral flex
+        float distortion = Lerp(rng, placement.DistortionLow, placement.DistortionHigh);
+
+        float rx = sx * 0.1f, ry = sy * 0.1f, rz = sz * 0.1f;
+        float scale = settings.BaseTurbulenceScale, fieldScale = placement.InnerFieldZ;
+        for (int a = 0; a < Grid; a++)
+            for (int b = 0; b < Grid; b++)
+                for (int c = 0; c < Grid; c++)
+                {
+                    V p = new(a * CellSpacing + 0f + CellOffset, b * CellSpacing + 0f + CellOffset, c * CellSpacing + 0f + CellOffset);
+                    float px = p.X + rx, py = ry + p.Y, pz = rz + p.Z;
+                    float density = GalaxySimplexNoise.Fbm(px * scale, py * scale, pz * scale, 4,
+                        settings.BaseTurbulenceLacunarity, settings.BaseTurbulenceGain);
+                    if (!(density > settings.BaseGenerationThreshold) || !(density > settings.StarGenerationThreshold)) continue;
+
+                    // Nearest point on the region's path segments (0x1413687D8..0x1413688E7).
+                    float best = float.MaxValue, along = 0f;
+                    V segStart = default, segEnd = default, nearest = default;
+                    foreach (var s in segments)
+                    {
+                        V start = new(s.StartX, s.StartY, s.StartZ), end = new(s.EndX, s.EndY, s.EndZ);
+                        V d = end - start, rel = p - start;
+                        float t = Dot(rel, d);
+                        V closest;
+                        if (0f >= t) { closest = start; t = 0f; }
+                        else
+                        {
+                            float l2 = Dot(d, d);
+                            if (t >= l2) { closest = end; t = 1f; }
+                            else { t /= l2; closest = start + d.Scale(t); }
+                        }
+                        V off = closest - p;
+                        float dist = MathF.Sqrt(Dot(off, off));
+                        if (best > dist) { best = dist; segStart = start; segEnd = end; nearest = closest; along = t; }
+                    }
+
+                    // Distorted attractor and pull (0x1413688ED..0x141368BA8).
+                    V dir = segEnd - segStart;
+                    V dirn = dir.Scale(1f / MathF.Sqrt(Dot(dir, dir)));
+                    float n = GalaxySimplexNoise.Noise2(placement.DistortionTMult * along, rx);
+                    V attractor = V.Cross(dirn, Up).Scale(n * distortion) + nearest;
+                    V toStar = p - attractor;
+                    float length = MathF.Sqrt(Dot(toStar, toStar));
+                    float field = (GalaxySimplexNoise.Noise(-fieldScale * px, fieldScale * pz, -fieldScale * py, out _, out _, out _) + 1f) * 0.5f;
+                    float pull = ((attractorMax - attractorMin) * field + attractorMin) * length;
+                    V moved = p - toStar.Scale(1f / length).Scale(pull);
+                    stars.Add(new RegionStar(stars.Count + 1, moved.X, moved.Y, moved.Z));
+                }
+        return stars;
+    }
+
+    private const int Grid = 19;
+    private static readonly float CellOffset = BitConverter.Int32BitsToSingle(unchecked((int)0xC23D7943));
+    private static readonly float CellSpacing = BitConverter.Int32BitsToSingle(0x40A86BCA);
+
+    /// <summary>SSE dot of xyz: z + (y + x) of the lane products.</summary>
+    private static float Dot(V a, V b) => a.Z * b.Z + (a.Y * b.Y + a.X * b.X);
+
+    private static float Lerp(UniverseRandom rng, float low, float high) => RegionPathSegments.Unit(rng.NextWord()) * (high - low) + low;
+
+    private static (List<RegionStar> Stars, UniverseRandom Rng, IReadOnlyList<RegionPathSegment> Segments) Fixed(int galaxy, int x, int y, int z)
     {
         int sx = SignExtend(x, 12), sy = SignExtend(y, 8), sz = SignExtend(z, 12);
         uint lo = (uint)((y & 0xFF) << 24 | (z & 0xFFF) << 12 | (x & 0xFFF));
@@ -63,7 +152,7 @@ public static class RegionStarPositions
             var (a, b) = Basis(dir);
             stars.Add(Jitter(rng, PointOn(start, end, t), a, b, stars.Count + 1));
         }
-        return stars;
+        return (stars, rng, segments);
     }
 
     /// <summary>Normalised by multiplying with 1/length, as the SSE code does; zero length stays as is.</summary>
