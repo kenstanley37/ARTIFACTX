@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The region map with its colour key and the picked star's details (RegionMapView.xaml.cs). Used on the
+     Regions page and again, filling the page, when the map is expanded. -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.RegionMapView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls">
+    <Grid ColumnSpacing="16">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="300"/>
+        </Grid.ColumnDefinitions>
+        <controls:RegionStarMap Stars="{x:Bind ViewModel.MapStars, Mode=OneWay}"
+                                Selected="{x:Bind ViewModel.SelectedMapStar, Mode=OneWay}" StarSelected="OnStarSelected"/>
+        <Button Content="Expand map" Visibility="{x:Bind ShowExpandButton}" Command="{x:Bind ViewModel.ExpandMapCommand, Mode=OneWay}"
+                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,10,0"
+                AutomationProperties.Name="Expand the region map to fill the page"/>
+        <StackPanel Grid.Column="1" Spacing="14">
+            <StackPanel Spacing="6">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Ellipse Width="10" Height="10" Fill="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Not visited yet" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Ellipse Width="10" Height="10" Fill="{ThemeResource ThemePurpleSystemBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Purple system, not visited yet" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Ellipse Width="8" Height="8" Fill="{ThemeResource ThemeTextDimBrush}" Opacity="0.55" VerticalAlignment="Center"/>
+                    <TextBlock Text="Visited" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Ellipse Width="14" Height="14" Fill="{ThemeResource ThemeTextBrush}" Stroke="{ThemeResource ThemeDamageStatBrush}" StrokeThickness="3" VerticalAlignment="Center"/>
+                    <TextBlock Text="You are here" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
+                </StackPanel>
+            </StackPanel>
+            <Border Padding="12,10" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
+                    BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                <Grid>
+                    <TextBlock Text="Click a star to see its name and portal address." Visibility="{x:Bind ViewModel.NoSelectedMapStar, Mode=OneWay}"
+                               Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"/>
+                    <StackPanel Spacing="6" Visibility="{x:Bind ViewModel.HasSelectedMapStar, Mode=OneWay}">
+                        <TextBlock Text="{x:Bind ViewModel.SelectedMapStar.Name, Mode=OneWay, FallbackValue=''}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                        <TextBlock Text="{x:Bind ViewModel.SelectedMapStar.Status, Mode=OneWay, FallbackValue=''}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
+                        <TextBlock Text="{x:Bind ViewModel.SelectedMapStar.Detail, Mode=OneWay, FallbackValue=''}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                        <!-- Glyphs above the copy button: side by side they don't fit the 300px panel. -->
+                        <controls:GlyphStrip Code="{x:Bind ViewModel.SelectedMapStar.PortalCode, Mode=OneWay, FallbackValue=''}" Title="{x:Bind ViewModel.SelectedMapStar.Name, Mode=OneWay, FallbackValue=''}" GlyphSize="18" Margin="0,2,0,0"/>
+                        <controls:CopyCodeButton Code="{x:Bind ViewModel.SelectedMapStar.PortalCode, Mode=OneWay, FallbackValue=''}" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </StackPanel>
+    </Grid>
+</UserControl>

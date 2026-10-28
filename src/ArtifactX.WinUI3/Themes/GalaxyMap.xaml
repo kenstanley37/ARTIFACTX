@@ -11,6 +11,8 @@
     <SolidColorBrush x:Key="ThemeLineBrush" Color="#47FFC62E"/>
     <SolidColorBrush x:Key="ThemeAccentBrush" Color="#FFC62E"/>
     <SolidColorBrush x:Key="ThemeAccentAltBrush" Color="#FF9D3D"/>
+    <!-- Purple star systems on the region map: a bright violet that reads apart from both accents (6.9:1 on the void). -->
+    <SolidColorBrush x:Key="ThemePurpleSystemBrush" Color="#C77DFF"/>
     <SolidColorBrush x:Key="ThemeDoneBrush" Color="#7EF0C2"/>
     <SolidColorBrush x:Key="ThemeTextBrush" Color="#ECEAF2"/>
     <SolidColorBrush x:Key="ThemeTextDimBrush" Color="#BDB8CC"/> <!-- 8.7:1 on panels; was 6.7 (2026-10-18) -->

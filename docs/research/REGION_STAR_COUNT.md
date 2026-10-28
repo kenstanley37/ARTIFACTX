@@ -169,6 +169,48 @@ coordinates, 7 spiral regions, both sides of the goal gap). About 4.7 ms per reg
 `tests/ArtifactX.Core.Checks` holds 12 of them as a regression check;
 `scripts/research/region-generator/RegionCheck` re-runs the full comparison.
 
+### Star positions: ground truth (2026-10-27)
+
+`scripts/diagnostics/read_region_star_positions.py` (read-only, same rules as the count reader)
+dumps a loaded slot's star list: entry k has packed address `[slot+0x258][k]` and position
+`[slot+0x218] + 12k` (x, y, z floats, region-local, about ±50). Noturbo Spur live: entries
+1..539 carry system indices 1..539 and entries 540..604 carry **1001..1065** (purple numbering
+confirmed). `scripts/research/region-generator/regionpositions.py` runs the generator with the
+game's real per-star callback: **604/604 entries identical to the live game, index and
+bit-exact position.** The emulator is therefore exact ground truth for positions as well.
+
+Position sources to port: fixed stars = segment point (loop 1: `start + dir*len*t`; loop 2:
+random segment `Next(count)`, random t) offset by `0x14136A020`: `r1 = d1*PerpDistance`,
+`r2 = PerpDistance - r1`, each negated by the low bit of d2 / d3, along two basis vectors
+perpendicular to the segment (built at `0x141367EA5..0x141367F2E`); d4/d5 set the star's
+size fields. Grid stars: `0x1413689AF..0x14136951E` (attractors, distortion, spiral pull,
+rotation; uses the grid-setup draws below). Then the callback `0x141369C30` stores the result.
+
+### Star positions ported: non-spiral regions exact (2026-10-27)
+
+`RegionStarPositions.Stars(galaxy, x, y, z, settings, placement)` reproduces every stored
+star (index and bit-exact position) for all non-spiral regions tested: Noturbo Spur 604/604,
+galaxy 10 617/617, galaxy 246 582/582, galaxy 4 608/608. Spiral regions (roll below
+`SpiralFormChance`, about 15%) and gap regions return null for now.
+
+- Fixed stars: segment point offset across the segment by `0x14136A020` (basis
+  `A = d x (0,1,0)`, `B = d x A`; the (0,0,1) fallback never triggers because the threshold is 0).
+- Grid stars (non-spiral): cell position P; nearest point on any path segment (projection,
+  clamped, strict `best > dist`, records `t`); attractor = nearest +
+  `cross(dirn, up) * Noise2(ConnectionDistortionTMult * t, regionX * 0.1) * distortion`;
+  `P - (v/|v|) * (lerp(attractorMin, attractorMax, field) * |v|)` with
+  `field = (Noise3(-s*px, s*pz, -s*py) + 1) * 0.5`, `s = InnerFieldScales.z`. No draws.
+  Grid setup draws 7/8/11 = attractor max/min and distortion lerps.
+- Draws per grid star: 2 (highlight roll `0x14136948F`, callback size draw `0x141369E40`).
+  Map clouds `0x1413695AE`: 1 draw (one or two groups), per group 3 draws and
+  `Next(21)+4` items of 10 draws.
+- Purple systems: per system a size draw, z, y, x draws (`f * 100/19 * 19 + (-47.368)`) and the
+  callback's size draw.
+- 2D simplex `0x142D74870` and the 3D value variant `0x142D74E60` match 2003/2003 emulator
+  vectors (`noisevectors.py`).
+
+Remaining: the spiral block `0x141368BB5..0x14136908E` (spiral regions).
+
 ### Step 3 map: grid setup draws (positions only; not needed for the count)
 
 `0x141368262..0x141368650`, 11 draws, `P` = generation-setup block at `rbp+0x460`:

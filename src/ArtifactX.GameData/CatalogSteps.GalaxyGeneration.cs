@@ -22,4 +22,13 @@ public static partial class CatalogSteps
         return new GalaxyGenerationSettings(g.BaseGenerationThreshold, g.StarGenerationThreshold, g.BaseTurbulenceGain,
             g.BaseTurbulenceLac, g.BaseTurbulenceScale, g.SpiralFormChance, gameplay.GoalGapVoxelDist);
     }
+
+    /// <summary>Star-placement fields of the same <c>DefaultGeneration</c> block, for <see cref="RegionStarPositions"/>.</summary>
+    private static GalaxyPlacementSettings? GalaxyPlacement(Func<string, NMSTemplate?> decode)
+    {
+        if (decode("GCGALAXYGLOBALS.GLOBAL.MBIN") is not GcGalaxyGlobals galaxy
+            || galaxy.FinalTransitionInterpolationValue != 0f || galaxy.DefaultGeneration is not { } g) return null;
+        return new GalaxyPlacementSettings(g.ConnectionAttractorMax.X, g.ConnectionAttractorMax.Y, g.ConnectionAttractorMin.X,
+            g.ConnectionAttractorMin.Y, g.ConnectionDistortion.X, g.ConnectionDistortion.Y, g.ConnectionDistortionTMult, g.InnerFieldScales.Z);
+    }
 }

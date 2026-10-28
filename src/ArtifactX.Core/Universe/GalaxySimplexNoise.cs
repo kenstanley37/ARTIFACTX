@@ -153,6 +153,53 @@ public static class GalaxySimplexNoise
         return sum;
     }
 
+    private static readonly float[] Gradients2 = { -1, -1, 1, 0, -1, 0, 1, 1, -1, 1, 0, -1, 0, 1, 1, -1 }; // 0x14501DC40
+    private static readonly float F2 = BitConverter.Int32BitsToSingle(0x3EBB67AE);      // (sqrt(3)-1)/2 at 0x14351AC68
+    private static readonly float G2 = BitConverter.Int32BitsToSingle(0x3E58658C);      // (3-sqrt(3))/6 at 0x1435332A4
+    private static readonly float TwoG2 = BitConverter.Int32BitsToSingle(0x3ED8658C);   // at 0x1435332D0
+
+    /// <summary>
+    /// 2D simplex noise value (0x142D74870 called through 0x142D74860, no derivative outputs):
+    /// Gustavson's scalar algorithm with the "fast floor", 8 gradients and a 40x scale.
+    /// </summary>
+    public static float Noise2(float x, float y)
+    {
+        float s = (x + y) * F2;
+        float xs = s + x, ys = s + y;
+        int i = xs <= 0f ? (int)xs - 1 : (int)xs;
+        int j = ys <= 0f ? (int)ys - 1 : (int)ys;
+        float t = (j + i) * G2;
+        float x0 = x - (i - t), y0 = y - (j - t);
+        int i1 = x0 > y0 ? 1 : 0, j1 = x0 > y0 ? 0 : 1;
+        float x1 = x0 - i1 + G2, y1 = y0 - j1 + G2;
+        float x2 = x0 - 1f + TwoG2, y2 = y0 - 1f + TwoG2;
+        int ii = i & 255, jj = j & 255;
+
+        float n0 = 0f, n1 = 0f, n2 = 0f;
+        float t0 = 0.5f - x0 * x0 - y0 * y0;
+        if (!(0f > t0))
+        {
+            int g = (Perm[Perm[jj] + ii] & 7) * 2;
+            float t2 = t0 * t0;
+            n0 = (Gradients2[g + 1] * y0 + Gradients2[g] * x0) * (t2 * t2);
+        }
+        float t1 = 0.5f - x1 * x1 - y1 * y1;
+        if (!(0f > t1))
+        {
+            int g = (Perm[Perm[j1 + jj] + i1 + ii] & 7) * 2;
+            float t2 = t1 * t1;
+            n1 = (Gradients2[g + 1] * y1 + Gradients2[g] * x1) * (t2 * t2);
+        }
+        float t3 = 0.5f - x2 * x2 - y2 * y2;
+        if (!(0f > t3))
+        {
+            int g = (Perm[Perm[jj + 1] + 1 + ii] & 7) * 2;
+            float t2 = t3 * t3;
+            n2 = (Gradients2[g + 1] * y2 + Gradients2[g] * x2) * (t2 * t2);
+        }
+        return ((n1 + n0) + n2) * 40f;
+    }
+
     /// <summary>The SSE horizontal sum: (v3 + v2) + (v1 + v0).</summary>
     private static float HorizontalSum(float[] v) => (v[3] + v[2]) + (v[1] + v[0]);
 

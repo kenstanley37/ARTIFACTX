@@ -1,9 +1,11 @@
-using ArtifactX.Core.Universe;
+﻿using ArtifactX.Core.Universe;
 using libMBIN;
 using libMBIN.NMS.Globals;
 using System.Diagnostics;
 using System.Text.Json;
 
+if (args.Length > 0 && args[0] == "noise") { Noise.Check(args[1]); return; }
+if (args.Length > 0 && args[0] == "positions") { Positions.Check(args[1]); return; }
 string data = Environment.GetEnvironmentVariable("NMS_EMU_DATA")!;
 T Load<T>(string name) where T : class
 {
@@ -17,6 +19,10 @@ var g = galaxyGlobals.DefaultGeneration;
 var settings = new GalaxyGenerationSettings(g.BaseGenerationThreshold, g.StarGenerationThreshold, g.BaseTurbulenceGain,
     g.BaseTurbulenceLac, g.BaseTurbulenceScale, g.SpiralFormChance, gameplay.GoalGapVoxelDist);
 Console.WriteLine($"settings {settings}  FinalTransitionInterpolationValue {galaxyGlobals.FinalTransitionInterpolationValue}");
+var placement = new GalaxyPlacementSettings(g.ConnectionAttractorMax.X, g.ConnectionAttractorMax.Y, g.ConnectionAttractorMin.X,
+    g.ConnectionAttractorMin.Y, g.ConnectionDistortion.X, g.ConnectionDistortion.Y, g.ConnectionDistortionTMult, g.InnerFieldScales.Z);
+if (args.Length > 0 && args[0] == "neighbours") { Neighbours.Show(Convert.ToInt32(args[1], 16), Convert.ToInt32(args[2], 16), Convert.ToInt32(args[3], 16), args[4], settings, placement); return; }
+if (args.Length > 0 && args[0] == "ordinary") { Console.WriteLine($"placement {placement}"); Positions.Check(args[1], settings, placement); return; }
 
 var rows = JsonDocument.Parse(File.ReadAllLines(args[0])[1]).RootElement;
 int exact = 0, total = 0;

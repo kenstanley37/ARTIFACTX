@@ -81,12 +81,35 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Star positions from the game's generator (ArtifactX.Core.Universe.RegionStarPositions). -->
+                <controls:FoldingCard Title="REGION MAP" Summary="{x:Bind ViewModel.MapSummary, Mode=OneWay}"
+                                      SettingKey="RegionsMapCollapsed" Visibility="{x:Bind ViewModel.ShowMapCard, Mode=OneWay}">
+                    <Border Style="{StaticResource ThemeCardStyle}" Padding="16,12,16,14">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="{x:Bind ViewModel.MapNote, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasMapNote, Mode=OneWay}"
+                                       Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"/>
+                            <controls:RegionMapView ViewModel="{x:Bind ViewModel}" Height="520" Visibility="{x:Bind ViewModel.HasMap, Mode=OneWay}"/>
+                        </StackPanel>
+                    </Border>
+                </controls:FoldingCard>
+
                 <controls:FoldingCard Title="NOT VISITED YET" Summary="{x:Bind ViewModel.UnvisitedSummary, Mode=OneWay}"
                                       SettingKey="RegionsUnvisitedCollapsed" Visibility="{x:Bind ViewModel.HasUnvisited, Mode=OneWay}">
                     <Border Style="{StaticResource ThemeCardStyle}" Padding="16,12,16,14">
                         <StackPanel Spacing="10">
-                            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
-                                       Text="Every system the game generates in this region that isn't in your save yet, in the game's own numbering. Stars are numbered as the galaxy is built, so neighbouring numbers are mostly close together."/>
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
+                                           Text="Every system the game generates in this region that isn't in your save yet. In the game's own numbering, neighbouring numbers are mostly close together; nearest to you uses the map's star positions."/>
+                                <ComboBox Grid.Column="1" Width="200" SelectedIndex="{x:Bind ViewModel.UnvisitedSortIndex, Mode=TwoWay}"
+                                          AutomationProperties.Name="Sort systems not visited yet">
+                                    <ComboBoxItem Content="Game numbering"/>
+                                    <ComboBoxItem Content="Nearest to you"/>
+                                </ComboBox>
+                            </Grid>
                             <!-- Small cards in a virtualized grid: only the cards on screen are built. -->
                             <ItemsRepeater ItemsSource="{x:Bind ViewModel.Unvisited}">
                                 <ItemsRepeater.Layout>
@@ -97,7 +120,15 @@
                                         <Border Padding="12,10" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
                                                 BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
                                             <StackPanel Spacing="6">
-                                                <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                    <!-- Distance from you, as the galaxy map shows it. -->
+                                                    <TextBlock Grid.Column="1" Text="{x:Bind DistanceText}" Foreground="{ThemeResource ThemeAccentBrush}" FontSize="13" FontWeight="SemiBold"/>
+                                                </Grid>
                                                 <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
                                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                                     <controls:GlyphStrip Code="{x:Bind PortalCode}" Title="{x:Bind Name}" GlyphSize="16"/>
@@ -164,5 +195,31 @@
                 </ItemsRepeater>
             </StackPanel>
         </ScrollViewer>
+
+        <!-- The region map filling the page; only built while expanded. Esc or Close returns. -->
+        <Grid x:Name="ExpandedMap" x:Load="{x:Bind ViewModel.IsMapExpanded, Mode=OneWay}" Grid.RowSpan="4" Margin="-28,-26,-28,-24"
+              Padding="24,20,24,20" RowSpacing="14" Background="{ThemeResource ThemeVoidBrush}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind ViewModel.RegionTitle, Mode=OneWay}" Style="{StaticResource ThemeHeadingStyle}" FontSize="22"/>
+                    <TextBlock Text="{x:Bind ViewModel.MapSummary, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
+                </StackPanel>
+                <Button Grid.Column="1" Content="Close map" Command="{x:Bind ViewModel.CloseMapCommand}" VerticalAlignment="Center"
+                        AutomationProperties.Name="Close the expanded region map">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="Escape"/>
+                    </Button.KeyboardAccelerators>
+                </Button>
+            </Grid>
+            <controls:RegionMapView Grid.Row="1" ViewModel="{x:Bind ViewModel}" ShowExpandButton="Collapsed"/>
+        </Grid>
     </Grid>
 </Page>
