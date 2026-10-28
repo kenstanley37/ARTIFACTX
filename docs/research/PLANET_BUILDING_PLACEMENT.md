@@ -421,6 +421,30 @@ Order everywhere: start cluster anchor, then the portal a few dozen words later,
 Open: two planet pairs share the same anchor index (606, 1414) despite different seeds - either a fixed rule picks
 the anchor or the matcher is wrong; check before porting. Live override JSONs kept locally (scratch, not committed).
 
+**Phase 1 is a chain of points (decoded 2026-10-28).** `0x1416360D3..0x141636508`: points are kept in a small
+ring/hash structure (nodes from the pool allocator `0x142C8E290`, freed by `0x142C8C960`). The first point of a chain
+is a uniform random direction that passes the accept test; each later point is a random step from the previous point
+(direction + offset, renormalised, distance growing with the attempt number) and must lie in a distance band from it
+(min/max squared distances at `0x14163632C..0x1416363B2`). After 100 failed attempts in a round (`r13 > 0x64`) the
+chain is cleared (`0x140314000`) and restarts; total cap 20,000 attempts (`0x4E20`). Every attempt uses 2 words, so a
+chain can only start at word 2*101*k - **which is why the start clusters sit at words 606 (k=3) and 1414 (k=7)** on
+planets with different seeds. Once the chain holds enough points, **phase 2** (`0x1416365C6` / `0x141636600`)
+assigns each override record (up to 5,000 tries each, its own draws at `0x141636740` and accept call at
+`0x14163683B`): class 2 (Shelter), 20/32 water variants and 24/31 on water worlds take chain points; others (Portal,
+Base) are placed relative to chain points. Positions are written at `0x141636A45`.
+**Placement EXACT in the emulator (2026-10-28).** With the start-up values below, `emu_overrides.py` reproduces
+**49/49 override records on all 6 planets of system 00FE00011476E2** (Withe, Ribhakyam, Loisense XIII, Nikong Beta,
+Hunnieldebur Iomi, Ewtone Waraz): same site key, type and position (0.000 m), portals included; Ribhakyam's chain
+restarts exactly 3 times (word 606). Start-up values (0 in the file, read live): `0x145006F00` = 10,
+`0x145006EF8` = 35, chain band `0x14535178C` = 600, `0x145351790` = 500, `0x145351794` = 1000, `0x145351798` = 800;
+their globals MBIN is still to identify (needed for the port, never hard-coded).
+**Next: port to Core** - uber noise + height `0x14128AA20`, the domain-warped site query `0x1412B2D70` (noise
+`0x1419BBAE0`), the accept rule `0x141631F60`, the chain + phase 2 - each checked against the emulator.
+Crashed-ship ground truth for later: Ribhakyam, "Final Eokak III", C-class, at +66.87, +81.48 (next to the portal),
+with a distress beacon pod (owner, 2026-10-28).
+Emulator notes: replace the pool allocator with heap allocations; the emulation needs well over 50 million
+instructions (about 1,000 attempts x noise), so raise the step cap.
+
 **Forsaken (build 183791, 2026-10-28).** PLANETBUILDINGTABLE decodes with libMBIN 7.07 and is identical to the
 180836 table. NMS.exe moved: the BuildingLevel setter is now at `0x1416C84E3` (was `0x141695B73`, +0x32970) with the
 same logic. Addresses in this file are build 180836; re-locate by byte pattern before using them.

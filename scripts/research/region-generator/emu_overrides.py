@@ -68,7 +68,7 @@ def call(fn, args, stack_args=()):
     mu.mem_write(rsp, struct.pack('<Q', SENTINEL)); mu.reg_write(X.UC_X86_REG_RSP, rsp)
     for i, v in enumerate(stack_args): mu.mem_write(rsp + 0x28 + 8 * i, struct.pack('<Q', v))
     for r, v in zip((X.UC_X86_REG_RCX, X.UC_X86_REG_RDX, X.UC_X86_REG_R8, X.UC_X86_REG_R9), args): mu.reg_write(r, v)
-    mu.emu_start(fn, SENTINEL, count=50_000_000)
+    mu.emu_start(fn, SENTINEL, count=int(os.environ.get("EMU_COUNT", "3000000000")))
     return f32reg(X.UC_X86_REG_XMM0)
 
 # --- override placement: 0x141635D10 on a planet object read live (read_planet_object_live.py) ---------------------
@@ -81,7 +81,18 @@ def on_skip(mu, addr, size, _):
         rsp = mu.reg_read(X.UC_X86_REG_RSP); ret = struct.unpack('<Q', bytes(mu.mem_read(rsp, 8)))[0]
         mu.reg_write(X.UC_X86_REG_RSP, rsp + 8); mu.reg_write(X.UC_X86_REG_RAX, 0); mu.reg_write(X.UC_X86_REG_RIP, ret)
 for a in SKIP: mu.hook_add(UC_HOOK_CODE, on_skip, begin=a, end=a)
-WATCH = {0x141631160: 'accept', 0x1416362A5: 'accept-call-1', 0x1416360D3: 'loop-top', 0x1416365C6: 'loop-exit', 0x14163610A: 'draw', 0x14163120E: 'ret:sitequery', 0x141631348: 'ret:heightrule', 0x141631216: 'site-valid?'}
+# The game's pool allocator (global state is empty in the file): allocate (0x142C8E290 / 0x142C8E190: rdx = size,
+# r8 = alignment) or free (0x142C8C960: no-op) on the emulator heap instead.
+POOL = {0x142C8E290: 'alloc', 0x142C8E190: 'alloc', 0x142C8C960: 'free'}
+def on_pool(mu, addr, size, _):
+    rsp = mu.reg_read(X.UC_X86_REG_RSP); ret = struct.unpack('<Q', bytes(mu.mem_read(rsp, 8)))[0]
+    if POOL[addr] == 'alloc':
+        n, al = mu.reg_read(X.UC_X86_REG_RDX), mu.reg_read(X.UC_X86_REG_R8)
+        mu.reg_write(X.UC_X86_REG_RAX, alloc(n, max(16, al if 0 < al <= 4096 else 16)))
+    else: mu.reg_write(X.UC_X86_REG_RAX, 0)
+    mu.reg_write(X.UC_X86_REG_RSP, rsp + 8); mu.reg_write(X.UC_X86_REG_RIP, ret)
+for a in POOL: mu.hook_add(UC_HOOK_CODE, on_pool, begin=a, end=a)
+WATCH = {0x141631160: 'accept', 0x1416362A5: 'accept-call-1', 0x1416360D3: 'loop-top', 0x1416365C6: 'loop-exit', 0x14163610A: 'draw', 0x14163120E: 'ret:sitequery', 0x141631348: 'ret:heightrule', 0x141631216: 'site-valid?', 0x1416365C6: 'phase2-entry', 0x141636600: 'p2-record', 0x141636740: 'p2-draw', 0x141636840: 'ret:p2-accept', 0x141636A45: 'p2-write', 0x141636D87: 'p2-done'}
 hits = {}
 def on_watch(mu, addr, size, _):
     k = WATCH[addr]
@@ -90,6 +101,11 @@ def on_watch(mu, addr, size, _):
 for a in WATCH: mu.hook_add(UC_HOOK_CODE, on_watch, begin=a, end=a)
 # Run-time global the accept test 0x141631160 requires (0 in the file, set by the game at start-up).
 mu.mem_write(0x145340EC0, b'')
+# Placement values the game sets at start-up (0 in the file; read from the running game 2026-10-28, build 183791):
+# 0x145006F00 = 10, 0x145006EF8 = 35 (override function), 0x14535178C/790/794/798 = 600/500/1000/800 (chain distance
+# band). Their source globals MBIN is not identified yet.
+for va, v in ((0x145006F00, 10.0), (0x145006EF8, 35.0), (0x14535178C, 600.0), (0x145351790, 500.0), (0x145351794, 1000.0), (0x145351798, 800.0)):
+    mu.mem_write(va, struct.pack('<f', v))
 B = pickle.load(open(sys.argv[1], 'rb'))
 def load_mbin(path):
     b = bytearray(open(path, 'rb').read()); hh = alloc(len(b) + 0x100, 0x100)
@@ -113,6 +129,11 @@ lo, hi = seed & 0xFFFFFFFF, seed >> 32
 mwc = alloc(16); mu.mem_write(mwc, struct.pack('<II', lo if lo else 1, (((lo >> 16) | (lo << 16)) & 0xFFFFFFFF) ^ hi ^ lo))
 race = struct.unpack_from('<I', obj, 0x3594)[0]; level = struct.unpack_from('<I', obj, 0x3588)[0]
 flag = 1 if level != 0 and not (4 <= level <= 7) and not obj[0x3B2F] and not obj[0x3B30] else 0
+from unicorn import UC_HOOK_MEM_WRITE
+writes = []
+def on_write(mu, access, addr, size, value, _):
+    if len(writes) < 40: writes.append((mu.reg_read(X.UC_X86_REG_RIP), addr - ov, size))
+mu.hook_add(UC_HOOK_MEM_WRITE, on_write, begin=ov, end=ov + len(live_overrides) - 1)
 print(f'planet seed {seed:016X} race {race} level {level} flag {flag} overrides {B["overrides"][2]}')
 try:
     call(0x141635D10, (tableptr, race, level, PL + 0x3BA0), (PL, mwc, flag))
@@ -124,4 +145,4 @@ for i in range(B['overrides'][2]):
     ka = struct.unpack_from('<Q', out, 0x30 * i + 0x10)[0]; kb = struct.unpack_from('<Q', live_overrides, 0x30 * i + 0x10)[0]
     ta = struct.unpack_from('<I', out, 0x30 * i + 0x20)[0]; tb = struct.unpack_from('<I', live_overrides, 0x30 * i + 0x20)[0]
     print(f'rec {i}: type {ta}/{tb}  key {ka:016X} {"==" if ka == kb else "!="} {kb:016X}  dist {math.dist(a, b):10.3f}')
-print('hits', hits); print('imports', used, 'zero-filled pages', len(set(x & ~0xFFF for x in zero)))
+print('instructions run', mu.query(1) if False else '?', 'stopped at', hex(mu.reg_read(X.UC_X86_REG_RIP))); print('writes into overrides', [(hex(r), hex(o), n) for r, o, n in writes]); print('hits', hits); print('imports', used, 'zero-filled pages', len(set(x & ~0xFFF for x in zero)))
