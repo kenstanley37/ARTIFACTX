@@ -265,6 +265,41 @@ Each type instance is created by `0x14160C480` (building spawn data: seed, layou
 `0x141614880` (an allowed-on-planet check). Porting this needs the planet's race, density level, biome
 and sentinel values, plus `PLANETBUILDINGTABLE` in the catalog. **Not ported yet.**
 
+**Slot table: ported exactly (2026-10-28).** `slotport.py` rebuilds all 1,000 slots for each of the 5 loaded
+Oystana planets (1000/1000 on every planet, compared with `dump_planet_buildings.py`), given the planet's type list
+and its BuildingLevel. Class `c` owns slots `10c..10c+9`; with `k = BuildingPlacement[c].Density[level]`, slots
+`j < floor(k)` hold (first type of `c`, probability 1), a fractional rest gives one more slot with probability
+`frac`, the rest hold no building. A class missing from the type list has no building slots. (The index stored in a
+no-building slot is irrelevant; it is not ported.)
+
+**BuildingLevel (GcPlanetData `+0x3528`, runtime `+0x3588`): solved.** Set at `0x141695B22` from
+`GenerationData`: Class (`+0x32C0`) == 1 (Initial) -> Full; else Biome Weird -> Weird; else SubType 24 (Infested)
+-> HalfWeird; else Waterworld -> Waterworld; GasGiant -> GasGiant; Dead -> Dead; anything else -> Mid. Live check
+(`scripts/diagnostics/read_planet_level_inputs.py`): Peak XV Lush/22/0 Mid, Ilfordo VII Frozen/1/0 Mid, Akui Dead
+Dead, Epsh X Radioactive/27/**class 1** Full, Varijing Zurum Frozen/1/0 Mid: 5/5. Biome, subtype and class all come
+from `ArtifactX.Core.Universe.PlanetGenerator`, so the level is computable from the address.
+The stage `0x141691110`'s `Next(3)` from stage seed 1 is **InhabitingRace** (`+0x3534`), not the level; it is
+overridden by a debug/global path (live planets all read 0).
+
+**Which classes a planet has (type loop `0x14160B9C0`, 63 classes).** Count per class =
+overrides + models, where:
+- restriction check `0x141648DE0(class, corrupt, water, relic, scrap)`: type `+0x94` RequiresCorruptSentinels
+  (planet: `GroundCombatDataPerDifficulty[difficulty]` sentinel value == 3), `+0x95` RequiresRelicWorld (planet:
+  biome != Weird and subtype == 3), `+0x96` RequiresScrapWorld (planet `HasScrap`), `+0x97` RequiresWater (planet
+  terrain float runtime `+0x31D8` > 0). Live: Ilfordo VII has 52/53/62 (corrupt) and 60/61 (scrap), Epsh X 60/61,
+  the others none of them.
+- overrides = NumOverridesToGenerateWaterworlds on a Waterworld when >= 0, else NumOverridesToGenerate; 0 when the
+  type is NPC-only on a planet without NPCs, or when FlattenType `+0x74` == 3 and there is no water (class 32 on
+  Ilfordo/Epsh/Akui).
+- models = NumModelsToGenerate when `0x141614880` passes (`Density[level] > 0`, NPC rule) and race != 7 (None).
+- Exceptions not decoded: classes 2, 7, 21, 22, 28 get their models even at density 0 (Dead Akui), and settlement
+  classes (36-50, 57-59) come from a second pass after the loop (`0x14160C0ED`, jump table on class - 0x24) that
+  adds them twice (two races?) and uses the Hub's density (`0x141648E50` maps 37-44, 46-50, 58 to 36 and 59 to 57).
+  `BuildingFiles` is `[race 0-8][class 0-62]` (9 x 63 x 0x60).
+For **site placement only classes with density > 0 matter**, so the class at a site is predictable from: the level,
+the four restriction flags and the NPC rule. Still needed from generation: the Sentinel level per difficulty and
+`HasScrap` (neither is in Core yet).
+
 So **every cell of every face is a site** with a computable key and feature point. Next: the world point of a
 site (the worker's projection of the feature point to the sphere; the emulator gives ground truth), then which sites
 get a building and of which type (`HasBuilding`, slot probabilities, the type list), and the per-site yaw (top 3
