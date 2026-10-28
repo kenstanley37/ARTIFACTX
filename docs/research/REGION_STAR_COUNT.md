@@ -209,7 +209,36 @@ galaxy 10 617/617, galaxy 246 582/582, galaxy 4 608/608. Spiral regions (roll be
 - 2D simplex `0x142D74870` and the 3D value variant `0x142D74E60` match 2003/2003 emulator
   vectors (`noisevectors.py`).
 
-Remaining: the spiral block `0x141368BB5..0x14136908E` (spiral regions).
+### Spiral regions ported (2026-10-27)
+
+Spiral regions (roll below `SpiralFormChance`) are exact too: 8 emulated regions across galaxies
+0, 4, 10, 77 and 246 match every stored star bit for bit (`RegionCheck ordinary`), and the 6 earlier
+regions still do. Settings added in catalog format 46 (`GalaxyPlacementSettings`): SpiralInclusion,
+SpiralFlex, SpiralTwistMult, SpiralPull, InnerFieldScales.y.
+
+- **Gate order matters.** The base-density gate (`0x14136899E`) comes first; the star threshold
+  (x1.2 in spiral regions) is tested at `0x141369130`, after the spiral step. Every cell over the
+  base threshold therefore runs the spiral step and may use arm draws, emitted or not.
+- Setup draws 2..6 and 10: d2 low bit picks the arm step (`pi` if clear, `pi/2` if set); d3 lerps
+  SpiralInclusion; d4/d5 are angles `f*2pi - pi` for a rotation about x (rows (1,0,0), (0,c,-s),
+  (0,s,c)) and about z (rows (c,-s,0), (s,c,0), (0,0,1)); d6 is `twist = f*3pi/2 + pi/2`; d10
+  lerps SpiralFlex.
+- Per cell: `r = clamp((sqrt(3)/2 - |(0.5,0.5,0.5) - cell/19|) * 1.54, 0, 1)` and the inclusion
+  field `band = (BandedFbm(-s*pz, s*py, -s*px, 6 octaves, lac 2, gain 0.5) + 1) * 0.5` with
+  `s = InnerFieldScales.y` (`0x142D757D0`: value noise per octave, `a = clamp(n/(f*0.01))`,
+  `b = clamp(-n/(f*0.01))`, adds `(s(a) - s(b)) * amp` with smoothstep `((6t-15)t+10)t^3`,
+  divided by the summed amplitude).
+- When `inclusion > band`: draw `arm = (int)(f*3)`; with `o = 1 - r` the arm point is
+  `(sin(a)*o*flex, 0, cos(a)*o*flex)` at `a = arm*armStep + o*pi*SpiralTwistMult`, turned about y by
+  `o*twist` and then by the x-then-z frame. If any coordinate is outside (-50, 50) the star stays
+  put (one draw used). Otherwise a second draw lerps `SpiralPull.x .. SpiralPull.y + SpiralPull.z*r`
+  and the star moves that fraction of the way to the arm point.
+- The game's own sine `0x140206E60` and cosine `0x140206D80` (range reduction and short polynomials)
+  are ported in `GameTrig`; `MathF` differs in the last bits.
+
+Tools: `spiraltrace.py` logs the setup frame and each star's spiral inputs and outputs from the
+emulator; `bsspeek.py` prints runtime (BSS) vectors after the startup initializers;
+`RegionCheck spiralfind` lists spiral regions near a given one.
 
 ### Step 3 map: grid setup draws (positions only; not needed for the count)
 
