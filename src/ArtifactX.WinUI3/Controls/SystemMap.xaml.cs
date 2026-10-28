@@ -1,4 +1,4 @@
-using ArtifactX.Core.NmsModels;
+﻿using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Microsoft.UI.Input;
@@ -16,9 +16,10 @@ namespace ArtifactX.WinUI3.Controls;
 /// <summary>
 /// The system you're in as a 3D map: every planet and moon at its real centre from the save
 /// (<c>6f=.aHM</c>), moons tied to the planet they orbit (system generator; moons sit 226,000 units from
-/// their planet, matched against nine save systems 2026-10-27), the body you're on outlined. Discovered
-/// bodies use the planet drawing (biome colour, rings); the rest are plain grey. The sun and space station
-/// aren't in the save, so they aren't drawn. Same controls as the region map (<see cref="MapCamera"/>);
+/// their planet, matched against nine save systems 2026-10-27), the body you're on outlined, and the space
+/// station (<see cref="SystemMapStation"/>) as a diamond. Discovered bodies use the planet drawing (biome
+/// colour, rings; Dead planets are grey); undiscovered ones are a dashed outline. The sun isn't placed yet.
+/// Same controls as the region map (<see cref="MapCamera"/>);
 /// clicking a discovered body raises <see cref="BodyClicked"/>.
 /// </summary>
 public sealed partial class SystemMap : UserControl
@@ -32,6 +33,16 @@ public sealed partial class SystemMap : UserControl
         set => SetValue(BodiesProperty, value);
     }
 
+    public static readonly DependencyProperty StationProperty = DependencyProperty.Register(nameof(Station),
+        typeof(SystemMapStation), typeof(SystemMap), new PropertyMetadata(null, (d, _) => ((SystemMap)d).Rebuild()));
+
+    /// <summary>The space station, drawn as a diamond; null leaves it out.</summary>
+    public SystemMapStation? Station
+    {
+        get => (SystemMapStation?)GetValue(StationProperty);
+        set => SetValue(StationProperty, value);
+    }
+
     /// <summary>A discovered planet or moon was clicked.</summary>
     public event EventHandler<SystemMapBody>? BodyClicked;
 
@@ -40,6 +51,7 @@ public sealed partial class SystemMap : UserControl
     private readonly List<(Line Line, SystemMapBody Moon, SystemMapBody Host)> _tethers = new();
     private readonly MapCamera _camera;
     private (double X, double Y, double Z) _middle;
+    private (Rectangle Marker, TextBlock Label)? _station;
 
     public SystemMap()
     {
@@ -60,6 +72,7 @@ public sealed partial class SystemMap : UserControl
         Stage.Children.Clear();
         _bodies.Clear();
         _tethers.Clear();
+        _station = null;
         var bodies = Bodies ?? [];
         var line = ThemeResources.Brush("ThemeLineBrush");
         foreach (var moon in bodies.Where(b => b.IsMoon))
@@ -92,6 +105,20 @@ public sealed partial class SystemMap : UserControl
             Stage.Children.Add(label);
         }
 
+        if (Station is { } station && bodies.Count > 0)
+        {
+            var marker = new Rectangle
+            {
+                Width = 10, Height = 10, Fill = ThemeResources.Brush("ThemeAccentAltBrush"),
+                RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new RotateTransform { Angle = 45 },
+            };
+            ToolTipService.SetToolTip(marker, $"{station.Name}\nSpace station");
+            var label = new TextBlock { Text = station.Name, FontSize = 11, IsHitTestVisible = false, Foreground = ThemeResources.Brush("ThemeTextDimBrush") };
+            _station = (marker, label);
+            Stage.Children.Add(marker);
+            Stage.Children.Add(label);
+        }
+
         // Fit the whole system, centred on its middle.
         if (bodies.Count > 0)
         {
@@ -119,6 +146,17 @@ public sealed partial class SystemMap : UserControl
             int z = (int)(p.Depth * 1000 / Math.Max(_camera.HalfExtent, 1)) + 10000;
             Canvas.SetZIndex(drawing, z + (body.IsHere ? 100000 : 0));
             Canvas.SetZIndex(label, z + 200000);
+        }
+        if (_station is var (stationMarker, stationLabel) && Station is { } station)
+        {
+            var p = _camera.Project(station.X, station.Y, station.Z);
+            Canvas.SetLeft(stationMarker, p.X - 5);
+            Canvas.SetTop(stationMarker, p.Y - 5);
+            Canvas.SetLeft(stationLabel, p.X + 9);
+            Canvas.SetTop(stationLabel, p.Y - 8);
+            int z = (int)(p.Depth * 1000 / Math.Max(_camera.HalfExtent, 1)) + 10000;
+            Canvas.SetZIndex(stationMarker, z);
+            Canvas.SetZIndex(stationLabel, z + 200000);
         }
         foreach (var (tether, moon, host) in _tethers)
         {

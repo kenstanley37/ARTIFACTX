@@ -107,6 +107,9 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasMap), nameof(HasPicture), nameof(ShowOrbits), nameof(FrameWidth))]
     public partial IReadOnlyList<SystemMapBody> MapBodies { get; private set; } = [];
 
+    /// <summary>The system's space station on the map; null for uncharted systems or when it can't be placed.</summary>
+    [ObservableProperty] public partial SystemMapStation? MapStation { get; private set; }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CaptureLabel), nameof(CanCapture))]
     public partial bool IsCapturing { get; private set; }
@@ -319,6 +322,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             Sub = Facts = Station = SystemCode = "";
             Bodies = [];
             MapBodies = [];
+            MapStation = null;
             SystemData = [];
             Unmatched = [];
             Tiles.Clear();
@@ -357,6 +361,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         if (!Bodies.SequenceEqual(planets)) Bodies = planets;
         var mapBodies = MapBodiesOf(system, planets);
         if (!MapBodies.SequenceEqual(mapBodies)) MapBodies = mapBodies;
+        _ = UpdateMapStationAsync(system, isUncharted ? null : station.Length > 0 ? station : $"{Heading} Station");
         var data = BuildSystemData(system, note, station);
         if (!SystemData.SequenceEqual(data)) SystemData = data;
         Market.Show(system);
@@ -392,6 +397,26 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     /// "Noturbo Spur holds 539 star systems and 65 purple systems · you've visited 165 of them".
     /// Visited = distinct systems of this region in the save's discovery records.
     /// </summary>
+    /// <summary>Places the space station with the game's station placement (catalog solar-layout tables).</summary>
+    private async Task UpdateMapStationAsync(ulong system, string? name)
+    {
+        try
+        {
+            SystemMapStation? placed = null;
+            if (name is not null && await CatalogService.GetStationEquipmentTablesAsync() is { } tables)
+            {
+                var (code, galaxy) = UniverseInfo.Generator(system);
+                var pose = await Task.Run(() => StationPoseGeneration.GenerateForSystem(code, galaxy, tables.SolarLayout));
+                if (pose is not null) placed = new SystemMapStation(name, pose.Position.X / 1000, pose.Position.Y / 1000, pose.Position.Z / 1000);
+            }
+            if (SystemAddress == system && placed != MapStation) MapStation = placed;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[CurrentSystem] Station placement unavailable: {ex.Message}");
+        }
+    }
+
     private async Task UpdateRegionSystemsAsync(ulong system)
     {
         try
