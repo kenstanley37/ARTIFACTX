@@ -63,6 +63,11 @@ The radii differ by up to about 1,300 units, which is terrain height: **markers 
 the game evaluates terrain height for a site without loading it. Expected in-game readings to confirm the
 frame: player -37.51, +17.28; depot +8.81, -61.92.
 
+**Planet centres are on a 1,000-unit grid (2026-10-28).** The Analysis Visor read -37.21, +17.61 where the
+player stood. That is exactly what the centre floored to 1,000 gives (the save's `aHM`, (42000, -1000, 256000));
+the raw generated centre gives -37.51, +17.28. So the planet sits at `floor(generated / 1000) * 1000`. Marker radii
+from that centre: depot 130,319, factory 130,193, player 130,242; the depot should read +8.96, -61.54.
+
 ## Native leads (NMS build 180836)
 
 - `0x14168F282`, `0x141691197`: write `Spacing = 250.0` at `+0x3374` of a planet-data object
