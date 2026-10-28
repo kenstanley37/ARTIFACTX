@@ -347,6 +347,24 @@ building-type list, then three u32. Yikjav XIV (start planet) holds 8: Shelter, 
 water worlds). So **every planet has one guaranteed portal on a grid site**. Next: find the code that fills
 OverrideBuildings (which site each override takes) - then portal locations are exact from the address.
 
+**Override placement code (build 183791, traced 2026-10-28).** `0x141635D10` (one caller, `0x1416350AD` in
+`0x141634FEE`) fills OverrideBuildings (`planet+0x33B8`, count `+0x33C0`):
+1. Loop over the 63 classes (definition stride 0xA0): per class the override count (NumOverridesToGenerate, or the
+   Waterworld count on biome 14; zero for NPC-only classes without NPCs and FlattenType 3 without water), plus models
+   when `0x141640650` passes; each override record gets `+0x20` = the class's first type index + n.
+2. For each record, a random direction from the MWC passed as the 5th argument (`[rbp+0x6F8]`): two draws u1, u2;
+   `y = 1 - 2*u1`, `r = sqrt(max(0, 1 - y*y))`, `phi = u2 * C` (C at `0x1451ECEB0`, presumably 2*pi), direction
+   `(r*f520(phi), y, r*f600(phi))` (`0x140201520` / `0x140201600`: the game's cos/sin, to confirm which is which).
+   Later records may be placed relative to an earlier one (a hash map of placed points, offset by a distance that
+   grows with the retry count) - the GameStartSpawn cluster. The direction times PlanetRadius goes to
+   `0x141631160`, which returns accept / reject; reject = retry with new draws.
+3. `0x141631160` runs the per-position site query `0x1412B2D70` (domain-warps the point with three calls of the 3D
+   noise `0x1419BBAE0`, then the Voronoi wrapper -> site key and point) and three terrain-looking calls on the planet
+   data (`0x1412B5220`, `0x14128AA20`, `0x14128C350`) plus `0x141631F60`, then compares.
+To predict portals exactly: the MWC seed (which stage seed), a port of the noise `0x1419BBAE0`, and whether the
+accept test needs terrain height (if it does, rejected attempts consume draws and the port needs the terrain).
+Ground truth: Yikjav XIV portal (face 5 (-39, -137), visor +62.43, -164.10) and Nitanya XIX's override list.
+
 **Forsaken (build 183791, 2026-10-28).** PLANETBUILDINGTABLE decodes with libMBIN 7.07 and is identical to the
 180836 table. NMS.exe moved: the BuildingLevel setter is now at `0x1416C84E3` (was `0x141695B73`, +0x32970) with the
 same logic. Addresses in this file are build 180836; re-locate by byte pattern before using them.
