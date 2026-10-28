@@ -2,6 +2,7 @@
 using ArtifactX.Core.Universe;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml.Media;
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
@@ -46,10 +47,89 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     /// <summary>The planet's exact centre (markers are in system space), or null when it can't be generated.</summary>
     private (double X, double Y, double Z)? _centre;
 
+    // The portal, from the game's own placement rules (PortalLocationService), and its save marker.
+    [ObservableProperty] public partial bool HasPortal { get; private set; }
+    [ObservableProperty] public partial string PortalCoordinates { get; private set; } = "";
+    [ObservableProperty] public partial string PortalStatus { get; private set; } = "";
+    [ObservableProperty] public partial bool CanAddPortalMarker { get; private set; }
+    [ObservableProperty] public partial bool CanUndoPortalMarker { get; private set; }
+    private PortalLocation? _portal;
+    private ulong _planetAddress;
+
+    /// <summary>The save's active scan events (markers) - the list the marker is added to.</summary>
+    private static readonly string[] ScanEventsPath = { "vLc", "6f=", "A1f" };
+
     public async Task LoadAsync(KnownPlanet planet, PlanetSnapshot snapshot)
     {
+        _portal = null;
+        HasPortal = false;
+        _planetAddress = planet.Address;
         _centre = await PlanetCentreService.GetAsync(planet.Address);
         UpdateLocations(planet, snapshot);
+        var portal = await PortalLocationService.GetAsync(planet.Address);
+        if (_planetAddress != planet.Address) return;   // moved on to another planet meanwhile
+        _portal = portal;
+        RefreshPortal();
+    }
+
+    /// <summary>Shows whether the portal is marked in the save, and whether a marker can be added now.</summary>
+    public void RefreshPortal()
+    {
+        HasPortal = _portal is not null;
+        if (_portal is not { } portal) return;
+        PortalCoordinates = portal.Coordinates;
+        bool marked = HasPortalMarker(portal);
+        bool staged = marked && SaveSessionManager.HasStagedEdit(ScanEventsPath);
+        CanUndoPortalMarker = staged;
+        CanAddPortalMarker = !marked && SaveSessionManager.IsSaveLoaded && !GameProcessMonitorService.IsGameRunning;
+        PortalStatus = staged ? "Marker added. Save your changes to write it to your save."
+            : marked ? "This portal is marked in your save."
+            : !SaveSessionManager.IsSaveLoaded ? "Load a save to add a marker."
+            : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to add a marker to your save."
+            : "Adds a marker to your save that leads you to this portal in game.";
+    }
+
+    private static bool HasPortalMarker(PortalLocation portal)
+    {
+        string key = $"0x{portal.Key:X16}";
+        return SaveSessionManager.GetValue(ScanEventsPath) is JArray events
+            && events.OfType<JObject>().Any(e => string.Equals(e["5bU"]?[1]?.Value<string>(), key, System.StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Stages the whole scan-event list with a portal marker added, in the game's own format: written the same
+    /// way as the portal marker the game saved itself on Ribhakyam (Slot 8, 2026-10-28: 9@i 3, oZw as hex text,
+    /// 5bU [true, site key], TWn the system-space position); five markers written this way led straight to the
+    /// portal in game (2026-10-28).
+    /// </summary>
+    [RelayCommand]
+    private void AddPortalMarker()
+    {
+        if (_portal is not { } portal || !SaveSessionManager.IsSaveLoaded || GameProcessMonitorService.IsGameRunning
+            || HasPortalMarker(portal)) return;
+        var events = SaveSessionManager.GetValue(ScanEventsPath) is JArray current ? (JArray)current.DeepClone() : new JArray();
+        events.Add(new JObject
+        {
+            ["9@i"] = 3,
+            ["FN5"] = "^PORTAL",
+            ["oZw"] = $"0x{portal.PlanetAddress:X}",
+            ["5bU"] = new JArray(true, $"0x{portal.Key:X16}"),
+            ["TWn"] = new JArray(System.Math.Round(portal.X, 3), System.Math.Round(portal.Y, 3), System.Math.Round(portal.Z, 3)),
+            ["iqv"] = new JObject { ["iqv"] = "Portal" },
+            ["ADw"] = 0.0,
+            ["jGk"] = "^",
+            ["1JW"] = 0,
+            ["M?f"] = new JObject { ["M?f"] = "None" },
+        });
+        SaveSessionManager.StageEdit(events, ScanEventsPath);
+        RefreshPortal();
+    }
+
+    [RelayCommand]
+    private void UndoPortalMarker()
+    {
+        SaveSessionManager.RevertEdit(ScanEventsPath);
+        RefreshPortal();
     }
 
     /// <summary>

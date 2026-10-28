@@ -10,6 +10,38 @@
 
     <StackPanel Spacing="18">
 
+        <!-- The portal, worked out from the game's own placement rules, with a marker the player can add to the save. -->
+        <controls:FoldingCard Title="PORTAL" SettingKey="PlanetDetailsPortalCollapsed" Visibility="{x:Bind Equipment.HasPortal, Mode=OneWay}">
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <Grid Padding="18,14,18,16" ColumnSpacing="16" RowSpacing="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="{x:Bind Equipment.PortalCoordinates, Mode=OneWay}" FontSize="20" FontWeight="Bold"
+                               FontFamily="{ThemeResource ThemeDisplayFont}" Foreground="{ThemeResource ThemeAccentBrush}" IsTextSelectionEnabled="True"
+                               AutomationProperties.Name="Portal coordinates"/>
+                    <TextBlock Grid.Row="1" Text="Where this planet's portal stands - the coordinates your Analysis Visor shows there. Worked out from the game's own rules, so it works before anyone has found it."
+                               Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                    <TextBlock Grid.Row="2" Text="{x:Bind Equipment.PortalStatus, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+                    <StackPanel Grid.Column="1" Grid.RowSpan="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Button Content="Add a marker to my save" Command="{x:Bind Equipment.AddPortalMarkerCommand}"
+                                IsEnabled="{x:Bind Equipment.CanAddPortalMarker, Mode=OneWay}"
+                                AutomationProperties.Name="Add a portal marker to my save"
+                                ToolTipService.ToolTip="Adds a marker for this portal to your save. Save your changes afterwards; the game shows it next time you load."/>
+                        <Button Content="Undo" Command="{x:Bind Equipment.UndoPortalMarkerCommand}"
+                                Visibility="{x:Bind Equipment.CanUndoPortalMarker, Mode=OneWay}"
+                                AutomationProperties.Name="Undo the portal marker"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </controls:FoldingCard>
+
         <!-- Located sites with their recorded coordinates. -->
         <controls:FoldingCard Title="{x:Bind Equipment.LocatedSitesHeading, Mode=OneWay}" SettingKey="PlanetDetailsLocatedSitesCollapsed">
             <Border Style="{StaticResource ThemeCardStyle}">

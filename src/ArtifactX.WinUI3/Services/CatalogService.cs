@@ -1184,6 +1184,11 @@ public static class CatalogService
     public static Task<ArtifactX.Core.Universe.StationEquipmentTables?> GetStationEquipmentTablesAsync() =>
         GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.StationEquipmentTables>("STATIONEQUIPMENT");
 
+    /// <summary>Each building class's override rules (portal, shelter, base...); null on game data built before
+    /// catalog format 48.</summary>
+    public static Task<ArtifactX.Core.Universe.BuildingOverrideRule[]?> GetBuildingOverrideRulesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.BuildingOverrideRule[]>("BUILDINGOVERRIDES");
+
     public static Task<ArtifactX.Core.Universe.MultiToolTechnologyTables?> GetMultiToolTechnologyTablesAsync() =>
         GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.MultiToolTechnologyTables>("MULTITOOLTECHNOLOGY");
 

@@ -47,6 +47,37 @@ public static class PlanetOverridePlacement
 
     private readonly record struct Rule(int Class, int WaterPlacement, float MinHeight, float MaxHeight, float Ring);
 
+    /// <summary>Every body's override buildings from a system's portal code and galaxy alone (planet types, terrain,
+    /// sea, size, Voronoi grid and centre generated, all tables from the catalog), body 1 first; null for a body this
+    /// can't place (gas-giant systems, an unmeasured planet size, a catalog without terrain layers).</summary>
+    public static OverrideBuilding[]?[] ForSystem(ulong portalCode, int galaxy, BiomeTables biomes, PlanetProfileTables profiles,
+        SolarLayoutTables layoutTables, IReadOnlyList<BuildingOverrideRule> rules)
+    {
+        var types = PlanetGenerator.Generate(portalCode, galaxy, biomes);
+        var seeds = SystemGenerator.Bodies(portalCode, galaxy).PlanetSeeds;
+        var result = new OverrideBuilding[]?[Math.Min(types.Length, seeds.Length)];
+        if (profiles.Objects?.Terrain is not { } terrainTables
+            || SolarLayoutGeneration.ForSystem(portalCode, galaxy, layoutTables, true) is not { } layout) return result;
+        int star = (int)SystemGenerator.Attributes(portalCode, galaxy).Star;
+        for (int i = 0; i < result.Length && i < layout.Centers.Length; i++)
+        {
+            var body = types[i];
+            if (PlanetBuildingSites.Radius(body.BodyClass) is not { } radius
+                || PlanetProfileGenerator.TerrainChoiceFor(seeds[i], body, star, profiles) is not { } choice
+                || choice.SettingIndex >= terrainTables.Settings.Length
+                || PlanetTerrain.Generate(seeds[i], terrainTables.Settings[choice.SettingIndex], choice, terrainTables.SeaStandard,
+                    body.BodyClass == 3, body.DeadToWeird) is not { } terrain) continue;
+            // The game places a planet on the 1,000-unit grid below its generated centre (the save's aHM).
+            var c = layout.Centers[i];
+            var centre = new Vector3(MathF.Floor(c.X / 1000f) * 1000f, MathF.Floor(c.Y / 1000f) * 1000f, MathF.Floor(c.Z / 1000f) * 1000f);
+            var planet = new OverridePlanet(seeds[i], radius, PlanetBuildingSites.Divisions(radius),
+                PlanetBuildingSites.VoronoiSeeds(seeds[i]).SectorSeed, body.Prime, body.Biome, choice.Sea, centre, terrain,
+                terrainTables.SeaMoon, terrainTables.SeaGasGiant);
+            result[i] = Place(planet, rules);
+        }
+        return result;
+    }
+
     /// <summary>The planet's override buildings in the game's record order.</summary>
     public static OverrideBuilding[] Place(OverridePlanet planet, IReadOnlyList<BuildingOverrideRule> rules, bool hasNpcs = true)
     {

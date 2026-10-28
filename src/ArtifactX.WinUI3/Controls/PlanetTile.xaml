@@ -55,6 +55,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <TextBlock Text="You found" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
                     <TextBlock Grid.Column="1" Text="{x:Bind Tile.Discovered, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
@@ -75,6 +76,10 @@
                     <TextBlock Grid.Row="7" Grid.Column="1" Text="{x:Bind Tile.Fauna, Mode=OneWay}" Visibility="{x:Bind Tile.HasFauna, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                     <TextBlock Grid.Row="8" Text="Resources" Visibility="{x:Bind Tile.HasProfile, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
                     <TextBlock Grid.Row="8" Grid.Column="1" Text="{x:Bind Tile.Resources, Mode=OneWay}" Visibility="{x:Bind Tile.HasProfile, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                    <!-- Worked out from the game's own placement rules (PortalLocationService); the Analysis Visor's coordinates. -->
+                    <TextBlock Grid.Row="9" Text="Portal" Visibility="{x:Bind Tile.HasPortal, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                    <TextBlock Grid.Row="9" Grid.Column="1" Text="{x:Bind Tile.Portal, Mode=OneWay}" Visibility="{x:Bind Tile.HasPortal, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" IsTextSelectionEnabled="True"
+                               ToolTipService.ToolTip="Where this planet's portal stands - the coordinates your Analysis Visor shows there. Open the planet to add a marker to your save."/>
                 </Grid>
 
                 <StackPanel Spacing="6" Margin="0,4,0,0" Visibility="{x:Bind Tile.HasFish, Mode=OneWay}">
