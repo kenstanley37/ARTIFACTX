@@ -37,6 +37,13 @@ def on_stub(mu, addr, size, _):
     if fn in f or fn in ('atan2f', 'powf', 'fmodf'):
         v = f[fn](x) if fn in f else math.atan2(x, y) if fn == 'atan2f' else x ** y if fn == 'powf' else math.fmod(x, y)
         mu.reg_write(X.UC_X86_REG_XMM0, int.from_bytes(struct.pack('<f', v), 'little'))
+    elif fn in ('memset', 'memcpy', 'memmove'):
+        rcx, rdx, r8 = (mu.reg_read(r) for r in (X.UC_X86_REG_RCX, X.UC_X86_REG_RDX, X.UC_X86_REG_R8))
+        if r8: mu.mem_write(rcx, bytes([rdx & 0xFF]) * r8 if fn == 'memset' else bytes(mu.mem_read(rdx, r8)))
+        mu.reg_write(X.UC_X86_REG_RAX, rcx)
+    elif fn == '_fdclass':   # MSVC: FP_NAN 2, FP_INFINITE 1, FP_ZERO 0, FP_NORMAL -1
+        v = f32reg(X.UC_X86_REG_XMM0)
+        mu.reg_write(X.UC_X86_REG_RAX, 2 if v != v else 1 if v in (float('inf'), float('-inf')) else 0 if v == 0 else 0xFFFF)
     elif fn in ('_aligned_malloc', 'malloc', '??2@YAPEAX_K@Z'):
         rcx, rdx = mu.reg_read(X.UC_X86_REG_RCX), mu.reg_read(X.UC_X86_REG_RDX)
         mu.reg_write(X.UC_X86_REG_RAX, alloc(rcx, max(16, rdx if fn == '_aligned_malloc' else 16)))

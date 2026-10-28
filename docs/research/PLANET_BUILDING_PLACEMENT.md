@@ -401,6 +401,15 @@ the game corrects stored heights with the full voxel terrain, so only unvisited 
 Notes: stub `_aligned_malloc` (the noise allocates scratch), `roundf`; do NOT copy the live .data (its caches point
 into game memory). Sea level: Yikjav 0 (no sea; NoSeaBaseLevel 20), Nitanya 120 (lava).
 
+**Placement emulation, in progress (2026-10-28).** `emu_overrides.py` runs `0x141635D10` on a planet object read live
+(`read_planet_object_live.py`, planet = block - 0x3398, 0xD7500 bytes; types/slots/overrides re-pointed). Needed so
+far: skip `0x141630100` (post-placement building-record pool + manager vtable call), set the run-time global byte
+`0x145340EC0` = 1 (else the accept test rejects everything), stubs for memset/memmove/_fdclass/_aligned_malloc/roundf.
+It now runs to completion (27 loop passes, about 2,700 attempts) and writes type indices but no positions - next
+suspect: the container allocator `0x142C8E290` (global allocator object empty in the file) breaking the hash map of
+placed points. **Also found: the game only fills OverrideBuildings when the player approaches a planet** - right
+after warping to a new system all records are zero (even the type index), so fresh ground truth needs an approach.
+
 **Forsaken (build 183791, 2026-10-28).** PLANETBUILDINGTABLE decodes with libMBIN 7.07 and is identical to the
 180836 table. NMS.exe moved: the BuildingLevel setter is now at `0x1416C84E3` (was `0x141695B73`, +0x32970) with the
 same logic. Addresses in this file are build 180836; re-locate by byte pattern before using them.
