@@ -29,7 +29,7 @@ These scripts are not part of the app.
 | `regionpositions.py` | Dumps one region's stored stars (index and position) from the emulator; `POSITIONS_OUT` appends them as JSON lines for `RegionCheck ordinary`. |
 | `spiraltrace.py` | Logs the spiral-arm step for one region: setup frame, then each star's inclusion inputs, arm angle, arm point and final position. |
 | `bsspeek.py` | Prints runtime (BSS) vectors after the startup initializers. |
-| `RegionCheck/` | C# checks of `ArtifactX.Core` against emulator output: `ordinary <jsonl>` (positions), `neighbours x y z Name`, `spiralfind galaxy x y z`. |
+| `RegionCheck/` | C# checks of `ArtifactX.Core` against emulator output: `ordinary <jsonl>` (positions), `neighbours x y z Name`, `spiralfind galaxy x y z`, `spirallist file` (which listed regions are spiral). |
 | `regionport.py` | Random-stream checkpoints between generator stages. |
 | `segconsts.py`, `noisetest.py` | Constant/jump-table dump and direct noise-routine test. |
 | `static/` | Static helpers: disassembly, call sites, rip-relative references, byte search, `.pdata` bounds, data peeks. |

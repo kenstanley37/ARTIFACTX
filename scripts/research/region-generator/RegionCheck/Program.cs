@@ -22,6 +22,7 @@ Console.WriteLine($"settings {settings}  FinalTransitionInterpolationValue {gala
 var placement = new GalaxyPlacementSettings(g.ConnectionAttractorMax.X, g.ConnectionAttractorMax.Y, g.ConnectionAttractorMin.X,
     g.ConnectionAttractorMin.Y, g.ConnectionDistortion.X, g.ConnectionDistortion.Y, g.ConnectionDistortionTMult, g.InnerFieldScales.Z,
     g.SpiralInclusion.X, g.SpiralInclusion.Y, g.SpiralFlex.X, g.SpiralFlex.Y, g.SpiralTwistMult, g.SpiralPull.X, g.SpiralPull.Y, g.SpiralPull.Z, g.InnerFieldScales.Y);
+if (args.Length > 0 && args[0] == "spirallist") { SpiralList.Show(args[1], settings, placement); return; }
 if (args.Length > 0 && args[0] == "spiralfind") { SpiralFind.Show(int.Parse(args[1]), Convert.ToInt32(args[2], 16), Convert.ToInt32(args[3], 16), Convert.ToInt32(args[4], 16), settings, placement); return; }
 if (args.Length > 0 && args[0] == "neighbours") { Neighbours.Show(Convert.ToInt32(args[1], 16), Convert.ToInt32(args[2], 16), Convert.ToInt32(args[3], 16), args[4], settings, placement); return; }
 if (args.Length > 0 && args[0] == "ordinary") { Console.WriteLine($"placement {placement}"); Positions.Check(args[1], settings, placement); return; }
