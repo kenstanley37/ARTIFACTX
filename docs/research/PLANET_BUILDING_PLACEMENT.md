@@ -232,6 +232,27 @@ Checks: the Depot and Factory feature points and keys are exact, and **all 1,246
 whose preceding 8 bytes are the previous point (e.g. `0xC7506E1D470248BE` = floats 33,352.7 and -53,358.1),
 not keys.
 
+**Building choice (2026-10-28).** The caller seeds an MWC from the site key (lo = key_lo + (key_lo == 0),
+hi = ror16(key_lo) ^ key_hi ^ key_lo) and **steps it once** before storing it (`0x14128EB5B`). The site builder
+`0x141605800` (building data `rcx`, that MWC `rdx`, face `r8d`, radius `xmm3`, key as the first stack argument) then:
+
+1. `slot = (int)((Next() + 0) * 999)` (`0x144B29EF8` = 999.0), an index into BuildingSlots (12 bytes each: index,
+   probability, has-building);
+2. no building unless `slot.HasBuilding`, `slot.Probability > Next()` and `slot.Index != -1`;
+3. the type is `Buildings[slot.Index]` (records 0xE0 apart in this build; classification byte at +0xD3). Classes 0x24
+   (Settlement_Hub) and 0x39 (Settlement_Hub_Builders) take a separate path unless a global flag is set.
+   (`0x142D76EF0`, a point-seed hash of the site's point, is called first but its result isn't used here.)
+
+Checks against the running game (`buildingcheck_live.py`, read-only, Peak XV's live slot table and types):
+
+- Depot key -> building 20, class 11 (Depot); Factory key -> building 21, class 12 (Factory).
+- All 1,246 genuine live site records are predicted to have a building (random cells: 8.4%), so the rule is right
+  for every site that exists.
+- Cells next to them with no record: 9,102 predicted empty, 536 predicted built. In the loaded area about 70% of
+  predicted-built sites are placed: **terrain filters the rest** (types carry Min/MaxHeight, and water, slope and
+  flatten rules apply). Placement needs ground height (roadmap step 3), and the slot table itself still has to be
+  ported from the planet stage (`0x14160B500`'s type loop and slot fill).
+
 So **every cell of every face is a site** with a computable key and feature point. Next: the world point of a
 site (the worker's projection of the feature point to the sphere; the emulator gives ground truth), then which sites
 get a building and of which type (`HasBuilding`, slot probabilities, the type list), and the per-site yaw (top 3
