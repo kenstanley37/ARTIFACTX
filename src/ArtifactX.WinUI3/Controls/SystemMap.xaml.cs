@@ -74,10 +74,12 @@ public sealed partial class SystemMap : UserControl
             double size = body.IsMoon ? MoonSize : PlanetSize;
             FrameworkElement drawing = body.Planet is KnownPlanet planet
                 ? PlanetDrawingHelper.CreatePlanetDrawing(planet, size, body.IsHere)
+                // Not discovered: a dashed outline, so it can't be mistaken for a grey (Dead) planet.
                 : new Ellipse
                 {
-                    Width = size, Height = size, Fill = ThemeResources.Brush("ThemeTextDimBrush"),
-                    Stroke = body.IsHere ? ThemeResources.Brush("ThemeAccentBrush") : null, StrokeThickness = 2,
+                    Width = size, Height = size, Fill = ThemeResources.Brush("ThemeVoidBrush"),
+                    Stroke = ThemeResources.Brush(body.IsHere ? "ThemeAccentBrush" : "ThemeTextDimBrush"), StrokeThickness = 1.5,
+                    StrokeDashArray = new DoubleCollection { 2, 2 },
                 };
             ToolTipService.SetToolTip(drawing, $"{body.Name}\n{body.Kind}" + (body.Planet is null ? "\nNot discovered yet" : ""));
             var label = new TextBlock
