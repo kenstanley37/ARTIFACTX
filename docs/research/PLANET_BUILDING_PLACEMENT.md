@@ -137,6 +137,13 @@ can't single out. Ruled out: `0x141E1CB20` reads `+0x33D0`/`+0x33D8` only to com
 serializer); `0x1418C62DA..0x1418C62EC` writes defaults (Spacing, divisions 1.0, sector seed); `0x14160B500`'s
 type loop (`0x14160B9C0..`) builds the per-planet building-type list from `PLANETBUILDINGTABLE` densities via
 `0x141648DE0` (is the type allowed) and does not place sites.
+Field-group scan (`static/fieldgroup.py 0x38 0x40 0x44 0x48`): 865 functions read all four offsets from one
+register, far too generic. Near the building code: `0x141691DA0` is a later stage drawing float lerps into
+`+0x33AC`/`+0x33B0`; `0x14168C640`/`0x14168D950` copy `GcPlanetGenerationInputData` fields. Neither is the point builder.
+Runtime list layout (base `+0x3398`): Buildings `+0x3398` (sized from the type loop), **BuildingSlots `+0x33A8`
+(1,000 reserved: at most about 1,000 sites)**, OverrideBuildings `+0x33B8`.
+Proposed: a read-only live read of the running game's planet data (like `read_region_star_positions.py`) to check
+the seed port and see the filled slot list.
 Next approaches: (a) callers of the building-data getters and of `lea reg, [planet+0x3398]`;
 (b) functions that read `+0x38`, `+0x40`, `+0x44` and `+0x48` from the same base register (a disp8 scan
 grouped by `.pdata` function); (c) the scan-event path that fills `BuildingLocation` must look up sites, so
