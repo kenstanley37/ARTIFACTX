@@ -171,6 +171,25 @@ the building parts). 1,275 of them lie within 0.02 of a grid corner, on all six 
 fixed per face and axis (-X: -,-; +X: +,+; -Z: +,+; +Z: -,-; +Y: -,+; -Y: +,-). So it's a fixed offset in the
 game's cube-to-sphere formula, not a random jitter. Work it out from the face axis convention.
 
+**Site records and the code that fills them (2026-10-28).** The 0x530-byte records are nodes of a hash map
+keyed by the 64-bit value at +0x00 (what looked like the "site seed" is the map key; the marker's
+BuildingSeed equals it for the Depot and the Factory). Node layout: `+0x00` key, `+0x08` packed word (Depot
+`0x1C050A00`), `+0x10` up to 41 `(x, y, z, 1)` points (point A first, then the buildings of the cluster),
+`+0x2A0` direction vectors. Pool: `0x141613630` allocates blocks of records (stride 0x530); `0x141610920`
+takes one, copies the key and clears the points. It's called from the site function **`0x14160694B`**
+(pdata chunks to `0x141608533`), which:
+
+- loops over the cluster's buildings with an MWC at `[rbp+0x1368]`;
+- reads the cluster layout's AlignmentJitter (`+0x20`) and AlignmentSteps (`+0x24`), draws the yaw
+  (`Next(steps)`-based, plus jitter) and calls the game's own `Sin`/`Cos` (`0x140206E60`/`0x140206D80`,
+  already ported in `GameTrig`);
+- inserts into the map through `0x141610650` (lookup) and `0x141610920` (insert); the key being inserted is
+  built at `[rbp+0x1370]`.
+
+Next: trace the start of `0x14160694B`: where its MWC (`[rbp+0x1368]`) is seeded, how the key at
+`[rbp+0x1370]` is formed (likely from the grid corner plus the point/sector seeds), and how the corner and
+building type are chosen.
+
 Open: which corners hold a building (the sector seed and slot probabilities), which building type each gets,
 how the per-site seed and yaw are made, and the exact jitter. Next: collect more sites (more booster markers, or
 read site records from memory) and find the code that writes the site records (search memory for the
