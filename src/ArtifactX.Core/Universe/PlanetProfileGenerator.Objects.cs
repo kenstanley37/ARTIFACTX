@@ -30,8 +30,11 @@ public sealed record BiomeObjects(float WaterActive, float HighWaterActive, floa
     float[] NoiseLayers, float[] Features, float Caves, ObjectList[] Lists);
 
 /// <summary>A voxelgeneratorsettings.mbin entry's Min settings, as far as random draws go:
-/// which noise layers (and their voxel type) and features can be on, and caves.</summary>
-public sealed record TerrainSetting(bool[] NoiseActive, int[] NoiseVoxelType, bool[] FeatureActive, bool Caves);
+/// which noise layers (and their voxel type) and features can be on, and caves. MinLayers / MaxLayers (the entry's
+/// Min and Max noise layers) and NoSeaBaseLevel are what <see cref="PlanetTerrain.Generate"/> draws a planet's terrain
+/// from; catalogs built before format 48 don't have them.</summary>
+public sealed record TerrainSetting(bool[] NoiseActive, int[] NoiseVoxelType, bool[] FeatureActive, bool Caves,
+    TerrainNoiseLayer[]? MinLayers = null, TerrainNoiseLayer[]? MaxLayers = null, float NoSeaBaseLevel = 0f);
 
 /// <summary>Terrain settings and gcterrainglobals' index ranges and sea levels.</summary>
 public sealed record TerrainTables(TerrainSetting[] Settings, int PrimeIndexStart, int PurpleIndexStart, bool LockIndex,

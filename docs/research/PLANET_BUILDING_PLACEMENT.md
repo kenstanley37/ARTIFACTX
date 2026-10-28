@@ -649,7 +649,7 @@ sector seed, divisions, prime, waterworld); centres equal after flooring to the 
 positions within 0.125 m.** Gap: prime bodies (planets 5 and 6 here) have no centre from SolarLayoutGeneration yet,
 so their centre came from the live data in this check.
 
-**Second system: purple star, a moon and a waterworld - 54/54 (2026-10-28).** Amazing Planet Biomes
+**Second system: purple star, a moon and a waterworld - 53/53 (2026-10-28).** Amazing Planet Biomes
 (0x0427005B6DA013, read live on the owner's main save; all 6 bodies prime): Scorched, a Toxic moon (sea 10), Lush,
 Dead, Frozen (purple terrain settings 21-27) and a Waterworld (sea 1500, setting 30). Every Core input equal to the
 live planet. Two fixes from the placement code `0x141635D10`:
@@ -660,8 +660,8 @@ live planet. Two fixes from the placement code `0x141635D10`:
   while the chain has entries**; a record finding the chain empty gets a random site like the portal. On a
   waterworld the chain is the start spawns + WaterDistressSignal (5), so DistressSignal, three start spawns use it
   and the last start spawn and the WaterDistressSignal are placed at random.
-Result with the closed-game inputs (centres from the live data: prime bodies): keys 54/54, within 0.28 m (the
-waterworld's centre is ~2.4 million units out). Both systems together: **103/103 records on 12 bodies**.
+Result with the closed-game inputs (centres from the live data: prime bodies): keys 53/53, within 0.28 m (the
+waterworld's centre is ~2.4 million units out). Both systems together: **102/102 records on 12 bodies**.
 
 **Prime body centres PORTED (2026-10-28).** `SolarLayoutGeneration.Centers` now places prime bodies too (build 183791
 layout `0x14167FD23`; prime loop `0x141680709..0x141680AC9`): after the primary loop, one draw per primary planet
@@ -673,3 +673,16 @@ prime bodies): **all-body centres 300/300 exact, 353 prime bodies**, station pos
 bodies of the two test systems (floored to the 1,000 grid). Station placement keeps using primary bodies only
 (prime-only systems still return no pose: untested). With this, override placement runs from the address alone
 for prime planets too.
+
+(Count correction 2026-10-28: the purple system has 53 records - 9+8+9+8+9+10 - not 54, so both systems together
+are 102, not 103. Every record matched; the earlier totals were mis-summed.)
+
+**C# port in Core: 102/102 (2026-10-28).** `TerrainNoise` (simplex with derivatives, uber noise, scalar fBm),
+`PlanetTerrain` (terrain data from the setting's Min/Max noise layers, height, base height, flatness) and
+`PlanetOverridePlacement` (record list, accept test, site query, phase 1 chain, phase 2) mirror the Python ports
+operation for operation (float32 where they are; the site query's mixed float32/double kept). `RegionCheck
+overrides` runs them from the address alone (terrain layers and override rules read from the game files through
+libMBIN, the rest from the catalog's PlanetGeneration rows) against the live records: **keys 102/102 on 12 bodies,
+positions within 0.28 m - the same as the Python port.** 0.9 s for a 6-planet system including file loading.
+Still to do for the app: the catalog step (voxel setting layers on TerrainSetting, override rules, the Shelter and
+Portal model radii from their scene bounds), then a service and the planet card UI.

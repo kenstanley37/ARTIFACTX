@@ -187,7 +187,7 @@ public static class PlanetBuildingSites
 
     private static uint Bits(float f) => BitConverter.SingleToUInt32Bits(f);
 
-    private static ulong StageSeed(ulong planetSeed, int stage)
+    internal static ulong StageSeed(ulong planetSeed, int stage)
     {
         var rng = Mwc.Start(planetSeed);
         ulong seed = 0;
@@ -217,7 +217,7 @@ public static class PlanetBuildingSites
 
     private static float Fraction(uint word) => (float)(word * 2.3283064370807974e-10);
 
-    private struct Mwc
+    internal struct Mwc
     {
         private uint _lo, _hi;
         public static Mwc Start(ulong seed)
