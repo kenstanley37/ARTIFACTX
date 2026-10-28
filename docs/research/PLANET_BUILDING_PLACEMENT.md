@@ -583,3 +583,11 @@ for a face only if its jittered feature point lies on that face (edge cells belo
 them on - the 9 misses of a "own face only" rule were all edge cells); nearest feature point on the sphere wins.
 600/600 against the emulator (`voronoi183791.py`: 300 random, 300 near cube edges and corners). The worker's float
 output is that distance; its third output is the face normal.
+
+**Cheap base height + flatness test PORTED, exact (2026-10-28).** `heightport.base_height` (= `0x14128CA10`: layers 7
+and 6 only, combined as in the full height, at normalize(p) * radius; 60/60 on 3 planets) and `flatport.flatness`
+(= `0x14128C350`, non-settlement path: 8 samples on a ring of radius 64 - or the type's `+0xC0` when building-data
+byte `+0x4D` is set - around the site, a Rodrigues rotation of the tangent built from n x up (up = (0,1,0)) about n
+by i*pi/4 with the game's own sin/cos (`0x140201600` / `0x140201520`, Core GameTrig); slope = max |h0 - hi| / 64;
+also the ring min/max). 20/20 on 2 planets. Settlement types (classes 0x24..0x3B, `0x1412B5220`) take a second
+ring and an engine check - not needed for portals.

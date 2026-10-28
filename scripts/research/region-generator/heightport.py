@@ -85,6 +85,22 @@ def base_hash(seed64):
     eax = ((ecx << 25) & M) ^ ecx
     return ((eax >> 6) + eax) & M
 
+def base_height(terrain, p, radius):
+    """0x14128CA10: only the base (layers 7 and 6, combined as in height) at normalize(p) * radius; the flatness
+    test samples the ground with it."""
+    import math
+    x, y, z = (f(c) for c in p)
+    inv = f(ONE / f(np.sqrt(f(f(f(x * x) + f(y * y)) + f(z * z)))))
+    q = (f(f(x * inv) * f(radius)), f(f(y * inv) * f(radius)), f(f(z * inv) * f(radius)))
+    h = base_hash(struct.unpack_from('<Q', terrain, 0xAB0)[0])
+    Ls = [layer_at(terrain, i) for i in range(8)]
+    def seed(i): return ((Ls[i]['SeedOffset'] + i + h + 2**31) % 2**32) - 2**31
+    h7 = layer_value(Ls[7], *q, seed(7)) if Ls[7]['Active'] else f(0)
+    h6 = layer_value(Ls[6], *q, seed(6)) if Ls[6]['Active'] else f(0)
+    base = max(h6, f(0))
+    if Ls[7]['Active']: base = f(f(f(h7 / Ls[7]['Height']) * base) + h7)
+    return base
+
 def height(terrain, p):
     x, y, z = (f(c) for c in p)
     h = base_hash(struct.unpack_from('<Q', terrain, 0xAB0)[0])
