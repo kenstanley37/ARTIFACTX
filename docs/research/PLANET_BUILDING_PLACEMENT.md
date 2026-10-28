@@ -605,3 +605,6 @@ Runtime: ~3 s per planet in Python. Open: the record list (which override types 
 still comes from the live records - it is built from `PLANETBUILDINGTABLE` overrides in the type loop and needs
 porting before the app can place a portal with no game running; the portal-registry uniqueness check
 (`planet+0x3BA0`) did not trigger here.
+Save check (game closed, 2026-10-28): the portal marker the game itself saved on Ribhakyam in Slot 8 (A1f event
+`9@i` 3, `oZw` as hex text) has exactly the predicted key `0x812726D1BA4E9FAB` and position. Predicted portal
+markers for the other 5 planets were added to Slot 8 in the same format (backup taken first) for an in-game check.
