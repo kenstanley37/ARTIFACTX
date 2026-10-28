@@ -87,35 +87,38 @@
                         <StackPanel Spacing="10">
                             <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
                                        Text="Every system the game generates in this region that isn't in your save yet, in the game's own numbering. Stars are numbered as the galaxy is built, so neighbouring numbers are mostly close together."/>
-                            <ItemsControl ItemsSource="{x:Bind ViewModel.Unvisited, Mode=OneWay}">
-                                <ItemsControl.ItemTemplate>
+                            <!-- Small cards in a virtualized grid: only the cards on screen are built. -->
+                            <ItemsRepeater ItemsSource="{x:Bind ViewModel.Unvisited}">
+                                <ItemsRepeater.Layout>
+                                    <UniformGridLayout MinItemWidth="290" MinItemHeight="104" MinRowSpacing="10" MinColumnSpacing="10" ItemsStretch="Fill"/>
+                                </ItemsRepeater.Layout>
+                                <ItemsRepeater.ItemTemplate>
                                     <DataTemplate x:DataType="viewmodels:UnvisitedSystemViewModel">
-                                        <Grid ColumnSpacing="16" Padding="0,6" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="0,0,0,1">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Spacing="2" VerticalAlignment="Center">
-                                                <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold"/>
-                                                <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                                        <Border Padding="12,10" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
+                                                BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                                            <StackPanel Spacing="6">
+                                                <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{x:Bind Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <controls:GlyphStrip Code="{x:Bind PortalCode}" Title="{x:Bind Name}" GlyphSize="16"/>
+                                                    <controls:CopyCodeButton Code="{x:Bind PortalCode}"/>
+                                                </StackPanel>
                                             </StackPanel>
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                                <controls:GlyphStrip Code="{x:Bind PortalCode}" Title="{x:Bind Name}" GlyphSize="18"/>
-                                                <controls:CopyCodeButton Code="{x:Bind PortalCode}"/>
-                                            </StackPanel>
-                                        </Grid>
+                                        </Border>
                                     </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <Button Content="Show 50 more" Click="ShowMoreUnvisited_Click" Visibility="{x:Bind ViewModel.CanShowMoreUnvisited, Mode=OneWay}"/>
+                                </ItemsRepeater.ItemTemplate>
+                            </ItemsRepeater>
                         </StackPanel>
                     </Border>
                 </controls:FoldingCard>
 
-                <ItemsControl ItemsSource="{x:Bind ViewModel.Systems, Mode=OneWay}">
-                    <ItemsControl.ItemTemplate>
+                <ItemsRepeater ItemsSource="{x:Bind ViewModel.Systems}">
+                    <ItemsRepeater.Layout>
+                        <StackLayout Spacing="10"/>
+                    </ItemsRepeater.Layout>
+                    <ItemsRepeater.ItemTemplate>
                         <DataTemplate x:DataType="viewmodels:RegionSystemViewModel">
-                            <Border Margin="0,0,0,10" Padding="16,12" Background="{ThemeResource ThemePanelAltBrush}"
+                            <Border Padding="16,12" Background="{ThemeResource ThemePanelAltBrush}"
                                     BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
                                 <Grid ColumnSpacing="20" RowSpacing="8">
                                     <Grid.ColumnDefinitions>
@@ -157,8 +160,8 @@
                                 </Grid>
                             </Border>
                         </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    </ItemsRepeater.ItemTemplate>
+                </ItemsRepeater>
             </StackPanel>
         </ScrollViewer>
     </Grid>
