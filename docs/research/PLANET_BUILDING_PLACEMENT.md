@@ -68,6 +68,11 @@ player stood. That is exactly what the centre floored to 1,000 gives (the save's
 the raw generated centre gives -37.51, +17.28. So the planet sits at `floor(generated / 1000) * 1000`. Marker radii
 from that centre: depot 130,319, factory 130,193, player 130,242; the depot should read +8.96, -61.54.
 
+**Site check (2026-10-28).** At the Manufacturing Facility the Factory marker gave +7.72, -140.37; the visor read
++7.71, -140.40 at the facility's save beacon, about 55 units from the marker point. The player there stood 14
+units above the marker's radius (130,207 vs 130,193), so the marker sits at ground level near the building. The
+marker left `A1f` once reached, so markers must be captured before arrival.
+
 ## Native leads (NMS build 180836)
 
 - `0x14168F282`, `0x141691197`: write `Spacing = 250.0` at `+0x3374` of a planet-data object
