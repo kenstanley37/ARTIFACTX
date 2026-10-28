@@ -23,7 +23,10 @@ public sealed record PortalLocation(ulong PlanetAddress, ulong Key, double X, do
 public static class PortalLocationService
 {
     private const int PortalClass = 16;
-    private static readonly ConcurrentDictionary<ulong, Task<IReadOnlyDictionary<int, PortalLocation>>> Systems = new();
+    private static readonly ConcurrentDictionary<ulong, Task<IReadOnlyDictionary<int, PortalLocation>?>> Systems = new();
+
+    // A rebuilt catalog may change the rules; results worked out before it are dropped.
+    static PortalLocationService() => CatalogService.Reloaded += Systems.Clear;
 
     /// <param name="planetAddress">A planet's packed address (planet number in bits 52-55).</param>
     public static async Task<PortalLocation?> GetAsync(ulong planetAddress)
@@ -34,7 +37,13 @@ public static class PortalLocationService
         var task = Systems.GetOrAdd(system, ForSystemAsync);
         try
         {
-            var portals = await task;
+            // Null = the catalog lacked the tables (not built yet, or older game data): not cached, so the next
+            // ask - after a rebuild - works it out again.
+            if (await task is not { } portals)
+            {
+                Systems.TryRemove(new KeyValuePair<ulong, Task<IReadOnlyDictionary<int, PortalLocation>?>>(system, task));
+                return null;
+            }
             return portals.GetValueOrDefault(index);
         }
         catch (Exception ex)
@@ -45,14 +54,14 @@ public static class PortalLocationService
         }
     }
 
-    private static async Task<IReadOnlyDictionary<int, PortalLocation>> ForSystemAsync(ulong system)
+    private static async Task<IReadOnlyDictionary<int, PortalLocation>?> ForSystemAsync(ulong system)
     {
         var result = new Dictionary<int, PortalLocation>();
         var biomes = await CatalogService.GetBiomeTablesAsync();
         var profiles = await CatalogService.GetPlanetProfileTablesAsync();
         var stations = await CatalogService.GetStationEquipmentTablesAsync();
         var rules = await CatalogService.GetBuildingOverrideRulesAsync();
-        if (biomes is null || profiles is null || stations is null || rules is null) return result;
+        if (biomes is null || profiles is null || stations is null || rules is null) return null;
         var (code, galaxy) = UniverseInfo.Generator(system);
         var bodies = await Task.Run(() => PlanetOverridePlacement.ForSystem(code, galaxy, biomes, profiles, stations.SolarLayout, rules));
         for (int i = 0; i < bodies.Length; i++)

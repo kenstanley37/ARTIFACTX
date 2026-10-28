@@ -36,7 +36,12 @@ public static class CatalogService
         _moduleClasses = null;
         _pathChecked = false;
         _dbPath = null;
+        Reloaded?.Invoke();
     }
+
+    /// <summary>Raised after <see cref="Reload"/> (a game data rebuild), so services that keep results worked
+    /// out from catalog tables drop them.</summary>
+    public static event Action? Reloaded;
 
     /// <summary>The cached entry for an id. An id WarmCacheAsync hasn't seen is looked
     /// up in the catalog once (name only, no icon - WarmCacheAsync still fetches that),
