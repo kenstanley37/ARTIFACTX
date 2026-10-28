@@ -128,6 +128,47 @@ planet names), so both Voronoi seeds are computable for any planet. Not yet veri
 Helpers: `static/importof.py` names imported CRT functions behind `jmp [rip+X]` thunks (`0x1433E4BEE` = ceilf,
 `0x1433E4BC4` = powf).
 
+## Live memory findings (2026-10-28, game running on Peak XV, read-only)
+
+Tools: `scripts/diagnostics/read_planet_building_data.py` (finds every planet's runtime building block by its
+signature), `read_planet_building_slots.py`, `find_value_anywhere.py`, `dump_memory.py`, and
+`scripts/research/region-generator/buildingseeds.py` (the seed port).
+
+**Seed chain confirmed on all five Oystana bodies.** The point and sector seeds in memory equal the port's
+prediction from each planet seed: Peak XV 4217/2243, Ilfordo VII 5725/6583, Akui 44/T4 4075/3161,
+Epsh X 8034/5595, Varijing Zurum 5906/3953. Radius and divisions match the traced formula (Peak XV
+R = 130,048, 546 divisions; Ilfordo VII R = 15,360, 66 divisions). Peak XV holds 224 building types,
+1,000 slots (86 with HasBuilding set: slots 0-19 empty, 20 onward filled, building indices 0..149) and 9 overrides.
+Building records are 0xF0 bytes, with each type's seed at +0x68.
+
+**Marker seeds are per site, not per type.** The Depot (`0x52782ECF461FC6ED`) and Factory (`0x9000E0F810A08E36`)
+seeds are not among the 224 type records. They appear in:
+
+- a site record: `[seed][4 bytes][packed word][point A xyzw][point B xyzw]...`. Depot point A is
+  (-112,933.3, 20,268.2, 61,220.2) and Factory point A is (-82,177.6, 17,456.7, -99,270.3), both planet-relative
+  and **at exactly the base radius 130,048**. Further points nearby are the building's parts.
+- scene nodes holding the building's world transform. For the Depot, the axes are (0.2656, -0.6557, 0.7068),
+  **(-0.8684, 0.1558, 0.4708) = the radial "up" at the site**, and (-0.4188, -0.7388, -0.5280), at position
+  (-71,165.8, 19,301.2, 317,351): the marker point.
+- the runtime scan event (marker position plus the event name `DEPOT`).
+
+**Sites are corners of a cube-sphere grid.** Projecting point A onto a cube (dominant axis, then
+`u = d_other / |d_dominant|`), in cells of `(u + 1) / 2 * divisions`:
+
+| Site | Face | Grid position (546 divisions) |
+| --- | --- | --- |
+| Depot | -X | (321.995, 420.991) |
+| Factory | -Z | (47.006, 321.007) |
+
+Both are within 0.01 of whole-number grid corners. The leftover (about 2-4 units) may be a small seeded
+jitter or the game's cube-to-sphere mapping; settle it with more sites. **The marker is that point raised to the
+ground:** the Factory's point A scaled to the marker's radius (130,193) lands within about 20 units of the marker.
+
+Open: which corners hold a building (the sector seed and slot probabilities), which building type each gets,
+how the per-site seed and yaw are made, and the exact jitter. Next: collect more sites (more booster markers, or
+read site records from memory) and find the code that writes the site records (search memory for the
+record layout, then the writer).
+
 ## Next
 
 **Where the Voronoi points are built: not found yet (2026-10-28).** The runtime building data starts at
