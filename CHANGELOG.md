@@ -28,6 +28,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### New
 
+- **Crashed ships**: Planet Details lists the 5 crashed ships nearest you, or nearest the planet's portal when you're not there, with their coordinates and distance. Each has an optional button to add a marker to your save (the game must be closed), so the game leads you to it. Which ship lies there isn't shown yet. Rebuild game data to enable this.
+
 - **Portal locations**: Every planet card on Current System shows where that planet's portal stands, in the same coordinates as your Analysis Visor. It's worked out from the game's own rules, so it works on planets nobody has visited. Open a planet to add a marker for its portal to your save; the game then leads you straight to it. Adding a marker needs No Man's Sky closed, and you save your changes as usual. Rebuild game data to enable this.
 
 - **System map**: Current System shows the system you're in as a 3D map, with every planet and moon where the game actually places them and each moon tied to the planet it orbits. The space station is marked too, and so are you when you're in space (in your ship or aboard your freighter). The map starts looking down on the planets. Discovered planets show their colour and rings, undiscovered ones are a dashed outline, and the one you're on is outlined. Turn, move and zoom it like the region map, and click a planet to open it. It takes the place of the system picture and the orbit drawing.

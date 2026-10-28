@@ -56,80 +56,75 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     private PortalLocation? _portal;
     private ulong _planetAddress;
 
-    /// <summary>The save's active scan events (markers) - the list the marker is added to.</summary>
-    private static readonly string[] ScanEventsPath = { "vLc", "6f=", "A1f" };
+    // Crashed ships nearest you (on this planet) or the portal (CrashedShipService).
+    [ObservableProperty] public partial IReadOnlyList<CrashedShipRowViewModel> CrashedShips { get; private set; } = [];
+    [ObservableProperty] public partial bool HasCrashedShips { get; private set; }
+    [ObservableProperty] public partial string CrashedShipsHeading { get; private set; } = "CRASHED SHIPS";
+    [ObservableProperty] public partial string CrashedShipsHint { get; private set; } = "";
 
     public async Task LoadAsync(KnownPlanet planet, PlanetSnapshot snapshot)
     {
         _portal = null;
         HasPortal = false;
+        CrashedShips = [];
+        HasCrashedShips = false;
         _planetAddress = planet.Address;
         _centre = await PlanetCentreService.GetAsync(planet.Address);
         UpdateLocations(planet, snapshot);
         var portal = await PortalLocationService.GetAsync(planet.Address);
         if (_planetAddress != planet.Address) return;   // moved on to another planet meanwhile
         _portal = portal;
-        RefreshPortal();
+        RefreshMarkers();
+        await LoadCrashedShipsAsync(planet, snapshot);
     }
 
-    /// <summary>Shows whether the portal is marked in the save, and whether a marker can be added now.</summary>
-    public void RefreshPortal()
+    /// <summary>The 5 crashed-ship sites nearest you when you're on this planet, else nearest its portal.</summary>
+    private async Task LoadCrashedShipsAsync(KnownPlanet planet, PlanetSnapshot snapshot)
     {
+        bool here = S.ReadSystemAddress(snapshot.Universe) == planet.SystemAddress
+            && snapshot.Universe?["oZw"]?["jsv"]?.Value<int>() == planet.PlanetIndex && snapshot.Coordinates is not null;
+        (double Lat, double Lon)? from = here ? snapshot.Coordinates : _portal is { } p ? (p.Latitude, p.Longitude) : null;
+        if (from is not { } at) return;
+        var sites = await CrashedShipService.NearAsync(planet.Address, at.Lat, at.Lon);
+        if (_planetAddress != planet.Address) return;
+        CrashedShips = sites.Select((s, i) => new CrashedShipRowViewModel(s, i + 1)).ToList();
+        HasCrashedShips = CrashedShips.Count > 0;
+        CrashedShipsHeading = here ? "CRASHED SHIPS NEAR YOU" : "CRASHED SHIPS NEAR THE PORTAL";
+        CrashedShipsHint = "Where crashed ships lie, worked out from the game's own rules. Which ship is there (name, class, type) "
+            + "isn't known yet. Now and then the ground leaves a spot empty.";
+    }
+
+    /// <summary>Shows whether the portal and crashed ships are marked in the save, and whether markers can be added now.</summary>
+    public void RefreshMarkers()
+    {
+        foreach (var ship in CrashedShips) ship.Refresh();
         HasPortal = _portal is not null;
         if (_portal is not { } portal) return;
         PortalCoordinates = portal.Coordinates;
-        bool marked = HasPortalMarker(portal);
-        bool staged = marked && SaveSessionManager.HasStagedEdit(ScanEventsPath);
-        CanUndoPortalMarker = staged;
-        CanAddPortalMarker = !marked && SaveSessionManager.IsSaveLoaded && !GameProcessMonitorService.IsGameRunning;
-        PortalStatus = staged ? "Marker added. Save your changes to write it to your save."
+        bool marked = ScanMarkerService.IsMarked(portal.Key), unsaved = ScanMarkerService.IsUnsaved(portal.Key);
+        CanUndoPortalMarker = unsaved;
+        CanAddPortalMarker = !marked && ScanMarkerService.CanAdd;
+        PortalStatus = unsaved ? "Marker added. Save your changes to write it to your save."
             : marked ? "This portal is marked in your save."
             : !SaveSessionManager.IsSaveLoaded ? "Load a save to add a marker."
             : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to add a marker to your save."
             : "Adds a marker to your save that leads you to this portal in game.";
     }
 
-    private static bool HasPortalMarker(PortalLocation portal)
-    {
-        string key = $"0x{portal.Key:X16}";
-        return SaveSessionManager.GetValue(ScanEventsPath) is JArray events
-            && events.OfType<JObject>().Any(e => string.Equals(e["5bU"]?[1]?.Value<string>(), key, System.StringComparison.OrdinalIgnoreCase));
-    }
-
-    /// <summary>
-    /// Stages the whole scan-event list with a portal marker added, in the game's own format: written the same
-    /// way as the portal marker the game saved itself on Ribhakyam (Slot 8, 2026-10-28: 9@i 3, oZw as hex text,
-    /// 5bU [true, site key], TWn the system-space position); five markers written this way led straight to the
-    /// portal in game (2026-10-28).
-    /// </summary>
+    /// <summary>The portal marker, in the format the game saves portal markers in (table 3).</summary>
     [RelayCommand]
     private void AddPortalMarker()
     {
-        if (_portal is not { } portal || !SaveSessionManager.IsSaveLoaded || GameProcessMonitorService.IsGameRunning
-            || HasPortalMarker(portal)) return;
-        var events = SaveSessionManager.GetValue(ScanEventsPath) is JArray current ? (JArray)current.DeepClone() : new JArray();
-        events.Add(new JObject
-        {
-            ["9@i"] = 3,
-            ["FN5"] = "^PORTAL",
-            ["oZw"] = $"0x{portal.PlanetAddress:X}",
-            ["5bU"] = new JArray(true, $"0x{portal.Key:X16}"),
-            ["TWn"] = new JArray(System.Math.Round(portal.X, 3), System.Math.Round(portal.Y, 3), System.Math.Round(portal.Z, 3)),
-            ["iqv"] = new JObject { ["iqv"] = "Portal" },
-            ["ADw"] = 0.0,
-            ["jGk"] = "^",
-            ["1JW"] = 0,
-            ["M?f"] = new JObject { ["M?f"] = "None" },
-        });
-        SaveSessionManager.StageEdit(events, ScanEventsPath);
-        RefreshPortal();
+        if (_portal is not { } portal) return;
+        ScanMarkerService.Add(portal.PlanetAddress, portal.Key, portal.X, portal.Y, portal.Z, 3, "PORTAL", "Portal");
+        RefreshMarkers();
     }
 
     [RelayCommand]
     private void UndoPortalMarker()
     {
-        SaveSessionManager.RevertEdit(ScanEventsPath);
-        RefreshPortal();
+        if (_portal is { } portal) ScanMarkerService.Remove(portal.Key);
+        RefreshMarkers();
     }
 
     /// <summary>

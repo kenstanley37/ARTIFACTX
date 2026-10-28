@@ -39,6 +39,9 @@ public static partial class CatalogSteps
     /// - "INVENTORYGENERATION": JSON in the shape of Core's InventoryGenerationTables - S-Class
     ///   base stat roll ranges, class probabilities, max inventory slot capacities
     ///   (inventorytable.mbin) and planetary building placement densities (planetbuildingtable.mbin).
+    /// - "BUILDINGPLACEMENT": JSON array of Core's BuildingClassPlacement (planetbuildingtable.mbin): each class's
+    ///   density per level and planet restrictions, what PlanetBuildingSites' slot table (which grid site holds what,
+    ///   crashed ships included) is built from.
     /// - "BUILDINGOVERRIDES": JSON array of Core's BuildingOverrideRule (planetbuildingtable.mbin): the portal,
     ///   shelter, base, distress signal and start spawn rules PlanetOverridePlacement uses.
     /// - "STATIONEQUIPMENT": JSON in the shape of Core's StationEquipmentTables - solar layout
@@ -103,6 +106,12 @@ public static partial class CatalogSteps
 
         if (InventoryTables(Decode) is { } invTables)
             rows.Add(new CatalogItem { GameId = "INVENTORYGENERATION", NameEnglish = "InventoryGenerationTables", DescriptionEnglish = JsonSerializer.Serialize(invTables) });
+
+        if (Decode(BuildingTableFile) is GcBuildingDefinitionTable placementTable)
+            rows.Add(new CatalogItem { GameId = "BUILDINGPLACEMENT", NameEnglish = "BuildingClassPlacement", DescriptionEnglish = JsonSerializer.Serialize(
+                placementTable.BuildingPlacement.Select(d => new BuildingClassPlacement(d.Density, d.PlanetRestrictions.RequiresCorruptSentinels,
+                    d.PlanetRestrictions.RequiresRelicWorld, d.PlanetRestrictions.RequiresScrapWorld, d.PlanetRestrictions.RequiresWater,
+                    d.EnabledWhenPlanetHasNoNPCs)).ToArray()) });
 
         if (BuildingOverrides(Decode) is { } overrides)
             rows.Add(new CatalogItem { GameId = "BUILDINGOVERRIDES", NameEnglish = "BuildingOverrideRules", DescriptionEnglish = JsonSerializer.Serialize(overrides) });

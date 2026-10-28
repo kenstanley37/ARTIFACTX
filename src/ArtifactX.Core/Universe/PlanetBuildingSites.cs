@@ -155,6 +155,60 @@ public static class PlanetBuildingSites
             }
     }
 
+    /// <summary>The planet facts the slot table needs, generated from the address: density level, corrupt sentinels,
+    /// relic, scrap, water and NPCs (an abandoned system has none). Null when the planet can't be generated.</summary>
+    public static BuildingPlanetFacts? FactsFor(ulong portalCode, int galaxy, int planetIndex, BiomeTables biomes,
+        PlanetProfileTables profiles)
+    {
+        var types = PlanetGenerator.Generate(portalCode, galaxy, biomes);
+        var seeds = SystemGenerator.Bodies(portalCode, galaxy).PlanetSeeds;
+        if (planetIndex < 0 || planetIndex >= types.Length || planetIndex >= seeds.Length) return null;
+        var body = types[planetIndex];
+        var attributes = SystemGenerator.Attributes(portalCode, galaxy);
+        var profile = PlanetProfileGenerator.Generate(seeds[planetIndex], planetIndex, body, (int)attributes.Star,
+            PlanetGenerator.GalaxyType(galaxy), attributes.GasGiantPlanet, profiles, attributes.Uncharted, attributes.Abandoned);
+        return new BuildingPlanetFacts(DensityLevel(body.Biome, body.SubType, body.Class),
+            profile.Sentinels[Math.Clamp(profiles.Sentinels.CheckDifficulty, 0, 3)] == 3, IsRelicWorld(body.Biome, body.SubType),
+            profile.ScrapWorld, profile.Water, !attributes.Abandoned);
+    }
+
+    /// <summary>
+    /// The built sites of the wanted class(es) nearest a direction from the planet's centre, nearest first: only the
+    /// cells within <paramref name="cellRange"/> of the point on each face it faces (a cell counts for the face its
+    /// jittered point lies on, as in the game's Voronoi query), so it stays cheap on any planet. Checked 2026-10-28:
+    /// the crashed ship Final Eokak III on Ribhakyam stands at the predicted DistressSignal site (+66.88, +81.50; the
+    /// Analysis Visor read +66.88, +81.49 at its cockpit).
+    /// </summary>
+    public static List<BuildingSite> SitesNear(Vector3 direction, int divisions, float radius, int sectorSeed,
+        (int Class, float Probability)[] slots, Func<int, bool> wanted, int count, int cellRange = 60)
+    {
+        int half = divisions / 2;
+        var dir = Vector3.Normalize(direction);
+        var found = new List<BuildingSite>();
+        for (int face = 0; face < 6; face++)
+        {
+            int axis = face switch { 0 or 1 => 2, 2 or 3 => 0, _ => 1 };
+            int sign = face is 1 or 2 or 5 ? 1 : -1;
+            float along = axis == 0 ? dir.X : axis == 1 ? dir.Y : dir.Z;
+            if (along * sign <= 0) continue;
+            // The face's two other coordinates in x, y, z order, as Site() takes them.
+            float a = axis == 0 ? dir.Y : dir.X, b = axis == 2 ? dir.Y : dir.Z;
+            int cu = (int)MathF.Floor(a / MathF.Abs(along) * half), cv = (int)MathF.Floor(b / MathF.Abs(along) * half);
+            for (int u = Math.Max(-half, cu - cellRange); u <= Math.Min(half, cu + cellRange); u++)
+                for (int v = Math.Max(-half, cv - cellRange); v <= Math.Min(half, cv + cellRange); v++)
+                {
+                    var site = Site(face, u, v, divisions, radius, sectorSeed, slots);
+                    if (site.Class < 0 || !wanted(site.Class)) continue;
+                    var f = Vector3.Normalize(site.Point);
+                    float fa = MathF.Abs(axis == 0 ? f.X : axis == 1 ? f.Y : f.Z);
+                    if ((axis == 0 ? f.X : axis == 1 ? f.Y : f.Z) * sign <= 0 || (axis != 0 && MathF.Abs(f.X) >= fa)
+                        || (axis != 1 && MathF.Abs(f.Y) >= fa) || (axis != 2 && MathF.Abs(f.Z) >= fa)) continue;
+                    found.Add(site);
+                }
+        }
+        return found.OrderByDescending(s => Vector3.Dot(Vector3.Normalize(s.Point), dir)).Take(count).ToList();
+    }
+
     /// <summary>The worker's jittered feature point of a cell.</summary>
     public static Vector3 Feature(int face, Vector3 cell)
     {
