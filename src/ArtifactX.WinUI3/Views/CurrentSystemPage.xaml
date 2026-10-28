@@ -191,11 +191,10 @@
 
                                     <TextBlock Visibility="{x:Bind ViewModel.NoPlanets, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"
                                                Text="No planets in this system are in your discoveries yet. Scan or land on one in-game, then save."/>
-                                    <!-- Left-aligned: the panel's width is its widest row, so it would otherwise sit centred. -->
-                                    <ItemsControl ItemsSource="{x:Bind ViewModel.Tiles, Mode=OneWay}" HorizontalAlignment="Left">
+                                    <ItemsControl ItemsSource="{x:Bind ViewModel.Tiles, Mode=OneWay}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <controls:EqualHeightWrapPanel HorizontalSpacing="14" VerticalSpacing="14"/>
+                                                <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="14"/>
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>

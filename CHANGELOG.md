@@ -6,7 +6,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
-- **Current System planet cards**: The cards now line up from the left and wrap onto new rows instead of sitting centred, with some space below the section heading.
+- **Current System planet cards**: The cards now line up from the left and wrap onto new rows instead of sitting centred, with some space below the section heading. Cards are no longer all stretched to the height of the tallest one, so short cards don't leave a big empty gap.
 
 - **No Man's Sky Forsaken (7.10)**: ArtifactX reads the Forsaken update's game files correctly again. Before this, a game data rebuild on Forsaken left the Regions map without its star settings, the Corvette Cache without its buildable parts, and some multi-tool and space station details wrong. Rebuild game data to apply the fix. The title bar now shows the No Man's Sky release ArtifactX was tested with, and says when your game is newer than that.
 
