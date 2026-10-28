@@ -4,6 +4,8 @@ using libMBIN.NMS.Globals;
 using System.Diagnostics;
 using System.Text.Json;
 
+if (args.Length > 0 && args[0] == "layout") { Layout.Show(args[1], args.Skip(2)); return; }
+if (args.Length > 0 && args[0] == "hosts") { Hosts.Show(args.Skip(1)); return; }
 if (args.Length > 0 && args[0] == "noise") { Noise.Check(args[1]); return; }
 if (args.Length > 0 && args[0] == "positions") { Positions.Check(args[1]); return; }
 string data = Environment.GetEnvironmentVariable("NMS_EMU_DATA")!;

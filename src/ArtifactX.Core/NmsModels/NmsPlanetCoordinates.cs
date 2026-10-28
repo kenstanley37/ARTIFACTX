@@ -51,6 +51,39 @@ public static class NmsPlanetCoordinates
         return From(player, centre);
     }
 
+    /// <summary>
+    /// Every planet and moon centre in the current system: (planet index, x, y, z) for each used slot.
+    /// Moons sit 226,000 units (rounded) from the planet they orbit; that matched the system generator's
+    /// moon hosts in all nine save systems checked 2026-10-27 (three with moons), and no other two bodies
+    /// were closer than about 680,000.
+    /// </summary>
+    public static List<(int Index, double X, double Y, double Z)> Centres(JToken? planetPositions)
+    {
+        var centres = new List<(int, double, double, double)>();
+        if (planetPositions is not JArray slots) return centres;
+        for (int i = 0; i < slots.Count; i++)
+            if (Vector(slots[i]) is { } c && (c.X != 0 || c.Y != 0 || c.Z != 0)) centres.Add((i + 1, c.X, c.Y, c.Z));
+        return centres;
+    }
+
+    /// <summary>
+    /// Where the player is in the solar system, in the planet centres' space. rnc.mEH is the player's position,
+    /// except aboard the freighter, where it's measured inside the freighter and rnc.NGn (the freighter's position)
+    /// is used. Evidence (Slot 1, Oystana, 2026-10-27): saved InShip, mEH equalled tnP (the ship's position, with
+    /// its facing vectors); saved AboardFleet 16 minutes earlier, mEH was (2.7, 31.8, -63.6) while NGn stayed the
+    /// same in both saves. Null in a space station, where mEH is also local (the station marker shows it).
+    /// </summary>
+    public static (double X, double Y, double Z)? PlayerInSystem(JToken? spawn) =>
+        spawn?["jk4"]?.Value<string>() switch
+        {
+            "AboardFleet" => Vector(spawn?["NGn"]),
+            "InStation" => null,
+            _ => Vector(spawn?["mEH"]),
+        };
+
+    /// <summary>The player's state word (rnc.jk4): OnFoot, InShip, InShipLanded, InStation, AboardFleet...</summary>
+    public static string State(JToken? spawn) => spawn?["jk4"]?.Value<string>() ?? "";
+
     /// <summary>Latitude/longitude of a system-space position on the planet
     /// whose centre is given.</summary>
     public static (double Latitude, double Longitude)? From((double X, double Y, double Z) position, (double X, double Y, double Z) centre)
