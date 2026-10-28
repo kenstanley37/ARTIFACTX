@@ -686,3 +686,10 @@ libMBIN, the rest from the catalog's PlanetGeneration rows) against the live rec
 positions within 0.28 m - the same as the Python port.** 0.9 s for a 6-planet system including file loading.
 Still to do for the app: the catalog step (voxel setting layers on TerrainSetting, override rules, the Shelter and
 Portal model radii from their scene bounds), then a service and the planet card UI.
+
+**Catalog step (format 48, 2026-10-28).** `CatalogSteps.AddPlanetGeneration` now stores each terrain setting's Min and
+Max noise layers and NoSeaBaseLevel on `TerrainSetting` (PLANETPROFILE row, ~454 KB) and a new BUILDINGOVERRIDES row
+(Core `BuildingOverrideRule[]` from planetbuildingtable.mbin). Ran on a copy of the catalog from the Forsaken install,
+then `RegionCheck overrides <address> ... - buildingoverrides.json` reading only those catalog rows: **102/102**, same
+positions. Open: the Shelter and Portal model radii (prime planets' flatness ring) are the values measured in the
+running game (`CatalogSteps.MeasuredModelRadius`), not extracted from the model files yet.

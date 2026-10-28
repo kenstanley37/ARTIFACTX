@@ -21,13 +21,15 @@ static class Overrides
         var biomes = JsonSerializer.Deserialize<BiomeTables>(File.ReadAllText(biomeFile))!;
         var profiles = JsonSerializer.Deserialize<PlanetProfileTables>(File.ReadAllText(profileFile))!;
         var stations = JsonSerializer.Deserialize<StationEquipmentTables>(File.ReadAllText(stationFile))!;
-        var voxel = Load<TkVoxelGeneratorSettingsArray>(voxelFile);
-        var table = Load<GcBuildingDefinitionTable>(tableFile);
+        // "-" for the voxel file and a .json rules file: everything from the catalog rows, as the app reads it.
+        var voxel = voxelFile == "-" ? null : Load<TkVoxelGeneratorSettingsArray>(voxelFile);
         var expected = JsonDocument.Parse(File.ReadAllText(expectedFile)).RootElement;
         var radii = new Dictionary<int, float> { [2] = 22.641382217407227f, [16] = 37.76814651489258f, [28] = 10f };
-        var rules = table.BuildingPlacement.Select((d, c) => new BuildingOverrideRule(c, d.NumOverridesToGenerate,
-            d.NumOverridesToGenerateWaterworlds, (int)d.FlattenType.WaterPlacement, d.OverrideRadius, d.MinHeight, d.MaxHeight,
-            d.EnabledWhenPlanetHasNoNPCs, radii.GetValueOrDefault(c))).ToList();
+        var rules = tableFile.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+            ? JsonSerializer.Deserialize<List<BuildingOverrideRule>>(File.ReadAllText(tableFile))!
+            : Load<GcBuildingDefinitionTable>(tableFile).BuildingPlacement.Select((d, c) => new BuildingOverrideRule(c, d.NumOverridesToGenerate,
+                d.NumOverridesToGenerateWaterworlds, (int)d.FlattenType.WaterPlacement, d.OverrideRadius, d.MinHeight, d.MaxHeight,
+                d.EnabledWhenPlanetHasNoNPCs, radii.GetValueOrDefault(c))).ToList();
 
         var types = PlanetGenerator.Generate(portal, galaxy, biomes);
         var attributes = SystemGenerator.Attributes(portal, galaxy);
@@ -42,13 +44,17 @@ static class Overrides
             if (!expected.TryGetProperty(planetUa, out var want)) continue;
             var body = types[i];
             var choice = PlanetProfileGenerator.TerrainChoiceFor(seeds[i], body, (int)attributes.Star, profiles)!;
-            var element = voxel.TerrainSettings[choice.SettingIndex];
-            var setting = terrainTables.Settings[choice.SettingIndex] with
+            var setting = terrainTables.Settings[choice.SettingIndex];
+            if (voxel is not null)
             {
-                MinLayers = element.Min.NoiseLayers.Select(Layer).ToArray(),
-                MaxLayers = element.Max.NoiseLayers.Select(Layer).ToArray(),
-                NoSeaBaseLevel = element.Min.NoSeaBaseLevel,
-            };
+                var element = voxel.TerrainSettings[choice.SettingIndex];
+                setting = setting with
+                {
+                    MinLayers = element.Min.NoiseLayers.Select(Layer).ToArray(),
+                    MaxLayers = element.Max.NoiseLayers.Select(Layer).ToArray(),
+                    NoSeaBaseLevel = element.Min.NoSeaBaseLevel,
+                };
+            }
             var terrain = PlanetTerrain.Generate(seeds[i], setting, choice, terrainTables.SeaStandard, body.BodyClass == 3, body.DeadToWeird)!;
             float radius = PlanetBuildingSites.Radius(body.BodyClass)!.Value;
             var c = layout.Centers[i];

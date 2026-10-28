@@ -39,6 +39,8 @@ public static partial class CatalogSteps
     /// - "INVENTORYGENERATION": JSON in the shape of Core's InventoryGenerationTables - S-Class
     ///   base stat roll ranges, class probabilities, max inventory slot capacities
     ///   (inventorytable.mbin) and planetary building placement densities (planetbuildingtable.mbin).
+    /// - "BUILDINGOVERRIDES": JSON array of Core's BuildingOverrideRule (planetbuildingtable.mbin): the portal,
+    ///   shelter, base, distress signal and start spawn rules PlanetOverridePlacement uses.
     /// - "STATIONEQUIPMENT": JSON in the shape of Core's StationEquipmentTables - solar layout
     ///   globals, station scene roots, and verified standard TypeB WeaponTerminal transforms.
     /// </summary>
@@ -102,6 +104,9 @@ public static partial class CatalogSteps
         if (InventoryTables(Decode) is { } invTables)
             rows.Add(new CatalogItem { GameId = "INVENTORYGENERATION", NameEnglish = "InventoryGenerationTables", DescriptionEnglish = JsonSerializer.Serialize(invTables) });
 
+        if (BuildingOverrides(Decode) is { } overrides)
+            rows.Add(new CatalogItem { GameId = "BUILDINGOVERRIDES", NameEnglish = "BuildingOverrideRules", DescriptionEnglish = JsonSerializer.Serialize(overrides) });
+
         if (StationEquipment(Decode) is { } stationEquipment)
             rows.Add(new CatalogItem { GameId = "STATIONEQUIPMENT", NameEnglish = "StationEquipmentTables", DescriptionEnglish = JsonSerializer.Serialize(stationEquipment) });
         if (MultiToolTechnology(Decode) is { } technology)
@@ -137,7 +142,8 @@ public static partial class CatalogSteps
     }
 
     /// <summary>The terrain step's inputs (Core TerrainTables): each voxelgeneratorsettings entry's
-    /// Min layers and caves, gcterrainglobals' index ranges and sea levels.</summary>
+    /// Min layers and caves, its Min and Max noise layers and base level (what a planet's terrain is drawn from),
+    /// gcterrainglobals' index ranges and sea levels.</summary>
     private static TerrainTables? Terrain(GcTerrainGlobals terrain, Func<string, NMSTemplate?> decode)
     {
         if (decode(VoxelSettingsFile) is not libMBIN.NMS.Toolkit.TkVoxelGeneratorSettingsArray voxel) return null;
@@ -145,10 +151,41 @@ public static partial class CatalogSteps
             e.Min.NoiseLayers.Select(l => l.Active).ToArray(),
             e.Min.NoiseLayers.Select(l => (int)l.VoxelType.NoiseVoxelType).ToArray(),
             e.Min.Features.Select(f => f.Active).ToArray(),
-            e.Min.Caves.Length > 0 && e.Min.Caves[0].Mouth.Active)).ToArray();
+            e.Min.Caves.Length > 0 && e.Min.Caves[0].Mouth.Active,
+            e.Min.NoiseLayers.Select(NoiseLayer).ToArray(),
+            e.Max.NoiseLayers.Select(NoiseLayer).ToArray(),
+            e.Min.NoSeaBaseLevel)).ToArray();
         return new TerrainTables(settings, terrain.TerrainPrimeIndexStart, terrain.TerrainPurpleSystemIndexStart,
             terrain.DebugLockTerrainSettingsIndex, terrain.SeaLevelMoon, terrain.SeaLevelGasGiant, terrain.SeaLevelWaterWorld,
             terrain.SeaLevelHigh, terrain.SeaLevelStandard, terrain.PurpleSystemMaxHighWaterChance, terrain.ForcePurpleSystemHighWater);
+    }
+
+    private static TerrainNoiseLayer NoiseLayer(libMBIN.NMS.Toolkit.TkNoiseUberLayerData l)
+    {
+        var n = l.NoiseData;
+        return new TerrainNoiseLayer(new UberNoiseSettings(n.AltitudeErosion, n.AmplifyFeatures, n.Gain, n.Lacunarity,
+                n.PerturbFeatures, n.RemapFromMax, n.RemapFromMin, n.RemapToMax, n.RemapToMin, n.RidgeErosion,
+                n.SharpToRoundFeatures, n.SlopeBias, n.SlopeErosion, n.SlopeGain),
+            (int)n.DebugNoiseType, n.Octaves, l.Height, l.HeightOffset, l.MaximumLOD, (int)l.Offset.OffsetType,
+            l.PlateauRegionSize, l.PlateauSharpness, l.PlateauStratas, l.RegionGain, l.RegionRatio, l.RegionScale,
+            l.SeedOffset, l.SmoothRadius, l.TileBlendMeters, (int)l.VoxelType.NoiseVoxelType, (int)l.WaterFade, l.Width,
+            l.Active, l.Subtract);
+    }
+
+    /// <summary>Model radii (half the AABB's ground diagonal, GcBuildingSpawnData.Radius) of the override classes
+    /// whose OverrideRadius is -1, as the running game measured them (build 183791, read 2026-10-28): the Shelter's
+    /// first model and the Portal. Only prime planets use them (the flatness ring). The game measures the loaded
+    /// models; extracting that from the model files is not done yet.</summary>
+    private static readonly Dictionary<int, float> MeasuredModelRadius = new() { [2] = 22.641382f, [16] = 37.768147f };
+
+    /// <summary>"BUILDINGOVERRIDES": every class's override rules (Core BuildingOverrideRule) from
+    /// planetbuildingtable.mbin - what PlanetOverridePlacement places the portal, shelter and base from.</summary>
+    private static BuildingOverrideRule[]? BuildingOverrides(Func<string, NMSTemplate?> decode)
+    {
+        if (decode(BuildingTableFile) is not GcBuildingDefinitionTable table) return null;
+        return table.BuildingPlacement.Select((d, c) => new BuildingOverrideRule(c, d.NumOverridesToGenerate,
+            d.NumOverridesToGenerateWaterworlds, (int)d.FlattenType.WaterPlacement, d.OverrideRadius, d.MinHeight,
+            d.MaxHeight, d.EnabledWhenPlanetHasNoNPCs, MeasuredModelRadius.GetValueOrDefault(c))).ToArray();
     }
 
     private static PlanetProfileTables? ProfileTables(GcBiomeFileList files, GcBiomeListPerStarType biomes, Func<string, NMSTemplate?> decode)
