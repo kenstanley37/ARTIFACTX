@@ -253,6 +253,18 @@ Checks against the running game (`buildingcheck_live.py`, read-only, Peak XV's l
   flatten rules apply). Placement needs ground height (roadmap step 3), and the slot table itself still has to be
   ported from the planet stage (`0x14160B500`'s type loop and slot fill).
 
+**Slot table fill (partly traced, 2026-10-28).** In `0x14160B500` after the seeds, a loop over building classes
+(`bl`) checks each class with `0x141648DE0` (allowed on this planet), takes its density from the type's
+`Density[densityLevel]` (`[type+0x50 + level*4]`; `[rsp+0x140]` is the level), and writes slots two at a time
+(`0x14160BC00..0x14160BE9C`, 12-byte entries: `+0` building index, `+4` probability, `+8` has-building). A slot's
+probability is 1 except for the last partial slot of a count, which gets the fractional part (`x - floorf(x)`).
+Has-building depends on: the density being above 0 (or the type's "always" flag at `+0x98`), sentinel/biome
+values (`[planet+0x31D8]`, `[planet+0x3318]`, waterworld = biome 14), type fields `+0x74`, `+0x84`, `+0x88`/`+0x8C`
+(waterworld variant), and classes in the mask `0x200084` (Shelter 2, Waypoint 7, LandingPad 21).
+Each type instance is created by `0x14160C480` (building spawn data: seed, layout, cluster), after
+`0x141614880` (an allowed-on-planet check). Porting this needs the planet's race, density level, biome
+and sentinel values, plus `PLANETBUILDINGTABLE` in the catalog. **Not ported yet.**
+
 So **every cell of every face is a site** with a computable key and feature point. Next: the world point of a
 site (the worker's projection of the feature point to the sphere; the emulator gives ground truth), then which sites
 get a building and of which type (`HasBuilding`, slot probabilities, the type list), and the per-site yaw (top 3
