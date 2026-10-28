@@ -90,7 +90,7 @@
                             <!-- Small cards in a virtualized grid: only the cards on screen are built. -->
                             <ItemsRepeater ItemsSource="{x:Bind ViewModel.Unvisited}">
                                 <ItemsRepeater.Layout>
-                                    <UniformGridLayout MinItemWidth="290" MinItemHeight="104" MinRowSpacing="10" MinColumnSpacing="10" ItemsStretch="Fill"/>
+                                    <UniformGridLayout MinItemWidth="290" MinItemHeight="136" MinRowSpacing="10" MinColumnSpacing="10" ItemsStretch="Fill"/>
                                 </ItemsRepeater.Layout>
                                 <ItemsRepeater.ItemTemplate>
                                     <DataTemplate x:DataType="viewmodels:UnvisitedSystemViewModel">
