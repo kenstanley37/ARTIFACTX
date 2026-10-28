@@ -208,7 +208,14 @@ building type are chosen.
    long 64-bit multiply chain at the end (the site key). It sits beside the ported noise library
    (`0x142D74xxx`).
 
-Next: port `0x1419883E0` and check it against the 1,275 live sites (corner and key) and the Depot/Factory keys.
+**Emulated (2026-10-28): `scripts/research/region-generator/voronoiemu.py <sector seed> <radius> <divisions> x y z`**
+runs `0x142D76D40` with the planet-relative query position, sector seed, radius (`xmm2`) and divisions * 0.5 (`xmm3`).
+On Peak XV (2243, 130,048, 546) it returns the Depot key `52782ECF461FC6ED` and the Factory key
+`9000E0F810A08E36` exactly, with point A matching the live site records. The second output is the cell in face
+units (face coordinate -273, then (48.996, 147.99) = grid (321.996, 420.99) minus 273); the third is the face
+normal. So the emulator is an exact oracle for porting the worker.
+
+Next: port `0x1419883E0` stage by stage against `voronoiemu.py`, then enumerate a planet's sites.
 
 Open: which corners hold a building (the sector seed and slot probabilities), which building type each gets,
 how the per-site seed and yaw are made, and the exact jitter. Next: collect more sites (more booster markers, or
