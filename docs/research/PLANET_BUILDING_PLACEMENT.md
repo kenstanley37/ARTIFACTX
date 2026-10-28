@@ -54,13 +54,14 @@ Observed key mapping (Slot 1, 2026-10-28, 32 events):
 | `oZw` | GalacticAddress | planet-level address (planet nibble set) |
 | `9@i` | Table (3 or 1) | |
 
-**Open question:** building-marker `TWn` lengths run from 67,608 to 1,452,261. Values around 1M look like
-system space (planet centre plus surface offset), while `NmsPlanetCoordinates.OfScanEvent` (2026-10-23)
-treats `TWn` as planet-centre relative. Check with a marker in the system you're in, against that
-system's `aHM` planet centres, before relying on either.
-
-Controlled test wanted: use a planetary chart or signal booster in the current system, save, note the
-marker's in-game coordinates, then go there and save on site. That gives marker, centre and true position.
+**Resolved 2026-10-28: `TWn` is in solar-system space**, like `rnc.mEH` and `aHM`. Signal booster test on
+Peak XV (Oystana, Slot 1): the Depot marker (seed `0x52782ECF461FC6ED`) and a Factory marker (seed
+`0x9000E0F810A08E36`) were 130,707 and 131,076 units from the planet's generated centre
+(`SolarLayoutGeneration`), with the player standing on the surface at 129,808. Their raw `TWn` lengths were
+325,806 and 162,566. So subtract the planet centre; `OfScanEvent` was fixed on `fix/scan-marker-coordinates`.
+The radii differ by up to about 1,300 units, which is terrain height: **markers carry the ground position**, so
+the game evaluates terrain height for a site without loading it. Expected in-game readings to confirm the
+frame: player -37.51, +17.28; depot +8.81, -61.92.
 
 ## Native leads (NMS build 180836)
 
