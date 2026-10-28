@@ -525,3 +525,17 @@ step by step; end-to-end check = the live TkVoxelGeneratorData dumps (8 planets)
   (active when sea level is above a threshold or a terrain-control flag is set; Height = sea level minus a constant).
 Check on 6 planets: all varying layer fields exact (3/3 on the two planets that have any; the rest of the active
 layers are constants of their setting) and all 8 Active flags reproduced.
+
+## Uber noise (terrain height) - structure, 2026-10-28 (build 183791)
+
+- Layer evaluator `0x142C3D4E0` (577 instructions): takes arrays of x, y, z (+ count), removes duplicate points,
+  calls the core `0x142DE3F20(xs, ys, zs, layer (TkNoiseUberLayerData), seed, ...)` and post-processes per layer
+  (RegionRatio `+0x60` and others).
+- Core `0x142DE3F20` (926): for groups of 4 points calls the SIMD uber noise `0x1419BD4C0` (960 instructions), for
+  the remaining points the **scalar uber noise `0x1419BCA30` (566)** - the same function. The height query used by
+  the override accept test passes ONE point, so only the scalar path runs: port `0x1419BCA30` (point, octaves
+  `+0x14`, and the TkNoiseUberData floats `+0x00, +0x04, +0x0C..+0x3C` as arguments) and the core's own steps
+  (`0x140201600`, `0x142DE3730`, a second pass).
+- The site query's domain warp uses `0x1419BBAE0` (869). Noise tables near the Perlin permutation `0x144AFAEA0`
+  (`0x144AFAD80..0x144AFAFD0`).
+Method: port function by function, each checked bit for bit against the same function run in the emulator.
