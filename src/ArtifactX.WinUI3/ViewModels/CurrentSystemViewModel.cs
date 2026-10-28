@@ -1,4 +1,4 @@
-using ArtifactX.Core.Collections;
+﻿using ArtifactX.Core.Collections;
 using System.Collections.ObjectModel;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.Core.Universe;
@@ -103,6 +103,10 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     public ObservableCollection<PlanetTileViewModel> Tiles { get; } = new();
     [ObservableProperty] public partial ImageSource? SystemPicture { get; private set; }
 
+    /// <summary>Every planet and moon at its centre from the save, for the system map; empty when the save has none.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasMap), nameof(HasPicture), nameof(ShowOrbits), nameof(FrameWidth))]
+    public partial IReadOnlyList<SystemMapBody> MapBodies { get; private set; } = [];
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CaptureLabel), nameof(CanCapture))]
     public partial bool IsCapturing { get; private set; }
@@ -117,8 +121,10 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
     public bool HelpHidden => !IsHelpVisible;
     public bool HasStation => Station.Length > 0;
-    public bool HasPicture => SystemPicture is not null;
-    public bool ShowOrbits => SystemPicture is null;
+    /// <summary>The 3D system map (SystemMap) wins over the captured picture and the orbit drawing.</summary>
+    public bool HasMap => MapBodies.Count > 0;
+    public bool HasPicture => !HasMap && SystemPicture is not null;
+    public bool ShowOrbits => !HasMap && SystemPicture is null;
     public bool HasUnmatched => Unmatched.Count > 0;
     public bool NoPlanets => Tiles.Count == 0;
     public string PlanetSectionSummary => Tiles.Count == 0 ? "No planets yet" : $"{Tiles.Count} bodies";
@@ -133,7 +139,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
     /// <summary>Square for the orbit drawing, about 3:2 for the game's picture; smaller with "Show less".</summary>
     public double FrameHeight => IsCompact ? 150 : 360;
-    public double FrameWidth => HasPicture ? FrameHeight * 1.5 : FrameHeight;
+    public double FrameWidth => HasMap || HasPicture ? FrameHeight * 1.5 : FrameHeight;
     public Thickness BodyPadding => IsCompact ? new Thickness(20, 12, 20, 14) : new Thickness(20, 16, 20, 20);
 
     partial void OnStationChanged(string value) => OnPropertyChanged(nameof(HasStation));
@@ -284,6 +290,24 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
     public void DismissUnmatched(UnmatchedBodyViewModel row) => UnmatchedBodiesService.Dismiss(row.Held);
 
+    /// <summary>
+    /// The system map's bodies: centres from the save (thousands of units), moon hosts and names from the
+    /// system generator, and the discovered planet where the save has one.
+    /// </summary>
+    private List<SystemMapBody> MapBodiesOf(ulong system, List<KnownPlanet> planets)
+    {
+        var centres = NmsPlanetCoordinates.Centres(_snapshot.PlanetPositions);
+        if (centres.Count == 0) return [];
+        int[] hosts = UniverseInfo.Bodies(system).Hosts;
+        return centres.Select(c =>
+        {
+            int host = c.Index <= hosts.Length ? hosts[c.Index - 1] : 0;
+            return new SystemMapBody(c.Index, UniverseInfo.PlanetName(system, c.Index), c.X / 1000, c.Y / 1000, c.Z / 1000,
+                host, host > 0 ? UniverseInfo.PlanetName(system, host) : "", c.Index == CurrentPlanet,
+                planets.FirstOrDefault(p => p.PlanetIndex == c.Index));
+        }).ToList();
+    }
+
     private List<KnownPlanet> SystemPlanets() =>
         SystemAddress is ulong system ? _planets.Where(p => p.SystemAddress == system).OrderBy(p => p.PlanetIndex).ToList() : new();
 
@@ -294,6 +318,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             Heading = "Unknown location";
             Sub = Facts = Station = SystemCode = "";
             Bodies = [];
+            MapBodies = [];
             SystemData = [];
             Unmatched = [];
             Tiles.Clear();
@@ -330,6 +355,8 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         SystemCode = S.PortalAddress(system, 0);
         _ = UpdateRegionSystemsAsync(system);
         if (!Bodies.SequenceEqual(planets)) Bodies = planets;
+        var mapBodies = MapBodiesOf(system, planets);
+        if (!MapBodies.SequenceEqual(mapBodies)) MapBodies = mapBodies;
         var data = BuildSystemData(system, note, station);
         if (!SystemData.SequenceEqual(data)) SystemData = data;
         Market.Show(system);

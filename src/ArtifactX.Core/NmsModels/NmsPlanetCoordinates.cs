@@ -51,6 +51,24 @@ public static class NmsPlanetCoordinates
         return From(player, centre);
     }
 
+    /// <summary>
+    /// Every planet and moon centre in the current system: (planet index, x, y, z) for each used slot.
+    /// Moons sit 226,000 units (rounded) from the planet they orbit; that matched the system generator's
+    /// moon hosts in all nine save systems checked 2026-10-27 (three with moons), and no other two bodies
+    /// were closer than about 680,000.
+    /// </summary>
+    public static List<(int Index, double X, double Y, double Z)> Centres(JToken? planetPositions)
+    {
+        var centres = new List<(int, double, double, double)>();
+        if (planetPositions is not JArray slots) return centres;
+        for (int i = 0; i < slots.Count; i++)
+            if (Vector(slots[i]) is { } c && (c.X != 0 || c.Y != 0 || c.Z != 0)) centres.Add((i + 1, c.X, c.Y, c.Z));
+        return centres;
+    }
+
+    /// <summary>The player's position in the solar system (rnc.mEH), the same space as the planet centres.</summary>
+    public static (double X, double Y, double Z)? Player(JToken? spawn) => Vector(spawn?["mEH"]);
+
     /// <summary>Latitude/longitude of a system-space position on the planet
     /// whose centre is given.</summary>
     public static (double Latitude, double Longitude)? From((double X, double Y, double Z) position, (double X, double Y, double Z) centre)

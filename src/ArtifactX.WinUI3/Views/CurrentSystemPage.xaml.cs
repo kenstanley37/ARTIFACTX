@@ -80,6 +80,9 @@ public sealed partial class CurrentSystemPage : Page
     private void Tile_OpenRequested(object? sender, PlanetTileViewModel tile) =>
         Frame.Navigate(typeof(ExplorePages.PlanetDetailsPage), tile.Planet);
 
+    private void Map_BodyClicked(object? sender, SystemMapBody body) =>
+        Frame.Navigate(typeof(ExplorePages.PlanetDetailsPage), body.Planet);
+
     private void AssignUnmatched_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is UnmatchedBodyViewModel row) ViewModel.AssignUnmatched(row);

@@ -94,6 +94,9 @@
                                     <Grid>
                                         <controls:SystemOrbitView Bodies="{x:Bind ViewModel.Bodies, Mode=OneWay}" CurrentPlanet="{x:Bind ViewModel.CurrentPlanet, Mode=OneWay}"
                                                                   Visibility="{x:Bind ViewModel.ShowOrbits, Mode=OneWay}"/>
+                                        <!-- Every planet and moon where the save puts it (2026-10-27); wins over the picture and the drawing. -->
+                                        <controls:SystemMap Bodies="{x:Bind ViewModel.MapBodies, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasMap, Mode=OneWay}"
+                                                            BodyClicked="Map_BodyClicked"/>
                                         <!-- The game's own view of this system's planets, when screen recording caught its Discoveries page (2026-10-17). -->
                                         <Image Source="{x:Bind ViewModel.SystemPicture, Mode=OneWay}" Stretch="UniformToFill" Visibility="{x:Bind ViewModel.HasPicture, Mode=OneWay}"
                                                ToolTipService.ToolTip="How the game's Discoveries page shows this system's planets."/>
