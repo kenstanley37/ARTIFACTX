@@ -64,6 +64,17 @@ def call(fn, args):
     for r, v in zip((X.UC_X86_REG_RCX, X.UC_X86_REG_RDX, X.UC_X86_REG_R8, X.UC_X86_REG_R9), args): mu.reg_write(r, v)
     mu.emu_start(fn, SENTINEL, count=50_000_000)
     return f32reg(X.UC_X86_REG_XMM0)
+# The game's pool allocator has no state here (its globals are filled at start-up): without this the evaluator's
+# arrays can share memory and the region step reads the noise value as x. Allocate on the emulator heap instead.
+POOL = {0x142C8E290: 'alloc', 0x142C8E190: 'alloc', 0x142C8C960: 'free'}
+def on_pool(mu, addr, size, _):
+    rsp = mu.reg_read(X.UC_X86_REG_RSP); ret = struct.unpack('<Q', bytes(mu.mem_read(rsp, 8)))[0]
+    if POOL[addr] == 'alloc':
+        n, al = mu.reg_read(X.UC_X86_REG_RDX), mu.reg_read(X.UC_X86_REG_R8)
+        mu.reg_write(X.UC_X86_REG_RAX, alloc(n, max(16, al if 0 < al <= 4096 else 16)))
+    else: mu.reg_write(X.UC_X86_REG_RAX, 0)
+    mu.reg_write(X.UC_X86_REG_RSP, rsp + 8); mu.reg_write(X.UC_X86_REG_RIP, ret)
+for a in POOL: mu.hook_add(UC_HOOK_CODE, on_pool, begin=a, end=a)
 if len(sys.argv) > 2 and sys.argv[2] == 'live':
     import ctypes, ctypes.wintypes as W, subprocess
     k32 = ctypes.WinDLL('kernel32'); k32.OpenProcess.restype = W.HANDLE
@@ -81,6 +92,16 @@ if len(sys.argv) > 2 and sys.argv[2] == 'live':
             if BASE + delta <= q < BASE + delta + pe.OPTIONAL_HEADER.SizeOfImage: struct.pack_into('<Q', raw, o, q - delta)
         mu.mem_write(BASE + s.VirtualAddress, bytes(raw)); print('copied live .data', hex(len(raw)))
 J = json.load(open(sys.argv[1]))
+if len(sys.argv) > 2 and sys.argv[2] == 'vectors':     # reference heights at random points: python emu_height.py t.json vectors N > out.json
+    import random
+    rnd = random.Random(5); terrain = alloc(0x1200, 0x40); mu.mem_write(terrain, bytes.fromhex(J['terrain'])); pt = alloc(16); out = []
+    for _ in range(int(sys.argv[3])):
+        v = [rnd.gauss(0, 1) for _ in range(3)]; d = math.sqrt(sum(c * c for c in v))
+        site = [struct.unpack('<f', struct.pack('<f', c / d * J['radius']))[0] for c in v]
+        mu.mem_write(pt, struct.pack('<4f', *site, 1.0))
+        h = call(0x14128AA20, (pt, terrain))
+        out.append(dict(point=site, height=h, bits=struct.unpack('<I', struct.pack('<f', h))[0]))
+    json.dump(out, sys.stdout); sys.exit(0)
 terrain = alloc(0x1200, 0x40); mu.mem_write(terrain, bytes.fromhex(J['terrain']))
 P, R = J['position'][:3], J['radius']
 pt = alloc(16)

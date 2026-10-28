@@ -562,3 +562,16 @@ Region step `0x142C37340` (per layer value): uses RegionRatio/RegionScale/Width,
 then normalised by the min/max table `0x144AFAD00`), powf-shaped smoothstep, plateaus (PlateauStratas/Sharpness/
 RegionSize with a second mask at seed + 1), x Height, then quantised. Core `0x142DE3F20` for one point:
 (p + (seed%13, seed%13, seed%17) * k) / Width -> scalar uber noise.
+
+**Terrain height PORTED, exact (2026-10-28).** `heightport.py` (= `0x14128AA20`): base-seed hash of BaseSeed
+(SuperFastHash-style), per layer seed = SeedOffset + layer + hash, layer value = core ((p + (seed%13, seed%13,
+seed%17) * k) / Width -> scalar uber noise) then the region step (clamp/rescale by sqrt(max(RegionRatio, 0.5)),
+region mask fBm with 3 octaves at RegionScale*Width shaped by powf gain RegionGain, plateaus, x Height, quantised),
+combination (layer 7 base scaled by max(layer 6, 0); layers 0-3 max / subtract-min from NoSeaBaseLevel).
+Checks: **450/450 emulator heights bit-exact** on 3 planets (`emu_height.py vectors`), per-layer evaluator
+`emu_layer.py` 40/40; against the game's own override records on 4 unvisited planets: within 0.15 m (the records'
+float32 system-space positions at about 1,000,000 units). Emulator lesson: the game's pool allocator
+(`0x142C8E190/0x142C8E290`) must be replaced by heap allocations in every harness, or arrays alias (the evaluator
+then read the noise value as x) - `emu_height.py` reference heights before that fix were wrong.
+Next: the domain-warped site query `0x1412B2D70` (its fBm is ported), the accept rule `0x141631F60`, the chain +
+phase 2 placement; then all of it to C# in Core.
