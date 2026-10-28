@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- **No Man's Sky Forsaken (7.10)**: ArtifactX reads the Forsaken update's game files correctly again. Before this, a game data rebuild on Forsaken left the Regions map without its star settings, the Corvette Cache without its buildable parts, and some multi-tool and space station details wrong. Rebuild game data to apply the fix. The title bar now shows the No Man's Sky release ArtifactX was tested with, and says when your game is newer than that.
+
 - **Marker coordinates on Planet Details**: Sites found with a planetary chart, signal booster or beacon now show their real latitude and longitude. They were worked out from the wrong point and could be far off. Where the planet's position can't be worked out exactly, the site is still listed without coordinates.
 
 - **Regions page pauses**: The page no longer freezes for a moment each time the game saves. Unchanged systems stay as they are, and only the cards on screen are drawn.

@@ -1,4 +1,4 @@
-﻿using ArtifactX.GameData;
+using ArtifactX.GameData;
 using ArtifactX.GameData.Data;
 using ArtifactX.GameData.Models;
 using ArtifactX.GameData.Services;
@@ -171,6 +171,43 @@ if (args.Length > 0 && args[0].Equals("ships", StringComparison.OrdinalIgnoreCas
 
     return;
 }
+
+// "DataCataloger extract <filename substring> <output folder>" - writes the raw bytes of every MBIN whose path
+// contains the substring (e.g. "PLANETBUILDINGTABLE") from the data PAKs, for research tools that decode them with
+// libMBIN. The output is extracted game data: keep it local, never commit it.
+if (args.Length > 2 && args[0].Equals("extract", StringComparison.OrdinalIgnoreCase))
+{
+    var extractSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(extractSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+    IPakReaderService extractPakReader = new PakReaderService();
+    var extractor = new ExtractionService();
+    Directory.CreateDirectory(args[2]);
+    int written = 0;
+    foreach (var pak in new PakDiscoveryService().Discover(extractSettings.NmsInstallationPath!))
+    {
+        ArtifactX.GameData.Models.PakHeader header;
+        IReadOnlyList<ArtifactX.GameData.Models.PakEntry> entries;
+        try { header = extractPakReader.ReadHeader(pak.FullPath); entries = extractPakReader.Read(pak.FullPath); }
+        catch { continue; }
+        foreach (var entry in entries.Where(e => e.FileName?.Contains(args[1], StringComparison.OrdinalIgnoreCase) == true
+                     && e.FileName.EndsWith(".MBIN", StringComparison.OrdinalIgnoreCase)))
+        {
+            byte[]? bytes = extractor.ExtractEntryBytes(pak.FullPath, entry, header);
+            if (bytes is null) continue;
+            string target = Path.Combine(args[2], Path.GetFileName(entry.FileName));
+            File.WriteAllBytes(target, bytes);
+            ConsoleStyle.Success($"{entry.FileName} -> {target} ({bytes.Length} bytes)");
+            written++;
+        }
+    }
+    ConsoleStyle.Success($"{written} file(s) written.");
+    return;
+}
+
 
 // "DataCataloger grep <substring>" decodes every MBIN and deep-searches its actual
 // FIELD VALUES (not filenames) for the given substring, regardless of whether the
