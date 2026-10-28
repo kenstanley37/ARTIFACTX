@@ -190,6 +190,26 @@ Next: trace the start of `0x14160694B`: where its MWC (`[rbp+0x1368]`) is seeded
 `[rbp+0x1370]` is formed (likely from the grid corner plus the point/sector seeds), and how the corner and
 building type are chosen.
 
+**The Voronoi query (2026-10-28).** Call chain, from the terrain-side caller down:
+
+1. `0x14128E800` (pdata chunk `0x14128EB30`): per query position. Calls the Voronoi wrapper with the
+   building data `rbx` (base `+0x3398`): `edx = VoronoiSectorSeed [rbx+0x48]`,
+   `xmm3 = VoronoiPointDivisions [rbx+0x40] * 0.5`, `xmm2` = a scale, `rcx` = the query position. Outputs:
+   **site key** (u64, `[rsp+0x78]`), a float (`[rsp+0x70]`, likely the distance), **site point**
+   (`[rsp+0x60]`) and two more vectors (`[rbp-0x70]`, `[rbp-0x50]`, likely the next sites).
+   It then checks the key against OverrideBuildings (`[rbx+0x20]`, count `[rbx+0x28]`, stride 0x30, key at +0x10)
+   and seeds an MWC from the key (same seed rule as `UniverseRandom`) at `[rbp-0x60]`. The key's top 3 bits
+   (`(ror16(key)^hi^lo + lo*0x5A76F899) >> 29`, times a constant) give the starting yaw. Then it calls the
+   site builder `0x141605800`, which calls `0x141606330` (cluster placement and the site map insert).
+   An override path (`[rbp+0x908]` set) takes a stored key/point instead of querying.
+2. `0x142D76D40`: wrapper, unpacks the position and calls the worker, then packs three output points.
+3. **`0x1419883E0`** (to `0x14198983A`, about 1,180 instructions): the Voronoi worker. `floorf`/`ceilf` on the
+   cell coordinates, MurmurHash3 mixing (`imul 0x1B873593`) of cell coordinates and seed, square roots, and a
+   long 64-bit multiply chain at the end (the site key). It sits beside the ported noise library
+   (`0x142D74xxx`).
+
+Next: port `0x1419883E0` and check it against the 1,275 live sites (corner and key) and the Depot/Factory keys.
+
 Open: which corners hold a building (the sector seed and slot probabilities), which building type each gets,
 how the per-site seed and yaw are made, and the exact jitter. Next: collect more sites (more booster markers, or
 read site records from memory) and find the code that writes the site records (search memory for the
