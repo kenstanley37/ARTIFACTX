@@ -180,7 +180,12 @@ public sealed partial class RegionStarMap : UserControl
     {
         double scale = PixelsPerUnit;
         if (scale <= 0) return;
-        double rx = -dx / scale, ry = dy / scale;
+        MovePivot(-dx / scale, dy / scale);
+    }
+
+    /// <summary>Move the pivot by (rx, ry) region units along the screen's right and up directions.</summary>
+    private void MovePivot(double rx, double ry)
+    {
         double cy = Math.Cos(_yaw), sy = Math.Sin(_yaw), cp = Math.Cos(_pitch), sp = Math.Sin(_pitch);
         double y = ry * cp, rz = -ry * sp;
         double x = rx * cy - rz * sy, z = rx * sy + rz * cy;
@@ -228,8 +233,17 @@ public sealed partial class RegionStarMap : UserControl
 
     private void OnWheel(object sender, PointerRoutedEventArgs e)
     {
-        int delta = e.GetCurrentPoint(Stage).Properties.MouseWheelDelta;
-        _zoom = Math.Clamp(_zoom * (delta > 0 ? 1.15 : 1 / 1.15), 0.6, 12);
+        var point = e.GetCurrentPoint(Stage);
+        double before = PixelsPerUnit;
+        _zoom = Math.Clamp(_zoom * (point.Properties.MouseWheelDelta > 0 ? 1.15 : 1 / 1.15), 0.6, 12);
+        double after = PixelsPerUnit;
+        // Zoom toward the pointer: shift the pivot so the spot under the cursor stays put on screen.
+        if (before > 0 && after > 0)
+        {
+            double ox = point.Position.X - Stage.ActualWidth / 2, oy = point.Position.Y - Stage.ActualHeight / 2;
+            double k = 1 / before - 1 / after;
+            MovePivot(ox * k, -oy * k);
+        }
         Draw();
         e.Handled = true;
     }
