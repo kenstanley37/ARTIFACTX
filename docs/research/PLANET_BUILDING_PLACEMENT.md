@@ -84,10 +84,35 @@ visor read +8.97, -61.54 against the marker's +8.96, -61.54: two of two sites ma
 - Scan-event serializer: `0x1420E4E4A` (BuildingSeed at struct+0x30), `0x1420E4EC2` (BuildingLocation at +0x00).
 - `static/dispscan.py 0xOFFSET` lists every instruction using a struct offset; filter by base register.
 
+### Building stage (traced 2026-10-28)
+
+The planet generation pipeline `0x14168EE20` runs its stages in a row. It writes `Spacing = 250` at
+`+0x3374` and calls the building stage `0x141608F90` (also through the wrapper `0x141691190`).
+
+**In memory the planet-data object is larger than the MBIN layout:** this stage writes `+0x33D4` (read as
+Spacing), `+0x33D8` (VoronoiPointDivisions) and `+0x33E4..E6` (InitialBuildingsPlaced, IsPrime, IsWaterworld).
+That is libMBIN's `GcPlanetBuildingData` shifted by +0x60, so its runtime base is about `+0x3398`. Use runtime
+offsets for native work and MBIN offsets for files; don't mix them.
+
+`0x141608F90(generator, edx = [planet+0x3534], r8, r9 = generator+0xBA4, planet = r15, ..., flag)`:
+
+1. `n = 0x14166BFA0([planet+0x3B80])`: a count from a planet parameter.
+2. `P = (int)powf(2, (int)ceilf(log2(n)))` (log2 is the game's fast approximation `0x1402C1B30`), the next
+   power of two at or above `n`.
+3. `R = (float)(P - max(1, P - n)) * 32 * 32` (constant `0x144B29D14` = 32.0, twice), passed as an argument.
+4. `0x14160B500(generator, edx, r8, r9, planet, R, flag)`: the main site generation (next to trace).
+5. Allocates 0x800 building records of 0x350 bytes (`0x141603340` initialises each).
+6. `VoronoiPointDivisions = 2 * ceilf((2R / Spacing) * pi/6 * 0.5)` (`0x144B2934C` = 0.5235988, `0x144B29308` = 0.5);
+   it is -1.0 when the global byte `0x14526F595` is 0.
+7. `IsPrime = [planet+0x3B92]`, `IsWaterworld = ([planet+0x3B70] == 14)`, `InitialBuildingsPlaced = false`.
+
+Helpers: `static/importof.py` names imported CRT functions behind `jmp [rip+X]` thunks (`0x1433E4BEE` = ceilf,
+`0x1433E4BC4` = powf).
+
 ## Next
 
-1. Find the function that fills `BuildingSlots` and computes Voronoi points (readers of `+0x337C`/`+0x3380`
-   with a known `GcPlanetData` base; the `Spacing` writers' callers are a starting point).
+1. Trace `0x14160B500` (site generation) and `0x14166BFA0` (the count `n`); find the Voronoi point and slot
+   code (runtime offsets `+0x33DC` point seed / `+0x33E0` sector seed).
 2. Find the scan-event creation path (what writes `BuildingLocation`) to learn whether markers carry
    terrain height.
 3. Emulate the site generator for a planet with saved markers and match a marker's seed and location.
