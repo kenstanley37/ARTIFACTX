@@ -53,8 +53,8 @@
                         <RadioButtons Header="Class" MaxColumns="5" ItemsSource="{x:Bind Equipment.ShipClassChoices}"
                                       SelectedIndex="{x:Bind Equipment.ShipClassChoice, Mode=TwoWay}"
                                       AutomationProperties.Name="Class of crashed ship to search for"/>
-                        <ComboBox Header="Type" MinWidth="150" ItemsSource="{x:Bind Equipment.ShipTypeChoices}"
-                                  SelectedIndex="{x:Bind Equipment.ShipTypeChoice, Mode=TwoWay}"
+                        <ComboBox Header="Type" MinWidth="170" ItemsSource="{x:Bind Equipment.ShipTypeOptions, Mode=OneWay}"
+                                  SelectedItem="{x:Bind Equipment.SelectedShipType, Mode=TwoWay}"
                                   AutomationProperties.Name="Type of crashed ship to search for"/>
                         <ComboBox Header="Show" MinWidth="90" ItemsSource="{x:Bind Equipment.ShipCountChoices}"
                                   SelectedIndex="{x:Bind Equipment.ShipCountChoice, Mode=TwoWay}"

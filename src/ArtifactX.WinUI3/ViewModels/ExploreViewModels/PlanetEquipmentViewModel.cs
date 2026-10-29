@@ -30,6 +30,12 @@ public sealed record PlanetLocatedSite(
 /// <summary>
 /// Displays saved planetary locations. Station equipment belongs to Current System.
 /// </summary>
+/// <summary>One choice of the crashed-ship type filter: "Fighter (148)", or any type when <see cref="Type"/> is null.</summary>
+public sealed record CrashedShipTypeOption(string Label, SystemStarshipType? Type)
+{
+    public override string ToString() => Label;
+}
+
 public sealed partial class PlanetEquipmentViewModel : ObservableObject
 {
     [ObservableProperty] public partial string LocatedSitesHeading { get; private set; } = "LOCATED CRASHED SHIPS, CABINETS & BUILDINGS ON THIS PLANET";
@@ -71,19 +77,18 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     /// <summary>The class filter's choices, in the order of the buttons (index 0 = any class).</summary>
     public IReadOnlyList<string> ShipClassChoices { get; } = ["Any class", "S-class", "A-class", "B-class", "C-class"];
 
-    /// <summary>The type filter's choices (index 0 = any type), and the types they stand for.</summary>
-    public IReadOnlyList<string> ShipTypeChoices { get; } = ["Any type", "Fighter", "Hauler", "Explorer", "Shuttle", "Solar", "Exotic"];
-    private static readonly SystemStarshipType[] ShipTypes =
-        [SystemStarshipType.Fighter, SystemStarshipType.Hauler, SystemStarshipType.Explorer, SystemStarshipType.Shuttle,
-         SystemStarshipType.Solar, SystemStarshipType.Exotic];
-
     /// <summary>The class filter: 0 = any, 1 = S (the default) .. 4 = C; remembered across sessions.</summary>
     [ObservableProperty]
     public partial int ShipClassChoice { get; set; } = Remembered(ShipClassKey, 4, 1);
 
-    /// <summary>The type filter: 0 = any (the default), else <see cref="ShipTypes"/>[choice - 1]; remembered.</summary>
-    [ObservableProperty]
-    public partial int ShipTypeChoice { get; set; } = Remembered(ShipTypeKey, ShipTypes.Length, 0);
+    /// <summary>The type filter's choices: only the types this planet has wrecks of in the chosen class, with counts
+    /// (the game draws a wreck's type and class from the same number, so each class comes with only some types).</summary>
+    [ObservableProperty] public partial IReadOnlyList<CrashedShipTypeOption> ShipTypeOptions { get; private set; } = [];
+    [ObservableProperty] public partial CrashedShipTypeOption? SelectedShipType { get; set; }
+
+    /// <summary>The type the player last picked ("" = any), kept even while the chosen class doesn't have it.</summary>
+    private string _wantedType = SettingsStore.Get(SettingsStore.Scope.Profile, ShipTypeKey) ?? "";
+    private bool _rebuildingTypes;
 
     [ObservableProperty] public partial IReadOnlyList<CrashedShipRowViewModel> CrashedShips { get; private set; } = [];
     [ObservableProperty] public partial bool HasCrashedShips { get; private set; }
@@ -96,20 +101,46 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     private static int Remembered(string key, int max, int fallback) =>
         int.TryParse(SettingsStore.Get(SettingsStore.Scope.Profile, key), out int i) && i >= 0 && i <= max ? i : fallback;
 
-    partial void OnShipClassChoiceChanged(int value) => FilterChanged(ShipClassKey, value);
-    partial void OnShipTypeChoiceChanged(int value) => FilterChanged(ShipTypeKey, value);
-    partial void OnShipCountChoiceChanged(int value) => FilterChanged(ShipCountKey, value);
-
-    private void FilterChanged(string key, int value)
+    partial void OnShipClassChoiceChanged(int value)
     {
         if (value < 0) return;
-        SettingsStore.Set(SettingsStore.Scope.Profile, key, value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        SettingsStore.Set(SettingsStore.Scope.Profile, ShipClassKey, value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        if (_planet is { } planet && _snapshot is { } snapshot) _ = ReloadAsync(planet, snapshot);
+    }
+
+    partial void OnSelectedShipTypeChanged(CrashedShipTypeOption? value)
+    {
+        if (_rebuildingTypes || value is null) return;   // the list was just replaced
+        _wantedType = value.Type?.ToString() ?? "";
+        SettingsStore.Set(SettingsStore.Scope.Profile, ShipTypeKey, _wantedType);
         if (_planet is { } planet && _snapshot is { } snapshot) _ = LoadCrashedShipsAsync(planet, snapshot);
     }
 
-    private bool Matches(CrashedShipSite site) =>
-        (ShipClassChoice <= 0 || site.ShownClass == 4 - ShipClassChoice)
-        && (ShipTypeChoice <= 0 || site.Ship?.Type == ShipTypes[ShipTypeChoice - 1]);
+    partial void OnShipCountChoiceChanged(int value)
+    {
+        if (value < 0) return;
+        SettingsStore.Set(SettingsStore.Scope.Profile, ShipCountKey, value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        if (_planet is { } planet && _snapshot is { } snapshot) _ = LoadCrashedShipsAsync(planet, snapshot);
+    }
+
+    private bool ClassMatches(CrashedShipSite site) => ShipClassChoice <= 0 || site.ShownClass == 4 - ShipClassChoice;
+
+    private bool Matches(CrashedShipSite site) => ClassMatches(site) && (SelectedShipType?.Type is not { } type || site.Ship?.Type == type);
+
+    /// <summary>Rebuilds the type list for the chosen class (keeping the player's type when the class has it), then the ships.</summary>
+    private async Task ReloadAsync(KnownPlanet planet, PlanetSnapshot snapshot)
+    {
+        var counts = await CrashedShipService.CountAsync(planet.Address, ClassMatches, s => s.Ship?.Type.ToString() ?? "");
+        if (_planetAddress != planet.Address) return;
+        var options = new List<CrashedShipTypeOption> { new($"Any type ({counts.Sum(c => c.Count):N0})", null) };
+        foreach (var (group, count) in counts)
+            if (System.Enum.TryParse<SystemStarshipType>(group, out var type)) options.Add(new($"{group} ({count:N0})", type));
+        _rebuildingTypes = true;
+        ShipTypeOptions = options;
+        SelectedShipType = options.FirstOrDefault(o => o.Type?.ToString() == _wantedType) ?? options[0];
+        _rebuildingTypes = false;
+        await LoadCrashedShipsAsync(planet, snapshot);
+    }
 
     public async Task LoadAsync(KnownPlanet planet, PlanetSnapshot snapshot)
     {
@@ -124,7 +155,9 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         if (_planetAddress != planet.Address) return;   // moved on to another planet meanwhile
         _portal = portal;
         RefreshMarkers();
-        await LoadCrashedShipsAsync(planet, snapshot);
+        _planet = planet;
+        _snapshot = snapshot;
+        await ReloadAsync(planet, snapshot);
     }
 
     /// <summary>The crashed ships (as many as chosen) matching the class and type filters nearest you when you're on this planet, else
@@ -142,7 +175,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         var sites = found.Nearest;
         CrashedShips = sites.Select((s, i) => new CrashedShipRowViewModel(s, i + 1, here, here ? "away" : "from the portal")).ToList();
         HasCrashedShips = true;
-        CrashedShipsSummary = found.Total == 0 ? "No crashed ships on this planet match."
+        CrashedShipsSummary = found.Total == 0 ? $"No {(ShipClassChoice > 0 ? ShipClassChoices[ShipClassChoice] + " " : "")}crashed ships on this planet."
             : found.Total <= ShownShips ? $"All {found.Total:N0} matching crashed ships on this planet, nearest first."
             : $"The nearest {ShownShips} of {found.Total:N0} matching crashed ships on this planet.";
         if (found.Unverified) CrashedShipsSummary += " Not yet confirmed in game for systems without a race.";

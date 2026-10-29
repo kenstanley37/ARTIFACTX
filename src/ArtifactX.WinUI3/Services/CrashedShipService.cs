@@ -92,6 +92,16 @@ public static class CrashedShipService
         return new CrashedShipsOfClass(nearest, ofClass.Count, found.Unverified);
     }
 
+    /// <summary>How many of the planet's crashed ships that <paramref name="match"/> accepts fall in each group of
+    /// <paramref name="group"/> (largest first); empty when the planet can't be worked out yet.</summary>
+    public static async Task<IReadOnlyList<(string Group, int Count)>> CountAsync(ulong planetAddress,
+        Func<CrashedShipSite, bool> match, Func<CrashedShipSite, string> group)
+    {
+        if (await All.GetOrAdd(planetAddress, AllOnPlanetAsync) is not { } found) return [];
+        return found.Sites.Where(match).GroupBy(group).Select(g => (g.Key, g.Count()))
+            .OrderByDescending(g => g.Item2).ToList();
+    }
+
     private static async Task<AllOnPlanet?> AllOnPlanetAsync(ulong planetAddress)
     {
         if (await ContextAsync(planetAddress) is not { Pool: not null } context) return null;
