@@ -191,6 +191,14 @@
 
                                     <TextBlock Visibility="{x:Bind ViewModel.NoPlanets, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"
                                                Text="No planets in this system are in your discoveries yet. Scan or land on one in-game, then save."/>
+                                    <!-- Which class of crashed ship each planet card shows (S by default). -->
+                                    <RadioButtons Header="Crashed ships to show on each planet" MaxColumns="4" SelectedIndex="{x:Bind ViewModel.ShipClassChoice, Mode=TwoWay}"
+                                                  AutomationProperties.Name="Class of crashed ship to show on each planet">
+                                        <x:String>S-class</x:String>
+                                        <x:String>A-class</x:String>
+                                        <x:String>B-class</x:String>
+                                        <x:String>C-class</x:String>
+                                    </RadioButtons>
                                     <ItemsControl ItemsSource="{x:Bind ViewModel.Tiles, Mode=OneWay}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>

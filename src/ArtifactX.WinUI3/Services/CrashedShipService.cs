@@ -17,13 +17,13 @@ public sealed record CrashedShipSite(ulong PlanetAddress, ulong Key, double X, d
 {
     public string Coordinates => NmsPlanetCoordinates.Format(Latitude, Longitude);
 
-    /// <summary>An S-class wreck, or an Exotic (always S).</summary>
-    public bool IsNotable => ShipClass == 3 || Ship?.Type == SystemStarshipType.Exotic;
+    /// <summary>The class the game shows: an Exotic is always S.</summary>
+    public int? ShownClass => Ship?.Type == SystemStarshipType.Exotic ? 3 : ShipClass;
 }
 
-/// <summary>A planet's S-class and Exotic crashed ships nearest a point, out of <see cref="Total"/> on the whole
-/// planet. <see cref="Unverified"/>: a system with no race, where the predictions haven't held in game yet.</summary>
-public sealed record NotableCrashedShips(IReadOnlyList<CrashedShipSite> Nearest, int Total, bool Unverified);
+/// <summary>A planet's crashed ships of one class nearest a point, out of <see cref="Total"/> of that class on the
+/// whole planet. <see cref="Unverified"/>: a system with no race, where the predictions haven't held in game yet.</summary>
+public sealed record CrashedShipsOfClass(IReadOnlyList<CrashedShipSite> Nearest, int Total, bool Unverified);
 
 /// <summary>
 /// Where a planet's crashed ships are: the DistressSignal sites of the game's building grid
@@ -40,13 +40,13 @@ public static class CrashedShipService
 {
     private const int DistressSignal = 20;
 
-    /// <summary>Every notable (S-class or Exotic) wreck of a planet, worked out once per planet by a pass over the whole
-    /// building grid (about 1.8 million cells on a Large planet, off the UI thread).</summary>
-    private static readonly ConcurrentDictionary<ulong, Task<NotableOnPlanet?>> Notable = new();
+    /// <summary>Every crashed ship of a planet, worked out once per planet by a pass over the whole building grid
+    /// (about 1.8 million cells and 2,000 wrecks on a Large planet, 0.15-0.3 s off the UI thread).</summary>
+    private static readonly ConcurrentDictionary<ulong, Task<AllOnPlanet?>> All = new();
 
-    static CrashedShipService() => CatalogService.Reloaded += () => Notable.Clear();
+    static CrashedShipService() => CatalogService.Reloaded += () => All.Clear();
 
-    private sealed record NotableOnPlanet(IReadOnlyList<CrashedShipSite> Sites, float Radius, bool Unverified);
+    private sealed record AllOnPlanet(IReadOnlyList<CrashedShipSite> Sites, float Radius, bool Unverified);
 
     /// <summary>Everything the passes need about one planet and its system.</summary>
     private sealed record PlanetContext(ulong PlanetAddress, float Radius, int Divisions, int SectorSeed,
@@ -67,39 +67,38 @@ public static class CrashedShipService
         });
     }
 
-    /// <summary>The planet's S-class and Exotic crashed ships nearest a point (you, or the portal), and how many the
-    /// whole planet has; null when the planet can't be worked out yet.</summary>
-    public static async Task<NotableCrashedShips?> NotableAsync(ulong planetAddress, double latitude, double longitude, int count = 1)
+    /// <summary>The planet's crashed ships of class <paramref name="shipClass"/> (C=0 .. S=3; Exotics count as S)
+    /// nearest a point (you, or the portal), and how many of that class the whole planet has; null when the planet
+    /// can't be worked out yet.</summary>
+    public static async Task<CrashedShipsOfClass?> OfClassAsync(ulong planetAddress, int shipClass, double latitude, double longitude, int count = 1)
     {
-        var task = Notable.GetOrAdd(planetAddress, NotableOnPlanetAsync);
+        var task = All.GetOrAdd(planetAddress, AllOnPlanetAsync);
         if (await task is not { } found)
         {
-            Notable.TryRemove(new KeyValuePair<ulong, Task<NotableOnPlanet?>>(planetAddress, task));   // retry once the catalog is ready
+            All.TryRemove(new KeyValuePair<ulong, Task<AllOnPlanet?>>(planetAddress, task));   // retry once the catalog is ready
             return null;
         }
         var dir = Direction(latitude, longitude);
-        var nearest = found.Sites
+        var ofClass = found.Sites.Where(s => s.ShownClass == shipClass).ToList();
+        var nearest = ofClass
             .Select(s => s with { DistanceKm = Angle(s, dir) * found.Radius / 1000 })
             .OrderBy(s => s.DistanceKm).Take(count).ToList();
-        return new NotableCrashedShips(nearest, found.Sites.Count, found.Unverified);
+        return new CrashedShipsOfClass(nearest, ofClass.Count, found.Unverified);
     }
 
-    private static async Task<NotableOnPlanet?> NotableOnPlanetAsync(ulong planetAddress)
+    private static async Task<AllOnPlanet?> AllOnPlanetAsync(ulong planetAddress)
     {
         if (await ContextAsync(planetAddress) is not { Pool: not null } context) return null;
         return await Task.Run(() =>
         {
             var seen = new HashSet<ulong>();
-            var notable = new List<CrashedShipSite>();
+            var all = new List<CrashedShipSite>();
             for (int face = 0; face < 6; face++)
                 foreach (var site in PlanetBuildingSites.Sites(face, context.Divisions, context.Radius, context.SectorSeed,
                     context.Slots, cls => cls == DistressSignal))
-                {
-                    if (!seen.Add(site.Key)) continue;   // a cell on a cube edge belongs to two faces
-                    var described = Describe(context, site, Vector3.Normalize(site.Point));
-                    if (described.IsNotable) notable.Add(described);
-                }
-            return new NotableOnPlanet(notable, context.Radius, context.Attributes.Race == SystemRace.None);
+                    if (seen.Add(site.Key))   // a cell on a cube edge belongs to two faces
+                        all.Add(Describe(context, site, Vector3.Normalize(site.Point)));
+            return new AllOnPlanet(all, context.Radius, context.Attributes.Race == SystemRace.None);
         });
     }
 
