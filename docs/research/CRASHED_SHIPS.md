@@ -147,6 +147,14 @@ identical on both visits (6,400,000, 27/17, 104.0 / 197.9 / 143.8 / 384.3): stat
 The Master of Sleep was back at its site after being claimed, with identical stats - claiming doesn't remove the
 wreck. With the ground test the app lists 4 S-class wrecks on Mephar VI (the mountain site gone); all 4 seen in game.
 
+## Underwater wrecks (2026-10-29, not checked in game)
+
+Underwater wrecks are their own class, 32 WaterDistressSignal (WaterPlacement 3 UnderwaterOnly, OverrideRadius 20).
+Core lists them with the override test's underwater rule (at least 35 m below the sea, slope <= 1) and the same ship
+pick and class as land wrecks (assumed). Lora: 207 of 985 sites pass; Mephar VI (no sea): none. No planetary chart event
+leads to them (scaneventtableplanet.mbin has only DISTRESS and DISTRESS_NPC), so the app offers no marker. To check:
+visit a few underwater sites on a planet with a sea.
+
 ## Still open
 
 - Prime-only / gas-giant systems (layout not covered), pirate systems' flag (`[+0x2e17]`), uninhabited systems' row 7.

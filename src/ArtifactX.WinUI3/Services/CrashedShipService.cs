@@ -13,7 +13,7 @@ namespace ArtifactX.WinUI3.Services;
 /// the coordinates the Analysis Visor shows there, how far it is from where the search started, and the ship lying
 /// there and its class C=0/B=1/A=2/S=3 (null when the catalog lacks the ship pool settings or class rows).</summary>
 public sealed record CrashedShipSite(ulong PlanetAddress, ulong Key, double X, double Y, double Z, double Latitude,
-    double Longitude, double DistanceKm, SystemStarship? Ship, int? ShipClass)
+    double Longitude, double DistanceKm, SystemStarship? Ship, int? ShipClass, bool Underwater = false)
 {
     public string Coordinates => NmsPlanetCoordinates.Format(Latitude, Longitude);
 
@@ -39,7 +39,9 @@ public sealed record CrashedShipsOfClass(IReadOnlyList<CrashedShipSite> Nearest,
 /// </summary>
 public static class CrashedShipService
 {
-    private const int DistressSignal = 20;
+    private const int DistressSignal = 20, WaterDistressSignal = 32;
+
+    private static bool IsWreck(int cls) => cls is DistressSignal or WaterDistressSignal;
 
     /// <summary>Every crashed ship of a planet, worked out once per planet by a pass over the whole building grid
     /// (about 1.8 million cells and 2,000 wrecks on a Large planet, 0.15-0.3 s off the UI thread).</summary>
@@ -53,12 +55,13 @@ public static class CrashedShipService
     private sealed record PlanetContext(ulong PlanetAddress, float Radius, int Divisions, int SectorSeed,
         (int Class, float Probability)[] Slots, (double X, double Y, double Z) Centre, SystemAttributes Attributes,
         IReadOnlyList<SystemStarship>? Pool, ulong SystemAddress, ShipPoolSettings? ShipPool, InventoryGenerationTables? Inventory,
-        PlanetTerrainData? Terrain, bool Prime, float BuildingRadius)
+        PlanetTerrainData? Terrain, bool Prime, float BuildingRadius, float WaterBuildingRadius)
     {
         /// <summary>Whether the game builds at this site (<see cref="PlanetBuildingSites.GroundAllows"/>); every site
-        /// passes when the terrain can't be generated.</summary>
-        public bool Builds(BuildingSite site) =>
-            Terrain is not { } t || PlanetBuildingSites.GroundAllows(t, site.Point, Radius, Prime, BuildingRadius);
+        /// passes when the terrain can't be generated (underwater ones need a sea, so none then).</summary>
+        public bool Builds(BuildingSite site) => site.Class == WaterDistressSignal
+            ? Terrain is { } w && PlanetBuildingSites.GroundAllows(w, site.Point, Radius, Prime, WaterBuildingRadius, underwater: true)
+            : Terrain is not { } t || PlanetBuildingSites.GroundAllows(t, site.Point, Radius, Prime, BuildingRadius);
     }
 
     /// <summary>The <paramref name="count"/> crashed-ship sites nearest a point on the planet; empty when the catalog
@@ -70,7 +73,7 @@ public static class CrashedShipService
         {
             var dir = Direction(latitude, longitude);
             return (IReadOnlyList<CrashedShipSite>)PlanetBuildingSites.SitesNear(dir, context.Divisions, context.Radius,
-                    context.SectorSeed, context.Slots, cls => cls == DistressSignal, count * 4)
+                    context.SectorSeed, context.Slots, IsWreck, count * 4)
                 .Where(context.Builds).Take(count)
                 .Select(s => Describe(context, s, dir)).ToList();
         });
@@ -120,7 +123,7 @@ public static class CrashedShipService
             var all = new List<CrashedShipSite>();
             for (int face = 0; face < 6; face++)
                 foreach (var site in PlanetBuildingSites.Sites(face, context.Divisions, context.Radius, context.SectorSeed,
-                    context.Slots, cls => cls == DistressSignal))
+                    context.Slots, IsWreck))
                     if (seen.Add(site.Key) && context.Builds(site))   // a cell on a cube edge belongs to two faces
                         all.Add(Describe(context, site, Vector3.Normalize(site.Point)));
             return new AllOnPlanet(all, context.Radius, context.Attributes.Race == SystemRace.None);
@@ -159,9 +162,10 @@ public static class CrashedShipService
                     body.BodyClass == 3, body.DeadToWeird);
             // The crashed ship's flatness ring on prime planets: DistressSignal's OverrideRadius in the building table.
             float buildingRadius = overrides?.FirstOrDefault(r => r.Class == DistressSignal)?.OverrideRadius ?? 0f;
+            float waterRadius = overrides?.FirstOrDefault(r => r.Class == WaterDistressSignal)?.OverrideRadius ?? 0f;
             return new PlanetContext(planetAddress, radius, PlanetBuildingSites.Divisions(radius),
                 PlanetBuildingSites.VoronoiSeeds(seeds[index - 1]).SectorSeed, PlanetBuildingSites.Slots(placement, facts), c,
-                attributes, pool, layout?.Address ?? 0, solar?.ShipPool, inventory, terrain, body.Prime, buildingRadius);
+                attributes, pool, layout?.Address ?? 0, solar?.ShipPool, inventory, terrain, body.Prime, buildingRadius, waterRadius);
         });
     }
 
@@ -175,7 +179,7 @@ public static class CrashedShipService
         double angle = Math.Acos(Math.Clamp(Vector3.Dot(Vector3.Normalize(site.Point), from), -1f, 1f));
         return new CrashedShipSite(context.PlanetAddress, site.Key, c.X + site.Point.X, c.Y + site.Point.Y, c.Z + site.Point.Z,
             lat, lon, angle * context.Radius / 1000, ship,
-            SystemShipPool.CrashedShipClass(site.Key, context.Attributes.Wealth, context.Attributes.Pirate, context.Inventory));
+            SystemShipPool.CrashedShipClass(site.Key, context.Attributes.Wealth, context.Attributes.Pirate, context.Inventory), site.Class == WaterDistressSignal);
     }
 
     private static Vector3 Direction(double latitude, double longitude)

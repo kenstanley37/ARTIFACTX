@@ -131,14 +131,17 @@ public static class PlanetBuildingSites
     /// 12 crashed ships found in game all pass (slope 0.00 to 0.45, on 4 planets incl. the prime planet Lora with its
     /// sea), and the predicted S-class wreck on Mephar VI at +29.18, +145.63 that the game never built (inside a
     /// mountain; a Save Beacon stood on the exact spot) fails with slope 1.43. The regular site builder's own test is not
-    /// traced yet; per-type Min/MaxHeight are not applied.
+    /// traced yet; per-type Min/MaxHeight are not applied. <paramref name="underwater"/>: the water rule of types placed
+    /// UnderwaterOnly (WaterDistressSignal): at least 35 m below the sea - not checked in game yet.
     /// </summary>
-    public static bool GroundAllows(PlanetTerrainData terrain, Vector3 point, float radius, bool prime, float buildingRadius)
+    public static bool GroundAllows(PlanetTerrainData terrain, Vector3 point, float radius, bool prime, float buildingRadius,
+        bool underwater = false)
     {
         var p = Vector3.Normalize(point) * radius;
         float h = PlanetTerrain.Height(terrain, p.X, p.Y, p.Z);
         float sea = terrain.SeaLevel;
-        if (sea > 0f && (sea + 5f > h || sea - 60f > h)) return false;   // under (or right at) the sea
+        bool under = sea > 0f && sea + 5f > h;
+        if (underwater ? !(under && !(h > sea - 35f)) : under || (sea > 0f && sea - 60f > h)) return false;
         float slope = PlanetTerrain.Flatness(terrain, p.X, p.Y, p.Z, radius, PlanetTerrain.RingRadius(prime, buildingRadius));
         return slope >= 0f && slope <= 1f;
     }

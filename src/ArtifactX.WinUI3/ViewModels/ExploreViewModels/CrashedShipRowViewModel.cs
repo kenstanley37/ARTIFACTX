@@ -28,6 +28,7 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
         string type = site.Ship is { } ship
             ? site.ShipClass is int cls ? $"{"CBAS"[cls]}-class {ship.TypeLabel}" : ship.TypeLabel
             : "";
+        if (site.Underwater) type = type.Length > 0 ? $"{type} · underwater" : "Underwater";
         Distance = type.Length > 0 ? $"{type} · {distance}" : distance;
         Refresh();
     }
@@ -46,10 +47,13 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
     public void Refresh()
     {
         bool marked = ScanMarkerService.IsMarked(_site.Key), unsaved = ScanMarkerService.IsUnsaved(_site.Key);
-        CanAddMarker = !unsaved && ScanMarkerService.CanAdd;
+        // The game's planetary charts have no underwater-wreck event (scaneventtableplanet.mbin: only DISTRESS for land
+        // wrecks), so there's no marker that leads to one.
+        CanAddMarker = !unsaved && ScanMarkerService.CanAdd && !_site.Underwater;
         CanUndoMarker = unsaved;
         AddMarkerText = marked && !unsaved ? "Mark again" : "Add marker";
-        Status = unsaved ? "Marker added - save your changes."
+        Status = _site.Underwater ? "Underwater - not confirmed in game yet, and markers can't lead to it."
+            : unsaved ? "Marker added - save your changes."
             : marked ? "Marked in your save. Not showing in game? Mark it again."
             : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to add a marker."
             : _site.DistanceKm > 25 ? "The game may lead a far marker to a different wreck. Check the coordinates on arrival."
