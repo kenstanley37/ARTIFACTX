@@ -26,7 +26,7 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
             ? $"{site.DistanceKm * 1000:0} m {from}"
             : $"{site.DistanceKm.ToString("0.0", CultureInfo.CurrentCulture)} km {from}";
         string type = site.Ship is { } ship
-            ? site.ShipClass is int cls ? $"{"CBAS"[cls]}-class {ship.TypeLabel}" : ship.TypeLabel
+            ? site.ShownClass is int cls ? $"{"CBAS"[cls]}-class {ship.TypeLabel}" : ship.TypeLabel   // an Exotic is always S
             : "";
         if (site.Underwater) type = type.Length > 0 ? $"{type} · underwater" : "Underwater";
         Distance = type.Length > 0 ? $"{type} · {distance}" : distance;
