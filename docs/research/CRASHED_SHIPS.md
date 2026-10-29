@@ -168,6 +168,12 @@ a claimable Sentinel ship (owner: "Reforged" is the Sentinel Interceptor): name 
 class 52 SentinelDistressSignal (RequiresCorruptSentinels - dissonant planets only; absent on Mephar VI) with the
 system's Sentinel Interceptor (pool #36, SystemStarshipGenerator includeSentinel). Next: list them, check at Riwor V.
 
+**Sentinel wrecks (2026-10-29, Nionne Sigma, moon of Amazing Planet Biomes `0x...64275B6DA013`, planet 2):** class 52
+sites; marker (DISTRESS + iqv "SentinelDistressSignal", set from the freighter) led to the right planet and site:
+-70.97, -37.91 (predicted -70.96, -37.87), **C-class as predicted**. But the ship is **Crimson-σ** ("ε-Flameborn",
+"Salvaged // C:34+24", 28,600,000, 181.4 (70.6 core) / 171.6 / 601.0 (101.0 core) / 299.1 (214.1 core)), not the pool's
+Sentinel ship Urobeoka's Spirit DQ8 - crashed Sentinel ships are named separately (also Reforged-ιζ on Riwor V).
+
 ## Still open
 
 - Prime-only / gas-giant systems (layout not covered), pirate systems' flag (`[+0x2e17]`), uninhabited systems' row 7.
