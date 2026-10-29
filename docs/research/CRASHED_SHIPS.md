@@ -89,6 +89,11 @@ Build 26295378 moved the code: pick `0x141754F00`, pool builder `0x14167C520`, l
   DistressSignal slot 200; Yeqo Gamma: Shelter 20-28, slots 70-74, 200, Base 220-221), so Core's slot table is wrong
   for uncharted systems, and the predicted DistressSignal at -3.41, -16.72 was still empty in game.
 
+- Not every distress wreck is claimable: a Planetary Chart on Lora led to Ayase's Blazing Adventurer at +11.75, -175.28
+  with its Korvax pilot nearby (repair it, no claim). That site is class 33 NPCDistressSignal on Core's grid at
+  exactly those coordinates. ArtifactX lists only class 20 (DistressSignal), the claimable wrecks; NPC wrecks are left
+  out until players ask for them.
+
 ## Still open
 
 - Prime-only / gas-giant systems (layout not covered), pirate systems' flag (`[+0x2e17]`), uninhabited systems' row 7.
