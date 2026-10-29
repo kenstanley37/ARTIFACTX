@@ -123,6 +123,13 @@ predicted shelter 290 m away stood at +29.10, +145.36 (predicted +29.10, +145.35
 the regular building site's terrain accept test (the portal work ported the flatness test 0x14128C350 and the override
 accept test 0x141631160; the regular site builder's rule is untraced), then offer Save Beacons in the app.
 
+Second test beacon (ofi 0) at The Master of Sleep (-69.22, -125.55): the wreck stood there exactly as predicted (S-class
+Exotic, cost 41,000,000, "37 / 21", damage 353.1, shield 324.6, hyperdrive 182.3, maneuverability 507.6) and the beacon
+object was inside the hull - so `ofi` 0 works and beacons must be offset (owner: beacons may float; ~30 m above).
+Claimed: name/class the same, shield 324.6 and hyperdrive 182.3 the same, damage 305.7 and maneuverability 534.5
+changed (installed damaged tech counted differently after the claim - not traced). 14/14 wrecks found as predicted;
+the one empty site was the mountain site.
+
 ## Still open
 
 - Prime-only / gas-giant systems (layout not covered), pirate systems' flag (`[+0x2e17]`), uninhabited systems' row 7.
