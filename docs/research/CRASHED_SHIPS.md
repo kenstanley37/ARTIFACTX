@@ -72,7 +72,12 @@ Build 26295378 moved the code: pick `0x141754F00`, pool builder `0x14167C520`, l
 
 - Pirate system Nugepan III (`0x0000C100001476E1`, Korvax, pirate): Toyot's Voyage, C-class Solar, at the predicted
   sites on planet 2 (+6.89, +42.82) and on the prime planet 4 Lora (-4.30, +120.63) - position, name, type (the pirate
-  Sail override) and class all exact. 7/7 crashed ships so far.
+  Sail override) and class all exact; The Breath of Providence, C-class Shuttle (a pirate-system Shuttle that stayed a
+  Shuttle), at +0.76, +114.06 on Lora. 8/8 crashed ships so far.
+- Markers: of three DISTRESS markers on Lora, two led exactly to their ships; the first led to the other Toyot's
+  Voyage site on planet 2, while the save kept our entry unchanged (key, Lora's address, position). On Efarien only one
+  of three showed and it led elsewhere. So the game sometimes re-targets a DISTRESS marker to another real site
+  (maybe the nearest to the player when it takes up the event) - not traced.
 - Uncharted system Shlifs (`0x0000F900011476E2`, no race): **not solved.** Nothing at the predicted sites on Efarien.
   Read-only memory: the planets' GcPlanetBuildingData (PlanetUA `+0x30`, PlanetRadius `+0x38`, VoronoiPointDivisions
   `+0x40` float, point/sector seeds `+0x44/+0x48`, IsPrime `+0x4D`) equal Core's on all 4 bodies, and the system pool
