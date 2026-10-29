@@ -1189,6 +1189,11 @@ public static class CatalogService
     public static Task<ArtifactX.Core.Universe.StationEquipmentTables?> GetStationEquipmentTablesAsync() =>
         GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.StationEquipmentTables>("STATIONEQUIPMENT");
 
+    /// <summary>Each building class's density per level and planet restrictions (which grid sites hold which
+    /// building); null on game data built before catalog format 49.</summary>
+    public static Task<ArtifactX.Core.Universe.BuildingClassPlacement[]?> GetBuildingPlacementAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.BuildingClassPlacement[]>("BUILDINGPLACEMENT");
+
     /// <summary>Each building class's override rules (portal, shelter, base...); null on game data built before
     /// catalog format 48.</summary>
     public static Task<ArtifactX.Core.Universe.BuildingOverrideRule[]?> GetBuildingOverrideRulesAsync() =>

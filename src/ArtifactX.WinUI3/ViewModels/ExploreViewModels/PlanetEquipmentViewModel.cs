@@ -30,6 +30,12 @@ public sealed record PlanetLocatedSite(
 /// <summary>
 /// Displays saved planetary locations. Station equipment belongs to Current System.
 /// </summary>
+/// <summary>One choice of the crashed-ship type filter: "Fighter (148)", or any type when <see cref="Type"/> is null.</summary>
+public sealed record CrashedShipTypeOption(string Label, SystemStarshipType? Type)
+{
+    public override string ToString() => Label;
+}
+
 public sealed partial class PlanetEquipmentViewModel : ObservableObject
 {
     [ObservableProperty] public partial string LocatedSitesHeading { get; private set; } = "LOCATED CRASHED SHIPS, CABINETS & BUILDINGS ON THIS PLANET";
@@ -52,84 +58,170 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     [ObservableProperty] public partial string PortalCoordinates { get; private set; } = "";
     [ObservableProperty] public partial string PortalStatus { get; private set; } = "";
     [ObservableProperty] public partial bool CanAddPortalMarker { get; private set; }
+    [ObservableProperty] public partial string AddPortalMarkerText { get; private set; } = "Add a marker to my save";
     [ObservableProperty] public partial bool CanUndoPortalMarker { get; private set; }
     private PortalLocation? _portal;
     private ulong _planetAddress;
 
-    /// <summary>The save's active scan events (markers) - the list the marker is added to.</summary>
-    private static readonly string[] ScanEventsPath = { "vLc", "6f=", "A1f" };
+    // Crashed ships nearest you (on this planet) or the portal, filtered by class and type (CrashedShipService).
+    private const string ShipClassKey = "PlanetDetailsCrashedShipClass", ShipTypeKey = "PlanetDetailsCrashedShipType",
+        ShipCountKey = "PlanetDetailsCrashedShipCount";
+
+    /// <summary>How many matches to list (index into <see cref="ShipCounts"/>); 10 by default, remembered. "All" is
+    /// every wreck of the planet (about 2,000 on a Large planet).</summary>
+    public IReadOnlyList<string> ShipCountChoices { get; } = ["5", "10", "25", "50", "100", "250", "500", "All"];
+    private static readonly int[] ShipCounts = [5, 10, 25, 50, 100, 250, 500, int.MaxValue];
+    [ObservableProperty]
+    public partial int ShipCountChoice { get; set; } = Remembered(ShipCountKey, ShipCounts.Length - 1, 1);
+    private int ShownShips => ShipCounts[System.Math.Clamp(ShipCountChoice, 0, ShipCounts.Length - 1)];
+
+    /// <summary>The class filter's choices, in the order of the buttons (index 0 = any class).</summary>
+    public IReadOnlyList<string> ShipClassChoices { get; } = ["Any class", "S-class", "A-class", "B-class", "C-class"];
+
+    /// <summary>The class filter: 0 = any, 1 = S (the default) .. 4 = C; remembered across sessions.</summary>
+    [ObservableProperty]
+    public partial int ShipClassChoice { get; set; } = Remembered(ShipClassKey, 4, 1);
+
+    /// <summary>The type filter's choices: only the types this planet has wrecks of in the chosen class, with counts
+    /// (the game draws a wreck's type and class from the same number, so each class comes with only some types).</summary>
+    [ObservableProperty] public partial IReadOnlyList<CrashedShipTypeOption> ShipTypeOptions { get; private set; } = [];
+    [ObservableProperty] public partial CrashedShipTypeOption? SelectedShipType { get; set; }
+
+    /// <summary>The type the player last picked ("" = any), kept even while the chosen class doesn't have it.</summary>
+    private string _wantedType = SettingsStore.Get(SettingsStore.Scope.Profile, ShipTypeKey) ?? "";
+    private bool _rebuildingTypes;
+
+    [ObservableProperty] public partial IReadOnlyList<CrashedShipRowViewModel> CrashedShips { get; private set; } = [];
+    [ObservableProperty] public partial bool HasCrashedShips { get; private set; }
+    [ObservableProperty] public partial string CrashedShipsHeading { get; private set; } = "CRASHED SHIPS";
+    [ObservableProperty] public partial string CrashedShipsHint { get; private set; } = "";
+    [ObservableProperty] public partial string CrashedShipsSummary { get; private set; } = "";
+    private KnownPlanet? _planet;
+    private PlanetSnapshot? _snapshot;
+
+    private static int Remembered(string key, int max, int fallback) =>
+        int.TryParse(SettingsStore.Get(SettingsStore.Scope.Profile, key), out int i) && i >= 0 && i <= max ? i : fallback;
+
+    partial void OnShipClassChoiceChanged(int value)
+    {
+        if (value < 0) return;
+        SettingsStore.Set(SettingsStore.Scope.Profile, ShipClassKey, value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        if (_planet is { } planet && _snapshot is { } snapshot) _ = ReloadAsync(planet, snapshot);
+    }
+
+    partial void OnSelectedShipTypeChanged(CrashedShipTypeOption? value)
+    {
+        if (_rebuildingTypes || value is null) return;   // the list was just replaced
+        _wantedType = value.Type?.ToString() ?? "";
+        SettingsStore.Set(SettingsStore.Scope.Profile, ShipTypeKey, _wantedType);
+        if (_planet is { } planet && _snapshot is { } snapshot) _ = LoadCrashedShipsAsync(planet, snapshot);
+    }
+
+    partial void OnShipCountChoiceChanged(int value)
+    {
+        if (value < 0) return;
+        SettingsStore.Set(SettingsStore.Scope.Profile, ShipCountKey, value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        if (_planet is { } planet && _snapshot is { } snapshot) _ = LoadCrashedShipsAsync(planet, snapshot);
+    }
+
+    private bool ClassMatches(CrashedShipSite site) => ShipClassChoice <= 0 || site.ShownClass == 4 - ShipClassChoice;
+
+    private bool Matches(CrashedShipSite site) => ClassMatches(site) && (SelectedShipType?.Type is not { } type || site.Ship?.Type == type);
+
+    /// <summary>Rebuilds the type list for the chosen class (keeping the player's type when the class has it), then the ships.</summary>
+    private async Task ReloadAsync(KnownPlanet planet, PlanetSnapshot snapshot)
+    {
+        var counts = await CrashedShipService.CountAsync(planet.Address, ClassMatches, s => s.Ship?.Type.ToString() ?? "");
+        if (_planetAddress != planet.Address) return;
+        var options = new List<CrashedShipTypeOption> { new($"Any type ({counts.Sum(c => c.Count):N0})", null) };
+        foreach (var (group, count) in counts)
+            if (System.Enum.TryParse<SystemStarshipType>(group, out var type)) options.Add(new($"{group} ({count:N0})", type));
+        _rebuildingTypes = true;
+        ShipTypeOptions = options;
+        SelectedShipType = options.FirstOrDefault(o => o.Type?.ToString() == _wantedType) ?? options[0];
+        _rebuildingTypes = false;
+        await LoadCrashedShipsAsync(planet, snapshot);
+    }
 
     public async Task LoadAsync(KnownPlanet planet, PlanetSnapshot snapshot)
     {
         _portal = null;
         HasPortal = false;
+        CrashedShips = [];
+        HasCrashedShips = false;
         _planetAddress = planet.Address;
         _centre = await PlanetCentreService.GetAsync(planet.Address);
         UpdateLocations(planet, snapshot);
         var portal = await PortalLocationService.GetAsync(planet.Address);
         if (_planetAddress != planet.Address) return;   // moved on to another planet meanwhile
         _portal = portal;
-        RefreshPortal();
+        RefreshMarkers();
+        _planet = planet;
+        _snapshot = snapshot;
+        await ReloadAsync(planet, snapshot);
     }
 
-    /// <summary>Shows whether the portal is marked in the save, and whether a marker can be added now.</summary>
-    public void RefreshPortal()
+    /// <summary>The crashed ships (as many as chosen) matching the class and type filters nearest you when you're on this planet, else
+    /// nearest its portal, searched over the whole planet.</summary>
+    private async Task LoadCrashedShipsAsync(KnownPlanet planet, PlanetSnapshot snapshot)
     {
+        _planet = planet;
+        _snapshot = snapshot;
+        bool here = S.ReadSystemAddress(snapshot.Universe) == planet.SystemAddress
+            && snapshot.Universe?["oZw"]?["jsv"]?.Value<int>() == planet.PlanetIndex && snapshot.Coordinates is not null;
+        (double Lat, double Lon)? from = here ? snapshot.Coordinates : _portal is { } p ? (p.Latitude, p.Longitude) : null;
+        if (from is not { } at) return;
+        var found = await CrashedShipService.SearchAsync(planet.Address, Matches, at.Lat, at.Lon, ShownShips);
+        if (_planetAddress != planet.Address || found is null) return;
+        var sites = found.Nearest;
+        CrashedShips = sites.Select((s, i) => new CrashedShipRowViewModel(s, i + 1, here, here ? "away" : "from the portal")).ToList();
+        HasCrashedShips = true;
+        CrashedShipsSummary = found.Total == 0 ? $"No {(ShipClassChoice > 0 ? ShipClassChoices[ShipClassChoice] + " " : "")}crashed ships on this planet."
+            : found.Total <= ShownShips ? $"All {found.Total:N0} matching crashed ships on this planet, nearest first."
+            : $"The nearest {ShownShips} of {found.Total:N0} matching crashed ships on this planet.";
+        if (found.Unverified) CrashedShipsSummary += " Not yet confirmed in game for systems without a race.";
+        CrashedShipsHeading = here ? "CRASHED SHIPS NEAR YOU" : "CRASHED SHIPS NEAR THE PORTAL";
+        CrashedShipsHint = sites.Any(s => s.Ship is null)
+            ? "Where crashed ships lie, worked out from the game's own rules. Update game data to see which ship "
+              + "lies at each. Now and then the ground leaves a spot empty."
+            : "Where crashed ships lie, which ship is there and its class, worked out from the game's own rules. "
+              + "Now and then the ground leaves a spot empty.";
+    }
+
+    /// <summary>Shows whether the portal and crashed ships are marked in the save, and whether markers can be added now.</summary>
+    public void RefreshMarkers()
+    {
+        foreach (var ship in CrashedShips) ship.Refresh();
         HasPortal = _portal is not null;
         if (_portal is not { } portal) return;
         PortalCoordinates = portal.Coordinates;
-        bool marked = HasPortalMarker(portal);
-        bool staged = marked && SaveSessionManager.HasStagedEdit(ScanEventsPath);
-        CanUndoPortalMarker = staged;
-        CanAddPortalMarker = !marked && SaveSessionManager.IsSaveLoaded && !GameProcessMonitorService.IsGameRunning;
-        PortalStatus = staged ? "Marker added. Save your changes to write it to your save."
-            : marked ? "This portal is marked in your save."
+        bool marked = ScanMarkerService.IsMarked(portal.Key), unsaved = ScanMarkerService.IsUnsaved(portal.Key);
+        CanUndoPortalMarker = unsaved;
+        CanAddPortalMarker = !unsaved && ScanMarkerService.CanAdd;
+        AddPortalMarkerText = marked && !unsaved ? "Mark it again" : "Add a marker to my save";
+        PortalStatus = unsaved ? "Marker added. Save your changes to write it to your save."
             : !SaveSessionManager.IsSaveLoaded ? "Load a save to add a marker."
+            : marked && GameProcessMonitorService.IsGameRunning
+                ? "This portal is marked in your save. If the game no longer shows the marker, close No Man's Sky to mark it again."
+            : marked ? "This portal is marked in your save. If the game no longer shows the marker, mark it again."
             : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to add a marker to your save."
             : "Adds a marker to your save that leads you to this portal in game.";
     }
 
-    private static bool HasPortalMarker(PortalLocation portal)
-    {
-        string key = $"0x{portal.Key:X16}";
-        return SaveSessionManager.GetValue(ScanEventsPath) is JArray events
-            && events.OfType<JObject>().Any(e => string.Equals(e["5bU"]?[1]?.Value<string>(), key, System.StringComparison.OrdinalIgnoreCase));
-    }
-
-    /// <summary>
-    /// Stages the whole scan-event list with a portal marker added, in the game's own format: written the same
-    /// way as the portal marker the game saved itself on Ribhakyam (Slot 8, 2026-10-28: 9@i 3, oZw as hex text,
-    /// 5bU [true, site key], TWn the system-space position); five markers written this way led straight to the
-    /// portal in game (2026-10-28).
-    /// </summary>
+    /// <summary>The portal marker, in the format the game saves portal markers in (table 3).</summary>
     [RelayCommand]
     private void AddPortalMarker()
     {
-        if (_portal is not { } portal || !SaveSessionManager.IsSaveLoaded || GameProcessMonitorService.IsGameRunning
-            || HasPortalMarker(portal)) return;
-        var events = SaveSessionManager.GetValue(ScanEventsPath) is JArray current ? (JArray)current.DeepClone() : new JArray();
-        events.Add(new JObject
-        {
-            ["9@i"] = 3,
-            ["FN5"] = "^PORTAL",
-            ["oZw"] = $"0x{portal.PlanetAddress:X}",
-            ["5bU"] = new JArray(true, $"0x{portal.Key:X16}"),
-            ["TWn"] = new JArray(System.Math.Round(portal.X, 3), System.Math.Round(portal.Y, 3), System.Math.Round(portal.Z, 3)),
-            ["iqv"] = new JObject { ["iqv"] = "Portal" },
-            ["ADw"] = 0.0,
-            ["jGk"] = "^",
-            ["1JW"] = 0,
-            ["M?f"] = new JObject { ["M?f"] = "None" },
-        });
-        SaveSessionManager.StageEdit(events, ScanEventsPath);
-        RefreshPortal();
+        if (_portal is not { } portal) return;
+        ScanMarkerService.Add(portal.PlanetAddress, portal.Key, portal.X, portal.Y, portal.Z, 3, "PORTAL", "Portal");
+        RefreshMarkers();
     }
 
     [RelayCommand]
     private void UndoPortalMarker()
     {
-        SaveSessionManager.RevertEdit(ScanEventsPath);
-        RefreshPortal();
+        if (_portal is { } portal) ScanMarkerService.Remove(portal.Key);
+        RefreshMarkers();
     }
 
     /// <summary>

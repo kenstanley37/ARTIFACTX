@@ -4,7 +4,23 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ## Unreleased
 
+### Added
+
+- **S-class crashed ships** (Current System): each planet card shows the nearest S-class crashed ship on that planet (Exotics included), with how many the planet has, and a button to add a marker to your save. In systems without a race these aren't confirmed in game yet, and the card says so.
+- **Crashed ships that aren't there**: crash sites on ground too steep for the game to build on (inside mountains, on cliffs) or under the sea are no longer listed, so the lists and markers point only at wrecks the game actually places.
+- **Underwater crashed ships**: planets with a sea also list the wrecks that lie on the sea floor, with roughly how deep they are. You can add a marker for them too.
+- **Crashed ship search** (Planet Details): search a planet's crashed ships by class (S by default, A, B, C or any) and type. The type list shows only the types the planet has in the chosen class, with how many of each (the game ties a wreck's type to its class, so for example C-class wrecks may only be Fighters and Haulers). It lists the nearest matches - from 5 up to all of them, as you choose - each with a marker button, and says how many the planet has. Your choices are remembered.
+
 ### Fixed
+
+- **Planet Finder**: results are cards like the planet cards on Current System, side by side, instead of full-width rows.
+- **Water worlds**: their underwater crashed ships are listed (the planet showed none before).
+
+- **Current System planet cards**: every card shows the same rows in the same order (a dash where a planet has nothing), each on one line with the full text on hover, so the crashed ship and your details line up across cards. Fish moved to the bottom.
+
+- **Planet Details markers**: a portal or crashed ship that's marked in your save but no longer shown by the game can be marked again (Undo puts things back as they were). The crashed-ship rows now say when No Man's Sky has to be closed before you can add a marker.
+
+- **Possible system starships** (Current System): the list now shows the ships that really appear in each system. Since Forsaken (7.10) it had shown the wrong names and seeds. Rebuild game data to apply the fix.
 
 - **Current System planet cards**: The cards now line up from the left and wrap onto new rows instead of sitting centred, with some space below the section heading. Cards are no longer all stretched to the height of the tallest one, so short cards don't leave a big empty gap.
 
@@ -27,6 +43,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 - **Current System live updates**: Keep unchanged planet cards, station multi-tool previews, market lists and system pictures in place. Damage-only tool updates retain the model and its rotation instead of recreating every card.
 
 ### New
+
+- **Crashed ships**: Planet Details lists the 5 crashed ships nearest you, or nearest the planet's portal when you're not there, with their coordinates and distance. Each has an optional button to add a marker to your save (the game must be closed), so the game leads you to it. Each shows the name, type and class (C to S) of the ship lying there. For far-away wrecks the row warns that the game may lead the marker to a different wreck, so check the coordinates when you arrive. Rebuild game data to enable this.
 
 - **Portal locations**: Every planet card on Current System shows where that planet's portal stands, in the same coordinates as your Analysis Visor. It's worked out from the game's own rules, so it works on planets nobody has visited. Open a planet to add a marker for its portal to your save; the game then leads you straight to it. Adding a marker needs No Man's Sky closed, and you save your changes as usual. Rebuild game data to enable this.
 

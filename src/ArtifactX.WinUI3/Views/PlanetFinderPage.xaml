@@ -107,58 +107,69 @@
                         <TextBlock Text="{x:Bind ViewModel.Status, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasStatus, Mode=OneWay}"
                                    Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
 
-                        <!-- Bounded height so the ListView virtualizes inside the page's
-                             ScrollViewer (an unbounded one would realize every row). -->
-                        <ListView ItemsSource="{x:Bind ViewModel.Results, Mode=OneWay}" SelectionMode="None" MaxHeight="640"
+                        <!-- Result cards (same width as the Current System planet cards). Bounded height so the GridView
+                             virtualizes inside the page's ScrollViewer (an unbounded one would realize every card). -->
+                        <GridView ItemsSource="{x:Bind ViewModel.Results, Mode=OneWay}" SelectionMode="None" MaxHeight="900"
                                   IsItemClickEnabled="True" ItemClick="Results_ItemClick">
-                            <ListView.ItemContainerStyle>
-                                <Style TargetType="ListViewItem">
+                            <GridView.ItemContainerStyle>
+                                <Style TargetType="GridViewItem">
                                     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    <Setter Property="VerticalContentAlignment" Value="Stretch"/>
                                     <Setter Property="Padding" Value="0"/>
-                                    <Setter Property="Margin" Value="0,0,0,8"/>
+                                    <Setter Property="Margin" Value="0,0,14,14"/>
                                 </Style>
-                            </ListView.ItemContainerStyle>
-                            <ListView.ItemTemplate>
+                            </GridView.ItemContainerStyle>
+                            <GridView.ItemTemplate>
                                 <DataTemplate x:DataType="viewmodels:PlanetRowViewModel">
-                                    <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Background="{ThemeResource ThemePanelAltBrush}"
-                                            CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
-                                        <Grid ColumnSpacing="14">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="44"/>
-                                                <ColumnDefinition Width="220"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Grid Width="44" Height="30" VerticalAlignment="Center">
-                                                <Ellipse Width="26" Height="26" Fill="{x:Bind Swatch}"/>
-                                                <Ellipse Width="44" Height="11" StrokeThickness="2" Stroke="{ThemeResource ThemeTextDimBrush}"
-                                                         Visibility="{x:Bind HasRings}" RenderTransformOrigin="0.5,0.5">
-                                                    <Ellipse.RenderTransform>
-                                                        <RotateTransform Angle="-18"/>
-                                                    </Ellipse.RenderTransform>
-                                                </Ellipse>
+                                    <Border Width="372" Height="250" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                                            Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,12">
+                                        <Grid RowSpacing="8">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <Grid ColumnSpacing="12">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="44"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Grid Width="44" Height="30" VerticalAlignment="Top">
+                                                    <Ellipse Width="26" Height="26" Fill="{x:Bind Swatch}"/>
+                                                    <Ellipse Width="44" Height="11" StrokeThickness="2" Stroke="{ThemeResource ThemeTextDimBrush}"
+                                                             Visibility="{x:Bind HasRings}" RenderTransformOrigin="0.5,0.5">
+                                                        <Ellipse.RenderTransform>
+                                                            <RotateTransform Angle="-18"/>
+                                                        </Ellipse.RenderTransform>
+                                                    </Ellipse>
+                                                </Grid>
+                                                <StackPanel Grid.Column="1" Spacing="2">
+                                                    <TextBlock Text="{x:Bind NameLabel}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{x:Bind LocationLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextTrimming="CharacterEllipsis"
+                                                               ToolTipService.ToolTip="{x:Bind LocationLabel}"/>
+                                                </StackPanel>
                                             </Grid>
-                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                                                <TextBlock Text="{x:Bind NameLabel}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold"/>
-                                                <TextBlock Text="{x:Bind LocationLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
-                                                <TextBlock Text="{x:Bind FactsLabel}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                                <TextBlock Text="{x:Bind NotesLabel}" Visibility="{x:Bind HasNotes}" FontSize="12" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"/>
+                                            <StackPanel Grid.Row="1" Spacing="2">
+                                                <TextBlock Text="{x:Bind FactsLabel}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"
+                                                           Foreground="{ThemeResource ThemeAccentBrush}" ToolTipService.ToolTip="{x:Bind FactsLabel}"/>
+                                                <TextBlock Text="{x:Bind NotesLabel}" Visibility="{x:Bind HasNotes}" FontSize="12" Style="{StaticResource ThemeDimTextStyle}"
+                                                           TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind NotesLabel}"/>
                                             </StackPanel>
-                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="3">
-                                                <controls:GlyphStrip Code="{x:Bind PortalCode}" Title="{x:Bind NameLabel}" GlyphSize="24"/>
-                                                <TextBlock Text="{x:Bind PortalCode}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" IsTextSelectionEnabled="True" CharacterSpacing="80"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="2">
-                                                <TextBlock Text="{x:Bind DistanceLabel}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                            <StackPanel Grid.Row="2" Spacing="2">
+                                                <TextBlock Text="{x:Bind DistanceLabel}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" TextTrimming="CharacterEllipsis"
+                                                           ToolTipService.ToolTip="{x:Bind DistanceLabel}"/>
                                                 <TextBlock Text="{x:Bind DiscoveredLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextTrimming="CharacterEllipsis"/>
                                             </StackPanel>
-                                            <controls:CopyCodeButton Grid.Column="4" Code="{x:Bind PortalCode}"/>
+                                            <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8">
+                                                <controls:GlyphStrip Code="{x:Bind PortalCode}" Title="{x:Bind NameLabel}" GlyphSize="20"/>
+                                                <controls:CopyCodeButton Code="{x:Bind PortalCode}"/>
+                                            </StackPanel>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
+                            </GridView.ItemTemplate>
+                        </GridView>
                     </StackPanel>
                 </StackPanel>
             </Border>

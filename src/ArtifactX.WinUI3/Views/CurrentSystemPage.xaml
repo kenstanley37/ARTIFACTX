@@ -190,8 +190,7 @@
                                     </Border>
 
                                     <TextBlock Visibility="{x:Bind ViewModel.NoPlanets, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"
-                                               Text="No planets in this system are in your discoveries yet. Scan or land on one in-game, then save."/>
-                                    <ItemsControl ItemsSource="{x:Bind ViewModel.Tiles, Mode=OneWay}">
+                                               Text="No planets in this system are in your discoveries yet. Scan or land on one in-game, then save."/>                                    <ItemsControl ItemsSource="{x:Bind ViewModel.Tiles, Mode=OneWay}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
                                                 <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="14"/>

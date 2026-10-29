@@ -112,6 +112,7 @@ public sealed partial class SystemStarshipsViewModel : ObservableObject
     public async Task LoadAsync(
         ulong systemAddress,
         ulong portalCode,
+        int galaxy,
         SystemFacts facts,
         bool hasCorruptedPlanet)
     {
@@ -123,14 +124,29 @@ public sealed partial class SystemStarshipsViewModel : ObservableObject
 
         var words = await CatalogService.GetProceduralNameWordsAsync();
         var invTables = PlanetTypesService.InventoryTables ?? await CatalogService.GetInventoryGenerationTablesAsync();
+        var solar = (await CatalogService.GetStationEquipmentTablesAsync())?.SolarLayout;
 
-        var ships = await Task.Run(() => SystemStarshipGenerator.Generate(
+        var ships = solar is null ? null : await Task.Run(() => SystemStarshipGenerator.GenerateForSystem(
             portalCode,
+            galaxy,
             facts.Race,
             facts.Pirate,
+            solar,
             k => words.GetValueOrDefault(k),
             includeFleet: false,
             includeSentinel: hasCorruptedPlanet));
+        if (_currentSystem != systemAddress) return;
+        if (ships is null)
+        {
+            _allShips = [];
+            HasShips = false;
+            Heading = "POSSIBLE SYSTEM STARSHIPS";
+            Subtitle = "Update game data to see this system's starships.";
+            SpawnRulesSummary = "";
+            UpdateFilterOptions();
+            ApplyFilter();
+            return;
+        }
 
         // Put Exotic (#21) and Sentinel Interceptor (#36) at the top so the most sought-after S-Class ships are immediately visible
         var ordered = ships

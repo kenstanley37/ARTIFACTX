@@ -342,8 +342,8 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         ShowFinds();
         if (Planet is { } p) Equipment.UpdateLocations(p, _snapshot);
     });
-    private void OnGameRunningChanged(object? sender, bool running) => OnUi(Equipment.RefreshPortal);
-    private void OnPendingEditsChanged(object? sender, EventArgs e) => OnUi(Equipment.RefreshPortal);
+    private void OnGameRunningChanged(object? sender, bool running) => OnUi(Equipment.RefreshMarkers);
+    private void OnPendingEditsChanged(object? sender, EventArgs e) => OnUi(Equipment.RefreshMarkers);
     private void OnCreaturesChanged(ulong system, int planet) => OnUi(() => { if (IsThisPlanet(system, planet)) _ = ShowCreaturesAsync(); });
     private void OnSystemPictureSaved(ulong system) => OnUi(() => { if (IsThisPlanet(system, -1)) _ = LoadSystemPictureAsync(); });
 

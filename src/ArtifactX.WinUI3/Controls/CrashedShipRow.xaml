@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One predicted crashed ship (CrashedShipRowViewModel): name, coordinates, class and type, distance, and the
+     optional save marker. Used on Planet Details and on the Current System planet cards. -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.CrashedShipRow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid ColumnSpacing="10" RowSpacing="4">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock Text="{x:Bind Row.Title, Mode=OneWay}" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+        <TextBlock Grid.Column="1" Text="{x:Bind Row.Coordinates, Mode=OneWay}" FontSize="12" FontWeight="Bold" FontFamily="{ThemeResource ThemeDisplayFont}"
+                   Foreground="{ThemeResource ThemeAccentBrush}" IsTextSelectionEnabled="True" HorizontalAlignment="Right"/>
+        <TextBlock Grid.Row="1" Text="{x:Bind Row.Distance, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+        <TextBlock Grid.Row="2" Text="{x:Bind Row.Status, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+        <StackPanel Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Bottom" HorizontalAlignment="Right">
+            <Button Content="{x:Bind Row.AddMarkerText, Mode=OneWay}" Command="{x:Bind Row.AddMarkerCommand, Mode=OneWay}" IsEnabled="{x:Bind Row.CanAddMarker, Mode=OneWay}"
+                    AutomationProperties.Name="{x:Bind Row.AddMarkerName, Mode=OneWay}"
+                    ToolTipService.ToolTip="Adds a marker for this crashed ship to your save. Needs No Man's Sky closed; save your changes afterwards."/>
+            <Button Content="Undo" Command="{x:Bind Row.UndoMarkerCommand, Mode=OneWay}" Visibility="{x:Bind Row.CanUndoMarker, Mode=OneWay}"
+                    AutomationProperties.Name="{x:Bind Row.UndoMarkerName, Mode=OneWay}"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

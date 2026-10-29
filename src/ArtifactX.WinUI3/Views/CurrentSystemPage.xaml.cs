@@ -32,6 +32,8 @@ public sealed partial class CurrentSystemPage : Page
         SystemMarketService.Changed += OnMarketChanged;
         ScreenCaptureLogService.SystemPictureSaved += OnPictureSaved;
         PlanetTypesService.Loaded += OnPlanetTypesLoaded;
+        GameProcessMonitorService.RunningStateChanged += OnGameRunningChanged;
+        SaveSessionManager.PendingEditsChanged += OnPendingEditsChanged;
         Unloaded += (_, _) =>
         {
             ViewModel.SystemArrived -= ShowSystemChange;
@@ -48,6 +50,8 @@ public sealed partial class CurrentSystemPage : Page
             SystemMarketService.Changed -= OnMarketChanged;
             ScreenCaptureLogService.SystemPictureSaved -= OnPictureSaved;
             PlanetTypesService.Loaded -= OnPlanetTypesLoaded;
+            GameProcessMonitorService.RunningStateChanged -= OnGameRunningChanged;
+            SaveSessionManager.PendingEditsChanged -= OnPendingEditsChanged;
             _bannerStoryboard?.Stop();
         };
         if (SaveSessionManager.IsSaveLoaded) _ = ViewModel.LoadAsync();
@@ -56,6 +60,10 @@ public sealed partial class CurrentSystemPage : Page
 
     /// <summary>The planet type tables arrived: show the bodies nobody has discovered yet.</summary>
     private void OnPlanetTypesLoaded() => DispatcherQueue.TryEnqueue(() => ViewModel.Refresh(notes: false));
+
+    /// <summary>The game started or stopped, or a marker was staged or saved: the planet cards' marker buttons follow.</summary>
+    private void OnGameRunningChanged(object? sender, bool running) => DispatcherQueue.TryEnqueue(() => ViewModel.RefreshMarkers());
+    private void OnPendingEditsChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() => ViewModel.RefreshMarkers());
 
     private void OnSessionChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() => _ = ViewModel.LoadAsync());
 

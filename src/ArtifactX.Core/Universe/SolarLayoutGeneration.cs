@@ -155,7 +155,7 @@ public static class SolarLayoutGeneration
 
     private static float Fraction(uint word) => (float)(word * 2.3283064370807974e-10);
 
-    private static float ShellRadius(int size, bool massive)
+    internal static float ShellRadius(int size, bool massive)
     {
         int units = size switch { 0 => 32, 1 => 24, 2 => 16, 3 => 4, _ => 128 };
         if (massive) units *= 4;

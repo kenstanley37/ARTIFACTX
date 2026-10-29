@@ -124,6 +124,29 @@ public static class PlanetBuildingSites
         return cls;
     }
 
+    /// <summary>
+    /// Whether the ground at a land site lets the game build there: not under the sea and a slope of at most 1 on the
+    /// flatness ring (64 m; the building's radius on prime planets) - the land rule of the override accept test
+    /// 0x141631160 (<see cref="PlanetOverridePlacement"/>), which regular sites appear to share. Evidence (2026-10-29):
+    /// 12 crashed ships found in game all pass (slope 0.00 to 0.45, on 4 planets incl. the prime planet Lora with its
+    /// sea), and the predicted S-class wreck on Mephar VI at +29.18, +145.63 that the game never built (inside a
+    /// mountain; a Save Beacon stood on the exact spot) fails with slope 1.43. The regular site builder's own test is not
+    /// traced yet; per-type Min/MaxHeight are not applied. <paramref name="underwater"/>: the water rule of types placed
+    /// UnderwaterOnly (WaterDistressSignal): at least 35 m below the sea - not checked in game yet. On a water world
+    /// (<paramref name="waterworld"/>) the water rule always passes, as in the override test.
+    /// </summary>
+    public static bool GroundAllows(PlanetTerrainData terrain, Vector3 point, float radius, bool prime, float buildingRadius,
+        bool underwater = false, bool waterworld = false)
+    {
+        var p = Vector3.Normalize(point) * radius;
+        float h = PlanetTerrain.Height(terrain, p.X, p.Y, p.Z);
+        float sea = terrain.SeaLevel;
+        bool under = sea > 0f && sea + 5f > h;
+        if (!waterworld && (underwater ? !(under && !(h > sea - 35f)) : under || (sea > 0f && sea - 60f > h))) return false;
+        float slope = PlanetTerrain.Flatness(terrain, p.X, p.Y, p.Z, radius, PlanetTerrain.RingRadius(prime, buildingRadius));
+        return slope >= 0f && slope <= 1f;
+    }
+
     /// <summary>The site of a cell: face 0 -Z, 1 +Z, 2 +X, 3 -X, 4 -Y, 5 +Y; u and v are the cell's two other
     /// coordinates in face units (-divisions/2 .. divisions/2), in x, y, z order.</summary>
     public static BuildingSite Site(int face, int u, int v, int divisions, float radius, int sectorSeed,
@@ -153,6 +176,60 @@ public static class PlanetBuildingSites
                 var site = Site(face, u, v, divisions, radius, sectorSeed, slots);
                 if (site.Class >= 0 && (wanted is null || wanted(site.Class))) yield return site;
             }
+    }
+
+    /// <summary>The planet facts the slot table needs, generated from the address: density level, corrupt sentinels,
+    /// relic, scrap, water and NPCs (an abandoned system has none). Null when the planet can't be generated.</summary>
+    public static BuildingPlanetFacts? FactsFor(ulong portalCode, int galaxy, int planetIndex, BiomeTables biomes,
+        PlanetProfileTables profiles)
+    {
+        var types = PlanetGenerator.Generate(portalCode, galaxy, biomes);
+        var seeds = SystemGenerator.Bodies(portalCode, galaxy).PlanetSeeds;
+        if (planetIndex < 0 || planetIndex >= types.Length || planetIndex >= seeds.Length) return null;
+        var body = types[planetIndex];
+        var attributes = SystemGenerator.Attributes(portalCode, galaxy);
+        var profile = PlanetProfileGenerator.Generate(seeds[planetIndex], planetIndex, body, (int)attributes.Star,
+            PlanetGenerator.GalaxyType(galaxy), attributes.GasGiantPlanet, profiles, attributes.Uncharted, attributes.Abandoned);
+        return new BuildingPlanetFacts(DensityLevel(body.Biome, body.SubType, body.Class),
+            profile.Sentinels[Math.Clamp(profiles.Sentinels.CheckDifficulty, 0, 3)] == 3, IsRelicWorld(body.Biome, body.SubType),
+            profile.ScrapWorld, profile.Water, !attributes.Abandoned);
+    }
+
+    /// <summary>
+    /// The built sites of the wanted class(es) nearest a direction from the planet's centre, nearest first: only the
+    /// cells within <paramref name="cellRange"/> of the point on each face it faces (a cell counts for the face its
+    /// jittered point lies on, as in the game's Voronoi query), so it stays cheap on any planet. Checked 2026-10-28:
+    /// the crashed ship Final Eokak III on Ribhakyam stands at the predicted DistressSignal site (+66.88, +81.50; the
+    /// Analysis Visor read +66.88, +81.49 at its cockpit).
+    /// </summary>
+    public static List<BuildingSite> SitesNear(Vector3 direction, int divisions, float radius, int sectorSeed,
+        (int Class, float Probability)[] slots, Func<int, bool> wanted, int count, int cellRange = 60)
+    {
+        int half = divisions / 2;
+        var dir = Vector3.Normalize(direction);
+        var found = new List<BuildingSite>();
+        for (int face = 0; face < 6; face++)
+        {
+            int axis = face switch { 0 or 1 => 2, 2 or 3 => 0, _ => 1 };
+            int sign = face is 1 or 2 or 5 ? 1 : -1;
+            float along = axis == 0 ? dir.X : axis == 1 ? dir.Y : dir.Z;
+            if (along * sign <= 0) continue;
+            // The face's two other coordinates in x, y, z order, as Site() takes them.
+            float a = axis == 0 ? dir.Y : dir.X, b = axis == 2 ? dir.Y : dir.Z;
+            int cu = (int)MathF.Floor(a / MathF.Abs(along) * half), cv = (int)MathF.Floor(b / MathF.Abs(along) * half);
+            for (int u = Math.Max(-half, cu - cellRange); u <= Math.Min(half, cu + cellRange); u++)
+                for (int v = Math.Max(-half, cv - cellRange); v <= Math.Min(half, cv + cellRange); v++)
+                {
+                    var site = Site(face, u, v, divisions, radius, sectorSeed, slots);
+                    if (site.Class < 0 || !wanted(site.Class)) continue;
+                    var f = Vector3.Normalize(site.Point);
+                    float fa = MathF.Abs(axis == 0 ? f.X : axis == 1 ? f.Y : f.Z);
+                    if ((axis == 0 ? f.X : axis == 1 ? f.Y : f.Z) * sign <= 0 || (axis != 0 && MathF.Abs(f.X) >= fa)
+                        || (axis != 1 && MathF.Abs(f.Y) >= fa) || (axis != 2 && MathF.Abs(f.Z) >= fa)) continue;
+                    found.Add(site);
+                }
+        }
+        return found.OrderByDescending(s => Vector3.Dot(Vector3.Normalize(s.Point), dir)).Take(count).ToList();
     }
 
     /// <summary>The worker's jittered feature point of a cell.</summary>

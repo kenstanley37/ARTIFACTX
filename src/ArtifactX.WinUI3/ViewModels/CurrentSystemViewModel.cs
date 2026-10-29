@@ -81,6 +81,12 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         };
     }
 
+    /// <summary>The planet cards' crashed-ship marker buttons follow the game starting or stopping and staged edits.</summary>
+    public void RefreshMarkers()
+    {
+        foreach (var tile in Tiles) tile.NotableShip?.Refresh();
+    }
+
     public StationMultiToolsViewModel StationTools { get; } = new();
     public StationMarketViewModel Market { get; } = new();
     public SystemNotesViewModel Notes { get; } = new();
@@ -393,7 +399,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         // game's own generator gives them (PlanetTypesService).
         if (!PlanetTypesService.IsReady) _ = PlanetTypesService.EnsureLoadedAsync();
         bool hasCorruptedPlanet = PlanetTypesService.SystemHasCorruptedPlanet(system);
-        _ = Starships.LoadAsync(system, portalCode, facts, hasCorruptedPlanet);
+        _ = Starships.LoadAsync(system, portalCode, galaxy, facts, hasCorruptedPlanet);
 
         var known = planets.Select(p => p.PlanetIndex).ToHashSet();
         var allBodies = planets.Concat(PlanetTypesService.Undiscovered(system, known)).OrderBy(p => p.PlanetIndex).ToList();
@@ -409,6 +415,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             (current, next) => current.HasSamePresentation(next));
         foreach (var tile in Tiles) _ = tile.LoadPortalAsync();
         UpdateTiles();
+        foreach (var tile in Tiles) _ = tile.LoadNotableAsync();
         _ = RefreshPictureAsync();
     }
 

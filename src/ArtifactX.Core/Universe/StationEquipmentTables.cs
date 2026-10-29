@@ -34,7 +34,15 @@ public sealed record SolarLayoutTables(
     bool MassiveSolarSystems,
     float StationSpawnAvoidRadius,
     float[] SpawnPointStationToPlanetInterpRange,
-    bool? StandardMoonPlacementEnabled = null);
+    bool? StandardMoonPlacementEnabled = null,
+    ShipPoolSettings? ShipPool = null);
+
+/// <summary>GcSolarGenerationGlobals values the system starship pool and crashed ships depend on: the locator scatter
+/// around each planet (whose draws come before the pool), each race's ship class weights (SpaceshipWeightings,
+/// CivilianClassWeightings per GcAlienRace) and the chance a Shuttle becomes a Sail (PirateClassShipOverrideProbability,
+/// and its pirate-system value). Catalogs before format 50 don't have them.</summary>
+public sealed record ShipPoolSettings(int LocatorScatterMinCount, int LocatorScatterMaxCount,
+    float LocatorScatterMaxDistanceFromPlanet, float[][] ClassWeightings, float SailChance, float SailChancePirateSystem);
 
 /// <summary>The four station scene resources selected by GcSimulationGlobals.</summary>
 public sealed record StationSceneRoots(
