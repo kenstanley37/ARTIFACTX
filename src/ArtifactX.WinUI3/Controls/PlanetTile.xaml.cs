@@ -27,6 +27,12 @@ public sealed partial class PlanetTile : UserControl
 
     public Brush CardBorder(bool here) => ThemeResources.Brush(here ? "ThemeAccentBrush" : "ThemeLineBrush");
 
+    /// <summary>A card value, or a dash when the planet has none, so every card keeps the same rows.</summary>
+    public string Dash(string? value) => string.IsNullOrEmpty(value) ? "–" : value;
+
+    /// <summary>Keeps a part's space on every card (so the rows line up) but shows it only where it applies.</summary>
+    public double ShownIf(bool shown) => shown ? 1 : 0;
+
     private void Open_Click(object sender, RoutedEventArgs e)
     {
         if (Tile is { } tile) OpenRequested?.Invoke(this, tile);

@@ -27,7 +27,7 @@
                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                         <TextBlock Text="{x:Bind Tile.Eyebrow, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}"/>
                         <TextBlock Text="{x:Bind Tile.Name, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold"/>
-                        <TextBlock Text="{x:Bind Tile.OriginalName, Mode=OneWay}" Visibility="{x:Bind Tile.HasOriginalName, Mode=OneWay}"
+                        <TextBlock Text="{x:Bind Tile.OriginalName, Mode=OneWay}"
                                    FontSize="11" FontStyle="Italic" Foreground="{ThemeResource ThemeTextDimBrush}" TextTrimming="CharacterEllipsis"/>
                         <TextBlock Text="{x:Bind Tile.TypeText, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                     </StackPanel>
@@ -35,7 +35,7 @@
                             ToolTipService.ToolTip="Open this planet - everything about it, and your details"/>
                 </Grid>
 
-                <Border Visibility="{x:Bind Tile.IsHere, Mode=OneWay}" Background="{ThemeResource ThemeAccentBrush}" CornerRadius="4" Padding="8,2" HorizontalAlignment="Left"
+                <Border Opacity="{x:Bind ShownIf(Tile.IsHere), Mode=OneWay}" Background="{ThemeResource ThemeAccentBrush}" CornerRadius="4" Padding="8,2" HorizontalAlignment="Left"
                         ToolTipService.ToolTip="Your coordinates on this planet when the game last saved - the same numbers the game shows on your ship's dashboard.">
                     <TextBlock Text="{x:Bind Tile.HereLabel, Mode=OneWay}" FontSize="10" FontWeight="Bold" Foreground="{ThemeResource ThemeOnAccentBrush}" IsTextSelectionEnabled="True"/>
                 </Border>
@@ -58,49 +58,50 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <TextBlock Text="You found" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                    <TextBlock Grid.Column="1" Text="{x:Bind Tile.Discovered, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                    <TextBlock Grid.Column="1" Text="{x:Bind Dash(Tile.Discovered), Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Dash(Tile.Discovered), Mode=OneWay}" IsTextSelectionEnabled="True"/>
                     <TextBlock Grid.Row="1" Text="Visited" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind Tile.Visit, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                    <TextBlock Grid.Row="2" Text="{x:Bind Tile.BasesLabel, Mode=OneWay}" Visibility="{x:Bind Tile.HasBases, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind Tile.Bases, Mode=OneWay}" Visibility="{x:Bind Tile.HasBases, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind Dash(Tile.Visit), Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Dash(Tile.Visit), Mode=OneWay}" IsTextSelectionEnabled="True"/>
+                    <TextBlock Grid.Row="2" Text="{x:Bind Tile.BasesLabel, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind Dash(Tile.Bases), Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Dash(Tile.Bases), Mode=OneWay}" IsTextSelectionEnabled="True"/>
                     <TextBlock Grid.Row="3" Text="Found by" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{x:Bind Tile.FoundBy, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{x:Bind Dash(Tile.FoundBy), Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Dash(Tile.FoundBy), Mode=OneWay}" IsTextSelectionEnabled="True"/>
                     <!-- From the game's own generator (PlanetTypesService), so known before anyone lands. -->
-                    <TextBlock Grid.Row="4" Text="Weather" Visibility="{x:Bind Tile.HasProfile, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                    <TextBlock Grid.Row="4" Grid.Column="1" Text="{x:Bind Tile.Weather, Mode=OneWay}" Visibility="{x:Bind Tile.HasProfile, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                    <TextBlock Grid.Row="5" Text="Sentinels" Visibility="{x:Bind Tile.HasProfile, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                    <TextBlock Grid.Row="5" Grid.Column="1" Text="{x:Bind Tile.Sentinels, Mode=OneWay}" Visibility="{x:Bind Tile.HasProfile, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                    <TextBlock Grid.Row="6" Text="Flora" Visibility="{x:Bind Tile.HasFlora, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                    <TextBlock Grid.Row="6" Grid.Column="1" Text="{x:Bind Tile.Flora, Mode=OneWay}" Visibility="{x:Bind Tile.HasFlora, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                    <TextBlock Grid.Row="7" Text="Fauna" Visibility="{x:Bind Tile.HasFauna, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                    <TextBlock Grid.Row="7" Grid.Column="1" Text="{x:Bind Tile.Fauna, Mode=OneWay}" Visibility="{x:Bind Tile.HasFauna, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                    <TextBlock Grid.Row="8" Text="Resources" Visibility="{x:Bind Tile.HasProfile, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                    <TextBlock Grid.Row="8" Grid.Column="1" Text="{x:Bind Tile.Resources, Mode=OneWay}" Visibility="{x:Bind Tile.HasProfile, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                    <TextBlock Grid.Row="4" Text="Weather" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                    <TextBlock Grid.Row="4" Grid.Column="1" Text="{x:Bind Dash(Tile.Weather), Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Dash(Tile.Weather), Mode=OneWay}" IsTextSelectionEnabled="True"/>
+                    <TextBlock Grid.Row="5" Text="Sentinels" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                    <TextBlock Grid.Row="5" Grid.Column="1" Text="{x:Bind Dash(Tile.Sentinels), Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Dash(Tile.Sentinels), Mode=OneWay}" IsTextSelectionEnabled="True"/>
+                    <TextBlock Grid.Row="6" Text="Flora" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                    <TextBlock Grid.Row="6" Grid.Column="1" Text="{x:Bind Dash(Tile.Flora), Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Dash(Tile.Flora), Mode=OneWay}" IsTextSelectionEnabled="True"/>
+                    <TextBlock Grid.Row="7" Text="Fauna" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                    <TextBlock Grid.Row="7" Grid.Column="1" Text="{x:Bind Dash(Tile.Fauna), Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Dash(Tile.Fauna), Mode=OneWay}" IsTextSelectionEnabled="True"/>
+                    <TextBlock Grid.Row="8" Text="Resources" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                    <TextBlock Grid.Row="8" Grid.Column="1" Text="{x:Bind Dash(Tile.Resources), Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Dash(Tile.Resources), Mode=OneWay}" IsTextSelectionEnabled="True"/>
                     <!-- Worked out from the game's own placement rules (PortalLocationService); the Analysis Visor's coordinates. -->
-                    <TextBlock Grid.Row="9" Text="Portal" Visibility="{x:Bind Tile.HasPortal, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                    <TextBlock Grid.Row="9" Grid.Column="1" Text="{x:Bind Tile.Portal, Mode=OneWay}" Visibility="{x:Bind Tile.HasPortal, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" IsTextSelectionEnabled="True"
+                    <TextBlock Grid.Row="9" Text="Portal" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                    <TextBlock Grid.Row="9" Grid.Column="1" Text="{x:Bind Dash(Tile.Portal), Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" IsTextSelectionEnabled="True"
                                ToolTipService.ToolTip="Where this planet's portal stands - the coordinates your Analysis Visor shows there. Open the planet to add a marker to your save."/>
                 </Grid>
 
                 <!-- The nearest S-class crashed ship (CrashedShipService), with its optional save marker; Planet Details searches the rest. -->
-                <StackPanel Spacing="6" Margin="0,4,0,0" Visibility="{x:Bind Tile.HasNotable, Mode=OneWay}">
+                <StackPanel Spacing="6" Margin="0,4,0,0">
                     <Border Height="1" Background="{ThemeResource ThemeLineBrush}" Margin="0,0,0,4"/>
                     <TextBlock Text="{x:Bind Tile.NotableHeading, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}"/>
                     <controls:CrashedShipRow Row="{x:Bind Tile.NotableShip, Mode=OneWay}" Visibility="{x:Bind Tile.HasNotableShip, Mode=OneWay}"/>
-                    <TextBlock Text="{x:Bind Tile.NotableSummary, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
+                    <TextBlock Text="{x:Bind Dash(Tile.NotableSummary), Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
                 </StackPanel>
 
-                <StackPanel Spacing="6" Margin="0,4,0,0" Visibility="{x:Bind Tile.HasFish, Mode=OneWay}">
-                    <Border Height="1" Background="{ThemeResource ThemeLineBrush}" Margin="0,0,0,4"/>
-                    <TextBlock Text="FISH" Style="{StaticResource ThemeEyebrowStyle}"/>
-                    <controls:PlanetFishCard Fish="{x:Bind Tile.Fish, Mode=OneWay}" ShowLists="False" ContentPadding="0"/>
-                </StackPanel>
 
                 <StackPanel Spacing="6" Margin="0,4,0,0">
                     <Border Height="1" Background="{ThemeResource ThemeLineBrush}" Margin="0,0,0,4"/>
                     <TextBlock Text="YOUR DETAILS" Style="{StaticResource ThemeEyebrowStyle}"/>
                     <TextBlock Text="{x:Bind Tile.DetailsSummary, Mode=OneWay}" Opacity="{x:Bind Tile.DetailsOpacity, Mode=OneWay}" FontSize="13"
                                Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+
+                <StackPanel Spacing="6" Margin="0,4,0,0" Visibility="{x:Bind Tile.HasFish, Mode=OneWay}">
+                    <Border Height="1" Background="{ThemeResource ThemeLineBrush}" Margin="0,0,0,4"/>
+                    <TextBlock Text="FISH" Style="{StaticResource ThemeEyebrowStyle}"/>
+                    <controls:PlanetFishCard Fish="{x:Bind Tile.Fish, Mode=OneWay}" ShowLists="False" ContentPadding="0"/>
                 </StackPanel>
             </StackPanel>
 
