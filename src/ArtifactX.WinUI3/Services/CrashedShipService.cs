@@ -55,13 +55,13 @@ public static class CrashedShipService
     private sealed record PlanetContext(ulong PlanetAddress, float Radius, int Divisions, int SectorSeed,
         (int Class, float Probability)[] Slots, (double X, double Y, double Z) Centre, SystemAttributes Attributes,
         IReadOnlyList<SystemStarship>? Pool, ulong SystemAddress, ShipPoolSettings? ShipPool, InventoryGenerationTables? Inventory,
-        PlanetTerrainData? Terrain, bool Prime, float BuildingRadius, float WaterBuildingRadius)
+        PlanetTerrainData? Terrain, bool Prime, float BuildingRadius, float WaterBuildingRadius, bool Waterworld)
     {
         /// <summary>Whether the game builds at this site (<see cref="PlanetBuildingSites.GroundAllows"/>); every site
         /// passes when the terrain can't be generated (underwater ones need a sea, so none then).</summary>
         public bool Builds(BuildingSite site) => site.Class == WaterDistressSignal
-            ? Terrain is { } w && PlanetBuildingSites.GroundAllows(w, site.Point, Radius, Prime, WaterBuildingRadius, underwater: true)
-            : Terrain is not { } t || PlanetBuildingSites.GroundAllows(t, site.Point, Radius, Prime, BuildingRadius);
+            ? Terrain is { } w && PlanetBuildingSites.GroundAllows(w, site.Point, Radius, Prime, WaterBuildingRadius, underwater: true, Waterworld)
+            : Terrain is not { } t || PlanetBuildingSites.GroundAllows(t, site.Point, Radius, Prime, BuildingRadius, waterworld: Waterworld);
     }
 
     /// <summary>The <paramref name="count"/> crashed-ship sites nearest a point on the planet; empty when the catalog
@@ -165,7 +165,7 @@ public static class CrashedShipService
             float waterRadius = overrides?.FirstOrDefault(r => r.Class == WaterDistressSignal)?.OverrideRadius ?? 0f;
             return new PlanetContext(planetAddress, radius, PlanetBuildingSites.Divisions(radius),
                 PlanetBuildingSites.VoronoiSeeds(seeds[index - 1]).SectorSeed, PlanetBuildingSites.Slots(placement, facts), c,
-                attributes, pool, layout?.Address ?? 0, solar?.ShipPool, inventory, terrain, body.Prime, buildingRadius, waterRadius);
+                attributes, pool, layout?.Address ?? 0, solar?.ShipPool, inventory, terrain, body.Prime, buildingRadius, waterRadius, body.Biome == 14);   // 14 = Waterworld (GcBiomeType)
         });
     }
 
