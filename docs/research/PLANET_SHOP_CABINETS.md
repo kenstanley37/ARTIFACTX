@@ -29,6 +29,17 @@ shop 3 sits 4.6 m below Core's ground at the site (terrain on a slope, or the se
 
   Planet centre `(-99000, 122000, -651000)` (Core layout floored to 1,000), radius 64,512, sector seed 7015.
 
+Not explained by the site's starting yaw alone (top 3 bits of the key's first draw, 45 degree steps): the three
+offsets keep different lengths (28.4, 2.7, 16.9 m), so each settlement uses a different layout.
+
+The shop L-system survey (`planet-shop-survey` from `feature/planet-multi-tool-locations`, rerun 2026-10-29 on a
+detached merge with today's libMBIN; output kept local) lists 7 Korvax (Explorers) weapon-crate references in
+SHOPSCIENTIFIC: `Roof_Shop` (ROOFMODULE_SHOP, crate about (-4.83, 3.1-3.2, 4.83) in the module, probability 25, three
+variants), and `Layout_NPC`, `LayoutShop_1..3` (crate at the WEAPONSCRATE_ locator, probability 100). Shop 1's cabinet
+(22.9 m up) fits a roof module, shops 2 and 3 (about 4 m and ground level) fit ground-floor layouts. The positions are
+relative to each rule's entry model, so the cabinet needs the L-system's module choice and stacking from the site
+seed - native tracing of the L-system builder.
+
 ## Still open
 
 The cabinet's offset from the site point: the settlement's layout (L-system choice) and where its weapon crate sits,
