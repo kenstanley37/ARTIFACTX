@@ -144,6 +144,8 @@ More in-game checks (2026-10-29, Mephar VI, markers from the app): Hyper Meyame 
 the empty mountain site (+29.18, +145.63) again led to Josonix's Defeat BO3 at -2.78, -160.56: **a marker on a site
 with no wreck is moved by the game to a real one** - the cause of the wandering markers. That wreck's stats were
 identical on both visits (6,400,000, 27/17, 104.0 / 197.9 / 143.8 / 384.3): stats are fixed per site.
+The Master of Sleep was back at its site after being claimed, with identical stats - claiming doesn't remove the
+wreck. With the ground test the app lists 4 S-class wrecks on Mephar VI (the mountain site gone); all 4 seen in game.
 
 ## Still open
 
