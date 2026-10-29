@@ -1,3 +1,4 @@
+using System;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -28,7 +29,11 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
         string type = site.Ship is { } ship
             ? site.ShownClass is int cls ? $"{"CBAS"[cls]}-class {ship.TypeLabel}" : ship.TypeLabel   // an Exotic is always S
             : "";
-        if (site.Underwater) type = type.Length > 0 ? $"{type} · underwater" : "Underwater";
+        if (site.Underwater)
+        {
+            string water = site.DepthMetres is double depth ? $"about {Math.Round(depth / 10) * 10:N0} m deep" : "underwater";
+            type = type.Length > 0 ? $"{type} · {water}" : water;
+        }
         Distance = type.Length > 0 ? $"{type} · {distance}" : distance;
         Refresh();
     }
@@ -47,15 +52,13 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
     public void Refresh()
     {
         bool marked = ScanMarkerService.IsMarked(_site.Key), unsaved = ScanMarkerService.IsUnsaved(_site.Key);
-        // The game's planetary charts have no underwater-wreck event (scaneventtableplanet.mbin: only DISTRESS for land
-        // wrecks), so there's no marker that leads to one.
-        CanAddMarker = !unsaved && ScanMarkerService.CanAdd && !_site.Underwater;
+        CanAddMarker = !unsaved && ScanMarkerService.CanAdd;
         CanUndoMarker = unsaved;
         AddMarkerText = marked && !unsaved ? "Mark again" : "Add marker";
-        Status = _site.Underwater ? "Underwater - not confirmed in game yet, and markers can't lead to it."
-            : unsaved ? "Marker added - save your changes."
+        Status = unsaved ? "Marker added - save your changes."
             : marked ? "Marked in your save. Not showing in game? Mark it again."
             : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to add a marker."
+            : _site.Underwater ? "Underwater. Markers for underwater wrecks are being tested - check the coordinates on arrival."
             : _site.DistanceKm > 25 ? "The game may lead a far marker to a different wreck. Check the coordinates on arrival."
             : "";
     }
@@ -65,7 +68,11 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
     [RelayCommand]
     private void AddMarker()
     {
-        ScanMarkerService.Add(_site.PlanetAddress, _site.Key, _site.X, _site.Y, _site.Z, 1, "DISTRESS", "DistressSignal");
+        // Underwater wrecks are the WaterDistressSignal building; the game's charts have no event of their own
+        // (scaneventtableplanet.mbin: DISTRESS, DISTRESS_NPC), so the marker is the DISTRESS event naming that class -
+        // not confirmed in game yet.
+        ScanMarkerService.Add(_site.PlanetAddress, _site.Key, _site.X, _site.Y, _site.Z, 1, "DISTRESS",
+            _site.Underwater ? "WaterDistressSignal" : "DistressSignal");
         Refresh();
     }
 

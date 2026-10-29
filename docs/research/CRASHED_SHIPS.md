@@ -155,6 +155,16 @@ pick and class as land wrecks (assumed). Lora: 207 of 985 sites pass; Mephar VI 
 leads to them (scaneventtableplanet.mbin has only DISTRESS and DISTRESS_NPC), so the app offers no marker. To check:
 visit a few underwater sites on a planet with a sea.
 
+**Underwater wreck confirmed (2026-10-29):** Rozawa Guardian III, S-class Exotic, on the sea floor at -14.39, -13.39 on the
+water world Waterworld (`0x006427005B6DA013`, sea 1,500) - position, ship, type, class exact. Stats: 41,000,000, 37/21,
+353.1 / 255.0 / 177.6 / 634.9. Depth: game sea floor 1,480.9, Core 1,456 (generated ground 43.8; the game refines it).
+Markers for underwater wrecks: DISTRESS event with building class "WaterDistressSignal" - untested.
+
+**Salvaged ships (new in Forsaken), not researched:** on Riwor V (Blighted Planet, dissonance, system Saitaky-Erjah III)
+a claimable "Reforged" ship: name Fragment-v / Reforged-iz, class "Salvaged // C:32+22", value 23,400,000, damage 175.5
+(65.5 core), shield 171.6, hyperdrive 601.0 (101.0 core), maneuverability 290.3 (214.1 core), at +36.15, +68.05. Likely
+one of the Forsaken building classes (ScrapYard 69, Crashed_Swarm 70) on scrap worlds - next research target.
+
 ## Still open
 
 - Prime-only / gas-giant systems (layout not covered), pirate systems' flag (`[+0x2e17]`), uninhabited systems' row 7.

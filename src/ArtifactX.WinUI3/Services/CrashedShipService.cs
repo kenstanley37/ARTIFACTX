@@ -13,7 +13,7 @@ namespace ArtifactX.WinUI3.Services;
 /// the coordinates the Analysis Visor shows there, how far it is from where the search started, and the ship lying
 /// there and its class C=0/B=1/A=2/S=3 (null when the catalog lacks the ship pool settings or class rows).</summary>
 public sealed record CrashedShipSite(ulong PlanetAddress, ulong Key, double X, double Y, double Z, double Latitude,
-    double Longitude, double DistanceKm, SystemStarship? Ship, int? ShipClass, bool Underwater = false)
+    double Longitude, double DistanceKm, SystemStarship? Ship, int? ShipClass, bool Underwater = false, double? DepthMetres = null)
 {
     public string Coordinates => NmsPlanetCoordinates.Format(Latitude, Longitude);
 
@@ -179,7 +179,18 @@ public static class CrashedShipService
         double angle = Math.Acos(Math.Clamp(Vector3.Dot(Vector3.Normalize(site.Point), from), -1f, 1f));
         return new CrashedShipSite(context.PlanetAddress, site.Key, c.X + site.Point.X, c.Y + site.Point.Y, c.Z + site.Point.Z,
             lat, lon, angle * context.Radius / 1000, ship,
-            SystemShipPool.CrashedShipClass(site.Key, context.Attributes.Wealth, context.Attributes.Pirate, context.Inventory), site.Class == WaterDistressSignal);
+            SystemShipPool.CrashedShipClass(site.Key, context.Attributes.Wealth, context.Attributes.Pirate, context.Inventory), site.Class == WaterDistressSignal,
+            site.Class == WaterDistressSignal ? Depth(context, site) : null);
+    }
+
+    /// <summary>How deep the sea floor is at an underwater site: sea level minus Core's generated ground height. On the
+    /// water world Waterworld (2026-10-29) the game's sea floor read 1,480.9 at Rozawa Guardian III where this gives
+    /// 1,456 - the game refines the ground once the area loads - so it's shown rounded.</summary>
+    private static double? Depth(PlanetContext context, BuildingSite site)
+    {
+        if (context.Terrain is not { } t || t.SeaLevel <= 0f) return null;
+        var p = Vector3.Normalize(site.Point) * context.Radius;
+        return t.SeaLevel - PlanetTerrain.Height(t, p.X, p.Y, p.Z);
     }
 
     private static Vector3 Direction(double latitude, double longitude)
