@@ -48,8 +48,15 @@ Places space locators (GcSolarSystemData `+0x2470`). Draws, from stream index 10
 Pool start = 10 + 28 + per-body draws + 3. Checked **8/8 systems**: 835, 242, 887, 858, 1147 (pool starts read
 from memory) and 887, 764, 900 (locator step end from the hook, + 3).
 
+## In Core (2026-10-29)
+
+`SystemShipPool.PoolStart` (locator step), `SystemStarshipGenerator.GenerateForSystem` (pool) and
+`SystemShipPool.CrashedShip` (pick); settings from the catalog (`SolarLayoutTables.ShipPool`, format 50:
+LocatorScatter counts and distance, `CivilianClassWeightings` rows - row 7 is race None - and both Sail chances).
+Scratch check against the game: pool start 8/8 systems, 21/21 seeds, 3/3 crashed ships by name and type.
+Used by Planet Details (crashed-ship rows) and the Current System starship list.
+
 ## Still open
 
 - The ship's **class** (C/B/A/S) - not traced yet.
-- Prime-only / gas-giant systems (layout not covered), pirate systems' flag (`[+0x2e17]`).
-- Port to Core: pool + locator step + pick; then the planet card / Planet Details text.
+- Prime-only / gas-giant systems (layout not covered), pirate systems' flag (`[+0x2e17]`), uninhabited systems' row 7.

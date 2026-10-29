@@ -50,7 +50,10 @@ public static partial class CatalogSteps
             solar.StationSpawnAvoidRadius,
             new[] { solar.SpawnPointStationToPlanetInterpRange.X, solar.SpawnPointStationToPlanetInterpRange.Y },
             debug is { BootMode: GcDebugOptions.BootModeEnum.SolarSystem }
-                ? true : null);
+                ? true : null,
+            new ShipPoolSettings(solar.LocatorScatterMinCount, solar.LocatorScatterMaxCount, solar.LocatorScatterMaxDistanceFromPlanet,
+                solar.SpaceshipWeightings.Select(w => w.CivilianClassWeightings.ToArray()).ToArray(),
+                solar.PirateClassShipOverrideProbability, solar.PirateClassShipOverrideProbabilityPirateSystem));
 
         string? pirateDescriptor = null;
         StationEquipmentScene[]? pirateVariants = null;

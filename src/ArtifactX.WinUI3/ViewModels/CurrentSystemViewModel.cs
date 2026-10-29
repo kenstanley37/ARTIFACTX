@@ -393,7 +393,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         // game's own generator gives them (PlanetTypesService).
         if (!PlanetTypesService.IsReady) _ = PlanetTypesService.EnsureLoadedAsync();
         bool hasCorruptedPlanet = PlanetTypesService.SystemHasCorruptedPlanet(system);
-        _ = Starships.LoadAsync(system, portalCode, facts, hasCorruptedPlanet);
+        _ = Starships.LoadAsync(system, portalCode, galaxy, facts, hasCorruptedPlanet);
 
         var known = planets.Select(p => p.PlanetIndex).ToHashSet();
         var allBodies = planets.Concat(PlanetTypesService.Undiscovered(system, known)).OrderBy(p => p.PlanetIndex).ToList();

@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- **Possible system starships** (Current System): the list now shows the ships that really appear in each system. Since Forsaken (7.10) it had shown the wrong names and seeds. Rebuild game data to apply the fix.
+
 - **Current System planet cards**: The cards now line up from the left and wrap onto new rows instead of sitting centred, with some space below the section heading. Cards are no longer all stretched to the height of the tallest one, so short cards don't leave a big empty gap.
 
 - **No Man's Sky Forsaken (7.10)**: ArtifactX reads the Forsaken update's game files correctly again. Before this, a game data rebuild on Forsaken left the Regions map without its star settings, the Corvette Cache without its buildable parts, and some multi-tool and space station details wrong. Rebuild game data to apply the fix. The title bar now shows the No Man's Sky release ArtifactX was tested with, and says when your game is newer than that.
@@ -28,7 +30,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### New
 
-- **Crashed ships**: Planet Details lists the 5 crashed ships nearest you, or nearest the planet's portal when you're not there, with their coordinates and distance. Each has an optional button to add a marker to your save (the game must be closed), so the game leads you to it. Which ship lies there isn't shown yet. Rebuild game data to enable this.
+- **Crashed ships**: Planet Details lists the 5 crashed ships nearest you, or nearest the planet's portal when you're not there, with their coordinates and distance. Each has an optional button to add a marker to your save (the game must be closed), so the game leads you to it. Each shows the name and type of the ship lying there (its class isn't shown yet). Rebuild game data to enable this.
 
 - **Portal locations**: Every planet card on Current System shows where that planet's portal stands, in the same coordinates as your Analysis Visor. It's worked out from the game's own rules, so it works on planets nobody has visited. Open a planet to add a marker for its portal to your save; the game then leads you straight to it. Adding a marker needs No Man's Sky closed, and you save your changes as usual. Rebuild game data to enable this.
 

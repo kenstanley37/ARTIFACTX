@@ -5,7 +5,7 @@ using System.Globalization;
 
 namespace ArtifactX.WinUI3.ViewModels.ExploreViewModels;
 
-/// <summary>One predicted crashed ship on Planet Details: where it is, how far, and an optional save marker.</summary>
+/// <summary>One predicted crashed ship on Planet Details: which ship, where it is, how far, and an optional save marker.</summary>
 public sealed partial class CrashedShipRowViewModel : ObservableObject
 {
     private readonly CrashedShipSite _site;
@@ -13,19 +13,20 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
     public CrashedShipRowViewModel(CrashedShipSite site, int number)
     {
         _site = site;
-        Title = $"Crashed ship {number}";
+        Title = site.Ship?.DefaultName is { Length: > 0 } name ? name : $"Crashed ship {number}";
         Coordinates = site.Coordinates;
-        Distance = site.DistanceKm < 1
+        string distance = site.DistanceKm < 1
             ? $"{site.DistanceKm * 1000:0} m away"
             : $"{site.DistanceKm.ToString("0.0", CultureInfo.CurrentCulture)} km away";
+        Distance = site.Ship is { } ship ? $"{ship.TypeLabel} · {distance}" : distance;
         Refresh();
     }
 
     public string Title { get; }
     public string Coordinates { get; }
     public string Distance { get; }
-    public string AddMarkerName => $"Add a marker for {Title.ToLowerInvariant()} to my save";
-    public string UndoMarkerName => $"Undo the marker for {Title.ToLowerInvariant()}";
+    public string AddMarkerName => $"Add a marker for the crashed ship {Title} to my save";
+    public string UndoMarkerName => $"Undo the marker for the crashed ship {Title}";
 
     [ObservableProperty] public partial string Status { get; private set; } = "";
     [ObservableProperty] public partial bool CanAddMarker { get; private set; }

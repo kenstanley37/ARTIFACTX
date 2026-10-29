@@ -104,8 +104,44 @@ public static class SystemStarshipGenerator
         bool isPirate,
         Func<string, IReadOnlyList<string>?>? words = null,
         bool includeFleet = false,
+        bool includeSentinel = false) =>
+        Build(portalCode, 41, race, isPirate, words, includeFleet, includeSentinel);
+
+    /// <summary>
+    /// The pool as NMS build 183791 (Forsaken 7.10) makes it: the stream seeded from the packed system address
+    /// (galaxy included) and the ships starting after a per-system number of draws (<see cref="SystemShipPool.PoolStart"/>);
+    /// the Sail override hashes the packed address too. Checked 2026-10-29: 21/21 seeds and the Sail at #17 in two
+    /// systems read from the running game (Ribhakyam's system 0x11476E2, Slot 8), pool start 8/8 systems.
+    /// Null when the layout can't be generated or the catalog lacks the ship pool settings (format 50).
+    /// </summary>
+    public static IReadOnlyList<SystemStarship>? GenerateForSystem(
+        ulong portalCode,
+        int galaxy,
+        SystemRace race,
+        bool isPirate,
+        SolarLayoutTables tables,
+        Func<string, IReadOnlyList<string>?>? words = null,
+        bool includeFleet = false,
         bool includeSentinel = false)
     {
+        if (SolarLayoutGeneration.ForSystem(portalCode, galaxy, tables, true) is not { } layout
+            || SystemShipPool.PoolStart(layout, tables) is not { } start) return null;
+        return Build(layout.Address, start, race, isPirate, words, includeFleet, includeSentinel);
+    }
+
+    /// <param name="streamSeed">Seeds the pool stream and keys the Sail override hash (portal code in build 180836,
+    /// the packed system address in 183791).</param>
+    /// <param name="skip">Draws before the first ship.</param>
+    private static IReadOnlyList<SystemStarship> Build(
+        ulong streamSeed,
+        int skip,
+        SystemRace race,
+        bool isPirate,
+        Func<string, IReadOnlyList<string>?>? words,
+        bool includeFleet,
+        bool includeSentinel)
+    {
+        ulong portalCode = streamSeed;
         uint lo = (uint)portalCode;
         uint hi = (uint)(portalCode >> 32);
         uint s0 = lo == 0 ? 1 : lo;
@@ -113,8 +149,8 @@ public static class SystemStarshipGenerator
 
         var rng = new UniverseRandom(((ulong)s1 << 32) | s0);
 
-        // Advance exactly 41 LCG steps to reach the start of the starship pool loop
-        for (int i = 0; i < 41; i++)
+        // Advance to the start of the starship pool loop
+        for (int i = 0; i < skip; i++)
             rng.Step();
 
         // Ship counts per class based on system race
