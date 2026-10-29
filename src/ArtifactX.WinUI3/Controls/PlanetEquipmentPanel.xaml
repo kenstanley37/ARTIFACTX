@@ -30,7 +30,7 @@
                                Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                     <TextBlock Grid.Row="2" Text="{x:Bind Equipment.PortalStatus, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
                     <StackPanel Grid.Column="1" Grid.RowSpan="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <Button Content="Add a marker to my save" Command="{x:Bind Equipment.AddPortalMarkerCommand}"
+                        <Button Content="{x:Bind Equipment.AddPortalMarkerText, Mode=OneWay}" Command="{x:Bind Equipment.AddPortalMarkerCommand}"
                                 IsEnabled="{x:Bind Equipment.CanAddPortalMarker, Mode=OneWay}"
                                 AutomationProperties.Name="Add a portal marker to my save"
                                 ToolTipService.ToolTip="Adds a marker for this portal to your save. Save your changes afterwards; the game shows it next time you load."/>
@@ -74,7 +74,7 @@
                                         <TextBlock Grid.Row="1" Text="{x:Bind Distance}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}"/>
                                         <TextBlock Grid.Row="2" Text="{x:Bind Status, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" VerticalAlignment="Center"/>
                                         <StackPanel Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Bottom" HorizontalAlignment="Right">
-                                            <Button Content="Add marker" Command="{x:Bind AddMarkerCommand}" IsEnabled="{x:Bind CanAddMarker, Mode=OneWay}"
+                                            <Button Content="{x:Bind AddMarkerText, Mode=OneWay}" Command="{x:Bind AddMarkerCommand}" IsEnabled="{x:Bind CanAddMarker, Mode=OneWay}"
                                                     AutomationProperties.Name="{x:Bind AddMarkerName}"
                                                     ToolTipService.ToolTip="Adds a marker for this crashed ship to your save. Needs No Man's Sky closed; save your changes afterwards."/>
                                             <Button Content="Undo" Command="{x:Bind UndoMarkerCommand}" Visibility="{x:Bind CanUndoMarker, Mode=OneWay}"

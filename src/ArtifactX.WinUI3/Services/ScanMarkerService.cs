@@ -12,7 +12,9 @@ namespace ArtifactX.WinUI3.Services;
 /// Format evidence (2026-10-28, Slot 8): a portal marker the game saved itself (9@i 3, oZw as hex text, 5bU
 /// [true, site key], TWn the system-space position) and test markers written the same way led straight to the portal
 /// on 5 planets and from the app to Mephar VI's portal; an Observatory marker written with 9@i 1 and TWn at the
-/// planet radius led to the building (2026-10-28).
+/// planet radius led to the building (2026-10-28). The game can stop showing a marker while its entry stays in the
+/// list (Slot 8, 2026-10-29: Ribhakyam's portal entry still saved, no marker in game; the key is nowhere else in the
+/// save), so a marked site can be marked again: its entry is replaced by a fresh one, and Undo puts the old one back.
 /// </summary>
 public static class ScanMarkerService
 {
@@ -20,6 +22,9 @@ public static class ScanMarkerService
 
     /// <summary>Site keys of markers added in this session and not saved yet (they can be removed again).</summary>
     private static readonly HashSet<string> Added = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The entries "mark again" replaced in this session, by site key, so Undo can put them back.</summary>
+    private static readonly Dictionary<string, JToken> Replaced = new(StringComparer.OrdinalIgnoreCase);
 
     public static bool CanAdd => SaveSessionManager.IsSaveLoaded && !GameProcessMonitorService.IsGameRunning;
 
@@ -36,8 +41,13 @@ public static class ScanMarkerService
     /// <param name="buildingClass">The building class name (iqv), e.g. "Portal", "DistressSignal".</param>
     public static void Add(ulong planetAddress, ulong key, double x, double y, double z, int table, string eventId, string buildingClass)
     {
-        if (!CanAdd || IsMarked(key)) return;
+        if (!CanAdd || IsUnsaved(key)) return;
         var events = Events() is { } current ? (JArray)current.DeepClone() : new JArray();
+        if (events.FirstOrDefault(e => Matches(e, key)) is { } old)
+        {
+            Replaced[KeyText(key)] = old.DeepClone();
+            old.Remove();
+        }
         events.Add(new JObject
         {
             ["9@i"] = table,
@@ -55,11 +65,13 @@ public static class ScanMarkerService
         Added.Add(KeyText(key));
     }
 
-    /// <summary>Takes back a marker added in this session (other markers stay as they are).</summary>
+    /// <summary>Takes back a marker added in this session, putting back the entry it replaced (other markers stay as
+    /// they are).</summary>
     public static void Remove(ulong key)
     {
         if (!IsUnsaved(key) || Events() is not { } current) return;
         var events = new JArray(current.Where(e => !Matches(e, key)).Select(e => e.DeepClone()));
+        if (Replaced.Remove(KeyText(key), out var old)) events.Add(old);
         SaveSessionManager.StageEdit(events, ScanEventsPath);
         Added.Remove(KeyText(key));
     }

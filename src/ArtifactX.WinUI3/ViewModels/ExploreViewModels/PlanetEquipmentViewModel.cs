@@ -52,6 +52,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     [ObservableProperty] public partial string PortalCoordinates { get; private set; } = "";
     [ObservableProperty] public partial string PortalStatus { get; private set; } = "";
     [ObservableProperty] public partial bool CanAddPortalMarker { get; private set; }
+    [ObservableProperty] public partial string AddPortalMarkerText { get; private set; } = "Add a marker to my save";
     [ObservableProperty] public partial bool CanUndoPortalMarker { get; private set; }
     private PortalLocation? _portal;
     private ulong _planetAddress;
@@ -106,10 +107,13 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         PortalCoordinates = portal.Coordinates;
         bool marked = ScanMarkerService.IsMarked(portal.Key), unsaved = ScanMarkerService.IsUnsaved(portal.Key);
         CanUndoPortalMarker = unsaved;
-        CanAddPortalMarker = !marked && ScanMarkerService.CanAdd;
+        CanAddPortalMarker = !unsaved && ScanMarkerService.CanAdd;
+        AddPortalMarkerText = marked && !unsaved ? "Mark it again" : "Add a marker to my save";
         PortalStatus = unsaved ? "Marker added. Save your changes to write it to your save."
-            : marked ? "This portal is marked in your save."
             : !SaveSessionManager.IsSaveLoaded ? "Load a save to add a marker."
+            : marked && GameProcessMonitorService.IsGameRunning
+                ? "This portal is marked in your save. If the game no longer shows the marker, close No Man's Sky to mark it again."
+            : marked ? "This portal is marked in your save. If the game no longer shows the marker, mark it again."
             : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to add a marker to your save."
             : "Adds a marker to your save that leads you to this portal in game.";
     }

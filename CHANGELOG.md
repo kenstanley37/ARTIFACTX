@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- **Planet Details markers**: a portal or crashed ship that's marked in your save but no longer shown by the game can be marked again (Undo puts things back as they were). The crashed-ship rows now say when No Man's Sky has to be closed before you can add a marker.
+
 - **Possible system starships** (Current System): the list now shows the ships that really appear in each system. Since Forsaken (7.10) it had shown the wrong names and seeds. Rebuild game data to apply the fix.
 
 - **Current System planet cards**: The cards now line up from the left and wrap onto new rows instead of sitting centred, with some space below the section heading. Cards are no longer all stretched to the height of the tallest one, so short cards don't leave a big empty gap.

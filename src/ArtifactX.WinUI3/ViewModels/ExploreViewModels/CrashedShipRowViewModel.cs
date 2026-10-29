@@ -30,15 +30,18 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
 
     [ObservableProperty] public partial string Status { get; private set; } = "";
     [ObservableProperty] public partial bool CanAddMarker { get; private set; }
+    [ObservableProperty] public partial string AddMarkerText { get; private set; } = "Add marker";
     [ObservableProperty] public partial bool CanUndoMarker { get; private set; }
 
     public void Refresh()
     {
         bool marked = ScanMarkerService.IsMarked(_site.Key), unsaved = ScanMarkerService.IsUnsaved(_site.Key);
-        CanAddMarker = !marked && ScanMarkerService.CanAdd;
+        CanAddMarker = !unsaved && ScanMarkerService.CanAdd;
         CanUndoMarker = unsaved;
+        AddMarkerText = marked && !unsaved ? "Mark again" : "Add marker";
         Status = unsaved ? "Marker added - save your changes."
-            : marked ? "Marked in your save."
+            : marked ? "Marked in your save. Not showing in game? Mark it again."
+            : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to add a marker."
             : "";
     }
 
