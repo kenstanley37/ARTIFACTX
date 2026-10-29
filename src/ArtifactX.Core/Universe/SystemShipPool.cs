@@ -114,7 +114,8 @@ public static class SystemShipPool
     /// row in pirate systems - not checked in game yet). The class therefore goes with the site, and since the same key
     /// picks the ship's type, a pool ship tends to come out in the same class wherever it lies. Hook 2026-10-29 (Slot 8,
     /// observe-only): the key going into the pick was the seed of the class roll; checked 5/5 on Ribhakyam (medium
-    /// wealth: C, C, A, A, C). Null without the catalog's class rows.
+    /// wealth: C, C, A, A, C) and 2/2 in the pirate system Nugepan III (Toyot's Voyage, C-class Solar, on planet 2 and
+    /// on the prime planet Lora, 2026-10-29). Null without the catalog's class rows.
     /// </summary>
     public static int? CrashedShipClass(ulong siteKey, int wealth, bool pirate, InventoryGenerationTables? tables) =>
         MultiToolSiteGeneration.InventoryClass(siteKey, pirate ? 3 : Math.Clamp(wealth - 1, 0, 2), tables);

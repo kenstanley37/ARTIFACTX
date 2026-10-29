@@ -68,6 +68,18 @@ out in the same class at every site, which is why the repeats matched.
 
 Build 26295378 moved the code: pick `0x141754F00`, pool builder `0x14167C520`, locator step `0x1416847B0`.
 
+## More checks (2026-10-29, Steam build 26295378)
+
+- Pirate system Nugepan III (`0x0000C100001476E1`, Korvax, pirate): Toyot's Voyage, C-class Solar, at the predicted
+  sites on planet 2 (+6.89, +42.82) and on the prime planet 4 Lora (-4.30, +120.63) - position, name, type (the pirate
+  Sail override) and class all exact. 7/7 crashed ships so far.
+- Uncharted system Shlifs (`0x0000F900011476E2`, no race): **not solved.** Nothing at the predicted sites on Efarien.
+  Read-only memory: the planets' GcPlanetBuildingData (PlanetUA `+0x30`, PlanetRadius `+0x38`, VoronoiPointDivisions
+  `+0x40` float, point/sector seeds `+0x44/+0x48`, IsPrime `+0x4D`) equal Core's on all 4 bodies, and the system pool
+  (21 ships) equals Core's. But the live slot tables hold only 8 building types (Efarien: one slot 70 and the
+  DistressSignal slot 200; Yeqo Gamma: Shelter 20-28, slots 70-74, 200, Base 220-221), so Core's slot table is wrong
+  for uncharted systems, and the predicted DistressSignal at -3.41, -16.72 was still empty in game.
+
 ## Still open
 
 - Prime-only / gas-giant systems (layout not covered), pirate systems' flag (`[+0x2e17]`), uninhabited systems' row 7.
