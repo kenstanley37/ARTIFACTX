@@ -158,7 +158,9 @@ visit a few underwater sites on a planet with a sea.
 **Underwater wreck confirmed (2026-10-29):** Rozawa Guardian III, S-class Exotic, on the sea floor at -14.39, -13.39 on the
 water world Waterworld (`0x006427005B6DA013`, sea 1,500) - position, ship, type, class exact. Stats: 41,000,000, 37/21,
 353.1 / 255.0 / 177.6 / 634.9. Depth: game sea floor 1,480.9, Core 1,456 (generated ground 43.8; the game refines it).
-Markers for underwater wrecks: DISTRESS event with building class "WaterDistressSignal" - untested.
+Markers for underwater wrecks: DISTRESS event with building class "WaterDistressSignal" - **works**: the marker for
++29.40, +2.73 led to Rozawa Guardian III, S-class Exotic, at +29.40, +2.72 (41,000,000, 36/22, 402.9 / 260.6 / 195.0 /
+648.5) - the second underwater wreck confirmed.
 
 **Crashed Sentinel Interceptor, not researched:** on Riwor V (Blighted Planet, dissonance, system Saitaky-Erjah III)
 a claimable Sentinel ship (owner: "Reforged" is the Sentinel Interceptor): name Fragment-v / Reforged-iz, class "Salvaged // C:32+22", value 23,400,000, damage 175.5

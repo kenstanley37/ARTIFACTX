@@ -58,7 +58,6 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
         Status = unsaved ? "Marker added - save your changes."
             : marked ? "Marked in your save. Not showing in game? Mark it again."
             : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to add a marker."
-            : _site.Underwater ? "Underwater. Markers for underwater wrecks are being tested - check the coordinates on arrival."
             : _site.DistanceKm > 25 ? "The game may lead a far marker to a different wreck. Check the coordinates on arrival."
             : "";
     }
@@ -70,7 +69,7 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
     {
         // Underwater wrecks are the WaterDistressSignal building; the game's charts have no event of their own
         // (scaneventtableplanet.mbin: DISTRESS, DISTRESS_NPC), so the marker is the DISTRESS event naming that class -
-        // not confirmed in game yet.
+        // confirmed 2026-10-29 (Waterworld: the marker led to Rozawa Guardian III at +29.40, +2.72).
         ScanMarkerService.Add(_site.PlanetAddress, _site.Key, _site.X, _site.Y, _site.Z, 1, "DISTRESS",
             _site.Underwater ? "WaterDistressSignal" : "DistressSignal");
         Refresh();
