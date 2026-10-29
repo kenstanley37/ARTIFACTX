@@ -109,6 +109,20 @@ rolls (class + type + site key), check against the 13 wrecks seen in game.
 The S-class Skylark of Gravity marker (+29.18, +145.63) led to this B-class Explorer instead - re-targeted markers
 don't keep the ship either.
 
+## Save Beacons instead of markers (2026-10-29, Slot 8)
+
+A Save Beacon placed in game is a loose object in `vLc.6f=.c5s` (GcPersistentBBObjectData): `r<7` "^BUILDBEACON",
+`oZw` planet address, `wMC` position from the planet centre (radius = planet radius + ground), `wJ0` up = the outward
+normal, `aNu` facing, `b1:` Unix time, `CVX` 0, `ofi` RegionSeed. Core's ground height at the real beacon: 64,532.64
+vs 64,532.74. Two beacons written by script (game closed, backups kept) at predicted S-class wrecks, one with `ofi`
+copied and one with `ofi` 0: both showed on the HUD from 68 / 79 km - `ofi` doesn't matter for display.
+
+At the first (+29.18, +145.63, The Skylark of Gravity) there was **no wreck**: the site is inside a mountain. The
+predicted shelter 290 m away stood at +29.10, +145.36 (predicted +29.10, +145.35), so the grid is right - the game
+**rejects sites by terrain** and Core doesn't yet (the same site's marker had led to a different wreck). Next: port
+the regular building site's terrain accept test (the portal work ported the flatness test 0x14128C350 and the override
+accept test 0x141631160; the regular site builder's rule is untraced), then offer Save Beacons in the app.
+
 ## Still open
 
 - Prime-only / gas-giant systems (layout not covered), pirate systems' flag (`[+0x2e17]`), uninhabited systems' row 7.
