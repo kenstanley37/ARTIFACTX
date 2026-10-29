@@ -138,6 +138,13 @@ Height and flatness (Core `PlanetTerrain`) at the crash sites seen in game: 12 r
 sites (assumed shared, not traced). It drops 17/1,039 sites on Ribhakyam, 17/447 on Mephar VI and 321/1,062 on Lora
 (mostly under its sea), ~0.2 s per planet. Next: more empty/real sites in game to confirm, then the traced rule.
 
+More in-game checks (2026-10-29, Mephar VI, markers from the app): Hyper Meyame XIX S-class Fighter at -13.64, -44.15
+(15,650,000, 29/18, 443.7 / 242.8 / 101.0 / 504.9) and The Skylark of Gravity S-class Shuttle at -24.64, -73.61
+(predicted -24.63; 12,650,000, 32/19, 217.2 / 227.2 / 130.7 / 332.4) - 16/16 wrecks found as predicted. The marker on
+the empty mountain site (+29.18, +145.63) again led to Josonix's Defeat BO3 at -2.78, -160.56: **a marker on a site
+with no wreck is moved by the game to a real one** - the cause of the wandering markers. That wreck's stats were
+identical on both visits (6,400,000, 27/17, 104.0 / 197.9 / 143.8 / 384.3): stats are fixed per site.
+
 ## Still open
 
 - Prime-only / gas-giant systems (layout not covered), pirate systems' flag (`[+0x2e17]`), uninhabited systems' row 7.
