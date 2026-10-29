@@ -190,6 +190,14 @@ Roy 24-30/14-19, 24-30/20-28, 24-32/26-30; Alien 36/30; Sail 24-30/13-18, 24-32/
 LayoutSizeType). Next: a hook session at a wreck (reload near it) logging the builder 0x1404D5E90's size/class inputs
 and the inventory after each sub-step (0x1404D7350, 0x1404DD6E0, 0x1404D7E40, 0x1404D7600).
 
+**Hook at Crimson-σ (2026-10-29, Nionne Sigma, site key 0xB118F1E99ED0D4CA, C-class Sentinel):** the builder
+0x1404D5E90 builds kinds 4 (cargo), 5 (tech), 6 from the key; the layout step 0x1404D7350 gets the size type in r9 = 23
+(RobotLarge, cargo 32-40, tech 22-28) and writes the count at +0x84: cargo 0x22 = 34, tech 0x18 = 24 - the game's
+"C:34+24". **Count = Min + Next(Max - Min + 1) on the first draw of a fresh stream from the key** (same restart as the
+multi-tool layout): 34 = 32 + 2, 24 = 22 + 2. The same rule gives Josonix (SciSmall) 27/17 and Skylark (ShuSmall) 32/19
+exactly, but not the S-class Fighters (Hyper Meyame 29/18 and 31/16; FgtSmall gives 28/19) or the Exotic (37/21; Roy*
+max 32) - their size type or range differs (class bonus?). Next: hook at a Fighter wreck.
+
 ## Still open
 
 - Prime-only / gas-giant systems (layout not covered), pirate systems' flag (`[+0x2e17]`), uninhabited systems' row 7.
