@@ -15,6 +15,8 @@ namespace ArtifactX.WinUI3.Services;
 /// planet radius led to the building (2026-10-28). The game can stop showing a marker while its entry stays in the
 /// list (Slot 8, 2026-10-29: Ribhakyam's portal entry still saved, no marker in game; the key is nowhere else in the
 /// save), so a marked site can be marked again: its entry is replaced by a fresh one, and Undo puts the old one back.
+/// Confirmed 2026-10-29: after "Mark it again" the game showed that portal's marker; two crashed-ship markers added
+/// the same session led to Iwada's Swift Pathfinder and Exhausted Song LK1.
 /// </summary>
 public static class ScanMarkerService
 {
