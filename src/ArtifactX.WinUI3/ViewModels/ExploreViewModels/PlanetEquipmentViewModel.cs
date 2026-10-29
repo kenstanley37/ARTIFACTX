@@ -67,9 +67,10 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     private const string ShipClassKey = "PlanetDetailsCrashedShipClass", ShipTypeKey = "PlanetDetailsCrashedShipType",
         ShipCountKey = "PlanetDetailsCrashedShipCount";
 
-    /// <summary>How many matches to list (index into <see cref="ShipCounts"/>); 10 by default, remembered.</summary>
-    public IReadOnlyList<string> ShipCountChoices { get; } = ["5", "10", "25", "50", "100"];
-    private static readonly int[] ShipCounts = [5, 10, 25, 50, 100];
+    /// <summary>How many matches to list (index into <see cref="ShipCounts"/>); 10 by default, remembered. "All" is
+    /// every wreck of the planet (about 2,000 on a Large planet).</summary>
+    public IReadOnlyList<string> ShipCountChoices { get; } = ["5", "10", "25", "50", "100", "250", "500", "All"];
+    private static readonly int[] ShipCounts = [5, 10, 25, 50, 100, 250, 500, int.MaxValue];
     [ObservableProperty]
     public partial int ShipCountChoice { get; set; } = Remembered(ShipCountKey, ShipCounts.Length - 1, 1);
     private int ShownShips => ShipCounts[System.Math.Clamp(ShipCountChoice, 0, ShipCounts.Length - 1)];
