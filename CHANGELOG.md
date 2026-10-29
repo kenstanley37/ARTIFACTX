@@ -9,6 +9,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - **S-class crashed ships** (Current System): each planet card shows the nearest S-class crashed ship on that planet (Exotics included), with how many the planet has, and a button to add a marker to your save. In systems without a race these aren't confirmed in game yet, and the card says so.
 - **Crashed ships that aren't there**: crash sites on ground too steep for the game to build on (inside mountains, on cliffs) or under the sea are no longer listed, so the lists and markers point only at wrecks the game actually places.
 - **Underwater crashed ships**: planets with a sea also list the wrecks that lie on the sea floor, with roughly how deep they are. You can add a marker for them too.
+- **Crashed Sentinel ships**: dissonant planets also list their crashed Sentinel Interceptors (type "Sentinel" in the search), with a marker button. Not confirmed in game yet.
 - **Crashed ship search** (Planet Details): search a planet's crashed ships by class (S by default, A, B, C or any) and type. The type list shows only the types the planet has in the chosen class, with how many of each (the game ties a wreck's type to its class, so for example C-class wrecks may only be Fighters and Haulers). It lists the nearest matches - from 5 up to all of them, as you choose - each with a marker button, and says how many the planet has. Your choices are remembered.
 
 ### Fixed

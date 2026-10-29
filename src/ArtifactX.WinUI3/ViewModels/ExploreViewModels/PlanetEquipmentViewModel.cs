@@ -135,7 +135,8 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         if (_planetAddress != planet.Address) return;
         var options = new List<CrashedShipTypeOption> { new($"Any type ({counts.Sum(c => c.Count):N0})", null) };
         foreach (var (group, count) in counts)
-            if (System.Enum.TryParse<SystemStarshipType>(group, out var type)) options.Add(new($"{group} ({count:N0})", type));
+            if (System.Enum.TryParse<SystemStarshipType>(group, out var type))
+                options.Add(new($"{(type == SystemStarshipType.SentinelInterceptor ? "Sentinel" : group)} ({count:N0})", type));
         _rebuildingTypes = true;
         ShipTypeOptions = options;
         SelectedShipType = options.FirstOrDefault(o => o.Type?.ToString() == _wantedType) ?? options[0];

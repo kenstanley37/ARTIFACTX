@@ -165,7 +165,7 @@ Markers for underwater wrecks: DISTRESS event with building class "WaterDistress
 **Crashed Sentinel Interceptor, not researched:** on Riwor V (Blighted Planet, dissonance, system Saitaky-Erjah III)
 a claimable Sentinel ship (owner: "Reforged" is the Sentinel Interceptor): name Fragment-v / Reforged-iz, class "Salvaged // C:32+22", value 23,400,000, damage 175.5
 (65.5 core), shield 171.6, hyperdrive 601.0 (101.0 core), maneuverability 290.3 (214.1 core), at +36.15, +68.05. Likely
-class 60 SentinelDistressSignal (RequiresCorruptSentinels - dissonant planets only; absent on Mephar VI) with the
+class 52 SentinelDistressSignal (RequiresCorruptSentinels - dissonant planets only; absent on Mephar VI) with the
 system's Sentinel Interceptor (pool #36, SystemStarshipGenerator includeSentinel). Next: list them, check at Riwor V.
 
 ## Still open

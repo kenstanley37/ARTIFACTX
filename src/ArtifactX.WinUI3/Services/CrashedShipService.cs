@@ -13,7 +13,7 @@ namespace ArtifactX.WinUI3.Services;
 /// the coordinates the Analysis Visor shows there, how far it is from where the search started, and the ship lying
 /// there and its class C=0/B=1/A=2/S=3 (null when the catalog lacks the ship pool settings or class rows).</summary>
 public sealed record CrashedShipSite(ulong PlanetAddress, ulong Key, double X, double Y, double Z, double Latitude,
-    double Longitude, double DistanceKm, SystemStarship? Ship, int? ShipClass, bool Underwater = false, double? DepthMetres = null)
+    double Longitude, double DistanceKm, SystemStarship? Ship, int? ShipClass, bool Underwater = false, double? DepthMetres = null, bool Sentinel = false)
 {
     public string Coordinates => NmsPlanetCoordinates.Format(Latitude, Longitude);
 
@@ -39,9 +39,11 @@ public sealed record CrashedShipsOfClass(IReadOnlyList<CrashedShipSite> Nearest,
 /// </summary>
 public static class CrashedShipService
 {
-    private const int DistressSignal = 20, WaterDistressSignal = 32;
+    private const int DistressSignal = 20, WaterDistressSignal = 32, SentinelDistressSignal = 52;
 
-    private static bool IsWreck(int cls) => cls is DistressSignal or WaterDistressSignal;
+    /// <summary>Claimable wrecks: land (20), underwater (32) and crashed Sentinel Interceptors (52, only on planets with
+    /// corrupted sentinels - the building table's RequiresCorruptSentinels).</summary>
+    private static bool IsWreck(int cls) => cls is DistressSignal or WaterDistressSignal or SentinelDistressSignal;
 
     /// <summary>Every crashed ship of a planet, worked out once per planet by a pass over the whole building grid
     /// (about 1.8 million cells and 2,000 wrecks on a Large planet, 0.15-0.3 s off the UI thread).</summary>
@@ -153,7 +155,7 @@ public static class CrashedShipService
             var attributes = SystemGenerator.Attributes(code, galaxy);
             var layout = solar?.ShipPool is null ? null : SolarLayoutGeneration.ForSystem(code, galaxy, solar, true);
             var pool = layout is null ? null : SystemStarshipGenerator.GenerateForSystem(code, galaxy, attributes.Race,
-                attributes.Pirate, solar!, k => words.GetValueOrDefault(k));
+                attributes.Pirate, solar!, k => words.GetValueOrDefault(k), includeSentinel: true);
             var body = types[index - 1];
             var terrainTables = profiles.Objects?.Terrain;
             var choice = terrainTables is null ? null : PlanetProfileGenerator.TerrainChoiceFor(seeds[index - 1], body, (int)attributes.Star, profiles);
@@ -173,14 +175,18 @@ public static class CrashedShipService
     {
         var (lat, lon) = site.Coordinates;
         var c = context.Centre;
+        // A crashed Sentinel Interceptor is the system's own (pool #36) - assumed, not traced; its class roll is assumed
+        // to be the same site-key roll as other wrecks.
+        bool sentinel = site.Class == SentinelDistressSignal;
         var ship = context.Pool is null || context.ShipPool is null ? null
+            : sentinel ? context.Pool.FirstOrDefault(s => s.Type == SystemStarshipType.SentinelInterceptor)
             : SystemShipPool.CrashedShip(site.Key, context.Pool, context.Attributes.Race, context.Attributes.Pirate,
                 context.SystemAddress, context.ShipPool);
         double angle = Math.Acos(Math.Clamp(Vector3.Dot(Vector3.Normalize(site.Point), from), -1f, 1f));
         return new CrashedShipSite(context.PlanetAddress, site.Key, c.X + site.Point.X, c.Y + site.Point.Y, c.Z + site.Point.Z,
             lat, lon, angle * context.Radius / 1000, ship,
             SystemShipPool.CrashedShipClass(site.Key, context.Attributes.Wealth, context.Attributes.Pirate, context.Inventory), site.Class == WaterDistressSignal,
-            site.Class == WaterDistressSignal ? Depth(context, site) : null);
+            site.Class == WaterDistressSignal ? Depth(context, site) : null, sentinel);
     }
 
     /// <summary>How deep the sea floor is at an underwater site: sea level minus Core's generated ground height. On the
