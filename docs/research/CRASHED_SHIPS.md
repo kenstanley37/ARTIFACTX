@@ -1,0 +1,55 @@
+# Crashed ships: which ship lies at a crashed-ship site
+
+NMS build 183791 (Forsaken 7.10), traced 2026-10-28/29 with owner-approved research hooks on the Slot 8 test save
+(Frida, function entries only, observe-only) and read-only memory reads. Locations of crashed ships are in
+`PLANET_BUILDING_PLACEMENT.md` (DistressSignal grid sites, Core `PlanetBuildingSites.SitesNear`).
+
+## Result
+
+A crashed ship does not get a seed of its own: the building picks **one ship of the system's own starship pool**
+(`GcSolarSystemData.SystemShips`, `+0x24A0`, 0x40-byte `GcAISpaceshipPreloadCacheData`: TextureDescriptorHint,
+Seed `+0x20`, Faction `+0x30`, FrigateClass `+0x34`, ShipClass `+0x38`, ShipRole `+0x3C`).
+
+Checked: Ribhakyam (system `0x0000FE00011476E2`) - Final Eokak III (C Hauler) = pool #1, Exhausted Song LK1
+(C Fighter) = pool #5, Iwada's Swift Pathfinder (A Shuttle) = pool #15: **3/3 picked exactly** from their site keys.
+
+## The pick (`0x1417550E0`, called by the building code with the site key)
+
+1. An MWC seeded with the DistressSignal **site key** (the scanner marker's BuildingSeed).
+2. Draw 1: ship class 0..11 by the race's row of `GcSolarGenerationGlobals.SpaceshipWeightings` (12 weights per
+   race; Gek 0, Vy'keen 1, Korvax 2...): total = sum of the 12 weights (float32, in order), x = frac * total, walk
+   the weights subtracting while x > weight.
+3. Solar override: when the class is 4 (Shuttle), or in a pirate system, a second MWC seeded with
+   `Hash(key, system UA)` (the pool's solar hash: `(ua ^ key) * K; ^= >>47; ^= ua; * K; ^= >>47; * K`) draws once;
+   below `PirateClassShipOverrideProbability` (0.1; 0.85 for a Shuttle in a pirate system) the class becomes 8 (Sail).
+4. Draw 2 (first MWC): one of the pool ships of that class, `candidates[(n * word) >> 32]`.
+
+## The pool (built by `0x14167C700` when a system is generated)
+
+Core `SystemStarshipGenerator`'s recipe (verified on build 180836 with the portal code and a fixed skip of 41) holds
+in this build with two changes: the stream is seeded from the **packed system UA** (galaxy included), and the 21
+ship seeds start after a **per-system number of draws**. 21/21 seeds and the Solar override at #17 matched in two
+systems; the start was confirmed in 8 systems.
+
+The builder resets the generator stream (`+0x510/+0x514`) from the system seed twice; after the second reset
+`0x1416821E0`, `0x141682F00` (6 draws) and the locator step `0x141684990` run, then 3 more draws, then the pool.
+
+### Locator step `0x141684990` (why the start varies)
+
+Places space locators (GcSolarSystemData `+0x2470`). Draws, from stream index 10:
+- fixed: 28 draws (2 + 3x2 around the station; then 3, 1 and 4x4 with sin/cos);
+- per **primary body** (moons included, prime bodies not; `[+0x2544]`): count = `Next(Max - Min + 1) + Min`
+  (`LocatorScatterMinCount` 30, `LocatorScatterMaxCount` 65); per locator 4 draws (direction y = 1 - 2u, phi = u * 2pi;
+  distance `u * LocatorScatterMaxDistanceFromPlanet (40000) + 1.5 * shell radius`; type `Next(100) <
+  LocatorScatterChanceOfCapitalShips` 5); a locator within `500 + 1.5 * shell radius` of **any body's** centre
+  (all bodies, moons and primes too - Core `SolarLayoutGeneration` centres, shell radius with MassiveSolarSystems) is
+  dropped, otherwise one more draw (`Next(100) < LocatorScatterChanceOfPirates` 20).
+
+Pool start = 10 + 28 + per-body draws + 3. Checked **8/8 systems**: 835, 242, 887, 858, 1147 (pool starts read
+from memory) and 887, 764, 900 (locator step end from the hook, + 3).
+
+## Still open
+
+- The ship's **class** (C/B/A/S) - not traced yet.
+- Prime-only / gas-giant systems (layout not covered), pirate systems' flag (`[+0x2e17]`).
+- Port to Core: pool + locator step + pick; then the planet card / Planet Details text.
