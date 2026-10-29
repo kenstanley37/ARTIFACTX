@@ -58,29 +58,7 @@
                             <DataTemplate x:DataType="explore:CrashedShipRowViewModel">
                                 <Border Width="370" Padding="12,10" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
                                         Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
-                                    <Grid ColumnSpacing="10" RowSpacing="4">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-                                        <TextBlock Text="{x:Bind Title}" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}"/>
-                                        <TextBlock Grid.Column="1" Text="{x:Bind Coordinates}" FontSize="12" FontWeight="Bold" FontFamily="{ThemeResource ThemeDisplayFont}"
-                                                   Foreground="{ThemeResource ThemeAccentBrush}" IsTextSelectionEnabled="True" HorizontalAlignment="Right"/>
-                                        <TextBlock Grid.Row="1" Text="{x:Bind Distance}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}"/>
-                                        <TextBlock Grid.Row="2" Text="{x:Bind Status, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                                        <StackPanel Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Bottom" HorizontalAlignment="Right">
-                                            <Button Content="{x:Bind AddMarkerText, Mode=OneWay}" Command="{x:Bind AddMarkerCommand}" IsEnabled="{x:Bind CanAddMarker, Mode=OneWay}"
-                                                    AutomationProperties.Name="{x:Bind AddMarkerName}"
-                                                    ToolTipService.ToolTip="Adds a marker for this crashed ship to your save. Needs No Man's Sky closed; save your changes afterwards."/>
-                                            <Button Content="Undo" Command="{x:Bind UndoMarkerCommand}" Visibility="{x:Bind CanUndoMarker, Mode=OneWay}"
-                                                    AutomationProperties.Name="{x:Bind UndoMarkerName}"/>
-                                        </StackPanel>
-                                    </Grid>
+                                    <controls:CrashedShipRow Row="{x:Bind}"/>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

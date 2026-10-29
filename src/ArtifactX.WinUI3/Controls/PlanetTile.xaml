@@ -82,6 +82,14 @@
                                ToolTipService.ToolTip="Where this planet's portal stands - the coordinates your Analysis Visor shows there. Open the planet to add a marker to your save."/>
                 </Grid>
 
+                <!-- The nearest S-class or Exotic crashed ship (CrashedShipService), with its optional save marker. -->
+                <StackPanel Spacing="6" Margin="0,4,0,0" Visibility="{x:Bind Tile.HasNotable, Mode=OneWay}">
+                    <Border Height="1" Background="{ThemeResource ThemeLineBrush}" Margin="0,0,0,4"/>
+                    <TextBlock Text="S-CLASS CRASHED SHIP" Style="{StaticResource ThemeEyebrowStyle}"/>
+                    <controls:CrashedShipRow Row="{x:Bind Tile.NotableShip, Mode=OneWay}" Visibility="{x:Bind Tile.HasNotableShip, Mode=OneWay}"/>
+                    <TextBlock Text="{x:Bind Tile.NotableSummary, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
+                </StackPanel>
+
                 <StackPanel Spacing="6" Margin="0,4,0,0" Visibility="{x:Bind Tile.HasFish, Mode=OneWay}">
                     <Border Height="1" Background="{ThemeResource ThemeLineBrush}" Margin="0,0,0,4"/>
                     <TextBlock Text="FISH" Style="{StaticResource ThemeEyebrowStyle}"/>

@@ -4,6 +4,10 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ## Unreleased
 
+### Added
+
+- **S-class crashed ships** (Current System): each planet card shows the nearest S-class or Exotic crashed ship on that planet (nearest you, or the portal), with how many the planet has, and a button to add a marker to your save. In systems without a race these aren't confirmed in game yet, and the card says so.
+
 ### Fixed
 
 - **Planet Details markers**: a portal or crashed ship that's marked in your save but no longer shown by the game can be marked again (Undo puts things back as they were). The crashed-ship rows now say when No Man's Sky has to be closed before you can add a marker.
@@ -32,7 +36,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### New
 
-- **Crashed ships**: Planet Details lists the 5 crashed ships nearest you, or nearest the planet's portal when you're not there, with their coordinates and distance. Each has an optional button to add a marker to your save (the game must be closed), so the game leads you to it. Each shows the name, type and class (C to S) of the ship lying there. Rebuild game data to enable this.
+- **Crashed ships**: Planet Details lists the 5 crashed ships nearest you, or nearest the planet's portal when you're not there, with their coordinates and distance. Each has an optional button to add a marker to your save (the game must be closed), so the game leads you to it. Each shows the name, type and class (C to S) of the ship lying there. When your save was made somewhere else, the row reminds you to save in game on that planet first - otherwise the game may lead the marker to another wreck of the same ship. Rebuild game data to enable this.
 
 - **Portal locations**: Every planet card on Current System shows where that planet's portal stands, in the same coordinates as your Analysis Visor. It's worked out from the game's own rules, so it works on planets nobody has visited. Open a planet to add a marker for its portal to your save; the game then leads you straight to it. Adding a marker needs No Man's Sky closed, and you save your changes as usual. Rebuild game data to enable this.
 

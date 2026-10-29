@@ -9,15 +9,21 @@ namespace ArtifactX.WinUI3.ViewModels.ExploreViewModels;
 public sealed partial class CrashedShipRowViewModel : ObservableObject
 {
     private readonly CrashedShipSite _site;
+    private readonly bool _savedOnPlanet;
 
-    public CrashedShipRowViewModel(CrashedShipSite site, int number)
+    /// <param name="savedOnPlanet">Whether the save was made on this planet. A marker added from a save made elsewhere
+    /// (in space, on the freighter, another planet) was twice led by the game to another wreck of the same ship
+    /// (Nugepan III, 2026-10-29); every marker added from a save on the planet led true - so the row says so.</param>
+    /// <param name="from">What the distance is measured from: "away" (you), "from the portal".</param>
+    public CrashedShipRowViewModel(CrashedShipSite site, int number, bool savedOnPlanet, string from = "away")
     {
         _site = site;
+        _savedOnPlanet = savedOnPlanet;
         Title = site.Ship?.DefaultName is { Length: > 0 } name ? name : $"Crashed ship {number}";
         Coordinates = site.Coordinates;
         string distance = site.DistanceKm < 1
-            ? $"{site.DistanceKm * 1000:0} m away"
-            : $"{site.DistanceKm.ToString("0.0", CultureInfo.CurrentCulture)} km away";
+            ? $"{site.DistanceKm * 1000:0} m {from}"
+            : $"{site.DistanceKm.ToString("0.0", CultureInfo.CurrentCulture)} km {from}";
         string type = site.Ship is { } ship
             ? site.ShipClass is int cls ? $"{"CBAS"[cls]}-class {ship.TypeLabel}" : ship.TypeLabel
             : "";
@@ -45,6 +51,7 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
         Status = unsaved ? "Marker added - save your changes."
             : marked ? "Marked in your save. Not showing in game? Mark it again."
             : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to add a marker."
+            : !_savedOnPlanet ? "Save in game while on this planet first, so the marker leads to this wreck."
             : "";
     }
 

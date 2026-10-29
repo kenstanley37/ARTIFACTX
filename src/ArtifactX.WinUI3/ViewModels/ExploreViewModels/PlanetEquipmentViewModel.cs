@@ -88,7 +88,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         if (from is not { } at) return;
         var sites = await CrashedShipService.NearAsync(planet.Address, at.Lat, at.Lon);
         if (_planetAddress != planet.Address) return;
-        CrashedShips = sites.Select((s, i) => new CrashedShipRowViewModel(s, i + 1)).ToList();
+        CrashedShips = sites.Select((s, i) => new CrashedShipRowViewModel(s, i + 1, here, here ? "away" : "from the portal")).ToList();
         HasCrashedShips = CrashedShips.Count > 0;
         CrashedShipsHeading = here ? "CRASHED SHIPS NEAR YOU" : "CRASHED SHIPS NEAR THE PORTAL";
         CrashedShipsHint = sites.Any(s => s.Ship is null)

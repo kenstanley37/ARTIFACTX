@@ -81,6 +81,12 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         };
     }
 
+    /// <summary>The planet cards' crashed-ship marker buttons follow the game starting or stopping and staged edits.</summary>
+    public void RefreshMarkers()
+    {
+        foreach (var tile in Tiles) tile.NotableShip?.Refresh();
+    }
+
     public StationMultiToolsViewModel StationTools { get; } = new();
     public StationMarketViewModel Market { get; } = new();
     public SystemNotesViewModel Notes { get; } = new();
@@ -409,6 +415,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             (current, next) => current.HasSamePresentation(next));
         foreach (var tile in Tiles) _ = tile.LoadPortalAsync();
         UpdateTiles();
+        foreach (var tile in Tiles) _ = tile.LoadNotableAsync();
         _ = RefreshPictureAsync();
     }
 

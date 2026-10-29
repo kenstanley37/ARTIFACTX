@@ -97,6 +97,38 @@ public sealed partial class PlanetTileViewModel : ObservableObject
         }
     }
 
+    /// <summary>The nearest S-class or Exotic crashed ship on the planet (to you when you're here, else to the portal),
+    /// with its optional save marker (CrashedShipService: a whole-planet pass, cached per planet).</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasNotableShip))]
+    public partial CrashedShipRowViewModel? NotableShip { get; private set; }
+    public bool HasNotableShip => NotableShip is not null;
+    [ObservableProperty] public partial string NotableSummary { get; private set; } = "";
+    [ObservableProperty] public partial bool HasNotable { get; private set; }
+
+    private (double Latitude, double Longitude)? _here;
+
+    /// <summary>Fills <see cref="NotableShip"/> (off the UI thread); leaves the row hidden when the planet can't be
+    /// worked out yet.</summary>
+    public async System.Threading.Tasks.Task LoadNotableAsync()
+    {
+        bool fromYou = IsHere && _here is not null;
+        (double Latitude, double Longitude)? from = fromYou ? _here
+            : await PortalLocationService.GetAsync(Planet.Address) is { } portal ? (portal.Latitude, portal.Longitude) : null;
+        if (from is not { } at || await CrashedShipService.NotableAsync(Planet.Address, at.Latitude, at.Longitude) is not { } found)
+            return;
+        NotableShip = found.Nearest.Count > 0
+            ? new CrashedShipRowViewModel(found.Nearest[0], 1, IsHere, fromYou ? "away" : "from the portal")
+            : null;
+        string summary = found.Total switch
+        {
+            0 => "No S-class crashed ships on this planet.",
+            1 => "The only S-class crashed ship on this planet.",
+            _ => $"The nearest of {found.Total:N0} S-class crashed ships on this planet.",
+        };
+        NotableSummary = found.Unverified ? summary + " Not yet confirmed in game for systems without a race." : summary;
+        HasNotable = true;
+    }
+
     [ObservableProperty] public partial string Discovered { get; private set; } = "";
     [ObservableProperty] public partial string Visit { get; private set; } = "-";
     [ObservableProperty] public partial string HereLabel { get; private set; } = "YOU ARE HERE";
@@ -108,6 +140,7 @@ public sealed partial class PlanetTileViewModel : ObservableObject
         string visit = PlanetText.Visit(stats);
         Visit = visit.Length > 0 ? visit : "-";
         HereLabel = snapshot.Coordinates is { } at ? $"YOU ARE HERE · {NmsPlanetCoordinates.Format(at.Latitude, at.Longitude)}" : "YOU ARE HERE";
+        _here = IsHere ? snapshot.Coordinates : null;
     }
 }
 
