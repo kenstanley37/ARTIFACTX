@@ -82,7 +82,7 @@
                                ToolTipService.ToolTip="Where this planet's portal stands - the coordinates your Analysis Visor shows there. Open the planet to add a marker to your save."/>
                 </Grid>
 
-                <!-- The nearest crashed ship of the class chosen above the cards (CrashedShipService), with its optional save marker. -->
+                <!-- The nearest S-class crashed ship (CrashedShipService), with its optional save marker; Planet Details searches the rest. -->
                 <StackPanel Spacing="6" Margin="0,4,0,0" Visibility="{x:Bind Tile.HasNotable, Mode=OneWay}">
                     <Border Height="1" Background="{ThemeResource ThemeLineBrush}" Margin="0,0,0,4"/>
                     <TextBlock Text="{x:Bind Tile.NotableHeading, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}"/>

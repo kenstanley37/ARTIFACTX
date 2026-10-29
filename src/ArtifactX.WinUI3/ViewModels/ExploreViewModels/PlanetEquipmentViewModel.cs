@@ -57,11 +57,51 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     private PortalLocation? _portal;
     private ulong _planetAddress;
 
-    // Crashed ships nearest you (on this planet) or the portal (CrashedShipService).
+    // Crashed ships nearest you (on this planet) or the portal, filtered by class and type (CrashedShipService).
+    private const string ShipClassKey = "PlanetDetailsCrashedShipClass", ShipTypeKey = "PlanetDetailsCrashedShipType";
+    private const int ShownShips = 10;
+
+    /// <summary>The class filter's choices, in the order of the buttons (index 0 = any class).</summary>
+    public IReadOnlyList<string> ShipClassChoices { get; } = ["Any class", "S-class", "A-class", "B-class", "C-class"];
+
+    /// <summary>The type filter's choices (index 0 = any type), and the types they stand for.</summary>
+    public IReadOnlyList<string> ShipTypeChoices { get; } = ["Any type", "Fighter", "Hauler", "Explorer", "Shuttle", "Solar", "Exotic"];
+    private static readonly SystemStarshipType[] ShipTypes =
+        [SystemStarshipType.Fighter, SystemStarshipType.Hauler, SystemStarshipType.Explorer, SystemStarshipType.Shuttle,
+         SystemStarshipType.Solar, SystemStarshipType.Exotic];
+
+    /// <summary>The class filter: 0 = any, 1 = S (the default) .. 4 = C; remembered across sessions.</summary>
+    [ObservableProperty]
+    public partial int ShipClassChoice { get; set; } = Remembered(ShipClassKey, 4, 1);
+
+    /// <summary>The type filter: 0 = any (the default), else <see cref="ShipTypes"/>[choice - 1]; remembered.</summary>
+    [ObservableProperty]
+    public partial int ShipTypeChoice { get; set; } = Remembered(ShipTypeKey, ShipTypes.Length, 0);
+
     [ObservableProperty] public partial IReadOnlyList<CrashedShipRowViewModel> CrashedShips { get; private set; } = [];
     [ObservableProperty] public partial bool HasCrashedShips { get; private set; }
     [ObservableProperty] public partial string CrashedShipsHeading { get; private set; } = "CRASHED SHIPS";
     [ObservableProperty] public partial string CrashedShipsHint { get; private set; } = "";
+    [ObservableProperty] public partial string CrashedShipsSummary { get; private set; } = "";
+    private KnownPlanet? _planet;
+    private PlanetSnapshot? _snapshot;
+
+    private static int Remembered(string key, int max, int fallback) =>
+        int.TryParse(SettingsStore.Get(SettingsStore.Scope.Profile, key), out int i) && i >= 0 && i <= max ? i : fallback;
+
+    partial void OnShipClassChoiceChanged(int value) => FilterChanged(ShipClassKey, value);
+    partial void OnShipTypeChoiceChanged(int value) => FilterChanged(ShipTypeKey, value);
+
+    private void FilterChanged(string key, int value)
+    {
+        if (value < 0) return;
+        SettingsStore.Set(SettingsStore.Scope.Profile, key, value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        if (_planet is { } planet && _snapshot is { } snapshot) _ = LoadCrashedShipsAsync(planet, snapshot);
+    }
+
+    private bool Matches(CrashedShipSite site) =>
+        (ShipClassChoice <= 0 || site.ShownClass == 4 - ShipClassChoice)
+        && (ShipTypeChoice <= 0 || site.Ship?.Type == ShipTypes[ShipTypeChoice - 1]);
 
     public async Task LoadAsync(KnownPlanet planet, PlanetSnapshot snapshot)
     {
@@ -79,17 +119,25 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         await LoadCrashedShipsAsync(planet, snapshot);
     }
 
-    /// <summary>The 5 crashed-ship sites nearest you when you're on this planet, else nearest its portal.</summary>
+    /// <summary>The 10 crashed ships matching the class and type filters nearest you when you're on this planet, else
+    /// nearest its portal, searched over the whole planet.</summary>
     private async Task LoadCrashedShipsAsync(KnownPlanet planet, PlanetSnapshot snapshot)
     {
+        _planet = planet;
+        _snapshot = snapshot;
         bool here = S.ReadSystemAddress(snapshot.Universe) == planet.SystemAddress
             && snapshot.Universe?["oZw"]?["jsv"]?.Value<int>() == planet.PlanetIndex && snapshot.Coordinates is not null;
         (double Lat, double Lon)? from = here ? snapshot.Coordinates : _portal is { } p ? (p.Latitude, p.Longitude) : null;
         if (from is not { } at) return;
-        var sites = await CrashedShipService.NearAsync(planet.Address, at.Lat, at.Lon);
-        if (_planetAddress != planet.Address) return;
+        var found = await CrashedShipService.SearchAsync(planet.Address, Matches, at.Lat, at.Lon, ShownShips);
+        if (_planetAddress != planet.Address || found is null) return;
+        var sites = found.Nearest;
         CrashedShips = sites.Select((s, i) => new CrashedShipRowViewModel(s, i + 1, here, here ? "away" : "from the portal")).ToList();
-        HasCrashedShips = CrashedShips.Count > 0;
+        HasCrashedShips = true;
+        CrashedShipsSummary = found.Total == 0 ? "No crashed ships on this planet match."
+            : found.Total <= ShownShips ? $"All {found.Total:N0} matching crashed ships on this planet, nearest first."
+            : $"The nearest {ShownShips} of {found.Total:N0} matching crashed ships on this planet.";
+        if (found.Unverified) CrashedShipsSummary += " Not yet confirmed in game for systems without a race.";
         CrashedShipsHeading = here ? "CRASHED SHIPS NEAR YOU" : "CRASHED SHIPS NEAR THE PORTAL";
         CrashedShipsHint = sites.Any(s => s.Ship is null)
             ? "Where crashed ships lie, worked out from the game's own rules. Update game data to see which ship "

@@ -6,7 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
-- **Crashed ships by class** (Current System): each planet card shows the nearest crashed ship of the class you pick - S (the default, Exotics included), A, B or C - with how many of that class the planet has, and a button to add a marker to your save. The choice is remembered. In systems without a race these aren't confirmed in game yet, and the card says so.
+- **S-class crashed ships** (Current System): each planet card shows the nearest S-class crashed ship on that planet (Exotics included), with how many the planet has, and a button to add a marker to your save. In systems without a race these aren't confirmed in game yet, and the card says so.
+- **Crashed ship search** (Planet Details): search a planet's crashed ships by class (S by default, A, B, C or any) and type (Fighter, Hauler, Explorer, Shuttle, Solar, Exotic or any). It lists the 10 nearest matches, each with a marker button, and says how many the planet has. Your choices are remembered.
 
 ### Fixed
 

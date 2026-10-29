@@ -70,7 +70,13 @@ public static class CrashedShipService
     /// <summary>The planet's crashed ships of class <paramref name="shipClass"/> (C=0 .. S=3; Exotics count as S)
     /// nearest a point (you, or the portal), and how many of that class the whole planet has; null when the planet
     /// can't be worked out yet.</summary>
-    public static async Task<CrashedShipsOfClass?> OfClassAsync(ulong planetAddress, int shipClass, double latitude, double longitude, int count = 1)
+    public static Task<CrashedShipsOfClass?> OfClassAsync(ulong planetAddress, int shipClass, double latitude, double longitude, int count = 1) =>
+        SearchAsync(planetAddress, s => s.ShownClass == shipClass, latitude, longitude, count);
+
+    /// <summary>The planet's crashed ships that <paramref name="match"/> accepts, nearest a point first, and how many
+    /// the whole planet has; null when the planet can't be worked out yet.</summary>
+    public static async Task<CrashedShipsOfClass?> SearchAsync(ulong planetAddress, Func<CrashedShipSite, bool> match,
+        double latitude, double longitude, int count)
     {
         var task = All.GetOrAdd(planetAddress, AllOnPlanetAsync);
         if (await task is not { } found)
@@ -79,7 +85,7 @@ public static class CrashedShipService
             return null;
         }
         var dir = Direction(latitude, longitude);
-        var ofClass = found.Sites.Where(s => s.ShownClass == shipClass).ToList();
+        var ofClass = found.Sites.Where(match).ToList();
         var nearest = ofClass
             .Select(s => s with { DistanceKm = Angle(s, dir) * found.Radius / 1000 })
             .OrderBy(s => s.DistanceKm).Take(count).ToList();

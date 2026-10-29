@@ -97,8 +97,9 @@ public sealed partial class PlanetTileViewModel : ObservableObject
         }
     }
 
-    /// <summary>The nearest crashed ship of the class chosen above the cards (to you when you're here, else to the
-    /// portal), with its optional save marker (CrashedShipService: a whole-planet pass, cached per planet).</summary>
+    /// <summary>The nearest S-class crashed ship (Exotics included) on the planet (to you when you're here, else to the
+    /// portal), with its optional save marker (CrashedShipService: a whole-planet pass, cached per planet). Other
+    /// classes and types are searched on Planet Details.</summary>
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasNotableShip))]
     public partial CrashedShipRowViewModel? NotableShip { get; private set; }
     public bool HasNotableShip => NotableShip is not null;
@@ -110,7 +111,7 @@ public sealed partial class PlanetTileViewModel : ObservableObject
 
     /// <summary>Fills <see cref="NotableShip"/> with the nearest crashed ship of class <paramref name="shipClass"/>
     /// (C=0 .. S=3; off the UI thread); leaves the row hidden when the planet can't be worked out yet.</summary>
-    public async System.Threading.Tasks.Task LoadNotableAsync(int shipClass)
+    public async System.Threading.Tasks.Task LoadNotableAsync(int shipClass = 3)
     {
         bool fromYou = IsHere && _here is not null;
         (double Latitude, double Longitude)? from = fromYou ? _here

@@ -60,7 +60,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 {
     private const string CompactKey = "PlanetsSystemCompact";
     private const string HelpHiddenKey = "PlanetsLiveHelpHidden";
-    private const string ShipClassKey = "CurrentSystemCrashedShipClass";
 
     private PlanetSnapshot _snapshot = new(null, null, null);
     private List<KnownPlanet> _planets = new();
@@ -80,22 +79,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             OnPropertyChanged(nameof(NoPlanets));
             OnPropertyChanged(nameof(PlanetSectionSummary));
         };
-    }
-
-    /// <summary>Which class of crashed ship the planet cards show, picked with the class buttons above them: index
-    /// 0 = S (the default) .. 3 = C, remembered across sessions.</summary>
-    [ObservableProperty]
-    public partial int ShipClassChoice { get; set; } =
-        int.TryParse(SettingsStore.Get(SettingsStore.Scope.Profile, ShipClassKey), out int i) && i is >= 0 and <= 3 ? i : 0;
-
-    /// <summary>The chosen class as C=0 .. S=3.</summary>
-    private int CrashedShipClass => 3 - Math.Clamp(ShipClassChoice, 0, 3);
-
-    partial void OnShipClassChoiceChanged(int value)
-    {
-        if (value is < 0 or > 3) return;
-        SettingsStore.Set(SettingsStore.Scope.Profile, ShipClassKey, value.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        foreach (var tile in Tiles) _ = tile.LoadNotableAsync(CrashedShipClass);
     }
 
     /// <summary>The planet cards' crashed-ship marker buttons follow the game starting or stopping and staged edits.</summary>
@@ -432,7 +415,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             (current, next) => current.HasSamePresentation(next));
         foreach (var tile in Tiles) _ = tile.LoadPortalAsync();
         UpdateTiles();
-        foreach (var tile in Tiles) _ = tile.LoadNotableAsync(CrashedShipClass);
+        foreach (var tile in Tiles) _ = tile.LoadNotableAsync();
         _ = RefreshPictureAsync();
     }
 

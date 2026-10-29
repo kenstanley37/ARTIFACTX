@@ -48,6 +48,16 @@
             <Border Style="{StaticResource ThemeCardStyle}">
                 <StackPanel Padding="18,14,18,16" Spacing="12">
                     <TextBlock Text="{x:Bind Equipment.CrashedShipsHint, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                    <!-- Search filters: class (S by default) and ship type, remembered. -->
+                    <StackPanel Orientation="Horizontal" Spacing="24">
+                        <RadioButtons Header="Class" MaxColumns="5" ItemsSource="{x:Bind Equipment.ShipClassChoices}"
+                                      SelectedIndex="{x:Bind Equipment.ShipClassChoice, Mode=TwoWay}"
+                                      AutomationProperties.Name="Class of crashed ship to search for"/>
+                        <ComboBox Header="Type" MinWidth="150" ItemsSource="{x:Bind Equipment.ShipTypeChoices}"
+                                  SelectedIndex="{x:Bind Equipment.ShipTypeChoice, Mode=TwoWay}"
+                                  AutomationProperties.Name="Type of crashed ship to search for"/>
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind Equipment.CrashedShipsSummary, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
                     <ItemsControl ItemsSource="{x:Bind Equipment.CrashedShips, Mode=OneWay}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
