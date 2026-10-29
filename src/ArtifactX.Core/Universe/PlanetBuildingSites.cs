@@ -124,6 +124,25 @@ public static class PlanetBuildingSites
         return cls;
     }
 
+    /// <summary>
+    /// Whether the ground at a land site lets the game build there: not under the sea and a slope of at most 1 on the
+    /// flatness ring (64 m; the building's radius on prime planets) - the land rule of the override accept test
+    /// 0x141631160 (<see cref="PlanetOverridePlacement"/>), which regular sites appear to share. Evidence (2026-10-29):
+    /// 12 crashed ships found in game all pass (slope 0.00 to 0.45, on 4 planets incl. the prime planet Lora with its
+    /// sea), and the predicted S-class wreck on Mephar VI at +29.18, +145.63 that the game never built (inside a
+    /// mountain; a Save Beacon stood on the exact spot) fails with slope 1.43. The regular site builder's own test is not
+    /// traced yet; per-type Min/MaxHeight are not applied.
+    /// </summary>
+    public static bool GroundAllows(PlanetTerrainData terrain, Vector3 point, float radius, bool prime, float buildingRadius)
+    {
+        var p = Vector3.Normalize(point) * radius;
+        float h = PlanetTerrain.Height(terrain, p.X, p.Y, p.Z);
+        float sea = terrain.SeaLevel;
+        if (sea > 0f && (sea + 5f > h || sea - 60f > h)) return false;   // under (or right at) the sea
+        float slope = PlanetTerrain.Flatness(terrain, p.X, p.Y, p.Z, radius, PlanetTerrain.RingRadius(prime, buildingRadius));
+        return slope >= 0f && slope <= 1f;
+    }
+
     /// <summary>The site of a cell: face 0 -Z, 1 +Z, 2 +X, 3 -X, 4 -Y, 5 +Y; u and v are the cell's two other
     /// coordinates in face units (-divisions/2 .. divisions/2), in x, y, z order.</summary>
     public static BuildingSite Site(int face, int u, int v, int divisions, float radius, int sectorSeed,

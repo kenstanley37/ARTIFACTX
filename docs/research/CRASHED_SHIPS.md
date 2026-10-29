@@ -130,6 +130,14 @@ Claimed: name/class the same, shield 324.6 and hyperdrive 182.3 the same, damage
 changed (installed damaged tech counted differently after the claim - not traced). 14/14 wrecks found as predicted;
 the one empty site was the mountain site.
 
+## Ground test (2026-10-29)
+
+Height and flatness (Core `PlanetTerrain`) at the crash sites seen in game: 12 real wrecks have slope 0.00-0.45 on the
+64 m ring (35 m on the prime planet Lora); the empty mountain site has 1.43. The override accept test's land rule
+(slope <= 1, not under the sea) separates them, so Core `PlanetBuildingSites.GroundAllows` applies it to regular crash
+sites (assumed shared, not traced). It drops 17/1,039 sites on Ribhakyam, 17/447 on Mephar VI and 321/1,062 on Lora
+(mostly under its sea), ~0.2 s per planet. Next: more empty/real sites in game to confirm, then the traced rule.
+
 ## Still open
 
 - Prime-only / gas-giant systems (layout not covered), pirate systems' flag (`[+0x2e17]`), uninhabited systems' row 7.

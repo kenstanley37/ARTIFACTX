@@ -29,8 +29,9 @@ public sealed record CrashedShipsOfClass(IReadOnlyList<CrashedShipSite> Nearest,
 /// Where a planet's crashed ships are: the DistressSignal sites of the game's building grid
 /// (<see cref="PlanetBuildingSites.SitesNear"/>, catalog format 49), nearest a point first, which of the system's
 /// pool ships lies at each (<see cref="SystemShipPool.CrashedShip"/>, catalog format 50) and its class
-/// (<see cref="SystemShipPool.CrashedShipClass"/>). A site may rarely stay empty where the ground doesn't allow a
-/// building (terrain isn't checked here). Checked 2026-10-28/29: 11/11 crashed ships opened in game exact (position,
+/// (<see cref="SystemShipPool.CrashedShipClass"/>). Sites whose ground the game rejects (steep slopes, under the sea)
+/// are left out (<see cref="PlanetBuildingSites.GroundAllows"/>). Checked 2026-10-28/29: 14/14 crashed ships found in
+/// game exact (position,
 /// name, type, class) on Ribhakyam and in the pirate system Nugepan III, prime planet included, and the site key the
 /// game's own Planetary Chart picked on Lora equals the predicted one (issue #35). In the uncharted system Shlifs (no
 /// race) the predicted site checked was empty - the game's building table differs there
@@ -51,7 +52,14 @@ public static class CrashedShipService
     /// <summary>Everything the passes need about one planet and its system.</summary>
     private sealed record PlanetContext(ulong PlanetAddress, float Radius, int Divisions, int SectorSeed,
         (int Class, float Probability)[] Slots, (double X, double Y, double Z) Centre, SystemAttributes Attributes,
-        IReadOnlyList<SystemStarship>? Pool, ulong SystemAddress, ShipPoolSettings? ShipPool, InventoryGenerationTables? Inventory);
+        IReadOnlyList<SystemStarship>? Pool, ulong SystemAddress, ShipPoolSettings? ShipPool, InventoryGenerationTables? Inventory,
+        PlanetTerrainData? Terrain, bool Prime, float BuildingRadius)
+    {
+        /// <summary>Whether the game builds at this site (<see cref="PlanetBuildingSites.GroundAllows"/>); every site
+        /// passes when the terrain can't be generated.</summary>
+        public bool Builds(BuildingSite site) =>
+            Terrain is not { } t || PlanetBuildingSites.GroundAllows(t, site.Point, Radius, Prime, BuildingRadius);
+    }
 
     /// <summary>The <paramref name="count"/> crashed-ship sites nearest a point on the planet; empty when the catalog
     /// doesn't have the tables yet or the planet can't be generated.</summary>
@@ -62,7 +70,8 @@ public static class CrashedShipService
         {
             var dir = Direction(latitude, longitude);
             return (IReadOnlyList<CrashedShipSite>)PlanetBuildingSites.SitesNear(dir, context.Divisions, context.Radius,
-                    context.SectorSeed, context.Slots, cls => cls == DistressSignal, count)
+                    context.SectorSeed, context.Slots, cls => cls == DistressSignal, count * 4)
+                .Where(context.Builds).Take(count)
                 .Select(s => Describe(context, s, dir)).ToList();
         });
     }
@@ -112,7 +121,7 @@ public static class CrashedShipService
             for (int face = 0; face < 6; face++)
                 foreach (var site in PlanetBuildingSites.Sites(face, context.Divisions, context.Radius, context.SectorSeed,
                     context.Slots, cls => cls == DistressSignal))
-                    if (seen.Add(site.Key))   // a cell on a cube edge belongs to two faces
+                    if (seen.Add(site.Key) && context.Builds(site))   // a cell on a cube edge belongs to two faces
                         all.Add(Describe(context, site, Vector3.Normalize(site.Point)));
             return new AllOnPlanet(all, context.Radius, context.Attributes.Race == SystemRace.None);
         });
@@ -124,6 +133,7 @@ public static class CrashedShipService
         var biomes = await CatalogService.GetBiomeTablesAsync();
         var profiles = await CatalogService.GetPlanetProfileTablesAsync();
         var placement = await CatalogService.GetBuildingPlacementAsync();
+        var overrides = await CatalogService.GetBuildingOverrideRulesAsync();
         var solar = (await CatalogService.GetStationEquipmentTablesAsync())?.SolarLayout;
         var words = await CatalogService.GetProceduralNameWordsAsync();
         var inventory = PlanetTypesService.InventoryTables ?? await CatalogService.GetInventoryGenerationTablesAsync();
@@ -141,9 +151,17 @@ public static class CrashedShipService
             var layout = solar?.ShipPool is null ? null : SolarLayoutGeneration.ForSystem(code, galaxy, solar, true);
             var pool = layout is null ? null : SystemStarshipGenerator.GenerateForSystem(code, galaxy, attributes.Race,
                 attributes.Pirate, solar!, k => words.GetValueOrDefault(k));
+            var body = types[index - 1];
+            var terrainTables = profiles.Objects?.Terrain;
+            var choice = terrainTables is null ? null : PlanetProfileGenerator.TerrainChoiceFor(seeds[index - 1], body, (int)attributes.Star, profiles);
+            var terrain = choice is null || choice.SettingIndex >= terrainTables!.Settings.Length ? null
+                : PlanetTerrain.Generate(seeds[index - 1], terrainTables.Settings[choice.SettingIndex], choice, terrainTables.SeaStandard,
+                    body.BodyClass == 3, body.DeadToWeird);
+            // The crashed ship's flatness ring on prime planets: DistressSignal's OverrideRadius in the building table.
+            float buildingRadius = overrides?.FirstOrDefault(r => r.Class == DistressSignal)?.OverrideRadius ?? 0f;
             return new PlanetContext(planetAddress, radius, PlanetBuildingSites.Divisions(radius),
                 PlanetBuildingSites.VoronoiSeeds(seeds[index - 1]).SectorSeed, PlanetBuildingSites.Slots(placement, facts), c,
-                attributes, pool, layout?.Address ?? 0, solar?.ShipPool, inventory);
+                attributes, pool, layout?.Address ?? 0, solar?.ShipPool, inventory, terrain, body.Prime, buildingRadius);
         });
     }
 
