@@ -11,9 +11,10 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
     private readonly CrashedShipSite _site;
     private readonly bool _savedOnPlanet;
 
-    /// <param name="savedOnPlanet">Whether the save was made on this planet. A marker added from a save made elsewhere
-    /// (in space, on the freighter, another planet) was twice led by the game to another wreck of the same ship
-    /// (Nugepan III, 2026-10-29); every marker added from a save on the planet led true - so the row says so.</param>
+    /// <param name="savedOnPlanet">Whether the save was made on this planet (kept for when the marker rule is known).
+    /// The game sometimes leads a crashed-ship marker to a different wreck: twice from a save in space (Nugepan III),
+    /// and once from a save on the planet with the site 177 km away (Mephar VI, S-class Skylark of Gravity marker led
+    /// to a B-class Josonix's Defeat BO3, 2026-10-29). Near markers led true. Not traced yet, so the row warns.</param>
     /// <param name="from">What the distance is measured from: "away" (you), "from the portal".</param>
     public CrashedShipRowViewModel(CrashedShipSite site, int number, bool savedOnPlanet, string from = "away")
     {
@@ -51,7 +52,7 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
         Status = unsaved ? "Marker added - save your changes."
             : marked ? "Marked in your save. Not showing in game? Mark it again."
             : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to add a marker."
-            : !_savedOnPlanet ? "Save in game while on this planet first, so the marker leads to this wreck."
+            : _site.DistanceKm > 25 ? "The game may lead a far marker to a different wreck. Check the coordinates on arrival."
             : "";
     }
 
