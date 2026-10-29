@@ -56,6 +56,9 @@
                         <ComboBox Header="Type" MinWidth="150" ItemsSource="{x:Bind Equipment.ShipTypeChoices}"
                                   SelectedIndex="{x:Bind Equipment.ShipTypeChoice, Mode=TwoWay}"
                                   AutomationProperties.Name="Type of crashed ship to search for"/>
+                        <ComboBox Header="Show" MinWidth="90" ItemsSource="{x:Bind Equipment.ShipCountChoices}"
+                                  SelectedIndex="{x:Bind Equipment.ShipCountChoice, Mode=TwoWay}"
+                                  AutomationProperties.Name="How many crashed ships to list"/>
                     </StackPanel>
                     <TextBlock Text="{x:Bind Equipment.CrashedShipsSummary, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
                     <ItemsControl ItemsSource="{x:Bind Equipment.CrashedShips, Mode=OneWay}">

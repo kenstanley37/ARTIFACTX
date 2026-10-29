@@ -58,8 +58,15 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     private ulong _planetAddress;
 
     // Crashed ships nearest you (on this planet) or the portal, filtered by class and type (CrashedShipService).
-    private const string ShipClassKey = "PlanetDetailsCrashedShipClass", ShipTypeKey = "PlanetDetailsCrashedShipType";
-    private const int ShownShips = 10;
+    private const string ShipClassKey = "PlanetDetailsCrashedShipClass", ShipTypeKey = "PlanetDetailsCrashedShipType",
+        ShipCountKey = "PlanetDetailsCrashedShipCount";
+
+    /// <summary>How many matches to list (index into <see cref="ShipCounts"/>); 10 by default, remembered.</summary>
+    public IReadOnlyList<string> ShipCountChoices { get; } = ["5", "10", "25", "50", "100"];
+    private static readonly int[] ShipCounts = [5, 10, 25, 50, 100];
+    [ObservableProperty]
+    public partial int ShipCountChoice { get; set; } = Remembered(ShipCountKey, ShipCounts.Length - 1, 1);
+    private int ShownShips => ShipCounts[System.Math.Clamp(ShipCountChoice, 0, ShipCounts.Length - 1)];
 
     /// <summary>The class filter's choices, in the order of the buttons (index 0 = any class).</summary>
     public IReadOnlyList<string> ShipClassChoices { get; } = ["Any class", "S-class", "A-class", "B-class", "C-class"];
@@ -91,6 +98,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
 
     partial void OnShipClassChoiceChanged(int value) => FilterChanged(ShipClassKey, value);
     partial void OnShipTypeChoiceChanged(int value) => FilterChanged(ShipTypeKey, value);
+    partial void OnShipCountChoiceChanged(int value) => FilterChanged(ShipCountKey, value);
 
     private void FilterChanged(string key, int value)
     {
@@ -119,7 +127,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         await LoadCrashedShipsAsync(planet, snapshot);
     }
 
-    /// <summary>The 10 crashed ships matching the class and type filters nearest you when you're on this planet, else
+    /// <summary>The crashed ships (as many as chosen) matching the class and type filters nearest you when you're on this planet, else
     /// nearest its portal, searched over the whole planet.</summary>
     private async Task LoadCrashedShipsAsync(KnownPlanet planet, PlanetSnapshot snapshot)
     {
