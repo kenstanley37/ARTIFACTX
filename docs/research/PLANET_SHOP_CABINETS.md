@@ -19,6 +19,13 @@ entry only, build and code bytes checked), then a brute-force search of whole-un
 |---|---|---|---|---|---|---|---|
 | -38.56, -52.86 (`E6D3994BBD665684`) | `21D4EC1C705BDBE6` | -139241, 81731, -620490 | -38.57, -52.83 | 77.4 | 44.8 / 54.5 | 28.4 m | A (Molecule Obstructer 79C-5/57P) |
 | -40.50, -57.31 (`FF7DAE84AA18D8B5`) | `275BD0D32348BCBC` | -140306, 80074, -624489 | -40.50, -57.31 | 38.8 | 34.6 / 34.8 | 2.6 m | C (Yoshk's Waveform Obstructer) |
+| -35.09, -53.40 (`4BA49F342178350A`) | `26F86F361BC54F51` | -141441, 84845, -619464 | -35.10, -53.39 | 112.0 | - / 116.6 | 16.9 m | C (Structural Skaiush Puncher, pistol) |
+
+Class from the seed with the medium-wealth row (49/35/15/1): A, C, C - 3/3 as the game showed.
+
+Offset of each cabinet from its site point on Core's ground (east, north, up, metres): shop 1 (27.1, -8.4, +22.9),
+shop 2 (2.5, -0.9, +4.1), shop 3 (14.5, -8.7, -4.6). No common direction, so the settlement layout and/or yaw vary;
+shop 3 sits 4.6 m below Core's ground at the site (terrain on a slope, or the settlement levels the ground).
 
   Planet centre `(-99000, 122000, -651000)` (Core layout floored to 1,000), radius 64,512, sector seed 7015.
 
