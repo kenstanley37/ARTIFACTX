@@ -61,7 +61,7 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
         Status = unsaved ? "Marker added - save your changes."
             : marked ? "Marked in your save. Not showing in game? Mark it again."
             : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to add a marker."
-            : _site.Sentinel ? "The game names each crashed Sentinel ship itself - name not known yet."
+            : _site.Sentinel ? "Each crashed Sentinel ship has its own name - not known yet."
             : _site.DistanceKm > 25 ? "The game may lead a far marker to a different wreck. Check the coordinates on arrival."
             : "";
     }

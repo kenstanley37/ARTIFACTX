@@ -173,6 +173,11 @@ sites; marker (DISTRESS + iqv "SentinelDistressSignal", set from the freighter) 
 -70.97, -37.91 (predicted -70.96, -37.87), **C-class as predicted**. But the ship is **Crimson-σ** ("ε-Flameborn",
 "Salvaged // C:34+24", 28,600,000, 181.4 (70.6 core) / 171.6 / 601.0 (101.0 core) / 299.1 (214.1 core)), not the pool's
 Sentinel ship Urobeoka's Spirit DQ8 - crashed Sentinel ships are named separately (also Reforged-ιζ on Riwor V).
+Two more on Nionne Sigma, markers set from the freighter both led true: Flameborn-9-MH3 **A-class as predicted** at
+-7.59, -61.41 (61,000,000, 40/28, 442.6 (302.9) / 184.0 / 637.4 (137.4) / 349.4 (231.9)) and Hope-1-D **B-class as
+predicted** at -28.36, -8.62 (45,500,000, 38/27, 305.1 (177.8) / 178.7 / 628.8 (128.8) / 348.6 (222.7)). 3/3 sites and
+classes; the analysis visor shows "ε-Flameborn" as the Name line for all three (a model family?), the ship name differs
+per site. Names and stats not traced.
 
 ## Still open
 
