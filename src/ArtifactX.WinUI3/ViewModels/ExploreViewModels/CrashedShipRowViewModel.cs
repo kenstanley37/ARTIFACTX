@@ -21,7 +21,10 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
     {
         _site = site;
         _savedOnPlanet = savedOnPlanet;
-        Title = site.Ship?.DefaultName is { Length: > 0 } name ? name : $"Crashed ship {number}";
+        // Crashed Sentinel ships have names of their own ("Crimson-σ", "Reforged-ιζ"), not the system's Sentinel ship's
+        // (Nionne Sigma, 2026-10-29) - not traced yet, so no name.
+        Title = site.Sentinel ? "Crashed Sentinel ship"
+            : site.Ship?.DefaultName is { Length: > 0 } name ? name : $"Crashed ship {number}";
         Coordinates = site.Coordinates;
         string distance = site.DistanceKm < 1
             ? $"{site.DistanceKm * 1000:0} m {from}"
@@ -58,6 +61,7 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
         Status = unsaved ? "Marker added - save your changes."
             : marked ? "Marked in your save. Not showing in game? Mark it again."
             : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to add a marker."
+            : _site.Sentinel ? "Each crashed Sentinel ship has its own name - not known yet."
             : _site.DistanceKm > 25 ? "The game may lead a far marker to a different wreck. Check the coordinates on arrival."
             : "";
     }
@@ -71,7 +75,7 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
         // (scaneventtableplanet.mbin: DISTRESS, DISTRESS_NPC), so the marker is the DISTRESS event naming that class -
         // confirmed 2026-10-29 (Waterworld: the marker led to Rozawa Guardian III at +29.40, +2.72).
         ScanMarkerService.Add(_site.PlanetAddress, _site.Key, _site.X, _site.Y, _site.Z, 1, "DISTRESS",
-            _site.Underwater ? "WaterDistressSignal" : "DistressSignal");
+            _site.Underwater ? "WaterDistressSignal" : _site.Sentinel ? "SentinelDistressSignal" : "DistressSignal");
         Refresh();
     }
 
