@@ -70,7 +70,7 @@ public static class SystemShipPool
     /// seeded with the key draws a class by the race's SpaceshipWeightings row; a Shuttle (or any class in a pirate
     /// system) may become a Sail on a second stream keyed by Hash(key, system address); the next draw picks one of the
     /// pool's ships of that class. Checked 3/3 against crashed ships opened in game (Ribhakyam, 2026-10-29: Final
-    /// Eokak III, Exhausted Song LK1, Iwada's Swift Pathfinder). Null when the catalog lacks the race's row or no ship fits.
+    /// Eokak III, Exhausted Song LK1, Iwada's Swift Pathfinder). Null when the catalog lacks the race's row or the pool is empty.
     /// </summary>
     /// <param name="pool">The system's pool (<see cref="SystemStarshipGenerator.GenerateForSystem"/>); its standard ships take part.</param>
     /// <param name="systemAddress">The packed system address (SolarLayoutGeneration.SystemLayout.Address).</param>
@@ -103,7 +103,12 @@ public static class SystemShipPool
             h *= HashMultiplier;
             if (chance > Fraction(SolarLayoutGeneration.RandomFor(h).NextWord())) cls = Sail;
         }
-        var candidates = pool.Where(s => s.IsStandardStarship && (int)s.Type == cls).ToList();
+        var standard = pool.Where(s => s.IsStandardStarship).ToList();
+        var candidates = standard.Where(s => (int)s.Type == cls).ToList();
+        // No pool ship of that class (e.g. a Sail where the system has none): the same draw picks from the whole
+        // standard pool instead (0x141755588 in build 183791). Checked 2026-10-29 on Mephar VI: a Shuttle draw turned
+        // Sail, no Solar in the pool, and the game showed pool #4 Hyper Meyame XIX (S-class Fighter) at the site.
+        if (candidates.Count == 0) candidates = standard;
         if (candidates.Count == 0) return null;
         return candidates[(int)(((ulong)rng.NextWord() * (ulong)candidates.Count) >> 32)];
     }

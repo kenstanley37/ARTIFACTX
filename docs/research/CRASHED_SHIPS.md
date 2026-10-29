@@ -22,7 +22,10 @@ Checked: Ribhakyam (system `0x0000FE00011476E2`) - Final Eokak III (C Hauler) = 
 3. Solar override: when the class is 4 (Shuttle), or in a pirate system, a second MWC seeded with
    `Hash(key, system UA)` (the pool's solar hash: `(ua ^ key) * K; ^= >>47; ^= ua; * K; ^= >>47; * K`) draws once;
    below `PirateClassShipOverrideProbability` (0.1; 0.85 for a Shuttle in a pirate system) the class becomes 8 (Sail).
-4. Draw 2 (first MWC): one of the pool ships of that class, `candidates[(n * word) >> 32]`.
+4. Draw 2 (first MWC): one of the pool ships of that class, `candidates[(n * word) >> 32]`; when the pool has no ship
+   of that class (a Sail in a system without Solar ships) the same draw picks from all 21 standard pool ships
+   (`0x141755588`). Checked on Mephar VI: Hyper Meyame XIX, S-class Fighter (pool #4), at -50.42, -44.65 - the first
+   S-class wreck predicted and found. 12/12 crashed ships so far.
 
 ## The pool (built by `0x14167C700` when a system is generated)
 
