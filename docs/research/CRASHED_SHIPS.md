@@ -56,7 +56,18 @@ LocatorScatter counts and distance, `CivilianClassWeightings` rows - row 7 is ra
 Scratch check against the game: pool start 8/8 systems, 21/21 seeds, 3/3 crashed ships by name and type.
 Used by Planet Details (crashed-ship rows) and the Current System starship list.
 
+## The class (Steam build 26295378, 2026-10-29)
+
+The inventory class roll `0x1404D8C00` (one MWC draw from a seed against the system's `GcInventoryTable` class row,
+the same roll as multi-tool cabinets: Core `MultiToolSiteGeneration.InventoryClass`) is seeded with the **site key
+itself**: an observe-only hook saw key `0x767814A47FF6AE99` go into the pick (`0x141754F00`) and then into the class
+roll. Row = system wealth (Low/Medium/High), pirate row in pirate systems (unchecked). Checked 5/5 on Ribhakyam
+(medium): Final Eokak III C, Exhausted Song LK1 C (two sites), Iwada's Swift Pathfinder A (two sites). Core
+`SystemShipPool.CrashedShipClass`. Because the key's first draw also picks the ship type, a pool ship tends to come
+out in the same class at every site, which is why the repeats matched.
+
+Build 26295378 moved the code: pick `0x141754F00`, pool builder `0x14167C520`, locator step `0x1416847B0`.
+
 ## Still open
 
-- The ship's **class** (C/B/A/S) - not traced yet.
 - Prime-only / gas-giant systems (layout not covered), pirate systems' flag (`[+0x2e17]`), uninhabited systems' row 7.

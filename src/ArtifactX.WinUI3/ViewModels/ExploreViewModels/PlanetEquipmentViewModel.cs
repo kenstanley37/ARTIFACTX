@@ -94,8 +94,8 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         CrashedShipsHint = sites.Any(s => s.Ship is null)
             ? "Where crashed ships lie, worked out from the game's own rules. Update game data to see which ship "
               + "lies at each. Now and then the ground leaves a spot empty."
-            : "Where crashed ships lie and which ship is there, worked out from the game's own rules. Its class (C to S) isn't "
-              + "known yet. Now and then the ground leaves a spot empty.";
+            : "Where crashed ships lie, which ship is there and its class, worked out from the game's own rules. "
+              + "Now and then the ground leaves a spot empty.";
     }
 
     /// <summary>Shows whether the portal and crashed ships are marked in the save, and whether markers can be added now.</summary>

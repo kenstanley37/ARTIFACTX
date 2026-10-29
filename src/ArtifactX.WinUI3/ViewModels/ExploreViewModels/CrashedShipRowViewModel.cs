@@ -18,7 +18,10 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
         string distance = site.DistanceKm < 1
             ? $"{site.DistanceKm * 1000:0} m away"
             : $"{site.DistanceKm.ToString("0.0", CultureInfo.CurrentCulture)} km away";
-        Distance = site.Ship is { } ship ? $"{ship.TypeLabel} · {distance}" : distance;
+        string type = site.Ship is { } ship
+            ? site.ShipClass is int cls ? $"{"CBAS"[cls]}-class {ship.TypeLabel}" : ship.TypeLabel
+            : "";
+        Distance = type.Length > 0 ? $"{type} · {distance}" : distance;
         Refresh();
     }
 
