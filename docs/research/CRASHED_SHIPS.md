@@ -97,6 +97,18 @@ Build 26295378 moved the code: pick `0x141754F00`, pool builder `0x14167C520`, l
   exactly those coordinates. ArtifactX lists only class 20 (DistressSignal), the claimable wrecks; NPC wrecks are left
   out until players ask for them.
 
+## Slots and stats (2026-10-29, Steam build 26295378)
+
+Hook on the inventory builder `0x1404D5E90` (entry only) at Josonix's Defeat BO3, Mephar VI -2.78, -160.56
+(site key `AD5FA885AD4CB86F`, predicted B-class Explorer - exact): the wreck's three inventories (kind 4 cargo,
+5 tech, 6) are all built from **the site key** (`[r8]` = key, stored at inventory `+0xE0`), class at `+0x100` = 1 (B).
+Slot count at `+0x84`: cargo 0x1B = 27, tech 0x11 = 17 - the game showed "Explorer (27, 17)". Damage 104.0, shield
+197.9, hyperdrive 143.8, maneuverability 384.3 shown in game, roll not traced yet. Next: port the slot and base-stat
+rolls (class + type + site key), check against the 13 wrecks seen in game.
+
+The S-class Skylark of Gravity marker (+29.18, +145.63) led to this B-class Explorer instead - re-targeted markers
+don't keep the ship either.
+
 ## Still open
 
 - Prime-only / gas-giant systems (layout not covered), pirate systems' flag (`[+0x2e17]`), uninhabited systems' row 7.
