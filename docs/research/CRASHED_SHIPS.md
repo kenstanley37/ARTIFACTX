@@ -179,6 +179,17 @@ predicted** at -28.36, -8.62 (45,500,000, 38/27, 305.1 (177.8) / 178.7 / 628.8 (
 classes; the analysis visor shows "ε-Flameborn" as the Name line for all three (a model family?), the ship name differs
 per site. Names and stats not traced.
 
+## Stats research (started 2026-10-29, branch research/crashed-ship-stats)
+
+INVENTORYTABLE.MBIN `GenerationData.GenerationDataPerSizeType` (GcInventoryLayoutSizeType) gives per ship size the
+cargo (Min/MaxSlots) and tech (Min/MaxTechSlots) ranges: Sci 24-29/14-19, 24-32/19-24, 30-38/24-30; Fgt 24-28/14-19,
+24-32/14-24, 30-38/19-30; Shu 24-32/12-19, Sht 28-36/18-26, 32-42/18-28; Drp 30-36/12-18, 36-40/18-24, 40-48/20-30;
+Roy 24-30/14-19, 24-30/20-28, 24-32/26-30; Alien 36/30; Sail 24-30/13-18, 24-32/14-22, 30-36/20-30; Robot 32-40/22-28
+(small/medium/large). Wrecks seen: Exotic S 37/21 and 36/22 (above Roy's 32 - a class bonus?), Fighter S 29/18 and
+31/16, Explorer B 27/17, Shuttle S 32/19. The size type comes from the ship model (Table entries map inventory Ids to a
+LayoutSizeType). Next: a hook session at a wreck (reload near it) logging the builder 0x1404D5E90's size/class inputs
+and the inventory after each sub-step (0x1404D7350, 0x1404DD6E0, 0x1404D7E40, 0x1404D7600).
+
 ## Still open
 
 - Prime-only / gas-giant systems (layout not covered), pirate systems' flag (`[+0x2e17]`), uninhabited systems' row 7.
