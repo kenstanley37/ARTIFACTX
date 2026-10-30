@@ -84,11 +84,11 @@
                     </StackPanel>
                 </Grid>
             </Border>
-            <NumberBox x:Name="QuantityBox" Header="Make" Width="160" Minimum="1" Maximum="99999" Value="1"
+            <NumberBox x:Name="QuantityBox" AutomationProperties.Name="Quantity to make" Header="Make" Width="160" Minimum="1" Maximum="99999" Value="1"
                        SpinButtonPlacementMode="Inline" ValueChanged="Quantity_ValueChanged"
                        ToolTipService.ToolTip="How many of the result to make - every amount in the tree scales with it."/>
             <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center"/>
-            <Button x:Name="BackBtn" Click="Back_Click" VerticalAlignment="Bottom" Visibility="Collapsed"
+            <Button AutomationProperties.Name="Back to recipes" x:Name="BackBtn" Click="Back_Click" VerticalAlignment="Bottom" Visibility="Collapsed"
                     ToolTipService.ToolTip="Back to the Recipes page">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <FontIcon Glyph="&#xE72B;" FontSize="12"/>

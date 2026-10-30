@@ -15,6 +15,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- **Recipe requirements**: opening a recipe no longer endlessly expands circular refiner recipes on the app thread. Large trees stop at a clearly marked limit.
+
 - **Planet Finder**: results are cards like the planet cards on Current System, side by side, instead of full-width rows.
 - **Water worlds**: their underwater crashed ships are listed (the planet showed none before).
 

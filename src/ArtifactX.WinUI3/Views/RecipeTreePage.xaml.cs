@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace ArtifactX.WinUI3.Views;
 
@@ -20,12 +21,11 @@ namespace ArtifactX.WinUI3.Views;
 /// </summary>
 public sealed partial class RecipeTreePage : Page
 {
-    // Deepest real chain is well under this; it only guards against bad data.
-    private const int MaxDepth = 16;
+    private CancellationTokenSource? _buildCancellation;
+    private int _loadVersion;
 
     private List<RecipeInfo> _recipes = new();
     private Dictionary<string, string> _names = new(StringComparer.OrdinalIgnoreCase);
-    private Dictionary<string, List<RecipeInfo>> _byResult = new(StringComparer.OrdinalIgnoreCase);
     private string? _recipeId;
     private bool _ready;
 
@@ -36,6 +36,7 @@ public sealed partial class RecipeTreePage : Page
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
+        _loadVersion++;
         _recipeId = e.Parameter as string;
         _ready = false;
         TreeList.ItemsSource = null;
@@ -59,29 +60,46 @@ public sealed partial class RecipeTreePage : Page
 
     private async Task LoadAsync()
     {
-        var recipesTask = CatalogService.GetRecipesAsync();
-        var namesTask = CatalogService.GetItemNamesAsync();
-        _recipes = await recipesTask;
-        _names = await namesTask;
-
-        if (_recipes.Count == 0)
+        int version = _loadVersion;
+        try
         {
-            EmptyTxt.Text = "No recipes in this catalog - it needs rebuilding with the add-recipes step.";
-            return;
+            var recipesTask = CatalogService.GetRecipesAsync();
+            var namesTask = CatalogService.GetItemNamesAsync();
+            var recipes = await recipesTask;
+            var names = await namesTask;
+
+            if (version != _loadVersion) return;
+            _recipes = recipes;
+            _names = names;
+
+            if (_recipes.Count == 0)
+            {
+                EmptyTxt.Text = "No recipes in this catalog - it needs rebuilding with the add-recipes step.";
+                return;
+            }
+
+            _ready = true;
+            await ApplyAsync();
         }
-
-        _byResult = _recipes.GroupBy(r => r.Result.Id, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.OrderBy(r => r.Kind, StringComparer.OrdinalIgnoreCase).ThenBy(r => r.Id, StringComparer.OrdinalIgnoreCase).ToList(), StringComparer.OrdinalIgnoreCase);
-
-        _ready = true;
-        Apply();
+        catch (Exception)
+        {
+            if (version == _loadVersion) EmptyTxt.Text = "Unable to load recipes. Go back and try again.";
+        }
     }
 
     private int Quantity => double.IsNaN(QuantityBox.Value) ? 1 : Math.Clamp((int)QuantityBox.Value, 1, 99999);
 
-    private void Quantity_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.NumberBoxValueChangedEventArgs e) => Apply();
+    private async void Quantity_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.NumberBoxValueChangedEventArgs e) => await ApplyAsync();
 
-    private void Apply()
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        _loadVersion++;
+        _ready = false;
+        _buildCancellation?.Cancel();
+        base.OnNavigatedFrom(e);
+    }
+
+    private async Task ApplyAsync()
     {
         if (!_ready) return;
         if (string.IsNullOrEmpty(_recipeId))
@@ -101,12 +119,45 @@ public sealed partial class RecipeTreePage : Page
         int resultAmount = recipe.Result.Amount <= 0 ? 1 : recipe.Result.Amount;
         long batches = (long)Math.Ceiling((double)quantity / resultAmount);
 
-        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { recipe.Result.Id };
-        var rows = BuildTree(recipe, batches, 0, ids);
-
-        // Icons for everything the tree shows, fetched once in the background.
-        _ = CatalogService.WarmCacheAsync(ids);
-        if (!string.Equals(_recipeId, recipe.Id, StringComparison.OrdinalIgnoreCase)) return; // a newer pick started meanwhile
+        _buildCancellation?.Cancel();
+        var cancellation = new CancellationTokenSource();
+        _buildCancellation = cancellation;
+        List<RecipeTreeRowViewModel> rows;
+        try
+        {
+            var requirements = await RecipeRequirementsService.BuildAsync(recipe, _recipes, quantity, cancellation.Token);
+            if (cancellation.IsCancellationRequested || !_ready) return;
+            await CatalogService.WarmCacheAsync(requirements.Select(r => r.ItemId).Append(recipe.Result.Id).Distinct(StringComparer.OrdinalIgnoreCase));
+            if (cancellation.IsCancellationRequested || !_ready) return;
+            rows = requirements.Select(r => new RecipeTreeRowViewModel
+            {
+                Label = r.StopReason is not null && r.IsStep ? r.StopReason
+                    : r.IsStep ? $"Alternative via {StationLabel(r.Kind)} ? ? {r.Amount:N0} batches" : r.StopReason is not null ? $"{NameOf(r.ItemId)} ? {r.StopReason}" : NameOf(r.ItemId),
+                Icon = CatalogService.TryGet(r.ItemId)?.Icon,
+                Amount = r.IsStep ? "" : $"? {r.Amount:N0}",
+                Depth = r.Depth,
+                Indent = new Thickness(r.Depth * 26, 0, 0, 0),
+                Badge = r.StopReason is not null ? "STOP" : string.IsNullOrEmpty(r.Kind) ? "RAW" : StationLabel(r.Kind),
+                BadgeBrush = ThemeResources.Brush("ThemeAccentBrush"),
+                ToolTip = r.StopReason ?? (r.IsStep ? "Choose this alternative to make the ingredient above." : "Total required for the quantity selected."),
+                IsRecipeStep = r.IsStep,
+            }).ToList();
+        }
+        catch (OperationCanceledException) { return; }
+        catch (Exception)
+        {
+            if (!cancellation.IsCancellationRequested)
+            {
+                EmptyTxt.Text = "Unable to load the recipe requirements. Go back and try again.";
+                EmptyTxt.Visibility = Visibility.Visible;
+            }
+            return;
+        }
+        finally
+        {
+            if (ReferenceEquals(_buildCancellation, cancellation)) _buildCancellation = null;
+            cancellation.Dispose();
+        }
 
         EmptyTxt.Visibility = Visibility.Collapsed;
         ResultGrid.Visibility = Visibility.Visible;
@@ -129,64 +180,9 @@ public sealed partial class RecipeTreePage : Page
         UpdateBackButton();
     }
 
-    /// <summary>Walks one recipe's ingredients, then every recipe that can make
-    /// each ingredient, depth-first. Amounts multiply down the tree, so a row's
-    /// amount is the total needed of that item for the quantity asked for.</summary>
-    private List<RecipeTreeRowViewModel> BuildTree(RecipeInfo recipe, long multiplier, int depth, HashSet<string> ids)
-    {
-        var rows = new List<RecipeTreeRowViewModel>();
-        void Walk(RecipeInfo r, long mult, int d)
-        {
-            foreach (var (ingId, ingAmt) in r.Ingredients)
-            {
-                if (string.IsNullOrEmpty(ingId) || ingAmt <= 0) continue;
-                ids.Add(ingId);
-                long needed = ingAmt * mult;
-                bool crafted = _byResult.TryGetValue(ingId, out var subs) && subs.Count > 0;
-                string station = StationLabel(crafted ? subs[0].Kind : "");
-                rows.Add(new RecipeTreeRowViewModel
-                {
-                    Label = NameOf(ingId),
-                    Icon = CatalogService.TryGet(ingId)?.Icon,
-                    Amount = $"× {needed:N0}",
-                    Depth = d,
-                    Indent = new Thickness(d * 26, 0, 0, 0),
-                    Badge = crafted ? station : "RAW",
-                    BadgeBrush = ThemeResources.Brush(crafted ? "ThemeAccentBrush" : "ThemeTextDimBrush"),
-                    ToolTip = crafted
-                        ? $"Crafted: {subs.Count} recipe{(subs.Count == 1 ? "" : "s")} can make this item."
-                        : "Raw material - gather it, buy it, or get it from a refiner.",
-                    IsRecipeStep = false,
-                });
-                if (crafted && d < MaxDepth)
-                {
-                    foreach (var sub in subs)
-                    {
-                        long subBatches = needed <= 0 || sub.Result.Amount <= 0 ? 1 : (long)Math.Ceiling((double)needed / sub.Result.Amount);
-                        ids.Add(sub.Result.Id);
-                        rows.Add(new RecipeTreeRowViewModel
-                        {
-                            Label = $"via {StationLabel(sub.Kind)} · × {subBatches:N0} batch{(subBatches == 1 ? "" : "es")}",
-                            Depth = d + 1,
-                            Indent = new Thickness((d + 1) * 26, 0, 0, 0),
-                            Badge = "",
-                            BadgeBrush = ThemeResources.Brush("ThemeLineBrush"),
-                            Amount = "",
-                            ToolTip = $"Run this {StationLabel(sub.Kind)} recipe × {subBatches:N0} time{(subBatches == 1 ? "" : "s")} to make the ×{needed:N0} {NameOf(ingId)} above.",
-                            IsRecipeStep = true,
-                        });
-                        Walk(sub, subBatches, d + 1);
-                    }
-                }
-            }
-        }
-        Walk(recipe, multiplier, depth);
-        return rows;
-    }
-
     private static string StationLabel(string kind) => kind == "Cooking" ? "Nutrient Processor" : "Refiner";
 
-    private string NameOf(string id) => _names.TryGetValue(id, out var n) ? n : CatalogService.TryGet(id)?.DisplayName ?? id;
+    private string NameOf(string id) => _names.TryGetValue(id, out var n) ? n : CatalogService.TryGet(id)?.DisplayName ?? "Unknown ingredient";
 
     private void UpdateBackButton()
     {
