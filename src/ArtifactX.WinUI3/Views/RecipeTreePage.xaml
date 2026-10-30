@@ -1,131 +1,37 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). Read-only Tools page:
-     opens from a recipe card on the Recipes page and shows every requirement
-     to make the result, step by step, down to raw materials. No save needed;
-     amounts are the game's own per-batch ratios from the catalog's "Recipes"
-     category (DataCataloger add-recipes). -->
-<Page
-    x:Class="ArtifactX.WinUI3.Views.RecipeTreePage"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
-    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d"
-    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-
-    <Page.Resources>
-        <DataTemplate x:Key="TreeRowTemplate" x:DataType="viewmodels:RecipeTreeRowViewModel">
-            <Border Margin="{x:Bind Indent}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                    Background="{ThemeResource ThemePanelBrush}" CornerRadius="4" Padding="8,5"
-                    ToolTipService.ToolTip="{x:Bind ToolTip}">
-                <Grid ColumnSpacing="10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Width="30" Height="30" Background="{ThemeResource ThemeVoidBrush}" Visibility="{x:Bind ItemVisibility}">
-                        <Image Source="{x:Bind Icon}" Width="26" Height="26"/>
-                    </Border>
-                    <TextBlock Grid.Column="1" Text="{x:Bind Label}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"
-                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Visibility="{x:Bind ItemVisibility}"/>
-                    <TextBlock Grid.Column="1" Text="{x:Bind Label}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" FontWeight="SemiBold"
-                               Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center" Visibility="{x:Bind StepVisibility}"/>
-                    <Border Grid.Column="2" BorderBrush="{x:Bind BadgeBrush}" BorderThickness="1" CornerRadius="4" Padding="6,0" VerticalAlignment="Center" Visibility="{x:Bind ItemVisibility}">
-                        <TextBlock Text="{x:Bind Badge}" FontSize="10" FontWeight="Bold" Foreground="{x:Bind BadgeBrush}"/>
-                    </Border>
-                    <TextBlock Grid.Column="3" Text="{x:Bind Amount}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold"
-                               FontSize="15" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center" MinWidth="70" TextAlignment="Right" Visibility="{x:Bind ItemVisibility}"/>
-                </Grid>
-            </Border>
-        </DataTemplate>
-    </Page.Resources>
-
-    <Grid Padding="28,26,28,24" RowSpacing="16">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-
-        <TextBlock Text="RECIPE TREE" Style="{StaticResource ThemePageTitleStyle}"/>
-
-        <Border Grid.Row="1" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
-            <Grid ColumnSpacing="10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                <TextBlock Grid.Column="1" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
-                           Text="Click a recipe card on the Recipes page to see every requirement, step by step, down to the raw materials you need to gather. Amounts are per batch from the game's own recipe table (refiner and Nutrient Processor), multiplied for how many you want to make."/>
-            </Grid>
-        </Border>
-
-        <ctcontrols:WrapPanel Grid.Row="2" HorizontalSpacing="14" VerticalSpacing="10">
-            <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Background="{ThemeResource ThemePanelBrush}"
-                    CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="10,6" VerticalAlignment="Center">
-                <Grid ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Width="30" Height="30" Background="{ThemeResource ThemeVoidBrush}">
-                        <Image x:Name="TargetIcon" Width="26" Height="26"/>
-                    </Border>
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
-                        <TextBlock x:Name="TargetNameTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="15" TextWrapping="NoWrap"/>
-                        <TextBlock x:Name="TargetKindTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="NoWrap"/>
-                    </StackPanel>
-                </Grid>
-            </Border>
-            <NumberBox x:Name="QuantityBox" AutomationProperties.Name="Quantity to make" Header="Make" Width="160" Minimum="1" Maximum="99999" Value="1"
-                       SpinButtonPlacementMode="Inline" ValueChanged="Quantity_ValueChanged"
-                       ToolTipService.ToolTip="How many of the result to make - every amount in the tree scales with it."/>
-            <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center"/>
-            <Button AutomationProperties.Name="Back to recipes" x:Name="BackBtn" Click="Back_Click" VerticalAlignment="Bottom" Visibility="Collapsed"
-                    ToolTipService.ToolTip="Back to the Recipes page">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                    <FontIcon Glyph="&#xE72B;" FontSize="12"/>
-                    <TextBlock x:Name="BackTxt"/>
-                </StackPanel>
-            </Button>
-        </ctcontrols:WrapPanel>
-
-        <TextBlock Grid.Row="3" x:Name="EmptyTxt" Style="{StaticResource ThemeDimTextStyle}" Margin="0,8,0,0" TextWrapping="Wrap"
-                   Text="Open this page from a recipe on the Recipes page - click any recipe card to see its full requirements tree."/>
-
-        <Grid Grid.Row="3" x:Name="ResultGrid" ColumnSpacing="16" Visibility="Collapsed">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <Border Grid.Column="0" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                    Background="{ThemeResource ThemePanelBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,10" MaxWidth="360">
-                <StackPanel Spacing="6">
-                    <TextBlock Text="YOU'RE MAKING" Style="{StaticResource ThemeEyebrowStyle}" FontSize="10"/>
-                    <TextBlock x:Name="TargetBigTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="17" TextWrapping="Wrap"/>
-                    <TextBlock x:Name="TargetBatchTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
-                    <TextBlock x:Name="TargetStationTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
-                    <TextBlock x:Name="TargetCountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
-                </StackPanel>
-            </Border>
-            <ListView Grid.Column="1" x:Name="TreeList" SelectionMode="None" IsItemClickEnabled="False"
-                      ItemTemplate="{StaticResource TreeRowTemplate}" VerticalAlignment="Stretch">
-                <ListView.ItemContainerStyle>
-                    <Style TargetType="ListViewItem">
-                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                        <Setter Property="Padding" Value="0"/>
-                        <Setter Property="MinHeight" Value="0"/>
-                        <Setter Property="Margin" Value="0,0,0,4"/>
-                    </Style>
-                </ListView.ItemContainerStyle>
-            </ListView>
-        </Grid>
-    </Grid>
+<Page x:Class="ArtifactX.WinUI3.Views.RecipeTreePage"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:vm="using:ArtifactX.WinUI3.ViewModels" xmlns:controls="using:ArtifactX.WinUI3.Controls">
+ <Page.Resources>
+  <DataTemplate x:Key="Card" x:DataType="vm:RecipePlanCardViewModel">
+   <controls:RecipeRequirementCard ViewModel="{x:Bind}" RecipeChanged="Recipe_Changed"/>
+  </DataTemplate>
+ </Page.Resources>
+ <Grid Padding="28,26,28,24" RowSpacing="14" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+  <TextBlock Text="RECIPE STEPS" Style="{StaticResource ThemePageTitleStyle}"/>
+  <TextBlock Grid.Row="1" Text="Gather the starting ingredients, then follow the numbered cards to make your requested recipe. Choose a different recipe on a card to change the steps."
+    Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+  <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16">
+   <Button Content="Back to recipes" Click="Back_Click" VerticalAlignment="Bottom"/>
+   <NumberBox x:Name="QuantityBox" Header="Quantity to make" Value="1" Minimum="1" Maximum="99999" Width="160"
+     SpinButtonPlacementMode="Inline" ValueChanged="Quantity_ValueChanged" AutomationProperties.Name="Quantity to make"/>
+   <TextBlock x:Name="TargetTxt" Foreground="{ThemeResource ThemeAccentBrush}" FontWeight="SemiBold" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="450"/>
+  </StackPanel>
+  <Grid Grid.Row="3" RowSpacing="12">
+   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+   <TextBlock x:Name="StatusTxt" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+   <Border Grid.Row="1" Background="{ThemeResource ThemePanelBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Padding="12" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+    <StackPanel Spacing="6">
+     <TextBlock Text="STARTING INGREDIENTS ? GATHER OR BUY" Foreground="{ThemeResource ThemeAccentBrush}" FontWeight="SemiBold"/>
+     <TextBlock x:Name="GatherTxt" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+    </StackPanel>
+   </Border>
+   <GridView Grid.Row="2" x:Name="Cards" ItemTemplate="{StaticResource Card}" SelectionMode="None" IsItemClickEnabled="False"
+     ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollMode="Disabled">
+    <GridView.ItemContainerStyle><Style TargetType="GridViewItem">
+     <Setter Property="VerticalContentAlignment" Value="Top"/><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,0,12,12"/>
+    </Style></GridView.ItemContainerStyle>
+   </GridView>
+  </Grid>
+ </Grid>
 </Page>
