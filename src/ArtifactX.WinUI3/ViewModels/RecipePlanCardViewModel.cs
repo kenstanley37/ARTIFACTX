@@ -18,6 +18,11 @@ public sealed class RecipePlanCardViewModel
         ChoiceVisibility = Microsoft.UI.Xaml.Visibility.Collapsed;
     }
 
+    public string SourceDescription { get; init; } = "";
+    public Microsoft.UI.Xaml.Visibility SourceVisibility => string.IsNullOrEmpty(SourceDescription)
+        ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+    public Microsoft.UI.Xaml.Visibility RecipeVisibility => string.IsNullOrEmpty(SourceDescription)
+        ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
     public required string Heading { get; init; }
     public required string Station { get; init; }
     public required string UsedFor { get; init; }

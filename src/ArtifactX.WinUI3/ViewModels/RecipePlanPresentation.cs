@@ -10,12 +10,25 @@ namespace ArtifactX.WinUI3.ViewModels;
 internal static class RecipePlanPresentation
 {
     public static List<RecipePlanCardViewModel> Create(RecipePlan plan, string targetId,
-        IReadOnlyList<RecipeInfo> recipes, IReadOnlyDictionary<string, string> names)
+        IReadOnlyList<RecipeInfo> recipes, IReadOnlyDictionary<string, string> names, IReadOnlyDictionary<string, string> sources)
     {
         string Name(string id) => names.GetValueOrDefault(id) ?? "Unknown ingredient";
         RecipeItemViewModel Item(string id, long amount) => new()
         { ItemId = id, Label = $"{amount:N0} x {Name(id)}", Icon = CatalogService.TryGet(id)?.Icon };
-        return plan.Steps.Select((step, index) =>
+        var startingCards = plan.Gather.Select(ingredient => new RecipePlanCardViewModel
+        {
+            Heading = $"GET - {Name(ingredient.Id)}",
+            Station = recipes.Any(r => r.Result.Id.Equals(ingredient.Id, StringComparison.OrdinalIgnoreCase))
+                ? "Starting supply needed for this route" : "No cooking or refining recipe produces this ingredient",
+            SourceDescription = sources.TryGetValue(ingredient.Id, out string? description) && !string.IsNullOrWhiteSpace(description)
+                ? description : "The game catalog does not describe how to obtain this ingredient.",
+            ItemId = ingredient.Id,
+            Result = Item(ingredient.Id, ingredient.Amount),
+            UsedFor = "Needed for " + string.Join(", ", plan.Steps.Select((step, index) => (step, index))
+                .Where(x => x.step.Recipe.Ingredients.Any(i => i.Id.Equals(ingredient.Id, StringComparison.OrdinalIgnoreCase)))
+                .Select(x => $"step {x.index + 1}")),
+        }).ToList();
+        return startingCards.Concat(plan.Steps.Select((step, index) =>
         {
             var recipe = step.Recipe;
             var choices = recipes.Where(r => step.Alternatives.Contains(r.Id)).Select(r => new RecipePlanChoice(r.Id,
@@ -34,6 +47,6 @@ internal static class RecipePlanPresentation
                 SelectedChoice = choices.FirstOrDefault(c => c.Id == recipe.Id),
                 ChoiceVisibility = recipe.Id != targetId && choices.Count > 1 ? Visibility.Visible : Visibility.Collapsed,
             };
-        }).ToList();
+        })).ToList();
     }
 }

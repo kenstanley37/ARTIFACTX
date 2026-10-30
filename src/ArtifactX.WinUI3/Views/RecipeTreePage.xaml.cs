@@ -80,14 +80,16 @@ public sealed partial class RecipeTreePage : Page
                 .Concat(plan.Gather.Select(i => i.Id)).Distinct(StringComparer.OrdinalIgnoreCase);
             await CatalogService.WarmCacheAsync(ids);
             if (cancellation.IsCancellationRequested) return;
-            var cards = RecipePlanPresentation.Create(plan, target.Id, _recipes, _names);
+            var sources = await RecipeIngredientSourcesService.LoadAsync(plan.Gather.Select(i => i.Id), cancellation.Token);
+            if (cancellation.IsCancellationRequested) return;
+            var cards = RecipePlanPresentation.Create(plan, target.Id, _recipes, _names, sources);
             // Reconcile rows in place so quantity/alternative changes keep the page's scroll position.
             while (Cards.Items.Count > cards.Count) Cards.Items.RemoveAt(Cards.Items.Count - 1);
             for (int i = 0; i < cards.Count; i++)
                 if (i < Cards.Items.Count) Cards.Items[i] = cards[i]; else Cards.Items.Add(cards[i]);
             GatherTxt.Text = string.Join("   +   ", plan.Gather.Select(i => $"{i.Amount:N0} x {NameOf(i.Id)}"));
             TargetTxt.Text = $"{quantity:N0} x {NameOf(target.Result.Id)}";
-            StatusTxt.Text = $"{cards.Count} steps, in order. {plan.Notice}";
+            StatusTxt.Text = $"{plan.Gather.Count} starting ingredients, then {plan.Steps.Count} recipe steps. {plan.Notice}";
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)

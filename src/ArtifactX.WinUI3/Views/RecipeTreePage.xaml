@@ -22,7 +22,7 @@
    <TextBlock x:Name="StatusTxt" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
    <Border Grid.Row="1" Background="{ThemeResource ThemePanelBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Padding="12" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
     <StackPanel Spacing="6">
-     <TextBlock Text="STARTING INGREDIENTS ? GATHER OR BUY" Foreground="{ThemeResource ThemeAccentBrush}" FontWeight="SemiBold"/>
+     <TextBlock Text="STARTING INGREDIENTS - SOURCES SHOWN ON THE CARDS BELOW" Foreground="{ThemeResource ThemeAccentBrush}" FontWeight="SemiBold"/>
      <TextBlock x:Name="GatherTxt" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
     </StackPanel>
    </Border>

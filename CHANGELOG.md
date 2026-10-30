@@ -15,6 +15,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- **Recipe requirements**: starting ingredients now have source cards with the game's item description and the steps that need them, including animal byproducts such as Syrupy Nectar.
+
 - **Recipe steps**: requirements now appear as numbered recipe cards with ingredients, results, a starting shopping list, and a choice of alternative recipes.
 
 - **Recipe requirements**: opening a recipe no longer endlessly expands circular refiner recipes on the app thread. Large trees stop at a clearly marked limit.

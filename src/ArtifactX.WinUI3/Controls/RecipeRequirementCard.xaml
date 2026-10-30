@@ -18,8 +18,9 @@
         <StackPanel Spacing="6">
             <TextBlock Text="{x:Bind ViewModel.Heading, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" FontWeight="Bold"/>
             <TextBlock Text="{x:Bind ViewModel.Station, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-            <ItemsControl ItemsSource="{x:Bind ViewModel.Ingredients, Mode=OneWay}" ItemTemplate="{StaticResource Item}"/>
-            <TextBlock Text="&#x2193;" HorizontalAlignment="Center" Foreground="{ThemeResource ThemeAccentBrush}" FontSize="20"/>
+            <TextBlock Text="{x:Bind ViewModel.SourceDescription, Mode=OneWay}" Visibility="{x:Bind ViewModel.SourceVisibility, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+            <ItemsControl Visibility="{x:Bind ViewModel.RecipeVisibility, Mode=OneWay}" ItemsSource="{x:Bind ViewModel.Ingredients, Mode=OneWay}" ItemTemplate="{StaticResource Item}"/>
+            <TextBlock Visibility="{x:Bind ViewModel.RecipeVisibility, Mode=OneWay}" Text="&#x2193;" HorizontalAlignment="Center" Foreground="{ThemeResource ThemeAccentBrush}" FontSize="20"/>
             <Border BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="1">
                 <ContentPresenter Content="{x:Bind ViewModel.Result, Mode=OneWay}" ContentTemplate="{StaticResource Item}"/>
             </Border>
