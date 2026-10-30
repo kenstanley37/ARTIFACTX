@@ -51,3 +51,51 @@ Cargo is visible on the overview but was not separately inspected by tooltip.
 - The photon tooltip's 20,193 DPS and aggregate 355.7 are different measurements;
   preserve the exact screen contexts when tracing them.
 - No repair, save edit or runtime modification was performed during this review.
+
+## Candidate recovered from procedural site enumeration (2026-10-30)
+
+A read-only scratch runner enumerated the six faces of planet 2 in system
+04095B6DA013, using the installed catalog's building placement, ship pool and
+inventory rules. It found 15 Exotic candidates before terrain rejection.
+Exotics must be selected by their shown S-class, not by discarding every site
+whose underlying inventory class roll is not S. The existing application already
+handles shown class through `CrashedShipSite.ShownClass` and effective class in
+`StarshipInventoryGeneration`; no product class change was made.
+
+Candidate `DA66E63ACBED9173`, latitude +38.23834, longitude -63.68751, has
+intrinsic rolls 74.98706 / 74.01346 / 78.12094 / 41.98331. This is an inferred
+candidate, not an owner-confirmed location. Its hyperdrive value uniquely rounds
+to the screenshot's 179.1 among these 15 candidates.
+
+With that site key and the existing native-test context (normal ship category 6,
+wealth-budget row 0, 28 technology slots, known-tech/level inputs from Slot 8):
+
+- Native selector and placement produce the five basic technologies followed by
+  `UP_S_SHL3#99948` at (5,0), matching the screenshot's single A-class upgrade.
+- The supplied procedural-roll implementation gives additive shield 0.1779587269;
+  divided by the base shield 0.65 this is 27.378%, consistent with the +27% tooltip.
+  Module materialization is still substituted; this is not a full native materializer proof.
+- Native broken-technology results are damaged / working / damaged / damaged /
+  damaged / damaged, matching all six screenshot tooltips.
+- Native final shield = 338.7223816, rounding to screenshot 338.7.
+- Native final hyperdrive = 179.1209412, rounding to screenshot 179.1.
+- No native unmapped input reads occurred. GetTickCount64 remains an explicit
+  zero-return emulator import; do not infer full game initialization from this harness.
+
+Damage and maneuverability are still unresolved: the same supplied inventory with
+old active-resource seed F4A8AD8D781A4F1C gives damage 303.2008972 and maneuverability
+503.3550415, versus screenshot 355.7 / 530.3. The damage stat query's filter type 1
+excludes the damaged Photon Cannon, while types 0 and 2 include its 559.9586182
+intrinsic-adjusted damage, 7.5 fire rate and 1500 range. The screenshot's Photon
+Cannon tooltip shows 20,193 DPS, so do not equate that tooltip to this isolated
+supplied-inventory result. Correct caller/filter/resource context must be traced.
+
+Harness correction: the substituted procedural template's Group string belongs
+at +0x50, not +0x00. Corrected in scratch only. This did not change the old shield
+module group, which already matched its template, but avoids corrupting the clone colour.
+
+Scratch commands: `shipstatscheck --screenshot-sites`, then
+`SHIP_SITE_SEED=DA66E63ACBED9173 shipstatscheck --module-rolls`, then
+`ship-reference-native.py 0 --placement` with the same environment variable.
+The exported module JSON now belongs to this candidate; regenerate it with the
+original site key before rerunning the original wreck's oracle.
