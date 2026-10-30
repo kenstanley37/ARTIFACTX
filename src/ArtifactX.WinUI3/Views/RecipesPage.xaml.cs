@@ -2,6 +2,7 @@ using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -170,14 +171,34 @@ public sealed partial class RecipesPage : Page
         Apply();
     }
 
-    private void Item_Click(object sender, RoutedEventArgs e)
+    /// <summary>Tap the card background to open the full requirements tree for
+    /// that recipe on its own page. Taps on the pin button or the result
+    /// button are handled by those buttons' own clicks.</summary>
+    private void Card_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+    {
+        if (e.OriginalSource is DependencyObject src && IsInsideButton(src)) return;
+        if ((sender as FrameworkElement)?.Tag is not string id) return;
+        this.Frame?.Navigate(typeof(RecipeTreePage), id);
+    }
+
+    /// <summary>Click the recipe's result to open the full requirements tree
+    /// for that recipe on its own page (keyboard reachable).</summary>
+    private void OpenTree(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is not string id) return;
-        _selectedId = id;
-        SearchBox.Text = NameOf(id);
-        ModeBox.SelectedIndex = 0; // how to make the clicked item
-        Apply();
-        if (RecipesList.Items.Count > 0) RecipesList.ScrollIntoView(RecipesList.Items[0]);
+        this.Frame?.Navigate(typeof(RecipeTreePage), id);
+    }
+
+    /// <summary>True when the tapped element sits inside a button, whose own
+    /// click handles the tap.</summary>
+    private static bool IsInsideButton(DependencyObject d)
+    {
+        while (d is not null)
+        {
+            if (d is Button) return true;
+            d = VisualTreeHelper.GetParent(d);
+        }
+        return false;
     }
 
     /// <summary>A pinned tile was clicked: highlight it and its card, and
