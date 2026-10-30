@@ -11,6 +11,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - **Underwater crashed ships**: planets with a sea also list the wrecks that lie on the sea floor, with roughly how deep they are. You can add a marker for them too.
 - **Crashed Sentinel ships**: dissonant planets also list their crashed Sentinel Interceptors (type "Sentinel" in the search), with their class and a marker button (their names aren't shown yet).
 - **Crashed ship search** (Planet Details): search a planet's crashed ships by class (S by default, A, B, C or any) and type. The type list shows only the types the planet has in the chosen class, with how many of each (the game ties a wreck's type to its class, so for example C-class wrecks may only be Fighters and Haulers). It lists the nearest matches - from 5 up to all of them, as you choose - each with a marker button, and says how many the planet has. Your choices are remembered.
+- **Recipe requirements tree** (Recipes): click a recipe card to see every ingredient needed, step by step, all the way down to the raw materials - amounts scale with how many you want to make.
 
 ### Fixed
 

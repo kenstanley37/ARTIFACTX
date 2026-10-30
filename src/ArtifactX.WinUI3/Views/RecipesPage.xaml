@@ -14,7 +14,7 @@
 
     <Page.Resources>
         <DataTemplate x:Key="RecipeItemTemplate" x:DataType="viewmodels:RecipeItemViewModel">
-            <Button Click="Item_Click" Tag="{x:Bind ItemId}" AutomationProperties.Name="{x:Bind Label}" Padding="6,1" MinHeight="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+            <Border Padding="6,1" MinHeight="0" HorizontalAlignment="Stretch"
                     Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
                     ToolTipService.ToolTip="{x:Bind Label}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
@@ -22,13 +22,14 @@
                     <TextBlock Text="{x:Bind Label}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" VerticalAlignment="Center"
                                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxWidth="220"/>
                 </StackPanel>
-            </Button>
+            </Border>
         </DataTemplate>
 
                 <DataTemplate x:Key="RecipeCardTemplate" x:DataType="viewmodels:RecipeRowViewModel">
                     <Border BorderBrush="{x:Bind CardBorder, Mode=OneWay}" BorderThickness="{x:Bind CardBorderThickness, Mode=OneWay}"
                             Background="{ThemeResource ThemePanelAltBrush}" Width="290" Height="200"
-                            CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="10,8">
+                            CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="10,8"
+                            Tapped="Card_Tapped" Tag="{x:Bind RecipeId}" AutomationProperties.Name="{x:Bind Name}">
                         <Grid RowSpacing="3">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -61,11 +62,14 @@
                                 </ItemsControl.ItemsPanel>
                             </ItemsControl>
                             <TextBlock Grid.Row="2" Text="↓" FontSize="14" LineHeight="14" HorizontalAlignment="Center" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                            <Border Grid.Row="3" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="1"
+                            <Button Grid.Row="3" Click="OpenTree" Tag="{x:Bind RecipeId}" AutomationProperties.Name="{x:Bind Result.Label}"
+                                    ToolTipService.ToolTip="Show this recipe's requirements tree"
+                                    Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="1"
+                                    Padding="6,2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                                     CornerRadius="{ThemeResource ThemeCardCornerRadius}">
                                 <ContentPresenter Content="{x:Bind Result}" ContentTemplate="{StaticResource RecipeItemTemplate}"
                                                   HorizontalContentAlignment="Stretch"/>
-                            </Border>
+                            </Button>
                         </Grid>
                     </Border>
                 </DataTemplate>
@@ -82,8 +86,8 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <Button Click="Item_Click" Tag="{x:Bind Result.ItemId}" AutomationProperties.Name="{x:Bind Result.Label}" Padding="2" Background="{ThemeResource ThemeVoidBrush}" BorderThickness="0"
-                            ToolTipService.ToolTip="Show recipes for this item">
+                    <Button Click="OpenTree" Tag="{x:Bind RecipeId}" AutomationProperties.Name="{x:Bind Result.Label}" Padding="2" Background="{ThemeResource ThemeVoidBrush}" BorderThickness="0"
+                            ToolTipService.ToolTip="Show this recipe's requirements tree">
                         <Image Source="{x:Bind Result.Icon}" Width="30" Height="30"/>
                     </Button>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
@@ -122,7 +126,7 @@
                 </Grid.ColumnDefinitions>
                 <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
                 <TextBlock Grid.Column="1" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"
-                           Text="Every refiner and Nutrient Processor recipe from the game's own recipe table. Search for an item to see how to make it, or what it's used in. Click any item in a recipe to jump to its recipes. Refiners: a Portable Refiner takes 1 input, a Medium Refiner 2, a Large Refiner 3."/>
+                           Text="Every refiner and Nutrient Processor recipe from the game's own recipe table. Click a recipe card to see its full requirements tree, step by step, down to the raw materials you need to gather. Refiners: a Portable Refiner takes 1 input, a Medium Refiner 2, a Large Refiner 3."/>
             </Grid>
         </Border>
 
