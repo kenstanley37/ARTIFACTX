@@ -13,21 +13,38 @@
             </Border>
         </DataTemplate>
     </UserControl.Resources>
-    <Border Padding="12" Width="320" Background="{ThemeResource ThemePanelAltBrush}"
+    <Border Padding="12" Width="320" Height="440" Background="{ThemeResource ThemePanelAltBrush}"
             BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
-        <StackPanel Spacing="6">
-            <TextBlock Text="{x:Bind ViewModel.Heading, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" FontWeight="Bold"/>
-            <TextBlock Text="{x:Bind ViewModel.Station, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-            <TextBlock Text="{x:Bind ViewModel.SourceDescription, Mode=OneWay}" Visibility="{x:Bind ViewModel.SourceVisibility, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-            <ItemsControl Visibility="{x:Bind ViewModel.RecipeVisibility, Mode=OneWay}" ItemsSource="{x:Bind ViewModel.Ingredients, Mode=OneWay}" ItemTemplate="{StaticResource Item}"/>
-            <TextBlock Visibility="{x:Bind ViewModel.RecipeVisibility, Mode=OneWay}" Text="&#x2193;" HorizontalAlignment="Center" Foreground="{ThemeResource ThemeAccentBrush}" FontSize="20"/>
-            <Border BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="1">
+        <Grid RowSpacing="6">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="64"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="{x:Bind ViewModel.Heading, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" FontWeight="Bold"
+                       TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind ViewModel.Heading, Mode=OneWay}"/>
+            <TextBlock Grid.Row="1" Text="{x:Bind ViewModel.Station, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
+                          HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Recipe ingredients or source details">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{x:Bind ViewModel.SourceDescription, Mode=OneWay}" Visibility="{x:Bind ViewModel.SourceVisibility, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+                    <ItemsControl Visibility="{x:Bind ViewModel.RecipeVisibility, Mode=OneWay}" ItemsSource="{x:Bind ViewModel.Ingredients, Mode=OneWay}" ItemTemplate="{StaticResource Item}"/>
+                    <TextBlock Visibility="{x:Bind ViewModel.RecipeVisibility, Mode=OneWay}" Text="&#x2193;" HorizontalAlignment="Center" Foreground="{ThemeResource ThemeAccentBrush}" FontSize="20"/>
+                </StackPanel>
+            </ScrollViewer>
+            <Border Grid.Row="3" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="1">
                 <ContentPresenter Content="{x:Bind ViewModel.Result, Mode=OneWay}" ContentTemplate="{StaticResource Item}"/>
             </Border>
-            <TextBlock Text="{x:Bind ViewModel.UsedFor, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-            <ComboBox Header="Recipe to use" ItemsSource="{x:Bind ViewModel.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedChoice, Mode=OneWay}"
+            <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
+                          HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Steps that use this ingredient">
+                <TextBlock Text="{x:Bind ViewModel.UsedFor, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+            </ScrollViewer>
+            <ComboBox Grid.Row="5" VerticalAlignment="Top" Header="Recipe to use" ItemsSource="{x:Bind ViewModel.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedChoice, Mode=OneWay}"
                       SelectionChanged="Choice_Changed" Visibility="{x:Bind ViewModel.ChoiceVisibility, Mode=OneWay}"
                       AutomationProperties.Name="Choose recipe for this requirement" HorizontalAlignment="Stretch"/>
-        </StackPanel>
+        </Grid>
     </Border>
 </UserControl>
