@@ -24,12 +24,14 @@ internal static class StarshipDisplayEvaluationChecks
     }
 
     // Local fixture contains extracted game tables and read-only player inventory;
-    // never commit it. Expected values are full native reference evaluations.
+    // never commit it. Expected values are native floats unless the fixture explicitly
+    // requests comparison at the game screenshots' one-decimal display precision.
     public static void CheckNative(string path)
     {
         using var document = JsonDocument.Parse(File.ReadAllText(path));
         var root = document.RootElement;
         var tables = root.GetProperty("Tables").Deserialize<StarshipEvaluationTables>()!;
+        bool displayed = root.TryGetProperty("CompareDisplayedValues", out var displayMode) && displayMode.GetBoolean();
         int checks = 0;
         foreach (var row in root.GetProperty("Rows").EnumerateArray())
         {
@@ -47,12 +49,16 @@ internal static class StarshipDisplayEvaluationChecks
             foreach (var pair in new[] { (actual.Damage, expected.Damage), (actual.Shield, expected.Shield),
                 (actual.Hyperdrive, expected.Hyperdrive), (actual.Maneuverability, expected.Maneuverability) })
             {
-                if (BitConverter.SingleToInt32Bits(pair.Item1) != BitConverter.SingleToInt32Bits(pair.Item2))
+                bool matches = displayed
+                    ? pair.Item1.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)
+                        == pair.Item2.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)
+                    : BitConverter.SingleToInt32Bits(pair.Item1) == BitConverter.SingleToInt32Bits(pair.Item2);
+                if (!matches)
                     throw new InvalidOperationException($"Composed stat mismatch: {pair.Item1:R} != {pair.Item2:R}");
                 checks++;
             }
         }
         if (checks == 0) throw new InvalidOperationException("Empty comparison fixture");
-        Console.WriteLine($"Composed ship comparison: {checks} exact native float matches");
+        Console.WriteLine($"Composed ship comparison: {checks} {(displayed ? "displayed screenshot values" : "exact native floats")} match");
     }
 }
