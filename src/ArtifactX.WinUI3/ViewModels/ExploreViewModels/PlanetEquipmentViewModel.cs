@@ -1,4 +1,6 @@
-﻿using ArtifactX.Core.NmsModels;
+using System.Collections.ObjectModel;
+using ArtifactX.Core.Collections;
+using ArtifactX.Core.NmsModels;
 using ArtifactX.Core.Universe;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -91,7 +93,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     private string _wantedType = SettingsStore.Get(SettingsStore.Scope.Profile, ShipTypeKey) ?? "";
     private bool _rebuildingTypes;
 
-    [ObservableProperty] public partial IReadOnlyList<CrashedShipRowViewModel> CrashedShips { get; private set; } = [];
+    public ObservableCollection<CrashedShipRowViewModel> CrashedShips { get; } = [];
     [ObservableProperty] public partial bool HasCrashedShips { get; private set; }
     [ObservableProperty] public partial string CrashedShipsHeading { get; private set; } = "CRASHED SHIPS";
     [ObservableProperty] public partial string CrashedShipsHint { get; private set; } = "";
@@ -148,8 +150,11 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     {
         _portal = null;
         HasPortal = false;
-        CrashedShips = [];
-        HasCrashedShips = false;
+        if (_planetAddress != planet.Address)
+        {
+            CrashedShips.Clear();
+            HasCrashedShips = false;
+        }
         _planetAddress = planet.Address;
         _centre = await PlanetCentreService.GetAsync(planet.Address);
         UpdateLocations(planet, snapshot);
@@ -175,18 +180,18 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         var found = await CrashedShipService.SearchAsync(planet.Address, Matches, at.Lat, at.Lon, ShownShips);
         if (_planetAddress != planet.Address || found is null) return;
         var sites = found.Nearest;
-        CrashedShips = sites.Select((s, i) => new CrashedShipRowViewModel(s, i + 1, here, here ? "away" : "from the portal")).ToList();
+        var cards = sites.Select((s, i) => new CrashedShipRowViewModel(s, i + 1, here, here ? "away" : "from the portal")).ToArray();
+        ObservableCollectionSync.Apply(CrashedShips, cards, row => row.Key, (_, _) => true,
+            (row, next) => row.UpdateFrom(next));
         HasCrashedShips = true;
         CrashedShipsSummary = found.Total == 0 ? $"No {(ShipClassChoice > 0 ? ShipClassChoices[ShipClassChoice] + " " : "")}crashed ships on this planet."
             : found.Total <= ShownShips ? $"All {found.Total:N0} matching crashed ships on this planet, nearest first."
             : $"The nearest {ShownShips} of {found.Total:N0} matching crashed ships on this planet.";
         if (found.Unverified) CrashedShipsSummary += " Not yet confirmed in game for systems without a race.";
         CrashedShipsHeading = here ? "CRASHED SHIPS NEAR YOU" : "CRASHED SHIPS NEAR THE PORTAL";
-        CrashedShipsHint = sites.Any(s => s.Ship is null)
-            ? "Where crashed ships lie, worked out from the game's own rules. Update game data to see which ship "
-              + "lies at each. Now and then the ground leaves a spot empty."
-            : "Where crashed ships lie, which ship is there and its class, worked out from the game's own rules. "
-              + "Now and then the ground leaves a spot empty.";
+        CrashedShipsHint = sites.Any(s => s.Ship is null || s.Inventory is null)
+            ? "Where crashed ships lie, worked out from the game's own rules. Update game data to see each wreck's ship, slots, value and stats. Now and then the ground leaves a spot empty."
+            : "Where crashed ships lie, which ship is there, and its class and value. Supported ships show comparison stats for your saved active ship; other cards show intrinsic bonuses.";
     }
 
     /// <summary>Shows whether the portal and crashed ships are marked in the save, and whether markers can be added now.</summary>

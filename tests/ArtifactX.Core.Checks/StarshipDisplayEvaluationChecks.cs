@@ -1,0 +1,64 @@
+using System.Text.Json;
+using ArtifactX.Core.NmsModels;
+using ArtifactX.Core.Universe;
+using Newtonsoft.Json.Linq;
+
+internal static class StarshipDisplayEvaluationChecks
+{
+    public static void CheckModelGuards()
+    {
+        var incomplete = new MultiToolTechnologyTables([], []);
+        if (StarshipTechnologyGeneration.ForShipClass(8, incomplete) is not null
+            || StarshipTechnologyGeneration.ForShipClass(9, incomplete) is not null)
+            throw new InvalidOperationException("Missing Solar metadata or Sentinel category was accepted");
+        var tables = new InventoryGenerationTables([], [], [], [], [], 0,
+            ShipTechnologyOverrides: new() { ["Shuttle"] = false, ["Fighter"] = true,
+                ["Hauler"] = null, ["Solar"] = false, ["SentinelInterceptor"] = false });
+        if (!StarshipDisplayEvaluation.SupportsComparisonModel(SystemStarshipType.Shuttle, tables)
+            || !StarshipDisplayEvaluation.SupportsComparisonModel(SystemStarshipType.Solar, tables)
+            || !StarshipDisplayEvaluation.SupportsComparisonModel(SystemStarshipType.SentinelInterceptor, tables)
+            || new[] { SystemStarshipType.Fighter, SystemStarshipType.Hauler, SystemStarshipType.Explorer }.Any(t =>
+                    StarshipDisplayEvaluation.SupportsComparisonModel(t, tables))
+            || StarshipDisplayEvaluation.SupportsComparisonModel(SystemStarshipType.Shuttle, null))
+            throw new InvalidOperationException("Normal ship model guards accepted unresolved or special-category equipment");
+    }
+
+    // Local fixture contains extracted game tables and read-only player inventory;
+    // never commit it. Expected values are native floats unless the fixture explicitly
+    // requests comparison at the game screenshots' one-decimal display precision.
+    public static void CheckNative(string path)
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        var root = document.RootElement;
+        var tables = root.GetProperty("Tables").Deserialize<StarshipEvaluationTables>()!;
+        bool displayed = root.TryGetProperty("CompareDisplayedValues", out var displayMode) && displayMode.GetBoolean();
+        int checks = 0;
+        foreach (var row in root.GetProperty("Rows").EnumerateArray())
+        {
+            var ship = JObject.Parse(row.GetProperty("PlayerShip").GetRawText());
+            var context = NmsStarshipComparisonPaths.Read(ship, tables)
+                ?? throw new InvalidOperationException("Reference player inventory was rejected");
+            var bonuses = row.GetProperty("Bonuses").Deserialize<KeyValuePair<string, float>[]>()!;
+            var actual = StarshipDisplayEvaluation.Evaluate(row.GetProperty("Seed").GetUInt64(),
+                row.GetProperty("ModelSeed").GetUInt64(), row.GetProperty("ShipClass").GetInt32(),
+                row.GetProperty("Rating").GetInt32(), row.GetProperty("Layout").Deserialize<GeneratedMultiToolLayout>()!,
+                bonuses, tables, context, row.GetProperty("Wealth").GetInt32(), row.GetProperty("Level").GetInt32(),
+                row.GetProperty("Known").EnumerateArray().Select(x => x.GetString()!).ToHashSet(), false)
+                ?? throw new InvalidOperationException("Reference evaluation was rejected");
+            var expected = row.GetProperty("Expected").Deserialize<StarshipDisplayedStats>()!;
+            foreach (var pair in new[] { (actual.Damage, expected.Damage), (actual.Shield, expected.Shield),
+                (actual.Hyperdrive, expected.Hyperdrive), (actual.Maneuverability, expected.Maneuverability) })
+            {
+                bool matches = displayed
+                    ? pair.Item1.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)
+                        == pair.Item2.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)
+                    : BitConverter.SingleToInt32Bits(pair.Item1) == BitConverter.SingleToInt32Bits(pair.Item2);
+                if (!matches)
+                    throw new InvalidOperationException($"Composed stat mismatch: {pair.Item1:R} != {pair.Item2:R}");
+                checks++;
+            }
+        }
+        if (checks == 0) throw new InvalidOperationException("Empty comparison fixture");
+        Console.WriteLine($"Composed ship comparison: {checks} {(displayed ? "displayed screenshot values" : "exact native floats")} match");
+    }
+}

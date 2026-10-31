@@ -1385,7 +1385,13 @@ public class CatalogBuildService
         {
             using var ms = new MemoryStream(bytes);
             var mbin = new MBINFile(ms);
-            mbin.Load();
+            // INPUTTEST.MBIN still ships with an incompatible legacy header (checked
+            // 2026-10-31). Reading it as the current format produces no template name.
+            if (!mbin.Load() || !mbin.Header.IsValid)
+            {
+                LogService.Write($"CatalogBuild: skipped incompatible MBIN header: {entry.FileName}");
+                return null;
+            }
             return mbin.GetData();
         }
         catch (Exception ex)

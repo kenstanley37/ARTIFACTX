@@ -49,7 +49,7 @@ namespace libMBIN {
 
     public class DeserializeTemplateException : TemplateException {
         public DeserializeTemplateException( string name ) : base( $"Failed to deserialize template {name}!" ) { }
-        public DeserializeTemplateException( uint nameHash ) : base( $"Failed to deserialize template with Name Hash {nameHash}!" ) { }
+        public DeserializeTemplateException( uint nameHash ) : base( $"Failed to deserialize template with Name Hash 0x{nameHash:X8} ({nameHash})!" ) { }
     }
 
     public class DeserializeTypeException : TemplateException {

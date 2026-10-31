@@ -437,3 +437,11 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Request**: Search a range around the player, not just the current system, for generated content. First use case: the nearest station whose cabinet tool has an X-class upgrade, instead of flying around blindly.
 - **Design**: A new page (Finds remains confirmed, player-recorded finds; offer "Save to Finds" once confirmed in game). Range as same region / nearby regions / hyperdrive light-years, results sorted by distance and streamed from a background scan. Filters only on what generation already resolves exactly: system attributes, planet profiles, station multi-tools (class, upgrade type, kind, stats). Unsupported cases show as unknown, never guessed. Each result shows system name, region, portal glyphs, distance and a direction hint. New reverse-engineering results (ships, planet cabinets, crashed ships) become new filters.
 - **Prerequisites**: (1) Establish how many systems each region actually contains, so the search never lists nonexistent systems. (2) Establish whether station stock depends on arrival versus save reload (current generation uses the save's reload address); label results accordingly.
+
+
+## 2026-10-31 gameplay follow-up: uncharted Sentinel markers
+
+- **Tracking**: [Issue #34, owner reproduction](https://github.com/kenstanley37/ARTIFACTX/issues/34#issuecomment-6546742085).
+- **Reported failure**: Hamagan-Oerat VI / Neusie T13, an uncharted system with no lifeform and unavailable economy/conflict data. Predicted Sentinel site was empty; the first marker pointed somewhere other than the app coordinates, and later markers did not appear despite closing the game before adding them.
+- **Comparison**: owner moved to inhabited Usmanz XIX and markers worked. On Ciss L16, the C-class Sentinel at approximately +31.22, -0.00 was found with the predicted 28,600,000-unit value.
+- **Status**: open. Supports the existing uncharted building-table concern; exact cause and scope remain unverified. No marker or save-data repair was performed.

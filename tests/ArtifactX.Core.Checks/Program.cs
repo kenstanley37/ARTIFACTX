@@ -8,6 +8,23 @@ using Newtonsoft.Json.Linq;
 // No desktop dependencies: run with dotnet run --project tests/ArtifactX.Core.Checks.
 try
 {
+    if (args.Length > 0)
+    {
+        Require(args.Length == 2 && args[0] is "--ship-display-vectors" or "--ship-tech-damage-vectors" or "--ship-shield-vectors" or "--ship-supercharge-vectors" or "--ship-intrinsic-vectors" or "--ship-weapon-vectors" or "--ship-selection-vector" or "--ship-comparison-vectors",
+            "Expected a supported --ship-*-vectors option followed by <native-vector-json>");
+        if (args[0] == "--ship-comparison-vectors") StarshipDisplayEvaluationChecks.CheckNative(args[1]);
+        else if (args[0] == "--ship-selection-vector") StarshipTechnologySelectionChecks.CheckNative(args[1]);
+        else if (args[0] == "--ship-weapon-vectors") StarshipWeaponPotentialChecks.CheckNative(args[1]);
+        else if (args[0] == "--ship-tech-damage-vectors") StarshipTechnologyDamageChecks.CheckNative(args[1]);
+        else if (args[0] == "--ship-shield-vectors") StarshipTechnologyDamageChecks.CheckShieldNative(args[1]);
+        else if (args[0] == "--ship-supercharge-vectors") StarshipDisplayStatChecks.CheckSuperchargeNative(args[1]);
+        else if (args[0] == "--ship-intrinsic-vectors") StarshipDisplayStatChecks.CheckIntrinsicNative(args[1]);
+        else StarshipDisplayStatChecks.CheckNative(args[1]);
+        return;
+    }
+    StarshipDisplayStatChecks.CheckInputs();
+    StarshipDisplayEvaluationChecks.CheckModelGuards();
+    StarshipTechnologyDamageChecks.CheckInputs();
     var rows = new ObservableCollection<Row> { new(1, "A", 10), new(2, "B", 20) };
     var first = rows[0];
     var second = rows[1];

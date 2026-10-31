@@ -26,7 +26,14 @@ public sealed record InventoryGenerationTables(
     BaseStatRange[][][]? WeaponBaseStatsByClass = null,
     SuperchargedSlotRules? WeaponSuperchargedSlots = null,
     MultiToolLayoutRules[]? WeaponLayouts = null,
-    Dictionary<string, string>? WeaponLayoutByInventoryTag = null);
+    Dictionary<string, string>? WeaponLayoutByInventoryTag = null,
+    BaseStatRange[][][]? ShipBaseStatsByClass = null,
+    StarshipLayoutRules[]? ShipLayouts = null,
+    StarshipCostRules[]? ShipCostData = null,
+    Dictionary<string, StarshipInventoryNodeRule[]>? ShipModelInventoryRules = null,
+    float? CrashedShipBrokenSlotChance = null,
+    int? CrashedShipMinNonBrokenSlots = null,
+    Dictionary<string, bool?>? ShipTechnologyOverrides = null);
 
 /// <summary>
 /// Deterministically rolled S-Class base stats (% bonus) and max upgrade slot capacities for a starship seed.

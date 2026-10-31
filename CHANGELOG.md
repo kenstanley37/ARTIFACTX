@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- **Crashed ship details**: cards show unit values and clearly labeled intrinsic bonuses. Supported Shuttle, Fighter, Hauler, Explorer, Exotic, Solar and Sentinel wrecks also show Damage Potential, Shield Strength, Hyperdrive Range and Maneuverability using the active ship in your loaded save. Sentinel comparison stats are limited to inhabited systems.
+
 - **S-class crashed ships** (Current System): each planet card shows the nearest S-class crashed ship on that planet (Exotics included), with how many the planet has, and a button to add a marker to your save. In systems without a race these aren't confirmed in game yet, and the card says so.
 - **Crashed ships that aren't there**: crash sites on ground too steep for the game to build on (inside mountains, on cliffs) or under the sea are no longer listed, so the lists and markers point only at wrecks the game actually places.
 - **Underwater crashed ships**: planets with a sea also list the wrecks that lie on the sea floor, with roughly how deep they are. You can add a marker for them too.
@@ -22,6 +24,10 @@ What changed in each ArtifactX release, written for players. The newest release 
 - **Recipe steps**: requirements now appear as numbered recipe cards with ingredients, results, a starting shopping list, and a choice of alternative recipes.
 
 - **Recipe requirements**: opening a recipe no longer endlessly expands circular refiner recipes on the app thread. Large trees stop at a clearly marked limit.
+
+- **Game data updates**: a completed rebuild now replaces the catalog safely while the app is open, preventing the update prompt from returning because older database data was still being read.
+
+- **Game data updates**: skip an obsolete test file bundled with the game that could trigger a null-reference error while rebuilding the catalog. Unknown types now produce a useful diagnostic.
 
 - **Planet Finder**: results are cards like the planet cards on Current System, side by side, instead of full-width rows.
 - **Water worlds**: their underwater crashed ships are listed (the planet showed none before).

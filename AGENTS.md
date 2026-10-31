@@ -42,7 +42,6 @@ This is the single shared rules file for every AI assistant: `CLAUDE.md` and `GE
 - **Use the game's own words.** Fish rarity: quality Rare reads "Uncommon", Epic reads "Rare". Biomes 8-10 (Red/Green/Blue) are "anomaly" worlds, not colours.
 - **Equipment pages** (Starships, Multi-Tool, Freighter...): details card full width above the tech grid, collapsible; right sidebar = Templates only.
 - **Live game updates:** pages follow the game through the app-wide feed `FishCatchRecorder.SnapshotSeen`; never start a page's own save watcher. Update in place - no page reloads, keep scroll position, new items animate in.
-- Never mention the competing save editor NomNom anywhere (UI or comments) - say "a reference tool".
 
 ## 4. Saves - safety first
 

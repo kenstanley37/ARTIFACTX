@@ -1202,6 +1202,9 @@ public static class CatalogService
     public static Task<ArtifactX.Core.Universe.MultiToolTechnologyTables?> GetMultiToolTechnologyTablesAsync() =>
         GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.MultiToolTechnologyTables>("MULTITOOLTECHNOLOGY");
 
+    public static Task<ArtifactX.Core.Universe.StarshipEvaluationTables?> GetStarshipEvaluationTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.StarshipEvaluationTables>("STARSHIPDISPLAY");
+
     public static Task<ArtifactX.Core.Universe.MultiToolModelTables?> GetMultiToolModelTablesAsync() =>
         GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.MultiToolModelTables>("MULTITOOLMODEL");
 

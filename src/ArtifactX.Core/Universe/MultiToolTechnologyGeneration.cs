@@ -16,7 +16,7 @@ public sealed record TechnologySelectionDefinition(string Id, string TechnologyI
 
 /// <summary>Explicit native runtime inputs; wealth is Poor=0, Average=1, Wealthy=2, Pirate=3.</summary>
 public sealed record TechnologySelectionContext(int RequestedSlots, int NativeWealth, int RequiredLevel,
-    int AvailableSlots, IReadOnlySet<string> KnownTechnologies);
+    int AvailableSlots, IReadOnlySet<string> KnownTechnologies, int SlotsPerBudget = 5);
 
 /// <summary>A technology's initial random ranking input, before rarity and prerequisite rules.</summary>
 public sealed record MultiToolTechnologyCandidate(string Id, bool Procedural, float RandomScore);
@@ -80,6 +80,7 @@ public static class MultiToolTechnologyGeneration
     {
         if (tables?.Definitions is not { } definitions || tables.RarityWeights is not { Length: >= 7 } weights
             || tables.StatParents is not { } parents || context.NativeWealth is < 0 or > 3
+            || context.SlotsPerBudget is not (5 or 9)
             || context.RequestedSlots < 0 || context.AvailableSlots < 0
             || weights.Any(w => !float.IsFinite(w) || w < 0f)) return null;
         if (definitions.Select(d => d.Id).Distinct(StringComparer.Ordinal).Count() != definitions.Length) return null;
@@ -89,7 +90,7 @@ public static class MultiToolTechnologyGeneration
             || d.RarityIndex >= weights.Length || d.StatTypes.Any(s => !parents.ContainsKey(s)))) return null;
         // Native fixed code multipliers at 0x144b32100, not game-content defaults.
         float wealthFactor = context.NativeWealth switch { 0 => .3f, 1 => .6f, 2 => 1f, _ => .6f };
-        int maximum = Math.Clamp((int)((context.RequestedSlots / 5) * wealthFactor + .5f), 1, 10);
+        int maximum = Math.Clamp((int)((context.RequestedSlots / context.SlotsPerBudget) * wealthFactor + .5f), 1, 10);
         int budget = 1 + (int)SolarLayoutGeneration.RandomFor(inventorySeed).Next((uint)maximum);
         int consumed = 0;
         var installed = new List<GeneratedTechnologySelection>();
