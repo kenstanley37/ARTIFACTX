@@ -3,7 +3,7 @@ namespace ArtifactX.Core.Universe;
 /// <summary>Supported structural combination modes in the native stat evaluator.</summary>
 public enum MultiToolStatCombination { Add, Multiply, Maximum }
 
-/// <summary>Equipped technology values for intact generated inventories and default runtime flags.</summary>
+/// <summary>Equipped technology values for generated inventories and default runtime flags.</summary>
 public static class MultiToolStatGeneration
 {
     /// <summary>
@@ -12,10 +12,20 @@ public static class MultiToolStatGeneration
     /// Checked against 600 native laser/scanner evaluations, including module rolls,
     /// adjacency, charged cells and the laser base-stat filter; another 750 Bolt checks
     /// cover its damage, rate, clip, reload and maximum extra-shot values.
+    /// Optional damaged positions preserve own contributions and supercharge while
+    /// suppressing adjacency at both ends. Compare shield checks (2026-10-30,
+    /// Steam build 26295378) matched 20 native totals bit for bit, including mixed
+    /// damage, adjacent/separated cells and special slots; other callers retain
+    /// their existing intact-inventory behavior when no damaged positions are supplied.
+    /// includeDamagedTechnology=false matches native filter type 1, which skips
+    /// damaged sources entirely (used by ship weapons). Include/exclude matrices
+    /// matched 40 native shield totals bit for bit, 2026-10-31.
     /// </summary>
     public static float? Evaluate(GeneratedMultiToolInventory inventory, MultiToolTechnologyTables tables,
         int statId, MultiToolStatCombination combination, int baseStatFilter = 0,
-        bool hasActiveSpecialTechnology = false)
+        bool hasActiveSpecialTechnology = false,
+        IReadOnlySet<GeneratedInventoryPosition>? damagedTechnologyPositions = null,
+        bool includeDamagedTechnology = true)
     {
         if (hasActiveSpecialTechnology || tables.ScannerRules is not { } rules
             || tables.Definitions is not { } definitions || tables.StatParents is not { } parents
@@ -46,9 +56,12 @@ public static class MultiToolStatGeneration
         }
         if (resolved.Where(t => t.Definition.Group!.Length > 0).GroupBy(t => t.Definition.Group)
             .Any(g => g.Count() > rules.MaximumGroupTechnologies)) return null;
+        if (damagedTechnologyPositions?.Any(p => !occupied.Contains(p)) == true) return null;
         float result = multiply ? 1f : 0f;
         foreach (var source in resolved)
         {
+            if (!includeDamagedTechnology && damagedTechnologyPositions?.Contains(source.Installed.Position) == true)
+                continue;
             if (baseStatFilter != 0 && source.Definition.BaseStat != baseStatFilter) continue;
             foreach (var stat in source.Stats.Where(s => s.Stat == statId))
             {
@@ -59,6 +72,11 @@ public static class MultiToolStatGeneration
                 int same = 0, child = 0;
                 foreach (var neighbor in resolved)
                 {
+                    // Compare includes damaged technology's own stat and special-slot bonus,
+                    // but 0x1405B0C40 rejects damaged sources and neighbors for adjacency.
+                    // Native shield matrix checked 2026-10-30, Steam build 26295378.
+                    if (damagedTechnologyPositions?.Contains(source.Installed.Position) == true
+                        || damagedTechnologyPositions?.Contains(neighbor.Installed.Position) == true) continue;
                     if (Math.Abs(source.Installed.Position.X - neighbor.Installed.Position.X)
                         + Math.Abs(source.Installed.Position.Y - neighbor.Installed.Position.Y) != 1) continue;
                     if (source.Definition.BaseStat != 0 && source.Definition.BaseStat != neighbor.Definition.BaseStat) continue;

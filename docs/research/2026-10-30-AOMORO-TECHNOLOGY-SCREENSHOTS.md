@@ -99,3 +99,58 @@ Scratch commands: `shipstatscheck --screenshot-sites`, then
 `ship-reference-native.py 0 --placement` with the same environment variable.
 The exported module JSON now belongs to this candidate; regenerate it with the
 original site key before rerunning the original wreck's oracle.
+
+## Both reference displays reproduced (2026-10-31)
+
+The missing damage contribution was in the test context, not a new intrinsic roll.
+At `0x1417EC8EA..0x1417EC924`, the beam branch calls the full stat evaluator for
+Ship_Weapons_Lasers_Damage (130) with **null supplied inventories**. This resolves
+against the active player's ship. The branch still obtains heat-time through
+its supplied-inventory path. The old harness forced a stat-cache miss but did
+not construct those default player ship inventories, so it fell back to a beam
+damage of 1. This lost the capped 50-point contribution from an equipped Phase Beam.
+Do not add a fixed 50 to predicted stats: an active loadout without that beam is
+not proven to have this contribution.
+
+The technology lookup for the player's ship is the embedded inventory at
+player + 0xAB28 + shipIndex*0x248 (index from the player-state pointer +0x182A0),
+not simply a generic kind-5 inventory callback. The scratch test now supplies
+this inventory, the player's cargo intrinsic bonuses, saved supercharged cells,
+and the five Phase Beam technologies with their actual saved module suffixes.
+Module rolls remain supplied by the already tested Core module evaluator.
+Other active inventories are explicitly empty and food/custom/difficulty
+contexts are still excluded; the owner-range callback remains 1500.
+
+The read-only Slot 8 Working copy contains these two owned resource contexts:
+
+- Slot 0 model F4A8AD8D781A4F1C (MainShip), matching the original reference context.
+- Slot 5 model ACD5455A4E3E424C (owned Exotic), whose two random draws reproduce the
+  new reference maneuverability. This is consistent with the screenshot being
+  captured in that context, not a controlled observation of which ship was active.
+
+| Reference | Damage | Shield | Range | Maneuverability |
+| --- | --- | --- | --- | --- |
+| Original site 71E6CA2A3CCFA2B2, player context slot 0 | 387.1432800 | 305.6481323 | 190.1356812 | 522.2230835 |
+| New candidate DA66E63ACBED9173, player context slot 5 | 355.6593933 | 338.7223816 | 179.1209412 | 530.2664795 |
+
+All eight values round to the owner screenshots. The native mode-0 potentials
+from the saved beam technologies were 3462.4001465 (slot 0) and 3280 (slot 5),
+both above its 1500-point normalization divisor. Mode 5 stayed 3.2. The original
+wreck also contributes Photon Cannon potential 2738.1513672; the new wreck's
+critically damaged cannon is excluded by that weapon caller's filter type 1.
+No game process or save was modified. No full app feature claim follows yet:
+selection/materialization, catalog metadata and runtime-context propagation still
+need to be composed in the application. The owner's earlier report that switching
+active ships did not visibly change the wreck's values remains an unresolved UI
+lifecycle question; do not override that report with this isolated calculation.
+
+Additional checks: full native initial inventory generation now loads the real
+UseMultiplierBonus globals and reproduces the new candidate's four intrinsic
+rolls exactly. All SHIPSLOT_DMG1..12 and SHIPEASY_DMG1..4 have empty stat lists
+and no base-stat/group contributions in the current technology table.
+
+Core `StarshipWeaponPotentialGeneration` now ports projectile/beam DPS arithmetic
+with explicit extracted rules. It matches 700 native float outputs across all
+seven modes. `MultiToolStatGeneration` also supports the native working-only
+filter without changing its default include-damaged behavior; 40 native shield
+outputs verify both modes, damage combinations, adjacency and supercharged cells.
