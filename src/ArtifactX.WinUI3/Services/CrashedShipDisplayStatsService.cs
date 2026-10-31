@@ -9,14 +9,14 @@ namespace ArtifactX.WinUI3.Services;
 
 /// <summary>Evaluates only requested cards, outside the planet cache and UI thread.
 /// The normal Exotic scene and both screenshot references were checked 2026-10-31.
-/// Catalog-confirmed normal models share the pipeline; food effects, special
-/// inventory categories and seasonal module rolls remain guarded.
+/// Catalog-confirmed models use type-specific candidate lists; food effects,
+/// unsupported module contexts and uncharted Sentinel sites remain guarded.
 /// Uses the loaded save's active ship; live comparison caching is not established.</summary>
 internal static class CrashedShipDisplayStatsService
 {
     public static async Task<IReadOnlyList<CrashedShipSite>> ApplyAsync(IReadOnlyList<CrashedShipSite> sites)
     {
-        if (!sites.Any(s => s.Ship is not null && !s.Sentinel)) return sites;
+        if (!sites.Any(s => s.Ship is not null)) return sites;
         var identity = SaveSessionManager.SessionIdentity;
         var player = new JObject();
         foreach (string key in new[] { "DtI", "4kj", "nsH" })
@@ -35,10 +35,11 @@ internal static class CrashedShipDisplayStatsService
             return sites.Select(site =>
             {
                 if (site.Ship is not { } wreck || site.Inventory is not { } summary
-                    || site.Sentinel || site.ShownClass is not { } rating
-                    || !StarshipDisplayEvaluation.SupportsNormalModel(wreck.Type, inventory)) return site;
+                    || site.ShownClass is not { } rating
+                    || !StarshipDisplayEvaluation.SupportsComparisonModel(wreck.Type, inventory)) return site;
                 var (code, galaxy) = UniverseInfo.Generator(site.PlanetAddress & ~(0xFUL << 52));
                 var system = SystemGenerator.Attributes(code, galaxy);
+                if (site.Sentinel && system.Race == SystemRace.None) return site;
                 int wealth = system.Pirate ? 3 : System.Math.Clamp(system.Wealth - 1, 0, 2);
                 if (NmsMultiToolGenerationPaths.ReadStandardGameState(player, wealth) is not { HasActiveSpecialTechnology: false } runtime
                     || inventory.ShipLayouts.FirstOrDefault(l => l.SizeType == summary.SizeType) is not { } size

@@ -108,3 +108,51 @@ These are game reference values, not yet matched Sentinel predictions.
 
 No request for duplicate Solar captures is needed. MAUI/shared project edits
 remain outside this task. No app/game launch or save edits by the agent.
+
+
+## Sentinel Compare composition
+
+The exact Ciss L16 site is 61C166403652916F, +31.216607, -0.004844,
+system 01E6FF67B290, pool model A96ECE0A3E6650C7, native wealth 1, C class.
+Intrinsic values: 10.034034 / 5.60515 / 0 / 9.125851. Tech layout requests
+24 slots; the seven selected technologies occupy (2,0), (3,0), (4,0), (5,0),
+(6,0), (1,1), (2,1), matching the supplied screenshot.
+
+Catalog format 54 stores the native Robot eligibility list: RobotShip, AllShips,
+AllShipsExceptAlien; 51 regular and 50 procedural candidates in table order.
+It also retains ROBOT_SHIP and ALIEN_SHIP intrinsic mappings (Unspecified).
+The normal definitions lookup already includes these technologies.
+
+The comparison inventory regenerates its special technology cells at native
+0x1408F6993..0x1408F69BA after copying the site inventory, using the comparison
+inventory seed held at object+0x10 (stored by 0x1408F861A). For the supplied
+Sentinel reference the site-seeded C slot is (2,1), exactly the highlighted rocket
+cell in the screenshot; model-seeded placement instead gives (3,1). Core uses the
+site seed for Sentinel Compare; other ship paths retain their validated behavior.
+
+With the site special slot, production calculation gives 195.30984 / 171.59428 /
+601 / 284.90802, matching all four Compare displays. With the model special slot,
+it gives 181.0709 damage, matching the earlier visor display; the other three
+values are unchanged. This supports the evaluator/materialization difference,
+not an invented repair bonus. LIFESUP_ROBO (Pilot Interface) contributes only
+stat 161, outside the displayed targets; it does not explain the damage change.
+
+Additional checks: four wealth loadouts match native selected technology IDs
+and positions. This site selects seven regular technologies in each case, so
+these four cases do not add procedural-module coverage. Four class-rating compositions match all
+16 native float outputs. The composition harness explicitly supplies the
+screenshot-verified unlocked-slot mask: its generic standalone layout bootstrap
+did not reproduce that mask, so these checks do not independently establish
+Sentinel layout generation. Production layout is checked against this screenshot.
+The native composition also retains the prior photon-range override, supplied
+Core module materialization and no runtime weapon overrides. Fixture data stays
+local. A separate screenshot fixture uses one-decimal comparisons and passes 4/4.
+
+Sentinel cards use the Compare values, not visor values. Their names remain
+unknown. Uncharted Sentinel stats remain guarded because location/marker tests
+failed there; the existing issue #34 remains open. MAUI/shared project edits and
+real player data remain untouched.
+
+Final verification: default Core checks passed; 8 prior reference, 64 normal,
+16 Solar and 16 Sentinel native float values match. Sentinel screenshot matches
+4/4 displayed values. Isolated WinUI build: zero errors, existing warnings only.

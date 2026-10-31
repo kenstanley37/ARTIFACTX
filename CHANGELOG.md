@@ -6,7 +6,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
-- **Crashed ship details**: cards show unit values and clearly labeled intrinsic bonuses. Supported Shuttle, Fighter, Hauler, Explorer, Exotic and Solar wrecks also show Damage Potential, Shield Strength, Hyperdrive Range and Maneuverability using the active ship in your loaded save.
+- **Crashed ship details**: cards show unit values and clearly labeled intrinsic bonuses. Supported Shuttle, Fighter, Hauler, Explorer, Exotic, Solar and Sentinel wrecks also show Damage Potential, Shield Strength, Hyperdrive Range and Maneuverability using the active ship in your loaded save. Sentinel comparison stats are limited to inhabited systems.
 
 - **S-class crashed ships** (Current System): each planet card shows the nearest S-class crashed ship on that planet (Exotics included), with how many the planet has, and a button to add a marker to your save. In systems without a race these aren't confirmed in game yet, and the card says so.
 - **Crashed ships that aren't there**: crash sites on ground too steep for the game to build on (inside mountains, on cliffs) or under the sea are no longer listed, so the lists and markers point only at wrecks the game actually places.

@@ -61,6 +61,14 @@ public static partial class CatalogSteps
         var selection = new MultiToolTechnologyTables(regular.Select(t => t.ID.Value).ToArray(), upgrades.Select(p => p.ID.Value).ToArray(),
             definitions, player.TechRarityData.ToArray(), parents, modules, reality.WeightingCurves.Select(c => (int)c.Curve).ToArray(),
             coefficients, IllegalModuleHighGradeChance: player.ChanceHighGradeIllegal);
+        // 0x1404DD5DF: Robot (9) admits RobotShip/AllShips/AllShipsExceptAlien.
+        bool RobotEligible(GcTechnology t) => t.Category.TechnologyCategory is Category.RobotShip or Category.AllShips or Category.AllShipsExceptAlien;
+        var sentinelSelection = selection with
+        {
+            TechnologyIds = technology.Table.Where(t => !t.IsTemplate && RobotEligible(t)).Select(t => t.ID.Value).ToArray(),
+            ProceduralIds = procedural.Table.Where(p => !p.IsBiggsProcTech && byId.TryGetValue(p.Template.Value, out var t)
+                && RobotEligible(t)).Select(p => p.ID.Value).ToArray(),
+        };
         GcPlayerSpaceshipControlData Control(ShipClass type) => type switch
         {
             ShipClass.Dropship or ShipClass.Alien => flight.ControlHeavy,
@@ -74,7 +82,8 @@ public static partial class CatalogSteps
         StarshipFlightClassBonus Bonus(GcPlayerSpaceshipClassBonuses b) => new(b.BoostingTurnDampMax,
             b.BoostingTurnDampMin, b.TurnStrengthMax, b.TurnStrengthMin);
         var flightRules = new StarshipFlightRules(controls, [Bonus(flight.ControlBonusC), Bonus(flight.ControlBonusB), Bonus(flight.ControlBonusA), Bonus(flight.ControlBonusS)]);
-        var intrinsic = inventory.BaseStats.Where(b => b.BaseStatID.Value.StartsWith("SHIP_", StringComparison.Ordinal))
+        var intrinsic = inventory.BaseStats.Where(b => b.BaseStatID.Value.StartsWith("SHIP_", StringComparison.Ordinal)
+                || b.BaseStatID.Value is "ROBOT_SHIP" or "ALIEN_SHIP")
             .ToDictionary(b => b.BaseStatID.Value, b => b.StatBonus.Select(s => new StarshipIntrinsicStatTarget((int)s.StatType.StatsType, s.LessIsBetter)).ToArray());
         var beams = projectiles.Lasers.Where(l => l.Id.Value == "PLAYER_SHIP").ToArray();
         if (beams.Length != 1 || reality.ShipWeapons.Length != 7) return null;
@@ -87,6 +96,7 @@ public static partial class CatalogSteps
                 (int)Stat.Ship_Weapons_Guns_BulletsPerShot, (int)Stat.Ship_Weapons_Guns_Range, (int)Stat.Ship_Weapons_Lasers_Damage,
                 (int)Stat.Ship_Weapons_Lasers_HeatTime, (int)Stat.Ship_Armour_Shield_Strength, (int)Stat.Ship_Hyperdrive_JumpDistance,
                 (int)Stat.Ship_Maneuverability, (int)Stat.Ship_BoostManeuverability), weapons,
-            new(special.SpecialTechSlotMaxIndex.X, special.SpecialTechSlotMaxIndex.Y, special.MaxNumSpecialTechSlots), ai.CrashedShipBrokenTechChance);
+            new(special.SpecialTechSlotMaxIndex.X, special.SpecialTechSlotMaxIndex.Y, special.MaxNumSpecialTechSlots), ai.CrashedShipBrokenTechChance,
+            sentinelSelection);
     }
 }

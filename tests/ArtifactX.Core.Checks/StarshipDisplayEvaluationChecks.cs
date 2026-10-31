@@ -14,12 +14,12 @@ internal static class StarshipDisplayEvaluationChecks
         var tables = new InventoryGenerationTables([], [], [], [], [], 0,
             ShipTechnologyOverrides: new() { ["Shuttle"] = false, ["Fighter"] = true,
                 ["Hauler"] = null, ["Solar"] = false, ["SentinelInterceptor"] = false });
-        if (!StarshipDisplayEvaluation.SupportsNormalModel(SystemStarshipType.Shuttle, tables)
-            || !StarshipDisplayEvaluation.SupportsNormalModel(SystemStarshipType.Solar, tables)
-            || new[] { SystemStarshipType.Fighter, SystemStarshipType.Hauler, SystemStarshipType.Explorer,
-                SystemStarshipType.SentinelInterceptor }.Any(t =>
-                    StarshipDisplayEvaluation.SupportsNormalModel(t, tables))
-            || StarshipDisplayEvaluation.SupportsNormalModel(SystemStarshipType.Shuttle, null))
+        if (!StarshipDisplayEvaluation.SupportsComparisonModel(SystemStarshipType.Shuttle, tables)
+            || !StarshipDisplayEvaluation.SupportsComparisonModel(SystemStarshipType.Solar, tables)
+            || !StarshipDisplayEvaluation.SupportsComparisonModel(SystemStarshipType.SentinelInterceptor, tables)
+            || new[] { SystemStarshipType.Fighter, SystemStarshipType.Hauler, SystemStarshipType.Explorer }.Any(t =>
+                    StarshipDisplayEvaluation.SupportsComparisonModel(t, tables))
+            || StarshipDisplayEvaluation.SupportsComparisonModel(SystemStarshipType.Shuttle, null))
             throw new InvalidOperationException("Normal ship model guards accepted unresolved or special-category equipment");
     }
 

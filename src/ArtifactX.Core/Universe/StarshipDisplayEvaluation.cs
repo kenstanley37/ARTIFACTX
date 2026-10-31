@@ -6,11 +6,11 @@ namespace ArtifactX.Core.Universe;
 public static class StarshipDisplayEvaluation
 {
     /// <summary>Normal inventory category only, with catalog-confirmed absence of
-    /// component overrides across the model's scenes. Sail has its own candidate
-    /// guard; Sentinel initial technology remains unsupported here.</summary>
-    public static bool SupportsNormalModel(SystemStarshipType type, InventoryGenerationTables? tables) =>
+    /// component overrides across the model's scenes. Sail and Sentinel use their
+    /// own candidate lists; Sentinel Compare regenerates special cells from the site seed.</summary>
+    public static bool SupportsComparisonModel(SystemStarshipType type, InventoryGenerationTables? tables) =>
         type is SystemStarshipType.Shuttle or SystemStarshipType.Fighter or SystemStarshipType.Hauler
-            or SystemStarshipType.Explorer or SystemStarshipType.Exotic or SystemStarshipType.Solar
+            or SystemStarshipType.Explorer or SystemStarshipType.Exotic or SystemStarshipType.Solar or SystemStarshipType.SentinelInterceptor
         && tables?.ShipTechnologyOverrides is { } overrides
         && overrides.TryGetValue(type.ToString(), out bool? hasOverrides) && hasOverrides == false;
 
@@ -19,13 +19,18 @@ public static class StarshipDisplayEvaluation
         StarshipEvaluationTables rules, StarshipComparisonContext context, int nativeWealth, int requiredLevel,
         IReadOnlySet<string> knownTechnologies, bool hasTechnologyOverrides)
     {
-        if (rules.Weapons.Length != 7 || !rules.UseMultiplierBonus
-            || StarshipTechnologyGeneration.ForShipClass(shipClass, rules.Technology) is not { } selectionTables
+        // Compare inventory materialization regenerates Sentinel special cells from
+        // its site inventory seed (0x1408F6993..0x1408F69BA). Ciss L16 screenshot
+        // confirms the rocket cell (2,1), distinct from the visor/model cell (3,1).
+        var selectionTables = shipClass == 9 ? rules.SentinelTechnology
+            : StarshipTechnologyGeneration.ForShipClass(shipClass, rules.Technology);
+        if (rules.Weapons.Length != 7 || !rules.UseMultiplierBonus || selectionTables is null
             || StarshipTechnologyGeneration.SelectNormalLoadout(siteKey, selectionTables, layout,
                 nativeWealth, requiredLevel, knownTechnologies, hasTechnologyOverrides) is not { } technology
-            || MultiToolInventoryGeneration.InitialSuperchargedSlots(modelSeed, rating, rules.SuperchargedSlots) is not { } special
+            || MultiToolInventoryGeneration.InitialSuperchargedSlots(shipClass == 9 ? siteKey : modelSeed,
+                rating, rules.SuperchargedSlots) is not { } special
             || StarshipTechnologyDamageGeneration.InitialDamage(siteKey, technology.Select(t => t.Id).ToArray(),
-                rules.BrokenTechnologyChance) is not { } damage) return null;
+                shipClass == 9 ? 0f : rules.BrokenTechnologyChance) is not { } damage) return null;
         var inventory = new GeneratedMultiToolInventory(layout, technology, special);
         var damaged = technology.Where((_, i) => damage[i]).Select(t => t.Position).ToHashSet();
         var ids = rules.Stats;
