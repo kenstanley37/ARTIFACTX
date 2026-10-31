@@ -154,3 +154,24 @@ with explicit extracted rules. It matches 700 native float outputs across all
 seven modes. `MultiToolStatGeneration` also supports the native working-only
 filter without changing its default include-damaged behavior; 40 native shield
 outputs verify both modes, damage combinations, adjacency and supercharged cells.
+
+## Portable ship selection adapter (2026-10-31)
+
+`StarshipTechnologyGeneration.SelectNormalLoadout` now composes the shared selector
+and placement using the ship's nine-slot budget divisor. Existing multi-tool
+callers retain their five-slot default. The adapter accepts only an explicitly
+filtered ship candidate table and rejects unresolved component overrides.
+
+Eight isolated native selection/placement cases passed: the two reference site
+keys with each native wealth row 0..3. Installation IDs, order, positions and
+supplied module stat records matched. Native eligibility supplied 71 regular
+candidates (after the explicit Solar-only guard) and 50 procedural candidates.
+Module materialization is still substituted using Core rolls; these checks do
+not validate the full native materializer or arbitrary component overrides.
+The extracted player high-grade chance was used for the X-class winner in
+candidate DA66E63ACBED9173's wealth rows 1..3. Test fixture JSON remains in scratch.
+
+Regression runner: `--ship-selection-vector <local-fixture-json>`.
+The all-mode weapon arithmetic, damage filters, class layouts and final evaluator
+checks remain separate so each claim retains its own scope. Catalog extraction
+and UI orchestration have not yet been changed to consume this adapter.

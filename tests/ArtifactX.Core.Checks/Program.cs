@@ -10,9 +10,10 @@ try
 {
     if (args.Length > 0)
     {
-        Require(args.Length == 2 && args[0] is "--ship-display-vectors" or "--ship-tech-damage-vectors" or "--ship-shield-vectors" or "--ship-supercharge-vectors" or "--ship-intrinsic-vectors" or "--ship-weapon-vectors",
+        Require(args.Length == 2 && args[0] is "--ship-display-vectors" or "--ship-tech-damage-vectors" or "--ship-shield-vectors" or "--ship-supercharge-vectors" or "--ship-intrinsic-vectors" or "--ship-weapon-vectors" or "--ship-selection-vector",
             "Expected a supported --ship-*-vectors option followed by <native-vector-json>");
-        if (args[0] == "--ship-weapon-vectors") StarshipWeaponPotentialChecks.CheckNative(args[1]);
+        if (args[0] == "--ship-selection-vector") StarshipTechnologySelectionChecks.CheckNative(args[1]);
+        else if (args[0] == "--ship-weapon-vectors") StarshipWeaponPotentialChecks.CheckNative(args[1]);
         else if (args[0] == "--ship-tech-damage-vectors") StarshipTechnologyDamageChecks.CheckNative(args[1]);
         else if (args[0] == "--ship-shield-vectors") StarshipTechnologyDamageChecks.CheckShieldNative(args[1]);
         else if (args[0] == "--ship-supercharge-vectors") StarshipDisplayStatChecks.CheckSuperchargeNative(args[1]);
