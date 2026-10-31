@@ -32,7 +32,8 @@ public sealed record InventoryGenerationTables(
     StarshipCostRules[]? ShipCostData = null,
     Dictionary<string, StarshipInventoryNodeRule[]>? ShipModelInventoryRules = null,
     float? CrashedShipBrokenSlotChance = null,
-    int? CrashedShipMinNonBrokenSlots = null);
+    int? CrashedShipMinNonBrokenSlots = null,
+    Dictionary<string, bool?>? ShipTechnologyOverrides = null);
 
 /// <summary>
 /// Deterministically rolled S-Class base stats (% bonus) and max upgrade slot capacities for a starship seed.

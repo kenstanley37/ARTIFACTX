@@ -23,6 +23,7 @@ try
         return;
     }
     StarshipDisplayStatChecks.CheckInputs();
+    StarshipDisplayEvaluationChecks.CheckModelGuards();
     StarshipTechnologyDamageChecks.CheckInputs();
     var rows = new ObservableCollection<Row> { new(1, "A", 10), new(2, "B", 20) };
     var first = rows[0];

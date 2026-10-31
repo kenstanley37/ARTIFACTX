@@ -5,6 +5,15 @@ namespace ArtifactX.Core.Universe;
 /// Caller must exclude food, weapon overrides and unresolved model technology overrides.</summary>
 public static class StarshipDisplayEvaluation
 {
+    /// <summary>Normal inventory category only, with catalog-confirmed absence of
+    /// component overrides across the model's scenes. Solar and Sentinel eligibility
+    /// and initial technologies use separate paths and remain unsupported here.</summary>
+    public static bool SupportsNormalModel(SystemStarshipType type, InventoryGenerationTables? tables) =>
+        type is SystemStarshipType.Shuttle or SystemStarshipType.Fighter or SystemStarshipType.Hauler
+            or SystemStarshipType.Explorer or SystemStarshipType.Exotic
+        && tables?.ShipTechnologyOverrides is { } overrides
+        && overrides.TryGetValue(type.ToString(), out bool? hasOverrides) && hasOverrides == false;
+
     public static StarshipDisplayedStats? Evaluate(ulong siteKey, ulong modelSeed, int shipClass, int rating,
         GeneratedMultiToolLayout layout, IReadOnlyList<KeyValuePair<string, float>> intrinsicBonuses,
         StarshipEvaluationTables rules, StarshipComparisonContext context, int nativeWealth, int requiredLevel,

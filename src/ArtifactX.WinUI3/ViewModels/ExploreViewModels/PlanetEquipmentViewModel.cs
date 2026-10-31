@@ -191,7 +191,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         CrashedShipsHeading = here ? "CRASHED SHIPS NEAR YOU" : "CRASHED SHIPS NEAR THE PORTAL";
         CrashedShipsHint = sites.Any(s => s.Ship is null || s.Inventory is null)
             ? "Where crashed ships lie, worked out from the game's own rules. Update game data to see each wreck's ship, slots, value and stats. Now and then the ground leaves a spot empty."
-            : "Where crashed ships lie, which ship is there, and its class and value. Supported Exotics show comparison stats for your saved active ship; other cards show intrinsic bonuses.";
+            : "Where crashed ships lie, which ship is there, and its class and value. Supported ships show comparison stats for your saved active ship; other cards show intrinsic bonuses.";
     }
 
     /// <summary>Shows whether the portal and crashed ships are marked in the save, and whether markers can be added now.</summary>

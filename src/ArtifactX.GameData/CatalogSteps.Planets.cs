@@ -507,12 +507,15 @@ public static partial class CatalogSteps
             .Where(e => !string.IsNullOrEmpty(e?.Id?.Value) && e.LayoutSizeType is not null)
             .ToDictionary(e => e.Id.Value, e => (int)e.LayoutSizeType.SizeType, StringComparer.OrdinalIgnoreCase);
 
-        StarshipInventoryNodeRule[] ExtractShipSceneRules(string scenePath)
+        var technologyOverrides = new Dictionary<string, bool?>(StringComparer.Ordinal);
+        StarshipInventoryNodeRule[] ExtractShipSceneRules(string scenePath, string typeName)
         {
             var rules = new List<StarshipInventoryNodeRule>();
+            bool hasOverrides = false, complete = true;
             void Walk(string path, List<string> activeStack, int depth)
             {
-                if (depth > 16 || decode(path) is not libMBIN.NMS.Toolkit.TkSceneNodeData root) return;
+                if (depth > 16 || decode(path) is not libMBIN.NMS.Toolkit.TkSceneNodeData root)
+                { complete = false; return; }
                 var selectable = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 string descPath = path.Replace(".SCENE.MBIN", ".DESCRIPTOR.MBIN", StringComparison.OrdinalIgnoreCase);
                 if (decode(descPath) is libMBIN.NMS.Toolkit.TkModelDescriptorList dlist)
@@ -539,13 +542,17 @@ public static partial class CatalogSteps
 
                     foreach (var attr in node.Attributes ?? new())
                     {
-                        if (attr.Name?.Value == "ATTACHMENT" && !string.IsNullOrEmpty(attr.Value?.Value)
-                            && decode(attr.Value.Value.Replace('\\', '/').ToUpperInvariant()) is libMBIN.NMS.Toolkit.TkAttachmentData ent)
+                        if (attr.Name?.Value == "ATTACHMENT" && !string.IsNullOrEmpty(attr.Value?.Value))
                         {
+                            if (decode(attr.Value.Value.Replace('\\', '/').ToUpperInvariant()) is not libMBIN.NMS.Toolkit.TkAttachmentData ent)
+                            { complete = false; continue; }
                             foreach (var comp in ent.Components ?? new())
-                                if (comp.Template is GcCustomInventoryComponentData invComp && !string.IsNullOrEmpty(invComp.Size?.Value)
-                                    && tableMap.TryGetValue(invComp.Size.Value, out int st))
-                                    rules.Add(new StarshipInventoryNodeRule(nextReq.ToArray(), st, invComp.Cool));
+                                if (comp.Template is GcCustomInventoryComponentData invComp)
+                                {
+                                    hasOverrides |= invComp.DesiredTechs is { Count: > 0 };
+                                    if (!string.IsNullOrEmpty(invComp.Size?.Value) && tableMap.TryGetValue(invComp.Size.Value, out int st))
+                                        rules.Add(new StarshipInventoryNodeRule(nextReq.ToArray(), st, invComp.Cool));
+                                }
                         }
                         if (node.Type?.Value == "REFERENCE" && attr.Name?.Value == "SCENEGRAPH" && !string.IsNullOrEmpty(attr.Value?.Value))
                             Walk(attr.Value.Value.Replace('\\', '/').ToUpperInvariant(), nextReq, depth + 1);
@@ -556,6 +563,7 @@ public static partial class CatalogSteps
                 WalkNode(root, activeStack);
             }
             Walk(scenePath, [], 0);
+            technologyOverrides[typeName] = hasOverrides ? true : complete ? false : null;
             return rules.ToArray();
         }
 
@@ -568,7 +576,7 @@ public static partial class CatalogSteps
         })
         {
             if (StarshipInventoryGeneration.ScenePath(shipType) is { } scenePath)
-                shipModelRules[shipType.ToString()] = ExtractShipSceneRules(scenePath);
+                shipModelRules[shipType.ToString()] = ExtractShipSceneRules(scenePath, shipType.ToString());
         }
 
         var aiShipGlobals = decode("GCAISPACESHIPGLOBALS.GLOBAL.MBIN") as GcAISpaceshipGlobals;
@@ -576,6 +584,6 @@ public static partial class CatalogSteps
         return new InventoryGenerationTables(shipStats, weaponStats, classProbs, shipMaxCargo, shipMaxTech,
             weaponMaxTech, buildingDensities, pools, weaponClasses, specialSlots, weaponLayouts, layoutByTag,
             shipClasses, shipLayouts, shipCostData, shipModelRules,
-            aiShipGlobals?.CrashedShipBrokenSlotChance, aiShipGlobals?.CrashedShipMinNonBrokenSlots);
+            aiShipGlobals?.CrashedShipBrokenSlotChance, aiShipGlobals?.CrashedShipMinNonBrokenSlots, technologyOverrides);
     }
 }

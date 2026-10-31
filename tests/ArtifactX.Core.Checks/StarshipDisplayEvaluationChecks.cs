@@ -5,6 +5,19 @@ using Newtonsoft.Json.Linq;
 
 internal static class StarshipDisplayEvaluationChecks
 {
+    public static void CheckModelGuards()
+    {
+        var tables = new InventoryGenerationTables([], [], [], [], [], 0,
+            ShipTechnologyOverrides: new() { ["Shuttle"] = false, ["Fighter"] = true,
+                ["Hauler"] = null, ["Solar"] = false, ["SentinelInterceptor"] = false });
+        if (!StarshipDisplayEvaluation.SupportsNormalModel(SystemStarshipType.Shuttle, tables)
+            || new[] { SystemStarshipType.Fighter, SystemStarshipType.Hauler, SystemStarshipType.Explorer,
+                SystemStarshipType.Solar, SystemStarshipType.SentinelInterceptor }.Any(t =>
+                    StarshipDisplayEvaluation.SupportsNormalModel(t, tables))
+            || StarshipDisplayEvaluation.SupportsNormalModel(SystemStarshipType.Shuttle, null))
+            throw new InvalidOperationException("Normal ship model guards accepted unresolved or special-category equipment");
+    }
+
     // Local fixture contains extracted game tables and read-only player inventory;
     // never commit it. Expected values are full native reference evaluations.
     public static void CheckNative(string path)

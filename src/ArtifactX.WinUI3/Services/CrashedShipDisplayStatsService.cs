@@ -9,13 +9,14 @@ namespace ArtifactX.WinUI3.Services;
 
 /// <summary>Evaluates only requested cards, outside the planet cache and UI thread.
 /// The normal Exotic scene and both screenshot references were checked 2026-10-31.
-/// Other model overrides, food effects and seasonal module rolls remain guarded.
+/// Catalog-confirmed normal models share the pipeline; food effects, special
+/// inventory categories and seasonal module rolls remain guarded.
 /// Uses the loaded save's active ship; live comparison caching is not established.</summary>
 internal static class CrashedShipDisplayStatsService
 {
     public static async Task<IReadOnlyList<CrashedShipSite>> ApplyAsync(IReadOnlyList<CrashedShipSite> sites)
     {
-        if (!sites.Any(s => s.Ship?.Type == SystemStarshipType.Exotic)) return sites;
+        if (!sites.Any(s => s.Ship is not null && !s.Sentinel)) return sites;
         var identity = SaveSessionManager.SessionIdentity;
         var player = new JObject();
         foreach (string key in new[] { "DtI", "4kj", "nsH" })
@@ -33,8 +34,9 @@ internal static class CrashedShipDisplayStatsService
             if (NmsStarshipComparisonPaths.Read(ship, rules) is not { } context) return sites;
             return sites.Select(site =>
             {
-                if (site.Ship is not { Type: SystemStarshipType.Exotic } wreck || site.Inventory is not { } summary
-                    || site.Sentinel) return site;
+                if (site.Ship is not { } wreck || site.Inventory is not { } summary
+                    || site.Sentinel || site.ShownClass is not { } rating
+                    || !StarshipDisplayEvaluation.SupportsNormalModel(wreck.Type, inventory)) return site;
                 var (code, galaxy) = UniverseInfo.Generator(site.PlanetAddress & ~(0xFUL << 52));
                 var system = SystemGenerator.Attributes(code, galaxy);
                 int wealth = system.Pirate ? 3 : System.Math.Clamp(system.Wealth - 1, 0, 2);
@@ -44,7 +46,7 @@ internal static class CrashedShipDisplayStatsService
                 KeyValuePair<string, float>[] bonuses = [new("SHIP_DAMAGE", summary.DamageBonus),
                     new("SHIP_SHIELD", summary.ShieldBonus), new("SHIP_HYPERDRIVE", summary.HyperdriveBonus),
                     new("SHIP_AGILE", summary.ManeuverabilityBonus)];
-                var stats = StarshipDisplayEvaluation.Evaluate(site.Key, wreck.Seed, 6, 3, layout,
+                var stats = StarshipDisplayEvaluation.Evaluate(site.Key, wreck.Seed, (int)wreck.Type, rating, layout,
                     bonuses, rules, context, wealth, runtime.RequiredLevel, runtime.KnownTechnologies, false);
                 return site with { DisplayedStats = stats };
             }).ToArray();
