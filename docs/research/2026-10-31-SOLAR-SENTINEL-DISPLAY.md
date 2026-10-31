@@ -75,3 +75,36 @@ that repaired/owned state cannot establish an unclaimed salvage state. Sentinel
 support remains guarded pending its complete loadout and salvage-state check.
 
 The owner's new MAUI project, solution and shared package edits were left alone.
+
+
+## Sentinel reference and marker report supplied by owner
+
+Uncharted Hamagan-Oerat VI, planet Neusie T13 (Euclid): first predicted marker
+led elsewhere and no wreck was present; later markers did not appear. App listed
+1,034 Sentinel sites and showed its no-race warning. Owner closed the game before
+marking further sites; failures persisted. Discoveries explicitly showed Lifeform
+Uncharted, economy/conflict unavailable. The report is posted on issue #34:
+https://github.com/kenstanley37/ARTIFACTX/issues/34#issuecomment-6546742085
+
+After changing to Usmanz XIX (Vy'keen, Power Generation economy), owner reports
+markers worked correctly. Ciss L16, dissonant volcanic moon, portal
+41E6FF67B290: app predicted C-class Sentinel at +31.22, -0.00, 28,600,000 units.
+Visor beside the wreck reads +31.23, -0.00. Interaction title begins Blessed;
+visor name differs (x-Blessed). No exact name-generation claim follows from this.
+
+| Capture | Damage | Shield | Range | Maneuverability |
+| --- | ---: | ---: | ---: | ---: |
+| Initial visor | 181.1 (70.3 core) | 171.6 | 601.0 (101.0 core) | 284.9 (214.1 core) |
+| Interaction / Compare | 195.3 | 171.6 | 601.0 | 284.9 |
+
+The initial salvage interaction shows a damaged Pilot Interface, plus Pugneum,
+Salvaged Glass and Hyaline Brain extraction items. Later inventory/Compare shows
+seven installed technologies, no visible damage warnings, C class, 34 cargo and
+24 technology slots; displayed unit value matches 28,600,000. MainShip is active
+on the Compare screen. The captures do not isolate whether salvage progression,
+repair, timing, active-ship context or evaluator differences caused the damage
+value to change; do not equate the two measurements or infer a controlled diff.
+These are game reference values, not yet matched Sentinel predictions.
+
+No request for duplicate Solar captures is needed. MAUI/shared project edits
+remain outside this task. No app/game launch or save edits by the agent.
