@@ -7,6 +7,9 @@
     <Project Path="src/ArtifactX.Almanac/ArtifactX.Almanac.csproj" Id="68d99de1-f1fd-4a68-981f-378ce661b134" />
     <Project Path="src/ArtifactX.Core/ArtifactX.Core.csproj" />
     <Project Path="src/ArtifactX.GameData/ArtifactX.GameData.csproj" />
+    <Project Path="src/ArtifactX.Maui/ArtifactX.Maui.csproj" Id="c6d3bfd8-3321-4478-a245-fe75e32c59d4">
+      <Deploy Solution="Debug|x64" />
+    </Project>
     <Project Path="src/ArtifactX.WinUI3/ArtifactX.WinUI3.csproj" Id="62ead7dc-3cf1-4a0a-b434-b11346199274">
       <Platform Solution="*|ARM64" Project="ARM64" />
       <Platform Solution="*|x64" Project="x64" />
@@ -20,8 +23,8 @@
     <Platform Name="x86" />
   </Configurations>
   <Folder Name="/src/ArtifactX.Tools/">
-    <Project Path="src/ArtifactX.Tools/ArtifactX.Tools.SaveInspector/ArtifactX.Tools.SaveInspector.csproj" Id="f11f227a-29ea-4d61-9908-1601f2d48c2b" />
     <Project Path="src/ArtifactX.Tools/ArtifactX.Tools.DataCataloger/ArtifactX.Tools.DataCataloger.csproj" Id="68f90931-a070-48aa-b4a0-c6db1a447b0a" />
+    <Project Path="src/ArtifactX.Tools/ArtifactX.Tools.SaveInspector/ArtifactX.Tools.SaveInspector.csproj" Id="f11f227a-29ea-4d61-9908-1601f2d48c2b" />
     <Project Path="src/ArtifactX.Tools/NMS.Tools.libMBIN/NMS.Tools.libMBIN.csproj" Id="fdb6b12e-3db6-4809-a673-4906fadd64bb" />
   </Folder>
 </Solution>

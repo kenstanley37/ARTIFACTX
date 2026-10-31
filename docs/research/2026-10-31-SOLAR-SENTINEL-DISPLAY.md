@@ -156,3 +156,13 @@ real player data remain untouched.
 Final verification: default Core checks passed; 8 prior reference, 64 normal,
 16 Solar and 16 Sentinel native float values match. Sentinel screenshot matches
 4/4 displayed values. Isolated WinUI build: zero errors, existing warnings only.
+
+
+## Additional owner confirmation before merge
+
+B-class Sentinel on Ciss L16, app coordinate +36.33, -60.08 (visor beside the
+ship +36.34, -60.06), interaction title alpha-Glass Soul. App, visor, initial
+inventory and Compare all show 287.1 / 178.7 / 646.5 / 327.4. Class B and
+41,500,000-unit value match. MainShip is active on Compare. This independently
+confirms the B-class case in game, in addition to the earlier C-class reference.
+The earlier visor/Compare damage difference is not present in this B reference.
