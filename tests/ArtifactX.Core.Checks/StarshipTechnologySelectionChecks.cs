@@ -8,6 +8,9 @@ internal static class StarshipTechnologySelectionChecks
         using var doc = JsonDocument.Parse(File.ReadAllText(path));
         var row = doc.RootElement;
         var tables = row.GetProperty("Tables").Deserialize<MultiToolTechnologyTables>()!;
+        if (row.TryGetProperty("ShipClass", out var shipClass))
+            tables = StarshipTechnologyGeneration.ForShipClass(shipClass.GetInt32(), tables)
+                ?? throw new InvalidOperationException("Ship candidate category was rejected");
         var layout = row.GetProperty("Layout").Deserialize<GeneratedMultiToolLayout>()!;
         var known = row.GetProperty("KnownTechnologies").Deserialize<string[]>()!.ToHashSet(StringComparer.Ordinal);
         ulong seed = row.GetProperty("Seed").GetUInt64();

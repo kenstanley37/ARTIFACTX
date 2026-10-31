@@ -386,7 +386,8 @@ public static class StarshipInventoryGeneration
         float wealthFactor = nativeWealth switch { 0 => 0.3f, 1 => 0.6f, 2 => 1.0f, _ => 0.6f };
         int maxTechRoll = Math.Clamp((int)((tech.RequestedSlots / 9) * wealthFactor + 0.5f), 1, 10);
         int techBudget = 1 + (int)SolarLayoutGeneration.RandomFor(siteKey).Next((uint)maxTechRoll);
-        int installedTechSlots = 5 + techBudget;
+        // Sail additionally inserts its native Solar-only Always technology.
+        int installedTechSlots = (type == SystemStarshipType.Solar ? 6 : 5) + techBudget;
         int brokenCargo = isSentinel ? 0 : BrokenSlotCount(cargo, occupiedOrSkippedSlots: 3, brokenChance, minUnbroken);
         int brokenTech = isSentinel ? 0 : BrokenSlotCount(tech, occupiedOrSkippedSlots: installedTechSlots, brokenChance, minUnbroken);
 

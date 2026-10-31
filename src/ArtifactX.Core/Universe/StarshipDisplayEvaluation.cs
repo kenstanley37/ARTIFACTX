@@ -6,11 +6,11 @@ namespace ArtifactX.Core.Universe;
 public static class StarshipDisplayEvaluation
 {
     /// <summary>Normal inventory category only, with catalog-confirmed absence of
-    /// component overrides across the model's scenes. Solar and Sentinel eligibility
-    /// and initial technologies use separate paths and remain unsupported here.</summary>
+    /// component overrides across the model's scenes. Sail has its own candidate
+    /// guard; Sentinel initial technology remains unsupported here.</summary>
     public static bool SupportsNormalModel(SystemStarshipType type, InventoryGenerationTables? tables) =>
         type is SystemStarshipType.Shuttle or SystemStarshipType.Fighter or SystemStarshipType.Hauler
-            or SystemStarshipType.Explorer or SystemStarshipType.Exotic
+            or SystemStarshipType.Explorer or SystemStarshipType.Exotic or SystemStarshipType.Solar
         && tables?.ShipTechnologyOverrides is { } overrides
         && overrides.TryGetValue(type.ToString(), out bool? hasOverrides) && hasOverrides == false;
 
@@ -20,7 +20,8 @@ public static class StarshipDisplayEvaluation
         IReadOnlySet<string> knownTechnologies, bool hasTechnologyOverrides)
     {
         if (rules.Weapons.Length != 7 || !rules.UseMultiplierBonus
-            || StarshipTechnologyGeneration.SelectNormalLoadout(siteKey, rules.Technology, layout,
+            || StarshipTechnologyGeneration.ForShipClass(shipClass, rules.Technology) is not { } selectionTables
+            || StarshipTechnologyGeneration.SelectNormalLoadout(siteKey, selectionTables, layout,
                 nativeWealth, requiredLevel, knownTechnologies, hasTechnologyOverrides) is not { } technology
             || MultiToolInventoryGeneration.InitialSuperchargedSlots(modelSeed, rating, rules.SuperchargedSlots) is not { } special
             || StarshipTechnologyDamageGeneration.InitialDamage(siteKey, technology.Select(t => t.Id).ToArray(),

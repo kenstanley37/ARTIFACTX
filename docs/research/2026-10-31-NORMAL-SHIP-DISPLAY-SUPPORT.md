@@ -32,3 +32,19 @@ player ship and installed technology if any value disagrees. No save writes,
 app launch or UI clicks were used for these checks.
 
 Default Core checks passed; isolated WinUI build passed with zero errors.
+
+
+## Owner in-game confirmation
+
+The owner supplied location and Compare screenshots for two wrecks on
+Obbiellub Uefuk, system 0034FF67B291, with MainShip (Fighter) active:
+
+| Wreck | Coordinates | Damage | Shield | Range | Maneuverability | Units |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| The Skylark of Gravity (S Shuttle) | -38.14, -135.47 | 191.7 | 200.1 | 128.3 | 336.7 | 12,650,000 |
+| The Master of Sleep (S Exotic) | +8.84, +34.77 | 353.1 | 283.0 | 182.0 | 513.0 | 41,000,000 |
+
+All eight displayed stat values and both unit values match the app screenshots.
+The Shuttle location screenshot reads -135.46 from the player's position beside
+the wreck, consistent with the app site coordinate rounded to -135.47. This is
+confirmation for these wrecks and active ship, not every model or runtime state.

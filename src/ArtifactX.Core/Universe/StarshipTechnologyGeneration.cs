@@ -7,6 +7,19 @@ namespace ArtifactX.Core.Universe;
 /// Component technology overrides must be resolved separately; unsupported input yields no loadout.</summary>
 public static class StarshipTechnologyGeneration
 {
+    /// <summary>Native selector 0x1404D7FCB admits SOLAR_SAIL only for Sail (8).
+    /// Catalog definitions retain source order, including this otherwise skipped row.</summary>
+    public static MultiToolTechnologyTables? ForShipClass(int shipClass, MultiToolTechnologyTables tables)
+    {
+        if (shipClass is 1 or 2 or 3 or 4 or 6) return tables;
+        if (shipClass != 8 || tables.Definitions is not { } definitions
+            || definitions.Count(d => d.Id == "SOLAR_SAIL") != 1) return null;
+        var eligible = tables.TechnologyIds.ToHashSet(StringComparer.Ordinal);
+        var ids = definitions.Where(d => eligible.Contains(d.Id) || d.Id == "SOLAR_SAIL")
+            .Select(d => d.Id).ToArray();
+        return ids.Length == eligible.Count + 1 ? tables with { TechnologyIds = ids } : null;
+    }
+
     public static IReadOnlyList<GeneratedInstalledTechnology>? SelectNormalLoadout(ulong siteKey,
         MultiToolTechnologyTables? shipTechnologyTables, GeneratedMultiToolLayout layout,
         int nativeWealth, int requiredLevel, IReadOnlySet<string> knownTechnologies,

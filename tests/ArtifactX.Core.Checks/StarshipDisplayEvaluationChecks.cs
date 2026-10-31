@@ -7,12 +7,17 @@ internal static class StarshipDisplayEvaluationChecks
 {
     public static void CheckModelGuards()
     {
+        var incomplete = new MultiToolTechnologyTables([], []);
+        if (StarshipTechnologyGeneration.ForShipClass(8, incomplete) is not null
+            || StarshipTechnologyGeneration.ForShipClass(9, incomplete) is not null)
+            throw new InvalidOperationException("Missing Solar metadata or Sentinel category was accepted");
         var tables = new InventoryGenerationTables([], [], [], [], [], 0,
             ShipTechnologyOverrides: new() { ["Shuttle"] = false, ["Fighter"] = true,
                 ["Hauler"] = null, ["Solar"] = false, ["SentinelInterceptor"] = false });
         if (!StarshipDisplayEvaluation.SupportsNormalModel(SystemStarshipType.Shuttle, tables)
+            || !StarshipDisplayEvaluation.SupportsNormalModel(SystemStarshipType.Solar, tables)
             || new[] { SystemStarshipType.Fighter, SystemStarshipType.Hauler, SystemStarshipType.Explorer,
-                SystemStarshipType.Solar, SystemStarshipType.SentinelInterceptor }.Any(t =>
+                SystemStarshipType.SentinelInterceptor }.Any(t =>
                     StarshipDisplayEvaluation.SupportsNormalModel(t, tables))
             || StarshipDisplayEvaluation.SupportsNormalModel(SystemStarshipType.Shuttle, null))
             throw new InvalidOperationException("Normal ship model guards accepted unresolved or special-category equipment");
