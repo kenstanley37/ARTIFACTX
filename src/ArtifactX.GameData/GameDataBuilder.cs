@@ -123,8 +123,7 @@ public static class GameDataBuilder
             WriteInfo(trimmed, game, items);
 
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
-            SqliteConnection.ClearAllPools(); // let go of the files before moving
-            File.Move(trimmed, outputPath, overwrite: true);
+            CatalogPublication.Publish(trimmed, outputPath);
             LogService.Write($"== Done in {clock.Elapsed:mm\\:ss}: {items} items, {game.BuildLabel}");
             done = 1;
             Send(0);

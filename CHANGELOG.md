@@ -16,6 +16,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- **Game data updates**: a completed rebuild now replaces the catalog safely while the app is open, preventing the update prompt from returning because older database data was still being read.
+
 - **Game data updates**: skip an obsolete test file bundled with the game that could trigger a null-reference error while rebuilding the catalog. Unknown types now produce a useful diagnostic.
 
 - **Planet Finder**: results are cards like the planet cards on Current System, side by side, instead of full-width rows.
