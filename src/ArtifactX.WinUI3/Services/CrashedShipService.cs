@@ -1,4 +1,5 @@
 using ArtifactX.Core.NmsModels;
+using ArtifactX.Core.Procedural;
 using ArtifactX.Core.Universe;
 using System;
 using System.Collections.Concurrent;
@@ -11,9 +12,11 @@ namespace ArtifactX.WinUI3.Services;
 
 /// <summary>A crashed ship's site: its key (the marker's BuildingSeed), point in system space at the planet radius,
 /// the coordinates the Analysis Visor shows there, how far it is from where the search started, and the ship lying
-/// there and its class C=0/B=1/A=2/S=3 (null when the catalog lacks the ship pool settings or class rows).</summary>
+/// there, its class C=0/B=1/A=2/S=3, and its inventory summary (slots, broken slots, value, and base-stat bonuses;
+/// null when the catalog lacks the ship pool settings, class rows, or starship layout tables).</summary>
 public sealed record CrashedShipSite(ulong PlanetAddress, ulong Key, double X, double Y, double Z, double Latitude,
-    double Longitude, double DistanceKm, SystemStarship? Ship, int? ShipClass, bool Underwater = false, double? DepthMetres = null, bool Sentinel = false)
+    double Longitude, double DistanceKm, SystemStarship? Ship, int? ShipClass, bool Underwater = false, double? DepthMetres = null, bool Sentinel = false,
+    CrashedShipInventorySummary? Inventory = null, StarshipDisplayedStats? DisplayedStats = null)
 {
     public string Coordinates => NmsPlanetCoordinates.Format(Latitude, Longitude);
 
@@ -57,7 +60,8 @@ public static class CrashedShipService
     private sealed record PlanetContext(ulong PlanetAddress, float Radius, int Divisions, int SectorSeed,
         (int Class, float Probability)[] Slots, (double X, double Y, double Z) Centre, SystemAttributes Attributes,
         IReadOnlyList<SystemStarship>? Pool, ulong SystemAddress, ShipPoolSettings? ShipPool, InventoryGenerationTables? Inventory,
-        PlanetTerrainData? Terrain, bool Prime, float BuildingRadius, float WaterBuildingRadius, bool Waterworld)
+        PlanetTerrainData? Terrain, bool Prime, float BuildingRadius, float WaterBuildingRadius, bool Waterworld,
+        IReadOnlyDictionary<ulong, (int SizeTypeIndex, string SizeType, bool Cool)>? ModelSizes)
     {
         /// <summary>Whether the game builds at this site (<see cref="PlanetBuildingSites.GroundAllows"/>); every site
         /// passes when the terrain can't be generated (underwater ones need a sea, so none then).</summary>
@@ -71,7 +75,7 @@ public static class CrashedShipService
     public static async Task<IReadOnlyList<CrashedShipSite>> NearAsync(ulong planetAddress, double latitude, double longitude, int count = 5)
     {
         if (await ContextAsync(planetAddress) is not { } context) return [];
-        return await Task.Run(() =>
+        var sites = await Task.Run(() =>
         {
             var dir = Direction(latitude, longitude);
             return (IReadOnlyList<CrashedShipSite>)PlanetBuildingSites.SitesNear(dir, context.Divisions, context.Radius,
@@ -79,6 +83,7 @@ public static class CrashedShipService
                 .Where(context.Builds).Take(count)
                 .Select(s => Describe(context, s, dir)).ToList();
         });
+        return await CrashedShipDisplayStatsService.ApplyAsync(sites);
     }
 
     /// <summary>The planet's crashed ships of class <paramref name="shipClass"/> (C=0 .. S=3; Exotics count as S)
@@ -103,7 +108,7 @@ public static class CrashedShipService
         var nearest = ofClass
             .Select(s => s with { DistanceKm = Angle(s, dir) * found.Radius / 1000 })
             .OrderBy(s => s.DistanceKm).Take(count).ToList();
-        return new CrashedShipsOfClass(nearest, ofClass.Count, found.Unverified);
+        return new CrashedShipsOfClass(await CrashedShipDisplayStatsService.ApplyAsync(nearest), ofClass.Count, found.Unverified);
     }
 
     /// <summary>How many of the planet's crashed ships that <paramref name="match"/> accepts fall in each group of
@@ -142,6 +147,7 @@ public static class CrashedShipService
         var solar = (await CatalogService.GetStationEquipmentTablesAsync())?.SolarLayout;
         var words = await CatalogService.GetProceduralNameWordsAsync();
         var inventory = PlanetTypesService.InventoryTables ?? await CatalogService.GetInventoryGenerationTablesAsync();
+        var partTreeJson = await CatalogService.GetShipPartTreesAsync();
         var centre = await PlanetCentreService.GetAsync(planetAddress);
         if (index < 1 || biomes is null || profiles is null || placement is null || centre is not { } c) return null;
         var (code, galaxy) = UniverseInfo.Generator(planetAddress & ~(0xFUL << 52));
@@ -156,6 +162,20 @@ public static class CrashedShipService
             var layout = solar?.ShipPool is null ? null : SolarLayoutGeneration.ForSystem(code, galaxy, solar, true);
             var pool = layout is null ? null : SystemStarshipGenerator.GenerateForSystem(code, galaxy, attributes.Race,
                 attributes.Pirate, solar!, k => words.GetValueOrDefault(k), includeSentinel: true);
+            Dictionary<ulong, (int SizeTypeIndex, string SizeType, bool Cool)>? modelSizes = null;
+            if (pool is not null && inventory is not null)
+            {
+                var parsedTrees = new Dictionary<string, IReadOnlyList<PartGroup>?>(StringComparer.OrdinalIgnoreCase);
+                IReadOnlyList<PartGroup>? LoadTree(string path)
+                {
+                    if (parsedTrees.TryGetValue(path, out var tree)) return tree;
+                    return parsedTrees[path] = partTreeJson.TryGetValue(path, out var json) ? ShipParts.ParseTree(json) : null;
+                }
+                modelSizes = new Dictionary<ulong, (int SizeTypeIndex, string SizeType, bool Cool)>();
+                foreach (var s in pool)
+                    if (StarshipInventoryGeneration.ResolveModelSize(s.Type, s.Seed, LoadTree, inventory) is { } resolved)
+                        modelSizes[s.Seed] = resolved;
+            }
             var body = types[index - 1];
             var terrainTables = profiles.Objects?.Terrain;
             var choice = terrainTables is null ? null : PlanetProfileGenerator.TerrainChoiceFor(seeds[index - 1], body, (int)attributes.Star, profiles);
@@ -167,7 +187,7 @@ public static class CrashedShipService
             float waterRadius = overrides?.FirstOrDefault(r => r.Class == WaterDistressSignal)?.OverrideRadius ?? 0f;
             return new PlanetContext(planetAddress, radius, PlanetBuildingSites.Divisions(radius),
                 PlanetBuildingSites.VoronoiSeeds(seeds[index - 1]).SectorSeed, PlanetBuildingSites.Slots(placement, facts), c,
-                attributes, pool, layout?.Address ?? 0, solar?.ShipPool, inventory, terrain, body.Prime, buildingRadius, waterRadius, body.Biome == 14);   // 14 = Waterworld (GcBiomeType)
+                attributes, pool, layout?.Address ?? 0, solar?.ShipPool, inventory, terrain, body.Prime, buildingRadius, waterRadius, body.Biome == 14, modelSizes);   // 14 = Waterworld (GcBiomeType)
         });
     }
 
@@ -182,11 +202,19 @@ public static class CrashedShipService
             : sentinel ? context.Pool.FirstOrDefault(s => s.Type == SystemStarshipType.SentinelInterceptor)
             : SystemShipPool.CrashedShip(site.Key, context.Pool, context.Attributes.Race, context.Attributes.Pirate,
                 context.SystemAddress, context.ShipPool);
+        int? shipClass = SystemShipPool.CrashedShipClass(site.Key, context.Attributes.Wealth, context.Attributes.Pirate, context.Inventory);
+        CrashedShipInventorySummary? invSummary = null;
+        if (ship is not null && shipClass is int cls && context.ModelSizes is not null
+            && context.ModelSizes.TryGetValue(ship.Seed, out var modelSize))
+        {
+            int nativeWealth = context.Attributes.Pirate ? 3 : Math.Clamp(context.Attributes.Wealth - 1, 0, 2);
+            invSummary = StarshipInventoryGeneration.ForCrashedShip(ship.Type, modelSize, site.Key, cls, context.Inventory, nativeWealth);
+        }
         double angle = Math.Acos(Math.Clamp(Vector3.Dot(Vector3.Normalize(site.Point), from), -1f, 1f));
         return new CrashedShipSite(context.PlanetAddress, site.Key, c.X + site.Point.X, c.Y + site.Point.Y, c.Z + site.Point.Z,
             lat, lon, angle * context.Radius / 1000, ship,
-            SystemShipPool.CrashedShipClass(site.Key, context.Attributes.Wealth, context.Attributes.Pirate, context.Inventory), site.Class == WaterDistressSignal,
-            site.Class == WaterDistressSignal ? Depth(context, site) : null, sentinel);
+            shipClass, site.Class == WaterDistressSignal,
+            site.Class == WaterDistressSignal ? Depth(context, site) : null, sentinel, invSummary);
     }
 
     /// <summary>How deep the sea floor is at an underwater site: sea level minus Core's generated ground height. On the

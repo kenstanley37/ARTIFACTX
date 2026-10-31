@@ -175,3 +175,29 @@ Regression runner: `--ship-selection-vector <local-fixture-json>`.
 The all-mode weapon arithmetic, damage filters, class layouts and final evaluator
 checks remain separate so each claim retains its own scope. Catalog extraction
 and UI orchestration have not yet been changed to consume this adapter.
+
+
+### Catalog and card integration - 2026-10-31
+
+The production catalog extractor now supplies STARSHIPDISPLAY (format 52). Its ordered
+normal-ship candidate lists match the native fixture: 71 regular and 50 procedural
+entries. Lookup definitions additionally cover installed player equipment without
+broadening those selection lists. A read-only Core adapter resolves the active owned
+ship's installed modules, damage, unlocked cells, supercharged cells and intrinsic
+bonuses from the loaded save.
+
+The composed production evaluator matches all eight native float values across the
+two references, using owned ships 0 and 5 respectively. Shield comparison uses the raw
+technology shield total; applying the intrinsic percentage before the final shield
+expression counts it twice. Regression runner: `--ship-comparison-vectors <local-json>`;
+the fixture contains extracted tables and player inventory and must not be committed.
+
+Card integration deliberately enables final values only for normal Exotic wrecks.
+Other model component overrides, food effects, high-grade procedural module runtime
+rules and cargo-installed technology remain guarded. Unsupported cases retain
+explicitly labeled intrinsic bonuses. Results use the loaded save's active ship and
+are recomputed for requested cards, never stored in the planet-wide site cache.
+The active-ship comparison cache/lifecycle question remains unresolved in the live game.
+Planet Details reconciles crashed-ship rows by site key rather than replacing their
+collection on repeated snapshots. No app launch, UI clicks or real-save writes were
+used for verification. Isolated WinUI build: zero errors, 9,153 existing warnings.

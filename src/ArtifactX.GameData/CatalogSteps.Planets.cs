@@ -127,6 +127,9 @@ public static partial class CatalogSteps
         if (GalaxyPlacement(Decode) is { } galaxyPlacement)
             rows.Add(new CatalogItem { GameId = "GALAXYPLACEMENT", NameEnglish = "GalaxyPlacementSettings", DescriptionEnglish = JsonSerializer.Serialize(galaxyPlacement) });
 
+        if (StarshipDisplay(Decode) is { } starshipDisplay)
+            rows.Add(new CatalogItem { GameId = "STARSHIPDISPLAY", NameEnglish = "StarshipEvaluationTables", DescriptionEnglish = JsonSerializer.Serialize(starshipDisplay) });
+
         using var db = new CatalogDbContext(catalogPath);
         Replace(db, "PlanetGeneration", "GcBiomeListPerStarType/GcBiomeFileList", BiomeListFile.ToLowerInvariant(), rows);
         ConsoleStyle.Success($"Wrote the planet generation tables to {catalogPath}.");
@@ -469,7 +472,110 @@ public static partial class CatalogSteps
         var layoutByTag = (inv.Table ?? new()).Where(entry => entry.LayoutSizeType is not null
                 && weaponLayoutNames.Contains(entry.LayoutSizeType.SizeType.ToString()))
             .ToDictionary(entry => entry.Id.Value, entry => entry.LayoutSizeType.SizeType.ToString(), StringComparer.Ordinal);
+
+        var shipClasses = inv.ShipBaseStatsData?
+            .Select(kind => kind?.BaseStatsPerClass?.Select(rating => rating?.BaseStats is { } entries
+                && entries.All(e => e?.BaseStatID?.Value is not null)
+                    ? entries.Select(e => new BaseStatRange(e.BaseStatID.Value, e.Min, e.Max)).ToArray()
+                    : Array.Empty<BaseStatRange>()).ToArray() ?? Array.Empty<BaseStatRange[]>()).ToArray();
+
+        var sizeTypeNames = Enum.GetNames<GcInventoryLayoutSizeType.SizeTypeEnum>();
+        var shipLayouts = layoutRows is not null
+            ? layoutRows.Select((entry, idx) => entry?.Bounds is not null && entry.TechBounds is not null && idx < sizeTypeNames.Length
+                ? new StarshipLayoutRules(
+                    sizeTypeNames[idx],
+                    idx,
+                    entry.MinSlots,
+                    entry.MaxSlots,
+                    entry.MinTechSlots,
+                    entry.MaxTechSlots,
+                    new InventoryLayoutBounds(entry.Bounds.MaxWidthSmall, entry.Bounds.MaxHeightSmall,
+                        entry.Bounds.MaxWidthStandard, entry.Bounds.MaxHeightStandard, entry.Bounds.MaxWidthLarge, entry.Bounds.MaxHeightLarge),
+                    new InventoryLayoutBounds(entry.TechBounds.MaxWidthSmall, entry.TechBounds.MaxHeightSmall,
+                        entry.TechBounds.MaxWidthStandard, entry.TechBounds.MaxHeightStandard, entry.TechBounds.MaxWidthLarge, entry.TechBounds.MaxHeightLarge))
+                : null).Where(r => r is not null).Select(r => r!).ToArray()
+            : null;
+
+        var shipCostData = inv.ShipCostData?.InventoryCostData?
+            .Select(c => c?.ClassMultiplier is { Length: >= 4 } mult
+                ? new StarshipCostRules(c.MinSlots, c.MinValueInMillions, c.MaxSlots, c.MaxValueInMillions,
+                    c.CoolMultiplier, c.TradeInMultiplier, mult.ToArray())
+                : new StarshipCostRules(0, 0f, 0, 0f, 0f, 0f, [0f, 0f, 0f, 0f]))
+            .ToArray();
+
+        var tableMap = (inv.Table ?? new())
+            .Where(e => !string.IsNullOrEmpty(e?.Id?.Value) && e.LayoutSizeType is not null)
+            .ToDictionary(e => e.Id.Value, e => (int)e.LayoutSizeType.SizeType, StringComparer.OrdinalIgnoreCase);
+
+        StarshipInventoryNodeRule[] ExtractShipSceneRules(string scenePath)
+        {
+            var rules = new List<StarshipInventoryNodeRule>();
+            void Walk(string path, List<string> activeStack, int depth)
+            {
+                if (depth > 16 || decode(path) is not libMBIN.NMS.Toolkit.TkSceneNodeData root) return;
+                var selectable = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                string descPath = path.Replace(".SCENE.MBIN", ".DESCRIPTOR.MBIN", StringComparison.OrdinalIgnoreCase);
+                if (decode(descPath) is libMBIN.NMS.Toolkit.TkModelDescriptorList dlist)
+                {
+                    void Collect(libMBIN.NMS.Toolkit.TkModelDescriptorList l)
+                    {
+                        foreach (var g in l.List ?? new())
+                            foreach (var d in g.Descriptors ?? new())
+                            {
+                                if (!string.IsNullOrEmpty(d.Id?.Value)) selectable.Add(d.Id.Value);
+                                foreach (var c in d.Children?.OfType<libMBIN.NMS.Toolkit.TkModelDescriptorList>() ?? Enumerable.Empty<libMBIN.NMS.Toolkit.TkModelDescriptorList>())
+                                    Collect(c);
+                            }
+                    }
+                    Collect(dlist);
+                }
+                void WalkNode(libMBIN.NMS.Toolkit.TkSceneNodeData node, List<string> req)
+                {
+                    string checkName = node.Name?.Value ?? "";
+                    int lodIdx = checkName.IndexOf("LOD", StringComparison.Ordinal);
+                    if (lodIdx >= 0 && checkName.Length - lodIdx == 4 && char.IsDigit(checkName[lodIdx + 3]))
+                        checkName = checkName[..lodIdx];
+                    var nextReq = selectable.Contains(checkName) ? new List<string>(req) { checkName } : req;
+
+                    foreach (var attr in node.Attributes ?? new())
+                    {
+                        if (attr.Name?.Value == "ATTACHMENT" && !string.IsNullOrEmpty(attr.Value?.Value)
+                            && decode(attr.Value.Value.Replace('\\', '/').ToUpperInvariant()) is libMBIN.NMS.Toolkit.TkAttachmentData ent)
+                        {
+                            foreach (var comp in ent.Components ?? new())
+                                if (comp.Template is GcCustomInventoryComponentData invComp && !string.IsNullOrEmpty(invComp.Size?.Value)
+                                    && tableMap.TryGetValue(invComp.Size.Value, out int st))
+                                    rules.Add(new StarshipInventoryNodeRule(nextReq.ToArray(), st, invComp.Cool));
+                        }
+                        if (node.Type?.Value == "REFERENCE" && attr.Name?.Value == "SCENEGRAPH" && !string.IsNullOrEmpty(attr.Value?.Value))
+                            Walk(attr.Value.Value.Replace('\\', '/').ToUpperInvariant(), nextReq, depth + 1);
+                    }
+                    foreach (var child in node.Children ?? new())
+                        WalkNode(child, nextReq);
+                }
+                WalkNode(root, activeStack);
+            }
+            Walk(scenePath, [], 0);
+            return rules.ToArray();
+        }
+
+        var shipModelRules = new Dictionary<string, StarshipInventoryNodeRule[]>(StringComparer.Ordinal);
+        foreach (var shipType in new[]
+        {
+            SystemStarshipType.Fighter, SystemStarshipType.Hauler, SystemStarshipType.Explorer,
+            SystemStarshipType.Shuttle, SystemStarshipType.Exotic, SystemStarshipType.Solar,
+            SystemStarshipType.SentinelInterceptor
+        })
+        {
+            if (StarshipInventoryGeneration.ScenePath(shipType) is { } scenePath)
+                shipModelRules[shipType.ToString()] = ExtractShipSceneRules(scenePath);
+        }
+
+        var aiShipGlobals = decode("GCAISPACESHIPGLOBALS.GLOBAL.MBIN") as GcAISpaceshipGlobals;
+
         return new InventoryGenerationTables(shipStats, weaponStats, classProbs, shipMaxCargo, shipMaxTech,
-            weaponMaxTech, buildingDensities, pools, weaponClasses, specialSlots, weaponLayouts, layoutByTag);
+            weaponMaxTech, buildingDensities, pools, weaponClasses, specialSlots, weaponLayouts, layoutByTag,
+            shipClasses, shipLayouts, shipCostData, shipModelRules,
+            aiShipGlobals?.CrashedShipBrokenSlotChance, aiShipGlobals?.CrashedShipMinNonBrokenSlots);
     }
 }
