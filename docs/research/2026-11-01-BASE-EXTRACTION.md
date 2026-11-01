@@ -40,6 +40,30 @@ spherical pole placement, seeded MWC draws, hotspot weights, range and class
 tables. Do not select the biome mineral merely because a base contains a
 mineral extractor, or the first gas merely because it contains a gas extractor.
 
+## Native hotspot attribute draws
+
+`HotspotAttributes` ports the type, range, class and strength draws inside
+0x1412F6580. It accepts six caller-supplied category definitions; it contains
+no extracted game content. The float random conversion uses a double reciprocal
+of 4294967295 before rounding to float, not 4294967296. Two coordinate-jitter
+draws occur between range and class and must advance the stream even when only
+attributes are needed.
+
+The read-only `hotspot-roll-oracle.py` executes that native helper with 256
+deterministic synthetic seeds and varying category/class weights and ranges.
+The sine and two geometry services are stubbed, so this is strictly an
+attribute test. Core matches type flag, class, both strength outputs, exact
+range float bits and final MWC state for every vector. Positive finite weights
+are the supported input domain of this initial port.
+
+Coordinate follow-up: 0x1413524B0 generates a direction from the address masked
+to 52 bits; 0x1412F59A0 applies spherical rotations. A trial executing both
+with file-backed globals produced non-finite directions because a vector read
+at 0x1472E1F40 is zero in the executable image. Its runtime initialization must
+be identified before treating a full-coordinate emulator as an oracle. No
+guessed axis has been substituted. Pole generation, spacing/overlap rejection
+and closest-hotspot selection remain unported and unverified.
+
 ## In-game reference and fresh-save comparison
 
 The owner supplied a Supply Depot screenshot showing Paraffinium, 6750/10000

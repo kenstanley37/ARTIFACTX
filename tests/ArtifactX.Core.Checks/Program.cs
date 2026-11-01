@@ -11,6 +11,8 @@ try
     RecipePlannerChecks.Check();
     CargoSuppliesChecks.Check();
     BaseExtractionChecks.Check();
+    if (args.Length == 2 && args[0] == "--hotspot-roll-vectors")
+    { BaseExtractionChecks.AttributesNative(args[1]); return; }
     if (args.Length == 2 && args[0] == "--extraction-stock-vectors")
     { BaseExtractionChecks.StockNative(args[1]); return; }
     if (args.Length == 2 && args[0] == "--hotspot-resource-vectors")

@@ -4,6 +4,26 @@ using System.Text.Json;
 
 internal static class BaseExtractionChecks
 {
+    public static void AttributesNative(string path)
+    {
+        using var json = JsonDocument.Parse(File.ReadAllText(path));
+        int count = 0;
+        foreach (var row in json.RootElement.EnumerateArray())
+        {
+            var categories = JsonSerializer.Deserialize<HotspotCategory[]>(row.GetProperty("Configs"))!;
+            var actual = HotspotAttributes.Roll(row.GetProperty("Seed").GetUInt64(), categories);
+            if (actual.Flag != row.GetProperty("Flag").GetInt32()
+                || actual.Class != row.GetProperty("Class").GetInt32()
+                || actual.Strength != row.GetProperty("Strength").GetSingle()
+                || actual.HighestStrength != row.GetProperty("HighestStrength").GetSingle()
+                || BitConverter.SingleToInt32Bits(actual.Range) != BitConverter.SingleToInt32Bits(row.GetProperty("Range").GetSingle())
+                || actual.FinalSeed != row.GetProperty("FinalSeed").GetUInt64())
+                throw new InvalidOperationException($"Hotspot attribute vector {count} differs from native: {actual}; expected {row}.");
+            count++;
+        }
+        Console.WriteLine($"PASS: {count} native hotspot type, range bits, class, strength and final RNG states.");
+    }
+
     public static void Check()
     {
         var tank = new ExtractionNetworkRule("tank", "Mineral", 1, 1000, 2, 0, 3, false);
