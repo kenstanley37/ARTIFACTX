@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- **Cooking ingredient sources**: creature products now explain whether to hunt wildlife or feed it and collect produce. Dirty Meat identifies burrowing creatures as its source after updating game data.
+
 - **Cooking and Refiner Recipes**: separate pages make it easier to find food recipes or refine minerals and other materials. Both use the recipe planner; food-effect filters stay on Cooking Recipes.
 
 - **Recipe planner**: browse recipes by item or Nutrient Ingestor effect, compare bonuses strongest first, and follow connected, equal-size cards through every preparation step. Includes equipment pictures, ingredient sources, a combined gathering list, and Back and main-recipe navigation. Replaces the previous recipe drill-down pages.

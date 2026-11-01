@@ -159,3 +159,28 @@ route in the reported case expands from one to nine operations, with three
 circular supplies; the original Aronium route retains 13 operations. Synthetic
 checks cover automatic and explicitly chosen cyclic gas conversions. No app
 was launched; owner verification of map/step-order and branch navigation remains.
+
+## Creature ingredient sources
+
+The owner's Soiled Soup example exposed a separate acquisition gap: the item
+description for Dirty Meat is generic and does not identify the source animal.
+The installed GCCREATUREGLOBALS.MBIN KillingProducts list maps FOOD_M_DIGGER to
+PLOUGH and PROTODIGGER. Joining the installed creature data table confirms their
+structural kinds and Ground move area. No particular planet biome restriction
+was established by this mapping; the UI must not invent one.
+
+Catalog format 56 adds CREATUREPRODUCTS, containing the direct hunting and
+harvesting mappings joined to structural creature kinds and habitats. The
+player-facing helper translates supported structural kinds into plain source
+labels and never shows the internal creature IDs. Dirty Meat now directs the
+player to hunt burrowing ground creatures. Existing item descriptions remain
+below the source hint. Other creature products distinguish hunting from feeding
+and collecting produce. The raw MinBlobs value is retained for future study but
+is not described as a physical animal-size restriction without evidence.
+
+The actual extraction check built a new scratch catalog and verified 103
+creature-product rows, including both Dirty Meat hunting sources and their
+ground habitats. The player's installed catalog and user.db were not patched.
+One normal game-data update is required after rebuilding the app. In-app and
+in-game source hunting checks remain with the owner. Hotspot resource identity
+investigation is still separate and remains unfinished.

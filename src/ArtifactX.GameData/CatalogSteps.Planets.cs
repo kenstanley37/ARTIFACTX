@@ -74,6 +74,8 @@ public static partial class CatalogSteps
         var rows = new List<CatalogItem>();
         if (FoodIngestor(Decode) is { } food)
             rows.Add(new CatalogItem { GameId = "FOODINGESTOR", NameEnglish = "FoodIngestorTables", DescriptionEnglish = JsonSerializer.Serialize(food) });
+        if (CreatureProducts(Decode) is { } creatureProducts)
+            rows.Add(new CatalogItem { GameId = "CREATUREPRODUCTS", NameEnglish = "CreatureProductSources", DescriptionEnglish = JsonSerializer.Serialize(creatureProducts) });
         var biomes = Decode(BiomeListFile) as GcBiomeListPerStarType;
         var files = Decode(BiomeFilesFile) as GcBiomeFileList;
         if (biomes is null || files is null)

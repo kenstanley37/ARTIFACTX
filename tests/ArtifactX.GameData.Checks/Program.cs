@@ -5,7 +5,7 @@ using ArtifactX.GameData.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
-if (args.Length == 3 && args[0] == "--food-catalog-check")
+if (args.Length == 3 && args[0] is "--food-catalog-check" or "--creature-source-catalog-check")
 {
     string output = Path.GetFullPath(args[2]);
     if (File.Exists(output)) throw new InvalidOperationException("The check requires a new scratch catalog.");
@@ -13,6 +13,19 @@ if (args.Length == 3 && args[0] == "--food-catalog-check")
     CatalogSteps.AddPlanetGeneration(output, args[1]);
     using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={output};Mode=ReadOnly");
     connection.Open(); using var query = connection.CreateCommand();
+    if (args[0] == "--creature-source-catalog-check")
+    {
+        query.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId='CREATUREPRODUCTS'";
+        var sources = JsonSerializer.Deserialize<CreatureProductSource[]>((string)query.ExecuteScalar()!)!;
+        var meat = sources.Where(s => s.ItemId == "FOOD_M_DIGGER").ToArray();
+        if (meat.Length != 2 || meat.Any(s => s.Method != "Hunt" || s.Habitat != "Ground")
+            || !meat.Select(s => s.CreatureKind).Order().SequenceEqual(new[] { "Plough", "ProtoDigger" }))
+            throw new InvalidOperationException("Dirty Meat creature source mapping differs from the installed reference.");
+        if (!sources.Any(s => s.Method == "Harvest") || sources.Any(s => string.IsNullOrWhiteSpace(s.ItemId)))
+            throw new InvalidOperationException("Creature product extraction is incomplete.");
+        Console.WriteLine($"PASS: extracted {sources.Length} creature product mappings; Dirty Meat hunting and habitats match installed tables.");
+        return;
+    }
     query.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId='FOODINGESTOR'";
     var tables = JsonSerializer.Deserialize<FoodIngestorTables>((string)query.ExecuteScalar()!)!;
     if (tables.Foods.Length == 0 || tables.BaseDuration <= 0 || tables.Foods.Any(f => !float.IsFinite(FoodIngestorBonus.Calculate(f))))
