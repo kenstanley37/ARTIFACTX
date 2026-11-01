@@ -3,6 +3,43 @@
 Status: read-only investigation. No extraction quantities are included in the
 recipe planner's owned inventory. No automatic hotspot resource claim is made.
 
+## Native stock and resource selection helpers
+
+Subsequent inspection located the active hotspot-table pointer at 0x146EF1DA0
+and its consumers in the inspected executable's 0x1412F4AC0-0x1412F694F range.
+These addresses are executable-specific research references, not runtime
+application dependencies.
+
+Native 0x1412F5400 converts stock by integer division FIRST:
+`(stored internal units / AmountCost) * SubstanceYeild`. It does not multiply
+first and then floor individual units. `ExtractionStock` ports that operation
+and rejects unsupported negative/overflow cases. The read-only Unicorn oracle
+executes the helper with synthetic definitions; all 36 output vectors matched
+Core. Game bytes and generated vectors remain outside the repository.
+
+For the two preserved Paraffinium saves, the earlier raw sum 10033886 converts
+to 6750 displayed units and the later raw sum 10134456 converts to 7000. These
+match the owner's two observed amounts. The continuous internal growth rate
+is exactly 565 internal units/second, corresponding to 1412.5 item units/hour.
+Using continuous stock for time remaining gives roughly 02:08:48 for the older
+save, about nine seconds after the screenshot's 02:08:57. This explains the
+earlier apparent disagreement: the displayed stock is quantized, while the
+underlying accumulator is not. Offline updates, power loss and collection
+resets still need separate checks.
+
+Native 0x1412F5EF0 selects a resource once the actual hotspot type is known:
+Mineral1 uses the planet's common mineral, Mineral2 its biome-specific mineral,
+Mineral3 its rare mineral; Gas1/Gas2 use the two gas entries for the biome.
+`HotspotResources` ports that selection. A separate native oracle supplies
+synthetic planet resources and gas tables, stubbing only world/address service
+calls. Core matched all 119 outputs (seven type cases across 17 biome slots).
+
+This is not automatic resource identification yet. The actual hotspot type at
+the extractor's position remains to be resolved. Nearby native routines use
+spherical pole placement, seeded MWC draws, hotspot weights, range and class
+tables. Do not select the biome mineral merely because a base contains a
+mineral extractor, or the first gas merely because it contains a gas extractor.
+
 ## In-game reference and fresh-save comparison
 
 The owner supplied a Supply Depot screenshot showing Paraffinium, 6750/10000
@@ -26,8 +63,8 @@ SaveStreamProcessor pipeline. The live saves were not changed. For the same
 This supports the upper-word stock interpretation and table-derived units for
 this one setup. It does not verify rounding, disconnected networks, offline
 production, capped storage, power failure, or automatic resource identity. The
-screenshot's time-until-full also does not equal a simple remaining-stock /
-displayed-rate calculation; avoid shipping such a time estimate as exact.
+screenshot's time-until-full does not equal a simple calculation using the
+rounded displayed stock and rate; the later native findings above explain why.
 
 ## Confirmed inputs
 

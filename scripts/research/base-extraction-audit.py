@@ -133,11 +133,15 @@ def audit(save, parts, yields, base_name, resource):
                             candidate_stored=upper * produced / cost,
                             candidate_capacity=definition['storage'] * produced / cost))
     networks = candidate_networks(matches[0].get('@ZJ', []), parts)
+    stored_units = sum(o['upper_word'] for o in objects)
+    capacity_units = sum(o['catalog_storage'] for o in objects)
     return dict(save_sha256=hashlib.sha256(raw).hexdigest(), context=context, base=base_name,
                 resource=resource, resource_source='Explicit operator confirmation; not inferred from save',
                 interpretation='Candidate upper-word storage. Not a verified inventory total or production rate.',
                 equipment_count=len(objects), candidate_stored=sum(o['candidate_stored'] for o in objects),
                 candidate_capacity=sum(o['candidate_capacity'] for o in objects), objects=objects,
+                native_displayed_base_stock=stored_units // cost * produced,
+                native_displayed_base_capacity=capacity_units // cost * produced,
                 candidate_networks=networks,
                 network_warning='Provisional graph; disconnected resources are not identified. No automatic supply totals.')
 

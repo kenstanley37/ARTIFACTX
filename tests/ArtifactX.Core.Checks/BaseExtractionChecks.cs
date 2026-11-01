@@ -29,6 +29,9 @@ internal static class BaseExtractionChecks
         try { BaseExtractionNetworks.Read(nearby, rules); throw new Exception("Unsupported threshold accepted."); }
         catch (InvalidOperationException) { }
         Console.WriteLine("PASS: extraction masks, summed radii, pipe displacement, isolated storage, unique stock and read-only discovery.");
+        if (ExtractionStock.DisplayAmount(10033886, new("test", 360000, 250)) != 6750
+            || ExtractionStock.DisplayAmount(10134456, new("test", 360000, 250)) != 7000)
+            throw new InvalidOperationException("Whole-yield stock conversion differs from the displayed reference.");
     }
 
     public static void Reference(string path)
@@ -43,5 +46,33 @@ internal static class BaseExtractionChecks
         if (members.Select(m => m.ObjectIndex).Distinct().Count() != members.Length)
             throw new InvalidOperationException("Saved equipment counted in more than one network.");
         Console.WriteLine($"PASS: displayed main-network capacity matched; {networks.Count} candidate groups, unique equipment membership.");
+    }
+
+    public static void StockNative(string path)
+    {
+        using var json = JsonDocument.Parse(File.ReadAllText(path));
+        int count = 0;
+        foreach (var row in json.RootElement.EnumerateArray())
+        {
+            var resource = new ExtractionSubstance("synthetic", row.GetProperty("AmountCost").GetInt32(), row.GetProperty("Yield").GetInt32());
+            long actual = ExtractionStock.DisplayAmount(row.GetProperty("StoredUnits").GetInt64(), resource);
+            if (actual != row.GetProperty("Expected").GetInt64()) throw new InvalidOperationException("Stock conversion differs from native.");
+            count++;
+        }
+        Console.WriteLine($"PASS: {count} extraction stock conversions match native output.");
+    }
+
+    public static void ResourceNative(string path)
+    {
+        using var json = JsonDocument.Parse(File.ReadAllText(path));
+        int count = 0;
+        foreach (var row in json.RootElement.EnumerateArray())
+        {
+            var resources = JsonSerializer.Deserialize<HotspotResources>(row)!;
+            if (resources.ForType(row.GetProperty("Type").GetString()!) != row.GetProperty("Expected").GetString())
+                throw new InvalidOperationException("Hotspot resource selection differs from native.");
+            count++;
+        }
+        Console.WriteLine($"PASS: {count} hotspot resource selections match native output.");
     }
 }
