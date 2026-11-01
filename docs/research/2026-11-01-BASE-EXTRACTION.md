@@ -80,6 +80,49 @@ candidate counts. It does not infer the resource, write to a save, modify
 user.db, or add quantities to inventory. Do not commit its game-data inputs
 or generated reports.
 
+## Resource-network reconstruction
+
+A deeper `dumpfile basebuildingobjectstable.mbin 9 5000` includes the main
+connection network enum and dependency settings. Use this depth for graph
+audits: a depth-6 dump omits the network enum and cannot distinguish every
+resource generator from unrelated network types.
+
+The reference base contains 24 saved pipelines. For those parts, the saved
+Position is one endpoint and Position + At matches the other endpoint. At is
+a displacement, not the normalized forward vector used by an extractor.
+The table supplies Resources network identity, masks, subgroups and distances.
+Mask compatibility prevents nearby equipment from being joined without pipes.
+
+The candidate graph initially used the greater connection radius and missed
+one Oxygen extractor. The owner's second depot screenshot shows Oxygen,
+500/10500 capacity and 1342/hr. The missing endpoint was approximately 3.082
+units from its extractor. Using the sum of the extracted 3 and 0.1 radii
+connects it. The other isolated extractor's nearest endpoint is about 3.146
+units away and stays disconnected.
+
+With summed radii:
+
+- Paraffinium: one group, 20 mineral extractors + 5 depots + 24 pipelines;
+  10000 capacity matches the screenshot.
+- Oxygen: main group, 18 gas extractors + 6 depots; 10500 capacity matches
+  the screenshot. Other candidate groups are one gas extractor and six gas
+  extractors. Their capacities/connectivity have not been checked in game.
+
+`Core/Recipes/BaseExtractionNetworks` now reconstructs these equipment groups
+from caller-supplied extracted rules without UI, installation lookup or libMBIN.
+Members retain raw link-grid stock/capacity units and object indices. It does
+not identify substances, round item counts, predict production or modify saves.
+Other resource generators and unsupported UseMinDistance rules are excluded or
+rejected rather than silently treated as supported industrial extraction.
+Application wiring and GameData/catalog integration are not implemented yet.
+
+Core.Checks covers masks, summed radii, endpoint displacement, nearby unconnected
+equipment, separated groups, duplicated pipes, unique stock counting, mutation
+protection and unsupported rules. Local reference vectors from the extracted
+rules and saved objects reproduce the two displayed main-network capacities.
+This verifies the aggregate reference cases, not every individual edge or
+general native-network equivalence. Vectors stay outside the repository.
+
 Use `--previous-save` to compare an earlier decrypted save of unchanged
 equipment. The comparison requires matching part IDs, positions, lower-word
 state and common increasing timestamps, and reports a base equipment total,

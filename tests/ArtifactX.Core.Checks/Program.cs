@@ -10,6 +10,9 @@ try
 {
     RecipePlannerChecks.Check();
     CargoSuppliesChecks.Check();
+    BaseExtractionChecks.Check();
+    if (args.Length == 2 && args[0] == "--extraction-network-vectors")
+    { BaseExtractionChecks.Reference(args[1]); return; }
     if (args.Length == 2 && args[0] == "--food-bonus-vectors")
     { RecipePlannerChecks.Native(args[1]); return; }
     if (args.Length == 2 && args[0] == "--recipe-catalog-vectors")
