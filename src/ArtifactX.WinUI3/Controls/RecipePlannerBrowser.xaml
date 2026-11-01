@@ -1,0 +1,40 @@
+<UserControl x:Class="ArtifactX.WinUI3.Controls.RecipePlannerBrowser"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:vm="using:ArtifactX.WinUI3.ViewModels"
+ xmlns:ct="using:CommunityToolkit.WinUI.Controls"
+ xmlns:controls="using:ArtifactX.WinUI3.Controls">
+ <controls:FoldingCard Title="FIND A RECIPE" Summary="{x:Bind ViewModel.BrowserSummary, Mode=OneWay}"
+  IsExpanded="{x:Bind ViewModel.IsBrowserExpanded, Mode=TwoWay}">
+ <Border Padding="0,10,0,0">
+ <StackPanel Spacing="10">
+  <ct:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
+   <TextBox Header="Find a food or ingredient" PlaceholderText="Search recipes" Width="340"
+    Text="{x:Bind ViewModel.Search, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Search recipes by item name"/>
+   <ComboBox Header="Nutrient Ingestor effect" Width="320" ItemsSource="{x:Bind ViewModel.Effects, Mode=OneWay}"
+    SelectedItem="{x:Bind ViewModel.SelectedEffect, Mode=TwoWay}" AutomationProperties.Name="Filter recipes by Nutrient Ingestor effect"/>
+  </ct:WrapPanel>
+  <CheckBox Content="Pinned recipes only" IsChecked="{x:Bind ViewModel.PinnedOnly, Mode=TwoWay}" AutomationProperties.Name="Show pinned recipes only"/>
+  <TextBlock Text="Choose an effect to compare foods, strongest first. Select a recipe to see how to make every ingredient."
+   Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+  <GridView ItemsSource="{x:Bind ViewModel.Results, Mode=OneWay}" SelectionMode="None" Height="195" HorizontalContentAlignment="Stretch">
+   <GridView.ItemsPanel><ItemsPanelTemplate><ItemsWrapGrid Orientation="Horizontal" ItemWidth="270" ItemHeight="180"/></ItemsPanelTemplate></GridView.ItemsPanel>
+   <GridView.ItemTemplate><DataTemplate x:DataType="vm:RecipePlannerItemViewModel">
+    <Grid Width="258" Height="168">
+    <Button Command="{x:Bind SelectCommand}" AutomationProperties.Name="{x:Bind SelectionName}" Padding="12,12,44,12"
+     HorizontalContentAlignment="Stretch" VerticalContentAlignment="Top" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{ThemeResource ThemePanelAltBrush}">
+     <StackPanel Spacing="6">
+      <StackPanel Orientation="Horizontal" Spacing="7"><Image Source="{x:Bind Icon}" Width="28" Height="28"/><TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" MaxWidth="150" Foreground="{ThemeResource ThemeTextBrush}" FontWeight="SemiBold"/></StackPanel>
+      <TextBlock Text="{x:Bind Buff}" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+      <TextBlock Text="{x:Bind Station}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" FontSize="12"/>
+     </StackPanel>
+    </Button>
+    <ToggleButton Command="{x:Bind PinCommand}" IsChecked="{x:Bind IsPinned, Mode=OneWay}" AutomationProperties.Name="{x:Bind PinName}" ToolTipService.ToolTip="Pin or unpin this recipe"
+      HorizontalAlignment="Right" VerticalAlignment="Top" Margin="5" Padding="7"><FontIcon Glyph="&#xE718;" FontSize="14"/></ToggleButton>
+    </Grid>
+   </DataTemplate></GridView.ItemTemplate>
+  </GridView>
+ </StackPanel>
+ </Border>
+ </controls:FoldingCard>
+</UserControl>

@@ -1,0 +1,40 @@
+<UserControl x:Class="ArtifactX.WinUI3.Controls.RecipePlannerDetails"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:vm="using:ArtifactX.WinUI3.ViewModels">
+ <UserControl.Resources>
+  <Storyboard x:Name="SelectionPulse">
+   <DoubleAnimation Storyboard.TargetName="SelectionHighlight" Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.9"/>
+  </Storyboard>
+ </UserControl.Resources>
+ <Grid>
+ <Border Padding="14" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="2" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+  <StackPanel Spacing="12">
+   <TextBlock Text="VIEWING INGREDIENT" Style="{StaticResource ThemeEyebrowStyle}"/>
+   <StackPanel Orientation="Horizontal" Spacing="8"><Image Source="{x:Bind Item.Icon, Mode=OneWay}" Width="38" Height="38"/><TextBlock x:Name="SelectedName" Text="{x:Bind Item.Name, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" MaxWidth="190" AutomationProperties.LiveSetting="Polite"/></StackPanel>
+   <StackPanel Visibility="{x:Bind Item.RecipeVisibility, Mode=OneWay}" Spacing="10">
+    <StackPanel Orientation="Horizontal" Spacing="10"><Image Source="{x:Bind Item.StationIcon, Mode=OneWay}" Width="56" Height="56"/><TextBlock Text="{x:Bind Item.Station, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" MaxWidth="170"/></StackPanel>
+    <TextBlock Text="Put these ingredients into the equipment:" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+    <ItemsControl ItemsSource="{x:Bind Item.Ingredients, Mode=OneWay}">
+     <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipePlannerItemViewModel">
+      <Button Command="{x:Bind ExploreCommand}" AutomationProperties.Name="{x:Bind SelectionName}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,3" Padding="8">
+       <StackPanel Orientation="Horizontal" Spacing="7"><Image Source="{x:Bind Icon}" Width="25" Height="25"/><TextBlock Text="{x:Bind Amount}" TextWrapping="Wrap" MaxWidth="200"/></StackPanel>
+      </Button>
+     </DataTemplate></ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <ComboBox Header="Recipe to use" Visibility="{x:Bind Item.ChoiceVisibility, Mode=OneWay}" ItemsSource="{x:Bind Item.Choices, Mode=OneWay}"
+     SelectedItem="{x:Bind Item.SelectedChoice, Mode=OneWay}" SelectionChanged="Choice_Changed" HorizontalAlignment="Stretch" AutomationProperties.Name="Choose an alternative recipe for the selected ingredient"/>
+    <TextBlock Text="{x:Bind Item.UsedFor, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+    <Button Content="Explore this branch" Command="{x:Bind Item.ExploreCommand, Mode=OneWay}" HorizontalAlignment="Stretch"/>
+   </StackPanel>
+   <StackPanel Visibility="{x:Bind Item.SourceVisibility, Mode=OneWay}" Spacing="10">
+    <TextBlock Text="HOW TO GET IT" Style="{StaticResource ThemeEyebrowStyle}"/>
+    <TextBlock Text="{x:Bind Item.Source, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+    <TextBlock Text="{x:Bind Item.Inventory, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+   </StackPanel>
+   <TextBlock Text="{x:Bind Item.Buff, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+  </StackPanel>
+ </Border>
+ <Border x:Name="SelectionHighlight" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="5" Opacity="0" IsHitTestVisible="False" CornerRadius="{ThemeResource ThemeCardCornerRadius}"/>
+ </Grid>
+</UserControl>

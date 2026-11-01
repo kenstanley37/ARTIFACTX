@@ -1,4 +1,25 @@
 using libMBIN;
+using ArtifactX.Core.Recipes;
+using ArtifactX.GameData;
+using ArtifactX.GameData.Data;
+using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+
+if (args.Length == 3 && args[0] == "--food-catalog-check")
+{
+    string output = Path.GetFullPath(args[2]);
+    if (File.Exists(output)) throw new InvalidOperationException("The check requires a new scratch catalog.");
+    using (var db = new CatalogDbContext(output)) db.Database.EnsureCreated();
+    CatalogSteps.AddPlanetGeneration(output, args[1]);
+    using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={output};Mode=ReadOnly");
+    connection.Open(); using var query = connection.CreateCommand();
+    query.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId='FOODINGESTOR'";
+    var tables = JsonSerializer.Deserialize<FoodIngestorTables>((string)query.ExecuteScalar()!)!;
+    if (tables.Foods.Length == 0 || tables.BaseDuration <= 0 || tables.Foods.Any(f => !float.IsFinite(FoodIngestorBonus.Calculate(f))))
+        throw new InvalidOperationException("Invalid food bonus extraction.");
+    Console.WriteLine($"PASS: catalog build extracted {tables.Foods.Length} food bonus definitions and duration from the installed game.");
+    return;
+}
 
 // Synthetic binary records contain no extracted game content.
 const uint unknownHash = 0xFFFFFFFF;
