@@ -41,23 +41,26 @@ public sealed partial class RecipePlannerViewModel
                 ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
             if (IngestorVisibility == Microsoft.UI.Xaml.Visibility.Visible && TargetBuff.Length == 0)
                 TargetBuff = catalog.Food is null ? "Update game data to see Ingestor bonuses." : "No Ingestor effect listed for this item.";
-            PlanSummary = $"{plan.Steps.Count} preparation steps · {plan.Gather.Count} starting ingredients";
+            string operations = IsCooking ? "preparation" : "refining";
+            PlanSummary = $"{plan.Steps.Count} {operations} {(plan.Steps.Count == 1 ? "operation" : "operations")}; {plan.Gather.Count} starting ingredients";
             Status = plan.Notice;
-            string? selected = SelectedItem?.Id;
+            string? selected = SelectedItem?.TreeKey;
             _allCards.Clear();
             var levels = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { [target.Result.Id] = 0 };
+            var circular = plan.CircularSupplies.ToDictionary(s => (s.ParentId, s.Id));
+            string SupplyKey(string parent, string id) => "supply:" + parent + ":" + id;
             foreach (var step in plan.Steps.Reverse())
                 foreach (var ingredient in step.Recipe.Ingredients)
-                    levels[ingredient.Id] = Math.Max(levels.GetValueOrDefault(ingredient.Id), levels.GetValueOrDefault(step.Recipe.ResultId) + 1);
-            RecipePlannerItemViewModel Item(string id, long amount, int input = 0) => new()
+                    if (!circular.ContainsKey((step.Recipe.ResultId, ingredient.Id))) levels[ingredient.Id] = Math.Max(levels.GetValueOrDefault(ingredient.Id), levels.GetValueOrDefault(step.Recipe.ResultId) + 1);
+            RecipePlannerItemViewModel Item(string id, long amount, int input = 0, string node = "") => new()
             {
-                Id = id, Name = Name(id), Required = amount,
+                Id = id, TreeNodeId = node, Name = Name(id), Required = amount,
                 Amount = (input > 0 ? $"Input {input}: " : "") + $"{amount:N0} × {Name(id)}",
                 Icon = CatalogService.TryGet(id)?.Icon, Buff = Buff(id),
                 Alternatives = Alternatives(id),
                 Source = catalog.Sources.GetValueOrDefault(id) is { Length: > 0 } source ? source
                     : "No source information is available for this ingredient.",
-                SelectCommand = new RelayCommand(() => Select(id)), ExploreCommand = new RelayCommand(() => Explore(id))
+                SelectCommand = new RelayCommand(() => Select(node.Length > 0 ? node : id)), ExploreCommand = new RelayCommand(() => Explore(node.Length > 0 ? node : id))
             };
             foreach (var step in plan.Steps)
             {
@@ -76,7 +79,8 @@ public sealed partial class RecipePlannerViewModel
                     Station = $"{Station(recipe)} · run {step.Batches:N0} {(step.Batches == 1 ? "batch" : "batches")}",
                     StationIcon = CatalogService.TryGet(MachineId(recipe))?.Icon,
                     Icon = CatalogService.TryGet(id)?.Icon, Buff = Buff(id),
-                    Ingredients = recipe.Ingredients.Select((i, slot) => Item(i.Id, checked(step.Batches * i.Amount), slot + 1)).ToArray(),
+                    Ingredients = recipe.Ingredients.Select((i, slot) => Item(i.Id, checked(step.Batches * i.Amount), slot + 1,
+                        circular.ContainsKey((id, i.Id)) ? SupplyKey(id, i.Id) : "")).ToArray(),
                     Choices = choices, SelectedChoice = choices.FirstOrDefault(c => c.Id == recipe.Id),
                     Alternatives = Alternatives(id),
                     UsedFor = id == target.Result.Id ? "Your requested recipe" : "Used in " + string.Join(", ",
@@ -90,6 +94,22 @@ public sealed partial class RecipePlannerViewModel
                 var row = Item(ingredient.Id, ingredient.Amount);
                 Gather.Add(row);
                 _allCards.TryAdd(row.Id, row);
+            }
+            foreach (var supply in plan.CircularSupplies)
+            {
+                string key = SupplyKey(supply.ParentId, supply.Id);
+                _allCards[key] = new()
+                {
+                    Id = supply.Id, TreeNodeId = key, Name = Name(supply.Id),
+                    Heading = "STARTING SUPPLY", Required = supply.Amount,
+                    Level = levels.GetValueOrDefault(supply.ParentId) + 1,
+                    Amount = $"{supply.Amount:N0} \u00d7 {Name(supply.Id)}",
+                    Station = "This conversion repeats an earlier ingredient. Gather or use a stored starting supply here.",
+                    Source = "This conversion repeats an earlier ingredient. Start with gathered or stored supplies here.\n\n"
+                        + catalog.Sources.GetValueOrDefault(supply.Id),
+                    Icon = CatalogService.TryGet(supply.Id)?.Icon, Alternatives = Alternatives(supply.Id),
+                    SelectCommand = new RelayCommand(() => Select(key)), ExploreCommand = new RelayCommand(() => Explore(key))
+                };
             }
             await RefreshOwnedAsync();
             cancellation.Token.ThrowIfCancellationRequested();
@@ -132,17 +152,17 @@ public sealed partial class RecipePlannerViewModel
         void Walk(string id)
         {
             if (!visible.Add(id) || !_allCards.TryGetValue(id, out var item)) return;
-            foreach (var child in item.Ingredients) Walk(child.Id);
+            foreach (var child in item.Ingredients) Walk(child.TreeKey);
         }
         Walk(start);
         Cards.Clear(); Levels.Clear();
-        foreach (var card in _allCards.Values.Where(c => visible.Contains(c.Id) && c.RecipeId.Length > 0)) Cards.Add(card);
+        foreach (var card in _allCards.Values.Where(c => visible.Contains(c.Id) && (c.RecipeId.Length > 0 || c.TreeNodeId.Length > 0))) Cards.Add(card);
         foreach (var group in Cards.GroupBy(c => c.Level).OrderBy(g => g.Key))
             Levels.Add(new(new ObservableCollection<RecipePlannerItemViewModel>(group)));
         Breadcrumbs.Clear();
-        foreach (string id in _path) Breadcrumbs.Add(new(Name(id), new RelayCommand(() => Explore(id))));
+        foreach (string id in _path) Breadcrumbs.Add(new(_allCards[id].Name, new RelayCommand(() => Explore(id))));
         CanGoBack = _path.Count > 1;
-        MapHeading = _path.Count == 1 ? "All requirements" : Name(start) + " requirements";
+        MapHeading = _path.Count == 1 ? "All requirements" : _allCards[start].Name + " requirements";
     }
 
     public void ChooseRecipe(string itemId, string recipeId)

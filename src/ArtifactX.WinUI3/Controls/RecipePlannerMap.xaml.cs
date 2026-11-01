@@ -47,17 +47,18 @@ public sealed partial class RecipePlannerMap : UserControl
     private void Draw()
     {
         var cards = Descendants(Surface).Where(c => c.ViewModel is not null && c.ActualWidth > 0)
-            .ToDictionary(c => c.ViewModel.Id);
+            .ToDictionary(c => c.ViewModel.TreeKey);
         var bounds = cards.ToDictionary(p => p.Key, p => p.Value.TransformToVisual(Surface)
             .TransformBounds(new Rect(0, 0, p.Value.ActualWidth, p.Value.ActualHeight)));
         string layout = string.Join(";", bounds.Select(p => $"{p.Key}:{p.Value.X:F1},{p.Value.Y:F1},{p.Value.Width:F1},{p.Value.Height:F1}"));
+        layout += string.Join(";", cards.Select(p => p.Key + ":" + string.Join(",", p.Value.ViewModel.Ingredients.Select(i => i.TreeKey))));
         if (_layout == layout) return;
         _layout = layout;
         Connections.Children.Clear();
         foreach (var (id, card) in cards)
             foreach (var input in card.ViewModel.Ingredients)
             {
-                if (input.Id == id || !bounds.TryGetValue(input.Id, out var child)) continue;
+                if (input.TreeKey == id || !bounds.TryGetValue(input.TreeKey, out var child)) continue;
                 var parent = bounds[id];
                 var start = new Point(parent.X + parent.Width / 2, parent.Bottom);
                 var end = new Point(child.X + child.Width / 2, child.Y);

@@ -137,3 +137,25 @@ object data, but that inspection did not establish a resource type, power state,
 production rate or stored quantity. Do not use part presence alone to claim a
 base supplies a particular ingredient. A fresh-save controlled extraction test
 is still needed to map and verify those fields.
+
+## Expand conversion families to their cycle boundaries
+
+The finite-rank route preference remains for recipes with acyclic preparation
+paths. When a conversion family has no such rank, the planner now chooses a
+recipe and expands it until an actual ancestor repeats, rather than treating
+the entire family as gathered ingredients. Explicit alternatives still win.
+The repeated input is a terminal starting supply with its own required amount;
+it does not become a dependency on the operation that will produce it later.
+
+Core returns parent-specific circular supplies. The map gives those supplies
+distinct node keys while retaining their real item IDs for names, inventory
+and alternatives. This keeps connectors from pointing backwards to the result
+card. Inventory remains informational and never prunes preparation recipes.
+
+Verified against 2,045 installed-catalog routes (1,684 combined plus 361
+refiner-only): bounded unique operations, dependency order and total supply
+covering all consumed inputs plus the requested result. The Activated Quartzite
+route in the reported case expands from one to nine operations, with three
+circular supplies; the original Aronium route retains 13 operations. Synthetic
+checks cover automatic and explicitly chosen cyclic gas conversions. No app
+was launched; owner verification of map/step-order and branch navigation remains.

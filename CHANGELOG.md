@@ -21,6 +21,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- **Recipe trees**: conversion families now expand automatically through their preparation recipes. Circular branches end at a clearly labeled starting-supply card instead of hiding the whole branch. Owned ingredients do not hide preparation steps.
+
 - **Recipe supplies**: ingredient totals include cargo in owned ships, freighter, Exocraft, shared storage containers, ingredient and cold storage, and confirmed item caches. Ingredient details list where supplies are stored; live saves update the quantities in place.
 - **Ingredient sources**: restored the game's acquisition descriptions for substances, including Tritium asteroid mining and the planet types described for atmospheric gases.
 

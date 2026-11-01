@@ -12,6 +12,8 @@ namespace ArtifactX.WinUI3.ViewModels;
 public sealed partial class RecipePlannerItemViewModel : ObservableObject
 {
     public string Id { get; init; } = "";
+    public string TreeNodeId { get; init; } = "";
+    public string TreeKey => TreeNodeId.Length > 0 ? TreeNodeId : Id;
     public string RecipeId { get; init; } = "";
     public string Name { get; init; } = "";
     public ImageSource? Icon { get; init; }

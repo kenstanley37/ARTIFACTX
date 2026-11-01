@@ -22,12 +22,15 @@ internal static class RecipePlannerChecks
         var radon = R("radon", 1, new RequirementIngredient("nitrogen", 3));
         var converted = RecipePlanner.Build(ammonia, [ammonia, nitrogen, radon], 2,
             new Dictionary<string, string> { ["nitrogen"] = "nitrogen" });
-        if (converted.Steps.Count != 2 || converted.Gather.Single() is not { Id: "radon", Amount: 6 })
+        if (converted.Steps.Count != 3 || converted.Gather.Single() is not { Id: "nitrogen", Amount: 18 })
             throw new InvalidOperationException("Chosen gas conversion did not preserve its starting supply.");
         var closed = RecipePlanner.Build(ammonia, [ammonia, nitrogen, radon], 1,
             new Dictionary<string, string> { ["nitrogen"] = "nitrogen", ["radon"] = "radon" });
         if (closed.Gather.Single() is not { Id: "nitrogen", Amount: 9 } || closed.Notice.Length == 0)
             throw new InvalidOperationException("Explicit circular conversion must stop at a clearly explained starting supply.");
+        var automatic = RecipePlanner.Build(ammonia, [ammonia, nitrogen, radon], 1, new Dictionary<string, string>());
+        if (automatic.Steps.Count != 3 || automatic.CircularSupplies.Single() is not { ParentId: "radon", Id: "nitrogen", Amount: 9 })
+            throw new InvalidOperationException("Automatic gas route stopped before the actual circular edge.");
         var scaled = RecipePlanner.Build(root, [root, left, right, shared], 3, new Dictionary<string, string>());
         if (scaled.Gather.Single().Amount != 3) throw new InvalidOperationException("Scaled shared batches differ.");
         using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
@@ -40,9 +43,10 @@ internal static class RecipePlannerChecks
     {
         var recipes = JsonSerializer.Deserialize<RequirementRecipe[]>(File.ReadAllText(path))!;
         int count = 0;
-        foreach (var recipe in recipes)
+        foreach (var (recipe, available) in recipes.Select(r => (r, recipes))
+            .Concat(recipes.Where(r => r.Kind == "Refiner").Select(r => (r, recipes.Where(a => a.Kind == "Refiner").ToArray()))))
         {
-            var plan = RecipePlanner.Build(recipe, recipes, 1, new Dictionary<string, string>());
+            var plan = RecipePlanner.Build(recipe, available, 1, new Dictionary<string, string>());
             if (plan.Steps.Count > 100 || plan.Steps.Select(s => s.Recipe.ResultId).Distinct().Count() != plan.Steps.Count)
                 throw new InvalidOperationException("Plan has repeated recipes or exceeded its bound.");
             var completed = plan.Gather.Select(g => g.Id).ToHashSet();
@@ -52,6 +56,16 @@ internal static class RecipePlannerChecks
                     throw new InvalidOperationException($"Dependency order differs for {recipe.Id}");
                 completed.Add(step.Recipe.ResultId);
             }
+            foreach (var id in completed)
+            {
+                long supply = plan.Gather.Where(g => g.Id == id).Sum(g => (long)g.Amount)
+                    + plan.Steps.Where(s => s.Recipe.ResultId == id).Sum(s => s.Batches * s.Recipe.ResultAmount);
+                long demand = plan.Steps.Sum(s => s.Batches * s.Recipe.Ingredients.Where(i => i.Id == id).Sum(i => (long)i.Amount))
+                    + (id == recipe.ResultId ? 1 : 0);
+                if (supply < demand) throw new InvalidOperationException($"Supply shortage for {recipe.Id}/{id}");
+            }
+            if (recipe.ResultId is "EX_PURPLE" or "ALLOY1")
+                Console.WriteLine($"Expanded {recipe.Id}: {plan.Steps.Count} operations, {plan.CircularSupplies.Count} circular supplies.");
             count++;
         }
         Console.WriteLine($"PASS: {count} catalog routes are finite, consolidated and dependency ordered.");
