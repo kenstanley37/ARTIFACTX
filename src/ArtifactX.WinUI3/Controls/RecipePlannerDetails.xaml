@@ -2,10 +2,16 @@
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  xmlns:vm="using:ArtifactX.WinUI3.ViewModels">
- <Border Padding="14" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+ <UserControl.Resources>
+  <Storyboard x:Name="SelectionPulse">
+   <DoubleAnimation Storyboard.TargetName="SelectionHighlight" Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.9"/>
+  </Storyboard>
+ </UserControl.Resources>
+ <Grid>
+ <Border Padding="14" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="2" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
   <StackPanel Spacing="12">
-   <TextBlock Text="SELECTED INGREDIENT" Style="{StaticResource ThemeEyebrowStyle}"/>
-   <StackPanel Orientation="Horizontal" Spacing="8"><Image Source="{x:Bind Item.Icon, Mode=OneWay}" Width="32" Height="32"/><TextBlock Text="{x:Bind Item.Name, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" FontWeight="SemiBold" TextWrapping="Wrap" MaxWidth="200"/></StackPanel>
+   <TextBlock Text="VIEWING INGREDIENT" Style="{StaticResource ThemeEyebrowStyle}"/>
+   <StackPanel Orientation="Horizontal" Spacing="8"><Image Source="{x:Bind Item.Icon, Mode=OneWay}" Width="38" Height="38"/><TextBlock x:Name="SelectedName" Text="{x:Bind Item.Name, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" MaxWidth="190" AutomationProperties.LiveSetting="Polite"/></StackPanel>
    <StackPanel Visibility="{x:Bind Item.RecipeVisibility, Mode=OneWay}" Spacing="10">
     <StackPanel Orientation="Horizontal" Spacing="10"><Image Source="{x:Bind Item.StationIcon, Mode=OneWay}" Width="56" Height="56"/><TextBlock Text="{x:Bind Item.Station, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" MaxWidth="170"/></StackPanel>
     <TextBlock Text="Put these ingredients into the equipment:" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
@@ -29,4 +35,6 @@
    <TextBlock Text="{x:Bind Item.Buff, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
   </StackPanel>
  </Border>
+ <Border x:Name="SelectionHighlight" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="5" Opacity="0" IsHitTestVisible="False" CornerRadius="{ThemeResource ThemeCardCornerRadius}"/>
+ </Grid>
 </UserControl>

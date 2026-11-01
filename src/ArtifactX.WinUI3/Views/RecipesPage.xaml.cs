@@ -34,4 +34,5 @@ public sealed partial class RecipesPage : Page
     private void SnapshotSeen(PlanetSnapshot snapshot) => ViewModel.RefreshOwned(snapshot.ExosuitCargo);
     private void SessionChanged(object? sender, EventArgs e) => ViewModel.RefreshOwned();
     private void RecipeChanged(string item, string recipe) => ViewModel.ChooseRecipe(item, recipe);
+    private void DetailsSelectionChanged() => Details.ChangeView(null, 0, null, disableAnimation: true);
 }

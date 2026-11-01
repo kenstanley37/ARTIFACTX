@@ -12,6 +12,11 @@ public sealed partial class FoldingCard : UserControl
     public static readonly DependencyProperty BodyProperty =
         DependencyProperty.Register(nameof(Body), typeof(object), typeof(FoldingCard), new PropertyMetadata(null));
 
+    public static readonly DependencyProperty IsExpandedProperty =
+        DependencyProperty.Register(nameof(IsExpanded), typeof(bool), typeof(FoldingCard),
+            new PropertyMetadata(true, (d, _) => ((FoldingCard)d).ExpansionChanged()));
+    private bool _restoringExpansion;
+
     public static readonly DependencyProperty TitleProperty =
         DependencyProperty.Register(nameof(Title), typeof(string), typeof(FoldingCard), new PropertyMetadata("", (d, _) => ((FoldingCard)d).Show()));
 
@@ -34,6 +39,14 @@ public sealed partial class FoldingCard : UserControl
     {
         get => GetValue(BodyProperty);
         set => SetValue(BodyProperty, value);
+    }
+
+    /// <summary>Bindable expansion state. Without a SettingKey it stays local
+    /// to the owning ViewModel; existing keyed cards retain profile persistence.</summary>
+    public bool IsExpanded
+    {
+        get => (bool)GetValue(IsExpandedProperty);
+        set => SetValue(IsExpandedProperty, value);
     }
 
     /// <summary>The band's title, e.g. "SHIP DETAILS".</summary>
@@ -68,23 +81,39 @@ public sealed partial class FoldingCard : UserControl
     /// <summary>Where open/closed is remembered (the profile's settings), e.g. "StarshipsDetailsCollapsed".</summary>
     public string SettingKey { get; set; } = "";
 
-    private bool IsFolded => SettingKey.Length > 0 && SettingsStore.Get(SettingsStore.Scope.Profile, SettingKey) == "1";
+    private bool IsFolded => SettingKey.Length > 0
+        ? SettingsStore.Get(SettingsStore.Scope.Profile, SettingKey) == "1" : !IsExpanded;
 
     private void Toggle_Click(object sender, RoutedEventArgs e)
     {
-        SettingsStore.Set(SettingsStore.Scope.Profile, SettingKey, IsFolded ? null : "1");
+        IsExpanded = IsFolded;
+        Show();
+    }
+
+    private void ExpansionChanged()
+    {
+        if (_restoringExpansion) return;
+        if (SettingKey.Length > 0)
+            SettingsStore.Set(SettingsStore.Scope.Profile, SettingKey, IsExpanded ? null : "1");
         Show();
     }
 
     private void Show()
     {
         bool folded = IsFolded;
+        if (IsExpanded == folded)
+        {
+            _restoringExpansion = true;
+            IsExpanded = !folded;
+            _restoringExpansion = false;
+        }
         BodyPresenter.Visibility = folded ? Visibility.Collapsed : Visibility.Visible;
         string action = folded ? "Show" : "Hide";
         ToggleBtn.Content = action;
         ToolTipService.SetToolTip(ToggleBtn, folded ? "Show the details" : "Hide the details");
         AutomationProperties.SetName(ToggleBtn, folded ? $"Show {Title}" : $"Hide {Title}");
         SummaryTxt.Text = Summary;
+        ToolTipService.SetToolTip(SummaryTxt, Summary);
         HeaderContentPresenter.Content = HeaderContent;
         HeaderTxt.Text = folded && FoldedName.Length > 0 ? $"{Title} - {FoldedName.ToUpperInvariant()}" : Title;
     }

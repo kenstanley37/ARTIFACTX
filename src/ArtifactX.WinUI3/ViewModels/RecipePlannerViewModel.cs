@@ -43,11 +43,11 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
     public ObservableCollection<RecipePlannerLevel> Levels { get; } = [];
     public ObservableCollection<RecipePlannerCrumb> Breadcrumbs { get; } = [];
     public ObservableCollection<RecipePlannerEffect> Effects { get; } = [];
-    [ObservableProperty] public partial string Search { get; set; } = "";
-    [ObservableProperty] public partial RecipePlannerEffect? SelectedEffect { get; set; }
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(BrowserSummary))] public partial string Search { get; set; } = "";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(BrowserSummary))] public partial RecipePlannerEffect? SelectedEffect { get; set; }
     [ObservableProperty] public partial string Status { get; set; } = "Loading recipes…";
-    [ObservableProperty] public partial string TargetName { get; set; } = "Choose a recipe to start";
-    [ObservableProperty] public partial string TargetBuff { get; set; } = "";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(RecipeSummary))] public partial string TargetName { get; set; } = "Choose a recipe to start";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(RecipeSummary))] public partial string TargetBuff { get; set; } = "";
     [ObservableProperty] public partial Visibility IngestorVisibility { get; set; } = Visibility.Collapsed;
     [ObservableProperty] public partial double Quantity { get; set; } = 1;
     [ObservableProperty] public partial RecipePlannerItemViewModel? SelectedItem { get; set; }
@@ -55,9 +55,15 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
     [ObservableProperty] public partial Visibility MapVisibility { get; set; } = Visibility.Visible;
     [ObservableProperty] public partial Visibility OrderVisibility { get; set; } = Visibility.Collapsed;
     [ObservableProperty] public partial bool CanGoBack { get; set; }
-    [ObservableProperty] public partial string ResultCount { get; set; } = "";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(BrowserSummary))] public partial string ResultCount { get; set; } = "";
     [ObservableProperty] public partial bool PinnedOnly { get; set; }
     [ObservableProperty] public partial bool IsBrowserExpanded { get; set; } = true;
+    [ObservableProperty] public partial bool IsSummaryExpanded { get; set; } = true;
+    public string BrowserSummary => string.Join(" · ", new[]
+    {
+        Search.Trim(), SelectedEffect is { Id.Length: > 0 } effect ? effect.Name : "", ResultCount
+    }.Where(text => text.Length > 0));
+    public string RecipeSummary => string.IsNullOrEmpty(TargetBuff) ? TargetName : $"{TargetName} · {TargetBuff}";
     [ObservableProperty] public partial string MapHeading { get; set; } = "All requirements";
     [ObservableProperty] public partial string PlanSummary { get; set; } = "";
 

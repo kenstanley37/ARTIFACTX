@@ -19,6 +19,9 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- **Recipe planner space**: search now folds away after choosing a recipe, and recipe details can be collapsed too. Compact headers keep the selected recipe and filters visible while giving the map, ingredients and details more scrolling room.
+- **Recipe selection**: the chosen requirement now has a clear selected marker and stronger highlight. Its details receive a brief accent cue and scroll to the top, making ingredient changes easier to follow.
+
 - **Recipe cards**: source and recipe cards now have matching heights, with aligned results and controls. Long details scroll inside each card.
 
 - **Recipe requirements**: starting ingredients now have source cards with the game's item description and the steps that need them, including animal byproducts such as Syrupy Nectar.

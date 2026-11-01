@@ -2,7 +2,11 @@
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  xmlns:vm="using:ArtifactX.WinUI3.ViewModels"
- xmlns:ct="using:CommunityToolkit.WinUI.Controls">
+ xmlns:ct="using:CommunityToolkit.WinUI.Controls"
+ xmlns:controls="using:ArtifactX.WinUI3.Controls">
+ <controls:FoldingCard Title="FIND A RECIPE" Summary="{x:Bind ViewModel.BrowserSummary, Mode=OneWay}"
+  IsExpanded="{x:Bind ViewModel.IsBrowserExpanded, Mode=TwoWay}">
+ <Border Padding="0,10,0,0">
  <StackPanel Spacing="10">
   <ct:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
    <TextBox Header="Find a food or ingredient" PlaceholderText="Search recipes" Width="340"
@@ -13,8 +17,6 @@
   <CheckBox Content="Pinned recipes only" IsChecked="{x:Bind ViewModel.PinnedOnly, Mode=TwoWay}" AutomationProperties.Name="Show pinned recipes only"/>
   <TextBlock Text="Choose an effect to compare foods, strongest first. Select a recipe to see how to make every ingredient."
    Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-  <Expander Header="{x:Bind ViewModel.ResultCount, Mode=OneWay}" IsExpanded="{x:Bind ViewModel.IsBrowserExpanded, Mode=TwoWay}"
-   HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
   <GridView ItemsSource="{x:Bind ViewModel.Results, Mode=OneWay}" SelectionMode="None" Height="195" HorizontalContentAlignment="Stretch">
    <GridView.ItemsPanel><ItemsPanelTemplate><ItemsWrapGrid Orientation="Horizontal" ItemWidth="270" ItemHeight="180"/></ItemsPanelTemplate></GridView.ItemsPanel>
    <GridView.ItemTemplate><DataTemplate x:DataType="vm:RecipePlannerItemViewModel">
@@ -32,6 +34,7 @@
     </Grid>
    </DataTemplate></GridView.ItemTemplate>
   </GridView>
-  </Expander>
  </StackPanel>
+ </Border>
+ </controls:FoldingCard>
 </UserControl>

@@ -31,14 +31,19 @@ public sealed partial class RecipePlannerItemViewModel : ObservableObject
     public Visibility RecipeVisibility => RecipeId.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility SourceVisibility => RecipeId.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
     [ObservableProperty] public partial string Inventory { get; set; } = "";
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(CardBorder))] public partial bool IsSelected { get; set; }
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(CardBorder), nameof(CardBackground), nameof(CardBorderThickness), nameof(CardPadding), nameof(SelectionVisibility), nameof(SelectionName))]
+    public partial bool IsSelected { get; set; }
     [ObservableProperty] public partial bool IsPinned { get; set; }
     public IRelayCommand PinCommand { get; init; } = new RelayCommand(() => { });
     public IRelayCommand SelectCommand { get; init; } = new RelayCommand(() => { });
     public IRelayCommand ExploreCommand { get; init; } = new RelayCommand(() => { });
-    public string SelectionName => $"Show {Name} requirements";
+    public string SelectionName => IsSelected ? $"{Name}, selected. Details shown in the ingredient panel." : $"Show {Name} requirements";
     public string PinName => $"Pin or unpin {Name}";
     public Brush CardBorder => ThemeResources.Brush(IsSelected ? "ThemeAccentBrush" : "ThemeLineBrush");
+    public Brush CardBackground => ThemeResources.Brush(IsSelected ? "ThemeSelectedFillBrush" : "ThemePanelAltBrush");
+    public Thickness CardBorderThickness => new(IsSelected ? 3 : 1);
+    public Thickness CardPadding => new(IsSelected ? 10 : 12);
+    public Visibility SelectionVisibility => IsSelected ? Visibility.Visible : Visibility.Collapsed;
 }
 
 public sealed record RecipePlannerEffect(string Id, string Name)

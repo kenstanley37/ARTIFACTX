@@ -9,6 +9,8 @@
    <controls:RecipePlannerBrowser Grid.Row="1" ViewModel="{x:Bind ViewModel}"/>
    <TextBlock Grid.Row="2" Text="{x:Bind ViewModel.Status, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
    <StackPanel Grid.Row="3" Visibility="{x:Bind ViewModel.PlannerVisibility, Mode=OneWay}" Spacing="12">
+    <controls:FoldingCard Title="RECIPE DETAILS" Summary="{x:Bind ViewModel.RecipeSummary, Mode=OneWay}"
+     IsExpanded="{x:Bind ViewModel.IsSummaryExpanded, Mode=TwoWay}">
     <Border Style="{StaticResource ThemeCardStyle}" Padding="16">
      <ct:WrapPanel HorizontalSpacing="18" VerticalSpacing="14">
       <StackPanel Spacing="6" Width="320"><TextBlock Text="YOU'RE MAKING" Style="{StaticResource ThemeEyebrowStyle}"/><TextBlock Text="{x:Bind ViewModel.TargetName, Mode=OneWay}" FontSize="21" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/><TextBlock Text="{x:Bind ViewModel.PlanSummary, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/></StackPanel>
@@ -16,6 +18,7 @@
       <StackPanel Width="340" Spacing="6" Visibility="{x:Bind ViewModel.IngestorVisibility, Mode=OneWay}"><TextBlock Text="NUTRIENT INGESTOR EFFECT" Style="{StaticResource ThemeEyebrowStyle}"/><TextBlock Text="{x:Bind ViewModel.TargetBuff, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Text="Place this food in the Nutrient Ingestor. Eating it directly has a different effect." Foreground="{ThemeResource ThemeTextBrush}" FontSize="12" TextWrapping="Wrap"/></StackPanel>
      </ct:WrapPanel>
     </Border>
+    </controls:FoldingCard>
     <StackPanel Spacing="8">
      <StackPanel Orientation="Horizontal" Spacing="8"><Button Content="← Back" Command="{x:Bind ViewModel.BackCommand}" IsEnabled="{x:Bind ViewModel.CanGoBack, Mode=OneWay}"/><Button Content="Main recipe" Command="{x:Bind ViewModel.MainRecipeCommand}"/></StackPanel>
      <ItemsControl ItemsSource="{x:Bind ViewModel.Breadcrumbs}">
@@ -39,8 +42,9 @@
      <Border VerticalAlignment="Top" Style="{StaticResource ThemeCardStyle}" Padding="12">
       <StackPanel Spacing="10"><TextBlock Text="GATHER INGREDIENTS" Style="{StaticResource ThemeEyebrowStyle}"/><TextBlock Text="Totals for your main recipe" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
        <ItemsControl ItemsSource="{x:Bind ViewModel.Gather}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipePlannerItemViewModel">
-        <Button Command="{x:Bind SelectCommand}" AutomationProperties.Name="{x:Bind SelectionName}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,3" Padding="9">
-         <StackPanel Spacing="5"><TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Text="{x:Bind Inventory, Mode=OneWay}" TextWrapping="Wrap" FontSize="12"/></StackPanel>
+        <Button Command="{x:Bind SelectCommand}" AutomationProperties.Name="{x:Bind SelectionName, Mode=OneWay}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,3" Padding="{x:Bind CardPadding, Mode=OneWay}"
+          BorderBrush="{x:Bind CardBorder, Mode=OneWay}" BorderThickness="{x:Bind CardBorderThickness, Mode=OneWay}" Background="{x:Bind CardBackground, Mode=OneWay}">
+         <StackPanel Spacing="5"><TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Text="✓ Selected" Foreground="{ThemeResource ThemeAccentBrush}" Visibility="{x:Bind SelectionVisibility, Mode=OneWay}" FontSize="12"/><TextBlock Text="{x:Bind Inventory, Mode=OneWay}" TextWrapping="Wrap" FontSize="12"/></StackPanel>
         </Button>
        </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
       </StackPanel>
@@ -60,7 +64,7 @@
       </ScrollViewer>
      </Grid>
      <ScrollViewer x:Name="Details" Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Selected ingredient details">
-      <controls:RecipePlannerDetails VerticalAlignment="Top" Item="{x:Bind ViewModel.SelectedItem, Mode=OneWay}" RecipeChanged="RecipeChanged"/>
+      <controls:RecipePlannerDetails VerticalAlignment="Top" Item="{x:Bind ViewModel.SelectedItem, Mode=OneWay}" RecipeChanged="RecipeChanged" SelectionChanged="DetailsSelectionChanged"/>
      </ScrollViewer>
     </Grid>
   </Grid>
