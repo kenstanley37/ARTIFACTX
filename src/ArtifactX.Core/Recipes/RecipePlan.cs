@@ -45,8 +45,8 @@ public static class RecipePlanner
             {
                 if (path.Contains(input.Id))
                 {
-                    if (depth > 0) throw new InvalidOperationException("This recipe choice loops back to an earlier ingredient. Choose another recipe.");
                     terminalEdges.Add((recipe.ResultId, input.Id));
+                    notice = "This route needs a starting supply for a circular conversion. Gather or use stored ingredients listed below.";
                     continue;
                 }
                 if (!byResult.TryGetValue(input.Id, out var alternatives))

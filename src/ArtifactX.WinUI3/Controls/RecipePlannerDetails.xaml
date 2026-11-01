@@ -22,10 +22,23 @@
       </Button>
      </DataTemplate></ItemsControl.ItemTemplate>
     </ItemsControl>
-    <ComboBox Header="Recipe to use" Visibility="{x:Bind Item.ChoiceVisibility, Mode=OneWay}" ItemsSource="{x:Bind Item.Choices, Mode=OneWay}"
-     SelectedItem="{x:Bind Item.SelectedChoice, Mode=OneWay}" SelectionChanged="Choice_Changed" HorizontalAlignment="Stretch" AutomationProperties.Name="Choose an alternative recipe for the selected ingredient"/>
     <TextBlock Text="{x:Bind Item.UsedFor, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
     <Button Content="Explore this branch" Command="{x:Bind Item.ExploreCommand, Mode=OneWay}" HorizontalAlignment="Stretch"/>
+   </StackPanel>
+   <StackPanel Visibility="{x:Bind Item.AlternativesVisibility, Mode=OneWay}" Spacing="8">
+    <TextBlock Text="RECIPES TO MAKE IT" Style="{StaticResource ThemeEyebrowStyle}"/>
+    <TextBlock Text="Choose a recipe to use in your plan. Circular conversions may need a starting supply." TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
+    <ItemsControl ItemsSource="{x:Bind Item.Alternatives, Mode=OneWay}">
+     <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipePlannerAlternative">
+      <Border Style="{StaticResource ThemeCardStyle}" Padding="10" Margin="0,3">
+       <StackPanel Spacing="8">
+        <TextBlock Text="{x:Bind Equipment}" TextWrapping="Wrap" Foreground="{ThemeResource ThemeAccentBrush}"/>
+        <TextBlock Text="{x:Bind Label}" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
+        <Button Content="Use this recipe" Command="{x:Bind ChooseCommand}" AutomationProperties.Name="{x:Bind ActionName}"/>
+       </StackPanel>
+      </Border>
+     </DataTemplate></ItemsControl.ItemTemplate>
+    </ItemsControl>
    </StackPanel>
    <StackPanel Visibility="{x:Bind Item.SourceVisibility, Mode=OneWay}" Spacing="10">
     <TextBlock Text="HOW TO GET IT" Style="{StaticResource ThemeEyebrowStyle}"/>

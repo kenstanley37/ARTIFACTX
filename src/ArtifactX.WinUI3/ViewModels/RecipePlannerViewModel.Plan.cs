@@ -24,6 +24,11 @@ public sealed partial class RecipePlannerViewModel
         {
             int quantity = double.IsFinite(Quantity) ? (int)Math.Clamp(Quantity, 1, 99999) : 1;
             var routeRecipes = IsCooking ? catalog.Recipes : catalog.Recipes.Where(r => r.Kind == "Refiner").ToArray();
+            RecipePlannerAlternative[] Alternatives(string id) => routeRecipes.Where(r => r.Result.Id.Equals(id, StringComparison.OrdinalIgnoreCase))
+                .Select(r => new RecipePlannerAlternative(
+                    string.Join(" + ", r.Ingredients.Select(i => $"{i.Amount:N0} × {Name(i.Id)}")) + $" → {r.Result.Amount:N0} × {Name(id)}",
+                    Station(r), $"Use recipe for {Name(id)}: " + string.Join(" and ", r.Ingredients.Select(i => Name(i.Id))),
+                    new RelayCommand(() => ChooseRecipe(id, r.Id)))).ToArray();
             var plan = await RecipeRequirementsService.BuildAsync(target, routeRecipes, quantity,
                 new Dictionary<string, string>(_choices, StringComparer.OrdinalIgnoreCase), cancellation.Token);
             var ids = plan.Steps.SelectMany(s => s.Recipe.Ingredients.Select(i => i.Id).Append(s.Recipe.ResultId))
@@ -49,6 +54,7 @@ public sealed partial class RecipePlannerViewModel
                 Id = id, Name = Name(id), Required = amount,
                 Amount = (input > 0 ? $"Input {input}: " : "") + $"{amount:N0} × {Name(id)}",
                 Icon = CatalogService.TryGet(id)?.Icon, Buff = Buff(id),
+                Alternatives = Alternatives(id),
                 Source = catalog.Sources.GetValueOrDefault(id) is { Length: > 0 } source ? source
                     : "No source information is available for this ingredient.",
                 SelectCommand = new RelayCommand(() => Select(id)), ExploreCommand = new RelayCommand(() => Explore(id))
@@ -70,6 +76,7 @@ public sealed partial class RecipePlannerViewModel
                     Icon = CatalogService.TryGet(id)?.Icon, Buff = Buff(id),
                     Ingredients = recipe.Ingredients.Select((i, slot) => Item(i.Id, checked(step.Batches * i.Amount), slot + 1)).ToArray(),
                     Choices = choices, SelectedChoice = choices.FirstOrDefault(c => c.Id == recipe.Id),
+                    Alternatives = Alternatives(id),
                     UsedFor = id == target.Result.Id ? "Your requested recipe" : "Used in " + string.Join(", ",
                         plan.Steps.Where(s => s.Recipe.Ingredients.Any(i => i.Id == id)).Select(s => Name(s.Recipe.ResultId))),
                     SelectCommand = new RelayCommand(() => Select(id)), ExploreCommand = new RelayCommand(() => Explore(id))

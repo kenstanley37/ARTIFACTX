@@ -21,6 +21,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- **Recipe alternatives**: ingredient details now show every available recipe as a card, including conversions for starting ingredients. Choosing a circular conversion lists the starting supply it needs instead of hiding the recipe.
+
 - **Recipe quantity**: a wider quantity field leaves room for all five digits while typing, alongside the clear and step buttons.
 
 - **Recipe planner space**: search now folds away after choosing a recipe, and recipe details can be collapsed too. Compact headers keep the selected recipe and filters visible while giving the map, ingredients and details more scrolling room.

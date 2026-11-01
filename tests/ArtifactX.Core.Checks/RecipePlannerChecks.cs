@@ -17,6 +17,17 @@ internal static class RecipePlannerChecks
         var loop = R("loop", 1, new RequirementIngredient("loop", 1));
         var loopPlan = RecipePlanner.Build(loop, [loop], 1, new Dictionary<string, string>());
         if (loopPlan.Gather.Single().Id != "loop") throw new InvalidOperationException("Circular starting supply missing.");
+        var ammonia = R("ammonia", 1, new RequirementIngredient("nitrogen", 1));
+        var nitrogen = R("nitrogen", 1, new RequirementIngredient("radon", 3));
+        var radon = R("radon", 1, new RequirementIngredient("nitrogen", 3));
+        var converted = RecipePlanner.Build(ammonia, [ammonia, nitrogen, radon], 2,
+            new Dictionary<string, string> { ["nitrogen"] = "nitrogen" });
+        if (converted.Steps.Count != 2 || converted.Gather.Single() is not { Id: "radon", Amount: 6 })
+            throw new InvalidOperationException("Chosen gas conversion did not preserve its starting supply.");
+        var closed = RecipePlanner.Build(ammonia, [ammonia, nitrogen, radon], 1,
+            new Dictionary<string, string> { ["nitrogen"] = "nitrogen", ["radon"] = "radon" });
+        if (closed.Gather.Single() is not { Id: "nitrogen", Amount: 9 } || closed.Notice.Length == 0)
+            throw new InvalidOperationException("Explicit circular conversion must stop at a clearly explained starting supply.");
         var scaled = RecipePlanner.Build(root, [root, left, right, shared], 3, new Dictionary<string, string>());
         if (scaled.Gather.Single().Amount != 3) throw new InvalidOperationException("Scaled shared batches differ.");
         using var cancelled = new CancellationTokenSource(); cancelled.Cancel();

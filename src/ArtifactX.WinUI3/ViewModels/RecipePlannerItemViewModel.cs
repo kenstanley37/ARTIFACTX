@@ -27,6 +27,8 @@ public sealed partial class RecipePlannerItemViewModel : ObservableObject
     public long Required { get; init; }
     public IReadOnlyList<RecipePlannerItemViewModel> Ingredients { get; init; } = [];
     public IReadOnlyList<RecipePlanChoice> Choices { get; init; } = [];
+    public IReadOnlyList<RecipePlannerAlternative> Alternatives { get; init; } = [];
+    public Visibility AlternativesVisibility => Alternatives.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     public RecipePlanChoice? SelectedChoice { get; init; }
     public Visibility ChoiceVisibility => Choices.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility RecipeVisibility => RecipeId.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -53,6 +55,7 @@ public sealed record RecipePlannerEffect(string Id, string Name)
 }
 
 public sealed record RecipePlannerCrumb(string Name, IRelayCommand NavigateCommand);
+public sealed record RecipePlannerAlternative(string Label, string Equipment, string ActionName, IRelayCommand ChooseCommand);
 public sealed record RecipePlanChoice(string Id, string Label)
 {
     public override string ToString() => Label;

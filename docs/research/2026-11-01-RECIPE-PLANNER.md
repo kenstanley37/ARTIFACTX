@@ -75,3 +75,28 @@ browses Refiner outputs, plans with Refiner recipes only and hides food effects.
 The installed catalog already contains 1,323 cooking and 361 refiner recipes;
 all 361 refiner-only routes passed the existing route checks. No catalog format
 change is needed for this split.
+
+## Ingredient alternatives audit
+
+Read-only inspection of the installed catalog on 2026-11-01 found six Refiner
+recipes producing Nitrogen (`GAS3`): REFINERECIPE_49, _133, _136, _378, _380
+and _381. The catalog contains these alternatives. This establishes their
+presence, not completeness against every current game table.
+
+The planner's acyclic ranking can correctly stop gas conversions at a starting
+supply, but the presentation previously populated choices only for planned
+steps. Starting supplies therefore lost their existing recipe alternatives.
+Ingredient details now obtain alternative cards directly from the mode's entire
+recipe set, independently of the selected route. Selecting a conversion that
+revisits an ancestor stops at a required starting supply and explains the cycle.
+Alternatives remain choices rather than additional simultaneous requirements.
+
+Verification: synthetic chosen-conversion and closed-cycle checks passed;
+all 1,684 installed catalog routes remained finite, consolidated and dependency
+ordered. WinUI build passed with zero errors. No app or game test was performed.
+
+The approved broader acquisition work remains: inventory totals by cargo
+location with shared-storage deduplication, planet-type source data, confirmed
+base extractor resources/production, and manual inventory/base records for
+save-free mobile use. Existing planner inventory still counts exosuit cargo
+only; these alternatives do not imply that storage or extractor work is done.
