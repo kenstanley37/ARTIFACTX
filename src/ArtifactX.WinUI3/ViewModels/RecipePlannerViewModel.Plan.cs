@@ -69,6 +69,8 @@ public sealed partial class RecipePlannerViewModel
                 _allCards[id] = new()
                 {
                     Id = id, RecipeId = recipe.Id, Name = Name(id), Level = levels.GetValueOrDefault(id),
+                    Required = checked(step.Batches * Math.Max(1, recipe.Result.Amount)),
+                    Source = catalog.Sources.GetValueOrDefault(id) ?? "No source information is available for this ingredient.",
                     Heading = $"STEP {plan.Steps.IndexOfStep(step) + 1}",
                     Amount = $"{checked(step.Batches * Math.Max(1, recipe.Result.Amount)):N0} × {Name(id)}",
                     Station = $"{Station(recipe)} · run {step.Batches:N0} {(step.Batches == 1 ? "batch" : "batches")}",
@@ -89,7 +91,8 @@ public sealed partial class RecipePlannerViewModel
                 Gather.Add(row);
                 _allCards.TryAdd(row.Id, row);
             }
-            RefreshOwned();
+            await RefreshOwnedAsync();
+            cancellation.Token.ThrowIfCancellationRequested();
             _path.RemoveAll(id => !_allCards.ContainsKey(id));
             if (_path.Count == 0) _path.Add(target.Result.Id);
             ShowBranch();

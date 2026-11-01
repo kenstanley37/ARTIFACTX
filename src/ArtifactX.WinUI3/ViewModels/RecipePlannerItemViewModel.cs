@@ -32,8 +32,9 @@ public sealed partial class RecipePlannerItemViewModel : ObservableObject
     public RecipePlanChoice? SelectedChoice { get; init; }
     public Visibility ChoiceVisibility => Choices.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility RecipeVisibility => RecipeId.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility SourceVisibility => RecipeId.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility SourceVisibility => Visibility.Visible;
     [ObservableProperty] public partial string Inventory { get; set; } = "";
+    [ObservableProperty] public partial string InventoryLocations { get; set; } = "";
     [ObservableProperty, NotifyPropertyChangedFor(nameof(CardBorder), nameof(CardBackground), nameof(CardBorderThickness), nameof(CardPadding), nameof(SelectionVisibility), nameof(SelectionName))]
     public partial bool IsSelected { get; set; }
     [ObservableProperty] public partial bool IsPinned { get; set; }

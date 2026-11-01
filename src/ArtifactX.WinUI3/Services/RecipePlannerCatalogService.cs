@@ -1,8 +1,6 @@
-using ArtifactX.Core.NmsModels;
 using ArtifactX.Core.Recipes;
 using ArtifactX.WinUI3.Models;
 using Microsoft.Data.Sqlite;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -39,18 +37,4 @@ internal sealed class RecipePlannerCatalogService : IRecipePlannerCatalog
         return new(recipes, names, sources, await foodTask);
     }
 
-    /// <summary>Read-only exosuit cargo totals. Uses the confirmed occupied-slot
-    /// b2n/1o9 fields from NmsInventorySlot; does not claim remote storage is accessible.</summary>
-    public static Dictionary<string, long> ReadOwned(JObject? liveCargo = null)
-    {
-        var result = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
-        if ((liveCargo ?? SaveSessionManager.GetValue(NmsInventoryContainer.ExosuitCargoPath)) is not JObject cargo) return result;
-        foreach (var slot in (cargo[":No"] as JArray ?? new()).OfType<JObject>())
-            if (slot["b2n"]?.Value<string>() is string id && (slot["1o9"]?.Value<int>() ?? 0) > 0)
-            {
-                id = CatalogService.NormalizeId(id);
-                result[id] = result.GetValueOrDefault(id) + slot["1o9"]!.Value<int>();
-            }
-        return result;
-    }
 }

@@ -31,7 +31,8 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
     private bool _loadingCatalog;
     private HashSet<string> _pinned = new(StringComparer.OrdinalIgnoreCase);
     private long _catalogRevision = -1;
-    private Dictionary<string, long>? _owned;
+    private IReadOnlyList<CargoSupply>? _owned;
+    private int _inventoryVersion;
     private object? _inventoryOwner;
     private bool _planPending;
     public bool IsReady => _catalog is not null && _catalogRevision == CatalogService.Revision;
@@ -176,15 +177,34 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
 
     public void Stop() { ++_loadVersion; _planning?.Cancel(); }
     public Task ResumeAsync() => _planPending ? RebuildAsync() : Task.CompletedTask;
-    public void RefreshOwned(JObject? liveCargo = null)
+    public async Task RefreshOwnedAsync(PlanetSnapshot? snapshot = null)
     {
-        if (!ReferenceEquals(_inventoryOwner, SaveSessionManager.SessionIdentity))
-        { _owned = null; _inventoryOwner = SaveSessionManager.SessionIdentity; }
-        if (liveCargo is not null || _owned is null) _owned = RecipePlannerCatalogService.ReadOwned(liveCargo);
-        var owned = _owned;
-        foreach (var item in Gather) item.Inventory = SaveSessionManager.IsSaveLoaded
-            ? $"{item.Required:N0} needed / {owned.GetValueOrDefault(item.Id):N0} in exosuit · {Math.Max(0, item.Required - owned.GetValueOrDefault(item.Id)):N0} to gather"
-            : $"{item.Required:N0} needed · load a save to compare inventory";
+        int version = ++_inventoryVersion;
+        object? owner = SaveSessionManager.SessionIdentity;
+        if (!ReferenceEquals(_inventoryOwner, owner))
+        { _owned = null; _inventoryOwner = owner; }
+        try
+        {
+            var player = snapshot?.CargoSupplies is null && _owned is null
+                ? SaveSessionManager.GetValue("vLc", "6f=") as JObject : null;
+            var supplies = snapshot?.CargoSupplies ?? _owned
+                ?? await Task.Run(() => CargoSupplies.Read(player));
+            if (version != _inventoryVersion || !ReferenceEquals(owner, SaveSessionManager.SessionIdentity)) return;
+            _owned = supplies;
+            foreach (var item in _allCards.Values.Concat(Gather).Distinct())
+            {
+                var locations = supplies.Where(s => s.ItemId.Equals(item.Id, StringComparison.OrdinalIgnoreCase)).ToArray();
+                long total = locations.Sum(s => s.Amount);
+                item.Inventory = SaveSessionManager.IsSaveLoaded
+                    ? $"{item.Required:N0} needed / {total:N0} owned; {Math.Max(0, item.Required - total):N0} to gather"
+                    : $"{item.Required:N0} needed; load a save to compare inventory";
+                item.InventoryLocations = SaveSessionManager.IsSaveLoaded && locations.Length > 0
+                    ? string.Join("\n", locations.Select(s => $"{s.Location}: {s.Amount:N0}"))
+                        + "\nStored supplies may need to be collected from these locations."
+                    : "";
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Recipe inventory] {ex}"); }
     }
 
     private string Station(RecipeInfo r) => _catalog?.Names.GetValueOrDefault(MachineId(r)) ?? "Required equipment";

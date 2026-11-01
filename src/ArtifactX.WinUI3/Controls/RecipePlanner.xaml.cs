@@ -31,7 +31,7 @@ public sealed partial class RecipePlanner : UserControl
         SaveSessionManager.ActiveSessionChanged += SessionChanged;
         if (!ViewModel.IsReady) await ViewModel.LoadAsync();
         else await ViewModel.ResumeAsync();
-        if (IsLoaded) ViewModel.RefreshOwned(LiveSaveWatcher.LatestSnapshot?.ExosuitCargo);
+        if (IsLoaded) await ViewModel.RefreshOwnedAsync(LiveSaveWatcher.LatestSnapshot);
     }
     private void Planner_Unloaded(object sender, RoutedEventArgs e)
     {
@@ -41,8 +41,8 @@ public sealed partial class RecipePlanner : UserControl
         ViewModel.Stop();
     }
     private void CatalogReloaded() => DispatcherQueue.TryEnqueue(async () => { if (IsLoaded) await ViewModel.LoadAsync(); });
-    private void SnapshotSeen(PlanetSnapshot snapshot) => ViewModel.RefreshOwned(snapshot.ExosuitCargo);
-    private void SessionChanged(object? sender, EventArgs e) => ViewModel.RefreshOwned();
+    private async void SnapshotSeen(PlanetSnapshot snapshot) => await ViewModel.RefreshOwnedAsync(snapshot);
+    private async void SessionChanged(object? sender, EventArgs e) => await ViewModel.RefreshOwnedAsync();
     private void RecipeChanged(string item, string recipe) => ViewModel.ChooseRecipe(item, recipe);
     private void DetailsSelectionChanged() => Details.ChangeView(null, 0, null, disableAnimation: true);
 }

@@ -9,6 +9,7 @@ using Newtonsoft.Json.Linq;
 try
 {
     RecipePlannerChecks.Check();
+    CargoSuppliesChecks.Check();
     if (args.Length == 2 && args[0] == "--food-bonus-vectors")
     { RecipePlannerChecks.Native(args[1]); return; }
     if (args.Length == 2 && args[0] == "--recipe-catalog-vectors")

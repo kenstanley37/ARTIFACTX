@@ -24,7 +24,7 @@ internal static class RecipeIngredientSourcesService
             connection.Open();
             using var command = connection.CreateCommand();
             var parameters = ids.Select((id, i) => { string key = $"$id{i}"; command.Parameters.AddWithValue(key, id); return key; }).ToArray();
-            command.CommandText = $"SELECT i.GameId, i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE i.GameId IN ({string.Join(",", parameters)}) AND c.TemplateType IN ('GcProductTable','GcRealitySubstanceTable','GcTechnologyTable')";
+            command.CommandText = $"SELECT i.GameId, i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE i.GameId IN ({string.Join(",", parameters)}) AND c.TemplateType IN ('GcProductTable','GcSubstanceTable','GcTechnologyTable')";
             using var reader = command.ExecuteReader();
             while (reader.Read())
             {

@@ -21,6 +21,9 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- **Recipe supplies**: ingredient totals include cargo in owned ships, freighter, Exocraft, shared storage containers, ingredient and cold storage, and confirmed item caches. Ingredient details list where supplies are stored; live saves update the quantities in place.
+- **Ingredient sources**: restored the game's acquisition descriptions for substances, including Tritium asteroid mining and the planet types described for atmospheric gases.
+
 - **Recipe alternatives**: ingredient details now show every available recipe as a card, including conversions for starting ingredients. Choosing a circular conversion lists the starting supply it needs instead of hiding the recipe.
 
 - **Recipe quantity**: a wider quantity field leaves room for all five digits while typing, alongside the clear and step buttons.

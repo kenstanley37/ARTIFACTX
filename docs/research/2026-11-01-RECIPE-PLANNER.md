@@ -100,3 +100,40 @@ location with shared-storage deduplication, planet-type source data, confirmed
 base extractor resources/production, and manual inventory/base records for
 save-free mobile use. Existing planner inventory still counts exosuit cargo
 only; these alternatives do not imply that storage or extractor work is done.
+
+## Cargo supplies and substance sources
+
+The next increment adds portable `Core/Recipes/CargoSupplies`: exosuit,
+owned starships, freighter, Exocraft, the first ten shared Chest containers,
+ingredient/cold storage, dismantled-base and Corvette workshop caches. It
+uses the confirmed paths documented in NmsInventoryContainer, includes only
+Product/Substance slots, and leaves unknown mirrors out. Read-only inspection
+of the Slot 8 Working save reconfirmed storage ordering and the distinct
+ingredient/cold containers. No save or user database was modified.
+
+LiveSaveReader builds the supply list on its existing background read; no new
+watcher is created. Planner fallback scans run on Task.Run. Session and request
+identity checks discard stale async results, and inventory strings update on
+existing card objects without rebuilding the map. The ingredient details show
+totals plus location names; remote storage is not claimed to be immediately
+accessible. Save-free use retains the recipe/source information without counts.
+
+The missing substance descriptions were a category-filter bug:
+`GcRealitySubstanceTable` was used where the catalog stores `GcSubstanceTable`.
+Read-only catalog checks confirmed ROCKETSUB's asteroid-mining guidance and
+GAS3's Lush/Toxic atmosphere description now pass the corrected query. These
+are game descriptions, not a complete structured planet/source model.
+
+Core checks passed, including storage cap/deduplication, named ship ownership,
+technology exclusion, missing-save behavior and input immutability. WinUI build
+passed with zero errors; owner app testing remains. Base extractor contents,
+resource type and production are not implemented yet, and manual mobile
+inventory/base records and structured source rules remain future work.
+
+Read-only inspection of the Slot 1 Working reference save found 25 matching
+extractor/silo object records under base `@ZJ`, identified by their `r<7` part
+IDs (including U_EXTRACTOR_S and U_SILO_S). Those records expose placement and
+object data, but that inspection did not establish a resource type, power state,
+production rate or stored quantity. Do not use part presence alone to claim a
+base supplies a particular ingredient. A fresh-save controlled extraction test
+is still needed to map and verify those fields.

@@ -43,8 +43,9 @@
    <StackPanel Visibility="{x:Bind Item.SourceVisibility, Mode=OneWay}" Spacing="10">
     <TextBlock Text="HOW TO GET IT" Style="{StaticResource ThemeEyebrowStyle}"/>
     <TextBlock Text="{x:Bind Item.Source, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-    <TextBlock Text="{x:Bind Item.Inventory, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
    </StackPanel>
+   <TextBlock Text="{x:Bind Item.Inventory, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+   <TextBlock Text="{x:Bind Item.InventoryLocations, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
    <TextBlock Text="{x:Bind Item.Buff, Mode=OneWay}" Visibility="{x:Bind Item.BuffVisibility, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
   </StackPanel>
  </Border>
