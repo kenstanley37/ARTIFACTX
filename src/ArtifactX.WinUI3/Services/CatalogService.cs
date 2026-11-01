@@ -22,6 +22,7 @@ public static class CatalogService
     private static bool _pathChecked;
 
     public static bool IsAvailable => ResolveDbPath() is not null;
+    public static long Revision { get; private set; }
 
     /// <summary>Forgets everything read so far - after the game data was
     /// rebuilt (GameDataService). Call on the UI thread; pages pick the new
@@ -31,6 +32,7 @@ public static class CatalogService
 
     public static void Reload()
     {
+        Revision++;
         Cache.Clear();
         _namingWords = null;
         _moduleClasses = null;

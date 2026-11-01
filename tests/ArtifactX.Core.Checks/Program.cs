@@ -8,6 +8,11 @@ using Newtonsoft.Json.Linq;
 // No desktop dependencies: run with dotnet run --project tests/ArtifactX.Core.Checks.
 try
 {
+    RecipePlannerChecks.Check();
+    if (args.Length == 2 && args[0] == "--food-bonus-vectors")
+    { RecipePlannerChecks.Native(args[1]); return; }
+    if (args.Length == 2 && args[0] == "--recipe-catalog-vectors")
+    { RecipePlannerChecks.Catalog(args[1]); return; }
     if (args.Length > 0)
     {
         Require(args.Length == 2 && args[0] is "--ship-display-vectors" or "--ship-tech-damage-vectors" or "--ship-shield-vectors" or "--ship-supercharge-vectors" or "--ship-intrinsic-vectors" or "--ship-weapon-vectors" or "--ship-selection-vector" or "--ship-comparison-vectors",

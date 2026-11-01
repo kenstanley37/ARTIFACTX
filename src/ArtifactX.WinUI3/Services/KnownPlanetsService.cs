@@ -107,7 +107,7 @@ public static class KnownPlanetsService
 /// planet (NmsPlanetCoordinates).</summary>
 public sealed record PlanetSnapshot(JToken? Universe, JArray? StatGroups, JArray? Discoveries, string? Summary = null, JArray? Markers = null, JArray? Bases = null, JToken? Fishing = null,
     JToken? Spawn = null, JToken? PlanetPositions = null, JArray? LooseObjects = null, JArray? Settlements = null, string? LocalOnlineId = null, JArray? ScanEvents = null,
-    JObject? EquipmentSaveInputs = null)
+    JObject? EquipmentSaveInputs = null, JObject? ExosuitCargo = null)
 {
     /// <summary>The player's coordinates on the planet they're on, if any.</summary>
     public (double Latitude, double Longitude)? Coordinates =>
@@ -135,7 +135,7 @@ public static class LiveSaveReader
                 player?["n:R"]?.Value<string>(), player?["nlG"] as JArray, player?["F?0"] as JArray, player?["bTf"],
                 context?["rnc"], player?["aHM"], player?["c5s"] as JArray, player?["GQA"] as JArray,
                 root["<h0"]?["F=J"]?[0]?["K7E"]?.Value<string>(), player?["A1f"] as JArray,
-                NmsMultiToolGenerationPaths.CopySavedInputs(root));
+                NmsMultiToolGenerationPaths.CopySavedInputs(root), player?[";l5"] as JObject);
         }
         catch (Exception ex)
         {

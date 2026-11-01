@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- **Recipe planner**: browse recipes by item or Nutrient Ingestor effect, compare bonuses strongest first, and follow connected, equal-size cards through every preparation step. Includes equipment pictures, ingredient sources, a combined gathering list, and Back and main-recipe navigation. Replaces the previous recipe drill-down pages.
+
 - **Crashed ship details**: cards show unit values and clearly labeled intrinsic bonuses. Supported Shuttle, Fighter, Hauler, Explorer, Exotic, Solar and Sentinel wrecks also show Damage Potential, Shield Strength, Hyperdrive Range and Maneuverability using the active ship in your loaded save. Sentinel comparison stats are limited to inhabited systems.
 
 - **S-class crashed ships** (Current System): each planet card shows the nearest S-class crashed ship on that planet (Exotics included), with how many the planet has, and a button to add a marker to your save. In systems without a race these aren't confirmed in game yet, and the card says so.

@@ -93,3 +93,5 @@ src/ArtifactX.Tools/External/**
 scripts/research/**/*.json
 scripts/research/**/*.log
 __pycache__/
+# Local recipe design data and extracted appliance images.
+docs/mockups/recipe-preview.local/

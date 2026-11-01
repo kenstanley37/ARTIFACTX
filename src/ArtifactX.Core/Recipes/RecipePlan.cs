@@ -28,27 +28,30 @@ public static class RecipePlanner
             if (!changed) break;
         }
         var steps = new List<RecipePlanStep>();
+        var selectedRecipes = new Dictionary<string, RequirementRecipe>(StringComparer.OrdinalIgnoreCase);
+        var terminalEdges = new HashSet<(string Parent, string Child)>();
+        var order = new List<string>();
         var gather = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         var path = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         string notice = "";
         long Batches(long amount, int output) => (amount - 1) / Math.Max(1, output) + 1;
-        void Walk(RequirementRecipe recipe, long amount, int depth)
+        void Walk(RequirementRecipe recipe, int depth)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (depth >= 32 || steps.Count >= 100 || !path.Add(recipe.ResultId))
+            if (depth >= 32 || selectedRecipes.Count >= 100 || !path.Add(recipe.ResultId))
                 throw new InvalidOperationException("This choice loops back to an earlier ingredient or makes the route too large. Choose another recipe.");
-            long batches = Batches(amount, recipe.ResultAmount);
+            selectedRecipes[recipe.ResultId] = recipe;
             foreach (var input in recipe.Ingredients.Where(i => i.Amount > 0))
             {
-                long needed = checked(batches * input.Amount);
                 if (path.Contains(input.Id))
                 {
                     if (depth > 0) throw new InvalidOperationException("This recipe choice loops back to an earlier ingredient. Choose another recipe.");
-                    gather[input.Id] = checked(gather.GetValueOrDefault(input.Id) + needed);
+                    terminalEdges.Add((recipe.ResultId, input.Id));
                     continue;
                 }
                 if (!byResult.TryGetValue(input.Id, out var alternatives))
-                { gather[input.Id] = checked(gather.GetValueOrDefault(input.Id) + needed); continue; }
+                { terminalEdges.Add((recipe.ResultId, input.Id)); continue; }
+                if (selectedRecipes.ContainsKey(input.Id)) continue;
                 RequirementRecipe? selected = null;
                 if (choices.TryGetValue(input.Id, out string? pick)) selected = alternatives.FirstOrDefault(r => r.Id == pick);
                 selected ??= alternatives.Where(r => r.Ingredients.All(i => !path.Contains(i.Id) && (!byResult.ContainsKey(i.Id)
@@ -57,16 +60,31 @@ public static class RecipePlanner
                     .ThenBy(r => r.Ingredients.Count).FirstOrDefault();
                 if (selected is null)
                 {
-                    gather[input.Id] = checked(gather.GetValueOrDefault(input.Id) + needed);
+                    terminalEdges.Add((recipe.ResultId, input.Id));
                     notice = "Some ingredients only have circular recipes. Gather or buy those ingredients instead.";
                 }
-                else Walk(selected, needed, depth + 1);
+                else Walk(selected, depth + 1);
             }
             path.Remove(recipe.ResultId);
-            if (steps.Count >= 100) throw new InvalidOperationException("This route exceeds 100 steps. Choose recipes with fewer requirements.");
-            steps.Add(new(recipe, batches, byResult.GetValueOrDefault(recipe.ResultId, []).Select(r => r.Id).ToArray()));
+            order.Add(recipe.ResultId);
         }
-        Walk(root, Math.Max(1, quantity), 0);
+        Walk(root, 0);
+        var amounts = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase) { [root.ResultId] = Math.Max(1, quantity) };
+        var batchesByItem = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        foreach (string id in order.AsEnumerable().Reverse())
+        {
+            var recipe = selectedRecipes[id];
+            long batches = Batches(amounts[id], recipe.ResultAmount);
+            batchesByItem[id] = batches;
+            foreach (var input in recipe.Ingredients.Where(i => i.Amount > 0))
+            {
+                long needed = checked(batches * input.Amount);
+                var totals = terminalEdges.Contains((id, input.Id)) ? gather : amounts;
+                totals[input.Id] = checked(totals.GetValueOrDefault(input.Id) + needed);
+            }
+        }
+        foreach (string id in order)
+            steps.Add(new(selectedRecipes[id], batchesByItem[id], byResult.GetValueOrDefault(id, []).Select(r => r.Id).ToArray()));
         return new(steps, gather.Select(g => new RequirementIngredient(g.Key, checked((int)g.Value))).ToArray(), notice);
     }
 }
