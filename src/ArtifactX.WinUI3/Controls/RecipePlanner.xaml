@@ -14,7 +14,7 @@
     <Border Style="{StaticResource ThemeCardStyle}" Padding="16">
      <ct:WrapPanel HorizontalSpacing="18" VerticalSpacing="14">
       <StackPanel Spacing="6" Width="320"><TextBlock Text="YOU'RE MAKING" Style="{StaticResource ThemeEyebrowStyle}"/><TextBlock Text="{x:Bind ViewModel.TargetName, Mode=OneWay}" FontSize="21" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/><TextBlock Text="{x:Bind ViewModel.PlanSummary, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/></StackPanel>
-      <NumberBox Width="160" Header="Quantity to make" Value="{x:Bind ViewModel.Quantity, Mode=TwoWay}" Minimum="1" Maximum="99999" SpinButtonPlacementMode="Inline" AutomationProperties.Name="Quantity of the main recipe to make"/>
+      <NumberBox Width="240" Header="Quantity to make" Value="{x:Bind ViewModel.Quantity, Mode=TwoWay}" Minimum="1" Maximum="99999" SpinButtonPlacementMode="Inline" AutomationProperties.Name="Quantity of the main recipe to make"/>
       <StackPanel Width="340" Spacing="6" Visibility="{x:Bind ViewModel.IngestorVisibility, Mode=OneWay}"><TextBlock Text="NUTRIENT INGESTOR EFFECT" Style="{StaticResource ThemeEyebrowStyle}"/><TextBlock Text="{x:Bind ViewModel.TargetBuff, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Text="Place this food in the Nutrient Ingestor. Eating it directly has a different effect." Foreground="{ThemeResource ThemeTextBrush}" FontSize="12" TextWrapping="Wrap"/></StackPanel>
      </ct:WrapPanel>
     </Border>
