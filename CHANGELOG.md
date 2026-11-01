@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- **Cooking and Refiner Recipes**: separate pages make it easier to find food recipes or refine minerals and other materials. Both use the recipe planner; food-effect filters stay on Cooking Recipes.
+
 - **Recipe planner**: browse recipes by item or Nutrient Ingestor effect, compare bonuses strongest first, and follow connected, equal-size cards through every preparation step. Includes equipment pictures, ingredient sources, a combined gathering list, and Back and main-recipe navigation. Replaces the previous recipe drill-down pages.
 
 - **Crashed ship details**: cards show unit values and clearly labeled intrinsic bonuses. Supported Shuttle, Fighter, Hauler, Explorer, Exotic, Solar and Sentinel wrecks also show Damage Potential, Shield Strength, Hyperdrive Range and Maneuverability using the active ship in your loaded save. Sentinel comparison stats are limited to inhabited systems.

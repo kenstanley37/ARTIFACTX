@@ -32,7 +32,7 @@
     <TextBlock Text="{x:Bind Item.Source, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
     <TextBlock Text="{x:Bind Item.Inventory, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
    </StackPanel>
-   <TextBlock Text="{x:Bind Item.Buff, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+   <TextBlock Text="{x:Bind Item.Buff, Mode=OneWay}" Visibility="{x:Bind Item.BuffVisibility, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
   </StackPanel>
  </Border>
  <Border x:Name="SelectionHighlight" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="5" Opacity="0" IsHitTestVisible="False" CornerRadius="{ThemeResource ThemeCardCornerRadius}"/>

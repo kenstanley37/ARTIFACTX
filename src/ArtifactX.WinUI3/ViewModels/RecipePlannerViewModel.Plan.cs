@@ -23,7 +23,8 @@ public sealed partial class RecipePlannerViewModel
         try
         {
             int quantity = double.IsFinite(Quantity) ? (int)Math.Clamp(Quantity, 1, 99999) : 1;
-            var plan = await RecipeRequirementsService.BuildAsync(target, catalog.Recipes, quantity,
+            var routeRecipes = IsCooking ? catalog.Recipes : catalog.Recipes.Where(r => r.Kind == "Refiner").ToArray();
+            var plan = await RecipeRequirementsService.BuildAsync(target, routeRecipes, quantity,
                 new Dictionary<string, string>(_choices, StringComparer.OrdinalIgnoreCase), cancellation.Token);
             var ids = plan.Steps.SelectMany(s => s.Recipe.Ingredients.Select(i => i.Id).Append(s.Recipe.ResultId))
                 .Concat(plan.Gather.Select(i => i.Id)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
@@ -31,7 +32,7 @@ public sealed partial class RecipePlannerViewModel
             cancellation.Token.ThrowIfCancellationRequested();
             TargetName = $"{quantity:N0} × {Name(target.Result.Id)}";
             TargetBuff = Buff(target.Result.Id);
-            IngestorVisibility = _buffs.ContainsKey(target.Result.Id) || target.Kind == "Cooking"
+            IngestorVisibility = IsCooking && (_buffs.ContainsKey(target.Result.Id) || target.Kind == "Cooking")
                 ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
             if (IngestorVisibility == Microsoft.UI.Xaml.Visibility.Visible && TargetBuff.Length == 0)
                 TargetBuff = catalog.Food is null ? "Update game data to see Ingestor bonuses." : "No Ingestor effect listed for this item.";

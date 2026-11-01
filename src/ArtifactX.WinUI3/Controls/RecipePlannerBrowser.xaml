@@ -9,13 +9,13 @@
  <Border Padding="0,10,0,0">
  <StackPanel Spacing="10">
   <ct:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
-   <TextBox Header="Find a food or ingredient" PlaceholderText="Search recipes" Width="340"
+   <TextBox Header="{x:Bind ViewModel.SearchHeader, Mode=OneWay}" PlaceholderText="Search recipes" Width="340"
     Text="{x:Bind ViewModel.Search, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Search recipes by item name"/>
-   <ComboBox Header="Nutrient Ingestor effect" Width="320" ItemsSource="{x:Bind ViewModel.Effects, Mode=OneWay}"
+   <ComboBox Header="Nutrient Ingestor effect" Width="320" ItemsSource="{x:Bind ViewModel.Effects, Mode=OneWay}" Visibility="{x:Bind ViewModel.EffectVisibility, Mode=OneWay}"
     SelectedItem="{x:Bind ViewModel.SelectedEffect, Mode=TwoWay}" AutomationProperties.Name="Filter recipes by Nutrient Ingestor effect"/>
   </ct:WrapPanel>
   <CheckBox Content="Pinned recipes only" IsChecked="{x:Bind ViewModel.PinnedOnly, Mode=TwoWay}" AutomationProperties.Name="Show pinned recipes only"/>
-  <TextBlock Text="Choose an effect to compare foods, strongest first. Select a recipe to see how to make every ingredient."
+  <TextBlock Text="{x:Bind ViewModel.BrowserInstruction, Mode=OneWay}"
    Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
   <GridView ItemsSource="{x:Bind ViewModel.Results, Mode=OneWay}" SelectionMode="None" Height="195" HorizontalContentAlignment="Stretch">
    <GridView.ItemsPanel><ItemsPanelTemplate><ItemsWrapGrid Orientation="Horizontal" ItemWidth="270" ItemHeight="180"/></ItemsPanelTemplate></GridView.ItemsPanel>
@@ -25,7 +25,7 @@
      HorizontalContentAlignment="Stretch" VerticalContentAlignment="Top" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{ThemeResource ThemePanelAltBrush}">
      <StackPanel Spacing="6">
       <StackPanel Orientation="Horizontal" Spacing="7"><Image Source="{x:Bind Icon}" Width="28" Height="28"/><TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" MaxWidth="150" Foreground="{ThemeResource ThemeTextBrush}" FontWeight="SemiBold"/></StackPanel>
-      <TextBlock Text="{x:Bind Buff}" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+      <TextBlock Text="{x:Bind Buff}" Visibility="{x:Bind BuffVisibility}" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
       <TextBlock Text="{x:Bind Station}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" FontSize="12"/>
      </StackPanel>
     </Button>

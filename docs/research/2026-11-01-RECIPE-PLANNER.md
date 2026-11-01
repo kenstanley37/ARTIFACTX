@@ -62,3 +62,16 @@ oracle does not independently verify runtime consumption timing.
 The app was not launched, per the owner's rules. Remaining owner verification:
 rebuild in Visual Studio, update game data once, then check recipe selection,
 effect ranking, quantity/alternative changes, long-map navigation and both themes.
+
+## Separate cooking and refining entry points
+
+Follow-up on `feature/recipe-categories`: `CookingRecipesPage` and
+`RefinerRecipesPage` are thin cached wrappers around `Controls/RecipePlanner`.
+The generic `RecipesPage` was removed. Each wrapper owns a separate ViewModel
+mode, keeping filters, selections and scroll positions independent.
+Cooking browses only Cooking outputs and keeps the Ingestor features; its route
+may still include a necessary refining step for an ingredient. Refiner Recipes
+browses Refiner outputs, plans with Refiner recipes only and hides food effects.
+The installed catalog already contains 1,323 cooking and 361 refiner recipes;
+all 361 refiner-only routes passed the existing route checks. No catalog format
+change is needed for this split.

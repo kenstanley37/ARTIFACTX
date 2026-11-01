@@ -338,9 +338,14 @@
                         <FontIcon Glyph="&#xE82D;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.MenuItems>
-                        <NavigationViewItem Content="Recipes" Tag="Recipes">
+                        <NavigationViewItem Content="Cooking Recipes" Tag="Recipes">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE8F1;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Content="Refiner Recipes" Tag="RefinerRecipes">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE7F7;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem Content="Crafting" Tag="Crafting">

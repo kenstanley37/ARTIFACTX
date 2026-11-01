@@ -19,6 +19,7 @@ namespace ArtifactX.WinUI3.ViewModels;
 public sealed partial class RecipePlannerViewModel : ObservableObject
 {
     private readonly IRecipePlannerCatalog _catalogService;
+    private readonly RecipePlannerMode _mode;
     private RecipePlannerCatalog? _catalog;
     private readonly Dictionary<string, string> _choices = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _path = [];
@@ -35,8 +36,17 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
     private bool _planPending;
     public bool IsReady => _catalog is not null && _catalogRevision == CatalogService.Revision;
 
-    public RecipePlannerViewModel() : this(new RecipePlannerCatalogService()) { }
-    internal RecipePlannerViewModel(IRecipePlannerCatalog catalogService) => _catalogService = catalogService;
+    public RecipePlannerViewModel(RecipePlannerMode mode) : this(new RecipePlannerCatalogService(), mode) { }
+    internal RecipePlannerViewModel(IRecipePlannerCatalog catalogService, RecipePlannerMode mode)
+    { _catalogService = catalogService; _mode = mode; }
+    private bool IsCooking => _mode == RecipePlannerMode.Cooking;
+    private string RootKind => IsCooking ? "Cooking" : "Refiner";
+    public string PageTitle => IsCooking ? "COOKING RECIPES" : "REFINER RECIPES";
+    public string SearchHeader => IsCooking ? "Find a food or ingredient" : "Find a material";
+    public string BrowserInstruction => IsCooking
+        ? "Choose an effect to compare foods, strongest first. Select a recipe to see how to make every ingredient."
+        : "Refining recipes for minerals, gases and other materials. Select a material to see its ingredients and required refiner.";
+    public Visibility EffectVisibility => IsCooking ? Visibility.Visible : Visibility.Collapsed;
     public ObservableCollection<RecipePlannerItemViewModel> Results { get; } = [];
     public ObservableCollection<RecipePlannerItemViewModel> Gather { get; } = [];
     public ObservableCollection<RecipePlannerItemViewModel> Cards { get; } = [];
@@ -89,7 +99,7 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
             _catalog = catalog;
             _pinned = (await Task.Run(() => PinnedRecipesService.All)).ToHashSet(StringComparer.OrdinalIgnoreCase);
             _buffs.Clear();
-            foreach (var food in catalog.Food?.Foods ?? [])
+            foreach (var food in IsCooking ? catalog.Food?.Foods ?? [] : [])
                 if (food.Id.Length <= 16) _buffs[food.Id] = (food, FoodIngestorBonus.Calculate(food));
             string? selection = SelectedEffect?.Id;
             Effects.Clear();
@@ -97,12 +107,13 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
             foreach (var effect in _buffs.Values.Select(b => b.Food.Effect).Distinct().OrderBy(EffectName))
                 Effects.Add(new(effect, EffectName(effect)));
             SelectedEffect = Effects.FirstOrDefault(e => e.Id == selection) ?? Effects[0];
-            await CatalogService.WarmCacheAsync(catalog.Recipes.Select(r => r.Result.Id)
+            await CatalogService.WarmCacheAsync(catalog.Recipes.Where(r => r.Kind == RootKind).Select(r => r.Result.Id)
                 .Concat(new[] { "COOKER", "BUILD_REFINER1", "BUILD_REFINER2", "BUILD_REFINER3" }));
             if (version != _loadVersion) return;
             _loadingCatalog = false;
             Filter();
-            Status = catalog.Recipes.Count == 0 ? "No recipes available. Update game data to load them." : "Choose a recipe, or search for the Ingestor effect you want.";
+            Status = !catalog.Recipes.Any(r => r.Kind == RootKind) ? "No recipes available. Update game data to load them."
+                : IsCooking ? "Choose a recipe, or search for the Ingestor effect you want." : "Choose a material to see how to refine it.";
             if (_target is not null)
             {
                 _target = catalog.Recipes.FirstOrDefault(r => r.Id == _target.Id);
@@ -117,6 +128,7 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
     private string Name(string id) => _catalog?.Names.GetValueOrDefault(id) ?? "Unknown ingredient";
     private string Buff(string id)
     {
+        if (!IsCooking) return "";
         if (!_buffs.TryGetValue(id, out var value)) return "";
         double amount = Math.Truncate(value.Bonus * (value.Food.Percentage ? 100f : 1f));
         double seconds = Math.Max(0, (_catalog?.Food?.BaseDuration ?? 0) * value.Food.CookingValue);
@@ -127,7 +139,7 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
     {
         if (_catalog is null || _loadingCatalog) return;
         string effect = SelectedEffect?.Id ?? "";
-        var shown = _catalog.Recipes.GroupBy(r => r.Result.Id, StringComparer.OrdinalIgnoreCase)
+        var shown = _catalog.Recipes.Where(r => r.Kind == RootKind).GroupBy(r => r.Result.Id, StringComparer.OrdinalIgnoreCase)
             .Select(g => g.FirstOrDefault(r => _pinned.Contains(r.Id)) ?? g.First())
             .Where(r => !PinnedOnly || _pinned.Contains(r.Id))
             .Where(r => Name(r.Result.Id).Contains(Search.Trim(), StringComparison.CurrentCultureIgnoreCase))

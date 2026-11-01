@@ -20,6 +20,7 @@ public sealed partial class RecipePlannerItemViewModel : ObservableObject
     public ImageSource? StationIcon { get; init; }
     public string Amount { get; init; } = "";
     public string Buff { get; init; } = "";
+    public Visibility BuffVisibility => Buff.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public string Source { get; init; } = "";
     public string UsedFor { get; init; } = "";
     public int Level { get; init; }
