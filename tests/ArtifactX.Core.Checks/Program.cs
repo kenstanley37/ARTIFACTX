@@ -9,6 +9,20 @@ using Newtonsoft.Json.Linq;
 try
 {
     RecipePlannerChecks.Check();
+    CargoSuppliesChecks.Check();
+    BaseExtractionChecks.Check();
+    if (args.Length == 2 && args[0] == "--hotspot-near-vectors")
+    { BaseExtractionChecks.PolesNative(args[1], neighborhood: true); return; }
+    if (args.Length == 2 && args[0] == "--hotspot-pole-vectors")
+    { BaseExtractionChecks.PolesNative(args[1]); return; }
+    if (args.Length == 2 && args[0] == "--hotspot-roll-vectors")
+    { BaseExtractionChecks.AttributesNative(args[1]); return; }
+    if (args.Length == 2 && args[0] == "--extraction-stock-vectors")
+    { BaseExtractionChecks.StockNative(args[1]); return; }
+    if (args.Length == 2 && args[0] == "--hotspot-resource-vectors")
+    { BaseExtractionChecks.ResourceNative(args[1]); return; }
+    if (args.Length == 2 && args[0] == "--extraction-network-vectors")
+    { BaseExtractionChecks.Reference(args[1]); return; }
     if (args.Length == 2 && args[0] == "--food-bonus-vectors")
     { RecipePlannerChecks.Native(args[1]); return; }
     if (args.Length == 2 && args[0] == "--recipe-catalog-vectors")

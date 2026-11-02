@@ -5,7 +5,19 @@ using ArtifactX.GameData.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
-if (args.Length == 3 && args[0] == "--food-catalog-check")
+if (args.Length is 3 or 4 && args[0] == "--extraction-site-check")
+{
+    ExtractionCatalogChecks.Sites(args[1], args[2], args.Length == 4 ? args[3] : null);
+    return;
+}
+
+if (args.Length == 3 && args[0] == "--extraction-world-check")
+{
+    ExtractionCatalogChecks.World(args[1], args[2]);
+    return;
+}
+
+if (args.Length == 3 && args[0] is "--food-catalog-check" or "--creature-source-catalog-check" or "--extraction-catalog-check")
 {
     string output = Path.GetFullPath(args[2]);
     if (File.Exists(output)) throw new InvalidOperationException("The check requires a new scratch catalog.");
@@ -13,6 +25,35 @@ if (args.Length == 3 && args[0] == "--food-catalog-check")
     CatalogSteps.AddPlanetGeneration(output, args[1]);
     using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={output};Mode=ReadOnly");
     connection.Open(); using var query = connection.CreateCommand();
+    if (args[0] == "--extraction-catalog-check")
+    {
+        query.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId='EXTRACTIONTABLES'";
+        var extractionTables = JsonSerializer.Deserialize<ExtractionTables>((string)query.ExecuteScalar()!)!;
+        if (extractionTables.Hotspots.Length != 6 || extractionTables.BiomeGases.Length != 17 || extractionTables.Substances.Length == 0 || extractionTables.Networks.Length == 0)
+            throw new InvalidOperationException("Extraction tables are incomplete.");
+        var substance = extractionTables.Substances.Single(s => s.Id == "LUSH1");
+        if (ExtractionStock.DisplayAmount(10033886, substance) != 6750)
+            throw new InvalidOperationException("Extracted Paraffinium yield differs from the observed stock.");
+        if (extractionTables.Networks.Single(n => n.PartId == "U_EXTRACTOR_S").HotspotKind != "Mineral"
+            || extractionTables.Networks.Single(n => n.PartId == "U_GASEXTRACTOR").HotspotKind != "Gas"
+            || extractionTables.Networks.Single(n => n.PartId == "U_SILO_S").Storage != 1440000)
+            throw new InvalidOperationException("Installed extraction equipment definitions differ from references.");
+        Console.WriteLine($"PASS: extracted {extractionTables.Hotspots.Length} hotspot categories, {extractionTables.BiomeGases.Length} biome gases, {extractionTables.Substances.Length} yields and {extractionTables.Networks.Length} resource-link definitions.");
+        return;
+    }
+    if (args[0] == "--creature-source-catalog-check")
+    {
+        query.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId='CREATUREPRODUCTS'";
+        var sources = JsonSerializer.Deserialize<CreatureProductSource[]>((string)query.ExecuteScalar()!)!;
+        var meat = sources.Where(s => s.ItemId == "FOOD_M_DIGGER").ToArray();
+        if (meat.Length != 2 || meat.Any(s => s.Method != "Hunt" || s.Habitat != "Ground")
+            || !meat.Select(s => s.CreatureKind).Order().SequenceEqual(new[] { "Plough", "ProtoDigger" }))
+            throw new InvalidOperationException("Dirty Meat creature source mapping differs from the installed reference.");
+        if (!sources.Any(s => s.Method == "Harvest") || sources.Any(s => string.IsNullOrWhiteSpace(s.ItemId)))
+            throw new InvalidOperationException("Creature product extraction is incomplete.");
+        Console.WriteLine($"PASS: extracted {sources.Length} creature product mappings; Dirty Meat hunting and habitats match installed tables.");
+        return;
+    }
     query.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId='FOODINGESTOR'";
     var tables = JsonSerializer.Deserialize<FoodIngestorTables>((string)query.ExecuteScalar()!)!;
     if (tables.Foods.Length == 0 || tables.BaseDuration <= 0 || tables.Foods.Any(f => !float.IsFinite(FoodIngestorBonus.Calculate(f))))

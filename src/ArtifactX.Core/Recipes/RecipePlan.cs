@@ -1,14 +1,22 @@
 namespace ArtifactX.Core.Recipes;
 
 public sealed record RecipePlanStep(RequirementRecipe Recipe, long Batches, string[] Alternatives);
-public sealed record RecipePlan(IReadOnlyList<RecipePlanStep> Steps, IReadOnlyList<RequirementIngredient> Gather, string Notice);
+public sealed record RecipePlanSupply(string ParentId, string Id, long Amount);
+public sealed record RecipePlan(IReadOnlyList<RecipePlanStep> Steps, IReadOnlyList<RequirementIngredient> Gather, string Notice)
+{
+    public IReadOnlyList<RecipePlanSupply> CircularSupplies { get; init; } = [];
+}
 
 /// <summary>Builds a single dependency-first route. Alternatives remain choices, never additional requirements.</summary>
 public static class RecipePlanner
 {
     public static RecipePlan Build(RequirementRecipe root, IReadOnlyList<RequirementRecipe> recipes,
-        int quantity, IReadOnlyDictionary<string, string> choices, CancellationToken cancellationToken = default)
+        int quantity, IReadOnlyDictionary<string, string> choices, CancellationToken cancellationToken = default,
+        IReadOnlySet<string>? suppliedItems = null)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (suppliedItems?.Contains(root.ResultId) == true)
+            return new([], [new(root.ResultId, Math.Max(1, quantity))], "");
         var byResult = recipes.GroupBy(r => r.ResultId, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.OrderBy(r => r.Id, StringComparer.OrdinalIgnoreCase).ToArray(), StringComparer.OrdinalIgnoreCase);
         var rank = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -30,6 +38,7 @@ public static class RecipePlanner
         var steps = new List<RecipePlanStep>();
         var selectedRecipes = new Dictionary<string, RequirementRecipe>(StringComparer.OrdinalIgnoreCase);
         var terminalEdges = new HashSet<(string Parent, string Child)>();
+        var circularEdges = new HashSet<(string Parent, string Child)>();
         var order = new List<string>();
         var gather = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         var path = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -43,10 +52,13 @@ public static class RecipePlanner
             selectedRecipes[recipe.ResultId] = recipe;
             foreach (var input in recipe.Ingredients.Where(i => i.Amount > 0))
             {
+                if (suppliedItems?.Contains(input.Id) == true)
+                { terminalEdges.Add((recipe.ResultId, input.Id)); continue; }
                 if (path.Contains(input.Id))
                 {
-                    if (depth > 0) throw new InvalidOperationException("This recipe choice loops back to an earlier ingredient. Choose another recipe.");
                     terminalEdges.Add((recipe.ResultId, input.Id));
+                    circularEdges.Add((recipe.ResultId, input.Id));
+                    notice = "This route needs a starting supply for a circular conversion. Gather or use stored ingredients listed below.";
                     continue;
                 }
                 if (!byResult.TryGetValue(input.Id, out var alternatives))
@@ -58,12 +70,11 @@ public static class RecipePlanner
                         || rank.GetValueOrDefault(i.Id, int.MaxValue) < rank.GetValueOrDefault(input.Id, int.MaxValue))))
                     .OrderBy(r => r.Ingredients.Select(i => rank.GetValueOrDefault(i.Id)).DefaultIfEmpty(0).Max())
                     .ThenBy(r => r.Ingredients.Count).FirstOrDefault();
-                if (selected is null)
-                {
-                    terminalEdges.Add((recipe.ResultId, input.Id));
-                    notice = "Some ingredients only have circular recipes. Gather or buy those ingredients instead.";
-                }
-                else Walk(selected, depth + 1);
+                // A closed conversion family has no finite rank. Expand it anyway;
+                // only the actual back-edge needs a gathered starting supply.
+                selected ??= alternatives.OrderBy(r => r.Ingredients.Count(i => path.Contains(i.Id)))
+                    .ThenBy(r => r.Ingredients.Count).First();
+                Walk(selected, depth + 1);
             }
             path.Remove(recipe.ResultId);
             order.Add(recipe.ResultId);
@@ -85,6 +96,10 @@ public static class RecipePlanner
         }
         foreach (string id in order)
             steps.Add(new(selectedRecipes[id], batchesByItem[id], byResult.GetValueOrDefault(id, []).Select(r => r.Id).ToArray()));
-        return new(steps, gather.Select(g => new RequirementIngredient(g.Key, checked((int)g.Value))).ToArray(), notice);
+        return new(steps, gather.Select(g => new RequirementIngredient(g.Key, checked((int)g.Value))).ToArray(), notice)
+        {
+            CircularSupplies = circularEdges.Select(edge => new RecipePlanSupply(edge.Parent, edge.Child,
+                checked(batchesByItem[edge.Parent] * selectedRecipes[edge.Parent].Ingredients.Where(i => i.Id == edge.Child).Sum(i => (long)i.Amount)))).ToArray()
+        };
     }
 }

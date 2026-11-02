@@ -6,6 +6,14 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- **Choose recipe ingredient sources**: collect an item from a matching base or use enough stored supplies to replace its refining branch. Requirements recalculate, and you can switch back to making the item.
+
+- **Base ingredient sources**: recipe details identify mineral and gas extractors at your saved bases after updating game data. Matching bases appear directly below the ingredient name, before recipe alternatives. Uncollected output stays separate from owned inventory.
+
+- **Cooking ingredient sources**: creature products now explain whether to hunt wildlife or feed it and collect produce. Dirty Meat identifies burrowing creatures as its source after updating game data.
+
+- **Cooking and Refiner Recipes**: separate pages make it easier to find food recipes or refine minerals and other materials. Both use the recipe planner; food-effect filters stay on Cooking Recipes.
+
 - **Recipe planner**: browse recipes by item or Nutrient Ingestor effect, compare bonuses strongest first, and follow connected, equal-size cards through every preparation step. Includes equipment pictures, ingredient sources, a combined gathering list, and Back and main-recipe navigation. Replaces the previous recipe drill-down pages.
 
 - **Crashed ship details**: cards show unit values and clearly labeled intrinsic bonuses. Supported Shuttle, Fighter, Hauler, Explorer, Exotic, Solar and Sentinel wrecks also show Damage Potential, Shield Strength, Hyperdrive Range and Maneuverability using the active ship in your loaded save. Sentinel comparison stats are limited to inhabited systems.
@@ -18,6 +26,15 @@ What changed in each ArtifactX release, written for players. The newest release 
 - **Recipe requirements tree** (Recipes): click a recipe card to see every ingredient needed, step by step, all the way down to the raw materials - amounts scale with how many you want to make.
 
 ### Fixed
+
+- **Recipe trees**: conversion families now expand automatically through their preparation recipes. Circular branches end at a clearly labeled starting-supply card instead of hiding the whole branch. Owned ingredients do not hide preparation steps.
+
+- **Recipe supplies**: ingredient totals include cargo in owned ships, freighter, Exocraft, shared storage containers, ingredient and cold storage, and confirmed item caches. Ingredient details list where supplies are stored; live saves update the quantities in place.
+- **Ingredient sources**: restored the game's acquisition descriptions for substances, including Tritium asteroid mining and the planet types described for atmospheric gases.
+
+- **Recipe alternatives**: ingredient details now show every available recipe as a card, including conversions for starting ingredients. Choosing a circular conversion lists the starting supply it needs instead of hiding the recipe.
+
+- **Recipe quantity**: a wider quantity field leaves room for all five digits while typing, alongside the clear and step buttons.
 
 - **Recipe planner space**: search now folds away after choosing a recipe, and recipe details can be collapsed too. Compact headers keep the selected recipe and filters visible while giving the map, ingredients and details more scrolling room.
 - **Recipe selection**: the chosen requirement now has a clear selected marker and stronger highlight. Its details receive a brief accent cue and scroll to the top, making ingredient changes easier to follow.

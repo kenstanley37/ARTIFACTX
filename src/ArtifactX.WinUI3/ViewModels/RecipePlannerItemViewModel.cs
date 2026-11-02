@@ -12,6 +12,8 @@ namespace ArtifactX.WinUI3.ViewModels;
 public sealed partial class RecipePlannerItemViewModel : ObservableObject
 {
     public string Id { get; init; } = "";
+    public string TreeNodeId { get; init; } = "";
+    public string TreeKey => TreeNodeId.Length > 0 ? TreeNodeId : Id;
     public string RecipeId { get; init; } = "";
     public string Name { get; init; } = "";
     public ImageSource? Icon { get; init; }
@@ -20,17 +22,29 @@ public sealed partial class RecipePlannerItemViewModel : ObservableObject
     public ImageSource? StationIcon { get; init; }
     public string Amount { get; init; } = "";
     public string Buff { get; init; } = "";
+    public Visibility BuffVisibility => Buff.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public string Source { get; init; } = "";
     public string UsedFor { get; init; } = "";
     public int Level { get; init; }
     public long Required { get; init; }
     public IReadOnlyList<RecipePlannerItemViewModel> Ingredients { get; init; } = [];
     public IReadOnlyList<RecipePlanChoice> Choices { get; init; } = [];
+    public IReadOnlyList<RecipePlannerAlternative> Alternatives { get; init; } = [];
+    public Visibility AlternativesVisibility => Alternatives.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     public RecipePlanChoice? SelectedChoice { get; init; }
     public Visibility ChoiceVisibility => Choices.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility RecipeVisibility => RecipeId.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility SourceVisibility => RecipeId.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility SourceVisibility => Visibility.Visible;
+    public ObservableCollection<RecipePlannerSupplyOption> SupplyOptions { get; } = [];
+    [ObservableProperty] public partial Visibility SupplyOptionsVisibility { get; set; } = Visibility.Collapsed;
+    [ObservableProperty] public partial string SupplyPlan { get; set; } = "";
+    public IRelayCommand RestoreRecipeCommand { get; init; } = new RelayCommand(() => { });
+    public bool IsSupply { get; init; }
+    public Visibility SupplyPlanVisibility => IsSupply ? Visibility.Visible : Visibility.Collapsed;
     [ObservableProperty] public partial string Inventory { get; set; } = "";
+    [ObservableProperty] public partial string InventoryLocations { get; set; } = "";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(BaseSourcesVisibility))] public partial string BaseSources { get; set; } = "";
+    public Visibility BaseSourcesVisibility => BaseSources.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     [ObservableProperty, NotifyPropertyChangedFor(nameof(CardBorder), nameof(CardBackground), nameof(CardBorderThickness), nameof(CardPadding), nameof(SelectionVisibility), nameof(SelectionName))]
     public partial bool IsSelected { get; set; }
     [ObservableProperty] public partial bool IsPinned { get; set; }
@@ -52,6 +66,8 @@ public sealed record RecipePlannerEffect(string Id, string Name)
 }
 
 public sealed record RecipePlannerCrumb(string Name, IRelayCommand NavigateCommand);
+public sealed record RecipePlannerAlternative(string Label, string Equipment, string ActionName, IRelayCommand ChooseCommand);
+public sealed record RecipePlannerSupplyOption(string Label, string ActionName, IRelayCommand ChooseCommand);
 public sealed record RecipePlanChoice(string Id, string Label)
 {
     public override string ToString() => Label;

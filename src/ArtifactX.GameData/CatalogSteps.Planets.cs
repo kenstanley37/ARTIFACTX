@@ -46,6 +46,8 @@ public static partial class CatalogSteps
     ///   shelter, base, distress signal and start spawn rules PlanetOverridePlacement uses.
     /// - "STATIONEQUIPMENT": JSON in the shape of Core's StationEquipmentTables - solar layout
     ///   globals, station scene roots, and verified standard TypeB WeaponTerminal transforms.
+    /// - "EXTRACTIONTABLES": JSON in the shape of Core's ExtractionTables - hotspot placement,
+    ///   biome gases, substance yields and resource-link settings from the installed tables.
     /// </summary>
     public static void AddPlanetGeneration(string catalogPath, string pcbanksPath)
     {
@@ -72,8 +74,12 @@ public static partial class CatalogSteps
         }
 
         var rows = new List<CatalogItem>();
+        if (ExtractionTables(Decode) is { } extractionTables)
+            rows.Add(new CatalogItem { GameId = "EXTRACTIONTABLES", NameEnglish = "ExtractionTables", DescriptionEnglish = JsonSerializer.Serialize(extractionTables) });
         if (FoodIngestor(Decode) is { } food)
             rows.Add(new CatalogItem { GameId = "FOODINGESTOR", NameEnglish = "FoodIngestorTables", DescriptionEnglish = JsonSerializer.Serialize(food) });
+        if (CreatureProducts(Decode) is { } creatureProducts)
+            rows.Add(new CatalogItem { GameId = "CREATUREPRODUCTS", NameEnglish = "CreatureProductSources", DescriptionEnglish = JsonSerializer.Serialize(creatureProducts) });
         var biomes = Decode(BiomeListFile) as GcBiomeListPerStarType;
         var files = Decode(BiomeFilesFile) as GcBiomeFileList;
         if (biomes is null || files is null)

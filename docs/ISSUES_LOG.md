@@ -445,3 +445,20 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Reported failure**: Hamagan-Oerat VI / Neusie T13, an uncharted system with no lifeform and unavailable economy/conflict data. Predicted Sentinel site was empty; the first marker pointed somewhere other than the app coordinates, and later markers did not appear despite closing the game before adding them.
 - **Comparison**: owner moved to inhabited Usmanz XIX and markers worked. On Ciss L16, the C-class Sentinel at approximately +31.22, -0.00 was found with the predicted 28,600,000-unit value.
 - **Status**: open. Supports the existing uncharted building-table concern; exact cause and scope remain unverified. No marker or save-data repair was performed.
+
+## 2026-11-02 feature requests
+
+### Feature 54: Exocraft Unlocks on Each Vehicle's Tab
+- **Status**: Planned; owner request and Colossus screenshots, 2026-11-02. Not implemented.
+- **Problem**: Vehicle customisation unlocks are difficult to locate in Catalogue, and the game does not clearly explain their requirements.
+- **Request**: Show each vehicle's relevant unlocks directly on its individual Exocraft tab, grouped by customisation category. Include locked/unlocked state and verified instructions for obtaining each option, including any prerequisites, mission progress, costs or rewards that the game data establishes. Reuse Catalogue definitions and existing safe staged editing where available; do not duplicate unlock logic or automatically unlock anything.
+- **Colossus references**: Widescreen Cabin, Furnace Module, Off-Road Wheels, Tracked Treads, Caterpillar Track and Superelastic Wheels appear locked in the owner's screenshots. Trace their actual unlock conditions. The owner's suspected connection to Industrial Cleanup is a hypothesis, not a confirmed prerequisite.
+- **Portable guidance**: Keep unlock rules and acquisition information reusable for the future mobile/console helper; a loaded save adds personal unlock state.
+- **Tracking**: [Testing and polish backlog, issue #1](https://github.com/kenstanley37/ARTIFACTX/issues/1).
+
+### Feature 55: Industrial Cleanup Helper
+- **Status**: Planned as a separate feature; owner request and mission-log screenshot, 2026-11-02. Not implemented.
+- **Request**: Explain how to begin and progress Industrial Cleanup, required equipment, waste collection/transport, Waste Processing Plants, automatic recycling versus manual sorting, and verified rewards/unlocks. Show saved lifetime waste-management statistics where their mapping is established.
+- **Screenshot evidence**: The mission mentions the Colossus and Gravitino Coil, transporting waste with the flatbed module, a valuation scale and Control Panel at a Waste Processing Plant, special waste containers, and manual sorting for maximum resource recovery. These instructions do not establish the unlock requirements of the locked Colossus parts above.
+- **Research**: Extract mission/reward/unlock relationships from game data and verify against save progress or controlled in-game comparisons. Keep confirmed guidance distinct from unknown requirements. Reuse portable Core logic for console/mobile guidance, with save-specific progress optional.
+- **Tracking**: [Testing and polish backlog, issue #1](https://github.com/kenstanley37/ARTIFACTX/issues/1). Related to Feature 54, but independently scoped.

@@ -19,8 +19,10 @@ namespace ArtifactX.WinUI3.ViewModels;
 public sealed partial class RecipePlannerViewModel : ObservableObject
 {
     private readonly IRecipePlannerCatalog _catalogService;
+    private readonly RecipePlannerMode _mode;
     private RecipePlannerCatalog? _catalog;
     private readonly Dictionary<string, string> _choices = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _supplyChoices = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _path = [];
     private readonly Dictionary<string, RecipePlannerItemViewModel> _allCards = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, (FoodIngestorDefinition Food, float Bonus)> _buffs = new(StringComparer.OrdinalIgnoreCase);
@@ -30,13 +32,23 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
     private bool _loadingCatalog;
     private HashSet<string> _pinned = new(StringComparer.OrdinalIgnoreCase);
     private long _catalogRevision = -1;
-    private Dictionary<string, long>? _owned;
+    private IReadOnlyList<CargoSupply>? _owned;
+    private int _inventoryVersion;
     private object? _inventoryOwner;
     private bool _planPending;
     public bool IsReady => _catalog is not null && _catalogRevision == CatalogService.Revision;
 
-    public RecipePlannerViewModel() : this(new RecipePlannerCatalogService()) { }
-    internal RecipePlannerViewModel(IRecipePlannerCatalog catalogService) => _catalogService = catalogService;
+    public RecipePlannerViewModel(RecipePlannerMode mode) : this(new RecipePlannerCatalogService(), mode) { }
+    internal RecipePlannerViewModel(IRecipePlannerCatalog catalogService, RecipePlannerMode mode)
+    { _catalogService = catalogService; _mode = mode; }
+    private bool IsCooking => _mode == RecipePlannerMode.Cooking;
+    private string RootKind => IsCooking ? "Cooking" : "Refiner";
+    public string PageTitle => IsCooking ? "COOKING RECIPES" : "REFINER RECIPES";
+    public string SearchHeader => IsCooking ? "Find a food or ingredient" : "Find a material";
+    public string BrowserInstruction => IsCooking
+        ? "Choose an effect to compare foods, strongest first. Select a recipe to see how to make every ingredient."
+        : "Refining recipes for minerals, gases and other materials. Select a material to see its ingredients and required refiner.";
+    public Visibility EffectVisibility => IsCooking ? Visibility.Visible : Visibility.Collapsed;
     public ObservableCollection<RecipePlannerItemViewModel> Results { get; } = [];
     public ObservableCollection<RecipePlannerItemViewModel> Gather { get; } = [];
     public ObservableCollection<RecipePlannerItemViewModel> Cards { get; } = [];
@@ -89,7 +101,7 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
             _catalog = catalog;
             _pinned = (await Task.Run(() => PinnedRecipesService.All)).ToHashSet(StringComparer.OrdinalIgnoreCase);
             _buffs.Clear();
-            foreach (var food in catalog.Food?.Foods ?? [])
+            foreach (var food in IsCooking ? catalog.Food?.Foods ?? [] : [])
                 if (food.Id.Length <= 16) _buffs[food.Id] = (food, FoodIngestorBonus.Calculate(food));
             string? selection = SelectedEffect?.Id;
             Effects.Clear();
@@ -97,12 +109,13 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
             foreach (var effect in _buffs.Values.Select(b => b.Food.Effect).Distinct().OrderBy(EffectName))
                 Effects.Add(new(effect, EffectName(effect)));
             SelectedEffect = Effects.FirstOrDefault(e => e.Id == selection) ?? Effects[0];
-            await CatalogService.WarmCacheAsync(catalog.Recipes.Select(r => r.Result.Id)
+            await CatalogService.WarmCacheAsync(catalog.Recipes.Where(r => r.Kind == RootKind).Select(r => r.Result.Id)
                 .Concat(new[] { "COOKER", "BUILD_REFINER1", "BUILD_REFINER2", "BUILD_REFINER3" }));
             if (version != _loadVersion) return;
             _loadingCatalog = false;
             Filter();
-            Status = catalog.Recipes.Count == 0 ? "No recipes available. Update game data to load them." : "Choose a recipe, or search for the Ingestor effect you want.";
+            Status = !catalog.Recipes.Any(r => r.Kind == RootKind) ? "No recipes available. Update game data to load them."
+                : IsCooking ? "Choose a recipe, or search for the Ingestor effect you want." : "Choose a material to see how to refine it.";
             if (_target is not null)
             {
                 _target = catalog.Recipes.FirstOrDefault(r => r.Id == _target.Id);
@@ -117,6 +130,7 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
     private string Name(string id) => _catalog?.Names.GetValueOrDefault(id) ?? "Unknown ingredient";
     private string Buff(string id)
     {
+        if (!IsCooking) return "";
         if (!_buffs.TryGetValue(id, out var value)) return "";
         double amount = Math.Truncate(value.Bonus * (value.Food.Percentage ? 100f : 1f));
         double seconds = Math.Max(0, (_catalog?.Food?.BaseDuration ?? 0) * value.Food.CookingValue);
@@ -127,7 +141,7 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
     {
         if (_catalog is null || _loadingCatalog) return;
         string effect = SelectedEffect?.Id ?? "";
-        var shown = _catalog.Recipes.GroupBy(r => r.Result.Id, StringComparer.OrdinalIgnoreCase)
+        var shown = _catalog.Recipes.Where(r => r.Kind == RootKind).GroupBy(r => r.Result.Id, StringComparer.OrdinalIgnoreCase)
             .Select(g => g.FirstOrDefault(r => _pinned.Contains(r.Id)) ?? g.First())
             .Where(r => !PinnedOnly || _pinned.Contains(r.Id))
             .Where(r => Name(r.Result.Id).Contains(Search.Trim(), StringComparison.CurrentCultureIgnoreCase))
@@ -147,7 +161,7 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
 
     private void Open(RecipeInfo recipe)
     {
-        _target = recipe; _choices.Clear(); _path.Clear(); _path.Add(recipe.Result.Id);
+        _target = recipe; _choices.Clear(); _supplyChoices.Clear(); _path.Clear(); _path.Add(recipe.Result.Id);
         SelectedItem = null;
         IsBrowserExpanded = false;
         PlannerVisibility = Visibility.Visible;
@@ -164,15 +178,48 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
 
     public void Stop() { ++_loadVersion; _planning?.Cancel(); }
     public Task ResumeAsync() => _planPending ? RebuildAsync() : Task.CompletedTask;
-    public void RefreshOwned(JObject? liveCargo = null)
+    public async Task RefreshOwnedAsync(PlanetSnapshot? snapshot = null)
     {
-        if (!ReferenceEquals(_inventoryOwner, SaveSessionManager.SessionIdentity))
-        { _owned = null; _inventoryOwner = SaveSessionManager.SessionIdentity; }
-        if (liveCargo is not null || _owned is null) _owned = RecipePlannerCatalogService.ReadOwned(liveCargo);
-        var owned = _owned;
-        foreach (var item in Gather) item.Inventory = SaveSessionManager.IsSaveLoaded
-            ? $"{item.Required:N0} needed / {owned.GetValueOrDefault(item.Id):N0} in exosuit · {Math.Max(0, item.Required - owned.GetValueOrDefault(item.Id)):N0} to gather"
-            : $"{item.Required:N0} needed · load a save to compare inventory";
+        int version = ++_inventoryVersion;
+        object? owner = SaveSessionManager.SessionIdentity;
+        if (!ReferenceEquals(_inventoryOwner, owner))
+        {
+            _owned = null; _inventoryOwner = owner;
+            if (_supplyChoices.Count > 0)
+            { _supplyChoices.Clear(); await RebuildAsync(); return; }
+        }
+        try
+        {
+            var player = snapshot?.CargoSupplies is null && _owned is null
+                ? SaveSessionManager.GetValue("vLc", "6f=") as JObject : null;
+            var supplies = snapshot?.CargoSupplies ?? _owned
+                ?? await Task.Run(() => CargoSupplies.Read(player));
+            IReadOnlyList<BaseExtractionSite> baseSources = [];
+            if (SaveSessionManager.IsSaveLoaded && _catalog?.Extraction is { } extraction)
+            {
+                var bases = snapshot?.Bases ?? SaveSessionManager.GetValue("vLc", "6f=", "F?0") as JArray;
+                try { baseSources = await Task.Run(() => BaseExtractionSites.Read(bases, extraction)); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Recipe extraction sites] {ex}"); }
+            }
+            if (version != _inventoryVersion || !ReferenceEquals(owner, SaveSessionManager.SessionIdentity)) return;
+            _owned = supplies;
+            foreach (var item in _allCards.Values.Concat(Gather).Distinct())
+            {
+                var locations = supplies.Where(s => s.ItemId.Equals(item.Id, StringComparison.OrdinalIgnoreCase)).ToArray();
+                long total = locations.Sum(s => s.Amount);
+                item.Inventory = SaveSessionManager.IsSaveLoaded
+                    ? $"{item.Required:N0} needed / {total:N0} owned; {Math.Max(0, item.Required - total):N0} to gather"
+                    : $"{item.Required:N0} needed; load a save to compare inventory";
+                item.InventoryLocations = SaveSessionManager.IsSaveLoaded && locations.Length > 0
+                    ? string.Join("\n", locations.Select(s => $"{s.Location}: {s.Amount:N0}"))
+                        + "\nStored supplies may need to be collected from these locations."
+                    : "";
+                item.BaseSources = string.Join("\n", baseSources.Where(s => s.ItemId.Equals(item.Id, StringComparison.OrdinalIgnoreCase))
+                    .Select(s => $"{s.BaseName}: {s.Extractors:N0} {(s.Kind == "Gas" ? "gas" : "mineral")} extractor{(s.Extractors == 1 ? "" : "s")}"));
+                UpdateSupplyOptions(item, baseSources, total);
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Recipe inventory] {ex}"); }
     }
 
     private string Station(RecipeInfo r) => _catalog?.Names.GetValueOrDefault(MachineId(r)) ?? "Required equipment";
