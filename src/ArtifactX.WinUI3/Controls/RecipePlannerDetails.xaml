@@ -17,6 +17,20 @@
     <TextBlock Text="{x:Bind Item.BaseSources, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
     <TextBlock Text="Visit the base to collect supplies. Uncollected output is not included in your owned total." Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
    </StackPanel>
+   <StackPanel Visibility="{x:Bind Item.SupplyPlanVisibility, Mode=OneWay}" Spacing="8">
+    <TextBlock Text="{x:Bind Item.SupplyPlan, Mode=OneWay}" Foreground="{ThemeResource ThemeDoneBrush}" TextWrapping="Wrap"/>
+    <Button Content="Make this item instead" Command="{x:Bind Item.RestoreRecipeCommand, Mode=OneWay}" Visibility="{x:Bind Item.AlternativesVisibility, Mode=OneWay}" HorizontalAlignment="Stretch"/>
+   </StackPanel>
+   <StackPanel Visibility="{x:Bind Item.SupplyOptionsVisibility, Mode=OneWay}" Spacing="8">
+    <TextBlock Text="CHOOSE A SOURCE" Style="{StaticResource ThemeEyebrowStyle}"/>
+    <ItemsControl ItemsSource="{x:Bind Item.SupplyOptions, Mode=OneWay}">
+     <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipePlannerSupplyOption">
+      <Button Command="{x:Bind ChooseCommand}" AutomationProperties.Name="{x:Bind ActionName}" HorizontalAlignment="Stretch" Margin="0,3">
+       <TextBlock Text="{x:Bind Label}" TextWrapping="Wrap"/>
+      </Button>
+     </DataTemplate></ItemsControl.ItemTemplate>
+    </ItemsControl>
+   </StackPanel>
    <StackPanel Visibility="{x:Bind Item.RecipeVisibility, Mode=OneWay}" Spacing="10">
     <StackPanel Orientation="Horizontal" Spacing="10"><Image Source="{x:Bind Item.StationIcon, Mode=OneWay}" Width="56" Height="56"/><TextBlock Text="{x:Bind Item.Station, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" MaxWidth="170"/></StackPanel>
     <TextBlock Text="Put these ingredients into the equipment:" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>

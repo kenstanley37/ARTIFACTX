@@ -30,7 +30,8 @@ public sealed partial class RecipePlannerViewModel
                     Station(r), $"Use recipe for {Name(id)}: " + string.Join(" and ", r.Ingredients.Select(i => Name(i.Id))),
                     new RelayCommand(() => ChooseRecipe(id, r.Id)))).ToArray();
             var plan = await RecipeRequirementsService.BuildAsync(target, routeRecipes, quantity,
-                new Dictionary<string, string>(_choices, StringComparer.OrdinalIgnoreCase), cancellation.Token);
+                new Dictionary<string, string>(_choices, StringComparer.OrdinalIgnoreCase), cancellation.Token,
+                _supplyChoices.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase));
             var ids = plan.Steps.SelectMany(s => s.Recipe.Ingredients.Select(i => i.Id).Append(s.Recipe.ResultId))
                 .Concat(plan.Gather.Select(i => i.Id)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             await CatalogService.WarmCacheAsync(ids);
@@ -54,7 +55,11 @@ public sealed partial class RecipePlannerViewModel
                     if (!circular.ContainsKey((step.Recipe.ResultId, ingredient.Id))) levels[ingredient.Id] = Math.Max(levels.GetValueOrDefault(ingredient.Id), levels.GetValueOrDefault(step.Recipe.ResultId) + 1);
             RecipePlannerItemViewModel Item(string id, long amount, int input = 0, string node = "") => new()
             {
-                Id = id, TreeNodeId = node, Name = Name(id), Required = amount,
+                Id = id, TreeNodeId = node.Length > 0 ? node : _supplyChoices.ContainsKey(id) ? id : "", Name = Name(id), Required = amount,
+                IsSupply = _supplyChoices.ContainsKey(id), Level = levels.GetValueOrDefault(id),
+                Heading = _supplyChoices.GetValueOrDefault(id) == "stored" ? "STORED SUPPLY" : "COLLECT",
+                Station = SupplyLabel(id), SupplyPlan = SupplyLabel(id),
+                RestoreRecipeCommand = new RelayCommand(() => RestoreRecipe(id)),
                 Amount = (input > 0 ? $"Input {input}: " : "") + $"{amount:N0} × {Name(id)}",
                 Icon = CatalogService.TryGet(id)?.Icon, Buff = Buff(id),
                 Alternatives = Alternatives(id),
@@ -167,8 +172,9 @@ public sealed partial class RecipePlannerViewModel
 
     public void ChooseRecipe(string itemId, string recipeId)
     {
-        if (_choices.GetValueOrDefault(itemId) == recipeId) return;
-        if (_allCards.GetValueOrDefault(itemId)?.RecipeId == recipeId) return;
+        bool supplied = _supplyChoices.Remove(itemId);
+        if (!supplied && _choices.GetValueOrDefault(itemId) == recipeId) return;
+        if (!supplied && _allCards.GetValueOrDefault(itemId)?.RecipeId == recipeId) return;
         if (_target?.Result.Id == itemId && _catalog?.Recipes.FirstOrDefault(r => r.Id == recipeId) is { } target) _target = target;
         else _choices[itemId] = recipeId;
         _ = RebuildAsync();

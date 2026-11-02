@@ -35,6 +35,12 @@ public sealed partial class RecipePlannerItemViewModel : ObservableObject
     public Visibility ChoiceVisibility => Choices.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility RecipeVisibility => RecipeId.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility SourceVisibility => Visibility.Visible;
+    public ObservableCollection<RecipePlannerSupplyOption> SupplyOptions { get; } = [];
+    [ObservableProperty] public partial Visibility SupplyOptionsVisibility { get; set; } = Visibility.Collapsed;
+    [ObservableProperty] public partial string SupplyPlan { get; set; } = "";
+    public IRelayCommand RestoreRecipeCommand { get; init; } = new RelayCommand(() => { });
+    public bool IsSupply { get; init; }
+    public Visibility SupplyPlanVisibility => IsSupply ? Visibility.Visible : Visibility.Collapsed;
     [ObservableProperty] public partial string Inventory { get; set; } = "";
     [ObservableProperty] public partial string InventoryLocations { get; set; } = "";
     [ObservableProperty, NotifyPropertyChangedFor(nameof(BaseSourcesVisibility))] public partial string BaseSources { get; set; } = "";
@@ -61,6 +67,7 @@ public sealed record RecipePlannerEffect(string Id, string Name)
 
 public sealed record RecipePlannerCrumb(string Name, IRelayCommand NavigateCommand);
 public sealed record RecipePlannerAlternative(string Label, string Equipment, string ActionName, IRelayCommand ChooseCommand);
+public sealed record RecipePlannerSupplyOption(string Label, string ActionName, IRelayCommand ChooseCommand);
 public sealed record RecipePlanChoice(string Id, string Label)
 {
     public override string ToString() => Label;

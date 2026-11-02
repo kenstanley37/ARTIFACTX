@@ -22,6 +22,7 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
     private readonly RecipePlannerMode _mode;
     private RecipePlannerCatalog? _catalog;
     private readonly Dictionary<string, string> _choices = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _supplyChoices = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _path = [];
     private readonly Dictionary<string, RecipePlannerItemViewModel> _allCards = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, (FoodIngestorDefinition Food, float Bonus)> _buffs = new(StringComparer.OrdinalIgnoreCase);
@@ -160,7 +161,7 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
 
     private void Open(RecipeInfo recipe)
     {
-        _target = recipe; _choices.Clear(); _path.Clear(); _path.Add(recipe.Result.Id);
+        _target = recipe; _choices.Clear(); _supplyChoices.Clear(); _path.Clear(); _path.Add(recipe.Result.Id);
         SelectedItem = null;
         IsBrowserExpanded = false;
         PlannerVisibility = Visibility.Visible;
@@ -182,7 +183,11 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
         int version = ++_inventoryVersion;
         object? owner = SaveSessionManager.SessionIdentity;
         if (!ReferenceEquals(_inventoryOwner, owner))
-        { _owned = null; _inventoryOwner = owner; }
+        {
+            _owned = null; _inventoryOwner = owner;
+            if (_supplyChoices.Count > 0)
+            { _supplyChoices.Clear(); await RebuildAsync(); return; }
+        }
         try
         {
             var player = snapshot?.CargoSupplies is null && _owned is null
@@ -211,6 +216,7 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
                     : "";
                 item.BaseSources = string.Join("\n", baseSources.Where(s => s.ItemId.Equals(item.Id, StringComparison.OrdinalIgnoreCase))
                     .Select(s => $"{s.BaseName}: {s.Extractors:N0} {(s.Kind == "Gas" ? "gas" : "mineral")} extractor{(s.Extractors == 1 ? "" : "s")}"));
+                UpdateSupplyOptions(item, baseSources, total);
             }
         }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Recipe inventory] {ex}"); }

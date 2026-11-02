@@ -33,6 +33,20 @@ internal static class RecipePlannerChecks
             throw new InvalidOperationException("Automatic gas route stopped before the actual circular edge.");
         var scaled = RecipePlanner.Build(root, [root, left, right, shared], 3, new Dictionary<string, string>());
         if (scaled.Gather.Single().Amount != 3) throw new InvalidOperationException("Scaled shared batches differ.");
+        var supplied = RecipePlanner.Build(root, [root, left, right, shared], 3, new Dictionary<string, string>(),
+            suppliedItems: new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "sugar" });
+        if (supplied.Steps.Count != 3 || supplied.Steps.Any(s => s.Recipe.ResultId == "sugar")
+            || supplied.Gather.Single() is not { Id: "sugar", Amount: 6 })
+            throw new InvalidOperationException("Chosen supply failed to replace the shared recipe and aggregate its demand.");
+        var suppliedRoot = RecipePlanner.Build(shared, [shared], 3, new Dictionary<string, string>(),
+            suppliedItems: new HashSet<string> { "sugar" });
+        if (suppliedRoot.Steps.Count != 0 || suppliedRoot.Gather.Single() is not { Id: "sugar", Amount: 3 })
+            throw new InvalidOperationException("Sourcing the target incorrectly rounded up to recipe batch output.");
+        var suppliedGas = RecipePlanner.Build(ammonia, [ammonia, nitrogen, radon], 4, new Dictionary<string, string>(),
+            suppliedItems: new HashSet<string> { "nitrogen" });
+        if (suppliedGas.Steps.Count != 1 || suppliedGas.Gather.Single() is not { Id: "nitrogen", Amount: 4 }
+            || suppliedGas.CircularSupplies.Count != 0 || suppliedGas.Notice.Length > 0)
+            throw new InvalidOperationException("Chosen gas supply retained a conversion loop.");
         using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
         try { RecipePlanner.Build(root, [root, left, right, shared], 1, new Dictionary<string, string>(), cancelled.Token); throw new Exception("Cancellation ignored."); }
         catch (OperationCanceledException) { }

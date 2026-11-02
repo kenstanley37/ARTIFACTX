@@ -11,8 +11,12 @@ public sealed record RecipePlan(IReadOnlyList<RecipePlanStep> Steps, IReadOnlyLi
 public static class RecipePlanner
 {
     public static RecipePlan Build(RequirementRecipe root, IReadOnlyList<RequirementRecipe> recipes,
-        int quantity, IReadOnlyDictionary<string, string> choices, CancellationToken cancellationToken = default)
+        int quantity, IReadOnlyDictionary<string, string> choices, CancellationToken cancellationToken = default,
+        IReadOnlySet<string>? suppliedItems = null)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (suppliedItems?.Contains(root.ResultId) == true)
+            return new([], [new(root.ResultId, Math.Max(1, quantity))], "");
         var byResult = recipes.GroupBy(r => r.ResultId, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.OrderBy(r => r.Id, StringComparer.OrdinalIgnoreCase).ToArray(), StringComparer.OrdinalIgnoreCase);
         var rank = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -48,6 +52,8 @@ public static class RecipePlanner
             selectedRecipes[recipe.ResultId] = recipe;
             foreach (var input in recipe.Ingredients.Where(i => i.Amount > 0))
             {
+                if (suppliedItems?.Contains(input.Id) == true)
+                { terminalEdges.Add((recipe.ResultId, input.Id)); continue; }
                 if (path.Contains(input.Id))
                 {
                     terminalEdges.Add((recipe.ResultId, input.Id));
