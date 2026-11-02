@@ -56,13 +56,29 @@ attribute test. Core matches type flag, class, both strength outputs, exact
 range float bits and final MWC state for every vector. Positive finite weights
 are the supported input domain of this initial port.
 
-Coordinate follow-up: 0x1413524B0 generates a direction from the address masked
-to 52 bits; 0x1412F59A0 applies spherical rotations. A trial executing both
-with file-backed globals produced non-finite directions because a vector read
-at 0x1472E1F40 is zero in the executable image. Its runtime initialization must
-be identified before treating a full-coordinate emulator as an oracle. No
-guessed axis has been substituted. Pole generation, spacing/overlap rejection
-and closest-hotspot selection remain unported and unverified.
+### Address orientation and spherical rotation
+
+0x1413524B0 generates a direction from the address masked to 52 bits;
+0x1412F59A0 applies spherical rotations. An initial trial produced non-finite
+directions because its vector at 0x1472E1F40 is zero in the file image. Follow-up
+xrefs found initializer 0x140033520: it copies (0,0,1,1) from 0x144BF4BE0.
+Executing that initializer removes the missing runtime-state dependency;
+no guessed axis is substituted.
+
+`hotspot-roll-oracle.py --geometry` now runs that initializer and all geometry
+services, including native sine/cosine. It records the address orientation,
+rotation input and output direction. The 256 cases vary addresses (including
+zero, low-word zero and masked-high-bit boundaries), pole indices, planet
+radii, attribute weights and random states. `HotspotOrientation.Direction`
+matches all orientation component bits. `Rotate` uses Numerics quaternion
+arithmetic with the game's trig; its maximum measured direction error is
+2.9200194E-7, about 3.8 cm at a 130048-unit radius. The test rejects non-finite
+results and errors above 1E-6. This is a measured rotation tolerance, not an
+exact-coordinate claim or a full placement check. Native rotation inputs are
+radians; the apparent half-angle constant is 0.5, not degrees-to-radians.
+
+Pole generation, spacing/overlap rejection and closest-hotspot selection remain
+unported and unverified. Consequently no actual extractor resource is inferred.
 
 ## In-game reference and fresh-save comparison
 

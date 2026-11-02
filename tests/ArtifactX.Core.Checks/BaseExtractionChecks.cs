@@ -8,10 +8,29 @@ internal static class BaseExtractionChecks
     {
         using var json = JsonDocument.Parse(File.ReadAllText(path));
         int count = 0;
+        int geometryCount = 0;
+        float maximumDirectionError = 0;
         foreach (var row in json.RootElement.EnumerateArray())
         {
             var categories = JsonSerializer.Deserialize<HotspotCategory[]>(row.GetProperty("Configs"))!;
             var actual = HotspotAttributes.Roll(row.GetProperty("Seed").GetUInt64(), categories);
+            if (row.TryGetProperty("Orientation", out var orientation))
+            {
+                var direction = HotspotOrientation.Direction(row.GetProperty("Address").GetUInt64());
+                float[] components = [direction.X, direction.Y, direction.Z];
+                for (int i = 0; i < 3; i++)
+                    if (BitConverter.SingleToInt32Bits(components[i]) != BitConverter.SingleToInt32Bits(orientation[i].GetSingle()))
+                        throw new InvalidOperationException($"Hotspot orientation {count}, component {i} differs: {components[i]} vs {orientation[i]}.");
+                var input = row.GetProperty("RotationInput");
+                var rotated = HotspotOrientation.Rotate(direction, input[1].GetSingle(), input[2].GetSingle(), input[0].GetSingle());
+                var expectedDirection = row.GetProperty("Direction");
+                var expected = new System.Numerics.Vector3(expectedDirection[0].GetSingle(), expectedDirection[1].GetSingle(), expectedDirection[2].GetSingle());
+                float error = System.Numerics.Vector3.Distance(rotated, expected);
+                maximumDirectionError = Math.Max(maximumDirectionError, error);
+                geometryCount++;
+                if (!float.IsFinite(error) || error > 0.000001f)
+                    throw new InvalidOperationException($"Hotspot rotation {count} differs: {rotated} vs {expected}.");
+            }
             if (actual.Flag != row.GetProperty("Flag").GetInt32()
                 || actual.Class != row.GetProperty("Class").GetInt32()
                 || actual.Strength != row.GetProperty("Strength").GetSingle()
@@ -22,6 +41,8 @@ internal static class BaseExtractionChecks
             count++;
         }
         Console.WriteLine($"PASS: {count} native hotspot type, range bits, class, strength and final RNG states.");
+        if (geometryCount > 0)
+            Console.WriteLine($"PASS: {geometryCount} bit-exact address orientations; maximum rotation direction error {maximumDirectionError:R}.");
     }
 
     public static void Check()
