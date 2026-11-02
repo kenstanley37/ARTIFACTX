@@ -145,6 +145,29 @@ consumer's range/power handling still need independent confirmation; do not
 promote this candidate survey to automatic resource identification or count
 extraction stock as owned yet.
 
+## Catalog extraction and generated resource reference (2026-11-02)
+
+`CatalogSteps.Extraction.cs` now builds the `EXTRACTIONTABLES` row from the
+installed region hotspot and base building tables. Its portable Core record
+contains the six ordered hotspot definitions with enum-derived names/flags,
+17 biome gas pairs, substance batch yields and resource-network connection
+settings. The installed-file scratch-catalog check found 6 categories, 17 gas
+pairs, 33 substance yields and 5 resource-link definitions. It verifies the
+known mineral/gas extractor and depot definitions, and converts the reference
+Paraffinium stock to 6750 using the extracted yield (no copied yield list).
+
+`ExtractionCatalogChecks.World` accepts external reference cases and reads the
+scratch catalog read-only. For the preserved base address it runs the existing
+system/body/profile generators, selects the previously native-confirmed
+Mineral2 resource and checks the generated radius. Both match the supplied
+reference: LUSH1 (Paraffinium), radius 98304. Biome gases remain extracted inputs,
+not an inference that a gas extractor necessarily collects the first gas.
+
+This row has no application consumer yet. Catalog format is deliberately not
+bumped for this internal checkpoint; bump it when the consumer is integrated
+so the owner only needs to rebuild game data once for the visible feature.
+No real catalog or save was modified; tests wrote only a new scratch database.
+
 ## In-game reference and fresh-save comparison
 
 The owner supplied a Supply Depot screenshot showing Paraffinium, 6750/10000
