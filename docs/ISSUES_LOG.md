@@ -449,10 +449,10 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 ## 2026-11-02 feature requests
 
 ### Feature 54: Exocraft Unlocks on Each Vehicle's Tab
-- **Status**: Planned; owner request and Colossus screenshots, 2026-11-02. Not implemented.
+- **Status**: Research in progress; title reward extraction and native existing-title early-exit check pass on build 184271. Exocraft UI not implemented yet.
 - **Problem**: Vehicle customisation unlocks are difficult to locate in Catalogue, and the game does not clearly explain their requirements.
 - **Request**: Show each vehicle's relevant unlocks directly on its individual Exocraft tab, grouped by customisation category. Include locked/unlocked state and verified instructions for obtaining each option, including any prerequisites, mission progress, costs or rewards that the game data establishes. Reuse Catalogue definitions and existing safe staged editing where available; do not duplicate unlock logic or automatically unlock anything.
-- **Colossus references**: Widescreen Cabin, Furnace Module, Off-Road Wheels, Tracked Treads, Caterpillar Track and Superelastic Wheels appear locked in the owner's screenshots. Trace their actual unlock conditions. The owner's suspected connection to Industrial Cleanup is a hypothesis, not a confirmed prerequisite.
+- **Colossus references**: Widescreen Cabin, Furnace Module, Off-Road Wheels, Tracked Treads, Caterpillar Track and Superelastic Wheels are linked to recycling title rewards in the installed metadata. Owner meets declared thresholds and has the titles, but parts remain locked even after manual sorting and selecting Rusty. Native grant skips already-unlocked titles before linked rewards; how the account acquired the mismatch is unknown. No travel-distance requirement appears in these six definitions. See [research and verification limits](research/2026-11-02-EXOCRAFT-UNLOCKS.md). Never mark ownership from thresholds alone.
 - **Portable guidance**: Keep unlock rules and acquisition information reusable for the future mobile/console helper; a loaded save adds personal unlock state.
 - **Tracking**: [Testing and polish backlog, issue #1](https://github.com/kenstanley37/ARTIFACTX/issues/1).
 
