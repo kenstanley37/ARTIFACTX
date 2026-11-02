@@ -192,7 +192,30 @@ your bases'. Catalog and save walks run off the UI thread. The existing
 app-wide snapshot feed updates strings on existing item ViewModels; there is
 no new watcher or planner rebuild. Without a save, that section is hidden.
 The app needs catalog format 57, built from the owner's installed game files.
-UI behavior still requires the owner's Visual Studio build and in-app check.
+Owner screenshots on 2026-11-02 confirm both base-source sections in the app:
+Paraffinium shows 20 mineral extractors and Oxygen shows 25 gas extractors.
+
+### Source choices and follow-up validation
+
+The planner now allows explicit collection from a detected base or use of
+enough stored supplies instead of preparing an item. The chosen item becomes
+a terminal supply, so shared demand is aggregated without retaining its
+refining branch. The final requested item can also be sourced directly without
+rounding its quantity up to a recipe batch. Choosing a recipe again restores
+preparation. Stored supply choices do not write or consume inventory; later
+shortfalls remain visible in inventory totals. Changing the loaded save clears
+these session-specific source choices. Background snapshots do not rebuild
+the tree or change the selected source.
+
+Owner screenshots confirm choosing collection for the final Paraffinium target
+produces one COLLECT card and zero refining operations, and choosing stored
+supplies produces one STORED SUPPLY card with zero refining operations. These
+screenshots do not by themselves verify a nested branch or the restore button.
+The catalog regression check covers 2045 original routes and 6026 explicit
+source variants (the target and each direct ingredient, requested quantity 7).
+It checks finite unique steps, consolidated supplies, dependency order, supply
+versus demand, removal of the supplied recipe, and restoration of the original
+route after source choices. All passed on 2026-11-02.
 
 ## In-game reference and fresh-save comparison
 

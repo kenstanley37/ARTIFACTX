@@ -57,6 +57,30 @@ internal static class RecipePlannerChecks
     {
         var recipes = JsonSerializer.Deserialize<RequirementRecipe[]>(File.ReadAllText(path))!;
         int count = 0;
+        int sourceCount = 0;
+        void Validate(RequirementRecipe root, RecipePlan candidate, int requested, string? supplied = null)
+        {
+            if (candidate.Steps.Count > 100 || candidate.Steps.Select(s => s.Recipe.ResultId).Distinct().Count() != candidate.Steps.Count
+                || candidate.Gather.Select(g => g.Id).Distinct().Count() != candidate.Gather.Count)
+                throw new InvalidOperationException("Source plan has duplicate steps/supplies or exceeds its bound.");
+            if (supplied is not null && candidate.Steps.Any(s => s.Recipe.ResultId == supplied))
+                throw new InvalidOperationException($"Source choice still makes {supplied} for {root.Id}.");
+            var completed = candidate.Gather.Select(g => g.Id).ToHashSet();
+            foreach (var step in candidate.Steps)
+            {
+                if (step.Recipe.Ingredients.Any(i => !completed.Contains(i.Id)))
+                    throw new InvalidOperationException($"Source dependency order differs for {root.Id}.");
+                completed.Add(step.Recipe.ResultId);
+            }
+            foreach (var id in completed.Append(root.ResultId).Distinct())
+            {
+                long supply = candidate.Gather.Where(g => g.Id == id).Sum(g => (long)g.Amount)
+                    + candidate.Steps.Where(s => s.Recipe.ResultId == id).Sum(s => s.Batches * s.Recipe.ResultAmount);
+                long demand = candidate.Steps.Sum(s => s.Batches * s.Recipe.Ingredients.Where(i => i.Id == id).Sum(i => (long)i.Amount))
+                    + (id == root.ResultId ? requested : 0);
+                if (supply < demand) throw new InvalidOperationException($"Source supply shortage for {root.Id}/{id}.");
+            }
+        }
         foreach (var (recipe, available) in recipes.Select(r => (r, recipes))
             .Concat(recipes.Where(r => r.Kind == "Refiner").Select(r => (r, recipes.Where(a => a.Kind == "Refiner").ToArray()))))
         {
@@ -80,9 +104,21 @@ internal static class RecipePlannerChecks
             }
             if (recipe.ResultId is "EX_PURPLE" or "ALLOY1")
                 Console.WriteLine($"Expanded {recipe.Id}: {plan.Steps.Count} operations, {plan.CircularSupplies.Count} circular supplies.");
+            foreach (string supplied in recipe.Ingredients.Select(i => i.Id).Append(recipe.ResultId).Distinct())
+            {
+                var sourcePlan = RecipePlanner.Build(recipe, available, 7, new Dictionary<string, string>(),
+                    suppliedItems: new HashSet<string>(StringComparer.OrdinalIgnoreCase) { supplied });
+                Validate(recipe, sourcePlan, 7, supplied);
+                sourceCount++;
+            }
+            var restored = RecipePlanner.Build(recipe, available, 1, new Dictionary<string, string>());
+            if (!restored.Steps.Select(s => (s.Recipe.Id, s.Batches)).SequenceEqual(plan.Steps.Select(s => (s.Recipe.Id, s.Batches)))
+                || !restored.Gather.SequenceEqual(plan.Gather))
+                throw new InvalidOperationException($"Source selection leaked into the restored route for {recipe.Id}.");
             count++;
         }
         Console.WriteLine($"PASS: {count} catalog routes are finite, consolidated and dependency ordered.");
+        Console.WriteLine($"PASS: {sourceCount} catalog source choices preserve demand, remove supplied recipes and restore the original route.");
     }
 
     public static void Native(string path)
