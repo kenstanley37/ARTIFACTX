@@ -1,7 +1,9 @@
 # Base extraction audit
 
-Status: read-only investigation. No extraction quantities are included in the
-recipe planner's owned inventory. No automatic hotspot resource claim is made.
+Status (2026-11-02): base ingredient-source discovery is integrated in the
+planner using generated hotspot resources. It lists placed extractors at saved
+bases; no extraction quantities are included in owned inventory. Power,
+current output stock and production-rate prediction remain excluded.
 
 ## Native stock and resource selection helpers
 
@@ -163,10 +165,34 @@ Mineral2 resource and checks the generated radius. Both match the supplied
 reference: LUSH1 (Paraffinium), radius 98304. Biome gases remain extracted inputs,
 not an inference that a gas extractor necessarily collects the first gas.
 
-This row has no application consumer yet. Catalog format is deliberately not
-bumped for this internal checkpoint; bump it when the consumer is integrated
-so the owner only needs to rebuild game data once for the visible feature.
-No real catalog or save was modified; tests wrote only a new scratch database.
+At that checkpoint the row had no application consumer and catalog format was
+not bumped. The subsequent integration below moves the format to 57. No real
+catalog or save was modified by checks; they wrote a new scratch database.
+
+### Recipe base-source integration
+
+`BaseExtractionSites` reads HomePlanetBase entries, resolves their generated
+worlds once per address, transforms placed extractor coordinates and applies
+the native-filtered nearby query. Only matching mineral/gas hotspots within
+range produce a source entry. It groups by base, item and extractor kind.
+Unsupported body sizes and missing coordinate data are excluded. It does not
+claim equipment is powered, infer a production rate or add stored output.
+
+Read-only Slot 1 Working save inspection on 2026-11-02 independently exercises
+the second base orientation: Oxygen Farm - Portal has 25 gas extractors and all
+resolve to OXYGEN, matching the owner's Oxygen depot reference. The Paraffinium
+base resolves to LUSH1 with 20 extractors. An external reference JSON asserts
+both results; the check also asserts discovery leaves the parsed save unchanged.
+The Oxygen total describes every placed extractor at the base, including the
+previously identified disconnected networks, not just the 18-extractor main
+network in the capacity screenshot.
+
+The shared recipe details control shows matching sources under 'Extractors at
+your bases'. Catalog and save walks run off the UI thread. The existing
+app-wide snapshot feed updates strings on existing item ViewModels; there is
+no new watcher or planner rebuild. Without a save, that section is hidden.
+The app needs catalog format 57, built from the owner's installed game files.
+UI behavior still requires the owner's Visual Studio build and in-app check.
 
 ## In-game reference and fresh-save comparison
 

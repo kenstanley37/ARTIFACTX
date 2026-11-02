@@ -45,6 +45,11 @@
     <TextBlock Text="{x:Bind Item.Source, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
    </StackPanel>
    <TextBlock Text="{x:Bind Item.Inventory, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+   <StackPanel Visibility="{x:Bind Item.BaseSourcesVisibility, Mode=OneWay}" Spacing="8">
+    <TextBlock Text="EXTRACTORS AT YOUR BASES" Style="{StaticResource ThemeEyebrowStyle}"/>
+    <TextBlock Text="{x:Bind Item.BaseSources, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+    <TextBlock Text="Visit the base to collect supplies. Uncollected output is not included in your owned total." Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+   </StackPanel>
    <TextBlock Text="{x:Bind Item.InventoryLocations, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
    <TextBlock Text="{x:Bind Item.Buff, Mode=OneWay}" Visibility="{x:Bind Item.BuffVisibility, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
   </StackPanel>

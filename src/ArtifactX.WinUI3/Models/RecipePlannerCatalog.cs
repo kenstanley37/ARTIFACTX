@@ -6,4 +6,4 @@ namespace ArtifactX.WinUI3.Models;
 
 internal sealed record RecipePlannerCatalog(IReadOnlyList<RecipeInfo> Recipes,
     IReadOnlyDictionary<string, string> Names, IReadOnlyDictionary<string, string> Sources,
-    FoodIngestorTables? Food);
+    FoodIngestorTables? Food, ExtractionWorldTables? Extraction = null);

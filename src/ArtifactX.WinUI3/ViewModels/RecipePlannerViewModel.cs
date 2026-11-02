@@ -189,6 +189,13 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
                 ? SaveSessionManager.GetValue("vLc", "6f=") as JObject : null;
             var supplies = snapshot?.CargoSupplies ?? _owned
                 ?? await Task.Run(() => CargoSupplies.Read(player));
+            IReadOnlyList<BaseExtractionSite> baseSources = [];
+            if (SaveSessionManager.IsSaveLoaded && _catalog?.Extraction is { } extraction)
+            {
+                var bases = snapshot?.Bases ?? SaveSessionManager.GetValue("vLc", "6f=", "F?0") as JArray;
+                try { baseSources = await Task.Run(() => BaseExtractionSites.Read(bases, extraction)); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Recipe extraction sites] {ex}"); }
+            }
             if (version != _inventoryVersion || !ReferenceEquals(owner, SaveSessionManager.SessionIdentity)) return;
             _owned = supplies;
             foreach (var item in _allCards.Values.Concat(Gather).Distinct())
@@ -202,6 +209,8 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
                     ? string.Join("\n", locations.Select(s => $"{s.Location}: {s.Amount:N0}"))
                         + "\nStored supplies may need to be collected from these locations."
                     : "";
+                item.BaseSources = string.Join("\n", baseSources.Where(s => s.ItemId.Equals(item.Id, StringComparison.OrdinalIgnoreCase))
+                    .Select(s => $"{s.BaseName}: {s.Extractors:N0} {(s.Kind == "Gas" ? "gas" : "mineral")} extractor{(s.Extractors == 1 ? "" : "s")}"));
             }
         }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Recipe inventory] {ex}"); }

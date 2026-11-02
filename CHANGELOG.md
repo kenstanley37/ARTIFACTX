@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- **Base ingredient sources**: recipe details identify mineral and gas extractors at your saved bases after updating game data. Uncollected output stays separate from owned inventory.
+
 - **Cooking ingredient sources**: creature products now explain whether to hunt wildlife or feed it and collect produce. Dirty Meat identifies burrowing creatures as its source after updating game data.
 
 - **Cooking and Refiner Recipes**: separate pages make it easier to find food recipes or refine minerals and other materials. Both use the recipe planner; food-effect filters stay on Cooking Recipes.

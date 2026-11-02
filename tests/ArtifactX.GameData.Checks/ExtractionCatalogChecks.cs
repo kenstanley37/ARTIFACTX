@@ -7,6 +7,32 @@ using Microsoft.Data.Sqlite;
 
 internal static class ExtractionCatalogChecks
 {
+    public static void Sites(string catalog, string save, string? expectedPath = null)
+    {
+        using var connection = new SqliteConnection($"Data Source={catalog};Mode=ReadOnly");
+        connection.Open();
+        T Read<T>(string id)
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId=$id";
+            command.Parameters.AddWithValue("$id", id);
+            return JsonSerializer.Deserialize<T>((string)command.ExecuteScalar()!)!;
+        }
+        var tables = new ExtractionWorldTables(Read<BiomeTables>("BIOMETABLES"), Read<PlanetProfileTables>("PLANETPROFILE"), Read<ExtractionTables>("EXTRACTIONTABLES"));
+        var root = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(save));
+        string before = root.ToString();
+        var sites = BaseExtractionSites.Read(root["vLc"]?["6f="]?["F?0"] as Newtonsoft.Json.Linq.JArray, tables);
+        if (root.ToString() != before) throw new InvalidOperationException("Extraction discovery mutated the save model.");
+        if (expectedPath is not null)
+        {
+            var expected = JsonSerializer.Deserialize<BaseExtractionSite[]>(File.ReadAllText(expectedPath))!;
+            foreach (var site in expected)
+                if (!sites.Contains(site)) throw new InvalidOperationException($"Expected extraction site differs: {site}.");
+            Console.WriteLine($"PASS: {expected.Length} supplied extraction-site references; read-only discovery.");
+        }
+        foreach (var site in sites) Console.WriteLine($"{site.BaseName}: {site.ItemId}, {site.Extractors} {site.Kind} extractors");
+    }
+
     public static void World(string catalog, string reference)
     {
         using var connection = new SqliteConnection($"Data Source={catalog};Mode=ReadOnly");

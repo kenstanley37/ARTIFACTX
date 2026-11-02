@@ -5,6 +5,12 @@ using ArtifactX.GameData.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
+if (args.Length is 3 or 4 && args[0] == "--extraction-site-check")
+{
+    ExtractionCatalogChecks.Sites(args[1], args[2], args.Length == 4 ? args[3] : null);
+    return;
+}
+
 if (args.Length == 3 && args[0] == "--extraction-world-check")
 {
     ExtractionCatalogChecks.World(args[1], args[2]);
