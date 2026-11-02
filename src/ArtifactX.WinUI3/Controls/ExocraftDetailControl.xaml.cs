@@ -36,6 +36,7 @@ public sealed partial class ExocraftDetailControl : UserControl
     public void Initialize(ExocraftType type)
     {
         _type = type;
+        UnlockPanel.Initialize(type);
         TitleTxt.Text = ExocraftCapacity.DisplayName(type);
 
         TechGrid.AllowedCategories = new[] { "Technology" };

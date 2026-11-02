@@ -28,6 +28,14 @@ public static partial class CatalogSteps
         if (!index.TryFind(file, out var path, out var entry, out var header))
             throw new InvalidDataException("Player title definitions were not found.");
         var extraction = new ExtractionService();
+        NMSTemplate Decode(string name)
+        {
+            if (!index.TryFind(name, out var pak, out var item, out var pakHeader))
+                throw new InvalidDataException($"Customization table not found: {name}");
+            using var data = new MBINFile(new MemoryStream(extraction.ExtractEntryBytes(pak, item, pakHeader)!));
+            data.Load();
+            return data.GetData();
+        }
         using var mbin = new MBINFile(new MemoryStream(extraction.ExtractEntryBytes(path, entry, header)!));
         mbin.Load();
         if (mbin.GetData() is not GcPlayerTitleData table)
@@ -35,6 +43,12 @@ public static partial class CatalogSteps
         var titles = table.Titles.Where(t => t.TitleUnlocksSpecials.Count > 0).ToArray();
         var keys = titles.SelectMany(t => new[] { t.Title.Value, t.UnlockDescription.Value, t.AlreadyUnlockedDescription.Value })
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        const string prefix = "METADATA/GAMESTATE/PLAYERDATA/";
+        var ui = (GcCustomisationUIData)Decode("METADATA/UI/CHARACTERCUSTOMISATIONUIDATA.MBIN");
+        var descriptors = (GcCustomisationDescriptorGroups)Decode(prefix + "CHARACTERCUSTOMISATIONDESCRIPTORGROUPSDATA.MBIN");
+        var textures = (GcCustomisationTextureOptions)Decode(prefix + "CHARACTERCUSTOMISATIONTEXTUREOPTIONDATA.MBIN");
+        var options = VehicleOptions(ui, descriptors, textures);
+        foreach (var option in options) { keys.Add(option.Group); keys.Add(option.Name); }
         var texts = EnglishTexts(index, extraction, keys);
         // Missing localization stays empty; raw localization ids must never reach players.
         string Text(string key) => texts.GetValueOrDefault(key, "");
@@ -49,8 +63,47 @@ public static partial class CatalogSteps
         Replace(db, "TitleUnlocks", "GcPlayerTitle", file.ToLowerInvariant(), new List<CatalogItem>
         {
             new CatalogItem { GameId = "TITLEUNLOCKS", NameEnglish = "Title unlock requirements",
-                DescriptionEnglish = JsonSerializer.Serialize(rules) }
+                DescriptionEnglish = JsonSerializer.Serialize(rules) },
+            new CatalogItem { GameId = "VEHICLECUSTOMISATION", NameEnglish = "Vehicle customization options",
+                DescriptionEnglish = JsonSerializer.Serialize(options.Select(o => o with
+                { Group = Text(o.Group), Name = Text(o.Name) })) }
         });
         ConsoleStyle.Success($"Wrote {rules.Length} title reward rules to {catalogPath}.");
+    }
+
+    private static List<VehicleCustomisationOption> VehicleOptions(GcCustomisationUIData ui,
+        GcCustomisationDescriptorGroups descriptors, GcCustomisationTextureOptions textures)
+    {
+        var groups = descriptors.DescriptorGroupSets.SelectMany(s => s.DescriptorGroups)
+            .GroupBy(g => g.GroupID.Value).ToDictionary(g => g.Key, g => g.First());
+        var result = new List<VehicleCustomisationOption>();
+        // Enum identities are structural. Names, options, grouping and rewards
+        // come from the installed UI definitions, never copied item lists.
+        foreach (var vehicle in Enum.GetValues<GcVehicleType.VehicleTypeEnum>())
+        {
+            string kind = vehicle == GcVehicleType.VehicleTypeEnum.Buggy ? "Vehicle" : "Vehicle_" + vehicle;
+            if (!Enum.TryParse<GcCustomisationComponentData.CustomisationDataTypeEnum>(kind, out var type)) continue;
+            foreach (var group in ui.CustomisationUIData[(int)type].Common.CustomisationGroups)
+            {
+                foreach (var option in group.DescriptorOptions.SelectMany(d => d.DescriptorGroupOptions))
+                {
+                    if (!groups.TryGetValue(option.DescriptorOption.Value, out var descriptor) || descriptor.HiddenInCustomiser) continue;
+                    result.Add(new((int)vehicle, group.GroupTitle.Value, descriptor.GroupID.Value,
+                        descriptor.Tip.Value, descriptor.LinkedProductOrSpecialID.Value));
+                }
+                foreach (var texture in group.TextureGroups)
+                {
+                    foreach (var set in textures.TextureOptions.Where(t => t.TextureOptionsID.Value == texture.TextureOptionGroup.Value))
+                        for (int i = 0; i < set.Tips.Count; i++)
+                            result.Add(new((int)vehicle, group.GroupTitle.Value, set.TextureOptionsID.Value + ":" + i,
+                                set.Tips[i].Value, set.ProductsToUnlock.ElementAtOrDefault(i)?.Value ?? ""));
+                    foreach (var set in textures.MultiTextureOptions.Where(t => t.MultiTextureOptionsID.Value == texture.TextureOptionGroup.Value))
+                        for (int i = 0; i < set.Tips.Count; i++)
+                            result.Add(new((int)vehicle, group.GroupTitle.Value, set.MultiTextureOptionsID.Value + ":" + i,
+                                set.Tips[i].Value, set.ProductsToUnlock.ElementAtOrDefault(i)?.Value ?? ""));
+                }
+            }
+        }
+        return result.DistinctBy(o => (o.Vehicle, o.Group, o.OptionId)).ToList();
     }
 }

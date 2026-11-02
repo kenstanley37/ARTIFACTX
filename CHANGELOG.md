@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- **Exocraft customization guide**: each vehicle tab has a collapsible unlock guide. Colossus parts show the game's recycling title requirements, progress and recorded account rewards, including a warning when an earned title's part reward is missing. Update game data to load the new definitions.
+
 - **Choose recipe ingredient sources**: collect an item from a matching base or use enough stored supplies to replace its refining branch. Requirements recalculate, and you can switch back to making the item.
 
 - **Base ingredient sources**: recipe details identify mineral and gas extractors at your saved bases after updating game data. Matching bases appear directly below the ingredient name, before recipe alternatives. Uncollected output stays separate from owned inventory.

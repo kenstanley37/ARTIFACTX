@@ -27,7 +27,7 @@
                         <AdaptiveTrigger MinWindowWidth="0"/>
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
-                        <Setter Target="SidebarPanel.(Grid.Row)" Value="2"/>
+                        <Setter Target="SidebarPanel.(Grid.Row)" Value="3"/>
                         <Setter Target="SidebarPanel.(Grid.Column)" Value="0"/>
                         <Setter Target="SidebarPanel.(Grid.ColumnSpan)" Value="2"/>
                         <Setter Target="SeedInfoBorder.Width" Value="NaN"/>
@@ -49,6 +49,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <Grid Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2">
@@ -62,7 +63,9 @@
                             Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
                 </Grid>
 
-                <StackPanel x:Name="MainColumn" Grid.Row="1" Grid.Column="0" Spacing="22">
+                <controls:VehicleUnlockPanel x:Name="UnlockPanel" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"/>
+
+                <StackPanel x:Name="MainColumn" Grid.Row="2" Grid.Column="0" Spacing="22">
                     <!-- Tech and cargo stacked, with the list of tech this vehicle can fit
                          beside them, or underneath on a narrow window - same as Starships. -->
                     <controls:InventoryLayout x:Name="TechLayout" ListTitle="EXOCRAFT TECHNOLOGY">
@@ -84,7 +87,7 @@
 
                 <!-- Model Seed only - exocraft aren't renameable in-game and their
                      Type/Class are fixed by which vehicle this is. -->
-                <StackPanel x:Name="SidebarPanel" Grid.Row="1" Grid.Column="1" Spacing="22" VerticalAlignment="Top">
+                <StackPanel x:Name="SidebarPanel" Grid.Row="2" Grid.Column="1" Spacing="22" VerticalAlignment="Top">
                     <Border x:Name="SeedInfoBorder" Style="{StaticResource ThemeCardStyle}" Width="320">
                         <StackPanel>
                             <Border Style="{StaticResource ThemeBandStyle}">

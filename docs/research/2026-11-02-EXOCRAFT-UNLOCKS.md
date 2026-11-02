@@ -73,11 +73,28 @@ sorting, title selection, or changing a JSON flag as a verified fix.
 
 - Portable `TitleUnlockRule` preserves requirements and special associations.
 - `CatalogSteps.AddTitleUnlocks` extracts 15 title reward rules and localized
-  instructions using all English language files. It is not yet wired into the
-  app's catalog build or a page; no catalog format bump needed at this checkpoint.
+  instructions using all English language files. It now also follows the
+  enum-indexed customization UI into descriptor and texture definitions: 593
+  choices, including 17 Colossus cabin/chassis/running-gear/paint options.
+  Common decal groups with no unlockable choices are omitted from the UI.
+- Catalog format 58 wires this extraction into the normal build. A scratch full
+  build on 184271 completed without decode errors: 22,009 named items.
 - `--title-unlocks-catalog-check` checks six Colossus references against current
   installed metadata. Passed on 184271, with no generated data committed.
-- Next: extract vehicle/part presentation associations, map actual ownership
-  lists without conflating eligibility, and add a reusable read-only unlock panel.
-  No Exocraft UI change yet. Native grant discrepancy must remain explicit in
-  development notes and must not turn into false unlocked badges.
+- `VehicleUnlockPanel` is a reusable folding card above the inventories on
+  every Exocraft tab. XAML templates bind to ViewModels; file/database work is in
+  `VehicleUnlockService`, and portable catalog records stay in Core. The panel
+  starts folded and retains its folding preference. Vehicles without extracted
+  unlockable choices say so instead of inventing data.
+- Account observations use fresh read-only account data: B1h/fyX/d4U membership
+  is labeled "Reward recorded" or "Reward not recorded", not inferred unlocked
+  state. Bgb titles are separate. The owner screenshots support flatbed and
+  expedition options being recorded, and six recycling reward options absent.
+  Full account-list semantics and all native customization gate branches are not
+  established, so the panel deliberately avoids promising in-game availability.
+- Progress uses the ID-keyed global-stat group from the loaded session or the
+  app-wide snapshot feed. It updates existing cards in place. No new watcher,
+  reload, save edit, automatic repair or title-selection advice is introduced.
+- Build passed with zero errors and no new warnings. App appearance, narrow
+  layouts, both themes and live progress still require the owner's check; the
+  agent did not launch the app. Unknown acquisition routes remain explicit.

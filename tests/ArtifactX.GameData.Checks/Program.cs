@@ -34,7 +34,15 @@ if (args.Length == 3 && args[0] == "--title-unlocks-catalog-check")
             || string.IsNullOrWhiteSpace(rule.Requirement))
             throw new InvalidOperationException($"Title reward mapping differs for {special}.");
     }
-    Console.WriteLine($"PASS: {rules.Length} title reward rules; six Colossus references and localized instructions match.");
+    query.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId='VEHICLECUSTOMISATION'";
+    var options = JsonSerializer.Deserialize<VehicleCustomisationOption[]>((string)query.ExecuteScalar()!)!;
+    var cabin = options.Single(o => o.SpecialId == "TRUCK_CAB02");
+    if (cabin.Vehicle != 2 || cabin.Group != "CABIN" || cabin.Name != "Widescreen Cabin"
+        || !options.Any(o => o.Vehicle == 2 && o.Group == "PAINT" && o.SpecialId == "TRUCK_PAINT02")
+        || options.GroupBy(o => (o.Vehicle, o.Group, o.OptionId)).Any(g => g.Count() != 1)
+        || options.Any(o => string.IsNullOrWhiteSpace(o.Name) || string.IsNullOrWhiteSpace(o.Group)))
+        throw new InvalidOperationException("Vehicle customization associations or localization differ from references.");
+    Console.WriteLine($"PASS: {rules.Length} title reward rules and {options.Length} vehicle choices; six Colossus references and localized instructions match.");
     return;
 }
 
