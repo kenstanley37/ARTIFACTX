@@ -9,6 +9,27 @@ namespace ArtifactX.Core.Recipes;
 /// reference vector initializer at 0x140033520 sets (0,0,1,1).</summary>
 public static class HotspotOrientation
 {
+    /// <summary>Inverse spherical angles from native 0x1412F55A0. Degenerate
+    /// pole/tangent inputs are rejected rather than emitting non-finite locations.</summary>
+    public static (float Radius, float Latitude, float Longitude) Inverse(Vector3 reference, Vector3 point)
+    {
+        static float Dot(Vector3 a, Vector3 b)
+        {
+            float xy = a.X * b.X + a.Y * b.Y;
+            return xy + a.Z * b.Z;
+        }
+        static Vector3 Normal(Vector3 v) => v * (1f / MathF.Sqrt(Dot(v, v)));
+        float radius = MathF.Sqrt(Dot(point, point));
+        if (!float.IsFinite(radius) || radius <= 0) throw new ArgumentException("A finite, nonzero point is required.", nameof(point));
+        float latitude = GameTrig.Acos(Dot(point * (1f / radius), reference));
+        var baseline = Normal(Vector3.Cross(reference, Vector3.UnitZ));
+        var tangent = Normal(Vector3.Cross(Vector3.Cross(reference, point), reference));
+        float longitude = GameTrig.Acos(Dot(tangent, baseline));
+        if (Dot(Vector3.Cross(baseline, tangent), reference) > 0) longitude = 6.2831855f - longitude;
+        if (!float.IsFinite(latitude) || !float.IsFinite(longitude)) throw new ArgumentException("Spherical tangent is degenerate.", nameof(point));
+        return (radius, latitude, longitude);
+    }
+
     /// <summary>Spherical rotation equivalent to native 0x1412F59A0. Float
     /// operation ordering differs in Numerics quaternion operations; 256 native
     /// vectors on 2026-11-01 had a maximum direction error of 2.93E-7, not bit

@@ -9,6 +9,25 @@ namespace ArtifactX.Core.Universe;
 /// </summary>
 public static class GameTrig
 {
+    /// <summary>Clamped acos polynomial in native hotspot inverse 0x1412F55A0,
+    /// inspected 2026-11-01. Evaluation order mirrors the scalar float operations.</summary>
+    public static float Acos(float value)
+    {
+        value = Math.Clamp(value, -1f, 1f);
+        float x = MathF.Abs(value);
+        float p = x * Bits(0x3A3C35D0);
+        p -= Bits(0x3B86E055);
+        p = p * x + Bits(0x3C38B1F9);
+        p = p * x - Bits(0x3CAB9DD2);
+        p = p * x + Bits(0x3D05DF69);
+        p = p * x - Bits(0x3D4F5C74);
+        p = p * x + Bits(0x3DB657D3);
+        p = p * x - Bits(0x3E5BC07B);
+        p = p * x + HalfPi;
+        float angle = MathF.Sqrt(1f - x) * p;
+        return value < 0 ? Pi - angle : angle;
+    }
+
     private static readonly float Pi = Bits(0x40490FDB), TwoPi = Bits(0x40C90FDB), HalfPi = Bits(0x3FC90FDB);
     private static readonly float InverseTwoPi = Bits(0x3E22F983);
     private static readonly float C0 = Bits(0x348BDD11), C1 = Bits(0x37CFB4C2), C2 = Bits(0x3AB609AA), C3 = Bits(0x3D2AAAA3);

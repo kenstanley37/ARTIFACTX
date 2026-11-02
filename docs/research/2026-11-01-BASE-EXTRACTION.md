@@ -102,10 +102,48 @@ and range values; maximum direction error is 3.2236142E-7. Decisions extremely
 close to a distance threshold are still subject to the measured rotation
 tolerance; this is not a proof for all possible input tables.
 
-The nearby query 0x1412F4AC0 first applies inverse spherical coordinates at
-0x1412F55A0, then generates four surrounding poles. That inverse query and the
-final extractor/hotspot selection remain unported. No real extraction network
-resource has been inferred yet.
+### Inverse coordinates and the nearby query
+
+`HotspotOrientation.Inverse` and `HotspotNeighborhood.Around` now port the inverse
+coordinates at 0x1412F55A0 and four-pole selection at 0x1412F4AC0. The inverse
+uses the native acos polynomial (now `GameTrig.Acos`), not MathF.Acos. Native
+longitude wrapping selects the last lower pole when its index is non-positive,
+while retaining the upper pole of one. Degenerate tangents fail explicitly.
+
+The oracle's `--geometry --near` mode executes the native nearby query and all
+hotspot/geometry code. Only world-layout initialization, the supplied planet
+size service, memset and scalar log2/ceil/pow services are replaced. The size
+service supplies one of 15/63/96/127, and the query computes its radius via its
+native operations (scaling by 32 twice). The logarithm is base TWO; an initial
+log10 service substitution was wrong and was corrected before comparisons.
+With varied synthetic definitions and points, all 256 Core neighborhoods match
+native accepted counts and ordered attributes across 2423 hotspots. Maximum
+direction error is 4.0094923E-7. Candidate and inverse angle checks also pass.
+This does not validate world generation or a general extractor selection rule.
+
+The oracle accepts `--reference <external-json>` with case arrays containing
+Address, Radius, Point, Configs and Rules. No saves or extracted definitions
+are committed. A read-only check used the preserved Paraffinium base snapshot:
+20 extractor positions, actual extracted hotspot settings, radius 98304 and
+an orthonormal candidate base basis derived from radial up and saved forward.
+Native and Core agree on 20 neighborhoods / 200 hotspots, maximum direction
+error 2.6656008E-7. All 20 extractors' closest mineral candidate has flag 4
+(Mineral2), within its 212.9924-unit range; example chord distances are 7.50,
+4.42 and 4.39 units. That is consistent with the owner's Paraffinium reference.
+The native filtered selector 0x1412F4EB0 is also ported as
+`HotspotNeighborhood.Closest`. It filters by hotspot flags and chooses minimum
+horizontal distance: subtract squared radial projection from squared delta,
+clamp to zero, then sqrt. It does not itself enforce a hotspot range limit.
+The native closest-mineral choice matches Core in all 256 synthetic cases
+(including same-type identity via direction comparison). The 20 preserved
+Paraffinium positions also select Mineral2 under that native rule. The test
+oracle supplies only world/radius/scalar services as above; selection executes
+unchanged with its inline output storage.
+
+The base coordinate basis, generated world-resource mapping and the link-grid
+consumer's range/power handling still need independent confirmation; do not
+promote this candidate survey to automatic resource identification or count
+extraction stock as owned yet.
 
 ## In-game reference and fresh-save comparison
 

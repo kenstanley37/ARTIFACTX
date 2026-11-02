@@ -4,7 +4,7 @@ using System.Text.Json;
 
 internal static class BaseExtractionChecks
 {
-    public static void PolesNative(string path)
+    public static void PolesNative(string path, bool neighborhood = false)
     {
         using var json = JsonDocument.Parse(File.ReadAllText(path));
         int poles = 0, hotspots = 0;
@@ -12,7 +12,32 @@ internal static class BaseExtractionChecks
         foreach (var row in json.RootElement.EnumerateArray())
         {
             var categories = JsonSerializer.Deserialize<HotspotCategory[]>(row.GetProperty("Configs"))!;
-            var actual = HotspotPole.Generate(row.GetProperty("Address").GetUInt64(), row.GetProperty("Radius").GetSingle(),
+            var address = row.GetProperty("Address").GetUInt64();
+            float radius = row.GetProperty("Radius").GetSingle();
+            IReadOnlyList<HotspotCandidate> actual;
+            if (neighborhood)
+            {
+                var point = row.GetProperty("Point");
+                var rules = row.TryGetProperty("Rules", out var suppliedRules)
+                    ? JsonSerializer.Deserialize<HotspotPoleRules>(suppliedRules)! : new(1000, 1.9f, 3.8f, 10, 150);
+                actual = HotspotNeighborhood.Around(address, new(point[0].GetSingle(), point[1].GetSingle(), point[2].GetSingle()),
+                    radius, rules, categories);
+                if (row.TryGetProperty("ClosestMineralFlag", out var closestFlag))
+                {
+                    var selected = HotspotNeighborhood.Closest(address, new(point[0].GetSingle(), point[1].GetSingle(), point[2].GetSingle()),
+                        radius, 14, rules, categories);
+                    if ((selected?.Candidate.Attributes.Flag ?? 6) != closestFlag.GetInt32())
+                        throw new InvalidOperationException($"Neighborhood {poles} selected another mineral hotspot.");
+                    if (selected is { } match)
+                    {
+                        var native = row.GetProperty("ClosestMineralDirection");
+                        var nativeDirection = new System.Numerics.Vector3(native[0].GetSingle(), native[1].GetSingle(), native[2].GetSingle());
+                        if (System.Numerics.Vector3.Distance(match.Candidate.Direction, nativeDirection) > 0.000001f)
+                            throw new InvalidOperationException($"Neighborhood {poles} selected another same-type mineral hotspot.");
+                    }
+                }
+            }
+            else actual = HotspotPole.Generate(address, radius,
                 row.GetProperty("PoleA").GetInt32(), row.GetProperty("PoleB").GetInt32(), new(1000, 1.9f, 3.8f, 10, 150), categories);
             var expected = row.GetProperty("Results");
             if (actual.Count != expected.GetArrayLength()) throw new InvalidOperationException($"Pole {poles} count differs.");
@@ -33,7 +58,7 @@ internal static class BaseExtractionChecks
             }
             poles++;
         }
-        Console.WriteLine($"PASS: {poles} native poles, {hotspots} accepted hotspots; maximum direction error {maximumError:R}.");
+        Console.WriteLine($"PASS: {poles} native {(neighborhood ? "neighborhoods" : "poles")}, {hotspots} accepted hotspots; maximum direction error {maximumError:R}.");
     }
 
     public static void AttributesNative(string path)
@@ -54,6 +79,12 @@ internal static class BaseExtractionChecks
                     if (BitConverter.SingleToInt32Bits(components[i]) != BitConverter.SingleToInt32Bits(orientation[i].GetSingle()))
                         throw new InvalidOperationException($"Hotspot orientation {count}, component {i} differs: {components[i]} vs {orientation[i]}.");
                 var input = row.GetProperty("RotationInput");
+                var pointInput = row.GetProperty("Point");
+                var inverse = HotspotOrientation.Inverse(direction, new(pointInput[0].GetSingle(), pointInput[1].GetSingle(), pointInput[2].GetSingle()));
+                var nativeInverse = row.GetProperty("Inverse");
+                if (MathF.Abs(inverse.Latitude - nativeInverse[1].GetSingle()) > 0.000001f
+                    || MathF.Abs(inverse.Longitude - nativeInverse[2].GetSingle()) > 0.000001f)
+                    throw new InvalidOperationException($"Inverse angles {count} differ: {inverse} vs {nativeInverse}.");
                 var candidate = HotspotCandidate.Generate(row.GetProperty("Address").GetUInt64(), row.GetProperty("Radius").GetSingle(),
                     row.GetProperty("PoleA").GetInt32(), row.GetProperty("PoleB").GetInt32(), 1000,
                     row.GetProperty("Seed").GetUInt64(), categories);
