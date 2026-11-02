@@ -4,6 +4,38 @@ using System.Text.Json;
 
 internal static class BaseExtractionChecks
 {
+    public static void PolesNative(string path)
+    {
+        using var json = JsonDocument.Parse(File.ReadAllText(path));
+        int poles = 0, hotspots = 0;
+        float maximumError = 0;
+        foreach (var row in json.RootElement.EnumerateArray())
+        {
+            var categories = JsonSerializer.Deserialize<HotspotCategory[]>(row.GetProperty("Configs"))!;
+            var actual = HotspotPole.Generate(row.GetProperty("Address").GetUInt64(), row.GetProperty("Radius").GetSingle(),
+                row.GetProperty("PoleA").GetInt32(), row.GetProperty("PoleB").GetInt32(), new(1000, 1.9f, 3.8f, 10, 150), categories);
+            var expected = row.GetProperty("Results");
+            if (actual.Count != expected.GetArrayLength()) throw new InvalidOperationException($"Pole {poles} count differs.");
+            for (int i = 0; i < actual.Count; i++)
+            {
+                var item = actual[i];
+                var target = expected[i];
+                var direction = target.GetProperty("Direction");
+                var point = new System.Numerics.Vector3(direction[0].GetSingle(), direction[1].GetSingle(), direction[2].GetSingle());
+                float error = System.Numerics.Vector3.Distance(item.Direction, point);
+                maximumError = Math.Max(maximumError, error);
+                if (!float.IsFinite(error) || error > 0.000001f || item.Attributes.Flag != target.GetProperty("Flag").GetInt32()
+                    || item.Attributes.Class != target.GetProperty("Class").GetInt32()
+                    || item.Attributes.Range != target.GetProperty("Range").GetSingle()
+                    || item.Attributes.Strength != target.GetProperty("Strength").GetSingle())
+                    throw new InvalidOperationException($"Pole {poles}, hotspot {i} differs from native.");
+                hotspots++;
+            }
+            poles++;
+        }
+        Console.WriteLine($"PASS: {poles} native poles, {hotspots} accepted hotspots; maximum direction error {maximumError:R}.");
+    }
+
     public static void AttributesNative(string path)
     {
         using var json = JsonDocument.Parse(File.ReadAllText(path));
@@ -22,6 +54,12 @@ internal static class BaseExtractionChecks
                     if (BitConverter.SingleToInt32Bits(components[i]) != BitConverter.SingleToInt32Bits(orientation[i].GetSingle()))
                         throw new InvalidOperationException($"Hotspot orientation {count}, component {i} differs: {components[i]} vs {orientation[i]}.");
                 var input = row.GetProperty("RotationInput");
+                var candidate = HotspotCandidate.Generate(row.GetProperty("Address").GetUInt64(), row.GetProperty("Radius").GetSingle(),
+                    row.GetProperty("PoleA").GetInt32(), row.GetProperty("PoleB").GetInt32(), 1000,
+                    row.GetProperty("Seed").GetUInt64(), categories);
+                if (BitConverter.SingleToInt32Bits(candidate.Latitude) != BitConverter.SingleToInt32Bits(input[1].GetSingle())
+                    || BitConverter.SingleToInt32Bits(candidate.Longitude) != BitConverter.SingleToInt32Bits(input[2].GetSingle()))
+                    throw new InvalidOperationException($"Candidate angles {count} differ: {candidate.Latitude}, {candidate.Longitude} vs {input}.");
                 var rotated = HotspotOrientation.Rotate(direction, input[1].GetSingle(), input[2].GetSingle(), input[0].GetSingle());
                 var expectedDirection = row.GetProperty("Direction");
                 var expected = new System.Numerics.Vector3(expectedDirection[0].GetSingle(), expectedDirection[1].GetSingle(), expectedDirection[2].GetSingle());

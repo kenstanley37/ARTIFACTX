@@ -14,13 +14,16 @@ import pefile
 from capstone import Cs, CS_ARCH_X86, CS_MODE_64
 from capstone.x86_const import X86_REG_RIP
 from unicorn import Uc, UC_ARCH_X86, UC_MODE_64, UC_HOOK_CODE
-from unicorn.x86_const import UC_X86_REG_RSP, UC_X86_REG_RCX, UC_X86_REG_RDX, UC_X86_REG_R8, UC_X86_REG_R9, UC_X86_REG_XMM0, UC_X86_REG_XMM1
+from unicorn.x86_const import UC_X86_REG_RSP, UC_X86_REG_RIP, UC_X86_REG_RCX, UC_X86_REG_RDX, UC_X86_REG_R8, UC_X86_REG_R9, UC_X86_REG_XMM0, UC_X86_REG_XMM1
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--exe', type=Path, required=True)
 parser.add_argument('--out', type=Path, required=True)
 parser.add_argument('--geometry', action='store_true')
+parser.add_argument('--poles', action='store_true', help='Execute complete pole generation (requires --geometry).')
 args = parser.parse_args()
+if args.poles and not args.geometry:
+    parser.error('--poles requires --geometry')
 pe = pefile.PE(str(args.exe), fast_load=True)
 base, entry = pe.OPTIONAL_HEADER.ImageBase, 0x1412f6580
 code = pe.get_data(entry - base, 0x3cf)
@@ -53,6 +56,8 @@ def load_function(address, length):
 
 
 load_function(entry, len(code))
+if args.poles:
+    load_function(0x1412f6110, 0x470)
 
 table, rng, output, stack, sentinel = 0x20000000, 0x21000000, 0x22000000, 0x30000000, 0x31000000
 write(table, bytes(0x1000))
@@ -60,6 +65,9 @@ write(rng, bytes(0x1000))
 write(output, bytes(0x1000))
 write(stack, bytes(0x10000))
 write(sentinel, b'\xc3')
+context, nodes = 0x23000000, 0x24000000
+write(context, bytes(0x1000))
+write(nodes, bytes(0x10000))
 write(0x146ef1da0, struct.pack('<Q', table))
 write(table + 0x360, struct.pack('<f', 1000))
 if args.geometry:
@@ -103,6 +111,31 @@ for case in range(256):
     address = boundary_addresses[case] if case < len(boundary_addresses) else sample.getrandbits(64)
     pole_a, pole_b = sample.randrange(100), sample.randrange(100)
     planet_radius = float(sample.randint(15000, 140000))
+    if args.poles:
+        first_rotation = len(rotation_inputs)
+        write(table + 0x350, struct.pack('<4f', 150, 10, 3.8, 1.9))
+        write(context + 0x400, struct.pack('<IIQ', 256, 0, nodes))
+        rsp = stack + 0xff08
+        write(rsp, struct.pack('<Q', sentinel))
+        write(rsp + 0x28, struct.pack('<Q', context))
+        mu.reg_write(UC_X86_REG_RSP, rsp)
+        mu.reg_write(UC_X86_REG_RCX, address)
+        mu.reg_write(UC_X86_REG_R8, pole_a)
+        mu.reg_write(UC_X86_REG_R9, pole_b)
+        mu.reg_write(UC_X86_REG_XMM1, struct.unpack('<I', struct.pack('<f', planet_radius))[0])
+        mu.emu_start(0x1412f6110, sentinel, count=100000)
+        if mu.reg_read(UC_X86_REG_RIP) != sentinel:
+            raise RuntimeError('Pole execution exceeded instruction budget.')
+        count = struct.unpack('<I', mu.mem_read(context + 0x404, 4))[0]
+        results = []
+        for index in range(count):
+            node = bytes(mu.mem_read(nodes + index * 64, 64))
+            flag, grade, strength, highest, radius = struct.unpack_from('<IIfff', node, 0x20)
+            results.append(dict(Direction=struct.unpack_from('<4f', node), Flag=flag, Class=grade,
+                                Strength=strength, HighestStrength=highest, Range=radius))
+        rows.append(dict(Address=address, Radius=planet_radius, PoleA=pole_a, PoleB=pole_b,
+                         Configs=configs, Results=results, Attempts=len(rotation_inputs) - first_rotation))
+        continue
     if args.geometry:
         rsp = stack + 0xff08
         write(rsp, struct.pack('<Q', sentinel))
@@ -122,6 +155,8 @@ for case in range(256):
     mu.reg_write(UC_X86_REG_R9, pole_b)
     mu.reg_write(UC_X86_REG_XMM1, struct.unpack('<I', struct.pack('<f', planet_radius))[0])
     mu.emu_start(entry, sentinel, count=10000)
+    if mu.reg_read(UC_X86_REG_RIP) != sentinel:
+        raise RuntimeError('Candidate execution exceeded instruction budget.')
     flag, grade, strength, highest, radius = struct.unpack('<IIfff', mu.mem_read(output + 0x20, 20))
     row = dict(Seed=seed, Configs=configs, Flag=flag, Class=grade, Strength=strength,
                HighestStrength=highest, Range=radius, FinalSeed=struct.unpack('<Q', mu.mem_read(rng, 8))[0])

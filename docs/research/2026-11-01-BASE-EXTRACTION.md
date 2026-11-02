@@ -77,8 +77,35 @@ results and errors above 1E-6. This is a measured rotation tolerance, not an
 exact-coordinate claim or a full placement check. Native rotation inputs are
 radians; the apparent half-angle constant is 0.5, not degrees-to-radians.
 
-Pole generation, spacing/overlap rejection and closest-hotspot selection remain
-unported and unverified. Consequently no actual extractor resource is inferred.
+### Candidate construction and the single-pole acceptance pass
+
+`HotspotCandidate` now constructs the pole angles and coordinate jitter from
+the radius, spacing and random state. Candidate latitude/longitude match the
+native float bits in the 256 geometry vectors; resulting directions retain the
+rotation tolerance above. The range-plus-ten-unit margin is subtracted from
+half the pole spacing before jitter is applied.
+
+`HotspotPole` ports the address/pole hash, initial MWC state, count draw and
+rejection loop from 0x1412F6110. Power is one category, the three mineral types
+share a second, and both gas types share a third. For equal categories, summed
+ranges minus chord distance must not exceed negative minimum spacing; for
+different categories it must not exceed maximum overlap. Rejected proposals
+still consume all five candidate draws. Tests use caller-supplied synthetic
+definitions, not committed game content. The Core port bounds attempts and
+fails if spacing does not converge; it never returns a truncated partial pole.
+
+The oracle's `--geometry --poles` mode executes the complete native acceptance
+pass with preallocated output storage (no allocator stub). In 256 varied cases,
+780 proposals produced 613 accepted hotspots: 167 rejected proposals exercise
+the retry path. Core matches all accepted counts, type flags, classes, strengths
+and range values; maximum direction error is 3.2236142E-7. Decisions extremely
+close to a distance threshold are still subject to the measured rotation
+tolerance; this is not a proof for all possible input tables.
+
+The nearby query 0x1412F4AC0 first applies inverse spherical coordinates at
+0x1412F55A0, then generates four surrounding poles. That inverse query and the
+final extractor/hotspot selection remain unported. No real extraction network
+resource has been inferred yet.
 
 ## In-game reference and fresh-save comparison
 
