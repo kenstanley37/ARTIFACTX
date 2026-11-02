@@ -12,6 +12,11 @@
   <StackPanel Spacing="12">
    <TextBlock Text="VIEWING INGREDIENT" Style="{StaticResource ThemeEyebrowStyle}"/>
    <StackPanel Orientation="Horizontal" Spacing="8"><Image Source="{x:Bind Item.Icon, Mode=OneWay}" Width="38" Height="38"/><TextBlock x:Name="SelectedName" Text="{x:Bind Item.Name, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" MaxWidth="190" AutomationProperties.LiveSetting="Polite"/></StackPanel>
+   <StackPanel Visibility="{x:Bind Item.BaseSourcesVisibility, Mode=OneWay}" Spacing="8">
+    <TextBlock Text="EXTRACTORS AT YOUR BASES" Style="{StaticResource ThemeEyebrowStyle}"/>
+    <TextBlock Text="{x:Bind Item.BaseSources, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+    <TextBlock Text="Visit the base to collect supplies. Uncollected output is not included in your owned total." Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+   </StackPanel>
    <StackPanel Visibility="{x:Bind Item.RecipeVisibility, Mode=OneWay}" Spacing="10">
     <StackPanel Orientation="Horizontal" Spacing="10"><Image Source="{x:Bind Item.StationIcon, Mode=OneWay}" Width="56" Height="56"/><TextBlock Text="{x:Bind Item.Station, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" MaxWidth="170"/></StackPanel>
     <TextBlock Text="Put these ingredients into the equipment:" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
@@ -45,11 +50,6 @@
     <TextBlock Text="{x:Bind Item.Source, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
    </StackPanel>
    <TextBlock Text="{x:Bind Item.Inventory, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-   <StackPanel Visibility="{x:Bind Item.BaseSourcesVisibility, Mode=OneWay}" Spacing="8">
-    <TextBlock Text="EXTRACTORS AT YOUR BASES" Style="{StaticResource ThemeEyebrowStyle}"/>
-    <TextBlock Text="{x:Bind Item.BaseSources, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-    <TextBlock Text="Visit the base to collect supplies. Uncollected output is not included in your owned total." Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-   </StackPanel>
    <TextBlock Text="{x:Bind Item.InventoryLocations, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
    <TextBlock Text="{x:Bind Item.Buff, Mode=OneWay}" Visibility="{x:Bind Item.BuffVisibility, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
   </StackPanel>
