@@ -74,6 +74,15 @@ public sealed partial class BaseStorageControl : UserControl
         UpdateReset();
     }
 
+    private void MergeDuplicatesBtn_Click(object sender, RoutedEventArgs e)
+    {
+        bool changed = ViewModel.Editor is { } editor && editor.Inventory.TryMergeDuplicates(out _);
+        MergeResultTxt.Text = changed ? "Merged compatible stacks." : "No stacks to merge.";
+        if (!changed) return;
+        StorageGrid.Refresh();
+        UpdateReset();
+    }
+
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
         ViewModel.Revert();

@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Every editable cargo inventory now has Merge Duplicates, including equipment cargo and Base Storage. Merging preserves excess quantities in additional stacks and keeps items with different saved properties separate.
+
 - Ingredient and Cold Storage show their inventory grids before loading catalog pictures and the available-item list. Base Storage containers use buttons that wrap onto additional rows, including long names.
 
 - Industrial Cleanup card totals and reward progress align along the bottom, even when labels wrap.

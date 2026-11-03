@@ -103,9 +103,9 @@ public sealed partial class FoodStoreControl : UserControl
 
     private void MergeDuplicatesBtn_Click(object sender, RoutedEventArgs e)
     {
-        int freed = _model?.MergeDuplicates() ?? 0;
-        ResultTxt.Text = freed == 0 ? "No duplicates found." : $"Merged duplicates - {freed} slot{(freed == 1 ? "" : "s")} freed.";
-        if (freed == 0) return;
+        bool changed = _model is not null && _model.TryMergeDuplicates(out _);
+        ResultTxt.Text = changed ? "Merged compatible stacks." : "No stacks to merge.";
+        if (!changed) return;
         Grid.Refresh();
         Changed?.Invoke(this, EventArgs.Empty);
     }

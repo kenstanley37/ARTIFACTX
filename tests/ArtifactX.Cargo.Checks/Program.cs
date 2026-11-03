@@ -25,6 +25,33 @@ JObject Container(string name, int amount) => new()
 string temporary = Path.Combine(Path.GetTempPath(), $"artifactx-cargo-{Guid.NewGuid():N}.json");
 try
 {
+    JObject Stack(int x, int amount, int max = 100, string category = "Product", string id = "^TEST") => new()
+    {
+        ["b2n"] = id, ["Vn8"] = new JObject { ["elv"] = category },
+        ["1o9"] = amount, ["F9q"] = max, ["3ZH"] = new JObject { [">Qh"] = x, ["XJ>"] = 0 },
+        ["b76"] = true, ["eVk"] = 0, ["extra"] = "preserve"
+    };
+    var stacks = new JArray(Stack(0, 80), Stack(1, 80), Stack(2, 20));
+    var original = stacks.DeepClone();
+    var merged = ArtifactX.Core.Inventory.InventoryStackMerger.Merge(stacks, out int freed)!;
+    Check(freed == 1 && merged.Count == 2, "Partial stacks free only the slots they no longer need");
+    Check(merged[0]["1o9"]!.Value<int>() == 100 && merged[1]["1o9"]!.Value<int>() == 80,
+        "Overflow remains in an additional stack without losing quantities");
+    Check(JToken.DeepEquals(stacks, original) && merged.All(x => x["extra"]!.Value<string>() == "preserve"),
+        "Merging preserves source data and unknown item metadata");
+    Check(ArtifactX.Core.Inventory.InventoryStackMerger.Merge(merged, out _) is null, "An already packed inventory is unchanged");
+    var noFreeSlot = ArtifactX.Core.Inventory.InventoryStackMerger.Merge(new JArray(Stack(0, 60), Stack(1, 60)), out freed);
+    Check(noFreeSlot is not null && freed == 0 && noFreeSlot[0]["1o9"]!.Value<int>() == 100,
+        "Repacking reports a change even when no whole slot is freed");
+    var different = Stack(1, 20); different["extra"] = "different";
+    Check(ArtifactX.Core.Inventory.InventoryStackMerger.Merge(new JArray(Stack(0, 20), different), out _) is null,
+        "Different saved properties prevent merging");
+    Check(ArtifactX.Core.Inventory.InventoryStackMerger.Merge(new JArray(Stack(0, 1, 1), Stack(1, 1, 1)), out _) is null,
+        "Non-stackable items are not deleted as duplicates");
+    Check(ArtifactX.Core.Inventory.InventoryStackMerger.Merge(new JArray(Stack(0, 20, 100, "Technology"), Stack(1, 20, 100, "Technology")), out _) is null,
+        "Technology is excluded from cargo merging");
+    Check(ArtifactX.Core.Inventory.InventoryStackMerger.Merge(new JArray(Stack(0, 20), Stack(1, 20, 200)), out _) is null,
+        "Different maximum stack sizes stay separate");
     var player = new JObject();
     for (int i = 0; i < 13; i++) player[$"container{i}"] = Container($"Container {i:D2}", i + 1);
     var root = new JObject { ["vLc"] = new JObject { ["6f="] = player } };
@@ -73,6 +100,16 @@ try
     await vm.LoadSelectedAsync();
     Check(vm.Name == first.Name && vm.Editor!.Inventory.Cells[0].Amount == 1 && !vm.HasChanges, "Base reset includes names and inventory");
     Check(SaveSessionManager.GetString("other") == "unrelated", "Reset preserves unrelated staged edits");
+
+    var mergePath = NmsInventoryContainer.BaseStorageContainerPath(first.Key).Append(":No").ToArray();
+    SaveSessionManager.StageEdit(stacks, mergePath);
+    await firstEditor.RefreshAsync();
+    Check(firstEditor.Inventory.TryMergeDuplicates(out freed) && freed == 1, "Inventory action stages the merged whole array");
+    Check(((JArray)SaveSessionManager.GetValue(mergePath)!).Sum(x => x["1o9"]!.Value<int>()) == 180,
+        "Staged merge preserves the combined quantity");
+    firstEditor.Revert();
+    await firstEditor.RefreshAsync();
+    Check(firstEditor.Inventory.Cells[0].Amount == 1, "Reset restores the pre-merge inventory");
 
     CatalogService.WarmGate = new();
     SaveSessionManager.Session.Root["vLc"]!["6f="]![first.Key]![":No"]![0]!["1o9"] = 77;

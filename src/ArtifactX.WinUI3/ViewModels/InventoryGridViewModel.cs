@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
@@ -262,40 +262,17 @@ public partial class InventoryGridViewModel : ObservableObject
         Load();
     }
 
-    /// <summary>Collapses every item that appears in more than one slot into a
-    /// single stack, kept at that item's first slot (reading order). The kept
-    /// stack's amount is the combined total, capped at the item's own max -
-    /// one full stack is plenty, and more can always be duplicated. A working
-    /// copy is preferred over a damaged one. Returns how many slots were freed.</summary>
-    public int MergeDuplicates()
+    /// <summary>Combines compatible cargo stacks, retaining overflow and all
+    /// saved item metadata. True even when repacking frees no whole slot.</n    /// Stages the entire slot array; Reset can undo the operation.</summary>
+    public bool TryMergeDuplicates(out int freedSlots)
     {
-        var occupied = Cells.Where(c => c.IsOccupied).OrderBy(c => c.Y).ThenBy(c => c.X).ToList();
-        var merged = new List<(int X, int Y, string? ItemId, int Amount, int MaxAmount, string? CategoryLabel, bool IsFunctional, double MalfunctionSeverity)>();
-        int freed = 0;
-
-        foreach (var group in occupied.GroupBy(c => c.ItemId))
-        {
-            var cells = group.ToList();
-            var first = cells[0];
-            if (cells.Count == 1)
-            {
-                merged.Add((first.X, first.Y, first.ItemId, first.Amount, first.MaxAmount, first.CategoryLabel, first.IsFunctional, first.MalfunctionSeverity));
-                continue;
-            }
-
-            var best = cells.FirstOrDefault(c => c.IsFunctional && c.MalfunctionSeverity <= 0) ?? first;
-            int max = cells.Max(c => c.MaxAmount);
-            long total = cells.Sum(c => (long)c.Amount);
-            int amount = max > 0 ? (int)System.Math.Min(total, max) : (int)System.Math.Min(total, int.MaxValue);
-
-            merged.Add((first.X, first.Y, first.ItemId, amount, max, first.CategoryLabel, best.IsFunctional, best.MalfunctionSeverity));
-            freed += cells.Count - 1;
-        }
-
-        if (freed == 0) return 0;
-        StageWholeArray(merged);
+        freedSlots = 0;
+        if (SaveSessionManager.GetValue(NoPath) is not JArray slots) return false;
+        var merged = ArtifactX.Core.Inventory.InventoryStackMerger.Merge(slots, out freedSlots);
+        if (merged is null) return false;
+        SaveSessionManager.StageEdit(merged, NoPath);
         Load();
-        return freed;
+        return true;
     }
 
     /// <summary>Re-packs every item into the unlocked slots in reading order,
