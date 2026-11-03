@@ -123,3 +123,34 @@ Core synthetic checks cover detached edits, duplicate special removal, minimum
 thresholds, higher-counter preservation, unsupported prerequisite rejection,
 float-counter rejection and selective Reset preserving later/unrelated counters.
 UI appearance and actual in-game unlock persistence still require owner testing.
+
+
+## Fresh Slot 1 / Slot 5 comparison
+
+Read-only fresh decompression through SaveStreamProcessor.ExtractRawJsonAsync on
+2026-11-02, after owner supplied both UI/game screenshots. Both members of each
+slot pair agreed, and file timestamps were stable across each read:
+
+| Counter | Slot 1 (save.hg / save2.hg) | Slot 5 (save9.hg / save10.hg) |
+|---|---:|---:|
+| CARGO_DESTROYED | 998 | 41 |
+| CARGO_SCRAP | 571 | 14 |
+| CARGO_EXP | 136 | 1 |
+| CARGO_RAD | 119 | 1 |
+| CARGO_TOX | 98 | 3 |
+| EXO_SMASH | 2548 | 2828 |
+
+All six investigated part IDs are absent from Slot 1 KnownSpecials (828 entries),
+and present in Slot 5 KnownSpecials (891 entries). Neither KnownProducts list
+contains these six. Shared account fyX/B1h/d4U contain none of these six IDs;
+Bgb contains T_RECYCLE1 through T_RECYCLE8. Thus the observed availability
+corresponds to per-save KnownSpecials membership, not shared account membership
+alone. Slot 1 exceeds every declared requirement; Slot 5 is below the six
+recycling thresholds despite owning the parts. This does not establish whether
+Slot 5 received them through prior editing, migration, a different grant path,
+or another mechanism. Do not infer its acquisition history from the counters.
+
+The existing-title early exit remains a plausible explanation for why repeated
+sorting does not repair Slot 1, not a proven root cause. Account-wide records
+must not be described as guaranteeing availability or removal in every existing
+save: those saves can retain their own KnownSpecials. No real data was changed.
