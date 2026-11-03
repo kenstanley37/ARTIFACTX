@@ -32,10 +32,11 @@
      <ItemsRepeater ItemsSource="{x:Bind ViewModel.Counters}">
       <ItemsRepeater.Layout><UniformGridLayout MinItemWidth="200" MinColumnSpacing="12" MinRowSpacing="12" ItemsStretch="Fill"/></ItemsRepeater.Layout>
       <ItemsRepeater.ItemTemplate><DataTemplate x:DataType="vm:CleanupProgressViewModel">
-       <Border Style="{StaticResource ThemeCardStyle}" Padding="12"><StackPanel Spacing="8">
+       <Border Style="{StaticResource ThemeCardStyle}" Padding="12"><Grid RowSpacing="8">
+        <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <TextBlock Text="{x:Bind Name, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
-        <TextBlock Text="{x:Bind Progress, Mode=OneWay}" FontSize="24" Foreground="{ThemeResource ThemeAccentBrush}"/>
-       </StackPanel></Border>
+        <TextBlock Grid.Row="1" Text="{x:Bind Progress, Mode=OneWay}" FontSize="24" Foreground="{ThemeResource ThemeAccentBrush}"/>
+       </Grid></Border>
       </DataTemplate></ItemsRepeater.ItemTemplate>
      </ItemsRepeater>
     </StackPanel>
@@ -46,11 +47,12 @@
      <ItemsRepeater ItemsSource="{x:Bind ViewModel.Rewards}">
       <ItemsRepeater.Layout><UniformGridLayout MinItemWidth="300" MinColumnSpacing="12" MinRowSpacing="12" ItemsStretch="Fill"/></ItemsRepeater.Layout>
       <ItemsRepeater.ItemTemplate><DataTemplate x:DataType="vm:CleanupProgressViewModel">
-       <Border Style="{StaticResource ThemeCardStyle}" Padding="12"><StackPanel Spacing="8">
-        <TextBlock Text="{x:Bind Name, Mode=OneWay}" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}"/>
-        <TextBlock Text="{x:Bind Requirement, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
-        <TextBlock Text="{x:Bind Progress, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource ThemeDoneBrush}"/>
-       </StackPanel></Border>
+       <Border Style="{StaticResource ThemeCardStyle}" Padding="12"><Grid RowSpacing="8">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <TextBlock Text="{x:Bind Name, Mode=OneWay}" TextWrapping="Wrap" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}"/>
+        <TextBlock Grid.Row="1" Text="{x:Bind Requirement, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
+        <TextBlock Grid.Row="2" Text="{x:Bind Progress, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource ThemeDoneBrush}"/>
+       </Grid></Border>
       </DataTemplate></ItemsRepeater.ItemTemplate>
      </ItemsRepeater>
     </StackPanel>

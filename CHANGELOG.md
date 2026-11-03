@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Industrial Cleanup card totals and reward progress align along the bottom, even when labels wrap.
+
 - Saved Exocraft customization unlocks are now read-only. Newly selected unlocks can be unchecked before Save, undoing their pending requirements while retaining other selected parts.
 
 - Exocraft customization edits now include the game settings unlock list, which could restore a part after it was unchecked. Settings changes are backed up and saved with the slot and account edits.
