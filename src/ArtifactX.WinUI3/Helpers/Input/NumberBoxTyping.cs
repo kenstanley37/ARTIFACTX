@@ -11,12 +11,18 @@ namespace ArtifactX.WinUI3.Helpers.Input;
 /// box (Bug 46, 2026-11-03). <c>NumberBoxTyping.CommitWhileTyping="True"</c>
 /// commits as soon as the typed text is a complete in-range number - text the box
 /// would format back exactly as typed, so setting Value never rewrites what's being
-/// typed ("5." or a cleared box wait for Enter/focus loss, as before).
+/// typed ("5." or a cleared box wait for Enter/focus loss, as before). A box left
+/// empty goes back to the last value it holds, since backspacing "45" has already
+/// staged 4 and an empty box would hide that.
 /// </summary>
 public static class NumberBoxTyping
 {
     public static readonly DependencyProperty CommitWhileTypingProperty = DependencyProperty.RegisterAttached(
         "CommitWhileTyping", typeof(bool), typeof(NumberBoxTyping), new PropertyMetadata(false, OnCommitWhileTypingChanged));
+
+    // The value the box holds (when focused, then as committed while typing).
+    private static readonly DependencyProperty LastValueProperty = DependencyProperty.RegisterAttached(
+        "LastValue", typeof(double), typeof(NumberBoxTyping), new PropertyMetadata(double.NaN));
 
     public static bool GetCommitWhileTyping(NumberBox box) => (bool)box.GetValue(CommitWhileTypingProperty);
     public static void SetCommitWhileTyping(NumberBox box, bool value) => box.SetValue(CommitWhileTypingProperty, value);
@@ -35,6 +41,25 @@ public static class NumberBoxTyping
         if (sender is not NumberBox box || FindInputBox(box) is not TextBox input) return;
         input.TextChanged -= Input_TextChanged;
         input.TextChanged += Input_TextChanged;
+        input.GotFocus -= Input_GotFocus;
+        input.GotFocus += Input_GotFocus;
+        input.LostFocus -= Input_LostFocus;
+        input.LostFocus += Input_LostFocus;
+    }
+
+    private static void Input_GotFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is DependencyObject input && FindOwner(input) is NumberBox box) box.SetValue(LastValueProperty, box.Value);
+    }
+
+    /// <summary>Runs after the box's own commit on focus loss, which leaves Value NaN for empty text.</summary>
+    private static void Input_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is not DependencyObject input || FindOwner(input) is not NumberBox box || !GetCommitWhileTyping(box)) return;
+        box.DispatcherQueue.TryEnqueue(() =>
+        {
+            if (double.IsNaN(box.Value) && box.GetValue(LastValueProperty) is double last && !double.IsNaN(last)) box.Value = last;
+        });
     }
 
     private static void Input_TextChanged(object sender, TextChangedEventArgs e)
@@ -44,6 +69,7 @@ public static class NumberBoxTyping
         string text = input.Text.Trim();
         if (parser.ParseDouble(text) is not double value || value < box.Minimum || value > box.Maximum) return;
         if (box.NumberFormatter.FormatDouble(value) != text || value == box.Value) return;
+        box.SetValue(LastValueProperty, value);
         box.Value = value;
     }
 
