@@ -1,10 +1,12 @@
-# Changelog
+﻿# Changelog
 
 What changed in each ArtifactX release, written for players. The newest release is at the top; **Unreleased** collects what's done on `development` for the next one.
 
 ## Unreleased
 
 ### Added
+
+- **Exocraft customization editor**: compact checkboxes unlock or remove parts in the loaded save and across the account. Hover for requirements; enabling raises verified progress requirements only to the minimum. Save and Reset include these changes.
 
 - **Exocraft customization guide**: each vehicle tab has a collapsible unlock guide. Colossus parts show the game's recycling title requirements, progress and recorded account rewards, including a warning when an earned title's part reward is missing. Update game data to load the new definitions.
 

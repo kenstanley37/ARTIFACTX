@@ -1,4 +1,4 @@
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using ArtifactX.Core.NmsModels;
@@ -56,7 +56,7 @@ public sealed partial class ExocraftDetailControl : UserControl
         CargoGrid.CellChanged += (_, _) => PageResetBtn.Visibility = Visibility.Visible;
 
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
-        SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
+        SaveSessionManager.PendingEditsChanged += OnPendingEditsChanged;
         Unloaded += Control_Unloaded;
 
         LoadGrids();
@@ -115,6 +115,12 @@ public sealed partial class ExocraftDetailControl : UserControl
         };
     }
 
+    private void OnPendingEditsChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() =>
+        PageResetBtn.Visibility = UnlockPanel.HasChanges || (_techViewModel?.HasLocalChanges ?? false)
+            || (_cargoViewModel?.HasLocalChanges ?? false)
+            || SaveSessionManager.HasStagedEditsUnder(NmsInventoryContainer.ExocraftModelSeedPath(_type))
+            ? Visibility.Visible : Visibility.Collapsed);
+
     private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(LoadGrids);
 
@@ -126,7 +132,7 @@ public sealed partial class ExocraftDetailControl : UserControl
     private void Control_Unloaded(object sender, RoutedEventArgs e)
     {
         SaveSessionManager.ActiveSessionChanged -= OnSessionOrEditsChanged;
-        SaveSessionManager.PendingEditsChanged -= OnSessionOrEditsChanged;
+        SaveSessionManager.PendingEditsChanged -= OnPendingEditsChanged;
     }
 
     private async void LoadGrids()
@@ -162,6 +168,7 @@ public sealed partial class ExocraftDetailControl : UserControl
     /// <summary>Undoes this vehicle's tech, cargo and model seed changes.</summary>
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
+        UnlockPanel.ResetChanges();
         _techViewModel?.Revert();
         TechGrid.Refresh();
         _cargoViewModel?.Revert();

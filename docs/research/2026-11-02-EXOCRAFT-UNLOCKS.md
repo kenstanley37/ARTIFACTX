@@ -1,4 +1,4 @@
-# Exocraft unlock guidance: Colossus investigation
+﻿# Exocraft unlock guidance: Colossus investigation
 
 ## Evidence and limits
 
@@ -98,3 +98,28 @@ sorting, title selection, or changing a JSON flag as a verified fix.
 - Build passed with zero errors and no new warnings. App appearance, narrow
   layouts, both themes and live progress still require the owner's check; the
   agent did not launch the app. Unknown acquisition routes remain explicit.
+
+
+## Staged editor follow-up
+
+The owner authorized account-wide changes on 2026-11-02. The compact panel now
+uses checkboxes with hover text and screen-reader help. Enabling stages the part
+in player KnownSpecials and account UnlockedSpecials, its linked account title,
+and verified integer global-stat minimums. Higher counters remain untouched.
+Disabling removes only the selected ID from observed account reward lists and
+player specials/products; titles and statistics remain earned. Defaults cannot
+be disabled. Unknown prerequisite shapes and restricted expedition contexts are
+rejected before staging. Unknown acquisition routes do not invent counters.
+
+The account companion joins title-bar Save/Reset; Save validates the original
+account content and refuses conflicts with the separate Account Data editor.
+Account backups precede writing. Slot and account writes are sequential, not a
+cross-file transaction: a failure after slot saving explicitly leaves account
+edits pending for retry. No real save/account file was written during development.
+The panel reset restores only its changed entries and preserves later edits to
+those counters. Unlock changes no longer recreate the vehicle inventory grids.
+
+Core synthetic checks cover detached edits, duplicate special removal, minimum
+thresholds, higher-counter preservation, unsupported prerequisite rejection,
+float-counter rejection and selective Reset preserving later/unrelated counters.
+UI appearance and actual in-game unlock persistence still require owner testing.
