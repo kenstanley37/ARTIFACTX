@@ -13,8 +13,10 @@ namespace ArtifactX.WinUI3.Views;
 
 /// <summary>
 /// Animal Companions ("Pets"): the tamed pets in the save (CompanionService) and the
-/// selected one's fields (CompanionViewModel). Reloads on every staged edit and save
-/// switch; Reset undoes every change to the selected pet.
+/// selected one's fields (CompanionViewModel). Reloads on save switches and edits made
+/// elsewhere; the editor's own edits (staged while typing) only refresh the pet strip
+/// and Reset, so the box being typed in isn't rewritten. Reset undoes every change to
+/// the selected pet.
 /// </summary>
 public sealed partial class CompanionsPage : Page
 {
@@ -31,13 +33,16 @@ public sealed partial class CompanionsPage : Page
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
         Unloaded += Page_Unloaded;
-        ViewModel.NameChanged += (_, _) => LoadCompanionList();
+        ViewModel.NameChanged += (_, _) => ShowCompanionLabels();
 
         LoadCompanionList();
     }
 
-    private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
-        DispatcherQueue.TryEnqueue(LoadCompanionList);
+    private void OnSessionOrEditsChanged(object? sender, EventArgs e)
+    {
+        if (ViewModel.IsStagingField) DispatcherQueue.TryEnqueue(ShowResetButton);
+        else DispatcherQueue.TryEnqueue(LoadCompanionList);
+    }
 
     /// <summary>Static events hold their subscribers: without this every past visit
     /// would stay subscribed and reload on every edit anywhere in the app.</summary>
@@ -55,6 +60,13 @@ public sealed partial class CompanionsPage : Page
 
         ShowStrip();
         _ = LoadSelectedAsync();
+    }
+
+    /// <summary>A renamed pet's chip label, without reloading the editor.</summary>
+    private void ShowCompanionLabels()
+    {
+        _companions = SaveSessionManager.IsSaveLoaded ? CompanionService.ReadCompanions() : new();
+        ShowStrip();
     }
 
     private void ShowStrip() =>
@@ -84,9 +96,12 @@ public sealed partial class CompanionsPage : Page
         await ViewModel.LoadAsync(index);
         if (version != _loadVersion) return;
         ShowSeeds(index);
-        PageResetBtn.Visibility = SaveSessionManager.HasStagedEditsUnder(NmsCompanionPaths.CompanionPath(index))
-            ? Visibility.Visible : Visibility.Collapsed;
+        ShowResetButton();
     }
+
+    private void ShowResetButton() =>
+        PageResetBtn.Visibility = _selectedIndex >= 0 && SaveSessionManager.HasStagedEditsUnder(NmsCompanionPaths.CompanionPath(_selectedIndex))
+            ? Visibility.Visible : Visibility.Collapsed;
 
     private void ShowSeeds(int index)
     {

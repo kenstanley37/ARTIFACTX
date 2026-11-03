@@ -125,10 +125,12 @@ These items directly extend existing open GitHub issues:
 ### Feature 10: Manual "Capture Screenshot Now" Button for OCR Reader
 - **Note #26**
 - **Description**: Add a manual camera/capture button in the ArtifactX title bar or page headers to force immediate OCR parsing when auto-detection does not trigger.
+- **Status**: Implemented (`64b9c92`, moved to the system view and creature cards in `8dad6c2`); Settings also has one. Already on `development`.
 
 ### Feature 11: Display `user.db` Database Size in UI
 - **Note #27**
 - **Description**: Show local database storage footprint (e.g. `user.db: 4.2 MB`) in Settings and/or the status bar to give players visibility into screenshot/discovery cache growth.
+- **Status**: Implemented in Settings (`4618392`): size including the WAL file, schema version and location, with an open-folder button. Already on `development`.
 
 ### Feature 12: Dual Planet Classification Display (Biome Group + Specific Descriptor) [Resolved]
 - **Note #28**
@@ -384,13 +386,13 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 
 ### Bug 46: Companion Edits Are Not Detected Until Focus Leaves the Field
 - **Source note**: "Companions page doesn't detect changes until the user leaves the field".
-- **Status**: User-reported; reproduction and correction pending.
+- **Status**: Correction implemented on `fix/companion-live-edits`, 2026-11-03; owner confirmed live edits in the app 2026-11-03 (Trust, traits, name). Name and colour-override seed bind with `PropertyChanged`; every number box uses `Helpers/Input/NumberBoxTyping`, which commits only text that is a complete in-range number the box would display unchanged ("5." or a cleared box waits for Enter/focus loss). Seeds stage only when they parse. The page no longer reloads the editor for its own field edits (`CompanionViewModel.IsStagingField`); it refreshes the pet strip labels and Reset instead. Edits made elsewhere, body parts and raw fields still reload as before. A number box left empty returns to the last value it holds (backspacing "45" stages 4, which an empty box would hide); owner confirmed 2026-11-03.
 - **Expected**: Valid edits update the staged/dirty state promptly while typing, without requiring focus loss. Handle incomplete numeric text without discarding input or staging invalid values; avoid a full companion reload per keystroke.
 - **Investigation / validation**: Check binding update triggers, validation and change notifications in companion controls/view-models. Type, paste, clear and revert values while staying in the field; confirm dirty-state feedback and the staged value are correct.
 
 ### Bug 47: Companion Editing Is Laggy
 - **Source note**: "Companions is laggy to edit".
-- **Status**: User-reported; profiling pending. Related to Bug 46 but not yet proven to share its cause.
+- **Status**: Owner noticed no slowness on 2026-11-03 after the Bug 46 change, which stopped the full page reload on each of the editor's own edits. Not profiled; reopen if lag returns, for example in body parts or raw fields, which still reload.
 - **Investigation**: Measure input latency and identify synchronous catalog/save work, repeated JSON walks, control reconstruction or preview regeneration in the edit path. Keep disk/catalog work off the UI thread and update only affected state.
 - **Acceptance**: Editing text, numbers and selections remains responsive with a populated companion record; selection, focus, caret and preview rotation survive unrelated changes. Verify staged edits and revert behavior remain correct.
 

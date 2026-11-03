@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Companions page edits register as you type, so Save and Reset appear straight away instead of only after leaving the field. A half-typed number or seed waits until it is complete.
+
 - Planet Finder's search filters and Glyph Decoder can be collapsed independently. Their open/closed state is remembered, while the result count, Clear filters and Export CSV remain available.
 
 - Purple-star portal addresses now warn that purple-star access is required, including in Planet Finder and the enlarged glyph view. Without access, the game can send the player to a different system.
