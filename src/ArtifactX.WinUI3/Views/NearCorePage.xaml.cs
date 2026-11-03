@@ -89,11 +89,12 @@ public sealed partial class NearCorePage : Page
         int version = ++_loadVersion;
         await PortalGlyphs.WarmAsync();
 
-        _thisSave = NmsPlanets.ReadSystems(SaveSessionManager.GetValue(S.DiscoveriesPath) as JArray);
-        var universe = SaveSessionManager.GetValue(S.CurrentUniverseAddressPath);
-        _here = S.ReadSystemAddress(universe);
-        SystemNameLearner.Learn(_here, universe?["oZw"]?["jsv"]?.Value<int>() ?? 0,
-            SaveSessionManager.GetValue(S.LocationDescriptionPath)?.Value<string>());
+        // The newest save the game wrote, not the one loaded, so returning to the page
+        // after travelling doesn't start from where the save was loaded (2026-11-03).
+        var latest = LiveSaveWatcher.FromSession();
+        _thisSave = NmsPlanets.ReadSystems(latest.Discoveries);
+        _here = S.ReadSystemAddress(latest.Universe);
+        SystemNameLearner.Learn(_here, latest.Universe?["oZw"]?["jsv"]?.Value<int>() ?? 0, latest.Summary);
         _otherSaves = new();
         Refresh();
 
