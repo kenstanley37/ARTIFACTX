@@ -19,7 +19,9 @@ namespace ArtifactX.WinUI3.ViewModels;
 /// fields confirmed against real save data (see NmsCompanionPaths) are shown as
 /// fields - Current Mood, Age, Gender, the fancy species name and Weight have no
 /// confirmed backing field. Personality Traits ARE real and stored (TraitsPath).
-/// Every edit is staged straight into the save session.
+/// Every edit is staged straight into the save session as it's typed (Bug 46,
+/// 2026-11-03); IsStagingField tells the page an edit is the editor's own, so it
+/// doesn't reload the fields being typed in.
 /// </summary>
 public sealed partial class CompanionViewModel : ObservableObject
 {
@@ -34,6 +36,7 @@ public sealed partial class CompanionViewModel : ObservableObject
 
     private int _index = -1;
     private bool _loading;
+    private bool _stagingField;
     private List<CreatureDescriptorNode> _tree = new();
 
     public CompanionViewModel()
@@ -54,6 +57,10 @@ public sealed partial class CompanionViewModel : ObservableObject
     public event EventHandler? NameChanged;
 
     public int Index => _index;
+
+    /// <summary>True while one of this editor's own fields is staging: the fields
+    /// already show the value, so only the page's labels and Reset need updating.</summary>
+    public bool IsStagingField => _stagingField;
 
     [ObservableProperty] public partial string Name { get; set; } = "";
     [ObservableProperty] public partial string Species { get; private set; } = "";
@@ -162,7 +169,7 @@ public sealed partial class CompanionViewModel : ObservableObject
     // ------------------------------------------------------------ fields
 
     private NumberFieldViewModel Field(string label, Action<double> write) =>
-        new(label, label, double.NaN, field => { if (_index >= 0) write(field.Value); });
+        new(label, label, double.NaN, field => { if (_index >= 0) StageField(() => write(field.Value)); });
 
     /// <summary>A trait is shown 0-100; the stored value's sign (which descriptor word
     /// it picks) isn't confirmed, so it's kept and only the magnitude typed is applied.</summary>
@@ -174,24 +181,32 @@ public sealed partial class CompanionViewModel : ObservableObject
     private NumberFieldViewModel PointsField(string label, int slot) => Field(label, v =>
         SaveArrays.StageEntry(P.MutationPointsPath(_index), slot, 3, _ => (int)v));
 
+    private void StageField(Action stage)
+    {
+        _stagingField = true;
+        try { stage(); }
+        finally { _stagingField = false; }
+    }
+
     partial void OnNameChanged(string value)
     {
         string name = value.Trim();
         if (_loading || _index < 0 || name.Length == 0 || name == (Read<string>(P.NamePath(_index)) ?? "")) return;
-        Stage(name, P.NamePath(_index));
+        StageField(() => Stage(name, P.NamePath(_index)));
         NameChanged?.Invoke(this, EventArgs.Empty);
     }
 
     partial void OnColourOverrideActiveChanged(bool value)
     {
-        if (!_loading && _index >= 0) Stage(value, P.ColourBaseSeedActivePath(_index));
+        if (!_loading && _index >= 0) StageField(() => Stage(value, P.ColourBaseSeedActivePath(_index)));
     }
 
     partial void OnColourOverrideSeedChanged(string value)
     {
-        if (_loading || _index < 0) return;
+        // Staged as typed, so a half-typed seed ("0x", "") waits until it's a real one.
         string seed = value.Trim();
-        if (seed != (Read<string>(P.ColourBaseSeedPath(_index)) ?? "")) Stage(seed, P.ColourBaseSeedPath(_index));
+        if (_loading || _index < 0 || !ShipPartsService.TryParseSeed(seed, out _)) return;
+        if (seed != (Read<string>(P.ColourBaseSeedPath(_index)) ?? "")) StageField(() => Stage(seed, P.ColourBaseSeedPath(_index)));
     }
 
     /// <summary>Activates AND rerolls together - this is a dormant secondary colour
@@ -211,7 +226,7 @@ public sealed partial class CompanionViewModel : ObservableObject
 
     partial void OnLetterOverrideActiveChanged(bool value)
     {
-        if (!_loading && _index >= 0) Stage(value, P.ClassLetterOverrideActivePath(_index));
+        if (!_loading && _index >= 0) StageField(() => Stage(value, P.ClassLetterOverrideActivePath(_index)));
     }
 
     partial void OnHealthLetterChanged(int value) => StageLetter(0, value);
@@ -224,7 +239,7 @@ public sealed partial class CompanionViewModel : ObservableObject
     {
         if (_loading || _index < 0 || letterIndex < 0) return;
         string letter = ClassLetters[letterIndex];
-        if (letter != (Read<string>(P.ClassLetterPath(_index, stat)) ?? "")) Stage(letter, P.ClassLetterPath(_index, stat));
+        if (letter != (Read<string>(P.ClassLetterPath(_index, stat)) ?? "")) StageField(() => Stage(letter, P.ClassLetterPath(_index, stat)));
     }
 
     private static int LetterIndex(string? letter) =>
