@@ -1,4 +1,4 @@
-﻿# ArtifactX Issues Log & Gameplay Feedback
+# ArtifactX Issues Log & Gameplay Feedback
 
 Tracks player gameplay feedback, research gaps and planned features. Sources include `ARTIFACTX_NOTES.odt` and `ARTIFACTX_MAUI-10-26-2026.odt` (notes dated 2026-10-26, incorporated 2026-10-27). Existing GitHub links are retained; newly logged local entries do not imply a GitHub issue has been created. User reports and planned behavior are distinguished from verified implementations.
 
@@ -457,7 +457,7 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Tracking**: [Testing and polish backlog, issue #1](https://github.com/kenstanley37/ARTIFACTX/issues/1).
 
 ### Feature 55: Industrial Cleanup Helper
-- **Status**: Planned as a separate feature; owner request and mission-log screenshot, 2026-11-02. Not implemented.
+- **Status**: Implemented on `feature/industrial-cleanup-guide`, 2026-11-03; app visual testing pending. Reference guide and read-only lifetime counters use extracted mission definitions.
 - **Request**: Explain how to begin and progress Industrial Cleanup, required equipment, waste collection/transport, Waste Processing Plants, automatic recycling versus manual sorting, and verified rewards/unlocks. Show saved lifetime waste-management statistics where their mapping is established.
 - **Screenshot evidence**: The mission mentions the Colossus and Gravitino Coil, transporting waste with the flatbed module, a valuation scale and Control Panel at a Waste Processing Plant, special waste containers, and manual sorting for maximum resource recovery. These instructions do not establish the unlock requirements of the locked Colossus parts above.
 - **Research**: Extract mission/reward/unlock relationships from game data and verify against save progress or controlled in-game comparisons. Keep confirmed guidance distinct from unknown requirements. Reuse portable Core logic for console/mobile guidance, with save-specific progress optional.

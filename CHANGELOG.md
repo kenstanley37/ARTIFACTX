@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 What changed in each ArtifactX release, written for players. The newest release is at the top; **Unreleased** collects what's done on `development` for the next one.
 
@@ -13,6 +13,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Saving Exocraft customization changes no longer refreshes the unlock controls from a background thread, which could close the app.
 
 ### Added
+
+- **Industrial Cleanup guide**: find waste, follow the equipment and recycling steps, and see lifetime recovery totals and Colossus reward requirements. Available under Reference after updating game data; a save is optional.
 
 - **Exocraft customization editor**: compact checkboxes unlock parts in the loaded save and across the account; saved unlocks are read-only and new choices can be undone before saving. Hover for requirements; enabling raises verified progress requirements only to the minimum. Save and Reset include these changes.
 

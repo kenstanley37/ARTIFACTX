@@ -1,10 +1,29 @@
-using libMBIN;
+﻿using libMBIN;
 using ArtifactX.Core.Recipes;
 using ArtifactX.GameData;
 using ArtifactX.GameData.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using ArtifactX.Core.Unlocks;
+
+if (args.Length == 3 && args[0] == "--industrial-cleanup-catalog-check")
+{
+    string output = Path.GetFullPath(args[2]);
+    if (File.Exists(output)) throw new InvalidOperationException("Use a new scratch catalog.");
+    using (var db = new CatalogDbContext(output)) db.Database.EnsureCreated();
+    CatalogSteps.AddIndustrialCleanup(output, args[1]);
+    using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={output};Mode=ReadOnly");
+    connection.Open();
+    using var query = connection.CreateCommand();
+    query.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId='INDUSTRIALCLEANUP'";
+    var guide = JsonSerializer.Deserialize<ArtifactX.Core.IndustrialCleanup.IndustrialCleanupDefinition>((string)query.ExecuteScalar()!)!;
+    if (guide.Title != "Industrial Cleanup" || guide.Instructions.Length < 4 || guide.Counters.Length != 5
+        || !guide.Counters.Select(c => c.StatId).ToHashSet().SetEquals(new[] { "CARGO_VALUE", "CARGO_SCRAP", "CARGO_TOX", "CARGO_RAD", "CARGO_EXP" })
+        || !guide.FindingText.Contains("Exocraft Radar") || !guide.Instructions.Any(i => i.Text.Contains("maximum resource recovery")))
+        throw new InvalidOperationException("Cleanup definitions differ from inspected build 184271.");
+    Console.WriteLine("PASS: normal cleanup tutorial, discovery instructions and five mission-defined lifetime counters.");
+    return;
+}
 
 if (args.Length == 3 && args[0] == "--title-unlocks-catalog-check")
 {
