@@ -56,7 +56,7 @@ public sealed partial class VehicleUnlockViewModel : ObservableObject
             if (version != _loadVersion) return;
             foreach (var item in Groups.SelectMany(g => g.Items)) item.Icon = CatalogService.TryGet(item.Option.SpecialId)?.Icon;
             Message = Groups.Count == 0 ? "No unlockable customization choices were found for this vehicle in the installed data."
-                : "Changes update this save, account unlock records and the game settings unlock list. Other saves may retain their own unlocks. Hover or focus a checkbox for details. Required progress is raised only when below the minimum.";
+                : "Changes update this save, account unlock records and the game settings unlock list. Saved unlocks are read-only. You can uncheck new choices before saving. Hover or focus a checkbox for details. Required progress is raised only when below the minimum.";
             await RefreshAsync(LiveSaveWatcher.LatestSnapshot);
         }
         catch (Exception ex) { if (version == _loadVersion) Message = "Customization unlock information could not be read. Try updating game data."; System.Diagnostics.Debug.WriteLine(ex); }
@@ -85,7 +85,7 @@ public sealed partial class VehicleUnlockViewModel : ObservableObject
         catch (Exception ex) when (ex is System.IO.IOException or Newtonsoft.Json.JsonException or UnauthorizedAccessException)
         { System.Diagnostics.Debug.WriteLine(ex); }
         if (version != _refreshVersion || !ReferenceEquals(owner, SaveSessionManager.SessionIdentity)) return;
-        foreach (var item in Groups.SelectMany(g => g.Items)) item.Refresh(account, values, loaded && specials is not null, local);
+        foreach (var item in Groups.SelectMany(g => g.Items)) item.Refresh(account, values, loaded && specials is not null, local, Editor.IsPendingEnable(item.Option.SpecialId));
     }
 
     private void Edit(VehicleUnlockItemViewModel item, bool enabled)
@@ -142,14 +142,14 @@ public sealed partial class VehicleUnlockItemViewModel : ObservableObject
                 + (r.StatId.Length > 0 ? $"\nTarget: {r.StatValue:N0}" : "")));
     }
 
-    internal void Refresh(VehicleUnlockAccount? account, Dictionary<string, double>? stats, bool loaded, HashSet<string> local)
+    internal void Refresh(VehicleUnlockAccount? account, Dictionary<string, double>? stats, bool loaded, HashSet<string> local, bool pendingEnable)
     {
         bool owned = Option.SpecialId.Length == 0 || account?.Rewards.Contains(Option.SpecialId) == true;
         bool inSave = local.Contains(Option.SpecialId);
         _syncing = true;
         IsChecked = owned || inSave;
         _syncing = false;
-        CanEdit = loaded && Option.SpecialId.Length > 0 && account is not null;
+        CanEdit = loaded && Option.SpecialId.Length > 0 && account is not null && (!IsChecked || pendingEnable);
         Status = Option.SpecialId.Length == 0 ? "Available by default" : account is null
             ? loaded ? "Account ownership unavailable" : "Load a save to check ownership"
             : owned ? "Reward recorded" : "Reward not recorded";
@@ -162,8 +162,9 @@ public sealed partial class VehicleUnlockItemViewModel : ObservableObject
         Notice = !owned && !inSave && account is not null && Rules.Any(r => account.Titles.Contains(r.TitleId))
             ? "Title earned, but the part reward is not recorded. Repeating the requirement or selecting the title may not grant the missing reward." : "";
         Details = string.Join("\n\n", new[] { Name, Requirement, Progress, Notice,
-            owned && Option.SpecialId.Length > 0 ? "Account-wide reward. Turning it off removes this part from account, game settings and loaded-save unlock lists; earned titles and progress remain."
-                : inSave ? "Unlocked in this save. Turning it off preserves progress counters."
+            Option.SpecialId.Length == 0 ? "Available by default."
+                : pendingEnable ? "Unlock pending. Uncheck to undo this choice and its prerequisite changes before saving."
+                : owned || inSave ? "Already unlocked. Saved unlocks are read-only."
                 : "Enabling adds this part to the save and account, records its linked title and raises verified prerequisite counters only when necessary. Save changes from the title bar." }
             .Where(s => s.Length > 0));
     }

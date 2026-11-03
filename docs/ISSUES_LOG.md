@@ -1,4 +1,4 @@
-# ArtifactX Issues Log & Gameplay Feedback
+﻿# ArtifactX Issues Log & Gameplay Feedback
 
 Tracks player gameplay feedback, research gaps and planned features. Sources include `ARTIFACTX_NOTES.odt` and `ARTIFACTX_MAUI-10-26-2026.odt` (notes dated 2026-10-26, incorporated 2026-10-27). Existing GitHub links are retained; newly logged local entries do not imply a GitHub issue has been created. User reports and planned behavior are distinguished from verified implementations.
 
@@ -449,7 +449,7 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 ## 2026-11-02 feature requests
 
 ### Feature 54: Exocraft Unlocks on Each Vehicle's Tab
-- **Status**: Read-only customization guide implemented on each vehicle tab; build and installed-table checks pass on build 184271. Owner UI verification pending. Unknown acquisition routes and complete ownership semantics remain follow-up work.
+- **Status**: Compact unlock editor implemented; owner confirmed enabling Colossus parts in-game and Save no longer crashes. Persisted unlocks are now read-only; newly selected parts remain undoable before Save. Relocking remains unresolved after owner testing, including removal from the settings mirror. Unknown acquisition routes and complete ownership semantics remain follow-up work.
 - **Problem**: Vehicle customisation unlocks are difficult to locate in Catalogue, and the game does not clearly explain their requirements.
 - **Request**: Show each vehicle's relevant unlocks directly on its individual Exocraft tab, grouped by customisation category. Include locked/unlocked state and verified instructions for obtaining each option, including any prerequisites, mission progress, costs or rewards that the game data establishes. Reuse Catalogue definitions and existing safe staged editing where available; do not duplicate unlock logic or automatically unlock anything.
 - **Colossus references**: Widescreen Cabin, Furnace Module, Off-Road Wheels, Tracked Treads, Caterpillar Track and Superelastic Wheels are linked to recycling title rewards in the installed metadata. Owner meets declared thresholds and has the titles, but parts remain locked even after manual sorting and selecting Rusty. Native grant skips already-unlocked titles before linked rewards; how the account acquired the mismatch is unknown. No travel-distance requirement appears in these six definitions. See [research and verification limits](research/2026-11-02-EXOCRAFT-UNLOCKS.md). Never mark ownership from thresholds alone.

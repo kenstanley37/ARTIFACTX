@@ -12,6 +12,7 @@ namespace ArtifactX.WinUI3.Services;
 internal sealed class VehicleUnlockEditor
 {
     private static VehicleUnlockEditor? _current;
+    private readonly Dictionary<string, TitleUnlockRule[]> _pendingEnables = [];
     private readonly object? _owner = SaveSessionManager.SessionIdentity;
     private readonly VehicleUnlockAccountEdits _account = new();
     private readonly VehicleUnlockSettingsEdits _settings = new();
@@ -32,7 +33,15 @@ internal sealed class VehicleUnlockEditor
         }
     }
     public bool HasChanges => _account.HasChanges || _settings.HasChanges || _changes.Values.Any(c => SaveSessionManager.HasStagedEditsUnder(c.Path));
-    public void Reset()
+    public bool IsPendingEnable(string id)
+    {
+        // Once the slot write finishes, these are persisted unlocks, including
+        // when a later companion write fails. Never offer relocking them.
+        if (!SaveSessionManager.HasStagedEditsUnder(SpecialsPath)) _pendingEnables.Clear();
+        return _pendingEnables.ContainsKey(id);
+    }
+
+    private IEnumerable<(string[] Path, JArray Value, bool Revert)> ResetPlan()
     {
         foreach (var c in _changes.Values)
         {
@@ -43,9 +52,16 @@ internal sealed class VehicleUnlockEditor
             var entries = ids.Select(id => new UnlockEntryChange(id, c.Original.FirstOrDefault(t => Key(t) == id), c.Applied.FirstOrDefault(t => Key(t) == id)))
                 .Where(e => !JToken.DeepEquals(e.Original, e.Applied));
             var restored = VehicleUnlockEdits.RestoreEntries(current, entries, field);
-            if (!c.Staged && JToken.DeepEquals(restored, c.Original)) SaveSessionManager.RevertEdit(c.Path);
-            else SaveSessionManager.StageEdit(restored, c.Path);
+            yield return (c.Path, restored, !c.Staged && JToken.DeepEquals(restored, c.Original));
         }
+    }
+
+    public void Reset()
+    {
+        foreach (var edit in ResetPlan().ToArray())
+            if (edit.Revert) SaveSessionManager.RevertEdit(edit.Path);
+            else SaveSessionManager.StageEdit(edit.Value, edit.Path);
+        _pendingEnables.Clear();
         _changes.Clear();
         _settings.Discard();
         _account.Discard();
@@ -55,6 +71,28 @@ internal sealed class VehicleUnlockEditor
 
     public void Set(string id, TitleUnlockRule[] rules, bool enabled)
     {
+        if (!enabled)
+        {
+            if (!IsPendingEnable(id)) throw new InvalidOperationException("Saved unlocks cannot be turned off here.");
+            var remaining = _pendingEnables.Where(e => e.Key != id).ToArray();
+            // Validate the replay against the reset projection before changing
+            // staged state. Shared counters are recalculated for remaining picks.
+            var reset = ResetPlan().ToArray();
+            foreach (var counter in reset.Where(e => e.Path.Last() == "gUR"))
+                _ = VehicleUnlockEdits.RaiseRequirements(counter.Value, remaining.SelectMany(e => e.Value));
+            foreach (var entry in remaining)
+            {
+                _ = _account.Plan(entry.Key, entry.Value, true);
+                _ = _settings.Plan(entry.Key, true);
+            }
+            Reset();
+            foreach (var entry in remaining) Set(entry.Key, entry.Value, true);
+            return;
+        }
+        IsPendingEnable(id);
+        if (!_pendingEnables.ContainsKey(id) &&
+            (Account?.Rewards.Contains(id) == true || (SaveSessionManager.GetValue(SpecialsPath) as JArray)?.Any(t => t.Value<string>()?.TrimStart('^') == id) == true))
+            throw new InvalidOperationException("This part is already unlocked.");
         if (!SaveSessionManager.IsSaveLoaded || SaveSessionManager.GetValue(SpecialsPath) is not JArray specials)
             throw new InvalidOperationException("Load a save with customization unlock data first.");
         if (!ReferenceEquals(_owner, SaveSessionManager.SessionIdentity)) throw new InvalidOperationException("Reload customization unlocks for the current save.");
@@ -76,11 +114,6 @@ internal sealed class VehicleUnlockEditor
             if (!JToken.DeepEquals(stats, raised)) edits.Add((raised, NmsPlayerStatsPaths.GroupStatsArrayPath(index)));
         }
         if (!JToken.DeepEquals(specials, updatedSpecials)) edits.Add((updatedSpecials, SpecialsPath));
-        if (!enabled && SaveSessionManager.GetValue("vLc", "6f=", "eZ<") is JArray products)
-        {
-            var updated = VehicleUnlockEdits.Specials(products, id, false);
-            if (!JToken.DeepEquals(products, updated)) edits.Add((updated, ["vLc", "6f=", "eZ<"]));
-        }
         foreach (var edit in edits)
         {
             string key = string.Join("/", edit.Path);
@@ -100,5 +133,6 @@ internal sealed class VehicleUnlockEditor
         // Validation finishes before any edit is staged. One notice keeps the
         // title bar and surrounding editor from refreshing once per counter.
         SaveSessionManager.StageEdits(edits);
+        _pendingEnables[id] = rules;
     }
 }

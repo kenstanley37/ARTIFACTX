@@ -250,3 +250,26 @@ malformed-list rejection and unrelated property/title preservation. A read-only
 in-memory projection of the real XML removed Furnace and preserved all 116 other
 top-level properties. No settings/save/account file was written by the agent.
 Build passed with zero errors. Relocking after this fix remains for owner testing.
+
+
+## Owner decision: unlock-only editing, 2026-11-03
+
+Owner retested after the settings mirror change and Furnace remained available.
+The mirror fix therefore did not establish a reliable relock; it is not a solved
+root cause. Owner approved making persisted unlocks read-only and allowing only
+newly checked choices to be unchecked before Save. Relocking stays unresolved.
+
+The editor tracks pending enables for the current save session. Unchecking one
+restores the editor-owned staged entries and replays the remaining choices,
+recalculating shared counter minimums and pending title/settings records. Reset
+continues to preserve unrelated/later counter edits. Once the slot write clears
+staged specials, choices become read-only even if a later companion write fails.
+Later edits must not reopen those saved choices for undo.
+
+ArtifactX.VehicleUnlocks.Checks links the actual coordinator source with in-memory
+service adapters (no game files). Checks passed for saved-unlock rejection,
+undoing one of two choices with a shared prerequisite, pending title removal,
+unrelated edit preservation, last-choice undo, and read-only behavior after a
+simulated slot commit and subsequent edit. This does not exercise file I/O or
+WinUI rendering; owner still tests the resulting interface. Existing Core checks
+cover the lower-level array/XML edits. No real save/account/settings data changed.
