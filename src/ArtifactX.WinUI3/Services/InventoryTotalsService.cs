@@ -16,7 +16,7 @@ namespace ArtifactX.WinUI3.Services;
 /// </summary>
 public static class InventoryTotalsService
 {
-    // Same cap and "Chest" marker rule as BaseStoragePage.DiscoverContainers.
+    // Same cap and "Chest" marker rule as BaseStorageService.DiscoverContainers.
     private const int MaxStorageContainers = 10;
 
     /// <summary>Item id (no "^", no "#seed") to total amount carried.</summary>

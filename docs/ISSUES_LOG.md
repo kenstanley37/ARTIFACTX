@@ -292,6 +292,7 @@ Synthesized from the latest `ARTIFACTX_NOTES.txt`. Cross-referenced with open Gi
 - **Note #14**
 - **Problem**: The left nav is growing too large; storage pages (cold storage, base storage, ingredient storage, corvette cache, etc.) are scattered.
 - **Proposed Solution**: Consolidate all storage-type pages into one "Cargo" page listing the cargo types. Freighter, Starships, Exosuit and Multi-Tool remain separate. Load each cargo inventory only when the user selects it (reuse existing UserControl).
+- **2026-11-03 implementation**: Cargo replaces five navigation entries with lazy, retained tabs for Base Storage, Ingredient Storage, Cold Storage, Corvette Cache and read-only Dismantled Base Components. Storage controls use the existing loaded-slot feed; unchanged snapshots do not reload their grids. Base Storage Reset includes container names and inventory changes, without resetting other storage types. The x64 CLI build and synthetic-save checks pass; layout, keyboard navigation and visual state retention still await the owner's app check.
 
 ### Feature 34: Sort and Merge Duplicates on All Inventory Pages
 - **GitHub**: [Issue #52](https://github.com/kenstanley37/ARTIFACTX/issues/52)

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). -->
-<Page
-    x:Class="ArtifactX.WinUI3.Views.BaseStoragePage"
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.BaseStorageControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:ArtifactX.WinUI3.Controls"
@@ -31,12 +31,11 @@
                     <Border Style="{StaticResource ThemeBandStyle}">
                         <TextBlock Text="STORAGE CONTAINERS" Style="{StaticResource ThemeBandTextStyle}"/>
                     </Border>
-                    <!-- A player can place as many containers as their base part budget
-                         allows - bounded/scrollable so dozens stay usable. -->
-                    <ScrollViewer MaxHeight="120" Padding="18,14,18,16" VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-                        <ctcontrols:WrapPanel x:Name="ContainerSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
-                    </ScrollViewer>
+                    <ComboBox x:Name="ContainerSelector" Margin="18,14,18,16" MinWidth="260"
+                              ItemsSource="{x:Bind ViewModel.Containers}" DisplayMemberPath="Name"
+                              SelectedItem="{x:Bind ViewModel.SelectedContainer, Mode=TwoWay}"
+                              SelectionChanged="ContainerSelector_SelectionChanged"
+                              AutomationProperties.Name="Base storage container"/>
                 </StackPanel>
             </Border>
 
@@ -48,7 +47,7 @@
                     <StackPanel Padding="14,12,14,14" Spacing="12">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
-                            <TextBox x:Name="NameEditBox" AutomationProperties.Name="Name" Width="260" LostFocus="NameEditBox_LostFocus"/>
+                            <TextBox x:Name="NameEditBox" AutomationProperties.Name="Name" Width="260" Text="{x:Bind ViewModel.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" LostFocus="NameEditBox_LostFocus"/>
                         </StackPanel>
                         <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
                             <Button Content="Unlock All Slots" Click="UnlockAllBtn_Click"/>
@@ -62,4 +61,4 @@
             </Border>
         </StackPanel>
     </ScrollViewer>
-</Page>
+</UserControl>

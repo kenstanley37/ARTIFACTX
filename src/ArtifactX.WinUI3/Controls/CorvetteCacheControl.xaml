@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Themed (see Themes/*.xaml + ThemeStyles.xaml), same card pattern as the
      equipment pages. -->
-<Page
-    x:Class="ArtifactX.WinUI3.Views.CorvetteCachePage"
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.CorvetteCacheControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:ArtifactX.WinUI3.Controls"
@@ -64,4 +64,4 @@
             </ctcontrols:WrapPanel>
         </StackPanel>
     </ScrollViewer>
-</Page>
+</UserControl>

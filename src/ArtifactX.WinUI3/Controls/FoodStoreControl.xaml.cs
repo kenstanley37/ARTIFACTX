@@ -5,6 +5,7 @@ using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using System;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace ArtifactX.WinUI3.Controls;
 
@@ -15,25 +16,28 @@ namespace ArtifactX.WinUI3.Controls;
 /// beside it. Which items fit comes from the user's in-game tests (Cold
 /// Storage: fish + bait) and the game's own CookingIngredient flag
 /// (Ingredient Storage) - see CatalogService.GetFoodStorageItemsAsync.
-/// Hosted by ColdStoragePage and IngredientStoragePage.
+/// Hosted by the lazy Cargo storage tabs.
 /// </summary>
 public sealed partial class FoodStoreControl : UserControl
 {
-    private InventoryGridViewModel? _model;
+    private CargoInventoryViewModel? _editor;
+    private InventoryGridViewModel? _model => _editor?.Inventory;
 
     /// <summary>Raised when this store is edited (the page shows its Reset button).</summary>
     public event EventHandler? Changed;
 
     public FoodStoreControl() => InitializeComponent();
 
-    public bool HasLocalChanges => _model?.HasLocalChanges == true;
+    public IEnumerable<string[]> InventoryPaths => _editor is null ? [] : [_editor.Path];
+
+    public bool HasLocalChanges => _editor?.HasChanges == true;
 
     /// <summary>Sets the store up; call once from the hosting page.</summary>
     public void Init(bool coldStorage)
     {
-        _model = coldStorage
-            ? new InventoryGridViewModel(NmsInventoryContainer.ColdStoragePath, NmsInventoryContainer.ColdStorageColumns, NmsInventoryContainer.ColdStorageRows)
-            : new InventoryGridViewModel(NmsInventoryContainer.IngredientStoragePath, NmsInventoryContainer.IngredientStorageColumns, NmsInventoryContainer.IngredientStorageRows);
+        _editor = coldStorage
+            ? new CargoInventoryViewModel(NmsInventoryContainer.ColdStoragePath, NmsInventoryContainer.ColdStorageColumns, NmsInventoryContainer.ColdStorageRows)
+            : new CargoInventoryViewModel(NmsInventoryContainer.IngredientStoragePath, NmsInventoryContainer.IngredientStorageColumns, NmsInventoryContainer.IngredientStorageRows);
         GridTitleTxt.Text = coldStorage ? "COLD STORAGE" : "INGREDIENT STORAGE";
         ListTitleTxt.Text = coldStorage ? "FISH AND BAIT" : "COOKING INGREDIENTS";
 
@@ -58,16 +62,18 @@ public sealed partial class FoodStoreControl : UserControl
 
     public async void Reload()
     {
-        if (_model is null || !SaveSessionManager.IsSaveLoaded) return;
-        _model.Load();
-        await CatalogService.WarmCacheAsync(_model.Cells.Where(c => c.IsOccupied).Select(c => c.ItemId));
-        Grid.Refresh();
+        if (_editor is null) return;
+        if (await _editor.RefreshAsync())
+        {
+            Grid.Refresh();
+            List.RefreshOwned();
+        }
     }
 
     public void Revert()
     {
-        _model?.Revert();
-        Grid.Refresh();
+        _editor?.Revert();
+        Reload();
     }
 
     private void MaxAllQtyBtn_Click(object sender, RoutedEventArgs e)

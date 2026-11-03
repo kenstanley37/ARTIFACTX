@@ -16,6 +16,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- **Cargo**: Base Storage, Ingredient Storage, Cold Storage, Corvette Cache and Dismantled Base Components share one editor page. Each tab loads when first opened and keeps its place and filters when you switch storage types.
+
 - **Industrial Cleanup guide**: find waste, follow the equipment and recycling steps, and see lifetime recovery totals and Colossus reward requirements. Available under Reference after updating game data; a save is optional.
 
 - **Exocraft customization editor**: compact checkboxes unlock parts in the loaded save and across the account; saved unlocks are read-only and new choices can be undone before saving. Hover for requirements; enabling raises verified progress requirements only to the minimum. Save and Reset include these changes.

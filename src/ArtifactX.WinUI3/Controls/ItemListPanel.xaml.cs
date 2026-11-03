@@ -75,6 +75,12 @@ public sealed partial class ItemListPanel : UserControl
     public ItemListPanel()
     {
         InitializeComponent();
+        Loaded += (_, _) =>
+        {
+            if (_grid is null) return;
+            _grid.CellChanged -= OnGridChanged;
+            _grid.CellChanged += OnGridChanged;
+        };
         Unloaded += (_, _) => { if (_grid is not null) _grid.CellChanged -= OnGridChanged; };
     }
 
