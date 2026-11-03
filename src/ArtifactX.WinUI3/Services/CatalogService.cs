@@ -947,9 +947,11 @@ public static class CatalogService
     {
         string? dbPath = ResolveDbPath();
         if (dbPath is null) return new();
-        var fishIds = coldStorage
-            ? (await GetFishAsync()).Select(f => f.Id).Where(IsFishSpecies).ToHashSet(StringComparer.OrdinalIgnoreCase)
-            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var fish = coldStorage
+            ? (await GetFishAsync()).Where(f => IsFishSpecies(f.Id))
+                .GroupBy(f => f.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, FishInfo>(StringComparer.OrdinalIgnoreCase);
         try
         {
             return await Task.Run(() =>
@@ -977,12 +979,16 @@ public static class CatalogService
                 {
                     string id = reader.GetString(0);
                     bool bait = id.StartsWith("FISHBAIT_", StringComparison.OrdinalIgnoreCase);
-                    if (coldStorage && !bait && !fishIds.Contains(id)) continue;
+                    if (coldStorage && !bait && !fish.ContainsKey(id)) continue;
                     string group = coldStorage ? (bait ? "Bait" : "Fish")
-                        : fishIds.Contains(id) || IsFishSpecies(id) ? "Fish"
+                        : fish.ContainsKey(id) || IsFishSpecies(id) ? "Fish"
                         : bait || id.StartsWith("BAIT_", StringComparison.OrdinalIgnoreCase) ? "Bait"
                         : reader.IsDBNull(2) ? "Other" : reader.GetString(2);
-                    parts.Add(new CatalogPart(id, reader.GetString(1), group, reader.IsDBNull(3) ? null : reader.GetInt32(3)));
+                    fish.TryGetValue(id, out var fishInfo);
+                    int rarityOrder = fishInfo is not null && Enum.TryParse<libMBIN.NMS.GameComponents.GcItemQuality.ItemQualityEnum>(fishInfo.Quality, out var quality)
+                        ? (int)quality : int.MaxValue;
+                    parts.Add(new CatalogPart(id, reader.GetString(1), group, reader.IsDBNull(3) ? null : reader.GetInt32(3),
+                        Rarity: fishInfo?.RarityName(), RarityOrder: rarityOrder));
                 }
                 return parts.OrderBy(p => p.Group).ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
             });

@@ -20,6 +20,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- **Cold Storage fish rarity**: fish cards show their rarity, and the item list can be filtered or searched by rarity alongside its existing filters.
+
 - **Cargo**: Base Storage, Ingredient Storage, Cold Storage, Corvette Cache and Dismantled Base Components share one editor page. Each tab loads when first opened and keeps its place and filters when you switch storage types.
 
 - **Industrial Cleanup guide**: find waste, follow the equipment and recycling steps, and see lifetime recovery totals and Colossus reward requirements. Available under Reference after updating game data; a save is optional.
