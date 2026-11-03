@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using ArtifactX.Core.Collections;
 using ArtifactX.Core.Universe;
@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 // No desktop dependencies: run with dotnet run --project tests/ArtifactX.Core.Checks.
 try
 {
+    IndustrialCleanupChecks.Check();
     VehicleUnlockEditChecks.Check();
     RecipePlannerChecks.Check();
     CargoSuppliesChecks.Check();
