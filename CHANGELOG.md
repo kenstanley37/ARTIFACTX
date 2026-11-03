@@ -1,10 +1,22 @@
-# Changelog
+﻿# Changelog
 
 What changed in each ArtifactX release, written for players. The newest release is at the top; **Unreleased** collects what's done on `development` for the next one.
 
 ## Unreleased
 
+### Fixed
+
+- Saved Exocraft customization unlocks are now read-only. Newly selected unlocks can be unchecked before Save, undoing their pending requirements while retaining other selected parts.
+
+- Exocraft customization edits now include the game settings unlock list, which could restore a part after it was unchecked. Settings changes are backed up and saved with the slot and account edits.
+
+- Saving Exocraft customization changes no longer refreshes the unlock controls from a background thread, which could close the app.
+
 ### Added
+
+- **Exocraft customization editor**: compact checkboxes unlock parts in the loaded save and across the account; saved unlocks are read-only and new choices can be undone before saving. Hover for requirements; enabling raises verified progress requirements only to the minimum. Save and Reset include these changes.
+
+- **Exocraft customization guide**: each vehicle tab has a collapsible unlock guide. Colossus parts show the game's recycling title requirements, progress and recorded account rewards, including a warning when an earned title's part reward is missing. Update game data to load the new definitions.
 
 - **Choose recipe ingredient sources**: collect an item from a matching base or use enough stored supplies to replace its refining branch. Requirements recalculate, and you can switch back to making the item.
 

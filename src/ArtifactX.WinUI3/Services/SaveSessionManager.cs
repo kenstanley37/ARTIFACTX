@@ -19,6 +19,13 @@ public static class SaveSessionManager
     private static string? _activePlatformDisplayName;
     private static bool _isExpeditionActive;
     private static Dictionary<string, DateTime> _loadSnapshot = new();
+    private static readonly List<IStagedSaveCompanion> _companions = new();
+
+    internal static void Enlist(IStagedSaveCompanion companion)
+    {
+        if (!_companions.Contains(companion)) _companions.Add(companion);
+    }
+    internal static void CompanionChanged() => PendingEditsChanged?.Invoke(null, EventArgs.Empty);
 
     public static event EventHandler? ActiveSessionChanged;
     public static event EventHandler? PendingEditsChanged;
@@ -29,8 +36,8 @@ public static class SaveSessionManager
     public static event EventHandler? ExternalChangeDetected;
 
     public static bool IsSaveLoaded => _session is not null;
-    public static bool HasUnsavedChanges => _session?.HasUnsavedChanges ?? false;
-    public static int PendingEditCount => _session?.PendingEditCount ?? 0;
+    public static bool HasUnsavedChanges => (_session?.HasUnsavedChanges ?? false) || _companions.Any(c => c.HasChanges);
+    public static int PendingEditCount => (_session?.PendingEditCount ?? 0) + _companions.Sum(c => c.PendingCount);
     public static IEnumerable<string> DescribePendingEdits() => _session?.DescribePendingEdits() ?? Enumerable.Empty<string>();
     public static SaveSlotGroup? ActiveSlot => _activeSlot;
     /// <summary>
@@ -241,11 +248,20 @@ public static class SaveSessionManager
         mapped[0] = NmsSaveContext.ExpeditionRootKey;
         return mapped;
     }
-    public static void DiscardAllEdits() => _session?.DiscardAllEdits();
+    public static void DiscardAllEdits()
+    {
+        foreach (var companion in _companions) companion.Discard();
+        _session?.DiscardAllEdits();
+        CompanionChanged();
+    }
 
     public static async Task CommitAsync()
     {
         if (_session is null || _targetHgPaths.Length == 0) return;
+        if (GameProcessMonitorService.IsGameRunning)
+            throw new InvalidOperationException("Close No Man's Sky before saving changes.");
+        var companions = _companions.Where(c => c.HasChanges).ToArray();
+        foreach (var companion in companions) await companion.ValidateAsync();
 
         // Backs up whatever's currently on disk before it gets overwritten -
         // every commit, not just the first, so the user always has a way
@@ -255,6 +271,15 @@ public static class SaveSessionManager
 
         await Task.Run(() => _session.CommitAsync(_targetHgPaths));
         TakeSnapshot();
+        foreach (var companion in companions)
+        {
+            try { await companion.CommitAsync(); }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("The save slot was saved, but some additional unlock files could not be saved. Those changes remain pending; retry Save. " + ex.Message, ex);
+            }
+        }
+        CompanionChanged();
     }
 
     /// <summary>Discards the current session and reloads fresh from disk -
@@ -299,6 +324,8 @@ public static class SaveSessionManager
     {
         if (_session is not null)
             _session.EditsChanged -= OnEditsChanged;
+        foreach (var companion in _companions) companion.Discard();
+        _companions.Clear();
     }
 
     private static void OnEditsChanged(object? sender, EventArgs e) =>

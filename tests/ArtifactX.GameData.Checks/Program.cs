@@ -4,6 +4,47 @@ using ArtifactX.GameData;
 using ArtifactX.GameData.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using ArtifactX.Core.Unlocks;
+
+if (args.Length == 3 && args[0] == "--title-unlocks-catalog-check")
+{
+    string output = Path.GetFullPath(args[2]);
+    if (File.Exists(output)) throw new InvalidOperationException("The check requires a new scratch catalog.");
+    using (var db = new CatalogDbContext(output)) db.Database.EnsureCreated();
+    CatalogSteps.AddTitleUnlocks(output, args[1]);
+    using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={output};Mode=ReadOnly");
+    connection.Open();
+    using var query = connection.CreateCommand();
+    query.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId='TITLEUNLOCKS'";
+    var rules = JsonSerializer.Deserialize<TitleUnlockRule[]>((string)query.ExecuteScalar()!)!;
+    // Installed build 184271 references, inspected 2026-11-02. These assert
+    // declared requirements, not that meeting them grants a cosmetic in game.
+    foreach (var (special, stat, amount) in new[]
+    {
+        ("TRUCK_CAB02", "CARGO_DESTROYED", 100f),
+        ("TRUCK_BODY03", "CARGO_DESTROYED", 200f),
+        ("TRUCK_WHEELS02", "CARGO_SCRAP", 75f),
+        ("TRUCK_WHEELS03", "CARGO_EXP", 50f),
+        ("TRUCK_WHEELS06", "CARGO_TOX", 50f),
+        ("TRUCK_WHEELS07", "CARGO_RAD", 50f)
+    })
+    {
+        var rule = rules.Single(r => r.SpecialIds.Contains(special));
+        if (rule.StatId != stat || rule.StatValue != amount || string.IsNullOrWhiteSpace(rule.Title)
+            || string.IsNullOrWhiteSpace(rule.Requirement))
+            throw new InvalidOperationException($"Title reward mapping differs for {special}.");
+    }
+    query.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId='VEHICLECUSTOMISATION'";
+    var options = JsonSerializer.Deserialize<VehicleCustomisationOption[]>((string)query.ExecuteScalar()!)!;
+    var cabin = options.Single(o => o.SpecialId == "TRUCK_CAB02");
+    if (cabin.Vehicle != 2 || cabin.Group != "CABIN" || cabin.Name != "Widescreen Cabin"
+        || !options.Any(o => o.Vehicle == 2 && o.Group == "PAINT" && o.SpecialId == "TRUCK_PAINT02")
+        || options.GroupBy(o => (o.Vehicle, o.Group, o.OptionId)).Any(g => g.Count() != 1)
+        || options.Any(o => string.IsNullOrWhiteSpace(o.Name) || string.IsNullOrWhiteSpace(o.Group)))
+        throw new InvalidOperationException("Vehicle customization associations or localization differ from references.");
+    Console.WriteLine($"PASS: {rules.Length} title reward rules and {options.Length} vehicle choices; six Colossus references and localized instructions match.");
+    return;
+}
 
 if (args.Length is 3 or 4 && args[0] == "--extraction-site-check")
 {
