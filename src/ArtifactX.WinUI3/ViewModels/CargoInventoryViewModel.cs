@@ -1,5 +1,6 @@
 using ArtifactX.WinUI3.Services;
 using Newtonsoft.Json.Linq;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -24,7 +25,7 @@ public sealed class CargoInventoryViewModel
         Inventory = new(path, columns, rows);
     }
 
-    public async Task<bool> RefreshAsync()
+    public async Task<bool> RefreshAsync(Action? inventoryReady = null)
     {
         // Compare only the fields used by InventoryGridViewModel.Load;
         // renames and unrelated container metadata do not redraw the grid.
@@ -36,6 +37,7 @@ public sealed class CargoInventoryViewModel
         _snapshot = snapshot;
         int version = ++_version;
         Inventory.Load();
+        inventoryReady?.Invoke();
         await CatalogService.WarmCacheAsync(Inventory.Cells.Where(c => c.IsOccupied).Select(c => c.ItemId).ToArray());
         return version == _version && ReferenceEquals(session, SaveSessionManager.SessionIdentity);
     }

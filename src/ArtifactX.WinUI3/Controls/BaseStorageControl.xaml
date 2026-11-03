@@ -6,12 +6,13 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:ArtifactX.WinUI3.Controls"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:models="using:ArtifactX.WinUI3.Models"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <ScrollViewer>
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
         <StackPanel Padding="28,26,28,40" Spacing="22">
             <!-- Reset button on the title's own row, pinned far right, so it
                  appearing never shifts the page down. -->
@@ -31,11 +32,24 @@
                     <Border Style="{StaticResource ThemeBandStyle}">
                         <TextBlock Text="STORAGE CONTAINERS" Style="{StaticResource ThemeBandTextStyle}"/>
                     </Border>
-                    <ComboBox x:Name="ContainerSelector" Margin="18,14,18,16" MinWidth="260"
-                              ItemsSource="{x:Bind ViewModel.Containers}" DisplayMemberPath="Name"
-                              SelectedItem="{x:Bind ViewModel.SelectedContainer, Mode=TwoWay}"
-                              SelectionChanged="ContainerSelector_SelectionChanged"
-                              AutomationProperties.Name="Base storage container"/>
+                    <ItemsControl Margin="18,14,18,16" ItemsSource="{x:Bind ViewModel.Containers}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:StorageContainerEntry">
+                                <ToggleButton Tag="{x:Bind}" IsChecked="{x:Bind IsSelected, Mode=OneWay}"
+                                              Click="ContainerButton_Click" MaxWidth="260" Padding="12,8"
+                                              HorizontalAlignment="Left" HorizontalContentAlignment="Left"
+                                              AutomationProperties.Name="{x:Bind Name}"
+                                              ToolTipService.ToolTip="{x:Bind Name}">
+                                    <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap"/>
+                                </ToggleButton>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </Border>
 

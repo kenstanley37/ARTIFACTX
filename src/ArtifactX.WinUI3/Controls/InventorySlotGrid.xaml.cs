@@ -126,8 +126,20 @@ public sealed partial class InventorySlotGrid : UserControl
         return moved;
     }
 
-    public void Refresh()
+    private readonly List<Action> _catalogUpdates = new();
+
+    /// <summary>Finishes a grid drawn before catalog names/icons arrived,
+    /// without replacing its slot visuals, menus, focus or scroll position.</summary>
+    public void UpdateCatalogPresentation()
     {
+        foreach (var update in _catalogUpdates) update();
+    }
+
+    public void Refresh() => Refresh(showLoadingItems: false);
+
+    public void Refresh(bool showLoadingItems)
+    {
+        _catalogUpdates.Clear();
         RootCanvas.Children.Clear();
         var cells = Snapshot?.Cells ?? (IReadOnlyList<InventorySlotViewModel>?)ViewModel?.Cells;
         RootCanvas.Width = (Snapshot?.Columns ?? ViewModel?.Columns ?? 0) * CellSpacing;
@@ -173,15 +185,13 @@ public sealed partial class InventorySlotGrid : UserControl
                 var entry = CatalogService.TryGet(cell.ItemId);
                 var content = new Grid { Padding = new Thickness(2) };
 
-                if (entry?.Icon is not null)
+                var itemImage = new Image
                 {
-                    content.Children.Add(new Image
-                    {
-                        Source = entry.Icon,
-                        Stretch = Stretch.Uniform,
-                        Opacity = 0.95
-                    });
-                }
+                    Source = entry?.Icon,
+                    Stretch = Stretch.Uniform,
+                    Opacity = 0.95
+                };
+                content.Children.Add(itemImage);
 
                 var nameLabel = new Border
                 {
@@ -192,7 +202,7 @@ public sealed partial class InventorySlotGrid : UserControl
                     {
                         // Upper-cased like the game's own slot labels - some catalog rows only
                         // have the mixed-case NameLower ("Thermal Protection").
-                        Text = (cell.DisplayName ?? entry?.DisplayName ?? cell.ShortLabel).ToUpperInvariant(),
+                        Text = (cell.DisplayName ?? entry?.DisplayName ?? (showLoadingItems ? "Loading item" : cell.ShortLabel)).ToUpperInvariant(),
                         FontFamily = (FontFamily)Application.Current.Resources["ThemeBodyFont"],
                         FontSize = 8,
                         TextWrapping = TextWrapping.Wrap,
@@ -246,9 +256,19 @@ public sealed partial class InventorySlotGrid : UserControl
 
                 border.Child = content;
                 border.ContextFlyout = BuildOccupiedFlyout(border, cell);
-                ToolTipService.SetToolTip(border, isDamaged
-                    ? "Malfunctioning - right-click to repair"
-                    : $"{cell.DisplayName ?? entry?.DisplayName ?? cell.ShortLabel}{classSuffix} ({cell.ItemId})\nRight-click for options - edit, duplicate, remove");
+                void UpdateItemPresentation(bool loading)
+                {
+                    var current = CatalogService.TryGet(cell.ItemId);
+                    string name = cell.DisplayName ?? current?.DisplayName
+                        ?? (showLoadingItems ? loading ? "Loading item" : "Item" : cell.ShortLabel);
+                    itemImage.Source = current?.Icon;
+                    ((TextBlock)nameLabel.Child).Text = name.ToUpperInvariant();
+                    ToolTipService.SetToolTip(border, isDamaged
+                        ? "Malfunctioning - right-click to repair"
+                        : $"{name}{classSuffix}\nRight-click for options - edit, duplicate, remove");
+                }
+                UpdateItemPresentation(showLoadingItems);
+                _catalogUpdates.Add(() => UpdateItemPresentation(false));
 
                 border.CanDrag = true;
                 border.DragStarting += (_, args) =>

@@ -6,6 +6,8 @@ using ArtifactX.WinUI3.ViewModels;
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using Microsoft.UI.Dispatching;
+using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Controls;
 
@@ -22,11 +24,22 @@ public sealed partial class FoodStoreControl : UserControl
 {
     private CargoInventoryViewModel? _editor;
     private InventoryGridViewModel? _model => _editor?.Inventory;
+    private bool _itemsStarted;
+    private bool _coldStorage;
 
     /// <summary>Raised when this store is edited (the page shows its Reset button).</summary>
     public event EventHandler? Changed;
 
-    public FoodStoreControl() => InitializeComponent();
+    public FoodStoreControl()
+    {
+        InitializeComponent();
+        Loaded += (_, _) => DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            if (_itemsStarted || _editor is null) return;
+            _itemsStarted = true;
+            _ = LoadItemsAsync();
+        });
+    }
 
     public IEnumerable<string[]> InventoryPaths => _editor is null ? [] : [_editor.Path];
 
@@ -35,6 +48,7 @@ public sealed partial class FoodStoreControl : UserControl
     /// <summary>Sets the store up; call once from the hosting page.</summary>
     public void Init(bool coldStorage)
     {
+        _coldStorage = coldStorage;
         _editor = coldStorage
             ? new CargoInventoryViewModel(NmsInventoryContainer.ColdStoragePath, NmsInventoryContainer.ColdStorageColumns, NmsInventoryContainer.ColdStorageRows)
             : new CargoInventoryViewModel(NmsInventoryContainer.IngredientStoragePath, NmsInventoryContainer.IngredientStorageColumns, NmsInventoryContainer.IngredientStorageRows);
@@ -49,23 +63,27 @@ public sealed partial class FoodStoreControl : UserControl
         // Stack sizes from the game's own screens: Cold Storage fish 100 / bait
         // 1,000 (20x the catalog), Ingredient Storage fish 25 / food 50 (5x).
         Grid.ProductStorageMultiplier = coldStorage ? 20 : 5;
+        // Until the allowed-item list arrives, never offer the full catalog
+        // in this inventory's Add menu.
+        Grid.AllowedItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         Grid.CellChanged += (_, _) => Changed?.Invoke(this, EventArgs.Empty);
 
         Reload();
-        _ = List.LoadAsync(Grid, async () =>
+    }
+
+    private Task LoadItemsAsync() => List.LoadAsync(Grid, async () =>
         {
-            var items = await CatalogService.GetFoodStorageItemsAsync(coldStorage);
+            var items = await CatalogService.GetFoodStorageItemsAsync(_coldStorage);
             Grid.AllowedItemIds = items.Select(p => p.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
             return items;
-        }, coldStorage ? "item" : "ingredient", coldStorage ? "items" : "ingredients", "Product", p => p.Group);
-    }
+        }, _coldStorage ? "item" : "ingredient", _coldStorage ? "items" : "ingredients", "Product", p => p.Group);
 
     public async void Reload()
     {
         if (_editor is null) return;
-        if (await _editor.RefreshAsync())
+        if (await _editor.RefreshAsync(() => Grid.Refresh(showLoadingItems: true)))
         {
-            Grid.Refresh();
+            Grid.UpdateCatalogPresentation();
             List.RefreshOwned();
         }
     }

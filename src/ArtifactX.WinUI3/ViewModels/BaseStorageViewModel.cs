@@ -36,13 +36,21 @@ public sealed partial class BaseStorageViewModel : ObservableObject
         // Preserve unchanged selector objects and the selection on ordinary edits.
         for (int i = 0; i < entries.Count; i++)
         {
-            var existing = Containers.FirstOrDefault(c => c == entries[i]);
+            var existing = Containers.FirstOrDefault(c => c.Key == entries[i].Key && c.Name == entries[i].Name);
             if (existing is null) Containers.Insert(i, entries[i]);
             else if (Containers.IndexOf(existing) != i) Containers.Move(Containers.IndexOf(existing), i);
         }
         while (Containers.Count > entries.Count) Containers.RemoveAt(Containers.Count - 1);
         SelectedContainer = Containers.FirstOrDefault(c => c.Key == selected) ?? Containers.FirstOrDefault();
+        UpdateSelection();
         if (newSession) Name = SelectedContainer?.Name ?? "";
+    }
+
+    partial void OnSelectedContainerChanged(StorageContainerEntry? value) => UpdateSelection();
+
+    private void UpdateSelection()
+    {
+        foreach (var container in Containers) container.IsSelected = container.Key == SelectedContainer?.Key;
     }
 
     public async Task<bool> LoadSelectedAsync()

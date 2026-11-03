@@ -2,6 +2,8 @@ using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
+using ArtifactX.WinUI3.Models;
 using System.Linq;
 
 namespace ArtifactX.WinUI3.Controls;
@@ -9,7 +11,6 @@ namespace ArtifactX.WinUI3.Controls;
 public sealed partial class BaseStorageControl : UserControl
 {
     public BaseStorageViewModel ViewModel { get; } = new();
-    private bool _refreshingContainers;
 
     public BaseStorageControl()
     {
@@ -26,9 +27,7 @@ public sealed partial class BaseStorageControl : UserControl
 
     private void Refresh()
     {
-        _refreshingContainers = true;
         ViewModel.RefreshContainers();
-        _refreshingContainers = false;
         RefreshSelected();
     }
 
@@ -43,9 +42,14 @@ public sealed partial class BaseStorageControl : UserControl
 
     private void UpdateReset() => PageResetBtn.Visibility = ViewModel.HasChanges ? Visibility.Visible : Visibility.Collapsed;
 
-    private void ContainerSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void ContainerButton_Click(object sender, RoutedEventArgs e)
     {
-        if (!_refreshingContainers) RefreshSelected();
+        if (sender is not ToggleButton { Tag: StorageContainerEntry container } button) return;
+        // Selecting the active container must not toggle the selection off.
+        button.IsChecked = true;
+        if (ViewModel.SelectedContainer?.Key == container.Key) return;
+        ViewModel.SelectedContainer = container;
+        RefreshSelected();
     }
 
     private void NameEditBox_LostFocus(object sender, RoutedEventArgs e) => ViewModel.Rename();

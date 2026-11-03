@@ -35,6 +35,7 @@ try
     Check(vm.Containers.Count == 10, "Only ten reachable containers are shown");
     await vm.LoadSelectedAsync();
     var first = vm.SelectedContainer!;
+    Check(first.IsSelected && vm.Containers.Count(c => c.IsSelected) == 1, "Container buttons mark exactly the selected container");
     var firstEditor = vm.Editor!;
     var firstCell = firstEditor.Inventory.Cells[0];
     Check(firstCell.Amount == 1, "Production inventory model reads the first container");
@@ -56,7 +57,9 @@ try
 
     firstEditor.Inventory.StageAmount(0, 0, 42);
     Check(vm.HasChanges, "Inventory edits are staged");
+    var previouslySelected = vm.SelectedContainer!;
     vm.SelectedContainer = vm.Containers[1];
+    Check(vm.SelectedContainer.IsSelected && !previouslySelected.IsSelected, "Container button selection moves without rebuilding the selector");
     await vm.LoadSelectedAsync();
     vm.SelectedContainer = vm.Containers.First(c => c.Key == first.Key);
     await vm.LoadSelectedAsync();
@@ -73,7 +76,9 @@ try
 
     CatalogService.WarmGate = new();
     SaveSessionManager.Session.Root["vLc"]!["6f="]![first.Key]![":No"]![0]!["1o9"] = 77;
-    Task<bool> pending = firstEditor.RefreshAsync();
+    bool inventoryReady = false;
+    Task<bool> pending = firstEditor.RefreshAsync(() => inventoryReady = firstEditor.Inventory.Cells[0].Amount == 77);
+    Check(inventoryReady && !pending.IsCompleted, "Inventory is ready to draw while catalog loading is still blocked");
     SaveSessionManager.Session = await SaveEditSession.LoadAsync(temporary);
     CatalogService.WarmGate.SetResult();
     Check(!await pending, "Old async refresh is rejected after changing save");
