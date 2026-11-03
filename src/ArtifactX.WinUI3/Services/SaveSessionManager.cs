@@ -276,7 +276,7 @@ public static class SaveSessionManager
             try { await companion.CommitAsync(); }
             catch (Exception ex)
             {
-                throw new InvalidOperationException("The save slot was saved, but account unlock changes could not be saved. They remain pending; retry Save. " + ex.Message, ex);
+                throw new InvalidOperationException("The save slot was saved, but some additional unlock files could not be saved. Those changes remain pending; retry Save. " + ex.Message, ex);
             }
         }
         CompanionChanged();

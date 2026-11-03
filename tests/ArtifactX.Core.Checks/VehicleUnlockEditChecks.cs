@@ -33,6 +33,26 @@ internal static class VehicleUnlockEditChecks
         try { VehicleUnlockEdits.RaiseRequirements(JArray.Parse("[{'b2n':'^COUNTER','>MX':{'eoL':1.5}}]"), [rule]); }
         catch (InvalidOperationException) { floatRejected = true; }
         Require(floatRejected);
+        const string xml = "<?xml version=\"1.0\" encoding=\"utf-8\"?><Data><Property name=\"AudioVolume\" value=\"72\"/><Property name=\"UnlockedSpecials\"><Property name=\"UnlockedSpecials\" value=\"OTHER\" _index=\"0\"/><Property name=\"UnlockedSpecials\" value=\"PART\" _index=\"1\"/><Property name=\"UnlockedSpecials\" value=\"PART\" _index=\"2\"/></Property><Property name=\"UnlockedTitles\"><Property name=\"UnlockedTitles\" value=\"TITLE\"/></Property></Data>";
+        var removedXml = UserSettingsSpecialEdits.Set(xml, "PART", false);
+        Require(!UserSettingsSpecialEdits.Read(removedXml).Contains("PART"));
+        Require(UserSettingsSpecialEdits.Read(removedXml).SetEquals(["OTHER"]));
+        var beforeXml = System.Xml.Linq.XDocument.Parse(xml);
+        var afterXml = System.Xml.Linq.XDocument.Parse(removedXml);
+        foreach (string name in new[] { "AudioVolume", "UnlockedTitles" })
+            Require(System.Xml.Linq.XNode.DeepEquals(beforeXml.Root!.Elements().Single(e => (string?)e.Attribute("name") == name),
+                afterXml.Root!.Elements().Single(e => (string?)e.Attribute("name") == name)));
+        var enabledXml = UserSettingsSpecialEdits.Set(removedXml, "PART", true);
+        Require(UserSettingsSpecialEdits.Read(enabledXml).SetEquals(["OTHER", "PART"]));
+        Require(UserSettingsSpecialEdits.Set(enabledXml, "PART", true) == enabledXml);
+        Require(System.Xml.Linq.XDocument.Parse(enabledXml).Declaration?.Encoding == "utf-8");
+        Require(System.Xml.Linq.XDocument.Parse(enabledXml).Descendants("Property")
+            .Where(e => e.Attribute("_index") is not null).Select(e => (int)e.Attribute("_index")!).SequenceEqual([0, 1]));
+        bool malformedRejected = false;
+        try { UserSettingsSpecialEdits.Set("<Data/>", "PART", false); }
+        catch (System.IO.InvalidDataException) { malformedRejected = true; }
+        Require(malformedRejected);
         Console.WriteLine("Vehicle unlock edits: detached changes, minimum counters, guarded prerequisites and selective reset passed.");
+        Console.WriteLine("Settings mirror: selected reward removal/addition, idempotence, indices, UTF-8 and unrelated settings/title preservation passed.");
     }
 }

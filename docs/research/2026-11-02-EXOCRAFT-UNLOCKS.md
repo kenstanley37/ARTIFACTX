@@ -223,3 +223,30 @@ code justifies removing earned titles. The exact source that repopulates Furnace
 in the owner's controlled disable case remains unresolved: the loaded Slot 5
 files had no Furnace entry, so the tested KnownSpecials loop alone cannot explain
 that case. Enabling remains owner-confirmed; relocking is still not confirmed.
+
+
+## Settings mirror found and staged, 2026-11-03
+
+Real installed Binaries/SETTINGS/GCUSERSETTINGSDATA.MXML contains Furnace under
+UnlockedSpecials (index 659). This is outside the JSON save/account files checked
+in the disable checkpoint. Vendored GcUserSettingsData.UnlockedSpecials is at
++0xB0; raw user settings base in the examined native loader is +0x307C08, so the
+0x140616475 loop's +0x307CB8 source is this settings field. That loop imports the
+settings entries into the runtime account +0x180 special set. This directly
+identifies a persisted source omitted by the initial editor. It does not prove
+there are no further restoration sources.
+
+VehicleUnlockSettingsEdits now joins slot/account Save/Reset through the existing
+companion interface. It stages selected-ID changes in the detected installation's
+MXML, checks the file for outside changes before Save, blocks game-running writes,
+and backs it up through BackupService before writing. UTF-8 BOM presence is kept.
+Other settings and earned titles remain unchanged; only the reward list indices
+are renumbered. The UI explicitly mentions game settings and that other saves may
+retain their own records. Cached reward IDs avoid reparsing settings on snapshots.
+Missing/unrecognized settings cause edits to fail before staging other files.
+
+Pure checks cover add/remove/no-op, duplicate removal, indices, UTF-8 declaration,
+malformed-list rejection and unrelated property/title preservation. A read-only
+in-memory projection of the real XML removed Furnace and preserved all 116 other
+top-level properties. No settings/save/account file was written by the agent.
+Build passed with zero errors. Relocking after this fix remains for owner testing.

@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Exocraft customization edits now include the game settings unlock list, which could restore a part after it was unchecked. Settings changes are backed up and saved with the slot and account edits.
+
 - Saving Exocraft customization changes no longer refreshes the unlock controls from a background thread, which could close the app.
 
 ### Added

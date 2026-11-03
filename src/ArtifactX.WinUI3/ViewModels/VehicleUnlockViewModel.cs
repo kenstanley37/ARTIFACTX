@@ -56,7 +56,7 @@ public sealed partial class VehicleUnlockViewModel : ObservableObject
             if (version != _loadVersion) return;
             foreach (var item in Groups.SelectMany(g => g.Items)) item.Icon = CatalogService.TryGet(item.Option.SpecialId)?.Icon;
             Message = Groups.Count == 0 ? "No unlockable customization choices were found for this vehicle in the installed data."
-                : "Changes affect this save and account-wide unlocks across all saves. Hover or focus a checkbox for details. Required progress is raised only when below the minimum.";
+                : "Changes update this save, account unlock records and the game settings unlock list. Other saves may retain their own unlocks. Hover or focus a checkbox for details. Required progress is raised only when below the minimum.";
             await RefreshAsync(LiveSaveWatcher.LatestSnapshot);
         }
         catch (Exception ex) { if (version == _loadVersion) Message = "Customization unlock information could not be read. Try updating game data."; System.Diagnostics.Debug.WriteLine(ex); }
@@ -162,7 +162,7 @@ public sealed partial class VehicleUnlockItemViewModel : ObservableObject
         Notice = !owned && !inSave && account is not null && Rules.Any(r => account.Titles.Contains(r.TitleId))
             ? "Title earned, but the part reward is not recorded. Repeating the requirement or selecting the title may not grant the missing reward." : "";
         Details = string.Join("\n\n", new[] { Name, Requirement, Progress, Notice,
-            owned && Option.SpecialId.Length > 0 ? "Account-wide reward. Turning it off removes this part from account and loaded-save unlock lists; earned titles and progress remain."
+            owned && Option.SpecialId.Length > 0 ? "Account-wide reward. Turning it off removes this part from account, game settings and loaded-save unlock lists; earned titles and progress remain."
                 : inSave ? "Unlocked in this save. Turning it off preserves progress counters."
                 : "Enabling adds this part to the save and account, records its linked title and raises verified prerequisite counters only when necessary. Save changes from the title bar." }
             .Where(s => s.Length > 0));

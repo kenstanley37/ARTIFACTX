@@ -14,12 +14,24 @@ internal sealed class VehicleUnlockEditor
     private static VehicleUnlockEditor? _current;
     private readonly object? _owner = SaveSessionManager.SessionIdentity;
     private readonly VehicleUnlockAccountEdits _account = new();
+    private readonly VehicleUnlockSettingsEdits _settings = new();
     private readonly Dictionary<string, (string[] Path, JArray Original, JArray Applied, bool Staged, HashSet<string> Ids)> _changes = [];
     public static VehicleUnlockEditor Current => _current is not null && ReferenceEquals(_current._owner, SaveSessionManager.SessionIdentity)
         ? _current : _current = new();
-    public System.Threading.Tasks.Task LoadAsync() => _account.LoadAsync();
-    public VehicleUnlockAccount? Account => _account.Read();
-    public bool HasChanges => _account.HasChanges || _changes.Values.Any(c => SaveSessionManager.HasStagedEditsUnder(c.Path));
+    public async System.Threading.Tasks.Task LoadAsync()
+    { await _account.LoadAsync(); await _settings.LoadAsync(); }
+    public VehicleUnlockAccount? Account
+    {
+        get
+        {
+            var account = _account.Read();
+            if (account is null) return null;
+            var rewards = new HashSet<string>(account.Rewards, StringComparer.Ordinal);
+            rewards.UnionWith(_settings.Read());
+            return new(rewards, account.Titles);
+        }
+    }
+    public bool HasChanges => _account.HasChanges || _settings.HasChanges || _changes.Values.Any(c => SaveSessionManager.HasStagedEditsUnder(c.Path));
     public void Reset()
     {
         foreach (var c in _changes.Values)
@@ -35,6 +47,7 @@ internal sealed class VehicleUnlockEditor
             else SaveSessionManager.StageEdit(restored, c.Path);
         }
         _changes.Clear();
+        _settings.Discard();
         _account.Discard();
     }
 
@@ -46,6 +59,7 @@ internal sealed class VehicleUnlockEditor
             throw new InvalidOperationException("Load a save with customization unlock data first.");
         if (!ReferenceEquals(_owner, SaveSessionManager.SessionIdentity)) throw new InvalidOperationException("Reload customization unlocks for the current save.");
         var accountEdits = _account.Plan(id, rules, enabled);
+        var settingsEdit = _settings.Plan(id, enabled);
         var edits = new List<(JToken? Value, string[] Path)>();
         var updatedSpecials = VehicleUnlockEdits.Specials(specials, id, enabled);
         if (enabled && rules.Length > 0)
@@ -81,6 +95,7 @@ internal sealed class VehicleUnlockEditor
                 previous.Ids.Add(changed);
             _changes[key] = (edit.Path, previous.Original, (JArray)next.DeepClone(), previous.Staged, previous.Ids);
         }
+        _settings.Stage(settingsEdit);
         _account.Stage(accountEdits);
         // Validation finishes before any edit is staged. One notice keeps the
         // title bar and surrounding editor from refreshing once per counter.
