@@ -18,7 +18,7 @@
                     <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8">
                         <Button Content="Max All Qty" Click="MaxAllQtyBtn_Click"/>
                         <Button Content="Merge Duplicates" Click="MergeDuplicatesBtn_Click"
-                                ToolTipService.ToolTip="Combines repeated items into one stack each (up to the item's max) and frees the other slots."/>
+                                ToolTipService.ToolTip="Combines compatible stacks up to their limits. Excess items stay in additional stacks."/>
                         <Button Content="Sort" Click="SortBtn_Click"
                                 ToolTipService.ToolTip="Groups items by kind and name, packed from the top-left, so identical items sit together."/>
                         <TextBlock x:Name="ResultTxt" VerticalAlignment="Center" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>

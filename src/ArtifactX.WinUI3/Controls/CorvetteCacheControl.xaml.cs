@@ -1,12 +1,12 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using ArtifactX.Core.NmsModels;
-using ArtifactX.WinUI3.Services;
-using ArtifactX.WinUI3.ViewModels;
 using System;
 using System.Linq;
+using ArtifactX.WinUI3.Services;
+using ArtifactX.WinUI3.ViewModels;
 
-namespace ArtifactX.WinUI3.Views;
+namespace ArtifactX.WinUI3.Controls;
 
 /// <summary>
 /// The Corvette Workshop Cache - a single fixed 10x16 (160-slot) container
@@ -19,17 +19,14 @@ namespace ArtifactX.WinUI3.Views;
 /// no in-game way to expand this cache's slot count, so there's nothing to
 /// unlock.
 /// </summary>
-public sealed partial class CorvetteCachePage : Page
+public sealed partial class CorvetteCacheControl : UserControl
 {
-    // Matches the ScrollViewer's own XAML-declared MaxHeight (10 rows) -
-    // restored when the section is collapsed again, same pattern as every
-    // other page's Tech/Cargo expand toggle.
-
-
-    private readonly InventoryGridViewModel _viewModel =
+    private readonly CargoInventoryViewModel _editor =
         new(NmsInventoryContainer.CorvetteCachePath, CorvetteCacheCapacity.Columns, CorvetteCacheCapacity.Rows);
 
-    public CorvetteCachePage()
+    private InventoryGridViewModel _viewModel => _editor.Inventory;
+
+    public CorvetteCacheControl()
     {
         InitializeComponent();
         CacheGrid.ViewModel = _viewModel;
@@ -48,10 +45,7 @@ public sealed partial class CorvetteCachePage : Page
 
         CacheGrid.CellChanged += (_, _) => PageResetBtn.Visibility = Visibility.Visible;
 
-        SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
-        SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
-        Unloaded += Page_Unloaded;
-        LoadGrid();
+        _ = new CargoStorageFeed(this, () => [_editor.Path], LoadGrid);
 
         // Every part a corvette is built from, to click into the cache - and
         // the same list limits the right-click search.
@@ -63,34 +57,14 @@ public sealed partial class CorvetteCachePage : Page
         }, "part", "parts", "Product", _ => "");
     }
 
-    private void OnSessionOrEditsChanged(object? sender, EventArgs e) =>
-        DispatcherQueue.TryEnqueue(LoadGrid);
-
-    /// <summary>Without this, the constructor's subscriptions above never
-    /// get released across page navigation (Frame.Navigate makes a fresh
-    /// Page instance every visit, no NavigationCacheMode set anywhere in
-    /// this app) - every past visit leaves a dead instance permanently
-    /// subscribed, re-running its full reload on every future edit
-    /// anywhere in the app. Root cause of a reported slowdown where
-    /// editing any page became multi-second after enough navigation.</summary>
-    private void Page_Unloaded(object sender, RoutedEventArgs e)
-    {
-        SaveSessionManager.ActiveSessionChanged -= OnSessionOrEditsChanged;
-        SaveSessionManager.PendingEditsChanged -= OnSessionOrEditsChanged;
-    }
-
     private async void LoadGrid()
     {
-        if (!SaveSessionManager.IsSaveLoaded) return;
-
-        _viewModel.Load();
-
-        var itemIds = _viewModel.Cells.Where(c => c.IsOccupied).Select(c => c.ItemId);
-        await CatalogService.WarmCacheAsync(itemIds);
-
-        CacheGrid.Refresh();
-
-        PageResetBtn.Visibility = _viewModel.HasLocalChanges ? Visibility.Visible : Visibility.Collapsed;
+        if (await _editor.RefreshAsync())
+        {
+            CacheGrid.Refresh();
+            PartsPanel.RefreshOwned();
+        }
+        PageResetBtn.Visibility = _editor.HasChanges ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void MaxAllQtyBtn_Click(object sender, RoutedEventArgs e)
@@ -102,9 +76,9 @@ public sealed partial class CorvetteCachePage : Page
 
     private void MergeDuplicatesBtn_Click(object sender, RoutedEventArgs e)
     {
-        int freed = _viewModel.MergeDuplicates();
-        TidyResultTxt.Text = freed == 0 ? "No duplicates found." : $"Merged duplicates - {freed} slot{(freed == 1 ? "" : "s")} freed.";
-        if (freed == 0) return;
+        bool changed = _viewModel is not null && _viewModel.TryMergeDuplicates(out _);
+        TidyResultTxt.Text = changed ? "Merged compatible stacks." : "No stacks to merge.";
+        if (!changed) return;
         CacheGrid.Refresh();
         PageResetBtn.Visibility = Visibility.Visible;
     }
@@ -120,10 +94,8 @@ public sealed partial class CorvetteCachePage : Page
 
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
-        _viewModel.Revert();
-        CacheGrid.Refresh();
+        _editor.Revert();
+        LoadGrid();
         PageResetBtn.Visibility = Visibility.Collapsed;
     }
-
-
 }

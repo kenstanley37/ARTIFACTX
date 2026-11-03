@@ -162,8 +162,7 @@ public sealed partial class MainWindow : Window
         FreighterUpgradesPathIcon.Data = G(NavIconGeometries.Freighter);
         FrigatesPathIcon.Data = G(NavIconGeometries.Frigates);
         SquadronPathIcon.Data = G(NavIconGeometries.Squadron);
-        BaseStoragePathIcon.Data = G(NavIconGeometries.BaseStorage);
-        CorvetteCachePathIcon.Data = G(NavIconGeometries.CorvetteCache);
+        CargoPathIcon.Data = G(NavIconGeometries.BaseStorage);
         CompanionsPathIcon.Data = G(NavIconGeometries.Companions);
         SettlementsPathIcon.Data = G(NavIconGeometries.Settlements);
         SpaceStationsPathIcon.Data = G(NavIconGeometries.SpaceStations);
@@ -405,11 +404,7 @@ public sealed partial class MainWindow : Window
                 "FreighterUpgrades" => typeof(FreighterUpgradesPage),
                 "Frigate" => typeof(FrigatePage),
                 "Squadron" => typeof(SquadronPage),
-                "BaseStorage" => typeof(BaseStoragePage),
-                "CorvetteCache" => typeof(CorvetteCachePage),
-                "ColdStorage" => typeof(ColdStoragePage),
-                "IngredientStorage" => typeof(IngredientStoragePage),
-                "BaseItemCache" => typeof(BaseItemCachePage),
+                "Cargo" => typeof(CargoPage),
                 "Companions" => typeof(CompanionsPage),
                 "Settlement" => typeof(SettlementPage),
                 "SpaceStations" => typeof(SpaceStationsPage),
@@ -476,16 +471,12 @@ public sealed partial class MainWindow : Window
         FreighterUpgradesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         FrigateNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SquadronNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        BaseStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        CorvetteCacheNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        ColdStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        IngredientStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        BaseItemCacheNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        CargoNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         // A reminder: how many different items are waiting in the cache (easy to
         // forget, user 2026-10-15) - kinds of item, not quantities.
         int cacheItems = SaveSessionManager.GetValue(ArtifactX.Core.NmsModels.NmsInventoryContainer.BaseItemCachePath)?[":No"] is Newtonsoft.Json.Linq.JArray cached ? cached.Count : 0;
-        BaseItemCacheNavItem.InfoBadge = cacheItems > 0 ? new InfoBadge { Value = cacheItems } : null;
-        ToolTipService.SetToolTip(BaseItemCacheNavItem, cacheItems > 0
+        CargoNavItem.InfoBadge = cacheItems > 0 ? new InfoBadge { Value = cacheItems } : null;
+        ToolTipService.SetToolTip(CargoNavItem, cacheItems > 0
             ? $"{cacheItems} item{(cacheItems == 1 ? "" : "s")} waiting from a dismantled base" : null);
         CompanionsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SettlementNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
@@ -699,11 +690,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(FreighterUpgradesPage) => "FreighterUpgrades",
             Type t when t == typeof(FrigatePage) => "Frigate",
             Type t when t == typeof(SquadronPage) => "Squadron",
-            Type t when t == typeof(BaseStoragePage) => "BaseStorage",
-            Type t when t == typeof(CorvetteCachePage) => "CorvetteCache",
-            Type t when t == typeof(ColdStoragePage) => "ColdStorage",
-            Type t when t == typeof(IngredientStoragePage) => "IngredientStorage",
-            Type t when t == typeof(BaseItemCachePage) => "BaseItemCache",
+            Type t when t == typeof(CargoPage) => "Cargo",
             Type t when t == typeof(CompanionsPage) => "Companions",
             Type t when t == typeof(SettlementPage) => "Settlement",
             Type t when t == typeof(SpaceStationsPage) => "SpaceStations",

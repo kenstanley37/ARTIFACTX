@@ -182,33 +182,9 @@
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="BaseStorageNavItem" Content="Base Storage" Tag="BaseStorage" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="CargoNavItem" Content="Cargo" Tag="Cargo" Visibility="Collapsed">
                         <NavigationViewItem.Icon>
-                            <PathIcon x:Name="BaseStoragePathIcon"/>
-                        </NavigationViewItem.Icon>
-                    </NavigationViewItem>
-
-                    <NavigationViewItem x:Name="ColdStorageNavItem" Content="Cold Storage" Tag="ColdStorage" Visibility="Collapsed">
-                        <NavigationViewItem.Icon>
-                            <FontIcon Glyph="&#xE9CA;"/>
-                        </NavigationViewItem.Icon>
-                    </NavigationViewItem>
-
-                    <NavigationViewItem x:Name="IngredientStorageNavItem" Content="Ingredient Storage" Tag="IngredientStorage" Visibility="Collapsed">
-                        <NavigationViewItem.Icon>
-                            <FontIcon Glyph="&#xED56;"/>
-                        </NavigationViewItem.Icon>
-                    </NavigationViewItem>
-
-                    <NavigationViewItem x:Name="BaseItemCacheNavItem" Content="Dismantled Base Components" Tag="BaseItemCache" Visibility="Collapsed">
-                        <NavigationViewItem.Icon>
-                            <FontIcon Glyph="&#xE7B8;"/>
-                        </NavigationViewItem.Icon>
-                    </NavigationViewItem>
-
-                    <NavigationViewItem x:Name="CorvetteCacheNavItem" Content="Corvette Cache" Tag="CorvetteCache" Visibility="Collapsed">
-                        <NavigationViewItem.Icon>
-                            <PathIcon x:Name="CorvetteCachePathIcon"/>
+                            <PathIcon x:Name="CargoPathIcon"/>
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
