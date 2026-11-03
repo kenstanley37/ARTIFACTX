@@ -392,7 +392,7 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 
 ### Bug 47: Companion Editing Is Laggy
 - **Source note**: "Companions is laggy to edit".
-- **Status**: User-reported; profiling pending. Related to Bug 46 but not yet proven to share its cause.
+- **Status**: Owner noticed no slowness on 2026-11-03 after the Bug 46 change, which stopped the full page reload on each of the editor's own edits. Not profiled; reopen if lag returns, for example in body parts or raw fields, which still reload.
 - **Investigation**: Measure input latency and identify synchronous catalog/save work, repeated JSON walks, control reconstruction or preview regeneration in the edit path. Keep disk/catalog work off the UI thread and update only affected state.
 - **Acceptance**: Editing text, numbers and selections remains responsive with a populated companion record; selection, focus, caret and preview rotation survive unrelated changes. Verify staged edits and revert behavior remain correct.
 
