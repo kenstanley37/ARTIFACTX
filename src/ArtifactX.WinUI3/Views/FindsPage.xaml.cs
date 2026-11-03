@@ -123,17 +123,11 @@ public sealed partial class FindsPage : Page
         ClassFilterBox.SelectedIndex = 0;
         SortBox.SelectedIndex = 0;
 
-        if (SaveSessionManager.IsSaveLoaded)
-        {
-            var universe = SaveSessionManager.GetValue(S.CurrentUniverseAddressPath);
-            _hereSystem = S.ReadSystemAddress(universe);
-            _herePlanet = universe?["oZw"]?["jsv"]?.Value<int>() ?? 0;
-            _hereCoords = LiveSaveWatcher.FromSession().Coordinates;
-            _herePlanets = NmsPlanets.ReadAll(SaveSessionManager.GetValue(S.DiscoveriesPath) as JArray);
-        }
+        // The newest save the game wrote, not the one loaded: system, planet and
+        // coordinates must all come from the same snapshot (Bug 2, 2026-11-03 - the
+        // system was the loaded save's while the coordinates were the latest).
+        if (SaveSessionManager.IsSaveLoaded) ReadHere(LiveSaveWatcher.FromSession());
         SelectGalaxy(_hereSystem is ulong h ? S.GalaxyNumber(h) : 1);
-        UseHereBtn.IsEnabled = _hereSystem is not null;
-        UpdateHere();
 
         _ready = true;
         RefreshTypeFilter();
@@ -142,14 +136,19 @@ public sealed partial class FindsPage : Page
 
     private void OnLiveSnapshot(PlanetSnapshot snapshot)
     {
+        ReadHere(snapshot);
+        LiveStatusTxt.Text = $"Following your game · updated {DateTime.Now:t}";
+        Apply();
+    }
+
+    private void ReadHere(PlanetSnapshot snapshot)
+    {
         _hereSystem = S.ReadSystemAddress(snapshot.Universe);
         _herePlanet = snapshot.Universe?["oZw"]?["jsv"]?.Value<int>() ?? 0;
         _hereCoords = snapshot.Coordinates;
         _herePlanets = NmsPlanets.ReadAll(snapshot.Discoveries);
         UseHereBtn.IsEnabled = _hereSystem is not null;
         UpdateHere();
-        LiveStatusTxt.Text = $"Following your game · updated {DateTime.Now:t}";
-        Apply();
     }
 
     /// <summary>The "You are here" strip: learned system/planet names plus the

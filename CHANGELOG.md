@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Finds and Near the Core start from where you are now. Opening them after travelling used to measure distances, and fill in Use my current location, from where you were when the save was loaded, until the game saved again.
+
 - Companions page edits register as you type, so Save and Reset appear straight away instead of only after leaving the field. A half-typed number or seed waits until it is complete.
 
 - Planet Finder's search filters and Glyph Decoder can be collapsed independently. Their open/closed state is remembered, while the result count, Clear filters and Export CSV remain available.
