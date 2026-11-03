@@ -18,6 +18,8 @@ public sealed class ItemCard : INotifyPropertyChanged
     public required CatalogPart Part { get; init; }
     public required string Name { get; init; }
     public required string Group { get; init; }
+    public string Rarity => Part.Rarity ?? "";
+    public string GroupLabel => Rarity.Length == 0 ? Group : $"{Group} · {Rarity}";
 
     private ImageSource? _icon;
     public ImageSource? Icon { get => _icon; set { _icon = value; Changed(nameof(Icon)); } }
@@ -35,13 +37,14 @@ public sealed class ItemCard : INotifyPropertyChanged
     /// <summary>More copies that may still be installed.</summary>
     public int Room => IsTech ? Math.Max(0, Part.Limit - Count) : 0;
     public double CardOpacity => Owned ? 0.55 : 1.0;
+    private string TooltipName => Rarity.Length == 0 ? Name : $"{Name} ({Rarity})";
     public string Tooltip => (IsTech, Owned, Part.Limit > 1) switch
     {
         (true, _, true) => $"{Name} - {Count} of {Part.Limit} installed (the game allows {Part.Limit} upgrades per technology).{(Owned ? "" : " Click to install one; each gets its own random stats.")}",
         (true, true, _) => $"{Name} - already installed.",
         (true, false, _) => $"{Name} - click to install it.",
-        (false, true, _) => $"{Name} - already in here. Click to add another stack.",
-        _ => $"{Name} - click to add a stack.",
+        (false, true, _) => $"{TooltipName} - already in here. Click to add another stack.",
+        _ => $"{TooltipName} - click to add a stack.",
     };
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -154,6 +157,16 @@ public sealed partial class ItemListPanel : UserControl
         GroupBox.SelectedIndex = keep > 0 ? keep : 0;
         // A filter with one choice is just clutter.
         GroupBox.Visibility = GroupBox.Items.Count > 2 ? Visibility.Visible : Visibility.Collapsed;
+
+        string? keepRarity = RarityBox.SelectedItem as string;
+        RarityBox.Items.Clear();
+        RarityBox.Items.Add("Any rarity");
+        foreach (string rarity in _cards.Where(c => c.Rarity.Length > 0)
+            .OrderBy(c => c.Part.RarityOrder).Select(c => c.Rarity).Distinct())
+            RarityBox.Items.Add(rarity);
+        int keepRarityIndex = keepRarity is null ? -1 : RarityBox.Items.IndexOf(keepRarity);
+        RarityBox.SelectedIndex = keepRarityIndex > 0 ? keepRarityIndex : 0;
+        RarityBox.Visibility = RarityBox.Items.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
 
         if (!_loadedOnce)
         {
@@ -279,9 +292,12 @@ public sealed partial class ItemListPanel : UserControl
     {
         string text = SearchBox.Text.Trim();
         string group = GroupBox.SelectedItem as string ?? AllGroups;
+        string? rarity = RarityBox.SelectedIndex > 0 ? RarityBox.SelectedItem as string : null;
         return _cards
-            .Where(c => text.Length == 0 || c.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase))
+            .Where(c => text.Length == 0 || c.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase)
+                || c.Rarity.Contains(text, StringComparison.CurrentCultureIgnoreCase))
             .Where(c => group == AllGroups || c.Group == group)
+            .Where(c => rarity is null || c.Rarity == rarity)
             .Where(c => HideOwnedBox.IsChecked != true || !c.Owned)
             .ToList();
     }

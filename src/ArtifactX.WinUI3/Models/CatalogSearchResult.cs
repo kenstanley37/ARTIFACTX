@@ -12,10 +12,12 @@ namespace ArtifactX.WinUI3.Models;
 /// Limit how many the game allows, and Seeded means each copy gets its own
 /// "#seed" (the game rolls the module's stats from it). Stat is the main stat
 /// the tech works on (from the catalog's TechStats, e.g. "Ship_Hyperdrive"),
-/// Primary marks a device's main item (Hyperdrive vs its Cadmium Drive).</summary>
+/// Primary marks a device's main item (Hyperdrive vs its Cadmium Drive).
+/// Optional Rarity is the player-facing fish label; RarityOrder follows the
+/// game's quality enum. Other inventory lists leave these unset.</summary>
 public sealed record CatalogPart(string GameId, string Name, string Group, int? MaxStackSize,
     string? CountKey = null, int Limit = 1, bool Seeded = false, string? Stat = null, bool Primary = false,
-    string? Colour = null, string? TemplateId = null);
+    string? Colour = null, string? TemplateId = null, string? Rarity = null, int RarityOrder = 0);
 
 public sealed class CatalogSearchResult
 {

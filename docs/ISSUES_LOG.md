@@ -308,6 +308,7 @@ Synthesized from the latest `ARTIFACTX_NOTES.txt`. Cross-referenced with open Gi
 - **Note #16**
 - **Problem**: Cold Storage cannot be filtered by fish rarity, and rarity is not shown per fish.
 - **Proposed Solution**: Add rarity-type search/filter to Cold Storage and display each fish's rarity.
+- **2026-11-03 implementation**: Cold Storage item cards and tooltips include fish rarity from the existing catalog, using the Fishing page's verified names. A rarity filter combines with name/rarity search, group selection and Hide ones I have; Add one of each follows the filtered results. Bait has no fish rarity. Grid-first loading is retained and no catalog rebuild is required. Owner app verification is pending.
 
 ### Feature 36: Fishing Page — Planet-Type-First Ordering
 - **GitHub**: [Issue #53](https://github.com/kenstanley37/ARTIFACTX/issues/53)
