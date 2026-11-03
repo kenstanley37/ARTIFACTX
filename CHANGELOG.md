@@ -6,6 +6,10 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Planet Finder's search filters and Glyph Decoder can be collapsed independently. Their open/closed state is remembered, while the result count, Clear filters and Export CSV remain available.
+
+- Purple-star portal addresses now warn that purple-star access is required, including in Planet Finder and the enlarged glyph view. Without access, the game can send the player to a different system.
+
 - Every editable cargo inventory now has Merge Duplicates, including equipment cargo and Base Storage. Merging preserves excess quantities in additional stacks and keeps items with different saved properties separate.
 
 - Ingredient and Cold Storage show their inventory grids before loading catalog pictures and the available-item list. Base Storage containers use buttons that wrap onto additional rows, including long names.

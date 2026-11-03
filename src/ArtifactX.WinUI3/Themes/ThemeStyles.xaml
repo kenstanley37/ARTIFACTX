@@ -5,7 +5,8 @@
      theme dictionary ThemeService has merged in. -->
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls">
 
     <!-- A panel: themed fill, hairline border, theme corner radius. -->
     <Style x:Key="ThemeCardStyle" TargetType="Border">
@@ -108,6 +109,10 @@
                                 <VisualState x:Name="Disabled"/>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
                         <Border x:Name="HoverOutline" Opacity="0" CornerRadius="4" BorderThickness="1"
                                 BorderBrush="{ThemeResource ThemeAccentBrush}"/>
                         <ContentPresenter Content="{TemplateBinding Content}" Padding="{TemplateBinding Padding}"/>
@@ -116,6 +121,7 @@
                                 Background="{ThemeResource ThemeAccentBrush}">
                             <FontIcon Glyph="&#xE71E;" FontSize="10" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
                         </Border>
+                        <controls:PortalAccessWarning Grid.Row="1" Code="{Binding Code, RelativeSource={RelativeSource TemplatedParent}}"/>
                     </Grid>
                 </ControlTemplate>
             </Setter.Value>

@@ -48,6 +48,9 @@ public sealed record SystemBodies(ulong[] PlanetSeeds, int PlanetCount, int Moon
 
 public static class SystemGenerator
 {
+    /// <summary>The fixed purple-system address range used by the generator.</summary>
+    public static bool IsPurpleSystemId(long systemId) => systemId > 0x3E7 && systemId < 0x429;
+
     private const ulong ConstA = 0x64DD81482CBD31D7;
     private const ulong ConstB = 0xE36AA5C613612997;
     private const double TinyDouble = 2.3283064370807974e-10;
@@ -176,7 +179,7 @@ public static class SystemGenerator
         if (systemId < va.GuideStarRenegadeCount)
             starType = (int)rng.Next(3) + 1;
 
-        if (systemId > 0x3E7 && systemId < 0x429)
+        if (IsPurpleSystemId(systemId))
             starType = 4; // purple
 
         rng.Step();

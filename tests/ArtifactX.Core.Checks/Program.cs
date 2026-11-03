@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 // No desktop dependencies: run with dotnet run --project tests/ArtifactX.Core.Checks.
 try
 {
+    if (args is ["--portal-travel"]) { PortalTravelChecks.Check(); return; }
     IndustrialCleanupChecks.Check();
     VehicleUnlockEditChecks.Check();
     RecipePlannerChecks.Check();

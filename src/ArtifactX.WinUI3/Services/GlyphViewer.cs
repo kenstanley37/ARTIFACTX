@@ -93,6 +93,7 @@ public static class GlyphViewer
             };
 
             var content = new StackPanel { Spacing = 16 };
+            content.Children.Add(new Controls.PortalAccessWarning { Code = code });
             content.Children.Add(sizeChoice);
             content.Children.Add(tiles);
             content.Children.Add(new TextBlock
