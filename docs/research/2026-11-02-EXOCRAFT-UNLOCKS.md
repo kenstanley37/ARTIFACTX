@@ -176,3 +176,25 @@ async-void event handler touched XAML directly. SessionChanged and SnapshotSeen
 now dispatch onto the UI queue and check IsLoaded, matching CatalogReloaded.
 The file comparison establishes persisted edits, not in-game acceptance.
 Agent did not launch the app or write any real save/account data.
+
+
+## Controlled disable test, 2026-11-03
+
+Owner unchecked Furnace on Slot 5 with NMS closed and saved. Read-only inspection
+before launching NMS verified TRUCK_BODY03 absent from both save9.hg/save10.hg
+and every account string value; T_RECYCLE3 remained earned. CARGO_DESTROYED was
+89, below Furnace's 200 threshold. Hash-verified copies retained in the local
+scratchpad furnace-disabled-prelaunch-20261103-044758 (not committed game data).
+
+After owner launched directly into Slot 5, Furnace remained selectable in game.
+Fresh stable reads while NMS process 32996 was running showed:
+- save9.hg and save10.hg still had no TRUCK_BODY03 string value.
+- accountdata.hg B89/fyX[659] had regained TRUCK_BODY03, timestamp 09:51:00 UTC.
+- T_RECYCLE3 remained in B89/Bgb; CARGO_DESTROYED still 89.
+
+This establishes account record restoration during the launch/play interval,
+not an ArtifactX failure to remove the inspected entries before launch. It does
+not establish the source of restoration (another persisted record, title-based
+backfill, external account/cloud state or another native path). Relocking is
+not game-verified and must not be described as working. Do not lower earned
+counters or remove titles speculatively. No real files were written by the agent.
