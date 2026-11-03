@@ -198,3 +198,28 @@ not establish the source of restoration (another persisted record, title-based
 backfill, external account/cloud state or another native path). Relocking is
 not game-verified and must not be described as working. Do not lower earned
 counters or remove titles speculatively. No real files were written by the agent.
+
+
+## Native load synchronization follow-up
+
+On build 184271, the fragment 0x1404A0634..0x1404A06AF iterates the player-state
+KnownSpecials array at +0x83D00/+0x83D08 and calls the account special grant
+helper 0x1406155C0 for every entry. It does not inspect title membership or
+recycling counters in this fragment. If an account dirty flag is set, it calls
+0x1406157A0. The latter copies runtime account sets into serialized lists.
+
+scripts/research/special-load-sync-oracle.py executes the real loop fragment
+against synthetic state with a recorded grant stub: zero entries produce no
+calls; Furnace produces one call; Furnace plus a synthetic ID produces both
+calls in order. PASS. The helper implementation, game initialization caller,
+and source selection are outside this test; do not describe the stubbed grant
+as a full native restore reproduction.
+
+The account initialization routine beginning 0x140615EE0 also loads the raw
+account-special list (+0x307CB8) into its runtime +0x180 set, checking installed
+metadata. Its separate call at 0x1406169DC needs further context; the preceding
+pair of lookups does not by itself establish a title backfill path. No inspected
+code justifies removing earned titles. The exact source that repopulates Furnace
+in the owner's controlled disable case remains unresolved: the loaded Slot 5
+files had no Furnace entry, so the tested KnownSpecials loop alone cannot explain
+that case. Enabling remains owner-confirmed; relocking is still not confirmed.
