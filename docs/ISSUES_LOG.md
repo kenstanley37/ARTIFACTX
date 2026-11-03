@@ -68,11 +68,13 @@ These items directly extend existing open GitHub issues:
 - **Problem**: Navigating from "Current System" (`PlanetsPage`) to "Finds" or other navigation destinations causes the active system selection to revert to the previous system or an arbitrary system, triggering redundant "system changed" events and UI reloads.
 - **Root Cause Area**: System address state synchronization between `PlanetsPage`, `FindsPage`, and `SaveSessionManager`.
 - **Proposed Fix**: Centralize the active system selection into a shared service or view model so navigation preserves the selected system consistently.
+- **Status**: Implemented (`f2e3e13`): the latest live snapshot is kept across page loads, so returning to a page no longer falls back to an older system. Owner confirmation not recorded.
 
 ### Bug 2: Player Location Coordinates Discrepancy on Finds Page
 - **Note #3**
 - **Problem**: The "Use My Location" filter/sort on `FindsPage` appears inaccurate or fails to update based on live in-game coordinates.
 - **Proposed Fix**: Audit `FindsPage.xaml.cs` coordinate retrieval against `NmsPlanetCoordinates` and `LiveSaveWatcher.FromSession().Coordinates` to ensure fresh surface coordinates are used for distance calculations.
+- **Status**: Likely resolved: Finds now reads `LiveSaveWatcher.FromSession().Coordinates` on load and follows each live snapshot, so Use my current location and distances update while playing. Owner confirmation not recorded.
 
 ---
 
@@ -82,11 +84,13 @@ These items directly extend existing open GitHub issues:
 - **Note #6**
 - **Description**: Add delete and edit actions for fauna records stored in `user.db`.
 - **Details**: When screenshot OCR misinterprets stylized NMS creature names or traits, players currently have no way to remove the record. Add an inline delete/edit button on creature cards.
+- **Status**: Delete implemented (`f36c896`, with a confirmation dialog on Planet Details). Editing a misread record is not implemented.
 
 ### Feature 2: Support Procedural Curiosities & Expedition Items in Inventory Editor
 - **Note #10**
 - **Description**: Enable adding procedural items (e.g. Timeless Rings, excavated skeletons, historical documents, frigate expedition trade goods) to cargo inventories.
 - **Details**: Currently only fixed catalog items appear in the item picker. Provide procedural item templates or manual ID/seed entry for curiosities and expedition rewards.
+- **Status**: Completed (Section 1, note #10; `5f68ff8`, `944fad0`, `b0e3407`).
 
 ### Feature 3: Seed Placeholders for Unvisited System Planets
 - **Notes #11 & #13**
@@ -112,15 +116,18 @@ These items directly extend existing open GitHub issues:
 - **Note #19**
 - **Description**: Add a one-click "Deduplicate Stacks" action across all inventories.
 - **Details**: Scans Exosuit, Starship, Freighter, and Base Storage containers, automatically merging partial stacks of the same substance or product up to maximum stack sizes. See Feature 34 for consistent per-container coverage and the follow-up from the 2026-10-26 notes.
+- **Status**: Per-container Merge Duplicates shipped with Feature 34 (`ff35c73`). A single action across every container is not built.
 
 ### Feature 8: Inventory Sorting: Sort by Category/Type Then by Name
 - **Note #22**
 - **Description**: Update inventory auto-sort routines to group items primarily by category (Elements, Minerals, Technology, Consumables, Curiosities, Trade Goods) and secondarily alphabetically.
+- **Status**: Completed (Section 1, note #22; `c9b5484`).
 
 ### Feature 9: Research Procedural Planet Naming Divergence
 - **Note #24**
 - **Description**: Investigate discrepancies where `UniverseInfo.GeneratedPlanetName` differs from in-game naming (e.g. "Woodlari VIII" vs. in-game "Woodlari Prime").
 - **Details**: Verify whether the Worlds Part 1/2 update modified seed generation hash tables or roman numeral suffix conventions.
+- **Status**: Name generator now follows NMS.exe's word routine (`77c7b56`, 86/86 planet names in Noturbo Spur). The specific "Woodlari Prime" case has not been rechecked.
 
 ### Feature 10: Manual "Capture Screenshot Now" Button for OCR Reader
 - **Note #26**
