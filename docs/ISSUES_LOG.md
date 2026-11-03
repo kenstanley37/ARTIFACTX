@@ -68,7 +68,7 @@ These items directly extend existing open GitHub issues:
 - **Problem**: Navigating from "Current System" (`PlanetsPage`) to "Finds" or other navigation destinations causes the active system selection to revert to the previous system or an arbitrary system, triggering redundant "system changed" events and UI reloads.
 - **Root Cause Area**: System address state synchronization between `PlanetsPage`, `FindsPage`, and `SaveSessionManager`.
 - **Proposed Fix**: Centralize the active system selection into a shared service or view model so navigation preserves the selected system consistently.
-- **Status**: Implemented (`f2e3e13`): the latest live snapshot is kept across page loads, so returning to a page no longer falls back to an older system. Owner confirmation not recorded.
+- **Status**: Resolved (`f2e3e13`): the latest live snapshot is kept across page loads, so returning to a page no longer falls back to an older system. Owner confirmed fixed (noted 2026-11-03).
 
 ### Bug 2: Player Location Coordinates Discrepancy on Finds Page
 - **Note #3**
@@ -116,7 +116,7 @@ These items directly extend existing open GitHub issues:
 - **Note #19**
 - **Description**: Add a one-click "Deduplicate Stacks" action across all inventories.
 - **Details**: Scans Exosuit, Starship, Freighter, and Base Storage containers, automatically merging partial stacks of the same substance or product up to maximum stack sizes. See Feature 34 for consistent per-container coverage and the follow-up from the 2026-10-26 notes.
-- **Status**: Per-container Merge Duplicates shipped with Feature 34 (`ff35c73`). A single action across every container is not built.
+- **Status**: Complete per the owner (2026-11-03): Merge Duplicates on every editable container shipped with Feature 34 (`ff35c73`).
 
 ### Feature 8: Inventory Sorting: Sort by Category/Type Then by Name
 - **Note #22**
@@ -127,7 +127,7 @@ These items directly extend existing open GitHub issues:
 - **Note #24**
 - **Description**: Investigate discrepancies where `UniverseInfo.GeneratedPlanetName` differs from in-game naming (e.g. "Woodlari VIII" vs. in-game "Woodlari Prime").
 - **Details**: Verify whether the Worlds Part 1/2 update modified seed generation hash tables or roman numeral suffix conventions.
-- **Status**: Name generator now follows NMS.exe's word routine (`77c7b56`, 86/86 planet names in Noturbo Spur). The specific "Woodlari Prime" case has not been rechecked.
+- **Status**: Name generator now follows NMS.exe's word routine (`77c7b56`, 86/86 planet names in Noturbo Spur). Still open: needs considerably more reverse engineering (owner, 2026-11-03). Completely empty systems are not yet generated correctly, and the specific "Woodlari Prime" case has not been rechecked.
 
 ### Feature 10: Manual "Capture Screenshot Now" Button for OCR Reader
 - **Note #26**
