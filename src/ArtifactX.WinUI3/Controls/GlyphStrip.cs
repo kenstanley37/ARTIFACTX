@@ -1,4 +1,5 @@
 using ArtifactX.WinUI3.Services;
+using ArtifactX.Core.Universe;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -63,7 +64,9 @@ public sealed class GlyphStrip : Button
         var strip = (GlyphStrip)d;
         string code = e.NewValue as string ?? "";
         strip.IsEnabled = code.Length == 12;
-        AutomationProperties.SetName(strip, code.Length == 12 ? $"Portal address {code}. Click to enlarge the glyphs." : "Portal address");
+        string warning = PortalTravel.RequiresPurpleStarAccess(code) ? " Purple star: requires purple-star access to reach." : "";
+        AutomationProperties.SetName(strip, code.Length == 12 ? $"Portal address {code}.{warning} Click to enlarge the glyphs." : "Portal address");
+        ToolTipService.SetToolTip(strip, $"Click to enlarge.{warning}");
         strip.DrawGlyphs();
     }
 

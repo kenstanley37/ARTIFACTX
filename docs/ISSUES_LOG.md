@@ -465,3 +465,13 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Screenshot evidence**: The mission mentions the Colossus and Gravitino Coil, transporting waste with the flatbed module, a valuation scale and Control Panel at a Waste Processing Plant, special waste containers, and manual sorting for maximum resource recovery. These instructions do not establish the unlock requirements of the locked Colossus parts above.
 - **Research**: Extract mission/reward/unlock relationships from game data and verify against save progress or controlled in-game comparisons. Keep confirmed guidance distinct from unknown requirements. Reuse portable Core logic for console/mobile guidance, with save-specific progress optional.
 - **Tracking**: [Testing and polish backlog, issue #1](https://github.com/kenstanley37/ARTIFACTX/issues/1). Related to Feature 54, but independently scoped.
+
+
+## 2026-11-03 travel warning
+
+### Issue #57: Purple-star portal access requirement
+- **GitHub**: [Issue #57](https://github.com/kenstanley37/ARTIFACTX/issues/57)
+- **Implemented**: The shared portal glyph control displays a compact warning for purple-system addresses, including Planet Finder, Regions, Current System and recorded locations. The enlarged glyph view repeats the warning; the glyph button's accessible name and tooltip include the requirement.
+- **Evidence**: Owner's 2026-10-28 test: `64275B6DA013` reached its purple system with access and redirected to ordinary system `102E5B6DA013` without access. Detection reuses the generator's existing system-id range, 0x3E8 through 0x428 inclusive, rather than a star-colour note or an assumed save unlock.
+- **Validation**: 14 focused checks cover the owner's two addresses, range boundaries, case and malformed input. App layout confirmation remains with the owner.
+- **Remaining**: Automatic loaded-save access detection requires a controlled before/after diff. The warning is general and does not claim that the player has or lacks the unlock.
