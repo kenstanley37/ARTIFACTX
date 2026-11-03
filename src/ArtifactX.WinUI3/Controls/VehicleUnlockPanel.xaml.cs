@@ -38,6 +38,10 @@ public sealed partial class VehicleUnlockPanel : UserControl
         ViewModel.Stop();
     }
     private void CatalogReloaded() => DispatcherQueue.TryEnqueue(async () => { if (IsLoaded) await ViewModel.LoadAsync(_type); });
-    private async void SessionChanged(object? sender, EventArgs e) => await ViewModel.RefreshAsync();
-    private async void SnapshotSeen(PlanetSnapshot snapshot) => await ViewModel.RefreshAsync(snapshot);
+    // Save completion and snapshot notifications may originate on a worker.
+    // Refresh touches XAML brushes and bindings, so always enter on the UI queue.
+    private void SessionChanged(object? sender, EventArgs e) =>
+        DispatcherQueue.TryEnqueue(async () => { if (IsLoaded) await ViewModel.RefreshAsync(); });
+    private void SnapshotSeen(PlanetSnapshot snapshot) =>
+        DispatcherQueue.TryEnqueue(async () => { if (IsLoaded) await ViewModel.RefreshAsync(snapshot); });
 }

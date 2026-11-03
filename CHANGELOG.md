@@ -4,6 +4,10 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ## Unreleased
 
+### Fixed
+
+- Saving Exocraft customization changes no longer refreshes the unlock controls from a background thread, which could close the app.
+
 ### Added
 
 - **Exocraft customization editor**: compact checkboxes unlock or remove parts in the loaded save and across the account. Hover for requirements; enabling raises verified progress requirements only to the minimum. Save and Reset include these changes.

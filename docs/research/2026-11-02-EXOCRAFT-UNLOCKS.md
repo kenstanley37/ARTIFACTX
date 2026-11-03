@@ -154,3 +154,25 @@ The existing-title early exit remains a plausible explanation for why repeated
 sorting does not repair Slot 1, not a proven root cause. Account-wide records
 must not be described as guaranteeing availability or removal in every existing
 save: those saves can retain their own KnownSpecials. No real data was changed.
+
+
+## Owner Furnace save test and crash
+
+Owner enabled Furnace on Slot 1 and clicked Save. Fresh post-crash read-only
+comparison with the hash-verified pre-test snapshot showed:
+- save2.hg: only vLc/6f=/24< changed, adding TRUCK_BODY03 (828 -> 829).
+- accountdata.hg: only B89/fyX changed, adding TRUCK_BODY03 (663 -> 664).
+- save.hg had additional baseline differences because the baseline slot pair
+  had different saved timestamps/states; those differences cannot be attributed
+  to the Furnace edit. The new Furnace ID is present in both written slot files.
+- KnownTechnology (4kj) was identical to its own baseline in both slot files.
+  No catalogue technology, including broken placeholders, was enabled.
+
+crash.log at 2026-11-02 21:09:56 reports COMException 0x8001010E from
+Application.Resources -> ThemeResources.Brush -> VehicleUnlockItemViewModel.Refresh
+-> VehicleUnlockPanel.SessionChanged. SaveEditSession.CommitAsync runs under
+Task.Run and raises EditsChanged on that worker after writing; the panel's
+async-void event handler touched XAML directly. SessionChanged and SnapshotSeen
+now dispatch onto the UI queue and check IsLoaded, matching CatalogReloaded.
+The file comparison establishes persisted edits, not in-game acceptance.
+Agent did not launch the app or write any real save/account data.
