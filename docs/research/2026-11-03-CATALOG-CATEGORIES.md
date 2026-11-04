@@ -31,8 +31,8 @@ owner's Catalog screen for that slot.
 
 | Section | Rule (matches both slots) | Slot 1 | Slot 8 |
 |---|---|---|---|
-| Technology | per-save `vLc/6f=/4kj` (KnownTech) + account `B89/B1h`; the two never overlap | 170 + 187 = 357 (game 357) | 147 + 187 = 334 (game 334) |
-| Building Parts | per-save `eZ<` (KnownProducts) + `24<` (KnownSpecials) + the 10 firework packs (`EXPD_FIREWORK01-04`, `SPEC_FIREWORK01-06`) | 1,011 (game 1,011) | 964 (game 964) |
+| Technology | per-save `vLc/6f=/4kj` (KnownTech) + the section's 187 not-craftable items; never overlapping | 170 + 187 = 357 (game 357) | 147 + 187 = 334 (game 334) |
+| Building Parts | per-save `eZ<` (KnownProducts) + `24<` (KnownSpecials) + the section's 10 not-craftable firework packs (`EXPD_FIREWORK01-04`, `SPEC_FIREWORK01-06`) | 1,011 (game 1,011) | 964 (game 964) |
 
 - The 10 fireworks and the 187 counted technologies are exactly the section's
   products the game data marks not craftable (`GcProductData.IsCraftable` false), so
@@ -52,4 +52,3 @@ coloured under Space Station Exterior. Editing `eZ<` unlocks building blueprints
 ## Still open
 
 - Materials seen, Recipes, Collected Knowledge and Wonders sources.
-- How the firework packs become known.
