@@ -74,12 +74,13 @@ public sealed partial class GameCatalogViewModel : ObservableObject
             ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var fish = await WonderFishAsync(catalogue.FishOrder);
+        var species = await SpeciesNameService.LoadAsync();
         foreach (var section in catalogue.Sections)
         {
             if (section.Key == "UI_PORTAL_CAT_COLLECTION")
             {
                 Sections.Add(new GameCatalogSectionViewModel(section,
-                    section.Categories.Select(c => WonderCategory(c, catalogue, fish)).ToList(), null, tracksKnown: true));
+                    section.Categories.Select(c => WonderCategory(c, catalogue, fish, species)).ToList(), null, tracksKnown: true));
                 continue;
             }
             UnlockListViewModel? list = section.Key switch
@@ -134,7 +135,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
 
     /// <summary>A Wonders category, read-only: the game records these as you play.</summary>
     private static GameCatalogCategoryViewModel WonderCategory(Core.Unlocks.CatalogueCategory category, CatalogueSectionsService.Catalogue catalogue,
-        (List<(string Id, string Name)> Items, HashSet<string> Caught) fish)
+        (List<(string Id, string Name)> Items, HashSet<string> Caught) fish, SpeciesNameService species)
     {
         var names = catalogue.Names;
         var nameUses = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -163,13 +164,27 @@ public sealed partial class GameCatalogViewModel : ObservableObject
                 string name = category.ItemNames?.GetValueOrDefault(id) is { Length: > 0 } n ? n
                     : personal?.ElementAtOrDefault(i)?["fH8"]?.Value<string>() is { Length: > 0 } own ? own
                     : $"Personal Record {i + 1}";
-                var (recorded, detail, iconId) = ReadRecord(category.Type, records?.ElementAtOrDefault(i)?["UqY"] as JArray);
+                var generation = records?.ElementAtOrDefault(i)?["UqY"] as JArray;
+                var (recorded, detail, iconId) = ReadRecord(category.Type, generation);
                 if (category.Type is "TreasureWonders" or "WeirdBasePartWonders") iconId ??= SlotItem(name);
                 return new GameCatalogItemViewModel(id, name, recorded, false, true, "recorded by the game as you explore",
-                    detail: detail, iconId: iconId);
+                    detail: detail, iconId: iconId, species: recorded ? SpeciesOf(category.Type, generation, species) : null);
             }).ToList();
         }
         return new GameCatalogCategoryViewModel(category.Name, items, category.Counted);
+    }
+
+    /// <summary>The species name the game shows on a Fauna or Flora record.</summary>
+    private static string? SpeciesOf(string type, JArray? generation, SpeciesNameService species)
+    {
+        ulong? first = NmsSpaceStationPaths.ParsePackedAddress(generation?.ElementAtOrDefault(0));
+        ulong? second = NmsSpaceStationPaths.ParsePackedAddress(generation?.ElementAtOrDefault(1));
+        return type switch
+        {
+            "CreatureWonders" when first is ulong address && second is ulong seed => species.FaunaRecord(address, seed),
+            "FloraWonders" when second is ulong seed => species.FloraRecord(seed),
+            _ => null,
+        };
     }
 
     /// <summary>A record's GenerationID pair (UqY). Treasures and Glitches hold the

@@ -254,7 +254,7 @@ public static class NameGenerator
         ("wop", 0, "csld"),
     };
 
-    private static string Clean(UniverseRandom rng, string word)
+    internal static string Clean(UniverseRandom rng, string word)
     {
         var letters = word.ToCharArray();
         for (int i = 0; i < letters.Length; i++)

@@ -69,6 +69,8 @@
                     <StackPanel Orientation="Horizontal" Spacing="32">
                         <StackPanel Spacing="6" Width="190">
                             <TextBlock Text="SPECIES" Style="{StaticResource ThemeEyebrowStyle}"/>
+                            <TextBlock Text="{x:Bind ViewModel.SpeciesName, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}"
+                                       Visibility="{x:Bind ViewModel.HasSpeciesName, Mode=OneWay}"/>
                             <TextBlock Text="{x:Bind ViewModel.Species, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}"/>
                         </StackPanel>
                         <StackPanel Spacing="6" Width="190">
