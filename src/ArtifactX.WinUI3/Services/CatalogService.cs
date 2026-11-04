@@ -1935,6 +1935,7 @@ public static class CatalogService
                 GameId = reader.GetString(0),
                 DisplayName = reader.GetString(1),
                 CategoryLabel = ElvLabelFor(reader.GetString(2)),
+                TemplateType = reader.GetString(2),
                 UsageCategory = reader.IsDBNull(3) ? null : reader.GetString(3),
                 CatalogGroup = reader.IsDBNull(4) ? null : reader.GetString(4),
                 IsBrokenSlotTech = reader.GetBoolean(5)
