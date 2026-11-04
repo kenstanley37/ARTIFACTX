@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.UI.Xaml.Media.Imaging;
+using ArtifactX.Core.Procedural;
 using ArtifactX.WinUI3.Models;
 using System;
 using System.Collections.Generic;
@@ -29,6 +30,7 @@ public static class CatalogService
     /// catalog up as they load.</summary>
     private static Dictionary<string, IReadOnlyList<string>>? _namingWords;
     private static volatile IReadOnlyDictionary<string, string>? _moduleClasses;
+    private static volatile IReadOnlyDictionary<string, ProceduralProductNaming>? _productNaming;
 
     public static void Reload()
     {
@@ -36,6 +38,7 @@ public static class CatalogService
         Cache.Clear();
         _namingWords = null;
         _moduleClasses = null;
+        _productNaming = null;
         _pathChecked = false;
         _dbPath = null;
         Reloaded?.Invoke();
@@ -241,6 +244,42 @@ public static class CatalogService
             Debug.WriteLine($"[CatalogService] Module classes unavailable (catalog before format 43?): {ex.Message}");
         }
         return classes;
+    }
+
+    /// <summary>
+    /// The name the game gives a procedural product from its seed ("PROC_LOOT#06686" ->
+    /// "Shiny Bones", ArtifactX.Core ProceduralProductNames), or null for any other id,
+    /// a product whose naming isn't read yet (freighter logs and tech, DismantleData,
+    /// MessageInBottle) and a catalog built before format 65.
+    /// </summary>
+    public static string? ProceduralProductName(string? itemId)
+    {
+        string id = (itemId ?? "").TrimStart('^');
+        int hash = id.IndexOf('#');
+        if (hash <= 0) return null;
+        var naming = _productNaming ??= LoadProductNaming();
+        return naming.TryGetValue(id[..hash], out var product) ? ProceduralProductNames.Generate(id, product) : null;
+    }
+
+    private static IReadOnlyDictionary<string, ProceduralProductNaming> LoadProductNaming()
+    {
+        var naming = new Dictionary<string, ProceduralProductNaming>(StringComparer.OrdinalIgnoreCase);
+        if (ResolveDbPath() is not string dbPath) return naming;
+        try
+        {
+            using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId = 'PROCEDURALPRODUCTNAMES'";
+            if (command.ExecuteScalar() is string json)
+                foreach (var product in System.Text.Json.JsonSerializer.Deserialize<List<ProceduralProductNaming>>(json) ?? [])
+                    naming[product.ProductId] = product;
+        }
+        catch (Exception ex) when (ex is SqliteException or System.Text.Json.JsonException)
+        {
+            Debug.WriteLine($"[CatalogService] Procedural product names unavailable (catalog before format 65?): {ex.Message}");
+        }
+        return naming;
     }
 
     /// <summary>The technology id a packaged-tech "UP_" id was cut from: an exact

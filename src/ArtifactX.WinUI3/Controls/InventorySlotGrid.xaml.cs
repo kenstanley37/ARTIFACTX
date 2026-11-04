@@ -183,6 +183,8 @@ public sealed partial class InventorySlotGrid : UserControl
             if (cell.IsOccupied)
             {
                 var entry = CatalogService.TryGet(cell.ItemId);
+                // A procedural item ("PROC_LOOT#06686") goes by the name the game generates from its seed.
+                string? ownName = cell.DisplayName ?? CatalogService.ProceduralProductName(cell.ItemId);
                 var content = new Grid { Padding = new Thickness(2) };
 
                 var itemImage = new Image
@@ -202,7 +204,7 @@ public sealed partial class InventorySlotGrid : UserControl
                     {
                         // Upper-cased like the game's own slot labels - some catalog rows only
                         // have the mixed-case NameLower ("Thermal Protection").
-                        Text = (cell.DisplayName ?? entry?.DisplayName ?? (showLoadingItems ? "Loading item" : cell.ShortLabel)).ToUpperInvariant(),
+                        Text = (ownName ?? entry?.DisplayName ?? (showLoadingItems ? "Loading item" : cell.ShortLabel)).ToUpperInvariant(),
                         FontFamily = (FontFamily)Application.Current.Resources["ThemeBodyFont"],
                         FontSize = 8,
                         TextWrapping = TextWrapping.Wrap,
@@ -259,7 +261,7 @@ public sealed partial class InventorySlotGrid : UserControl
                 void UpdateItemPresentation(bool loading)
                 {
                     var current = CatalogService.TryGet(cell.ItemId);
-                    string name = cell.DisplayName ?? current?.DisplayName
+                    string name = ownName ?? current?.DisplayName
                         ?? (showLoadingItems ? loading ? "Loading item" : "Item" : cell.ShortLabel);
                     itemImage.Source = current?.Icon;
                     ((TextBlock)nameLabel.Child).Text = name.ToUpperInvariant();
@@ -336,7 +338,7 @@ public sealed partial class InventorySlotGrid : UserControl
                 border.CanDrag = false;
                 border.AllowDrop = false;
                 string label = cell.IsOccupied
-                    ? cell.DisplayName ?? CatalogService.TryGet(cell.ItemId)?.DisplayName ?? "Technology"
+                    ? cell.DisplayName ?? CatalogService.ProceduralProductName(cell.ItemId) ?? CatalogService.TryGet(cell.ItemId)?.DisplayName ?? "Technology"
                     : cell.State == InventorySlotState.Locked ? "Locked slot" : "Empty slot";
                 if (cell.IsOccupied && CatalogService.ModuleClassLetter(cell.ItemId) is { } readOnlyClass)
                     label += $" - {readOnlyClass}-class upgrade";
