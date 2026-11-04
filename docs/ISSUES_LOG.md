@@ -507,3 +507,9 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Source**: Owner, 2026-11-03: newer Space Station Exterior parts appear greyed in game with no hint how to get them.
 - **Direction**: build a per-item "how to get it" source from extracted game data: expedition rewards (catalog format 60), Twitch rewards, the Quicksilver and Anomaly shop and construction-terminal unlock trees (GcUnlockableTrees), platform rewards and recipes. Show it beside each item on the unlock pages. Unknown sources stay marked unknown.
 
+### Feature 60: Travel to Any Galaxy
+- **Source**: Owner, 2026-11-03 (future feature).
+- **Request**: Let the player move a save to any of the game's 256 galaxies, arriving somewhere safe such as a space station.
+- **Known so far**: ArtifactX already reads the galaxy as part of the save's current universe address (Finds and Near the Core show "Budullangr (7)" from it) and lists all 256 galaxies by name in the Finds form.
+- **Needs before building**: a controlled Slot 8 diff of a real galaxy change in game (for example via the Atlas or a portal) to see every field it touches - the current address, the player's position and state, and anything the game keeps per galaxy - and an in-game check that an edited save loads at the chosen station. Never write while the game is running; stage the change like other edits.
+
