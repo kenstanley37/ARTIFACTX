@@ -68,7 +68,8 @@ are shown but not counted. Exact on both slots: Slot 1 61 + 219 + 143 = 423 (gam
   field order: `dgD` Planet (11), `MZ1` Fauna (15), `fp9` Flora (8), `bYs` Mineral
   (8), `e?Y` Treasures (13), `<8Q` Collected Glitches (11), `Svy` Personal (12). Slot
   names are `GcUIGlobals.Wonder*CategoryConfig[].LocID` ("Hottest Temperature").
-  Personal names are player-entered (not read yet).
+  Personal names are player-entered: `vLc/6f=/YvA` (WonderCustomRecordsExtraData), `fH8`
+  = name, `7bp/93I` = type (Slot 8: "Dude", Creature; Slot 1: "Water World", Planet).
 - Fishing Records: 219 tiles on the owner's screenshots = 210 species + 9 flotsam,
   known when caught (`bTf/yv6` count above 0).
 - Fossil Records: 143 tiles = the ExhibitBone products minus the `BONE_TEMP` template.

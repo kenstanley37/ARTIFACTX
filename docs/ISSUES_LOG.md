@@ -527,6 +527,7 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Review (Claude, 2026-11-03)**: the Recipe Planner (Cooking/Refiner Recipes) is split correctly into UserControls, ViewModels and a catalog service, with no UI built in C#. The separate Crafting page keeps its loading and tree state in code-behind and builds a TextBlock in C#; move those into a ViewModel when it is next changed. The game's own tile order within Recipes categories was not matched by table, name or ingredient order (left for later).
 
 ### Feature 63: Generated Names for Wonders Treasures, Fauna and Flora
+- **Progress 2026-11-03**: the name routine is found and documented (`docs/research/2026-11-03-PROCEDURAL-PRODUCT-NAMES.md`); the seed handed to it is still open. Personal Records now show the names players give them (`feature/personal-record-names`).
 - **Source**: Owner's in-game Treasures screenshot, 2026-11-03: the game names each recorded treasure ("Shiny Bones", "Precious Hatchlings", "Carbonized Beetle Antennae", "Pulpoak Cultivar").
 - **Known**: each record stores the item id and seed as ASCII (`PROC_LOOT#06686`, `PROC_BIO#15819`, `PROC_FOSS#41022`, `PROC_PLNT#00902` on Slot 8). The Catalog page shows the item's picture but only its base name.
 - **Needs**: the game's procedural product naming from the seed (GcProceduralProductData word lists), ported to Core and checked against these four names - the same approach as multi-tool names.

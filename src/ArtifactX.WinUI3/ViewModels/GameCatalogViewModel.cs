@@ -156,9 +156,13 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         {
             var records = NmsGameCatalogPaths.WonderRecordPaths.TryGetValue(category.Type, out var path)
                 ? SaveSessionManager.GetValue(path) as JArray : null;
+            var personal = category.Type == "CustomWonders" ? SaveSessionManager.GetValue(NmsGameCatalogPaths.PersonalRecordNamesPath) as JArray : null;
             items = category.Items.Select((id, i) =>
             {
-                string name = category.ItemNames?.GetValueOrDefault(id) is { Length: > 0 } n ? n : $"Personal Record {i + 1}";
+                // A Personal Record carries the name the player gave it in game.
+                string name = category.ItemNames?.GetValueOrDefault(id) is { Length: > 0 } n ? n
+                    : personal?.ElementAtOrDefault(i)?["fH8"]?.Value<string>() is { Length: > 0 } own ? own
+                    : $"Personal Record {i + 1}";
                 var (recorded, detail, iconId) = ReadRecord(category.Type, records?.ElementAtOrDefault(i)?["UqY"] as JArray);
                 if (category.Type is "TreasureWonders" or "WeirdBasePartWonders") iconId ??= SlotItem(name);
                 return new GameCatalogItemViewModel(id, name, recorded, false, true, "recorded by the game as you explore",
