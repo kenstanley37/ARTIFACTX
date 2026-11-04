@@ -1,5 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.UI.Xaml.Media.Imaging;
+using ArtifactX.Core.Companions;
+using ArtifactX.Core.Frigates;
 using ArtifactX.Core.Procedural;
 using ArtifactX.WinUI3.Models;
 using System;
@@ -281,6 +283,52 @@ public static class CatalogService
         }
         return naming;
     }
+
+    /// <summary>Organic frigate feeding rules (catalog row FRIGATEFEEDING, format
+    /// 66), or null for an older catalog.</summary>
+    public static Task<FrigateFeedingRules?> GetFrigateFeedingRulesAsync() => Task.Run(() =>
+    {
+        if (ResolveDbPath() is not string dbPath) return null;
+        try
+        {
+            using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId = 'FRIGATEFEEDING'";
+            // A catalog from before these rules were complete reads back with nulls.
+            return command.ExecuteScalar() is string json
+                && System.Text.Json.JsonSerializer.Deserialize<FrigateFeedingRules>(json) is { Foods: not null, Traits: not null } rules
+                ? rules : null;
+        }
+        catch (Exception ex) when (ex is SqliteException or System.Text.Json.JsonException)
+        {
+            Debug.WriteLine($"[CatalogService] Frigate feeding rules unavailable: {ex.Message}");
+            return null;
+        }
+    });
+
+    /// <summary>The Egg Sequencer's rules (catalog row EGGSEQUENCER, format 66),
+    /// or null for an older catalog.</summary>
+    public static Task<EggSequencerRules?> GetEggSequencerRulesAsync() => Task.Run(() =>
+    {
+        if (ResolveDbPath() is not string dbPath) return null;
+        try
+        {
+            using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId = 'EGGSEQUENCER'";
+            // The first format-66 catalogs had no ingredient list or screen words; treat them as missing.
+            return command.ExecuteScalar() is string json
+                && System.Text.Json.JsonSerializer.Deserialize<EggSequencerRules>(json) is { Ingredients: not null, Texts: not null, Species: not null } rules
+                ? rules : null;
+        }
+        catch (Exception ex) when (ex is SqliteException or System.Text.Json.JsonException)
+        {
+            Debug.WriteLine($"[CatalogService] Egg Sequencer rules unavailable: {ex.Message}");
+            return null;
+        }
+    });
 
     /// <summary>The technology id a packaged-tech "UP_" id was cut from: an exact
     /// match, else the shortest technology id starting with it.</summary>

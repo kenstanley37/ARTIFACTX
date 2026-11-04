@@ -339,6 +339,11 @@
                                 <FontIcon Glyph="&#xE8EC;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
+                        <NavigationViewItem Content="Egg Sequencer" Tag="EggSequencer">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xEA86;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
                         <NavigationViewItem Content="Industrial Cleanup" Tag="IndustrialCleanup"/>
                         <NavigationViewItem Content="Guides" Tag="Guides">
                             <NavigationViewItem.Icon>

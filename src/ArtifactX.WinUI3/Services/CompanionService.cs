@@ -1,3 +1,4 @@
+using ArtifactX.Core.Companions;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Models;
 using Newtonsoft.Json.Linq;
@@ -43,6 +44,23 @@ public static class CompanionService
             companions.Add(new CompanionEntry(i, string.IsNullOrEmpty(customName) ? $"{FormatArchetype(xid)} #{i + 1}" : customName));
         }
         return companions;
+    }
+
+    /// <summary>The eggs in the save (NmsCompanionPaths.EggArrayPath): name, species,
+    /// size (unY) and trait values (JAy), for the Egg Sequencer page. Read-only.</summary>
+    public static List<EggCreature> ReadEggs()
+    {
+        var eggs = new List<EggCreature>();
+        if (SaveSessionManager.GetValue(NmsCompanionPaths.EggArrayPath) is not JArray array) return eggs;
+        for (int i = 0; i < array.Count; i++)
+        {
+            string xid = (array[i]?["XID"]?.Value<string>() ?? "").TrimStart('^');
+            if (xid.Length == 0 || array[i]?["JAy"] is not JArray traits || traits.Count < 3) continue;
+            string name = array[i]?["fH8"]?.Value<string>() ?? "";
+            eggs.Add(new EggCreature(string.IsNullOrWhiteSpace(name) ? $"Companion egg {eggs.Count + 1}" : name, xid,
+                array[i]?["unY"]?.Value<float>() ?? 1f, traits.Take(3).Select(t => t.Value<float>()).ToArray()));
+        }
+        return eggs;
     }
 
     /// <summary>"^PLANTCAT" -> "Plantcat" - just enough formatting to be readable; not
