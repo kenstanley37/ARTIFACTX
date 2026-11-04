@@ -16,7 +16,8 @@ namespace ArtifactX.WinUI3.ViewModels;
 /// coloured when known. Known = the save's list + the section's always-known items
 /// (NmsGameCatalogPaths; exact against the owner's Slot 1 and Slot 8 screens,
 /// 2026-11-03). Technology edits the save's known technology (4kj), Building Parts
-/// its known products (eZ&lt;); every change is staged until the player saves.
+/// its known products (eZ&lt;), Recipes its known recipes (Ddk); every change is
+/// staged until the player saves.
 /// </summary>
 public sealed partial class GameCatalogViewModel : ObservableObject
 {
@@ -26,6 +27,12 @@ public sealed partial class GameCatalogViewModel : ObservableObject
     public ObservableCollection<GameCatalogSectionViewModel> Sections { get; } = new();
 
     [ObservableProperty] public partial GameCatalogSectionViewModel? SelectedSection { get; set; }
+
+    /// <summary>The selected section's subcategories. Its own property, set before
+    /// SelectedCategory, so the list has its items before it is told which to select
+    /// (bound through SelectedSection.Categories the first one showed unselected,
+    /// owner report 2026-11-03).</summary>
+    [ObservableProperty] public partial IReadOnlyList<GameCatalogCategoryViewModel> Categories { get; private set; } = [];
     [ObservableProperty] public partial GameCatalogCategoryViewModel? SelectedCategory { get; set; }
     [ObservableProperty] public partial string SearchText { get; set; } = "";
     [ObservableProperty] public partial bool ShowLockedOnly { get; set; }
@@ -58,18 +65,28 @@ public sealed partial class GameCatalogViewModel : ObservableObject
 
         var tech = new UnlockListViewModel(UnlockListStore.ForSave(NmsGameCatalogPaths.KnownTechPath));
         var products = new UnlockListViewModel(UnlockListStore.ForSave(NmsGameCatalogPaths.KnownProductsPath));
+        var recipes = new UnlockListViewModel(UnlockListStore.ForSave(NmsGameCatalogPaths.KnownRecipesPath));
         tech.Load();
         products.Load();
+        recipes.Load();
         var specials = (SaveSessionManager.GetValue(NmsGameCatalogPaths.KnownSpecialsPath) as JArray)?
             .Select(t => CatalogService.NormalizeId(t.Value<string>() ?? "")).ToHashSet(StringComparer.OrdinalIgnoreCase)
             ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        var fish = await WonderFishAsync(catalogue.FishOrder);
         foreach (var section in catalogue.Sections)
         {
+            if (section.Key == "UI_PORTAL_CAT_COLLECTION")
+            {
+                Sections.Add(new GameCatalogSectionViewModel(section,
+                    section.Categories.Select(c => WonderCategory(c, catalogue, fish)).ToList(), null, tracksKnown: true));
+                continue;
+            }
             UnlockListViewModel? list = section.Key switch
             {
                 "UI_PORTAL_CAT_CRAFTING" => tech,
                 "UI_PORTAL_CAT_BUILDING" => products,
+                "UI_PORTAL_CAT_RECIPES" => recipes,
                 _ => null,
             };
             var always = section.AlwaysKnown.ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -79,12 +96,15 @@ public sealed partial class GameCatalogViewModel : ObservableObject
                 // they still count, so they're kept under a plain label, never their id.
                 string name = catalogue.Names.GetValueOrDefault(id, "Unnamed part");
                 if (list is null) return new GameCatalogItemViewModel(id, name, known: true, canEdit: false, showState: false, null);
+                // A Recipes tile is a result: learning it learns every recipe that makes it.
+                if (c.ItemRecipes?.GetValueOrDefault(id) is { } made)
+                    return new GameCatalogItemViewModel(id, name, list.AnyUnlocked(made), true, true, null, made);
                 if (always.Contains(id)) return new GameCatalogItemViewModel(id, name, true, false, true, "always known in the game");
                 if (!list.IsUnlocked(id) && specials.Contains(id))
                     return new GameCatalogItemViewModel(id, name, true, false, true, "unlocked as a special reward");
                 return new GameCatalogItemViewModel(id, name, list.IsUnlocked(id), true, true, null);
             }).ToList())).ToList();
-            Sections.Add(new GameCatalogSectionViewModel(section, categories, list));
+            Sections.Add(new GameCatalogSectionViewModel(section, categories, list, tracksKnown: list is not null));
         }
 
         IsLoading = false;
@@ -94,10 +114,93 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         UpdateChanges();
     }
 
+    /// <summary>Fishing Records: the 210 species and 9 flotsam the game lists (owner's
+    /// screenshots, 219 tiles), known once caught (count above 0 in the fishing record).</summary>
+    private static async Task<(List<(string Id, string Name)> Items, HashSet<string> Caught)> WonderFishAsync(Dictionary<string, int> order)
+    {
+        var all = await CatalogService.GetAllUnlockableItemsAsync();
+        var items = CatalogService.FilterFishSpecies(all).Concat(CatalogService.FilterFlotsam(all))
+            .OrderBy(i => order.GetValueOrDefault(i.GameId, int.MaxValue))
+            .Select(i => (i.GameId, DisplayCase(i.DisplayName))).ToList();
+        var ids = (SaveSessionManager.GetValue(NmsFishingPaths.ProductListPath) as JArray)?.Select(t => CatalogService.NormalizeId(t.Value<string>() ?? "")).ToList() ?? new();
+        var counts = (SaveSessionManager.GetValue(NmsFishingPaths.ProductCountListPath) as JArray)?.Select(t => t.Value<int>()).ToList() ?? new();
+        var caught = ids.Zip(counts).Where(p => p.First.Length > 0 && p.Second > 0).Select(p => p.First).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return (items, caught);
+    }
+
+    /// <summary>The catalog's capitals ("ABERRANT DUSKFIN") in the game's mixed case.</summary>
+    private static string DisplayCase(string name) => name.Any(char.IsLower) ? name
+        : System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name.ToLowerInvariant());
+
+    /// <summary>A Wonders category, read-only: the game records these as you play.</summary>
+    private static GameCatalogCategoryViewModel WonderCategory(Core.Unlocks.CatalogueCategory category, CatalogueSectionsService.Catalogue catalogue,
+        (List<(string Id, string Name)> Items, HashSet<string> Caught) fish)
+    {
+        var names = catalogue.Names;
+        var nameUses = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        string? SlotItem(string name)
+        {
+            // Repeated slot names ("Terrifying Sample" twice) take that name's items in order.
+            int use = nameUses.GetValueOrDefault(name);
+            nameUses[name] = use + 1;
+            return catalogue.IdsByName.TryGetValue(name, out var ids) && ids.Count > 0 ? ids[Math.Min(use, ids.Count - 1)] : null;
+        }
+        List<GameCatalogItemViewModel> items;
+        if (category.Type == "Fish")
+            items = fish.Items.Select(f => new GameCatalogItemViewModel(f.Id, f.Name, fish.Caught.Contains(f.Id), false, true,
+                "caught in the game; edit catches on Fishing Records")).ToList();
+        else if (category.Type == "ExhibitBones")
+            items = category.Items.Select(id => new GameCatalogItemViewModel(id, names.GetValueOrDefault(id, "Unnamed fossil"), true, false, true,
+                "always known in the game")).ToList();
+        else
+        {
+            var records = NmsGameCatalogPaths.WonderRecordPaths.TryGetValue(category.Type, out var path)
+                ? SaveSessionManager.GetValue(path) as JArray : null;
+            items = category.Items.Select((id, i) =>
+            {
+                string name = category.ItemNames?.GetValueOrDefault(id) is { Length: > 0 } n ? n : $"Personal Record {i + 1}";
+                var (recorded, detail, iconId) = ReadRecord(category.Type, records?.ElementAtOrDefault(i)?["UqY"] as JArray);
+                if (category.Type is "TreasureWonders" or "WeirdBasePartWonders") iconId ??= SlotItem(name);
+                return new GameCatalogItemViewModel(id, name, recorded, false, true, "recorded by the game as you explore",
+                    detail: detail, iconId: iconId);
+            }).ToList();
+        }
+        return new GameCatalogCategoryViewModel(category.Name, items, category.Counted);
+    }
+
+    /// <summary>A record's GenerationID pair (UqY). Treasures and Glitches hold the
+    /// recorded item's id as 16 ASCII bytes ("PROC_LOOT#06686", Slot 8 2026-11-03), so
+    /// the tile shows that item's picture (and a glitch its name). Planet, fauna, flora
+    /// and mineral records hold the planet's packed universe address first (planet
+    /// number in bits 52-55, as NmsSpaceStationPaths.ToSystemAddress clears), so the
+    /// tile names the planet. The generated treasure names ("Shiny Bones") need the
+    /// game's procedural naming, not ported yet.</summary>
+    private static (bool Recorded, string? Detail, string? IconId) ReadRecord(string type, JArray? generation)
+    {
+        static ulong Value(JToken? token) => token is null ? 0
+            : token.Type == JTokenType.Integer ? (ulong)token.Value<long>()
+            : ulong.TryParse((token.Value<string>() ?? "").Replace("0x", "", StringComparison.OrdinalIgnoreCase),
+                System.Globalization.NumberStyles.HexNumber, null, out var v) ? v : 0;
+        ulong first = Value(generation?.ElementAtOrDefault(0)), second = Value(generation?.ElementAtOrDefault(1));
+        if (first == 0 && second == 0) return (false, null, null);
+        if (type is "TreasureWonders" or "WeirdBasePartWonders")
+        {
+            var bytes = BitConverter.GetBytes(first).Concat(BitConverter.GetBytes(second)).TakeWhile(b => b != 0).ToArray();
+            string itemId = System.Text.Encoding.ASCII.GetString(bytes);
+            string baseId = itemId.Split('#')[0];
+            string? glitch = type == "WeirdBasePartWonders" ? CatalogService.TryGet(baseId)?.DisplayName : null;
+            return (true, glitch, CatalogService.TryGet(baseId) is null ? null : baseId);
+        }
+        int planet = (int)((first >> 52) & 0xF);
+        if (planet == 0) return (true, null, null);
+        return (true, $"{UniverseInfo.PlanetName(NmsSpaceStationPaths.ToSystemAddress(first), planet)} · {UniverseInfo.SystemName(first)}", null);
+    }
+
     partial void OnSelectedSectionChanged(GameCatalogSectionViewModel? value)
     {
         foreach (var section in Sections) section.IsSelected = section == value;
-        SelectedCategory = value?.Categories.FirstOrDefault(c => c.Items.Count > 0);
+        Categories = value?.Categories ?? [];
+        SelectedCategory = Categories.FirstOrDefault(c => c.Items.Count > 0);
         ApplyFilter();
     }
 
@@ -148,9 +251,15 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         int version = ++_iconVersion;
         var missing = items.Where(i => i.Icon is null).ToList();
         if (missing.Count == 0) return;
-        await CatalogService.WarmCacheAsync(missing.Select(i => (string?)i.GameId));
+        await CatalogService.WarmCacheAsync(missing.Select(i => (string?)i.IconId));
         if (version != _iconVersion) return;
-        foreach (var item in missing) item.Icon = CatalogService.TryGet(item.GameId)?.Icon;
+        foreach (var item in missing)
+        {
+            var entry = CatalogService.TryGet(item.IconId);
+            item.Icon = entry?.Icon;
+            if (item.ShowState && entry?.IconPng is { } png) item.Silhouette = await Helpers.Catalog.SilhouetteImages.FromPngAsync(png);
+            if (version != _iconVersion) return;
+        }
     }
 
     public void SetItem(GameCatalogItemViewModel item, bool known)
@@ -178,15 +287,15 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         UpdateChanges();
     }
 
-    public void UpdateChanges() =>
-        HasChanges = SaveSessionManager.HasStagedEditsUnder(NmsGameCatalogPaths.KnownTechPath)
-            || SaveSessionManager.HasStagedEditsUnder(NmsGameCatalogPaths.KnownProductsPath);
+    private static readonly string[][] EditedPaths =
+        [NmsGameCatalogPaths.KnownTechPath, NmsGameCatalogPaths.KnownProductsPath, NmsGameCatalogPaths.KnownRecipesPath];
 
-    /// <summary>Undoes this page's staged edits (known technology and known products) only.</summary>
+    public void UpdateChanges() => HasChanges = EditedPaths.Any(SaveSessionManager.HasStagedEditsUnder);
+
+    /// <summary>Undoes this page's staged edits (known technology, products and recipes) only.</summary>
     public async Task ResetAsync()
     {
-        SaveSessionManager.RevertEdit(NmsGameCatalogPaths.KnownTechPath);
-        SaveSessionManager.RevertEdit(NmsGameCatalogPaths.KnownProductsPath);
+        foreach (var path in EditedPaths) SaveSessionManager.RevertEdit(path);
         await LoadAsync();
     }
 }

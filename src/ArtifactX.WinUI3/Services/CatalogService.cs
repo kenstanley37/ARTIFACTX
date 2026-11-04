@@ -196,6 +196,7 @@ public static class CatalogService
             {
                 DisplayName = row.DisplayName,
                 Icon = icon,
+                IconPng = icon is null ? null : row.IconPng,
                 CatalogGroup = row.CatalogGroup,
                 TemplateType = row.TemplateType,
             };

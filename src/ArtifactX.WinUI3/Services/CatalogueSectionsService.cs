@@ -16,17 +16,25 @@ namespace ArtifactX.WinUI3.Services;
 /// an older catalog.</summary>
 internal static class CatalogueSectionsService
 {
-    public sealed record Catalogue(CatalogueSection[] Sections, Dictionary<string, string> Names);
+    /// <param name="IdsByName">Product and procedural-product ids by English name, in
+    /// table order: a Treasures or Glitches slot is named after its item ("Historical
+    /// Document" = PROC_HIST), so the slot shows that item's outline until it's filled.</param>
+    /// <param name="FishOrder">Each fish's place in the game's fish table, which is the
+    /// order its Fishing Records screen uses (owner's screenshots, 2026-11-03).</param>
+    public sealed record Catalogue(CatalogueSection[] Sections, Dictionary<string, string> Names,
+        Dictionary<string, List<string>> IdsByName, Dictionary<string, int> FishOrder);
 
     public static Task<Catalogue> LoadAsync() => Task.Run(() =>
     {
         var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (CatalogService.ResolveDbPath() is not string path) return new Catalogue([], names);
+        var idsByName = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        var fishOrder = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        if (CatalogService.ResolveDbPath() is not string path) return new Catalogue([], names, idsByName, fishOrder);
         using var db = new SqliteConnection($"Data Source={path};Mode=ReadOnly");
         db.Open();
         using var query = db.CreateCommand();
         query.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId='CATALOGUESECTIONS'";
-        if (query.ExecuteScalar() is not string text) return new Catalogue([], names);
+        if (query.ExecuteScalar() is not string text) return new Catalogue([], names, idsByName, fishOrder);
         var sections = JsonSerializer.Deserialize<CatalogueSection[]>(text) ?? [];
 
         var wanted = sections.SelectMany(s => s.Categories).SelectMany(c => c.Items).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -42,6 +50,21 @@ internal static class CatalogueSectionsService
             names[id] = lower is { Length: > 0 } && lower.Any(char.IsUpper) ? lower
                 : CultureInfo.CurrentCulture.TextInfo.ToTitleCase((upper ?? lower ?? id).ToLowerInvariant());
         }
-        return new Catalogue(sections, names);
+        using var byName = db.CreateCommand();
+        byName.CommandText = @"SELECT i.GameId, i.NameEnglish FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+            WHERE c.TemplateType IN ('GcProductTable', 'ProceduralProducts') AND i.NameEnglish IS NOT NULL AND i.GameId NOT LIKE '%:%'
+            ORDER BY i.Id";
+        using (var rows = byName.ExecuteReader())
+            while (rows.Read())
+            {
+                string name = rows.GetString(1);
+                if (!idsByName.TryGetValue(name, out var ids)) idsByName[name] = ids = new();
+                if (!ids.Contains(rows.GetString(0), StringComparer.OrdinalIgnoreCase)) ids.Add(rows.GetString(0));
+            }
+        using var fish = db.CreateCommand();
+        fish.CommandText = "SELECT i.GameId FROM Items i JOIN Categories c ON c.Id = i.CategoryId WHERE c.TemplateType = 'Fish' ORDER BY i.Id";
+        using (var rows = fish.ExecuteReader())
+            while (rows.Read()) fishOrder.TryAdd(rows.GetString(0).Replace("FISH:", "", StringComparison.Ordinal), fishOrder.Count);
+        return new Catalogue(sections, names, idsByName, fishOrder);
     });
 }

@@ -28,7 +28,7 @@
         </Grid>
 
         <TextBlock Grid.Row="1" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"
-                   Text="What this save knows, laid out like the game's Catalog screen. Coloured items are known; tick an item in Technology or Building Parts to learn its blueprint, then Save. Items with a lock are counted as known by the game without a blueprint."/>
+                   Text="What this save knows, laid out like the game's Catalog screen. Coloured items are known; tick an item in Technology, Building Parts or Recipes to learn it, then Save. Items with a lock can't be changed here: the game counts them itself (Wonders are recorded as you play)."/>
 
         <!-- Section tiles, as the game's Catalog front page. -->
         <ItemsControl Grid.Row="2" ItemsSource="{x:Bind ViewModel.Sections}">
@@ -64,7 +64,7 @@
 
             <!-- Subcategories, in the game's order. -->
             <Border Style="{StaticResource ThemeCardStyle}">
-                <ListView ItemsSource="{x:Bind ViewModel.SelectedSection.Categories, Mode=OneWay}"
+                <ListView ItemsSource="{x:Bind ViewModel.Categories, Mode=OneWay}"
                           SelectedItem="{x:Bind ViewModel.SelectedCategory, Mode=OneWay}" SelectionChanged="Category_SelectionChanged"
                           SelectionMode="Single" Padding="0,8" AutomationProperties.Name="Categories">
                     <ListView.ItemTemplate>
@@ -109,15 +109,22 @@
                           IsItemClickEnabled="True" ItemClick="Item_Click" AutomationProperties.Name="Items">
                     <GridView.ItemTemplate>
                         <DataTemplate x:DataType="viewmodels:GameCatalogItemViewModel">
-                            <Grid Width="140" Height="150" Padding="6" ToolTipService.ToolTip="{x:Bind ToolTip, Mode=OneWay}">
+                            <Grid Width="150" Height="170" Padding="6" ToolTipService.ToolTip="{x:Bind ToolTip, Mode=OneWay}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <Image Source="{x:Bind Icon, Mode=OneWay}" Width="72" Height="72" Opacity="{x:Bind TileOpacity, Mode=OneWay}"/>
-                                <TextBlock Grid.Row="1" Text="{x:Bind Name}" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2"
-                                           TextTrimming="CharacterEllipsis" FontSize="12" Opacity="{x:Bind TileOpacity, Mode=OneWay}"
-                                           Foreground="{ThemeResource ThemeTextBrush}"/>
+                                <Image Source="{x:Bind DisplayIcon, Mode=OneWay}" Width="72" Height="72" Opacity="{x:Bind IconOpacity, Mode=OneWay}"/>
+                                <!-- Wonders records have no item picture: a trophy instead of a blank square. -->
+                                <FontIcon Glyph="&#xE734;" FontSize="40" Foreground="{ThemeResource ThemeAccentBrush}"
+                                          Opacity="{x:Bind TileOpacity, Mode=OneWay}" Visibility="{x:Bind IsRecord}"/>
+                                <StackPanel Grid.Row="1">
+                                    <TextBlock Text="{x:Bind Name}" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2"
+                                               TextTrimming="CharacterEllipsis" FontSize="12" Opacity="{x:Bind TileOpacity, Mode=OneWay}"
+                                               Foreground="{ThemeResource ThemeTextBrush}"/>
+                                    <TextBlock Text="{x:Bind Detail}" TextAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="11"
+                                               Foreground="{ThemeResource ThemeAccentBrush}" Visibility="{x:Bind HasDetail}"/>
+                                </StackPanel>
                                 <!-- Visual only: the tile itself is the click target. -->
                                 <CheckBox IsChecked="{x:Bind IsUnlocked, Mode=OneWay}" IsHitTestVisible="False" IsTabStop="False"
                                           MinWidth="0" Padding="0" HorizontalAlignment="Left" VerticalAlignment="Top"

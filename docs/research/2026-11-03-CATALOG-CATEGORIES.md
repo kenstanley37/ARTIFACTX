@@ -43,6 +43,42 @@ owner's Catalog screen for that slot.
 - Materials "seen" (653/653 on both slots) and Recipes (Slot 8 game 21; `Ddk` holds
   28) are not yet matched.
 
+## Recipes (catalog format 63)
+
+The four Recipes categories list no items; the game fills each with the distinct
+results of its recipes from `nms_reality_gcrecipetable.mbin`: refiner recipes
+(`Cooking` false) by ingredient count 1/2/3, and cooking recipes. 31 + 45 + 23 + 333 =
+432, the game's total. A result is known when any recipe making it is in the save's
+`vLc/6f=/Ddk` (KnownRefinerRecipes): Slot 1 20 + 9 + 0 + 54 = 83 (game 83), Slot 8
+11 + 4 + 0 + 6 = 21 (game 21); Slot 8's 11 simple-refiner results match the owner's
+screenshot by name. Write test: the owner learned Gold and Living Slime on the
+Catalog page (Slot 8, 21 -> 23), saved, and both showed known in game.
+
+The game's tile order within a category differs from recipe-table order (it starts
+Simple Refiner with Carbon, Ferrite Dust, then Nanite Cluster sixth); not yet matched.
+
+## Wonders (catalog format 64)
+
+The game's 428 = 66 records + 219 fishing + 143 fossils; Personal Records' 12 slots
+are shown but not counted. Exact on both slots: Slot 1 61 + 219 + 143 = 423 (game
+423), Slot 8 45 + 60 + 143 = 248 (game 248).
+
+- Records: fixed-size `GcWonderRecord` arrays (`UqY` GenerationID, `1OQ` value,
+  `y87` seen); a slot is recorded when its GenerationID isn't 0. Save keys in libMBIN
+  field order: `dgD` Planet (11), `MZ1` Fauna (15), `fp9` Flora (8), `bYs` Mineral
+  (8), `e?Y` Treasures (13), `<8Q` Collected Glitches (11), `Svy` Personal (12). Slot
+  names are `GcUIGlobals.Wonder*CategoryConfig[].LocID` ("Hottest Temperature").
+  Personal names are player-entered (not read yet).
+- Fishing Records: 219 tiles on the owner's screenshots = 210 species + 9 flotsam,
+  known when caught (`bTf/yv6` count above 0).
+- Fossil Records: 143 tiles = the ExhibitBone products minus the `BONE_TEMP` template.
+  All 143 count as known on both slots; where that comes from is not found.
+- Owner confirmed in the app 2026-11-03: Slot 8 shows Oddities Recorded 248/428 with
+  the game's record names (Treasures 4/13, Planet 11/11, Fishing 60/219, Fossils 143/143).
+  Planet Records' planet names match the game's tile by tile; Fishing (fish-table order,
+  outlines) and Fossil Records match its screens. Fauna and Flora are recorded in the
+  same slots, but the game names the species, which isn't generated yet.
+
 ## Write test (2026-11-03)
 
 On Slot 8 the owner ticked greyed Titanic Skull (`STA_09`) on ArtifactX's Catalog
@@ -51,4 +87,4 @@ coloured under Space Station Exterior. Editing `eZ<` unlocks building blueprints
 
 ## Still open
 
-- Materials seen, Recipes, Collected Knowledge and Wonders sources.
+- Materials seen and Collected Knowledge sources; where fossils' known state comes from.

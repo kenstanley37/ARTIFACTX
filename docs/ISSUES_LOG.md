@@ -513,3 +513,19 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Known so far**: ArtifactX already reads the galaxy as part of the save's current universe address (Finds and Near the Core show "Budullangr (7)" from it) and lists all 256 galaxies by name in the Finds form.
 - **Needs before building**: a controlled Slot 8 diff of a real galaxy change in game (for example via the Atlas or a portal) to see every field it touches - the current address, the player's position and state, and anything the game keeps per galaxy - and an in-game check that an edited save loads at the chosen station. Never write while the game is running; stage the change like other edits.
 
+### Bug 61: Cooking Recipes Shows Different Nutrient Ingestor Buffs From the Game
+- **Source**: Owner, 2026-11-03, Slot 8 screenshots.
+- **Evidence**: ArtifactX's Cooking Recipes page shows Ice Cream as "+164% Cold resistance - 10:00 per item". In game, the Nutrient Ingestor loaded with 99 Ice Cream shows "Effect: +65% Cold Resistance" and "Duration: 16:39:55" (about 10:06 per item).
+- **Suspect**: the effect calculation in `CatalogSteps.FoodIngestor` / the page's display (DefaultReality FoodStatValues range, CookingValue, FoodBonusStatAmount). Find the game's real formula before changing it; check several foods and stack sizes.
+
+### Feature 62: Clearer Cooking Recipe Chains
+- **Source**: Owner, 2026-11-03.
+- **Goal**: The page exists so players can choose food by the buff it gives in the Nutrient Ingestor. Long chains are hard to follow today.
+- **Wanted**: every step of a chain clickable with full details on how to make that part, and the alternative ways to make an item visible. Layout to be agreed with the owner before building; the page was built by Codex and needs a review against AGENTS.md as part of this.
+
+### Feature 63: Generated Names for Wonders Treasures, Fauna and Flora
+- **Source**: Owner's in-game Treasures screenshot, 2026-11-03: the game names each recorded treasure ("Shiny Bones", "Precious Hatchlings", "Carbonized Beetle Antennae", "Pulpoak Cultivar").
+- **Known**: each record stores the item id and seed as ASCII (`PROC_LOOT#06686`, `PROC_BIO#15819`, `PROC_FOSS#41022`, `PROC_PLNT#00902` on Slot 8). The Catalog page shows the item's picture but only its base name.
+- **Needs**: the game's procedural product naming from the seed (GcProceduralProductData word lists), ported to Core and checked against these four names - the same approach as multi-tool names.
+- **Fauna and Flora too**: the game shows each record's species name (Slot 8: Largest Herbivore "J. Mustlimii", Strongest Photoactivity "N. Molarurfium"), generated from the creature or plant seed stored in the record's GenerationID. ArtifactX shows the planet and system there instead. Needs the creature and flora naming routines.
+
