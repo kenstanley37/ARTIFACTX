@@ -111,6 +111,7 @@ These items directly extend existing open GitHub issues:
 - **Note #18**
 - **Description**: Distinguish legitimate space station technology modules (C, B, A, S class) from Outlaw station black market modules (X-class Suspicious tech) in installation dialogs.
 - **Details**: Add visual badging and category filters to avoid accidental installation of illegal/unpredictable pirate upgrades.
+- **Status**: Resolved (checked 2026-11-04). Installed upgrade modules show the game's C/B/A/S/X class badge in every inventory grid, tooltip and screen-reader label (`851301a`). Neither install route can add an X-class module: the item list beside a technology grid offers only each family's S-class module (`CatalogService.GetUpgradeModulesAsync`, classes 1-4), and the right-click search on technology grids searches `GcTechnologyTable` only. A class filter isn't needed while the lists hold one class.
 
 ### Feature 7: Consolidate / Deduplicate Stacks Across All Inventory Containers
 - **Note #19**
@@ -325,6 +326,7 @@ Synthesized from the latest `ARTIFACTX_NOTES.txt`. Cross-referenced with open Gi
 - **Note #17**
 - **Problem**: Fishing lists "anywhere" fish mixed in; players want fish for the current planet type listed first.
 - **Proposed Solution**: Order the fishing list so the current planet type's fish come first, then "anywhere" fish, keeping each group in its own domain.
+- **Status**: Implemented and on `development` (`e3947e4`, 2026-10-25). Reopen if the order is wrong in the app.
 
 
 ### Feature 37: Station Multi-Tool Technology Slots
@@ -429,7 +431,7 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 
 
 ### Bug 51: Unrelated Food Bonus Hides All Station Multi-Tools
-- **Status**: Correction implemented on `fix/station-tool-food-guard`; requires catalog format 42 rebuild and in-app confirmation.
+- **Status**: Fixed; merged to `development` as verified station tool fixes (`150fc16`).
 - **Report**: Iljeark-Ats V, Euclid, portal `0090FF67B292`: both C-class Poem of Supplication cabinets disappear from the app, although present in game. Screenshot references are damage/scanner 1362.7/200.1 and 1362.7/206.6.
 - **Cause**: The saved FoodUnitItem is nonempty. The prior conservative runtime guard rejected every food product, even when its bonus targets a stat unrelated to displayed weapon damage or scanner radius.
 - **Correction**: Extract each product's FoodBonusStat into the catalog, preserve the normalized saved food ID, and allow generation only when its known target is outside all 11 displayed-stat inputs. Unknown food IDs, missing tables and relevant bonus targets remain guarded; their strength is not guessed.
@@ -437,7 +439,7 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 
 
 ### Bug 52: Station Multi-Tools With X-Class Upgrades Missing
-- **Status**: Correction implemented on `fix/station-tool-food-guard` (2026-10-27); requires in-app confirmation at a cabinet whose tool carries an X-class weapon upgrade (pirate stations are the likeliest). No catalog rebuild needed beyond format 42.
+- **Status**: Fixed; merged to `development` as verified station tool fixes (`150fc16`, "Show station tools with any X-class, Sentinel or salvaged upgrade").
 - **Report**: Codex handoff: pirate/X-class technology installed in station tools still caused problems.
 - **Cause**: The module roller only accepted UP_SCANX among the high-grade qualities, so any cabinet that rolled UP_LASERX, UP_BOLTX, UP_SHOTX, UP_SMGX, UP_RAILX, UP_CANNX, UP_GRENX, UP_TGRENX, UP_SENGUN, UP_LASER0 or UP_BOLT0 was dropped whole. X-scanner tools additionally required a live read of the running game; that guard read the pending game mode (image+0x6E8D718) instead of the active mode (+0x6E8D714).
 - **Correction**: Native quality branch 0x140ec45de applies the high-grade draw to qualities 4/5/6 and not to 0..3/7; the roller now follows that rule for every module. The alternative chance applies only in Unspecified/Seasonal mode, which save load (0x1404967F0..0x1404968B4) selects only for active season data, so the Main save context establishes the standard roll. Expedition context still requires the live guard (address corrected).
@@ -470,7 +472,7 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Tracking**: [Testing and polish backlog, issue #1](https://github.com/kenstanley37/ARTIFACTX/issues/1).
 
 ### Feature 55: Industrial Cleanup Helper
-- **Status**: Implemented on `feature/industrial-cleanup-guide`, 2026-11-03; app visual testing pending. Reference guide and read-only lifetime counters use extracted mission definitions.
+- **Status**: Implemented and merged to `development` (`9640c7a`, 2026-11-03). Reference guide and read-only lifetime counters use extracted mission definitions.
 - **Request**: Explain how to begin and progress Industrial Cleanup, required equipment, waste collection/transport, Waste Processing Plants, automatic recycling versus manual sorting, and verified rewards/unlocks. Show saved lifetime waste-management statistics where their mapping is established.
 - **Screenshot evidence**: The mission mentions the Colossus and Gravitino Coil, transporting waste with the flatbed module, a valuation scale and Control Panel at a Waste Processing Plant, special waste containers, and manual sorting for maximum resource recovery. These instructions do not establish the unlock requirements of the locked Colossus parts above.
 - **Research**: Extract mission/reward/unlock relationships from game data and verify against save progress or controlled in-game comparisons. Keep confirmed guidance distinct from unknown requirements. Reuse portable Core logic for console/mobile guidance, with save-specific progress optional.
@@ -493,7 +495,7 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Source**: Owner observation, 2026-11-03.
 - **Problem**: The local save keeps only a limited number of system visits. Returning to a system visited long ago can look unvisited until it is scanned, which then shows how long ago each planet was discovered; Hello Games' servers keep visits permanently, the local save does not. The Regions page counts visited systems from the save, so a fully mapped region can never show complete and "remaining" counts are too high.
 - **Not yet confirmed**: the size of the save's visit list and which entries it drops first; establish with a controlled check (a save near the limit, one new visit, compare) before relying on a number.
-- **Status**: Implemented on `fix/visited-systems-history`, 2026-11-03; build verified, not yet tested in the app. user.db migration 21 `visited_systems` (per save: account/slot, plus /expedition), filled by `VisitedSystemsService` from every snapshot of the app-wide feed (the save's discovered systems + the current system). Regions counts the save's systems plus remembered ones and says how many came from the history ("N visited earlier that your save no longer lists"). Limit: the history starts when this version first sees the save, so visits the game dropped before that can't be recovered; the region dropdown still lists only regions the save itself knows.
+- **Status**: Implemented 2026-11-03, merged to `development` on the owner's approval 2026-11-04 (`10a83a5`). The real proof comes once the game drops a visit made after this version first saw the save. user.db migration 21 `visited_systems` (per save: account/slot, plus /expedition), filled by `VisitedSystemsService` from every snapshot of the app-wide feed (the save's discovered systems + the current system). Regions counts the save's systems plus remembered ones and says how many came from the history ("N visited earlier that your save no longer lists"). Limit: the history starts when this version first sees the save, so visits the game dropped before that can't be recovered; the region dropdown still lists only regions the save itself knows.
 - **Proposed direction**: ArtifactX records every visited system it sees (each live snapshot already passes through `FishCatchRecorder.SnapshotSeen`) in `user.db` through an additive migration, and Regions counts the union of that history and the save. Discovery records that survive in the save (planets discovered by the player) can backfill systems the history has not seen. Mark systems known only from the history so the page never overstates what the save itself holds.
 
 ## 2026-11-03 catalog unlock findings
@@ -527,7 +529,7 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Review (Claude, 2026-11-03)**: the Recipe Planner (Cooking/Refiner Recipes) is split correctly into UserControls, ViewModels and a catalog service, with no UI built in C#. The separate Crafting page keeps its loading and tree state in code-behind and builds a TextBlock in C#; move those into a ViewModel when it is next changed. The game's own tile order within Recipes categories was not matched by table, name or ingredient order (left for later).
 
 ### Feature 63: Generated Names for Wonders Treasures, Fauna and Flora
-- **Progress 2026-11-03**: the name routine is found and documented (`docs/research/2026-11-03-PROCEDURAL-PRODUCT-NAMES.md`); the seed handed to it is still open. Personal Records now show the names players give them (`feature/personal-record-names`).
+- **Progress 2026-11-03**: the name routine is found and documented (`docs/research/2026-11-03-PROCEDURAL-PRODUCT-NAMES.md`); the seed handed to it is still open. Personal Records now show the names players give them (merged 2026-11-04, `f76b88e`).
 - **Source**: Owner's in-game Treasures screenshot, 2026-11-03: the game names each recorded treasure ("Shiny Bones", "Precious Hatchlings", "Carbonized Beetle Antennae", "Pulpoak Cultivar").
 - **Known**: each record stores the item id and seed as ASCII (`PROC_LOOT#06686`, `PROC_BIO#15819`, `PROC_FOSS#41022`, `PROC_PLNT#00902` on Slot 8). The Catalog page shows the item's picture but only its base name.
 - **Needs**: the game's procedural product naming from the seed (GcProceduralProductData word lists), ported to Core and checked against these four names - the same approach as multi-tool names.
