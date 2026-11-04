@@ -145,12 +145,40 @@ public sealed partial class GameCatalogViewModel : ObservableObject
             items = category.Items.Select((id, i) =>
             {
                 string name = category.ItemNames?.GetValueOrDefault(id) is { Length: > 0 } n ? n : $"Personal Record {i + 1}";
-                bool recorded = records?.ElementAtOrDefault(i)?["UqY"] is JArray generation
-                    && generation.Any(g => g.Type == JTokenType.Integer ? g.Value<long>() != 0 : g.Value<string>() is { } s && s != "0x0" && s != "0");
-                return new GameCatalogItemViewModel(id, name, recorded, false, true, "recorded by the game as you explore");
+                var (recorded, detail, iconId) = ReadRecord(category.Type, records?.ElementAtOrDefault(i)?["UqY"] as JArray);
+                return new GameCatalogItemViewModel(id, name, recorded, false, true, "recorded by the game as you explore",
+                    detail: detail, iconId: iconId);
             }).ToList();
         }
         return new GameCatalogCategoryViewModel(category.Name, items, category.Counted);
+    }
+
+    /// <summary>A record's GenerationID pair (UqY). Treasures and Glitches hold the
+    /// recorded item's id as 16 ASCII bytes ("PROC_LOOT#06686", Slot 8 2026-11-03), so
+    /// the tile shows that item's picture (and a glitch its name). Planet, fauna, flora
+    /// and mineral records hold the planet's packed universe address first (planet
+    /// number in bits 52-55, as NmsSpaceStationPaths.ToSystemAddress clears), so the
+    /// tile names the planet. The generated treasure names ("Shiny Bones") need the
+    /// game's procedural naming, not ported yet.</summary>
+    private static (bool Recorded, string? Detail, string? IconId) ReadRecord(string type, JArray? generation)
+    {
+        static ulong Value(JToken? token) => token is null ? 0
+            : token.Type == JTokenType.Integer ? (ulong)token.Value<long>()
+            : ulong.TryParse((token.Value<string>() ?? "").Replace("0x", "", StringComparison.OrdinalIgnoreCase),
+                System.Globalization.NumberStyles.HexNumber, null, out var v) ? v : 0;
+        ulong first = Value(generation?.ElementAtOrDefault(0)), second = Value(generation?.ElementAtOrDefault(1));
+        if (first == 0 && second == 0) return (false, null, null);
+        if (type is "TreasureWonders" or "WeirdBasePartWonders")
+        {
+            var bytes = BitConverter.GetBytes(first).Concat(BitConverter.GetBytes(second)).TakeWhile(b => b != 0).ToArray();
+            string itemId = System.Text.Encoding.ASCII.GetString(bytes);
+            string baseId = itemId.Split('#')[0];
+            string? glitch = type == "WeirdBasePartWonders" ? CatalogService.TryGet(baseId)?.DisplayName : null;
+            return (true, glitch, CatalogService.TryGet(baseId) is null ? null : baseId);
+        }
+        int planet = (int)((first >> 52) & 0xF);
+        if (planet == 0) return (true, null, null);
+        return (true, $"{UniverseInfo.PlanetName(NmsSpaceStationPaths.ToSystemAddress(first), planet)} · {UniverseInfo.SystemName(first)}", null);
     }
 
     partial void OnSelectedSectionChanged(GameCatalogSectionViewModel? value)
@@ -208,9 +236,9 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         int version = ++_iconVersion;
         var missing = items.Where(i => i.Icon is null).ToList();
         if (missing.Count == 0) return;
-        await CatalogService.WarmCacheAsync(missing.Select(i => (string?)i.GameId));
+        await CatalogService.WarmCacheAsync(missing.Select(i => (string?)i.IconId));
         if (version != _iconVersion) return;
-        foreach (var item in missing) item.Icon = CatalogService.TryGet(item.GameId)?.Icon;
+        foreach (var item in missing) item.Icon = CatalogService.TryGet(item.IconId)?.Icon;
     }
 
     public void SetItem(GameCatalogItemViewModel item, bool known)

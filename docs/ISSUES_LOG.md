@@ -523,3 +523,8 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Goal**: The page exists so players can choose food by the buff it gives in the Nutrient Ingestor. Long chains are hard to follow today.
 - **Wanted**: every step of a chain clickable with full details on how to make that part, and the alternative ways to make an item visible. Layout to be agreed with the owner before building; the page was built by Codex and needs a review against AGENTS.md as part of this.
 
+### Feature 63: Generated Names for Wonders Treasures
+- **Source**: Owner's in-game Treasures screenshot, 2026-11-03: the game names each recorded treasure ("Shiny Bones", "Precious Hatchlings", "Carbonized Beetle Antennae", "Pulpoak Cultivar").
+- **Known**: each record stores the item id and seed as ASCII (`PROC_LOOT#06686`, `PROC_BIO#15819`, `PROC_FOSS#41022`, `PROC_PLNT#00902` on Slot 8). The Catalog page shows the item's picture but only its base name.
+- **Needs**: the game's procedural product naming from the seed (GcProceduralProductData word lists), ported to Core and checked against these four names - the same approach as multi-tool names.
+

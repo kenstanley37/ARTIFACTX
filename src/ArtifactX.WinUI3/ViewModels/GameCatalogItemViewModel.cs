@@ -11,9 +11,11 @@ namespace ArtifactX.WinUI3.ViewModels;
 public sealed partial class GameCatalogItemViewModel : ObservableObject, IUnlockRow
 {
     public GameCatalogItemViewModel(string gameId, string name, bool known, bool canEdit, bool showState, string? readOnlyReason,
-        IReadOnlyList<string>? listIds = null)
+        IReadOnlyList<string>? listIds = null, string? detail = null, string? iconId = null)
     {
         GameId = gameId;
+        Detail = detail;
+        IconId = iconId ?? gameId;
         ListIds = listIds ?? [gameId];
         Name = name;
         IsUnlocked = known;
@@ -23,6 +25,13 @@ public sealed partial class GameCatalogItemViewModel : ObservableObject, IUnlock
     }
 
     public string GameId { get; }
+
+    /// <summary>A second line under the name: where a Wonders record was set.</summary>
+    public string? Detail { get; }
+    public bool HasDetail => !string.IsNullOrEmpty(Detail);
+
+    /// <summary>The catalog item whose picture the tile shows (a record shows the item it recorded).</summary>
+    public string IconId { get; }
 
     /// <summary>The list entries this tile stands for: its id, or a Recipes result's recipes.</summary>
     public IReadOnlyList<string> ListIds { get; }
@@ -40,7 +49,7 @@ public sealed partial class GameCatalogItemViewModel : ObservableObject, IUnlock
     public bool ShowTick => ShowState && CanEdit;
 
     /// <summary>A Wonders record slot ("WONDER:PlanetWonders:3"): no item picture.</summary>
-    public bool IsRecord => GameId.StartsWith("WONDER:", System.StringComparison.Ordinal);
+    public bool IsRecord => GameId.StartsWith("WONDER:", System.StringComparison.Ordinal) && IconId == GameId;
     public bool ShowLock => ShowState && !CanEdit;
     public string ToolTip => ReadOnlyReason is null ? Name : $"{Name} - {ReadOnlyReason}";
 

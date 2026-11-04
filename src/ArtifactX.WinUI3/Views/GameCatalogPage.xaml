@@ -109,7 +109,7 @@
                           IsItemClickEnabled="True" ItemClick="Item_Click" AutomationProperties.Name="Items">
                     <GridView.ItemTemplate>
                         <DataTemplate x:DataType="viewmodels:GameCatalogItemViewModel">
-                            <Grid Width="140" Height="150" Padding="6" ToolTipService.ToolTip="{x:Bind ToolTip, Mode=OneWay}">
+                            <Grid Width="150" Height="170" Padding="6" ToolTipService.ToolTip="{x:Bind ToolTip, Mode=OneWay}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
@@ -118,9 +118,13 @@
                                 <!-- Wonders records have no item picture: a trophy instead of a blank square. -->
                                 <FontIcon Glyph="&#xE734;" FontSize="40" Foreground="{ThemeResource ThemeAccentBrush}"
                                           Opacity="{x:Bind TileOpacity, Mode=OneWay}" Visibility="{x:Bind IsRecord}"/>
-                                <TextBlock Grid.Row="1" Text="{x:Bind Name}" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2"
-                                           TextTrimming="CharacterEllipsis" FontSize="12" Opacity="{x:Bind TileOpacity, Mode=OneWay}"
-                                           Foreground="{ThemeResource ThemeTextBrush}"/>
+                                <StackPanel Grid.Row="1">
+                                    <TextBlock Text="{x:Bind Name}" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2"
+                                               TextTrimming="CharacterEllipsis" FontSize="12" Opacity="{x:Bind TileOpacity, Mode=OneWay}"
+                                               Foreground="{ThemeResource ThemeTextBrush}"/>
+                                    <TextBlock Text="{x:Bind Detail}" TextAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="11"
+                                               Foreground="{ThemeResource ThemeAccentBrush}" Visibility="{x:Bind HasDetail}"/>
+                                </StackPanel>
                                 <!-- Visual only: the tile itself is the click target. -->
                                 <CheckBox IsChecked="{x:Bind IsUnlocked, Mode=OneWay}" IsHitTestVisible="False" IsTabStop="False"
                                           MinWidth="0" Padding="0" HorizontalAlignment="Left" VerticalAlignment="Top"
