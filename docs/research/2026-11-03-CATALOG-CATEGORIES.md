@@ -34,20 +34,22 @@ owner's Catalog screen for that slot.
 | Technology | per-save `vLc/6f=/4kj` (KnownTech) + account `B89/B1h`; the two never overlap | 170 + 187 = 357 (game 357) | 147 + 187 = 334 (game 334) |
 | Building Parts | per-save `eZ<` (KnownProducts) + `24<` (KnownSpecials) + the 10 firework packs (`EXPD_FIREWORK01-04`, `SPEC_FIREWORK01-06`) | 1,011 (game 1,011) | 964 (game 964) |
 
-- The fireworks are never in `eZ<` yet count on both saves. All 10 are in account
-  `B1h`, but B1h holds all 1,024 building parts, so B1h is not the general rule.
-  Why fireworks count is **inferred, not confirmed**.
-- Account `B1h` holds 187 of the 358 catalogue technologies and `>Qn` the other 171
-  (disjoint, union 358). Only B1h's share counts toward the known total.
+- The 10 fireworks and the 187 counted technologies are exactly the section's
+  products the game data marks not craftable (`GcProductData.IsCraftable` false), so
+  known = the save's list + the section's not-craftable items. (Account `B1h` happens
+  to hold those same 187 technologies.)
 - Greyed Space Station Exterior parts on Slot 1 (`STA_09`, `STA_16`...) are absent
   from `eZ<`; the coloured ones checked (`STA_08`, `STA_23`) are present.
 - Materials "seen" (653/653 on both slots) and Recipes (Slot 8 game 21; `Ddk` holds
   28) are not yet matched.
 
+## Write test (2026-11-03)
+
+On Slot 8 the owner ticked greyed Titanic Skull (`STA_09`) on ArtifactX's Catalog
+page (staged into `eZ<`), saved with the game closed, and loaded the save: it showed
+coloured under Space Station Exterior. Editing `eZ<` unlocks building blueprints.
+
 ## Still open
 
-- A controlled Slot 8 write test: add one greyed building part to `eZ<`, save,
-  confirm it shows in the in-game Catalog. Until then editing `eZ<` for building
-  parts is supported by the count match only.
 - Materials seen, Recipes, Collected Knowledge and Wonders sources.
 - How the firework packs become known.

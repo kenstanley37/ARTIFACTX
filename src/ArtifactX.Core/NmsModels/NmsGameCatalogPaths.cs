@@ -10,8 +10,9 @@ namespace ArtifactX.Core.NmsModels;
 ///   Building Parts known = KnownProductsPath (eZ&lt;) + KnownSpecialsPath (24&lt;) +
 ///     the section's 10 not-craftable firework packs: Slot 1 1,011, Slot 8 964.
 /// eZ&lt; is GcPlayerStateData.KnownProducts (a researched-blueprint diff confirmed it in
-/// 2026-08, see NmsFreighterUpgradePaths). Writing a greyed building part into eZ&lt; is
-/// supported by these counts only; an in-game write test is still pending.
+/// 2026-08, see NmsFreighterUpgradePaths). CONFIRMED writable 2026-11-03: the owner
+/// learned greyed Titanic Skull (STA_09) on the Catalog page on Slot 8, saved, and it
+/// showed coloured in the game's Catalog (Building Parts 964 -> 965).
 /// </summary>
 public static class NmsGameCatalogPaths
 {

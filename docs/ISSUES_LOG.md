@@ -501,7 +501,7 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Evidence (owner's account, build 184271, 2026-11-03, read-only)**: `B89/B1h` held 4,281 of the catalog's 4,508 products and 0 of its 372 technologies, 254 procedural upgrade modules and 82 substances. Twelve Space Station Exterior parts the game shows greyed out (`STA_09`, `STA_11`, `STA_12`, `STA_16`, `STA_17`, `STA_21`, `STA_22`, `STA_24`-`STA_27`, `STA_29`) are all in B1h. Many of B1h's fully unlocked groups may have been bulk-written by earlier ArtifactX versions, so B1h's natural contents are unconfirmed.
 - **Per-save list**: Slot 1's `vLc/6f=/eZ<` (2,105 ids, GcPlayerStateData.KnownProducts by its contents) holds none of those 12 greyed parts and both coloured ones checked (`STA_08` Vacated Shell, `STA_23` Shelter Pod). The Freighter Upgrades page already edits `eZ<`.
 - **Done**: the Catalog page lists products only (`feature/catalog-product-types`), so it no longer offers technology, upgrade modules or substances that B1h never holds.
-- **Next**: a controlled Slot 8 test (add one greyed station part to `eZ<`, save, check the in-game Catalog) before any per-save blueprint editor; then consider moving product unlocks from B1h to `eZ<`.
+- **Resolved 2026-11-03** (`feature/save-blueprints`): a new per-save Catalog page mirrors the game's Catalog screen from its own files (`catalogue*.mbin`, catalog format 62), with counts exact against the owner's screens. Owner confirmed in game that learning Titanic Skull there unlocked it. See `docs/research/2026-11-03-CATALOG-CATEGORIES.md`.
 
 ### Feature 59: How to Obtain Each Item
 - **Source**: Owner, 2026-11-03: newer Space Station Exterior parts appear greyed in game with no hint how to get them.
