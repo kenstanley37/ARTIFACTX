@@ -523,6 +523,7 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Source**: Owner, 2026-11-03.
 - **Goal**: The page exists so players can choose food by the buff it gives in the Nutrient Ingestor. Long chains are hard to follow today.
 - **Wanted**: every step of a chain clickable with full details on how to make that part, and the alternative ways to make an item visible. Layout to be agreed with the owner before building; the page was built by Codex and needs a review against AGENTS.md as part of this.
+- **Review (Claude, 2026-11-03)**: the Recipe Planner (Cooking/Refiner Recipes) is split correctly into UserControls, ViewModels and a catalog service, with no UI built in C#. The separate Crafting page keeps its loading and tree state in code-behind and builds a TextBlock in C#; move those into a ViewModel when it is next changed. The game's own tile order within Recipes categories was not matched by table, name or ingredient order (left for later).
 
 ### Feature 63: Generated Names for Wonders Treasures, Fauna and Flora
 - **Source**: Owner's in-game Treasures screenshot, 2026-11-03: the game names each recorded treasure ("Shiny Bones", "Precious Hatchlings", "Carbonized Beetle Antennae", "Pulpoak Cultivar").
