@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Expedition Rewards lists every reward from each expedition, grouped under the right one, including the newest expedition and rewards such as Direwasp armour and figurines that were missing. Needs the game data read again (Settings).
+
 - Finds and Near the Core start from where you are now. Opening them after travelling used to measure distances, and fill in Use my current location, from where you were when the save was loaded, until the game saved again.
 
 - Companions page edits register as you type, so Save and Reset appear straight away instead of only after leaving the field. A half-typed number or seed waits until it is complete.
