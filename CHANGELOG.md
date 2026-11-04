@@ -12,7 +12,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 - Egg Sequencer page under Reference, laid out like the game's sequencer: pick a catalyst slot to see only the items it takes, filter by the effect you want (bigger, toward Gentleness and so on) or to only the items you carry, put an item in and see the dose the game will show and, in plain words, what will happen to the new companion. Needs the game data read again (Settings).
 
-- Frigates: for an organic frigate, a Feed Vessel list shows what every food would do to that frigate - its new traits and how each stat changes - best first for the stat you choose. Needs the game data read again (Settings).
+- Frigates: for an organic frigate, a Feed Vessel list shows what every food would do to that frigate - its new traits and how each stat changes - best first for the stat you choose. Frigate Details can be folded away while the stats stay in view. Needs the game data read again (Settings).
 
 ### Fixed
 
