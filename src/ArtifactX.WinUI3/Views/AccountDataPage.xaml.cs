@@ -28,7 +28,7 @@ public sealed partial class AccountDataPage : Page
     private List<AccountItemRowViewModel>? _allItems;
     private List<AccountItemRowViewModel> _catalogSource = new();
 
-    private readonly AccountUnlocksViewModel _unlocks = new();
+    private readonly UnlockListViewModel _unlocks = new(UnlockListStore.Account);
     private readonly HashSet<string> _lockedOnly = new(StringComparer.Ordinal);
 
     public AccountDataPage()

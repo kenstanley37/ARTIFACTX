@@ -1,4 +1,3 @@
-using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using Newtonsoft.Json.Linq;
 using System;
@@ -8,21 +7,23 @@ using System.Linq;
 namespace ArtifactX.WinUI3.ViewModels;
 
 /// <summary>
-/// The account-wide unlock list (NmsAccountData.UnlockedItemsPath) as Catalog,
-/// Expedition Rewards and Twitch Rewards edit it - one copy of the raw-id
-/// bookkeeping those three pages each used to carry. The list stores ids with
-/// a leading "^"; matching goes through CatalogService.NormalizeId. Every
-/// change stages the whole array once (AccountSessionManager.StageEdit).
+/// One unlock list - the account's (Expedition Rewards, Twitch Rewards) or one of the
+/// save's (the Catalog page's known technology and blueprints) - with one copy of the
+/// raw-id bookkeeping. Lists store ids with a leading "^"; matching goes through
+/// CatalogService.NormalizeId. Every change stages the whole array once (IUnlockListStore).
 /// </summary>
-public sealed class AccountUnlocksViewModel
+public sealed class UnlockListViewModel
 {
+    private readonly IUnlockListStore _store;
     private List<string> _ids = new();
     private HashSet<string> _set = new(StringComparer.Ordinal);
 
-    /// <summary>Reads the staged/loaded list; call after AccountSessionManager.LoadAsync.</summary>
+    public UnlockListViewModel(IUnlockListStore store) => _store = store;
+
+    /// <summary>Reads the staged/loaded list; call once its session has loaded.</summary>
     public void Load()
     {
-        var array = AccountSessionManager.GetValue(NmsAccountData.UnlockedItemsPath) as JArray;
+        var array = _store.Read();
         _ids = array?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
         _set = new HashSet<string>(_ids.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
     }
@@ -32,7 +33,7 @@ public sealed class AccountUnlocksViewModel
 
     /// <summary>Unlocks or locks the rows and stages the list - only when one
     /// actually changed, so a no-op never shows as an unsaved change.</summary>
-    public void Set(IEnumerable<AccountItemRowViewModel> rows, bool unlock)
+    public void Set(IEnumerable<IUnlockRow> rows, bool unlock)
     {
         bool changed = false;
         foreach (var row in rows)
@@ -49,6 +50,6 @@ public sealed class AccountUnlocksViewModel
                 changed = true;
             }
         }
-        if (changed) AccountSessionManager.StageEdit(new JArray(_ids), NmsAccountData.UnlockedItemsPath);
+        if (changed) _store.Stage(new JArray(_ids));
     }
 }

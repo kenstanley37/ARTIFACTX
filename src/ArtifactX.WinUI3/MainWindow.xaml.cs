@@ -174,6 +174,7 @@ public sealed partial class MainWindow : Window
         AutophageLanguagePathIcon.Data = G(NavIconGeometries.Language);
         AtlasLanguagePathIcon.Data = G(NavIconGeometries.Language);
         CataloguePathIcon.Data = G(NavIconGeometries.Catalogue);
+        GameCatalogPathIcon.Data = G(NavIconGeometries.Catalogue);
         FishingRecordsPathIcon.Data = G(NavIconGeometries.FishingRecords);
         FishingPathIcon.Data = G(NavIconGeometries.FishingRecords);
         ExocraftPathIcon.Data = G(NavIconGeometries.Exocraft);
@@ -432,6 +433,7 @@ public sealed partial class MainWindow : Window
                 "ExpeditionRewards" => typeof(ExpeditionRewardsPage),
                 "TwitchRewards" => typeof(TwitchRewardsPage),
                 "Catalogue" => typeof(CataloguePage),
+                "GameCatalog" => typeof(GameCatalogPage),
                 "FishingRecords" => typeof(FishingRecordsPage),
                 "Exocraft" => typeof(ExocraftPage),
                 "LanguageGek" => typeof(GekLanguagePage),
@@ -497,6 +499,7 @@ public sealed partial class MainWindow : Window
         ReferenceSeparator.Visibility = ReferenceNavItem.Visibility;
         MilestonesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         CatalogueNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        GameCatalogNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         FishingRecordsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         ExocraftNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
 

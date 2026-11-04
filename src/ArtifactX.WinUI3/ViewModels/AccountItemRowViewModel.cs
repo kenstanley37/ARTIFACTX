@@ -5,9 +5,9 @@ namespace ArtifactX.WinUI3.ViewModels;
 /// <summary>One row on an account-wide-unlock page (Catalog / Expedition Rewards /
 /// Twitch Rewards) - a static catalog item (GameId/DisplayName/CategoryLabel, from
 /// CatalogService.GetAllUnlockableItemsAsync) paired with whether the active account
-/// has it unlocked. IsUnlocked is written only by AccountUnlocksViewModel.Set, which
+/// has it unlocked. IsUnlocked is written only by UnlockListViewModel.Set, which
 /// keeps AccountSessionManager's staged edit in sync.</summary>
-public partial class AccountItemRowViewModel : ObservableObject
+public partial class AccountItemRowViewModel : ObservableObject, IUnlockRow
 {
     public required string GameId { get; init; }
     public required string DisplayName { get; init; }

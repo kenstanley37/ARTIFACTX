@@ -25,7 +25,7 @@ public sealed partial class ExpeditionRewardsPage : Page
     private List<AccountItemRowViewModel> _expeditionSource = new();
     private List<AccountItemRowViewModel> _currentlyVisibleRows = new();
 
-    private readonly AccountUnlocksViewModel _unlocks = new();
+    private readonly UnlockListViewModel _unlocks = new(UnlockListStore.Account);
     private readonly HashSet<string> _lockedOnly = new(StringComparer.Ordinal);
 
     public ExpeditionRewardsPage()
