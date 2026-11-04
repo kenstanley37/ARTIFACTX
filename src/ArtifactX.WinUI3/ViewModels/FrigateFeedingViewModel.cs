@@ -98,9 +98,11 @@ public sealed partial class FrigateFeedingViewModel : ObservableObject
             .ThenByDescending(r => r.Result.StatChange.Sum())
             .ThenBy(r => r.Names, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
+        foreach (var row in rows) row.Focus(stat, SortStat?.Label ?? "");
         Foods.Clear();
         foreach (var row in rows) Foods.Add(row);
-        Message = $"{rows.Count:N0} foods, best for {SortStat?.Label} first";
+        int raising = rows.Count(r => r.Result.StatChange.ElementAtOrDefault(stat) > 0);
+        Message = $"{raising:N0} of {rows.Count:N0} foods raise {SortStat?.Label}, biggest gain first";
     }
 }
 
@@ -114,6 +116,16 @@ public sealed partial class FrigateFoodRowViewModel(string iconId, string names,
     public IReadOnlyList<string> Traits { get; } = traits;
 
     [ObservableProperty] public partial ImageSource? Icon { get; set; }
+    [ObservableProperty] public partial string FocusText { get; private set; } = "";
+    [ObservableProperty] public partial Brush? FocusBrush { get; private set; }
+
+    /// <summary>Show the change to the stat the list is sorted by.</summary>
+    public void Focus(int stat, string label)
+    {
+        int d = Result.Refused ? 0 : Result.StatChange.ElementAtOrDefault(stat);
+        FocusText = d == 0 ? $"0 {label}" : $"{(d > 0 ? "+" : "−")}{Math.Abs(d)} {label}";
+        FocusBrush = d == 0 ? ThemeResources.Brush("ThemeTextDimBrush") : new FrigateStatChangeViewModel("", d > 0, stat).Brush;
+    }
 
     public IReadOnlyList<FrigateStatChangeViewModel> Changes { get; } = result.Refused ? []
         : result.StatChange.Select((d, i) => (d, i)).Where(c => c.d != 0 && c.i < statNames.Count)

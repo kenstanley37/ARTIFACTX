@@ -110,7 +110,7 @@
         </ScrollViewer>
 
         <!-- Right: the items the selected slot takes. -->
-        <Grid Grid.Row="1" Grid.Column="1" RowSpacing="12">
+        <Grid Grid.Row="1" Grid.Column="1" RowSpacing="12" Visibility="{x:Bind ViewModel.IsReady, Mode=OneWay}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>

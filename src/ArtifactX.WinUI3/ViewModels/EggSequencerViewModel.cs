@@ -47,6 +47,17 @@ public sealed partial class EggSequencerViewModel : ObservableObject
 
     public async Task LoadAsync()
     {
+        try { await LoadRulesAsync(); }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[EggSequencer] Load failed: {ex}");
+            IsReady = false;
+            Message = "The Egg Sequencer rules could not be read. Read the game data again in Settings.";
+        }
+    }
+
+    private async Task LoadRulesAsync()
+    {
         var rules = await CatalogService.GetEggSequencerRulesAsync();
         var values = await CatalogService.GetItemValuesAsync();
         if (rules is null || values.Count == 0)

@@ -86,10 +86,11 @@
 
                 <Border Style="{StaticResource ThemeCardStyle}" Visibility="{x:Bind ViewModel.HasSelection, Mode=OneWay}">
                     <StackPanel>
-                        <Border Style="{StaticResource ThemeBandStyle}">
-                            <TextBlock Text="FRIGATE DETAILS" Style="{StaticResource ThemeBandTextStyle}"/>
-                        </Border>
-                        <StackPanel Spacing="20" Padding="20,16,20,20">
+                        <!-- Name, class, seeds, record and traits fold away; the stats stay in view
+                             (owner, 2026-11-04), next to the Feed Vessel list's stat changes. -->
+                        <controls:FoldingCard Title="FRIGATE DETAILS" FoldedName="{x:Bind ViewModel.GeneratedName, Mode=OneWay}"
+                                              SettingKey="FrigateDetailsCollapsed">
+                        <StackPanel Spacing="20" Padding="20,16,20,4">
                             <StackPanel Spacing="6">
                                 <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
                                 <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" MaxWidth="700" HorizontalAlignment="Left" TextWrapping="Wrap"
@@ -138,17 +139,6 @@
                             </ctcontrols:WrapPanel>
 
                             <StackPanel Spacing="8">
-                                <TextBlock Text="STATS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                <ItemsControl ItemsSource="{x:Bind ViewModel.Stats, Mode=OneWay}" ItemTemplate="{StaticResource NumberFieldTemplate}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="12"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                </ItemsControl>
-                            </StackPanel>
-
-                            <StackPanel Spacing="8">
                                 <TextBlock Text="EXPEDITION RECORD" Style="{StaticResource ThemeEyebrowStyle}"/>
                                 <ItemsControl ItemsSource="{x:Bind ViewModel.Record, Mode=OneWay}" ItemTemplate="{StaticResource NumberFieldTemplate}">
                                     <ItemsControl.ItemsPanel>
@@ -182,6 +172,19 @@
                                             </StackPanel>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </StackPanel>
+                        </controls:FoldingCard>
+                        <StackPanel Padding="20,12,20,20">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="STATS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.Stats, Mode=OneWay}" ItemTemplate="{StaticResource NumberFieldTemplate}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="12"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
                                 </ItemsControl>
                             </StackPanel>
                         </StackPanel>

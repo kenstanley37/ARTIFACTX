@@ -295,8 +295,10 @@ public static class CatalogService
             connection.Open();
             using var command = connection.CreateCommand();
             command.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId = 'FRIGATEFEEDING'";
+            // A catalog from before these rules were complete reads back with nulls.
             return command.ExecuteScalar() is string json
-                ? System.Text.Json.JsonSerializer.Deserialize<FrigateFeedingRules>(json) : null;
+                && System.Text.Json.JsonSerializer.Deserialize<FrigateFeedingRules>(json) is { Foods: not null, Traits: not null } rules
+                ? rules : null;
         }
         catch (Exception ex) when (ex is SqliteException or System.Text.Json.JsonException)
         {
@@ -316,8 +318,10 @@ public static class CatalogService
             connection.Open();
             using var command = connection.CreateCommand();
             command.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId = 'EGGSEQUENCER'";
+            // The first format-66 catalogs had no ingredient list or screen words; treat them as missing.
             return command.ExecuteScalar() is string json
-                ? System.Text.Json.JsonSerializer.Deserialize<EggSequencerRules>(json) : null;
+                && System.Text.Json.JsonSerializer.Deserialize<EggSequencerRules>(json) is { Ingredients: not null, Texts: not null } rules
+                ? rules : null;
         }
         catch (Exception ex) when (ex is SqliteException or System.Text.Json.JsonException)
         {
