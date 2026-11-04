@@ -46,4 +46,10 @@ public static class NmsGameCatalogPaths
         ["WeirdBasePartWonders"] = new[] { "vLc", "6f=", "<8Q" },
         ["CustomWonders"] = new[] { "vLc", "6f=", "Svy" },
     };
+
+    /// <summary>GcPlayerStateData.WonderCustomRecordsExtraData: one entry per Personal
+    /// Record slot, fH8 = the name the player gave it, 7bp/93I = what it records
+    /// ("Creature", "Planet"; "Custom" when unused). Found by shape 2026-11-03: Slot 8's
+    /// first is "Dude" (Creature), Slot 1's "Water World" (Planet).</summary>
+    public static readonly string[] PersonalRecordNamesPath = { "vLc", "6f=", "YvA" };
 }
