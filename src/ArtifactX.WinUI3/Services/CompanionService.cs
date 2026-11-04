@@ -57,7 +57,7 @@ public static class CompanionService
             string xid = (array[i]?["XID"]?.Value<string>() ?? "").TrimStart('^');
             if (xid.Length == 0 || array[i]?["JAy"] is not JArray traits || traits.Count < 3) continue;
             string name = array[i]?["fH8"]?.Value<string>() ?? "";
-            eggs.Add(new EggCreature(string.IsNullOrWhiteSpace(name) ? $"{FormatArchetype(xid)} egg {i + 1}" : name, xid,
+            eggs.Add(new EggCreature(string.IsNullOrWhiteSpace(name) ? $"Companion egg {eggs.Count + 1}" : name, xid,
                 array[i]?["unY"]?.Value<float>() ?? 1f, traits.Take(3).Select(t => t.Value<float>()).ToArray()));
         }
         return eggs;

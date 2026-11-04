@@ -93,8 +93,11 @@ public sealed partial class EggSequencerViewModel : ObservableObject
             + $"Raw materials count {rules.SubstanceModifier:0.#} times their value. A slot holds up to {rules.ItemLimit:N0}.";
         Slots.Clear();
         foreach (var slot in Enum.GetValues<EggCatalystSlot>()) Slots.Add(new EggSlotViewModel(slot, rules, fullDose, Text));
+        // The egg's own name, as the game shows it ("Mecha-Mouse Egg"); a number only tells same-named eggs apart.
+        var saved = CompanionService.ReadEggs();
         Eggs = [new EggChoice("Any egg (no exact numbers)", null),
-            .. CompanionService.ReadEggs().Select(e => new EggChoice($"{e.Name} ({CompanionService.FormatArchetype(e.Species)})", e))];
+            .. saved.Select((e, i) => new EggChoice(saved.Count(o => o.Name == e.Name) > 1
+                ? $"{e.Name} ({saved.Take(i + 1).Count(o => o.Name == e.Name)})" : e.Name, e))];
         SelectedEgg = Eggs.Count > 1 ? Eggs[1] : Eggs[0];
         IsReady = true;
         Select(Slots[^1]);
