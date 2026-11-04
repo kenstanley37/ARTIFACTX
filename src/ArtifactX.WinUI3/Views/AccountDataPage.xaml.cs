@@ -1,4 +1,5 @@
 using ArtifactX.Core.NmsModels;
+using ArtifactX.WinUI3.Helpers.AccountData;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Microsoft.UI.Xaml;
@@ -29,15 +30,6 @@ public sealed partial class AccountDataPage : Page
 
     private readonly AccountUnlocksViewModel _unlocks = new();
     private readonly HashSet<string> _lockedOnly = new(StringComparer.Ordinal);
-
-    // Fixed display order for the Catalog section's per-category cards - not
-    // alphabetical or count-based, so the grouping reads the same way every
-    // time regardless of which categories happen to be non-empty.
-    private static readonly string[] CatalogGroupOrder =
-    {
-        "Raw Materials", "Crafted Products", "Equipment", "Constructed Technology",
-        "Construction Parts", "Trade Goods", "Curiosities", "Cooking Products", "Uncategorized"
-    };
 
     public AccountDataPage()
     {
@@ -94,22 +86,26 @@ public sealed partial class AccountDataPage : Page
         ActivePlatformTxt.Text = SaveSessionManager.ActivePlatformDisplayName ?? "";
 
         var catalogItems = await CatalogService.GetAllUnlockableItemsAsync();
+        var types = await ProductTypesService.LoadAsync();
+        var rewards = await ExpeditionRewardsService.LoadAsync();
 
         _unlocks.Load();
         var unlocks = _unlocks;
         _allItems = await Task.Run(() => catalogItems.Select(c => new AccountItemRowViewModel
         {
             GameId = c.GameId,
-            DisplayName = c.DisplayName,
+            DisplayName = CatalogGroups.DisplayName(c.DisplayName),
             CategoryLabel = c.CategoryLabel,
-            CatalogGroup = c.CatalogGroup ?? "Uncategorized",
+            CatalogGroup = CatalogGroups.For(c.CatalogGroup, types.GetValueOrDefault(c.GameId)),
             IsUnlocked = unlocks.IsUnlocked(c.GameId)
         }).ToList());
 
-        // EXPD_/TWITCH_ items excluded - they live on their own dedicated pages now.
+        // Expedition and Twitch rewards live on their own pages - including season
+        // rewards without an EXPD_ id (SWARM_HAT), once the catalog lists them.
         _catalogSource = _allItems.Where(i =>
             !i.GameId.StartsWith("EXPD_", StringComparison.OrdinalIgnoreCase) &&
-            !i.GameId.StartsWith("TWITCH_", StringComparison.OrdinalIgnoreCase)).ToList();
+            !i.GameId.StartsWith("TWITCH_", StringComparison.OrdinalIgnoreCase) &&
+            !rewards.ContainsKey(i.GameId)).ToList();
 
         LoadingRing.IsActive = false;
         LoadingRing.Visibility = Visibility.Collapsed;
@@ -127,7 +123,7 @@ public sealed partial class AccountDataPage : Page
     {
         if (_allItems is null) return;
 
-        CatalogCategoriesItemsControl.ItemsSource = CatalogGroupOrder
+        CatalogCategoriesItemsControl.ItemsSource = CatalogGroups.Order
             .Select(group =>
             {
                 var items = _catalogSource.Where(i => i.CatalogGroup == group).ToList();

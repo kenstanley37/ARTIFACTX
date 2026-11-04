@@ -13,12 +13,9 @@ public partial class AccountItemRowViewModel : ObservableObject
     public required string DisplayName { get; init; }
     public required string CategoryLabel { get; init; }
 
-    /// <summary>The reference-tool-style 9-way Catalog grouping (e.g. "Raw Materials",
-    /// "Crafted Products", "Equipment"), from CatalogUnlockableItem.CatalogGroup.
-    /// Always a real string here, never null - AccountDataPage substitutes
-    /// "Uncategorized" for rows the catalog DB couldn't map (mainly Product rows
-    /// whose own WikiCategory is "NotEnabled"), so every row still has SOME
-    /// category checkbox that shows it and nothing silently disappears.</summary>
+    /// <summary>The Catalog page's card for this row (Helpers.AccountData.CatalogGroups):
+    /// the game's Catalogue group, else one from the product's own type. Never null;
+    /// "Uncategorized" only remains for an item neither places.</summary>
     public required string CatalogGroup { get; init; }
 
     /// <summary>Set only on Expedition Rewards: the expedition a reward is from (the

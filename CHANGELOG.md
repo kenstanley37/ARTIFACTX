@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Catalog no longer has a huge Uncategorized section: items the game leaves out of its own Catalogue are sorted by type into Starship Parts, Cosmetics, Consumables, Companion Eggs or the matching existing section. Expedition rewards now appear only on Expedition Rewards, and template names such as "%NAME% IMPLANT" read "… IMPLANT". Needs the game data read again (Settings).
+
 - Catalog, Expedition Rewards and Twitch Rewards: each section now has its own tick-all checkbox (showing how many of its items are unlocked) and a Locked only filter. The page-wide Lock All and Unlock All buttons, which changed every item on the page at once, are gone.
 
 - Expedition Rewards lists every reward from each expedition, grouped under the right one, including the newest expedition and rewards such as Direwasp armour and figurines that were missing. Needs the game data read again (Settings).
