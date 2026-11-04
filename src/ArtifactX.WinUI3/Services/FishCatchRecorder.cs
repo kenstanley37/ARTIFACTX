@@ -56,12 +56,14 @@ public static class FishCatchRecorder
 
         var first = LiveSaveWatcher.FromSession();
         FishCatchService.Observe(FishCatchService.ActiveSaveKey(), first, _fish); // starting counts
+        VisitedSystemsService.Observe(first);
         SnapshotSeen?.Invoke(first);
         var live = new LiveSaveWatcher(_dispatcher);
         live.SnapshotRead += snapshot =>
         {
             LiveSaveWatcher.LatestSnapshot = snapshot;
             FishCatchService.Observe(FishCatchService.ActiveSaveKey(), snapshot, _fish);
+            VisitedSystemsService.Observe(snapshot);
             SnapshotSeen?.Invoke(snapshot);
         };
         _live = live;

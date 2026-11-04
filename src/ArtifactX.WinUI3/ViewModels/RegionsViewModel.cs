@@ -200,6 +200,11 @@ public sealed partial class RegionsViewModel : ObservableObject
             return;
         }
         var visited = systems.Select(s => (int)((s.System >> 40) & 0xFFF)).ToHashSet();
+        // The save forgets old visits (Bug 58); ArtifactX's own history fills them back in.
+        var remembered = VisitedSystemsService.For(VisitedSystemsService.ActiveSaveKey())
+            .Where(s => RegionMapService.RegionKey(s) == key).Select(s => (int)((s >> 40) & 0xFFF))
+            .Where(index => !visited.Contains(index)).Distinct().ToList();
+        visited.UnionWith(remembered);
         var stars = await RegionSystemsService.GetStarsAsync(key);
         ulong? hereSystem = S.ReadSystemAddress(_snapshot.Universe);
         int here = hereSystem is ulong h && RegionMapService.RegionKey(h) == key ? (int)((h >> 40) & 0xFFF) : 0;
@@ -220,7 +225,8 @@ public sealed partial class RegionsViewModel : ObservableObject
         RegionTotalStat = count.Ordinary == 0
             ? "This region lies inside the galactic centre and holds no star systems"
             : string.Create(CultureInfo.CurrentCulture,
-                $"{count.Ordinary:N0} star systems and {count.Purple} purple systems · you've visited {seen:N0} · {unvisited.Count:N0} to go");
+                $"{count.Ordinary:N0} star systems and {count.Purple} purple systems · you've visited {seen:N0} · {unvisited.Count:N0} to go")
+                + (remembered.Count > 0 ? string.Create(CultureInfo.CurrentCulture, $" · {remembered.Count:N0} visited earlier that your save no longer lists") : "");
         SystemsVisited = seen;
         SystemsTotal = Math.Max(1, total);
         UnvisitedCount = unvisited.Count;

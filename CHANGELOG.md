@@ -10,6 +10,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Regions keeps counting systems you visited after the game drops them from your save's own list (it only keeps so many). ArtifactX remembers each save's visits from now on, so a fully explored region can show as complete.
+
 - Cooking Recipes shows the same food effects as the Nutrient Ingestor (Ice Cream is +65% cold resistance, not +164%). Effects whose size depends on your own suit are named without a number.
 
 - Account Data › Catalog is gone, replaced by the new Catalog page. Its account-wide list doesn't decide what the game shows as known, so ticking items there changed nothing in game.
