@@ -284,6 +284,31 @@ public static class CatalogService
         return naming;
     }
 
+    /// <summary>A product or substance's save category ("Product"/"Substance") and
+    /// catalog stack size, for adding it to an inventory; null when it is neither.</summary>
+    public static (string CategoryLabel, int? MaxStackSize)? TryGetStackInfo(string itemId)
+    {
+        if (ResolveDbPath() is not string dbPath) return null;
+        try
+        {
+            using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+                SELECT c.TemplateType, i.MaxStackSize FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                WHERE i.GameId = $id AND c.TemplateType IN ('GcProductTable', 'GcSubstanceTable') LIMIT 1";
+            command.Parameters.AddWithValue("$id", NormalizeId(itemId));
+            using var reader = command.ExecuteReader();
+            if (!reader.Read()) return null;
+            return (ElvLabelFor(reader.GetString(0)), reader.IsDBNull(1) ? null : reader.GetInt32(1));
+        }
+        catch (SqliteException ex)
+        {
+            Debug.WriteLine($"[CatalogService] TryGetStackInfo failed: {ex.Message}");
+            return null;
+        }
+    }
+
     /// <summary>Organic frigate feeding rules (catalog row FRIGATEFEEDING, format
     /// 66), or null for an older catalog.</summary>
     public static Task<FrigateFeedingRules?> GetFrigateFeedingRulesAsync() => Task.Run(() =>

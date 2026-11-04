@@ -638,12 +638,8 @@ public sealed partial class InventorySlotGrid : UserControl
     /// <summary>A full stack of an item in this container: technology is 100
     /// (durability, not a count), products use their stack size times this
     /// container's multiplier, substances 9999 (see the add-item flyout).</summary>
-    public int StackCapFor(string? categoryLabel, int? maxStackSize) => categoryLabel switch
-    {
-        "Technology" => 100,
-        "Product" => ComputeStackCap(maxStackSize, ProductStorageMultiplier),
-        _ => 9999,
-    };
+    public int StackCapFor(string? categoryLabel, int? maxStackSize) =>
+        Helpers.Inventory.StackCaps.For(categoryLabel, maxStackSize, ProductStorageMultiplier);
 
     /// <summary>Unlocked slots with nothing in them.</summary>
     /// <summary>Locked slots this inventory could still unlock (within its
@@ -700,17 +696,6 @@ public sealed partial class InventorySlotGrid : UserControl
             CellChanged?.Invoke(this, EventArgs.Empty);
         }
         return added;
-    }
-
-    /// <summary>Applies this container's storage multiplier to a catalog row's raw
-    /// StackMultiplier, capped at the game's global 9999 ceiling. Falls back to 9999
-    /// outright (skipping the multiplier math entirely) when the catalog has no
-    /// MaxStackSize recorded for this row at all - safer than guessing at a raw
-    /// value we don't actually have.</summary>
-    private static int ComputeStackCap(int? rawStackMultiplier, int storageMultiplier)
-    {
-        if (rawStackMultiplier is not > 0) return 9999;
-        return Math.Min(rawStackMultiplier.Value * storageMultiplier, 9999);
     }
 
     /// <summary>Overlays a small gold badge on a cell that already has its Child

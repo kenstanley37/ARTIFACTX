@@ -65,6 +65,10 @@
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                         <TextBlock Text="{x:Bind Summary}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                                        <Button Content="Add 1 to Exosuit" Click="AddToExosuit_Click" Padding="10,4" Margin="0,2,0,0"
+                                                AutomationProperties.Name="{x:Bind AddName}"
+                                                ToolTipService.ToolTip="Puts one in your Exosuit cargo so you have it at the Feed Vessel. Saved with your other edits (not while the game is running)."/>
+                                        <TextBlock Text="{x:Bind AddedText, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                                     </StackPanel>
                                     <ItemsControl Grid.Column="3" ItemsSource="{x:Bind Traits}">
                                         <ItemsControl.ItemTemplate>
