@@ -12,11 +12,13 @@ public sealed partial class GameCatalogSectionViewModel : ObservableObject
 {
     private readonly CatalogueSection _section;
 
-    public GameCatalogSectionViewModel(CatalogueSection section, List<GameCatalogCategoryViewModel> categories, UnlockListViewModel? list)
+    public GameCatalogSectionViewModel(CatalogueSection section, List<GameCatalogCategoryViewModel> categories, UnlockListViewModel? list,
+        bool tracksKnown)
     {
         _section = section;
         Categories = categories;
         List = list;
+        TracksKnown = tracksKnown;
         Refresh();
     }
 
@@ -27,7 +29,8 @@ public sealed partial class GameCatalogSectionViewModel : ObservableObject
 
     /// <summary>Recipes and Wonders list no items in the game's files - the game fills them at run time.</summary>
     public bool IsAvailable => Categories.Any(c => c.Items.Count > 0);
-    public bool TracksKnown => List is not null;
+    /// <summary>Known state is read (a list, or Wonders' records); editable only with a List.</summary>
+    public bool TracksKnown { get; }
     public string AutomationName => $"{Title}, {CountText}";
 
     [ObservableProperty] public partial string CountText { get; private set; } = "";
@@ -40,12 +43,13 @@ public sealed partial class GameCatalogSectionViewModel : ObservableObject
     public void Refresh()
     {
         foreach (var category in Categories) category.Refresh(TracksKnown);
-        int total = Categories.Sum(c => c.Items.Count);
+        var counted = Categories.Where(c => c.Counted).ToList();
+        int total = counted.Sum(c => c.Items.Count);
         if (!IsAvailable) CountText = "Not shown in ArtifactX yet";
         else if (!TracksKnown) CountText = $"{total:N0} items";
         else
         {
-            int known = Categories.Sum(c => c.Items.Count(i => i.IsUnlocked));
+            int known = counted.Sum(c => c.Items.Count(i => i.IsUnlocked));
             CountText = _section.KnownLabel.Replace("%CURRENT%", known.ToString("N0")).Replace("%AMOUNT%", total.ToString("N0"));
         }
         OnPropertyChanged(nameof(AutomationName));

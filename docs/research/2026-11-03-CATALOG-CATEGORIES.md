@@ -57,6 +57,23 @@ Catalog page (Slot 8, 21 -> 23), saved, and both showed known in game.
 The game's tile order within a category differs from recipe-table order (it starts
 Simple Refiner with Carbon, Ferrite Dust, then Nanite Cluster sixth); not yet matched.
 
+## Wonders (catalog format 64)
+
+The game's 428 = 66 records + 219 fishing + 143 fossils; Personal Records' 12 slots
+are shown but not counted. Exact on both slots: Slot 1 61 + 219 + 143 = 423 (game
+423), Slot 8 45 + 60 + 143 = 248 (game 248).
+
+- Records: fixed-size `GcWonderRecord` arrays (`UqY` GenerationID, `1OQ` value,
+  `y87` seen); a slot is recorded when its GenerationID isn't 0. Save keys in libMBIN
+  field order: `dgD` Planet (11), `MZ1` Fauna (15), `fp9` Flora (8), `bYs` Mineral
+  (8), `e?Y` Treasures (13), `<8Q` Collected Glitches (11), `Svy` Personal (12). Slot
+  names are `GcUIGlobals.Wonder*CategoryConfig[].LocID` ("Hottest Temperature").
+  Personal names are player-entered (not read yet).
+- Fishing Records: 219 tiles on the owner's screenshots = 210 species + 9 flotsam,
+  known when caught (`bTf/yv6` count above 0).
+- Fossil Records: 143 tiles = the ExhibitBone products minus the `BONE_TEMP` template.
+  All 143 count as known on both slots; where that comes from is not found.
+
 ## Write test (2026-11-03)
 
 On Slot 8 the owner ticked greyed Titanic Skull (`STA_09`) on ArtifactX's Catalog
@@ -65,4 +82,4 @@ coloured under Space Station Exterior. Editing `eZ<` unlocks building blueprints
 
 ## Still open
 
-- Materials seen, Recipes, Collected Knowledge and Wonders sources.
+- Materials seen and Collected Knowledge sources; where fossils' known state comes from.

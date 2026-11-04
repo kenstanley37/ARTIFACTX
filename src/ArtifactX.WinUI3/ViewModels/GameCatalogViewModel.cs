@@ -27,6 +27,12 @@ public sealed partial class GameCatalogViewModel : ObservableObject
     public ObservableCollection<GameCatalogSectionViewModel> Sections { get; } = new();
 
     [ObservableProperty] public partial GameCatalogSectionViewModel? SelectedSection { get; set; }
+
+    /// <summary>The selected section's subcategories. Its own property, set before
+    /// SelectedCategory, so the list has its items before it is told which to select
+    /// (bound through SelectedSection.Categories the first one showed unselected,
+    /// owner report 2026-11-03).</summary>
+    [ObservableProperty] public partial IReadOnlyList<GameCatalogCategoryViewModel> Categories { get; private set; } = [];
     [ObservableProperty] public partial GameCatalogCategoryViewModel? SelectedCategory { get; set; }
     [ObservableProperty] public partial string SearchText { get; set; } = "";
     [ObservableProperty] public partial bool ShowLockedOnly { get; set; }
@@ -67,8 +73,15 @@ public sealed partial class GameCatalogViewModel : ObservableObject
             .Select(t => CatalogService.NormalizeId(t.Value<string>() ?? "")).ToHashSet(StringComparer.OrdinalIgnoreCase)
             ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        var fish = await WonderFishAsync();
         foreach (var section in catalogue.Sections)
         {
+            if (section.Key == "UI_PORTAL_CAT_COLLECTION")
+            {
+                Sections.Add(new GameCatalogSectionViewModel(section,
+                    section.Categories.Select(c => WonderCategory(c, catalogue.Names, fish)).ToList(), null, tracksKnown: true));
+                continue;
+            }
             UnlockListViewModel? list = section.Key switch
             {
                 "UI_PORTAL_CAT_CRAFTING" => tech,
@@ -91,7 +104,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
                     return new GameCatalogItemViewModel(id, name, true, false, true, "unlocked as a special reward");
                 return new GameCatalogItemViewModel(id, name, list.IsUnlocked(id), true, true, null);
             }).ToList())).ToList();
-            Sections.Add(new GameCatalogSectionViewModel(section, categories, list));
+            Sections.Add(new GameCatalogSectionViewModel(section, categories, list, tracksKnown: list is not null));
         }
 
         IsLoading = false;
@@ -101,10 +114,50 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         UpdateChanges();
     }
 
+    /// <summary>Fishing Records: the 210 species and 9 flotsam the game lists (owner's
+    /// screenshots, 219 tiles), known once caught (count above 0 in the fishing record).</summary>
+    private static async Task<(List<(string Id, string Name)> Items, HashSet<string> Caught)> WonderFishAsync()
+    {
+        var all = await CatalogService.GetAllUnlockableItemsAsync();
+        var items = CatalogService.FilterFishSpecies(all).Concat(CatalogService.FilterFlotsam(all))
+            .Select(i => (i.GameId, CatalogService.TryGet(i.GameId)?.DisplayName ?? i.DisplayName)).ToList();
+        var ids = (SaveSessionManager.GetValue(NmsFishingPaths.ProductListPath) as JArray)?.Select(t => CatalogService.NormalizeId(t.Value<string>() ?? "")).ToList() ?? new();
+        var counts = (SaveSessionManager.GetValue(NmsFishingPaths.ProductCountListPath) as JArray)?.Select(t => t.Value<int>()).ToList() ?? new();
+        var caught = ids.Zip(counts).Where(p => p.First.Length > 0 && p.Second > 0).Select(p => p.First).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return (items, caught);
+    }
+
+    /// <summary>A Wonders category, read-only: the game records these as you play.</summary>
+    private static GameCatalogCategoryViewModel WonderCategory(Core.Unlocks.CatalogueCategory category, Dictionary<string, string> names,
+        (List<(string Id, string Name)> Items, HashSet<string> Caught) fish)
+    {
+        List<GameCatalogItemViewModel> items;
+        if (category.Type == "Fish")
+            items = fish.Items.Select(f => new GameCatalogItemViewModel(f.Id, f.Name, fish.Caught.Contains(f.Id), false, true,
+                "caught in the game; edit catches on Fishing Records")).ToList();
+        else if (category.Type == "ExhibitBones")
+            items = category.Items.Select(id => new GameCatalogItemViewModel(id, names.GetValueOrDefault(id, "Unnamed fossil"), true, false, true,
+                "always known in the game")).ToList();
+        else
+        {
+            var records = NmsGameCatalogPaths.WonderRecordPaths.TryGetValue(category.Type, out var path)
+                ? SaveSessionManager.GetValue(path) as JArray : null;
+            items = category.Items.Select((id, i) =>
+            {
+                string name = category.ItemNames?.GetValueOrDefault(id) is { Length: > 0 } n ? n : $"Personal Record {i + 1}";
+                bool recorded = records?.ElementAtOrDefault(i)?["UqY"] is JArray generation
+                    && generation.Any(g => g.Type == JTokenType.Integer ? g.Value<long>() != 0 : g.Value<string>() is { } s && s != "0x0" && s != "0");
+                return new GameCatalogItemViewModel(id, name, recorded, false, true, "recorded by the game as you explore");
+            }).ToList();
+        }
+        return new GameCatalogCategoryViewModel(category.Name, items, category.Counted);
+    }
+
     partial void OnSelectedSectionChanged(GameCatalogSectionViewModel? value)
     {
         foreach (var section in Sections) section.IsSelected = section == value;
-        SelectedCategory = value?.Categories.FirstOrDefault(c => c.Items.Count > 0);
+        Categories = value?.Categories ?? [];
+        SelectedCategory = Categories.FirstOrDefault(c => c.Items.Count > 0);
         ApplyFilter();
     }
 

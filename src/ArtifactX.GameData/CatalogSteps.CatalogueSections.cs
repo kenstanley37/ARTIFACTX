@@ -49,13 +49,34 @@ public static partial class CatalogSteps
             wikis.Add((key, wiki));
         }
         var uncraftable = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var fossils = new List<GcProductData>();
         foreach (string table in new[] { "NMS_REALITY_GCPRODUCTTABLE", "NMS_BASEPARTPRODUCTS", "NMS_MODULARCUSTOMISATIONPRODUCTS" })
         {
             if (!index.TryFind($"METADATA/REALITY/TABLES/{table}.MBIN", out var pak, out var entry, out var header)) continue;
             using var data = new MBINFile(new MemoryStream(extraction.ExtractEntryBytes(pak, entry, header)!));
             data.Load();
-            if (data.GetData() is GcProductTable products)
-                uncraftable.UnionWith(products.Table.Where(p => !p.IsCraftable).Select(p => p.ID.Value));
+            if (data.GetData() is not GcProductTable products) continue;
+            uncraftable.UnionWith(products.Table.Where(p => !p.IsCraftable).Select(p => p.ID.Value));
+            fossils.AddRange(products.Table.Where(p => p.Type.ProductCategory == GcProductCategory.ProductCategoryEnum.ExhibitBone));
+        }
+        // Wonders' record slots are named in the UI globals, one config per slot in
+        // the save's array order (GcPlayerStateData.Wonder*Records).
+        var recordNames = new Dictionary<GcWikiTopicType.WikiTopicTypeEnum, string[]>();
+        if (index.TryFind("GCUIGLOBALS.GLOBAL.MBIN", out var uiPak, out var uiEntry, out var uiHeader))
+        {
+            using var data = new MBINFile(new MemoryStream(extraction.ExtractEntryBytes(uiPak, uiEntry, uiHeader)!));
+            data.Load();
+            if (data.GetData() is libMBIN.NMS.Globals.GcUIGlobals ui)
+            {
+                string[] Ids(GcWonderCategoryConfig[] configs) => configs.Select(c => c.LocID.Value).ToArray();
+                recordNames[GcWikiTopicType.WikiTopicTypeEnum.TreasureWonders] = Ids(ui.WonderTreasureCategoryConfig);
+                recordNames[GcWikiTopicType.WikiTopicTypeEnum.WeirdBasePartWonders] = Ids(ui.WonderWeirdBasePartCategoryConfig);
+                recordNames[GcWikiTopicType.WikiTopicTypeEnum.PlanetWonders] = Ids(ui.WonderPlanetCategoryConfig);
+                recordNames[GcWikiTopicType.WikiTopicTypeEnum.CreatureWonders] = Ids(ui.WonderCreatureCategoryConfig);
+                recordNames[GcWikiTopicType.WikiTopicTypeEnum.FloraWonders] = Ids(ui.WonderFloraCategoryConfig);
+                recordNames[GcWikiTopicType.WikiTopicTypeEnum.MineralWonders] = Ids(ui.WonderMineralCategoryConfig);
+                recordNames[GcWikiTopicType.WikiTopicTypeEnum.CustomWonders] = Ids(ui.WonderCustomCategoryConfig);
+            }
         }
         // The Recipes categories list no items: the game fills them from the recipe
         // table - refiner recipes by ingredient count (Refiner1/2/3), cooking recipes
@@ -68,8 +89,18 @@ public static partial class CatalogSteps
             data.Load();
             if (data.GetData() is GcRecipeTable table) recipes.AddRange(table.Table);
         }
-        (string[] Items, Dictionary<string, string[]>? Recipes) Contents(GcWikiCategory category)
+        (string[] Items, Dictionary<string, string[]>? Recipes, Dictionary<string, string>? Names) Contents(GcWikiCategory category)
         {
+            var type = category.Type.WikiTopicType;
+            if (recordNames.TryGetValue(type, out var slots))
+            {
+                var ids = slots.Select((_, i) => $"WONDER:{type}:{i}").ToArray();
+                return (ids, null, ids.Select((id, i) => (id, Text(slots[i]))).ToDictionary(p => p.id, p => p.Item2));
+            }
+            // 143 of the 144 fossil products: BONE_TEMP's name is a fill-in template
+            // ("%NAME% EXHIBIT") and isn't on the game's Fossil Records screen.
+            if (type == GcWikiTopicType.WikiTopicTypeEnum.ExhibitBones)
+                return (fossils.Where(f => !Text(f.Name.Value).Contains('%')).Select(f => f.ID.Value).ToArray(), null, null);
             Func<GcRefinerRecipe, bool>? kind = category.Type.WikiTopicType switch
             {
                 GcWikiTopicType.WikiTopicTypeEnum.RecipesRefiner1 => r => !r.Cooking && r.Ingredients.Count == 1,
@@ -78,12 +109,13 @@ public static partial class CatalogSteps
                 GcWikiTopicType.WikiTopicTypeEnum.RecipesCooker => r => r.Cooking,
                 _ => null,
             };
-            if (kind is null) return (category.Items.Select(i => i.Value).Where(i => i.Length > 0).ToArray(), null);
+            if (kind is null) return (category.Items.Select(i => i.Value).Where(i => i.Length > 0).ToArray(), null, null);
             var byResult = recipes.Where(kind).GroupBy(r => r.Result.Id.Value, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.Select(r => r.Id.Value).ToArray(), StringComparer.OrdinalIgnoreCase);
-            return (byResult.Keys.ToArray(), byResult);
+            return (byResult.Keys.ToArray(), byResult, null);
         }
         var keys = wikis.SelectMany(w => w.Wiki.Categories.Select(c => c.CategoryID.Value).Append(w.Key).Append(w.Key + "_SUB"))
+            .Concat(recordNames.Values.SelectMany(n => n)).Concat(fossils.Select(f => f.Name.Value))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var texts = EnglishTexts(index, extraction, keys);
         // Missing localization stays empty; raw localization ids must never reach players.
@@ -91,8 +123,9 @@ public static partial class CatalogSteps
         var result = wikis.Select(w => new CatalogueSection(w.Key, Text(w.Key), Text(w.Key + "_SUB"),
             w.Wiki.Categories.Select(c =>
             {
-                var (items, itemRecipes) = Contents(c);
-                return new CatalogueCategory(c.CategoryID.Value, Text(c.CategoryID.Value), c.Type.WikiTopicType.ToString(), items, itemRecipes);
+                var (items, itemRecipes, itemNames) = Contents(c);
+                return new CatalogueCategory(c.CategoryID.Value, Text(c.CategoryID.Value), c.Type.WikiTopicType.ToString(), items, itemRecipes,
+                    itemNames, Counted: c.Type.WikiTopicType != GcWikiTopicType.WikiTopicTypeEnum.CustomWonders);
             }).ToArray(),
             w.Wiki.Categories.SelectMany(c => c.Items.Select(i => i.Value)).Where(uncraftable.Contains).Distinct().ToArray())).ToArray();
         foreach (var section in result)

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace ArtifactX.Core.NmsModels;
 
 /// <summary>
@@ -26,4 +28,22 @@ public static class NmsGameCatalogPaths
     /// Slot 8's 11 simple-refiner results match the owner's screenshot by name
     /// (2026-11-03).</summary>
     public static readonly string[] KnownRecipesPath = { "vLc", "6f=", "Ddk" };
+
+    /// <summary>The Wonders record arrays (GcPlayerStateData.Wonder*Records, one
+    /// GcWonderRecord per slot: UqY GenerationID, 1OQ value, y87 seen), keyed by the
+    /// Catalog category type. Found by shape and size on Slot 1 and Slot 8; their save
+    /// order matches libMBIN's field order, which is how same-sized Flora (fp9) and
+    /// Mineral (bYs) were told apart. A slot is recorded when its GenerationID isn't 0:
+    /// with fish caught and all 143 fossils this gives Slot 1 61 + 219 + 143 = 423 and
+    /// Slot 8 45 + 60 + 143 = 248, the game's own counts (2026-11-03).</summary>
+    public static readonly IReadOnlyDictionary<string, string[]> WonderRecordPaths = new Dictionary<string, string[]>
+    {
+        ["PlanetWonders"] = new[] { "vLc", "6f=", "dgD" },
+        ["CreatureWonders"] = new[] { "vLc", "6f=", "MZ1" },
+        ["FloraWonders"] = new[] { "vLc", "6f=", "fp9" },
+        ["MineralWonders"] = new[] { "vLc", "6f=", "bYs" },
+        ["TreasureWonders"] = new[] { "vLc", "6f=", "e?Y" },
+        ["WeirdBasePartWonders"] = new[] { "vLc", "6f=", "<8Q" },
+        ["CustomWonders"] = new[] { "vLc", "6f=", "Svy" },
+    };
 }
