@@ -19,19 +19,22 @@ internal static class CatalogueSectionsService
     /// <param name="IdsByName">Product and procedural-product ids by English name, in
     /// table order: a Treasures or Glitches slot is named after its item ("Historical
     /// Document" = PROC_HIST), so the slot shows that item's outline until it's filled.</param>
+    /// <param name="FishOrder">Each fish's place in the game's fish table, which is the
+    /// order its Fishing Records screen uses (owner's screenshots, 2026-11-03).</param>
     public sealed record Catalogue(CatalogueSection[] Sections, Dictionary<string, string> Names,
-        Dictionary<string, List<string>> IdsByName);
+        Dictionary<string, List<string>> IdsByName, Dictionary<string, int> FishOrder);
 
     public static Task<Catalogue> LoadAsync() => Task.Run(() =>
     {
         var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var idsByName = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-        if (CatalogService.ResolveDbPath() is not string path) return new Catalogue([], names, idsByName);
+        var fishOrder = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        if (CatalogService.ResolveDbPath() is not string path) return new Catalogue([], names, idsByName, fishOrder);
         using var db = new SqliteConnection($"Data Source={path};Mode=ReadOnly");
         db.Open();
         using var query = db.CreateCommand();
         query.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId='CATALOGUESECTIONS'";
-        if (query.ExecuteScalar() is not string text) return new Catalogue([], names, idsByName);
+        if (query.ExecuteScalar() is not string text) return new Catalogue([], names, idsByName, fishOrder);
         var sections = JsonSerializer.Deserialize<CatalogueSection[]>(text) ?? [];
 
         var wanted = sections.SelectMany(s => s.Categories).SelectMany(c => c.Items).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -58,6 +61,10 @@ internal static class CatalogueSectionsService
                 if (!idsByName.TryGetValue(name, out var ids)) idsByName[name] = ids = new();
                 if (!ids.Contains(rows.GetString(0), StringComparer.OrdinalIgnoreCase)) ids.Add(rows.GetString(0));
             }
-        return new Catalogue(sections, names, idsByName);
+        using var fish = db.CreateCommand();
+        fish.CommandText = "SELECT i.GameId FROM Items i JOIN Categories c ON c.Id = i.CategoryId WHERE c.TemplateType = 'Fish' ORDER BY i.Id";
+        using (var rows = fish.ExecuteReader())
+            while (rows.Read()) fishOrder.TryAdd(rows.GetString(0).Replace("FISH:", "", StringComparison.Ordinal), fishOrder.Count);
+        return new Catalogue(sections, names, idsByName, fishOrder);
     });
 }

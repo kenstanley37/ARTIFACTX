@@ -73,7 +73,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
             .Select(t => CatalogService.NormalizeId(t.Value<string>() ?? "")).ToHashSet(StringComparer.OrdinalIgnoreCase)
             ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        var fish = await WonderFishAsync();
+        var fish = await WonderFishAsync(catalogue.FishOrder);
         foreach (var section in catalogue.Sections)
         {
             if (section.Key == "UI_PORTAL_CAT_COLLECTION")
@@ -116,10 +116,11 @@ public sealed partial class GameCatalogViewModel : ObservableObject
 
     /// <summary>Fishing Records: the 210 species and 9 flotsam the game lists (owner's
     /// screenshots, 219 tiles), known once caught (count above 0 in the fishing record).</summary>
-    private static async Task<(List<(string Id, string Name)> Items, HashSet<string> Caught)> WonderFishAsync()
+    private static async Task<(List<(string Id, string Name)> Items, HashSet<string> Caught)> WonderFishAsync(Dictionary<string, int> order)
     {
         var all = await CatalogService.GetAllUnlockableItemsAsync();
         var items = CatalogService.FilterFishSpecies(all).Concat(CatalogService.FilterFlotsam(all))
+            .OrderBy(i => order.GetValueOrDefault(i.GameId, int.MaxValue))
             .Select(i => (i.GameId, DisplayCase(i.DisplayName))).ToList();
         var ids = (SaveSessionManager.GetValue(NmsFishingPaths.ProductListPath) as JArray)?.Select(t => CatalogService.NormalizeId(t.Value<string>() ?? "")).ToList() ?? new();
         var counts = (SaveSessionManager.GetValue(NmsFishingPaths.ProductCountListPath) as JArray)?.Select(t => t.Value<int>()).ToList() ?? new();
