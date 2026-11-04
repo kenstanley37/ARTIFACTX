@@ -12,8 +12,9 @@ public sealed partial class EggCatalystRowViewModel : ObservableObject
     private static readonly string[] NegativeKeys = ["UI_PET_PLAYFUL_RATING", "UI_PET_GENTLENESS_RATING", "UI_PET_ATTACHMENT_RATING"];
 
     public EggCatalystRowViewModel(string id, string name, bool isSubstance, long value, EggCatalystEffect effect,
-        EggCatalystSlot slot, int itemLimit, Func<string, string> text)
+        EggCatalystSlot slot, int itemLimit, Func<string, string> text, long owned = 0)
     {
+        Owned = owned;
         Id = id;
         Name = name;
         IsSubstance = isSubstance;
@@ -47,10 +48,17 @@ public sealed partial class EggCatalystRowViewModel : ObservableObject
     public string EffectText { get; }
     public string AmountText { get; }
 
+    /// <summary>How many the loaded save carries across its inventories.</summary>
+    public long Owned { get; }
+    public bool HasOwned => Owned > 0;
+    public string OwnedText => Owned > 0 ? $"You have {Owned:N0}" : "";
+    public string OwnedSuffix => Owned > 0 ? $" · {OwnedText}" : "";
+    public bool OwnsEnough => Owned >= Needed;
+
     /// <summary>How many give the slot's full effect, for sorting.</summary>
     public int Needed => Slot is EggCatalystSlot.GeneSplitter or EggCatalystSlot.DyeInjector ? Effect.CertainChangeCount : Effect.FullDoseCount;
 
     [ObservableProperty] public partial ImageSource? Icon { get; set; }
 
-    public string AccessibleName => $"{Name}. {EffectText}. {AmountText}. Put in the slot.";
+    public string AccessibleName => $"{Name}. {EffectText}. {AmountText}. {OwnedText}. Put in the slot.";
 }

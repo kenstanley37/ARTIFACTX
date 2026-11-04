@@ -57,10 +57,12 @@ public sealed partial class EggSlotViewModel : ObservableObject
     public string AccessibleName => Item is null ? $"{Name}, empty. {Subtitle}." : $"{Name}: {(int)Count} {Item.Name}. {DoseText}. {Explanation}";
 
     /// <summary>Put an item in the slot at the amount the game needs for its full effect.</summary>
+    /// When the save carries some, no more than it has (the game only takes what you carry).
     public void SetItem(EggCatalystRowViewModel? item)
     {
         Item = item;
-        Count = item is null ? 0 : Math.Max(1, EggSequencer.SuggestedCount(Slot, item.Effect, _rules));
+        int suggested = item is null ? 0 : Math.Max(1, EggSequencer.SuggestedCount(Slot, item.Effect, _rules));
+        Count = item is { Owned: > 0 } ? Math.Min(suggested, item.Owned) : suggested;
         Refresh();
     }
 

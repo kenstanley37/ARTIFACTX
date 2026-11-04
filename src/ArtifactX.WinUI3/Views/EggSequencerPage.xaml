@@ -132,6 +132,9 @@
                           SelectedItem="{x:Bind ViewModel.Filter, Mode=TwoWay}" AutomationProperties.Name="Filter items by effect"/>
                 <TextBox Header="Search" Width="220" PlaceholderText="e.g. Sac Venom"
                          Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Search items"/>
+                <CheckBox Content="Only items I have" IsChecked="{x:Bind ViewModel.OnlyOwned, Mode=TwoWay}" VerticalAlignment="Bottom"
+                          Visibility="{x:Bind ViewModel.HasSave, Mode=OneWay}"
+                          ToolTipService.ToolTip="Items carried in your Exosuit, starships, Exocraft, freighter and storage containers."/>
                 <TextBlock Text="{x:Bind ViewModel.Message, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                            VerticalAlignment="Bottom" Margin="0,0,0,8" TextWrapping="Wrap" MaxWidth="420"/>
             </ctcontrols:WrapPanel>
@@ -139,7 +142,7 @@
             <GridView Grid.Row="2" ItemsSource="{x:Bind ViewModel.Items}" SelectionMode="None" IsItemClickEnabled="True" ItemClick="Item_Click">
                 <GridView.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <ItemsWrapGrid Orientation="Horizontal" ItemWidth="250" ItemHeight="96"/>
+                        <ItemsWrapGrid Orientation="Horizontal" ItemWidth="270" ItemHeight="96"/>
                     </ItemsPanelTemplate>
                 </GridView.ItemsPanel>
                 <GridView.ItemContainerStyle>
@@ -152,7 +155,7 @@
                 </GridView.ItemContainerStyle>
                 <GridView.ItemTemplate>
                     <DataTemplate x:DataType="viewmodels:EggCatalystRowViewModel">
-                        <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Width="240" Height="86"
+                        <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Width="260" Height="86"
                                 Background="{ThemeResource ThemePanelAltBrush}"
                                 CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="10,8"
                                 AutomationProperties.Name="{x:Bind AccessibleName}">
@@ -168,7 +171,10 @@
                                     <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="13"
                                                TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Name}"/>
                                     <TextBlock Text="{x:Bind EffectText}" Foreground="{ThemeResource ThemeAccentBrush}" FontWeight="SemiBold" FontSize="13"/>
-                                    <TextBlock Text="{x:Bind AmountText}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextTrimming="CharacterEllipsis">
+                                        <Run Text="{x:Bind AmountText}"/>
+                                        <Run Text="{x:Bind OwnedSuffix}" Foreground="{ThemeResource ThemeTextBrush}"/>
+                                    </TextBlock>
                                 </StackPanel>
                             </Grid>
                         </Border>

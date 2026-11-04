@@ -27,6 +27,7 @@ public sealed partial class EggSequencerViewModel : ObservableObject
     private EggSequencerRules? _rules;
     private List<(ItemValueInfo Item, EggCatalystEffect Effect)> _items = [];
     private List<EggCatalystRowViewModel> _slotRows = [];
+    private Dictionary<string, long> _owned = new(StringComparer.OrdinalIgnoreCase);
 
     public ObservableCollection<EggSlotViewModel> Slots { get; } = [];
     public ObservableCollection<EggCatalystRowViewModel> Items { get; } = [];
@@ -41,6 +42,8 @@ public sealed partial class EggSequencerViewModel : ObservableObject
     [ObservableProperty] public partial string StatusHeading { get; private set; } = "";
     [ObservableProperty] public partial string DoseNote { get; private set; } = "";
     [ObservableProperty] public partial bool IsReady { get; private set; }
+    [ObservableProperty] public partial bool OnlyOwned { get; set; }
+    [ObservableProperty] public partial bool HasSave { get; private set; }
 
     public async Task LoadAsync()
     {
@@ -60,6 +63,9 @@ public sealed partial class EggSequencerViewModel : ObservableObject
             .Select(v => (v, EggSequencer.Effect(v.Id, v.Kind == "Substance", v.Value, fullDose, rules)))
             .ToList());
         await CatalogService.WarmCacheAsync(_items.Select(i => i.Item.Id));
+        _owned = InventoryTotalsService.Count();
+        HasSave = _owned.Count > 0;
+        OnlyOwned = HasSave;
 
         Title = Text("UI_EGG_MODIFIER_NAME_L");
         CatalystsHeading = Text("UI_EGG_MODIFIER_INPUT_HEADING");
@@ -79,7 +85,7 @@ public sealed partial class EggSequencerViewModel : ObservableObject
         foreach (var s in Slots) s.IsSelected = s == slot;
         SelectedSlot = slot;
         _slotRows = _items.Select(i => new EggCatalystRowViewModel(i.Item.Id, i.Item.Name, i.Item.Kind == "Substance", i.Item.Value,
-                i.Effect, slot.Slot, _rules.ItemLimit, Text) { Icon = CatalogService.TryGet(i.Item.Id)?.Icon })
+                i.Effect, slot.Slot, _rules.ItemLimit, Text, _owned.GetValueOrDefault(i.Item.Id)) { Icon = CatalogService.TryGet(i.Item.Id)?.Icon })
             .ToList();
         FilterOptions = Options(slot.Slot);
         Filter = FilterOptions[0];
@@ -93,6 +99,7 @@ public sealed partial class EggSequencerViewModel : ObservableObject
 
     partial void OnFilterChanged(EggFilterOption? value) => Apply();
     partial void OnSearchTextChanged(string value) => Apply();
+    partial void OnOnlyOwnedChanged(bool value) => Apply();
 
     private IReadOnlyList<EggFilterOption> Options(EggCatalystSlot slot)
     {
@@ -115,12 +122,16 @@ public sealed partial class EggSequencerViewModel : ObservableObject
         var rows = _slotRows.Where(r => r.HasEffect)
             .Where(r => Filter?.Matches(r) ?? true)
             .Where(r => text.Length == 0 || r.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase))
-            .OrderBy(r => r.Needed)
+            .Where(r => !OnlyOwned || r.HasOwned)
+            .OrderByDescending(r => OnlyOwned && r.OwnsEnough)
+            .ThenBy(r => r.Needed)
             .ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
         Items.Clear();
         foreach (var row in rows) Items.Add(row);
-        Message = $"{rows.Count:N0} items work in the {SelectedSlot?.Name}, fewest needed first. Click one to put it in.";
+        Message = OnlyOwned
+            ? $"{rows.Count:N0} of your items work in the {SelectedSlot?.Name}; ones you have enough of come first. Click one to put it in."
+            : $"{rows.Count:N0} items work in the {SelectedSlot?.Name}, fewest needed first. Click one to put it in.";
     }
 
     private string Text(string key) => _rules?.Texts.TryGetValue(key, out var t) == true && t.Length > 0 ? t : key;
