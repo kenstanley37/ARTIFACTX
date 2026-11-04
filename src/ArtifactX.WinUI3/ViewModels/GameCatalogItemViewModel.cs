@@ -38,6 +38,9 @@ public sealed partial class GameCatalogItemViewModel : ObservableObject, IUnlock
 
     public double TileOpacity => !ShowState || IsUnlocked ? 1 : 0.45;
     public bool ShowTick => ShowState && CanEdit;
+
+    /// <summary>A Wonders record slot ("WONDER:PlanetWonders:3"): no item picture.</summary>
+    public bool IsRecord => GameId.StartsWith("WONDER:", System.StringComparison.Ordinal);
     public bool ShowLock => ShowState && !CanEdit;
     public string ToolTip => ReadOnlyReason is null ? Name : $"{Name} - {ReadOnlyReason}";
 

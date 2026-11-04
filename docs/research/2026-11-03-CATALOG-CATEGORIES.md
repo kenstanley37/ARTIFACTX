@@ -73,6 +73,8 @@ are shown but not counted. Exact on both slots: Slot 1 61 + 219 + 143 = 423 (gam
   known when caught (`bTf/yv6` count above 0).
 - Fossil Records: 143 tiles = the ExhibitBone products minus the `BONE_TEMP` template.
   All 143 count as known on both slots; where that comes from is not found.
+- Owner confirmed in the app 2026-11-03: Slot 8 shows Oddities Recorded 248/428 with
+  the game's record names (Treasures 4/13, Planet 11/11, Fishing 60/219, Fossils 143/143).
 
 ## Write test (2026-11-03)
 

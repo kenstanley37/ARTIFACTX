@@ -115,6 +115,9 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
                                 <Image Source="{x:Bind Icon, Mode=OneWay}" Width="72" Height="72" Opacity="{x:Bind TileOpacity, Mode=OneWay}"/>
+                                <!-- Wonders records have no item picture: a trophy instead of a blank square. -->
+                                <FontIcon Glyph="&#xE734;" FontSize="40" Foreground="{ThemeResource ThemeAccentBrush}"
+                                          Opacity="{x:Bind TileOpacity, Mode=OneWay}" Visibility="{x:Bind IsRecord}"/>
                                 <TextBlock Grid.Row="1" Text="{x:Bind Name}" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2"
                                            TextTrimming="CharacterEllipsis" FontSize="12" Opacity="{x:Bind TileOpacity, Mode=OneWay}"
                                            Foreground="{ThemeResource ThemeTextBrush}"/>
