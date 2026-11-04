@@ -86,7 +86,6 @@
                             <FontIcon Glyph="&#xE77B;" FontFamily="Segoe MDL2 Assets"/>
                         </NavigationViewItem.Icon>
                         <NavigationViewItem.MenuItems>
-                            <NavigationViewItem Content="Catalog (account list)" Tag="AccountData" Icon="List"/>
                             <NavigationViewItem x:Name="GuideNavItem" Content="Guide" Tag="Guide">
                                 <NavigationViewItem.Icon>
                                     <FontIcon Glyph="&#xE82D;" FontFamily="Segoe MDL2 Assets"/>

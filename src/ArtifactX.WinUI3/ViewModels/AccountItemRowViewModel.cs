@@ -13,9 +13,8 @@ public partial class AccountItemRowViewModel : ObservableObject, IUnlockRow
     public required string DisplayName { get; init; }
     public required string CategoryLabel { get; init; }
 
-    /// <summary>The Catalog page's card for this row (Helpers.AccountData.CatalogGroups):
-    /// the game's Catalogue group, else one from the product's own type. Never null;
-    /// "Uncategorized" only remains for an item neither places.</summary>
+    /// <summary>The catalog's top-level group for this row (CatalogUnlockableItem.CatalogGroup),
+    /// "Uncategorized" when it has none. Never null.</summary>
     public required string CatalogGroup { get; init; }
 
     /// <summary>Set only on Expedition Rewards: the expedition a reward is from (the
