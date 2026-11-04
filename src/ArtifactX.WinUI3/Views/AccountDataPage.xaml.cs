@@ -91,6 +91,7 @@ public sealed partial class AccountDataPage : Page
 
         _unlocks.Load();
         var unlocks = _unlocks;
+        var products = catalogItems.Where(c => c.TemplateType == "GcProductTable").Select(c => c.GameId).ToHashSet(StringComparer.Ordinal);
         _allItems = await Task.Run(() => catalogItems.Select(c => new AccountItemRowViewModel
         {
             GameId = c.GameId,
@@ -100,9 +101,13 @@ public sealed partial class AccountDataPage : Page
             IsUnlocked = unlocks.IsUnlocked(c.GameId)
         }).ToList());
 
+        // Products only: on the owner's account (2026-11-03) B1h held 4,281 of the
+        // catalog's 4,508 products and none of its 372 technologies, 254 procedural
+        // upgrade modules or 82 substances - known technology is per save (Catalogue
+        // page), so ticking those here wrote ids the game never reads from this list.
         // Expedition and Twitch rewards live on their own pages - including season
         // rewards without an EXPD_ id (SWARM_HAT), once the catalog lists them.
-        _catalogSource = _allItems.Where(i =>
+        _catalogSource = _allItems.Where(i => products.Contains(i.GameId) &&
             !i.GameId.StartsWith("EXPD_", StringComparison.OrdinalIgnoreCase) &&
             !i.GameId.StartsWith("TWITCH_", StringComparison.OrdinalIgnoreCase) &&
             !rewards.ContainsKey(i.GameId)).ToList();

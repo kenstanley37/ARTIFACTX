@@ -8,7 +8,9 @@ namespace ArtifactX.WinUI3.Helpers.AccountData;
 /// its Catalogue (WikiCategory NotEnabled - 1,215 of them in build 184271) are
 /// placed by their product type instead of one huge "Uncategorized" card (owner
 /// feedback 2026-11-03). Page-only grouping: the catalog's CatalogGroup itself is
-/// untouched, since inventory sorting and the recipe filter read it.
+/// untouched, since inventory sorting and the recipe filter read it. Only products
+/// are listed (see AccountDataPage), so the substance and technology groups - Raw
+/// Materials, Equipment - have no card.
 /// </summary>
 public static class CatalogGroups
 {
@@ -17,8 +19,7 @@ public static class CatalogGroups
     /// <summary>Fixed card order, so the page reads the same way every time.</summary>
     public static readonly string[] Order =
     [
-        "Raw Materials", "Crafted Products", "Equipment", "Constructed Technology",
-        "Construction Parts", "Starship Parts", "Trade Goods", "Curiosities", "Cooking Products",
+        "Crafted Products", "Constructed Technology", "Construction Parts", "Starship Parts", "Trade Goods", "Curiosities", "Cooking Products",
         "Consumables", "Cosmetics", "Companion Eggs", Uncategorized,
     ];
 

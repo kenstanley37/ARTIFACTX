@@ -13,6 +13,11 @@ public sealed class CatalogUnlockableItem
     public required string DisplayName { get; init; }
     public required string CategoryLabel { get; init; }
 
+    /// <summary>The catalog table the row came from (GcProductTable, GcTechnologyTable,
+    /// GcProceduralTechnologyTable, GcSubstanceTable). Procedural modules read as
+    /// "Product" in CategoryLabel, so filters that care about the real kind use this.</summary>
+    public string TemplateType { get; init; } = "";
+
     /// <summary>Technology-only slot signal (Suit/Ship/Weapon/Freighter/"All"
     /// for tech usable everywhere) - the same field the Exosuit/Ships/
     /// MultiTool/Freighter pages already filter their own tech grids by (see

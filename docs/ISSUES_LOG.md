@@ -495,3 +495,15 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Not yet confirmed**: the size of the save's visit list and which entries it drops first; establish with a controlled check (a save near the limit, one new visit, compare) before relying on a number.
 - **Proposed direction**: ArtifactX records every visited system it sees (each live snapshot already passes through `FishCatchRecorder.SnapshotSeen`) in `user.db` through an additive migration, and Regions counts the union of that history and the save. Discovery records that survive in the save (planets discovered by the player) can backfill systems the history has not seen. Mark systems known only from the history so the page never overstates what the save itself holds.
 
+## 2026-11-03 catalog unlock findings
+
+### Finding: Account B1h Holds Only Products and Does Not Drive the In-Game Catalog
+- **Evidence (owner's account, build 184271, 2026-11-03, read-only)**: `B89/B1h` held 4,281 of the catalog's 4,508 products and 0 of its 372 technologies, 254 procedural upgrade modules and 82 substances. Twelve Space Station Exterior parts the game shows greyed out (`STA_09`, `STA_11`, `STA_12`, `STA_16`, `STA_17`, `STA_21`, `STA_22`, `STA_24`-`STA_27`, `STA_29`) are all in B1h. Many of B1h's fully unlocked groups may have been bulk-written by earlier ArtifactX versions, so B1h's natural contents are unconfirmed.
+- **Per-save list**: Slot 1's `vLc/6f=/eZ<` (2,105 ids, GcPlayerStateData.KnownProducts by its contents) holds none of those 12 greyed parts and both coloured ones checked (`STA_08` Vacated Shell, `STA_23` Shelter Pod). The Freighter Upgrades page already edits `eZ<`.
+- **Done**: the Catalog page lists products only (`feature/catalog-product-types`), so it no longer offers technology, upgrade modules or substances that B1h never holds.
+- **Next**: a controlled Slot 8 test (add one greyed station part to `eZ<`, save, check the in-game Catalog) before any per-save blueprint editor; then consider moving product unlocks from B1h to `eZ<`.
+
+### Feature 59: How to Obtain Each Item
+- **Source**: Owner, 2026-11-03: newer Space Station Exterior parts appear greyed in game with no hint how to get them.
+- **Direction**: build a per-item "how to get it" source from extracted game data: expedition rewards (catalog format 60), Twitch rewards, the Quicksilver and Anomaly shop and construction-terminal unlock trees (GcUnlockableTrees), platform rewards and recipes. Show it beside each item on the unlock pages. Unknown sources stay marked unknown.
+
