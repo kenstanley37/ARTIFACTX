@@ -10,6 +10,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 - Treasures and other procedural items (fossils, bio samples, salvaged loot, dismantled parts) show their own name from the game, like "Shiny Bones", in the Catalog's Wonders and in your inventories. Needs the game data read again (Settings).
 
+- Egg Sequencer page under Reference: for every item, which personality trait it raises or lowers in the Neural Calibrator, whether the Growth Hormone makes the creature bigger or smaller, and how many make a full dose or a certain colour or anatomy change. Filter by the effect you want. Needs the game data read again (Settings).
+
 ### Fixed
 
 - Regions keeps counting systems you visited after the game drops them from your save's own list (it only keeps so many). ArtifactX remembers each save's visits from now on, so a fully explored region can show as complete.

@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.UI.Xaml.Media.Imaging;
+using ArtifactX.Core.Companions;
 using ArtifactX.Core.Procedural;
 using ArtifactX.WinUI3.Models;
 using System;
@@ -281,6 +282,27 @@ public static class CatalogService
         }
         return naming;
     }
+
+    /// <summary>The Egg Sequencer's rules (catalog row EGGSEQUENCER, format 66),
+    /// or null for an older catalog.</summary>
+    public static Task<EggSequencerRules?> GetEggSequencerRulesAsync() => Task.Run(() =>
+    {
+        if (ResolveDbPath() is not string dbPath) return null;
+        try
+        {
+            using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId = 'EGGSEQUENCER'";
+            return command.ExecuteScalar() is string json
+                ? System.Text.Json.JsonSerializer.Deserialize<EggSequencerRules>(json) : null;
+        }
+        catch (Exception ex) when (ex is SqliteException or System.Text.Json.JsonException)
+        {
+            Debug.WriteLine($"[CatalogService] Egg Sequencer rules unavailable: {ex.Message}");
+            return null;
+        }
+    });
 
     /// <summary>The technology id a packaged-tech "UP_" id was cut from: an exact
     /// match, else the shortest technology id starting with it.</summary>
