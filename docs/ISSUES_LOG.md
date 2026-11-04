@@ -380,6 +380,7 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Request**: Help players understand egg sequencing inputs and outcomes.
 - **Status**: Rules read off NMS.exe 2026-11-04 and matched against the owner's sequencer screens (Ice Cream, Frozen Tubers overdose 102%, Ferrite Dust, Viscous Custard, Shadow Lure: every dose and direction agrees). Built on `feature/egg-sequencer-helper`: Reference > Egg Sequencer copies the game's screen - pick a slot, see only its items, filter by effect, put one in and read the dose and what will happen (Core `EggSequencer`, catalog format 66). Awaiting owner test of the page.
 - **Research / scope**: Establish supported ingredient effects, dose behavior and egg/parent inputs using extracted game data and controlled in-game tests. Separate known effects from uncertain predictions; exact outcome generation remains research until verified.
+- **Later (owner, 2026-11-04)**: a 3D preview of what the sequenced creature will look like, once creature generation is solved - after every planet's creatures are shown on Current System (Features 45 and 48), reusing that renderer.
 - **Architecture**: Put reusable sequencing rules and result models in the shared libraries so both WinUI and a future MAUI helper can use them. Keep platform UI and local save access separate.
 - **Acceptance**: Compare supported predictions with in-game sequencer results; do not require a save edit merely to use the helper.
 
