@@ -3,7 +3,6 @@ using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,8 +24,8 @@ public sealed partial class TwitchRewardsPage : Page
     private List<AccountItemRowViewModel> _twitchSource = new();
     private List<AccountItemRowViewModel> _currentlyVisibleRows = new();
 
-    private List<string> _workingIds = new();
-    private HashSet<string> _workingIdSet = new(StringComparer.Ordinal);
+    private readonly AccountUnlocksViewModel _unlocks = new();
+    private readonly HashSet<string> _lockedOnly = new(StringComparer.Ordinal);
 
     public TwitchRewardsPage()
     {
@@ -78,11 +77,9 @@ public sealed partial class TwitchRewardsPage : Page
 
         var catalogItems = await CatalogService.GetAllUnlockableItemsAsync();
 
-        var unlockedArray = AccountSessionManager.GetValue(NmsAccountData.UnlockedItemsPath) as JArray;
-        _workingIds = unlockedArray?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
-        _workingIdSet = new HashSet<string>(_workingIds.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
+        _unlocks.Load();
 
-        var workingIdSet = _workingIdSet;
+        var unlocks = _unlocks;
         _allItems = await Task.Run(() => catalogItems
             .Where(c => c.GameId.StartsWith("TWITCH_", StringComparison.OrdinalIgnoreCase))
             .Select(c => new AccountItemRowViewModel
@@ -91,7 +88,7 @@ public sealed partial class TwitchRewardsPage : Page
                 DisplayName = c.DisplayName,
                 CategoryLabel = c.CategoryLabel,
                 CatalogGroup = c.CatalogGroup ?? "Uncategorized",
-                IsUnlocked = workingIdSet.Contains(c.GameId)
+                IsUnlocked = unlocks.IsUnlocked(c.GameId)
             }).ToList());
 
         _twitchSource = _allItems;
@@ -124,54 +121,11 @@ public sealed partial class TwitchRewardsPage : Page
         _currentlyVisibleRows = filtered.ToList();
 
         CategoriesItemsControl.ItemsSource = _currentlyVisibleRows.Count > 0
-            ? new List<CatalogCategorySectionViewModel> { new()
-                {
-                    Header = $"Twitch Drops ({_currentlyVisibleRows.Count})",
-                    Items = _currentlyVisibleRows,
-                    ListHeight = Math.Min(_currentlyVisibleRows.Count * 36 + 8, 420)
-                } }
-            : new List<CatalogCategorySectionViewModel>();
+            ? new List<UnlockSectionViewModel> { new("twitch", "Twitch Drops", _currentlyVisibleRows,
+                Math.Min(_currentlyVisibleRows.Count * 48 + 24, 420), _unlocks, _lockedOnly) }
+            : new List<UnlockSectionViewModel>();
 
         ResultCountTxt.Text = $"{_currentlyVisibleRows.Count:N0} of {_twitchSource.Count:N0} items";
-    }
-
-    private void SetRowUnlocked(AccountItemRowViewModel row, bool unlock)
-    {
-        row.IsUnlocked = unlock;
-
-        if (unlock)
-        {
-            if (_workingIdSet.Add(row.GameId))
-                _workingIds.Add("^" + row.GameId);
-        }
-        else
-        {
-            if (_workingIdSet.Remove(row.GameId))
-                _workingIds.RemoveAll(id => CatalogService.NormalizeId(id) == row.GameId);
-        }
-    }
-
-    private void ItemCheckBox_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not CheckBox cb || cb.Tag is not AccountItemRowViewModel row) return;
-
-        SetRowUnlocked(row, cb.IsChecked ?? false);
-        AccountSessionManager.StageEdit(new JArray(_workingIds), NmsAccountData.UnlockedItemsPath);
-    }
-
-    private void UnlockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(unlock: true);
-
-    private void LockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(unlock: false);
-
-    private void BulkSetRows(bool unlock)
-    {
-        if (_currentlyVisibleRows.Count == 0) return;
-
-        foreach (var row in _currentlyVisibleRows)
-            SetRowUnlocked(row, unlock);
-
-        AccountSessionManager.StageEdit(new JArray(_workingIds), NmsAccountData.UnlockedItemsPath);
-        ApplyFilters();
     }
 
     private void UpdateEditButtons()

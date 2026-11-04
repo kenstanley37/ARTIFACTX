@@ -4,6 +4,7 @@
     x:Class="ArtifactX.WinUI3.Views.AccountDataPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
     xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -12,62 +13,12 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Page.Resources>
-        <DataTemplate x:Key="AccountItemRowTemplate" x:DataType="viewmodels:AccountItemRowViewModel">
-            <Grid Padding="4,6" ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <!-- Width/MinWidth/Padding all explicit - WinUI3's default CheckBox
-                     style reserves a generous label/touch-target area even with no
-                     Content set, which otherwise pushes the Auto-width column 0 wide
-                     and strands the name text far right (same root cause already
-                     fixed once on Guide's own per-topic checkboxes - see
-                     project_guide_page.md - just never carried over to this row
-                     template, which predates that fix). -->
-                <CheckBox Grid.Column="0" Width="30" MinWidth="0" Padding="0" HorizontalContentAlignment="Center"
-                          IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
-                          Click="ItemCheckBox_Click" Tag="{x:Bind}" VerticalAlignment="Center" AutomationProperties.Name="{x:Bind DisplayName}"/>
-                <!-- GameId shown under every row, not just when it's ambiguous -
-                     many base-building parts (straight/corner/cap connector
-                     variants of the same piece) legitimately share one display
-                     name across several distinct ids (up to 16 for some pieces),
-                     which read as duplicate/buggy rows without this (user feedback
-                     2026-08-05). Differing checkbox states on those rows was
-                     already proof they're real separate items, just easy to miss. -->
-                <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind DisplayName}" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource ThemeTextBrush}"/>
-                    <TextBlock Text="{x:Bind GameId}" FontSize="10" Foreground="{ThemeResource ThemeTextFaintBrush}"
-                               TextTrimming="CharacterEllipsis"/>
-                </StackPanel>
-                <Border Grid.Column="2" Visibility="{x:Bind ExpeditionVisibility}"
-                        BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="1"
-                        CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind ExpeditionLabel}" FontSize="11" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                </Border>
-                <Border Grid.Column="3" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                        CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind CategoryLabel}" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                </Border>
-            </Grid>
-        </DataTemplate>
 
         <ItemsPanelTemplate x:Key="CategoryCardWrapPanelTemplate">
             <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="16"/>
         </ItemsPanelTemplate>
-        <DataTemplate x:Key="CategoryCardTemplate" x:DataType="viewmodels:CatalogCategorySectionViewModel">
-            <Border Style="{StaticResource ThemeCardStyle}" Width="420" VerticalAlignment="Top">
-                <StackPanel>
-                    <Border Style="{StaticResource ThemeBandStyle}">
-                        <TextBlock Text="{x:Bind HeaderUpper}" Style="{StaticResource ThemeBandTextStyle}" TextTrimming="CharacterEllipsis"/>
-                    </Border>
-                    <ListView ItemsSource="{x:Bind Items}" SelectionMode="None" Margin="6,8,6,8"
-                              Height="{x:Bind ListHeight}"
-                              ItemTemplate="{StaticResource AccountItemRowTemplate}"/>
-                </StackPanel>
-            </Border>
+        <DataTemplate x:Key="CategoryCardTemplate" x:DataType="viewmodels:UnlockSectionViewModel">
+            <controls:UnlockSectionCard Section="{x:Bind}"/>
         </DataTemplate>
     </Page.Resources>
 
@@ -170,19 +121,13 @@
                     <Grid ColumnSpacing="12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" x:Name="CatalogResultCountTxt" VerticalAlignment="Center" FontSize="12"
                                    Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                        <Button Grid.Column="1" x:Name="CatalogLockAllBtn" Content="Lock All" Click="CatalogLockAllBtn_Click"
-                                ToolTipService.ToolTip="Locks every item in the Catalog list"/>
-                        <Button Grid.Column="2" x:Name="CatalogUnlockAllBtn" Content="Unlock All" Click="CatalogUnlockAllBtn_Click"
-                                ToolTipService.ToolTip="Unlocks every item in the Catalog list"/>
                     </Grid>
 
                     <!-- Grouped into per-category cards, not one flat list - see
-                         CatalogCategorySectionViewModel.ListHeight for why each card's
+                         UnlockSectionViewModel.ListHeight for why each card's
                          item list is a real ListView (not a plain ItemsControl) with a
                          bounded/scrollable height - CatalogGroup's per-category counts
                          range from ~40 to ~1,700, far past what a non-virtualizing panel

@@ -4,6 +4,7 @@
     x:Class="ArtifactX.WinUI3.Views.ExpeditionRewardsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
     xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -12,43 +13,12 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Page.Resources>
-        <DataTemplate x:Key="AccountItemRowTemplate" x:DataType="viewmodels:AccountItemRowViewModel">
-            <Grid Padding="4,6" ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <CheckBox Grid.Column="0" Width="30" MinWidth="0" Padding="0" HorizontalContentAlignment="Center"
-                          IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
-                          Click="ItemCheckBox_Click" Tag="{x:Bind}" VerticalAlignment="Center" AutomationProperties.Name="{x:Bind DisplayName}"/>
-                <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind DisplayName}" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource ThemeTextBrush}"/>
-                    <TextBlock Text="{x:Bind GameId}" FontSize="10" Foreground="{ThemeResource ThemeTextFaintBrush}"
-                               TextTrimming="CharacterEllipsis"/>
-                </StackPanel>
-                <!-- No expedition badge: each card's header already names its expedition. -->
-                <Border Grid.Column="2" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                        CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind CategoryLabel}" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                </Border>
-            </Grid>
-        </DataTemplate>
 
         <ItemsPanelTemplate x:Key="CategoryCardWrapPanelTemplate">
             <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="16"/>
         </ItemsPanelTemplate>
-        <DataTemplate x:Key="CategoryCardTemplate" x:DataType="viewmodels:CatalogCategorySectionViewModel">
-            <Border Style="{StaticResource ThemeCardStyle}" Width="420" VerticalAlignment="Top">
-                <StackPanel>
-                    <Border Style="{StaticResource ThemeBandStyle}">
-                        <TextBlock Text="{x:Bind HeaderUpper}" Style="{StaticResource ThemeBandTextStyle}" TextTrimming="CharacterEllipsis"/>
-                    </Border>
-                    <ListView ItemsSource="{x:Bind Items}" SelectionMode="None" Margin="6,8,6,8"
-                              Height="{x:Bind ListHeight}"
-                              ItemTemplate="{StaticResource AccountItemRowTemplate}"/>
-                </StackPanel>
-            </Border>
+        <DataTemplate x:Key="CategoryCardTemplate" x:DataType="viewmodels:UnlockSectionViewModel">
+            <controls:UnlockSectionCard Section="{x:Bind}"/>
         </DataTemplate>
     </Page.Resources>
 
@@ -122,17 +92,11 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBox Grid.Column="0" x:Name="SearchBox" PlaceholderText="Search expedition rewards..." TextChanged="SearchBox_TextChanged"/>
                         <ComboBox Grid.Column="1" x:Name="ExpeditionFilterBox" AutomationProperties.Name="Expedition" Width="220" SelectionChanged="ExpeditionFilterBox_SelectionChanged"/>
                         <TextBlock Grid.Column="2" x:Name="ResultCountTxt" VerticalAlignment="Center" FontSize="12"
                                    Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                        <Button Grid.Column="3" x:Name="LockAllBtn" Content="Lock All" Click="LockAllBtn_Click"
-                                ToolTipService.ToolTip="Locks every item currently shown below (respects the search box and expedition filter)"/>
-                        <Button Grid.Column="4" x:Name="UnlockAllBtn" Content="Unlock All" Click="UnlockAllBtn_Click"
-                                ToolTipService.ToolTip="Unlocks every item currently shown below (respects the search box and expedition filter)"/>
                     </Grid>
 
                     <!-- Grouped into one card per expedition number (e.g. "#19: CORVETTE"),
