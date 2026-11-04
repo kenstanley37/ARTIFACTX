@@ -79,7 +79,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
             if (section.Key == "UI_PORTAL_CAT_COLLECTION")
             {
                 Sections.Add(new GameCatalogSectionViewModel(section,
-                    section.Categories.Select(c => WonderCategory(c, catalogue.Names, fish)).ToList(), null, tracksKnown: true));
+                    section.Categories.Select(c => WonderCategory(c, catalogue, fish)).ToList(), null, tracksKnown: true));
                 continue;
             }
             UnlockListViewModel? list = section.Key switch
@@ -120,17 +120,30 @@ public sealed partial class GameCatalogViewModel : ObservableObject
     {
         var all = await CatalogService.GetAllUnlockableItemsAsync();
         var items = CatalogService.FilterFishSpecies(all).Concat(CatalogService.FilterFlotsam(all))
-            .Select(i => (i.GameId, CatalogService.TryGet(i.GameId)?.DisplayName ?? i.DisplayName)).ToList();
+            .Select(i => (i.GameId, DisplayCase(i.DisplayName))).ToList();
         var ids = (SaveSessionManager.GetValue(NmsFishingPaths.ProductListPath) as JArray)?.Select(t => CatalogService.NormalizeId(t.Value<string>() ?? "")).ToList() ?? new();
         var counts = (SaveSessionManager.GetValue(NmsFishingPaths.ProductCountListPath) as JArray)?.Select(t => t.Value<int>()).ToList() ?? new();
         var caught = ids.Zip(counts).Where(p => p.First.Length > 0 && p.Second > 0).Select(p => p.First).ToHashSet(StringComparer.OrdinalIgnoreCase);
         return (items, caught);
     }
 
+    /// <summary>The catalog's capitals ("ABERRANT DUSKFIN") in the game's mixed case.</summary>
+    private static string DisplayCase(string name) => name.Any(char.IsLower) ? name
+        : System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name.ToLowerInvariant());
+
     /// <summary>A Wonders category, read-only: the game records these as you play.</summary>
-    private static GameCatalogCategoryViewModel WonderCategory(Core.Unlocks.CatalogueCategory category, Dictionary<string, string> names,
+    private static GameCatalogCategoryViewModel WonderCategory(Core.Unlocks.CatalogueCategory category, CatalogueSectionsService.Catalogue catalogue,
         (List<(string Id, string Name)> Items, HashSet<string> Caught) fish)
     {
+        var names = catalogue.Names;
+        var nameUses = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        string? SlotItem(string name)
+        {
+            // Repeated slot names ("Terrifying Sample" twice) take that name's items in order.
+            int use = nameUses.GetValueOrDefault(name);
+            nameUses[name] = use + 1;
+            return catalogue.IdsByName.TryGetValue(name, out var ids) && ids.Count > 0 ? ids[Math.Min(use, ids.Count - 1)] : null;
+        }
         List<GameCatalogItemViewModel> items;
         if (category.Type == "Fish")
             items = fish.Items.Select(f => new GameCatalogItemViewModel(f.Id, f.Name, fish.Caught.Contains(f.Id), false, true,
@@ -146,6 +159,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
             {
                 string name = category.ItemNames?.GetValueOrDefault(id) is { Length: > 0 } n ? n : $"Personal Record {i + 1}";
                 var (recorded, detail, iconId) = ReadRecord(category.Type, records?.ElementAtOrDefault(i)?["UqY"] as JArray);
+                if (category.Type is "TreasureWonders" or "WeirdBasePartWonders") iconId ??= SlotItem(name);
                 return new GameCatalogItemViewModel(id, name, recorded, false, true, "recorded by the game as you explore",
                     detail: detail, iconId: iconId);
             }).ToList();
