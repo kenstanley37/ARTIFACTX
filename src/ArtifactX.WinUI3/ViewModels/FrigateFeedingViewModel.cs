@@ -83,6 +83,20 @@ public sealed partial class FrigateFeedingViewModel : ObservableObject
         Apply();
     }
 
+    /// <summary>Stage one of the row's food in the Exosuit (ExosuitCargoService),
+    /// so the player has it when they reach the Feed Vessel.</summary>
+    public void AddToExosuit(FrigateFoodRowViewModel row)
+    {
+        string name = CatalogService.TryGet(row.IconId)?.DisplayName ?? row.Names;
+        row.AddedText = ExosuitCargoService.AddOne(row.IconId) switch
+        {
+            ExosuitAddResult.Added => $"Added 1 {name} to your Exosuit. Save to keep it.",
+            ExosuitAddResult.Full => "Your Exosuit cargo is full. Free a slot on the Exosuit page first.",
+            ExosuitAddResult.NoSave => "Load a save to add items.",
+            _ => $"{name} can't be added from here.",
+        };
+    }
+
     partial void OnSortStatChanged(FrigateStatOption? value) => Apply();
     partial void OnSearchTextChanged(string value) => Apply();
     partial void OnHideRefusedChanged(bool value) => Apply();
@@ -117,6 +131,8 @@ public sealed partial class FrigateFoodRowViewModel(string iconId, string names,
 
     [ObservableProperty] public partial ImageSource? Icon { get; set; }
     [ObservableProperty] public partial string FocusText { get; private set; } = "";
+    [ObservableProperty] public partial string AddedText { get; set; } = "";
+    public string AddName => $"Add one {Names.Split(", ")[0]} to your Exosuit";
     [ObservableProperty] public partial Brush? FocusBrush { get; private set; }
 
     /// <summary>Show the change to the stat the list is sorted by.</summary>
