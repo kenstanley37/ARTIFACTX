@@ -132,9 +132,12 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
     {
         if (!IsCooking) return "";
         if (!_buffs.TryGetValue(id, out var value)) return "";
-        double amount = Math.Truncate(value.Bonus * (value.Food.Percentage ? 100f : 1f));
         double seconds = Math.Max(0, (_catalog?.Food?.BaseDuration ?? 0) * value.Food.CookingValue);
-        return $"{(amount >= 0 ? "+" : "")}{amount:N0}{(value.Food.Percentage ? "%" : "")} {EffectName(value.Food.Effect)} · {TimeSpan.FromSeconds(seconds):m\\:ss} per item";
+        // The game's own amount (FoodIngestorDisplay); stats whose amount depends on the
+        // player's equipment show the effect alone rather than a made-up number.
+        string effect = FoodIngestorDisplay.Text(value.Food.Stat, value.Bonus) is { } amount
+            ? $"{amount} {EffectName(value.Food.Effect)}" : $"Boosts {EffectName(value.Food.Effect).ToLowerInvariant()}";
+        return $"{effect} · {TimeSpan.FromSeconds(seconds):m\\:ss} per item";
     }
 
     private void Filter()

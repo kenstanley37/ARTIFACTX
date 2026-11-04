@@ -9,6 +9,7 @@ using Newtonsoft.Json.Linq;
 try
 {
     if (args is ["--portal-travel"]) { PortalTravelChecks.Check(); return; }
+    if (args is ["--food-display"]) { FoodIngestorDisplayChecks.Check(); return; }
     IndustrialCleanupChecks.Check();
     VehicleUnlockEditChecks.Check();
     RecipePlannerChecks.Check();
