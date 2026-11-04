@@ -10,6 +10,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Cooking Recipes shows the same food effects as the Nutrient Ingestor (Ice Cream is +65% cold resistance, not +164%). Effects whose size depends on your own suit are named without a number.
+
 - Account Data › Catalog is gone, replaced by the new Catalog page. Its account-wide list doesn't decide what the game shows as known, so ticking items there changed nothing in game.
 
 - Expedition Rewards and Twitch Rewards: each section now has its own tick-all checkbox (showing how many of its items are unlocked) and a Locked only filter. The page-wide Lock All and Unlock All buttons, which changed every item on the page at once, are gone.
