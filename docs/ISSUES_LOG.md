@@ -229,6 +229,7 @@ Synthesized from the latest `ARTIFACTX_NOTES.txt`. Cross-referenced with open Gi
 - **Note #2**
 - **Problem**: The expedition rewards editor does not list the most recent expedition, so players cannot edit rewards for it.
 - **Proposed Solution**: Add the latest expedition's reward entries to the expedition rewards data source/catalog and editor list; verify against the current save's expedition history.
+- **Status**: Fixed on `fix/expedition-rewards-catalog`, 2026-11-03; owner rebuilt the catalog (format 60) and confirmed #22 Swarm lists 24 rewards and #23 lists 17. Cards share one height capped at 10 rows and scroll inside; the redundant per-row expedition badge was removed so names fit. Cause: the page grouped rewards by guessing from `EXPD_BANNER/DECAL/TITLEnn` ids, so filtering #23 showed 3 of its 17 rewards, and rewards without an `EXPD_` id (Swarm's `SWARM_*`, `BOBBLE_ASTRO`) were missing entirely. The catalog now stores the game's own `UnlockableSeasonRewardsTable` (293 rewards, one season id each, matching the banner numbers 1-23); 291 have catalog items and are listed. Editing still writes only `B1h`, which holds these ids on the owner's account. Finding, not acted on: account `d4U` has exactly 293 entries, the table's size, so it is probably the game's season-reward unlock list; confirm with a controlled diff before ever writing it.
 
 ### Feature 22: Offline AI-Generated Corvettes
 - **GitHub**: [Issue #38](https://github.com/kenstanley37/ARTIFACTX/issues/38) (long-term)
