@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections.Generic;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace ArtifactX.WinUI3.ViewModels;
@@ -45,6 +46,12 @@ public sealed partial class GameCatalogItemViewModel : ObservableObject, IUnlock
     [ObservableProperty] public partial bool IsUnlocked { get; set; }
     [ObservableProperty] public partial BitmapImage? Icon { get; set; }
 
+    /// <summary>A dark outline of Icon, shown until the item is known, as the game's Catalog does.</summary>
+    [ObservableProperty] public partial ImageSource? Silhouette { get; set; }
+
+    public ImageSource? DisplayIcon => ShowState && !IsUnlocked && Silhouette is not null ? Silhouette : Icon;
+    public double IconOpacity => ShowState && !IsUnlocked && Silhouette is null ? 0.45 : 1;
+
     public double TileOpacity => !ShowState || IsUnlocked ? 1 : 0.45;
     public bool ShowTick => ShowState && CanEdit;
 
@@ -53,8 +60,18 @@ public sealed partial class GameCatalogItemViewModel : ObservableObject, IUnlock
     public bool ShowLock => ShowState && !CanEdit;
     public string ToolTip => ReadOnlyReason is null ? Name : $"{Name} - {ReadOnlyReason}";
 
+    partial void OnIconChanged(BitmapImage? value) => OnPropertyChanged(nameof(DisplayIcon));
+
+    partial void OnSilhouetteChanged(ImageSource? value)
+    {
+        OnPropertyChanged(nameof(DisplayIcon));
+        OnPropertyChanged(nameof(IconOpacity));
+    }
+
     partial void OnIsUnlockedChanged(bool value)
     {
+        OnPropertyChanged(nameof(DisplayIcon));
+        OnPropertyChanged(nameof(IconOpacity));
         OnPropertyChanged(nameof(TileOpacity));
         OnPropertyChanged(nameof(ToolTip));
     }

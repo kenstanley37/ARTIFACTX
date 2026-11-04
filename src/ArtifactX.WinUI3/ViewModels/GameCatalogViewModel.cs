@@ -238,7 +238,13 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         if (missing.Count == 0) return;
         await CatalogService.WarmCacheAsync(missing.Select(i => (string?)i.IconId));
         if (version != _iconVersion) return;
-        foreach (var item in missing) item.Icon = CatalogService.TryGet(item.IconId)?.Icon;
+        foreach (var item in missing)
+        {
+            var entry = CatalogService.TryGet(item.IconId);
+            item.Icon = entry?.Icon;
+            if (item.ShowState && entry?.IconPng is { } png) item.Silhouette = await Helpers.Catalog.SilhouetteImages.FromPngAsync(png);
+            if (version != _iconVersion) return;
+        }
     }
 
     public void SetItem(GameCatalogItemViewModel item, bool known)

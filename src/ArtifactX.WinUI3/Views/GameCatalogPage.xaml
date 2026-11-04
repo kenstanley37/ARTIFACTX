@@ -114,7 +114,7 @@
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <Image Source="{x:Bind Icon, Mode=OneWay}" Width="72" Height="72" Opacity="{x:Bind TileOpacity, Mode=OneWay}"/>
+                                <Image Source="{x:Bind DisplayIcon, Mode=OneWay}" Width="72" Height="72" Opacity="{x:Bind IconOpacity, Mode=OneWay}"/>
                                 <!-- Wonders records have no item picture: a trophy instead of a blank square. -->
                                 <FontIcon Glyph="&#xE734;" FontSize="40" Foreground="{ThemeResource ThemeAccentBrush}"
                                           Opacity="{x:Bind TileOpacity, Mode=OneWay}" Visibility="{x:Bind IsRecord}"/>
