@@ -24,7 +24,7 @@ public sealed partial class TwitchRewardsPage : Page
     private List<AccountItemRowViewModel> _twitchSource = new();
     private List<AccountItemRowViewModel> _currentlyVisibleRows = new();
 
-    private readonly AccountUnlocksViewModel _unlocks = new();
+    private readonly UnlockListViewModel _unlocks = new(UnlockListStore.Account);
     private readonly HashSet<string> _lockedOnly = new(StringComparer.Ordinal);
 
     public TwitchRewardsPage()

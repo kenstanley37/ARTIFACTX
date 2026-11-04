@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The game's Catalog screen for the loaded save (GameCatalogViewModel): its sections,
+     their subcategories in the game's order, and the items as tiles. -->
+<Page
+    x:Class="ArtifactX.WinUI3.Views.GameCatalogPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="28,26,28,24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="CATALOG" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Content="Reset Catalog changes" Style="{StaticResource DangerButtonStyle}"
+                    Click="Reset_Click" Visibility="{x:Bind ViewModel.HasChanges, Mode=OneWay}"/>
+        </Grid>
+
+        <TextBlock Grid.Row="1" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"
+                   Text="What this save knows, laid out like the game's Catalog screen. Coloured items are known; tick an item in Technology or Building Parts to learn its blueprint, then Save. Items with a lock are counted as known by the game without a blueprint."/>
+
+        <!-- Section tiles, as the game's Catalog front page. -->
+        <ItemsControl Grid.Row="2" ItemsSource="{x:Bind ViewModel.Sections}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="viewmodels:GameCatalogSectionViewModel">
+                    <ToggleButton Width="230" Padding="16,12" HorizontalContentAlignment="Left"
+                                  IsChecked="{x:Bind IsSelected, Mode=OneWay}" IsEnabled="{x:Bind IsAvailable}"
+                                  Click="Section_Click" Tag="{x:Bind}"
+                                  AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="{x:Bind Title}" FontSize="15" FontWeight="SemiBold"/>
+                            <TextBlock Text="{x:Bind CountText, Mode=OneWay}" FontSize="12" Opacity="0.85" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </ToggleButton>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Grid Grid.Row="3" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.ColumnSpan="2" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"
+                       Visibility="{x:Bind ViewModel.NeedsGameData, Mode=OneWay}"
+                       Text="Read your game files again in Settings to show the Catalog (this version of ArtifactX reads more from them)."/>
+
+            <!-- Subcategories, in the game's order. -->
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <ListView ItemsSource="{x:Bind ViewModel.SelectedSection.Categories, Mode=OneWay}"
+                          SelectedItem="{x:Bind ViewModel.SelectedCategory, Mode=OneWay}" SelectionChanged="Category_SelectionChanged"
+                          SelectionMode="Single" Padding="0,8" AutomationProperties.Name="Categories">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="viewmodels:GameCatalogCategoryViewModel">
+                            <Grid Padding="4,8" ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" TextWrapping="Wrap"/>
+                                <TextBlock Grid.Column="1" Text="{x:Bind CountText, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Border>
+
+            <Grid Grid.Column="1" RowSpacing="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="{x:Bind ViewModel.HeaderText, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}"/>
+                <Grid Grid.Row="1" ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <CheckBox IsThreeState="False" IsChecked="{x:Bind ViewModel.AllUnlocked, Mode=OneWay}"
+                              IsEnabled="{x:Bind ViewModel.CanToggleAll, Mode=OneWay}" Click="All_Click"
+                              Content="{x:Bind ViewModel.ScopeCountText, Mode=OneWay}"
+                              AutomationProperties.Name="Learn or forget every item shown"
+                              ToolTipService.ToolTip="Learn every item shown (or forget them all when every one is known)"/>
+                    <TextBox Grid.Column="1" PlaceholderText="Search this section..." AutomationProperties.Name="Search this section"
+                             Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    <ToggleButton Grid.Column="2" Content="Locked only" IsChecked="{x:Bind ViewModel.ShowLockedOnly, Mode=TwoWay}"
+                                  AutomationProperties.Name="Show only items not known yet"/>
+                </Grid>
+                <GridView Grid.Row="2" ItemsSource="{x:Bind ViewModel.VisibleItems, Mode=OneWay}" SelectionMode="None"
+                          IsItemClickEnabled="True" ItemClick="Item_Click" AutomationProperties.Name="Items">
+                    <GridView.ItemTemplate>
+                        <DataTemplate x:DataType="viewmodels:GameCatalogItemViewModel">
+                            <Grid Width="140" Height="150" Padding="6" ToolTipService.ToolTip="{x:Bind ToolTip, Mode=OneWay}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Image Source="{x:Bind Icon, Mode=OneWay}" Width="72" Height="72" Opacity="{x:Bind TileOpacity, Mode=OneWay}"/>
+                                <TextBlock Grid.Row="1" Text="{x:Bind Name}" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2"
+                                           TextTrimming="CharacterEllipsis" FontSize="12" Opacity="{x:Bind TileOpacity, Mode=OneWay}"
+                                           Foreground="{ThemeResource ThemeTextBrush}"/>
+                                <!-- Visual only: the tile itself is the click target. -->
+                                <CheckBox IsChecked="{x:Bind IsUnlocked, Mode=OneWay}" IsHitTestVisible="False" IsTabStop="False"
+                                          MinWidth="0" Padding="0" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                          Visibility="{x:Bind ShowTick}"/>
+                                <FontIcon Glyph="&#xE72E;" FontSize="14" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="4"
+                                          Foreground="{ThemeResource ThemeTextDimBrush}" Visibility="{x:Bind ShowLock}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </GridView.ItemTemplate>
+                </GridView>
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>

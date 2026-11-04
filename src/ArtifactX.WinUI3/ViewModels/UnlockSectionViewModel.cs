@@ -14,7 +14,7 @@ namespace ArtifactX.WinUI3.ViewModels;
 /// </summary>
 public sealed partial class UnlockSectionViewModel : ObservableObject
 {
-    private readonly AccountUnlocksViewModel _unlocks;
+    private readonly UnlockListViewModel _unlocks;
     private readonly ISet<string> _lockedOnlyKeys;
 
     /// <param name="key">Stable name that keeps "Locked only" on when the page
@@ -22,7 +22,7 @@ public sealed partial class UnlockSectionViewModel : ObservableObject
     /// <param name="listHeight">The card's list height; each page picks its sizing rule.</param>
     /// <param name="lockedOnlyKeys">The page's set of sections showing locked items only.</param>
     public UnlockSectionViewModel(string key, string title, List<AccountItemRowViewModel> items, double listHeight,
-        AccountUnlocksViewModel unlocks, ISet<string> lockedOnlyKeys)
+        UnlockListViewModel unlocks, ISet<string> lockedOnlyKeys)
     {
         Key = key;
         Title = title;

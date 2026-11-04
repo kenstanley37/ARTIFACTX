@@ -86,7 +86,6 @@
                             <FontIcon Glyph="&#xE77B;" FontFamily="Segoe MDL2 Assets"/>
                         </NavigationViewItem.Icon>
                         <NavigationViewItem.MenuItems>
-                            <NavigationViewItem Content="Catalog" Tag="AccountData" Icon="List"/>
                             <NavigationViewItem x:Name="GuideNavItem" Content="Guide" Tag="Guide">
                                 <NavigationViewItem.Icon>
                                     <FontIcon Glyph="&#xE82D;" FontFamily="Segoe MDL2 Assets"/>
@@ -251,6 +250,12 @@
                                 </NavigationViewItem.Icon>
                             </NavigationViewItem>
                         </NavigationViewItem.MenuItems>
+                    </NavigationViewItem>
+
+                    <NavigationViewItem x:Name="GameCatalogNavItem" Content="Catalog" Tag="GameCatalog" Visibility="Collapsed">
+                        <NavigationViewItem.Icon>
+                            <PathIcon x:Name="GameCatalogPathIcon"/>
+                        </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
                     <NavigationViewItem x:Name="CatalogueNavItem" Content="Catalogue" Tag="Catalogue" Visibility="Collapsed">
