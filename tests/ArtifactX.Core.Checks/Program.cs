@@ -29,6 +29,8 @@ try
     { BaseExtractionChecks.Reference(args[1]); return; }
     if (args.Length == 2 && args[0] == "--proc-name-vectors")
     { ProceduralProductNameChecks.Native(args[1]); return; }
+    if (args.Length == 2 && args[0] == "--egg-sequencer-vectors")
+    { EggSequencerChecks.Native(args[1]); return; }
     if (args.Length == 2 && args[0] == "--food-bonus-vectors")
     { RecipePlannerChecks.Native(args[1]); return; }
     if (args.Length == 2 && args[0] == "--recipe-catalog-vectors")

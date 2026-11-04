@@ -83,7 +83,11 @@ public sealed record EggSlotOutcome(int Count, double Dose, double Overdose, dou
 /// Gentleness "Increasing" (lowers Aggression); Shadow Lure x117 100% and
 /// Gentleness "Decreasing" (raises Aggression; 117 is exactly a full dose);
 /// Frozen Tubers x100 in the Gene Splitter "Overdosed! (102%)"; Ferrite Dust x1
-/// "Dose: 0%". Every value agrees.
+/// "Dose: 0%". A second egg the same day: Dioxite x413 Helpfulness Increasing,
+/// Semiconductor x1 Independence Increasing, Sac Venom x1 and Geodesite x1
+/// Gentleness Decreasing / Increasing, Silver x138 Independence Decreasing, Nitrogen
+/// Salt x5 "Overdosed! (129%)". Every value agrees; the 13 cases are in
+/// tests/ArtifactX.Core.Checks (--egg-sequencer-vectors).
 ///
 ///   Dose (0x1410d6fa0 for the Neural Calibrator; the other slots at
 ///   0x1410d6e99, 0x1410d7579, 0x1410d7959): value per unit is the item's
