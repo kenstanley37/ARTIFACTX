@@ -11,6 +11,21 @@ namespace ArtifactX.GameData;
 
 public static partial class CatalogSteps
 {
+    /// <summary>The sequencer screen's words: slot names and subtitles (S, A, C, P
+    /// = Growth Hormone, Gene Splitter, Dye Injector, Neural Calibrator), the
+    /// Embryo Status labels and the two words each personality trait shows by
+    /// its sign (picked at 0x1407875f4).</summary>
+    private static readonly string[] EggScreenTextKeys =
+    [
+        "UI_EGG_MODIFIER_NAME_L", "UI_EGG_MODIFIER_INPUT_HEADING", "UI_EGG_MODIFIER_OUTPUT_HEADING",
+        "UI_EGG_MODIFIER_INPUT_S", "UI_EGG_MODIFIER_INPUT_S_SUB", "UI_EGG_MODIFIER_INPUT_A", "UI_EGG_MODIFIER_INPUT_A_SUB",
+        "UI_EGG_MODIFIER_INPUT_C", "UI_EGG_MODIFIER_INPUT_C_SUB", "UI_EGG_MODIFIER_INPUT_P", "UI_EGG_MODIFIER_INPUT_P_SUB",
+        "WEIGHT_HEIGHT", "UI_EGG_MODIFIER_OUT_A", "UI_EGG_MODIFIER_OUT_C", "UI_EGG_MODIFIER_OUT_P",
+        "UI_EGG_MODIFIER_OUT_INHERITED", "UI_EGG_MODIFIER_OUT_INCREASING", "UI_EGG_MODIFIER_OUT_DECREASING", "UI_EGG_MODIFIER_OUT_UNSTABLE",
+        "UI_PET_HELPFUL_RATING", "UI_PET_PLAYFUL_RATING", "UI_PET_AGGRESSION_RATING", "UI_PET_GENTLENESS_RATING",
+        "UI_PET_INDEPENDENCE_RATING", "UI_PET_ATTACHMENT_RATING",
+    ];
+
     /// <summary>
     /// The Egg Sequencer's tuning (format 66, ArtifactX.Core EggSequencer): the
     /// PetEgg* values of GcCreatureGlobals and the item overrides of
@@ -41,6 +56,11 @@ public static partial class CatalogSteps
             throw new InvalidDataException("Creature globals not found or have an unexpected structure.");
         if (Decode(tableFile) is not GcPetEggTraitModifierOverrideTable table)
             throw new InvalidDataException($"Egg trait table not found or has an unexpected structure: {tableFile}");
+        if (Decode("METADATA/REALITY/TABLES/NMS_REALITY_GCPRODUCTTABLE.MBIN") is not GcProductTable products
+            || Decode("METADATA/REALITY/TABLES/NMS_REALITY_GCSUBSTANCETABLE.MBIN") is not GcSubstanceTable substances)
+            throw new InvalidDataException("Product or substance table not found.");
+        var ingredients = products.Table.Where(p => p.EggModifierIngredient).Select(p => p.ID.Value)
+            .Concat(substances.Table.Where(s => s.EggModifierIngredient).Select(s => s.ID.Value)).ToList();
 
         var overrides = table.TraitModifiers
             .Select(m => (Id: m.ProductID.Value.Length > 0 ? m.ProductID.Value : m.SubstanceID.Value, m))
@@ -52,7 +72,8 @@ public static partial class CatalogSteps
             globals.PetEggScaleRangeModifier, globals.PetEggScaleRangeMax,
             globals.PetEggAccessoryChanceModifier, globals.PetEggMaxAccessoriesChangeChance,
             globals.PetEggColourChanceModifier, globals.PetEggMaxColourChangeChance,
-            globals.PetEggModificationItemLimit);
+            globals.PetEggOverdosageModifier, globals.PetEggMaxOverdosage, globals.PetEggMaxTopDescriptorChangeChance,
+            globals.PetEggModificationItemLimit, ingredients, EnglishTexts(index, extraction, EggScreenTextKeys.ToHashSet()));
 
         using var db = new CatalogDbContext(catalogPath);
         Replace(db, "EggSequencer", "GcPetEggTraitModifierOverrideTable", tableFile.ToLowerInvariant(), new List<CatalogItem>
@@ -60,6 +81,6 @@ public static partial class CatalogSteps
             new CatalogItem { GameId = "EGGSEQUENCER", NameEnglish = "Egg Sequencer rules",
                 DescriptionEnglish = JsonSerializer.Serialize(rules) }
         });
-        ConsoleStyle.Success($"Wrote the Egg Sequencer rules ({overrides.Count} item overrides) to {catalogPath}.");
+        ConsoleStyle.Success($"Wrote the Egg Sequencer rules ({overrides.Count} item overrides, {ingredients.Count} ingredients) to {catalogPath}.");
     }
 }

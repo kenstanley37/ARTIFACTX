@@ -378,7 +378,7 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 ### Feature 43: Egg Sequencer Helper
 - **Source note**: "Egg Sequencer helper".
 - **Request**: Help players understand egg sequencing inputs and outcomes.
-- **Status**: Rules read off NMS.exe 2026-11-04 (docs/research/2026-11-04-EGG-SEQUENCER-AND-FRIGATE-FEEDING.md) and built on `feature/egg-sequencer-helper`: Reference > Egg Sequencer lists every item's Neural Calibrator trait and direction, Growth Hormone direction, full-dose and certain-change counts (Core `EggSequencer`, catalog format 66). Awaiting owner test in game.
+- **Status**: Rules read off NMS.exe 2026-11-04 and matched against the owner's sequencer screens (Ice Cream, Frozen Tubers overdose 102%, Ferrite Dust, Viscous Custard, Shadow Lure: every dose and direction agrees). Built on `feature/egg-sequencer-helper`: Reference > Egg Sequencer copies the game's screen - pick a slot, see only its items, filter by effect, put one in and read the dose and what will happen (Core `EggSequencer`, catalog format 66). Awaiting owner test of the page.
 - **Research / scope**: Establish supported ingredient effects, dose behavior and egg/parent inputs using extracted game data and controlled in-game tests. Separate known effects from uncertain predictions; exact outcome generation remains research until verified.
 - **Architecture**: Put reusable sequencing rules and result models in the shared libraries so both WinUI and a future MAUI helper can use them. Keep platform UI and local save access separate.
 - **Acceptance**: Compare supported predictions with in-game sequencer results; do not require a save edit merely to use the helper.
@@ -540,4 +540,5 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Source**: Owner, 2026-11-04: "the organic frigate food (what food buffs what)".
 - **Finding (2026-11-04)**: "Feed Vessel" rerolls the frigate's traits from a hash of the item and that frigate's own seed, keeping the primary trait from its class (see docs/research/2026-11-04-EGG-SEQUENCER-AND-FRIGATE-FEEDING.md). There is no fixed food-to-stat table, so a static "food buffs" list would be wrong.
 - **Wanted**: a per-frigate predictor on the Frigates page: pick an organic frigate, see what each food would give it, best first.
-- **Needs**: the trait picker 0x14052e3b0, the save field for the frigate seed it hashes, and whether feeding consumes the item; then a controlled Slot 8 feed to confirm.
+- **Status 2026-11-04**: solved and built on `feature/egg-sequencer-helper`. The seed is Hash128to64(item hash, ResourceSeed); confirmed on Slot 1 frigate 24, whose ForcedTraitsSeed only FOOD_P_ALL1/2/3 reproduce, and whose first three traits the reroll gives exactly. The Frigates page shows a Feed Vessel list for organic frigates (Core `OrganicFrigateFeeding`).
+- **Open**: which items the game's feed menu offers (the list uses cooking ingredients, unconfirmed), and a controlled Slot 8 feed to confirm a predicted result.

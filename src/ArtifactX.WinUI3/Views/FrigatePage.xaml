@@ -187,6 +187,9 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
+
+                <controls:FrigateFeedingPanel ViewModel="{x:Bind ViewModel.Feeding}"
+                                              Visibility="{x:Bind ViewModel.Feeding.IsOrganic, Mode=OneWay}"/>
             </StackPanel>
         </StackPanel>
     </ScrollViewer>

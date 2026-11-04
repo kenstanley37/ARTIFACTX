@@ -1,29 +1,56 @@
+using System;
 using ArtifactX.Core.Companions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Media;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
-/// <summary>One item card on the Egg Sequencer page.</summary>
-public sealed partial class EggCatalystRowViewModel(string id, string name, EggCatalystEffect effect) : ObservableObject
+/// <summary>One item card on the Egg Sequencer page, worded for the selected slot.</summary>
+public sealed partial class EggCatalystRowViewModel : ObservableObject
 {
-    public string Id { get; } = id;
-    public string Name { get; } = name;
-    public EggCatalystEffect Effect { get; } = effect;
+    private static readonly string[] PositiveKeys = ["UI_PET_HELPFUL_RATING", "UI_PET_AGGRESSION_RATING", "UI_PET_INDEPENDENCE_RATING"];
+    private static readonly string[] NegativeKeys = ["UI_PET_PLAYFUL_RATING", "UI_PET_GENTLENESS_RATING", "UI_PET_ATTACHMENT_RATING"];
+
+    public EggCatalystRowViewModel(string id, string name, bool isSubstance, long value, EggCatalystEffect effect,
+        EggCatalystSlot slot, int itemLimit, Func<string, string> text)
+    {
+        Id = id;
+        Name = name;
+        IsSubstance = isSubstance;
+        Value = value;
+        Effect = effect;
+        Slot = slot;
+        TraitWord = text((effect.TraitIncreases ? PositiveKeys : NegativeKeys)[(int)effect.Trait]);
+        OppositeTraitWord = text((effect.TraitIncreases ? NegativeKeys : PositiveKeys)[(int)effect.Trait]);
+        EffectText = slot switch
+        {
+            EggCatalystSlot.GrowthHormone => effect.Grows ? "▲ Bigger" : "▼ Smaller",
+            EggCatalystSlot.GeneSplitter => "Remixes anatomy",
+            EggCatalystSlot.DyeInjector => "Its own colours",
+            _ => $"Toward {TraitWord}",
+        };
+        string what = slot is EggCatalystSlot.GeneSplitter or EggCatalystSlot.DyeInjector ? "Certain with" : "Full dose:";
+        AmountText = !HasEffect ? "No value, so no effect"
+            : Needed > itemLimit ? $"Never a full effect: a slot holds {itemLimit:N0}"
+            : $"{what} {Needed:N0}";
+    }
+
+    public string Id { get; }
+    public string Name { get; }
+    public bool IsSubstance { get; }
+    public long Value { get; }
+    public EggCatalystEffect Effect { get; }
+    public EggCatalystSlot Slot { get; }
     public bool HasEffect => Effect.FullDoseCount > 0;
+    public string TraitWord { get; }
+    public string OppositeTraitWord { get; }
+    public string EffectText { get; }
+    public string AmountText { get; }
+
+    /// <summary>How many give the slot's full effect, for sorting.</summary>
+    public int Needed => Slot is EggCatalystSlot.GeneSplitter or EggCatalystSlot.DyeInjector ? Effect.CertainChangeCount : Effect.FullDoseCount;
 
     [ObservableProperty] public partial ImageSource? Icon { get; set; }
 
-    public string PersonalityText => (Effect.TraitIncreases ? "▲ Raises " : "▼ Lowers ") + Effect.Trait;
-    public string GrowthText => Effect.Grows ? "▲ Bigger" : "▼ Smaller";
-    public string DoseText => !HasEffect ? "No value, so no effect"
-        : Effect.MaxDose < 1 ? $"Full slot is only a {Effect.MaxDose:P0} dose"
-        : $"Full dose: {Effect.FullDoseCount:N0}";
-    public string ChanceText => !HasEffect ? ""
-        : Effect.MaxChangeChance < 1 ? $"Colour or anatomy change: {Effect.MaxChangeChance:P0} chance at most"
-        : $"Sure to change colour or anatomy: {Effect.CertainChangeCount:N0}";
-
-    public string AccessibleName => HasEffect
-        ? $"{Name}. Neural Calibrator: {(Effect.TraitIncreases ? "raises" : "lowers")} {Effect.Trait}. Growth Hormone: {(Effect.Grows ? "bigger" : "smaller")}. {DoseText}. {ChanceText}."
-        : $"{Name}. {DoseText}.";
+    public string AccessibleName => $"{Name}. {EffectText}. {AmountText}. Put in the slot.";
 }

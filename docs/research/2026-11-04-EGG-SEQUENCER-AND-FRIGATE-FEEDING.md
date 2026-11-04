@@ -28,7 +28,15 @@ The full rules are in the class doc comment. In short:
 
 **Test in game (no save edit needed).** Put an item that isn't in the table into the Neural Calibrator, for example Silicon Egg (`FOOD_P_STELLAR`). The app says it lowers Aggression and makes the creature smaller. The sequencer's Embryo Status should show Aggression "Decreasing".
 
-## Organic frigate "Feed Vessel": mechanism read, predictor not built
+## Checked against the game (owner's screens, 2026-11-04)
+
+Ice Cream x2 Growth Hormone: 100%, Weight / Height Increasing. Frozen Tubers x100 Gene Splitter: Overdosed! (102%) - overdose = (count x BaseValue - capped value) x PetEggOverdosageModifier / full, at most PetEggMaxOverdosage (0x1410d7646); it feeds a body-type change chance (min(overdose, PetEggMaxTopDescriptorChangeChance), 0x1410d80fd). Ferrite Dust x1: 0%. Viscous Custard x2: 100%, Gentleness Increasing (lowers Aggression). Shadow Lure x117 (exactly a full dose): Gentleness Decreasing (raises Aggression). The screen names a trait by its sign (0x1407875f4): Helpfulness/Playfulness, Aggression/Gentleness, Independence/Devotion. The sequencer only takes items flagged EggModifierIngredient (0x1410d5c57).
+
+## Organic frigate "Feed Vessel": solved, built
+
+Confirmed on Slot 1 frigate 24 (ResourceSeed 0x3EBB7D4425806A04, ForcedTraitsSeed 0x6BA1EE1F81C91529): of 19,779 ids only FOOD_P_ALL1/2/3 (Heptaploid Wheat, Sweetroot, Pulpy Roots) give that seed from Hash128to64(itemHash, ResourceSeed), and the reroll gives its first three traits exactly (the other two fit traits gained from expeditions later). Living traits are all positive with equal weight 15, so negatives never apply to organic frigates. Ported to `ArtifactX.Core.Frigates.OrganicFrigateFeeding`. Still unconfirmed: which items the feed menu lists (cooking ingredients assumed).
+
+### Original notes
 
 The feed is `0x140533070(manager, frigate, item)`. It is called from the fleet UI at `0x1407e1d9f`. A false return shows `UI_FRIGATE_ERROR_SEED_OSD` ("Insufficient nutrient variety").
 

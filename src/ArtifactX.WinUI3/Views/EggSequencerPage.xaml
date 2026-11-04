@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). Read-only Reference page:
-     what each item does in the Space Anomaly's Egg Sequencer. -->
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). Egg Sequencer simulator laid out like the
+     game's screen (EggSequencerViewModel): catalyst slots and Embryo Status on the left with what
+     will happen in plain words, the items for the selected slot on the right. Read-only. -->
 <Page
     x:Class="ArtifactX.WinUI3.Views.EggSequencerPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -12,105 +13,171 @@
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Grid Padding="28,26,28,24" RowSpacing="18">
+    <Grid Padding="28,26,28,24" RowSpacing="14" ColumnSpacing="24">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="660"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
 
-        <TextBlock Text="EGG SEQUENCER" Style="{StaticResource ThemePageTitleStyle}"/>
+        <StackPanel Grid.ColumnSpan="2" Spacing="4">
+            <TextBlock Text="EGG SEQUENCER" Style="{StaticResource ThemePageTitleStyle}"/>
+            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
+                       Text="Plan an egg before you visit the Space Anomaly. Pick a catalyst slot, then an item to put in it, and see what the new companion will be like. Nothing here changes your save."/>
+        </StackPanel>
 
-        <Border Grid.Row="1" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                Background="{ThemeResource ThemePanelAltBrush}"
-                CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
-            <Grid ColumnSpacing="10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                <StackPanel Grid.Column="1" Spacing="6">
-                    <TextBlock Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" TextWrapping="Wrap"
-                               Text="What each item does in the Space Anomaly's Egg Sequencer. In the Neural Calibrator an item always moves the same personality trait the same way, and in the Growth Hormone it always makes the creature bigger or smaller. More of an item makes a bigger change, up to a full dose."/>
-                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
-                               Text="The Gene Splitter and Dye Injector change anatomy and colouring by chance; the count on each card makes the change certain. Each item gives its own colours."/>
-                    <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap" Text="{x:Bind ViewModel.FullDoseText, Mode=OneWay}"/>
-                </StackPanel>
-            </Grid>
-        </Border>
+        <!-- Left: the sequencer as the game shows it, then the results in plain words. -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Visibility="{x:Bind ViewModel.IsReady, Mode=OneWay}">
+            <StackPanel Spacing="16" Padding="0,0,12,0">
+                <Border Style="{StaticResource ThemeCardStyle}" Padding="20,16">
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="{x:Bind ViewModel.CatalystsHeading, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}" HorizontalAlignment="Center"/>
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Slots}" HorizontalAlignment="Center">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="12"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="viewmodels:EggSlotViewModel">
+                                    <StackPanel Width="140" Spacing="6">
+                                        <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="14" HorizontalAlignment="Center"/>
+                                        <Button Click="Slot_Click" Padding="0" Width="112" Height="112" HorizontalAlignment="Center"
+                                                AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
+                                                ToolTipService.ToolTip="{x:Bind Subtitle}">
+                                            <Grid Width="108" Height="108" Background="{ThemeResource ThemeVoidBrush}">
+                                                <Border BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="3"
+                                                        Visibility="{x:Bind IsSelected, Mode=OneWay}"/>
+                                                <FontIcon Glyph="&#xE710;" FontSize="24" Foreground="{ThemeResource ThemeTextDimBrush}"
+                                                          Visibility="{x:Bind IsEmpty, Mode=OneWay}"/>
+                                                <Image Source="{x:Bind Icon, Mode=OneWay}" Width="72" Height="72"/>
+                                                <TextBlock Text="{x:Bind CountText, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="18"
+                                                           FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,8,4"/>
+                                            </Grid>
+                                        </Button>
+                                        <TextBlock Text="{x:Bind ItemName, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                                   HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{x:Bind DoseText, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
 
-        <ctcontrols:WrapPanel Grid.Row="2" HorizontalSpacing="14" VerticalSpacing="10">
-            <TextBox Header="Search" Width="280" PlaceholderText="e.g. Sac Venom"
-                     Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                     AutomationProperties.Name="Search items"/>
-            <ComboBox Header="Neural Calibrator" Width="240" ItemsSource="{x:Bind ViewModel.PersonalityOptions}"
-                      SelectedItem="{x:Bind ViewModel.Personality, Mode=TwoWay}"
-                      AutomationProperties.Name="Filter by personality effect"/>
-            <ComboBox Header="Growth Hormone" Width="200" ItemsSource="{x:Bind ViewModel.GrowthOptions}"
-                      SelectedItem="{x:Bind ViewModel.Growth, Mode=TwoWay}"
-                      AutomationProperties.Name="Filter by size effect"/>
-            <CheckBox Content="Hide items with no effect" IsChecked="{x:Bind ViewModel.HideNoEffect, Mode=TwoWay}" VerticalAlignment="Bottom"/>
-            <TextBlock Text="{x:Bind ViewModel.Message, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                       VerticalAlignment="Bottom" Margin="0,0,0,8"/>
-        </ctcontrols:WrapPanel>
+                        <Border Height="1" Background="{ThemeResource ThemeLineBrush}" Margin="0,4"/>
+                        <TextBlock Text="{x:Bind ViewModel.StatusHeading, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}" HorizontalAlignment="Center"/>
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Slots}" HorizontalAlignment="Center">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="12"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="viewmodels:EggSlotViewModel">
+                                    <StackPanel Width="140" Spacing="4">
+                                        <TextBlock Text="{x:Bind StatusLabel, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="14"
+                                                   Foreground="{ThemeResource ThemeAccentBrush}" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{x:Bind StatusText, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="14" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
 
-        <!-- Uniform cards in a virtualizing grid, same pattern as Item Values. -->
-        <GridView Grid.Row="3" ItemsSource="{x:Bind ViewModel.Items}" SelectionMode="None" IsItemClickEnabled="False">
-            <GridView.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <ItemsWrapGrid Orientation="Horizontal" ItemWidth="270" ItemHeight="160"/>
-                </ItemsPanelTemplate>
-            </GridView.ItemsPanel>
-            <GridView.ItemContainerStyle>
-                <Style TargetType="GridViewItem">
-                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                    <Setter Property="VerticalContentAlignment" Value="Stretch"/>
-                    <Setter Property="Padding" Value="0"/>
-                    <Setter Property="Margin" Value="0,0,10,10"/>
-                </Style>
-            </GridView.ItemContainerStyle>
-            <GridView.ItemTemplate>
-                <DataTemplate x:DataType="viewmodels:EggCatalystRowViewModel">
-                    <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Width="260" Height="150"
-                            Background="{ThemeResource ThemePanelAltBrush}"
-                            CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,10"
-                            AutomationProperties.Name="{x:Bind AccessibleName}">
-                        <Grid RowSpacing="4">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
+                <Border Style="{StaticResource ThemeCardStyle}" Padding="20,16">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="WHAT WILL HAPPEN" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Slots}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="viewmodels:EggSlotViewModel">
+                                    <StackPanel Spacing="2" Margin="0,0,0,12">
+                                        <TextBlock Style="{StaticResource ThemeBodyTextStyle}" FontSize="14" FontWeight="SemiBold">
+                                            <Run Text="{x:Bind Name}"/>
+                                            <Run Text="{x:Bind Subtitle}" Foreground="{ThemeResource ThemeTextDimBrush}" FontWeight="Normal" FontSize="12"/>
+                                        </TextBlock>
+                                        <TextBlock Text="{x:Bind Explanation, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{x:Bind ViewModel.DoseNote, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Right: the items the selected slot takes. -->
+        <Grid Grid.Row="1" Grid.Column="1" RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <StackPanel Spacing="2">
+                <TextBlock Text="{x:Bind ViewModel.SelectedSlot.Name, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}"/>
+                <TextBlock Text="{x:Bind ViewModel.SelectedSlot.Subtitle, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
+            </StackPanel>
+            <ctcontrols:WrapPanel Grid.Row="1" HorizontalSpacing="14" VerticalSpacing="10">
+                <NumberBox Header="Amount in this slot" Width="170" Minimum="0" SpinButtonPlacementMode="Inline" SmallChange="1"
+                           Value="{x:Bind ViewModel.SelectedSlot.Count, Mode=TwoWay}"
+                           IsEnabled="{x:Bind ViewModel.SelectedSlot.HasItem, Mode=OneWay}"
+                           AutomationProperties.Name="Amount in the selected slot"/>
+                <Button Content="Empty slot" Click="Clear_Click" VerticalAlignment="Bottom"
+                        IsEnabled="{x:Bind ViewModel.SelectedSlot.HasItem, Mode=OneWay}"
+                        AutomationProperties.Name="Empty the selected catalyst slot"/>
+                <ComboBox Header="Effect" Width="220" ItemsSource="{x:Bind ViewModel.FilterOptions, Mode=OneWay}"
+                          SelectedItem="{x:Bind ViewModel.Filter, Mode=TwoWay}" AutomationProperties.Name="Filter items by effect"/>
+                <TextBox Header="Search" Width="220" PlaceholderText="e.g. Sac Venom"
+                         Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Search items"/>
+                <TextBlock Text="{x:Bind ViewModel.Message, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                           VerticalAlignment="Bottom" Margin="0,0,0,8" TextWrapping="Wrap" MaxWidth="420"/>
+            </ctcontrols:WrapPanel>
+
+            <GridView Grid.Row="2" ItemsSource="{x:Bind ViewModel.Items}" SelectionMode="None" IsItemClickEnabled="True" ItemClick="Item_Click">
+                <GridView.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <ItemsWrapGrid Orientation="Horizontal" ItemWidth="250" ItemHeight="96"/>
+                    </ItemsPanelTemplate>
+                </GridView.ItemsPanel>
+                <GridView.ItemContainerStyle>
+                    <Style TargetType="GridViewItem">
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Margin" Value="0,0,10,10"/>
+                    </Style>
+                </GridView.ItemContainerStyle>
+                <GridView.ItemTemplate>
+                    <DataTemplate x:DataType="viewmodels:EggCatalystRowViewModel">
+                        <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Width="240" Height="86"
+                                Background="{ThemeResource ThemePanelAltBrush}"
+                                CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="10,8"
+                                AutomationProperties.Name="{x:Bind AccessibleName}">
                             <Grid ColumnSpacing="10">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Border Width="44" Height="44" Background="{ThemeResource ThemeVoidBrush}" VerticalAlignment="Top">
+                                <Border Width="44" Height="44" Background="{ThemeResource ThemeVoidBrush}" VerticalAlignment="Center">
                                     <Image Source="{x:Bind Icon, Mode=OneWay}" Width="38" Height="38"/>
                                 </Border>
-                                <TextBlock Grid.Column="1" Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold"
-                                           FontSize="14" MaxLines="2" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
-                                           VerticalAlignment="Center" ToolTipService.ToolTip="{x:Bind Name}"/>
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="13"
+                                               TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Name}"/>
+                                    <TextBlock Text="{x:Bind EffectText}" Foreground="{ThemeResource ThemeAccentBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBlock Text="{x:Bind AmountText}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
                             </Grid>
-                            <StackPanel Grid.Row="1" Spacing="2" VerticalAlignment="Bottom">
-                                <TextBlock Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" Visibility="{x:Bind HasEffect}">
-                                    <Run Text="Personality" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                                    <Run Text="{x:Bind PersonalityText}" Foreground="{ThemeResource ThemeAccentBrush}" FontWeight="SemiBold"/>
-                                </TextBlock>
-                                <TextBlock Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" Visibility="{x:Bind HasEffect}">
-                                    <Run Text="Size" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                                    <Run Text="{x:Bind GrowthText}" Foreground="{ThemeResource ThemeAccentBrush}" FontWeight="SemiBold"/>
-                                </TextBlock>
-                                <TextBlock Text="{x:Bind DoseText}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                <TextBlock Text="{x:Bind ChanceText}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                           TextTrimming="CharacterEllipsis" Visibility="{x:Bind HasEffect}"/>
-                            </StackPanel>
-                        </Grid>
-                    </Border>
-                </DataTemplate>
-            </GridView.ItemTemplate>
-        </GridView>
+                        </Border>
+                    </DataTemplate>
+                </GridView.ItemTemplate>
+            </GridView>
+        </Grid>
+
+        <TextBlock Grid.Row="1" Text="{x:Bind ViewModel.Message, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}"
+                   Visibility="{x:Bind IsNotReady(ViewModel.IsReady), Mode=OneWay}"/>
     </Grid>
 </Page>

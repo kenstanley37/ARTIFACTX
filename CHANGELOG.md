@@ -10,7 +10,9 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 - Treasures and other procedural items (fossils, bio samples, salvaged loot, dismantled parts) show their own name from the game, like "Shiny Bones", in the Catalog's Wonders and in your inventories. Needs the game data read again (Settings).
 
-- Egg Sequencer page under Reference: for every item, which personality trait it raises or lowers in the Neural Calibrator, whether the Growth Hormone makes the creature bigger or smaller, and how many make a full dose or a certain colour or anatomy change. Filter by the effect you want. Needs the game data read again (Settings).
+- Egg Sequencer page under Reference, laid out like the game's sequencer: pick a catalyst slot to see only the items it takes, filter by the effect you want (bigger, toward Gentleness and so on), put an item in and see the dose the game will show and, in plain words, what will happen to the new companion. Needs the game data read again (Settings).
+
+- Frigates: for an organic frigate, a Feed Vessel list shows what every food would do to that frigate - its new traits and how each stat changes - best first for the stat you choose. Needs the game data read again (Settings).
 
 ### Fixed
 

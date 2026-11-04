@@ -9,53 +9,38 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
-/// <summary>A choice in one of the Egg Sequencer page's filter boxes.</summary>
+/// <summary>A choice in the Egg Sequencer page's effect filter.</summary>
 public sealed record EggFilterOption(string Label, Func<EggCatalystRowViewModel, bool> Matches)
 {
     public override string ToString() => Label;
 }
 
 /// <summary>
-/// The Egg Sequencer reference page: what every substance and product does in
-/// each catalyst slot (Core EggSequencer, rules from the catalog's
-/// EGGSEQUENCER row, values from ItemValues). Read-only; nothing is written to
-/// the save.
+/// The Egg Sequencer page: a copy of the game's sequencer screen. Pick a
+/// catalyst slot to list only the items it takes, filtered by the effect
+/// wanted; put one in and the slot shows the game's dose and, in plain words,
+/// what will happen (EggSlotViewModel). Rules from Core EggSequencer and the
+/// catalog's EGGSEQUENCER row, values from ItemValues. Nothing touches the save.
 /// </summary>
 public sealed partial class EggSequencerViewModel : ObservableObject
 {
-    private List<EggCatalystRowViewModel> _all = [];
+    private EggSequencerRules? _rules;
+    private List<(ItemValueInfo Item, EggCatalystEffect Effect)> _items = [];
+    private List<EggCatalystRowViewModel> _slotRows = [];
 
+    public ObservableCollection<EggSlotViewModel> Slots { get; } = [];
     public ObservableCollection<EggCatalystRowViewModel> Items { get; } = [];
 
-    public IReadOnlyList<EggFilterOption> PersonalityOptions { get; } =
-    [
-        new("Any personality effect", _ => true),
-        .. Enum.GetValues<EggTrait>().SelectMany(t => new[]
-        {
-            new EggFilterOption($"Raises {t}", r => r.Effect.Trait == t && r.Effect.TraitIncreases),
-            new EggFilterOption($"Lowers {t}", r => r.Effect.Trait == t && !r.Effect.TraitIncreases),
-        }),
-    ];
-
-    public IReadOnlyList<EggFilterOption> GrowthOptions { get; } =
-    [
-        new("Any size effect", _ => true),
-        new("Makes it bigger", r => r.Effect.Grows),
-        new("Makes it smaller", r => !r.Effect.Grows),
-    ];
-
+    [ObservableProperty] public partial EggSlotViewModel? SelectedSlot { get; private set; }
+    [ObservableProperty] public partial IReadOnlyList<EggFilterOption> FilterOptions { get; private set; } = [];
+    [ObservableProperty] public partial EggFilterOption? Filter { get; set; }
     [ObservableProperty] public partial string SearchText { get; set; } = "";
-    [ObservableProperty] public partial EggFilterOption? Personality { get; set; }
-    [ObservableProperty] public partial EggFilterOption? Growth { get; set; }
-    [ObservableProperty] public partial bool HideNoEffect { get; set; } = true;
-    [ObservableProperty] public partial string Message { get; set; } = "Loading the Egg Sequencer rules...";
-    [ObservableProperty] public partial string FullDoseText { get; set; } = "";
-
-    public EggSequencerViewModel()
-    {
-        Personality = PersonalityOptions[0];
-        Growth = GrowthOptions[0];
-    }
+    [ObservableProperty] public partial string Message { get; private set; } = "Loading the Egg Sequencer rules...";
+    [ObservableProperty] public partial string Title { get; private set; } = "";
+    [ObservableProperty] public partial string CatalystsHeading { get; private set; } = "";
+    [ObservableProperty] public partial string StatusHeading { get; private set; } = "";
+    [ObservableProperty] public partial string DoseNote { get; private set; } = "";
+    [ObservableProperty] public partial bool IsReady { get; private set; }
 
     public async Task LoadAsync()
     {
@@ -63,42 +48,80 @@ public sealed partial class EggSequencerViewModel : ObservableObject
         var values = await CatalogService.GetItemValuesAsync();
         if (rules is null || values.Count == 0)
         {
-            Message = "Read the game data again in Settings to see the Egg Sequencer rules.";
+            Message = "Read the game data again in Settings to use the Egg Sequencer.";
             return;
         }
-        long fullDose = values.FirstOrDefault(v => string.Equals(v.Id, rules.FullDoseProductId, StringComparison.OrdinalIgnoreCase))?.Value ?? 0;
-        string fullDoseName = values.FirstOrDefault(v => string.Equals(v.Id, rules.FullDoseProductId, StringComparison.OrdinalIgnoreCase))?.Name ?? "";
-        int points = (int)Math.Round(EggSequencer.FullDoseTraitChange(rules) * 100);
-        FullDoseText = $"A full dose is worth {fullDose:N0} units (one {fullDoseName}); raw substances count {rules.SubstanceModifier:0.#} times their value. "
-            + $"A full dose moves a personality trait by {points} points.";
-
-        _all = await Task.Run(() => values
-            .Where(v => v.Kind is "Product" or "Substance")
-            .Select(v => new EggCatalystRowViewModel(v.Id, v.Name,
-                EggSequencer.Effect(v.Id, v.Kind == "Substance", v.Value, fullDose, rules)))
-            .OrderBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase)
+        _rules = rules;
+        var full = values.FirstOrDefault(v => string.Equals(v.Id, rules.FullDoseProductId, StringComparison.OrdinalIgnoreCase));
+        long fullDose = full?.Value ?? 0;
+        var ingredients = rules.Ingredients.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        _items = await Task.Run(() => values
+            .Where(v => v.Kind is "Product" or "Substance" && ingredients.Contains(v.Id))
+            .Select(v => (v, EggSequencer.Effect(v.Id, v.Kind == "Substance", v.Value, fullDose, rules)))
             .ToList());
-        await CatalogService.WarmCacheAsync(_all.Select(r => r.Id));
-        foreach (var row in _all) row.Icon = CatalogService.TryGet(row.Id)?.Icon;
+        await CatalogService.WarmCacheAsync(_items.Select(i => i.Item.Id));
+
+        Title = Text("UI_EGG_MODIFIER_NAME_L");
+        CatalystsHeading = Text("UI_EGG_MODIFIER_INPUT_HEADING");
+        StatusHeading = Text("UI_EGG_MODIFIER_OUTPUT_HEADING");
+        DoseNote = $"A full dose is {fullDose:N0} units of value, the worth of one {full?.Name ?? rules.FullDoseProductId}. "
+            + $"Raw materials count {rules.SubstanceModifier:0.#} times their value. A slot holds up to {rules.ItemLimit:N0}.";
+        Slots.Clear();
+        foreach (var slot in Enum.GetValues<EggCatalystSlot>()) Slots.Add(new EggSlotViewModel(slot, rules, fullDose, Text));
+        IsReady = true;
+        Select(Slots[^1]);
+    }
+
+    /// <summary>Show the items for a slot.</summary>
+    public void Select(EggSlotViewModel slot)
+    {
+        if (_rules is null) return;
+        foreach (var s in Slots) s.IsSelected = s == slot;
+        SelectedSlot = slot;
+        _slotRows = _items.Select(i => new EggCatalystRowViewModel(i.Item.Id, i.Item.Name, i.Item.Kind == "Substance", i.Item.Value,
+                i.Effect, slot.Slot, _rules.ItemLimit, Text) { Icon = CatalogService.TryGet(i.Item.Id)?.Icon })
+            .ToList();
+        FilterOptions = Options(slot.Slot);
+        Filter = FilterOptions[0];
         Apply();
     }
 
+    /// <summary>Put an item in the selected slot.</summary>
+    public void Pick(EggCatalystRowViewModel row) => SelectedSlot?.SetItem(row);
+
+    public void ClearSelectedSlot() => SelectedSlot?.SetItem(null);
+
+    partial void OnFilterChanged(EggFilterOption? value) => Apply();
     partial void OnSearchTextChanged(string value) => Apply();
-    partial void OnPersonalityChanged(EggFilterOption? value) => Apply();
-    partial void OnGrowthChanged(EggFilterOption? value) => Apply();
-    partial void OnHideNoEffectChanged(bool value) => Apply();
+
+    private IReadOnlyList<EggFilterOption> Options(EggCatalystSlot slot)
+    {
+        var any = new EggFilterOption("Any effect", _ => true);
+        return slot switch
+        {
+            EggCatalystSlot.GrowthHormone =>
+                [any, new("Makes it bigger", r => r.Effect.Grows), new("Makes it smaller", r => !r.Effect.Grows)],
+            EggCatalystSlot.NeuralCalibrator =>
+                [any, .. _slotRows.Select(r => r.TraitWord).Distinct().Order()
+                    .Select(word => new EggFilterOption($"Toward {word}", r => r.TraitWord == word))],
+            _ => [any, new($"Certain with 10 or fewer", r => r.Needed <= 10)],
+        };
+    }
 
     private void Apply()
     {
-        if (_all.Count == 0) return;
+        if (_slotRows.Count == 0) return;
         string text = SearchText.Trim();
-        var rows = _all.Where(r => text.Length == 0 || r.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase))
-            .Where(r => !HideNoEffect || r.HasEffect)
-            .Where(r => Personality?.Matches(r) ?? true)
-            .Where(r => Growth?.Matches(r) ?? true)
+        var rows = _slotRows.Where(r => r.HasEffect)
+            .Where(r => Filter?.Matches(r) ?? true)
+            .Where(r => text.Length == 0 || r.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase))
+            .OrderBy(r => r.Needed)
+            .ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
         Items.Clear();
         foreach (var row in rows) Items.Add(row);
-        Message = $"{rows.Count:N0} of {_all.Count:N0} items";
+        Message = $"{rows.Count:N0} items work in the {SelectedSlot?.Name}, fewest needed first. Click one to put it in.";
     }
+
+    private string Text(string key) => _rules?.Texts.TryGetValue(key, out var t) == true && t.Length > 0 ? t : key;
 }

@@ -27,6 +27,9 @@ public sealed partial class FrigatesViewModel : ObservableObject
 
     public ObservableCollection<FrigateCardViewModel> Cards { get; } = new();
 
+    /// <summary>The Feed Vessel predictor for the selected organic frigate.</summary>
+    public FrigateFeedingViewModel Feeding { get; } = new();
+
     public IReadOnlyList<string> Roles { get; } = Enum.GetNames<GcFrigateClass.FrigateClassEnum>();
     public IReadOnlyList<RaceChoice> Races { get; } = Enum.GetNames<GcAlienRace.AlienRaceEnum>().Select(r => new RaceChoice(r)).ToList();
     public IReadOnlyList<string> Ratings { get; } = Enum.GetNames<GcInventoryClass.InventoryClassEnum>();
@@ -144,8 +147,10 @@ public sealed partial class FrigatesViewModel : ObservableObject
         Record = record.Select(r => new NumberFieldViewModel(r.Label, r.Label, SaveSessionManager.GetValue(r.Path)?.Value<double>() ?? 0,
             field => { FrigateService.SetInt(r.Path, field.Value); Edited(); })).ToList();
 
-        Traits = FrigateService.Traits(index).Select((id, slot) => new FrigateTraitSlotViewModel(slot, _traitChoices, id,
+        var traitIds = FrigateService.Traits(index);
+        Traits = traitIds.Select((id, slot) => new FrigateTraitSlotViewModel(slot, _traitChoices, id,
             s => { FrigateService.SetTrait(index, s.Slot, s.Selected?.Id ?? ""); Edited(); })).ToList();
+        _ = Feeding.ShowAsync(selectedFrigate, traitIds, _traitCatalog ?? new());
 
         HasEdits = FrigateService.HasEdits(index);
     }
