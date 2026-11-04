@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One card of an account-wide-unlock page (UnlockSectionViewModel): Catalog,
+     Expedition Rewards and Twitch Rewards. The checkbox under the band unlocks or
+     locks this section only; "Locked only" narrows it to what isn't unlocked. -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.UnlockSectionCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels">
+
+    <UserControl.Resources>
+        <DataTemplate x:Key="RowTemplate" x:DataType="viewmodels:AccountItemRowViewModel">
+            <Grid Padding="4,6" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <!-- Width/MinWidth/Padding explicit: WinUI's CheckBox reserves a label
+                     area even without Content, which pushed the name far right. -->
+                <CheckBox Grid.Column="0" Width="30" MinWidth="0" Padding="0" HorizontalContentAlignment="Center"
+                          IsChecked="{x:Bind IsUnlocked, Mode=OneWay}"
+                          Click="Row_Click" Tag="{x:Bind}" VerticalAlignment="Center" AutomationProperties.Name="{x:Bind DisplayName}"/>
+                <!-- The id under every name: base parts and firework packs share one
+                     name across several ids (owner feedback 2026-08-05 and 2026-11-03). -->
+                <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind DisplayName}" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource ThemeTextBrush}"/>
+                    <TextBlock Text="{x:Bind GameId}" FontSize="10" Foreground="{ThemeResource ThemeTextFaintBrush}"
+                               TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+                <Border Grid.Column="2" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                        CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind CategoryLabel}" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                </Border>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Border Style="{StaticResource ThemeCardStyle}" Width="420" VerticalAlignment="Top">
+        <StackPanel>
+            <Border Style="{StaticResource ThemeBandStyle}">
+                <TextBlock Text="{x:Bind Section.HeaderUpper, Mode=OneWay}" Style="{StaticResource ThemeBandTextStyle}" TextTrimming="CharacterEllipsis"/>
+            </Border>
+            <Grid Padding="22,8,18,0" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <CheckBox IsThreeState="False" IsChecked="{x:Bind Section.AllUnlocked, Mode=OneWay}" Click="All_Click"
+                          Content="{x:Bind Section.CountText, Mode=OneWay}" Foreground="{ThemeResource ThemeTextDimBrush}"
+                          AutomationProperties.Name="{x:Bind Section.SelectAllName, Mode=OneWay}"
+                          ToolTipService.ToolTip="Unlock everything in this section (or lock it all when everything is unlocked)"/>
+                <ToggleButton Grid.Column="1" Content="Locked only" VerticalAlignment="Center"
+                              IsChecked="{x:Bind Section.ShowLockedOnly, Mode=TwoWay}"
+                              AutomationProperties.Name="{x:Bind Section.LockedOnlyName, Mode=OneWay}"/>
+            </Grid>
+            <Grid Height="{x:Bind Section.ListHeight, Mode=OneWay}" Margin="6,4,6,8">
+                <ListView ItemsSource="{x:Bind Section.VisibleItems, Mode=OneWay}" SelectionMode="None"
+                          ItemTemplate="{StaticResource RowTemplate}"/>
+                <TextBlock Text="Everything here is unlocked." Style="{StaticResource ThemeDimTextStyle}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Visibility="{x:Bind Section.IsNothingShown, Mode=OneWay}"/>
+            </Grid>
+        </StackPanel>
+    </Border>
+</UserControl>

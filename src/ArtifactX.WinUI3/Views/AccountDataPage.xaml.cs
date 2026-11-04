@@ -3,7 +3,6 @@ using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,13 +27,8 @@ public sealed partial class AccountDataPage : Page
     private List<AccountItemRowViewModel>? _allItems;
     private List<AccountItemRowViewModel> _catalogSource = new();
 
-    // _workingIds keeps the exact raw ("^"-prefixed) strings the file itself uses, so
-    // re-staging round-trips cleanly; _workingIdSet holds the same ids normalized
-    // (CatalogService.NormalizeId - strips the leading "^") for O(1) lookup against
-    // AccountItemRowViewModel.GameId, which is already normalized since it comes
-    // straight from the catalog DB.
-    private List<string> _workingIds = new();
-    private HashSet<string> _workingIdSet = new(StringComparer.Ordinal);
+    private readonly AccountUnlocksViewModel _unlocks = new();
+    private readonly HashSet<string> _lockedOnly = new(StringComparer.Ordinal);
 
     // Fixed display order for the Catalog section's per-category cards - not
     // alphabetical or count-based, so the grouping reads the same way every
@@ -101,18 +95,15 @@ public sealed partial class AccountDataPage : Page
 
         var catalogItems = await CatalogService.GetAllUnlockableItemsAsync();
 
-        var unlockedArray = AccountSessionManager.GetValue(NmsAccountData.UnlockedItemsPath) as JArray;
-        _workingIds = unlockedArray?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
-        _workingIdSet = new HashSet<string>(_workingIds.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
-
-        var workingIdSet = _workingIdSet;
+        _unlocks.Load();
+        var unlocks = _unlocks;
         _allItems = await Task.Run(() => catalogItems.Select(c => new AccountItemRowViewModel
         {
             GameId = c.GameId,
             DisplayName = c.DisplayName,
             CategoryLabel = c.CategoryLabel,
             CatalogGroup = c.CatalogGroup ?? "Uncategorized",
-            IsUnlocked = workingIdSet.Contains(c.GameId)
+            IsUnlocked = unlocks.IsUnlocked(c.GameId)
         }).ToList());
 
         // EXPD_/TWITCH_ items excluded - they live on their own dedicated pages now.
@@ -140,60 +131,12 @@ public sealed partial class AccountDataPage : Page
             .Select(group =>
             {
                 var items = _catalogSource.Where(i => i.CatalogGroup == group).ToList();
-                return new CatalogCategorySectionViewModel
-                {
-                    Header = $"{group} ({items.Count})",
-                    Items = items,
-                    ListHeight = Math.Min(items.Count * 36 + 8, 420)
-                };
+                return new UnlockSectionViewModel(group, group, items, Math.Min(items.Count * 48 + 24, 420), _unlocks, _lockedOnly);
             })
             .Where(section => section.Items.Count > 0)
             .ToList();
 
         CatalogResultCountTxt.Text = $"{_catalogSource.Count:N0} items";
-    }
-
-    /// <summary>Adds/removes one row's id from the working unlock set - shared by
-    /// the per-row checkbox handler and the Unlock All/Lock All bulk actions so
-    /// both stay in sync with exactly one implementation of the raw-id bookkeeping
-    /// (see the _workingIds/_workingIdSet field comment).</summary>
-    private void SetRowUnlocked(AccountItemRowViewModel row, bool unlock)
-    {
-        row.IsUnlocked = unlock;
-
-        if (unlock)
-        {
-            if (_workingIdSet.Add(row.GameId))
-                _workingIds.Add("^" + row.GameId);
-        }
-        else
-        {
-            if (_workingIdSet.Remove(row.GameId))
-                _workingIds.RemoveAll(id => CatalogService.NormalizeId(id) == row.GameId);
-        }
-    }
-
-    private void ItemCheckBox_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not CheckBox cb || cb.Tag is not AccountItemRowViewModel row) return;
-
-        SetRowUnlocked(row, cb.IsChecked ?? false);
-        AccountSessionManager.StageEdit(new JArray(_workingIds), NmsAccountData.UnlockedItemsPath);
-    }
-
-    private void CatalogUnlockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(_catalogSource, unlock: true, RebuildCatalogCards);
-
-    private void CatalogLockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(_catalogSource, unlock: false, RebuildCatalogCards);
-
-    private void BulkSetRows(List<AccountItemRowViewModel> visibleRows, bool unlock, Action reapplyFilters)
-    {
-        if (visibleRows.Count == 0) return;
-
-        foreach (var row in visibleRows)
-            SetRowUnlocked(row, unlock);
-
-        AccountSessionManager.StageEdit(new JArray(_workingIds), NmsAccountData.UnlockedItemsPath);
-        reapplyFilters();
     }
 
     /// <summary>Mirrors AppTitleBar's own SaveBtn gating exactly - accountdata.hg

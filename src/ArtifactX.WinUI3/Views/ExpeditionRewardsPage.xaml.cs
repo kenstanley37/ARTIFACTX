@@ -3,7 +3,6 @@ using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,8 +25,8 @@ public sealed partial class ExpeditionRewardsPage : Page
     private List<AccountItemRowViewModel> _expeditionSource = new();
     private List<AccountItemRowViewModel> _currentlyVisibleRows = new();
 
-    private List<string> _workingIds = new();
-    private HashSet<string> _workingIdSet = new(StringComparer.Ordinal);
+    private readonly AccountUnlocksViewModel _unlocks = new();
+    private readonly HashSet<string> _lockedOnly = new(StringComparer.Ordinal);
 
     public ExpeditionRewardsPage()
     {
@@ -80,13 +79,11 @@ public sealed partial class ExpeditionRewardsPage : Page
         var catalogItems = await CatalogService.GetAllUnlockableItemsAsync();
         var rewards = await ExpeditionRewardsService.LoadAsync();
 
-        var unlockedArray = AccountSessionManager.GetValue(NmsAccountData.UnlockedItemsPath) as JArray;
-        _workingIds = unlockedArray?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
-        _workingIdSet = new HashSet<string>(_workingIds.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
+        _unlocks.Load();
 
         var expeditionNames = CatalogService.BuildExpeditionNameLookup(catalogItems);
 
-        var workingIdSet = _workingIdSet;
+        var unlocks = _unlocks;
         // The game's own reward table says which expedition each reward is from,
         // including rewards without an EXPD_ id (SWARM_HAT). Catalogs built before
         // format 60 lack it, so EXPD_ items and their banner/decal/title naming remain.
@@ -106,7 +103,7 @@ public sealed partial class ExpeditionRewardsPage : Page
                     CatalogGroup = c.CatalogGroup ?? "Uncategorized",
                     ExpeditionNumber = expeditionNumber,
                     ExpeditionName = expeditionName,
-                    IsUnlocked = workingIdSet.Contains(c.GameId)
+                    IsUnlocked = unlocks.IsUnlocked(c.GameId)
                 };
             }).ToList());
 
@@ -189,12 +186,8 @@ public sealed partial class ExpeditionRewardsPage : Page
         double sharedCardHeight = CardHeight(maxNumberedCount);
 
         var sections = numberedGroups
-            .Select(g => new CatalogCategorySectionViewModel
-            {
-                Header = $"#{g.Key}: {g.First().ExpeditionName} ({g.Count()})",
-                Items = g.ToList(),
-                ListHeight = sharedCardHeight
-            })
+            .Select(g => new UnlockSectionViewModel($"#{g.Key}", $"#{g.Key}: {g.First().ExpeditionName}",
+                g.ToList(), sharedCardHeight, _unlocks, _lockedOnly))
             .ToList();
 
         var otherItems = _currentlyVisibleRows.Where(i => i.ExpeditionNumber is null).ToList();
@@ -202,12 +195,8 @@ public sealed partial class ExpeditionRewardsPage : Page
         {
             // EXPD_ items the game's reward table doesn't list (a few fireworks),
             // or every unmatched EXPD_ item on a catalog built before format 60.
-            sections.Add(new CatalogCategorySectionViewModel
-            {
-                Header = $"Other Expedition Items ({otherItems.Count})",
-                Items = otherItems,
-                ListHeight = Math.Max(sharedCardHeight, CardHeight(otherItems.Count))
-            });
+            sections.Add(new UnlockSectionViewModel("other", "Other Expedition Items", otherItems,
+                Math.Max(sharedCardHeight, CardHeight(otherItems.Count)), _unlocks, _lockedOnly));
         }
 
         CategoriesItemsControl.ItemsSource = sections;
@@ -217,48 +206,6 @@ public sealed partial class ExpeditionRewardsPage : Page
     private const int MaxCardRows = 10;
 
     private static double CardHeight(int rows) => Math.Min(rows, MaxCardRows) * 48 + 24;
-
-    private void SetRowUnlocked(AccountItemRowViewModel row, bool unlock)
-    {
-        row.IsUnlocked = unlock;
-
-        if (unlock)
-        {
-            if (_workingIdSet.Add(row.GameId))
-                _workingIds.Add("^" + row.GameId);
-        }
-        else
-        {
-            if (_workingIdSet.Remove(row.GameId))
-                _workingIds.RemoveAll(id => CatalogService.NormalizeId(id) == row.GameId);
-        }
-    }
-
-    private void ItemCheckBox_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not CheckBox cb || cb.Tag is not AccountItemRowViewModel row) return;
-
-        SetRowUnlocked(row, cb.IsChecked ?? false);
-        AccountSessionManager.StageEdit(new JArray(_workingIds), NmsAccountData.UnlockedItemsPath);
-    }
-
-    private void UnlockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(unlock: true);
-
-    private void LockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(unlock: false);
-
-    /// <summary>Scoped to whatever's currently visible (search + expedition
-    /// filter) rather than every expedition item, mirroring a reference tool's
-    /// own per-section Unlock All/Lock All buttons.</summary>
-    private void BulkSetRows(bool unlock)
-    {
-        if (_currentlyVisibleRows.Count == 0) return;
-
-        foreach (var row in _currentlyVisibleRows)
-            SetRowUnlocked(row, unlock);
-
-        AccountSessionManager.StageEdit(new JArray(_workingIds), NmsAccountData.UnlockedItemsPath);
-        ApplyFilters();
-    }
 
     private void UpdateEditButtons()
     {

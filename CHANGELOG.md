@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Catalog, Expedition Rewards and Twitch Rewards: each section now has its own tick-all checkbox (showing how many of its items are unlocked) and a Locked only filter. The page-wide Lock All and Unlock All buttons, which changed every item on the page at once, are gone.
+
 - Expedition Rewards lists every reward from each expedition, grouped under the right one, including the newest expedition and rewards such as Direwasp armour and figurines that were missing. Needs the game data read again (Settings).
 
 - Finds and Near the Core start from where you are now. Opening them after travelling used to measure distances, and fill in Use my current location, from where you were when the save was loaded, until the game saved again.

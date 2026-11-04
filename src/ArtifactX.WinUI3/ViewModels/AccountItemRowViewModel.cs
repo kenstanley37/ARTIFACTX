@@ -1,13 +1,12 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using Microsoft.UI.Xaml;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
-/// <summary>One row in AccountDataPage's catalog list - a static catalog item
-/// (GameId/DisplayName/CategoryLabel, from CatalogService.GetAllUnlockableItemsAsync)
-/// paired with whether the currently active account has it unlocked. IsUnlocked
-/// is local, editable UI state; AccountDataPage is the only thing that writes it
-/// and is responsible for keeping AccountSessionManager's staged edit in sync.</summary>
+/// <summary>One row on an account-wide-unlock page (Catalog / Expedition Rewards /
+/// Twitch Rewards) - a static catalog item (GameId/DisplayName/CategoryLabel, from
+/// CatalogService.GetAllUnlockableItemsAsync) paired with whether the active account
+/// has it unlocked. IsUnlocked is written only by AccountUnlocksViewModel.Set, which
+/// keeps AccountSessionManager's staged edit in sync.</summary>
 public partial class AccountItemRowViewModel : ObservableObject
 {
     public required string GameId { get; init; }
@@ -22,16 +21,11 @@ public partial class AccountItemRowViewModel : ObservableObject
     /// category checkbox that shows it and nothing silently disappears.</summary>
     public required string CatalogGroup { get; init; }
 
-    /// <summary>Null for the vast majority of rows - only set for Banner/Decal/Title
-    /// Expedition Reward items, whose own names spell out which expedition they're
-    /// from (see CatalogService.BuildExpeditionNameLookup). Used both for the
-    /// Expedition column and the Expedition filter dropdown.</summary>
+    /// <summary>Set only on Expedition Rewards: the expedition a reward is from (the
+    /// catalog's season-rewards table, or EXPD_ banner/decal/title naming on an
+    /// older catalog). Groups the cards and feeds the Expedition filter.</summary>
     public int? ExpeditionNumber { get; init; }
     public string? ExpeditionName { get; init; }
 
-    public string ExpeditionLabel => ExpeditionNumber is int n ? $"#{n}: {ExpeditionName}" : "";
-    public Visibility ExpeditionVisibility => ExpeditionNumber is int ? Visibility.Visible : Visibility.Collapsed;
-
-    [ObservableProperty]
-    private bool isUnlocked;
+    [ObservableProperty] public partial bool IsUnlocked { get; set; }
 }

@@ -486,3 +486,12 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Validation**: 14 focused checks cover the owner's two addresses, range boundaries, case and malformed input. Owner confirmed all changes working in the app on 2026-11-03, with screenshots showing purple-star warnings and functioning filters and collapsible sections.
 - **Remaining**: Automatic loaded-save access detection requires a controlled before/after diff. The warning is general and does not claim that the player has or lacks the unlock.
 - **Owner follow-up**: The supplied Planet Finder screenshot shows the purple-star warning on result cards. Search and Glyph Decoder now use separate remembered FoldingCards, letting the owner hide either section without clearing inputs or filters. The result count remains in the search header; Clear filters, Export CSV and results stay outside the collapsed body. Owner confirmed the collapsible sections work in the app on 2026-11-03; the screenshot shows both sections hidden while the result count, Export CSV and planet cards remain visible.
+
+## 2026-11-03 save limit on visited systems
+
+### Bug 58: The Save Forgets Old System Visits, So Regions Never Complete
+- **Source**: Owner observation, 2026-11-03.
+- **Problem**: The local save keeps only a limited number of system visits. Returning to a system visited long ago can look unvisited until it is scanned, which then shows how long ago each planet was discovered; Hello Games' servers keep visits permanently, the local save does not. The Regions page counts visited systems from the save, so a fully mapped region can never show complete and "remaining" counts are too high.
+- **Not yet confirmed**: the size of the save's visit list and which entries it drops first; establish with a controlled check (a save near the limit, one new visit, compare) before relying on a number.
+- **Proposed direction**: ArtifactX records every visited system it sees (each live snapshot already passes through `FishCatchRecorder.SnapshotSeen`) in `user.db` through an additive migration, and Regions counts the union of that history and the save. Discovery records that survive in the save (planets discovered by the player) can backfill systems the history has not seen. Mark systems known only from the history so the page never overstates what the save itself holds.
+
