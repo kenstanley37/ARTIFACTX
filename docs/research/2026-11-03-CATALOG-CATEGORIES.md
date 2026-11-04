@@ -75,6 +75,9 @@ are shown but not counted. Exact on both slots: Slot 1 61 + 219 + 143 = 423 (gam
   All 143 count as known on both slots; where that comes from is not found.
 - Owner confirmed in the app 2026-11-03: Slot 8 shows Oddities Recorded 248/428 with
   the game's record names (Treasures 4/13, Planet 11/11, Fishing 60/219, Fossils 143/143).
+  Planet Records' planet names match the game's tile by tile; Fishing (fish-table order,
+  outlines) and Fossil Records match its screens. Fauna and Flora are recorded in the
+  same slots, but the game names the species, which isn't generated yet.
 
 ## Write test (2026-11-03)
 
