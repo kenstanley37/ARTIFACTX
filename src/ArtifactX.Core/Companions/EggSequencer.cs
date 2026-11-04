@@ -9,6 +9,19 @@ public enum EggTrait { Helpfulness, Aggression, Independence }
 /// <summary>The sequencer's catalyst slots, in the game's order (0x1410d6400 slots 1-4).</summary>
 public enum EggCatalystSlot { GrowthHormone, GeneSplitter, DyeInjector, NeuralCalibrator }
 
+/// <summary>A species' size range and what the sequencer may change on it:
+/// GcCreatureData MinScale/MaxScale, replaced by peteggspeciesoverridetable.mbin's
+/// overrides when those are not 0, and its CanChange flags (true without a row).
+/// The Growth Hormone reads the range at 0x1410d7c81 (creature +0xA8/+0xA4) and
+/// the override at 0x1410d7cd1; it and the Neural Calibrator skip a species whose
+/// CanChangeGrowth / CanChangeTraits is false (0x1410d7bb9, 0x1410d7dd6).</summary>
+public sealed record EggSpecies(float MinScale, float MaxScale, bool CanChangeAnatomy, bool CanChangeColour,
+    bool CanChangeGrowth, bool CanChangeTraits);
+
+/// <summary>An egg in the save (NmsCompanionPaths.EggArrayPath): its name, species
+/// id, size and the three trait values (-1..1, GcCreaturePetTraits order).</summary>
+public sealed record EggCreature(string Name, string Species, float Scale, float[] Traits);
+
 /// <summary>A PetEggTraitModifierOverrideTable row: an item the game gives a fixed
 /// personality effect instead of the hashed one.</summary>
 public sealed record EggTraitOverride(string ItemId, EggTrait Trait, bool Increases);
@@ -42,7 +55,8 @@ public sealed record EggSequencerRules(
     float MaxTopDescriptorChangeChance,
     int ItemLimit,
     IReadOnlyList<string> Ingredients,
-    IReadOnlyDictionary<string, string> Texts);
+    IReadOnlyDictionary<string, string> Texts,
+    IReadOnlyDictionary<string, EggSpecies> Species);
 
 /// <summary>What one item always does in each slot (whatever the amount).</summary>
 /// <param name="Trait">The trait the Neural Calibrator moves.</param>
@@ -175,6 +189,21 @@ public static class EggSequencer
     public static int SuggestedCount(EggCatalystSlot slot, EggCatalystEffect effect, EggSequencerRules rules) =>
         Math.Min(rules.ItemLimit, slot is EggCatalystSlot.GeneSplitter or EggCatalystSlot.DyeInjector
             ? effect.CertainChangeCount : effect.FullDoseCount);
+
+    /// <summary>A trait after the Neural Calibrator: current +- the change, -1..1.</summary>
+    public static float TraitAfter(float current, EggCatalystEffect effect, EggSlotOutcome outcome) =>
+        Math.Clamp(current + (effect.TraitIncreases ? 1 : -1) * (float)(outcome.TraitChange / 100), -1f, 1f);
+
+    /// <summary>A size after the Growth Hormone: current +- min((max - min) *
+    /// ScaleRangeModifier * dose, ScaleRangeMax), within the species' range. Not used
+    /// with a saved egg yet: the egg's unY is not on this scale (Slot 8 Mecha-Mouse
+    /// 1.0 against ROBO_RODENT 1.4-2.5), so where the sequencer's current size comes
+    /// from is still open.</summary>
+    public static float ScaleAfter(EggSpecies species, float current, bool grows, double dose, EggSequencerRules rules)
+    {
+        double change = Math.Min((species.MaxScale - species.MinScale) * rules.ScaleRangeModifier * dose, rules.ScaleRangeMax);
+        return (float)Math.Clamp(current + (grows ? change : -change), species.MinScale, species.MaxScale);
+    }
 
     private static double Unit(bool isSubstance, long baseValue, EggSequencerRules rules) =>
         baseValue * (isSubstance ? rules.SubstanceModifier : 1f);

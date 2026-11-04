@@ -59,6 +59,19 @@ public static partial class CatalogSteps
         if (Decode("METADATA/REALITY/TABLES/NMS_REALITY_GCPRODUCTTABLE.MBIN") is not GcProductTable products
             || Decode("METADATA/REALITY/TABLES/NMS_REALITY_GCSUBSTANCETABLE.MBIN") is not GcSubstanceTable substances)
             throw new InvalidDataException("Product or substance table not found.");
+        var species = new Dictionary<string, EggSpecies>(StringComparer.OrdinalIgnoreCase);
+        if (Decode(CreatureDataTableFile) is GcCreatureDataTable creatures)
+            foreach (var c in creatures.Table.Where(c => c.Id.Value.Length > 0))
+                species[c.Id.Value] = new EggSpecies(c.MinScale, c.MaxScale, true, true, true, true);
+        if (Decode("METADATA/SIMULATION/ECOSYSTEM/PETEGGSPECIESOVERRIDETABLE.MBIN") is GcPetEggSpeciesOverrideTable speciesOverrides)
+            foreach (var o in speciesOverrides.SpeciesOverrides.Where(o => o.CreatureID.Value.Length > 0))
+            {
+                var baseRange = species.GetValueOrDefault(o.CreatureID.Value) ?? new EggSpecies(1, 1, true, true, true, true);
+                species[o.CreatureID.Value] = new EggSpecies(
+                    o.MinScaleOverride != 0 ? o.MinScaleOverride : baseRange.MinScale,
+                    o.MaxScaleOverride != 0 ? o.MaxScaleOverride : baseRange.MaxScale,
+                    o.CanChangeAccessories, o.CanChangeColour, o.CanChangeGrowth, o.CanChangeTraits);
+            }
         var ingredients = products.Table.Where(p => p.EggModifierIngredient).Select(p => p.ID.Value)
             .Concat(substances.Table.Where(s => s.EggModifierIngredient).Select(s => s.ID.Value)).ToList();
 
@@ -73,7 +86,7 @@ public static partial class CatalogSteps
             globals.PetEggAccessoryChanceModifier, globals.PetEggMaxAccessoriesChangeChance,
             globals.PetEggColourChanceModifier, globals.PetEggMaxColourChangeChance,
             globals.PetEggOverdosageModifier, globals.PetEggMaxOverdosage, globals.PetEggMaxTopDescriptorChangeChance,
-            globals.PetEggModificationItemLimit, ingredients, EnglishTexts(index, extraction, EggScreenTextKeys.ToHashSet()));
+            globals.PetEggModificationItemLimit, ingredients, EnglishTexts(index, extraction, EggScreenTextKeys.ToHashSet()), species);
 
         using var db = new CatalogDbContext(catalogPath);
         Replace(db, "EggSequencer", "GcPetEggTraitModifierOverrideTable", tableFile.ToLowerInvariant(), new List<CatalogItem>

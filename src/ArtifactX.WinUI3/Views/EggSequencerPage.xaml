@@ -34,6 +34,9 @@
             <StackPanel Spacing="16" Padding="0,0,12,0">
                 <Border Style="{StaticResource ThemeCardStyle}" Padding="20,16">
                     <StackPanel Spacing="14">
+                        <ComboBox Header="Your egg" HorizontalAlignment="Center" MinWidth="320" ItemsSource="{x:Bind ViewModel.Eggs, Mode=OneWay}"
+                                  SelectedItem="{x:Bind ViewModel.SelectedEgg, Mode=TwoWay}" AutomationProperties.Name="The egg to sequence"
+                                  ToolTipService.ToolTip="The eggs in your save. Choose the one you will put in the sequencer to see its exact size and personality before and after."/>
                         <TextBlock Text="{x:Bind ViewModel.CatalystsHeading, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}" HorizontalAlignment="Center"/>
                         <ItemsControl ItemsSource="{x:Bind ViewModel.Slots}" HorizontalAlignment="Center">
                             <ItemsControl.ItemsPanel>

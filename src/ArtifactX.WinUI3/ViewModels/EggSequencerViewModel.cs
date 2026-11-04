@@ -15,6 +15,12 @@ public sealed record EggFilterOption(string Label, Func<EggCatalystRowViewModel,
     public override string ToString() => Label;
 }
 
+/// <summary>An egg to sequence, or none (Egg null).</summary>
+public sealed record EggChoice(string Label, EggCreature? Egg)
+{
+    public override string ToString() => Label;
+}
+
 /// <summary>
 /// The Egg Sequencer page: a copy of the game's sequencer screen. Pick a
 /// catalyst slot to list only the items it takes, filtered by the effect
@@ -44,6 +50,8 @@ public sealed partial class EggSequencerViewModel : ObservableObject
     [ObservableProperty] public partial bool IsReady { get; private set; }
     [ObservableProperty] public partial bool OnlyOwned { get; set; }
     [ObservableProperty] public partial bool HasSave { get; private set; }
+    [ObservableProperty] public partial IReadOnlyList<EggChoice> Eggs { get; private set; } = [];
+    [ObservableProperty] public partial EggChoice? SelectedEgg { get; set; }
 
     public async Task LoadAsync()
     {
@@ -85,6 +93,9 @@ public sealed partial class EggSequencerViewModel : ObservableObject
             + $"Raw materials count {rules.SubstanceModifier:0.#} times their value. A slot holds up to {rules.ItemLimit:N0}.";
         Slots.Clear();
         foreach (var slot in Enum.GetValues<EggCatalystSlot>()) Slots.Add(new EggSlotViewModel(slot, rules, fullDose, Text));
+        Eggs = [new EggChoice("Any egg (no exact numbers)", null),
+            .. CompanionService.ReadEggs().Select(e => new EggChoice($"{e.Name} ({CompanionService.FormatArchetype(e.Species)})", e))];
+        SelectedEgg = Eggs.Count > 1 ? Eggs[1] : Eggs[0];
         IsReady = true;
         Select(Slots[^1]);
     }
@@ -109,6 +120,10 @@ public sealed partial class EggSequencerViewModel : ObservableObject
     public void ClearSelectedSlot() => SelectedSlot?.SetItem(null);
 
     partial void OnFilterChanged(EggFilterOption? value) => Apply();
+    partial void OnSelectedEggChanged(EggChoice? value)
+    {
+        foreach (var slot in Slots) slot.SetEgg(value?.Egg);
+    }
     partial void OnSearchTextChanged(string value) => Apply();
     partial void OnOnlyOwnedChanged(bool value) => Apply();
 

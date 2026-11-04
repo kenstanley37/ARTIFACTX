@@ -320,7 +320,7 @@ public static class CatalogService
             command.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId = 'EGGSEQUENCER'";
             // The first format-66 catalogs had no ingredient list or screen words; treat them as missing.
             return command.ExecuteScalar() is string json
-                && System.Text.Json.JsonSerializer.Deserialize<EggSequencerRules>(json) is { Ingredients: not null, Texts: not null } rules
+                && System.Text.Json.JsonSerializer.Deserialize<EggSequencerRules>(json) is { Ingredients: not null, Texts: not null, Species: not null } rules
                 ? rules : null;
         }
         catch (Exception ex) when (ex is SqliteException or System.Text.Json.JsonException)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using ArtifactX.Core.Companions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Media;
@@ -15,6 +16,7 @@ public sealed partial class EggSlotViewModel : ObservableObject
     private readonly EggSequencerRules _rules;
     private readonly long _fullDose;
     private readonly Func<string, string> _text;
+    private EggCreature? _egg;
 
     public EggSlotViewModel(EggCatalystSlot slot, EggSequencerRules rules, long fullDose, Func<string, string> text)
     {
@@ -75,6 +77,18 @@ public sealed partial class EggSlotViewModel : ObservableObject
 
     partial void OnIsSelectedChanged(bool value) => OnPropertyChanged(nameof(AccessibleName));
 
+    /// <summary>The egg being sequenced (from the save), for exact before/after values; null for none.</summary>
+    public void SetEgg(EggCreature? egg)
+    {
+        _egg = egg;
+        Refresh();
+    }
+
+    private EggSpecies? Species => _egg is null ? null : _rules.Species.GetValueOrDefault(_egg.Species);
+
+    private string TraitWord(int trait, float value) =>
+        _text((value > 0 ? EggCatalystRowViewModel.PositiveKeys : EggCatalystRowViewModel.NegativeKeys)[trait]);
+
     private void Refresh()
     {
         OnPropertyChanged(nameof(HasItem));
@@ -98,7 +112,20 @@ public sealed partial class EggSlotViewModel : ObservableObject
         IsOverdosed = o.Overdose > 0;
         DoseText = IsOverdosed ? $"Overdosed! ({Math.Floor((1 + o.Overdose) * 100):0}%)" : $"Dose: {Math.Floor(o.Dose * 100):0}%";
         var e = Item.Effect;
-        if (o.Dose <= 0)
+        var species = Species;
+        bool locked = species is not null && Slot switch
+        {
+            EggCatalystSlot.GrowthHormone => !species.CanChangeGrowth,
+            EggCatalystSlot.GeneSplitter => !species.CanChangeAnatomy,
+            EggCatalystSlot.DyeInjector => !species.CanChangeColour,
+            _ => !species.CanChangeTraits,
+        };
+        if (locked)
+        {
+            StatusText = _text("UI_EGG_MODIFIER_OUT_INHERITED");
+            Explanation = $"{_egg!.Name} can't have its {BaseStatusLabel.ToLowerInvariant()} changed, so the {Name} does nothing for this egg.";
+        }
+        else if (o.Dose <= 0)
         {
             StatusText = _text("UI_EGG_MODIFIER_OUT_INHERITED");
             Explanation = $"{o.Count:N0} {Item.Name} is too little to make a difference. Add more.";
@@ -107,8 +134,10 @@ public sealed partial class EggSlotViewModel : ObservableObject
         {
             case EggCatalystSlot.GrowthHormone:
                 StatusText = _text(e.Grows ? "UI_EGG_MODIFIER_OUT_INCREASING" : "UI_EGG_MODIFIER_OUT_DECREASING");
-                Explanation = $"The new companion will be {(e.Grows ? "bigger" : "smaller")}: up to {o.SizeShare:P0} of the size range its species can have."
-                    + More(e.FullDoseCount, o.Count, "a full dose");
+                // No size numbers: the egg's stored size (unY) is not on the species' MinScale..MaxScale
+                // scale (Mecha-Mouse 1.0 against 1.4-2.5, Slot 8 2026-11-04), so a before/after would be a guess.
+                Explanation = $"The new companion will be {(e.Grows ? "bigger" : "smaller")}: up to {o.SizeShare:P0} of the size range its species can have.";
+                Explanation += More(e.FullDoseCount, o.Count, "a full dose");
                 break;
             case EggCatalystSlot.GeneSplitter:
                 StatusText = _text("UI_EGG_MODIFIER_OUT_UNSTABLE");
@@ -125,11 +154,26 @@ public sealed partial class EggSlotViewModel : ObservableObject
                 break;
             default:
                 string toward = Item.TraitWord, away = Item.OppositeTraitWord;
-                StatusLabel = toward;
-                StatusText = _text("UI_EGG_MODIFIER_OUT_INCREASING");
-                Explanation = $"Its personality moves {o.TraitChange:0} points (out of 100) toward {toward}, away from {away}. "
-                    + $"If the parent leans toward {away}, the game shows this as {away} decreasing."
-                    + More(e.FullDoseCount, o.Count, "a full dose");
+                if (_egg is not null)
+                {
+                    // The game names the trait by the sign of the result, or of the current value at 0.
+                    int t = (int)e.Trait;
+                    float before = _egg.Traits[t], after = EggSequencer.TraitAfter(before, e, o);
+                    float shown = Math.Abs(after) < 1.5e-5f ? before : after;
+                    StatusLabel = TraitWord(t, shown);
+                    bool flipped = Math.Abs(after) >= 1.5e-5f && Math.Sign(after) != Math.Sign(before);
+                    StatusText = _text(flipped || Math.Abs(after) > Math.Abs(before) ? "UI_EGG_MODIFIER_OUT_INCREASING" : "UI_EGG_MODIFIER_OUT_DECREASING");
+                    Explanation = $"{_egg.Name}: {TraitWord(t, before)} {Math.Abs(before) * 100:0}% becomes {TraitWord(t, shown)} {Math.Abs(after) * 100:0}% "
+                        + $"(moves {o.TraitChange:0} points toward {toward}).";
+                }
+                else
+                {
+                    StatusLabel = toward;
+                    StatusText = _text("UI_EGG_MODIFIER_OUT_INCREASING");
+                    Explanation = $"Its personality moves {o.TraitChange:0} points (out of 100) toward {toward}, away from {away}. "
+                        + $"If the egg leans toward {away}, the game shows this as {away} decreasing. Choose your egg above for exact numbers.";
+                }
+                Explanation += More(e.FullDoseCount, o.Count, "a full dose");
                 break;
         }
         OnPropertyChanged(nameof(AccessibleName));

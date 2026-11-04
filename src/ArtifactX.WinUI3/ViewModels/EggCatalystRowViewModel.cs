@@ -8,8 +8,9 @@ namespace ArtifactX.WinUI3.ViewModels;
 /// <summary>One item card on the Egg Sequencer page, worded for the selected slot.</summary>
 public sealed partial class EggCatalystRowViewModel : ObservableObject
 {
-    private static readonly string[] PositiveKeys = ["UI_PET_HELPFUL_RATING", "UI_PET_AGGRESSION_RATING", "UI_PET_INDEPENDENCE_RATING"];
-    private static readonly string[] NegativeKeys = ["UI_PET_PLAYFUL_RATING", "UI_PET_GENTLENESS_RATING", "UI_PET_ATTACHMENT_RATING"];
+    /// <summary>The words the game shows for a trait above / below 0 (0x1407875f4).</summary>
+    internal static readonly string[] PositiveKeys = ["UI_PET_HELPFUL_RATING", "UI_PET_AGGRESSION_RATING", "UI_PET_INDEPENDENCE_RATING"];
+    internal static readonly string[] NegativeKeys = ["UI_PET_PLAYFUL_RATING", "UI_PET_GENTLENESS_RATING", "UI_PET_ATTACHMENT_RATING"];
 
     public EggCatalystRowViewModel(string id, string name, bool isSubstance, long value, EggCatalystEffect effect,
         EggCatalystSlot slot, int itemLimit, Func<string, string> text, long owned = 0)

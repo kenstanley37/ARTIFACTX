@@ -207,6 +207,15 @@ public static class NmsCompanionPaths
 
     public static readonly string[] CompanionArrayPath = { "vLc", "6f=", "Mcl" };
 
+    /// <summary>The eggs (GcPlayerStateData.Eggs, 18 GcPetData slots, the field after
+    /// Pets): same record shape as a companion. Confirmed 2026-11-04 on Slot 8: slot 1
+    /// is "Mecha-Mouse" (XID ROBO_RODENT, JAy [0.8, -0.5, 0.2]), the robot egg the
+    /// owner sequenced; every Neural Calibrator word the game showed for it fits those
+    /// values (Sac Venom: Gentleness Decreasing, Dioxite: Helpfulness Increasing,
+    /// Silver: Independence Decreasing). An empty slot has XID "^". Which slot an
+    /// inventory egg (^EGG13, no seed) belongs to is not stored on the item.</summary>
+    public static readonly string[] EggArrayPath = { "vLc", "6f=", "uKZ" };
+
     public static string[] CompanionPath(int companionIndex) =>
         new[] { "vLc", "6f=", "Mcl", companionIndex.ToString() };
 
