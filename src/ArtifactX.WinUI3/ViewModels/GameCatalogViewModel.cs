@@ -177,8 +177,8 @@ public sealed partial class GameCatalogViewModel : ObservableObject
     /// the tile shows that item's picture (and a glitch its name). Planet, fauna, flora
     /// and mineral records hold the planet's packed universe address first (planet
     /// number in bits 52-55, as NmsSpaceStationPaths.ToSystemAddress clears), so the
-    /// tile names the planet. The generated treasure names ("Shiny Bones") need the
-    /// game's procedural naming, not ported yet.</summary>
+    /// tile names the planet. A treasure's line is the name the game generates from
+    /// the item's seed ("Shiny Bones", CatalogService.ProceduralProductName).</summary>
     private static (bool Recorded, string? Detail, string? IconId) ReadRecord(string type, JArray? generation)
     {
         static ulong Value(JToken? token) => token is null ? 0
@@ -192,8 +192,9 @@ public sealed partial class GameCatalogViewModel : ObservableObject
             var bytes = BitConverter.GetBytes(first).Concat(BitConverter.GetBytes(second)).TakeWhile(b => b != 0).ToArray();
             string itemId = System.Text.Encoding.ASCII.GetString(bytes);
             string baseId = itemId.Split('#')[0];
-            string? glitch = type == "WeirdBasePartWonders" ? CatalogService.TryGet(baseId)?.DisplayName : null;
-            return (true, glitch, CatalogService.TryGet(baseId) is null ? null : baseId);
+            string? detail = type == "WeirdBasePartWonders" ? CatalogService.TryGet(baseId)?.DisplayName
+                : CatalogService.ProceduralProductName(itemId);
+            return (true, detail, CatalogService.TryGet(baseId) is null ? null : baseId);
         }
         int planet = (int)((first >> 52) & 0xF);
         if (planet == 0) return (true, null, null);
