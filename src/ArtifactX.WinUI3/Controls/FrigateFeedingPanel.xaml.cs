@@ -17,4 +17,9 @@ public sealed partial class FrigateFeedingPanel : UserControl
     }
 
     public FrigateFeedingPanel() => InitializeComponent();
+
+    private void AddToExosuit_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is FrigateFoodRowViewModel row) ViewModel.AddToExosuit(row);
+    }
 }
