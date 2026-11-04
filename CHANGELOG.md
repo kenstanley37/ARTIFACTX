@@ -6,7 +6,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
-- Catalog page for the loaded save, laid out like the game's own Catalog: its sections with the game's counts ("Blueprints Known 964/1,024"), each section's categories in the game's order, and the items as tiles that are coloured when known. Learn or forget Technology and Building Parts blueprints there, such as greyed-out Space Station Exterior parts. Needs the game data read again (Settings).
+- Catalog page for the loaded save, laid out like the game's own Catalog: its sections with the game's counts ("Blueprints Known 964/1,024"), each section's categories in the game's order, and the items as tiles that are coloured when known. Learn or forget Technology and Building Parts blueprints there, such as greyed-out Space Station Exterior parts, and refiner and cooking recipes (a recipe tile is what it makes; learning it learns every recipe that makes it). Needs the game data read again (Settings).
 
 ### Fixed
 

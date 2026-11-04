@@ -31,6 +31,10 @@ public sealed class UnlockListViewModel
     /// <summary>Read-only, so it's safe to call from a background row build.</summary>
     public bool IsUnlocked(string gameId) => _set.Contains(gameId);
 
+    /// <summary>True when any of the ids is in the list (a Recipes tile is known when
+    /// any recipe making it is).</summary>
+    public bool AnyUnlocked(IEnumerable<string> gameIds) => gameIds.Any(_set.Contains);
+
     /// <summary>Unlocks or locks the rows and stages the list - only when one
     /// actually changed, so a no-op never shows as an unsaved change.</summary>
     public void Set(IEnumerable<IUnlockRow> rows, bool unlock)
@@ -39,15 +43,18 @@ public sealed class UnlockListViewModel
         foreach (var row in rows)
         {
             row.IsUnlocked = unlock;
-            if (unlock && _set.Add(row.GameId))
+            foreach (string id in row.ListIds)
             {
-                _ids.Add("^" + row.GameId);
-                changed = true;
-            }
-            else if (!unlock && _set.Remove(row.GameId))
-            {
-                _ids.RemoveAll(id => CatalogService.NormalizeId(id) == row.GameId);
-                changed = true;
+                if (unlock && _set.Add(id))
+                {
+                    _ids.Add("^" + id);
+                    changed = true;
+                }
+                else if (!unlock && _set.Remove(id))
+                {
+                    _ids.RemoveAll(raw => CatalogService.NormalizeId(raw) == id);
+                    changed = true;
+                }
             }
         }
         if (changed) _store.Stage(new JArray(_ids));

@@ -19,4 +19,11 @@ public static class NmsGameCatalogPaths
     public static readonly string[] KnownProductsPath = NmsFreighterUpgradePaths.BlueprintArrayPath;
     public static readonly string[] KnownSpecialsPath = { "vLc", "6f=", "24<" };
     public static readonly string[] KnownTechPath = NmsCataloguePaths.KnownTechnologyArrayPath;
+
+    /// <summary>GcPlayerStateData.KnownRefinerRecipes: recipe ids (^REFINERECIPE_41,
+    /// ^RECIPE_1161). A Recipes tile is a result, known when any recipe making it is
+    /// here: Slot 1 20 + 9 + 0 + 54 = 83, Slot 8 11 + 4 + 0 + 6 = 21, both exact, and
+    /// Slot 8's 11 simple-refiner results match the owner's screenshot by name
+    /// (2026-11-03).</summary>
+    public static readonly string[] KnownRecipesPath = { "vLc", "6f=", "Ddk" };
 }

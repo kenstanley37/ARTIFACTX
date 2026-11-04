@@ -16,7 +16,8 @@ namespace ArtifactX.WinUI3.ViewModels;
 /// coloured when known. Known = the save's list + the section's always-known items
 /// (NmsGameCatalogPaths; exact against the owner's Slot 1 and Slot 8 screens,
 /// 2026-11-03). Technology edits the save's known technology (4kj), Building Parts
-/// its known products (eZ&lt;); every change is staged until the player saves.
+/// its known products (eZ&lt;), Recipes its known recipes (Ddk); every change is
+/// staged until the player saves.
 /// </summary>
 public sealed partial class GameCatalogViewModel : ObservableObject
 {
@@ -58,8 +59,10 @@ public sealed partial class GameCatalogViewModel : ObservableObject
 
         var tech = new UnlockListViewModel(UnlockListStore.ForSave(NmsGameCatalogPaths.KnownTechPath));
         var products = new UnlockListViewModel(UnlockListStore.ForSave(NmsGameCatalogPaths.KnownProductsPath));
+        var recipes = new UnlockListViewModel(UnlockListStore.ForSave(NmsGameCatalogPaths.KnownRecipesPath));
         tech.Load();
         products.Load();
+        recipes.Load();
         var specials = (SaveSessionManager.GetValue(NmsGameCatalogPaths.KnownSpecialsPath) as JArray)?
             .Select(t => CatalogService.NormalizeId(t.Value<string>() ?? "")).ToHashSet(StringComparer.OrdinalIgnoreCase)
             ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -70,6 +73,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
             {
                 "UI_PORTAL_CAT_CRAFTING" => tech,
                 "UI_PORTAL_CAT_BUILDING" => products,
+                "UI_PORTAL_CAT_RECIPES" => recipes,
                 _ => null,
             };
             var always = section.AlwaysKnown.ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -79,6 +83,9 @@ public sealed partial class GameCatalogViewModel : ObservableObject
                 // they still count, so they're kept under a plain label, never their id.
                 string name = catalogue.Names.GetValueOrDefault(id, "Unnamed part");
                 if (list is null) return new GameCatalogItemViewModel(id, name, known: true, canEdit: false, showState: false, null);
+                // A Recipes tile is a result: learning it learns every recipe that makes it.
+                if (c.ItemRecipes?.GetValueOrDefault(id) is { } made)
+                    return new GameCatalogItemViewModel(id, name, list.AnyUnlocked(made), true, true, null, made);
                 if (always.Contains(id)) return new GameCatalogItemViewModel(id, name, true, false, true, "always known in the game");
                 if (!list.IsUnlocked(id) && specials.Contains(id))
                     return new GameCatalogItemViewModel(id, name, true, false, true, "unlocked as a special reward");
@@ -178,15 +185,15 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         UpdateChanges();
     }
 
-    public void UpdateChanges() =>
-        HasChanges = SaveSessionManager.HasStagedEditsUnder(NmsGameCatalogPaths.KnownTechPath)
-            || SaveSessionManager.HasStagedEditsUnder(NmsGameCatalogPaths.KnownProductsPath);
+    private static readonly string[][] EditedPaths =
+        [NmsGameCatalogPaths.KnownTechPath, NmsGameCatalogPaths.KnownProductsPath, NmsGameCatalogPaths.KnownRecipesPath];
 
-    /// <summary>Undoes this page's staged edits (known technology and known products) only.</summary>
+    public void UpdateChanges() => HasChanges = EditedPaths.Any(SaveSessionManager.HasStagedEditsUnder);
+
+    /// <summary>Undoes this page's staged edits (known technology, products and recipes) only.</summary>
     public async Task ResetAsync()
     {
-        SaveSessionManager.RevertEdit(NmsGameCatalogPaths.KnownTechPath);
-        SaveSessionManager.RevertEdit(NmsGameCatalogPaths.KnownProductsPath);
+        foreach (var path in EditedPaths) SaveSessionManager.RevertEdit(path);
         await LoadAsync();
     }
 }

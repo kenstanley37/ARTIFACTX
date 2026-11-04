@@ -43,6 +43,20 @@ owner's Catalog screen for that slot.
 - Materials "seen" (653/653 on both slots) and Recipes (Slot 8 game 21; `Ddk` holds
   28) are not yet matched.
 
+## Recipes (catalog format 63)
+
+The four Recipes categories list no items; the game fills each with the distinct
+results of its recipes from `nms_reality_gcrecipetable.mbin`: refiner recipes
+(`Cooking` false) by ingredient count 1/2/3, and cooking recipes. 31 + 45 + 23 + 333 =
+432, the game's total. A result is known when any recipe making it is in the save's
+`vLc/6f=/Ddk` (KnownRefinerRecipes): Slot 1 20 + 9 + 0 + 54 = 83 (game 83), Slot 8
+11 + 4 + 0 + 6 = 21 (game 21); Slot 8's 11 simple-refiner results match the owner's
+screenshot by name. Write test: the owner learned Gold and Living Slime on the
+Catalog page (Slot 8, 21 -> 23), saved, and both showed known in game.
+
+The game's tile order within a category differs from recipe-table order (it starts
+Simple Refiner with Carbon, Ferrite Dust, then Nanite Cluster sixth); not yet matched.
+
 ## Write test (2026-11-03)
 
 On Slot 8 the owner ticked greyed Titanic Skull (`STA_09`) on ArtifactX's Catalog

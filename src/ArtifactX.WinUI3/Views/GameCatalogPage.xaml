@@ -28,7 +28,7 @@
         </Grid>
 
         <TextBlock Grid.Row="1" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"
-                   Text="What this save knows, laid out like the game's Catalog screen. Coloured items are known; tick an item in Technology or Building Parts to learn its blueprint, then Save. Items with a lock are counted as known by the game without a blueprint."/>
+                   Text="What this save knows, laid out like the game's Catalog screen. Coloured items are known; tick an item in Technology, Building Parts or Recipes to learn it, then Save. Items with a lock are counted as known by the game without a blueprint."/>
 
         <!-- Section tiles, as the game's Catalog front page. -->
         <ItemsControl Grid.Row="2" ItemsSource="{x:Bind ViewModel.Sections}">

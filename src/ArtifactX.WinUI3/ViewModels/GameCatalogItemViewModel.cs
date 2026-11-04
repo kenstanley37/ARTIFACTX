@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using System.Collections.Generic;
 using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace ArtifactX.WinUI3.ViewModels;
@@ -9,9 +10,11 @@ namespace ArtifactX.WinUI3.ViewModels;
 /// whose list isn't mapped yet (Materials &amp; Items).</summary>
 public sealed partial class GameCatalogItemViewModel : ObservableObject, IUnlockRow
 {
-    public GameCatalogItemViewModel(string gameId, string name, bool known, bool canEdit, bool showState, string? readOnlyReason)
+    public GameCatalogItemViewModel(string gameId, string name, bool known, bool canEdit, bool showState, string? readOnlyReason,
+        IReadOnlyList<string>? listIds = null)
     {
         GameId = gameId;
+        ListIds = listIds ?? [gameId];
         Name = name;
         IsUnlocked = known;
         CanEdit = canEdit;
@@ -20,6 +23,9 @@ public sealed partial class GameCatalogItemViewModel : ObservableObject, IUnlock
     }
 
     public string GameId { get; }
+
+    /// <summary>The list entries this tile stands for: its id, or a Recipes result's recipes.</summary>
+    public IReadOnlyList<string> ListIds { get; }
     public string Name { get; }
     public bool CanEdit { get; }
 

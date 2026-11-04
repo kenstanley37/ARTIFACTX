@@ -11,6 +11,9 @@ namespace ArtifactX.Core.Unlocks;
 public sealed record CatalogueSection(string Key, string Title, string KnownLabel, CatalogueCategory[] Categories, string[] AlwaysKnown);
 
 /// <summary>A Catalog subcategory in the game's order ("Space Station Exterior").
-/// Items are listed ids; record-type categories (Recipes, Wonders) have none and a
-/// Type the game fills at run time (GcWikiTopicType).</summary>
-public sealed record CatalogueCategory(string Key, string Name, string Type, string[] Items);
+/// Items are listed ids. The game fills record-type categories at run time
+/// (GcWikiTopicType); the Recipes ones are rebuilt the same way from the recipe table:
+/// each item is a result, ItemRecipes the recipe ids that make it (see
+/// CatalogSteps.AddCatalogueSections). Wonders have no items yet.</summary>
+public sealed record CatalogueCategory(string Key, string Name, string Type, string[] Items,
+    Dictionary<string, string[]>? ItemRecipes = null);

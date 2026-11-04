@@ -57,14 +57,43 @@ public static partial class CatalogSteps
             if (data.GetData() is GcProductTable products)
                 uncraftable.UnionWith(products.Table.Where(p => !p.IsCraftable).Select(p => p.ID.Value));
         }
+        // The Recipes categories list no items: the game fills them from the recipe
+        // table - refiner recipes by ingredient count (Refiner1/2/3), cooking recipes
+        // (Cooking) - one tile per distinct result, in table order. 31 + 45 + 23 + 333
+        // = 432, the game's own Recipes total (build 184271, 2026-11-03).
+        var recipes = new List<GcRefinerRecipe>();
+        if (index.TryFind("METADATA/REALITY/TABLES/NMS_REALITY_GCRECIPETABLE.MBIN", out var recipePak, out var recipeEntry, out var recipeHeader))
+        {
+            using var data = new MBINFile(new MemoryStream(extraction.ExtractEntryBytes(recipePak, recipeEntry, recipeHeader)!));
+            data.Load();
+            if (data.GetData() is GcRecipeTable table) recipes.AddRange(table.Table);
+        }
+        (string[] Items, Dictionary<string, string[]>? Recipes) Contents(GcWikiCategory category)
+        {
+            Func<GcRefinerRecipe, bool>? kind = category.Type.WikiTopicType switch
+            {
+                GcWikiTopicType.WikiTopicTypeEnum.RecipesRefiner1 => r => !r.Cooking && r.Ingredients.Count == 1,
+                GcWikiTopicType.WikiTopicTypeEnum.RecipesRefiner2 => r => !r.Cooking && r.Ingredients.Count == 2,
+                GcWikiTopicType.WikiTopicTypeEnum.RecipesRefiner3 => r => !r.Cooking && r.Ingredients.Count == 3,
+                GcWikiTopicType.WikiTopicTypeEnum.RecipesCooker => r => r.Cooking,
+                _ => null,
+            };
+            if (kind is null) return (category.Items.Select(i => i.Value).Where(i => i.Length > 0).ToArray(), null);
+            var byResult = recipes.Where(kind).GroupBy(r => r.Result.Id.Value, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Select(r => r.Id.Value).ToArray(), StringComparer.OrdinalIgnoreCase);
+            return (byResult.Keys.ToArray(), byResult);
+        }
         var keys = wikis.SelectMany(w => w.Wiki.Categories.Select(c => c.CategoryID.Value).Append(w.Key).Append(w.Key + "_SUB"))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var texts = EnglishTexts(index, extraction, keys);
         // Missing localization stays empty; raw localization ids must never reach players.
         string Text(string key) => texts.GetValueOrDefault(key, "");
         var result = wikis.Select(w => new CatalogueSection(w.Key, Text(w.Key), Text(w.Key + "_SUB"),
-            w.Wiki.Categories.Select(c => new CatalogueCategory(c.CategoryID.Value, Text(c.CategoryID.Value),
-                c.Type.WikiTopicType.ToString(), c.Items.Select(i => i.Value).Where(i => i.Length > 0).ToArray())).ToArray(),
+            w.Wiki.Categories.Select(c =>
+            {
+                var (items, itemRecipes) = Contents(c);
+                return new CatalogueCategory(c.CategoryID.Value, Text(c.CategoryID.Value), c.Type.WikiTopicType.ToString(), items, itemRecipes);
+            }).ToArray(),
             w.Wiki.Categories.SelectMany(c => c.Items.Select(i => i.Value)).Where(uncraftable.Contains).Distinct().ToArray())).ToArray();
         foreach (var section in result)
             ConsoleStyle.Success($"{section.Title} / {section.KnownLabel}: {section.Categories.Length} categories, {section.Categories.Sum(c => c.Items.Length)} items, {section.AlwaysKnown.Length} always known");
