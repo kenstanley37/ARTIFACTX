@@ -480,6 +480,24 @@ public static class UserDatabase
         """
         ALTER TABLE planet_details ADD COLUMN descriptor TEXT NOT NULL DEFAULT '';
         """,
+
+        // 21 - every system a save has been seen to know (2026-11-03, VisitedSystemsService):
+        // the save's own discovery list drops old visits (owner, Bug 58), so Regions
+        // counts this history too. save_key = account/slot (/expedition while one runs).
+        """
+        CREATE TABLE visited_systems (
+            save_key       TEXT NOT NULL,
+            system_address TEXT NOT NULL,
+            first_seen     TEXT NOT NULL,
+            last_seen      TEXT NOT NULL,
+            source         TEXT NOT NULL DEFAULT 'save',
+            synced_at      TEXT NULL,
+            deleted        INTEGER NOT NULL DEFAULT 0,
+            profile_id     TEXT NOT NULL DEFAULT '',
+            added_by       TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (save_key, system_address)
+        );
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;

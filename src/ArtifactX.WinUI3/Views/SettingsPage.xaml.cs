@@ -305,6 +305,7 @@ public sealed partial class SettingsPage : Page
             FishCatchService.Reload();
             GuidesService.Reload();
             HiddenStationsService.Reload();
+            VisitedSystemsService.Reload();
             if (AppSettingsService.ThemeId is { Length: > 0 } theme && theme != ThemeService.Current.Id)
                 ThemeService.Apply(theme);
         }
