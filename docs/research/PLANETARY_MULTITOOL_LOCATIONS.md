@@ -263,3 +263,25 @@ Shelter/Waypoint/LandingPad (mask 0x200084); a class whose third building-table 
 consumes two MWC steps in 0x14163C300. So on a normal planet the shop records follow Shelter (1 override + 3),
 Abandoned (3 if allowed) and Terminal (1 if allowed): the first shop seed is draw pair 2 + R with
 R in {4, 5, 7, 8} - few enough to brute-force against the measured cabinets.
+
+### Site to building: record and facing (2026-11-05)
+
+A regular grid site goes through the cluster generator 0x1412B6BA0: FUN_142DEC840 finds the cell (site key
+`local_940`, position, up), an MWC is started from the key (`MWC.Start(key)`), and **0x141635570** places it:
+
+- yaw: `index = (uint32)(rotl16(lo) ^ hi ^ lo + (lo ? lo : 1) * 0x5A76F899) >> 29` - the first MWC output of the
+  key - and `angle = index * 45` (0x144BF6138 = 45.0), so **eight facings**, turned about the site's up vector
+  (sin/cos FUN_140201620 / FUN_140201540 of that angle, Rodrigues form);
+- draw 1 (from the key's MWC state as saved by 0x1412B6BA0): slot = `(int)(u * 2^-32 * 999)` (0x144BF62F8 = 999.0)
+  into the 1000-slot table (planet data +0x33A8: record index, chance, enabled), draw 2 the chance test - Core's
+  `PlanetBuildingSites.ClassAt` already reproduces this;
+- the **main building takes the slot's record**, which 0x14163B270 wrote as the class's first record for all ten of
+  its slots - so every main Shop on a planet uses the first shop record (its L-system, sample 0) at its own facing;
+- cluster members (the class's cluster layout, e.g. Shop -> SHELTER_WAYPOINT) each pick a random record of their
+  class (`first + (u * (count + 1) >> 32)`) and get their own derived seeds (Shelter, Waypoint and LandingPad from a
+  separate stream), placed by FUN_1416360A0.
+
+If that holds, the two Kaim 30/19 cabinets are the same crate of the same layout, so they must sit at the same
+distance from their buildings' origins; the measured 17.9 m vs 29.4 m from Core's ground point says either the origin
+is not that ground point (cluster offset, terrain snap) or a record other than the first is used. Next: port the
+L-system with the shop scenes' locator transforms and test against both cabinets with the eight facings.
