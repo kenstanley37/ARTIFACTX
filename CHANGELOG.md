@@ -24,6 +24,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- The building parts counter takes the construction limit from your own copy of No Man's Sky, so it stays right if a game update changes the limit. Needs the game data read again (Settings).
+
 - Screen readers: buttons that looked alike now say what they act on - each planet's and base's Open, the Max button for units, nanites and quicksilver, each template's Share, each find's Edit and Delete, each inventory's Unlock All Slots and Show all, each companion seed's Generate, each crashed ship's marker (with its coordinates), each station multi-tool's slots and each empty starship slot.
 
 - Corvette Cache: each part in the list says what it is, in the game's words ("Corvette Cockpit"), and where it comes from: bought or traded at the Corvette Workshop, an expedition reward, or not sold at the workshop. Filter by either, and "Add one of each I don't have" adds only the parts shown. Needs the game data read again (Settings).

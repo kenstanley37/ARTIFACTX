@@ -31,6 +31,8 @@ public sealed partial class AppTitleBar : UserControl
         VersionTxt.Text = $"v{AppVersionService.DisplayVersion}";
         RefreshGameLabel();
         GameDataService.StateChanged += (_, _) => DispatcherQueue.TryEnqueue(RefreshGameLabel);
+        // The game's own cap arrives after start-up; redraw the parts counter against it.
+        ConstructionLimitService.Changed += () => DispatcherQueue.TryEnqueue(Refresh);
         // No Unloaded/unsub here - AppTitleBar is created once for the
         // lifetime of MainWindow, never re-created via Frame navigation like
         // a Page, so this is safe the same way the subscriptions above are.

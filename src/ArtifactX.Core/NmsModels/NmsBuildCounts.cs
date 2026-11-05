@@ -61,7 +61,14 @@ public static class NmsBuildCounts
     /// by this count (the game likely leaves out the 9 build beacons and 1 broken entry there).
     /// The main save showed 21,330 when refused - claiming a space station adds its ~260 parts
     /// without the check, so the count can sit above the cap.</summary>
-    public const int GlobalLimit = 21000;
+    public const int DefaultGlobalLimit = 21000;
+
+    /// <summary>The cap in use: the player's own game's (read from NMS.exe by the catalog,
+    /// CatalogSteps.AddConstructionLimit, format 73), else <see cref="DefaultGlobalLimit"/>.</summary>
+    public static int GlobalLimit { get; private set; } = DefaultGlobalLimit;
+
+    /// <summary>Uses the cap read from the game; null or an implausible value keeps the measured one.</summary>
+    public static void UseGameLimit(int? limit) => GlobalLimit = limit is >= 1000 and <= 1_000_000 ? limit.Value : DefaultGlobalLimit;
 
     /// <summary>0 = plenty of room, 1 = close (90% or more), 2 = at or over the cap.</summary>
     public static int GlobalLevel(int parts) => parts >= GlobalLimit ? 2 : parts >= GlobalLimit * 9 / 10 ? 1 : 0;
