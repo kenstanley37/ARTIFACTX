@@ -285,3 +285,20 @@ If that holds, the two Kaim 30/19 cabinets are the same crate of the same layout
 distance from their buildings' origins; the measured 17.9 m vs 29.4 m from Core's ground point says either the origin
 is not that ground point (cluster offset, terrain snap) or a record other than the first is used. Next: port the
 L-system with the shop scenes' locator transforms and test against both cabinets with the eight facings.
+
+### The cabinet is fixed in the shop's frame; the building origin is not the site point (2026-11-05)
+
+Vy'keen scenes (build 184271): GROUNDFLOORMODULE_BASE has one `Roof_Out_0` at (0, 7.742, 0) (plus WallShort_Out_N/S
+at (0, 2.217, -/+6.756), WallLong_Out_E/W at (+/-3.974, 2.216, 0)); ROOFMODULE_SHOP's `Roof_In_` is at its origin and
+its `Layout_` at (0, -7.742, 0); FLOORLAYOUT_NPC's `WEAPONSCRATE_` reference is at (3.974, 3.734, -5.000), RotY -90.
+The shop rule puts ROOFMODULE_SHOP on the root ground floor's only roof locator, so **the cabinet is always at
+(3.974, 3.734, -5.000) in the building's root frame**, whatever the layout seed does elsewhere - 6.4 m from the origin.
+
+Building frame (0x141635570 with basis 0x140576380): coarse axes from the up vector's dominant component
+(y>0: A=+Y, B=+Z; y<=0: A=-Y, B=-X; x>0: A=+X, B=+Y; x<=0: A=-X, B=+Z; z>0: A=+Z, B=+X; z<=0: A=-Z, B=+Y);
+`X = normalize(A x B)`, `Z = X x A`; forward = `normalize((n x Z) x n)` turned about n by `index * 45` degrees.
+Solving each measured cabinet back to an origin with that frame puts the origin at ground level (273.3 / 250.5 m
+above the base radius vs Core's ground 275.2 / 250.1) but 14-36 m sideways from Core's site point, for every sign
+convention tried - so the main building is moved off the cell point. The shop's cluster layout SHELTER_WAYPOIN
+(Waypoint 1, Shelter 1, AlignmentJitter 10, AlignmentSteps 4) and its arranger FUN_1416360A0, which receives the main
+building's position and forward by pointer, are the next thing to read.
