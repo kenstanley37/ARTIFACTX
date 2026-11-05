@@ -194,9 +194,22 @@ public static partial class CatalogSteps
 
     /// <summary>Model radii (half the AABB's ground diagonal, GcBuildingSpawnData.Radius) of the override classes
     /// whose OverrideRadius is -1, as the running game measured them (build 183791, read 2026-10-28): the Shelter's
-    /// first model and the Portal. Only prime planets use them (the flatness ring). The game measures the loaded
-    /// models; extracting that from the model files is not done yet.</summary>
+    /// first model and the Portal. Only prime planets use them (the flatness ring). Since 2026-11-04 a class with
+    /// a scene file is sized from it (ModelRadius, SceneBounds - the Portal reproduces 37.768147); these stay as the
+    /// fallback. The Shelter is an L-system (SHACK_*.LSYSTEM) assembled at run time, so it still uses its
+    /// measured value.</summary>
     private static readonly Dictionary<int, float> MeasuredModelRadius = new() { [2] = 22.641382f, [16] = 37.768147f };
+
+    /// <summary>A class's model radius from its first scene file in the building table, else the measured one
+    /// (#58: a game update that changes the portal model now moves the ring with it).</summary>
+    private static float ModelRadius(GcBuildingDefinitionTable table, int buildingClass, Func<string, NMSTemplate?> decode)
+    {
+        string? scene = table.BuildingFiles
+            .SelectMany(f => buildingClass < f.BuildingFiles.Length ? f.BuildingFiles[buildingClass].Scene : [])
+            .Select(s => s.Value).FirstOrDefault(s => s.Length > 0);
+        if (scene is not null && SceneBounds.GroundRadius(scene, decode) is float radius) return radius;
+        return MeasuredModelRadius.GetValueOrDefault(buildingClass);
+    }
 
     /// <summary>"BUILDINGOVERRIDES": every class's override rules (Core BuildingOverrideRule) from
     /// planetbuildingtable.mbin - what PlanetOverridePlacement places the portal, shelter and base from.</summary>
@@ -205,7 +218,9 @@ public static partial class CatalogSteps
         if (decode(BuildingTableFile) is not GcBuildingDefinitionTable table) return null;
         return table.BuildingPlacement.Select((d, c) => new BuildingOverrideRule(c, d.NumOverridesToGenerate,
             d.NumOverridesToGenerateWaterworlds, (int)d.FlattenType.WaterPlacement, d.OverrideRadius, d.MinHeight,
-            d.MaxHeight, d.EnabledWhenPlanetHasNoNPCs, MeasuredModelRadius.GetValueOrDefault(c))).ToArray();
+            d.MaxHeight, d.EnabledWhenPlanetHasNoNPCs,
+            // Only the classes measured in game: the others pass the placement checks without a model radius.
+            MeasuredModelRadius.ContainsKey(c) ? ModelRadius(table, c, decode) : 0)).ToArray();
     }
 
     private static PlanetProfileTables? ProfileTables(GcBiomeFileList files, GcBiomeListPerStarType biomes, Func<string, NMSTemplate?> decode)
