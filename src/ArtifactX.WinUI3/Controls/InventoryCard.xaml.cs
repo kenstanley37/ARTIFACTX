@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Markup;
@@ -99,6 +100,11 @@ public sealed partial class InventoryCard : UserControl
     {
         bool tech = Kind == InventoryKind.Technology;
         UnlockBtn.Visibility = CanUnlock ? Visibility.Visible : Visibility.Collapsed;
+        // Pages show two of these cards (cargo and technology): name the buttons by card.
+        // Band titles are capitals ("CARGO"), which some screen readers spell out.
+        string subject = Title.Length > 0 ? System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(Title.ToLowerInvariant()) : "inventory";
+        AutomationProperties.SetName(UnlockBtn, $"Unlock all {subject} slots");
+        Scroll.Subject = subject;
         SuperchargeBtn.Visibility = RepairBtn.Visibility = ArrangeBtn.Visibility = tech ? Visibility.Visible : Visibility.Collapsed;
         MaxAllBtn.Visibility = MergeBtn.Visibility = SortBtn.Visibility = tech ? Visibility.Collapsed : Visibility.Visible;
     }

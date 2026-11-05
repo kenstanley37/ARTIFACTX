@@ -298,7 +298,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         int total = NewFromTemplateService.ShipSlotCount, free = NewFromTemplateService.FreeShipSlots;
         ShipSlotsTxt.Text = total > 0 ? $"{total - free} OF {total} SLOTS USED" : "";
         for (int i = 0; i < free; i++)
-            chips.Add(EquipmentChipViewModel.EmptySlot("An empty starship slot. Design a ship for it in the Ship Designer, or use a Full Build template's Add as new."));
+            chips.Add(EquipmentChipViewModel.EmptySlot("An empty starship slot. Design a ship for it in the Ship Designer, or use a Full Build template's Add as new.", i + 1, free));
         ShipStrip.Items = chips;
     }
 

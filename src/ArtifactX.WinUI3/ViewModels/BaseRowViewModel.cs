@@ -23,6 +23,8 @@ public sealed partial class BaseRowViewModel : ObservableObject
     public BaseKind Kind => Entry.Kind;
     public string KindLabel => BaseListBuilder.KindLabel(Entry.Kind);
     public string Name => Entry.Name;
+    /// <summary>The Open button's screen-reader name: every card's reads "Open ›".</summary>
+    public string OpenName => $"Open {Name}";
     public string Detail => Entry.Detail;
     public string Facts => Entry.Facts;
     public string PortalCode => Entry.PortalCode;

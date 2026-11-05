@@ -67,6 +67,9 @@ public sealed partial class CompanionRawFieldViewModel : ObservableObject
     public bool HasFlag => Kind == RawFieldKind.Flag;
     public bool HasActive => Kind == RawFieldKind.HexWithActive;
     public bool CanGenerate => Kind is RawFieldKind.Hex or RawFieldKind.HexWithActive;
+    /// <summary>Screen-reader names: every row's buttons read "Generate" and "Active".</summary>
+    public string GenerateName => $"Generate {Label}";
+    public string ActiveName => $"{Label} active";
     public double TextWidth => Kind == RawFieldKind.CaretText ? 260 : 220;
 
     [ObservableProperty] public partial string Text { get; set; } = "";
