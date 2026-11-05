@@ -145,7 +145,7 @@
                             <CheckBox Content="Active" IsChecked="{x:Bind ViewModel.ColourOverrideActive, Mode=TwoWay}"/>
                             <TextBox Width="220" AutomationProperties.Name="Color override seed"
                                      Text="{x:Bind ViewModel.ColourOverrideSeed, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            <Button Content="Generate" Click="GenerateColourOverrideSeed_Click"/>
+                            <Button Content="Generate" Click="GenerateColourOverrideSeed_Click" AutomationProperties.Name="Generate a color override seed"/>
                         </StackPanel>
                     </StackPanel>
 

@@ -40,6 +40,15 @@ public sealed partial class ExpandableScroll : UserControl
     public string SettingKey { get; set; } = "";
 
     private bool _expanded;
+    private string _subject = "inventory";
+
+    /// <summary>What the rows are, for the toggle's screen-reader name ("Show all Cargo rows") -
+    /// a page with two grids otherwise has two identical "Show all inventory rows" buttons.</summary>
+    public string Subject
+    {
+        get => _subject;
+        set { _subject = value; Apply(); }
+    }
 
     public ExpandableScroll()
     {
@@ -64,6 +73,6 @@ public sealed partial class ExpandableScroll : UserControl
         string action = _expanded ? "Show less" : "Show all";
         ToggleBtn.Content = action;
         ToolTipService.SetToolTip(ToggleBtn, action);
-        AutomationProperties.SetName(ToggleBtn, action + " inventory rows");
+        AutomationProperties.SetName(ToggleBtn, $"{action} {_subject} rows");
     }
 }

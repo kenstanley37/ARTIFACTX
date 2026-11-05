@@ -53,9 +53,14 @@ public sealed partial class StationMultiToolCard : UserControl
         bool shown = SlotsToggle.IsChecked == true;
         SlotsHost.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
         SlotsToggle.Content = shown ? "Hide slots" : "Show all slots";
+        NameSlotsToggle();
     }
+    /// <summary>A station has several of these cards; the toggle says whose slots it shows.</summary>
+    private void NameSlotsToggle() => Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(SlotsToggle,
+        $"{(SlotsToggle.IsChecked == true ? "Hide" : "Show all")} slots of {ViewModel?.Name ?? "this multi-tool"}");
     private void RefreshPreview()
     {
+        NameSlotsToggle();
         if (IsLoaded) _ = BuildPreviewAsync();
     }
     private async Task BuildPreviewAsync()

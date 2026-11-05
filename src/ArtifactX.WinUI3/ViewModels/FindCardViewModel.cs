@@ -17,6 +17,9 @@ public sealed class FindCardViewModel
     public required string Id { get; init; }
     public required string TypeLabel { get; init; }
     public required string Title { get; init; }
+    /// <summary>Screen-reader names for the card's icon buttons (every card's read "Edit" and "Delete").</summary>
+    public string EditName => $"Edit {Title}";
+    public string DeleteName => $"Delete {Title}";
     public required string Detail { get; init; }
     public required Visibility DetailVisibility { get; init; }
     public required string ClassLetter { get; init; }

@@ -103,8 +103,8 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
     [ObservableProperty] public partial double ShieldBar { get; private set; }
     [ObservableProperty] public partial double HyperdriveBar { get; private set; }
     [ObservableProperty] public partial double ManeuverabilityBar { get; private set; }
-    public string AddMarkerName => $"Add a marker for the crashed ship {Title} to my save";
-    public string UndoMarkerName => $"Undo the marker for the crashed ship {Title}";
+    public string AddMarkerName => $"Add a marker for the crashed ship {Title} at {Coordinates} to my save";
+    public string UndoMarkerName => $"Undo the marker for the crashed ship {Title} at {Coordinates}";
 
     [ObservableProperty] public partial string Status { get; private set; } = "";
     [ObservableProperty] public partial bool CanAddMarker { get; private set; }

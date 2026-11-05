@@ -103,7 +103,7 @@
                                         <Image Source="{x:Bind ViewModel.SystemPicture, Mode=OneWay}" Stretch="UniformToFill" Visibility="{x:Bind ViewModel.HasPicture, Mode=OneWay}"
                                                ToolTipService.ToolTip="How the game's Discoveries page shows this system's planets."/>
                                         <Button Click="CaptureSystem_Click" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Padding="6,4" CornerRadius="4"
-                                                IsEnabled="{x:Bind ViewModel.CanCapture, Mode=OneWay}" AutomationProperties.Name="Capture this system now"
+                                                IsEnabled="{x:Bind ViewModel.CanCapture, Mode=OneWay}" AutomationProperties.Name="Capture the game's picture of this system"
                                                 Background="{ThemeResource ThemePanelBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                                                 ToolTipService.ToolTip="Take the game's picture of this system now (open its Discoveries page in game first)">
                                             <StackPanel Orientation="Horizontal" Spacing="5">

@@ -17,7 +17,8 @@
             <DataTemplate x:DataType="viewmodels:CompanionRawFieldViewModel">
                 <StackPanel Orientation="Horizontal" Spacing="12">
                     <TextBlock Text="{x:Bind Label}" Width="210" VerticalAlignment="Center" Opacity="0.8" FontSize="12" TextWrapping="Wrap"/>
-                    <CheckBox Content="Active" Visibility="{x:Bind HasActive}" IsChecked="{x:Bind IsOn, Mode=TwoWay}" Click="Flag_Click"/>
+                    <CheckBox Content="Active" Visibility="{x:Bind HasActive}" IsChecked="{x:Bind IsOn, Mode=TwoWay}" Click="Flag_Click"
+                              AutomationProperties.Name="{x:Bind ActiveName}"/>
                     <CheckBox Visibility="{x:Bind HasFlag}" IsChecked="{x:Bind IsOn, Mode=TwoWay}" Click="Flag_Click"
                               AutomationProperties.Name="{x:Bind Label}"/>
                     <TextBox Visibility="{x:Bind HasText}" Width="{x:Bind TextWidth}"
@@ -25,7 +26,7 @@
                              AutomationProperties.Name="{x:Bind Label}"/>
                     <ComboBox Visibility="{x:Bind HasChoices}" Width="220" ItemsSource="{x:Bind Choices}"
                               SelectedIndex="{x:Bind ChoiceIndex, Mode=TwoWay}" AutomationProperties.Name="{x:Bind Label}"/>
-                    <Button Content="Generate" Visibility="{x:Bind CanGenerate}" Click="Generate_Click"/>
+                    <Button Content="Generate" Visibility="{x:Bind CanGenerate}" Click="Generate_Click" AutomationProperties.Name="{x:Bind GenerateName}"/>
                 </StackPanel>
             </DataTemplate>
         </ItemsControl.ItemTemplate>

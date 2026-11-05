@@ -34,7 +34,10 @@ public sealed class EquipmentChipViewModel
 
     public static EquipmentChipViewModel Gone(GoneItem item) => new(EquipmentChipKind.Gone, -1, item.Name);
 
-    public static EquipmentChipViewModel EmptySlot(string tip) => new(EquipmentChipKind.EmptySlot, -1, "Empty slot") { EmptyTip = tip };
+    /// <summary>An empty slot; <paramref name="number"/> of <paramref name="count"/> tells screen readers
+    /// the slots apart (they all show "Empty slot").</summary>
+    public static EquipmentChipViewModel EmptySlot(string tip, int number, int count) =>
+        new(EquipmentChipKind.EmptySlot, -1, "Empty slot") { EmptyTip = tip, EmptyNumber = $"{number} of {count}" };
 
     public EquipmentChipKind Kind { get; }
     public int Index { get; }
@@ -49,6 +52,7 @@ public sealed class EquipmentChipViewModel
     public bool AnimateIn { get; private init; }
 
     private string? EmptyTip { get; init; }
+    private string? EmptyNumber { get; init; }
 
     public bool IsItem => Kind == EquipmentChipKind.Item;
     public bool IsGone => Kind == EquipmentChipKind.Gone;
@@ -72,7 +76,7 @@ public sealed class EquipmentChipViewModel
     public string AutomationName => Kind switch
     {
         EquipmentChipKind.Gone => $"{Name}, gone",
-        EquipmentChipKind.EmptySlot => Name,
+        EquipmentChipKind.EmptySlot => $"{Name} {EmptyNumber}",
         _ => string.Join(", ", new[] { Name, IsCorvette ? "corvette" : null, IsActive ? "active" : null, IsNew ? "new" : null }
             .Where(s => s is not null)),
     };
