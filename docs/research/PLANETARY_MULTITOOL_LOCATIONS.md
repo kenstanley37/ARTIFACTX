@@ -195,3 +195,13 @@ The entry itself is chosen by **0x142D851D0** `(manager, innerRule, node)`:
 Constants checked in the exe: 0x144BF46C8 = 2^-32 (double), 0x144BF61AC = 100.0. Still to trace: where the
 manager state (+0x23C/+0x240) and each GenerateStep seed come from for a planet building (the site key?), the
 queue order (+0x220 queue, +0x238 index), locator transforms, and the building's pose on the site.
+
+Generation start **0x142D82630** `(manager, parentNode, const cTkSeed* seed, const cTkMatrix34* pose)`: clears the
+queue (+0x218/+0x220) and the count maps (+0x178, +0x1C8), sets the manager state from the seed
+(`+0x23C = lo ? lo : 1`, `+0x240 = rotl16(lo) ^ hi ^ lo`; invalid seed: 1 and 0), picks the root rule's (+0x130)
+model variant with one MWC draw `(variantCount(+0x18C) * (uint)(carry + lo * 0x5A76F899)) >> 32` from list +0x190,
+creates the root node at `pose` and queues it. Every caller (0x142D7A010, 0x142D7C3C0, 0x142D86890 ...) passes the
+same `manager+0x248` seed to the start and to each GenerateStep, so **one seed per building** drives it: entry picks
+consume the manager's running MWC in queue order, variant picks re-draw from the building seed. Open: who sets
++0x248 for a planet building (the Shop site key is the first candidate), FUN_142D7A980's counting scope, the
+child-node creation (FUN_14187F220: model variant + locator transform), the `INTERIOR_` path, and the site pose.
