@@ -104,7 +104,8 @@ Build 26295378 moved the code: pick `0x141754F00`, pool builder `0x14167C520`, l
   Waterworld), while the Nautilon's scanner pointed at the wreck. Cause, from the installed scan tables: the planet
   table's `DISTRESS` searches FindBuildingClass DistressSignal (land), while the vehicle table (9@i 5) has its own
   `UW_SHIPCRASH` searching WaterDistressSignal with AllowOverriddenBuildings - the Nautilon's event. The app now writes
-  `UW_SHIPCRASH` / table 5 for underwater wrecks (not yet checked in game).
+  `UW_SHIPCRASH` / table 5 for underwater wrecks - confirmed 2026-11-05: the marker for The Mirror of the Stars
+  showed as "Drowned Starship Detected" and led straight to it (-37.92, +113.55).
   Whether the 8-type live slot table above also places grid wrecks is still open.
 
 - Not every distress wreck is claimable: a Planetary Chart on Lora led to Ayase's Blazing Adventurer at +11.75, -175.28
