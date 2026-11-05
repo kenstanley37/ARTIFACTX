@@ -101,7 +101,10 @@ Build 26295378 moved the code: pick `0x141754F00`, pool builder `0x14167C520`, l
   override in uncharted systems. Second check, planet 2 (Ebastwoo Delta): The Mirror of the Stars, B-class Fighter at
   -37.92, +113.55 (visor exact; 6,850,000; Compare 207.3 / 194.2 / 101.0 / 397.9) - all exact, 2/2. An app DISTRESS
   marker naming WaterDistressSignal for it led to the planet's land beacon site instead (it worked on the charted
-  Waterworld), while the Nautilon's scanner pointed at the wreck - so the app offers no marker for these.
+  Waterworld), while the Nautilon's scanner pointed at the wreck. Cause, from the installed scan tables: the planet
+  table's `DISTRESS` searches FindBuildingClass DistressSignal (land), while the vehicle table (9@i 5) has its own
+  `UW_SHIPCRASH` searching WaterDistressSignal with AllowOverriddenBuildings - the Nautilon's event. The app now writes
+  `UW_SHIPCRASH` / table 5 for underwater wrecks (not yet checked in game).
   Whether the 8-type live slot table above also places grid wrecks is still open.
 
 - Not every distress wreck is claimable: a Planetary Chart on Lora led to Ayase's Blazing Adventurer at +11.75, -175.28

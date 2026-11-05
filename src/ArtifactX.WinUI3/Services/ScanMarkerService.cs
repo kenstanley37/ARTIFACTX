@@ -37,8 +37,8 @@ public static class ScanMarkerService
     public static bool IsUnsaved(ulong key) =>
         Added.Contains(KeyText(key)) && SaveSessionManager.HasStagedEdit(ScanEventsPath) && IsMarked(key);
 
-    /// <param name="table">The scan event table the event belongs to (9@i): 1 for planetary building events, 3 as the
-    /// game saves portal markers.</param>
+    /// <param name="table">The scan event table the event belongs to (9@i, GcScanEventTableType): 1 for planetary
+    /// building events, 3 as the game saves portal markers, 5 for the Nautilon's (vehicle) events.</param>
     /// <param name="eventId">The scan event (FN5), e.g. "PORTAL", "DISTRESS".</param>
     /// <param name="buildingClass">The building class name (iqv), e.g. "Portal", "DistressSignal".</param>
     public static void Add(ulong planetAddress, ulong key, double x, double y, double z, int table, string eventId, string buildingClass)
