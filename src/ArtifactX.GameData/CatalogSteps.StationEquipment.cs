@@ -1,5 +1,6 @@
 using System.Numerics;
 using ArtifactX.Core.Universe;
+using ArtifactX.GameData.Services;
 using libMBIN;
 using libMBIN.NMS;
 using libMBIN.NMS.GameComponents;
@@ -229,15 +230,7 @@ public static partial class CatalogSteps
 
     /// <summary>The game's scene transform: scale, rotate X/Y/Z in degrees, then translate.</summary>
     private static Matrix4x4 Local(TkTransformData transform)
-    {
-        const float radians = MathF.PI / 180f;
-        var matrix = Matrix4x4.CreateScale(transform.ScaleX, transform.ScaleY, transform.ScaleZ)
-                   * Matrix4x4.CreateRotationX(transform.RotX * radians)
-                   * Matrix4x4.CreateRotationY(transform.RotY * radians)
-                   * Matrix4x4.CreateRotationZ(transform.RotZ * radians);
-        matrix.Translation = new Vector3(transform.TransX, transform.TransY, transform.TransZ);
-        return matrix;
-    }
+        => SceneTransformMath.Local(transform);
 
     private static float[] MatrixValues(Matrix4x4 matrix) =>
     [
