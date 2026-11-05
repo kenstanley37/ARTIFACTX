@@ -127,3 +127,17 @@ separate inputs until proved otherwise.
 5. Add a Planet Details UserControl only for proven located records, with the
    same details/cards/technology grids used by station tools where appropriate.
    Full planet-wide enumeration remains unsupported until placement is verified.
+
+## Vy'keen shop rule tree and two real cabinets (2026-11-05)
+
+`SHOPWARRIOR.LSYSTEM.MBIN` (build 184271): template `Base` -> `PARTS/WARRIORPARTS/LSYSTEM/BASEWARRIOR.LSYSTEM.MBIN`;
+base rule `GroundFloor` (GROUNDFLOORMODULE_BASE) fills its `ROOF_` locators with ROOFMODULE_SHOP (100) and its
+`WALLSHORT_` locators with WALLSHORTMODULE_TECHSHOP (100); `Roof_Shop` puts FLOORLAYOUT_NPC at `LAYOUT_`, and
+`Layout_NPC` puts CRATE_WEAPON at `WEAPONSCRATE_` (3.974, 3.734, -5 from the roof module). Eight global
+restrictions cap counts (nShopRoof, nRooms, nTerminals, nExteriorDoors, nLandingPads, Lab, nWeaponTechStation,
+nTechShop), so which ROOF_ locator gets the shop roof - and the base layout from the template - decide the cabinet.
+
+Two real cabinets on Kaim 30/19 (see MULTITOOL_GENERATION.md "Planet shop cabinets reproduced") give exact world
+points to fit: 17.9 m / 1.8 m and 29.4 m / 4.1 m (sideways / up) from Core's ground point under each Shop site.
+Next: extract BASEWARRIOR and its module scenes, list every ROOF_ locator transform the base can produce, and find
+the building facing and locator choice that land the crate on both points; then trace the native choice.
