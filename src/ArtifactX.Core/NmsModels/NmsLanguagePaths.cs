@@ -33,6 +33,11 @@ namespace ArtifactX.Core.NmsModels;
 /// BUI_ 8 (Builders). Until 2026-11-04 ArtifactX wrote [true + 7 false] for
 /// every race, so Slot 7 holds over 2,000 Vy'keen/Korvax/Autophage/Atlas
 /// entries flagged as Gek only; whether the game counts those is unchecked.
+/// Confirmed in game 2026-11-04 (Slot 8): the Korvax milestone read 89 words,
+/// matching the 89 EXP_ groups in the save; six Korvax words written by
+/// ArtifactX with the Korvax flag, then one more learned in game, made it 96.
+/// The milestone number lagged until that next word was learned - it is the
+/// separate WORDS_LEARNT stat, which the game recounts only on a new word.
 ///
 /// The catalog's GcAlienLanguageWords category (catalog format 71) lists the
 /// learnable groups from the game's speech table, with their English forms:
