@@ -169,10 +169,12 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
 
     /// <summary>Shown instead of crashed ships in a system with no race (planet page and Current System tiles).
     /// Owner 2026-11-05 (Slot 7): Planetary Charts in two uncharted systems (Nujies IX, then Ebastwoo Delta's) led to
-    /// crash scenes with a Distress Beacon and no ship; the markers' site keys are Core grid cells (0.0 m) whose slots
-    /// (193, 18) are empty in the normal table - so the chart picks a random cell. Shlifs and Hamagan-Oerat VI had
-    /// nothing either (#34).</summary>
-    public const string UnchartedNote = "No claimable crashed ships in uncharted systems: Planetary Charts here lead to a crash site with a distress beacon but no ship.";
+    /// crash scenes with a Distress Beacon and no ship. All three chart markers (A1f "^DISTRESS" site keys) are exactly
+    /// the planet's override DistressSignal (class 20, PlanetOverridePlacement.ForSystem) - one fixed site per planet,
+    /// not a wreck. The beacon gives a small one-off reward: "Analyze black box signal" a C-class Hyperdrive Module,
+    /// "Access databanks" 52 nanites (save diff: nanites +52 and one new a6j[5] Building interaction record for the
+    /// site, nothing else). Shlifs and Hamagan-Oerat VI had nothing either (#34).</summary>
+    public const string UnchartedNote = "No claimable crashed ships in uncharted systems. Planetary Charts here lead to a fellow Traveller's crash site with a small reward (an upgrade module or some nanites), not a ship.";
 
     /// <summary>The crashed ships (as many as chosen) matching the class and type filters nearest you when you're on this planet, else
     /// nearest its portal, searched over the whole planet.</summary>
