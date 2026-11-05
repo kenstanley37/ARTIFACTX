@@ -224,3 +224,13 @@ param_4 the planet RNG; it also draws two `rand * 10000 + 1` values into the pla
 So each planet has three layouts per shop L-system, decided by the planet RNG and registration order, and each
 building picks one with `n`. Next: the seed of 0x14163B270's RNG and its draw order, and how 0x1412B9BA0 chooses `n`
 and the pose from the building site.
+
+Per building class the planet setup 0x14163B270 makes `GcBuildingDefinitionData.NumModelsToGenerate` variant
+records (planet data +0x3398, stride 0xE0): for each index `i` it calls the setter **0x14163C1F0** (class byte
++0xD3, sample `n = i` at +0xAC, density share +0xA8, flatten/heights/override radius from the definition) and then
+0x14163C300, which registers that record's own L-system with the next seed from the planet RNG (+0xB0 = handle).
+Build 184271 table: **Shop 3 models**, Shelter/Abandoned/RadioTower/Observatory/Factory/Harvester/Ruins/Monolith 3,
+Terminal/Outpost/Beacon/Depot/DistressSignal 1, Settlement_Small/SmallIndustrial/Large/Farm/Factory 10. So a planet
+has exactly three shop layouts (three seeds, samples 0/1/2) and every shop site uses one of them at its own pose.
+Next: 0x14163B270's RNG (`param_4`) seed and its draws before each class, how a site picks its variant record, and
+the site pose (rotation about the ground normal).
