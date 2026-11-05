@@ -283,6 +283,27 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                                <!-- Species not found yet (#36): the planet's fauna total less the ones known. -->
+                                <TextBlock Text="{x:Bind ViewModel.SpeciesFound, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasSpeciesFound, Mode=OneWay}"
+                                           Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" Margin="0,6,0,0"/>
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.UndiscoveredCreatures, Mode=OneWay}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="10"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <Border Width="250" Height="96" CornerRadius="6" BorderThickness="1" BorderBrush="{ThemeResource ThemeLineBrush}"
+                                                    Background="{ThemeResource ThemePanelAltBrush}" AutomationProperties.Name="{x:Bind}">
+                                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+                                                    <FontIcon Glyph="&#xE9CE;" FontSize="22" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                                                    <TextBlock Text="{x:Bind}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                                 </StackPanel>
                             </StackPanel>
                         </Border>

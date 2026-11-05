@@ -55,6 +55,9 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
     [ObservableProperty] public partial IReadOnlyList<string> Finds { get; private set; } = [];
     [ObservableProperty] public partial PlanetFishViewModel? Fish { get; private set; }
     [ObservableProperty] public partial IReadOnlyList<CreatureCardViewModel> Creatures { get; private set; } = [];
+    /// <summary>One greyed tile per species not found yet (#36), and "3 of 8 species found".</summary>
+    [ObservableProperty] public partial IReadOnlyList<string> UndiscoveredCreatures { get; private set; } = [];
+    [ObservableProperty] public partial string SpeciesFound { get; private set; } = "";
     public PlanetEquipmentViewModel Equipment { get; } = new();
 
     [ObservableProperty] public partial bool HasSiblings { get; private set; }
@@ -86,6 +89,8 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
     public bool ShowFishRail => Fish is not null && IsFishCollapsed;
     public bool HasCreatures => Creatures.Count > 0;
     public bool NoCreatures => Creatures.Count == 0;
+    public bool HasSpeciesFound => SpeciesFound.Length > 0;
+    partial void OnSpeciesFoundChanged(string value) => OnPropertyChanged(nameof(HasSpeciesFound));
 
     partial void OnOriginalNameChanged(string value) => OnPropertyChanged(nameof(HasOriginalName));
     partial void OnResourcesChanged(IReadOnlyList<string> value) => OnPropertyChanged(nameof(HasResources));
@@ -227,6 +232,8 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 return new PlanetBase(name, mine ? "Your base" : $"{b["3?K"]?["V?:"]?.Value<string>() ?? "Another player"}'s base");
             })
             .OrderBy(b => b.Owner != "Your base").ToList();
+        // A discovery the game just saved shrinks the species still to find.
+        ShowSpeciesLeft(planet, Creatures);
     }
 
     private void ShowFinds()
@@ -243,7 +250,31 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         var cards = CreatureListService.On(planet.SystemAddress, planet.PlanetIndex)
             .Select(c => new CreatureCardViewModel(c, planet.SystemAddress, planet.PlanetIndex)).ToList();
         Creatures = cards;
+        ShowSpeciesLeft(planet, cards);
         foreach (var card in cards) await card.LoadPictureAsync();
+    }
+
+    /// <summary>
+    /// The species still to find (#36): the planet's fauna total - the game's own count read off its
+    /// Discoveries screen, else the generator's prediction (PlanetProfile.FaunaCount, format 19) - less the
+    /// ones known: the save's fauna discoveries or the captured cards, whichever is more. Extinct species are
+    /// left out of both, as the game's "6/8" leaves them out (CreatureListService). No total, no tiles.
+    /// </summary>
+    private void ShowSpeciesLeft(KnownPlanet planet, IReadOnlyList<CreatureCardViewModel> cards)
+    {
+        int? total = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex)?.FaunaTotal
+            ?? PlanetTypesService.Profile(planet.SystemAddress, planet.PlanetIndex)?.FaunaCount;
+        NmsPlanets.CountDiscoveries(_snapshot.Discoveries).TryGetValue(planet.Address, out var tally);
+        int found = Math.Max(tally?.Fauna ?? 0, cards.Count(c => !c.IsExtinct));
+        if (total is not int all || all == 0)
+        {
+            SpeciesFound = total == 0 ? "No fauna on this planet." : "";
+            UndiscoveredCreatures = [];
+            return;
+        }
+        found = Math.Min(found, all);
+        SpeciesFound = found == all ? $"All {all} species found." : $"{found} of {all} species found.";
+        UndiscoveredCreatures = Enumerable.Repeat("Not discovered yet", all - found).ToList();
     }
 
     private async Task LoadSystemPictureAsync()

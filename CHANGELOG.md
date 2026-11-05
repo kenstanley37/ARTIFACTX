@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- A planet's page shows how many of its species you've found ("3 of 8 species found") and a tile for each one still to find, using the count the game showed you or, if you haven't seen it, the count the game's generator gives.
+
 - Catalog page for the loaded save, laid out like the game's own Catalog: its sections with the game's counts ("Blueprints Known 964/1,024"), each section's categories in the game's order, and the items as tiles that are coloured when known and a dark silhouette until then. Learn or forget Technology and Building Parts blueprints there, such as greyed-out Space Station Exterior parts, and refiner and cooking recipes (a recipe tile is what it makes; learning it learns every recipe that makes it). Wonders shows what the game has recorded - planet, fauna, flora and mineral records, treasures, glitches, fish caught and fossils - with the game's own count. Needs the game data read again (Settings).
 
 - Treasures and other procedural items (fossils, bio samples, salvaged loot, dismantled parts) show their own name from the game, like "Shiny Bones", in the Catalog's Wonders and in your inventories. Needs the game data read again (Settings).
