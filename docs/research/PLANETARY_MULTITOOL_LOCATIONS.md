@@ -234,3 +234,21 @@ Terminal/Outpost/Beacon/Depot/DistressSignal 1, Settlement_Small/SmallIndustrial
 has exactly three shop layouts (three seeds, samples 0/1/2) and every shop site uses one of them at its own pose.
 Next: 0x14163B270's RNG (`param_4`) seed and its draws before each class, how a site picks its variant record, and
 the site pose (rotation about the ground normal).
+
+Planet RNG for buildings: 0x14163B270 <- 0x141638D00 <- the planet generator **0x1416C5A40** (and 0x1416C7DB0),
+which keeps one MWC at generator+0xBA4/+0xBA8 and re-seeds it before each stage from one of 26 stage seeds derived
+from the planet seed (`param_3+0x20`, a cTkSeed). Derivation (13 rounds, two seeds each, from
+`lo = seed.lo ? seed.lo : 1, hi = rotl16(lo) ^ seed.hi ^ lo`, M = 0x5A76F899, C1 = 0x64DD81482CBD31D7,
+C2 = 0xE36AA5C613612997, `mix(a, b) = { x = ((uint)b >> 1 ^ (b << 32 | a)) * C1; x = (x >> 33 ^ x) * C2;
+return x >> 33 ^ x; }`):
+
+    s1 = lo*M + hi;  a = (uint)s1;  s2 = a*M + (s1 >> 32);  seedEven = mix(a, s2)
+    s3 = (uint)s2*M + (s2 >> 32);  b = (uint)s3;  s4 = b*M + (s3 >> 32);  z = mix(b, s4)
+    seedOdd = (z & 0xFFFFFFFF00000000) | (((z >> 32) >> 1) ^ (uint)z);  lo = (uint)s4; hi = s4 >> 32
+
+Stage seeds sit at local_248 - 16k; the building stage re-seeds from **local_218 = stage seed 3** (round 1's odd
+seed) just before 0x141638D00, so the planet building setup's RNG is `MWC.Start(stage seed 3)`. Inside
+0x14163B270, two draws go to planet data +0x33DC / +0x33E0 (`(uint)s * 10000 >> 32` + 1), then every variant
+record's 0x14163C300 call takes two MWC steps (before checking for an L-system path), in the setup's loop order.
+Next: read 0x14163B270's loops (race x class order, gating FUN_14167F2F0 / FUN_1416445F0 and any other draws) to
+get the shop records' registration indices, then check the three seeds against the two Kaim 30/19 cabinets.
