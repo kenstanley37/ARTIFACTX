@@ -141,3 +141,11 @@ Two real cabinets on Kaim 30/19 (see MULTITOOL_GENERATION.md "Planet shop cabine
 points to fit: 17.9 m / 1.8 m and 29.4 m / 4.1 m (sideways / up) from Core's ground point under each Shop site.
 Next: extract BASEWARRIOR and its module scenes, list every ROOF_ locator transform the base can produce, and find
 the building facing and locator choice that land the crate on both points; then trace the native choice.
+
+`BASEWARRIOR.LSYSTEM.MBIN` (template of the shop, itself templating `COMMONPARTS/LSYSTEM/BASECOMMON`): 28 rules, a
+recursive module grammar. A ground-floor module's WALLLONG_/WALLSHORT_ locators take caps (with terminals, generators,
+silos...) or corridors; corridors lead (Long_CorridorIn / Short_CorridorIn) to further GROUNDFLOORMODULE_BASE rooms, so
+one shop can have several rooms; each room's ROOF_ locator gets a roof module (ROOFMODULE_BASE with themed layouts,
+or ROOFMODULE_SHOP once, nShopRoof). Probabilities use MergeProbabilityOptions Balance and per-entry NoMoreThan
+restrictions. The cabinet's place is therefore the product of a seeded expansion of this grammar plus the building's
+facing - a port of the native L-system expander (and its RNG and restriction rules) is needed, not a fixed offset.
