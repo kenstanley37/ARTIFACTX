@@ -8,9 +8,14 @@ namespace ArtifactX.Core.Procedural;
 /// Mustlimii", "N. Molarurfium"), shown on the Fauna and Flora records and a
 /// companion's Genetic Profile. Read off NMS.exe build 184271 on 2026-11-04
 /// (static disassembly, nothing run) and checked against the owner's Slot 8:
-/// all 14 Fauna records, all 8 Flora records and 4 companions (Witchilly "Z.
+/// all 14 Fauna records, all 8 Flora records, all 8 Mineral records and 4 companions (Witchilly "Z.
 /// Wingeebus", Ana-Ana "A. Rainrobeus", Beary-Beary "F. Lobcineus", Bihi-Bihi
-/// "L. Leafuivateum") - 26 of 26, letter for letter.
+/// "L. Leafuivateum") - 34 of 34, letter for letter.
+///
+/// Minerals (0x140eb48a0, "Omkovaite"): seed = Mix64(seed), StartState; max =
+/// (w &gt;&gt; 30) + 5; the word builder (alphaset 1, min 5, max) plus MINERAL_SUFFIX
+/// ("ite"), the rude-word filter once, first letter capitalised. A Mineral
+/// record's (bYs) UqY[1] is the seed.
 ///
 /// Fauna (0x140eb39f0): seed = CityHash Hash128to64(low = seedB, high = seedA),
 /// StartState. One draw picks NAMEGEN_CRE_((w * 300) &gt;&gt; 32 + 1); the next sets
@@ -59,6 +64,16 @@ public static class SpeciesNames
         string root = floraRoots[(int)rng.Next(250)];
         int max = (int)(rng.NextWord() >> 31) + 4;
         return Finish(rng, root + NameGenerator.Generate(rng, 6, 3, max));
+    }
+
+    /// <summary>A mineral's name from its seed, or null without the suffix.</summary>
+    public static string? Mineral(ulong seed, string? suffix)
+    {
+        if (string.IsNullOrEmpty(suffix)) return null;
+        var rng = new UniverseRandom(StartState(Mix64(seed)));
+        int max = (int)(rng.NextWord() >> 30) + 5;
+        string word = NameGenerator.Clean(rng, NameGenerator.Generate(rng, 1, 5, max) + suffix);
+        return char.ToUpperInvariant(word[0]) + word[1..];
     }
 
     private static string Finish(UniverseRandom rng, string word)

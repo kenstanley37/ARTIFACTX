@@ -4,10 +4,11 @@ using ArtifactX.Core.Procedural;
 internal static class SpeciesNameChecks
 {
     /// <summary>The owner's Slot 8 screens, 2026-11-04: the Fauna and Flora records
-    /// and four companions' Genetic Profiles. `path` is a JSON object with the
-    /// catalog's word lists "CRE" and "FLORA_ROOT" (MultiToolNameWords rows, format
-    /// 69). Fauna seeds are the creature discovery's bEr[2]/bEr[3]; a companion's
-    /// m9o/JrL; a plant's its Flora record's UqY[1].</summary>
+    /// and four companions' Genetic Profiles, and the Mineral records. `path` is a
+    /// JSON object with the catalog's word lists "CRE", "FLORA_ROOT" and
+    /// "MINERAL_SUFFIX" (MultiToolNameWords rows, format 70). Fauna seeds are the
+    /// creature discovery's bEr[2]/bEr[3]; a companion's
+    /// m9o/JrL; a plant's or mineral's its record's UqY[1].</summary>
     public static void Native(string path)
     {
         var words = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(File.ReadAllText(path))
@@ -43,6 +44,22 @@ internal static class SpeciesNameChecks
             (0xC52E4C825E7A8194, "X. Luresoscea"),
             (0x46F02EFC0332C4EC, "O. Fumelefosa"),
         ];
+        (ulong Seed, string Name)[] minerals =
+        [
+            (0xD95924AF61DAADAF, "Omkovaite"),
+            (0x2EC6F4FD5C8F22EB, "Kieserite"),
+            (0x9F14BF42C7D3932F, "Ugheimeite"),
+            (0x8DCB3AB9D2E5A6F9, "Talnaite"),
+            (0xEBE07F69C152922F, "Orgilite"),
+            (0x4BEEC2D7EC0F6F98, "Uckmisite"),
+            (0x882E1D87F7DDB4BC, "Dojererite"),
+            (0x41B494DA5A38D2FE, "Aukovicaite"),
+        ];
+        foreach (var c in minerals)
+        {
+            string? name = SpeciesNames.Mineral(c.Seed, words["MINERAL_SUFFIX"][0]);
+            if (name != c.Name) throw new InvalidOperationException($"Mineral {c.Seed:X16}: {name}, expected {c.Name}.");
+        }
         foreach (var c in fauna)
         {
             string? name = SpeciesNames.Fauna(c.A, c.B, words["CRE"]);
@@ -53,6 +70,7 @@ internal static class SpeciesNameChecks
             string? name = SpeciesNames.Flora(c.Seed, words["FLORA_ROOT"]);
             if (name != c.Name) throw new InvalidOperationException($"Flora {c.Seed:X16}: {name}, expected {c.Name}.");
         }
-        Console.WriteLine($"Species names: {fauna.Length + flora.Length} of {fauna.Length + flora.Length} match the game.");
+        int total = fauna.Length + flora.Length + minerals.Length;
+        Console.WriteLine($"Species names: {total} of {total} match the game.");
     }
 }

@@ -20,7 +20,8 @@ public static partial class CatalogSteps
     /// own NAMEGEN_FRIGATE_CODE and NAMEGEN_FLEET lists. Organic frigates use
     /// NAMEGEN_WEIRDSHIP_FORMAT and PREFIXGEN_WEIRDSHIP_PREFIX. Species names
     /// (ArtifactX.Core SpeciesNames, format 69) start with a NAMEGEN_CRE (list
-    /// "CRE") or NAMEGEN_FLORA_ROOT word. One row per list,
+    /// "CRE") or NAMEGEN_FLORA_ROOT word; mineral names end in MINERAL_SUFFIX
+    /// (format 70, a one-word list). One row per list,
     /// words in the game's order (key _1 first), read from the player's own
     /// language files. Retain frigate words here so the generator can use
     /// the same player-built catalog rather than copied game text.
@@ -47,6 +48,7 @@ public static partial class CatalogSteps
         var frigateFormatKey = new Regex(@"^FRIGATE_NAME_FORMAT_(\d+)$", RegexOptions.IgnoreCase);
         var lists = new Dictionary<string, SortedDictionary<int, string>>(StringComparer.OrdinalIgnoreCase);
         var frigateFormats = new SortedDictionary<int, string>();
+        string? mineralSuffix = null;
         foreach (var path in index.Paths.Where(p => p.StartsWith("LANGUAGE/", StringComparison.OrdinalIgnoreCase)
                      && p.EndsWith("_ENGLISH.MBIN", StringComparison.OrdinalIgnoreCase)).ToList())
         {
@@ -58,6 +60,11 @@ public static partial class CatalogSteps
                 mbin.Load();
                 foreach (var (id, text) in LocalisationService.BuildEnglishLookup(mbin.GetData()))
                 {
+                    if (id.Equals("MINERAL_SUFFIX", StringComparison.OrdinalIgnoreCase))
+                    {
+                        mineralSuffix ??= text;
+                        continue;
+                    }
                     var formatMatch = frigateFormatKey.Match(id);
                     if (formatMatch.Success)
                     {
@@ -91,6 +98,14 @@ public static partial class CatalogSteps
                 DescriptionEnglish = new JsonArray(words.Values.Select(w => (JsonNode)w).ToArray()).ToJsonString(),
             });
         }
+
+        if (mineralSuffix is not null)
+            rows.Add(new CatalogItem
+            {
+                GameId = "NAMEGEN:MINERAL_SUFFIX",
+                NameEnglish = "MINERAL_SUFFIX",
+                DescriptionEnglish = new JsonArray((JsonNode)mineralSuffix).ToJsonString(),
+            });
 
         if (frigateFormats.Count > 0)
         {

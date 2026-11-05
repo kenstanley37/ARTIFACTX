@@ -174,7 +174,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         return new GameCatalogCategoryViewModel(category.Name, items, category.Counted);
     }
 
-    /// <summary>The species name the game shows on a Fauna or Flora record.</summary>
+    /// <summary>The name the game shows on a Fauna, Flora or Mineral record.</summary>
     private static string? SpeciesOf(string type, JArray? generation, CreatureNameService species)
     {
         ulong? first = NmsSpaceStationPaths.ParsePackedAddress(generation?.ElementAtOrDefault(0));
@@ -183,6 +183,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         {
             "CreatureWonders" when first is ulong address && second is ulong seed => species.FaunaRecord(address, seed),
             "FloraWonders" when second is ulong seed => species.FloraRecord(seed),
+            "MineralWonders" when second is ulong seed => species.MineralRecord(seed),
             _ => null,
         };
     }

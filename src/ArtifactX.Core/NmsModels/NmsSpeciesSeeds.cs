@@ -10,7 +10,8 @@ namespace ArtifactX.Core.NmsModels;
 ///    of the creature's discovery (fDu/ETO/OsQ/?fB, 8P3 {5L6 address, &lt;Dn
 ///    "Animal", bEr seeds}); the name comes from that discovery's bEr[2] and
 ///    bEr[3]. All 14 recorded Slot 8 creatures had their discovery in the save;
-///  - a Flora record (fp9) UqY[1] is the plant's own seed;
+///  - a Flora record's (fp9) UqY[1] is the plant's own seed, and a Mineral
+///    record's (bYs) the mineral's (8/8 on Slot 8);
 ///  - a companion's are m9o and JrL (NmsCompanionPaths.RollSeedPrimaryPath and
 ///    RollSeedSecondaryPath).
 /// </summary>
