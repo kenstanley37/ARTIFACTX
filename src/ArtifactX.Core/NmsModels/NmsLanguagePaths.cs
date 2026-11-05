@@ -39,6 +39,20 @@ namespace ArtifactX.Core.NmsModels;
 /// The milestone number lagged until that next word was learned - it is the
 /// separate WORDS_LEARNT stat, which the game recounts only on a new word.
 ///
+/// Controlled diff 2026-11-04 (Slot 8, save15 9:08:13 -> save16 9:08:39, the
+/// owner learned Korvax "gift" from an NPC and nothing else): besides ordinary
+/// save noise (clock, play time, positions, F?0/b69 timestamps), the game
+/// changed only
+///   - MF2: + {"MYl":"^EXP_GIFT","D;o":[F,F,T,F,F,F,F,F,F]};
+///   - GLOBAL_STATS ^WORDS_LEARNT 605 -> 606 and ^EWORDS_LEARNT 96 -> 97;
+///   - E?v[3].SEK[2] 18 -> 19 (GcSavedInteractionRaceData for NPC_Secondary,
+///     Explorers: which conversation that race's NPCs give next);
+///   - a6j[1].O49[931] Value 7 -> 8388623 (that NPC's stored interaction).
+/// After the save each race stat equals its list count exactly: TWORDS 142 =
+/// TRA_ 142, WWORDS 147 = WAR_, EWORDS 97 = EXP_, BWORDS 141 = BUI_, and
+/// WORDS_LEARNT 606 = every MF2 entry, Atlas's 79 included. Atlas has no stat
+/// of its own.
+///
 /// The catalog's GcAlienLanguageWords category (catalog format 71) lists the
 /// learnable groups from the game's speech table, with their English forms:
 /// Gek 928, Vy'keen 936, Korvax 864, Autophage 889, Atlas 226 in build 184271.
