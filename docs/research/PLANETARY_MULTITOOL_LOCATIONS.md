@@ -205,3 +205,22 @@ same `manager+0x248` seed to the start and to each GenerateStep, so **one seed p
 consume the manager's running MWC in queue order, variant picks re-draw from the building seed. Open: who sets
 +0x248 for a planet building (the Shop site key is the first candidate), FUN_142D7A980's counting scope, the
 child-node creation (FUN_14187F220: model variant + locator transform), the `INTERIOR_` path, and the site pose.
+
+### Buildings use three pre-built samples per L-system (2026-11-05)
+
+The manager update (0x142D86890) and 0x142D7A010 / 0x142D7C3C0 are debug paths (the ImGui window's requests,
+32 preview variants, "TempBuilding"). Gameplay places buildings with
+**`GenerateLSystemSampleByID(handle, lsystem, n, const cTkMatrix34& pose)` = 0x142D78B20**: it copies the stored
+sample `lsystem * 15 + n % 3` (stored list +0x170, stride 0x2D0 per L-system, 0x30 per sample: node transforms
++0x188 (0x40 each), node count +0x194, model handles +0x198) and instantiates it at `pose`. Its only outside caller
+is 0x1412B9BA0 (callers 0x1412BAA70, 0x1412B7E90). The three samples are generated once per stored L-system with
+seeds `stored+0x100 + 0 / 100 / 200` (the debug window's "Sample 1/2/3 seed"). Registration is
+**0x142D70960** `(manager, name, const cTkSeed* seed, LoadType, colour, ...)`, storing `*seed`; the planet building
+loader **0x14163C300** passes a seed drawn from the planet-side running MWC `param_5`: two MWC steps
+(`s = lo * 0x5A76F899 + hi` twice) then `x = ((s_lo >> 1) ^ (s << 32 | prev_lo)) * 0x64DD81482CBD31D7;
+x = (x >> 33 ^ x) * 0xE36AA5C613612997; seed = x >> 33 ^ x` (valid). Abandoned systems use the "ABANDONED" colour
+palette. 0x14163C300 is called from **0x14163B270** (the planet's building-table setup, per race x class, with
+param_4 the planet RNG; it also draws two `rand * 10000 + 1` values into the planet data +0x33DC / +0x33E0 first).
+So each planet has three layouts per shop L-system, decided by the planet RNG and registration order, and each
+building picks one with `n`. Next: the seed of 0x14163B270's RNG and its draw order, and how 0x1412B9BA0 chooses `n`
+and the pose from the building site.
