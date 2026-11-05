@@ -120,7 +120,10 @@ public sealed partial class LanguageWordsControl : UserControl
                 GameId = w.GameId,
                 DisplayName = ToDisplayCase(w.DisplayName),
                 IsKnown = knownIdSet.Contains(w.GameId)
-            }).ToList());
+            })
+            // By the word shown, not the group id: TRA_TREASURE reads "Artifact".
+            .OrderBy(w => w.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+            .ToList());
 
         LoadingRing.IsActive = false;
         LoadingRing.Visibility = Visibility.Collapsed;
