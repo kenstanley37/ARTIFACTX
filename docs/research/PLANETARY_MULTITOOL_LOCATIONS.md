@@ -149,3 +149,15 @@ one shop can have several rooms; each room's ROOF_ locator gets a roof module (R
 or ROOFMODULE_SHOP once, nShopRoof). Probabilities use MergeProbabilityOptions Balance and per-entry NoMoreThan
 restrictions. The cabinet's place is therefore the product of a seeded expansion of this grammar plus the building's
 facing - a port of the native L-system expander (and its RNG and restriction rules) is needed, not a fixed offset.
+
+### Native L-system manager (build 184271, 2026-11-05)
+
+RTTI names `cTkLSystemManager::GenerateStep(TkHandle, const cTkSeed&)`, `GenerateLSystemSampleByID(...,
+const cTkMatrix34&)` and `GetLocatorNode`; its code sits around 0x142D70000-0x142D90000 (401 .pdata starts, many
+chained fragments). Strings anchor: 0x142D75B60 node/registration ("cTkLSystemGenerationNode", "Generated LSystem",
+"Game/Managers/L-Systems Manager"); 0x142D768B0 restriction checks ("Chain restriction"); 0x142D7A690 `_IN_`/`_OUT_`
+locator matching; 0x142D7A010 variants ("LSystemVariant-%d"); 0x142D79260 / 0x142D87640 "INTERIOR_"; 0x142D83800 and
+0x142D8459D the ImGui debug window (stored L-systems, per-sample size/seed/bounding box, "GENERATE SAMPLE n" sets
++0x118/+0x120 on the manager; rule view prints "- Locator: %s", "Probability", "%s, No More Than: %d"). The large
+fragments 0x142D7E3C0 / 0x142D7E810 / 0x142D7F230 walk the manager's node list (`DAT_146EFD7E0`+0x60) and are the
+likely expansion. A no-analysis Ghidra import mis-bounds them; full analysis is needed before porting.
