@@ -262,6 +262,7 @@ public static class SaveSessionManager
             throw new InvalidOperationException("Close No Man's Sky before saving changes.");
         var companions = _companions.Where(c => c.HasChanges).ToArray();
         foreach (var companion in companions) await companion.ValidateAsync();
+        LanguageWordStatsService.StageCounts();
 
         // Backs up whatever's currently on disk before it gets overwritten -
         // every commit, not just the first, so the user always has a way

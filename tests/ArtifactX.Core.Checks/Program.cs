@@ -33,7 +33,8 @@ try
     { EggSequencerChecks.Native(args[1]); return; }
     if (args.Length == 2 && args[0] == "--creature-name-vectors")
     { CreatureNameChecks.Native(args[1]); return; }
-    if (args.Length == 2 && args[0] == "--species-name-vectors")
+    if (args.Length == 2 && args[0] == "--language-word-stats") { LanguageWordStatsChecks.Native(args[1]); return; }
+if (args.Length == 2 && args[0] == "--species-name-vectors")
     { SpeciesNameChecks.Native(args[1]); return; }
     if (args.Length == 2 && args[0] == "--food-bonus-vectors")
     { RecipePlannerChecks.Native(args[1]); return; }
