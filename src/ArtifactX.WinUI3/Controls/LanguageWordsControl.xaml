@@ -108,7 +108,7 @@
                     <GridView.ItemTemplate>
                         <DataTemplate x:DataType="viewmodels:LanguageWordRowViewModel">
                             <Border Width="200" Height="44" Padding="10,8" CornerRadius="{ThemeResource ThemeCardCornerRadius}" BorderThickness="1"
-                                    Tapped="Tile_Tapped" Tag="{x:Bind}"
+                                    Tapped="Tile_Tapped" Tag="{x:Bind}" ToolTipService.ToolTip="{x:Bind DisplayName}"
                                     BorderBrush="{ThemeResource ThemeLineBrush}"
                                     Background="{x:Bind IsKnown, Mode=OneWay, Converter={StaticResource BoolToActiveBackgroundConverter}}">
                                 <Grid ColumnSpacing="8">

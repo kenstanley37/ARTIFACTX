@@ -26,14 +26,20 @@ namespace ArtifactX.Core.NmsModels;
 /// prefix for display while preserving every other group's entries untouched
 /// when staging an edit (see LanguageWordsControl).
 ///
-/// The catalog DB's GcAlienLanguageWords category (added via DataCataloger's
-/// `add-language-words` command, decoding language/nms_loc1_english.mbin -
-/// the exact same loc-string system used for every other item name) supplies
-/// real English names, keyed by these exact ids: TRA_ATTACK -> "attack",
-/// confirmed against the save's own entries exactly. ~1,100-1,170 possible
-/// words per race exist in the full vocabulary (Atlas's own pool is smaller,
-/// ~262); a given save's actual known subset is normally a small fraction of
-/// that (e.g. 21-140 in a real mid-progress save).
+/// Each entry is libMBIN's GcWordGroupKnowledge: MYl = the word GROUP id, D;o =
+/// one flag per GcAlienRace value (9), set for the race whose language the word
+/// is known in. Saves the game wrote (Slots 1, 4, 5, checked 2026-11-04) set
+/// only the word's own race: TRA_ index 0 (Traders), WAR_ 1, EXP_ 2, ATLAS_ 4,
+/// BUI_ 8 (Builders). Until 2026-11-04 ArtifactX wrote [true + 7 false] for
+/// every race, so Slot 7 holds over 2,000 Vy'keen/Korvax/Autophage/Atlas
+/// entries flagged as Gek only; whether the game counts those is unchecked.
+///
+/// The catalog's GcAlienLanguageWords category (catalog format 71) lists the
+/// learnable groups from the game's speech table, with their English forms:
+/// Gek 928, Vy'keen 936, Korvax 864, Autophage 889, Atlas 226 in build 184271.
+/// Slot 1, which the game reports as knowing every Gek word, holds all 928 Gek
+/// groups. Several word forms share one group ("traveller", "travellers"), so
+/// the older list of every form left ~236 Gek words "unknown" forever (#31).
 ///
 /// That 5-word diff also matched the account's own Words Learned count
 /// precisely, corroborating this is really the same list that stat tracks.

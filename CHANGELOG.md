@@ -18,6 +18,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Language words list exactly the words the game can teach, so a race whose words you have all learned shows as complete instead of with about 200 left. Words that are forms of one another, like "traveller" and "travellers", are now one word, as in the game. Words you learn through ArtifactX are now saved under their own race; before, every word was saved as a Gek word. Needs the game data read again (Settings).
+
 - Regions keeps counting systems you visited after the game drops them from your save's own list (it only keeps so many). ArtifactX remembers each save's visits from now on, so a fully explored region can show as complete.
 
 - Cooking Recipes shows the same food effects as the Nutrient Ingestor (Ice Cream is +65% cold resistance, not +164%). Effects whose size depends on your own suit are named without a number.

@@ -13,95 +13,93 @@ namespace ArtifactX.GameData;
 /// line (2026-10-14) so the app can run them on the player's PC.</summary>
 public static partial class CatalogSteps
 {
-    /// <summary>"DataCataloger add-language-words &lt;target-catalog-db-path&gt;" extracts every alien-language vocabulary word (the save-editable subset found at vLc.6f=.MF2 - see ArtifactX's project_language_words memory) from language/nms_loc1_english.mbin and writes them into an existing catalog DB as a new "GcAlienLanguageWords" category, UsageCategory = race name.  The loc table's TRA_/WAR_/EXP_/BUI_ prefixes aren't exclusively vocabulary words - the SAME prefixes are reused for lore paragraphs and other UI text (e.g. "EXP_1_PLAQUE_LORE_1" is a multi-sentence Korvax lore entry, not a word). Confirmed by direct inspection that every REAL word id follows a strict two-part shape - PREFIX_WORD, where WORD is letters/apostrophe only, no digits, no extra underscores - and that shape alone (not the text value) cleanly separates real words from lore noise with zero false positives spot-checked. Idempotent: re-running replaces any previously-inserted GcAlienLanguageWords category rather than duplicating them.</summary>
+    /// <summary>
+    /// Every alien word group a player can learn (format 71), one catalog row per
+    /// group in the "GcAlienLanguageWords" category: GameId = the group id the save
+    /// stores at vLc.6f=.MF2 (TRA_ATTACK), UsageCategory = race name, NameEnglish =
+    /// the group's forms ("traveller / travellers").
+    ///
+    /// Source is the game's word table, metadata/reality/tables/
+    /// nms_dialog_gcalienspeechtable.mbin (GcAlienSpeechTable): each row is one word
+    /// form with its Group and Race, and the game teaches and stores the GROUP.
+    /// Build 184271: Gek 1,164 forms in 928 groups, Vy'keen 1,170/936, Korvax
+    /// 1,106/864, Autophage 1,136/889, Atlas 269/226. Until format 70 this step took
+    /// every TRA_/WAR_/... key in the language file, one per form, so a save that
+    /// knew every Gek word still showed ~236 "unknown" (GitHub #31). Checked
+    /// 2026-11-04 on the owner's Slot 1, whose game reports Gek complete: it knows
+    /// all 928 Gek groups and none of the extra forms. Old saves can also hold a
+    /// few groups the table no longer lists (TRA_COLLECTION); they are left alone.
+    /// The table's one Race None row (BUI_MINE) is skipped.
+    /// </summary>
     public static void AddLanguageWords(string catalogPath, string pcbanksPath)
     {
-        string targetDbPath = catalogPath;
-        if (!File.Exists(targetDbPath))
+        if (!File.Exists(catalogPath))
         {
-            ConsoleStyle.Error($"Target catalog DB not found: {targetDbPath}");
+            ConsoleStyle.Error($"Target catalog DB not found: {catalogPath}");
             return;
         }
 
-
-        IPakDiscoveryService wordPakDiscovery = new PakDiscoveryService();
-        IPakReaderService wordPakReader = new PakReaderService();
-        var wordExtraction = new ExtractionService();
-        var wordPaks = wordPakDiscovery.Discover(pcbanksPath);
-
-        NMSTemplate? locTemplate = null;
-        foreach (var pak in wordPaks)
+        var reader = new PakReaderService();
+        var index = new GlobalFileIndexService();
+        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
         {
-            PakHeader header;
-            IReadOnlyList<PakEntry> entries;
-            try
-            {
-                header = wordPakReader.ReadHeader(pak.FullPath);
-                entries = wordPakReader.Read(pak.FullPath);
-            }
-            catch { continue; }
-
-            var match = entries.FirstOrDefault(e =>
-                !string.IsNullOrEmpty(e.FileName) &&
-                e.FileName.Contains("language/nms_loc1_english.mbin", StringComparison.OrdinalIgnoreCase));
-            if (match is null) continue;
-
-            byte[]? bytes;
-            try { bytes = wordExtraction.ExtractEntryBytes(pak.FullPath, match, header); }
-            catch (Exception ex) { ConsoleStyle.Error($"Extraction failed: {ex.Message}"); return; }
-            if (bytes is null || bytes.Length == 0) { ConsoleStyle.Error("Extraction returned no bytes."); return; }
-
-            using var ms = new MemoryStream(bytes);
-            var mbin = new MBINFile(ms);
+            if (pak.FullPath is not string path) continue;
+            try { index.Add(path, reader.ReadHeader(path), reader.Read(path)); }
+            catch (IOException) { /* Match the catalog's treatment of unreadable PAKs. */ }
+        }
+        var extraction = new ExtractionService();
+        NMSTemplate? Decode(string file)
+        {
+            if (!index.TryFind(file, out var pakPath, out var entry, out var header)) return null;
+            using var mbin = new MBINFile(new MemoryStream(extraction.ExtractEntryBytes(pakPath, entry, header)!));
             mbin.Load();
-            locTemplate = mbin.GetData();
-            break;
+            return mbin.GetData();
         }
 
-        if (locTemplate is null)
+        if (Decode("LANGUAGE/NMS_LOC1_ENGLISH.MBIN") is not NMSTemplate locTemplate)
         {
             ConsoleStyle.Error("Could not find/decode language/nms_loc1_english.mbin in any PAK.");
             return;
         }
-
         var lookup = LocalisationService.BuildEnglishLookup(locTemplate);
-        ConsoleStyle.Header($"Loc table decoded: {lookup.Count} total entries.");
-
-        var raceByPrefix = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        if (Decode("METADATA/REALITY/TABLES/NMS_DIALOG_GCALIENSPEECHTABLE.MBIN") is not libMBIN.NMS.GameComponents.GcAlienSpeechTable speech)
         {
-            ["TRA"] = "Gek",
-            ["WAR"] = "Vy'keen",
-            ["EXP"] = "Korvax",
-            ["BUI"] = "Autophage",
-            // Not a race - a smaller (~262-word) special vocabulary pool with no
-            // matching WORDS_LEARNT stat anywhere in Milestones, unlike the 4
-            // real races. Lives in the exact same MF2 array/id-shape though
-            // (confirmed 2026-08-04 - a few entries like ATLAS_STATION resolve
-            // to short phrases rather than single words, but still pass the
-            // same strict id-shape filter with zero lore-noise false positives).
-            ["ATLAS"] = "Atlas"
+            ConsoleStyle.Error("Could not find/decode the alien speech table (nms_dialog_gcalienspeechtable.mbin).");
+            return;
+        }
+
+        var raceNames = new Dictionary<libMBIN.NMS.GameComponents.GcAlienRace.AlienRaceEnum, string>
+        {
+            [libMBIN.NMS.GameComponents.GcAlienRace.AlienRaceEnum.Traders] = "Gek",
+            [libMBIN.NMS.GameComponents.GcAlienRace.AlienRaceEnum.Warriors] = "Vy'keen",
+            [libMBIN.NMS.GameComponents.GcAlienRace.AlienRaceEnum.Explorers] = "Korvax",
+            [libMBIN.NMS.GameComponents.GcAlienRace.AlienRaceEnum.Builders] = "Autophage",
+            // Not a race: a smaller vocabulary with no WORDS_LEARNT stat in Milestones.
+            [libMBIN.NMS.GameComponents.GcAlienRace.AlienRaceEnum.Atlas] = "Atlas",
         };
+        string English(string key) => lookup.TryGetValue(key, out var text) ? text.Trim() : "";
 
-        var wordPattern = new Regex(@"^(TRA|WAR|EXP|BUI|ATLAS)_[A-Z']+$", RegexOptions.Compiled);
-
-        var words = lookup
-            .Where(kv => wordPattern.IsMatch(kv.Key))
-            .Select(kv => (GameId: kv.Key.ToUpperInvariant(), NameEnglish: kv.Value, Race: raceByPrefix[kv.Key.Split('_')[0].ToUpperInvariant()]))
+        var words = speech.Table
+            .Where(row => raceNames.ContainsKey(row.Race.AlienRace) && !string.IsNullOrEmpty(row.Group.Value))
+            .GroupBy(row => (Race: raceNames[row.Race.AlienRace], Group: row.Group.Value.ToUpperInvariant()))
+            .Select(g =>
+            {
+                var forms = new[] { English(g.Key.Group) }.Concat(g.Select(row => English(row.Text.Value)))
+                    .Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                return (GameId: g.Key.Group, NameEnglish: forms.Count > 0 ? string.Join(" / ", forms) : g.First().Id.Value.ToLowerInvariant(), g.Key.Race);
+            })
             .ToList();
 
-        var byRace = words.GroupBy(w => w.Race).ToDictionary(g => g.Key, g => g.Count());
-        ConsoleStyle.Header($"Filtered to {words.Count} real vocabulary words (excludes lore/UI-text noise sharing the same prefixes):");
-        foreach (var (race, count) in byRace)
-            ConsoleStyle.Success($"  {race}: {count}");
+        ConsoleStyle.Header($"Alien speech table: {speech.Table.Count} word forms in {words.Count} learnable groups:");
+        foreach (var race in words.GroupBy(w => w.Race))
+            ConsoleStyle.Success($"  {race.Key}: {race.Count()}");
 
-        using var db = new CatalogDbContext(targetDbPath);
+        using var db = new CatalogDbContext(catalogPath);
 
         var existingCategory = db.Categories.FirstOrDefault(c => c.TemplateType == "GcAlienLanguageWords");
         if (existingCategory != null)
         {
-            ConsoleStyle.Info("Existing GcAlienLanguageWords category found - removing before re-inserting (idempotent re-run).");
-            var existingItems = db.Items.Where(i => i.CategoryId == existingCategory.Id);
-            db.Items.RemoveRange(existingItems);
+            db.Items.RemoveRange(db.Items.Where(i => i.CategoryId == existingCategory.Id));
             db.Categories.Remove(existingCategory);
             db.SaveChanges();
         }
@@ -109,8 +107,8 @@ public static partial class CatalogSteps
         var category = new CatalogCategory
         {
             TemplateType = "GcAlienLanguageWords",
-            RowType = "TkLocalisationEntry",
-            SourceMbinPath = "language/nms_loc1_english.mbin"
+            RowType = "GcAlienSpeechEntry",
+            SourceMbinPath = "metadata/reality/tables/nms_dialog_gcalienspeechtable.mbin"
         };
         db.Categories.Add(category);
         db.SaveChanges();
@@ -127,8 +125,7 @@ public static partial class CatalogSteps
         }
         db.SaveChanges();
 
-        ConsoleStyle.Success($"Wrote {words.Count} language word entries to {targetDbPath}.");
-        return;
+        ConsoleStyle.Success($"Wrote {words.Count} language word groups to {catalogPath}.");
     }
 
     /// <summary>"DataCataloger add-broken-tech-flag &lt;target-catalog-db-path&gt;" marks every GcTechnology row whose game-data "BrokenSlotTech" flag is set (the damaged- slot placeholders - Hull Fracture, Short Circuit, etc. - drawn red in-game) in an EXISTING catalog DB, adding the Items.IsBrokenSlotTech column first if the DB predates it. Same "patch the shipped DB in place" pattern as add-language-words/add-guide-topics, so their already-merged rows survive without a full rebuild; fresh full builds get the flag via CatalogClassifier directly. Idempotent - safe to re-run after a game update.  Found 2026-10-10 investigating a user save whose Install Technology menu was cluttered with useless red entries: a "Mark All Known" bulk edit had taught it all 36 BrokenSlotTech rows, which a healthy save never knows.</summary>

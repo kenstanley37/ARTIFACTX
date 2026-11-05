@@ -1885,10 +1885,10 @@ public static class CatalogService
 
     private static List<LanguageWord>? _languageWordsCache;
 
-    /// <summary>Every alien-language vocabulary word across all 4 races (~4,570
-    /// total), from the GcAlienLanguageWords category DataCataloger's
-    /// `add-language-words` command extracts from language/nms_loc1_english.mbin -
-    /// see NmsLanguagePaths' doc comment for how this was confirmed real.
+    /// <summary>Every learnable alien word group (~3,840 across the 4 races and
+    /// Atlas), from the GcAlienLanguageWords category the catalog step
+    /// AddLanguageWords reads off the game's speech table - see
+    /// NmsLanguagePaths' doc comment for how this was confirmed.
     /// UsageCategory holds the race name ("Gek"/"Vy'keen"/"Korvax"/"Autophage")
     /// directly, so no id-prefix parsing is needed by callers.</summary>
     public static async Task<List<LanguageWord>> GetAllLanguageWordsAsync()
