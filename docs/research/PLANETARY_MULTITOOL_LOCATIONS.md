@@ -161,3 +161,18 @@ locator matching; 0x142D7A010 variants ("LSystemVariant-%d"); 0x142D79260 / 0x14
 +0x118/+0x120 on the manager; rule view prints "- Locator: %s", "Probability", "%s, No More Than: %d"). The large
 fragments 0x142D7E3C0 / 0x142D7E810 / 0x142D7F230 walk the manager's node list (`DAT_146EFD7E0`+0x60) and are the
 likely expansion. A no-analysis Ghidra import mis-bounds them; full analysis is needed before porting.
+
+### GenerateStep found (2026-11-05, full Ghidra analysis of build 184271)
+
+`cTkLSystemManager::GenerateStep(TkHandle, const cTkSeed&)` is **0x142D79260** (body continues at 0x142D792B8):
+the `std::function` built there has vtable 0x1435E0160, the `_Func_impl_no_alloc` of GenerateStep's lambda_1
+(TypeDescriptor 0x14520B860). It returns early once the generation queue index (+0x238) reaches its count (+0x21C).
+For the queued node it walks the node's locators (+0x1AC count, +0x1B0 array); for each locator it resolves the
+locator name (`_strupr`'d, compared with `"INTERIOR_"`), finds the matching rule (`FUN_142D851D0`), and picks the
+entry with ONE draw of the usual MWC from the step's `cTkSeed` (lo, hi, valid flag):
+`carry = rotl16(lo) ^ hi ^ lo` (0 when the seed is invalid, lo then 1), `state = carry + (lo ? lo : 1) * 0x5A76F899`,
+`index = (entryCount(+0x10C) * (uint)state) >> 32` into the rule's entry list (+0x110). So the entry list is built
+already weighted (MakeRule / MakeLocatorEntry: next to trace), and the seed passed per step decides every locator of
+that node. `INTERIOR_` locators take a separate attach path. Next: MakeRule's list building (probabilities, Balance
+merge, NoMoreThan / global restrictions), how each child node's seed is derived, and the building root seed and pose
+from the planet building site.
