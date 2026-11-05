@@ -302,3 +302,12 @@ above the base radius vs Core's ground 275.2 / 250.1) but 14-36 m sideways from 
 convention tried - so the main building is moved off the cell point. The shop's cluster layout SHELTER_WAYPOIN
 (Waypoint 1, Shelter 1, AlignmentJitter 10, AlignmentSteps 4) and its arranger FUN_1416360A0, which receives the main
 building's position and forward by pointer, are the next thing to read.
+
+The arranger **0x1416360A0** (8706 bytes) runs when a cluster has members (shop + waypoint + shelter): settlement
+classes 36/57 snap the main position to a grid; other classes build per-member bounding boxes from each record's
+model bounds (record +0xC8/+0xCC model handles, +0xA4 margin, up to 20 boxes), lay the members out around the cell
+(the layout's AlignmentJitter / AlignmentSteps), separate overlaps and write the main building's final position and
+forward back through `param_8` / `param_9`. Porting it (with the bounding boxes of Shop/Shelter/Waypoint models) is
+the remaining step for the main shop's origin; everything inside the shop is already fixed for Vy'keen shops.
+Trader and Explorer shops reference the crate from several layouts (4 and 7 rule references), so for them the
+L-system expansion does matter.
