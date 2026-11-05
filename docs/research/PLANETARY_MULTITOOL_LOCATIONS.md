@@ -176,3 +176,22 @@ already weighted (MakeRule / MakeLocatorEntry: next to trace), and the seed pass
 that node. `INTERIOR_` locators take a separate attach path. Next: MakeRule's list building (probabilities, Balance
 merge, NoMoreThan / global restrictions), how each child node's seed is derived, and the building root seed and pose
 from the planet building site.
+
+Correction and the real pick (same day): the GenerateStep draw above picks a model **variant** of the already
+chosen entry (`entry+0x110` variant handles, count `+0x10C`; MakeRule 0x142D7DB00 builds them, variant i seeded
+from `base + 100*i` through two MWC steps and a 64-bit mix `*0x64DD81482CBD31D7`, `*0xE36AA5C613612997`).
+The entry itself is chosen by **0x142D851D0** `(manager, innerRule, node)`:
+
+- per entry (stride 0x138, model name at +0, Probability float at +0x120, restrictions at +0x130/count +0x12C as
+  {type, amount}: type 0 = maximum ("No More Than"), types 1 and 2 add to a minimum), and per matching global
+  restriction (manager +0x150, count +0x14C, stride 0x198, matched by model name; same types);
+- local count = `FUN_142D7A980(manager, node, name)`, global count = manager map +0x178 by name (value +0x104);
+- below a local or global minimum -> that entry is returned at once (first such entry in file order);
+- below both maxima -> a candidate with its Probability; otherwise excluded and its Probability pooled;
+- if any candidate: one MWC step on the **manager's running state** (+0x23C lo, +0x240 hi:
+  `s = lo * 0x5A76F899 + hi`), `r = (uint)s * 2^-32 * 100`; walk candidates in file order with
+  `cum += pooled / n + p_i` and return the first with `r < cum`; none -> -1 (locator left empty).
+
+Constants checked in the exe: 0x144BF46C8 = 2^-32 (double), 0x144BF61AC = 100.0. Still to trace: where the
+manager state (+0x23C/+0x240) and each GenerateStep seed come from for a planet building (the site key?), the
+queue order (+0x220 queue, +0x238 index), locator transforms, and the building's pose on the site.
