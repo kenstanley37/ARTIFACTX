@@ -12,10 +12,11 @@ namespace ArtifactX.WinUI3.ViewModels;
 public sealed partial class GameCatalogItemViewModel : ObservableObject, IUnlockRow
 {
     public GameCatalogItemViewModel(string gameId, string name, bool known, bool canEdit, bool showState, string? readOnlyReason,
-        IReadOnlyList<string>? listIds = null, string? detail = null, string? iconId = null)
+        IReadOnlyList<string>? listIds = null, string? detail = null, string? iconId = null, string? species = null)
     {
         GameId = gameId;
         Detail = detail;
+        Species = species;
         IconId = iconId ?? gameId;
         ListIds = listIds ?? [gameId];
         Name = name;
@@ -30,6 +31,10 @@ public sealed partial class GameCatalogItemViewModel : ObservableObject, IUnlock
     /// <summary>A second line under the name: where a Wonders record was set.</summary>
     public string? Detail { get; }
     public bool HasDetail => !string.IsNullOrEmpty(Detail);
+
+    /// <summary>The species name a Fauna or Flora record shows in game ("J. Mustlimii").</summary>
+    public string? Species { get; }
+    public bool HasSpecies => !string.IsNullOrEmpty(Species);
 
     /// <summary>The catalog item whose picture the tile shows (a record shows the item it recorded).</summary>
     public string IconId { get; }
@@ -78,5 +83,5 @@ public sealed partial class GameCatalogItemViewModel : ObservableObject, IUnlock
 
     /// <summary>What a screen reader says for the tile in the grid.</summary>
     public override string ToString() => !ShowState ? Name
-        : $"{Name}, {(IsUnlocked ? "known" : "not known")}{(ReadOnlyReason is null ? "" : $", {ReadOnlyReason}")}";
+        : $"{Name}{(HasSpecies ? $", {Species}" : "")}, {(IsUnlocked ? "known" : "not known")}{(ReadOnlyReason is null ? "" : $", {ReadOnlyReason}")}";
 }

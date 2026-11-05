@@ -9,7 +9,7 @@ using System.Linq;
 namespace ArtifactX.WinUI3.Services;
 
 /// <summary>A tamed pet in the save's companion array (Mcl): its slot and the label the
-/// picker shows (its name, or "Species #N" for one never renamed).</summary>
+/// picker shows (its own name, else the one the game gives it, else "Species #N").</summary>
 public sealed record CompanionEntry(int Index, string Label);
 
 /// <summary>
@@ -26,9 +26,10 @@ public static class CompanionService
     /// computed client-side for display and is never written to the save at all -
     /// confirmed 2026-07-28 by decrypting a real save with 7 such pets and full-text-
     /// searching the raw JSON for their names, which found nothing anywhere in the file.
-    /// Filtering on fH8 (the original assumption) silently dropped every one of them.
+    /// It is generated from XID and BirthTime (CreatureNameService.CompanionName, solved
+    /// 2026-11-04). Filtering on fH8 (the original assumption) silently dropped every one.
     /// </summary>
-    public static List<CompanionEntry> ReadCompanions()
+    public static List<CompanionEntry> ReadCompanions(CreatureNameService? names = null)
     {
         var companions = new List<CompanionEntry>();
         if (SaveSessionManager.GetValue(NmsCompanionPaths.CompanionArrayPath) is not JArray array) return companions;
@@ -41,7 +42,9 @@ public static class CompanionService
             if (string.IsNullOrEmpty(xid.TrimStart('^'))) continue;
 
             string customName = array[i]?["fH8"]?.Value<string>() ?? "";
-            companions.Add(new CompanionEntry(i, string.IsNullOrEmpty(customName) ? $"{FormatArchetype(xid)} #{i + 1}" : customName));
+            string? gameName = names?.CompanionName(xid, NmsSpaceStationPaths.ParsePackedAddress(array[i]?["XwC"]) ?? 0);
+            companions.Add(new CompanionEntry(i, !string.IsNullOrEmpty(customName) ? customName
+                : gameName ?? $"{FormatArchetype(xid)} #{i + 1}"));
         }
         return companions;
     }

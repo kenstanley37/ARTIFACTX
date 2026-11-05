@@ -18,7 +18,9 @@ public static partial class CatalogSteps
     /// (ArtifactX.Core ShipNames, format 12): NAMEGEN_SHIP_FORMAT/NOUN/VERB/
     /// POSESSION (the game's spelling)/PROPERTY/ADJ. Frigate naming has its
     /// own NAMEGEN_FRIGATE_CODE and NAMEGEN_FLEET lists. Organic frigates use
-    /// NAMEGEN_WEIRDSHIP_FORMAT and PREFIXGEN_WEIRDSHIP_PREFIX. One row per list,
+    /// NAMEGEN_WEIRDSHIP_FORMAT and PREFIXGEN_WEIRDSHIP_PREFIX. Species names
+    /// (ArtifactX.Core SpeciesNames, format 69) start with a NAMEGEN_CRE (list
+    /// "CRE") or NAMEGEN_FLORA_ROOT word. One row per list,
     /// words in the game's order (key _1 first), read from the player's own
     /// language files. Retain frigate words here so the generator can use
     /// the same player-built catalog rather than copied game text.
@@ -41,7 +43,7 @@ public static partial class CatalogSteps
         var extraction = new ExtractionService();
 
         // The lists are spread over several language files (update files included).
-        var key = new Regex(@"^(?:NAMEGEN|PREFIXGEN)_(WEAP|STAFF|SHIP|FLEET|FRIGATE|WEIRDSHIP)_([A-Z0-9_]+)_(\d+)$", RegexOptions.IgnoreCase);
+        var key = new Regex(@"^(?:NAMEGEN|PREFIXGEN)_(WEAP|STAFF|SHIP|FLEET|FRIGATE|WEIRDSHIP|CRE|FLORA)(?:_([A-Z0-9_]+))?_(\d+)$", RegexOptions.IgnoreCase);
         var frigateFormatKey = new Regex(@"^FRIGATE_NAME_FORMAT_(\d+)$", RegexOptions.IgnoreCase);
         var lists = new Dictionary<string, SortedDictionary<int, string>>(StringComparer.OrdinalIgnoreCase);
         var frigateFormats = new SortedDictionary<int, string>();
@@ -65,7 +67,7 @@ public static partial class CatalogSteps
 
                     var m = key.Match(id);
                     if (!m.Success) continue;
-                    string list = $"{m.Groups[1].Value}_{m.Groups[2].Value}".ToUpperInvariant();
+                    string list = (m.Groups[2].Success ? $"{m.Groups[1].Value}_{m.Groups[2].Value}" : m.Groups[1].Value).ToUpperInvariant();
                     if (!lists.TryGetValue(list, out var words)) lists[list] = words = new SortedDictionary<int, string>();
                     words.TryAdd(int.Parse(m.Groups[3].Value), text);
                 }
@@ -102,7 +104,7 @@ public static partial class CatalogSteps
                     DescriptionEnglish = new JsonArray(frigateFormats.Values.Select(w => (JsonNode)w).ToArray()).ToJsonString(),
                 });
         }
-        ConsoleStyle.Header($"Found {rows.Count} procedural multi-tool, starship and frigate name word lists.");
+        ConsoleStyle.Header($"Found {rows.Count} procedural multi-tool, starship, frigate and species name word lists.");
 
         using var db = new CatalogDbContext(catalogPath);
         Replace(db, "MultiToolNameWords", "LocalisedText", "language/*_english.mbin", rows);
