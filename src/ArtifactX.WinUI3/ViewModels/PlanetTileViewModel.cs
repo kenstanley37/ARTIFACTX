@@ -59,6 +59,8 @@ public sealed partial class PlanetTileViewModel : ObservableObject
     public bool IsHere { get; }
     public string Eyebrow { get; }
     public string Name { get; }
+    /// <summary>The Open button's screen-reader name: every tile's button reads "Open ›".</summary>
+    public string OpenLabel => $"Open {Name}";
     public string OriginalName { get; }
     public bool HasOriginalName => OriginalName.Length > 0;
     public string TypeText { get; }

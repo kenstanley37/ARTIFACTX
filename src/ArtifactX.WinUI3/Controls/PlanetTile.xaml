@@ -32,6 +32,7 @@
                         <TextBlock Text="{x:Bind Tile.TypeText, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                     </StackPanel>
                     <Button Grid.Column="2" Content="Open ›" Click="Open_Click" Padding="10,3" VerticalAlignment="Top"
+                            AutomationProperties.Name="{x:Bind Tile.OpenLabel, Mode=OneWay}"
                             ToolTipService.ToolTip="Open this planet - everything about it, and your details"/>
                 </Grid>
 
