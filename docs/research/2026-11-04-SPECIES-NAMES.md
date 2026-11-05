@@ -64,3 +64,55 @@ Mineral record names come from a third routine (`0x140eb48a0`). It hasn't been r
 ## Words
 
 The catalog step `AddMultiToolNameWords` (format 69) now also keeps the lists `CRE` and `FLORA_ROOT` from the player's own English language files.
+
+## Companion names (the name before a player renames it)
+
+A companion the player never renamed has no name in the save (`fH8` is empty). The game makes one up each time it shows the companion: "Witchilly", "Ana-Ana", "Bigava-TO0-92L-SG6". The port is Core `CreatureNames`; the check is `--creature-name-vectors`.
+
+**How it was checked**
+
+- The game's routine (`0x140eaa420`) was run in the Unicorn emulator from the station multi-tool work. The game's text lookup was swapped for the catalog's word list, and `strncat`, `GetTickCount64` and `__stdio_common_vsnprintf_s` were stubbed.
+- It gives the owner's four Slot 8 companions exactly.
+- The C# port matches the emulator on 560 random seeds across 14 creature kinds.
+
+**Seed** (`0x1412304cc`, filling the Companions screen)
+
+- The CreatureID is read as 16 bytes, for example "PROTOROLLER". An ID of "QUAD" is read as "QUAD_PET".
+- The seed is `Hash128to64(low = Hash128to64(low = bytes 8-15, high = bytes 0-7), high = BirthTime)`. BirthTime is the save field `XwC`.
+- When the call's third argument is set, the routine uses LastEggTime (`tDR`) instead. That isn't the Companions screen's path.
+
+**Routine**
+
+1. Mix64, then StartState.
+2. **A** is `NAMEGEN_CRE_((w * 300) >> 32 + 1)`.
+3. **B** comes from the word builder (alphaset 5, min 2, max `(w * 3) >> 32 + 3`), with its first letter capitalised.
+4. **C** starts as a copy of A, and **D** as a copy of B.
+5. A, C, B and D, in that order, each get the same four steps (`0x140eabcd0`):
+   - an ending;
+   - the rude-word filter;
+   - a vowel in a consonant run (`0x140ea0570`; inserted at the returned index + 1);
+   - the filter again.
+6. **Harsh endings** are for FIEND, BUGFIEND, SCUTTLER_PET, QUAD_PET, HORROR_PET and SPIDERQUAD_PET:
+   - 'a' gives "st" (odd draw) or "sh";
+   - 'e' gives "sh";
+   - 'i', 'o' and 'u' give "ss";
+   - 'x' and 'k' get nothing;
+   - anything else draws from a table of 28 at `0x144b7cf30`: ak, ush and others.
+7. **Soft endings** are for every other kind:
+   - 'a' gives "" (odd draw) or "zi";
+   - 'e' gives "e" or "enia";
+   - 'i' gives "" or "sta";
+   - 'o' gives "" or "tto";
+   - 'u' gives "y" or "i";
+   - anything else draws from a table of 31 at `0x144b7ce30`: illy, etta and others.
+8. A final draw `f` picks the form, checking these in order:
+   - **Robots** (QUAD_PET, ROBO_PET, HOVER_PET, ROBO_RODENT, SPIDERQUAD_PET): "A-code". The code has `(w >> 31) + 2` parts, joined by '-' or '/'. Each part is one of five kinds: "%c%i", letter letter digit, "%i%c", a letter, or a digit.
+   - **A of 5 letters or fewer**: "A-A" or "A-C".
+   - **B of 5 letters or fewer**: "B-B" or "B-D".
+   - FIEND, SCUTTLER_PET, BUGFIEND and LANDSQUID_PET skip both of those.
+   - **A of 8+ letters and B of 6+**: A.
+   - Otherwise, by `f`:
+     - `f < 0.35` gives A;
+     - `f < 0.7` gives B;
+     - `f < 0.9` gives "A-B";
+     - anything higher gives "B-E", where E is a fresh word made the same way as B.

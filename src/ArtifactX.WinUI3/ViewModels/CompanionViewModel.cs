@@ -33,7 +33,7 @@ public sealed partial class CompanionViewModel : ObservableObject
     // Rig id (species XID lowercased, e.g. "trex") -> its full descriptor option tree,
     // fetched once per rig and shared by pets of the same species.
     private readonly Dictionary<string, List<CreatureDescriptorNode>> _trees = new();
-    private SpeciesNameService? _speciesNames;
+    private CreatureNameService? _names;
 
     private int _index = -1;
     private bool _loading;
@@ -71,6 +71,10 @@ public sealed partial class CompanionViewModel : ObservableObject
     [ObservableProperty] public partial string SpeciesName { get; private set; } = "";
     public bool HasSpeciesName => SpeciesName.Length > 0;
     partial void OnSpeciesNameChanged(string value) => OnPropertyChanged(nameof(HasSpeciesName));
+
+    /// <summary>The name the game shows while the companion has none of its own
+    /// ("Ana-Ana"); the Name box's placeholder, so typing renames it.</summary>
+    [ObservableProperty] public partial string GameName { get; private set; } = "";
     [ObservableProperty] public partial string Climate { get; private set; } = "";
     [ObservableProperty] public partial string Rarity { get; private set; } = "";
 
@@ -110,7 +114,7 @@ public sealed partial class CompanionViewModel : ObservableObject
     {
         _index = -1;
         _loading = true;
-        Name = Species = SpeciesName = Climate = Rarity = ColourOverrideSeed = "";
+        Name = Species = SpeciesName = GameName = Climate = Rarity = ColourOverrideSeed = "";
         ColourOverrideActive = LetterOverrideActive = false;
         HealthLetter = AgilityLetter = CombatLetter = -1;
         foreach (var field in NumberFields) field.Load(double.NaN);
@@ -126,7 +130,7 @@ public sealed partial class CompanionViewModel : ObservableObject
         string archetype = Read<string>(P.SpeciesArchetypePath(index)) ?? "";
         string archetypeId = archetype.TrimStart('^');
         _species ??= await CatalogService.GetCreatureSpeciesAsync();
-        _speciesNames ??= await SpeciesNameService.LoadAsync();
+        _names ??= await CreatureNameService.LoadAsync();
         string rigId = archetypeId.ToLowerInvariant();
         if (!_trees.TryGetValue(rigId, out var tree))
         {
@@ -141,9 +145,10 @@ public sealed partial class CompanionViewModel : ObservableObject
         // the player never renamed this pet.
         Name = Read<string>(P.NamePath(index)) ?? "";
         Species = CompanionService.FormatArchetype(archetype);
+        GameName = _names.CompanionName(archetype, Seed(P.BirthTimePath(index))) ?? "";
         string custom = (Read<string>(P.CustomSpeciesNamePath(index)) ?? "").TrimStart('^');
         SpeciesName = custom.Length > 0 ? custom
-            : _speciesNames.Companion(Seed(P.RollSeedPrimaryPath(index)), Seed(P.RollSeedSecondaryPath(index))) ?? "";
+            : _names.Companion(Seed(P.RollSeedPrimaryPath(index)), Seed(P.RollSeedSecondaryPath(index))) ?? "";
         Rarity = _species.TryGetValue(archetypeId, out var species) ? species.Rarity : "";
         Climate = Read<string>(P.NativeClimatePath(index)) ?? "";
 

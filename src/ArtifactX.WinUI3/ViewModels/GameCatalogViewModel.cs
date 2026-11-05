@@ -74,7 +74,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
             ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var fish = await WonderFishAsync(catalogue.FishOrder);
-        var species = await SpeciesNameService.LoadAsync();
+        var species = await CreatureNameService.LoadAsync();
         foreach (var section in catalogue.Sections)
         {
             if (section.Key == "UI_PORTAL_CAT_COLLECTION")
@@ -135,7 +135,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
 
     /// <summary>A Wonders category, read-only: the game records these as you play.</summary>
     private static GameCatalogCategoryViewModel WonderCategory(Core.Unlocks.CatalogueCategory category, CatalogueSectionsService.Catalogue catalogue,
-        (List<(string Id, string Name)> Items, HashSet<string> Caught) fish, SpeciesNameService species)
+        (List<(string Id, string Name)> Items, HashSet<string> Caught) fish, CreatureNameService species)
     {
         var names = catalogue.Names;
         var nameUses = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -175,7 +175,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
     }
 
     /// <summary>The species name the game shows on a Fauna or Flora record.</summary>
-    private static string? SpeciesOf(string type, JArray? generation, SpeciesNameService species)
+    private static string? SpeciesOf(string type, JArray? generation, CreatureNameService species)
     {
         ulong? first = NmsSpaceStationPaths.ParsePackedAddress(generation?.ElementAtOrDefault(0));
         ulong? second = NmsSpaceStationPaths.ParsePackedAddress(generation?.ElementAtOrDefault(1));

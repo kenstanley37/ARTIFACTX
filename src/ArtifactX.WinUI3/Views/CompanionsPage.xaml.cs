@@ -21,6 +21,7 @@ namespace ArtifactX.WinUI3.Views;
 public sealed partial class CompanionsPage : Page
 {
     private List<CompanionEntry> _companions = new();
+    private CreatureNameService? _names;
     private int _selectedIndex = -1;
     private int _loadVersion;
 
@@ -54,18 +55,27 @@ public sealed partial class CompanionsPage : Page
 
     private void LoadCompanionList()
     {
-        _companions = SaveSessionManager.IsSaveLoaded ? CompanionService.ReadCompanions() : new();
+        _companions = SaveSessionManager.IsSaveLoaded ? CompanionService.ReadCompanions(_names) : new();
         if (_companions.All(c => c.Index != _selectedIndex))
             _selectedIndex = _companions.FirstOrDefault()?.Index ?? -1;
 
         ShowStrip();
         _ = LoadSelectedAsync();
+        if (_names is null) _ = LoadNamesAsync();
+    }
+
+    /// <summary>The words for the names the game gives companions come from the
+    /// catalog; the chips show "Species #N" until they're read.</summary>
+    private async Task LoadNamesAsync()
+    {
+        _names = await CreatureNameService.LoadAsync();
+        ShowCompanionLabels();
     }
 
     /// <summary>A renamed pet's chip label, without reloading the editor.</summary>
     private void ShowCompanionLabels()
     {
-        _companions = SaveSessionManager.IsSaveLoaded ? CompanionService.ReadCompanions() : new();
+        _companions = SaveSessionManager.IsSaveLoaded ? CompanionService.ReadCompanions(_names) : new();
         ShowStrip();
     }
 

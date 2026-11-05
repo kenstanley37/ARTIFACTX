@@ -10,7 +10,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 - Treasures and other procedural items (fossils, bio samples, salvaged loot, dismantled parts) show their own name from the game, like "Shiny Bones", in the Catalog's Wonders and in your inventories. Needs the game data read again (Settings).
 
-- The Catalog's Fauna and Flora records show each creature's and plant's species name from the game, like "J. Mustlimii", and the Companions page shows your companion's species name. Needs the game data read again (Settings).
+- The Catalog's Fauna and Flora records show each creature's and plant's species name from the game, like "J. Mustlimii", and the Companions page shows your companion's species name. Companions you never renamed show the name the game gives them, like "Ana-Ana", instead of "Protoroller #2". Needs the game data read again (Settings).
 
 - Egg Sequencer page under Reference, laid out like the game's sequencer: pick a catalyst slot to see only the items it takes, filter by the effect you want (bigger, toward Gentleness and so on) or to only the items you carry, put an item in and see the dose the game will show and, in plain words, what will happen to the new companion. Choose one of your eggs to see its exact personality before and after ("Gentleness 50% becomes Gentleness 30%") and which changes its kind can't take. Needs the game data read again (Settings).
 

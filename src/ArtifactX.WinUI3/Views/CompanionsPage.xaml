@@ -63,6 +63,7 @@
                     <StackPanel Spacing="6">
                         <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
                         <TextBox Width="300" HorizontalAlignment="Left" AutomationProperties.Name="Name"
+                                 PlaceholderText="{x:Bind ViewModel.GameName, Mode=OneWay}"
                                  Text="{x:Bind ViewModel.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>
 

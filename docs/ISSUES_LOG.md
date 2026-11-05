@@ -373,6 +373,7 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Source note**: "Companions to show 3D visual and real name of creature".
 - **Request**: Display the selected companion's actual creature name and a rotatable 3D preview representing that creature.
 - **Implementation**: Reuse the existing preview pipeline where compatible; investigate creature model, descriptor, seed, scale and colour inputs. Distinguish the creature/species name from the player's pet nickname. Do not invent names or substitute a generic model as an exact preview.
+- **Companion name solved 2026-11-04**: a companion never renamed shows the game's own name ("Witchilly", "Ana-Ana") in the picker and as the Name box's placeholder; seed from XID + BirthTime, 4/4 on Slot 8 and 560/560 against NMS.exe's routine run in an emulator (Core `CreatureNames`, `feature/species-names`).
 - **Species name solved 2026-11-04**: the Companions page shows the game's species name ("Z. Wingeebus") from m9o/JrL, or the player's own when set; 4/4 against the owner's Genetic Profile screens (Core `SpeciesNames`, `feature/species-names`). The 3D preview remains open.
 - **Acceptance**: Compare names and appearance with the same companion in game; retain preview rotation while unrelated fields change and avoid rebuilding the model on every keystroke. Track unresolved model types explicitly.
 
