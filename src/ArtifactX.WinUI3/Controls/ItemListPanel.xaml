@@ -22,7 +22,7 @@
             <ComboBox x:Name="GroupBox" AutomationProperties.Name="Group" HorizontalAlignment="Stretch" SelectionChanged="Filter_Changed"/>
             <CheckBox Grid.Column="1" x:Name="HideOwnedBox" Content="Hide ones I have" Checked="Filter_Changed" Unchecked="Filter_Changed" MinWidth="0"/>
         </Grid>
-        <ComboBox x:Name="RarityBox" Header="Rarity" AutomationProperties.Name="Fish rarity"
+        <ComboBox x:Name="TagBox" Header="Rarity" AutomationProperties.Name="Fish rarity"
                   HorizontalAlignment="Stretch" Visibility="Collapsed" SelectionChanged="Filter_Changed"/>
         <Button x:Name="AddAllBtn" HorizontalAlignment="Stretch" Click="AddAll_Click"/>
         <TextBlock x:Name="StatusTxt" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"/>

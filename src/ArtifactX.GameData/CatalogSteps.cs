@@ -671,6 +671,7 @@ public static partial class CatalogSteps
             return;
         }
 
+        var corvetteSources = CorvettePartSources(pcbanksPath);
         var corvetteParts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         // The part's build-menu facts, kept as JSON in DescriptionEnglish - many
         // parts are rotations/mirrors of one buildable item (B_STR_K_NE, _NE1..3,
@@ -694,6 +695,9 @@ public static partial class CatalogSteps
                     ["isMod"] = part.IsModularCustomisation,
                     ["families"] = part.FamilyIDs?.Select(f => f?.Value ?? "").ToList() ?? new List<string>(),
                     ["composite"] = part.CompositePartObjectIDs?.Select(f => f?.Value ?? "").ToList() ?? new List<string>(),
+                    // Format 72 (CorvettePartSources): "basic", "barter", "reward:RS_..." or "".
+                    ["shop"] = corvetteSources.GetValueOrDefault(itemId).Shop ?? "",
+                    ["type"] = corvetteSources.GetValueOrDefault(itemId).Type ?? "",
                 });
         }
         ConsoleStyle.Header($"Found {corvetteParts.Count} corvette parts " +
