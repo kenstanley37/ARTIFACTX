@@ -69,7 +69,7 @@ public sealed partial class SystemStarshipItemViewModel : ObservableObject
         SystemStarshipType.SentinelInterceptor => ThemeResources.Brush("ThemeOnAccentBrush"),
         SystemStarshipType.Solar => ThemeResources.Brush("ThemeOnAccentBrush"),
         SystemStarshipType.Fighter => ThemeResources.Brush("ThemeOnAccentBrush"),
-        SystemStarshipType.Hauler => ThemeResources.Brush("ThemeBandTextBrush"),
+        SystemStarshipType.Hauler => ThemeResources.Brush("ThemeOnAccentAltBrush"),
         _ => ThemeResources.Brush("ThemeTextBrush"),
     };
 

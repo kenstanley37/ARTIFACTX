@@ -39,7 +39,7 @@ public sealed partial class SystemMultiToolItemViewModel : ObservableObject
     public Brush BadgeForeground => Kind switch
     {
         "Alien" or "Experimental" => ThemeResources.Brush("ThemeOnAccentBrush"),
-        "Rifle" => ThemeResources.Brush("ThemeBandTextBrush"),
+        "Rifle" => ThemeResources.Brush("ThemeOnAccentAltBrush"),
         _ => ThemeResources.Brush("ThemeTextBrush"),
     };
 
