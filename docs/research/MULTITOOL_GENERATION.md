@@ -282,3 +282,27 @@ Onamir-Zuang (`0x7A00FF67B291`, Euclid) is pirate-controlled and remains
 unsupported by the TypeB station pipeline. Its Bane of Silence screenshot
 (C-Class, 420.0 damage, 208.7 scanner) is a reference for future pirate-scene
 extraction, not evidence that ordinary TypeB geometry can be reused there.
+
+## Planet shop cabinets reproduced in game (2026-11-05)
+
+Slot 7, system Ihweyf `0x1FA00016452DB` (Vy'keen, wealth row 2), Kaim 30/19 (planet 1), the game loaded on that
+planet. Two Shop-class (5) grid sites from Core `PlanetBuildingSites` (with the ground test) were marked with the
+planet table's `SHOP` scan event (9@i 1, iqv Shop, written by script with backups kept); both markers led to a Minor
+Settlement at the predicted coordinates (-6.79, +64.54 seen -6.78, +64.54; -7.77, +62.52 seen -7.76, +62.51).
+
+For each cabinet the owner saved standing in front of it and screenshotted the offer. Every whole-metre point near the
+saved `rnc.mEH` was hashed with `MultiToolSiteGeneration.SeedForPosition`, the tool picked from planet 1's pool
+(`GeneratePool(address | 1 << 52, Planet)`, 2 standard tools) and run through `LocatedMultiToolGeneration.Generate`
+with the save's runtime. Exactly one point matched each screenshot:
+
+| Cabinet | Game | World point | From saved position |
+| --- | --- | --- | --- |
+| 1 | Parallel Neutron Reflector, C Rifle, 358.1 / 202.9, 5 tech, 1,985,000 | (-107157, -15386, -78362) | 3.9 m |
+| 2 | Parallel Neutron Reflector, B Rifle, 350.0 / 215.8, SCAN1 SCANBINOC1 LASER STUN_GREN SCOPE, 2,655,000 | (-109470, -17596, -74402) | 1.2 m |
+
+So planet shop cabinets use the station pipeline unchanged: the site hash of the cabinet's world point, the reload
+body's pool and the economy's class row. What is not solved is the cabinet's world point. Relative to Core's ground
+point under each site (terrain heights 275.19 and 250.08) the cabinets sit 17.9 m and 29.4 m sideways and 1.8 m and
+4.1 m up, so the shop's L-system layout (and the building's facing) decides it - see the planetary shop survey on
+`feature/planet-multi-tool-locations`. Until that is traced, an app can name the tools a planet's shops offer (its
+pool) and the class odds, but not each cabinet's class and stats.
