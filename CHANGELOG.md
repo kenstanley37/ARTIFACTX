@@ -24,6 +24,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Uncharted systems (Race, Economy and Conflict "Data Unavailable", often dissonant) no longer list crashed ships that aren't there. The game builds far fewer wrecks in them and ArtifactX can't tell where yet, so the planet pages say so instead of guessing.
+
 - The building parts counter takes the construction limit from your own copy of No Man's Sky, so it stays right if a game update changes the limit. Needs the game data read again (Settings).
 
 - Screen readers: buttons that looked alike now say what they act on - each planet's and base's Open, the Max button for units, nanites and quicksilver, each template's Share, each find's Edit and Delete, each inventory's Unlock All Slots and Show all, each companion seed's Generate, each crashed ship's marker (with its coordinates), each station multi-tool's slots and each empty starship slot.
