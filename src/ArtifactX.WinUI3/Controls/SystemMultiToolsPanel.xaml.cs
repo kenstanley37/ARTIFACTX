@@ -16,23 +16,5 @@ public sealed partial class SystemMultiToolsPanel : UserControl
     }
 
     public SystemMultiToolsPanel() => InitializeComponent();
-
-    private void Toggle_Click(object sender, RoutedEventArgs e) => MultiTools?.Toggle();
-
-    private void Filter_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: string key })
-        {
-            MultiTools?.SelectFilter(key);
-        }
-    }
-
-    private void Copy_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: SystemMultiToolItemViewModel item })
-        {
-            item.CopySeed();
-        }
-    }
 }
 

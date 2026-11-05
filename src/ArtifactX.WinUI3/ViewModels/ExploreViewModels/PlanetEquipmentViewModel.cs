@@ -94,6 +94,10 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     private bool _rebuildingTypes;
 
     public ObservableCollection<CrashedShipRowViewModel> CrashedShips { get; } = [];
+
+    /// <summary>The shops nearest the same point as the crashed ships, with save markers.</summary>
+    public PlanetShopsViewModel Shops { get; } = new();
+    private (ulong Address, double Lat, double Lon)? _shopsFrom;
     [ObservableProperty] public partial bool HasCrashedShips { get; private set; }
     [ObservableProperty] public partial string CrashedShipsHeading { get; private set; } = "CRASHED SHIPS";
     [ObservableProperty] public partial string CrashedShipsHint { get; private set; } = "";
@@ -187,6 +191,11 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
             && snapshot.Universe?["oZw"]?["jsv"]?.Value<int>() == planet.PlanetIndex && snapshot.Coordinates is not null;
         (double Lat, double Lon)? from = here ? snapshot.Coordinates : _portal is { } p ? (p.Latitude, p.Longitude) : null;
         if (from is not { } at) return;
+        if (_shopsFrom != (planet.Address, at.Lat, at.Lon))
+        {
+            _shopsFrom = (planet.Address, at.Lat, at.Lon);
+            _ = Shops.LoadAsync(planet.Address, at.Lat, at.Lon, here);
+        }
         var found = await CrashedShipService.SearchAsync(planet.Address, Matches, at.Lat, at.Lon, ShownShips);
         if (_planetAddress != planet.Address || found is null) return;
         // Uncharted systems (no race) list only the planet's fixed underwater wreck (CrashedShipService).
@@ -210,6 +219,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     public void RefreshMarkers()
     {
         foreach (var ship in CrashedShips) ship.Refresh();
+        Shops.RefreshMarkers();
         HasPortal = _portal is not null;
         if (_portal is not { } portal) return;
         PortalCoordinates = portal.Coordinates;

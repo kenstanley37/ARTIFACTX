@@ -80,6 +80,9 @@
             </Border>
         </controls:FoldingCard>
 
+        <!-- Shops nearest the same point, each with an optional marker. -->
+        <controls:PlanetShopsPanel Shops="{x:Bind Equipment.Shops}"/>
+
         <!-- Located sites with their recorded coordinates. -->
         <controls:FoldingCard Title="{x:Bind Equipment.LocatedSitesHeading, Mode=OneWay}" SettingKey="PlanetDetailsLocatedSitesCollapsed">
             <Border Style="{StaticResource ThemeCardStyle}">
