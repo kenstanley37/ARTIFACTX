@@ -167,8 +167,12 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         await ReloadAsync(planet, snapshot);
     }
 
-    /// <summary>Shown instead of crashed ships in a system with no race (planet page and Current System tiles).</summary>
-    public const string UnchartedNote = "Crashed ships can't be placed in uncharted systems yet: the game builds far fewer there, and ArtifactX doesn't know where. A Planetary Chart in game still finds them.";
+    /// <summary>Shown instead of crashed ships in a system with no race (planet page and Current System tiles).
+    /// Owner 2026-11-05 (Slot 7): Planetary Charts in two uncharted systems (Nujies IX, then Ebastwoo Delta's) led to
+    /// crash scenes with a Distress Beacon and no ship; the markers' site keys are Core grid cells (0.0 m) whose slots
+    /// (193, 18) are empty in the normal table - so the chart picks a random cell. Shlifs and Hamagan-Oerat VI had
+    /// nothing either (#34).</summary>
+    public const string UnchartedNote = "No claimable crashed ships in uncharted systems: Planetary Charts here lead to a crash site with a distress beacon but no ship.";
 
     /// <summary>The crashed ships (as many as chosen) matching the class and type filters nearest you when you're on this planet, else
     /// nearest its portal, searched over the whole planet.</summary>

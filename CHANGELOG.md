@@ -24,7 +24,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
-- Uncharted systems (Race, Economy and Conflict "Data Unavailable", often dissonant) no longer list crashed ships that aren't there. The game builds far fewer wrecks in them and ArtifactX can't tell where yet, so the planet pages say so instead of guessing.
+- Uncharted systems (Race, Economy and Conflict "Data Unavailable", often dissonant) no longer list crashed ships that aren't there. Their planets have no claimable crashed ships - Planetary Charts there lead to a crash site with a distress beacon but no ship - and the planet pages now say so.
 
 - The building parts counter takes the construction limit from your own copy of No Man's Sky, so it stays right if a game update changes the limit. Needs the game data read again (Settings).
 
