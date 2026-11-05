@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Right-click an item in any inventory and choose View larger picture to see it at the size the game has it (twice as big as the slot picture), read from your own game files.
+
 - The title bar shows where you are, on every page: the planet you're on, the space station, your freighter or the Space Anomaly, and the system. Hover it for the region, galaxy and portal address. It follows the game as it saves.
 
 - A planet's page shows how many of its species you've found ("3 of 8 species found") and a tile for each one still to find, using the count the game showed you or, if you haven't seen it, the count the game's generator gives.

@@ -486,6 +486,15 @@ public sealed partial class InventorySlotGrid : UserControl
             flyout.Items.Add(superchargeItem);
         }
 
+        // A closer look at the item (#10), at the game's own picture size.
+        if (cell.ItemId is { Length: > 0 } pictureId)
+        {
+            var pictureItem = new MenuFlyoutItem { Text = "View larger picture" };
+            pictureItem.Click += async (_, _) =>
+                await ItemPictureView.ShowAsync(anchor.XamlRoot, pictureId, CatalogService.TryGet(pictureId)?.DisplayName ?? "Item");
+            flyout.Items.Add(pictureItem);
+        }
+
         var removeItem = new MenuFlyoutItem { Text = "Remove item" };
         removeItem.Click += (_, _) =>
         {
