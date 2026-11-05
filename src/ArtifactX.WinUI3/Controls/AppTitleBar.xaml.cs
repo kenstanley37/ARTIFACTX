@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.GameData;
+using ArtifactX.WinUI3.Helpers.Location;
 using ArtifactX.WinUI3.Services;
 using System;
 using System.Threading.Tasks;
@@ -43,7 +44,12 @@ public sealed partial class AppTitleBar : UserControl
 
         // Parts placed follow the game's saves live, like the Bases page (2026-10-18).
         FishCatchRecorder.SnapshotSeen += snapshot =>
-            DispatcherQueue.TryEnqueue(() => { if (SaveSessionManager.IsSaveLoaded) ShowParts(snapshot.Bases, snapshot.LooseObjects); });
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (!SaveSessionManager.IsSaveLoaded) return;
+                ShowParts(snapshot.Bases, snapshot.LooseObjects);
+                ShowLocation(snapshot);
+            });
 
         Refresh();
     }
@@ -58,6 +64,18 @@ public sealed partial class AppTitleBar : UserControl
         PartsTxt.Foreground = ThemeResources.LevelBrush(NmsBuildCounts.GlobalLevel(total));
         ToolTipService.SetToolTip(PartsRegion, $"{NmsBuildCounts.GlobalLabel(total)} - at {NmsBuildCounts.GlobalLimit:N0} the game says \"Construction Limit Reached\".\n"
             + NmsBuildCounts.Breakdown(bases, loose).Replace(" · ", "\n"));
+    }
+
+    /// <summary>Where the player is (#33): from the newest game save while it plays,
+    /// else from the loaded save.</summary>
+    private void ShowLocation(PlanetSnapshot snapshot)
+    {
+        var where = PlayerLocationText.Describe(snapshot, SaveSessionManager.GetString(NmsInventoryContainer.FreighterNamePath));
+        LocationRegion.Visibility = where is null ? Visibility.Collapsed : Visibility.Visible;
+        if (where is not { } w) return;
+        LocationTxt.Text = w.Line;
+        ToolTipService.SetToolTip(LocationRegion, w.Detail);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(LocationRegion, "You are here: " + w.Detail.Replace("\n", ", "));
     }
 
     private void RefreshScreenRecording()
@@ -217,6 +235,7 @@ public sealed partial class AppTitleBar : UserControl
 
         if (!SaveSessionManager.IsSaveLoaded)
         {
+            LocationRegion.Visibility = Visibility.Collapsed;
             ResetDisplayTokens();
             CurrencyDisplayRegion.Visibility = Visibility.Collapsed;
             SaveBtn.Visibility = Visibility.Collapsed;
@@ -226,6 +245,7 @@ public sealed partial class AppTitleBar : UserControl
         }
 
         CurrencyDisplayRegion.Visibility = Visibility.Visible;
+        ShowLocation(LiveSaveWatcher.FromSession());
 
         // ToDisplayValue undoes the uint32 wrap the game itself writes for a
         // balance over ~2.1 billion - see its doc comment. No-op for the
