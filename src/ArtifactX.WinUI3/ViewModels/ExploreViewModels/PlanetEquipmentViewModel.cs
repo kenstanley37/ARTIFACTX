@@ -196,6 +196,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
             (row, next) => row.UpdateFrom(next));
         HasCrashedShips = true;
         CrashedShipsSummary = found.Total == 0 ? $"No {(ShipClassChoice > 0 ? ShipClassChoices[ShipClassChoice] + " " : "")}crashed ships on this planet."
+            : found.Total == 1 ? "The only matching crashed ship on this planet."
             : found.Total <= ShownShips ? $"All {found.Total:N0} matching crashed ships on this planet, nearest first."
             : $"The nearest {ShownShips} of {found.Total:N0} matching crashed ships on this planet.";
         if (found.Uncharted) CrashedShipsSummary = $"{CrashedShipsSummary} {UnchartedNote}";
