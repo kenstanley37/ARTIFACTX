@@ -48,13 +48,20 @@ public sealed partial class CorvetteCacheControl : UserControl
         _ = new CargoStorageFeed(this, () => [_editor.Path], LoadGrid);
 
         // Every part a corvette is built from, to click into the cache - and
-        // the same list limits the right-click search.
+        // the same list limits the right-click search. Filter by the game's part
+        // type and by where a part comes from (#56, owner 2026-11-04: basic,
+        // advanced and found parts were hard to tell apart).
+        PartsPanel.TagHeader = "Where from";
+        PartsPanel.TagAnyLabel = "Anywhere";
+        PartsPanel.TagAutomationName = "Where the part comes from";
         _ = PartsPanel.LoadAsync(CacheGrid, async () =>
         {
             var parts = await CatalogService.GetCorvettePartsAsync();
             CacheGrid.AllowedItemIds = parts.Select(p => p.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            return parts;
-        }, "part", "parts", "Product", _ => "");
+            // By type, so the cards and the type filter read in the same order.
+            return parts.OrderBy(p => p.Group, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }, "part", "parts", "Product", p => p.Group);
     }
 
     private async void LoadGrid()

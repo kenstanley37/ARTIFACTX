@@ -572,13 +572,33 @@ public static class CatalogService
     /// game's build menu (ShowInBuildMenu): most structural ids are rotations
     /// and mirrors of one part (B_STR_K_NE, _NE1-3, _Y_NE...) - 433 of 575 -
     /// and real caches held 131 of the 142 menu parts; the few non-menu ids
-    /// seen there were right-hand wing pieces the game hands back.</summary>
+    /// seen there were right-hand wing pieces the game hands back.
+    /// Group is the game's own type line ("Corvette Cockpit"); Tag is where the
+    /// part comes from (catalog format 72, CatalogSteps.CorvettePartSources): the
+    /// workshop for units or by swap offer, an expedition reward, or neither.</summary>
+    /// <summary>A corvette part's source in the workshop's own words ("Purchase
+    /// basic modules", "Trade advanced modules"), with its filter order. Null shop:
+    /// a catalog older than format 72, so no source is shown.</summary>
+    private static (string? Label, int Order) CorvettePartSource(string? shop, ArtifactX.Core.Unlocks.ExpeditionReward? reward, Dictionary<int, string> expeditionNames) => shop switch
+    {
+        null => (null, 0),
+        "basic" => ("Buy at the workshop", 0),
+        "barter" => ("Trade at the workshop", 1),
+        _ when shop.StartsWith("reward:", StringComparison.Ordinal) && reward is not null
+            => ("Expedition reward: " + CultureInfo.CurrentCulture.TextInfo.ToTitleCase(
+                expeditionNames.GetValueOrDefault(reward.Expedition, $"Expedition {reward.Expedition}").ToLowerInvariant()), 2),
+        _ when shop.StartsWith("reward:", StringComparison.Ordinal) => ("Expedition reward", 2),
+        _ => ("Not sold at the workshop", 3),
+    };
+
     public static async Task<List<CatalogPart>> GetCorvettePartsAsync()
     {
         string? dbPath = ResolveDbPath();
         if (dbPath is null) return new();
         try
         {
+            var rewards = await ExpeditionRewardsService.LoadAsync();
+            var expeditionNames = BuildExpeditionNameLookup(await GetAllUnlockableItemsAsync());
             return await Task.Run(() =>
             {
                 var parts = new List<CatalogPart>();
@@ -586,7 +606,7 @@ public static class CatalogService
                 connection.Open();
                 using var command = connection.CreateCommand();
                 command.CommandText = @"
-                    SELECT p.GameId, p.NameEnglish, cp.UsageCategory, p.MaxStackSize
+                    SELECT p.GameId, p.NameEnglish, cp.DescriptionEnglish, p.MaxStackSize
                     FROM Items cp
                     JOIN Categories cc ON cc.Id = cp.CategoryId
                     JOIN Items p ON p.GameId = substr(cp.GameId, 10)
@@ -600,8 +620,20 @@ public static class CatalogService
                     ORDER BY p.NameEnglish";
                 using var reader = command.ExecuteReader();
                 while (reader.Read())
-                    parts.Add(new CatalogPart(reader.GetString(0), reader.GetString(1),
-                        reader.IsDBNull(2) ? "" : reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetInt32(3)));
+                {
+                    string id = reader.GetString(0);
+                    string? shop = null;
+                    string type = "";
+                    if (!reader.IsDBNull(2))
+                    {
+                        using var facts = System.Text.Json.JsonDocument.Parse(reader.GetString(2));
+                        if (facts.RootElement.TryGetProperty("shop", out var s)) shop = s.GetString() ?? "";
+                        if (facts.RootElement.TryGetProperty("type", out var t)) type = t.GetString() ?? "";
+                    }
+                    var (source, order) = CorvettePartSource(shop, rewards.GetValueOrDefault(id), expeditionNames);
+                    parts.Add(new CatalogPart(id, reader.GetString(1), type, reader.IsDBNull(3) ? null : reader.GetInt32(3),
+                        Tag: source, TagOrder: order));
+                }
                 return parts;
             });
         }
@@ -1101,7 +1133,7 @@ public static class CatalogService
                     int rarityOrder = fishInfo is not null && Enum.TryParse<libMBIN.NMS.GameComponents.GcItemQuality.ItemQualityEnum>(fishInfo.Quality, out var quality)
                         ? (int)quality : int.MaxValue;
                     parts.Add(new CatalogPart(id, reader.GetString(1), group, reader.IsDBNull(3) ? null : reader.GetInt32(3),
-                        Rarity: fishInfo?.RarityName(), RarityOrder: rarityOrder));
+                        Tag: fishInfo?.RarityName(), TagOrder: rarityOrder));
                 }
                 return parts.OrderBy(p => p.Group).ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
             });

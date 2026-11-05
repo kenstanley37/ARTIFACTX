@@ -13,11 +13,12 @@ namespace ArtifactX.WinUI3.Models;
 /// "#seed" (the game rolls the module's stats from it). Stat is the main stat
 /// the tech works on (from the catalog's TechStats, e.g. "Ship_Hyperdrive"),
 /// Primary marks a device's main item (Hyperdrive vs its Cadmium Drive).
-/// Optional Rarity is the player-facing fish label; RarityOrder follows the
-/// game's quality enum. Other inventory lists leave these unset.</summary>
+/// Optional Tag feeds the panel's second filter, ordered by TagOrder: the
+/// player-facing fish rarity (in the game's quality order) on Cold Storage, where
+/// a part comes from on the Corvette Cache. Other inventory lists leave it unset.</summary>
 public sealed record CatalogPart(string GameId, string Name, string Group, int? MaxStackSize,
     string? CountKey = null, int Limit = 1, bool Seeded = false, string? Stat = null, bool Primary = false,
-    string? Colour = null, string? TemplateId = null, string? Rarity = null, int RarityOrder = 0);
+    string? Colour = null, string? TemplateId = null, string? Tag = null, int TagOrder = 0);
 
 public sealed class CatalogSearchResult
 {
