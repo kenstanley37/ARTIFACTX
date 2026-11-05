@@ -60,6 +60,7 @@ public sealed partial class LanguageWordsControl : UserControl
 
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         SaveSessionManager.PendingEditsChanged += OnPendingEditsChanged;
+        SaveSessionManager.GameSavedLoadedSlot += OnGameSaved;
         Unloaded += Control_Unloaded;
 
         KnownFilterBox.SelectedIndex = 0;
@@ -80,6 +81,29 @@ public sealed partial class LanguageWordsControl : UserControl
     {
         SaveSessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
         SaveSessionManager.PendingEditsChanged -= OnPendingEditsChanged;
+        SaveSessionManager.GameSavedLoadedSlot -= OnGameSaved;
+    }
+
+    /// <summary>Words learned in game appear once the game saves, ticked in place
+    /// (no reload, scroll kept). Unsaved word edits win: LiveFieldsService leaves
+    /// the list alone while any are staged.</summary>
+    private void OnGameSaved(JObject disk)
+    {
+        if (_allWords is null) return;
+        if (LiveFieldsService.Adopt(disk, [NmsLanguagePaths.KnownWordsArrayPath]).Count == 0) return;
+        ReadKnownEntries();
+        foreach (var row in _allWords) row.IsKnown = _fullKnownIdSet.Contains(row.GameId);
+        string? knownFilter = (KnownFilterBox.SelectedItem as ComboBoxItem)?.Content as string;
+        if (knownFilter is "Known Only" or "Unknown Only") ApplyFilters();
+    }
+
+    private void ReadKnownEntries()
+    {
+        var knownArray = SaveSessionManager.GetValue(NmsLanguagePaths.KnownWordsArrayPath) as JArray;
+        _fullEntries = knownArray?.OfType<JObject>().ToList() ?? new();
+        _fullKnownIdSet = new HashSet<string>(
+            _fullEntries.Select(e => CatalogService.NormalizeId(e["MYl"]?.Value<string>() ?? "")).Where(s => s.Length > 0),
+            StringComparer.Ordinal);
     }
 
     private async Task LoadWordsAsync()
@@ -100,11 +124,7 @@ public sealed partial class LanguageWordsControl : UserControl
 
         var allCatalogWords = await CatalogService.GetAllLanguageWordsAsync();
 
-        var knownArray = SaveSessionManager.GetValue(NmsLanguagePaths.KnownWordsArrayPath) as JArray;
-        _fullEntries = knownArray?.OfType<JObject>().ToList() ?? new();
-        _fullKnownIdSet = new HashSet<string>(
-            _fullEntries.Select(e => CatalogService.NormalizeId(e["MYl"]?.Value<string>() ?? "")).Where(s => s.Length > 0),
-            StringComparer.Ordinal);
+        ReadKnownEntries();
 
         // The actual row-building (filter ~4,570 down to one race, construct
         // ~1,100-1,170 ObservableObject instances) is real work, not just a
