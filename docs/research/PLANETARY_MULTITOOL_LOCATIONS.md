@@ -252,3 +252,14 @@ seed) just before 0x141638D00, so the planet building setup's RNG is `MWC.Start(
 record's 0x14163C300 call takes two MWC steps (before checking for an L-system path), in the setup's loop order.
 Next: read 0x14163B270's loops (race x class order, gating FUN_14167F2F0 / FUN_1416445F0 and any other draws) to
 get the shop records' registration indices, then check the three seeds against the two Kaim 30/19 cabinets.
+
+Record counts in 0x14163B270 (class order 0..62): records(c) = overrides(c) + (allowed(c) ? NumModelsToGenerate(c) : 0),
+where overrides = NumOverridesToGenerateWaterworlds when >= 0 on biome 14 else NumOverridesToGenerate, counted only
+when `EnabledWhenPlanetHasNoNPCs || planet has NPCs` and (the +0x31D8 planet value > 0 and not one of two sentinel
+values, or FlattenType != 3); **allowed** (0x1416445F0) = Density[planet density level] > 0 (same EnabledWhen rule) or
+the class is flagged by a cluster layout, NumModelsToGenerate > 0 and the planet is not type 7 - or the class is
+Shelter/Waypoint/LandingPad (mask 0x200084); a class whose third building-table path (WFC) is set gets none.
+0x14167F2F0 gates a class by its PlanetRestrictions bytes (+0x94..+0x97) against planet flags. Every record
+consumes two MWC steps in 0x14163C300. So on a normal planet the shop records follow Shelter (1 override + 3),
+Abandoned (3 if allowed) and Terminal (1 if allowed): the first shop seed is draw pair 2 + R with
+R in {4, 5, 7, 8} - few enough to brute-force against the measured cabinets.
