@@ -306,3 +306,10 @@ point under each site (terrain heights 275.19 and 250.08) the cabinets sit 17.9 
 4.1 m up, so the shop's L-system layout (and the building's facing) decides it - see the planetary shop survey on
 `feature/planet-multi-tool-locations`. Until that is traced, an app can name the tools a planet's shops offer (its
 pool) and the class odds, but not each cabinet's class and stats.
+
+Reload-body check, same day: the owner saved at the station (Ihweyf Platform), reloaded there and flew back to
+cabinet 1 without reloading. It then offered the Improvised Nano Probe, C-class Rifle, 358.1 / 202.9 - the station
+pool's pick at the same site seed, as predicted (planet-1 load: Parallel Neutron Reflector, same class and stats).
+So **where the game was last loaded decides every cabinet's tool in the system**; the cabinet's own position
+decides its class, stats and inventory. Predicted for that cabinet when loaded on the other bodies: planet 2
+Ancestral Vector Stabiliser, planet 3 Prakhde's Spacetime Obstructor, planet 4 Herald of Infinity 5/FB4 (all C).
