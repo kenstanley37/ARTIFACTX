@@ -19,11 +19,13 @@ public sealed class CreatureNameService
 {
     private readonly IReadOnlyList<string> _creatureRoots;
     private readonly IReadOnlyList<string> _floraRoots;
+    private readonly string? _mineralSuffix;
     private readonly Dictionary<(ulong Address, ulong Seed), (ulong A, ulong B)> _creatureSeeds;
 
     private CreatureNameService(IReadOnlyList<string> creatureRoots, IReadOnlyList<string> floraRoots,
-        Dictionary<(ulong, ulong), (ulong, ulong)> creatureSeeds)
+        Dictionary<(ulong, ulong), (ulong, ulong)> creatureSeeds, string? mineralSuffix)
     {
+        _mineralSuffix = mineralSuffix;
         _creatureRoots = creatureRoots;
         _floraRoots = floraRoots;
         _creatureSeeds = creatureSeeds;
@@ -35,7 +37,8 @@ public sealed class CreatureNameService
         var words = await CatalogService.GetProceduralNameWordsAsync();
         var discoveries = SaveSessionManager.GetValue(NmsSpaceStationPaths.DiscoveriesPath) as JArray;
         var seeds = await Task.Run(() => NmsSpeciesSeeds.CreatureNameSeeds(discoveries));
-        return new CreatureNameService(words.GetValueOrDefault("CRE") ?? [], words.GetValueOrDefault("FLORA_ROOT") ?? [], seeds);
+        return new CreatureNameService(words.GetValueOrDefault("CRE") ?? [], words.GetValueOrDefault("FLORA_ROOT") ?? [], seeds,
+            words.GetValueOrDefault("MINERAL_SUFFIX")?.FirstOrDefault());
     }
 
     /// <summary>The species on a Fauna record (its UqY pair), or null when its
@@ -45,6 +48,9 @@ public sealed class CreatureNameService
 
     /// <summary>The species on a Flora record (its UqY[1]).</summary>
     public string? FloraRecord(ulong seed) => seed == 0 ? null : SpeciesNames.Flora(seed, _floraRoots);
+
+    /// <summary>The mineral on a Mineral record (its UqY[1]).</summary>
+    public string? MineralRecord(ulong seed) => seed == 0 ? null : SpeciesNames.Mineral(seed, _mineralSuffix);
 
     /// <summary>A companion's species from its m9o and JrL.</summary>
     public string? Companion(ulong seedA, ulong seedB) =>
