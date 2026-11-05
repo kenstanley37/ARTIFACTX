@@ -114,10 +114,11 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
     public void Refresh()
     {
         bool marked = ScanMarkerService.IsMarked(_site.Key), unsaved = ScanMarkerService.IsUnsaved(_site.Key);
-        CanAddMarker = !unsaved && ScanMarkerService.CanAdd;
+        CanAddMarker = !unsaved && ScanMarkerService.CanAdd && _site.CanMark;
         CanUndoMarker = unsaved;
         AddMarkerText = marked && !unsaved ? "Mark again" : "Add marker";
         Status = unsaved ? "Marker added - save your changes."
+            : !_site.CanMark ? "A marker would lead to the land crash site here. Use the Nautilon's scanner to find this ship."
             : marked ? "Marked in your save. Not showing in game? Mark it again."
             : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to add a marker."
             : _site.Sentinel ? "Each crashed Sentinel ship has its own name - not known yet."

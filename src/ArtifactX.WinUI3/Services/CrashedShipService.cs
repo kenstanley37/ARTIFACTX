@@ -16,8 +16,13 @@ namespace ArtifactX.WinUI3.Services;
 /// null when the catalog lacks the ship pool settings, class rows, or starship layout tables).</summary>
 public sealed record CrashedShipSite(ulong PlanetAddress, ulong Key, double X, double Y, double Z, double Latitude,
     double Longitude, double DistanceKm, SystemStarship? Ship, int? ShipClass, bool Underwater = false, double? DepthMetres = null, bool Sentinel = false,
-    CrashedShipInventorySummary? Inventory = null, StarshipDisplayedStats? DisplayedStats = null)
+    CrashedShipInventorySummary? Inventory = null, StarshipDisplayedStats? DisplayedStats = null, bool ScannerOnly = false)
 {
+    /// <summary>Whether a save marker can lead to it. False for an uncharted system's underwater wreck: 2026-11-05 a
+    /// marker for The Mirror of the Stars (Ebastwoo Delta, -37.92, +113.55) led to the land beacon site instead, while
+    /// the Nautilon's scanner found the ship there (199 km, as predicted).</summary>
+    public bool CanMark => !ScannerOnly;
+
     public string Coordinates => NmsPlanetCoordinates.Format(Latitude, Longitude);
 
     /// <summary>The class the game shows: an Exotic is always S.</summary>
@@ -141,7 +146,7 @@ public static class CrashedShipService
                 foreach (var wreck in context.UnchartedWrecks ?? [])
                 {
                     var site = new BuildingSite(0, 0, 0, wreck.Key, wreck.Position - centre, WaterDistressSignal);
-                    all.Add(Describe(context, site, Vector3.Normalize(site.Point)));
+                    all.Add(Describe(context, site, Vector3.Normalize(site.Point)) with { ScannerOnly = true });
                 }
                 return new AllOnPlanet(all, context.Radius, true);
             }
