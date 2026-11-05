@@ -91,6 +91,15 @@ Build 26295378 moved the code: pick `0x141754F00`, pool builder `0x14167C520`, l
   (21 ships) equals Core's. But the live slot tables hold only 8 building types (Efarien: one slot 70 and the
   DistressSignal slot 200; Yeqo Gamma: Shelter 20-28, slots 70-74, 200, Base 220-221), so Core's slot table is wrong
   for uncharted systems, and the predicted DistressSignal at -3.41, -16.72 was still empty in game.
+- Uncharted, 2026-11-05 (Slot 7, systems `0x22800016452DB` Nujies IX and `0x15A00016452DB`): every wreck the game
+  pointed to was a fixed override site (`PlanetOverridePlacement.ForSystem`). Three Planetary Chart markers (A1f
+  `^DISTRESS` site keys) were exactly the planets' land DistressSignal overrides: a ship-less Traveller crash scene
+  whose beacon gives a C-class module or 52 nanites (save diff: nanites, plus one `a6j[5]` Building interaction
+  record). The Nautilon's "Drowned Starship Detected" on Kettinas XVII (planet 4) was the WaterDistressSignal override
+  at +60.83, +53.80 (visor +60.82, +53.81, 179 km over the surface as the marker said), holding exactly Core's ship:
+  The Bard of the Abyss, A-class Explorer (Compare: 83.8 / 190.3 / 151.1 / 539.9). The app lists only that underwater
+  override in uncharted systems. Untested prediction: planet 2 of `0x15A00016452DB`, The Mirror of the Stars, B-class
+  Fighter at -37.92, +113.55. Whether the 8-type live slot table above also places grid wrecks is still open.
 
 - Not every distress wreck is claimable: a Planetary Chart on Lora led to Ayase's Blazing Adventurer at +11.75, -175.28
   with its Korvax pilot nearby (repair it, no claim). That site is class 33 NPCDistressSignal on Core's grid at

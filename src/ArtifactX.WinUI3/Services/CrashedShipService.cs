@@ -25,8 +25,9 @@ public sealed record CrashedShipSite(ulong PlanetAddress, ulong Key, double X, d
 }
 
 /// <summary>A planet's crashed ships of one class nearest a point, out of <see cref="Total"/> of that class on the
-/// whole planet. <see cref="Unverified"/>: a system with no race, where the predictions haven't held in game yet.</summary>
-public sealed record CrashedShipsOfClass(IReadOnlyList<CrashedShipSite> Nearest, int Total, bool Unverified);
+/// whole planet. <see cref="Uncharted"/>: a system with no race, where the only claimable wreck is the planet's one
+/// fixed underwater site (none on a planet without one).</summary>
+public sealed record CrashedShipsOfClass(IReadOnlyList<CrashedShipSite> Nearest, int Total, bool Uncharted);
 
 /// <summary>
 /// Where a planet's crashed ships are: the DistressSignal sites of the game's building grid
@@ -36,9 +37,13 @@ public sealed record CrashedShipsOfClass(IReadOnlyList<CrashedShipSite> Nearest,
 /// are left out (<see cref="PlanetBuildingSites.GroundAllows"/>). Checked 2026-10-28/29: 14/14 crashed ships found in
 /// game exact (position,
 /// name, type, class) on Ribhakyam and in the pirate system Nugepan III, prime planet included, and the site key the
-/// game's own Planetary Chart picked on Lora equals the predicted one (issue #35). In the uncharted system Shlifs (no
-/// race) the predicted site checked was empty - the game's building table differs there
-/// (docs/research/CRASHED_SHIPS.md) - so results for systems with no race are flagged as unverified.
+/// game's own Planetary Chart picked on Lora equals the predicted one (issue #35).
+/// Uncharted systems (no race) are different: the grid's wrecks aren't there (Shlifs, Hamagan-Oerat VI, #34), and
+/// the owner's tests 2026-11-05 (Slot 7) found only the planet's fixed override sites
+/// (<see cref="PlanetOverridePlacement.ForSystem"/>). Three Planetary Chart markers were exactly the land
+/// DistressSignal override - a ship-less Traveller crash scene with a small reward - and the Nautilon's "Drowned
+/// Starship" on Kettinas XVII was exactly the WaterDistressSignal override (+60.83, +53.80) holding the predicted
+/// ship (The Bard of the Abyss, A-class Explorer). So only that underwater site is listed there.
 /// </summary>
 public static class CrashedShipService
 {
@@ -54,15 +59,18 @@ public static class CrashedShipService
 
     static CrashedShipService() => CatalogService.Reloaded += () => All.Clear();
 
-    private sealed record AllOnPlanet(IReadOnlyList<CrashedShipSite> Sites, float Radius, bool Unverified);
+    private sealed record AllOnPlanet(IReadOnlyList<CrashedShipSite> Sites, float Radius, bool Uncharted);
 
     /// <summary>Everything the passes need about one planet and its system.</summary>
     private sealed record PlanetContext(ulong PlanetAddress, float Radius, int Divisions, int SectorSeed,
         (int Class, float Probability)[] Slots, (double X, double Y, double Z) Centre, SystemAttributes Attributes,
         IReadOnlyList<SystemStarship>? Pool, ulong SystemAddress, ShipPoolSettings? ShipPool, InventoryGenerationTables? Inventory,
         PlanetTerrainData? Terrain, bool Prime, float BuildingRadius, float WaterBuildingRadius, bool Waterworld,
-        IReadOnlyDictionary<ulong, (int SizeTypeIndex, string SizeType, bool Cool)>? ModelSizes)
+        IReadOnlyDictionary<ulong, (int SizeTypeIndex, string SizeType, bool Cool)>? ModelSizes,
+        IReadOnlyList<OverrideBuilding>? UnchartedWrecks)
     {
+        public bool Uncharted => Attributes.Race == SystemRace.None;
+
         /// <summary>Whether the game builds at this site (<see cref="PlanetBuildingSites.GroundAllows"/>); every site
         /// passes when the terrain can't be generated (underwater ones need a sea, so none then).</summary>
         public bool Builds(BuildingSite site) => site.Class == WaterDistressSignal
@@ -108,7 +116,7 @@ public static class CrashedShipService
         var nearest = ofClass
             .Select(s => s with { DistanceKm = Angle(s, dir) * found.Radius / 1000 })
             .OrderBy(s => s.DistanceKm).Take(count).ToList();
-        return new CrashedShipsOfClass(await CrashedShipDisplayStatsService.ApplyAsync(nearest), ofClass.Count, found.Unverified);
+        return new CrashedShipsOfClass(await CrashedShipDisplayStatsService.ApplyAsync(nearest), ofClass.Count, found.Uncharted);
     }
 
     /// <summary>How many of the planet's crashed ships that <paramref name="match"/> accepts fall in each group of
@@ -126,14 +134,24 @@ public static class CrashedShipService
         if (await ContextAsync(planetAddress) is not { Pool: not null } context) return null;
         return await Task.Run(() =>
         {
-            var seen = new HashSet<ulong>();
             var all = new List<CrashedShipSite>();
+            if (context.Uncharted)
+            {
+                var centre = new Vector3((float)context.Centre.X, (float)context.Centre.Y, (float)context.Centre.Z);
+                foreach (var wreck in context.UnchartedWrecks ?? [])
+                {
+                    var site = new BuildingSite(0, 0, 0, wreck.Key, wreck.Position - centre, WaterDistressSignal);
+                    all.Add(Describe(context, site, Vector3.Normalize(site.Point)));
+                }
+                return new AllOnPlanet(all, context.Radius, true);
+            }
+            var seen = new HashSet<ulong>();
             for (int face = 0; face < 6; face++)
                 foreach (var site in PlanetBuildingSites.Sites(face, context.Divisions, context.Radius, context.SectorSeed,
                     context.Slots, IsWreck))
                     if (seen.Add(site.Key) && context.Builds(site))   // a cell on a cube edge belongs to two faces
                         all.Add(Describe(context, site, Vector3.Normalize(site.Point)));
-            return new AllOnPlanet(all, context.Radius, context.Attributes.Race == SystemRace.None);
+            return new AllOnPlanet(all, context.Radius, false);
         });
     }
 
@@ -185,9 +203,13 @@ public static class CrashedShipService
             // The crashed ship's flatness ring on prime planets: DistressSignal's OverrideRadius in the building table.
             float buildingRadius = overrides?.FirstOrDefault(r => r.Class == DistressSignal)?.OverrideRadius ?? 0f;
             float waterRadius = overrides?.FirstOrDefault(r => r.Class == WaterDistressSignal)?.OverrideRadius ?? 0f;
+            // Uncharted: the planet's fixed underwater wreck (see the class summary); none when it can't be placed.
+            var unchartedWrecks = attributes.Race != SystemRace.None || overrides is null || solar is null ? null
+                : PlanetOverridePlacement.ForSystem(code, galaxy, biomes, profiles, solar, overrides)
+                    .ElementAtOrDefault(index - 1)?.Where(b => b.Placed && b.Class == WaterDistressSignal).ToArray();
             return new PlanetContext(planetAddress, radius, PlanetBuildingSites.Divisions(radius),
                 PlanetBuildingSites.VoronoiSeeds(seeds[index - 1]).SectorSeed, PlanetBuildingSites.Slots(placement, facts), c,
-                attributes, pool, layout?.Address ?? 0, solar?.ShipPool, inventory, terrain, body.Prime, buildingRadius, waterRadius, body.Biome == 14, modelSizes);   // 14 = Waterworld (GcBiomeType)
+                attributes, pool, layout?.Address ?? 0, solar?.ShipPool, inventory, terrain, body.Prime, buildingRadius, waterRadius, body.Biome == 14, modelSizes, unchartedWrecks);   // 14 = Waterworld (GcBiomeType)
         });
     }
 
