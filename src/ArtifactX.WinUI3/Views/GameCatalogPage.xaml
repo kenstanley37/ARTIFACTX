@@ -124,7 +124,8 @@
                                                Foreground="{ThemeResource ThemeTextBrush}"/>
                                     <TextBlock Text="{x:Bind Species}" TextAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="12"
                                                Foreground="{ThemeResource ThemeTextBrush}" Visibility="{x:Bind HasSpecies}"/>
-                                    <TextBlock Text="{x:Bind Detail}" TextAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="11"
+                                    <TextBlock Text="{x:Bind Detail}" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2"
+                                               TextTrimming="CharacterEllipsis" FontSize="11"
                                                Foreground="{ThemeResource ThemeAccentBrush}" Visibility="{x:Bind HasDetail}"/>
                                 </StackPanel>
                                 <!-- Visual only: the tile itself is the click target. -->
