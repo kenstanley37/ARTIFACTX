@@ -122,7 +122,8 @@ public sealed partial class PlanetTileViewModel : ObservableObject
             return;
         char letter = "CBAS"[shipClass];
         NotableHeading = $"{letter}-CLASS CRASHED SHIP";
-        NotableShip = found.Nearest.Count > 0
+        // No guesses in uncharted systems (PlanetEquipmentViewModel.UnchartedNote).
+        NotableShip = found.Nearest.Count > 0 && !found.Unverified
             ? new CrashedShipRowViewModel(found.Nearest[0], 1, IsHere, fromYou ? "away" : "from the portal")
             : null;
         string summary = found.Total switch
@@ -131,7 +132,7 @@ public sealed partial class PlanetTileViewModel : ObservableObject
             1 => $"The only {letter}-class crashed ship on this planet.",
             _ => $"The nearest of {found.Total:N0} {letter}-class crashed ships on this planet.",
         };
-        NotableSummary = found.Unverified ? summary + " Not yet confirmed in game for systems without a race." : summary;
+        NotableSummary = found.Unverified ? ExploreViewModels.PlanetEquipmentViewModel.UnchartedNote : summary;
         HasNotable = true;
     }
 

@@ -167,6 +167,9 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         await ReloadAsync(planet, snapshot);
     }
 
+    /// <summary>Shown instead of crashed ships in a system with no race (planet page and Current System tiles).</summary>
+    public const string UnchartedNote = "Crashed ships can't be placed in uncharted systems yet: the game builds far fewer there, and ArtifactX doesn't know where. A Planetary Chart in game still finds them.";
+
     /// <summary>The crashed ships (as many as chosen) matching the class and type filters nearest you when you're on this planet, else
     /// nearest its portal, searched over the whole planet.</summary>
     private async Task LoadCrashedShipsAsync(KnownPlanet planet, PlanetSnapshot snapshot)
@@ -179,7 +182,10 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         if (from is not { } at) return;
         var found = await CrashedShipService.SearchAsync(planet.Address, Matches, at.Lat, at.Lon, ShownShips);
         if (_planetAddress != planet.Address || found is null) return;
-        var sites = found.Nearest;
+        // Uncharted systems (no race): the game builds from a different, smaller slot table that isn't
+        // known yet, and the owner found nothing at the predicted sites (Shlifs, Hamagan-Oerat VI) - so
+        // none are shown rather than guesses (CRASHED_SHIPS.md, #34).
+        var sites = found.Unverified ? [] : found.Nearest;
         var cards = sites.Select((s, i) => new CrashedShipRowViewModel(s, i + 1, here, here ? "away" : "from the portal")).ToArray();
         ObservableCollectionSync.Apply(CrashedShips, cards, row => row.Key, (_, _) => true,
             (row, next) => row.UpdateFrom(next));
@@ -187,7 +193,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         CrashedShipsSummary = found.Total == 0 ? $"No {(ShipClassChoice > 0 ? ShipClassChoices[ShipClassChoice] + " " : "")}crashed ships on this planet."
             : found.Total <= ShownShips ? $"All {found.Total:N0} matching crashed ships on this planet, nearest first."
             : $"The nearest {ShownShips} of {found.Total:N0} matching crashed ships on this planet.";
-        if (found.Unverified) CrashedShipsSummary += " Not yet confirmed in game for systems without a race.";
+        if (found.Unverified) CrashedShipsSummary = UnchartedNote;
         CrashedShipsHeading = here ? "CRASHED SHIPS NEAR YOU" : "CRASHED SHIPS NEAR THE PORTAL";
         CrashedShipsHint = sites.Any(s => s.Ship is null || s.Inventory is null)
             ? "Where crashed ships lie, worked out from the game's own rules. Update game data to see each wreck's ship, slots, value and stats. Now and then the ground leaves a spot empty."
