@@ -19,6 +19,10 @@ public static partial class CatalogSteps
     ///   83 BF xxxxxxxx 0F   cmp  dword [rdi+state], 15
     ///   7E xx               jle  ...
     ///   C7 87 xxxxxxxx 0F000000  mov dword [rdi+state], 15
+    /// The 0x1D042 type mask is not GcPersistentBaseTypes: read that way it would skip the freighter,
+    /// ship and claimed-station bases, but the owner's limit tests show all three count (2026-10-21:
+    /// 738 station built-ins, 8 parts of room; Slot 6 backup 2026-10-18_14-03-09-after-limit-test:
+    /// refused at 21,010 with 349 freighter and 118 ship-base parts). NmsBuildCounts counts them.
     /// The whole sequence must occur exactly once, or nothing is written and the app keeps its
     /// measured 21,000 (NmsBuildCounts.DefaultGlobalLimit, owner's in-game tests 2026-10-18/21).
     /// </summary>
