@@ -99,40 +99,52 @@ public sealed partial class PlanetTileViewModel : ObservableObject
         }
     }
 
-    /// <summary>The nearest S-class crashed ship (Exotics included) on the planet (to you when you're here, else to the
-    /// portal), with its optional save marker (CrashedShipService: a whole-planet pass, cached per planet). Other
-    /// classes and types are searched on Planet Details.</summary>
+    /// <summary>The planet's best crashed ship: the nearest of its highest class (S first, Exotics count as S) to you
+    /// when you're here, else to the portal, with its optional save marker (CrashedShipService: a whole-planet pass,
+    /// cached per planet). Other classes and types are searched on Planet Details.</summary>
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasNotableShip))]
     public partial CrashedShipRowViewModel? NotableShip { get; private set; }
     public bool HasNotableShip => NotableShip is not null;
     [ObservableProperty] public partial string NotableSummary { get; private set; } = "";
     [ObservableProperty] public partial bool HasNotable { get; private set; }
-    [ObservableProperty] public partial string NotableHeading { get; private set; } = "S-CLASS CRASHED SHIP";
+    public string NotableHeading => "BEST CRASHED SHIP";
 
     private (double Latitude, double Longitude)? _here;
 
-    /// <summary>Fills <see cref="NotableShip"/> with the nearest crashed ship of class <paramref name="shipClass"/>
-    /// (C=0 .. S=3; off the UI thread); leaves the row hidden when the planet can't be worked out yet.</summary>
-    public async System.Threading.Tasks.Task LoadNotableAsync(int shipClass = 3)
+    /// <summary>Fills <see cref="NotableShip"/> with the planet's best crashed ship (off the UI thread); leaves the row
+    /// hidden when the planet can't be worked out yet.</summary>
+    public async System.Threading.Tasks.Task LoadNotableAsync()
     {
         bool fromYou = IsHere && _here is not null;
         (double Latitude, double Longitude)? from = fromYou ? _here
             : await PortalLocationService.GetAsync(Planet.Address) is { } portal ? (portal.Latitude, portal.Longitude) : null;
-        if (from is not { } at || await CrashedShipService.OfClassAsync(Planet.Address, shipClass, at.Latitude, at.Longitude) is not { } found)
-            return;
-        char letter = "CBAS"[shipClass];
-        NotableHeading = $"{letter}-CLASS CRASHED SHIP";
-        // No guesses in uncharted systems (PlanetEquipmentViewModel.UnchartedNote).
-        NotableShip = found.Nearest.Count > 0 && !found.Unverified
+        if (from is not { } at) return;
+        CrashedShipsOfClass? found = null;
+        int shipClass = 3;
+        for (; shipClass >= 0; shipClass--)
+        {
+            found = await CrashedShipService.OfClassAsync(Planet.Address, shipClass, at.Latitude, at.Longitude);
+            if (found is null) return;
+            if (found.Total > 0) break;
+        }
+        if (shipClass < 0)
+        {
+            // None with a known class: older game data can't roll classes, so fall back to any wreck.
+            found = await CrashedShipService.SearchAsync(Planet.Address, _ => true, at.Latitude, at.Longitude, 1);
+            if (found is null) return;
+        }
+        NotableShip = found!.Nearest.Count > 0
             ? new CrashedShipRowViewModel(found.Nearest[0], 1, IsHere, fromYou ? "away" : "from the portal")
             : null;
-        string summary = found.Total switch
+        string ships = shipClass < 0 ? "crashed ship" : $"{"CBAS"[shipClass]}-class crashed ship";
+        string best = shipClass is >= 0 and < 3 ? ", the best class here" : "";
+        NotableSummary = found.Total switch
         {
-            0 => $"No {letter}-class crashed ships on this planet.",
-            1 => $"The only {letter}-class crashed ship on this planet.",
-            _ => $"The nearest of {found.Total:N0} {letter}-class crashed ships on this planet.",
+            0 => "No crashed ships on this planet.",
+            1 when found.Uncharted => $"This planet's only {ships}, underwater.",
+            1 => $"The only {ships} on this planet{best}.",
+            _ => $"The nearest of {found.Total:N0} {ships}s on this planet{best}.",
         };
-        NotableSummary = found.Unverified ? ExploreViewModels.PlanetEquipmentViewModel.UnchartedNote : summary;
         HasNotable = true;
     }
 

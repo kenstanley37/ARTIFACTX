@@ -130,11 +130,16 @@ public sealed partial class CrashedShipRowViewModel : ObservableObject
     [RelayCommand]
     private void AddMarker()
     {
-        // Underwater wrecks are the WaterDistressSignal building; the game's charts have no event of their own
-        // (scaneventtableplanet.mbin: DISTRESS, DISTRESS_NPC), so the marker is the DISTRESS event naming that class -
-        // confirmed 2026-10-29 (Waterworld: the marker led to Rozawa Guardian III at +29.40, +2.72).
-        ScanMarkerService.Add(_site.PlanetAddress, _site.Key, _site.X, _site.Y, _site.Z, 1, "DISTRESS",
-            _site.Underwater ? "WaterDistressSignal" : _site.Sentinel ? "SentinelDistressSignal" : "DistressSignal");
+        // Underwater wrecks use the Nautilon's own event: UW_SHIPCRASH in the vehicle table (scaneventtablevehicle.mbin,
+        // table 5), which searches for the nearest WaterDistressSignal. The planet table's DISTRESS searches for
+        // DistressSignal, so a DISTRESS marker naming the water class was re-targeted to a land site: 2026-11-05 one for
+        // The Mirror of the Stars (Ebastwoo Delta, -37.92, +113.55) led to the land beacon, while the Nautilon's scan
+        // found the ship. (On the Waterworld 2026-10-29, with no land site to find, DISTRESS still reached the wreck.)
+        if (_site.Underwater)
+            ScanMarkerService.Add(_site.PlanetAddress, _site.Key, _site.X, _site.Y, _site.Z, 5, "UW_SHIPCRASH", "WaterDistressSignal");
+        else
+            ScanMarkerService.Add(_site.PlanetAddress, _site.Key, _site.X, _site.Y, _site.Z, 1, "DISTRESS",
+                _site.Sentinel ? "SentinelDistressSignal" : "DistressSignal");
         Refresh();
     }
 

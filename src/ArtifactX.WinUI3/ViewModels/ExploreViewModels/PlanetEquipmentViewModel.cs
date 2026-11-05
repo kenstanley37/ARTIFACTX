@@ -167,14 +167,15 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         await ReloadAsync(planet, snapshot);
     }
 
-    /// <summary>Shown instead of crashed ships in a system with no race (planet page and Current System tiles).
+    /// <summary>Added to the crashed-ship summary in a system with no race, where only the planet's fixed underwater
+    /// wreck is listed (CrashedShipService: the Nautilon's "Drowned Starship" on Kettinas XVII held the predicted ship).
     /// Owner 2026-11-05 (Slot 7): Planetary Charts in two uncharted systems (Nujies IX, then Ebastwoo Delta's) led to
     /// crash scenes with a Distress Beacon and no ship. All three chart markers (A1f "^DISTRESS" site keys) are exactly
     /// the planet's override DistressSignal (class 20, PlanetOverridePlacement.ForSystem) - one fixed site per planet,
     /// not a wreck. The beacon gives a small one-off reward: "Analyze black box signal" a C-class Hyperdrive Module,
     /// "Access databanks" 52 nanites (save diff: nanites +52 and one new a6j[5] Building interaction record for the
     /// site, nothing else). Shlifs and Hamagan-Oerat VI had nothing either (#34).</summary>
-    public const string UnchartedNote = "No claimable crashed ships in uncharted systems. Planetary Charts here lead to a fellow Traveller's crash site with a small reward (an upgrade module or some nanites), not a ship.";
+    public const string UnchartedNote = "In uncharted systems the only claimable crashed ship is one underwater wreck, on planets with a sea. Planetary Charts here lead to a fellow Traveller's crash site with a small reward (an upgrade module or some nanites), not a ship.";
 
     /// <summary>The crashed ships (as many as chosen) matching the class and type filters nearest you when you're on this planet, else
     /// nearest its portal, searched over the whole planet.</summary>
@@ -188,18 +189,17 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         if (from is not { } at) return;
         var found = await CrashedShipService.SearchAsync(planet.Address, Matches, at.Lat, at.Lon, ShownShips);
         if (_planetAddress != planet.Address || found is null) return;
-        // Uncharted systems (no race): the game builds from a different, smaller slot table that isn't
-        // known yet, and the owner found nothing at the predicted sites (Shlifs, Hamagan-Oerat VI) - so
-        // none are shown rather than guesses (CRASHED_SHIPS.md, #34).
-        var sites = found.Unverified ? [] : found.Nearest;
+        // Uncharted systems (no race) list only the planet's fixed underwater wreck (CrashedShipService).
+        var sites = found.Nearest;
         var cards = sites.Select((s, i) => new CrashedShipRowViewModel(s, i + 1, here, here ? "away" : "from the portal")).ToArray();
         ObservableCollectionSync.Apply(CrashedShips, cards, row => row.Key, (_, _) => true,
             (row, next) => row.UpdateFrom(next));
         HasCrashedShips = true;
         CrashedShipsSummary = found.Total == 0 ? $"No {(ShipClassChoice > 0 ? ShipClassChoices[ShipClassChoice] + " " : "")}crashed ships on this planet."
+            : found.Total == 1 ? "The only matching crashed ship on this planet."
             : found.Total <= ShownShips ? $"All {found.Total:N0} matching crashed ships on this planet, nearest first."
             : $"The nearest {ShownShips} of {found.Total:N0} matching crashed ships on this planet.";
-        if (found.Unverified) CrashedShipsSummary = UnchartedNote;
+        if (found.Uncharted) CrashedShipsSummary = $"{CrashedShipsSummary} {UnchartedNote}";
         CrashedShipsHeading = here ? "CRASHED SHIPS NEAR YOU" : "CRASHED SHIPS NEAR THE PORTAL";
         CrashedShipsHint = sites.Any(s => s.Ship is null || s.Inventory is null)
             ? "Where crashed ships lie, worked out from the game's own rules. Update game data to see each wreck's ship, slots, value and stats. Now and then the ground leaves a spot empty."
