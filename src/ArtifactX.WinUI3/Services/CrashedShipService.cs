@@ -63,7 +63,7 @@ public static class CrashedShipService
     private sealed record AllOnPlanet(IReadOnlyList<CrashedShipSite> Sites, float Radius, bool Uncharted);
 
     /// <summary>Everything the passes need about one planet and its system.</summary>
-    private sealed record PlanetContext(ulong PlanetAddress, float Radius, int Divisions, int SectorSeed,
+    internal sealed record PlanetContext(ulong PlanetAddress, float Radius, int Divisions, int SectorSeed,
         (int Class, float Probability)[] Slots, (double X, double Y, double Z) Centre, SystemAttributes Attributes,
         IReadOnlyList<SystemStarship>? Pool, ulong SystemAddress, ShipPoolSettings? ShipPool, InventoryGenerationTables? Inventory,
         PlanetTerrainData? Terrain, bool Prime, float BuildingRadius, float WaterBuildingRadius, bool Waterworld,
@@ -156,7 +156,8 @@ public static class CrashedShipService
         });
     }
 
-    private static async Task<PlanetContext?> ContextAsync(ulong planetAddress)
+    /// <summary>The planet's building grid, terrain and system facts (also used by BuildingSiteService).</summary>
+    internal static async Task<PlanetContext?> ContextAsync(ulong planetAddress)
     {
         int index = (int)((planetAddress >> 52) & 0xF);
         var biomes = await CatalogService.GetBiomeTablesAsync();
@@ -250,7 +251,7 @@ public static class CrashedShipService
         return t.SeaLevel - PlanetTerrain.Height(t, p.X, p.Y, p.Z);
     }
 
-    private static Vector3 Direction(double latitude, double longitude)
+    internal static Vector3 Direction(double latitude, double longitude)
     {
         double la = latitude * Math.PI / 180, lo = longitude * Math.PI / 180;
         return new Vector3((float)(Math.Cos(la) * Math.Sin(lo)), (float)Math.Sin(la), (float)(Math.Cos(la) * Math.Cos(lo)));

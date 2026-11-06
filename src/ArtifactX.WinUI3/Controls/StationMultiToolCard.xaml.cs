@@ -74,26 +74,13 @@ public sealed partial class StationMultiToolCard : UserControl
         PreviewNote.Text = "Building preview...";
         try
         {
-            if (GameDataService.Game is not { } game) { PreviewNote.Text = "Game files unavailable for preview."; return; }
-            var models = await ModelPreviewService.ModelsAsync(game);
-            await MultiToolKinds.EnsureTreesAsync();
+            var (mesh, textures, note) = await ModelPreviewService.MultiToolAsync(tool.ModelPath, tool.ModelSeed);
             if (version != _version || !IsLoaded) return;
-            if (models is null) { PreviewNote.Text = "This model could not be read from your game files."; return; }
-            var root = MultiToolKinds.Load(ShipParts.DescriptorFor(tool.ModelPath));
-            var options = root is null ? new HashSet<string>(StringComparer.Ordinal)
-                : ModelPreviewService.AllOptionIds(root, MultiToolKinds.Load, StringComparer.Ordinal);
-            var chosen = root is null ? new HashSet<string>(StringComparer.Ordinal)
-                : ShipParts.Generate(tool.ModelPath, tool.ModelSeed, MultiToolKinds.Load).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
-            var mesh = await Task.Run(() => models.Build(tool.ModelPath, options, chosen));
-            if (version != _version || !IsLoaded) return;
-            if (mesh is null) { PreviewNote.Text = "This model could not be read from your game files."; return; }
-            var colour = await ModelPreviewService.SeedColoursAsync(tool.ModelSeed);
-            var textures = await ModelPreviewService.PaintAsync(models, mesh, colour ?? ((_, _) => null), tool.ModelSeed);
-            if (version != _version || !IsLoaded) return;
+            PreviewNote.Text = note;
+            if (mesh is null || textures is null) return;
             Preview.Show(mesh, material => ShipPartsService.MaterialColour(material, ShipPartsService.Look),
                 material => textures.GetValueOrDefault(material));
             _previewIdentity = (tool.ModelPath, tool.ModelSeed);
-            PreviewNote.Text = "Colours may differ slightly.";
         }
         catch (Exception error)
         {

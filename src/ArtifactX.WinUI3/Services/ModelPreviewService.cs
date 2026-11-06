@@ -116,6 +116,27 @@ public static class ModelPreviewService
         return result;
     }
 
+    /// <summary>A generated multi-tool's mesh and seed-painted textures (the parts and colours MultiToolPage uses), or
+    /// the reason it can't be shown. Shared by the station cabinet cards and the planet shop tool cards.</summary>
+    public static async Task<(ShipMesh? Mesh, Dictionary<string, ModelTexture?>? Textures, string Note)> MultiToolAsync(
+        string modelPath, ulong modelSeed)
+    {
+        if (GameDataService.Game is not { } game) return (null, null, "Game files unavailable for preview.");
+        var models = await ModelsAsync(game);
+        await MultiToolKinds.EnsureTreesAsync();
+        if (models is null) return (null, null, "This model could not be read from your game files.");
+        var root = MultiToolKinds.Load(ShipParts.DescriptorFor(modelPath));
+        var options = root is null ? new HashSet<string>(StringComparer.Ordinal)
+            : AllOptionIds(root, MultiToolKinds.Load, StringComparer.Ordinal);
+        var chosen = root is null ? new HashSet<string>(StringComparer.Ordinal)
+            : ShipParts.Generate(modelPath, modelSeed, MultiToolKinds.Load).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
+        var mesh = await Task.Run(() => models.Build(modelPath, options, chosen));
+        if (mesh is null) return (null, null, "This model could not be read from your game files.");
+        var colour = await SeedColoursAsync(modelSeed);
+        var textures = await PaintAsync(models, mesh, colour ?? ((_, _) => null), modelSeed);
+        return (mesh, textures, "Colours may differ slightly.");
+    }
+
     /// <summary>A colour lookup over stored colours. The save keeps five slots per palette
     /// (Primary, Alternative1-4); "Unique" reads Alternative3, as seed colours do.</summary>
     public static Func<string, string, float[]?> StoredColourLookup(Dictionary<(string, string), float[]> stored) =>

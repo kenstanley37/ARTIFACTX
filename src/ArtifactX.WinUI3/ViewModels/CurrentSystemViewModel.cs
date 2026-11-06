@@ -88,6 +88,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     }
 
     public StationMultiToolsViewModel StationTools { get; } = new();
+    public SystemMultiToolsViewModel MultiTools { get; } = new();
     public StationMarketViewModel Market { get; } = new();
     public SystemNotesViewModel Notes { get; } = new();
     public SystemStarshipsViewModel Starships { get; } = new();
@@ -403,6 +404,9 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
         var known = planets.Select(p => p.PlanetIndex).ToHashSet();
         var allBodies = planets.Concat(PlanetTypesService.Undiscovered(system, known)).OrderBy(p => p.PlanetIndex).ToList();
+        int? savedBody = CabinetPoolService.SavedLoadBody(system, _snapshot?.EquipmentSaveInputs);
+        _ = MultiTools.LoadAsync(system, facts, station.Length > 0 ? station : "the space station",
+            allBodies.Select(p => (p.PlanetIndex, UniverseInfo.PlanetName(system, p.PlanetIndex))).ToList(), savedBody);
 
         var tiles = allBodies.Select(p =>
         {
