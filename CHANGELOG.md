@@ -8,7 +8,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 - Current System has a Multi-tools in cabinets section: which multi-tools every cabinet in the system sells, for each place you can load your game (the space station and each planet), with the place your save loads at highlighted. Every cabinet in a system - station and planet shops alike - sells from the list of the place you last loaded at, so save and reload where the multi-tool you want is.
 
-- A planet's page lists the shops (Minor Settlements with a multi-tool cabinet and a trader) nearest you or its portal, with an Add marker button so the game leads you straight there.
+- A planet's page lists the shops with a trader and a multi-tool cabinet (the game labels them "Minor Settlement") nearest you or its portal, with an Add marker button so the game leads you straight there, and shows once, with 3D models, the multi-tools those cabinets can sell.
 
 - Right-click an item in any inventory and choose View larger picture to see it at the size the game has it (twice as big as the slot picture), read from your own game files.
 

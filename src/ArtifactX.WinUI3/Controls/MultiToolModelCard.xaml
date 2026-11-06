@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One possible multi-tool (SystemMultiToolItemViewModel): its 3D model, type and name. -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.MultiToolModelCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls">
+
+    <Border Width="260" Padding="12,10" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+            Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
+        <StackPanel Spacing="6">
+            <controls:ShipPreview x:Name="Preview" Height="130" FitToSize="True"
+                                  AutomationProperties.Name="{x:Bind PreviewName, Mode=OneWay}"/>
+            <TextBlock x:Name="PreviewNote" Text="Building preview..." Foreground="{ThemeResource ThemeTextBrush}" FontSize="10" Opacity="0.8"/>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Border Background="{x:Bind Tool.BadgeBackground, Mode=OneWay}" Padding="6,1" VerticalAlignment="Center"
+                        CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                    <TextBlock Text="{x:Bind Tool.KindLabel, Mode=OneWay}" FontSize="10" FontWeight="Bold"
+                               FontFamily="{ThemeResource ThemeDisplayFont}" CharacterSpacing="120"
+                               Foreground="{x:Bind Tool.BadgeForeground, Mode=OneWay}"/>
+                </Border>
+                <TextBlock Text="{x:Bind Tool.Name, Mode=OneWay}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+                           Foreground="{ThemeResource ThemeTextBrush}" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>
