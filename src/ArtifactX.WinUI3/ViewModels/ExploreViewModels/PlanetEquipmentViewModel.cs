@@ -152,6 +152,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
 
     public async Task LoadAsync(KnownPlanet planet, PlanetSnapshot snapshot)
     {
+        _planet = null;
         _portal = null;
         HasPortal = false;
         if (_planetAddress != planet.Address)
@@ -266,6 +267,12 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         LocatedSitesHint = sites.Count > 0
             ? "Exact planetary coordinates (+Lat, +Lon) read directly from active markers/charts in your save and your logged Finds."
             : "No active Crashed Ship, Minor Settlement, or Sentinel Pillar markers are currently open on this planet in your save. Use a Planetary Chart, Sentinel Boundary Map, Echo Locator, or Signal Booster in game and save to see its exact +Lat, +Lon coordinates here automatically.";
+
+        if (_planet?.Address == planet.Address && !ReferenceEquals(_snapshot, snapshot))
+        {
+            _ = LoadCrashedShipsAsync(planet, snapshot);
+            RefreshMarkers();
+        }
     }
 
     /// <summary>Reads active markers and player-recorded Finds with exact locations for one planet.</summary>

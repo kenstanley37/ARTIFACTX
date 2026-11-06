@@ -600,3 +600,30 @@ layers each). The extraction (crossing of 0.5) then puts the grid up to ~1.3 cm 
 269.8203 / 269.6094 / 269.6797 against the stored 269.828 / 269.619 / 269.680 - the last mm-cm is the float32
 system-space position the instance is stored in. Cabinets stay 3/4 exact; cabinet 1 still needs +2 cm in x (likely
 Core's Height(A) there, or float32 position) and needs a live check at that shop.
+
+### Moon verification on Eolul Sigma (cube face -Y, 2026-11-06)
+
+Two shops tested in game on Eolul Sigma (Moon 2 of Ihweyf, `21FA016452DB`, radius 15,360 m, cube face `-Y`, reload on
+Eolul Sigma):
+- `0x2CA7C9B233C0867D` (`-66.19, -164.07`, building at `-66.25, -164.16`): in-game cabinet offers **Improvised Molecule
+  Focuser**, A-Class, 333.3 dmg / 452.4 scan, 16 slots, 3 SC, 6 tech (including Rusted `!` and A-class scanner modules)
+  -> exact match at `(-369690, 98921, -7965)`.
+- `0x30521C5EE7F897F4` (`-52.59, -123.72`, building at `-52.69, -123.72`): in-game cabinet offers **Song of Tuyma-VII**,
+  B-Class, 1347.8 dmg / 259.4 scan, 12 slots, 2 SC (`(2,1), (6,1)`), 4 tech (`SCAN1, SCANBINOC1, LASER, BOLT`)
+  -> exact match at `(-375751, 100759, -7172)`.
+
+Live inspection of `cTkLSystemManager` (`read_lsystem_samples.py`, `dump_planet_buildings.py`) and the spawned moon
+instances (`read_site_clusters.py`) on Eolul Sigma established two details required on secondary bodies and small-radius
+moons:
+1. **System-wide L-system registration (`0x142D70960`):** `cTkLSystemManager` registers each `.LSYSTEM.MBIN` path once per
+   star system, seeded by the first planet in index order (`0..planetIndex`) whose `RecordClasses` includes that building
+   class. On Eolul Sigma (`planetIndex = 1`), both `SHACK_WARRIOR.LSYSTEM.MBIN` (handle 0, Shelter radii
+   `21.379, 23.329, 21.255`) and `SHOPWARRIOR.LSYSTEM.MBIN` (handle 2, Shop radius `50.412`) reuse Planet 0's seeds,
+   bringing `PlaceMembers` within 1–3 mm of the live member positions.
+2. **Spawned building basis re-orthogonalization:** While the site cluster record (`+0x2A0`) stores `f_site` from
+   `Facing(sitePoint, siteKey)`, the spawned building instance stands at `buildingPoint` with `up = Normalize(buildingPoint)`,
+   `side = Normalize(Cross(up, f_site))`, `forward = Cross(side, up)` (matching all 9 components of the live 3x3 instance
+   matrix to 4 decimal places on both moon shops). On a moon (`R = 15,360 m`), the 25 m cluster shift tilts `up` by
+   1.6 mrad, shifting the crate by ~3 cm and flipping `0x30521C5EE7F897F4` across the `(Y, Z)` half-metre boundary to the
+   exact in-game point `(-375751, 100759, -7172)`.
+

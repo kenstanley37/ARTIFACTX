@@ -46,12 +46,16 @@ public sealed record PlanetShopCabinetContext(
 ///   <see cref="PlanetTerrain.BaseHeight"/> at that lerped, unshifted position (<see cref="SpawnInputs"/>);
 /// - the cabinet is rolled when the building spawns: crate = building spawn origin + root offset + crate in the root
 ///   room + floored planet centre, rounded to whole metres (<see cref="MultiToolSiteGeneration.SeedForPosition"/>).
+///   The spawned building instance re-orthogonalizes its local (side, up, forward) basis to
+///   <c>up = Normalize(buildingPoint)</c> against the site cluster's forward vector, and <c>cTkLSystemManager</c>
+///   (0x142D70960) registers each building class's <c>.LSYSTEM.MBIN</c> samples once per star system using the first
+///   planet in index order whose <c>RecordClasses</c> contains that class.
 /// Checked 2026-11-06 on Kaim 30/19 (cube face +X, Large planet) and Eolul Sigma (cube face -Y, Moon): 4/4 spawn
-/// heights within 2.6 cm of the live instances; 8/9 shop cabinets exact (404DA563E9C5EC88, 66386EC5762B09FB,
+/// heights within 2.6 cm of the live instances; 9/10 shop cabinets exact (404DA563E9C5EC88, 66386EC5762B09FB,
 /// 627968CDF4A27660, 741BF5DCCD41B78A, 45B9A979D3989991, 31CCA8AE9D607F54, D2D981D73443CF98 on Kaim 30/I9 and
-/// 2CA7C9B233C0867D on Eolul Sigma), the ninth (8924A2E5C39F854D) ~1-2 cm across a whole-metre rounding boundary in X
-/// with exact <see cref="PlanetShopCabinet.AlternateNearEdge"/>. Cube faces other than +X and -Y use the same
-/// 0x140576380 face basis and are not yet verified in game (tracked in GitHub issue #1).
+/// 2CA7C9B233C0867D, 30521C5EE7F897F4 on Eolul Sigma), the tenth (8924A2E5C39F854D) ~1-2 cm across a whole-metre
+/// rounding boundary in X with exact <see cref="PlanetShopCabinet.AlternateNearEdge"/>. Cube faces other than +X and -Y
+/// use the same 0x140576380 face basis and are not yet verified in game (tracked in GitHub issue #1).
 /// </summary>
 public static class PlanetShopCabinetGenerator
 {
@@ -176,9 +180,26 @@ public static class PlanetShopCabinetGenerator
         ulong[] recordSeeds = PlanetBuildingSites.RecordSeeds(planetSeed, recordClasses.Length);
         int firstShopRecord = Array.IndexOf(recordClasses, shopClass);
         int systemType = facts.HasNpcs ? 0 : 1;
+
+        // 0x142D70960 registers each .LSYSTEM.MBIN path once per star system in cTkLSystemManager, seeded by the
+        // first planet in index order (0..planetIndex) whose RecordClasses includes that building class.
+        ulong SystemLSystemSeed(int buildingClass, ulong fallbackSeed)
+        {
+            for (int p = 0; p <= planetIndex; p++)
+            {
+                if (PlanetBuildingSites.FactsFor(portalCode, galaxy, p, biomes, profiles) is not { } pFacts) continue;
+                int[] pClasses = PlanetBuildingSites.RecordClasses(placement, layoutTables, pFacts, types[p].Biome);
+                int idx = Array.IndexOf(pClasses, buildingClass);
+                if (idx >= 0)
+                    return PlanetBuildingSites.RecordSeeds(seeds[p], pClasses.Length)[idx];
+            }
+            return fallbackSeed;
+        }
+
+        ulong shopLSystemSeed = firstShopRecord >= 0 ? SystemLSystemSeed(shopClass, recordSeeds[firstShopRecord]) : 0;
         if (firstShopRecord < 0
             || BuildingLayoutGenerator.LSystemPath(layoutTables, raceIndex, shopClass, systemType) is not { } shopPath
-            || BuildingLayoutGenerator.Generate(layoutTables, shopPath, BuildingLayoutGenerator.SampleSeed(recordSeeds[firstShopRecord], 0)) is not { WeaponCrate: not null } shopLayout
+            || BuildingLayoutGenerator.Generate(layoutTables, shopPath, BuildingLayoutGenerator.SampleSeed(shopLSystemSeed, 0)) is not { WeaponCrate: not null } shopLayout
             || BuildingClusterPlacement.ClusterForClass(layoutTables, shopClass) is not { } shopCluster)
             return null;
 
@@ -192,6 +213,9 @@ public static class PlanetShopCabinetGenerator
             string? memberPath = overrideRadius > 0f
                 ? null
                 : BuildingLayoutGenerator.LSystemPath(layoutTables, raceIndex, memberClass, systemType);
+            ulong memberLSystemSeed = memberPath is not null
+                ? SystemLSystemSeed(memberClass, recordSeeds[firstMemberRecord])
+                : recordSeeds[firstMemberRecord];
             int sampleOrdinal = 0;
             for (int r = firstMemberRecord; r < recordClasses.Length; r++)
             {
@@ -199,7 +223,7 @@ public static class PlanetShopCabinetGenerator
                 double radius = overrideRadius > 0f
                     ? overrideRadius
                     : memberPath is not null
-                        ? BuildingLayoutGenerator.Generate(layoutTables, memberPath, BuildingLayoutGenerator.SampleSeed(recordSeeds[firstMemberRecord], sampleOrdinal))?.Radius ?? layoutTables.MinRadius
+                        ? BuildingLayoutGenerator.Generate(layoutTables, memberPath, BuildingLayoutGenerator.SampleSeed(memberLSystemSeed, sampleOrdinal))?.Radius ?? layoutTables.MinRadius
                         : layoutTables.MinRadius;
                 recordRadii[r] = radius;
                 sampleOrdinal++;
@@ -254,13 +278,15 @@ public static class PlanetShopCabinetGenerator
         Array.Copy(memberPositions, 0, allPositions, 1, memberPositions.Length);
         var buildingPoint = BuildingClusterPlacement.Recentre(sitePoint, allPositions, radii)[0];
         var (siteHeight, spawnHeight) = SpawnHeight(terrain, planetRadius, sitePoint, buildingPoint);
-        var (up, forward, side) = BuildingClusterPlacement.Facing(sitePoint, siteKey);
+        var (_, fSite, _) = BuildingClusterPlacement.Facing(sitePoint, siteKey);
         var pDir = BuildingClusterPlacement.Normalize(buildingPoint);
+        var side = BuildingClusterPlacement.Normalize(BuildingClusterPlacement.Cross(pDir, fSite));
+        var forward = BuildingClusterPlacement.Cross(side, pDir);
         double rSpawn = planetRadius + spawnHeight;
         var crate = (
-            X: pDir.X * rSpawn + side.X * crateLocal.X + up.X * crateLocal.Y + forward.X * crateLocal.Z + planetCentre.X,
-            Y: pDir.Y * rSpawn + side.Y * crateLocal.X + up.Y * crateLocal.Y + forward.Y * crateLocal.Z + planetCentre.Y,
-            Z: pDir.Z * rSpawn + side.Z * crateLocal.X + up.Z * crateLocal.Y + forward.Z * crateLocal.Z + planetCentre.Z);
+            X: pDir.X * rSpawn + side.X * crateLocal.X + pDir.X * crateLocal.Y + forward.X * crateLocal.Z + planetCentre.X,
+            Y: pDir.Y * rSpawn + side.Y * crateLocal.X + pDir.Y * crateLocal.Y + forward.Y * crateLocal.Z + planetCentre.Y,
+            Z: pDir.Z * rSpawn + side.Z * crateLocal.X + pDir.Z * crateLocal.Y + forward.Z * crateLocal.Z + planetCentre.Z);
         var rounded = ((int)Math.Floor(crate.X + 0.5), (int)Math.Floor(crate.Y + 0.5), (int)Math.Floor(crate.Z + 0.5));
         ulong seed = MultiToolSiteGeneration.SeedForPosition(new Vector3(rounded.Item1, rounded.Item2, rounded.Item3));
         ((int X, int Y, int Z) Point, ulong Seed)? alternate = null;
