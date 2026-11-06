@@ -575,3 +575,11 @@ within 2.6 cm of the live instances, and the shop crates reproduce **3 of 4 owne
 old cabinet 2 and old cabinet 3 (whose spawn is 4.5 m above H(A)); cabinet 1 lands 1 cm across a rounding boundary
 (x -107157.51 vs -107157; the game works in float32, ~0.8 cm at these coordinates). Open: float32-faithful arithmetic
 for boundary cases, buildings near the edge of the flat zone (shaped pads), faces other than +X, and the Core port.
+
+Interpolation residual (2026-11-06): on the live Far grid with exact `BaseHeight`, the three members need
+6.5129 / 5.4641 / 4.1038 (local units). The plane over (i,j),(i+1,j),(i,j+1) gives +1.9 / -2.3 / +0.5 cm; the
+decompiled nesting `lerp(lerp(h00, h01, fz), h10, fx)` gives +0.3 / -40 / -0.1 cm; a two-triangle split (upper triangle
+when fx + fz > 1) gives +1.9 / -0.8 / +0.5 cm. No single reading of the decompile fits all three to a millimetre, so the
+exact sampling should be emulated (0x1412B7F70 between its 0x141291DF0 and 0x141291310 calls, float32) rather than
+re-derived. Until then about one crate in ten lies within 2 cm of a whole-metre boundary on some axis and should be
+reported with both candidate points.
