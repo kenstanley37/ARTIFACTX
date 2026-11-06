@@ -81,7 +81,8 @@ public sealed partial class MultiToolLoadPlaceViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(Heading), nameof(BorderBrush))]
     public partial bool IsSavedLoad { get; set; }
 
-    public string Heading => IsSavedLoad ? $"LOAD AT {Name.ToUpperInvariant()} · YOUR SAVE LOADS HERE" : $"LOAD AT {Name.ToUpperInvariant()}";
+    public string Heading => (Body == 0 ? $"AFTER WARPING IN, OR RELOADING AT {Name}" : $"AFTER RELOADING ON {Name}").ToUpperInvariant()
+        + (IsSavedLoad ? " · YOUR SAVE LOADS HERE" : "");
     public Brush BorderBrush => ThemeResources.Brush(IsSavedLoad ? "ThemeAccentBrush" : "ThemeLineBrush");
 }
 
@@ -103,9 +104,10 @@ public sealed partial class SystemMultiToolsViewModel : ObservableObject
     [ObservableProperty] public partial string Odds { get; private set; } = "";
 
     public string Explanation =>
-        "Every multi-tool cabinet in this system - the space station's and the planets' shops - sells from one list: "
-        + "the list of the place where you last loaded your game. Save and reload at a place to get its multi-tools. "
-        + "Each cabinet's class and stats come from where the cabinet stands, so they stay the same whichever list it sells from.";
+        "Every multi-tool cabinet in this system - the space station's and every planet's shops - sells from one list, "
+        + "picked by where your game was loaded. When you warp in, it's the station's list. To switch every cabinet to a "
+        + "planet's list: land on that planet, save, quit to the main menu and load that save. Each cabinet's class and "
+        + "stats come from where the cabinet stands, so they stay the same whichever list it sells from.";
 
     /// <summary>Builds the lists once per system (off the UI thread) and marks the place the save loads at.</summary>
     public async Task LoadAsync(ulong system, SystemFacts facts, string stationName,
@@ -122,24 +124,17 @@ public sealed partial class SystemMultiToolsViewModel : ObservableObject
         {
             _system = system;
             var dispatcher = DispatcherQueue.GetForCurrentThread();
-            var words = await CatalogService.GetProceduralNameWordsAsync();
             var tables = PlanetTypesService.InventoryTables ?? await CatalogService.GetInventoryGenerationTablesAsync();
-            if (tables?.MultiToolPools is not { Length: > 0 } pools) return;
-            ulong systemAddress = system & ~(0xFUL << 52);
-            var places = await Task.Run(() =>
+            var bodies = new List<(int Body, string Name)> { (0, stationName) };
+            bodies.AddRange(planets.Select(p => (p.Index, p.Name)));
+            var list = new List<MultiToolLoadPlaceViewModel>();
+            foreach (var (body, name) in bodies)
             {
-                var bodies = new List<(int Body, string Name)> { (0, stationName) };
-                bodies.AddRange(planets.Select(p => (p.Index, p.Name)));
-                return bodies.Select(b =>
-                {
-                    var pool = SystemMultiToolGenerator.GeneratePool(systemAddress | ((ulong)(b.Body & 15) << 52),
-                        b.Body == 0 ? MultiToolPoolSource.SpaceStation : MultiToolPoolSource.Planet, b.Name,
-                        k => words.GetValueOrDefault(k), pools);
-                    var tools = pool.Where(t => t.PoolType == "Standard").Select(t => new SystemMultiToolItemViewModel(t)).ToArray();
-                    return new MultiToolLoadPlaceViewModel(b.Body, b.Name, tools);
-                }).Where(p => p.Tools.Count > 0).ToArray();
-            });
-            if (_system != system) return;
+                var pool = await CabinetPoolService.ForAsync(system, body);
+                if (pool.Count > 0) list.Add(new MultiToolLoadPlaceViewModel(body, name, pool.Select(t => new SystemMultiToolItemViewModel(t)).ToArray()));
+            }
+            var places = list.ToArray();
+            if (_system != system || tables is null) return;
             Places = places;
             HasPlaces = places.Length > 0;
             var (c, b, a, s) = EquipmentGeneration.GetClassProbabilities(facts.Wealth, facts.Pirate, tables);

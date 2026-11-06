@@ -404,8 +404,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
         var known = planets.Select(p => p.PlanetIndex).ToHashSet();
         var allBodies = planets.Concat(PlanetTypesService.Undiscovered(system, known)).OrderBy(p => p.PlanetIndex).ToList();
-        var savedLoad = NmsMultiToolGenerationPaths.ReadActiveSavedState(_snapshot?.EquipmentSaveInputs, 0)?.ReloadUniverseAddress;
-        int? savedBody = savedLoad is { } load && (load & ~(0xFUL << 52)) == (system & ~(0xFUL << 52)) ? (int)((load >> 52) & 15) : null;
+        int? savedBody = CabinetPoolService.SavedLoadBody(system, _snapshot?.EquipmentSaveInputs);
         _ = MultiTools.LoadAsync(system, facts, station.Length > 0 ? station : "the space station",
             allBodies.Select(p => (p.PlanetIndex, UniverseInfo.PlanetName(system, p.PlanetIndex))).ToList(), savedBody);
 

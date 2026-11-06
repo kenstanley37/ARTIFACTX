@@ -6,6 +6,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:ArtifactX.WinUI3.Controls"
     xmlns:explore="using:ArtifactX.WinUI3.ViewModels.ExploreViewModels"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls">
 
     <controls:FoldingCard Title="{x:Bind Shops.Heading, Mode=OneWay}" SettingKey="PlanetDetailsShopsCollapsed"
@@ -19,7 +20,7 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="explore:ShopSiteRowViewModel">
-                            <Border Width="300" Padding="12,10" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                            <Border Width="340" Padding="12,10" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
                                     Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
                                 <StackPanel Spacing="6">
                                     <Grid ColumnSpacing="8">
@@ -33,6 +34,26 @@
                                                    IsTextSelectionEnabled="True"/>
                                     </Grid>
                                     <TextBlock Text="{x:Bind Distance}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}"/>
+                                    <StackPanel Spacing="4" Visibility="{x:Bind HasTools}">
+                                        <TextBlock Text="{x:Bind ToolsLabel}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+                                        <ItemsControl ItemsSource="{x:Bind Tools}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="viewmodels:SystemMultiToolItemViewModel">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2"
+                                                                AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}">
+                                                        <Border Background="{x:Bind BadgeBackground, Mode=OneWay}" Padding="6,1" VerticalAlignment="Center"
+                                                                CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                                                            <TextBlock Text="{x:Bind KindLabel, Mode=OneWay}" FontSize="10" FontWeight="Bold"
+                                                                       FontFamily="{ThemeResource ThemeDisplayFont}" CharacterSpacing="120"
+                                                                       Foreground="{x:Bind BadgeForeground, Mode=OneWay}"/>
+                                                        </Border>
+                                                        <TextBlock Text="{x:Bind Name}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                                   Foreground="{ThemeResource ThemeTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
                                     <TextBlock Text="{x:Bind Status, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <Button Content="{x:Bind AddMarkerText, Mode=OneWay}" Command="{x:Bind AddMarkerCommand}"
