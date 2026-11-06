@@ -325,3 +325,45 @@ point differs from FUN_142DEC840 / FUN_1419C2CB0 for these cells, or the cell lo
 (query point, divisions param_9[7], radius scale param_9[8] * 0x144BF56F8) is not the one Core reproduces. Crashed-ship
 checks only had the visor's 0.01 degree precision (~20 m here) plus one beacon test, so a shift this size was never
 excluded. Next: trace FUN_1419C2CB0 against PlanetBuildingSites.Site for one of these keys.
+
+### Core's cell maths is exact; the cluster is re-centred after the arranger (2026-11-05, build 184271)
+
+**Cell lookup checked.** `scripts/research/region-generator/voronoi184271.py` runs the game's wrapper 0x142DEC840 /
+worker 0x1419C2CB0 in Unicorn on the three Kaim 30/19 shops (radius 130048, 546 divisions, sector seed 3733: Core's
+inputs, equal to the live building block). Same site key and point A as `PlanetBuildingSites.Site` on all three, within
+0.7 cm, querying from the shop or from the cabinet. 0x1412B6BA0 passes exactly these inputs (sector `+0x48`, radius
+`+0x38`, divisions `+0x40` x 0.5), and 0x141635570 copies point A into slot 0 unchanged. So the offset is not in Core.
+
+**The missing step.** After 0x141635570 / the arranger return, 0x1412B6BA0 moves the **whole cluster, main building
+included**, by minus the radius-weighted mean of the members' offsets from point A:
+`shift = -sum(r_i * (p_i - A)) / sum(r_i)` over every member with a record (main term 0), `r_i` = the building record's
+`+0xC0` radius. (The earlier "index 0 keeps the cell point" holds inside the arranger only.) The site record in memory
+(stride 0x530, `scripts/diagnostics/read_site_clusters.py`) keeps the positions from **before** the shift: `+0x10` point
+A, then the members; `+0x2A0` the main forward, then each member's direction from the main building.
+
+Live check (read-only, game on Kaim 30/19). Radii from the live type records: Shop 50.412, Waypoint 10.0, Shelter
+21.379 / 23.329 / 21.255 / 21.379, LandingPad 13.599. Shop 1 has one member (the Waypoint, 60.4 m south); predicted
+shift `10 / 60.412 = 0.1655` of it, (0.59, 9.87, 1.50) m. The spawned shop's root node (forward equal to the record's
+main forward, 1.40 m below Core's terrain) sits at horizontal (0.60, 9.89, 1.50) from A, and the Waypoint's parts at
+50.5 m instead of 60.4 m. Shops 2 and 3 (Waypoint + Shelter) shift 25.5 m. Their nodes were not loaded, so they are
+checked only through the cabinets below.
+
+**Facing: the angle is in radians.** The main forward is `rotate(f0, n, index * 45)` with f0 the projected axis from
+the 0x140576380 basis (+Y on face +X), index = top 3 bits of the key's first MWC word, and 45 passed to the game's
+sin/cos **as radians** (270 rad = -10.15 deg, 90 rad = 116.62 deg). It reproduces all three stored forwards to 4
+decimals. The earlier pose fits treated it as degrees.
+
+**Crate in the building frame.** With the shift and that facing, the Vy'keen crate lies at the same horizontal spot
+in all three shops despite three different facings: (n x F, F) = (-2.68, 8.32), (-2.82, 8.28), (-2.60, 8.04) m
+(cabinet points are whole metres, so +-0.5 per axis; best with Shelter radius 21.379 or 21.255). That is 8.7 m from the
+root, not the root room's (3.974, -5.000), so the shop roof is not on the root room in this planet's shop layout. All
+main shops share the layout (first record, sample 0), so one L-system expansion gives every cabinet on the planet.
+Height is still open: taking the crate as 4.15 m above the root (as measured on shop 1), the roots sit -1.40, +0.15 and
++1.83 m from Core's height at the shifted point. No ring min/mean/max (8-64 m) explains it (spreads of 3 m or more).
+The game re-grounds loaded buildings with the full voxel terrain (see PLANET_BUILDING_PLACEMENT.md, visited planets).
+
+Next, in order: (1) port the arranger's member placement (0x1416360A0: spiral radius, angle draws, overlap passes on
+record radii + `+0xA4` margins, chance-gated members as in 0x141635570) and check it against the pre-shift member points
+in the live records; (2) the building's vertical placement rule (0x1412B9BA0 and its callers, LowerIntoGround,
+flattening); (3) the L-system expansion for the shop roof's room (0x142D82630 / 0x142D851D0 above), checked against
+(-2.7, 8.2). With all three, the cabinet's rounded world point and so its exact tool follow from the address.
