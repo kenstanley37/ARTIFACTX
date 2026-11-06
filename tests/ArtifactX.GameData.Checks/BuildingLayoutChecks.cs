@@ -65,6 +65,125 @@ internal static class BuildingLayoutChecks
         }
         Console.WriteLine($"{layouts}/{total} layouts, {radii}/{total} radii exact");
         if (layouts != total) throw new InvalidOperationException("Layouts differ from the live samples.");
+
+        CheckShopCabinetPipeline(connection, tables, samples.RootElement);
         Console.WriteLine("PASS");
+    }
+
+    private static void CheckShopCabinetPipeline(
+        Microsoft.Data.Sqlite.SqliteConnection connection,
+        BuildingLayoutTables tables,
+        JsonElement liveSamples)
+    {
+        // Step 2: Record seeds against Kaim 30/I9's 8 live Vy'keen L-system records.
+        const ulong kaimSeed = 0x07E3F9990696DCC9UL;
+        var recordSeeds = PlanetBuildingSites.RecordSeeds(kaimSeed, 60);
+        int[] liveRecordIndices = [0, 4, 8, 14, 17, 21, 24, 59];
+        int lsIndex = 0;
+        foreach (var ls in liveSamples.EnumerateArray())
+        {
+            ulong recSeed = recordSeeds[liveRecordIndices[lsIndex++]];
+            int sampleIdx = 0;
+            foreach (var s in ls.GetProperty("samples").EnumerateArray())
+            {
+                ulong wantSeed = ulong.Parse(s.GetProperty("seed").GetString()!, NumberStyles.HexNumber);
+                ulong gotSeed = BuildingLayoutGenerator.SampleSeed(recSeed, sampleIdx++);
+                if (gotSeed != wantSeed)
+                    throw new InvalidOperationException($"Record seed mismatch at L-system {lsIndex - 1} sample {sampleIdx - 1}: got 0x{gotSeed:X16}, want 0x{wantSeed:X16}");
+            }
+        }
+        Console.WriteLine($"Record seeds: 8/8 Vy'keen L-systems (24/24 sample seeds) match live.");
+
+        // Step 3 & 4: Cluster layout from catalog, radii from Step 1, placement, re-centring, facing, and Step 5 crate point.
+        if (Math.Abs(tables.ChanceOfAddingShelter - 0.75f) > 1e-6f)
+            throw new InvalidOperationException($"ChanceOfAddingShelter {tables.ChanceOfAddingShelter} != 0.75");
+        var shopCluster = BuildingClusterPlacement.ClusterForClass(tables, 5)
+            ?? throw new InvalidOperationException("Shop cluster layout missing from BUILDINGLAYOUTS.");
+        string shopPath = BuildingLayoutGenerator.LSystemPath(tables, race: 1, buildingClass: 5)
+            ?? throw new InvalidOperationException("Vy'keen Shop L-system path missing from BUILDINGLAYOUTS.");
+        string shelterPath = BuildingLayoutGenerator.LSystemPath(tables, race: 1, buildingClass: 2)
+            ?? throw new InvalidOperationException("Vy'keen Shelter L-system path missing from BUILDINGLAYOUTS.");
+
+        var shopLayout = BuildingLayoutGenerator.Generate(tables, shopPath, BuildingLayoutGenerator.SampleSeed(recordSeeds[8], 0))
+            ?? throw new InvalidOperationException("Shop sample 0 layout failed.");
+        if (shopLayout.WeaponCrateRoot is not var (crx, cry, crz)
+            || Math.Abs(crx - 3.974) > 2e-3 || Math.Abs(cry - 3.734) > 2e-3 || Math.Abs(crz - (-5.000)) > 2e-3)
+            throw new InvalidOperationException($"Shop WeaponCrateRoot differs: {shopLayout.WeaponCrateRoot}");
+        if (shopLayout.WeaponCrate is not var (cx, cy, cz)
+            || Math.Abs(cx - (-2.374)) > 2e-3 || Math.Abs(cy - 3.734) > 2e-3 || Math.Abs(cz - 8.389) > 2e-3)
+            throw new InvalidOperationException($"Shop WeaponCrate differs: {shopLayout.WeaponCrate}");
+
+        const int shelter = 2, shop = 5, waypoint = 7;
+        int[] recordClasses = [shelter, shelter, shelter, shelter, -1, -1, -1, -1, shop, shop, shop, -1, waypoint];
+        var recordRadii = new Dictionary<int, double> { [12] = tables.MinRadius };
+        for (int n = 0; n < 4; n++)
+            recordRadii[n] = BuildingLayoutGenerator.Generate(tables, shelterPath, BuildingLayoutGenerator.SampleSeed(recordSeeds[0], n))!.Radius;
+
+        (double X, double Y, double Z) site1 = (116591.492, -15370.817, 55521.562);
+        var chosen1 = BuildingClusterPlacement.ChooseMembers(0x8924A2E5C39F854DUL, shopCluster, recordClasses, tables.ChanceOfAddingShelter);
+        double[] radii1 = [shopLayout.Radius, .. chosen1.Select(idx => recordRadii[idx])];
+        var placed1 = BuildingClusterPlacement.PlaceMembers(site1, radii1);
+        var recentred1 = BuildingClusterPlacement.Recentre(site1, [site1, .. placed1], radii1)[0];
+        if (Math.Abs(recentred1.X - site1.X - 0.59) > 0.02
+            || Math.Abs(recentred1.Y - site1.Y - 9.87) > 0.02
+            || Math.Abs(recentred1.Z - site1.Z - 1.50) > 0.02)
+            throw new InvalidOperationException($"Shop 1 re-centred shift differs from live: {recentred1}");
+
+        // Step 5 & 6: Spawn height and cabinet point/seed on Kaim 30/I9 (cube face +X).
+        T ReadRow<T>(string id)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId=$id";
+            cmd.Parameters.AddWithValue("$id", id);
+            return JsonSerializer.Deserialize<T>((string)cmd.ExecuteScalar()!)!;
+        }
+        var biomes = ReadRow<BiomeTables>("BIOMETABLES");
+        var profiles = ReadRow<PlanetProfileTables>("PLANETPROFILE");
+        const ulong address = 0x1FA00016452DBUL;
+        const ulong code = (((address >> 40) & 0xFFF) << 32) | (address & 0xFFFFFFFF);
+        const int galaxy = (int)((address >> 32) & 0xFF);
+        const int planetIndex = 0;
+        var types = PlanetGenerator.Generate(code, galaxy, biomes);
+        var seeds = SystemGenerator.Bodies(code, galaxy).PlanetSeeds;
+        var body = types[planetIndex];
+        var attrs = SystemGenerator.Attributes(code, galaxy);
+        float planetRadius = PlanetBuildingSites.Radius(body.BodyClass)
+            ?? throw new InvalidOperationException("Failed to determine Kaim 30/I9 radius.");
+        var tt = profiles.Objects?.Terrain ?? throw new InvalidOperationException("Terrain tables missing from PLANETPROFILE.");
+        var choice = PlanetProfileGenerator.TerrainChoiceFor(seeds[planetIndex], body, (int)attrs.Star, profiles)
+            ?? throw new InvalidOperationException("Failed to choose Kaim 30/I9 terrain.");
+        var terrain = PlanetTerrain.Generate(seeds[planetIndex], tt.Settings[choice.SettingIndex], choice, tt.SeaStandard, body.BodyClass == 3, body.DeadToWeird)
+            ?? throw new InvalidOperationException("Failed to generate Kaim 30/I9 terrain.");
+        var planetCentre = (-224000.0, 0.0, -134000.0);
+
+        var shops = new (ulong Key, (double X, double Y, double Z) Pos, double? LiveSpawnHeight, (int X, int Y, int Z) WantCabinet, bool NearEdge)[]
+        {
+            (0x404DA563E9C5EC88UL, (99954.344, 83115.625, -3661.159), 269.828, (-123846, 83303, -137661), false),
+            (0x8924A2E5C39F854DUL, (116591.49, -15370.817, 55521.562), null, (-107157, -15386, -78362), true),
+            (0x66386EC5762B09FBUL, (114312.875, -17583.473, 59463.184), null, (-109470, -17596, -74402), false),
+            (0x627968CDF4A27660UL, (117627.62, -9044.393, 54721.32), null, (-106129, -9033, -79157), false),
+        };
+
+        int exactCabinets = 0;
+        foreach (var s in shops)
+        {
+            ulong wantSeed = MultiToolSiteGeneration.SeedForPosition(new System.Numerics.Vector3(s.WantCabinet.X, s.WantCabinet.Y, s.WantCabinet.Z));
+            var cab = PlanetShopCabinetGenerator.ForShopSite(
+                tables, terrain, planetRadius, planetCentre, s.Key, s.Pos, shopLayout, shopCluster, recordClasses, recordRadii)
+                ?? throw new InvalidOperationException($"No cabinet for shop 0x{s.Key:X16}");
+            if (s.LiveSpawnHeight is { } liveSpawn && Math.Abs(cab.SpawnHeight - liveSpawn) > 0.03)
+                throw new InvalidOperationException($"Shop 0x{s.Key:X16} spawn height error {Math.Abs(cab.SpawnHeight - liveSpawn):F4} m > 0.03 m (got {cab.SpawnHeight:F3}, live {liveSpawn:F3})");
+
+            bool exact = cab.CabinetPoint == s.WantCabinet && cab.CabinetSeed == wantSeed;
+            if (exact) exactCabinets++;
+            else if (!s.NearEdge || cab.AlternateNearEdge is not { } alt || alt.Point != s.WantCabinet || alt.Seed != wantSeed)
+                throw new InvalidOperationException($"Shop 0x{s.Key:X16} cabinet {cab.CabinetPoint} (0x{cab.CabinetSeed:X16}) != {s.WantCabinet} (0x{wantSeed:X16})");
+
+            Console.WriteLine($"Shop 0x{s.Key:X16}: H(A) {cab.SiteHeight:F3} spawn {cab.SpawnHeight:F3}; cabinet {cab.CabinetPoint} seed 0x{cab.CabinetSeed:X16}" +
+                (cab.AlternateNearEdge is { } a ? $" (near-edge alt {a.Point} -> 0x{a.Seed:X16})" : ""));
+        }
+        if (exactCabinets != 3)
+            throw new InvalidOperationException($"Expected 3/4 exact cabinets and 1 near-edge, got {exactCabinets}/4 exact.");
+        Console.WriteLine("Cabinets: 3/4 exact, 4th (0x8924A2E5C39F854D) ~2 cm across rounding edge in X with exact AlternateNearEdge.");
     }
 }

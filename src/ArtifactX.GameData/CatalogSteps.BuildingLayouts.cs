@@ -20,7 +20,9 @@ public static partial class CatalogSteps
     internal static BuildingLayoutTables? BuildingLayouts(Func<string, NMSTemplate?> decode)
     {
         if (decode(BuildingTableFile) is not GcBuildingDefinitionTable table) return null;
-        float minRadius = decode("GCBUILDINGGLOBALS.GLOBAL.MBIN") is GcBuildingGlobals globals ? globals.MinRadius : 10f;
+        var globals = decode("GCBUILDINGGLOBALS.GLOBAL.MBIN") as GcBuildingGlobals;
+        float minRadius = globals?.MinRadius ?? 10f;
+        float chanceOfAddingShelter = globals?.ChanceOfAddingShelter ?? 0.75f;
 
         static string PathOf(string? path) => (path ?? "").Replace('\\', '/').ToUpperInvariant();
         static LSystemRestriction[] Restrictions(List<TkLSystemRestrictionData>? list) =>
@@ -61,6 +63,7 @@ public static partial class CatalogSteps
         {
             if (decode(model) is not TkSceneNodeData root) continue;
             var locators = new List<LayoutLocator>();
+            double[]? weaponCrate = null;
             void Walk(TkSceneNodeData node, LayoutTransform parent, int depth, string parentName)
             {
                 var world = parent.Then(LayoutLocal(node.Transform));
@@ -68,13 +71,39 @@ public static partial class CatalogSteps
                 if (node.Type?.Value == "LOCATOR" && (depth == 1 || (depth == 2 && parentName.ToUpperInvariant() == "INTERIOR_"))
                     && locatorTypes.Any(t => name.ToUpperInvariant().Contains(t, StringComparison.Ordinal)))
                     locators.Add(new LayoutLocator(name, LayoutValues(world)));
+                else if (node.Type?.Value == "REFERENCE" && weaponCrate is null
+                    && (node.Attributes ?? []).Any(a => a.Name?.Value == "SCENEGRAPH"
+                        && (a.Value?.Value ?? "").Contains("CRATE_WEAPON", StringComparison.OrdinalIgnoreCase)))
+                    weaponCrate = LayoutValues(world);
                 foreach (var c in node.Children ?? []) Walk(c, world, depth + 1, name);
             }
             foreach (var c in root.Children ?? []) Walk(c, LayoutTransform.Identity, 1, "");
             var box = ModelBox(model, decode, boxes, 0);
-            scenes[model] = new LayoutScene(locators.ToArray(), box?.Min, box?.Max);
+            scenes[model] = new LayoutScene(locators.ToArray(), box?.Min, box?.Max, weaponCrate);
         }
-        return new BuildingLayoutTables(lsystems, scenes, minRadius);
+
+        var clusterLayouts = new Dictionary<string, BuildingClusterEntry[]>(StringComparer.Ordinal);
+        foreach (var cl in table.ClusterLayouts ?? [])
+        {
+            string id = (cl.ID?.Value ?? "").ToUpperInvariant();
+            if (id.Length == 0 || clusterLayouts.ContainsKey(id)) continue;
+            clusterLayouts[id] = (cl.ClusterBuildings ?? [])
+                .Select(e => new BuildingClusterEntry((int)e.Building.BuildingClass, e.Min, e.Max, e.Probability))
+                .ToArray();
+        }
+        var classClusters = new Dictionary<int, string>();
+        for (int c = 0; c < (table.BuildingPlacement?.Length ?? 0); c++)
+        {
+            string id = (table.BuildingPlacement![c]?.ClusterLayout?.Value ?? "").ToUpperInvariant();
+            if (id.Length > 0) classClusters[c] = id;
+        }
+        var buildingLSystems = (table.BuildingFiles ?? [])
+            .Select(r => (r?.BuildingFiles ?? [])
+                .Select(b => (b?.LSystem ?? []).Select(f => PathOf(f?.Value)).ToArray())
+                .ToArray())
+            .ToArray();
+
+        return new BuildingLayoutTables(lsystems, scenes, minRadius, chanceOfAddingShelter, clusterLayouts, classClusters, buildingLSystems);
     }
 
     /// <summary>The box around a model's MESH AABBs in its own frame, every mesh of REFERENCE sub-scenes taken through

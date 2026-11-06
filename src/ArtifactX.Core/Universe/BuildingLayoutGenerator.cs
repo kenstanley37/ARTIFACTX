@@ -5,14 +5,17 @@ namespace ArtifactX.Core.Universe;
 public sealed record BuildingLayoutNode(string Model, LayoutTransform World, int Parent);
 
 /// <summary>A generated layout, its bounds (mesh boxes through each node, metres) and what the game derives from them:
-/// the record radius (half the XZ diagonal, at least MinRadius) and the root offset that re-centres the layout on its
-/// XZ bounds.</summary>
+/// the record radius (half the XZ diagonal, at least MinRadius), the root offset that re-centres the layout on its
+/// XZ bounds, and (for shop layouts) the weapon crate's point in the root room (<see cref="WeaponCrateRoot"/>) and in
+/// the re-centred building frame (<see cref="WeaponCrate"/>: side, up, forward).</summary>
 public sealed record BuildingLayout(
     BuildingLayoutNode[] Nodes,
     (double X, double Y, double Z) BoundsMin,
     (double X, double Y, double Z) BoundsMax,
     double Radius,
-    (double X, double Z) RootOffset);
+    (double X, double Z) RootOffset,
+    (double X, double Y, double Z)? WeaponCrateRoot = null,
+    (double X, double Y, double Z)? WeaponCrate = null);
 
 /// <summary>
 /// The game's L-system expander (cTkLSystemManager, build 184271) for planet building layouts, ported from
@@ -101,10 +104,29 @@ public static class BuildingLayoutGenerator
         }
         if (min.X > max.X) return null;
         double radius = Math.Max(0.5 * Math.Sqrt(Math.Pow(max.X - min.X, 2) + Math.Pow(max.Z - min.Z, 2)), tables.MinRadius);
+        var rootOffset = (X: -(min.X + max.X) / 2, Z: -(min.Z + max.Z) / 2);
+        (double X, double Y, double Z)? crateRoot = null, crate = null;
+        var crateNode = nodes.FirstOrDefault(n => n.Model.EndsWith("/FLOORLAYOUT_NPC.SCENE.MBIN", StringComparison.Ordinal)
+                && tables.Scenes.TryGetValue(n.Model, out var sc) && sc.WeaponCrate is { Length: 12 })
+            ?? nodes.FirstOrDefault(n => tables.Scenes.TryGetValue(n.Model, out var sc) && sc.WeaponCrate is { Length: 12 });
+        if (crateNode is not null && tables.Scenes[crateNode.Model].WeaponCrate is { } crateMatrix)
+        {
+            var cr = crateNode.World.Then(new LayoutTransform(crateMatrix)).Position;
+            crateRoot = cr;
+            crate = (cr.X + rootOffset.X, cr.Y, cr.Z + rootOffset.Z);
+        }
         return new BuildingLayout(
             nodes.Select(n => new BuildingLayoutNode(n.Model, n.World, n.Parent)).ToArray(),
-            min, max, radius, (-(min.X + max.X) / 2, -(min.Z + max.Z) / 2));
+            min, max, radius, rootOffset, crateRoot, crate);
     }
+
+    /// <summary>The L-system path for a race (GcAlienRace), building class (GcBuildingClassification) and system type
+    /// (0 Normal, 1 AbandonedSystem) from the catalog's building table, or null when not present.</summary>
+    public static string? LSystemPath(BuildingLayoutTables tables, int race, int buildingClass, int systemType = 0) =>
+        tables.BuildingLSystems is { } r && race >= 0 && race < r.Length
+        && r[race] is { } b && buildingClass >= 0 && buildingClass < b.Length
+        && b[buildingClass] is { } s && systemType >= 0 && systemType < s.Length && s[systemType].Length > 0
+            ? s[systemType] : null;
 
     /// <summary>0x142D851D0: the first entry below a local or global minimum, else one draw r = u * 100 over the
     /// candidates (entries under both maxima), each weighted p + pooled / n, pooled = the excluded entries' p; -1 = nothing.</summary>

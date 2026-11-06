@@ -22,11 +22,11 @@ against the live game. The port has to reproduce the Python, not reinvent it.
 | Step | Python reference | Proven | Core port |
 |---|---|---|---|
 | 1. Building layout (L-system expander), radius, root offset | `lsysport.py` | 24/24 live layouts | **Done**: `Core/Universe/BuildingLayoutGenerator.cs` |
-| 2. Building record seeds | `shopcrate.py` `record_seeds`, `buildingseeds.py` | live records | to do |
-| 3. Cluster members, placement, re-centring | `clusterport.py` `choose_members`, `place_members`, `recentre` | exact vs live | to do |
-| 4. Facing (forward vector) | `shopcrate.py` `facing` | exact vs live | to do |
-| 5. Spawn height | `shopspawn.py` `far_grid_value`, `spawn_inputs` | 4/4 within 2.6 cm, **cube face +X only** | to do |
-| 6. Crate point and cabinet seed | `shopspawn.py` `__main__`, `MultiToolSiteGeneration.SeedForPosition` | 3/4 cabinets exact, 4th 1 cm across a rounding edge | to do |
+| 2. Building record seeds | `shopcrate.py` `record_seeds`, `buildingseeds.py` | live records | **Done**: `PlanetBuildingSites.RecordSeeds` |
+| 3. Cluster members, placement, re-centring | `clusterport.py` `choose_members`, `place_members`, `recentre` | exact vs live | **Done**: `Core/Universe/BuildingClusterPlacement.cs` |
+| 4. Facing (forward vector) | `shopcrate.py` `facing` | exact vs live | **Done**: `BuildingClusterPlacement.Facing` |
+| 5. Spawn height | `shopspawn.py` `far_grid_value`, `spawn_inputs` | 4/4 within 2.6 cm, **cube face +X only** | **Done**: `PlanetShopCabinetGenerator.FarGridValue` / `SpawnInputs` / `SpawnHeight` |
+| 6. Crate point and cabinet seed | `shopspawn.py` `__main__`, `MultiToolSiteGeneration.SeedForPosition` | 3/4 cabinets exact, 4th 1 cm across a rounding edge | **Done**: `PlanetShopCabinetGenerator.ForShopSite` |
 
 ### What step 1 added (commit a23c219)
 

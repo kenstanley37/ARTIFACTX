@@ -79,9 +79,32 @@ public static class PlanetBuildingSites
     /// <summary>VoronoiPointSeed and VoronoiSectorSeed for a planet seed (SystemGenerator.Bodies' PlanetSeeds).</summary>
     public static (int PointSeed, int SectorSeed) VoronoiSeeds(ulong planetSeed)
     {
+        _ = VoronoiRng(planetSeed, out int point, out int sector);
+        return (point, sector);
+    }
+
+    /// <summary>The L-system seeds of a planet's first <paramref name="count"/> building records (0x14163B270 ->
+    /// 0x14163C300): two Voronoi draws on MWC(stage seed 3), then per building record two MWC steps mixed into its
+    /// L-system seed. Checked 2026-11-06 against the 8 stored Vy'keen L-systems on Kaim 30/19 (planet seed
+    /// 0x07E3F9990696DCC9: shelter record 0 = 0x1DD2F3ACC9DFF362, shop record 8 = 0xC9BC0BFCE72F16EF).</summary>
+    public static ulong[] RecordSeeds(ulong planetSeed, int count)
+    {
+        var rng = VoronoiRng(planetSeed, out _, out _);
+        var seeds = new ulong[count];
+        for (int i = 0; i < count; i++)
+        {
+            uint first = rng.Word(), second = rng.Word();
+            seeds[i] = Mix64(((ulong)second << 32) | first);
+        }
+        return seeds;
+    }
+
+    private static Mwc VoronoiRng(ulong planetSeed, out int pointSeed, out int sectorSeed)
+    {
         var rng = Mwc.Start(StageSeed(planetSeed, 3));
-        int point = (int)rng.Next(10000) + 1;
-        return (point, (int)rng.Next(10000) + 1);
+        pointSeed = (int)rng.Next(10000) + 1;
+        sectorSeed = (int)rng.Next(10000) + 1;
+        return rng;
     }
 
     /// <summary>VoronoiPointDivisions: 2 * ceil((2R / 250) * pi/6 * 0.5), cells per cube face edge.</summary>
