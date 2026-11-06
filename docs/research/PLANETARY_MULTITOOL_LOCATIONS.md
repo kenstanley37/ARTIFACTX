@@ -367,3 +367,29 @@ record radii + `+0xA4` margins, chance-gated members as in 0x141635570) and chec
 in the live records; (2) the building's vertical placement rule (0x1412B9BA0 and its callers, LowerIntoGround,
 flattening); (3) the L-system expansion for the shop roof's room (0x142D82630 / 0x142D851D0 above), checked against
 (-2.7, 8.2). With all three, the cabinet's rounded world point and so its exact tool follow from the address.
+
+### Cluster members ported: choice and placement exact (2026-11-05, build 184271)
+
+`scripts/research/region-generator/clusterport.py`, checked against the live pre-shift records of the three Kaim
+shops: **members chosen 3/3 from the site key, positions 5/5 within 3 mm**, main-building shift as measured.
+
+- **Choice** (0x141635570, layout `SHELTER_WAYPOIN` = Waypoint 1-1 p 1, Shelter 1-1 p 1). After the slot and chance
+  draws the site MWC (`*param_2`) continues; a side copy of it (not written back) gives one word that gates every
+  Shelter entry: `word * 2^-32 < GcBuildingGlobals.ChanceOfAddingShelter` (+0xB94, 0.75; globals at 0x14535B140 in
+  this build). Other entries with Probability < 1 take a draw from the main stream instead. Then per entry
+  `count = Next(Max - Min + 1) + Min` and per member `record = first + ((u * (sameClassCount + 1)) >> 32)` over the
+  planet's type list. Kaim: shop 1 rolled 0.959 (no shelter), shop 2 0.300 -> shelter record 2, shop 3 0.467 -> 3.
+- **Placement** (0x1416360A0, first loop, up to three members, **no random draws**): `D = r0 + a0 + ri + ai`,
+  `t = clamp((ri + ai) / D, -1, 1)`, the angle advances by `asin(t)` (inlined acos polynomial, in degrees) before the
+  member and again after it (0x14163720C); member = `A + D * normalize(cos(th) T1 + sin(th) T2)` on the tangent plane,
+  `T1 = n x v`, `T2 = n x T1`, `v` from the start-up face tables 0x146F82840 / 0x145A019F0 / 0x145A01AB0 (read live):
+  dominant axis X or Y -> (0, 0, 1), Z -> (0, 1, 0). Only face +X is checked. Members beyond three use random draws
+  and the overlap passes (not needed for shops).
+- **Radii.** Record `+0xC0` = the table's OverrideRadius when > 0, else `max(0.5 * XZ diagonal of the record's bounds,
+  GcBuildingGlobals.MinRadius)` (0x14163C960 at 0x14163CD39; MinRadius +0xC8C = 10, the Waypoint's value). The bounds
+  come from the record's generated L-system sample (0x1418809F0), so the Shop's 50.412 and the Shelters' 21.255 /
+  21.379 / 23.329 need the L-system port. It is the same port the crate's room needs, so both now wait on it.
+  Neighbouring global `BuildingYOffset` (+0xB90) = 3.0 is a lead for the open height rule.
+
+Remaining for an exact cabinet: (1) L-system expansion of the planet's first shop record and its sample bounds (gives the
+radii, hence the shift, and the crate's local point); (2) the vertical rule; (3) the building basis on other cube faces.
