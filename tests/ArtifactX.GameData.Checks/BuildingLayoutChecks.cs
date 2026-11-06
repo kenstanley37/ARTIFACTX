@@ -190,6 +190,7 @@ internal static class BuildingLayoutChecks
             (0x66386EC5762B09FBUL, (114312.875, -17583.473, 59463.184), null, (-109470, -17596, -74402), false),
             (0x627968CDF4A27660UL, (117627.62, -9044.393, 54721.32), null, (-106129, -9033, -79157), false),
             (0x741BF5DCCD41B78AUL, portalSites[0x741BF5DCCD41B78AUL], null, (-124034, 83512, -138752), false),
+            (0x45B9A979D3989991UL, portalSites[0x45B9A979D3989991UL], null, (-121547, 80353, -139241), false),
             (0x31CCA8AE9D607F54UL, portalSites[0x31CCA8AE9D607F54UL], null, (-120898, 79330, -140789), false),
             (0xD2D981D73443CF98UL, portalSites[0xD2D981D73443CF98UL], null, (-123713, 83045, -131786), false),
         };
@@ -211,8 +212,8 @@ internal static class BuildingLayoutChecks
             Console.WriteLine($"Shop 0x{s.Key:X16}: H(A) {cab.SiteHeight:F3} spawn {cab.SpawnHeight:F3}; cabinet {cab.CabinetPoint} seed 0x{cab.CabinetSeed:X16}" +
                 (cab.AlternateNearEdge is { } a ? $" (near-edge alt {a.Point} -> 0x{a.Seed:X16})" : ""));
         }
-        if (exactCabinets != 6)
-            throw new InvalidOperationException($"Expected 6/7 exact cabinets and 1 near-edge, got {exactCabinets}/7 exact.");
-        Console.WriteLine("Cabinets: 6/7 exact, 7th (0x8924A2E5C39F854D) ~2 cm across rounding edge in X with exact AlternateNearEdge.");
+        if (exactCabinets != 7)
+            throw new InvalidOperationException($"Expected 7/8 exact cabinets and 1 near-edge, got {exactCabinets}/8 exact.");
+        Console.WriteLine("Cabinets: 7/8 exact, 8th (0x8924A2E5C39F854D) ~2 cm across rounding edge in X with exact AlternateNearEdge.");
     }
 }

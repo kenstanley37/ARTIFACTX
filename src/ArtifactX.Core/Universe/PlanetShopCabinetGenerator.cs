@@ -46,9 +46,10 @@ public sealed record PlanetShopCabinetContext(
 ///   <see cref="PlanetTerrain.BaseHeight"/> at that lerped, unshifted position (<see cref="SpawnInputs"/>);
 /// - the cabinet is rolled when the building spawns: crate = building spawn origin + root offset + crate in the root
 ///   room + floored planet centre, rounded to whole metres (<see cref="MultiToolSiteGeneration.SeedForPosition"/>).
-/// Checked 2026-11-06 on Kaim 30/19 (cube face +X): 4/4 spawn heights within 2.6 cm of the live instances; 6/7 shop
-/// cabinets exact (404DA563E9C5EC88, 66386EC5762B09FB, 627968CDF4A27660, 741BF5DCCD41B78A, 31CCA8AE9D607F54,
-/// D2D981D73443CF98), the seventh (8924A2E5C39F854D) ~1-2 cm across a whole-metre rounding boundary in X with exact
+/// Checked 2026-11-06 on Kaim 30/19 (cube face +X): 4/4 spawn heights within 2.6 cm of the live instances; 7/8 shop
+/// cabinets exact (404DA563E9C5EC88, 66386EC5762B09FB, 627968CDF4A27660, 741BF5DCCD41B78A, 45B9A979D3989991,
+/// 31CCA8AE9D607F54, D2D981D73443CF98 — including 5/5 blind predictions around the portal), the eighth
+/// (8924A2E5C39F854D) ~1-2 cm across a whole-metre rounding boundary in X with exact
 /// <see cref="PlanetShopCabinet.AlternateNearEdge"/>. Cube faces other than +X use the same 0x140576380 face basis and
 /// are not yet verified in game (tracked in GitHub issue #1).
 /// </summary>
