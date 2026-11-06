@@ -122,7 +122,11 @@ def call(fn, args, stack_args=()):
 B = pickle.load(open(sys.argv[1], 'rb'))
 obj = bytearray(B['obj']); PL = alloc(len(obj) + 0x100, 0x100)
 for off, key in ((0x3398, 'types'), (0x33A8, 'slots'), (0x33B8, 'overrides')):
-    blob = B[key][1]; a = alloc(len(blob) + 0x100); mu.mem_write(a, blob); struct.pack_into('<Q', obj, off, a)
+    blob = bytearray(B[key][1])
+    if key == 'types' and os.environ.get('RADIUS'):   # experiment: every record radius (+0xC0) forced to this value
+        for i in range(B['types'][2]):
+            struct.pack_into('<f', blob, 0xE0 * i + 0xC0, float(os.environ['RADIUS']))
+    a = alloc(len(blob) + 0x100); mu.mem_write(a, bytes(blob)); struct.pack_into('<Q', obj, off, a)
 mu.mem_write(PL, bytes(obj))
 VOXEL, BLOCK = PL + 0x2090, PL + 0x3398
 

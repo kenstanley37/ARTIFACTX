@@ -525,3 +525,12 @@ and then runs the cluster generator. The column pass itself is flat at 272.189 a
 2.4 m comes from the region grid's coarse sampling of the smoothed building pad (`0x1412B13F0`, smoothing radius 150 m /
 height 200 m on Kaim). Next: dump the live region objects around the shop (grid, LOD, dimensions) and emulate
 `0x141299710` on them; the old cabinets 1 and 3 (1.9 / 4.9 m) are the same spawn-height effect.
+
+Spawn height, ruled out so far (live, 2026-11-06): the loaded terrain regions are `cGcRegionTerrainNear/Mid/Far/VeryFar`
+(vtables 0x144BBEC70 / 0x144BBEAD8 / 0x144BBEE20 / 0x144BBEFB0; cube-space origin at +0x50, scale 1/2/4/8 m, grid bytes
++0x80.., height grid +0x1D0 in local units above Core's `BaseHeight`, i.e. surface = grid * scale + B). At the cluster
+they give 272.34 / 272.80 / 274.6 / 277.1 m, never the stored 269.6-269.8; the column pass gives 272.189 at every LOD
+and with default record radii. `0x141299710` (region grid sampling + cluster check) is a scatter placer, not the
+building spawner. Remaining candidate: the spawner estimates the surface from the shaped density (`0x1412B13F0`,
+smoothing radius 150 / height 200) along the vertical with a coarse step. Until then a shop's crate is exact across the
+ground and its height is known only to the cluster's offset (here -2.36 m from Core's `Height(A)`).
