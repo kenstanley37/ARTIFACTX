@@ -462,3 +462,30 @@ building basis on cube faces other than +X, and a Core (C#) port of the expander
 Next for the height: trace the voxel generator's use of the flatten points (`FlattenTerrainPoints`,
 `TkVoxelGeneratorRegionData`) to get the flatten target and blend; if it depends on the voxel density beyond the
 noise layers Core has, the vertical position stays out of reach offline.
+
+### The voxel flatten under buildings (2026-11-06, build 184271, static trace)
+
+The terrain a building's ray lands on is made in the region's 2D column pass, not by `TkNoiseFlattenPoint`s:
+`0x1412B3770` (region voxel driver) -> `0x14128DB30` (column table: all 8 noise layers, features, caves per column) ->
+`0x14128F0A0` (per column: runs the cluster generator `0x1412B6BA0` itself to find the buildings whose cluster covers the
+column, then writes the column's pad entry `+0x390`, 16 bytes: height, distance, cluster extent, column radius) ->
+`0x1412B1D60` / `0x1412B13F0` (voxel densities: shapes the surface round the pad with TkVoxelGeneratorData
+`BuildingSmoothingHeight` +0x1124 / `BuildingSmoothingRadius` +0x1128 and writes `BuildingVoxelType` +0x1130).
+
+Pieces decoded in `0x14128F0A0`:
+- the column value starts at `NoSeaBaseLevel` and takes layers 0-3 (max / subtract) as Core's `Height` does, then
+  adds and removes the layer 6/7 base term, and is clamped to [0, 128] at the end;
+- `0x141290180`: at the column point, the base term B (`0x141290840` = Core's `BaseHeight`: layers 6 and 7 at the point
+  projected to the planet radius) at the centre and 8 points on a 64 m ring (or the cluster extent when the record's
+  +0x4D flag is set): returns the largest |B0 - Bi| / 64 (slope) and the ring maximum;
+- non-settlement classes (all but 36-50 and 57-59, `0x1412B9050`) are clamped between `extent * slope` and
+  `128 - extent * slope`, kept 5 m above the sea when the class is not a water type; the settlement classes are set
+  to the ring maximum (full flatten);
+- `0x14128EBB0`: floor = max B over every cluster member's centre and 6 points (60 deg) at half its record radius;
+  below it the column goes to floor + 5 (gated by the member check `0x141635F00`: water placement, Min/MaxHeight);
+- constants: 64 (`0x144BF6160`), 1/64, 128 (`0x144BF61D8`), +5 (`0x144BF5FF0`), 0.05, ring 0.6 for flagged builds.
+
+Numbers do not close by hand yet: for Kaim's three shops the BaseHeight floor + 5 sits 17.4 / 19.3 / 18.9 m below the
+needed roots (no constant), so which branch a shop takes and the units of the column value need the native run.
+Next: read Kaim's planet object live (`read_planet_object_live.py`), emulate `0x14128F0A0` for the columns under the
+shops, check against grounded building roots read live, then port.
