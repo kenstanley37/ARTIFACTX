@@ -311,3 +311,17 @@ forward back through `param_8` / `param_9`. Porting it (with the bounding boxes 
 the remaining step for the main shop's origin; everything inside the shop is already fixed for Vy'keen shops.
 Trader and Explorer shops reference the crate from several layouts (4 and 7 rule references), so for them the
 L-system expansion does matter.
+
+### The arranger does not move the main building; the offset is systematic (2026-11-05)
+
+In 0x1416360A0 only cluster members (index >= 1) are placed and moved: on a spiral around the main building
+(`sqrt(n * k)` radius, a random angle per member, two or three MWC draws each), with up to 16 overlap passes using
+FUN_141638B70 on the members' boxes (record +0xC0 radius plus +0xA4 margin). Index 0, the main building, keeps the
+cell point FUN_1412B6BA0 passes in. So the shop's origin is the game's cell point - yet the three measured cabinets
+sit 17.9, 29.4 and 31.2 m sideways from Core's Shop site points (Kaim 30/19, local frame at each site: north +17.7 /
++22.0 / +30.3 m, east +3.0 / -19.4 / -7.7 m), where the cabinet is only 6.4 m from its building's origin at a random
+facing. The consistent northward part points at Core's site position, not the layout: either Core's Voronoi feature
+point differs from FUN_142DEC840 / FUN_1419C2CB0 for these cells, or the cell lookup FUN_1412B6BA0 makes for a site
+(query point, divisions param_9[7], radius scale param_9[8] * 0x144BF56F8) is not the one Core reproduces. Crashed-ship
+checks only had the visor's 0.01 degree precision (~20 m here) plus one beacon test, so a shift this size was never
+excluded. Next: trace FUN_1419C2CB0 against PlanetBuildingSites.Site for one of these keys.
