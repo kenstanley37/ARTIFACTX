@@ -534,3 +534,26 @@ and with default record radii. `0x141299710` (region grid sampling + cluster che
 building spawner. Remaining candidate: the spawner estimates the surface from the shaped density (`0x1412B13F0`,
 smoothing radius 150 / height 200) along the vertical with a coarse step. Until then a shop's crate is exact across the
 ground and its height is known only to the cluster's offset (here -2.36 m from Core's `Height(A)`).
+
+### Spawn height solved: buildings spawn on the Far region's surface (2026-11-06, live)
+
+The instance creator is **0x1412B7F70** (decorator, calls this build's height function **0x14128E850** and
+0x141290180, then, when its region's byte +0x89 > 6, samples the region's height grid +0x1D0 at the building by two
+triangles and converts back with 0x141291310). The world -> grid mapping 0x141291DF0 is: gnomonic projection on the
+cube face, height = |p| - R - BaseHeight(p) along the face normal, then the region's inverse transform (+0x20, origin
++0x50, scale 1/2/4/8 m for Near/Mid/Far/VeryFar; grid cell = scale * (+0x84) / (+0x86 - +0x88); no border offset).
+Sampled this way, the **Far** region's grid (16 m cells) gives the stored spawn heights of the owner's shop cluster:
+269.852 / 269.607 / 269.681 vs 269.828 / 269.619 / 269.680 (shop, waypoint, shelter; the cm are bilinear vs the
+game's triangles). So cluster buildings - and their cabinets - are made by the Far region's decorator.
+
+`emu_far.py` regenerates a live Far region with the game's code (0x141294A00 -> 0x1412B3770(region, voxel, block,
+0x80)) on the planet object read live: with live-backed pages (`LIVE=1`, read-only) its height grid equals the game's
+**exactly (max diff 0.0)**; without them (planet object only) the whole shop zone is still exact and only a corner
+touched by a larger cluster differs (member choice / arranger reading live heap data: 0x1416353AA, 0x141635558,
+0x1416357F9, 0x14163617F, 0x140611B85). Reading `BaseHeight` and the column pass, the inputs are the planet seed, the
+voxel settings and the building table - all address-derived.
+
+So the cabinet pipeline from the address is: site -> layout -> cluster -> **Far-region surface at the building** ->
+crate (root offset + crate locator) -> whole-metre point -> seed. Porting it to Core needs the Far-LOD voxel region
+generation (density from the noise layers incl. grid/feature layers if they reach the surface, building pads and the
+`0x1412B13F0` smoothing, and the grid's height extraction) - the emulator is the reference to port against.
