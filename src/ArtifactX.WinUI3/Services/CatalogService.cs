@@ -236,7 +236,8 @@ public static class CatalogService
             {
                 string? letter = reader.GetString(1) switch
                 {
-                    "Normal" => "C", "Rare" => "B", "Epic" => "A", "Legendary" => "S", "Illegal" => "X", _ => null,
+                    "Normal" => "C", "Rare" => "B", "Epic" => "A", "Legendary" => "S", "Illegal" => "X",
+                    "SeaTrash" => "!", "Sentinel" or "Robot" => "?", _ => null,
                 };
                 if (letter is not null) classes[reader.GetString(0)] = letter;
             }

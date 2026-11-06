@@ -19,7 +19,13 @@ public sealed class StationToolTechChip(string name, Microsoft.UI.Xaml.Media.Ima
     public string ClassLetter { get; } = classLetter ?? "";
     public bool HasClass { get; } = classLetter is not null;
     public Microsoft.UI.Xaml.Media.Brush ClassBrush { get; } = ThemeResources.ClassBrush(classLetter);
-    public string Label { get; } = classLetter is null ? name : $"{name} - {classLetter}-class upgrade";
+    public string Label { get; } = classLetter switch
+    {
+        null => name,
+        "!" => $"{name} - Rusted (!)-class upgrade",
+        "?" => $"{name} - (?)-class upgrade",
+        _ => $"{name} - {classLetter}-class upgrade",
+    };
 }
 
 public sealed partial class StationReloadToolCard(string name, string rating, string damage, string scanner, string position,
