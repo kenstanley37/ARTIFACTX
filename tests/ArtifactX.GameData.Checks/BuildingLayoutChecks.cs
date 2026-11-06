@@ -214,6 +214,30 @@ internal static class BuildingLayoutChecks
         }
         if (exactCabinets != 7)
             throw new InvalidOperationException($"Expected 7/8 exact cabinets and 1 near-edge, got {exactCabinets}/8 exact.");
-        Console.WriteLine("Cabinets: 7/8 exact, 8th (0x8924A2E5C39F854D) ~2 cm across rounding edge in X with exact AlternateNearEdge.");
+
+        // Eolul Sigma (Moon 2 of Ihweyf, planetIndex = 1, cube face -Y): verified in game 2026-11-06 at (-66.19, -164.07)
+        // -> cabinet (-369690, 98921, -7965) seed 0xF846F1CB23520AA9 (Improvised Molecule Focuser, A, 333.3 dmg / 452.4 scan).
+        var moonContext = PlanetShopCabinetGenerator.PreparePlanet(
+            code, galaxy, 1, biomes, profiles, placement, tables, station.SolarLayout!)
+            ?? throw new InvalidOperationException("Failed to prepare Eolul Sigma shop cabinet context.");
+        var moonFacts = PlanetBuildingSites.FactsFor(code, galaxy, 1, biomes, profiles)!;
+        var (_, moonSectorSeed) = PlanetBuildingSites.VoronoiSeeds(seeds[1]);
+        int moonDivisions = PlanetBuildingSites.Divisions(moonContext.PlanetRadius);
+        var moonSlots = PlanetBuildingSites.Slots(placement, moonFacts);
+        double moonLatRad = -66.24 * Math.PI / 180.0, moonLonRad = -164.17 * Math.PI / 180.0;
+        var moonDir = new System.Numerics.Vector3(
+            (float)(Math.Cos(moonLatRad) * Math.Sin(moonLonRad)),
+            (float)Math.Sin(moonLatRad),
+            (float)(Math.Cos(moonLatRad) * Math.Cos(moonLonRad)));
+        var moonShopSite = PlanetBuildingSites.SitesNear(moonDir, moonDivisions, moonContext.PlanetRadius, moonSectorSeed, moonSlots, cls => cls == 5, 5)
+            .First(s => s.Key == 0x2CA7C9B233C0867DUL);
+        var moonCab = PlanetShopCabinetGenerator.ForShopSite(moonContext, moonShopSite.Key, (moonShopSite.Point.X, moonShopSite.Point.Y, moonShopSite.Point.Z))
+            ?? throw new InvalidOperationException("No cabinet for Eolul Sigma shop 0x2CA7C9B233C0867D.");
+        var wantMoonCab = (-369690, 98921, -7965);
+        ulong wantMoonSeed = MultiToolSiteGeneration.SeedForPosition(new System.Numerics.Vector3(wantMoonCab.Item1, wantMoonCab.Item2, wantMoonCab.Item3));
+        if (moonCab.CabinetPoint != wantMoonCab || moonCab.CabinetSeed != wantMoonSeed)
+            throw new InvalidOperationException($"Eolul Sigma shop 0x2CA7C9B233C0867D cabinet {moonCab.CabinetPoint} (0x{moonCab.CabinetSeed:X16}) != {wantMoonCab} (0x{wantMoonSeed:X16})");
+        Console.WriteLine($"Moon shop 0x{moonShopSite.Key:X16} (Eolul Sigma, face -Y): H(A) {moonCab.SiteHeight:F3} spawn {moonCab.SpawnHeight:F3}; cabinet {moonCab.CabinetPoint} seed 0x{moonCab.CabinetSeed:X16}");
+        Console.WriteLine("Cabinets: 8/9 exact across Kaim 30/I9 (+X) and Eolul Sigma (-Y moon), 9th (0x8924A2E5C39F854D) ~2 cm across rounding edge in X with exact AlternateNearEdge.");
     }
 }

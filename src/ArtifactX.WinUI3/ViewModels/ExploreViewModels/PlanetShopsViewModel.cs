@@ -161,7 +161,7 @@ public sealed partial class PlanetShopsViewModel : ObservableObject
     private const int BuildingClassShop = 5;   // GcBuildingClassification.Shop
     private const int ShownShops = 5;
     private static readonly StationCabinetDefinition ShopCabinetDefinition = new(
-        "SHOP", "SHOP", "SHOP", "WeaponTerminal", "Standard", false, [0f, 0f, 0f], [0f, 0f, 1f], []);
+        "SHOP", "SHOP", "SHOP", "SHOP", "WeaponTerminal", false, [0f, 0f, 0f], [], [], "Standard");
     private ulong _planetAddress;
     private string _toolsKey = "";
 
