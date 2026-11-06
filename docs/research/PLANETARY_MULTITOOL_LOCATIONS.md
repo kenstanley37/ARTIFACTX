@@ -583,3 +583,11 @@ when fx + fz > 1) gives +1.9 / -0.8 / +0.5 cm. No single reading of the decompil
 exact sampling should be emulated (0x1412B7F70 between its 0x141291DF0 and 0x141291310 calls, float32) rather than
 re-derived. Until then about one crate in ten lies within 2 cm of a whole-metre boundary on some axis and should be
 reported with both candidate points.
+
+Exact sampling from the machine code (0x1412B82B3..0x1412B859F, 2026-11-06): the creator divides the local point by
+(cell, cell height, cell, 1) to get the index g, reads corners (i, j), (i, j+1), (i+1, j), builds points P = (index *
+cell, value * cell height, index * cell), and interpolates the whole point as lerp(lerp(P00, P01, fz), P10, fx) with
+fx, fz = frac(g / cell) - the index is divided by the cell size a second time - before 0x141291310 converts it back;
+so `BaseHeight` is added at the lerped, unshifted position, not at the building. With the live Far grid this gives the
+members to -1.8 / -3.3 / -0.0 cm; in Core terms (`shopspawn.py`) the live shop spawns at 269.821 vs 269.828, and the
+cabinets stay 3/4 exact with cabinet 1 2 cm across its boundary. The last centimetres still need the float32 path.

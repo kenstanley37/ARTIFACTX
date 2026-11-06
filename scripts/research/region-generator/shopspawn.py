@@ -3,8 +3,8 @@
 # Cluster buildings are created by the Far terrain region's decorator (0x1412B7F70) on that region's surface. Inside
 # the cluster's flat zone every Far grid node holds (Height(A) - BaseHeight(node)) / 4, and the creator samples grid
 # index floor(local / 16 m), which holds the node one cell back. So, for a building at point p:
-#   spawn = Height(A) + BaseHeight(p) - plane(BaseHeight at nodes (i-1, j-1), (i, j-1), (i-1, j)), fractions of p,
-# with i / j = cube z / y of p divided by 16 m (face +X here). The cabinet is rolled at spawn: crate = spawn origin +
+#   spawn = Height(A) - lerp(BaseHeight at the nodes one cell back) + BaseHeight(lerped position) (spawn_inputs),
+# with the cell index = cube z / y of p divided by 16 m (face +X here). The cabinet is rolled at spawn: crate = spawn origin +
 # root offset + the FLOORLAYOUT_NPC WEAPONSCRATE_ point, rounded to whole metres.
 # Checked 2026-11-06 on Kaim 30/19: 4/4 spawn heights within 2.6 cm of the live instances; 3/4 cabinets exact, the
 # fourth 1 cm across a rounding boundary (the game works in float32, ~0.8 cm at these coordinates).
@@ -31,11 +31,18 @@ def core_heights(points, address='1FA00016452DB', body='1'):
 
 
 def spawn_inputs(p):
+    """0x1412B7F70's sampling (read from the machine code): cell index g = cube / 16 m; corners P00 (i, j), P01
+    (i, j+1), P10 (i+1, j) carry the grid value of the node one cell back; the point is lerp(lerp(P00, P01, fz), P10,
+    fx) with fx / fz = frac(g / 4) (the index divided by the cell size again), and BaseHeight is added at that lerped,
+    unshifted position. Returns the lerp weights, the three shifted nodes and the lerped position."""
     n = p / np.linalg.norm(p); cube = n / n[0] * R      # face +X
-    gi, gj = cube[2] / CELL, cube[1] / CELL
-    i, j = math.floor(gi), math.floor(gj)
-    nodes = [[R, (jj - 1) * CELL, (ii - 1) * CELL] for ii, jj in ((i, j), (i + 1, j), (i, j + 1))]
-    return gi - i, gj - j, nodes
+    gx, gz = cube[2] / CELL, cube[1] / CELL
+    i, j = math.floor(gx), math.floor(gz)
+    fx, fz = gx / 4 - math.floor(gx / 4), gz / 4 - math.floor(gz / 4)
+    w = {(0, 0): (1 - fx) * (1 - fz), (0, 1): (1 - fx) * fz, (1, 0): fx}       # weights of P00, P01, P10
+    nodes = [[R, (j + dj - 1) * CELL, (i + di - 1) * CELL] for di, dj in w]
+    lerp_z = j + fz * (1 - fx); lerp_x = i + fx
+    return list(w.values()), nodes, [R, lerp_z * CELL, lerp_x * CELL]
 
 
 if __name__ == '__main__':
@@ -58,13 +65,12 @@ if __name__ == '__main__':
         chosen = choose_members(int(key, 16), [(WAYPOINT, 1, 1, 1.0), (SHELTER, 1, 1, 1.0)], types)
         radii = [r_shop] + [r_rec[i] for i in chosen]
         P = recentre(A, [A] + place_members(A, radii), radii)[0]
-        fi, fj, nodes = spawn_inputs(P)
-        prep.append((key, A, P, cab, fi, fj, len(pts)))
-        pts += [A, P] + nodes
+        wts, nodes, at = spawn_inputs(P)
+        prep.append((key, A, P, cab, wts, len(pts)))
+        pts += [A, at] + nodes
     V = core_heights(pts)
-    for key, A, P, cab, fi, fj, o in prep:
-        b00, b10, b01 = V[o + 2][1], V[o + 3][1], V[o + 4][1]
-        spawn = V[o][0] + V[o + 1][1] - (b00 + fi * (b10 - b00) + fj * (b01 - b00))
+    for key, A, P, cab, wts, o in prep:
+        spawn = V[o][0] + V[o + 1][1] - sum(w * V[o + 2 + k][1] for k, w in enumerate(wts))
         n, F = facing(A, int(key, 16)); side = np.cross(n, F)
         crate = P / np.linalg.norm(P) * (R + spawn) + side * (ro[0] + 3.974) + n * 3.734 + F * (ro[2] - 5.0) + C
         pt = tuple(int(v) for v in np.floor(crate + 0.5))
