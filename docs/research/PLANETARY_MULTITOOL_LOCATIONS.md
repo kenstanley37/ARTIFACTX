@@ -393,3 +393,53 @@ shops: **members chosen 3/3 from the site key, positions 5/5 within 3 mm**, main
 
 Remaining for an exact cabinet: (1) L-system expansion of the planet's first shop record and its sample bounds (gives the
 radii, hence the shift, and the crate's local point); (2) the vertical rule; (3) the building basis on other cube faces.
+
+### L-system expander ported: every Vy'keen building layout and radius from the address (2026-11-06, build 184271)
+
+`scripts/research/region-generator/lsysport.py` (expander + sample bounds), checked by `lsyscheck.py` against the
+L-system manager's stored samples read live on Kaim 30/19 (`scripts/diagnostics/read_lsystem_samples.py`, read-only;
+data from the `LsysDump` tool): **24/24 layouts** (all 8 stored Vy'keen L-systems x 3 samples, 1,056 nodes in order,
+positions 0.0000 m, rotations 2e-6) and **22/24 radii exact**.
+
+- **Seeds.** The manager's stored list is static at 0x1472E8AF0 (+0x170, 0x2D0 per L-system; layout in the reader's
+  header). The registration seed of every path is the mixed seed of its first building record (stage seed 3 MWC, two
+  Voronoi draws, then two steps per record, as traced above): Shelter pair 0, Abandoned 4, Shop 8, RadioTower 14,
+  Observatory 17, Factory 21, Harvester 24, UnderwaterAbandoned 59 - 8/8. Samples use seed lo + 0 / 100 / 200.
+- **Rule merge.** Templates load first, the file on top; rules match by model (name kept from the first); Balance
+  appends new models to an inner rule, Prioritize puts them first, Replace removes the inner rule and appends it at the
+  end; the first BaseRule is the root (read off the manager's live merged table +0x140 / globals +0x150).
+- **Chain restrictions.** Every AtLeast global adds AtLeast 1 to its only producer reachable from the root, then to
+  that producer's producer, up to the root - appended even when the model already has a minimum. That is why the
+  shelter always builds two shacks: WEAPONTECHSTATION AtLeast 1 -> WALLPROPLINK -> SHACK gets a second AtLeast 1.
+- **GenerateStep.** Breadth-first queue. Per inner rule, the first active locator that is a direct child of the node
+  (or of its `Interior_` locator) and whose upper-cased name contains the LocatorType (filter 0x142D703B0) gets one pick
+  (0x142D851D0: first entry below a local or global minimum, else one draw `u * 100` on the manager's MWC over the
+  candidates weighted `p + pooled / n`; float32) and is switched off. The child goes on the locator; if it has a
+  matching locator of the opposite `_IN_`/`_OUT_` type (0x142D7A690; any type for plain names) it is aligned so that
+  locator lands on the parent's (`parent @ L @ inverse(C)`, no flip) and that locator is switched off (0x142D7AE60).
+- **Bounds and radius.** Each node model's meshes (scene MESH `AABBMIN/MAX`, mesh-local) are flattened into the model
+  frame with references included; that box's corners go through the node; Euler order R = Rx Ry Rz. Radius = max(half
+  the XZ diagonal, MinRadius 10). The stored sample is re-centred on its XZ bounds (live root node at minus the centre).
+  Bounding hulls and per-reference boxes were tried and are worse. Only the shelter's records 0/2 miss, by 5 mm
+  (21.383 / 21.260 vs 21.379 / 21.255; a cable mesh, rotated -77 deg about Z inside a -120 deg locator).
+
+**The shop.** Kaim's first shop record: seed `C9BC0BFCE72F16EF`, root room with CAPGROUND / CORRIDOR (long walls),
+INTERIOR / TECHSHOP (short), ROOFMODULE_SHOP (forced minima), radius **50.412 m** on all three samples (the XZ bounds
+are the fixed parts: landing pad door and corridor). Root offset (-6.348, 0, +13.389), so the crate, FLOORLAYOUT_NPC's
+`WEAPONSCRATE_` reference at (3.974, 3.734, -5.000) in the root room, sits at **side -2.374, forward +8.389** in the
+building frame (side = n x F). `shopcrate.py` runs the whole chain from the planet seed: shop 1 shifts **10.000 m**
+(measured 10.02) and the three predicted crates miss the cabinets by **0.31, 0.57, 0.37 m** horizontally (cabinet
+points are whole metres). Caveat: with only the Waypoint as member, the shift equals the Waypoint's radius whatever
+the shop radius is, so shop 1 checks the Waypoint; shops 2 and 3 (Waypoint + Shelter) are the ones that depend on the
+shop and shelter radii, and they agree through the crate.
+
+**Height: BuildingYOffset does not explain it.** Root heights needed (cabinet height above the base point minus the
+crate's 3.734) are 273.26 / 250.46 / 266.81 m; Core's `PlanetTerrain.Height` at the shifted building points gives
+274.24 / 249.90 / 264.55 (offsets -0.98, +0.56, +2.26). No constant (the 3.0 global included) fits a 3.2 m spread, and
+neither does min / mean / max of a 16-point ring at any radius 0-60 m plus a constant (best spread 2.45 m, beyond the
+~1 m whole-metre slack). The remaining height is most likely the game's full voxel terrain, which buildings re-ground
+on, not the heightfield Core reproduces.
+
+Remaining for an exact cabinet: the vertical rule (needs the voxel surface or the grounding call traced), other races'
+shops (Trader/Explorer layouts reference the crate several times: now just a run of `lsysport` with their L-system), the
+building basis on cube faces other than +X, and a Core (C#) port of the expander and the scene data in the catalog.
