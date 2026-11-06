@@ -508,3 +508,20 @@ from the address alone (site, members [Waypoint 12, Shelter 1], shift, radian fa
 So the vertical rule is: building origin = shifted point at the base radius raised to `130048 + Height(A)`. The earlier
 "unexplained" height offsets came from two of the three old cabinet points: cabinet 2 is the predicted crate rounded on
 every axis, cabinets 1 and 3 are 1.9 m and 4.9 m off vertically (found by a near-player search; likely false matches).
+
+### The cabinet seed uses the building's spawn-time height (2026-11-06, live check in the owner's shop)
+
+The owner's cabinet in shop 404DA563E9C5EC88 offered **Parallel Neutron Reflector, C, 333.3 / 203.7, 4 tech
+(SCAN1, SCANBINOC1, LASER, STUN_GREN)** (screenshot, reload body = planet 1). The predicted crate (grounded) rounds
+to (-123844, 83305, -137661), which gives the right tool, class and damage but 249.2 scan / 5 tech. The only whole-metre
+point within 6 m that reproduces the screenshot exactly is (-123846, 83303, -137661): the crate placed with the
+instance's **stored spawn pose** (record +0x00, 2.357 m below the grounded node) instead of the ray-grounded one. So the
+cabinet is generated when the building spawns (0x1412B9BA0), before `PollToUpgradeLandmarks` moves it onto the ground.
+
+Spawn-time heights: buildings outside clusters are stored at Core's `Height` at their point (17/17 within 0.01 m); the
+three buildings of this shop's cluster at 269.828 / 269.619 / 269.680 while the final surface is 272.19. They come from
+`0x141299710`, which bilinearly samples the region's generated voxel height grid (+0x1D0, region resolution +0x84..+0x88)
+and then runs the cluster generator. The column pass itself is flat at 272.189 at every LOD tried (0, 1, 3, 4, 5), so the
+2.4 m comes from the region grid's coarse sampling of the smoothed building pad (`0x1412B13F0`, smoothing radius 150 m /
+height 200 m on Kaim). Next: dump the live region objects around the shop (grid, LOD, dimensions) and emulate
+`0x141299710` on them; the old cabinets 1 and 3 (1.9 / 4.9 m) are the same spawn-height effect.
