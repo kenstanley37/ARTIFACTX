@@ -44,6 +44,8 @@ public static partial class CatalogSteps
     ///   crashed ships included) is built from.
     /// - "BUILDINGOVERRIDES": JSON array of Core's BuildingOverrideRule (planetbuildingtable.mbin): the portal,
     ///   shelter, base, distress signal and start spawn rules PlanetOverridePlacement uses.
+    /// - "BUILDINGLAYOUTS": JSON in the shape of Core's BuildingLayoutTables - the building table's L-systems with their
+    ///   templates and the model scenes they place (locators, mesh boxes), what BuildingLayoutGenerator expands.
     /// - "STATIONEQUIPMENT": JSON in the shape of Core's StationEquipmentTables - solar layout
     ///   globals, station scene roots, and verified standard TypeB WeaponTerminal transforms.
     /// - "EXTRACTIONTABLES": JSON in the shape of Core's ExtractionTables - hotspot placement,
@@ -121,6 +123,8 @@ public static partial class CatalogSteps
                     d.PlanetRestrictions.RequiresRelicWorld, d.PlanetRestrictions.RequiresScrapWorld, d.PlanetRestrictions.RequiresWater,
                     d.EnabledWhenPlanetHasNoNPCs)).ToArray()) });
 
+        if (BuildingLayouts(Decode) is { } layouts)
+            rows.Add(new CatalogItem { GameId = "BUILDINGLAYOUTS", NameEnglish = "BuildingLayoutTables", DescriptionEnglish = JsonSerializer.Serialize(layouts) });
         if (BuildingOverrides(Decode) is { } overrides)
             rows.Add(new CatalogItem { GameId = "BUILDINGOVERRIDES", NameEnglish = "BuildingOverrideRules", DescriptionEnglish = JsonSerializer.Serialize(overrides) });
 
