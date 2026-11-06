@@ -164,10 +164,32 @@ region = R['region']
 grid_ptr = struct.unpack('<Q', bytes(mu.mem_read(region + 0x1D0, 8)))[0]
 stride = R['mem'][region][0x86]
 mu.mem_write(grid_ptr, b'\0' * 4 * stride * stride)
+captured = {}
+def on_density(mu, addr, size, _):
+    rsp = mu.reg_read(X.UC_X86_REG_RSP)
+    tbl = struct.unpack('<Q', bytes(mu.mem_read(rsp + 0x40, 8)))[0]   # 8th argument: the column table
+    n = stride * stride
+    def arr(off, k=1):
+        p = struct.unpack('<Q', bytes(mu.mem_read(tbl + off, 8)))[0]
+        return list(struct.unpack(f'<{n * k}f', bytes(mu.mem_read(p, 4 * n * k)))) if p else None
+    captured.update(pads=arr(0x390, 4), l0=arr(0x8), l6=arr(0xC8), l7=arr(0xE8), r=arr(0x3C0))
+mu.hook_add(UC_HOOK_CODE, on_density, begin=0x1412B1D60, end=0x1412B1D60)
 call(0x141294A00, (region,))
+json.dump(captured, open(sys.argv[4] + '.table.json', 'w'))
 grid = struct.unpack(f'<{stride * stride}f', bytes(mu.mem_read(grid_ptr, 4 * stride * stride)))
 json.dump({'grid': grid, 'unmapped': [(hex(a), hex(r)) for a, r in unmapped]}, open(sys.argv[4], 'w'))
 import numpy as np
 g = np.array(grid).reshape(stride, stride); live = np.array(R['grid'])
 print('emulated vs live grid: max |diff|', float(np.abs(g - live).max()), ' unmapped', len(unmapped))
 print(np.round(g[:4, :6], 3)); print(np.round(live[:4, :6], 3))
+if os.environ.get('DUMPCOL'):
+    # density columns: voxel words at grid header +0 (u32 each, density in the high u16), strides +8 (row) / +0x10 (layer)
+    hdr = struct.unpack('<Q', bytes(mu.mem_read(region + 0x60, 8)))[0]
+    vptr, row, layers, layer = struct.unpack('<QiiI', bytes(mu.mem_read(hdr, 20)))
+    cols = {}
+    for ij in os.environ['DUMPCOL'].split(';'):
+        i, j = map(int, ij.split(','))
+        q = [struct.unpack('<H', bytes(mu.mem_read(vptr + 2 + 4 * (k * layer + i * row + j), 2)))[0] for k in range(layers)]
+        cols[ij] = q
+    json.dump(cols, open(sys.argv[4] + '.cols.json', 'w'))
+    print('row', row, 'layer', layer, 'layers', layers)

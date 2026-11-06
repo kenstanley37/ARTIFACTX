@@ -557,3 +557,21 @@ So the cabinet pipeline from the address is: site -> layout -> cluster -> **Far-
 crate (root offset + crate locator) -> whole-metre point -> seed. Porting it to Core needs the Far-LOD voxel region
 generation (density from the noise layers incl. grid/feature layers if they reach the surface, building pads and the
 `0x1412B13F0` smoothing, and the grid's height extraction) - the emulator is the reference to port against.
+
+### Spawn height from the address: 3/4 cabinets exact (2026-11-06)
+
+The emulated Far region's column table (hooked at 0x1412B1D60) shows its nodes: node (i, j) sits at cube z = origin +
+(i - 1) * 16 m and cube y = origin + (j - 1) * 16 m (the driver's border cell; Core's `BaseHeight` there equals the
+table to 0.001), and inside the cluster's flat zone the node surface is exactly `Height(A)` (pad + base term, e.g.
+20.26 + 251.93 = 272.19). The grid stores surface minus the node's own base term, and the density is linear across the
+8 m layers (crossing 0.5 where the grid says), so the extraction 0x1412B3370 adds no error. The 2.4 m comes from the
+creator: it reads grid index floor(local / 16 m), which holds the node **one cell back**, interpolates on the plane of
+corners (i, j), (i+1, j), (i, j+1) and adds `BaseHeight` at the building. In Core terms:
+
+    spawn = Height(A) + BaseHeight(p) - plane(BaseHeight at nodes (i-1, j-1), (i, j-1), (i-1, j))
+
+`shopspawn.py` (with the `HeightProbe` tool for Core heights) runs it end to end from the planet seed: spawn heights
+within 2.6 cm of the live instances, and the shop crates reproduce **3 of 4 owner cabinets exactly** - the live shop,
+old cabinet 2 and old cabinet 3 (whose spawn is 4.5 m above H(A)); cabinet 1 lands 1 cm across a rounding boundary
+(x -107157.51 vs -107157; the game works in float32, ~0.8 cm at these coordinates). Open: float32-faithful arithmetic
+for boundary cases, buildings near the edge of the flat zone (shaped pads), faces other than +X, and the Core port.
