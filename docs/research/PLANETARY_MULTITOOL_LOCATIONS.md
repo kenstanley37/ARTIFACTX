@@ -591,3 +591,12 @@ fx, fz = frac(g / cell) - the index is divided by the cell size a second time - 
 so `BaseHeight` is added at the lerped, unshifted position, not at the building. With the live Far grid this gives the
 members to -1.8 / -3.3 / -0.0 cm; in Core terms (`shopspawn.py`) the live shop spawns at 269.821 vs 269.828, and the
 cabinets stay 3/4 exact with cabinet 1 2 cm across its boundary. The last centimetres still need the float32 path.
+
+Grid quantization (2026-11-06): in a flat zone a Far node stores the building density 0.75 * (s - y) * (-1/128) offset
+to 0.5 (s = node surface above its BaseHeight, y = layer height, 8 m per layer from the base), quantized per layer as
+trunc(((0.5 + d) / 5 + 0.5) * 65535) - **exact** against the emulated region's stored words (3/3 flat-zone nodes, 14
+layers each). The extraction (crossing of 0.5) then puts the grid up to ~1.3 cm below s. `shopspawn.py` now models it
+(`far_grid_value`); with the game's own sampling on the live grid (`emu_far.py SAMPLE=`) the members come out at
+269.8203 / 269.6094 / 269.6797 against the stored 269.828 / 269.619 / 269.680 - the last mm-cm is the float32
+system-space position the instance is stored in. Cabinets stay 3/4 exact; cabinet 1 still needs +2 cm in x (likely
+Core's Height(A) there, or float32 position) and needs a live check at that shop.

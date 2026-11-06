@@ -30,6 +30,28 @@ def core_heights(points, address='1FA00016452DB', body='1'):
         return json.load(open(dst))
 
 
+F32 = np.float32
+QSCALE = F32(1.5259021893143654e-05)   # 0x144BF35D4, 1 / 65535
+
+
+def far_grid_value(surface):
+    """A Far grid node's stored height (local units) for a column whose surface is `surface` metres above the node's
+    BaseHeight, inside a cluster's flat zone: the building density 0.75 * (surface - y) scaled by -1/128 (0x1412B13F0,
+    0x1412B1760: smoothing radius 150 / height 200), offset to 0.5, quantized per 8 m layer as
+    trunc(((0.5 + d) / 5 + 0.5) * 65535) (exact against the emulated region, 3/3 flat-zone nodes), then extracted by
+    0x1412B3370: crossing of the decoded value 0.5 between layers k and k+1, times the 2-unit layer height."""
+    s = F32(surface)
+    def decoded(k):
+        q = int(((F32(0.5) + (s - F32(8 * k)) * (F32(0.75) / F32(128))) / F32(5) + F32(0.5)) * F32(65535))
+        return (F32(q) * QSCALE - F32(0.5)) * F32(5)
+    k = 0
+    while decoded(k + 1) >= F32(0.5):
+        k += 1
+    dk, dk1 = decoded(k), decoded(k + 1)
+    t = min(max((dk - F32(0.5)) / (dk - dk1), F32(0)), F32(1))
+    return float((t + F32(k)) * F32(2))
+
+
 def spawn_inputs(p):
     """0x1412B7F70's sampling (read from the machine code): cell index g = cube / 16 m; corners P00 (i, j), P01
     (i, j+1), P10 (i+1, j) carry the grid value of the node one cell back; the point is lerp(lerp(P00, P01, fz), P10,
@@ -70,7 +92,8 @@ if __name__ == '__main__':
         pts += [A, at] + nodes
     V = core_heights(pts)
     for key, A, P, cab, wts, o in prep:
-        spawn = V[o][0] + V[o + 1][1] - sum(w * V[o + 2 + k][1] for k, w in enumerate(wts))
+        grid = [far_grid_value(V[o][0] - V[o + 2 + k][1]) for k in range(3)]       # nodes in the flat zone
+        spawn = sum(w * g for w, g in zip(wts, grid)) * 4 + V[o + 1][1]
         n, F = facing(A, int(key, 16)); side = np.cross(n, F)
         crate = P / np.linalg.norm(P) * (R + spawn) + side * (ro[0] + 3.974) + n * 3.734 + F * (ro[2] - 5.0) + C
         pt = tuple(int(v) for v in np.floor(crate + 0.5))

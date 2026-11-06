@@ -193,3 +193,32 @@ if os.environ.get('DUMPCOL'):
         cols[ij] = q
     json.dump(cols, open(sys.argv[4] + '.cols.json', 'w'))
     print('row', row, 'layer', layer, 'layers', layers)
+if os.environ.get('SAMPLE'):
+    # 0x1412B7F70's spawn sampling done with the game's transforms on the regenerated region (float32 in between):
+    # g = local / (cell, cell height, cell); corners (i,j), (i,j+1), (i+1,j); point lerp(lerp(P00,P01,fz),P10,fx) with
+    # fx, fz = frac(g / cell); world = 0x141291310(point); height = |world| - R.
+    import numpy as np
+    f32 = np.float32
+    b = R['mem'][region]
+    cx = f32(b[0x84]) / f32(b[0x86] - b[0x88]); cy = f32(b[0x85]) / f32(b[0x87] - (b[0x88] >> 1))
+    row = struct.unpack('<i', bytes(mu.mem_read(struct.unpack('<Q', bytes(mu.mem_read(region + 0x60, 8)))[0] + 8, 4)))[0]
+    S = alloc(0x100)
+    for p in json.load(open(os.environ['SAMPLE'])):
+        mu.mem_write(S, struct.pack('<4f', *p, 1.0))
+        call(0x141291DF0, (region, S + 0x40, S))
+        L = np.array(struct.unpack('<4f', bytes(mu.mem_read(S + 0x40, 16))), dtype=f32)
+        g = L / np.array([cx, cy, cx, 1], dtype=f32)
+        i, j = int(np.floor(g[0])), int(np.floor(g[2]))
+        H = lambda a, c: f32(grid[a * row + c]) / cy
+        P00 = np.array([f32(i) * cx, H(i, j) * cy, f32(j) * cx, 1], dtype=f32)
+        P01 = np.array([f32(i) * cx, H(i, j + 1) * cy, f32(j + 1) * cx, 1], dtype=f32)
+        P10 = np.array([f32(i + 1) * cx, H(i + 1, j) * cy, f32(j) * cx, 1], dtype=f32)
+        gz, gx = g[2] / cx, g[0] / cx
+        fz, fx = gz - f32(np.floor(gz)), gx - f32(np.floor(gx))
+        a = (P01 - P00) * fz + P00
+        pt = (P10 - a) * fx + a
+        mu.mem_write(S + 0x80, pt.astype('<f4').tobytes()); mu.mem_write(S + 0xC0, struct.pack('<4f', 0, 1, 0, 0))
+        call(0x141291310, (region, S + 0x40, S + 0x80, S + 0xC0))
+        w = np.array(struct.unpack('<4f', bytes(mu.mem_read(S + 0x40, 16))), dtype=f32)
+        print('   L', np.round(L, 3), 'g', np.round(g, 3), 'ij', i, j, 'f', round(float(fx), 3), round(float(fz), 3), 'pt', np.round(pt, 3), 'w', np.round(w, 2))
+        print(f'point {np.round(p, 2)}: game sampling height {float(np.sqrt(np.sum(w[:3] * w[:3], dtype=f32))) - 130048:.4f}')
