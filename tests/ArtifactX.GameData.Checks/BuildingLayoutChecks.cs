@@ -168,12 +168,30 @@ internal static class BuildingLayoutChecks
             throw new InvalidOperationException($"Generated planet centre {context.PlanetCentre} != (-224000, 0, -134000)");
         Console.WriteLine($"RecordClasses: {context.RecordClasses.Count} records on Kaim 30/I9; first-record indices [{string.Join(", ", actualFirstIndices)}] match all 8 live L-systems.");
 
+        var seeds = SystemGenerator.Bodies(code, galaxy).PlanetSeeds;
+        var types = PlanetGenerator.Generate(code, galaxy, biomes);
+        var facts = PlanetBuildingSites.FactsFor(code, galaxy, planetIndex, biomes, profiles)!;
+        var (_, sectorSeed) = PlanetBuildingSites.VoronoiSeeds(seeds[planetIndex]);
+        int divisions = PlanetBuildingSites.Divisions(context.PlanetRadius);
+        var slots = PlanetBuildingSites.Slots(placement, facts);
+        double latRad = 39.73 * Math.PI / 180.0, lonRad = 92.10 * Math.PI / 180.0;
+        var dir = new System.Numerics.Vector3(
+            (float)(Math.Cos(latRad) * Math.Sin(lonRad)),
+            (float)Math.Sin(latRad),
+            (float)(Math.Cos(latRad) * Math.Cos(lonRad)));
+        var portalSites = PlanetBuildingSites.SitesNear(dir, divisions, context.PlanetRadius, sectorSeed, slots, cls => cls == 5, 20)
+            .Where(s => PlanetBuildingSites.GroundAllows(context.Terrain, s.Point, context.PlanetRadius, types[planetIndex].Prime, 40f, false, types[planetIndex].Biome == 14))
+            .ToDictionary(s => s.Key, s => ((double)s.Point.X, (double)s.Point.Y, (double)s.Point.Z));
+
         var shops = new (ulong Key, (double X, double Y, double Z) Pos, double? LiveSpawnHeight, (int X, int Y, int Z) WantCabinet, bool NearEdge)[]
         {
             (0x404DA563E9C5EC88UL, (99954.344, 83115.625, -3661.159), 269.828, (-123846, 83303, -137661), false),
             (0x8924A2E5C39F854DUL, (116591.49, -15370.817, 55521.562), null, (-107157, -15386, -78362), true),
             (0x66386EC5762B09FBUL, (114312.875, -17583.473, 59463.184), null, (-109470, -17596, -74402), false),
             (0x627968CDF4A27660UL, (117627.62, -9044.393, 54721.32), null, (-106129, -9033, -79157), false),
+            (0x741BF5DCCD41B78AUL, portalSites[0x741BF5DCCD41B78AUL], null, (-124034, 83512, -138752), false),
+            (0x31CCA8AE9D607F54UL, portalSites[0x31CCA8AE9D607F54UL], null, (-120898, 79330, -140789), false),
+            (0xD2D981D73443CF98UL, portalSites[0xD2D981D73443CF98UL], null, (-123713, 83045, -131786), false),
         };
 
         int exactCabinets = 0;
@@ -193,8 +211,8 @@ internal static class BuildingLayoutChecks
             Console.WriteLine($"Shop 0x{s.Key:X16}: H(A) {cab.SiteHeight:F3} spawn {cab.SpawnHeight:F3}; cabinet {cab.CabinetPoint} seed 0x{cab.CabinetSeed:X16}" +
                 (cab.AlternateNearEdge is { } a ? $" (near-edge alt {a.Point} -> 0x{a.Seed:X16})" : ""));
         }
-        if (exactCabinets != 3)
-            throw new InvalidOperationException($"Expected 3/4 exact cabinets and 1 near-edge, got {exactCabinets}/4 exact.");
-        Console.WriteLine("Cabinets: 3/4 exact, 4th (0x8924A2E5C39F854D) ~2 cm across rounding edge in X with exact AlternateNearEdge.");
+        if (exactCabinets != 6)
+            throw new InvalidOperationException($"Expected 6/7 exact cabinets and 1 near-edge, got {exactCabinets}/7 exact.");
+        Console.WriteLine("Cabinets: 6/7 exact, 7th (0x8924A2E5C39F854D) ~2 cm across rounding edge in X with exact AlternateNearEdge.");
     }
 }
