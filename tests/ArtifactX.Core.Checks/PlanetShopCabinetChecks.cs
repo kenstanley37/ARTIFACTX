@@ -71,6 +71,26 @@ internal static class PlanetShopCabinetChecks
             double err = Math.Sqrt(Math.Pow(fwd.X - wantFwd.X, 2) + Math.Pow(fwd.Y - wantFwd.Y, 2) + Math.Pow(fwd.Z - wantFwd.Z, 2));
             if (err >= 1e-4) throw new InvalidOperationException($"Facing error {err:E2} for key 0x{key:X16}.");
         }
-        Console.WriteLine("PASS: planet building record seeds, cluster member selection/placement/re-centring and radian facing match live Kaim 30/I9 data.");
+
+        // RecordClasses: verify the three allowed branches of 0x1416445F0 (density/cluster, mask 0x200084, overrides > 0).
+        var dummyPlacement = new BuildingClassPlacement?[17];
+        for (int c = 0; c < dummyPlacement.Length; c++)
+            dummyPlacement[c] = new BuildingClassPlacement([0f, 0f, 0f, 0f], false, false, false, false, true);
+        dummyPlacement[5] = new BuildingClassPlacement([0f, 0f, 0f, 1f], false, false, false, false, true); // Shop: density > 0
+        var dummyRules = new BuildingRecordRule[17];
+        for (int c = 0; c < dummyRules.Length; c++)
+            dummyRules[c] = new BuildingRecordRule(0, -1, 0, 0, false);
+        dummyRules[2] = new BuildingRecordRule(1, -1, 3, 0, false);   // Shelter: 1 override + 3 models = 4
+        dummyRules[5] = new BuildingRecordRule(0, -1, 3, 0, false);   // Shop: 3 models
+        dummyRules[7] = new BuildingRecordRule(0, -1, 1, 0, false);   // Waypoint (mask 0x200084): 1 model even with 0 density
+        dummyRules[16] = new BuildingRecordRule(1, -1, 1, 0, false);  // Portal: overrides > 0 allows NumModels (1 + 1 = 2)
+        var dummyTables = new BuildingLayoutTables([], [], 10f, RecordRules: dummyRules);
+        int[] dummyClasses = PlanetBuildingSites.RecordClasses(
+            dummyPlacement, dummyTables, new BuildingPlanetFacts(3, false, false, false, true), biome: 0);
+        int[] wantDummyClasses = [2, 2, 2, 2, 5, 5, 5, 7, 16, 16];
+        if (!dummyClasses.SequenceEqual(wantDummyClasses))
+            throw new InvalidOperationException($"RecordClasses branch check failed: [{string.Join(", ", dummyClasses)}]");
+
+        Console.WriteLine("PASS: planet building record classes/seeds, cluster member selection/placement/re-centring and radian facing match live Kaim 30/I9 data.");
     }
 }

@@ -129,7 +129,18 @@ internal static class BuildingLayoutChecks
             || Math.Abs(recentred1.Z - site1.Z - 1.50) > 0.02)
             throw new InvalidOperationException($"Shop 1 re-centred shift differs from live: {recentred1}");
 
-        // Step 5 & 6: Spawn height and cabinet point/seed on Kaim 30/I9 (cube face +X).
+        // Verify Trader (race 0), Warrior (race 1) and Explorer (race 2) Shop L-systems all resolve a WeaponCrate.
+        foreach (int race in new[] { 0, 1, 2 })
+        {
+            string raceShopPath = BuildingLayoutGenerator.LSystemPath(tables, race, buildingClass: 5)
+                ?? throw new InvalidOperationException($"Race {race} Shop L-system path missing from BUILDINGLAYOUTS.");
+            var raceShopLayout = BuildingLayoutGenerator.Generate(tables, raceShopPath, BuildingLayoutGenerator.SampleSeed(recordSeeds[8], 0))
+                ?? throw new InvalidOperationException($"Race {race} Shop layout failed.");
+            if (raceShopLayout.WeaponCrate is null)
+                throw new InvalidOperationException($"Race {race} ({raceShopPath}) Shop layout did not resolve a WeaponCrate.");
+        }
+
+        // Step 5 & 6: PreparePlanet + ForShopSite on Kaim 30/I9 (cube face +X).
         T ReadRow<T>(string id)
         {
             using var cmd = connection.CreateCommand();
@@ -139,22 +150,23 @@ internal static class BuildingLayoutChecks
         }
         var biomes = ReadRow<BiomeTables>("BIOMETABLES");
         var profiles = ReadRow<PlanetProfileTables>("PLANETPROFILE");
+        var placement = ReadRow<BuildingClassPlacement[]>("BUILDINGPLACEMENT");
+        var station = ReadRow<StationEquipmentTables>("STATIONEQUIPMENT");
         const ulong address = 0x1FA00016452DBUL;
         const ulong code = (((address >> 40) & 0xFFF) << 32) | (address & 0xFFFFFFFF);
         const int galaxy = (int)((address >> 32) & 0xFF);
         const int planetIndex = 0;
-        var types = PlanetGenerator.Generate(code, galaxy, biomes);
-        var seeds = SystemGenerator.Bodies(code, galaxy).PlanetSeeds;
-        var body = types[planetIndex];
-        var attrs = SystemGenerator.Attributes(code, galaxy);
-        float planetRadius = PlanetBuildingSites.Radius(body.BodyClass)
-            ?? throw new InvalidOperationException("Failed to determine Kaim 30/I9 radius.");
-        var tt = profiles.Objects?.Terrain ?? throw new InvalidOperationException("Terrain tables missing from PLANETPROFILE.");
-        var choice = PlanetProfileGenerator.TerrainChoiceFor(seeds[planetIndex], body, (int)attrs.Star, profiles)
-            ?? throw new InvalidOperationException("Failed to choose Kaim 30/I9 terrain.");
-        var terrain = PlanetTerrain.Generate(seeds[planetIndex], tt.Settings[choice.SettingIndex], choice, tt.SeaStandard, body.BodyClass == 3, body.DeadToWeird)
-            ?? throw new InvalidOperationException("Failed to generate Kaim 30/I9 terrain.");
-        var planetCentre = (-224000.0, 0.0, -134000.0);
+
+        var context = PlanetShopCabinetGenerator.PreparePlanet(
+            code, galaxy, planetIndex, biomes, profiles, placement, tables, station.SolarLayout!)
+            ?? throw new InvalidOperationException("Failed to prepare Kaim 30/I9 shop cabinet context.");
+        int[] expectedFirstRecords = [2, 3, 5, 9, 10, 12, 13, 31];
+        int[] actualFirstIndices = expectedFirstRecords.Select(c => Array.IndexOf(context.RecordClasses.ToArray(), c)).ToArray();
+        if (!actualFirstIndices.SequenceEqual(liveRecordIndices))
+            throw new InvalidOperationException($"Generated first-record indices [{string.Join(", ", actualFirstIndices)}] != live [{string.Join(", ", liveRecordIndices)}]");
+        if (context.PlanetCentre != (-224000.0, 0.0, -134000.0))
+            throw new InvalidOperationException($"Generated planet centre {context.PlanetCentre} != (-224000, 0, -134000)");
+        Console.WriteLine($"RecordClasses: {context.RecordClasses.Count} records on Kaim 30/I9; first-record indices [{string.Join(", ", actualFirstIndices)}] match all 8 live L-systems.");
 
         var shops = new (ulong Key, (double X, double Y, double Z) Pos, double? LiveSpawnHeight, (int X, int Y, int Z) WantCabinet, bool NearEdge)[]
         {
@@ -168,8 +180,7 @@ internal static class BuildingLayoutChecks
         foreach (var s in shops)
         {
             ulong wantSeed = MultiToolSiteGeneration.SeedForPosition(new System.Numerics.Vector3(s.WantCabinet.X, s.WantCabinet.Y, s.WantCabinet.Z));
-            var cab = PlanetShopCabinetGenerator.ForShopSite(
-                tables, terrain, planetRadius, planetCentre, s.Key, s.Pos, shopLayout, shopCluster, recordClasses, recordRadii)
+            var cab = PlanetShopCabinetGenerator.ForShopSite(context, s.Key, s.Pos)
                 ?? throw new InvalidOperationException($"No cabinet for shop 0x{s.Key:X16}");
             if (s.LiveSpawnHeight is { } liveSpawn && Math.Abs(cab.SpawnHeight - liveSpawn) > 0.03)
                 throw new InvalidOperationException($"Shop 0x{s.Key:X16} spawn height error {Math.Abs(cab.SpawnHeight - liveSpawn):F4} m > 0.03 m (got {cab.SpawnHeight:F3}, live {liveSpawn:F3})");

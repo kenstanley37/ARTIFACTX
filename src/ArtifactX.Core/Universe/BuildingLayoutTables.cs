@@ -19,7 +19,11 @@ public sealed record BuildingLayoutTables(
     float ChanceOfAddingShelter = 0.75f,
     Dictionary<string, BuildingClusterEntry[]>? ClusterLayouts = null,
     Dictionary<int, string>? ClassClusterLayouts = null,
-    string[][][]? BuildingLSystems = null);
+    string[][][]? BuildingLSystems = null,
+    BuildingRecordRule[]? RecordRules = null);
+
+/// <summary>One building class's record-count parameters in GcBuildingDefinitionTable (0x14163B270 / 0x1416445F0).</summary>
+public sealed record BuildingRecordRule(int Overrides, int OverridesWaterworld, int NumModels, int WaterPlacement, bool HasWfc, float OverrideRadius = 0f);
 
 /// <summary>One entry of a GcBuildingClusterLayout: the member building class, min/max count and probability.</summary>
 public sealed record BuildingClusterEntry(int BuildingClass, int Min, int Max, float Probability);

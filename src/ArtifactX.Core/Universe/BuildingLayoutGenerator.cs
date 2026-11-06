@@ -115,6 +115,12 @@ public static class BuildingLayoutGenerator
             crateRoot = cr;
             crate = (cr.X + rootOffset.X, cr.Y, cr.Z + rootOffset.Z);
         }
+        else if (nodes.FirstOrDefault(n => n.Model.Contains("CRATE_WEAPON", StringComparison.Ordinal)) is { } directCrate)
+        {
+            var cr = directCrate.World.Position;
+            crateRoot = cr;
+            crate = (cr.X + rootOffset.X, cr.Y, cr.Z + rootOffset.Z);
+        }
         return new BuildingLayout(
             nodes.Select(n => new BuildingLayoutNode(n.Model, n.World, n.Parent)).ToArray(),
             min, max, radius, rootOffset, crateRoot, crate);

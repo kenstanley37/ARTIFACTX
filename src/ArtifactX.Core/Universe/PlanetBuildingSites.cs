@@ -99,6 +99,48 @@ public static class PlanetBuildingSites
         return seeds;
     }
 
+    /// <summary>The building classes of a planet's variant records in 0x14163B270 registration order (class 0..62:
+    /// overrides(c) + (allowed(c) ? NumModelsToGenerate(c) : 0)). Each entry consumes one seed from
+    /// <see cref="RecordSeeds"/>. Checked 2026-11-06 against Kaim 30/19's 8 live Vy'keen L-system registration seeds
+    /// (records 0, 4, 8, 14, 17, 21, 24, 59) and cluster member indices (Shelter 0..3, Shop 8..10, Waypoint 12).</summary>
+    public static int[] RecordClasses(
+        IReadOnlyList<BuildingClassPlacement?> placement,
+        BuildingLayoutTables layoutTables,
+        BuildingPlanetFacts planet,
+        int biome,
+        bool noWater = false)
+    {
+        if (layoutTables.RecordRules is not { } rules) return [];
+        const int shelter = 2, waypoint = 7, landingPad = 21, underwaterOnly = 3;
+        var clusterFlagged = layoutTables.ClusterLayouts?.Values
+            .SelectMany(entries => entries)
+            .Select(e => e.BuildingClass)
+            .ToHashSet() ?? [];
+        var records = new List<int>();
+        bool waterworld = biome == Waterworld;
+        for (int c = 0; c < placement.Count && c < rules.Length; c++)
+        {
+            if (placement[c] is not { } row) continue;
+            var rule = rules[c];
+            bool restrictionsOk = (!row.RequiresCorruptSentinels || planet.CorruptSentinels)
+                && (!row.RequiresRelicWorld || planet.RelicWorld)
+                && (!row.RequiresScrapWorld || planet.ScrapWorld)
+                && (!row.RequiresWater || planet.Water);
+            if (!restrictionsOk) continue;
+            bool npcOk = row.EnabledWhenPlanetHasNoNPCs || planet.HasNpcs;
+            bool waterOk = rule.WaterPlacement != underwaterOnly || !noWater;
+            int overrides = npcOk && waterOk
+                ? Math.Max(0, waterworld && rule.OverridesWaterworld >= 0 ? rule.OverridesWaterworld : rule.Overrides)
+                : 0;
+            bool densityAllowed = ((npcOk && planet.DensityLevel < row.Density.Length && row.Density[planet.DensityLevel] > 0f)
+                || clusterFlagged.Contains(c)) && planet.DensityLevel != GasGiant && rule.NumModels > 0;
+            bool allowed = densityAllowed || c is shelter or waypoint or landingPad || overrides > 0;
+            int models = !rule.HasWfc && allowed ? Math.Max(0, rule.NumModels) : 0;
+            for (int k = 0; k < overrides + models; k++) records.Add(c);
+        }
+        return records.ToArray();
+    }
+
     private static Mwc VoronoiRng(ulong planetSeed, out int pointSeed, out int sectorSeed)
     {
         var rng = Mwc.Start(StageSeed(planetSeed, 3));

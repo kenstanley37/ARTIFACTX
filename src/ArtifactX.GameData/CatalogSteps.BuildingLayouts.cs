@@ -102,8 +102,18 @@ public static partial class CatalogSteps
                 .Select(b => (b?.LSystem ?? []).Select(f => PathOf(f?.Value)).ToArray())
                 .ToArray())
             .ToArray();
+        var recordRules = (table.BuildingPlacement ?? [])
+            .Select((d, c) => new BuildingRecordRule(
+                d.NumOverridesToGenerate,
+                d.NumOverridesToGenerateWaterworlds,
+                d.NumModelsToGenerate,
+                (int)d.FlattenType.WaterPlacement,
+                (table.BuildingFiles ?? []).Any(r => c < (r?.BuildingFiles?.Length ?? 0)
+                    && (r!.BuildingFiles[c]?.WFC ?? []).Any(f => !string.IsNullOrEmpty(f?.Value))),
+                d.OverrideRadius))
+            .ToArray();
 
-        return new BuildingLayoutTables(lsystems, scenes, minRadius, chanceOfAddingShelter, clusterLayouts, classClusters, buildingLSystems);
+        return new BuildingLayoutTables(lsystems, scenes, minRadius, chanceOfAddingShelter, clusterLayouts, classClusters, buildingLSystems, recordRules);
     }
 
     /// <summary>The box around a model's MESH AABBs in its own frame, every mesh of REFERENCE sub-scenes taken through

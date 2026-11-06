@@ -22,6 +22,17 @@ public sealed record PlanetShopCabinet(
     ulong CabinetSeed,
     ((int X, int Y, int Z) Point, ulong Seed)? AlternateNearEdge = null);
 
+/// <summary>Precomputed planet state needed to predict shop cabinets across sites on a single planet.</summary>
+public sealed record PlanetShopCabinetContext(
+    BuildingLayoutTables LayoutTables,
+    PlanetTerrainData Terrain,
+    float PlanetRadius,
+    (double X, double Y, double Z) PlanetCentre,
+    BuildingLayout ShopLayout,
+    IReadOnlyList<BuildingClusterEntry> ClusterLayout,
+    IReadOnlyList<int> RecordClasses,
+    IReadOnlyDictionary<int, double> RecordRadii);
+
 /// <summary>
 /// Spawn height of a cluster building on the Far terrain region and the shop weapon crate's whole-metre point and seed
 /// (NMS.exe build 184271, ported from scripts/research/region-generator/shopspawn.py;
@@ -117,6 +128,101 @@ public static class PlanetShopCabinetGenerator
         }
         return (hA, gridSum * 4.0 + bAt);
     }
+
+    /// <summary>Prepares a planet's shop layout, cluster member radii, terrain and floored solar-system centre from its
+    /// portal code, galaxy and planet index.</summary>
+    public static PlanetShopCabinetContext? PreparePlanet(
+        ulong portalCode,
+        int galaxy,
+        int planetIndex,
+        BiomeTables biomes,
+        PlanetProfileTables profiles,
+        IReadOnlyList<BuildingClassPlacement?> placement,
+        BuildingLayoutTables layoutTables,
+        SolarLayoutTables solarLayoutTables)
+    {
+        var types = PlanetGenerator.Generate(portalCode, galaxy, biomes);
+        var seeds = SystemGenerator.Bodies(portalCode, galaxy).PlanetSeeds;
+        if (planetIndex < 0 || planetIndex >= types.Length || planetIndex >= seeds.Length) return null;
+        var body = types[planetIndex];
+        ulong planetSeed = seeds[planetIndex];
+        if (PlanetBuildingSites.Radius(body.BodyClass) is not { } planetRadius) return null;
+        if (PlanetBuildingSites.FactsFor(portalCode, galaxy, planetIndex, biomes, profiles) is not { } facts) return null;
+        if (profiles.Objects?.Terrain is not { } tt) return null;
+        var attrs = SystemGenerator.Attributes(portalCode, galaxy);
+        if (PlanetProfileGenerator.TerrainChoiceFor(planetSeed, body, (int)attrs.Star, profiles) is not { } choice) return null;
+        if (PlanetTerrain.Generate(planetSeed, tt.Settings[choice.SettingIndex], choice, tt.SeaStandard, body.BodyClass == 3, body.DeadToWeird) is not { } terrain) return null;
+        if (SolarLayoutGeneration.ForSystem(portalCode, galaxy, solarLayoutTables, placeMoons: true) is not { } solar
+            || planetIndex >= solar.Centers.Length) return null;
+        var rawCentre = solar.Centers[planetIndex];
+        var planetCentre = (
+            Math.Floor(rawCentre.X / 1000.0) * 1000.0,
+            Math.Floor(rawCentre.Y / 1000.0) * 1000.0,
+            Math.Floor(rawCentre.Z / 1000.0) * 1000.0);
+
+        const int shopClass = 5;
+        int raceIndex = attrs.Race switch
+        {
+            SystemRace.Gek => 0,
+            SystemRace.Vykeen => 1,
+            SystemRace.Korvax => 2,
+            _ => -1,
+        };
+        if (raceIndex < 0) return null;
+        int[] recordClasses = PlanetBuildingSites.RecordClasses(placement, layoutTables, facts, body.Biome);
+        ulong[] recordSeeds = PlanetBuildingSites.RecordSeeds(planetSeed, recordClasses.Length);
+        int firstShopRecord = Array.IndexOf(recordClasses, shopClass);
+        int systemType = facts.HasNpcs ? 0 : 1;
+        if (firstShopRecord < 0
+            || BuildingLayoutGenerator.LSystemPath(layoutTables, raceIndex, shopClass, systemType) is not { } shopPath
+            || BuildingLayoutGenerator.Generate(layoutTables, shopPath, BuildingLayoutGenerator.SampleSeed(recordSeeds[firstShopRecord], 0)) is not { WeaponCrate: not null } shopLayout
+            || BuildingClusterPlacement.ClusterForClass(layoutTables, shopClass) is not { } shopCluster)
+            return null;
+
+        var recordRadii = new Dictionary<int, double>();
+        foreach (int memberClass in shopCluster.Select(e => e.BuildingClass).Distinct())
+        {
+            int firstMemberRecord = Array.IndexOf(recordClasses, memberClass);
+            if (firstMemberRecord < 0) continue;
+            float overrideRadius = layoutTables.RecordRules is { } rr && memberClass >= 0 && memberClass < rr.Length
+                ? rr[memberClass].OverrideRadius : 0f;
+            string? memberPath = overrideRadius > 0f
+                ? null
+                : BuildingLayoutGenerator.LSystemPath(layoutTables, raceIndex, memberClass, systemType);
+            int sampleOrdinal = 0;
+            for (int r = firstMemberRecord; r < recordClasses.Length; r++)
+            {
+                if (recordClasses[r] != memberClass) continue;
+                double radius = overrideRadius > 0f
+                    ? overrideRadius
+                    : memberPath is not null
+                        ? BuildingLayoutGenerator.Generate(layoutTables, memberPath, BuildingLayoutGenerator.SampleSeed(recordSeeds[firstMemberRecord], sampleOrdinal))?.Radius ?? layoutTables.MinRadius
+                        : layoutTables.MinRadius;
+                recordRadii[r] = radius;
+                sampleOrdinal++;
+            }
+        }
+        return new PlanetShopCabinetContext(layoutTables, terrain, planetRadius, planetCentre, shopLayout, shopCluster, recordClasses, recordRadii);
+    }
+
+    /// <summary>Predicts the multi-tool cabinet position and seed for a shop site on a prepared planet.</summary>
+    public static PlanetShopCabinet? ForShopSite(
+        PlanetShopCabinetContext context,
+        ulong siteKey,
+        (double X, double Y, double Z) sitePoint,
+        double edgeMargin = 0.05) =>
+        ForShopSite(
+            context.LayoutTables,
+            context.Terrain,
+            context.PlanetRadius,
+            context.PlanetCentre,
+            siteKey,
+            sitePoint,
+            context.ShopLayout,
+            context.ClusterLayout,
+            context.RecordClasses,
+            context.RecordRadii,
+            edgeMargin);
 
     /// <summary>Predicts the multi-tool cabinet position and seed for a shop site from its layout, cluster, terrain
     /// and floored planet centre.</summary>
