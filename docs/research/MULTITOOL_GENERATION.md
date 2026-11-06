@@ -313,3 +313,10 @@ pool's pick at the same site seed, as predicted (planet-1 load: Parallel Neutron
 So **where the game was last loaded decides every cabinet's tool in the system**; the cabinet's own position
 decides its class, stats and inventory. Predicted for that cabinet when loaded on the other bodies: planet 2
 Ancestral Vector Stabiliser, planet 3 Prakhde's Spacetime Obstructor, planet 4 Herald of Infinity 5/FB4 (all C).
+
+Second reload check (same day, independent place and cabinet): a third Kaim 30/19 cabinet (shop at -3.99, +65.05,
+world point (-106129, -9033, -79157) found from the save 4.9 m away) offered Inertial Reflector I65-V28, B-class
+Pistol, 333.3 / 333.3, the planet-1 pool's other tool, as predicted. After saving and reloading on Eolul Sigma (body 2)
+the same cabinet offered **Song of Tuyma-VII, B-class Pistol, 333.3 / 333.3** - body 2's pick for that seed, exactly
+as predicted beforehand. Arriving by warp counts as a load in space (body 0), so a system's cabinets normally sell the
+station pool; only a save and reload on a planet switches every cabinet to that planet's pool.
