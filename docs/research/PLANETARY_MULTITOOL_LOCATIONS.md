@@ -443,3 +443,22 @@ on, not the heightfield Core reproduces.
 Remaining for an exact cabinet: the vertical rule (needs the voxel surface or the grounding call traced), other races'
 shops (Trader/Explorer layouts reference the crate several times: now just a run of `lsysport` with their L-system), the
 building basis on cube faces other than +X, and a Core (C#) port of the expander and the scene data in the catalog.
+
+### Where the building height comes from (2026-11-06, build 184271, static)
+
+- The spawn record defaults (constructor 0x1422ACBA0): `MaxXZRotation` 0, `AlignToNormal` false, `LowerIntoGround`
+  true; the setter 0x14163C1F0 copies only the table fields. So buildings never tilt; the crate's height spread is not
+  a tilt.
+- `cGcRegionDecoratorBuildings::PollToUpgradeLandmarks` (0x1412BAA70, named by its own debug string) grounds each loaded
+  building with **physics ray casts**: one along the up vector through the pose (+-`DAT_14533d4f4`), and if that
+  misses, five (the corners of the record's box and the centre); the building moves to the hit nearest its pose. The
+  height is therefore the collision surface of the generated voxel terrain, not a formula on the site.
+- Every building class has `FlattenType = Flatten` (PLANETBUILDINGTABLE, build 184271), and the voxel generator takes
+  `TkNoiseFlattenPoint`s (radius, density, turbulence; no target height). So the ray lands on terrain flattened
+  around the building, to a level the voxel generator computes. Neither Core's `Height` nor `BaseHeight` at the site
+  or the shifted point gives the needed roots (273.26 / 250.46 / 266.81 m vs H(P) 274.24 / 249.90 / 264.55,
+  B(P) 246.95 / 221.65 / 238.03).
+
+Next for the height: trace the voxel generator's use of the flatten points (`FlattenTerrainPoints`,
+`TkVoxelGeneratorRegionData`) to get the flatten target and blend; if it depends on the voxel density beyond the
+noise layers Core has, the vertical position stays out of reach offline.
