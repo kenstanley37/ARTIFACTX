@@ -311,3 +311,292 @@ forward back through `param_8` / `param_9`. Porting it (with the bounding boxes 
 the remaining step for the main shop's origin; everything inside the shop is already fixed for Vy'keen shops.
 Trader and Explorer shops reference the crate from several layouts (4 and 7 rule references), so for them the
 L-system expansion does matter.
+
+### The arranger does not move the main building; the offset is systematic (2026-11-05)
+
+In 0x1416360A0 only cluster members (index >= 1) are placed and moved: on a spiral around the main building
+(`sqrt(n * k)` radius, a random angle per member, two or three MWC draws each), with up to 16 overlap passes using
+FUN_141638B70 on the members' boxes (record +0xC0 radius plus +0xA4 margin). Index 0, the main building, keeps the
+cell point FUN_1412B6BA0 passes in. So the shop's origin is the game's cell point - yet the three measured cabinets
+sit 17.9, 29.4 and 31.2 m sideways from Core's Shop site points (Kaim 30/19, local frame at each site: north +17.7 /
++22.0 / +30.3 m, east +3.0 / -19.4 / -7.7 m), where the cabinet is only 6.4 m from its building's origin at a random
+facing. The consistent northward part points at Core's site position, not the layout: either Core's Voronoi feature
+point differs from FUN_142DEC840 / FUN_1419C2CB0 for these cells, or the cell lookup FUN_1412B6BA0 makes for a site
+(query point, divisions param_9[7], radius scale param_9[8] * 0x144BF56F8) is not the one Core reproduces. Crashed-ship
+checks only had the visor's 0.01 degree precision (~20 m here) plus one beacon test, so a shift this size was never
+excluded. Next: trace FUN_1419C2CB0 against PlanetBuildingSites.Site for one of these keys.
+
+### Core's cell maths is exact; the cluster is re-centred after the arranger (2026-11-05, build 184271)
+
+**Cell lookup checked.** `scripts/research/region-generator/voronoi184271.py` runs the game's wrapper 0x142DEC840 /
+worker 0x1419C2CB0 in Unicorn on the three Kaim 30/19 shops (radius 130048, 546 divisions, sector seed 3733: Core's
+inputs, equal to the live building block). Same site key and point A as `PlanetBuildingSites.Site` on all three, within
+0.7 cm, querying from the shop or from the cabinet. 0x1412B6BA0 passes exactly these inputs (sector `+0x48`, radius
+`+0x38`, divisions `+0x40` x 0.5), and 0x141635570 copies point A into slot 0 unchanged. So the offset is not in Core.
+
+**The missing step.** After 0x141635570 / the arranger return, 0x1412B6BA0 moves the **whole cluster, main building
+included**, by minus the radius-weighted mean of the members' offsets from point A:
+`shift = -sum(r_i * (p_i - A)) / sum(r_i)` over every member with a record (main term 0), `r_i` = the building record's
+`+0xC0` radius. (The earlier "index 0 keeps the cell point" holds inside the arranger only.) The site record in memory
+(stride 0x530, `scripts/diagnostics/read_site_clusters.py`) keeps the positions from **before** the shift: `+0x10` point
+A, then the members; `+0x2A0` the main forward, then each member's direction from the main building.
+
+Live check (read-only, game on Kaim 30/19). Radii from the live type records: Shop 50.412, Waypoint 10.0, Shelter
+21.379 / 23.329 / 21.255 / 21.379, LandingPad 13.599. Shop 1 has one member (the Waypoint, 60.4 m south); predicted
+shift `10 / 60.412 = 0.1655` of it, (0.59, 9.87, 1.50) m. The spawned shop's root node (forward equal to the record's
+main forward, 1.40 m below Core's terrain) sits at horizontal (0.60, 9.89, 1.50) from A, and the Waypoint's parts at
+50.5 m instead of 60.4 m. Shops 2 and 3 (Waypoint + Shelter) shift 25.5 m. Their nodes were not loaded, so they are
+checked only through the cabinets below.
+
+**Facing: the angle is in radians.** The main forward is `rotate(f0, n, index * 45)` with f0 the projected axis from
+the 0x140576380 basis (+Y on face +X), index = top 3 bits of the key's first MWC word, and 45 passed to the game's
+sin/cos **as radians** (270 rad = -10.15 deg, 90 rad = 116.62 deg). It reproduces all three stored forwards to 4
+decimals. The earlier pose fits treated it as degrees.
+
+**Crate in the building frame.** With the shift and that facing, the Vy'keen crate lies at the same horizontal spot
+in all three shops despite three different facings: (n x F, F) = (-2.68, 8.32), (-2.82, 8.28), (-2.60, 8.04) m
+(cabinet points are whole metres, so +-0.5 per axis; best with Shelter radius 21.379 or 21.255). That is 8.7 m from the
+root, not the root room's (3.974, -5.000), so the shop roof is not on the root room in this planet's shop layout. All
+main shops share the layout (first record, sample 0), so one L-system expansion gives every cabinet on the planet.
+Height is still open: taking the crate as 4.15 m above the root (as measured on shop 1), the roots sit -1.40, +0.15 and
++1.83 m from Core's height at the shifted point. No ring min/mean/max (8-64 m) explains it (spreads of 3 m or more).
+The game re-grounds loaded buildings with the full voxel terrain (see PLANET_BUILDING_PLACEMENT.md, visited planets).
+
+Next, in order: (1) port the arranger's member placement (0x1416360A0: spiral radius, angle draws, overlap passes on
+record radii + `+0xA4` margins, chance-gated members as in 0x141635570) and check it against the pre-shift member points
+in the live records; (2) the building's vertical placement rule (0x1412B9BA0 and its callers, LowerIntoGround,
+flattening); (3) the L-system expansion for the shop roof's room (0x142D82630 / 0x142D851D0 above), checked against
+(-2.7, 8.2). With all three, the cabinet's rounded world point and so its exact tool follow from the address.
+
+### Cluster members ported: choice and placement exact (2026-11-05, build 184271)
+
+`scripts/research/region-generator/clusterport.py`, checked against the live pre-shift records of the three Kaim
+shops: **members chosen 3/3 from the site key, positions 5/5 within 3 mm**, main-building shift as measured.
+
+- **Choice** (0x141635570, layout `SHELTER_WAYPOIN` = Waypoint 1-1 p 1, Shelter 1-1 p 1). After the slot and chance
+  draws the site MWC (`*param_2`) continues; a side copy of it (not written back) gives one word that gates every
+  Shelter entry: `word * 2^-32 < GcBuildingGlobals.ChanceOfAddingShelter` (+0xB94, 0.75; globals at 0x14535B140 in
+  this build). Other entries with Probability < 1 take a draw from the main stream instead. Then per entry
+  `count = Next(Max - Min + 1) + Min` and per member `record = first + ((u * (sameClassCount + 1)) >> 32)` over the
+  planet's type list. Kaim: shop 1 rolled 0.959 (no shelter), shop 2 0.300 -> shelter record 2, shop 3 0.467 -> 3.
+- **Placement** (0x1416360A0, first loop, up to three members, **no random draws**): `D = r0 + a0 + ri + ai`,
+  `t = clamp((ri + ai) / D, -1, 1)`, the angle advances by `asin(t)` (inlined acos polynomial, in degrees) before the
+  member and again after it (0x14163720C); member = `A + D * normalize(cos(th) T1 + sin(th) T2)` on the tangent plane,
+  `T1 = n x v`, `T2 = n x T1`, `v` from the start-up face tables 0x146F82840 / 0x145A019F0 / 0x145A01AB0 (read live):
+  dominant axis X or Y -> (0, 0, 1), Z -> (0, 1, 0). Only face +X is checked. Members beyond three use random draws
+  and the overlap passes (not needed for shops).
+- **Radii.** Record `+0xC0` = the table's OverrideRadius when > 0, else `max(0.5 * XZ diagonal of the record's bounds,
+  GcBuildingGlobals.MinRadius)` (0x14163C960 at 0x14163CD39; MinRadius +0xC8C = 10, the Waypoint's value). The bounds
+  come from the record's generated L-system sample (0x1418809F0), so the Shop's 50.412 and the Shelters' 21.255 /
+  21.379 / 23.329 need the L-system port. It is the same port the crate's room needs, so both now wait on it.
+  Neighbouring global `BuildingYOffset` (+0xB90) = 3.0 is a lead for the open height rule.
+
+Remaining for an exact cabinet: (1) L-system expansion of the planet's first shop record and its sample bounds (gives the
+radii, hence the shift, and the crate's local point); (2) the vertical rule; (3) the building basis on other cube faces.
+
+### L-system expander ported: every Vy'keen building layout and radius from the address (2026-11-06, build 184271)
+
+`scripts/research/region-generator/lsysport.py` (expander + sample bounds), checked by `lsyscheck.py` against the
+L-system manager's stored samples read live on Kaim 30/19 (`scripts/diagnostics/read_lsystem_samples.py`, read-only;
+data from the `LsysDump` tool): **24/24 layouts** (all 8 stored Vy'keen L-systems x 3 samples, 1,056 nodes in order,
+positions 0.0000 m, rotations 2e-6) and **22/24 radii exact**.
+
+- **Seeds.** The manager's stored list is static at 0x1472E8AF0 (+0x170, 0x2D0 per L-system; layout in the reader's
+  header). The registration seed of every path is the mixed seed of its first building record (stage seed 3 MWC, two
+  Voronoi draws, then two steps per record, as traced above): Shelter pair 0, Abandoned 4, Shop 8, RadioTower 14,
+  Observatory 17, Factory 21, Harvester 24, UnderwaterAbandoned 59 - 8/8. Samples use seed lo + 0 / 100 / 200.
+- **Rule merge.** Templates load first, the file on top; rules match by model (name kept from the first); Balance
+  appends new models to an inner rule, Prioritize puts them first, Replace removes the inner rule and appends it at the
+  end; the first BaseRule is the root (read off the manager's live merged table +0x140 / globals +0x150).
+- **Chain restrictions.** Every AtLeast global adds AtLeast 1 to its only producer reachable from the root, then to
+  that producer's producer, up to the root - appended even when the model already has a minimum. That is why the
+  shelter always builds two shacks: WEAPONTECHSTATION AtLeast 1 -> WALLPROPLINK -> SHACK gets a second AtLeast 1.
+- **GenerateStep.** Breadth-first queue. Per inner rule, the first active locator that is a direct child of the node
+  (or of its `Interior_` locator) and whose upper-cased name contains the LocatorType (filter 0x142D703B0) gets one pick
+  (0x142D851D0: first entry below a local or global minimum, else one draw `u * 100` on the manager's MWC over the
+  candidates weighted `p + pooled / n`; float32) and is switched off. The child goes on the locator; if it has a
+  matching locator of the opposite `_IN_`/`_OUT_` type (0x142D7A690; any type for plain names) it is aligned so that
+  locator lands on the parent's (`parent @ L @ inverse(C)`, no flip) and that locator is switched off (0x142D7AE60).
+- **Bounds and radius.** Each node model's meshes (scene MESH `AABBMIN/MAX`, mesh-local) are flattened into the model
+  frame with references included; that box's corners go through the node; Euler order R = Rx Ry Rz. Radius = max(half
+  the XZ diagonal, MinRadius 10). The stored sample is re-centred on its XZ bounds (live root node at minus the centre).
+  Bounding hulls and per-reference boxes were tried and are worse. Only the shelter's records 0/2 miss, by 5 mm
+  (21.383 / 21.260 vs 21.379 / 21.255; a cable mesh, rotated -77 deg about Z inside a -120 deg locator).
+
+**The shop.** Kaim's first shop record: seed `C9BC0BFCE72F16EF`, root room with CAPGROUND / CORRIDOR (long walls),
+INTERIOR / TECHSHOP (short), ROOFMODULE_SHOP (forced minima), radius **50.412 m** on all three samples (the XZ bounds
+are the fixed parts: landing pad door and corridor). Root offset (-6.348, 0, +13.389), so the crate, FLOORLAYOUT_NPC's
+`WEAPONSCRATE_` reference at (3.974, 3.734, -5.000) in the root room, sits at **side -2.374, forward +8.389** in the
+building frame (side = n x F). `shopcrate.py` runs the whole chain from the planet seed: shop 1 shifts **10.000 m**
+(measured 10.02) and the three predicted crates miss the cabinets by **0.31, 0.57, 0.37 m** horizontally (cabinet
+points are whole metres). Caveat: with only the Waypoint as member, the shift equals the Waypoint's radius whatever
+the shop radius is, so shop 1 checks the Waypoint; shops 2 and 3 (Waypoint + Shelter) are the ones that depend on the
+shop and shelter radii, and they agree through the crate.
+
+**Height: BuildingYOffset does not explain it.** Root heights needed (cabinet height above the base point minus the
+crate's 3.734) are 273.26 / 250.46 / 266.81 m; Core's `PlanetTerrain.Height` at the shifted building points gives
+274.24 / 249.90 / 264.55 (offsets -0.98, +0.56, +2.26). No constant (the 3.0 global included) fits a 3.2 m spread, and
+neither does min / mean / max of a 16-point ring at any radius 0-60 m plus a constant (best spread 2.45 m, beyond the
+~1 m whole-metre slack). The remaining height is most likely the game's full voxel terrain, which buildings re-ground
+on, not the heightfield Core reproduces.
+
+Remaining for an exact cabinet: the vertical rule (needs the voxel surface or the grounding call traced), other races'
+shops (Trader/Explorer layouts reference the crate several times: now just a run of `lsysport` with their L-system), the
+building basis on cube faces other than +X, and a Core (C#) port of the expander and the scene data in the catalog.
+
+### Where the building height comes from (2026-11-06, build 184271, static)
+
+- The spawn record defaults (constructor 0x1422ACBA0): `MaxXZRotation` 0, `AlignToNormal` false, `LowerIntoGround`
+  true; the setter 0x14163C1F0 copies only the table fields. So buildings never tilt; the crate's height spread is not
+  a tilt.
+- `cGcRegionDecoratorBuildings::PollToUpgradeLandmarks` (0x1412BAA70, named by its own debug string) grounds each loaded
+  building with **physics ray casts**: one along the up vector through the pose (+-`DAT_14533d4f4`), and if that
+  misses, five (the corners of the record's box and the centre); the building moves to the hit nearest its pose. The
+  height is therefore the collision surface of the generated voxel terrain, not a formula on the site.
+- Every building class has `FlattenType = Flatten` (PLANETBUILDINGTABLE, build 184271), and the voxel generator takes
+  `TkNoiseFlattenPoint`s (radius, density, turbulence; no target height). So the ray lands on terrain flattened
+  around the building, to a level the voxel generator computes. Neither Core's `Height` nor `BaseHeight` at the site
+  or the shifted point gives the needed roots (273.26 / 250.46 / 266.81 m vs H(P) 274.24 / 249.90 / 264.55,
+  B(P) 246.95 / 221.65 / 238.03).
+
+Next for the height: trace the voxel generator's use of the flatten points (`FlattenTerrainPoints`,
+`TkVoxelGeneratorRegionData`) to get the flatten target and blend; if it depends on the voxel density beyond the
+noise layers Core has, the vertical position stays out of reach offline.
+
+### The voxel flatten under buildings (2026-11-06, build 184271, static trace)
+
+The terrain a building's ray lands on is made in the region's 2D column pass, not by `TkNoiseFlattenPoint`s:
+`0x1412B3770` (region voxel driver) -> `0x14128DB30` (column table: all 8 noise layers, features, caves per column) ->
+`0x14128F0A0` (per column: runs the cluster generator `0x1412B6BA0` itself to find the buildings whose cluster covers the
+column, then writes the column's pad entry `+0x390`, 16 bytes: height, distance, cluster extent, column radius) ->
+`0x1412B1D60` / `0x1412B13F0` (voxel densities: shapes the surface round the pad with TkVoxelGeneratorData
+`BuildingSmoothingHeight` +0x1124 / `BuildingSmoothingRadius` +0x1128 and writes `BuildingVoxelType` +0x1130).
+
+Pieces decoded in `0x14128F0A0`:
+- the column value starts at `NoSeaBaseLevel` and takes layers 0-3 (max / subtract) as Core's `Height` does, then
+  adds and removes the layer 6/7 base term, and is clamped to [0, 128] at the end;
+- `0x141290180`: at the column point, the base term B (`0x141290840` = Core's `BaseHeight`: layers 6 and 7 at the point
+  projected to the planet radius) at the centre and 8 points on a 64 m ring (or the cluster extent when the record's
+  +0x4D flag is set): returns the largest |B0 - Bi| / 64 (slope) and the ring maximum;
+- non-settlement classes (all but 36-50 and 57-59, `0x1412B9050`) are clamped between `extent * slope` and
+  `128 - extent * slope`, kept 5 m above the sea when the class is not a water type; the settlement classes are set
+  to the ring maximum (full flatten);
+- `0x14128EBB0`: floor = max B over every cluster member's centre and 6 points (60 deg) at half its record radius;
+  below it the column goes to floor + 5 (gated by the member check `0x141635F00`: water placement, Min/MaxHeight);
+- constants: 64 (`0x144BF6160`), 1/64, 128 (`0x144BF61D8`), +5 (`0x144BF5FF0`), 0.05, ring 0.6 for flagged builds.
+
+Numbers do not close by hand yet: for Kaim's three shops the BaseHeight floor + 5 sits 17.4 / 19.3 / 18.9 m below the
+needed roots (no constant), so which branch a shop takes and the units of the column value need the native run.
+Next: read Kaim's planet object live (`read_planet_object_live.py`), emulate `0x14128F0A0` for the columns under the
+shops, check against grounded building roots read live, then port.
+
+### Building height solved: the cluster is flattened to Core's Height at the site point (2026-11-06, build 184271)
+
+`scripts/research/region-generator/emu_columns.py` runs the game's column pass (0x1412B5F70 + 0x14128DB30 ->
+0x14128F0A0) in Unicorn on Kaim's planet object read live, with NMS.exe's .data copied from the running game. Inside a
+cluster the surface (pad height + the layer 6/7 base term) is flat and equals **Core's `PlanetTerrain.Height` at the
+site's cell point A**: 275.19 / 250.09 / 261.90 for the three surveyed Kaim shops (Core H(A) 275.19 / 250.08 / 261.90).
+
+Checked live, read-only, with the owner standing in a Kaim shop (site key 404DA563E9C5EC88, record 8 = first shop
+record): the grounded scene nodes (state 4, node transforms read through the scene manager 0x146EFD7E8: handle table
++0xE8/+0xF0, 0x40-byte matrices +0x60) sit at 272.185 / 272.183 / 272.189 m (shop, waypoint, shelter) vs the emulated
+surface 272.189 and Core H(A) 272.190; a Monolith 261.099 vs H(A) 261.104. The instance's node is the sample's root room:
+all **23 nodes of the generated layout, crate included, match the live children within 7 mm**, and the root room predicted
+from the address alone (site, members [Waypoint 12, Shelter 1], shift, radian facing, height H(A), root offset) lands
+**1.2 cm** from the live node with the same forward and up.
+
+So the vertical rule is: building origin = shifted point at the base radius raised to `130048 + Height(A)`. The earlier
+"unexplained" height offsets came from two of the three old cabinet points: cabinet 2 is the predicted crate rounded on
+every axis, cabinets 1 and 3 are 1.9 m and 4.9 m off vertically (found by a near-player search; likely false matches).
+
+### The cabinet seed uses the building's spawn-time height (2026-11-06, live check in the owner's shop)
+
+The owner's cabinet in shop 404DA563E9C5EC88 offered **Parallel Neutron Reflector, C, 333.3 / 203.7, 4 tech
+(SCAN1, SCANBINOC1, LASER, STUN_GREN)** (screenshot, reload body = planet 1). The predicted crate (grounded) rounds
+to (-123844, 83305, -137661), which gives the right tool, class and damage but 249.2 scan / 5 tech. The only whole-metre
+point within 6 m that reproduces the screenshot exactly is (-123846, 83303, -137661): the crate placed with the
+instance's **stored spawn pose** (record +0x00, 2.357 m below the grounded node) instead of the ray-grounded one. So the
+cabinet is generated when the building spawns (0x1412B9BA0), before `PollToUpgradeLandmarks` moves it onto the ground.
+
+Spawn-time heights: buildings outside clusters are stored at Core's `Height` at their point (17/17 within 0.01 m); the
+three buildings of this shop's cluster at 269.828 / 269.619 / 269.680 while the final surface is 272.19. They come from
+`0x141299710`, which bilinearly samples the region's generated voxel height grid (+0x1D0, region resolution +0x84..+0x88)
+and then runs the cluster generator. The column pass itself is flat at 272.189 at every LOD tried (0, 1, 3, 4, 5), so the
+2.4 m comes from the region grid's coarse sampling of the smoothed building pad (`0x1412B13F0`, smoothing radius 150 m /
+height 200 m on Kaim). Next: dump the live region objects around the shop (grid, LOD, dimensions) and emulate
+`0x141299710` on them; the old cabinets 1 and 3 (1.9 / 4.9 m) are the same spawn-height effect.
+
+Spawn height, ruled out so far (live, 2026-11-06): the loaded terrain regions are `cGcRegionTerrainNear/Mid/Far/VeryFar`
+(vtables 0x144BBEC70 / 0x144BBEAD8 / 0x144BBEE20 / 0x144BBEFB0; cube-space origin at +0x50, scale 1/2/4/8 m, grid bytes
++0x80.., height grid +0x1D0 in local units above Core's `BaseHeight`, i.e. surface = grid * scale + B). At the cluster
+they give 272.34 / 272.80 / 274.6 / 277.1 m, never the stored 269.6-269.8; the column pass gives 272.189 at every LOD
+and with default record radii. `0x141299710` (region grid sampling + cluster check) is a scatter placer, not the
+building spawner. Remaining candidate: the spawner estimates the surface from the shaped density (`0x1412B13F0`,
+smoothing radius 150 / height 200) along the vertical with a coarse step. Until then a shop's crate is exact across the
+ground and its height is known only to the cluster's offset (here -2.36 m from Core's `Height(A)`).
+
+### Spawn height solved: buildings spawn on the Far region's surface (2026-11-06, live)
+
+The instance creator is **0x1412B7F70** (decorator, calls this build's height function **0x14128E850** and
+0x141290180, then, when its region's byte +0x89 > 6, samples the region's height grid +0x1D0 at the building by two
+triangles and converts back with 0x141291310). The world -> grid mapping 0x141291DF0 is: gnomonic projection on the
+cube face, height = |p| - R - BaseHeight(p) along the face normal, then the region's inverse transform (+0x20, origin
++0x50, scale 1/2/4/8 m for Near/Mid/Far/VeryFar; grid cell = scale * (+0x84) / (+0x86 - +0x88); no border offset).
+Sampled this way, the **Far** region's grid (16 m cells) gives the stored spawn heights of the owner's shop cluster:
+269.852 / 269.607 / 269.681 vs 269.828 / 269.619 / 269.680 (shop, waypoint, shelter; the cm are bilinear vs the
+game's triangles). So cluster buildings - and their cabinets - are made by the Far region's decorator.
+
+`emu_far.py` regenerates a live Far region with the game's code (0x141294A00 -> 0x1412B3770(region, voxel, block,
+0x80)) on the planet object read live: with live-backed pages (`LIVE=1`, read-only) its height grid equals the game's
+**exactly (max diff 0.0)**; without them (planet object only) the whole shop zone is still exact and only a corner
+touched by a larger cluster differs (member choice / arranger reading live heap data: 0x1416353AA, 0x141635558,
+0x1416357F9, 0x14163617F, 0x140611B85). Reading `BaseHeight` and the column pass, the inputs are the planet seed, the
+voxel settings and the building table - all address-derived.
+
+So the cabinet pipeline from the address is: site -> layout -> cluster -> **Far-region surface at the building** ->
+crate (root offset + crate locator) -> whole-metre point -> seed. Porting it to Core needs the Far-LOD voxel region
+generation (density from the noise layers incl. grid/feature layers if they reach the surface, building pads and the
+`0x1412B13F0` smoothing, and the grid's height extraction) - the emulator is the reference to port against.
+
+### Spawn height from the address: 3/4 cabinets exact (2026-11-06)
+
+The emulated Far region's column table (hooked at 0x1412B1D60) shows its nodes: node (i, j) sits at cube z = origin +
+(i - 1) * 16 m and cube y = origin + (j - 1) * 16 m (the driver's border cell; Core's `BaseHeight` there equals the
+table to 0.001), and inside the cluster's flat zone the node surface is exactly `Height(A)` (pad + base term, e.g.
+20.26 + 251.93 = 272.19). The grid stores surface minus the node's own base term, and the density is linear across the
+8 m layers (crossing 0.5 where the grid says), so the extraction 0x1412B3370 adds no error. The 2.4 m comes from the
+creator: it reads grid index floor(local / 16 m), which holds the node **one cell back**, interpolates on the plane of
+corners (i, j), (i+1, j), (i, j+1) and adds `BaseHeight` at the building. In Core terms:
+
+    spawn = Height(A) + BaseHeight(p) - plane(BaseHeight at nodes (i-1, j-1), (i, j-1), (i-1, j))
+
+`shopspawn.py` (with the `HeightProbe` tool for Core heights) runs it end to end from the planet seed: spawn heights
+within 2.6 cm of the live instances, and the shop crates reproduce **3 of 4 owner cabinets exactly** - the live shop,
+old cabinet 2 and old cabinet 3 (whose spawn is 4.5 m above H(A)); cabinet 1 lands 1 cm across a rounding boundary
+(x -107157.51 vs -107157; the game works in float32, ~0.8 cm at these coordinates). Open: float32-faithful arithmetic
+for boundary cases, buildings near the edge of the flat zone (shaped pads), faces other than +X, and the Core port.
+
+Interpolation residual (2026-11-06): on the live Far grid with exact `BaseHeight`, the three members need
+6.5129 / 5.4641 / 4.1038 (local units). The plane over (i,j),(i+1,j),(i,j+1) gives +1.9 / -2.3 / +0.5 cm; the
+decompiled nesting `lerp(lerp(h00, h01, fz), h10, fx)` gives +0.3 / -40 / -0.1 cm; a two-triangle split (upper triangle
+when fx + fz > 1) gives +1.9 / -0.8 / +0.5 cm. No single reading of the decompile fits all three to a millimetre, so the
+exact sampling should be emulated (0x1412B7F70 between its 0x141291DF0 and 0x141291310 calls, float32) rather than
+re-derived. Until then about one crate in ten lies within 2 cm of a whole-metre boundary on some axis and should be
+reported with both candidate points.
+
+Exact sampling from the machine code (0x1412B82B3..0x1412B859F, 2026-11-06): the creator divides the local point by
+(cell, cell height, cell, 1) to get the index g, reads corners (i, j), (i, j+1), (i+1, j), builds points P = (index *
+cell, value * cell height, index * cell), and interpolates the whole point as lerp(lerp(P00, P01, fz), P10, fx) with
+fx, fz = frac(g / cell) - the index is divided by the cell size a second time - before 0x141291310 converts it back;
+so `BaseHeight` is added at the lerped, unshifted position, not at the building. With the live Far grid this gives the
+members to -1.8 / -3.3 / -0.0 cm; in Core terms (`shopspawn.py`) the live shop spawns at 269.821 vs 269.828, and the
+cabinets stay 3/4 exact with cabinet 1 2 cm across its boundary. The last centimetres still need the float32 path.
+
+Grid quantization (2026-11-06): in a flat zone a Far node stores the building density 0.75 * (s - y) * (-1/128) offset
+to 0.5 (s = node surface above its BaseHeight, y = layer height, 8 m per layer from the base), quantized per layer as
+trunc(((0.5 + d) / 5 + 0.5) * 65535) - **exact** against the emulated region's stored words (3/3 flat-zone nodes, 14
+layers each). The extraction (crossing of 0.5) then puts the grid up to ~1.3 cm below s. `shopspawn.py` now models it
+(`far_grid_value`); with the game's own sampling on the live grid (`emu_far.py SAMPLE=`) the members come out at
+269.8203 / 269.6094 / 269.6797 against the stored 269.828 / 269.619 / 269.680 - the last mm-cm is the float32
+system-space position the instance is stored in. Cabinets stay 3/4 exact; cabinet 1 still needs +2 cm in x (likely
+Core's Height(A) there, or float32 position) and needs a live check at that shop.
