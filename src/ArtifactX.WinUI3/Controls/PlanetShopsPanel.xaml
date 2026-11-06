@@ -36,20 +36,68 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="explore:ShopSiteRowViewModel">
-                            <Border Width="260" Padding="12,10" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                            <Border Width="300" Padding="12,10" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
                                     Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
                                 <StackPanel Spacing="6">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Shop" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}"/>
-                                        <TextBlock Grid.Column="1" Text="{x:Bind Coordinates}" FontSize="14" FontWeight="Bold"
-                                                   FontFamily="{ThemeResource ThemeDisplayFont}" Foreground="{ThemeResource ThemeAccentBrush}"
+                                        <Border Visibility="{x:Bind HasCabinetOffer, Mode=OneWay}" Background="{x:Bind ClassBrush, Mode=OneWay}"
+                                                Padding="6,1" CornerRadius="3" VerticalAlignment="Center">
+                                            <TextBlock Text="{x:Bind ClassLetter, Mode=OneWay}" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{x:Bind ToolName, Mode=OneWay}" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" VerticalAlignment="Center"
                                                    IsTextSelectionEnabled="True"/>
+                                        <TextBlock Grid.Column="2" Text="{x:Bind Coordinates}" FontSize="13" FontWeight="Bold"
+                                                   FontFamily="{ThemeResource ThemeDisplayFont}" Foreground="{ThemeResource ThemeAccentBrush}"
+                                                   VerticalAlignment="Center" IsTextSelectionEnabled="True"/>
                                     </Grid>
-                                    <TextBlock Text="{x:Bind Distance}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}"/>
+                                    <TextBlock Text="{x:Bind Distance, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                                    <StackPanel Spacing="4" Visibility="{x:Bind HasStats, Mode=OneWay}">
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Damage" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"
+                                                       Visibility="{x:Bind HasDamage, Mode=OneWay}"/>
+                                            <TextBlock Grid.Column="1" Text="{x:Bind DamageText, Mode=OneWay}" FontSize="13" FontWeight="Bold"
+                                                       FontFamily="{ThemeResource ThemeDisplayFont}" Foreground="{ThemeResource ThemeDamageStatBrush}"
+                                                       VerticalAlignment="Center" IsTextSelectionEnabled="True" Visibility="{x:Bind HasDamage, Mode=OneWay}"/>
+                                            <TextBlock Grid.Column="2" Text="Scanner" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="3" Text="{x:Bind ScannerText, Mode=OneWay}" FontSize="13" FontWeight="Bold"
+                                                       FontFamily="{ThemeResource ThemeDisplayFont}" Foreground="{ThemeResource ThemeScannerStatBrush}"
+                                                       VerticalAlignment="Center" IsTextSelectionEnabled="True"/>
+                                        </Grid>
+                                        <TextBlock Text="{x:Bind SlotSummary, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <ItemsControl ItemsSource="{x:Bind Technologies, Mode=OneWay}" Visibility="{x:Bind HasTechnologies, Mode=OneWay}"
+                                                  AutomationProperties.Name="Installed technology">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><ctcontrols:WrapPanel HorizontalSpacing="4" VerticalSpacing="4"/></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="viewmodels:StationToolTechChip">
+                                                <Grid Width="32" Height="32" CornerRadius="4" Background="{ThemeResource ThemePanelAltBrush}"
+                                                      ToolTipService.ToolTip="{x:Bind Label}" AutomationProperties.Name="{x:Bind Label}">
+                                                    <Image Source="{x:Bind Icon}" Stretch="Uniform" Margin="2"/>
+                                                    <Border Visibility="{x:Bind HasClass}" Background="{x:Bind ClassBrush}" Width="13" Height="13" CornerRadius="3"
+                                                            HorizontalAlignment="Left" VerticalAlignment="Bottom" IsHitTestVisible="False">
+                                                        <TextBlock Text="{x:Bind ClassLetter}" FontSize="8" FontWeight="Bold" Foreground="White"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Text="{x:Bind AlternateOfferText, Mode=OneWay}" Visibility="{x:Bind HasAlternateOffer, Mode=OneWay}"
+                                               FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
                                     <TextBlock Text="{x:Bind Status, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <Button Content="{x:Bind AddMarkerText, Mode=OneWay}" Command="{x:Bind AddMarkerCommand}"
