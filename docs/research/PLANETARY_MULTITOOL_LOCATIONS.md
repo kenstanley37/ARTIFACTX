@@ -489,3 +489,22 @@ Numbers do not close by hand yet: for Kaim's three shops the BaseHeight floor + 
 needed roots (no constant), so which branch a shop takes and the units of the column value need the native run.
 Next: read Kaim's planet object live (`read_planet_object_live.py`), emulate `0x14128F0A0` for the columns under the
 shops, check against grounded building roots read live, then port.
+
+### Building height solved: the cluster is flattened to Core's Height at the site point (2026-11-06, build 184271)
+
+`scripts/research/region-generator/emu_columns.py` runs the game's column pass (0x1412B5F70 + 0x14128DB30 ->
+0x14128F0A0) in Unicorn on Kaim's planet object read live, with NMS.exe's .data copied from the running game. Inside a
+cluster the surface (pad height + the layer 6/7 base term) is flat and equals **Core's `PlanetTerrain.Height` at the
+site's cell point A**: 275.19 / 250.09 / 261.90 for the three surveyed Kaim shops (Core H(A) 275.19 / 250.08 / 261.90).
+
+Checked live, read-only, with the owner standing in a Kaim shop (site key 404DA563E9C5EC88, record 8 = first shop
+record): the grounded scene nodes (state 4, node transforms read through the scene manager 0x146EFD7E8: handle table
++0xE8/+0xF0, 0x40-byte matrices +0x60) sit at 272.185 / 272.183 / 272.189 m (shop, waypoint, shelter) vs the emulated
+surface 272.189 and Core H(A) 272.190; a Monolith 261.099 vs H(A) 261.104. The instance's node is the sample's root room:
+all **23 nodes of the generated layout, crate included, match the live children within 7 mm**, and the root room predicted
+from the address alone (site, members [Waypoint 12, Shelter 1], shift, radian facing, height H(A), root offset) lands
+**1.2 cm** from the live node with the same forward and up.
+
+So the vertical rule is: building origin = shifted point at the base radius raised to `130048 + Height(A)`. The earlier
+"unexplained" height offsets came from two of the three old cabinet points: cabinet 2 is the predicted crate rounded on
+every axis, cabinets 1 and 3 are 1.9 m and 4.9 m off vertically (found by a near-player search; likely false matches).
