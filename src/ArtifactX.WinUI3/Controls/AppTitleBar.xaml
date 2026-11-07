@@ -46,13 +46,20 @@
                 <TextBlock x:Name="ActiveSaveTxt" Text="" FontSize="12" FontWeight="SemiBold"
                            Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
             </Grid>
+            <!-- Where the player is (#33, PlayerLocationText), following the game's saves. -->
+            <StackPanel x:Name="LocationRegion" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Visibility="Collapsed">
+                <FontIcon Glyph="&#xE707;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="LocationTxt" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="420"/>
+            </StackPanel>
         </StackPanel>
 
         <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,12,0">
             <TextBlock x:Name="PendingChangesTxt" Text="" FontSize="11" Opacity="0.7"
                        VerticalAlignment="Center" Visibility="Collapsed"/>
             <Button x:Name="ResetBtn" Content="Reset" Click="ResetBtn_Click" Visibility="Collapsed"/>
-            <Button x:Name="SaveBtn" Style="{ThemeResource AccentButtonStyle}" Click="SaveBtn_Click" Visibility="Collapsed">
+            <Button x:Name="SaveBtn" Style="{ThemeResource AccentButtonStyle}" Click="SaveBtn_Click" Visibility="Collapsed"
+                    AutomationProperties.Name="{x:Bind SaveBtnText.Text, Mode=OneWay}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <ProgressRing x:Name="SaveSpinner" IsActive="False" Width="14" Height="14"/>
                     <TextBlock x:Name="SaveBtnText" Text="Save"/>
@@ -76,7 +83,8 @@
                 <TextBlock x:Name="ThemeBtnTxt" FontSize="10" Opacity="0.8"/>
             </HyperlinkButton>
             <HyperlinkButton x:Name="UpdateAvailableBtn" Padding="6,0" Visibility="Collapsed" Click="UpdateAvailableBtn_Click"
-                             ToolTipService.ToolTip="A newer version of ArtifactX is available - click to open the release page">
+                             ToolTipService.ToolTip="A newer version of ArtifactX is available - click to update"
+                             AutomationProperties.Name="Update available">
                 <TextBlock Text="Update available" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}"/>
             </HyperlinkButton>
         </StackPanel>
@@ -85,7 +93,8 @@
              while it's open (FishCatchRecorder), so say so while it's following. -->
         <Button x:Name="RecordingBtn" Background="Transparent" BorderThickness="0" MinHeight="0" Grid.Row="1" Grid.Column="2" Padding="6,0" Margin="0,0,12,0"
                          HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="Collapsed"
-                         ToolTipService.ToolTip="Keep ArtifactX open while you play - click for why">
+                         ToolTipService.ToolTip="Keep ArtifactX open while you play - click for why"
+                         AutomationProperties.Name="Recording as you play">
             <Button.Flyout>
                 <Flyout>
                     <TextBlock MaxWidth="320" TextWrapping="Wrap" FontSize="12"
@@ -95,6 +104,26 @@
             <StackPanel Orientation="Horizontal" Spacing="5">
                 <Ellipse Width="6" Height="6" Fill="#3DDC84" VerticalAlignment="Center"/>
                 <TextBlock Text="Recording as you play" FontSize="10" Opacity="0.8"/>
+            </StackPanel>
+        </Button>
+
+        <!-- Game screen recording is on (ScreenCaptureLogService): say so, with a one-click off. -->
+        <Button x:Name="ScreenRecordingBtn" Background="Transparent" BorderThickness="0" MinHeight="0" Grid.Row="1" Grid.Column="2" Padding="6,0" Margin="0,0,170,0"
+                HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="Collapsed"
+                ToolTipService.ToolTip="ArtifactX is recording game screens - click to stop"
+                AutomationProperties.Name="Recording screens">
+            <Button.Flyout>
+                <Flyout x:Name="ScreenRecordingFlyout">
+                    <StackPanel MaxWidth="300" Spacing="10">
+                        <TextBlock TextWrapping="Wrap" FontSize="12"
+                                   Text="ArtifactX is keeping pictures and text of the game screen while No Man's Sky is in front (Settings › Game screen recording). Nothing leaves this PC."/>
+                        <Button Content="Stop recording" Click="StopScreenRecording_Click"/>
+                    </StackPanel>
+                </Flyout>
+            </Button.Flyout>
+            <StackPanel Orientation="Horizontal" Spacing="5">
+                <Ellipse Width="6" Height="6" Fill="#FF5A5A" VerticalAlignment="Center"/>
+                <TextBlock Text="Recording screens" FontSize="10" Opacity="0.8"/>
             </StackPanel>
         </Button>
 
@@ -110,6 +139,10 @@
             <StackPanel Orientation="Horizontal" Spacing="5">
                 <TextBlock Text="🛸" VerticalAlignment="Center" FontSize="10"/>
                 <TextBlock x:Name="QuicksilverTxt" Text="0 QUICKSILVER" FontSize="10" FontWeight="Bold" Foreground="#E500FF" VerticalAlignment="Center"/>
+            </StackPanel>
+            <StackPanel x:Name="PartsRegion" Orientation="Horizontal" Spacing="5" Background="Transparent">
+                <TextBlock Text="🏗" VerticalAlignment="Center" FontSize="10"/>
+                <TextBlock x:Name="PartsTxt" Text="0 PARTS PLACED" FontSize="10" FontWeight="Bold" Foreground="#9FD86B" VerticalAlignment="Center"/>
             </StackPanel>
         </StackPanel>
 

@@ -1,0 +1,15 @@
+<UserControl x:Class="ArtifactX.WinUI3.Controls.RecipePlannerMap"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:vm="using:ArtifactX.WinUI3.ViewModels" xmlns:controls="using:ArtifactX.WinUI3.Controls" xmlns:ct="using:CommunityToolkit.WinUI.Controls">
+ <Grid x:Name="Surface">
+  <Canvas x:Name="Connections" IsHitTestVisible="False"/>
+  <ItemsControl ItemsSource="{x:Bind ViewModel.Levels, Mode=OneWay}">
+   <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipePlannerLevel">
+    <ItemsControl ItemsSource="{x:Bind Cards}" Margin="0,0,0,30" HorizontalAlignment="Center">
+     <ItemsControl.ItemsPanel><ItemsPanelTemplate><ct:WrapPanel HorizontalSpacing="12" VerticalSpacing="24"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+     <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipePlannerItemViewModel"><controls:RecipePlannerCard ViewModel="{x:Bind}"/></DataTemplate></ItemsControl.ItemTemplate>
+    </ItemsControl>
+   </DataTemplate></ItemsControl.ItemTemplate>
+  </ItemsControl>
+ </Grid>
+</UserControl>

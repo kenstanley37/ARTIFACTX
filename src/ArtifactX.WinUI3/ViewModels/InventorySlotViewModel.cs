@@ -31,14 +31,26 @@ public sealed class InventorySlotViewModel
     /// data points exist so far (0.0 and 1.0, nothing in between observed).</summary>
     public double MalfunctionSeverity { get; init; }
 
+    public string? DisplayName { get; init; }
+    public bool ShowAmount { get; init; } = true;
+
     public bool IsOccupied => State == InventorySlotState.Occupied;
 
     public double PixelX => X * 68;
     public double PixelY => Y * 68;
 
-    public string ShortLabel => IsOccupied ? (ItemId?.TrimStart('^') ?? "") : "";
+    public string ShortLabel
+    {
+        get
+        {
+            if (!IsOccupied || ItemId is null) return "";
+            string raw = ItemId.TrimStart('^');
+            int hash = raw.IndexOf('#');
+            return hash >= 0 ? raw[..hash] : raw;
+        }
+    }
 
-    public string DisplayText => !IsOccupied ? ""
+    public string DisplayText => !IsOccupied || !ShowAmount ? ""
         : MaxAmount > 1 ? $"{Amount}/{MaxAmount}"
         : Amount.ToString();
 }

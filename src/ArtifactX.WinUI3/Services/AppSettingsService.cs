@@ -58,7 +58,8 @@ public static class AppSettingsService
     public static void SetGlyphViewSize(int size) => SetSetting(GlyphViewSizeKey, size.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
     /// <summary>Simple on/off flags for one-time UI hints (e.g. a dismissed tip).</summary>
-    public static bool GetFlag(string key) => TryGet(key, out var value) && value == "true";
+    public static bool GetFlag(string key, bool defaultValue = false) =>
+        TryGet(key, out var value) ? value == "true" : defaultValue;
 
     public static void SetFlag(string key, bool value) => SetSetting(key, value ? "true" : "false");
 }

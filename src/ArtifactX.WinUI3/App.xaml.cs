@@ -43,6 +43,7 @@ public partial class App : Application
         ArtifactX.GameData.Services.LogService.EchoToConsole = false;
         ArtifactX.GameData.Services.LogService.UseLogFile(null);
         DevTimingLog.Start();
+        CrashLog.Attach(this);
 
         InitializeComponent();
     }
@@ -68,6 +69,12 @@ public partial class App : Application
         _window.Activate();
         DevTimingLog.Write("main window activated");
         DevTimingLog.WatchUiThread(_window.DispatcherQueue);
+
+        // System descriptor words (wealth/economy/conflict tiers), for every page that
+        // shows a system - loaded now so no page draws before they're in.
+        _ = SystemNotesService.EnsureDescriptorsAsync();
+        // The construction limit the player's own game uses (read from NMS.exe by the catalog).
+        ConstructionLimitService.Start();
 
         // The day's automatic backup of the player's own data (Settings page).
         _ = Task.Run(() =>

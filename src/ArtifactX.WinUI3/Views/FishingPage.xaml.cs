@@ -19,7 +19,7 @@ namespace ArtifactX.WinUI3.Views;
 /// Tools > Fishing: the fish that live on the planet you're on, from the
 /// game's fish table (CatalogService.GetFishAsync), with your catches from
 /// the save's fishing records (NmsFishingPaths). Follows the game through
-/// LiveSaveWatcher. Read-only - marking fish caught stays on the Fishing
+/// FishCatchRecorder.SnapshotSeen. Read-only - marking fish caught stays on the Fishing
 /// Records page.
 /// </summary>
 public sealed partial class FishingPage : Page
@@ -27,10 +27,13 @@ public sealed partial class FishingPage : Page
     private const int WhereIAm = -2;
     private const int AllTypes = -1;
 
-    private readonly LiveSaveWatcher _live;
     private List<FishInfo> _fish = new();
+    private FishingRules _rules = new([], []);
     private Dictionary<string, string> _names = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, (uint Count, float Largest)> _caught = new(StringComparer.OrdinalIgnoreCase);
+    // Fish the game saved a catch of while this page was open, newest first, and
+    // whether it was the first ever: shown at the top with a pill.
+    private readonly List<(string Id, bool First)> _justCaught = new();
     private ulong? _hereSystem;
     private int _herePlanet;
     private int? _hereBiome;
@@ -47,24 +50,41 @@ public sealed partial class FishingPage : Page
     public FishingPage()
     {
         InitializeComponent();
-        _live = new LiveSaveWatcher(DispatcherQueue);
-        _live.SnapshotRead += OnLiveSnapshot;
+        // The app-wide feed of the game's saves (FishCatchRecorder): one reader for every page.
+        FishCatchRecorder.SnapshotSeen += OnLiveSnapshot;
         ApplyOverviewHidden();
         JumpPlanner.RangeChanged += UpdateWhere;
+        PlanetWaterService.Changed += OnWaterChanged;
+        PlanetDetailsService.Captured += OnDetailsChanged;
+        PlanetDetailsService.Changed += OnDetailsChanged;
         Unloaded += (_, _) =>
         {
             JumpPlanner.RangeChanged -= UpdateWhere;
-            _live.SnapshotRead -= OnLiveSnapshot;
-            _live.Dispose();
+            PlanetWaterService.Changed -= OnWaterChanged;
+            PlanetDetailsService.Captured -= OnDetailsChanged;
+            PlanetDetailsService.Changed -= OnDetailsChanged;
+            FishCatchRecorder.SnapshotSeen -= OnLiveSnapshot;
         };
         _ = LoadAsync();
     }
+
+    private void OnWaterChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
+    {
+        UpdateWhere();
+    });
+
+    private void OnDetailsChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
+    {
+        UpdateWhere();
+    });
 
     private async Task LoadAsync()
     {
         // Only the 210 real species - junk catches and mission-only fish are left out,
         // the same set the Fishing Records page shows.
         _fish = (await CatalogService.GetFishAsync()).Where(f => CatalogService.IsFishSpecies(f.Id) && !f.NeedsMission).ToList();
+        _rules = await FishingRules.LoadAsync();
+        await CatalogService.WarmCacheAsync(_rules.Baits.Select(b => b.Id));
         _names = await CatalogService.GetItemNamesAsync();
         await CatalogService.WarmCacheAsync(_fish.Select(f => f.Id)
             .Concat(Enumerable.Range(0, 16).Select(d => $"PORTALSYMBOL_{d:X}")));
@@ -77,7 +97,7 @@ public sealed partial class FishingPage : Page
         TimeBox.SelectedIndex = 0;
         RarityBox.Items.Add(new ComboBoxItem { Content = "Any rarity", Tag = "" });
         foreach (var q in new[] { "Common", "Rare", "Epic", "Legendary" })
-            RarityBox.Items.Add(new ComboBoxItem { Content = q, Tag = q });
+            RarityBox.Items.Add(new ComboBoxItem { Content = FishInfo.RarityName(q), Tag = q });
         RarityBox.SelectedIndex = 0;
 
         PlanetTypeBox.Items.Add(new ComboBoxItem { Content = "Where I am", Tag = WhereIAm });
@@ -92,7 +112,6 @@ public sealed partial class FishingPage : Page
             FishCatchService.Observe(FishCatchService.ActiveSaveKey(), first, _fish); // starting counts
             ReadSnapshot(first);
             _liveKey = LiveKey();
-            _live.Start();
         }
 
         _ready = true;
@@ -100,18 +119,51 @@ public sealed partial class FishingPage : Page
         Apply();
     }
 
+    /// <summary>A new save snapshot; FishCatchRecorder has already recorded its catches.</summary>
     private void OnLiveSnapshot(PlanetSnapshot snapshot)
     {
-        FishCatchService.Observe(FishCatchService.ActiveSaveKey(), snapshot, _fish);
+        var before = _caught;
         ReadSnapshot(snapshot);
+        var landed = _caught
+            .Where(c => !before.TryGetValue(c.Key, out var was) || c.Value.Count > was.Count)
+            .Select(c => (Id: c.Key, First: !before.ContainsKey(c.Key)))
+            .ToList();
+        // Before the page has its starting counts, or a jump no rod makes (another
+        // save's records), every fish would read as just caught.
+        if (!_ready || landed.Count > 5) landed.Clear();
         LiveStatusTxt.Text = $"Following your game · updated {DateTime.Now:t}";
         // The game saves often; only touch the page when something it shows changed.
         string key = LiveKey();
         if (key == _liveKey) return;
         _liveKey = key;
+        if (landed.Count > 0) NoteCatches(landed);
         UpdateHere();
         Apply();
         UpdateWhere();
+        if (landed.Count > 0) ShowCatchBar(landed);
+    }
+
+    private void NoteCatches(List<(string Id, bool First)> landed)
+    {
+        foreach (var catchNow in landed)
+        {
+            // A repeat catch of a fish first caught a moment ago stays a first.
+            int was = _justCaught.FindIndex(j => j.Id.Equals(catchNow.Id, StringComparison.OrdinalIgnoreCase));
+            bool first = catchNow.First || (was >= 0 && _justCaught[was].First);
+            if (was >= 0) _justCaught.RemoveAt(was);
+            _justCaught.Insert(0, (catchNow.Id, first));
+        }
+    }
+
+    /// <summary>"You caught your first Wispscale Darter" - the count line reads how
+    /// many of the fish shown are now caught.</summary>
+    private void ShowCatchBar(List<(string Id, bool First)> landed)
+    {
+        string Line((string Id, bool First) c) =>
+            c.First ? $"your first {NameOf(c.Id)}" : $"a {NameOf(c.Id)} ({_caught[c.Id].Count:N0} times now)";
+        CatchBar.Title = landed.Any(c => c.First) ? "New fish caught" : "Fish caught";
+        CatchBar.Message = $"You caught {string.Join(", ", landed.Select(Line))}. {_shownCaught} of {_shownTotal} caught.";
+        CatchBar.IsOpen = true;
     }
 
     /// <summary>Everything the page shows that a new save can change: where you
@@ -152,10 +204,9 @@ public sealed partial class FishingPage : Page
     /// Fish found on any planet are counted separately - they're everywhere.</summary>
     private void UpdateNext()
     {
-        NextPanel.Children.Clear();
         if (!SaveSessionManager.IsSaveLoaded)
         {
-            NextPanel.Visibility = Visibility.Collapsed;
+            NextTiles.Visibility = Visibility.Collapsed;
             return;
         }
         // Collection progress (user, 2026-10-13): one bar per group of planet
@@ -171,55 +222,26 @@ public sealed partial class FishingPage : Page
         // The tile for what the list is showing gets the accent outline.
         int? typeTag = (PlanetTypeBox.SelectedItem as ComboBoxItem)?.Tag as int?;
         int? selected = _anywhereOnly ? FishInfo.AnyPlanet : typeTag == WhereIAm ? _hereBiome : typeTag is >= 0 ? typeTag : null;
-        bool allSelected = !_anywhereOnly && typeTag == AllTypes;
 
-        Border Tile(string title, int caught, int total, int? biome, bool overall = false, int[]? biomes = null)
+        var tiles = new List<FishProgressTileViewModel>
         {
-            bool isSelected = overall ? allSelected
-                : biome == FishInfo.AnyPlanet ? selected == FishInfo.AnyPlanet
-                : selected is int sel && sel != FishInfo.AnyPlanet && (biomes ?? Array.Empty<int>()).Contains(sel);
-            var stack = new StackPanel { Spacing = 4 };
-            var head = new Grid();
-            head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            head.Children.Add(new TextBlock { Text = title, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = ThemeResources.Brush(overall ? "ThemeAccentBrush" : "ThemeTextBrush"), FontWeight = overall ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal });
-            var count = new TextBlock { Text = caught == total ? "✓ all" : $"{caught} / {total}", FontSize = 12, Foreground = ThemeResources.Brush(caught == total ? "ThemeDoneBrush" : "ThemeTextDimBrush"), Margin = new Thickness(8, 0, 0, 0) };
-            Grid.SetColumn(count, 1);
-            head.Children.Add(count);
-            stack.Children.Add(head);
-            stack.Children.Add(new ProgressBar { Maximum = Math.Max(1, total), Value = caught });
-            var tile = new Border
-            {
-                Width = 210,
-                Padding = new Thickness(10, 7, 10, 9),
-                Background = ThemeResources.Brush("ThemePanelAltBrush"),
-                BorderBrush = ThemeResources.Brush(isSelected ? "ThemeAccentBrush" : "ThemeLineBrush"),
-                BorderThickness = new Thickness(isSelected ? 2 : 1),
-                CornerRadius = ThemeResources.CardCornerRadius,
-                Child = stack,
-            };
-            if (biome is int b)
-            {
-                var button = new Button { Content = tile, Padding = new Thickness(0), Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent), BorderThickness = new Thickness(0), Tag = b };
-                ToolTipService.SetToolTip(button, caught == total ? $"You've caught every {title} fish" : $"{total - caught} {title} fish still to catch - click to show them");
-                button.Click += NextType_Click;
-                return new Border { Child = button };
-            }
-            return tile;
-        }
-
-        NextPanel.Children.Add(Tile("All fish", _fish.Count(f => _caught.ContainsKey(f.Id)), _fish.Count, AllTypes, overall: true));
+            new("All fish", _fish.Count(f => _caught.ContainsKey(f.Id)), _fish.Count, AllTypes, !_anywhereOnly && typeTag == AllTypes, isOverall: true),
+        };
         foreach (var g in groups)
-            NextPanel.Children.Add(Tile(string.Join(", ", g.Biomes.Select(NmsPlanets.TypeName)), g.Caught, g.Total, g.Biomes[0], biomes: g.Biomes));
-        NextPanel.Children.Add(Tile("Any planet with water", anywhere.Count(f => _caught.ContainsKey(f.Id)), anywhere.Count, FishInfo.AnyPlanet));
-        NextPanel.Visibility = Visibility.Visible;
+            tiles.Add(new(string.Join(", ", g.Biomes.Select(NmsPlanets.TypeName)), g.Caught, g.Total, g.Biomes[0],
+                selected is int sel && sel != FishInfo.AnyPlanet && g.Biomes.Contains(sel)));
+        tiles.Add(new("Any planet with water", anywhere.Count(f => _caught.ContainsKey(f.Id)), anywhere.Count, FishInfo.AnyPlanet,
+            selected == FishInfo.AnyPlanet));
+        NextTiles.ItemsSource = tiles;
+        NextTiles.Visibility = Visibility.Visible;
     }
 
     /// <summary>Shows the uncaught fish of the clicked planet type ("Any planet
     /// with water" shows only the fish that live anywhere).</summary>
     private void NextType_Click(object sender, RoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.Tag is not int biome) return;
+        if ((sender as FrameworkElement)?.DataContext is not FishProgressTileViewModel tile) return;
+        int biome = tile.Biome;
         int typeTag = biome == FishInfo.AnyPlanet || biome == AllTypes ? AllTypes : biome;
         PlanetTypeBox.SelectedItem = PlanetTypeBox.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (int)i.Tag == typeTag) ?? PlanetTypeBox.SelectedItem;
         ShowBox.SelectedIndex = 1; // Not caught yet
@@ -296,12 +318,20 @@ public sealed partial class FishingPage : Page
             .Where(f => anywhere || !f.Biomes.Contains(FishInfo.AnyPlanet))
             .Where(f => !_anywhereOnly || f.Biomes.Contains(FishInfo.AnyPlanet))
             .ToList();
+        int? currentBiome = biome ?? _hereBiome;
+
         var shown = planetFish
             .Where(f => show == 0 || (show == 2) == _caught.ContainsKey(f.Id))
             .Where(f => time.Length == 0 || f.Time == time || f.Time == "Both")
             .Where(f => rarity.Length == 0 || f.Quality == rarity)
             .Where(f => text.Length == 0 || NameOf(f.Id).Contains(text, StringComparison.CurrentCultureIgnoreCase))
-            .OrderBy(f => _caught.ContainsKey(f.Id))
+            // Current planet type's fish first, then other planet-type fish, then
+            // "anywhere" fish - keep each habitat group contiguous (issue #53).
+            .OrderBy(f => currentBiome is int cb && f.Biomes.Contains(cb) ? 0
+                        : f.Biomes.Contains(FishInfo.AnyPlanet) ? 2 : 1)
+            .ThenBy(f => string.Join(",", f.Biomes.OrderBy(b => b)))
+            .ThenBy(f => JustCaughtRank(f.Id))
+            .ThenBy(f => _caught.ContainsKey(f.Id))
             .ThenBy(f => RarityRank(f.Quality))
             .ThenBy(f => NameOf(f.Id), StringComparer.CurrentCultureIgnoreCase)
             .ToList();
@@ -323,8 +353,37 @@ public sealed partial class FishingPage : Page
                     () => scroller.ChangeView(null, offset, null, disableAnimation: true));
         }
         int caughtCount = planetFish.Count(f => _caught.ContainsKey(f.Id));
+        (_shownCaught, _shownTotal) = (caughtCount, planetFish.Count);
         UpdateNext(); // highlight the tile for what's shown
+        ClearFiltersBtn.Visibility = FiltersSet() ? Visibility.Visible : Visibility.Collapsed;
         CountTxt.Text = (_anywhereOnly ? "Fish found on any planet · " : "") + $"Showing {shown.Count} · {caughtCount} of {planetFish.Count} caught";
+    }
+
+    private int _shownCaught, _shownTotal;
+
+    /// <summary>Anything picked away from how the page opens.</summary>
+    private bool FiltersSet() =>
+        PlanetTypeBox.SelectedIndex != 0 || ShowBox.SelectedIndex != 0 || TimeBox.SelectedIndex != 0 || RarityBox.SelectedIndex != 0
+        || SearchBox.Text.Length > 0 || AnywhereBox.IsChecked != true || _anywhereOnly;
+
+    /// <summary>Back to how the page opens: every fish for where you are.</summary>
+    private void ClearFilters_Click(object sender, RoutedEventArgs e)
+    {
+        _ready = false; // one Apply at the end, not one per box
+        PlanetTypeBox.SelectedIndex = ShowBox.SelectedIndex = TimeBox.SelectedIndex = RarityBox.SelectedIndex = 0;
+        SearchBox.Text = "";
+        AnywhereBox.IsChecked = true;
+        _anywhereOnly = false;
+        _ready = true;
+        Apply();
+        PlanetTypeBox.Focus(FocusState.Programmatic); // the button hides; keep keyboard focus on the filters
+    }
+
+    /// <summary>Fish just caught come first, newest first.</summary>
+    private int JustCaughtRank(string id)
+    {
+        int i = _justCaught.FindIndex(j => j.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        return i < 0 ? int.MaxValue : i;
     }
 
     /// <summary>Fishing spots recorded on the Finds page, by fish id.</summary>
@@ -349,21 +408,25 @@ public sealed partial class FishingPage : Page
             ? "Any planet with water"
             : string.Join(", ", f.Biomes.Select(NmsPlanets.TypeName)) + " planets";
         spots.TryGetValue(f.Id, out var spotList);
+        int just = JustCaughtRank(f.Id);
 
         return new FishCardViewModel
         {
             Id = f.Id,
             Name = NameOf(f.Id),
             Icon = CatalogService.TryGet(f.Id)?.Icon,
-            Rarity = f.Quality.ToUpperInvariant(),
+            Rarity = f.RarityName().ToUpperInvariant(),
             RarityBrush = new SolidColorBrush(RarityColour(f.Quality)),
             Traits = string.Join(" · ", traits),
             Habitat = habitat,
+            Depth = _rules.DepthText(f),
+            Bait = _rules.BestBait(f) is { Length: > 0 } bait ? $"Best bait: {bait}" : "",
             Caught = caught
                 ? $"Caught {record.Count:N0} time{(record.Count == 1 ? "" : "s")}{(record.Largest > 0 ? $" · largest {record.Largest:0.##} kg" : "")}"
                 : "Not caught yet",
+            JustCaught = just == int.MaxValue ? "" : _justCaught[just].First ? "NEW CATCH" : "JUST CAUGHT",
             CaughtBrush = ThemeResources.Brush(caught ? "ThemeDoneBrush" : "ThemeWarningBrush"),
-            CardOpacity = caught ? 0.6 : 1.0,
+            CardOpacity = caught && just == int.MaxValue ? 0.6 : 1.0,
             Spots = spotList is null ? "" : $"Your spots: {string.Join(", ", spotList)}",
             SpotsVisibility = spotList is null ? Visibility.Collapsed : Visibility.Visible,
             CardBorder = ThemeResources.Brush(f.Id == _whereFish?.Id ? "ThemeAccentBrush" : "ThemeLineBrush"),
@@ -570,7 +633,7 @@ public sealed partial class FishingPage : Page
     private FishPlanetRowViewModel ToWhereRow(KnownPlanet p, double? distance, Dictionary<string, Find> spots, FishInfo fish, int caughtTimes = 0)
     {
         string planetName = UniverseInfo.PlanetName(p.SystemAddress, p.PlanetIndex);
-        var detail = new List<string> { p.HasRings ? $"{p.TypeName} · rings" : p.TypeName };
+        var detail = new List<string> { p.Classification(PlanetDetailsService.Get(p.SystemAddress, p.PlanetIndex)?.Descriptor, ringSuffix: " · rings") };
         detail.Add(UniverseInfo.SystemName(p.SystemAddress));
         detail.Add(UniverseInfo.Compact(p.SystemAddress));
         detail.Add(GalaxyLabel(p.Galaxy));
@@ -610,7 +673,6 @@ public sealed partial class FishingPage : Page
             Distance = distanceText,
             Swatch = new SolidColorBrush(ParseColour(NmsPlanets.TypeColour(p.BiomeIndex))),
             PortalCode = p.PortalCode,
-            Glyphs = GlyphsFor(p.PortalCode),
             BaseText = baseName is null ? "" : $"Your base: {baseName}",
             BaseVisibility = baseName is null ? Visibility.Collapsed : Visibility.Visible,
             SpotText = spotText,
@@ -627,13 +689,6 @@ public sealed partial class FishingPage : Page
         };
     }
 
-    private void CopyCode_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is not string code || code.Length == 0) return;
-        var package = new DataPackage();
-        package.SetText(code);
-        Clipboard.SetContent(package);
-    }
 
     // ---------------------------------------------------------------- helpers
 
@@ -652,12 +707,6 @@ public sealed partial class FishingPage : Page
         byte.Parse(hex.AsSpan(1, 2), NumberStyles.HexNumber), byte.Parse(hex.AsSpan(3, 2), NumberStyles.HexNumber),
         byte.Parse(hex.AsSpan(5, 2), NumberStyles.HexNumber));
 
-    private static List<ImageSource> GlyphsFor(string code)
-    {
-        if (code.Length != 12) return new();
-        var images = code.Select(c => CatalogService.TryGet($"PORTALSYMBOL_{c}")?.Icon).ToList();
-        return images.Any(i => i is null) ? new() : images.Cast<ImageSource>().ToList();
-    }
 
     private string NameOf(string id) =>
         _names.TryGetValue(id, out var n) ? n

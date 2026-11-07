@@ -1,6 +1,7 @@
 using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using System;
@@ -18,6 +19,8 @@ public sealed class ItemCard : INotifyPropertyChanged
     public required CatalogPart Part { get; init; }
     public required string Name { get; init; }
     public required string Group { get; init; }
+    public string Tag => Part.Tag ?? "";
+    public string GroupLabel => Tag.Length == 0 ? Group : $"{Group} · {Tag}";
 
     private ImageSource? _icon;
     public ImageSource? Icon { get => _icon; set { _icon = value; Changed(nameof(Icon)); } }
@@ -35,13 +38,14 @@ public sealed class ItemCard : INotifyPropertyChanged
     /// <summary>More copies that may still be installed.</summary>
     public int Room => IsTech ? Math.Max(0, Part.Limit - Count) : 0;
     public double CardOpacity => Owned ? 0.55 : 1.0;
+    private string TooltipName => Tag.Length == 0 ? Name : $"{Name} ({Tag})";
     public string Tooltip => (IsTech, Owned, Part.Limit > 1) switch
     {
         (true, _, true) => $"{Name} - {Count} of {Part.Limit} installed (the game allows {Part.Limit} upgrades per technology).{(Owned ? "" : " Click to install one; each gets its own random stats.")}",
         (true, true, _) => $"{Name} - already installed.",
         (true, false, _) => $"{Name} - click to install it.",
-        (false, true, _) => $"{Name} - already in here. Click to add another stack.",
-        _ => $"{Name} - click to add a stack.",
+        (false, true, _) => $"{TooltipName} - already in here. Click to add another stack.",
+        _ => $"{TooltipName} - click to add a stack.",
     };
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -75,6 +79,12 @@ public sealed partial class ItemListPanel : UserControl
     public ItemListPanel()
     {
         InitializeComponent();
+        Loaded += (_, _) =>
+        {
+            if (_grid is null) return;
+            _grid.CellChanged -= OnGridChanged;
+            _grid.CellChanged += OnGridChanged;
+        };
         Unloaded += (_, _) => { if (_grid is not null) _grid.CellChanged -= OnGridChanged; };
     }
 
@@ -108,6 +118,12 @@ public sealed partial class ItemListPanel : UserControl
     /// "if they click install all then modify everything to make it fit").</summary>
     public Func<bool>? IsBestClass { get; set; }
     public Func<Task>? SwitchToBestClassAsync { get; set; }
+
+    /// <summary>The second filter, over each item's CatalogPart.Tag: fish rarity
+    /// (Cold Storage, the default) or where a corvette part comes from.</summary>
+    public string TagHeader { get; set; } = "Rarity";
+    public string TagAnyLabel { get; set; } = "Any rarity";
+    public string TagAutomationName { get; set; } = "Fish rarity";
 
     /// <summary>How tall the scrolling card list is.</summary>
     public double ListHeight { get => CardsView.Height; set => CardsView.Height = value; }
@@ -148,6 +164,18 @@ public sealed partial class ItemListPanel : UserControl
         GroupBox.SelectedIndex = keep > 0 ? keep : 0;
         // A filter with one choice is just clutter.
         GroupBox.Visibility = GroupBox.Items.Count > 2 ? Visibility.Visible : Visibility.Collapsed;
+
+        string? keepTag = TagBox.SelectedItem as string;
+        TagBox.Header = TagHeader;
+        AutomationProperties.SetName(TagBox, TagAutomationName);
+        TagBox.Items.Clear();
+        TagBox.Items.Add(TagAnyLabel);
+        foreach (string tag in _cards.Where(c => c.Tag.Length > 0)
+            .OrderBy(c => c.Part.TagOrder).Select(c => c.Tag).Distinct())
+            TagBox.Items.Add(tag);
+        int keepTagIndex = keepTag is null ? -1 : TagBox.Items.IndexOf(keepTag);
+        TagBox.SelectedIndex = keepTagIndex > 0 ? keepTagIndex : 0;
+        TagBox.Visibility = TagBox.Items.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
 
         if (!_loadedOnce)
         {
@@ -273,9 +301,12 @@ public sealed partial class ItemListPanel : UserControl
     {
         string text = SearchBox.Text.Trim();
         string group = GroupBox.SelectedItem as string ?? AllGroups;
+        string? tag = TagBox.SelectedIndex > 0 ? TagBox.SelectedItem as string : null;
         return _cards
-            .Where(c => text.Length == 0 || c.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase))
+            .Where(c => text.Length == 0 || c.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase)
+                || c.Tag.Contains(text, StringComparison.CurrentCultureIgnoreCase))
             .Where(c => group == AllGroups || c.Group == group)
+            .Where(c => tag is null || c.Tag == tag)
             .Where(c => HideOwnedBox.IsChecked != true || !c.Owned)
             .ToList();
     }

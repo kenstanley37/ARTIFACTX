@@ -1,4 +1,4 @@
-﻿using ArtifactX.GameData;
+using ArtifactX.GameData;
 using ArtifactX.GameData.Data;
 using ArtifactX.GameData.Models;
 using ArtifactX.GameData.Services;
@@ -9,6 +9,24 @@ using libMBIN;
 
 string workingFolder = Path.Combine(AppContext.BaseDirectory, "Working");
 Directory.CreateDirectory(workingFolder);
+
+// Research definitions only: no building placement or stock is inferred.
+if (args.Length > 0 && args[0].Equals("planet-shop-survey", StringComparison.OrdinalIgnoreCase))
+{
+    try
+    {
+        if (args.Length != 3) throw new ArgumentException("Usage: DataCataloger planet-shop-survey <output.json> <game folder>");
+        var game = GameInstall.Inspect(args[2]) ?? throw new ArgumentException("No No Man's Sky install found at that path.");
+        if (!Path.GetExtension(args[1]).Equals(".json", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("The survey output must be a .json file.");
+        var survey = PlanetShopWeaponSurveyService.Read(game);
+        File.WriteAllText(Path.GetFullPath(args[1]), System.Text.Json.JsonSerializer.Serialize(survey,
+            new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        Console.WriteLine($"{survey.References.Length} unselected rule references; {survey.UnresolvedPaths.Length} unresolved paths. No locations generated.");
+    }
+    catch (Exception error) { Console.Error.WriteLine(error.Message); Environment.ExitCode = 1; }
+    return;
+}
 
 // "DataCataloger build-all <output.sqlite> [game folder]" - the whole build the
 // app runs on the player's PC (GameDataBuilder): main build, every add-* step,
@@ -171,6 +189,43 @@ if (args.Length > 0 && args[0].Equals("ships", StringComparison.OrdinalIgnoreCas
 
     return;
 }
+
+// "DataCataloger extract <filename substring> <output folder>" - writes the raw bytes of every MBIN whose path
+// contains the substring (e.g. "PLANETBUILDINGTABLE") from the data PAKs, for research tools that decode them with
+// libMBIN. The output is extracted game data: keep it local, never commit it.
+if (args.Length > 2 && args[0].Equals("extract", StringComparison.OrdinalIgnoreCase))
+{
+    var extractSettings = SettingsService.Load();
+    if (!SettingsService.IsValid(extractSettings))
+    {
+        ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+        return;
+    }
+    IPakReaderService extractPakReader = new PakReaderService();
+    var extractor = new ExtractionService();
+    Directory.CreateDirectory(args[2]);
+    int written = 0;
+    foreach (var pak in new PakDiscoveryService().Discover(extractSettings.NmsInstallationPath!))
+    {
+        ArtifactX.GameData.Models.PakHeader header;
+        IReadOnlyList<ArtifactX.GameData.Models.PakEntry> entries;
+        try { header = extractPakReader.ReadHeader(pak.FullPath); entries = extractPakReader.Read(pak.FullPath); }
+        catch { continue; }
+        foreach (var entry in entries.Where(e => e.FileName?.Contains(args[1], StringComparison.OrdinalIgnoreCase) == true
+                     && e.FileName.EndsWith(".MBIN", StringComparison.OrdinalIgnoreCase)))
+        {
+            byte[]? bytes = extractor.ExtractEntryBytes(pak.FullPath, entry, header);
+            if (bytes is null) continue;
+            string target = Path.Combine(args[2], Path.GetFileName(entry.FileName));
+            File.WriteAllBytes(target, bytes);
+            ConsoleStyle.Success($"{entry.FileName} -> {target} ({bytes.Length} bytes)");
+            written++;
+        }
+    }
+    ConsoleStyle.Success($"{written} file(s) written.");
+    return;
+}
+
 
 // "DataCataloger grep <substring>" decodes every MBIN and deep-searches its actual
 // FIELD VALUES (not filenames) for the given substring, regardless of whether the
@@ -751,6 +806,20 @@ if (args.Length > 1 && args[0].Equals("add-part-groups", StringComparison.Ordina
     return;
 }
 
+// "DataCataloger add-multitool-names <target-catalog-db-path>" - see CatalogSteps.AddMultiToolNameWords.
+if (args.Length > 1 && args[0].Equals("add-multitool-names", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddMultiToolNameWords(args[1], gamePath);
+    return;
+}
+
+// "DataCataloger add-ship-builder <target-catalog-db-path>" - see CatalogSteps.AddShipBuilder.
+if (args.Length > 1 && args[0].Equals("add-ship-builder", StringComparison.OrdinalIgnoreCase))
+{
+    if (DevGamePath() is string gamePath) CatalogSteps.AddShipBuilder(args[1], gamePath);
+    return;
+}
+
 // "DataCataloger add-ship-descriptors <target-catalog-db-path>" - see CatalogSteps.AddShipDescriptors.
 if (args.Length > 1 && args[0].Equals("add-ship-descriptors", StringComparison.OrdinalIgnoreCase))
 {
@@ -1222,7 +1291,8 @@ static string? DevGamePath()
 {
     var devSettings = SettingsService.Load();
     if (SettingsService.IsValid(devSettings)) return devSettings.NmsInstallationPath;
-    ConsoleStyle.Error("No valid ArtifactX installation path configured yet - run the normal build once first.");
+    if (GameInstall.Find() is { } found) return found.PcbanksPath;
+    ConsoleStyle.Error("No No Man's Sky install found, and no installation path configured - run the normal build once first.");
     return null;
 }
 

@@ -11,6 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ArtifactX.Core\ArtifactX.Core.csproj" />
     <ProjectReference Include="..\ArtifactX.Tools\NMS.Tools.libMBIN\NMS.Tools.libMBIN.csproj" />
   </ItemGroup>
 

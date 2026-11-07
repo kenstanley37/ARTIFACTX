@@ -5,6 +5,9 @@ using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using System;
 using System.Linq;
+using System.Collections.Generic;
+using Microsoft.UI.Dispatching;
+using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Controls;
 
@@ -15,25 +18,40 @@ namespace ArtifactX.WinUI3.Controls;
 /// beside it. Which items fit comes from the user's in-game tests (Cold
 /// Storage: fish + bait) and the game's own CookingIngredient flag
 /// (Ingredient Storage) - see CatalogService.GetFoodStorageItemsAsync.
-/// Hosted by ColdStoragePage and IngredientStoragePage.
+/// Hosted by the lazy Cargo storage tabs.
 /// </summary>
 public sealed partial class FoodStoreControl : UserControl
 {
-    private InventoryGridViewModel? _model;
+    private CargoInventoryViewModel? _editor;
+    private InventoryGridViewModel? _model => _editor?.Inventory;
+    private bool _itemsStarted;
+    private bool _coldStorage;
 
     /// <summary>Raised when this store is edited (the page shows its Reset button).</summary>
     public event EventHandler? Changed;
 
-    public FoodStoreControl() => InitializeComponent();
+    public FoodStoreControl()
+    {
+        InitializeComponent();
+        Loaded += (_, _) => DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            if (_itemsStarted || _editor is null) return;
+            _itemsStarted = true;
+            _ = LoadItemsAsync();
+        });
+    }
 
-    public bool HasLocalChanges => _model?.HasLocalChanges == true;
+    public IEnumerable<string[]> InventoryPaths => _editor is null ? [] : [_editor.Path];
+
+    public bool HasLocalChanges => _editor?.HasChanges == true;
 
     /// <summary>Sets the store up; call once from the hosting page.</summary>
     public void Init(bool coldStorage)
     {
-        _model = coldStorage
-            ? new InventoryGridViewModel(NmsInventoryContainer.ColdStoragePath, NmsInventoryContainer.ColdStorageColumns, NmsInventoryContainer.ColdStorageRows)
-            : new InventoryGridViewModel(NmsInventoryContainer.IngredientStoragePath, NmsInventoryContainer.IngredientStorageColumns, NmsInventoryContainer.IngredientStorageRows);
+        _coldStorage = coldStorage;
+        _editor = coldStorage
+            ? new CargoInventoryViewModel(NmsInventoryContainer.ColdStoragePath, NmsInventoryContainer.ColdStorageColumns, NmsInventoryContainer.ColdStorageRows)
+            : new CargoInventoryViewModel(NmsInventoryContainer.IngredientStoragePath, NmsInventoryContainer.IngredientStorageColumns, NmsInventoryContainer.IngredientStorageRows);
         GridTitleTxt.Text = coldStorage ? "COLD STORAGE" : "INGREDIENT STORAGE";
         ListTitleTxt.Text = coldStorage ? "FISH AND BAIT" : "COOKING INGREDIENTS";
 
@@ -45,29 +63,35 @@ public sealed partial class FoodStoreControl : UserControl
         // Stack sizes from the game's own screens: Cold Storage fish 100 / bait
         // 1,000 (20x the catalog), Ingredient Storage fish 25 / food 50 (5x).
         Grid.ProductStorageMultiplier = coldStorage ? 20 : 5;
+        // Until the allowed-item list arrives, never offer the full catalog
+        // in this inventory's Add menu.
+        Grid.AllowedItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         Grid.CellChanged += (_, _) => Changed?.Invoke(this, EventArgs.Empty);
 
         Reload();
-        _ = List.LoadAsync(Grid, async () =>
+    }
+
+    private Task LoadItemsAsync() => List.LoadAsync(Grid, async () =>
         {
-            var items = await CatalogService.GetFoodStorageItemsAsync(coldStorage);
+            var items = await CatalogService.GetFoodStorageItemsAsync(_coldStorage);
             Grid.AllowedItemIds = items.Select(p => p.GameId).ToHashSet(StringComparer.OrdinalIgnoreCase);
             return items;
-        }, coldStorage ? "item" : "ingredient", coldStorage ? "items" : "ingredients", "Product", p => p.Group);
-    }
+        }, _coldStorage ? "item" : "ingredient", _coldStorage ? "items" : "ingredients", "Product", p => p.Group);
 
     public async void Reload()
     {
-        if (_model is null || !SaveSessionManager.IsSaveLoaded) return;
-        _model.Load();
-        await CatalogService.WarmCacheAsync(_model.Cells.Where(c => c.IsOccupied).Select(c => c.ItemId));
-        Grid.Refresh();
+        if (_editor is null) return;
+        if (await _editor.RefreshAsync(() => Grid.Refresh(showLoadingItems: true)))
+        {
+            Grid.UpdateCatalogPresentation();
+            List.RefreshOwned();
+        }
     }
 
     public void Revert()
     {
-        _model?.Revert();
-        Grid.Refresh();
+        _editor?.Revert();
+        Reload();
     }
 
     private void MaxAllQtyBtn_Click(object sender, RoutedEventArgs e)
@@ -79,9 +103,9 @@ public sealed partial class FoodStoreControl : UserControl
 
     private void MergeDuplicatesBtn_Click(object sender, RoutedEventArgs e)
     {
-        int freed = _model?.MergeDuplicates() ?? 0;
-        ResultTxt.Text = freed == 0 ? "No duplicates found." : $"Merged duplicates - {freed} slot{(freed == 1 ? "" : "s")} freed.";
-        if (freed == 0) return;
+        bool changed = _model is not null && _model.TryMergeDuplicates(out _);
+        ResultTxt.Text = changed ? "Merged compatible stacks." : "No stacks to merge.";
+        if (!changed) return;
         Grid.Refresh();
         Changed?.Invoke(this, EventArgs.Empty);
     }

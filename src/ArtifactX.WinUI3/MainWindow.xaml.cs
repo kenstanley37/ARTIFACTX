@@ -1,4 +1,5 @@
 using Microsoft.UI;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -9,7 +10,9 @@ using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Resources;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.Views;
+using ArtifactX.WinUI3.Views.ExplorePages;
 using ArtifactX.WinUI3.Views.InspectionPages;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -107,9 +110,13 @@ public sealed partial class MainWindow : Window
         {
             UpdateNavAvailability();
             SlotSwitchBar.IsOpen = false; // a save was opened or closed - nothing to offer
+            ContextSwitchBar.IsOpen = false;
         };
         UpdateNavAvailability();
         SaveFolderWatchService.GameSavedOtherSlot += OfferSlotSwitch;
+        SaveSessionManager.GameSavedLoadedSlot += OnGameSavedLoadedSlot;
+        LiveItemsService.Start();
+        LiveItemsService.Changed += _ => UpdateLiveBadges();
         InitGameData();
 
         GameProcessMonitorService.RunningStateChanged += (_, isRunning) =>
@@ -125,6 +132,8 @@ public sealed partial class MainWindow : Window
         GameProcessMonitorService.Start(DispatcherQueue);
         // Where fish are caught is learned from each new save, on every page (FishCatchRecorder).
         FishCatchRecorder.Start(DispatcherQueue);
+        // Off unless turned on in Settings (GitHub #18, step 1).
+        ScreenCaptureLogService.Start();
         GameRunningBanner.Visibility = GameProcessMonitorService.IsGameRunning ? Visibility.Visible : Visibility.Collapsed;
 
         _ = RunStartupUpdateCheckAsync();
@@ -153,8 +162,7 @@ public sealed partial class MainWindow : Window
         FreighterUpgradesPathIcon.Data = G(NavIconGeometries.Freighter);
         FrigatesPathIcon.Data = G(NavIconGeometries.Frigates);
         SquadronPathIcon.Data = G(NavIconGeometries.Squadron);
-        BaseStoragePathIcon.Data = G(NavIconGeometries.BaseStorage);
-        CorvetteCachePathIcon.Data = G(NavIconGeometries.CorvetteCache);
+        CargoPathIcon.Data = G(NavIconGeometries.BaseStorage);
         CompanionsPathIcon.Data = G(NavIconGeometries.Companions);
         SettlementsPathIcon.Data = G(NavIconGeometries.Settlements);
         SpaceStationsPathIcon.Data = G(NavIconGeometries.SpaceStations);
@@ -166,6 +174,7 @@ public sealed partial class MainWindow : Window
         AutophageLanguagePathIcon.Data = G(NavIconGeometries.Language);
         AtlasLanguagePathIcon.Data = G(NavIconGeometries.Language);
         CataloguePathIcon.Data = G(NavIconGeometries.Catalogue);
+        GameCatalogPathIcon.Data = G(NavIconGeometries.Catalogue);
         FishingRecordsPathIcon.Data = G(NavIconGeometries.FishingRecords);
         FishingPathIcon.Data = G(NavIconGeometries.FishingRecords);
         ExocraftPathIcon.Data = G(NavIconGeometries.Exocraft);
@@ -391,35 +400,40 @@ public sealed partial class MainWindow : Window
                 "Exosuit" => typeof(ExosuitPage),
                 "MultiTool" => typeof(MultiToolPage),
                 "Ships" => typeof(ShipsPage),
+                "ShipDesigner" => typeof(ShipDesignerPage),
                 "Freighter" => typeof(FreighterPage),
                 "FreighterUpgrades" => typeof(FreighterUpgradesPage),
                 "Frigate" => typeof(FrigatePage),
                 "Squadron" => typeof(SquadronPage),
-                "BaseStorage" => typeof(BaseStoragePage),
-                "CorvetteCache" => typeof(CorvetteCachePage),
-                "ColdStorage" => typeof(ColdStoragePage),
-                "IngredientStorage" => typeof(IngredientStoragePage),
-                "BaseItemCache" => typeof(BaseItemCachePage),
+                "Cargo" => typeof(CargoPage),
                 "Companions" => typeof(CompanionsPage),
                 "Settlement" => typeof(SettlementPage),
                 "SpaceStations" => typeof(SpaceStationsPage),
-                "Planets" => typeof(PlanetsPage),
+                "Planets" => typeof(CurrentSystemPage),
+                "PlanetDetails" => typeof(PlanetDetailsPage),
+                "PlanetFinder" => typeof(PlanetFinderPage),
                 "Bases" => typeof(BasesPage),
+                "BaseDetails" => typeof(BaseDetailsPage),
                 "Finds" => typeof(FindsPage),
                 "Fishing" => typeof(FishingPage),
-                "Recipes" => typeof(RecipesPage),
+                "Recipes" => typeof(CookingRecipesPage),
+                "RefinerRecipes" => typeof(RefinerRecipesPage),
                 "Crafting" => typeof(CraftingPage),
+                "IndustrialCleanup" => typeof(IndustrialCleanupPage),
                 "Guides" => typeof(GuidesPage),
                 "Credits" => typeof(CreditsPage),
                 "Settings" => typeof(SettingsPage),
                 "ItemValues" => typeof(ItemValuesPage),
+                "EggSequencer" => typeof(EggSequencerPage),
                 "NearCore" => typeof(NearCorePage),
+                "Regions" => typeof(RegionsPage),
                 "Milestones" => typeof(MilestonesPage),
-                "AccountData" => typeof(AccountDataPage),
+                "Alliance" => typeof(AlliancePage),
                 "Guide" => typeof(GuidePage),
                 "ExpeditionRewards" => typeof(ExpeditionRewardsPage),
                 "TwitchRewards" => typeof(TwitchRewardsPage),
                 "Catalogue" => typeof(CataloguePage),
+                "GameCatalog" => typeof(GameCatalogPage),
                 "FishingRecords" => typeof(FishingRecordsPage),
                 "Exocraft" => typeof(ExocraftPage),
                 "LanguageGek" => typeof(GekLanguagePage),
@@ -454,20 +468,17 @@ public sealed partial class MainWindow : Window
         ExosuitNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         MultiToolNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         ShipsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        ShipDesignerNavItem.Visibility = ShipsNavItem.Visibility;
         FreighterNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         FreighterUpgradesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         FrigateNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SquadronNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        BaseStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        CorvetteCacheNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        ColdStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        IngredientStorageNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        BaseItemCacheNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        CargoNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         // A reminder: how many different items are waiting in the cache (easy to
         // forget, user 2026-10-15) - kinds of item, not quantities.
         int cacheItems = SaveSessionManager.GetValue(ArtifactX.Core.NmsModels.NmsInventoryContainer.BaseItemCachePath)?[":No"] is Newtonsoft.Json.Linq.JArray cached ? cached.Count : 0;
-        BaseItemCacheNavItem.InfoBadge = cacheItems > 0 ? new InfoBadge { Value = cacheItems } : null;
-        ToolTipService.SetToolTip(BaseItemCacheNavItem, cacheItems > 0
+        CargoNavItem.InfoBadge = cacheItems > 0 ? new InfoBadge { Value = cacheItems } : null;
+        ToolTipService.SetToolTip(CargoNavItem, cacheItems > 0
             ? $"{cacheItems} item{(cacheItems == 1 ? "" : "s")} waiting from a dismantled base" : null);
         CompanionsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SettlementNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
@@ -478,7 +489,9 @@ public sealed partial class MainWindow : Window
         ExploreNavItem.Visibility = Visibility.Visible;
         ReferenceNavItem.Visibility = Visibility.Visible;
         PlanetsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        PlanetFinderNavItem.Visibility = PlanetsNavItem.Visibility;
         NearCoreNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        RegionsNavItem.Visibility = NearCoreNavItem.Visibility;
         BasesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SaveEditorNavItem.Visibility = SaveSessionManager.IsSaveLoaded || SaveSessionManager.HasActivePlatform
             ? Visibility.Visible : Visibility.Collapsed;
@@ -486,6 +499,7 @@ public sealed partial class MainWindow : Window
         ReferenceSeparator.Visibility = ReferenceNavItem.Visibility;
         MilestonesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         CatalogueNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        GameCatalogNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         FishingRecordsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         ExocraftNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
 
@@ -550,6 +564,121 @@ public sealed partial class MainWindow : Window
             ContentFrame.Navigate(page);
     }
 
+    /// <summary>"New" counts on Multi-Tool and Starships for what the game added
+    /// while it played (LiveItemsService), until each one is clicked.</summary>
+    private void UpdateLiveBadges()
+    {
+        SetNewBadge(MultiToolNavItem, LiveItemsService.NewCount(LiveCollection.MultiTools), "multi-tool");
+        SetNewBadge(ShipsNavItem, LiveItemsService.NewCount(LiveCollection.Ships), "starship");
+    }
+
+    private static void SetNewBadge(NavigationViewItem item, int count, string noun)
+    {
+        item.InfoBadge = count > 0 ? new InfoBadge { Value = count } : null;
+        ToolTipService.SetToolTip(item, count > 0 ? $"{count} new {noun}{(count == 1 ? "" : "s")} in your game" : null);
+    }
+
+    // The context the player chose to keep editing despite the game moving
+    // away from it - not offered again on every autosave.
+    private bool? _declinedContextIsExpedition;
+    private DispatcherQueueTimer? _contextBarFade;
+
+    /// <summary>The game saved the loaded slot. Ordinary autosaves change
+    /// nothing on screen (user rule 2026-10-16); only a move between the
+    /// expedition and the main game does, since every page would otherwise
+    /// show a character the game is no longer playing.</summary>
+    private async void OnGameSavedLoadedSlot(JObject disk)
+    {
+        bool nowExpedition = SaveSessionManager.IsMidExpedition(disk);
+        if (nowExpedition == SaveSessionManager.IsExpeditionActive)
+        {
+            _declinedContextIsExpedition = null;
+            return;
+        }
+        if (_declinedContextIsExpedition == SaveSessionManager.IsExpeditionActive) return;
+
+        string now = nowExpedition ? "You started an expedition" : "You left the expedition";
+        if (!SaveSessionManager.HasUnsavedChanges)
+        {
+            await ReloadSaveInPlaceAsync();
+            ShowContextBar(now, nowExpedition
+                ? "ArtifactX is now showing your expedition character."
+                : "ArtifactX is now showing your main game.", offerReload: false);
+            return;
+        }
+
+        int count = SaveSessionManager.PendingEditCount;
+        string was = SaveSessionManager.IsExpeditionActive ? "the expedition" : "your main game";
+        ShowContextBar($"{now} in No Man's Sky",
+            $"Your {count} unsaved {(count == 1 ? "change was" : "changes were")} made to {was}, which the game is no longer playing. " +
+            "Reload to see what the game is playing now.", offerReload: true);
+    }
+
+    private void ShowContextBar(string title, string message, bool offerReload)
+    {
+        _contextBarFade?.Stop();
+        ContextSwitchBar.Title = title;
+        ContextSwitchBar.Message = message;
+        ContextSwitchButton.Visibility = offerReload ? Visibility.Visible : Visibility.Collapsed;
+        ContextSwitchBar.Opacity = 1;
+        ContextSwitchBar.IsOpen = true;
+        if (offerReload) return;
+
+        // A notice, not a question: it fades out on its own.
+        if (_contextBarFade is null)
+        {
+            _contextBarFade = DispatcherQueue.CreateTimer();
+            _contextBarFade.IsRepeating = false;
+            _contextBarFade.Interval = TimeSpan.FromSeconds(8);
+            _contextBarFade.Tick += FadeContextBar;
+        }
+        _contextBarFade.Start();
+    }
+
+    private async void FadeContextBar(DispatcherQueueTimer timer, object args)
+    {
+        ContextSwitchBar.Opacity = 0; // OpacityTransition animates it
+        await Task.Delay(600);
+        if (ContextSwitchBar.Opacity == 0) ContextSwitchBar.IsOpen = false;
+        ContextSwitchBar.Opacity = 1;
+    }
+
+    private void ContextSwitchBar_Closed(InfoBar sender, object args)
+    {
+        _contextBarFade?.Stop();
+        if (ContextSwitchButton.Visibility == Visibility.Visible)
+            _declinedContextIsExpedition = SaveSessionManager.IsExpeditionActive;
+    }
+
+    private async void ContextSwitchReload_Click(object sender, RoutedEventArgs e)
+    {
+        if (SaveSessionManager.HasUnsavedChanges)
+        {
+            var confirm = new ContentDialog
+            {
+                Title = "Reload this save?",
+                Content = $"Your unsaved changes to {SaveSessionManager.ActiveLabel} will be discarded.",
+                PrimaryButtonText = "Discard and reload",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = Content.XamlRoot,
+            };
+            if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+        }
+        ContextSwitchBar.IsOpen = false;
+        await ReloadSaveInPlaceAsync();
+    }
+
+    /// <summary>Reads the loaded slot fresh from disk and rebuilds the page on
+    /// screen from it, keeping the player where they are.</summary>
+    private async Task ReloadSaveInPlaceAsync()
+    {
+        _declinedContextIsExpedition = null;
+        await SaveSessionManager.ReloadFromDiskAsync();
+        if (ContentFrame.CurrentSourcePageType is Type page && page != typeof(SaveFolderSelectPage))
+            ReloadCurrentPage();
+    }
+
     private void ContentFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
     {
         string targetTag = e.SourcePageType switch
@@ -559,35 +688,40 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(ExosuitPage) => "Exosuit",
             Type t when t == typeof(MultiToolPage) => "MultiTool",
             Type t when t == typeof(ShipsPage) => "Ships",
+            Type t when t == typeof(ShipDesignerPage) => "ShipDesigner",
             Type t when t == typeof(FreighterPage) => "Freighter",
             Type t when t == typeof(FreighterUpgradesPage) => "FreighterUpgrades",
             Type t when t == typeof(FrigatePage) => "Frigate",
             Type t when t == typeof(SquadronPage) => "Squadron",
-            Type t when t == typeof(BaseStoragePage) => "BaseStorage",
-            Type t when t == typeof(CorvetteCachePage) => "CorvetteCache",
-            Type t when t == typeof(ColdStoragePage) => "ColdStorage",
-            Type t when t == typeof(IngredientStoragePage) => "IngredientStorage",
-            Type t when t == typeof(BaseItemCachePage) => "BaseItemCache",
+            Type t when t == typeof(CargoPage) => "Cargo",
             Type t when t == typeof(CompanionsPage) => "Companions",
             Type t when t == typeof(SettlementPage) => "Settlement",
             Type t when t == typeof(SpaceStationsPage) => "SpaceStations",
-            Type t when t == typeof(PlanetsPage) => "Planets",
+            Type t when t == typeof(CurrentSystemPage) => "Planets",
+            Type t when t == typeof(PlanetDetailsPage) => "Planets",
+            Type t when t == typeof(PlanetFinderPage) => "PlanetFinder",
             Type t when t == typeof(BasesPage) => "Bases",
+            Type t when t == typeof(BaseDetailsPage) => "Bases",
             Type t when t == typeof(FindsPage) => "Finds",
             Type t when t == typeof(FishingPage) => "Fishing",
-            Type t when t == typeof(RecipesPage) => "Recipes",
+            Type t when t == typeof(CookingRecipesPage) => "Recipes",
+            Type t when t == typeof(RefinerRecipesPage) => "RefinerRecipes",
             Type t when t == typeof(CraftingPage) => "Crafting",
+            Type t when t == typeof(IndustrialCleanupPage) => "IndustrialCleanup",
             Type t when t == typeof(GuidesPage) => "Guides",
             Type t when t == typeof(CreditsPage) => "Credits",
             Type t when t == typeof(SettingsPage) => "Settings",
             Type t when t == typeof(ItemValuesPage) => "ItemValues",
+            Type t when t == typeof(EggSequencerPage) => "EggSequencer",
             Type t when t == typeof(NearCorePage) => "NearCore",
+            Type t when t == typeof(RegionsPage) => "Regions",
             Type t when t == typeof(MilestonesPage) => "Milestones",
-            Type t when t == typeof(AccountDataPage) => "AccountData",
+            Type t when t == typeof(AlliancePage) => "Alliance",
             Type t when t == typeof(GuidePage) => "Guide",
             Type t when t == typeof(ExpeditionRewardsPage) => "ExpeditionRewards",
             Type t when t == typeof(TwitchRewardsPage) => "TwitchRewards",
             Type t when t == typeof(CataloguePage) => "Catalogue",
+            Type t when t == typeof(GameCatalogPage) => "GameCatalog",
             Type t when t == typeof(FishingRecordsPage) => "FishingRecords",
             Type t when t == typeof(ExocraftPage) => "Exocraft",
             Type t when t == typeof(GekLanguagePage) => "LanguageGek",

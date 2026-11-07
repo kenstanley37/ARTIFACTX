@@ -1,5 +1,8 @@
-﻿using Microsoft.Data.Sqlite;
+using Microsoft.Data.Sqlite;
 using Microsoft.UI.Xaml.Media.Imaging;
+using ArtifactX.Core.Companions;
+using ArtifactX.Core.Frigates;
+using ArtifactX.Core.Procedural;
 using ArtifactX.WinUI3.Models;
 using System;
 using System.Collections.Generic;
@@ -16,27 +19,67 @@ namespace ArtifactX.WinUI3.Services;
 
 public static class CatalogService
 {
-    private static readonly Dictionary<string, CatalogEntry?> Cache = new();
+    // Read from background work too (e.g. the Bases list is built in Task.Run).
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, CatalogEntry?> Cache = new();
     private static string? _dbPath;
     private static bool _pathChecked;
 
     public static bool IsAvailable => ResolveDbPath() is not null;
+    public static long Revision { get; private set; }
 
     /// <summary>Forgets everything read so far - after the game data was
     /// rebuilt (GameDataService). Call on the UI thread; pages pick the new
     /// catalog up as they load.</summary>
+    private static Dictionary<string, IReadOnlyList<string>>? _namingWords;
+    private static volatile IReadOnlyDictionary<string, string>? _moduleClasses;
+    private static volatile IReadOnlyDictionary<string, ProceduralProductNaming>? _productNaming;
+
     public static void Reload()
     {
+        Revision++;
         Cache.Clear();
+        _namingWords = null;
+        _moduleClasses = null;
+        _productNaming = null;
         _pathChecked = false;
         _dbPath = null;
+        Reloaded?.Invoke();
     }
 
+    /// <summary>Raised after <see cref="Reload"/> (a game data rebuild), so services that keep results worked
+    /// out from catalog tables drop them.</summary>
+    public static event Action? Reloaded;
+
+    /// <summary>The cached entry for an id. An id WarmCacheAsync hasn't seen is looked
+    /// up in the catalog once (name only, no icon - WarmCacheAsync still fetches that),
+    /// and an id the catalog doesn't have is remembered as missing, so it isn't
+    /// queried again. Prefer warming the ids first: this lookup is synchronous.</summary>
     public static CatalogEntry? TryGet(string? gameId)
     {
         if (string.IsNullOrEmpty(gameId)) return null;
         string key = NormalizeId(gameId);
-        return Cache.TryGetValue(key, out var entry) ? entry : null;
+        if (Cache.TryGetValue(key, out var entry)) return entry;
+
+        if (ResolveDbPath() is not string dbPath) return null;
+        CatalogEntry? fetched = null;
+        try
+        {
+            if (QueryRows(dbPath, new List<string> { key }).TryGetValue(key, out var row))
+                fetched = new CatalogEntry
+                {
+                    DisplayName = row.DisplayName,
+                    Icon = null,
+                    CatalogGroup = row.CatalogGroup,
+                    TemplateType = row.TemplateType,
+                };
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] TryGet({key}) failed: {ex.Message}");
+            return null; // not remembered: a failed read may work next time
+        }
+        Cache[key] = fetched;
+        return fetched;
     }
 
     /// <summary>Strips the leading "^" every save-file item id carries, plus a
@@ -95,7 +138,7 @@ public static class CatalogService
             return;
         }
 
-        Dictionary<string, (string DisplayName, byte[]? IconPng)> rows;
+        Dictionary<string, (string DisplayName, byte[]? IconPng, string? CatalogGroup, string? TemplateType)> rows;
         try
         {
             rows = await Task.Run(() => QueryRows(dbPath, toFetch));
@@ -154,9 +197,164 @@ public static class CatalogService
                 }
             }
 
-            Cache[id] = new CatalogEntry { DisplayName = row.DisplayName, Icon = icon };
+            Cache[id] = new CatalogEntry
+            {
+                DisplayName = row.DisplayName,
+                Icon = icon,
+                IconPng = icon is null ? null : row.IconPng,
+                CatalogGroup = row.CatalogGroup,
+                TemplateType = row.TemplateType,
+            };
         }
     }
+
+    /// <summary>
+    /// The class badge the game draws on a procedural upgrade module ("UP_LASERX#92128" -> "X"),
+    /// from the catalog's extracted quality: Normal/Rare/Epic/Legendary/Illegal = C/B/A/S/X.
+    /// Sentinel, Robot and SeaTrash modules have no letter mapping yet and return null,
+    /// as does every non-module item and a catalog built before format 43.
+    /// </summary>
+    public static string? ModuleClassLetter(string? gameId)
+    {
+        if (string.IsNullOrEmpty(gameId) || !gameId.Contains('#')) return null;
+        var classes = _moduleClasses ??= LoadModuleClasses();
+        return classes.GetValueOrDefault(NormalizeId(gameId));
+    }
+
+    private static IReadOnlyDictionary<string, string> LoadModuleClasses()
+    {
+        var classes = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (ResolveDbPath() is not string dbPath) return classes;
+        try
+        {
+            using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT GameId, ModuleQuality FROM Items WHERE ModuleQuality IS NOT NULL";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                string? letter = reader.GetString(1) switch
+                {
+                    "Normal" => "C", "Rare" => "B", "Epic" => "A", "Legendary" => "S", "Illegal" => "X",
+                    "SeaTrash" => "!", "Sentinel" or "Robot" => "?", _ => null,
+                };
+                if (letter is not null) classes[reader.GetString(0)] = letter;
+            }
+        }
+        catch (SqliteException ex)
+        {
+            Debug.WriteLine($"[CatalogService] Module classes unavailable (catalog before format 43?): {ex.Message}");
+        }
+        return classes;
+    }
+
+    /// <summary>
+    /// The name the game gives a procedural product from its seed ("PROC_LOOT#06686" ->
+    /// "Shiny Bones", ArtifactX.Core ProceduralProductNames), or null for any other id,
+    /// a product whose naming isn't read yet (freighter logs and tech, DismantleData,
+    /// MessageInBottle) and a catalog built before format 65.
+    /// </summary>
+    public static string? ProceduralProductName(string? itemId)
+    {
+        string id = (itemId ?? "").TrimStart('^');
+        int hash = id.IndexOf('#');
+        if (hash <= 0) return null;
+        var naming = _productNaming ??= LoadProductNaming();
+        return naming.TryGetValue(id[..hash], out var product) ? ProceduralProductNames.Generate(id, product) : null;
+    }
+
+    private static IReadOnlyDictionary<string, ProceduralProductNaming> LoadProductNaming()
+    {
+        var naming = new Dictionary<string, ProceduralProductNaming>(StringComparer.OrdinalIgnoreCase);
+        if (ResolveDbPath() is not string dbPath) return naming;
+        try
+        {
+            using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId = 'PROCEDURALPRODUCTNAMES'";
+            if (command.ExecuteScalar() is string json)
+                foreach (var product in System.Text.Json.JsonSerializer.Deserialize<List<ProceduralProductNaming>>(json) ?? [])
+                    naming[product.ProductId] = product;
+        }
+        catch (Exception ex) when (ex is SqliteException or System.Text.Json.JsonException)
+        {
+            Debug.WriteLine($"[CatalogService] Procedural product names unavailable (catalog before format 65?): {ex.Message}");
+        }
+        return naming;
+    }
+
+    /// <summary>A product or substance's save category ("Product"/"Substance") and
+    /// catalog stack size, for adding it to an inventory; null when it is neither.</summary>
+    public static (string CategoryLabel, int? MaxStackSize)? TryGetStackInfo(string itemId)
+    {
+        if (ResolveDbPath() is not string dbPath) return null;
+        try
+        {
+            using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+                SELECT c.TemplateType, i.MaxStackSize FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                WHERE i.GameId = $id AND c.TemplateType IN ('GcProductTable', 'GcSubstanceTable') LIMIT 1";
+            command.Parameters.AddWithValue("$id", NormalizeId(itemId));
+            using var reader = command.ExecuteReader();
+            if (!reader.Read()) return null;
+            return (ElvLabelFor(reader.GetString(0)), reader.IsDBNull(1) ? null : reader.GetInt32(1));
+        }
+        catch (SqliteException ex)
+        {
+            Debug.WriteLine($"[CatalogService] TryGetStackInfo failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>Organic frigate feeding rules (catalog row FRIGATEFEEDING, format
+    /// 66), or null for an older catalog.</summary>
+    public static Task<FrigateFeedingRules?> GetFrigateFeedingRulesAsync() => Task.Run(() =>
+    {
+        if (ResolveDbPath() is not string dbPath) return null;
+        try
+        {
+            using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId = 'FRIGATEFEEDING'";
+            // A catalog from before these rules were complete reads back with nulls.
+            return command.ExecuteScalar() is string json
+                && System.Text.Json.JsonSerializer.Deserialize<FrigateFeedingRules>(json) is { Foods: not null, Traits: not null } rules
+                ? rules : null;
+        }
+        catch (Exception ex) when (ex is SqliteException or System.Text.Json.JsonException)
+        {
+            Debug.WriteLine($"[CatalogService] Frigate feeding rules unavailable: {ex.Message}");
+            return null;
+        }
+    });
+
+    /// <summary>The Egg Sequencer's rules (catalog row EGGSEQUENCER, format 66),
+    /// or null for an older catalog.</summary>
+    public static Task<EggSequencerRules?> GetEggSequencerRulesAsync() => Task.Run(() =>
+    {
+        if (ResolveDbPath() is not string dbPath) return null;
+        try
+        {
+            using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId = 'EGGSEQUENCER'";
+            // The first format-66 catalogs had no ingredient list or screen words; treat them as missing.
+            return command.ExecuteScalar() is string json
+                && System.Text.Json.JsonSerializer.Deserialize<EggSequencerRules>(json) is { Ingredients: not null, Texts: not null, Species: not null } rules
+                ? rules : null;
+        }
+        catch (Exception ex) when (ex is SqliteException or System.Text.Json.JsonException)
+        {
+            Debug.WriteLine($"[CatalogService] Egg Sequencer rules unavailable: {ex.Message}");
+            return null;
+        }
+    });
 
     /// <summary>The technology id a packaged-tech "UP_" id was cut from: an exact
     /// match, else the shortest technology id starting with it.</summary>
@@ -228,10 +426,19 @@ public static class CatalogService
             SELECT i.GameId, c.TemplateType, i.MaxStackSize
             FROM Items i
             JOIN Categories c ON c.Id = i.CategoryId
-            WHERE i.NameEnglish IS NOT NULL
+            WHERE (i.NameEnglish IS NOT NULL OR i.NameLowerEnglish IS NOT NULL)
               AND c.TemplateType IN ({typePlaceholders})
-              AND i.NameEnglish LIKE @q
+              AND (i.NameEnglish LIKE @q OR i.NameLowerEnglish LIKE @q OR i.GameId LIKE @q)
               {usageClause}
+            ORDER BY
+              CASE
+                WHEN LOWER(COALESCE(i.NameEnglish, i.NameLowerEnglish)) = @rawQ THEN 1
+                WHEN LOWER(COALESCE(i.NameEnglish, i.NameLowerEnglish)) LIKE @prefixQ THEN 2
+                WHEN LOWER(COALESCE(i.NameEnglish, i.NameLowerEnglish)) LIKE @wordQ THEN 3
+                ELSE 4
+              END,
+              LENGTH(COALESCE(i.NameEnglish, i.NameLowerEnglish)),
+              COALESCE(i.NameEnglish, i.NameLowerEnglish)
             LIMIT @max";
 
         for (int i = 0; i < allowedTemplateTypes.Length; i++)
@@ -243,6 +450,10 @@ public static class CatalogService
                 command.Parameters.AddWithValue($"@u{i}", allowedUsageCategories[i]);
         }
 
+        string qLower = query.ToLowerInvariant();
+        command.Parameters.AddWithValue("@rawQ", qLower);
+        command.Parameters.AddWithValue("@prefixQ", $"{qLower}%");
+        command.Parameters.AddWithValue("@wordQ", $"% {qLower}%");
         command.Parameters.AddWithValue("@q", $"%{query}%");
         command.Parameters.AddWithValue("@max", maxResults);
 
@@ -251,11 +462,13 @@ public static class CatalogService
         {
             string gameId = reader.GetString(0);
             if (!seen.Add(gameId)) continue;
+            string templateType = reader.GetString(1);
 
             results.Add(new CatalogSearchResult
             {
                 GameId = gameId,
-                CategoryLabel = ElvLabelFor(reader.GetString(1)),
+                TemplateType = templateType,
+                CategoryLabel = ElvLabelFor(templateType),
                 MaxStackSize = reader.IsDBNull(2) ? null : reader.GetInt32(2)
             });
         }
@@ -272,9 +485,9 @@ public static class CatalogService
         _ => "Product"
     };
 
-    private static Dictionary<string, (string DisplayName, byte[]? IconPng)> QueryRows(string dbPath, List<string> gameIds)
+    private static Dictionary<string, (string DisplayName, byte[]? IconPng, string? CatalogGroup, string? TemplateType)> QueryRows(string dbPath, List<string> gameIds)
     {
-        var result = new Dictionary<string, (string, byte[]?)>();
+        var result = new Dictionary<string, (string, byte[]?, string?, string?)>();
 
         using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
         connection.Open();
@@ -290,11 +503,22 @@ public static class CatalogService
         string placeholders = string.Join(",", gameIds.Select((_, i) => $"@p{i}"));
         using var command = connection.CreateCommand();
         command.CommandText = $@"
-            SELECT i.GameId, COALESCE(i.NameEnglish, i.NameLowerEnglish) AS DisplayName, b.PngData
+            SELECT i.GameId, COALESCE(i.NameEnglish, i.NameLowerEnglish) AS DisplayName, b.PngData, i.CatalogGroup, c.TemplateType
             FROM Items i
+            JOIN Categories c ON c.Id = i.CategoryId
             LEFT JOIN Icons ic ON ic.ItemId = i.Id
             LEFT JOIN IconBlobs b ON b.Id = ic.IconBlobId
-            WHERE (i.NameEnglish IS NOT NULL OR i.NameLowerEnglish IS NOT NULL) AND i.GameId IN ({placeholders})";
+            WHERE (i.NameEnglish IS NOT NULL OR i.NameLowerEnglish IS NOT NULL) AND i.GameId IN ({placeholders})
+            ORDER BY
+              CASE c.TemplateType
+                WHEN 'GcTechnologyTable' THEN 1
+                WHEN 'GcProceduralTechnologyTable' THEN 2
+                WHEN 'GcProductTable' THEN 3
+                WHEN 'GcSubstanceTable' THEN 4
+                WHEN 'ProceduralProducts' THEN 5
+                ELSE 10
+              END,
+              CASE WHEN b.PngData IS NOT NULL THEN 1 ELSE 2 END";
 
         for (int i = 0; i < gameIds.Count; i++)
             command.Parameters.AddWithValue($"@p{i}", gameIds[i]);
@@ -307,7 +531,9 @@ public static class CatalogService
 
             string name = reader.GetString(1);
             byte[]? png = reader.IsDBNull(2) ? null : (byte[])reader["PngData"];
-            result[gameId] = (name, png);
+            string? catalogGroup = reader.IsDBNull(3) ? null : reader.GetString(3);
+            string? templateType = reader.IsDBNull(4) ? null : reader.GetString(4);
+            result[gameId] = (name, png, catalogGroup, templateType);
         }
         return result;
     }
@@ -347,13 +573,33 @@ public static class CatalogService
     /// game's build menu (ShowInBuildMenu): most structural ids are rotations
     /// and mirrors of one part (B_STR_K_NE, _NE1-3, _Y_NE...) - 433 of 575 -
     /// and real caches held 131 of the 142 menu parts; the few non-menu ids
-    /// seen there were right-hand wing pieces the game hands back.</summary>
+    /// seen there were right-hand wing pieces the game hands back.
+    /// Group is the game's own type line ("Corvette Cockpit"); Tag is where the
+    /// part comes from (catalog format 72, CatalogSteps.CorvettePartSources): the
+    /// workshop for units or by swap offer, an expedition reward, or neither.</summary>
+    /// <summary>A corvette part's source in the workshop's own words ("Purchase
+    /// basic modules", "Trade advanced modules"), with its filter order. Null shop:
+    /// a catalog older than format 72, so no source is shown.</summary>
+    private static (string? Label, int Order) CorvettePartSource(string? shop, ArtifactX.Core.Unlocks.ExpeditionReward? reward, Dictionary<int, string> expeditionNames) => shop switch
+    {
+        null => (null, 0),
+        "basic" => ("Buy at the workshop", 0),
+        "barter" => ("Trade at the workshop", 1),
+        _ when shop.StartsWith("reward:", StringComparison.Ordinal) && reward is not null
+            => ("Expedition reward: " + CultureInfo.CurrentCulture.TextInfo.ToTitleCase(
+                expeditionNames.GetValueOrDefault(reward.Expedition, $"Expedition {reward.Expedition}").ToLowerInvariant()), 2),
+        _ when shop.StartsWith("reward:", StringComparison.Ordinal) => ("Expedition reward", 2),
+        _ => ("Not sold at the workshop", 3),
+    };
+
     public static async Task<List<CatalogPart>> GetCorvettePartsAsync()
     {
         string? dbPath = ResolveDbPath();
         if (dbPath is null) return new();
         try
         {
+            var rewards = await ExpeditionRewardsService.LoadAsync();
+            var expeditionNames = BuildExpeditionNameLookup(await GetAllUnlockableItemsAsync());
             return await Task.Run(() =>
             {
                 var parts = new List<CatalogPart>();
@@ -361,7 +607,7 @@ public static class CatalogService
                 connection.Open();
                 using var command = connection.CreateCommand();
                 command.CommandText = @"
-                    SELECT p.GameId, p.NameEnglish, cp.UsageCategory, p.MaxStackSize
+                    SELECT p.GameId, p.NameEnglish, cp.DescriptionEnglish, p.MaxStackSize
                     FROM Items cp
                     JOIN Categories cc ON cc.Id = cp.CategoryId
                     JOIN Items p ON p.GameId = substr(cp.GameId, 10)
@@ -375,8 +621,20 @@ public static class CatalogService
                     ORDER BY p.NameEnglish";
                 using var reader = command.ExecuteReader();
                 while (reader.Read())
-                    parts.Add(new CatalogPart(reader.GetString(0), reader.GetString(1),
-                        reader.IsDBNull(2) ? "" : reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetInt32(3)));
+                {
+                    string id = reader.GetString(0);
+                    string? shop = null;
+                    string type = "";
+                    if (!reader.IsDBNull(2))
+                    {
+                        using var facts = System.Text.Json.JsonDocument.Parse(reader.GetString(2));
+                        if (facts.RootElement.TryGetProperty("shop", out var s)) shop = s.GetString() ?? "";
+                        if (facts.RootElement.TryGetProperty("type", out var t)) type = t.GetString() ?? "";
+                    }
+                    var (source, order) = CorvettePartSource(shop, rewards.GetValueOrDefault(id), expeditionNames);
+                    parts.Add(new CatalogPart(id, reader.GetString(1), type, reader.IsDBNull(3) ? null : reader.GetInt32(3),
+                        Tag: source, TagOrder: order));
+                }
                 return parts;
             });
         }
@@ -835,9 +1093,11 @@ public static class CatalogService
     {
         string? dbPath = ResolveDbPath();
         if (dbPath is null) return new();
-        var fishIds = coldStorage
-            ? (await GetFishAsync()).Select(f => f.Id).Where(IsFishSpecies).ToHashSet(StringComparer.OrdinalIgnoreCase)
-            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var fish = coldStorage
+            ? (await GetFishAsync()).Where(f => IsFishSpecies(f.Id))
+                .GroupBy(f => f.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, FishInfo>(StringComparer.OrdinalIgnoreCase);
         try
         {
             return await Task.Run(() =>
@@ -865,12 +1125,16 @@ public static class CatalogService
                 {
                     string id = reader.GetString(0);
                     bool bait = id.StartsWith("FISHBAIT_", StringComparison.OrdinalIgnoreCase);
-                    if (coldStorage && !bait && !fishIds.Contains(id)) continue;
+                    if (coldStorage && !bait && !fish.ContainsKey(id)) continue;
                     string group = coldStorage ? (bait ? "Bait" : "Fish")
-                        : fishIds.Contains(id) || IsFishSpecies(id) ? "Fish"
+                        : fish.ContainsKey(id) || IsFishSpecies(id) ? "Fish"
                         : bait || id.StartsWith("BAIT_", StringComparison.OrdinalIgnoreCase) ? "Bait"
                         : reader.IsDBNull(2) ? "Other" : reader.GetString(2);
-                    parts.Add(new CatalogPart(id, reader.GetString(1), group, reader.IsDBNull(3) ? null : reader.GetInt32(3)));
+                    fish.TryGetValue(id, out var fishInfo);
+                    int rarityOrder = fishInfo is not null && Enum.TryParse<libMBIN.NMS.GameComponents.GcItemQuality.ItemQualityEnum>(fishInfo.Quality, out var quality)
+                        ? (int)quality : int.MaxValue;
+                    parts.Add(new CatalogPart(id, reader.GetString(1), group, reader.IsDBNull(3) ? null : reader.GetInt32(3),
+                        Tag: fishInfo?.RarityName(), TagOrder: rarityOrder));
                 }
                 return parts.OrderBy(p => p.Group).ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
             });
@@ -1056,6 +1320,85 @@ public static class CatalogService
         {
             Debug.WriteLine($"[CatalogService] GetPalettesAsync failed: {ex.Message}");
             return new();
+        }
+    }
+
+    /// <summary>What planet types are picked from (catalog "PlanetGeneration", step
+    /// "Planet generation"); null on game data built before it was collected.</summary>
+    public static Task<ArtifactX.Core.Universe.BiomeTables?> GetBiomeTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.BiomeTables>("BIOMETABLES");
+
+    /// <summary>What a planet's resources, weather and sentinels are picked from (same step);
+    /// null on game data built before catalog format 16.</summary>
+    public static Task<ArtifactX.Core.Universe.PlanetProfileTables?> GetPlanetProfileTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.PlanetProfileTables>("PLANETPROFILE");
+
+    /// <summary>S-Class base stat roll ranges, class spawn probabilities, max inventory slot capacities,
+    /// and planetary building placement densities (catalog "PlanetGeneration", row "INVENTORYGENERATION").</summary>
+    public static Task<ArtifactX.Core.Universe.InventoryGenerationTables?> GetInventoryGenerationTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.InventoryGenerationTables>("INVENTORYGENERATION");
+
+    /// <summary>Solar layout values, all station scene roots, and verified standard TypeB
+    /// WeaponTerminal origins. Other station variants intentionally have no cabinet geometry.</summary>
+    public static Task<ArtifactX.Core.Universe.StationEquipmentTables?> GetStationEquipmentTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.StationEquipmentTables>("STATIONEQUIPMENT");
+
+    /// <summary>Each building class's density per level and planet restrictions (which grid sites hold which
+    /// building); null on game data built before catalog format 49.</summary>
+    public static Task<ArtifactX.Core.Universe.BuildingClassPlacement[]?> GetBuildingPlacementAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.BuildingClassPlacement[]>("BUILDINGPLACEMENT");
+
+    /// <summary>Planet building L-system layouts, scene mesh bounds, weapon-crate transforms, cluster layouts and
+    /// record counts (catalog row BUILDINGLAYOUTS); null on game data built before catalog format 74.</summary>
+    public static Task<ArtifactX.Core.Universe.BuildingLayoutTables?> GetBuildingLayoutTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.BuildingLayoutTables>("BUILDINGLAYOUTS");
+
+    /// <summary>Each building class's override rules (portal, shelter, base...); null on game data built before
+    /// catalog format 48.</summary>
+    public static Task<ArtifactX.Core.Universe.BuildingOverrideRule[]?> GetBuildingOverrideRulesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.BuildingOverrideRule[]>("BUILDINGOVERRIDES");
+
+    public static Task<ArtifactX.Core.Universe.MultiToolTechnologyTables?> GetMultiToolTechnologyTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.MultiToolTechnologyTables>("MULTITOOLTECHNOLOGY");
+
+    public static Task<ArtifactX.Core.Universe.StarshipEvaluationTables?> GetStarshipEvaluationTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.StarshipEvaluationTables>("STARSHIPDISPLAY");
+
+    public static Task<ArtifactX.Core.Universe.MultiToolModelTables?> GetMultiToolModelTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.MultiToolModelTables>("MULTITOOLMODEL");
+
+    /// <summary>Region star-generation settings (catalog "PlanetGeneration", row "GALAXYGENERATION");
+    /// null on game data built before catalog format 44.</summary>
+    public static Task<ArtifactX.Core.Universe.GalaxyGenerationSettings?> GetGalaxyGenerationSettingsAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.GalaxyGenerationSettings>("GALAXYGENERATION");
+
+    /// <summary>Region star-placement settings (row "GALAXYPLACEMENT"); null before catalog format 45; no spiral fields before 46.</summary>
+    public static Task<ArtifactX.Core.Universe.GalaxyPlacementSettings?> GetGalaxyPlacementSettingsAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.GalaxyPlacementSettings>("GALAXYPLACEMENT");
+
+    private static async Task<T?> GetPlanetGenerationRowAsync<T>(string gameId) where T : class
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return null;
+        try
+        {
+            return await Task.Run(() =>
+            {
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.DescriptionEnglish
+                    FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'PlanetGeneration' AND i.GameId = $id";
+                command.Parameters.AddWithValue("$id", gameId);
+                return command.ExecuteScalar() is string json ? System.Text.Json.JsonSerializer.Deserialize<T>(json) : null;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] Reading planet generation row {gameId} failed: {ex.Message}");
+            return null;
         }
     }
 
@@ -1580,10 +1923,10 @@ public static class CatalogService
 
     private static List<LanguageWord>? _languageWordsCache;
 
-    /// <summary>Every alien-language vocabulary word across all 4 races (~4,570
-    /// total), from the GcAlienLanguageWords category DataCataloger's
-    /// `add-language-words` command extracts from language/nms_loc1_english.mbin -
-    /// see NmsLanguagePaths' doc comment for how this was confirmed real.
+    /// <summary>Every learnable alien word group (~3,840 across the 4 races and
+    /// Atlas), from the GcAlienLanguageWords category the catalog step
+    /// AddLanguageWords reads off the game's speech table - see
+    /// NmsLanguagePaths' doc comment for how this was confirmed.
     /// UsageCategory holds the race name ("Gek"/"Vy'keen"/"Korvax"/"Autophage")
     /// directly, so no id-prefix parsing is needed by callers.</summary>
     public static async Task<List<LanguageWord>> GetAllLanguageWordsAsync()
@@ -1743,6 +2086,7 @@ public static class CatalogService
                 GameId = reader.GetString(0),
                 DisplayName = reader.GetString(1),
                 CategoryLabel = ElvLabelFor(reader.GetString(2)),
+                TemplateType = reader.GetString(2),
                 UsageCategory = reader.IsDBNull(3) ? null : reader.GetString(3),
                 CatalogGroup = reader.IsDBNull(4) ? null : reader.GetString(4),
                 IsBrokenSlotTech = reader.GetBoolean(5)
@@ -1816,10 +2160,58 @@ public static class CatalogService
     public static List<CatalogUnlockableItem> FilterFishSpecies(IEnumerable<CatalogUnlockableItem> catalogItems) =>
         catalogItems.Where(c => FishSpeciesPattern.IsMatch(c.GameId)).OrderBy(c => c.DisplayName).ToList();
 
+    /// <summary>The non-fish catches the game lists as "Collected Flotsam" in its Fishing Records:
+    /// F_TRASH_1..8 (Kelp Strand, Tangleweed, Sea Sponge, Bleached Coral, Expired Braincoral,
+    /// Ossified Coral, Old Boot, Rusted Technology) and F_BOTTLE (Message in a Bottle). They're
+    /// recorded in the same fishing-record arrays as fish - a Bleached Coral catch on Slot 8
+    /// (2026-10-22) added "^F_TRASH_4" with count 1 and a largest size, like any fish.</summary>
+    private static readonly Regex FlotsamPattern = new(@"^F_(TRASH_\d+|BOTTLE)$", RegexOptions.Compiled);
+
+    public static List<CatalogUnlockableItem> FilterFlotsam(IEnumerable<CatalogUnlockableItem> catalogItems) =>
+        catalogItems.Where(c => FlotsamPattern.IsMatch(c.GameId)).OrderBy(c => c.GameId, StringComparer.Ordinal).ToList();
+
     /// <summary>Same rule as FilterFishSpecies, for a single id.</summary>
     public static bool IsFishSpecies(string gameId) => FishSpeciesPattern.IsMatch(gameId);
 
-    private static string? ResolveDbPath()
+    /// <summary>
+    /// Word lists for procedural starship and multi-tool naming from nms_catalog.sqlite
+    /// (category MultiToolNameWords). Cached after first read.
+    /// </summary>
+    public static async Task<Dictionary<string, IReadOnlyList<string>>> GetProceduralNameWordsAsync()
+    {
+        if (_namingWords is not null) return _namingWords;
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new(StringComparer.OrdinalIgnoreCase);
+
+        return await Task.Run(() =>
+        {
+            if (_namingWords is not null) return _namingWords;
+            var dict = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                using var con = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                con.Open();
+                using var cmd = con.CreateCommand();
+                cmd.CommandText = "SELECT i.NameEnglish, i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='MultiToolNameWords'";
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    string name = reader.GetString(0);
+                    string json = reader.GetString(1);
+                    var words = System.Text.Json.JsonSerializer.Deserialize<List<string>>(json);
+                    if (words is not null) dict[name] = words;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[CatalogService] GetProceduralNameWordsAsync failed: {ex.Message}");
+            }
+            _namingWords = dict;
+            return dict;
+        });
+    }
+
+    internal static string? ResolveDbPath()
     {
         if (_pathChecked) return _dbPath;
         _pathChecked = true;
@@ -1849,6 +2241,18 @@ public sealed record FishInfo(string Id, string Quality, string Size, string Tim
 {
     public const int AnyPlanet = 16;
     public bool LivesOn(int biome) => Biomes.Contains(AnyPlanet) || Biomes.Contains(biome);
+
+    /// <summary>The rarity as the game names it: its quality enum is one step off from
+    /// the words its Fishing Records show - Rare reads "Uncommon Fish" (Caustic Urchin),
+    /// Epic "Rare Fish" (Moon Turtle), checked 2026-10-21.</summary>
+    public static string RarityName(string quality) => quality switch
+    {
+        "Rare" => "Uncommon",
+        "Epic" => "Rare",
+        _ => quality,
+    };
+
+    public string RarityName() => RarityName(Quality);
 }
 
 /// <summary>One settlement building stage's cost: BuildingClass is the

@@ -98,13 +98,16 @@ namespace ArtifactX.Core.NmsModels;
 ///   Mining -&gt; INDUSTRIAL           renders as "SSV Normandy SR1")
 ///   Diplomacy -&gt; TRADE           DeepSpace -&gt; ORGANIC
 ///   Pirate -&gt; RAIDER             GhostShip -&gt; DOOMED
-/// DeepSpaceCommon and Swarm (the remaining 2 of 11 enum members) weren't
-/// present in the 29-frigate sample, so their Role/name mapping is
-/// unconfirmed. When CustomName (fH8) is empty, the flashy name shown
+/// DeepSpaceCommon -&gt; ORGANIC (confirmed against the owner's 30-frigate
+/// Slot 1 roster and screenshots, 2026-10-24). Swarm is unconfirmed.
+/// When CustomName (fH8) is empty, the flashy name shown
 /// in-game (e.g. "SS-2 Akeosc's Gamble", "CV The Hawk of Dreams") is
-/// generated at render time from ResourceSeed + Race + InventoryClass +
-/// FrigateClass and is NOT stored anywhere in the save - ArtifactX can't
-/// reproduce or preview it, only show that the slot is auto-named.
+/// generated at render time and is NOT stored anywhere in the save. A
+/// controlled DELETEME test confirms changing ResourceSeed changes the
+/// generated name, while changing Race alone does not. FrigateNames ports
+/// the conventional routine (0x140e90070) and organic routine (0x140e8dc30)
+/// from build 180836. The caller selects the organic routine for class 7
+/// (DeepSpaceCommon); both use the ResourceSeed directly before hashing.
 /// </summary>
 public static class NmsFrigatePaths
 {

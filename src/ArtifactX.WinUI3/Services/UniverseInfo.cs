@@ -71,8 +71,11 @@ public static class UniverseInfo
     private static ulong SystemKey(ulong address) => address & ~(0xFUL << 52);
 
     /// <summary>Portal code (planet digit 0) and 0-based galaxy for the generator.</summary>
-    private static (ulong Code, int Galaxy) Generator(ulong address, int planet = 0) =>
+    public static (ulong Code, int Galaxy) Generator(ulong address, int planet = 0) =>
         (((ulong)(planet & 0xF) << 44) | (((address >> 40) & 0xFFF) << 32) | (address & 0xFFFFFFFF), (int)((address >> 32) & 0xFF));
+
+    /// <summary>Portal code numeric value for an address.</summary>
+    public static ulong PortalCode(ulong address, int planet = 0) => Generator(address, planet).Code;
 
     /// <summary>Generated facts about the system an address is in.</summary>
     public static SystemFacts For(ulong address) => Facts.GetOrAdd(SystemKey(address), key =>
@@ -84,9 +87,30 @@ public static class UniverseInfo
             a.Economy, a.Wealth, a.Conflict, a.Race, a.Uncharted, a.Abandoned, a.Pirate, bodies.PlanetCount, bodies.MoonCount);
     });
 
+    private static readonly ConcurrentDictionary<ulong, ArtifactX.Core.Universe.SystemBodies> BodiesCache = new();
+
+    /// <summary>The generator's bodies for the system an address is in (which are moons, and of what).</summary>
+    public static ArtifactX.Core.Universe.SystemBodies Bodies(ulong address) => BodiesCache.GetOrAdd(SystemKey(address), key =>
+    {
+        var (code, galaxy) = Generator(key);
+        return SystemGenerator.Bodies(code, galaxy);
+    });
+
     /// <summary>The system's name: the one the save recorded or the player typed, else the generated one.</summary>
     public static string SystemName(ulong address) =>
         SystemNotesService.Get(SystemKey(address))?.SystemName is { Length: > 0 } recorded ? recorded : For(address).GeneratedName;
+
+    /// <summary>The region of space this system is in (e.g. "Ocopad Conflux").</summary>
+    public static string Region(ulong address) => For(address).Region;
+
+    /// <summary>Formatted location line with System, Region, and Galaxy.</summary>
+    public static string LocationWithRegion(ulong address, int galaxy, string? system = null)
+    {
+        string sys = system ?? SystemName(address);
+        string reg = Region(address);
+        string gal = ArtifactX.Core.NmsModels.NmsGalaxyNames.ForNumber(galaxy) is string g ? $"{g} ({galaxy})" : $"Galaxy {galaxy}";
+        return reg.Length > 0 ? $"{sys} · {reg} · {gal}" : $"{sys} · {gal}";
+    }
 
     /// <summary>A planet's name: recorded by the save, else generated (planet index 1-based).</summary>
     public static string PlanetName(ulong address, int planetIndex)
@@ -159,8 +183,12 @@ public static class UniverseInfo
     {
         var f = For(address);
         if (f.Uncharted) return $"{f.StarLabel} star · Uncharted - no race, economy or station";
-        var parts = new System.Collections.Generic.List<string> { $"{f.StarLabel} star", f.RaceLabel, Economy(address), $"{Wealth(address)} wealth", $"{Conflict(address)} conflict" };
-        if (f.Pirate) parts.Add("Pirate-controlled");
+        // Pirate systems' own words read as-is ("Black Market", "Pirate Controlled"), not "... wealth/conflict".
+        string wealth = Wealth(address), conflict = Conflict(address);
+        bool pirateConflict = conflict.Contains("Pirate", System.StringComparison.OrdinalIgnoreCase);
+        var parts = new System.Collections.Generic.List<string> { $"{f.StarLabel} star", f.RaceLabel, Economy(address),
+            wealth == "Black Market" ? wealth : $"{wealth} wealth", pirateConflict ? conflict : $"{conflict} conflict" };
+        if (f.Pirate && !pirateConflict) parts.Add("Pirate-controlled");
         return string.Join(" · ", parts);
     }
 }

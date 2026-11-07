@@ -156,7 +156,7 @@ namespace libMBIN
         }
 
         public static NMSTemplate TemplateFromNameHash(uint nameHash) {
-            NameHashToNameMap.TryGetValue(nameHash, out string templateName);
+            if (!NameHashToNameMap.TryGetValue(nameHash, out string templateName)) return null;
             return TemplateFromName(templateName);
         }
 
@@ -534,6 +534,7 @@ namespace libMBIN
 
         public static NMSTemplate DeserializeBinaryTemplate(BinaryReader reader, string templateName)
         {
+            if (string.IsNullOrEmpty(templateName)) throw new DeserializeTemplateException("<missing name>");
             if (templateName.StartsWith("c") && templateName.Length > 1) templateName = templateName.Substring(1);
             NMSTemplate template = TemplateFromName(templateName);
             return DeserializeBinaryTemplate(reader, template);
@@ -612,7 +613,8 @@ namespace libMBIN
                     uint nameHash = reader.ReadUInt32();
                     uint NMSTemplateMagic = reader.ReadUInt32();
                     if (NMSTemplateMagic != 0xEEEEEE01) throw new InvalidListException(NMSTemplateMagic, reader.BaseStream.Position);
-                    NameHashToNameMap.TryGetValue(nameHash, out string name);
+                    if (!NameHashToNameMap.TryGetValue(nameHash, out string name) && templateOffset != 0)
+                        throw new DeserializeTemplateException(nameHash);
                     // sometimes there are lists which have n values, but less than n actual structs in them. We replace the empty thing with EmptyNode
                     name = (templateOffset == 0) ? "EmptyNode" : name;
 

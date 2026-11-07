@@ -41,7 +41,7 @@
         <!-- Add / edit form, collapsed behind a button. -->
         <Border Grid.Row="2" Style="{StaticResource ThemeCardStyle}">
             <StackPanel>
-                <Button Click="FormToggle_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                <Button Click="FormToggle_Click" AutomationProperties.Name="{Binding Text, ElementName=FormTitleTxt}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                         Background="Transparent" BorderThickness="0" Padding="18,11">
                     <StackPanel Orientation="Horizontal" Spacing="10">
                         <FontIcon x:Name="FormToggleIcon" Glyph="&#xE710;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}"/>
@@ -168,5 +168,10 @@
                 </DataTemplate>
             </GridView.ItemTemplate>
         </GridView>
+
+        <Grid x:Name="LoadingOverlay" Grid.RowSpan="5" Background="#AA777B84">
+            <ProgressRing IsActive="True" Width="42" Height="42" HorizontalAlignment="Center" VerticalAlignment="Center"
+                          AutomationProperties.Name="Loading guides"/>
+        </Grid>
     </Grid>
 </Page>

@@ -73,7 +73,7 @@
         <!-- Add / edit form, collapsed behind a button. -->
         <Border Grid.Row="3" Style="{StaticResource ThemeCardStyle}">
             <StackPanel>
-                <Button x:Name="FormToggleBtn" Click="FormToggle_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                <Button x:Name="FormToggleBtn" Click="FormToggle_Click" AutomationProperties.Name="{Binding Text, ElementName=FormTitleTxt}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                         Background="Transparent" BorderThickness="0" Padding="18,11">
                     <StackPanel Orientation="Horizontal" Spacing="10">
                         <FontIcon x:Name="FormToggleIcon" Glyph="&#xE710;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}"/>
@@ -112,7 +112,7 @@
                         <TextBox x:Name="FormSystemNameBox" Header="System name" Width="220" PlaceholderText="As shown in game"
                                  ToolTipService.ToolTip="The game only writes the system name into the save when you save in space, so type it here if it's missing. It's shared with the Planets page."/>
                         <StackPanel Spacing="4" VerticalAlignment="Bottom">
-                            <controls:GlyphStrip x:Name="FormGlyphStrip"><StackPanel x:Name="FormGlyphsPanel" Orientation="Horizontal" Spacing="2"/></controls:GlyphStrip>
+                            <controls:GlyphStrip x:Name="FormGlyphStrip" GlyphSize="24"/>
                             <TextBlock x:Name="FormCodeStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                         </StackPanel>
                     </ctcontrols:WrapPanel>
@@ -189,10 +189,10 @@
                                                TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{x:Bind Title}"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Top">
-                                    <Button Click="Edit_Click" Tag="{x:Bind Id}" Padding="6,4" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Edit" AutomationProperties.Name="Edit">
+                                    <Button Click="Edit_Click" Tag="{x:Bind Id}" Padding="6,4" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Edit" AutomationProperties.Name="{x:Bind EditName}">
                                         <FontIcon Glyph="&#xE70F;" FontSize="13"/>
                                     </Button>
-                                    <Button Click="Delete_Click" Tag="{x:Bind Id}" Padding="6,4" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Delete" AutomationProperties.Name="Delete">
+                                    <Button Click="Delete_Click" Tag="{x:Bind Id}" Padding="6,4" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Delete" AutomationProperties.Name="{x:Bind DeleteName}">
                                         <FontIcon Glyph="&#xE74D;" FontSize="13"/>
                                     </Button>
                                 </StackPanel>
@@ -229,32 +229,16 @@
                                            MaxLines="3" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Notes}"/>
                             </StackPanel>
 
-                            <Grid Grid.Row="3" ColumnSpacing="8">
+                            <TextBlock Grid.Row="3" Text="{x:Bind Distance}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"
+                                       TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                            <Grid Grid.Row="4" ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <controls:GlyphStrip Code="{x:Bind PortalCode}" VerticalAlignment="Center">
-                                    <ItemsControl ItemsSource="{x:Bind Glyphs}" VerticalAlignment="Center">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal" Spacing="1"/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="ImageSource">
-                                                <Border Width="20" Height="20" Background="{ThemeResource ThemeVoidBrush}">
-                                                    <Image Source="{x:Bind}" Width="17" Height="17"/>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </controls:GlyphStrip>
-                                <Button Grid.Column="1" Content="Copy" Tag="{x:Bind PortalCode}" Click="CopyCode_Click" Padding="8,2"
-                                        ToolTipService.ToolTip="Copy the portal address"/>
+                                <controls:GlyphStrip Code="{x:Bind PortalCode}" VerticalAlignment="Center" GlyphSize="20"/>
+                                <controls:CopyCodeButton Grid.Column="1" Code="{x:Bind PortalCode}"/>
                             </Grid>
-                            <TextBlock Grid.Row="4" Text="{x:Bind Distance}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"
-                                       TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
                         </Grid>
                     </Border>
                 </DataTemplate>

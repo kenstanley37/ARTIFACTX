@@ -86,6 +86,34 @@ public static class FreighterBuildService
 
     public static bool HasInterior(NmsLoadoutTemplate t) => t.InteriorObjects is { Count: > 0 };
 
+    /// <summary>The bases list RemoveFreighter staged, so the Freighter page's Reset can
+    /// undo it - but only while nothing else (the Bases page) has changed the list since.</summary>
+    private static JToken? _stagedRemoval;
+
+    /// <summary>What applying a Full Build, adding or deleting the freighter stages
+    /// outside its hull, tech and cargo: its facing, position and parked address, and
+    /// its base entry (the interior). The Freighter page's Reset covers these too, or a
+    /// Reset after a Full Build left the template's interior on the old hull (2026-10-21).</summary>
+    public static IEnumerable<string[]> PageRoots()
+    {
+        yield return AtPath;
+        yield return UpPath;
+        yield return PositionPath;
+        yield return ParkedAddressPath;
+        if (SaveSessionManager.GetValue(S.BasesPath) is JArray bases && FreighterBaseIndex(bases) is int index)
+            yield return S.BasesPath.Append(index.ToString(CultureInfo.InvariantCulture)).ToArray();
+    }
+
+    /// <summary>A delete still waiting in the bases list, untouched since.</summary>
+    public static bool HasPendingRemoval() =>
+        _stagedRemoval is not null && JToken.DeepEquals(SaveSessionManager.GetValue(S.BasesPath), _stagedRemoval);
+
+    public static void RevertRemoval()
+    {
+        if (HasPendingRemoval()) SaveSessionManager.RevertEdit(S.BasesPath);
+        _stagedRemoval = null;
+    }
+
     /// <summary>Index of the freighter's base in F?0, or null.</summary>
     private static int? FreighterBaseIndex(JArray bases)
     {
@@ -264,6 +292,7 @@ public static class FreighterBuildService
             var remaining = (JArray)bases.DeepClone();
             remaining.RemoveAt(index);
             SaveSessionManager.StageEdit(remaining, S.BasesPath);
+            _stagedRemoval = remaining.DeepClone();
         }
     }
 

@@ -8,6 +8,7 @@ using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Linq;
 using Windows.UI;
 
@@ -44,7 +45,19 @@ public sealed partial class InventorySlotGrid : UserControl
 
     /// <summary>Display only: no menus, no dragging (Base Item Cache - the game
     /// only lets items be taken out, 2026-10-15).</summary>
-    public bool IsReadOnly { get; set; }
+    private bool _isReadOnly;
+    public bool IsReadOnly { get => _isReadOnly || Snapshot is not null; set => _isReadOnly = value; }
+
+    public static readonly DependencyProperty SnapshotProperty = DependencyProperty.Register(
+        nameof(Snapshot), typeof(InventoryGridSnapshot), typeof(InventorySlotGrid),
+        new PropertyMetadata(null, (sender, _) => ((InventorySlotGrid)sender).Refresh()));
+
+    /// <summary>Generated/read-only data. This path never receives an editable save view model.</summary>
+    public InventoryGridSnapshot? Snapshot
+    {
+        get => (InventoryGridSnapshot?)GetValue(SnapshotProperty);
+        set => SetValue(SnapshotProperty, value);
+    }
 
     /// <summary>Further restricts search to specific equipment-slot categories within
     /// a table (e.g. "Suit"/"All" for the Exosuit tech grid vs "Ship"/"All" for
@@ -113,15 +126,30 @@ public sealed partial class InventorySlotGrid : UserControl
         return moved;
     }
 
-    public void Refresh()
+    private readonly List<Action> _catalogUpdates = new();
+
+    /// <summary>Finishes a grid drawn before catalog names/icons arrived,
+    /// without replacing its slot visuals, menus, focus or scroll position.</summary>
+    public void UpdateCatalogPresentation()
     {
+        foreach (var update in _catalogUpdates) update();
+    }
+
+    public void Refresh() => Refresh(showLoadingItems: false);
+
+    public void Refresh(bool showLoadingItems)
+    {
+        _catalogUpdates.Clear();
         RootCanvas.Children.Clear();
-        if (ViewModel is null) return;
+        var cells = Snapshot?.Cells ?? (IReadOnlyList<InventorySlotViewModel>?)ViewModel?.Cells;
+        RootCanvas.Width = (Snapshot?.Columns ?? ViewModel?.Columns ?? 0) * CellSpacing;
+        RootCanvas.Height = (Snapshot?.Rows ?? ViewModel?.Rows ?? 0) * CellSpacing;
+        if (cells is null) return;
 
         // Each occupied slot's adjacency type + colour, for the boost borders.
         var adjacency = new Dictionary<(int, int), (string Type, string Colour)>();
         if (AdjacencyOf is not null)
-            foreach (var c in ViewModel.Cells.Where(c => c.IsOccupied && c.ItemId is not null))
+            foreach (var c in cells.Where(c => c.IsOccupied && c.ItemId is not null))
                 if (AdjacencyOf(c.ItemId!.TrimStart('^')) is { } a)
                     adjacency[(c.X, c.Y)] = a;
         Brush? BoostBorder(int x, int y)
@@ -132,10 +160,8 @@ public sealed partial class InventorySlotGrid : UserControl
             return linked ? BrushFromHex(me.Colour) : null;
         }
 
-        RootCanvas.Width = ViewModel.Columns * CellSpacing;
-        RootCanvas.Height = ViewModel.Rows * CellSpacing;
 
-        foreach (var cell in ViewModel.Cells)
+        foreach (var cell in cells)
         {
             bool isDamaged = cell.IsOccupied && (!cell.IsFunctional || cell.MalfunctionSeverity > 0);
             var boost = isDamaged ? null : BoostBorder(cell.X, cell.Y);
@@ -157,17 +183,17 @@ public sealed partial class InventorySlotGrid : UserControl
             if (cell.IsOccupied)
             {
                 var entry = CatalogService.TryGet(cell.ItemId);
+                // A procedural item ("PROC_LOOT#06686") goes by the name the game generates from its seed.
+                string? ownName = cell.DisplayName ?? CatalogService.ProceduralProductName(cell.ItemId);
                 var content = new Grid { Padding = new Thickness(2) };
 
-                if (entry?.Icon is not null)
+                var itemImage = new Image
                 {
-                    content.Children.Add(new Image
-                    {
-                        Source = entry.Icon,
-                        Stretch = Stretch.Uniform,
-                        Opacity = 0.95
-                    });
-                }
+                    Source = entry?.Icon,
+                    Stretch = Stretch.Uniform,
+                    Opacity = 0.95
+                };
+                content.Children.Add(itemImage);
 
                 var nameLabel = new Border
                 {
@@ -178,7 +204,7 @@ public sealed partial class InventorySlotGrid : UserControl
                     {
                         // Upper-cased like the game's own slot labels - some catalog rows only
                         // have the mixed-case NameLower ("Thermal Protection").
-                        Text = (entry?.DisplayName ?? cell.ShortLabel).ToUpperInvariant(),
+                        Text = (ownName ?? entry?.DisplayName ?? (showLoadingItems ? "Loading item" : cell.ShortLabel)).ToUpperInvariant(),
                         FontFamily = (FontFamily)Application.Current.Resources["ThemeBodyFont"],
                         FontSize = 8,
                         TextWrapping = TextWrapping.Wrap,
@@ -205,11 +231,46 @@ public sealed partial class InventorySlotGrid : UserControl
                 };
                 content.Children.Add(amountLabel);
 
+                // The game marks every rolled upgrade module with its class (C/B/A/S/X);
+                // without it an X-class module looks like an ordinary one (user, 2026-10-27).
+                string? moduleClass = CatalogService.ModuleClassLetter(cell.ItemId);
+                if (moduleClass is not null)
+                    content.Children.Add(new Border
+                    {
+                        Width = 16,
+                        Height = 16,
+                        CornerRadius = new CornerRadius(3),
+                        Background = ThemeResources.ClassBrush(moduleClass),
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        VerticalAlignment = VerticalAlignment.Bottom,
+                        IsHitTestVisible = false,
+                        Child = new TextBlock
+                        {
+                            Text = moduleClass,
+                            FontSize = 10,
+                            FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                            Foreground = new SolidColorBrush(Colors.White),
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            VerticalAlignment = VerticalAlignment.Center
+                        }
+                    });
+                string classSuffix = moduleClass is null ? "" : $" - {moduleClass}-class upgrade";
+
                 border.Child = content;
                 border.ContextFlyout = BuildOccupiedFlyout(border, cell);
-                ToolTipService.SetToolTip(border, isDamaged
-                    ? "Malfunctioning - right-click to repair"
-                    : "Right-click for options - edit, duplicate, remove");
+                void UpdateItemPresentation(bool loading)
+                {
+                    var current = CatalogService.TryGet(cell.ItemId);
+                    string name = ownName ?? current?.DisplayName
+                        ?? (showLoadingItems ? loading ? "Loading item" : "Item" : cell.ShortLabel);
+                    itemImage.Source = current?.Icon;
+                    ((TextBlock)nameLabel.Child).Text = name.ToUpperInvariant();
+                    ToolTipService.SetToolTip(border, isDamaged
+                        ? "Malfunctioning - right-click to repair"
+                        : $"{name}{classSuffix}\nRight-click for options - edit, duplicate, remove");
+                }
+                UpdateItemPresentation(showLoadingItems);
+                _catalogUpdates.Add(() => UpdateItemPresentation(false));
 
                 border.CanDrag = true;
                 border.DragStarting += (_, args) =>
@@ -276,7 +337,15 @@ public sealed partial class InventorySlotGrid : UserControl
                 border.ContextFlyout = null;
                 border.CanDrag = false;
                 border.AllowDrop = false;
-                ToolTipService.SetToolTip(border, cell.IsOccupied ? cell.DisplayText : null);
+                string label = cell.IsOccupied
+                    ? cell.DisplayName ?? CatalogService.ProceduralProductName(cell.ItemId) ?? CatalogService.TryGet(cell.ItemId)?.DisplayName ?? "Technology"
+                    : cell.State == InventorySlotState.Locked ? "Locked slot" : "Empty slot";
+                if (cell.IsOccupied && CatalogService.ModuleClassLetter(cell.ItemId) is { } readOnlyClass)
+                    label += $" - {readOnlyClass}-class upgrade";
+                if (cell.IsSupercharged) label += " - Supercharged";
+                label += $"\nRow {cell.Y + 1}, column {cell.X + 1}";
+                ToolTipService.SetToolTip(border, label);
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(border, label);
             }
 
             if (cell.IsSupercharged)
@@ -351,6 +420,20 @@ public sealed partial class InventorySlotGrid : UserControl
         };
         flyout.Items.Add(maxQtyItem);
 
+        bool isProcedural = cell.ItemId?.Contains('#') == true || cell.ItemId?.StartsWith("^PROC_", StringComparison.OrdinalIgnoreCase) == true;
+        if (isProcedural)
+        {
+            var rerollSeedItem = new MenuFlyoutItem { Text = "Re-roll seed" };
+            rerollSeedItem.Click += (_, _) =>
+            {
+                ViewModel?.RerollSeed(cell.X, cell.Y);
+                Refresh();
+                CellChanged?.Invoke(this, EventArgs.Empty);
+            };
+            flyout.Items.Add(rerollSeedItem);
+        }
+
+
         if (SupportsRepair)
         {
             var repairItem = new MenuFlyoutItem { Text = "Repair" };
@@ -403,6 +486,15 @@ public sealed partial class InventorySlotGrid : UserControl
             flyout.Items.Add(superchargeItem);
         }
 
+        // A closer look at the item (#10), at the game's own picture size.
+        if (cell.ItemId is { Length: > 0 } pictureId)
+        {
+            var pictureItem = new MenuFlyoutItem { Text = "View larger picture" };
+            pictureItem.Click += async (_, _) =>
+                await ItemPictureView.ShowAsync(anchor.XamlRoot, pictureId, CatalogService.TryGet(pictureId)?.DisplayName ?? "Item");
+            flyout.Items.Add(pictureItem);
+        }
+
         var removeItem = new MenuFlyoutItem { Text = "Remove item" };
         removeItem.Click += (_, _) =>
         {
@@ -422,6 +514,7 @@ public sealed partial class InventorySlotGrid : UserControl
         var addItem = new MenuFlyoutItem { Text = "Add item..." };
         addItem.Click += (_, _) => ShowAddItemFlyout(anchor, cell);
         flyout.Items.Add(addItem);
+
 
         if (SupportsSupercharge)
         {
@@ -479,9 +572,9 @@ public sealed partial class InventorySlotGrid : UserControl
             if (string.IsNullOrWhiteSpace(query) || AllowedTemplateTypes is null) return;
 
             var matches = await CatalogService.SearchAsync(query, AllowedTemplateTypes, AllowedUsageCategories,
-                maxResults: AllowedItemIds is null ? 30 : 400);
+                maxResults: AllowedItemIds is null ? 60 : 400);
             if (AllowedItemIds is not null)
-                matches = matches.Where(m => AllowedItemIds.Contains(m.GameId)).Take(30).ToList();
+                matches = matches.Where(m => AllowedItemIds.Contains(m.GameId)).Take(60).ToList();
             await CatalogService.WarmCacheAsync(matches.Select(m => m.GameId));
 
             foreach (var match in matches)
@@ -531,26 +624,31 @@ public sealed partial class InventorySlotGrid : UserControl
             // value people actually want, and trimming down is easier (sell/drop
             // in-game) than topping up here.
             int maxAmount = StackCapFor(match.CategoryLabel, match.MaxStackSize);
+            string finalId = match.GameId;
+            if (match.IsProcedural)
+            {
+                int seed = Random.Shared.Next(0, 100000);
+                finalId = $"{match.GameId}#{seed:D5}";
+                maxAmount = match.MaxStackSize ?? 1;
+            }
 
-            ViewModel?.AddItem(cell.X, cell.Y, match.GameId, match.CategoryLabel, maxAmount, maxAmount);
+            ViewModel?.AddItem(cell.X, cell.Y, finalId, match.CategoryLabel, maxAmount, maxAmount);
             Refresh();
             CellChanged?.Invoke(this, EventArgs.Empty);
             flyout.Hide();
         };
 
+
         FlyoutBase.SetAttachedFlyout(anchor, flyout);
         FlyoutBase.ShowAttachedFlyout(anchor);
     }
 
+
     /// <summary>A full stack of an item in this container: technology is 100
     /// (durability, not a count), products use their stack size times this
     /// container's multiplier, substances 9999 (see the add-item flyout).</summary>
-    public int StackCapFor(string? categoryLabel, int? maxStackSize) => categoryLabel switch
-    {
-        "Technology" => 100,
-        "Product" => ComputeStackCap(maxStackSize, ProductStorageMultiplier),
-        _ => 9999,
-    };
+    public int StackCapFor(string? categoryLabel, int? maxStackSize) =>
+        Helpers.Inventory.StackCaps.For(categoryLabel, maxStackSize, ProductStorageMultiplier);
 
     /// <summary>Unlocked slots with nothing in them.</summary>
     /// <summary>Locked slots this inventory could still unlock (within its
@@ -607,17 +705,6 @@ public sealed partial class InventorySlotGrid : UserControl
             CellChanged?.Invoke(this, EventArgs.Empty);
         }
         return added;
-    }
-
-    /// <summary>Applies this container's storage multiplier to a catalog row's raw
-    /// StackMultiplier, capped at the game's global 9999 ceiling. Falls back to 9999
-    /// outright (skipping the multiplier math entirely) when the catalog has no
-    /// MaxStackSize recorded for this row at all - safer than guessing at a raw
-    /// value we don't actually have.</summary>
-    private static int ComputeStackCap(int? rawStackMultiplier, int storageMultiplier)
-    {
-        if (rawStackMultiplier is not > 0) return 9999;
-        return Math.Min(rawStackMultiplier.Value * storageMultiplier, 9999);
     }
 
     /// <summary>Overlays a small gold badge on a cell that already has its Child

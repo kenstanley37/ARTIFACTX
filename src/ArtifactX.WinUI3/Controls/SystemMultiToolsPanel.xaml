@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Multi-tools in this system's cabinets (SystemMultiToolsViewModel), one group per place the game can be loaded at. -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.SystemMultiToolsPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls">
+
+    <controls:FoldingCard Title="MULTI-TOOLS IN CABINETS"
+                          SettingKey="CurrentSystemCabinetToolsCollapsed"
+                          Visibility="{x:Bind MultiTools.HasPlaces, Mode=OneWay}">
+        <Border Style="{StaticResource ThemeCardStyle}">
+            <StackPanel Padding="18,14,18,16" Spacing="14">
+                <TextBlock Text="{x:Bind MultiTools.Explanation, Mode=OneWay}" TextWrapping="Wrap"
+                           Foreground="{ThemeResource ThemeTextBrush}" FontSize="13"/>
+                <TextBlock Text="{x:Bind MultiTools.Odds, Mode=OneWay}" TextWrapping="Wrap"
+                           Foreground="{ThemeResource ThemeAccentBrush}" FontSize="13" FontWeight="SemiBold"/>
+                <ItemsControl ItemsSource="{x:Bind MultiTools.Places, Mode=OneWay}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="14"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="viewmodels:MultiToolLoadPlaceViewModel">
+                            <Border Width="340" Padding="14,12" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                                    Background="{ThemeResource ThemeVoidBrush}" BorderThickness="1"
+                                    BorderBrush="{x:Bind BorderBrush, Mode=OneWay}">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="{x:Bind Heading, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}" TextWrapping="Wrap"/>
+                                    <ItemsControl ItemsSource="{x:Bind Tools}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="viewmodels:SystemMultiToolItemViewModel">
+                                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,3"
+                                                            AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}">
+                                                    <Border Background="{x:Bind BadgeBackground, Mode=OneWay}" Padding="6,1" VerticalAlignment="Center"
+                                                            CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                                                        <TextBlock Text="{x:Bind KindLabel, Mode=OneWay}" FontSize="10" FontWeight="Bold"
+                                                                   FontFamily="{ThemeResource ThemeDisplayFont}" CharacterSpacing="120"
+                                                                   Foreground="{x:Bind BadgeForeground, Mode=OneWay}"/>
+                                                    </Border>
+                                                    <TextBlock Text="{x:Bind Name}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                               Foreground="{ThemeResource ThemeTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+    </controls:FoldingCard>
+</UserControl>

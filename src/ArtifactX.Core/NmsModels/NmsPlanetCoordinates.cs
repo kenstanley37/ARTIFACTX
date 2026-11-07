@@ -51,6 +51,39 @@ public static class NmsPlanetCoordinates
         return From(player, centre);
     }
 
+    /// <summary>
+    /// Every planet and moon centre in the current system: (planet index, x, y, z) for each used slot.
+    /// Moons sit 226,000 units (rounded) from the planet they orbit; that matched the system generator's
+    /// moon hosts in all nine save systems checked 2026-10-27 (three with moons), and no other two bodies
+    /// were closer than about 680,000.
+    /// </summary>
+    public static List<(int Index, double X, double Y, double Z)> Centres(JToken? planetPositions)
+    {
+        var centres = new List<(int, double, double, double)>();
+        if (planetPositions is not JArray slots) return centres;
+        for (int i = 0; i < slots.Count; i++)
+            if (Vector(slots[i]) is { } c && (c.X != 0 || c.Y != 0 || c.Z != 0)) centres.Add((i + 1, c.X, c.Y, c.Z));
+        return centres;
+    }
+
+    /// <summary>
+    /// Where the player is in the solar system, in the planet centres' space. rnc.mEH is the player's position,
+    /// except aboard the freighter, where it's measured inside the freighter and rnc.NGn (the freighter's position)
+    /// is used. Evidence (Slot 1, Oystana, 2026-10-27): saved InShip, mEH equalled tnP (the ship's position, with
+    /// its facing vectors); saved AboardFleet 16 minutes earlier, mEH was (2.7, 31.8, -63.6) while NGn stayed the
+    /// same in both saves. Null in a space station, where mEH is also local (the station marker shows it).
+    /// </summary>
+    public static (double X, double Y, double Z)? PlayerInSystem(JToken? spawn) =>
+        spawn?["jk4"]?.Value<string>() switch
+        {
+            "AboardFleet" => Vector(spawn?["NGn"]),
+            "InStation" => null,
+            _ => Vector(spawn?["mEH"]),
+        };
+
+    /// <summary>The player's state word (rnc.jk4): OnFoot, InShip, InShipLanded, InStation, AboardFleet...</summary>
+    public static string State(JToken? spawn) => spawn?["jk4"]?.Value<string>() ?? "";
+
     /// <summary>Latitude/longitude of a system-space position on the planet
     /// whose centre is given.</summary>
     public static (double Latitude, double Longitude)? From((double X, double Y, double Z) position, (double X, double Y, double Z) centre)
@@ -67,6 +100,17 @@ public static class NmsPlanetCoordinates
     /// beside it (2026-10-14).</summary>
     public static (double Latitude, double Longitude)? OfBase(JToken? baseEntry) =>
         Vector(baseEntry?["wMC"]) is { } at ? From(at, (0, 0, 0)) : null;
+
+    /// <summary>
+    /// Coordinates of an active planetary scan event (A1f entry, GcScanEventSave) on the planet whose centre is
+    /// given. Its TWn (BuildingLocation) is in solar-system space, like rnc.mEH and the planet centres - not
+    /// planet-relative, as assumed 2026-10-23. Evidence (Slot 1, Peak XV, 2026-10-28): a signal booster's Depot
+    /// marker and a Factory marker were about 130,700 and 131,100 units from the planet's centre, with the
+    /// player standing on it about 129,800 away; their raw TWn lengths were 325,806 and 162,566. The differing radii are
+    /// terrain height, so markers carry the ground position.
+    /// </summary>
+    public static (double Latitude, double Longitude)? OfScanEvent(JToken? eventEntry, (double X, double Y, double Z) planetCentre) =>
+        Vector(eventEntry?["TWn"]) is { } at && (at.X != 0 || at.Y != 0 || at.Z != 0) ? From(at, planetCentre) : null;
 
     /// <summary>As the game writes them: "+8.92, -29.91".</summary>
     public static string Format(double latitude, double longitude) =>

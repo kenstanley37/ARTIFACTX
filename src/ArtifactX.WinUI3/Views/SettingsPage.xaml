@@ -6,6 +6,7 @@
     x:Class="ArtifactX.WinUI3.Views.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
@@ -66,6 +67,7 @@
                     <StackPanel Padding="18,14,18,18" Spacing="12">
                         <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
                                    Text="Everything ArtifactX keeps for you - templates, settings, account nicknames, system notes and learned names, finds, guides, pins and planet marks - in one file, separate from your game saves. Restoring keeps this PC's own window position and save-folder list."/>
+                        <TextBlock x:Name="UserDbInfoTxt" FontSize="13" TextWrapping="Wrap" IsTextSelectionEnabled="True" Foreground="{ThemeResource ThemeTextBrush}"/>
                         <StackPanel Orientation="Horizontal" Spacing="16">
                             <ToggleSwitch x:Name="DailyBackupSwitch" Header="Back up automatically once a day" Toggled="DailyBackup_Toggled"/>
                             <ComboBox x:Name="DataKeepBox" Header="Keep the newest" MinWidth="150" SelectionChanged="DataKeep_SelectionChanged"/>
@@ -74,10 +76,57 @@
                             <Button Content="Back up now" Click="BackUpDataNow_Click"/>
                             <Button Content="Save a copy to a file..." Click="ExportData_Click"/>
                             <Button Content="Restore from a file..." Click="RestoreDataFromFile_Click"/>
+                            <Button Content="Open data folder" Click="OpenDataFolder_Click"/>
                         </StackPanel>
                         <TextBlock x:Name="DataStatusTxt" Visibility="Collapsed" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                         <TextBlock Text="BACKUPS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                        <StackPanel x:Name="DataBackupsPanel" Spacing="6"/>
+                        <TextBlock x:Name="NoDataBackupsTxt" Text="No backups yet." FontSize="12" Style="{StaticResource ThemeDimTextStyle}" Visibility="Collapsed"/>
+                        <ItemsControl x:Name="DataBackupsList">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="6"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="viewmodels:DataBackupRowViewModel">
+                                    <Grid ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{x:Bind Label}" FontSize="13" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <Button Grid.Column="1" Content="Restore" Click="RestoreBackup_Click" FontSize="12" Padding="10,3" AutomationProperties.Name="{x:Bind RestoreName}"/>
+                                        <Button Grid.Column="2" Content="Delete" Click="DeleteBackup_Click" FontSize="12" Padding="10,3" AutomationProperties.Name="{x:Bind DeleteName}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Game screen recording (ScreenCaptureLogService, GitHub #18 step 1) -->
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="GAME SCREEN RECORDING (EXPERIMENTAL)" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <StackPanel Padding="18,14,18,18" Spacing="12">
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
+                                   Text="Reads what No Man's Sky shows, about every 2 seconds when the screen changes, and fills in what your save doesn't have: planet weather, sentinels and resources, system economy and conflict, market prices, creatures, renamed planets and system pictures. Only while the game is running and is the window in front: other apps are never read. Only the text read is kept, not screenshots. Everything stays on this PC. Works with the game in borderless or windowed mode."/>
+                        <ToggleSwitch x:Name="CaptureLogSwitch" Header="Record game screens" Toggled="CaptureLog_Toggled"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="ManualCaptureSettingsBtn" Click="ManualCaptureSettingsBtn_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE722;" FontSize="13" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                    <TextBlock Text="Capture screenshot now"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Content="Open log folder" Click="OpenCaptureLog_Click"/>
+                            <Button Content="Delete log..." Click="DeleteCaptureLog_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="CaptureLogStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -97,7 +146,27 @@
                             <Button x:Name="CleanUpBtn" Click="CleanUp_Click" VerticalAlignment="Bottom"/>
                         </StackPanel>
                         <TextBlock x:Name="SaveBackupsStatusTxt" Visibility="Collapsed" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
-                        <StackPanel x:Name="SaveBackupsPanel" Spacing="12"/>
+                        <ItemsControl x:Name="SaveBackupsList">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="12"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="viewmodels:SaveBackupAccountViewModel">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="{x:Bind Account}" FontWeight="SemiBold" FontSize="13"/>
+                                        <ItemsControl ItemsSource="{x:Bind Lines}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="x:String">
+                                                    <TextBlock Text="{x:Bind}" FontSize="12" Opacity="0.85" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -123,6 +192,8 @@
                             <TextBlock x:Name="VersionTxt" Text="ArtifactX" FontFamily="{ThemeResource ThemeDisplayFont}" FontSize="15" FontWeight="SemiBold"
                                        Foreground="{ThemeResource ThemeTextBrush}"/>
                             <Button x:Name="CheckForUpdatesBtn" Content="Check for updates" Click="CheckForUpdates_Click" HorizontalAlignment="Left"/>
+                            <Button x:Name="UpdateAndRestartBtn" Content="Update and restart" Visibility="Collapsed" Click="UpdateAndRestart_Click" HorizontalAlignment="Left"/>
+                            <ProgressBar x:Name="UpdateProgressBar" Minimum="0" Maximum="100" Visibility="Collapsed"/>
                             <TextBlock x:Name="UpdateStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                             <HyperlinkButton x:Name="ReleasePageLink" Content="Open release page" Visibility="Collapsed" Padding="0" Click="ReleasePageLink_Click"/>
                         </StackPanel>

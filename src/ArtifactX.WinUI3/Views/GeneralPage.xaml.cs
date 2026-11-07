@@ -98,6 +98,7 @@ public sealed partial class GeneralPage : Page
     private void SaveNameBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (_suppressChangeEvents || !SaveSessionManager.IsSaveLoaded) return;
+        if (SaveNameBox.Text == (SaveSessionManager.GetValue(NmsSaveHeader.SaveNamePath)?.Value<string>() ?? "")) return; // left unchanged
         SaveSessionManager.StageEdit(SaveNameBox.Text, NmsSaveHeader.SaveNamePath);
         PageResetBtn.Visibility = Visibility.Visible;
     }
@@ -105,6 +106,7 @@ public sealed partial class GeneralPage : Page
     private void SummaryBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (_suppressChangeEvents || !SaveSessionManager.IsSaveLoaded) return;
+        if (SummaryBox.Text == (SaveSessionManager.GetValue(NmsPlayerStateData.LocationDescriptionPath)?.Value<string>() ?? "")) return; // left unchanged
         SaveSessionManager.StageEdit(SummaryBox.Text, NmsPlayerStateData.LocationDescriptionPath);
         PageResetBtn.Visibility = Visibility.Visible;
     }
@@ -204,24 +206,18 @@ public sealed partial class GeneralPage : Page
     // the game itself already uses once it's over ~2.1 billion, so staged
     // edits round-trip the same way the game's own save data already does -
     // see NmsPlayerStateData.ToDisplayValue's doc comment.
-    private void StageUnits(double value)
-    {
-        if (_suppressChangeEvents || double.IsNaN(value)) return;
-        SaveSessionManager.StageEdit(NmsPlayerStateData.ToRawValue((long)value), NmsPlayerStateData.UnitsPath);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
+    private void StageUnits(double value) => StageCurrency(value, NmsPlayerStateData.UnitsPath);
+    private void StageNanites(double value) => StageCurrency(value, NmsPlayerStateData.NanitesPath);
+    private void StageQuicksilver(double value) => StageCurrency(value, NmsPlayerStateData.QuicksilverPath);
 
-    private void StageNanites(double value)
+    /// <summary>Stages a balance unless it's what the save already holds - leaving a box
+    /// without changing it (LostFocus) used to count as a change.</summary>
+    private void StageCurrency(double value, string[] path)
     {
         if (_suppressChangeEvents || double.IsNaN(value)) return;
-        SaveSessionManager.StageEdit(NmsPlayerStateData.ToRawValue((long)value), NmsPlayerStateData.NanitesPath);
-        PageResetBtn.Visibility = Visibility.Visible;
-    }
-
-    private void StageQuicksilver(double value)
-    {
-        if (_suppressChangeEvents || double.IsNaN(value)) return;
-        SaveSessionManager.StageEdit(NmsPlayerStateData.ToRawValue((long)value), NmsPlayerStateData.QuicksilverPath);
+        long raw = NmsPlayerStateData.ToRawValue((long)value);
+        if (SaveSessionManager.GetValue(path)?.Value<long?>() == raw) return;
+        SaveSessionManager.StageEdit(raw, path);
         PageResetBtn.Visibility = Visibility.Visible;
     }
 

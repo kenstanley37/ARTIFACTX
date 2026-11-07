@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). -->
+<!-- Owned settlements (SettlementViewModel for the selected one). Themed (see Themes/*.xaml + ThemeStyles.xaml). -->
 <Page
     x:Class="ArtifactX.WinUI3.Views.SettlementPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
@@ -31,16 +33,51 @@
                         </Border>
                         <ScrollViewer MaxHeight="300" Padding="18,14,18,16" VerticalScrollBarVisibility="Auto"
                                       HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-                            <ctcontrols:WrapPanel x:Name="SettlementSelectorPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+                            <ItemsControl x:Name="SettlementCards">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <!-- Like the game's Settlements Register: name, where, galaxy and race,
+                                         population, what it produces and the building being upgraded. -->
+                                    <DataTemplate x:DataType="viewmodels:SettlementCardViewModel">
+                                        <Button Click="SettlementCard_Click" Width="300" Padding="14,10,14,10"
+                                                HorizontalContentAlignment="Stretch" VerticalAlignment="Stretch"
+                                                Background="{x:Bind Background}" BorderBrush="{x:Bind Border}" BorderThickness="{x:Bind BorderThickness}"
+                                                CornerRadius="{ThemeResource ThemeCardCornerRadius}" AutomationProperties.Name="{x:Bind Name}">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Text="{x:Bind Name}" FontSize="15" FontWeight="{x:Bind NameWeight}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{x:Bind Where}" Visibility="{x:Bind HasWhere}" FontSize="12" Opacity="0.8" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{x:Bind GalaxyAndRace}" Visibility="{x:Bind HasWhere}" FontSize="12" Opacity="0.8" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{x:Bind Population}" FontSize="12" Opacity="0.8" TextTrimming="CharacterEllipsis"/>
+                                                <ItemsControl ItemsSource="{x:Bind Products}" Visibility="{x:Bind HasProducts}" Margin="0,4,0,0">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Orientation="Horizontal" Spacing="6"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="viewmodels:SettlementProduct">
+                                                            <StackPanel Orientation="Horizontal" Spacing="4" ToolTipService.ToolTip="{x:Bind Tip}">
+                                                                <Image Source="{x:Bind Icon}" Width="22" Height="22"/>
+                                                                <TextBlock Text="{x:Bind Name}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="110"/>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                                <TextBlock Text="{x:Bind Building}" Visibility="{x:Bind HasBuilding}" FontSize="12" FontWeight="SemiBold"
+                                                           Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </ScrollViewer>
                     </StackPanel>
                 </Border>
 
-                <!-- Full width (page's own padding above is the only margin) rather than
-                     the old fixed Width="860" - the Buffs section below can't be given a sane
-                     fixed width now that its real length is confirmed unbounded (tested to 19
-                     entries with no cap found), so the whole card stretches to use whatever
-                     room the window actually has. -->
                 <!-- Details and Building materials side by side when the window is wide
                      enough, stacked otherwise (SettlementCards_SizeChanged). -->
                 <Grid x:Name="SettlementCardsGrid" ColumnSpacing="18" RowSpacing="18" SizeChanged="SettlementCards_SizeChanged">
@@ -60,13 +97,14 @@
                     <StackPanel Spacing="20" Padding="20,16,20,20">
                         <StackPanel Spacing="6">
                             <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
-                            <TextBox x:Name="NameEditBox" Width="300" HorizontalAlignment="Left" LostFocus="NameEditBox_LostFocus"/>
+                            <TextBox Width="300" HorizontalAlignment="Left" AutomationProperties.Name="Name"
+                                     Text="{x:Bind ViewModel.Name, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
                         </StackPanel>
 
                         <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="12">
                             <StackPanel Spacing="6" Width="160">
                                 <TextBlock Text="OWNER" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                <TextBlock x:Name="OwnerTxt" Style="{StaticResource ThemeBodyTextStyle}"/>
+                                <TextBlock Text="{x:Bind ViewModel.Owner, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}"/>
                             </StackPanel>
                             <!-- Culture (pA_) confirmed 2026-07-30: drives the in-game "X Planetary
                                  Settlement" subtitle, translated to a species name - Traders->Gek,
@@ -75,84 +113,94 @@
                                  "Dominant Lifeform" stat on the deeper settlement stats screen. -->
                             <StackPanel Spacing="6" Width="160">
                                 <TextBlock Text="CULTURE (RACE)" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                <ComboBox x:Name="RaceBox" Width="150" HorizontalAlignment="Left" SelectionChanged="RaceBox_SelectionChanged"
+                                <ComboBox Width="150" HorizontalAlignment="Left" AutomationProperties.Name="Culture (race)"
+                                          ItemsSource="{x:Bind viewmodels:SettlementViewModel.Races}" SelectedIndex="{x:Bind ViewModel.RaceIndex, Mode=TwoWay}"
                                           ToolTipService.ToolTip="The settlement's culture, shown in-game as the &quot;Gek/Vy'keen/Korvax Planetary Settlement&quot; subtitle."/>
                             </StackPanel>
                             <StackPanel Spacing="6" Width="160">
                                 <TextBlock Text="POPULATION" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                <NumberBox x:Name="PopulationBox" Width="140" HorizontalAlignment="Left"
-                                           Minimum="0" SpinButtonPlacementMode="Hidden"
-                                           ValueChanged="PopulationBox_ValueChanged" LostFocus="PopulationBox_LostFocus"/>
+                                <NumberBox Width="140" HorizontalAlignment="Left" Minimum="0" SpinButtonPlacementMode="Hidden" AutomationProperties.Name="Population"
+                                           Value="{x:Bind ViewModel.Population.Value, Mode=TwoWay}"/>
                             </StackPanel>
                         </ctcontrols:WrapPanel>
 
                         <StackPanel Spacing="8">
                             <TextBlock Text="STATS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                            <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="12">
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Max Population" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat0Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat0Box_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Happiness" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat1Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat1Box_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Production" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat2Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat2Box_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Upkeep" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat3Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat3Box_ValueChanged"/>
-                                </StackPanel>
-                            </ctcontrols:WrapPanel>
-                            <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="12">
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Sentinels" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat4Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat4Box_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Debt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat5Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat5Box_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Alert" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat6Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat6Box_ValueChanged"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="120">
-                                    <TextBlock Text="Bug Attack" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <NumberBox x:Name="Stat7Box" Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden" ValueChanged="Stat7Box_ValueChanged"/>
-                                </StackPanel>
-                            </ctcontrols:WrapPanel>
+                            <!-- Max Population, Happiness, Production, Upkeep / Sentinels, Debt, Alert, Bug Attack: four to a row. -->
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.Stats}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="12" MaxWidth="600" HorizontalAlignment="Left"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="viewmodels:NumberFieldViewModel">
+                                        <StackPanel Spacing="6" Width="120">
+                                            <TextBlock Text="{x:Bind Label}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                            <NumberBox Width="110" HorizontalAlignment="Left" SpinButtonPlacementMode="Hidden"
+                                                       Value="{x:Bind Value, Mode=TwoWay}" AutomationProperties.Name="{x:Bind Label}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
 
                         <StackPanel Spacing="8">
                             <TextBlock Text="SETTLEMENT FEATURES" Style="{StaticResource ThemeEyebrowStyle}"/>
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button x:Name="AddPerkSlotBtn" Content="Add Feature Slot" Click="AddFeatureSlotBtn_Click"/>
+                                <Button Content="Add Feature Slot" Click="AddFeatureSlotBtn_Click"/>
                             </StackPanel>
                         </StackPanel>
-                        <ctcontrols:WrapPanel x:Name="PerksPanel" HorizontalSpacing="16" VerticalSpacing="16"/>
+                        <!-- Feature slots in cards of six; the array isn't capped, so cards wrap. -->
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.PerkCards}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="16"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="viewmodels:SettlementPerkCardViewModel">
+                                    <Border BorderBrush="{ThemeResource ThemeLineBrush}" Background="{ThemeResource ThemePanelAltBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
+                                        <ItemsControl ItemsSource="{x:Bind Rows}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Spacing="10"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="viewmodels:SettlementPerkRowViewModel">
+                                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                                        <TextBlock Text="{x:Bind Label}" Width="90" VerticalAlignment="Center" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                                                        <ComboBox Width="400" ItemsSource="{x:Bind Options}" SelectedIndex="{x:Bind SelectedIndex, Mode=TwoWay}"
+                                                                  ToolTipService.ToolTip="{x:Bind Tip, Mode=OneWay}" AutomationProperties.Name="{x:Bind Label}">
+                                                            <ComboBox.ItemTemplate>
+                                                                <DataTemplate x:DataType="viewmodels:SettlementPerkOption">
+                                                                    <TextBlock Text="{x:Bind Label}" Foreground="{x:Bind Foreground}" ToolTipService.ToolTip="{x:Bind Description}"/>
+                                                                </DataTemplate>
+                                                            </ComboBox.ItemTemplate>
+                                                        </ComboBox>
+                                                        <Ellipse Width="14" Height="14" VerticalAlignment="Center" Fill="{x:Bind Swatch, Mode=OneWay}"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                   </StackPanel>
                 </Border>
 
-                <!-- What each building needs and where to get it (SettlementPage.Materials.cs). -->
+                <!-- What each building needs and where to get it (SettlementMaterialsPanel). -->
                 <Border x:Name="MaterialsCard" Grid.Row="1" Style="{StaticResource ThemeCardStyle}" VerticalAlignment="Top">
                   <StackPanel>
                     <Border Style="{StaticResource ThemeBandStyle}">
                         <TextBlock Text="BUILDING MATERIALS" Style="{StaticResource ThemeBandTextStyle}"/>
                     </Border>
-                    <StackPanel Spacing="12" Padding="20,16,20,20">
-                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap" MaxWidth="900" HorizontalAlignment="Left"
-                                   Text="What each building asks for at every stage, from your game files, and where to get it: trade goods from systems you know with the right economy, items from your Finds, resources from planets where you've recorded them."/>
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <ComboBox x:Name="MaterialsBuildingBox" Header="Building" MinWidth="260" SelectionChanged="MaterialsBuilding_Changed"/>
-                            <TextBlock x:Name="MaterialsNextTxt" VerticalAlignment="Bottom" Margin="0,0,0,8" FontSize="13"
-                                       Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
-                        </StackPanel>
-                        <StackPanel x:Name="MaterialsPanel" Spacing="8"/>
-                    </StackPanel>
+                    <Border Padding="20,16,20,20">
+                        <controls:SettlementMaterialsPanel x:Name="Materials"/>
+                    </Border>
                   </StackPanel>
                 </Border>
                 </Grid>

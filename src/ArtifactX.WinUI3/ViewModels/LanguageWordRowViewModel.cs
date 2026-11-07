@@ -12,5 +12,5 @@ public partial class LanguageWordRowViewModel : ObservableObject
     public required string DisplayName { get; init; }
 
     [ObservableProperty]
-    private bool isKnown;
+    public partial bool IsKnown { get; set; }
 }

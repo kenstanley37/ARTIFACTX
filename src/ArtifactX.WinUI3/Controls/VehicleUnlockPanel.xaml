@@ -1,0 +1,44 @@
+﻿<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.VehicleUnlockPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:vm="using:ArtifactX.WinUI3.ViewModels">
+    <controls:FoldingCard Title="CUSTOMIZATION UNLOCKS" Summary="Edit save and account unlocks"
+        IsExpanded="False" SettingKey="ExocraftUnlocksExpanded">
+        <Border Style="{StaticResource ThemeCardStyle}" Padding="18">
+        <StackPanel Spacing="8">
+            <TextBlock Text="{x:Bind ViewModel.Message, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
+            <Button Content="Reset customization changes" Click="Reset_Click" AutomationProperties.Name="Reset staged vehicle customization unlock changes"/>
+            <ItemsControl ItemsSource="{x:Bind ViewModel.Groups}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:VehicleUnlockGroupViewModel">
+                        <StackPanel Spacing="4" Margin="0,0,0,8">
+                            <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeEyebrowStyle}"/>
+                            <ItemsRepeater ItemsSource="{x:Bind Items}">
+                                <ItemsRepeater.Layout>
+                                    <UniformGridLayout MinItemWidth="250" MinItemHeight="44" MinRowSpacing="4" MinColumnSpacing="8"
+                                        Orientation="Horizontal" ItemsStretch="Fill"/>
+                                </ItemsRepeater.Layout>
+                                <ItemsRepeater.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:VehicleUnlockItemViewModel">
+                                        <Grid>
+                                            <ToolTipService.ToolTip>
+                                                <ToolTip><TextBlock Text="{x:Bind Details, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="440"/></ToolTip>
+                                            </ToolTipService.ToolTip>
+                                            <CheckBox IsChecked="{x:Bind IsChecked, Mode=TwoWay}" IsEnabled="{x:Bind CanEdit, Mode=OneWay}"
+                                                AutomationProperties.Name="{x:Bind Name, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind Details, Mode=OneWay}">
+                                                <TextBlock Text="{x:Bind Name, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
+                                            </CheckBox>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsRepeater.ItemTemplate>
+                            </ItemsRepeater>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+        </Border>
+    </controls:FoldingCard>
+</UserControl>

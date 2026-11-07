@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Services;
 
@@ -33,7 +34,7 @@ public sealed class SystemNote
     public List<string> Notes { get; set; } = new();
 
     /// <summary>Names the game showed - learned from the save's "where you
-    /// saved" line as you play (PlanetsPage), or typed by the player. Planet
+    /// saved" line as you play (Current System), or typed by the player. Planet
     /// names are keyed by planet number ("1".."6").</summary>
     public string SystemName { get; set; } = "";
     public string StationName { get; set; } = "";
@@ -48,6 +49,8 @@ public sealed class SystemNote
     /// checked against 4 real systems (2026-10-11) moons are always the bodies
     /// right after planet 1: one moon = planet 2, two moons = planets 2 and 3.
     /// So with the player's recorded moon count, planets 2..(1 + Moons) are moons.</summary>
+    /// <remarks>Superseded by <see cref="BodyKindsService.IsMoon"/> (generator + what the
+    /// game showed); kept as its last fallback.</remarks>
     public bool IsMoon(int planetIndex) => Moons is int moons && planetIndex >= 2 && planetIndex <= 1 + moons;
 }
 
@@ -114,6 +117,24 @@ public static class SystemNotesService
 
     private static Dictionary<(string Group, string Word), string> _categories = new();
 
+    private static Task? _descriptorsLoad;
+
+    /// <summary>Loads the descriptor words once for the whole app (started at launch).
+    /// Pages that each loaded them showed a noted "Flourishing" as the bare word - or
+    /// no stars - whenever they drew before their own load finished (2026-10-21).
+    /// Tries again when the last load found no catalog (first run, before game data is built).</summary>
+    public static Task EnsureDescriptorsAsync()
+    {
+        lock (Lock)
+        {
+            if (_descriptorsLoad is null || _descriptorsLoad.IsFaulted || (_descriptorsLoad.IsCompleted && _categories.Count == 0))
+                _descriptorsLoad = LoadDescriptorsAsync();
+            return _descriptorsLoad;
+        }
+    }
+
+    private static async Task LoadDescriptorsAsync() => SetDescriptors(await CatalogService.GetSystemDescriptorsAsync());
+
     /// <summary>Called once the descriptor words are loaded from the catalog.</summary>
     public static void SetDescriptors(IEnumerable<(string Word, string Group, string Tier)> descriptors)
     {
@@ -155,10 +176,14 @@ public static class SystemNotesService
 
     public static int Count => Notes.Count;
 
+    /// <summary>Raised (on any thread) when notes, names, or flags for a system are added, modified, or reloaded.</summary>
+    public static event Action<ulong>? Changed;
+
     /// <summary>Drops the in-memory copy so the next read comes from user.db (after an import).</summary>
     public static void Reload()
     {
         lock (Lock) _notes = null;
+        Changed?.Invoke(0);
     }
 
     /// <summary>Every recorded system's notes (for building search filters).</summary>
@@ -188,6 +213,7 @@ public static class SystemNotesService
         {
             System.Diagnostics.Debug.WriteLine($"[SystemNotesService] Couldn't save notes: {ex.Message}");
         }
+        Changed?.Invoke(systemAddress);
     }
 
     private static int NmsGalaxy(ulong address) => (int)((address >> 32) & 0xFF) + 1;
@@ -245,6 +271,9 @@ public static class SystemNotesService
         return result;
     }
 
+    private static readonly string[] SystemFields =
+        { "name", "station", "star_class", "star_colour", "economy", "wealth", "conflict", "race", "moons", "water", "dissonant", "ships" };
+
     /// <summary>Upserts one system's row, planet names and notes list. Rows are
     /// never deleted: removed planet names / notes and emptied systems are
     /// marked deleted = 1 (see UserDatabase's sync columns).</summary>
@@ -252,6 +281,8 @@ public static class SystemNotesService
         string key, int galaxy, SystemNote note, string source)
     {
         string now = UserDatabase.Now();
+        var rowArgs = new Dictionary<string, object> { ["$a"] = key };
+        var before = FieldSources.ReadRow(c, tx, "systems", "address = $a", rowArgs, SystemFields);
 
         using (var cmd = c.CreateCommand())
         {
@@ -286,6 +317,7 @@ public static class SystemNotesService
             cmd.Parameters.AddWithValue("$deleted", note.IsEmpty ? 1 : 0);
             cmd.ExecuteNonQuery();
         }
+        FieldSources.Record(c, tx, "system", key, before, FieldSources.ReadRow(c, tx, "systems", "address = $a", rowArgs, SystemFields), source);
 
         // Planet names: upsert the current ones, soft-delete any that are gone.
         var existingNames = new Dictionary<int, string>();
@@ -301,6 +333,8 @@ public static class SystemNotesService
         {
             if (!int.TryParse(indexText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int index)) continue;
             if (existingNames.TryGetValue(index, out var old) && old == name) continue;
+            FieldSources.Record(c, tx, "planet", $"{key}|{index}", new Dictionary<string, string> { ["name"] = old ?? "" },
+                new Dictionary<string, string> { ["name"] = name }, source);
             using var cmd = c.CreateCommand();
             cmd.Transaction = tx;
             cmd.CommandText = @"
@@ -451,6 +485,32 @@ public static class SystemNameLearner
 
         if (changed) SystemNotesService.Save(address, note, source: "save");
         return changed;
+    }
+
+    /// <summary>Names players gave planets and systems, from the save's discovery records
+    /// (NmsPlanets.ReadCustomNames) - a renamed planet is then known before it's ever landed
+    /// on ("Waterworld", renamed by the player under an earlier name, 2026-10-18). Fills only
+    /// names not known yet: a name learned from where the player stands is newer.</summary>
+    public static int LearnDiscoveryNames(Newtonsoft.Json.Linq.JArray? discoveries)
+    {
+        int learned = 0;
+        foreach (var group in ArtifactX.Core.NmsModels.NmsPlanets.ReadCustomNames(discoveries).GroupBy(n => n.System))
+        {
+            var note = SystemNotesService.Get(group.Key) ?? new SystemNote();
+            bool changed = false;
+            foreach (var (_, planet, name) in group)
+            {
+                if (planet == 0)
+                {
+                    if (note.SystemName.Length == 0) { note.SystemName = name; changed = true; }
+                    continue;
+                }
+                string key = planet.ToString(CultureInfo.InvariantCulture);
+                if (!note.PlanetNames.ContainsKey(key)) { note.PlanetNames[key] = name; changed = true; }
+            }
+            if (changed) { SystemNotesService.Save(group.Key, note, source: "save"); learned++; }
+        }
+        return learned;
     }
 }
 

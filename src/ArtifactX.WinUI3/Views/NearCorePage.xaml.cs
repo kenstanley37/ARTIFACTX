@@ -28,7 +28,6 @@ public sealed partial class NearCorePage : Page
     private ulong? _here;
     private bool _suppressFilterEvents;
     private int _loadVersion;
-    private readonly LiveSaveWatcher _live;
     private string? _lastName;
 
     public NearCorePage()
@@ -37,16 +36,19 @@ public sealed partial class NearCorePage : Page
         _suppressFilterEvents = true;
         SortBox.SelectedIndex = 0;
         _suppressFilterEvents = false;
-        _live = new LiveSaveWatcher(DispatcherQueue);
-        _live.SnapshotRead += OnLiveSnapshot;
+        // The app-wide feed of the game's saves (FishCatchRecorder): one reader for every page.
+        FishCatchRecorder.SnapshotSeen += OnLiveSnapshot;
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
         JumpPlanner.RangeChanged += OnRangeChanged;
+        SystemNotesService.Changed += OnSystemNotesChanged;
+        SystemPageReader.Captured += OnSystemCaptured;
         Unloaded += (_, _) =>
         {
             JumpPlanner.RangeChanged -= OnRangeChanged;
+            SystemNotesService.Changed -= OnSystemNotesChanged;
+            SystemPageReader.Captured -= OnSystemCaptured;
             SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
-            _live.SnapshotRead -= OnLiveSnapshot;
-            _live.Dispose();
+            FishCatchRecorder.SnapshotSeen -= OnLiveSnapshot;
         };
         _ = LoadAsync();
     }
@@ -54,6 +56,16 @@ public sealed partial class NearCorePage : Page
     /// <summary>The game saved: pick up newly discovered systems and your new
     /// position. The list is only rebuilt when something actually changed, so
     /// an unrelated save doesn't reset your scroll position.</summary>
+    private void OnSystemNotesChanged(ulong system) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_thisSave.Count > 0) Apply();
+    });
+
+    private void OnSystemCaptured(ulong system) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_thisSave.Count > 0) Apply();
+    });
+
     private void OnLiveSnapshot(PlanetSnapshot snapshot)
     {
         var systems = NmsPlanets.ReadSystems(snapshot.Discoveries);
@@ -75,16 +87,16 @@ public sealed partial class NearCorePage : Page
     {
         if (!SaveSessionManager.IsSaveLoaded) return;
         int version = ++_loadVersion;
-        await CatalogService.WarmCacheAsync(Enumerable.Range(0, 16).Select(d => $"PORTALSYMBOL_{d:X}"));
+        await PortalGlyphs.WarmAsync();
 
-        _thisSave = NmsPlanets.ReadSystems(SaveSessionManager.GetValue(S.DiscoveriesPath) as JArray);
-        var universe = SaveSessionManager.GetValue(S.CurrentUniverseAddressPath);
-        _here = S.ReadSystemAddress(universe);
-        SystemNameLearner.Learn(_here, universe?["oZw"]?["jsv"]?.Value<int>() ?? 0,
-            SaveSessionManager.GetValue(S.LocationDescriptionPath)?.Value<string>());
+        // The newest save the game wrote, not the one loaded, so returning to the page
+        // after travelling doesn't start from where the save was loaded (2026-11-03).
+        var latest = LiveSaveWatcher.FromSession();
+        _thisSave = NmsPlanets.ReadSystems(latest.Discoveries);
+        _here = S.ReadSystemAddress(latest.Universe);
+        SystemNameLearner.Learn(_here, latest.Universe?["oZw"]?["jsv"]?.Value<int>() ?? 0, latest.Summary);
         _otherSaves = new();
         Refresh();
-        _live.Start();
 
         if (AllSlotsBox.IsChecked == true) await LoadOtherSlotsAsync(version);
     }
@@ -229,7 +241,6 @@ public sealed partial class NearCorePage : Page
             CoreDistance = $"{system.DistanceToCore:N0} ly",
             FromYou = fromYou,
             PortalCode = code,
-            Glyphs = GlyphsFor(code),
             NotesLabel = notes,
             NotesVisibility = notes.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
             RowBorder = ThemeResources.Brush(isHere ? "ThemeAccentBrush" : "ThemeLineBrush"),
@@ -266,11 +277,6 @@ public sealed partial class NearCorePage : Page
     private static string GalaxyLabel(int galaxy) =>
         NmsGalaxyNames.ForNumber(galaxy) is string name ? $"{name} ({galaxy})" : $"Galaxy {galaxy}";
 
-    private static List<ImageSource> GlyphsFor(string code)
-    {
-        var images = code.Select(c => CatalogService.TryGet($"PORTALSYMBOL_{c}")?.Icon).ToList();
-        return images.Any(i => i is null) ? new() : images.Cast<ImageSource>().ToList();
-    }
 
     private async void ExportCsv_Click(object sender, RoutedEventArgs e)
     {
@@ -282,11 +288,4 @@ public sealed partial class NearCorePage : Page
 
     private void OnRangeChanged() => Apply();
 
-    private void CopyCode_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is not string code) return;
-        var package = new DataPackage();
-        package.SetText(code);
-        Clipboard.SetContent(package);
-    }
 }

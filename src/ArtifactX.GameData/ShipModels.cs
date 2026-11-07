@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Numerics;
 using System.Text.RegularExpressions;
 using ArtifactX.GameData.Services;
@@ -9,7 +9,13 @@ namespace ArtifactX.GameData;
 
 /// <summary>A ship's triangles in the game's axes (Y up), three corners each,
 /// with the material each triangle is painted with.</summary>
-public sealed record ShipMesh(Vector3[] Corners, string[] Materials);
+public sealed record ShipMesh(Vector3[] Corners, string[] Materials)
+{
+    /// <summary>Texture coordinates, one per corner (2026-10-16, for painted previews).</summary>
+    public Vector2[] Uvs { get; init; } = Array.Empty<Vector2>();
+    /// <summary>The second texture coordinates (decal sheets), one per corner.</summary>
+    public Vector2[] Uvs2 { get; init; } = Array.Empty<Vector2>();
+}
 
 /// <summary>
 /// Builds a procedural ship's 3D model from the player's own game files
@@ -21,19 +27,29 @@ public sealed record ShipMesh(Vector3[] Corners, string[] Materials);
 /// Follows NMS Shipwright's model3d.py (MIT, see THIRD-PARTY-NOTICES.md):
 /// only LOD0 meshes, effect shells (shields, warp bubble) and decal/shadow
 /// materials left out, lights/joints/collision ignored, a long part name may be
-/// cut short in the scene so names are matched by prefix.
+/// cut short in the scene so names are matched by prefix. Also used for
+/// multi-tools, whose scenes carry extra "Shape" pieces per option (see Keep).
 /// </summary>
-public sealed class ShipModels
+public sealed partial class ShipModels
 {
     private readonly GlobalFileIndexService _index = new();
     private readonly ExtractionService _extraction = new();
     private readonly ConcurrentDictionary<string, NMSTemplate?> _files = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, Dictionary<ulong, (Vector3[] P, uint[] I)>> _geometry = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, Dictionary<ulong, (Vector3[] P, Vector4[] T, uint[] I)>> _geometry = new(StringComparer.OrdinalIgnoreCase);
 
     private static readonly Regex LodName = new(@"LOD(\d)$", RegexOptions.IgnoreCase);
     private static readonly Regex Lod = new(@"LOD\d$");
     private static readonly Regex Effects = new("SHIELD|WARPBUBBLE|FORCEFIELD");
-    private static readonly Regex Hidden = new("DECAL|SHADOW|MASKMAT|DEPTHMASK");
+    // MULTITOOLDECAL isn't a flat decal: multi-tools use it for solid panels (the middle
+    // of a long barrel's top cover went missing without it, 2026-10-16).
+    // ENGINEJET is the engine exhaust, drawn only in flight: big purple cones behind
+    // every ship in the preview (2026-10-16, the user: "doesn't need to be there").
+    // ENGINEGLOWPOLY is a freighter's engine light: a few huge flat cards across the whole
+    // stern that the game draws as soft additive glow - solid, they covered the engines like
+    // "green paper" (2026-10-22). The nozzles' own ENGINEGLOW discs stay.
+    // FREIGHTERSHIELD is the Dreadnought's shield: a smooth shell round the whole ship that
+    // hid the hull inside it - the preview showed only a plain wedge (2026-10-22).
+    private static readonly Regex Hidden = new("(?<!MULTITOOL)DECAL|SHADOW|MASKMAT|DEPTHMASK|ENGINEJET|ENGINEGLOWPOLY|FREIGHTERSHIELD");
 
     public ShipModels(GameInstall game)
     {
@@ -72,13 +88,27 @@ public sealed class ShipModels
             foreach (var o in trunc) if (up.StartsWith(o, StringComparison.Ordinal)) return o;
             return up;
         }
+        // A piece that isn't an option itself but is named into a group ("_B4Cap_Shape2"
+        // in group "_B4CAP_") goes with the option it starts with, and is hidden when
+        // that isn't the chosen one. Found 2026-10-16 on Reflex Beam: a stray
+        // "_B4Cap_Shape2" box covered Barrel 4's round front; the game's own part pick
+        // (run in an emulator) matched ours, so it was the drawing. No ship has such pieces.
+        var groups = optionIds.Select(o => o[..(o.LastIndexOf('_') + 1)]).Where(p => p.Length > 1)
+            .Distinct().OrderByDescending(p => p.Length).ToList();
         bool Keep(string name)
         {
-            string id = Canon(name.ToUpperInvariant());
-            return !optionIds.Contains(id) || chosen.Contains(Lod.Replace(id, "")) || chosen.Contains(id);
+            string up = name.ToUpperInvariant();
+            string id = Canon(up);
+            if (optionIds.Contains(id)) return chosen.Contains(Lod.Replace(id, "")) || chosen.Contains(id);
+            foreach (var g in groups)
+                if (up.StartsWith(g, StringComparison.Ordinal))
+                    return chosen.Any(c => c.StartsWith(g, StringComparison.Ordinal) && up.StartsWith(c, StringComparison.Ordinal));
+            return true;
         }
 
         var corners = new List<Vector3>();
+        var uvs = new List<Vector2>();
+        var uvs2 = new List<Vector2>();
         var materials = new List<string>();
         void Walk(TkSceneNodeData node, string geometry, Matrix4x4 world, int depth)
         {
@@ -104,6 +134,13 @@ public sealed class ShipModels
                         corners.Add(a);
                         corners.Add(mirrored ? c : b);
                         corners.Add(mirrored ? b : c);
+                        Vector4 ua = mesh.T[mesh.I[i]], ub = mesh.T[mesh.I[i + 1]], uc = mesh.T[mesh.I[i + 2]];
+                        uvs.Add(new(ua.X, ua.Y));
+                        uvs.Add(mirrored ? new(uc.X, uc.Y) : new(ub.X, ub.Y));
+                        uvs.Add(mirrored ? new(ub.X, ub.Y) : new(uc.X, uc.Y));
+                        uvs2.Add(new(ua.Z, ua.W));
+                        uvs2.Add(mirrored ? new(uc.Z, uc.W) : new(ub.Z, ub.W));
+                        uvs2.Add(mirrored ? new(ub.Z, ub.W) : new(uc.Z, uc.W));
                         materials.Add(material);
                     }
                 }
@@ -116,7 +153,42 @@ public sealed class ShipModels
             foreach (var child in node.Children ?? new()) Walk(child, geometry, world, depth);
         }
         Walk(root, GeometryOf(root), Matrix4x4.Identity, 0);
-        return corners.Count == 0 ? null : new ShipMesh(corners.ToArray(), materials.ToArray());
+        return corners.Count == 0 ? null : new ShipMesh(corners.ToArray(), materials.ToArray()) { Uvs = uvs.ToArray(), Uvs2 = uvs2.ToArray() };
+    }
+
+    private readonly ConcurrentDictionary<string, Dictionary<string, string>> _weaponTags = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Regex WeaponTag = new("WEAPON_[A-Z_]+");
+
+    /// <summary>The weapon tags a multi-tool scene's parts carry, by part name
+    /// (upper case): a part's ATTACHMENT entity holds a tag like "WEAPON_LARGE".
+    /// The game sets a tool's class from them (NMS.exe 0x1404dd980, 2026-10-16):
+    /// WEAPON_LARGE/MEDIUM make a rifle, nothing makes a pistol; ALIEN, PRISTINE,
+    /// ROYAL, ROBOT, ATLAS, STAFF their own classes. Barrels carry them on the main model.</summary>
+    public IReadOnlyDictionary<string, string> WeaponTags(string scenePath) => _weaponTags.GetOrAdd(scenePath, s =>
+    {
+        var tags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        void Walk(TkSceneNodeData node, int depth)
+        {
+            if (depth > 12) return;
+            string? attachment = node.Attributes?.FirstOrDefault(a => a.Name?.Value == "ATTACHMENT")?.Value?.Value;
+            if (!string.IsNullOrEmpty(attachment) && EntityTag(attachment) is { } tag)
+                tags[(node.Name?.Value ?? "").ToUpperInvariant()] = tag;
+            foreach (var child in node.Children ?? new()) Walk(child, depth + 1);
+        }
+        if (Decode(s) is TkSceneNodeData root) Walk(root, 0);
+        return tags;
+    });
+
+    private string? EntityTag(string entityPath)
+    {
+        string p = entityPath.Replace('\\', '/').ToUpperInvariant();
+        if (!_index.TryFind(p, out var pak, out var entry, out var header)) return null;
+        try
+        {
+            var bytes = _extraction.ExtractEntryBytes(pak, entry, header);
+            return bytes is null ? null : WeaponTag.Match(System.Text.Encoding.ASCII.GetString(bytes)) is { Success: true } m ? m.Value : null;
+        }
+        catch { return null; }
     }
 
     private static string GeometryOf(TkSceneNodeData node) =>
@@ -136,14 +208,16 @@ public sealed class ShipModels
     /// <summary>Every mesh of one geometry file: half-float positions and indices
     /// by mesh hash. The file's "16 bit indices" flag isn't always right (a
     /// sentinel ship says 32 and stores 16), so the width that fits wins.</summary>
-    private Dictionary<ulong, (Vector3[] P, uint[] I)> Geometry(string geometry) => _geometry.GetOrAdd(geometry, g =>
+    private Dictionary<ulong, (Vector3[] P, Vector4[] T, uint[] I)> Geometry(string geometry) => _geometry.GetOrAdd(geometry, g =>
     {
-        var result = new Dictionary<ulong, (Vector3[], uint[])>();
+        var result = new Dictionary<ulong, (Vector3[], Vector4[], uint[])>();
         if (Decode(g + ".PC") is not TkGeometryData gd
             || Decode(Regex.Replace(g, @"\.GEOMETRY\.MBIN$", ".GEOMETRY.DATA.MBIN", RegexOptions.IgnoreCase) + ".PC") is not TkGeometryStreamData sd)
             return result;
         int stride = gd.PositionVertexLayout.Stride;
         int at = gd.PositionVertexLayout.VertexElements?.FirstOrDefault(v => v.SemanticID == 0)?.Offset ?? 0;
+        // Texture coordinates share the position stream (semantic 1, half floats).
+        int uvAt = gd.PositionVertexLayout.VertexElements?.FirstOrDefault(v => v.SemanticID == 1)?.Offset ?? -1;
         bool wide = gd.Indices16Bit == 0;
         foreach (var md in sd.StreamDataArray ?? new())
         {
@@ -151,10 +225,15 @@ public sealed class ShipModels
             if (stride <= 0) break;
             int count = ps.Length / stride;
             var pos = new Vector3[count];
+            var tex = new Vector4[count];
             for (int i = 0; i < count; i++)
             {
                 int o = i * stride + at;
                 pos[i] = new Vector3((float)BitConverter.ToHalf(ps, o), (float)BitConverter.ToHalf(ps, o + 2), (float)BitConverter.ToHalf(ps, o + 4));
+                // Two sets: (x, y) the main texture, (z, w) decal sheets.
+                if (uvAt >= 0 && i * stride + uvAt + 8 <= ps.Length)
+                    tex[i] = new Vector4((float)BitConverter.ToHalf(ps, i * stride + uvAt), (float)BitConverter.ToHalf(ps, i * stride + uvAt + 2),
+                        (float)BitConverter.ToHalf(ps, i * stride + uvAt + 4), (float)BitConverter.ToHalf(ps, i * stride + uvAt + 6));
             }
             var ms = md.MeshDataStream ?? Array.Empty<byte>();
             int start = md.VertexDataSize, size = md.IndexDataSize;
@@ -168,7 +247,7 @@ public sealed class ShipModels
                     idx[i] = width == 2 ? BitConverter.ToUInt16(ms, start + i * 2) : BitConverter.ToUInt32(ms, start + i * 4);
                     if (idx[i] > max) max = idx[i];
                 }
-                if (idx.Length > 0 && max < count) { result[md.Hash] = (pos, idx); break; }
+                if (idx.Length > 0 && max < count) { result[md.Hash] = (pos, tex, idx); break; }
             }
         }
         return result;

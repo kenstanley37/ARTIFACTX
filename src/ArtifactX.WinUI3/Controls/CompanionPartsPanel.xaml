@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A pet's body parts (CompanionPartRowViewModel): one dropdown per descriptor slot,
+     each option's game part code on hover; an entry that matches no catalog option is
+     shown as its raw value. -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.CompanionPartsPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels">
+
+    <StackPanel Spacing="10">
+        <TextBlock Text="No catalog data found for this creature's rig - nothing to edit here." Visibility="{x:Bind ShowNoData, Mode=OneWay}"
+                   FontSize="11" Opacity="0.6" TextWrapping="Wrap"/>
+        <ItemsControl ItemsSource="{x:Bind Rows, Mode=OneWay}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Spacing="10"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="viewmodels:CompanionPartRowViewModel">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="{x:Bind Label}" Width="210" VerticalAlignment="Center" Opacity="0.8" FontSize="12" TextWrapping="Wrap"/>
+                        <ComboBox Width="240" Visibility="{x:Bind IsEditable}" ItemsSource="{x:Bind Options}"
+                                  SelectedIndex="{x:Bind SelectedIndex, Mode=TwoWay}"
+                                  ToolTipService.ToolTip="{x:Bind SelectedId, Mode=OneWay}" AutomationProperties.Name="{x:Bind Label}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="viewmodels:CompanionPartOption">
+                                    <TextBlock Text="{x:Bind Label}" ToolTipService.ToolTip="{x:Bind Id}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBlock Text="{x:Bind RawValue}" Visibility="{x:Bind IsReadOnly}" VerticalAlignment="Center" Opacity="0.6" FontSize="12"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </StackPanel>
+</UserControl>

@@ -42,6 +42,10 @@ public static class NewFromTemplateService
 
     public static int ShipSlotCount => (SaveSessionManager.GetValue(NmsInventoryContainer.ShipArrayPath) as JArray)?.Count ?? 0;
 
+    /// <summary>Starship slots with no ship in them (pending edits included).</summary>
+    public static int FreeShipSlots => (SaveSessionManager.GetValue(NmsInventoryContainer.ShipArrayPath) as JArray)?
+        .Count(s => string.IsNullOrEmpty(s?["NTx"]?["93M"]?.Value<string>())) ?? 0;
+
     private static int? FirstEmpty(string[] arrayPath)
     {
         if (SaveSessionManager.GetValue(arrayPath) is not JArray array) return null;

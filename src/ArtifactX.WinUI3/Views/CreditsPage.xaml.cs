@@ -1,9 +1,8 @@
-using ArtifactX.WinUI3.Services;
-using CommunityToolkit.WinUI.Controls;
-using Microsoft.UI.Text;
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using ArtifactX.WinUI3.ViewModels;
 
 namespace ArtifactX.WinUI3.Views;
 
@@ -14,7 +13,7 @@ namespace ArtifactX.WinUI3.Views;
 /// </summary>
 public sealed partial class CreditsPage : Page
 {
-    private sealed record Credit(string Name, string Who, string What, string Licence, string Url, string LinkText = "Open on GitHub");
+    public IReadOnlyList<CreditSection> CreditSections { get; } = Sections.Select(s => new CreditSection(s.Section, s.Blurb, s.Items)).ToList();
 
     private static readonly (string Section, string Blurb, Credit[] Items)[] Sections =
     {
@@ -65,62 +64,5 @@ public sealed partial class CreditsPage : Page
         }),
     };
 
-    public CreditsPage()
-    {
-        InitializeComponent();
-        foreach (var (section, blurb, items) in Sections)
-        {
-            var block = new StackPanel { Spacing = 10 };
-            block.Children.Add(new TextBlock { Text = section, Style = (Style)Application.Current.Resources["ThemeEyebrowStyle"] });
-            if (blurb.Length > 0)
-                block.Children.Add(new TextBlock { Text = blurb, Style = (Style)Application.Current.Resources["ThemeDimTextStyle"], FontSize = 12 });
-            var cards = new WrapPanel { HorizontalSpacing = 12, VerticalSpacing = 12 };
-            foreach (var credit in items) cards.Children.Add(Card(credit));
-            block.Children.Add(cards);
-            SectionsPanel.Children.Add(block);
-        }
-    }
-
-    private static Border Card(Credit c)
-    {
-        var stack = new StackPanel { Spacing = 6 };
-        var head = new Grid { ColumnSpacing = 8 };
-        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        head.Children.Add(new TextBlock
-        {
-            Text = c.Name, FontWeight = FontWeights.SemiBold, FontSize = 15, TextWrapping = TextWrapping.Wrap,
-            Foreground = ThemeResources.Brush("ThemeTextBrush"),
-        });
-        if (c.Licence.Length > 0)
-        {
-            var licence = new Border
-            {
-                BorderBrush = ThemeResources.Brush("ThemeLineBrush"), BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 1), VerticalAlignment = VerticalAlignment.Top,
-                Child = new TextBlock { Text = c.Licence, FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = ThemeResources.Brush("ThemeTextDimBrush") },
-            };
-            ToolTipService.SetToolTip(licence, $"Licence: {c.Licence}");
-            Grid.SetColumn(licence, 1);
-            head.Children.Add(licence);
-        }
-        stack.Children.Add(head);
-        stack.Children.Add(new TextBlock { Text = c.Who, FontSize = 12, TextWrapping = TextWrapping.Wrap, Foreground = ThemeResources.Brush("ThemeAccentBrush") });
-        stack.Children.Add(new TextBlock { Text = c.What, FontSize = 12, TextWrapping = TextWrapping.Wrap, Foreground = ThemeResources.Brush("ThemeTextDimBrush") });
-        var link = new HyperlinkButton { Content = c.LinkText, NavigateUri = new Uri(c.Url), Padding = new Thickness(0, 2, 0, 0), FontSize = 12 };
-        ToolTipService.SetToolTip(link, c.Url);
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(link, $"{c.LinkText}: {c.Name}");
-        stack.Children.Add(link);
-
-        return new Border
-        {
-            Width = 330,
-            Padding = new Thickness(14, 12, 14, 12),
-            CornerRadius = (CornerRadius)Application.Current.Resources["ThemeCardCornerRadius"],
-            BorderThickness = new Thickness(1),
-            BorderBrush = ThemeResources.Brush("ThemeLineBrush"),
-            Background = ThemeResources.Brush("ThemePanelAltBrush"),
-            Child = stack,
-        };
-    }
+    public CreditsPage() => InitializeComponent();
 }

@@ -55,7 +55,9 @@ namespace libMBIN
         public NMSTemplate GetData()
         {
             _io.Stream.Position = MBINHeader.HEADER_SIZE;
-            return NMSTemplate.DeserializeBinaryTemplate(_io.Reader, Header.GetXMLTemplateName());
+            string templateName = Header.GetXMLTemplateName();
+            if (string.IsNullOrEmpty(templateName)) throw new DeserializeTemplateException(Header.NameHash);
+            return NMSTemplate.DeserializeBinaryTemplate(_io.Reader, templateName);
         }
 
         public void SetData(NMSTemplate template)

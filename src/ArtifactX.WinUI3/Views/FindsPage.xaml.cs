@@ -19,12 +19,11 @@ namespace ArtifactX.WinUI3.Views;
 
 /// <summary>
 /// Tools > Finds: player-recorded finds with portal addresses (FindsService,
-/// user.db). Follows the game (LiveSaveWatcher) so "Use my current location"
+/// user.db). Follows the game (FishCatchRecorder.SnapshotSeen) so "Use my current location"
 /// and the distances stay current. Never writes to the save.
 /// </summary>
 public sealed partial class FindsPage : Page
 {
-    private readonly LiveSaveWatcher _live;
     private ulong? _hereSystem;
     private int _herePlanet;
     // The player's coordinates on that planet (NmsPlanetCoordinates), and the
@@ -49,21 +48,47 @@ public sealed partial class FindsPage : Page
     public FindsPage()
     {
         InitializeComponent();
-        _live = new LiveSaveWatcher(DispatcherQueue);
-        _live.SnapshotRead += OnLiveSnapshot;
+        // The app-wide feed of the game's saves (FishCatchRecorder): one reader for every page.
+        FishCatchRecorder.SnapshotSeen += OnLiveSnapshot;
         JumpPlanner.RangeChanged += Apply;
+        FindsService.Changed += OnFindsChanged;
+        PlanetDetailsService.Captured += OnPlanetDetailsCaptured;
+        PlanetDetailsService.Changed += OnPlanetDetailsCaptured;
+        SystemNotesService.Changed += OnSystemNotesChanged;
+        SystemPageReader.Captured += OnSystemNotesChanged;
         Unloaded += (_, _) =>
         {
             JumpPlanner.RangeChanged -= Apply;
-            _live.SnapshotRead -= OnLiveSnapshot;
-            _live.Dispose();
+            FindsService.Changed -= OnFindsChanged;
+            PlanetDetailsService.Captured -= OnPlanetDetailsCaptured;
+            PlanetDetailsService.Changed -= OnPlanetDetailsCaptured;
+            SystemNotesService.Changed -= OnSystemNotesChanged;
+            SystemPageReader.Captured -= OnSystemNotesChanged;
+            FishCatchRecorder.SnapshotSeen -= OnLiveSnapshot;
         };
         _ = LoadAsync();
     }
 
+    private void OnFindsChanged() => DispatcherQueue.TryEnqueue(() =>
+    {
+        RefreshTypeFilter();
+        Apply();
+    });
+
+    private void OnPlanetDetailsCaptured(ulong system, int planet) => DispatcherQueue.TryEnqueue(() =>
+    {
+        Apply();
+    });
+
+    private void OnSystemNotesChanged(ulong system) => DispatcherQueue.TryEnqueue(() =>
+    {
+        UpdateHere();
+        Apply();
+    });
+
     private async Task LoadAsync()
     {
-        await CatalogService.WarmCacheAsync(Enumerable.Range(0, 16).Select(d => $"PORTALSYMBOL_{d:X}"));
+        await PortalGlyphs.WarmAsync();
         _itemNames = await CatalogService.GetItemNamesAsync();
         // Kinds come from game data / the app's own type lists, not hand-typed here.
         // Reward ships can't be found in the wild, so they're left out.
@@ -74,8 +99,8 @@ public sealed partial class FindsPage : Page
         // 2026-10-15). The game has no names for them; these are the players'.
         _toolKinds = (await CatalogService.GetMultiToolTypesAsync())
             .SelectMany(t => t.ScenePath.EndsWith("/MULTITOOL.SCENE.MBIN", StringComparison.OrdinalIgnoreCase)
-                ? new[] { "Pistol", "Rifle", "Experimental", "Alien" }
-                : new[] { t.DisplayName })
+                ? new[] { "Pistol", "Rifle", "Experimental", "Alien", "Starter" }
+                : new[] { MultiToolKinds.NameFor(t.ScenePath, t.DisplayName) })
             .Distinct().ToList();
         _freighterKinds = (await CatalogService.GetFreighterTypesAsync()).Select(t => t.DisplayName)
             .Where(n => n is "Normal" or "Capital" or "Dreadnought").ToList();
@@ -98,18 +123,11 @@ public sealed partial class FindsPage : Page
         ClassFilterBox.SelectedIndex = 0;
         SortBox.SelectedIndex = 0;
 
-        if (SaveSessionManager.IsSaveLoaded)
-        {
-            var universe = SaveSessionManager.GetValue(S.CurrentUniverseAddressPath);
-            _hereSystem = S.ReadSystemAddress(universe);
-            _herePlanet = universe?["oZw"]?["jsv"]?.Value<int>() ?? 0;
-            _hereCoords = LiveSaveWatcher.FromSession().Coordinates;
-            _herePlanets = NmsPlanets.ReadAll(SaveSessionManager.GetValue(S.DiscoveriesPath) as JArray);
-            _live.Start();
-        }
+        // The newest save the game wrote, not the one loaded: system, planet and
+        // coordinates must all come from the same snapshot (Bug 2, 2026-11-03 - the
+        // system was the loaded save's while the coordinates were the latest).
+        if (SaveSessionManager.IsSaveLoaded) ReadHere(LiveSaveWatcher.FromSession());
         SelectGalaxy(_hereSystem is ulong h ? S.GalaxyNumber(h) : 1);
-        UseHereBtn.IsEnabled = _hereSystem is not null;
-        UpdateHere();
 
         _ready = true;
         RefreshTypeFilter();
@@ -118,14 +136,19 @@ public sealed partial class FindsPage : Page
 
     private void OnLiveSnapshot(PlanetSnapshot snapshot)
     {
+        ReadHere(snapshot);
+        LiveStatusTxt.Text = $"Following your game · updated {DateTime.Now:t}";
+        Apply();
+    }
+
+    private void ReadHere(PlanetSnapshot snapshot)
+    {
         _hereSystem = S.ReadSystemAddress(snapshot.Universe);
         _herePlanet = snapshot.Universe?["oZw"]?["jsv"]?.Value<int>() ?? 0;
         _hereCoords = snapshot.Coordinates;
         _herePlanets = NmsPlanets.ReadAll(snapshot.Discoveries);
         UseHereBtn.IsEnabled = _hereSystem is not null;
         UpdateHere();
-        LiveStatusTxt.Text = $"Following your game · updated {DateTime.Now:t}";
-        Apply();
     }
 
     /// <summary>The "You are here" strip: learned system/planet names plus the
@@ -138,7 +161,7 @@ public sealed partial class FindsPage : Page
             return;
         }
         HerePanel.Visibility = Visibility.Visible;
-        HereSystemTxt.Text = UniverseInfo.SystemName(system);
+        HereSystemTxt.Text = $"{UniverseInfo.SystemName(system)} · {UniverseInfo.Region(system)}";
         // Names now come from the game's generator, so the "save in space to learn it" hint isn't needed.
         HereHintTxt.Visibility = Visibility.Collapsed;
 
@@ -147,7 +170,7 @@ public sealed partial class FindsPage : Page
         {
             parts.Add($"On {UniverseInfo.PlanetName(system, _herePlanet)} (planet {_herePlanet})");
             var planet = _herePlanets.FirstOrDefault(p => p.SystemAddress == system && p.PlanetIndex == _herePlanet);
-            if (planet is not null) parts.Add(planet.TypeName);
+            if (planet is not null) parts.Add(planet.Classification(PlanetDetailsService.Get(system, _herePlanet)?.Descriptor));
         }
         else parts.Add("In space");
         parts.Add(GalaxyLabel(S.GalaxyNumber(system)));
@@ -262,21 +285,12 @@ public sealed partial class FindsPage : Page
             Facts = AddressOf(f) is ulong factsAddress ? UniverseInfo.Compact(factsAddress) : "",
             Distance = distance,
             PortalCode = f.PortalCode,
-            Glyphs = GlyphsFor(f.PortalCode),
             Notes = f.Notes,
             NotesVisibility = f.Notes.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
         };
     }
 
-    // Game class-tier colours (same as the Multi-Tool page's badge) - fixed, not themed.
-    private static Windows.UI.Color ClassColour(string cls) => cls switch
-    {
-        "S" => Windows.UI.Color.FromArgb(255, 201, 151, 34),
-        "A" => Windows.UI.Color.FromArgb(255, 130, 80, 200),
-        "B" => Windows.UI.Color.FromArgb(255, 60, 110, 200),
-        "C" => Windows.UI.Color.FromArgb(255, 60, 150, 90),
-        _ => Colors.Transparent,
-    };
+    private static Windows.UI.Color ClassColour(string cls) => ThemeResources.ClassColour(cls);
 
     private async void ExportCsv_Click(object sender, RoutedEventArgs e)
     {
@@ -306,13 +320,6 @@ public sealed partial class FindsPage : Page
     private void Search_TextChanged(object sender, TextChangedEventArgs e) => Apply();
     private void Filter_Changed(object sender, SelectionChangedEventArgs e) => Apply();
 
-    private void CopyCode_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is not string code || code.Length == 0) return;
-        var package = new DataPackage();
-        package.SetText(code);
-        Clipboard.SetContent(package);
-    }
 
     private async void Delete_Click(object sender, RoutedEventArgs e)
     {
@@ -381,6 +388,7 @@ public sealed partial class FindsPage : Page
             "Starship" => _shipKinds,
             "Multi-Tool" => _toolKinds,
             "Freighter" => _freighterKinds,
+            "Creature" => FindsService.CreatureKinds.ToList(),
             _ => new List<string>(),
         };
         FormSubtypeBox.Items.Clear();
@@ -420,7 +428,6 @@ public sealed partial class FindsPage : Page
     /// for a different galaxy from the player's.</summary>
     private void UpdateFormGlyphs()
     {
-        FormGlyphsPanel.Children.Clear();
         FormGlyphStrip.Code = NmsPortalCode.TryParse(FormCodeBox.Text.Trim(), out string stripCode, out _) ? stripCode : "";
         string input = FormCodeBox.Text.Trim();
         if (input.Length == 0)
@@ -437,12 +444,6 @@ public sealed partial class FindsPage : Page
         // needed when a player renamed the system. Never overwrite what the user typed.
         ulong codeAddress = NmsPortalCode.ToAddress(code, SelectedGalaxy());
         FormSystemNameBox.PlaceholderText = UniverseInfo.SystemName(codeAddress);
-        foreach (var glyph in GlyphsFor(code))
-            FormGlyphsPanel.Children.Add(new Border
-            {
-                Width = 24, Height = 24, Background = ThemeResources.Brush("ThemeVoidBrush"),
-                Child = new Image { Source = glyph, Width = 20, Height = 20 },
-            });
         int galaxy = SelectedGalaxy();
         FormCodeStatusTxt.Text = _hereSystem is ulong h && S.GalaxyNumber(h) != galaxy
             ? $"This is in {GalaxyLabel(galaxy)} - you're in {GalaxyLabel(S.GalaxyNumber(h))}. Portals can't cross galaxies."
@@ -588,10 +589,4 @@ public sealed partial class FindsPage : Page
     private static string GalaxyLabel(int galaxy) =>
         NmsGalaxyNames.ForNumber(galaxy) is string name ? $"{name} ({galaxy})" : $"Galaxy {galaxy}";
 
-    private static List<ImageSource> GlyphsFor(string code)
-    {
-        if (code.Length != 12) return new();
-        var images = code.Select(c => CatalogService.TryGet($"PORTALSYMBOL_{c}")?.Icon).ToList();
-        return images.Any(i => i is null) ? new() : images.Cast<ImageSource>().ToList();
-    }
 }

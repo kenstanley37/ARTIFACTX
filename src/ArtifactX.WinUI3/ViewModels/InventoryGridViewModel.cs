@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
@@ -262,62 +262,94 @@ public partial class InventoryGridViewModel : ObservableObject
         Load();
     }
 
-    /// <summary>Collapses every item that appears in more than one slot into a
-    /// single stack, kept at that item's first slot (reading order). The kept
-    /// stack's amount is the combined total, capped at the item's own max -
-    /// one full stack is plenty, and more can always be duplicated. A working
-    /// copy is preferred over a damaged one. Returns how many slots were freed.</summary>
-    public int MergeDuplicates()
+    /// <summary>Combines compatible cargo stacks, retaining overflow and all
+    /// saved item metadata. True even when repacking frees no whole slot.</n    /// Stages the entire slot array; Reset can undo the operation.</summary>
+    public bool TryMergeDuplicates(out int freedSlots)
     {
-        var occupied = Cells.Where(c => c.IsOccupied).OrderBy(c => c.Y).ThenBy(c => c.X).ToList();
-        var merged = new List<(int X, int Y, string? ItemId, int Amount, int MaxAmount, string? CategoryLabel, bool IsFunctional, double MalfunctionSeverity)>();
-        int freed = 0;
-
-        foreach (var group in occupied.GroupBy(c => c.ItemId))
-        {
-            var cells = group.ToList();
-            var first = cells[0];
-            if (cells.Count == 1)
-            {
-                merged.Add((first.X, first.Y, first.ItemId, first.Amount, first.MaxAmount, first.CategoryLabel, first.IsFunctional, first.MalfunctionSeverity));
-                continue;
-            }
-
-            var best = cells.FirstOrDefault(c => c.IsFunctional && c.MalfunctionSeverity <= 0) ?? first;
-            int max = cells.Max(c => c.MaxAmount);
-            long total = cells.Sum(c => (long)c.Amount);
-            int amount = max > 0 ? (int)System.Math.Min(total, max) : (int)System.Math.Min(total, int.MaxValue);
-
-            merged.Add((first.X, first.Y, first.ItemId, amount, max, first.CategoryLabel, best.IsFunctional, best.MalfunctionSeverity));
-            freed += cells.Count - 1;
-        }
-
-        if (freed == 0) return 0;
-        StageWholeArray(merged);
+        freedSlots = 0;
+        if (SaveSessionManager.GetValue(NoPath) is not JArray slots) return false;
+        var merged = ArtifactX.Core.Inventory.InventoryStackMerger.Merge(slots, out freedSlots);
+        if (merged is null) return false;
+        SaveSessionManager.StageEdit(merged, NoPath);
         Load();
-        return freed;
+        return true;
     }
 
     /// <summary>Re-packs every item into the unlocked slots in reading order,
-    /// grouped by kind (technology, product, substance) and then by name, so
-    /// identical items end up next to each other. Returns false when nothing
-    /// moved.</summary>
+    /// grouped by category (Technology, Raw Materials/Substances, Crafted Components,
+    /// Curiosities & Artifacts, Consumables/Navigation, Cooking & Edibles, Trade Goods,
+    /// Construction Parts) and secondarily alphabetically by name. Returns false when
+    /// nothing moved.</summary>
     public bool SortItems()
     {
         var occupied = Cells.Where(c => c.IsOccupied).ToList();
         if (occupied.Count == 0) return false;
 
-        static int KindOrder(string? category) => category switch
+        // The catalog's own group first. 1,608 of the game's products have none (checked
+        // 2026-10-20), so the id's prefix fills in for those - prefixes only: a word anywhere
+        // in an id put BLD_MAPTUBE (a building part) with the maps. Better still would be the
+        // game's own product type (GcProductData.Type) in the catalog.
+        static int CategoryOrder(InventorySlotViewModel cell, CatalogEntry? entry)
         {
-            "Technology" => 0,
-            "Product" => 1,
-            "Substance" => 2,
-            _ => 3,
-        };
+            string rawId = (cell.ItemId ?? "").TrimStart('^');
+            int hash = rawId.IndexOf('#');
+            if (hash >= 0) rawId = rawId[..hash];
+
+            // 0. Technology
+            if (cell.CategoryLabel == "Technology" ||
+                entry?.TemplateType is "GcTechnologyTable" or "GcProceduralTechnologyTable" ||
+                rawId.StartsWith("UP_", StringComparison.OrdinalIgnoreCase))
+                return 0;
+
+            // 1. Raw Materials (Elements, Minerals, Substances)
+            if (cell.CategoryLabel == "Substance" ||
+                entry?.TemplateType == "GcSubstanceTable" ||
+                entry?.CatalogGroup == "Raw Materials")
+                return 1;
+
+            // 2. Crafted Components & Alloys
+            if (entry?.CatalogGroup == "Crafted Products")
+                return 2;
+
+            // 3. Curiosities, Artifacts & Procedural items
+            if (entry?.CatalogGroup == "Curiosities" ||
+                entry?.TemplateType == "ProceduralProducts" ||
+                rawId.StartsWith("PROC_", StringComparison.OrdinalIgnoreCase))
+                return 3;
+
+            // 4. Consumables & Navigation / Maps (charts are CHART_*, navigation data NAV_*)
+            if (entry?.CatalogGroup == "Constructed Technology" ||
+                rawId.StartsWith("CHART_", StringComparison.OrdinalIgnoreCase) ||
+                rawId.StartsWith("NAV_", StringComparison.OrdinalIgnoreCase))
+                return 4;
+
+            // 5. Cooking & Edibles
+            if (entry?.CatalogGroup == "Cooking Products" ||
+                rawId.StartsWith("FOOD_", StringComparison.OrdinalIgnoreCase) ||
+                rawId.StartsWith("COOK_", StringComparison.OrdinalIgnoreCase) ||
+                rawId.StartsWith("BAIT_", StringComparison.OrdinalIgnoreCase) ||
+                CatalogService.IsFishSpecies(rawId))
+                return 5;
+
+            // 6. Trade Goods & Commodities
+            if (entry?.CatalogGroup == "Trade Goods" ||
+                rawId.StartsWith("TRA_", StringComparison.OrdinalIgnoreCase) ||
+                rawId.StartsWith("ILLEGAL_", StringComparison.OrdinalIgnoreCase))
+                return 6;
+
+            // 7. Construction Parts
+            if (entry?.CatalogGroup == "Construction Parts" ||
+                rawId.StartsWith("BASE_", StringComparison.OrdinalIgnoreCase) ||
+                rawId.StartsWith("BLD_", StringComparison.OrdinalIgnoreCase))
+                return 7;
+
+            // 8. Miscellaneous Products / Uncategorized
+            return 8;
+        }
 
         var sorted = occupied
-            .OrderBy(c => KindOrder(c.CategoryLabel))
-            .ThenBy(c => CatalogService.TryGet(c.ItemId)?.DisplayName ?? c.ItemId, System.StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => CategoryOrder(c, CatalogService.TryGet(c.ItemId)))
+            .ThenBy(c => CatalogService.TryGet(c.ItemId)?.DisplayName ?? c.ShortLabel, System.StringComparer.OrdinalIgnoreCase)
             .ThenBy(c => c.ItemId, System.StringComparer.Ordinal)
             .ThenByDescending(c => c.Amount)
             .ToList();
@@ -375,6 +407,29 @@ public partial class InventoryGridViewModel : ObservableObject
         var entries = Cells.Where(c => c.IsOccupied)
             .Select(c => (c.X, c.Y, c.ItemId, c.Amount, c.MaxAmount, c.CategoryLabel, c.IsFunctional, c.MalfunctionSeverity))
             .Append((target.X, target.Y, sourceCell.ItemId, sourceCell.Amount, sourceCell.MaxAmount, sourceCell.CategoryLabel, true, 0.0));
+
+        StageWholeArray(entries);
+        Load();
+        return true;
+    }
+
+    /// <summary>Re-rolls the procedural seed of the item at (x, y) to a new random
+    /// integer, preserving the item type, quantity, and health status.</summary>
+    public bool RerollSeed(int x, int y)
+    {
+        var cell = Cells.FirstOrDefault(c => c.X == x && c.Y == y);
+        if (cell is null || !cell.IsOccupied || string.IsNullOrEmpty(cell.ItemId)) return false;
+
+        string baseId = cell.ItemId;
+        int hashIdx = baseId.IndexOf('#');
+        if (hashIdx >= 0) baseId = baseId[..hashIdx];
+
+        int newSeed = Random.Shared.Next(0, 100000);
+        string newItemId = $"{baseId}#{newSeed:D5}";
+
+        var entries = Cells.Where(c => c.IsOccupied && (c.X, c.Y) != (x, y))
+            .Select(c => (c.X, c.Y, c.ItemId, c.Amount, c.MaxAmount, c.CategoryLabel, c.IsFunctional, c.MalfunctionSeverity))
+            .Append((x, y, newItemId, cell.Amount, cell.MaxAmount, cell.CategoryLabel, cell.IsFunctional, cell.MalfunctionSeverity));
 
         StageWholeArray(entries);
         Load();

@@ -62,6 +62,7 @@ src/ArtifactX.Tools/ArtifactX.Tools.DataCataloger/config.json
 *.db
 *.sqlite
 *.sqlite3
+*.sqlite.bak
 *.db-journal
 *.db-shm
 *.db-wal
@@ -77,7 +78,20 @@ Thumbs.db
 /Backups/
 /TestSaves/
 *.hg
+# decompressed save dumps (save.hg.json, accountdata.hg.json...)
+*.hg.json
 
 # External libraries (MBINCompiler, libMBIN, etc.)
 src/ArtifactX.Tools/External/
 src/ArtifactX.Tools/External/**
+# MSBuild binary logs
+*.binlog
+
+# Extracted game files and research outputs (never commit game data)
+*.mbin
+*.MBIN
+scripts/research/**/*.json
+scripts/research/**/*.log
+__pycache__/
+# Local recipe design data and extracted appliance images.
+docs/mockups/recipe-preview.local/

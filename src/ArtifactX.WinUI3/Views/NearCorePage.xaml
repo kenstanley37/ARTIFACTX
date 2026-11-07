@@ -129,29 +129,13 @@
                                 <TextBlock Text="from the galaxy core" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"/>
                             </StackPanel>
                             <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="3">
-                                <controls:GlyphStrip Code="{x:Bind PortalCode}" VerticalAlignment="Center">
-                                    <ItemsControl ItemsSource="{x:Bind Glyphs}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal" Spacing="2"/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="ImageSource">
-                                                <Border Width="24" Height="24" Background="{ThemeResource ThemeVoidBrush}">
-                                                    <Image Source="{x:Bind}" Width="20" Height="20"/>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </controls:GlyphStrip>
+                                <controls:GlyphStrip Code="{x:Bind PortalCode}" VerticalAlignment="Center" GlyphSize="24"/>
                                 <TextBlock Text="{x:Bind PortalCode}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11"
                                            IsTextSelectionEnabled="True" CharacterSpacing="80"/>
                             </StackPanel>
                             <TextBlock Grid.Column="4" Text="{x:Bind FromYou}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                        VerticalAlignment="Center" TextWrapping="Wrap"/>
-                            <Button Grid.Column="5" Content="Copy" Tag="{x:Bind PortalCode}" Click="CopyCode_Click"
-                                    VerticalAlignment="Center" Padding="10,3" ToolTipService.ToolTip="Copy this system's portal address"/>
+                            <controls:CopyCodeButton Grid.Column="5" Code="{x:Bind PortalCode}"/>
                         </Grid>
                     </Border>
                 </DataTemplate>

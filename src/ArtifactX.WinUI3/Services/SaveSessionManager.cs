@@ -19,6 +19,13 @@ public static class SaveSessionManager
     private static string? _activePlatformDisplayName;
     private static bool _isExpeditionActive;
     private static Dictionary<string, DateTime> _loadSnapshot = new();
+    private static readonly List<IStagedSaveCompanion> _companions = new();
+
+    internal static void Enlist(IStagedSaveCompanion companion)
+    {
+        if (!_companions.Contains(companion)) _companions.Add(companion);
+    }
+    internal static void CompanionChanged() => PendingEditsChanged?.Invoke(null, EventArgs.Empty);
 
     public static event EventHandler? ActiveSessionChanged;
     public static event EventHandler? PendingEditsChanged;
@@ -29,10 +36,16 @@ public static class SaveSessionManager
     public static event EventHandler? ExternalChangeDetected;
 
     public static bool IsSaveLoaded => _session is not null;
-    public static bool HasUnsavedChanges => _session?.HasUnsavedChanges ?? false;
-    public static int PendingEditCount => _session?.PendingEditCount ?? 0;
+    public static bool HasUnsavedChanges => (_session?.HasUnsavedChanges ?? false) || _companions.Any(c => c.HasChanges);
+    public static int PendingEditCount => (_session?.PendingEditCount ?? 0) + _companions.Sum(c => c.PendingCount);
     public static IEnumerable<string> DescribePendingEdits() => _session?.DescribePendingEdits() ?? Enumerable.Empty<string>();
     public static SaveSlotGroup? ActiveSlot => _activeSlot;
+    /// <summary>
+    /// Identity of the loaded editing session. Slot metadata is replaced by AdoptSlot
+    /// after autosaves, while this identity changes only when the actual session does.
+    /// Consumers use reference equality; it is not a save-data API.
+    /// </summary>
+    internal static object? SessionIdentity => _session;
     public static string? ActiveLabel => _activeSlot?.ActiveLabel;
 
     /// <summary>The platform-account folder (e.g. "...\Steam\st_76561...") the
@@ -62,6 +75,38 @@ public static class SaveSessionManager
     /// actually playing without needing expedition-specific copies.</summary>
     public static bool IsExpeditionActive => _isExpeditionActive;
 
+    /// <summary>Whether a save's game is playing its expedition (XTp == "Season",
+    /// with an expedition state to play) - see NmsSaveContext.</summary>
+    public static bool IsMidExpedition(JObject root) =>
+        root[NmsSaveContext.ActiveContextKey]?.Value<string>() == NmsSaveContext.ExpeditionContextValue
+        && root[NmsSaveContext.ExpeditionRootKey]?["6f="] is JObject;
+
+    /// <summary>Raised (UI thread) when the running game writes the loaded
+    /// slot, with the save as the game just wrote it. The session itself is
+    /// left alone - listeners decide what, if anything, the player should see
+    /// change (user rule 2026-10-16: pages don't change on ordinary autosaves).</summary>
+    public static event Action<JObject>? GameSavedLoadedSlot;
+
+    /// <summary>The game wrote the loaded slot (SaveFolderWatchService): reads
+    /// what it wrote, off the UI thread, and raises GameSavedLoadedSlot. Only
+    /// while the game runs - ArtifactX's own saves and backup restores need the
+    /// game closed, so they never reach here.</summary>
+    public static async Task NotifyGameSavedAsync(SaveSlotGroup slot)
+    {
+        if (!GameProcessMonitorService.IsGameRunning || _session is null || !ReferenceEquals(slot, _activeSlot)) return;
+        JObject disk;
+        try
+        {
+            disk = await Task.Run(async () => JObject.Parse(await SaveStreamProcessor.ExtractRawJsonAsync(slot.PrimaryFile.FullPath)));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[SaveSessionManager] Couldn't read the game's new save: {ex.Message}");
+            return;
+        }
+        if (ReferenceEquals(slot, _activeSlot)) GameSavedLoadedSlot?.Invoke(disk);
+    }
+
     public static async Task LoadAsync(SaveSlotGroup slot)
     {
         DetachCurrent();
@@ -81,9 +126,7 @@ public static class SaveSessionManager
         await File.WriteAllTextAsync(primary.WorkingJsonPath, freshJson);
 
         _session = await Task.Run(() => SaveEditSession.LoadAsync(primary.WorkingJsonPath));
-        _isExpeditionActive =
-            _session.Root[NmsSaveContext.ActiveContextKey]?.Value<string>() == NmsSaveContext.ExpeditionContextValue
-            && _session.Root[NmsSaveContext.ExpeditionRootKey]?["6f="] is JObject;
+        _isExpeditionActive = IsMidExpedition(_session.Root);
 
         _targetHgPaths = slot.Files.Select(f => f.FullPath).ToArray();
         _activeSlot = slot;
@@ -148,10 +191,53 @@ public static class SaveSessionManager
     public static bool? GetBool(params string[] path) => _session?.GetBool(MapToActiveContext(path));
 
     public static void StageEdit(JToken? newValue, params string[] path) => _session?.StageEdit(newValue, MapToActiveContext(path));
+
+    /// <summary>Several edits, one change notice (see SaveEditSession.StageEdits).</summary>
+    public static void StageEdits(IEnumerable<(JToken? Value, string[] Path)> edits) =>
+        _session?.StageEdits(edits.Select(e => (e.Value, MapToActiveContext(e.Path))).ToList());
     public static void RevertEdit(params string[] path) => _session?.RevertEdit(MapToActiveContext(path));
     public static bool HasStagedEdit(params string[] path) => _session?.HasStagedEdit(MapToActiveContext(path)) ?? false;
     public static bool HasStagedEditsUnder(params string[] pathPrefix) => _session?.HasStagedEditsUnder(MapToActiveContext(pathPrefix)) ?? false;
     public static void RevertEditsUnder(params string[] pathPrefix) => _session?.RevertEditsUnder(MapToActiveContext(pathPrefix));
+
+    /// <summary>A "vLc" path pointed at whichever player state the loaded save
+    /// is playing (see MapToActiveContext) - for reading the same place in
+    /// another copy of the save.</summary>
+    public static string[] MapPath(params string[] path) => MapToActiveContext(path);
+
+    /// <summary>Copies one part of the game's newer save (GameSavedLoadedSlot)
+    /// into the loaded one, as if it had been loaded with it - not an edit,
+    /// so there's nothing new to save. Refused where the player has unsaved
+    /// edits, which always win. The path is a "vLc" path; array elements are
+    /// addressed by index ("SuJ", "3").</summary>
+    public static bool AdoptFromGame(JObject disk, params string[] path)
+    {
+        if (_session is null || path.Length == 0 || HasStagedEditsUnder(path)) return false;
+        var mapped = MapToActiveContext(path);
+        JToken? source = disk;
+        foreach (var key in mapped) source = Child(source, key);
+        JToken? parent = _session.Root;
+        foreach (var key in mapped[..^1]) parent = Child(parent, key);
+        string last = mapped[^1];
+        switch (parent)
+        {
+            case JArray array when int.TryParse(last, out int i) && i >= 0 && i < array.Count:
+                array[i] = source?.DeepClone() ?? JValue.CreateNull();
+                return true;
+            case JObject obj when source is not null:
+                obj[last] = source.DeepClone();
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static JToken? Child(JToken? token, string key) => token switch
+    {
+        JArray array => int.TryParse(key, out int i) && i >= 0 && i < array.Count ? array[i] : null,
+        JObject obj => obj[key],
+        _ => null,
+    };
 
     private static string[] MapToActiveContext(string[] path)
     {
@@ -162,11 +248,21 @@ public static class SaveSessionManager
         mapped[0] = NmsSaveContext.ExpeditionRootKey;
         return mapped;
     }
-    public static void DiscardAllEdits() => _session?.DiscardAllEdits();
+    public static void DiscardAllEdits()
+    {
+        foreach (var companion in _companions) companion.Discard();
+        _session?.DiscardAllEdits();
+        CompanionChanged();
+    }
 
     public static async Task CommitAsync()
     {
         if (_session is null || _targetHgPaths.Length == 0) return;
+        if (GameProcessMonitorService.IsGameRunning)
+            throw new InvalidOperationException("Close No Man's Sky before saving changes.");
+        var companions = _companions.Where(c => c.HasChanges).ToArray();
+        foreach (var companion in companions) await companion.ValidateAsync();
+        LanguageWordStatsService.StageCounts();
 
         // Backs up whatever's currently on disk before it gets overwritten -
         // every commit, not just the first, so the user always has a way
@@ -176,6 +272,15 @@ public static class SaveSessionManager
 
         await Task.Run(() => _session.CommitAsync(_targetHgPaths));
         TakeSnapshot();
+        foreach (var companion in companions)
+        {
+            try { await companion.CommitAsync(); }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("The save slot was saved, but some additional unlock files could not be saved. Those changes remain pending; retry Save. " + ex.Message, ex);
+            }
+        }
+        CompanionChanged();
     }
 
     /// <summary>Discards the current session and reloads fresh from disk -
@@ -220,6 +325,8 @@ public static class SaveSessionManager
     {
         if (_session is not null)
             _session.EditsChanged -= OnEditsChanged;
+        foreach (var companion in _companions) companion.Discard();
+        _companions.Clear();
     }
 
     private static void OnEditsChanged(object? sender, EventArgs e) =>

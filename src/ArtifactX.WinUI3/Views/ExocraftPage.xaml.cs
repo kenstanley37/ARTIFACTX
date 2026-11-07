@@ -96,6 +96,7 @@ public sealed partial class ExocraftPage : Page
                 Padding = new Thickness(10, 6, 10, 8)
             };
             ThemeResources.StyleChoiceButton(button, isCurrent);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, ExocraftCapacity.DisplayName(type));
 
             button.Click += TabButton_Click;
             TabPanel.Children.Add(button);

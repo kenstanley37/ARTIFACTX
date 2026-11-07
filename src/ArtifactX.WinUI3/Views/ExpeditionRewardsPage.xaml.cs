@@ -3,7 +3,6 @@ using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,8 +25,8 @@ public sealed partial class ExpeditionRewardsPage : Page
     private List<AccountItemRowViewModel> _expeditionSource = new();
     private List<AccountItemRowViewModel> _currentlyVisibleRows = new();
 
-    private List<string> _workingIds = new();
-    private HashSet<string> _workingIdSet = new(StringComparer.Ordinal);
+    private readonly UnlockListViewModel _unlocks = new(UnlockListStore.Account);
+    private readonly HashSet<string> _lockedOnly = new(StringComparer.Ordinal);
 
     public ExpeditionRewardsPage()
     {
@@ -78,19 +77,24 @@ public sealed partial class ExpeditionRewardsPage : Page
         ActivePlatformTxt.Text = SaveSessionManager.ActivePlatformDisplayName ?? "";
 
         var catalogItems = await CatalogService.GetAllUnlockableItemsAsync();
+        var rewards = await ExpeditionRewardsService.LoadAsync();
 
-        var unlockedArray = AccountSessionManager.GetValue(NmsAccountData.UnlockedItemsPath) as JArray;
-        _workingIds = unlockedArray?.Select(t => t.Value<string>() ?? "").Where(s => s.Length > 0).ToList() ?? new();
-        _workingIdSet = new HashSet<string>(_workingIds.Select(CatalogService.NormalizeId), StringComparer.Ordinal);
+        _unlocks.Load();
 
         var expeditionNames = CatalogService.BuildExpeditionNameLookup(catalogItems);
 
-        var workingIdSet = _workingIdSet;
+        var unlocks = _unlocks;
+        // The game's own reward table says which expedition each reward is from,
+        // including rewards without an EXPD_ id (SWARM_HAT). Catalogs built before
+        // format 60 lack it, so EXPD_ items and their banner/decal/title naming remain.
         _allItems = await Task.Run(() => catalogItems
-            .Where(c => c.GameId.StartsWith("EXPD_", StringComparison.OrdinalIgnoreCase))
+            .Where(c => rewards.ContainsKey(c.GameId) || c.GameId.StartsWith("EXPD_", StringComparison.OrdinalIgnoreCase))
+            .DistinctBy(c => c.GameId, StringComparer.OrdinalIgnoreCase)
             .Select(c =>
             {
-                var (expeditionNumber, expeditionName) = CatalogService.GetExpeditionInfo(c.GameId, expeditionNames);
+                var (expeditionNumber, expeditionName) = rewards.TryGetValue(c.GameId, out var reward)
+                    ? (reward.Expedition, expeditionNames.GetValueOrDefault(reward.Expedition, $"Expedition {reward.Expedition}"))
+                    : CatalogService.GetExpeditionInfo(c.GameId, expeditionNames);
                 return new AccountItemRowViewModel
                 {
                     GameId = c.GameId,
@@ -99,7 +103,7 @@ public sealed partial class ExpeditionRewardsPage : Page
                     CatalogGroup = c.CatalogGroup ?? "Uncategorized",
                     ExpeditionNumber = expeditionNumber,
                     ExpeditionName = expeditionName,
-                    IsUnlocked = workingIdSet.Contains(c.GameId)
+                    IsUnlocked = unlocks.IsUnlocked(c.GameId)
                 };
             }).ToList());
 
@@ -172,90 +176,36 @@ public sealed partial class ExpeditionRewardsPage : Page
             .OrderBy(g => g.Key)
             .ToList();
 
-        // Every real per-expedition card gets the SAME height - tall enough to
-        // fit the largest one currently visible in full, so none of them ever
-        // needs to scroll internally (user feedback 2026-08-13: cards had
-        // inconsistent heights, and one with only 4 items still showed a
-        // scrollbar because the per-row pixel estimate undershot the row's
-        // real rendered height). ~48px/row (2 stacked TextBlocks + Grid
-        // padding) plus a safety margin, not measured exactly - a little
-        // extra blank space at the bottom of a shorter card is harmless; an
-        // undershoot reproduces the exact scrollbar bug being fixed here.
+        // Every card gets the SAME height (user feedback 2026-08-13: mixed
+        // heights looked untidy), sized to the largest visible card but capped
+        // at MaxCardRows, past which a card scrolls inside (2026-11-03: sizing
+        // to Swarm's 24 rewards left most cards half empty). ~48px/row (2
+        // stacked TextBlocks + Grid padding) plus a margin - an undershoot
+        // shows a scrollbar on a card that fits, as 36px/row once did.
         int maxNumberedCount = numberedGroups.Count > 0 ? numberedGroups.Max(g => g.Count()) : 0;
-        double sharedCardHeight = maxNumberedCount * 48 + 24;
+        double sharedCardHeight = CardHeight(maxNumberedCount);
 
         var sections = numberedGroups
-            .Select(g => new CatalogCategorySectionViewModel
-            {
-                Header = $"#{g.Key}: {g.First().ExpeditionName} ({g.Count()})",
-                Items = g.ToList(),
-                ListHeight = sharedCardHeight
-            })
+            .Select(g => new UnlockSectionViewModel($"#{g.Key}", $"#{g.Key}: {g.First().ExpeditionName}",
+                g.ToList(), sharedCardHeight, _unlocks, _lockedOnly))
             .ToList();
 
         var otherItems = _currentlyVisibleRows.Where(i => i.ExpeditionNumber is null).ToList();
         if (otherItems.Count > 0)
         {
-            // Deliberately NOT matched to sharedCardHeight - this catch-all can
-            // hold well over a hundred items (every EXPD_ item with no
-            // expedition-number signal), so giving it the same height as a
-            // 3-9 item card would force every OTHER card to also grow
-            // enormous to match it. Keeps the original capped/scrollable
-            // treatment instead - the one deliberate exception to "same
-            // height, no scrollbar."
-            sections.Add(new CatalogCategorySectionViewModel
-            {
-                Header = $"Other Expedition Items ({otherItems.Count})",
-                Items = otherItems,
-                ListHeight = Math.Min(otherItems.Count * 36 + 8, 420)
-            });
+            // EXPD_ items the game's reward table doesn't list (a few fireworks),
+            // or every unmatched EXPD_ item on a catalog built before format 60.
+            sections.Add(new UnlockSectionViewModel("other", "Other Expedition Items", otherItems,
+                Math.Max(sharedCardHeight, CardHeight(otherItems.Count)), _unlocks, _lockedOnly));
         }
 
         CategoriesItemsControl.ItemsSource = sections;
         ResultCountTxt.Text = $"{_currentlyVisibleRows.Count:N0} of {_expeditionSource.Count:N0} items";
     }
 
-    private void SetRowUnlocked(AccountItemRowViewModel row, bool unlock)
-    {
-        row.IsUnlocked = unlock;
+    private const int MaxCardRows = 10;
 
-        if (unlock)
-        {
-            if (_workingIdSet.Add(row.GameId))
-                _workingIds.Add("^" + row.GameId);
-        }
-        else
-        {
-            if (_workingIdSet.Remove(row.GameId))
-                _workingIds.RemoveAll(id => CatalogService.NormalizeId(id) == row.GameId);
-        }
-    }
-
-    private void ItemCheckBox_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not CheckBox cb || cb.Tag is not AccountItemRowViewModel row) return;
-
-        SetRowUnlocked(row, cb.IsChecked ?? false);
-        AccountSessionManager.StageEdit(new JArray(_workingIds), NmsAccountData.UnlockedItemsPath);
-    }
-
-    private void UnlockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(unlock: true);
-
-    private void LockAllBtn_Click(object sender, RoutedEventArgs e) => BulkSetRows(unlock: false);
-
-    /// <summary>Scoped to whatever's currently visible (search + expedition
-    /// filter) rather than every expedition item, mirroring a reference tool's
-    /// own per-section Unlock All/Lock All buttons.</summary>
-    private void BulkSetRows(bool unlock)
-    {
-        if (_currentlyVisibleRows.Count == 0) return;
-
-        foreach (var row in _currentlyVisibleRows)
-            SetRowUnlocked(row, unlock);
-
-        AccountSessionManager.StageEdit(new JArray(_workingIds), NmsAccountData.UnlockedItemsPath);
-        ApplyFilters();
-    }
+    private static double CardHeight(int rows) => Math.Min(rows, MaxCardRows) * 48 + 24;
 
     private void UpdateEditButtons()
     {

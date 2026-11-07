@@ -14,7 +14,6 @@ public sealed class CoreSystemRowViewModel
     public required string CoreDistance { get; init; }
     public required string FromYou { get; init; }
     public required string PortalCode { get; init; }
-    public required List<ImageSource> Glyphs { get; init; }
     public required string NotesLabel { get; init; }
     public required Visibility NotesVisibility { get; init; }
 

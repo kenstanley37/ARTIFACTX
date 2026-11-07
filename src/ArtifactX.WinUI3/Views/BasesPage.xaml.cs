@@ -3,221 +3,162 @@ using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-using Windows.ApplicationModel.DataTransfer;
+using System.Threading.Tasks;
 using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
 
 namespace ArtifactX.WinUI3.Views;
 
 /// <summary>
-/// Read-only list of the player's planet bases (the save's base list, F?0,
-/// entries whose type peI.DPp is "HomePlanetBase") with portal addresses.
-/// Each base's oZw is a packed address whose top nibble is the planet. Planet
-/// type comes from the matching discovery record when the save has one.
+/// Every base in the save, in folding sections (BasesViewModel), following the game's
+/// saves while it runs (FishCatchRecorder). Planet bases and loose placed objects can be deleted; "Open ›"
+/// shows a base's parts (BaseDetailsPage).
 /// </summary>
 public sealed partial class BasesPage : Page
 {
-    private static readonly string[] BasesPath = { "vLc", "6f=", "F?0" };
-    private List<BaseRowViewModel> _rows = new();
-    private readonly LiveSaveWatcher _live;
+    private PlanetSnapshot? _snapshot;
     private string _lastKey = "";
+
+    public BasesViewModel ViewModel { get; } = new();
 
     public BasesPage()
     {
         InitializeComponent();
-        SortBox.SelectedIndex = 0;
-        _live = new LiveSaveWatcher(DispatcherQueue);
-        _live.SnapshotRead += OnLiveSnapshot;
+        FishCatchRecorder.SnapshotSeen += OnLiveSnapshot;
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
-        JumpPlanner.RangeChanged += OnRangeChanged;
+        JumpPlanner.RangeChanged += Rebuild;
+        PlanetDetailsService.Captured += OnPlanetChanged;
+        PlanetDetailsService.Changed += OnPlanetChanged;
+        PlanetWaterService.Changed += OnPlanetChanged;
+        CreatureListService.Changed += OnPlanetChanged;
+        FindsService.Changed += Rebuild;
+        SystemNotesService.Changed += OnSystemChanged;
+        SystemPageReader.Captured += OnSystemChanged;
         Unloaded += (_, _) =>
         {
-            JumpPlanner.RangeChanged -= OnRangeChanged;
+            FishCatchRecorder.SnapshotSeen -= OnLiveSnapshot;
             SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
-            _live.SnapshotRead -= OnLiveSnapshot;
-            _live.Dispose();
+            JumpPlanner.RangeChanged -= Rebuild;
+            PlanetDetailsService.Captured -= OnPlanetChanged;
+            PlanetDetailsService.Changed -= OnPlanetChanged;
+            PlanetWaterService.Changed -= OnPlanetChanged;
+            CreatureListService.Changed -= OnPlanetChanged;
+            FindsService.Changed -= Rebuild;
+            SystemNotesService.Changed -= OnSystemChanged;
+            SystemPageReader.Captured -= OnSystemChanged;
         };
         _ = LoadAsync();
     }
 
-    private void OnLiveSnapshot(PlanetSnapshot snapshot)
-    {
-        LiveStatusTxt.Text = $"Following your game · updated {DateTime.Now:t}";
-        Build(snapshot);
-    }
+    public Visibility IsListVisible(bool loading) => loading ? Visibility.Collapsed : Visibility.Visible;
 
-    private void OnSessionChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() => _ = LoadAsync());
-
-    private async System.Threading.Tasks.Task LoadAsync()
+    private async Task LoadAsync()
     {
         if (!SaveSessionManager.IsSaveLoaded) return;
-        await CatalogService.WarmCacheAsync(Enumerable.Range(0, 16).Select(d => $"PORTALSYMBOL_{d:X}"));
+        await Task.Yield(); // let the page and its spinner show before reading the save
+        await PortalGlyphs.WarmAsync();
         _lastKey = "";
-        Build(LiveSaveWatcher.FromSession());
-        _live.Start();
+        await BuildAsync(LiveSaveWatcher.FromSession());
     }
 
-    /// <summary>Builds the rows from a snapshot; skipped when neither your
-    /// position nor the base list changed, so the list doesn't reset.</summary>
-    private PlanetSnapshot? _lastSnapshot;
-
-    /// <summary>Rebuilds the rows so their distances pick up the new jump estimate.</summary>
-    private void OnRangeChanged()
+    private async Task BuildAsync(PlanetSnapshot snapshot)
     {
-        if (_lastSnapshot is null) return;
-        _lastKey = "";
-        Build(_lastSnapshot);
-    }
-
-    private void Build(PlanetSnapshot snapshot)
-    {
-        _lastSnapshot = snapshot;
+        _snapshot = snapshot;
         ulong? here = S.ReadSystemAddress(snapshot.Universe);
-        string key = $"{here}|{snapshot.Bases?.Count}|{string.Join(",", snapshot.Bases?.OfType<JObject>().Select(b => b["NKm"]?.Value<string>()) ?? Enumerable.Empty<string?>())}";
+        string key = $"{here}|{snapshot.Bases?.Count}|{snapshot.LooseObjects?.Count}|{snapshot.Settlements?.Count}|{NmsBuildCounts.Total(snapshot.Bases, snapshot.LooseObjects)}";
         if (key == _lastKey) return;
         _lastKey = key;
 
-        var planets = NmsPlanets.ReadAll(snapshot.Discoveries)
-            .GroupBy(p => p.Address).ToDictionary(g => g.Key, g => g.First());
+        var placedIds = snapshot.LooseObjects?.OfType<JObject>().Select(o => o["r<7"]?.Value<string>() ?? "").Where(id => id.Length > 0).ToList();
+        if (placedIds is { Count: > 0 }) await CatalogService.WarmCacheAsync(placedIds);
 
-        _rows = new();
-        if (snapshot.Bases is JArray bases)
-        {
-            foreach (var b in bases.OfType<JObject>())
-            {
-                if (b["peI"]?["DPp"]?.Value<string>() != "HomePlanetBase") continue;
-                if (S.ParsePackedAddress(b["oZw"]) is not ulong address) continue;
-
-                int planetIndex = (int)((address >> 52) & 0xF);
-                int galaxy = S.GalaxyNumber(address);
-                planets.TryGetValue(address, out var planet);
-                string name = b["NKm"]?.Value<string>() is { Length: > 0 } n ? n : "Unnamed base";
-                string type = planet is null ? "Planet" : planet.HasRings ? $"{planet.TypeName} · rings" : planet.TypeName;
-                string galaxyName = NmsGalaxyNames.ForNumber(galaxy) is string g ? $"{g} ({galaxy})" : $"Galaxy {galaxy}";
-                double? distance = here is ulong h ? NmsPlanets.DistanceLightYears(h, S.ToSystemAddress(address)) : null;
-                string code = S.PortalAddress(address, planetIndex);
-
-                _rows.Add(new BaseRowViewModel
-                {
-                    Name = name,
-                    // Where on the planet, as the game's scanner shows it (2026-10-14).
-                    Detail = $"{UniverseInfo.PlanetName(address, planetIndex)} ({type})"
-                        + (NmsPlanetCoordinates.OfBase(b) is { } at ? $" at {NmsPlanetCoordinates.Format(at.Latitude, at.Longitude)}" : "")
-                        + $" · {UniverseInfo.SystemName(address)} · {galaxyName}",
-                    Facts = UniverseInfo.Compact(address),
-                    Swatch = new SolidColorBrush(ParseColour(planet is null ? "#777777" : NmsPlanets.TypeColour(planet.BiomeIndex))),
-                    PortalCode = code,
-                    Glyphs = GlyphsFor(code),
-                    DistanceLabel = DistanceText(here, address, distance),
-                    AreaLabel = AreaText(address, planetIndex, galaxy, code) is { Length: > 0 } area ? area
-                        : "Nothing recorded about this planet yet - add its resources, sentinels and notes on the Planets page.",
-                    AreaOpacity = AreaText(address, planetIndex, galaxy, code).Length > 0 ? 1.0 : 0.55,
-                    SortDistance = distance ?? double.MaxValue,
-                    Galaxy = galaxy,
-                });
-            }
-        }
-        Apply();
+        var (list, furnished) = await Task.Run(() => (BaseListBuilder.Build(snapshot, here), BaseEditService.StationsWithDefaultFurniture(snapshot.Bases)));
+        if (key != _lastKey) return; // a newer snapshot arrived meanwhile
+        ViewModel.Show(list);
+        ViewModel.ShowFurnished(furnished);
+        await ViewModel.LoadPicturesAsync(SaveSessionManager.ActivePlatformFolder);
     }
 
-    /// <summary>"Resources: Paraffinium, Copper, Silver, Ancient Bones · Infrequent
-    /// sentinels · Painfully Hot Rain · Water · 13 kinds of fish caught here ·
-    /// 2 finds · Ships seen: Solar" - from the planet's details (PlanetDetailsService),
-    /// water, recorded catches, Finds and the system's notes. Empty when nothing
-    /// is recorded. User request 2026-10-14: see what an area has without
-    /// needing its glyphs (bases are a teleport away).</summary>
-    private static string AreaText(ulong address, int planet, int galaxy, string code)
+    private void Rebuild() => DispatcherQueue.TryEnqueue(() =>
     {
-        ulong system = S.ToSystemAddress(address);
-        var parts = new List<string>();
-        var d = PlanetDetailsService.Get(system, planet);
-        if (d is not null)
-        {
-            if (d.Resources.Count > 0) parts.Add($"Resources: {string.Join(", ", d.Resources)}");
-            if (d.Sentinels != "") parts.Add($"{d.Sentinels} sentinels");
-            if (d.Weather != "") parts.Add(d.Weather);
-            if (d.Flora != "") parts.Add($"Flora: {d.Flora}");
-            if (d.Fauna != "") parts.Add($"Fauna: {d.Fauna}");
-        }
-        if (PlanetWaterService.Get(system, planet) == true) parts.Add("Water");
-        int fish = FishCatchService.CaughtOn(system, planet).Count;
-        if (fish > 0) parts.Add(fish == 1 ? "1 kind of fish caught here" : $"{fish} kinds of fish caught here");
-        int finds = FindsService.All.Count(f => f.PortalCode == code && f.Galaxy == galaxy);
-        if (finds > 0) parts.Add(finds == 1 ? "1 find" : $"{finds} finds");
-        if (SystemNotesService.Get(system)?.Ships is { Count: > 0 } ships) parts.Add($"Ships seen: {string.Join(", ", ships)}");
-        if (d is not null) parts.AddRange(d.Notes);
-        return string.Join(" · ", parts);
-    }
+        if (_snapshot is null) return;
+        _lastKey = "";
+        _ = BuildAsync(_snapshot);
+    });
 
-    /// <summary>"About 1,131 ly from you · 742,100 ly from the galaxy core".
-    /// Distances to another galaxy can't be measured, so only the core distance shows.</summary>
-    private static string DistanceText(ulong? here, ulong address, double? distance)
-    {
-        string core = $"{NmsPlanets.DistanceToCoreLightYears(address):N0} ly from the galaxy core";
-        string fromYou = (here is ulong h && S.ToSystemAddress(address) == h) ? "In the system you're in"
-            : distance switch
-            {
-                null => "In a different galaxy from you",
-                < 1 => JumpPlanner.WithJumps("Under 400 ly from you", 1),
-                double ly => JumpPlanner.WithJumps($"About {ly:N0} ly from you", ly),
-            };
-        return $"{fromYou} · {core}";
-    }
+    private void OnPlanetChanged(ulong system, int planet) => Rebuild();
+    private void OnSystemChanged(ulong system) => Rebuild();
+    private void OnSessionChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() => _ = LoadAsync());
 
-    private void Apply()
+    /// <summary>Each save the game writes (FishCatchRecorder reads them for the whole app).</summary>
+    private void OnLiveSnapshot(PlanetSnapshot snapshot) => DispatcherQueue.TryEnqueue(() =>
     {
-        string search = SearchBox.Text.Trim();
-        // Names and what's recorded about the area ("copper" finds bases near copper).
-        var shown = _rows.Where(r => search.Length == 0 || r.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)
-            || (r.AreaOpacity > 0.9 && r.AreaLabel.Contains(search, StringComparison.CurrentCultureIgnoreCase)));
-        shown = SortBox.SelectedIndex switch
+        LiveStatusTxt.Text = $"Following your game · updated {DateTime.Now:t}";
+        _ = BuildAsync(snapshot);
+    });
+
+    private void Section_OpenRequested(object? sender, BaseRowViewModel row) =>
+        Frame.Navigate(typeof(ExplorePages.BaseDetailsPage), row);
+
+    private void DeselectAll_Click(object sender, RoutedEventArgs e) => ViewModel.DeselectAll();
+
+    private async void DeleteSelected_Click(object sender, RoutedEventArgs e)
+    {
+        var selected = ViewModel.Selected.ToList();
+        if (selected.Count == 0) return;
+        var bases = selected.Where(r => r.Kind == BaseKind.Planet && r.Base is not null).ToList();
+        var placed = selected.Where(r => r.Kind == BaseKind.Placed && r.LooseObject is not null).ToList();
+
+        string what = (bases.Count, placed.Count) switch
         {
-            1 => shown.OrderBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase),
-            2 => shown.OrderBy(r => r.Galaxy).ThenBy(r => r.SortDistance),
-            _ => shown.OrderBy(r => r.SortDistance).ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase),
+            (0, var p) => $"This deletes {Count(p, "placed object")} from this save.",
+            (var b, 0) => $"This deletes {Count(b, "planet base")} from this save, with everything built in {(b == 1 ? "it" : "them")}.",
+            (var b, var p) => $"This deletes {Count(b, "planet base")}, with everything built in {(b == 1 ? "it" : "them")}, and {Count(p, "placed object")} from this save.",
         };
-        var list = shown.ToList();
-        BasesList.ItemsSource = list;
-        CountTxt.Text = _rows.Count == 0 ? "No planet bases in this save" : $"{list.Count} of {_rows.Count} bases";
+        bool confirmed = await DeleteConfirmation.ShowListAsync(XamlRoot,
+            selected.Count == 1 ? $"Delete {selected[0].Name}?" : $"Delete {selected.Count:N0} items?",
+            what,
+            selected.Select(r => $"{r.Name} - {r.Detail}").ToList(),
+            bases.Count > 0 ? "A deleted base is gone completely, base computer and all - to empty a base but keep it, open it and delete its parts instead." : null);
+        if (!confirmed) return;
+
+        bool changed = BaseEditService.RemoveBases(bases.Select(r => r.Base!).ToList());
+        changed |= BaseEditService.RemoveLooseObjects(placed.Select(r => r.LooseObject!).ToList());
+        if (!changed) return;
+        _lastKey = "";
+        await BuildAsync(LiveSaveWatcher.FromSession());
     }
 
-    private async void ExportCsv_Click(object sender, RoutedEventArgs e)
+    private async void Section_ClearFurnitureRequested(object? sender, BaseSectionViewModel section)
     {
-        var rows = BasesList.ItemsSource as List<BaseRowViewModel> ?? new();
-        await CsvExportService.ExportAsync(ExportBtn, "ArtifactX bases",
-            new[] { "Base", "Planet", "Portal code", "Distance" },
-            rows.Select(r => new[] { r.Name, r.Detail, r.PortalCode, r.DistanceLabel }));
+        var stations = section.FurnishedStations;
+        if (stations.Count == 0) return;
+        bool confirmed = await DeleteConfirmation.ShowListAsync(XamlRoot,
+            $"Clear {section.FreeableParts:N0} pieces of default furniture?",
+            $"This removes the default furniture from {Count(stations.Count, "claimed station")} - only the pieces every claim comes with, where the claim put them. Each station's structure, anything you moved and anything you built stay, and so do your directorships.",
+            stations.Select(s => $"{s.Name} · {s.Count:N0}").ToList());
+        if (!confirmed) return;
+        // A big save has 5,000+ parts to match: the spinner shows if it takes over a second.
+        var work = ClearAndRebuildAsync(stations.Select(s => s.Base).ToList());
+        if (await Task.WhenAny(work, Task.Delay(1000)) != work) section.IsClearing = true;
+        try { await work; }
+        finally { section.IsClearing = false; }
     }
 
-    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => Apply();
-
-    private void SortBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private async Task ClearAndRebuildAsync(List<JObject> stations)
     {
-        if (BasesList is not null) Apply();
+        if (await BaseEditService.ClearStationDefaultFurnitureAsync(stations) == 0) return;
+        _lastKey = "";
+        await BuildAsync(LiveSaveWatcher.FromSession());
     }
 
-    private static List<ImageSource> GlyphsFor(string code)
-    {
-        var images = code.Select(c => CatalogService.TryGet($"PORTALSYMBOL_{c}")?.Icon).ToList();
-        return images.Any(i => i is null) ? new() : images.Cast<ImageSource>().ToList();
-    }
+    private static string Count(int n, string thing) => n == 1 ? $"1 {thing}" : $"{n:N0} {thing}s";
 
-    private static Windows.UI.Color ParseColour(string hex)
-    {
-        uint rgb = uint.Parse(hex.AsSpan(1), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-        return Windows.UI.Color.FromArgb(255, (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb);
-    }
-
-    private void CopyCode_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is not string code) return;
-        var package = new DataPackage();
-        package.SetText(code);
-        Clipboard.SetContent(package);
-    }
+    private async void ExportCsv_Click(object sender, RoutedEventArgs e) =>
+        await CsvExportService.ExportAsync(ExportBtn, "ArtifactX bases and placed objects",
+            new[] { "Kind", "Name", "Where", "Portal code", "Distance", "Parts" },
+            ViewModel.Shown().Select(r => new[] { r.KindLabel, r.Name, r.Detail, r.PortalCode, r.DistanceLabel, r.PartsLabel }));
 }

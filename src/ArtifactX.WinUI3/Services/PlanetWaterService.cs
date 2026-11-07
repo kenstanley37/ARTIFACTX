@@ -16,6 +16,9 @@ public static class PlanetWaterService
     private static readonly object Lock = new();
     private static Dictionary<string, bool>? _water;
 
+    /// <summary>Raised when a planet's water status is recorded, updated, or reloaded.</summary>
+    public static event Action<ulong, int>? Changed;
+
     private static string Key(ulong systemAddress, int planet) =>
         $"{systemAddress.ToString("X", CultureInfo.InvariantCulture)}|{planet}";
 
@@ -51,7 +54,7 @@ public static class PlanetWaterService
     }
 
     /// <summary>Records what the player found; null clears the mark.</summary>
-    public static void Set(ulong systemAddress, int planet, bool? hasWater)
+    public static void Set(ulong systemAddress, int planet, bool? hasWater, string source = "user")
     {
         string key = Key(systemAddress, planet);
         lock (Lock)
@@ -66,9 +69,10 @@ public static class PlanetWaterService
             using var cmd = connection.CreateCommand();
             cmd.CommandText = @"
                 INSERT INTO planet_water (system_address, planet_index, has_water, updated_at, source, synced_at, deleted, added_by)
-                VALUES ($system, $planet, $has, $now, 'user', NULL, $deleted, $added_by)
+                VALUES ($system, $planet, $has, $now, $source, NULL, $deleted, $added_by)
                 ON CONFLICT(system_address, planet_index) DO UPDATE SET
-                    has_water = $has, updated_at = $now, synced_at = NULL, deleted = $deleted";
+                    has_water = $has, updated_at = $now, source = $source, synced_at = NULL, deleted = $deleted";
+            cmd.Parameters.AddWithValue("$source", source);
             cmd.Parameters.AddWithValue("$system", systemAddress.ToString("X", CultureInfo.InvariantCulture));
             cmd.Parameters.AddWithValue("$planet", planet);
             cmd.Parameters.AddWithValue("$has", hasWater == true ? 1 : 0);
@@ -81,11 +85,14 @@ public static class PlanetWaterService
         {
             Debug.WriteLine($"[PlanetWaterService] Couldn't save planet water: {ex.Message}");
         }
+
+        Changed?.Invoke(systemAddress, planet);
     }
 
     /// <summary>Drops the in-memory copy (after a user.db import).</summary>
     public static void Reload()
     {
         lock (Lock) _water = null;
+        Changed?.Invoke(0, 0);
     }
 }

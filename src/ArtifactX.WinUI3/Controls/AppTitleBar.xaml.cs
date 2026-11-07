@@ -1,6 +1,10 @@
+using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using ArtifactX.Core.NmsModels;
+using ArtifactX.GameData;
+using ArtifactX.WinUI3.Helpers.Location;
 using ArtifactX.WinUI3.Services;
 using System;
 using System.Threading.Tasks;
@@ -29,6 +33,8 @@ public sealed partial class AppTitleBar : UserControl
         VersionTxt.Text = $"v{AppVersionService.DisplayVersion}";
         RefreshGameLabel();
         GameDataService.StateChanged += (_, _) => DispatcherQueue.TryEnqueue(RefreshGameLabel);
+        // The game's own cap arrives after start-up; redraw the parts counter against it.
+        ConstructionLimitService.Changed += () => DispatcherQueue.TryEnqueue(Refresh);
         // No Unloaded/unsub here - AppTitleBar is created once for the
         // lifetime of MainWindow, never re-created via Frame navigation like
         // a Page, so this is safe the same way the subscriptions above are.
@@ -37,20 +43,80 @@ public sealed partial class AppTitleBar : UserControl
         ThemeBtnTxt.Text = $"Theme: {ThemeService.Current.DisplayName}";
         FishCatchRecorder.ActiveChanged += RefreshRecording;
         RefreshRecording();
+        ScreenCaptureLogService.RecordingChanged += () => DispatcherQueue.TryEnqueue(RefreshScreenRecording);
+        RefreshScreenRecording();
+
+        // Parts placed follow the game's saves live, like the Bases page (2026-10-18).
+        FishCatchRecorder.SnapshotSeen += snapshot =>
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (!SaveSessionManager.IsSaveLoaded) return;
+                ShowParts(snapshot.Bases, snapshot.LooseObjects);
+                ShowLocation(snapshot);
+            });
 
         Refresh();
     }
 
-    private void RefreshRecording() =>
-        RecordingBtn.Visibility = FishCatchRecorder.IsActive ? Visibility.Visible : Visibility.Collapsed;
+    /// <summary>Every part placed (all bases and loose objects), with the breakdown on hover.
+    /// Against the game's construction limit (NmsBuildCounts.GlobalLimit, measured 2026-10-18):
+    /// green with room, yellow from 90%, red at the limit.</summary>
+    private void ShowParts(Newtonsoft.Json.Linq.JArray? bases, Newtonsoft.Json.Linq.JArray? loose)
+    {
+        int total = NmsBuildCounts.Total(bases, loose);
+        PartsTxt.Text = $"{total:N0} / {NmsBuildCounts.GlobalLimit:N0} PARTS";
+        PartsTxt.Foreground = ThemeResources.LevelBrush(NmsBuildCounts.GlobalLevel(total));
+        ToolTipService.SetToolTip(PartsRegion, $"{NmsBuildCounts.GlobalLabel(total)} - at {NmsBuildCounts.GlobalLimit:N0} the game says \"Construction Limit Reached\".\n"
+            + NmsBuildCounts.Breakdown(bases, loose).Replace(" · ", "\n"));
+    }
 
-    /// <summary>The installed game's own build, read from the install (never a
-    /// version typed into ArtifactX - the old hand-written "NMS: SWARM" went a
-    /// whole major update out of date), and whether the game data matches it.</summary>
+    /// <summary>Where the player is (#33): from the newest game save while it plays,
+    /// else from the loaded save.</summary>
+    private void ShowLocation(PlanetSnapshot snapshot)
+    {
+        var where = PlayerLocationText.Describe(snapshot, SaveSessionManager.GetString(NmsInventoryContainer.FreighterNamePath));
+        LocationRegion.Visibility = where is null ? Visibility.Collapsed : Visibility.Visible;
+        if (where is not { } w) return;
+        LocationTxt.Text = w.Line;
+        ToolTipService.SetToolTip(LocationRegion, w.Detail);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(LocationRegion, "You are here: " + w.Detail.Replace("\n", ", "));
+    }
+
+    private void RefreshScreenRecording()
+    {
+        ScreenRecordingBtn.Visibility = ScreenCaptureLogService.IsRecording ? Visibility.Visible : Visibility.Collapsed;
+        // Beside the fish "Recording as you play" label when that shows, in its place when not.
+        ScreenRecordingBtn.Margin = new Thickness(0, 0, RecordingBtn.Visibility == Visibility.Visible ? 170 : 12, 0);
+    }
+
+    private void StopScreenRecording_Click(object sender, RoutedEventArgs e)
+    {
+        ScreenRecordingFlyout.Hide();
+        ScreenCaptureLogService.Enabled = false;
+    }
+
+    private void RefreshRecording()
+    {
+        RecordingBtn.Visibility = FishCatchRecorder.IsActive ? Visibility.Visible : Visibility.Collapsed;
+        RefreshScreenRecording();
+    }
+
+    /// <summary>The installed game's own build, read from the install, against the release ArtifactX was tested
+    /// with (TestedGameRelease). The release name is only shown when the installed build is that one - the old
+    /// hand-written "NMS: SWARM" label went a whole major update out of date because nothing compared it with the
+    /// install. Also says whether the game data matches.</summary>
     private void RefreshGameLabel()
     {
         var game = GameDataService.Game;
-        NmsCompatTxt.Text = game is null ? "NMS: not found" : $"NMS {game.BuildLabel}";
+        string tested = $"{TestedGameRelease.Name} {TestedGameRelease.Version}";
+        NmsCompatTxt.Text = game is null ? "NMS: not found" : TestedGameRelease.Compare(game) switch
+        {
+            0 => $"NMS {tested} · {game.BuildLabel}",
+            > 0 => $"NMS {game.BuildLabel} · newer than tested",
+            < 0 => $"NMS {game.BuildLabel} · older than tested",
+            _ => $"NMS {game.BuildLabel}",
+        };
+        string testedNote = $"This version of ArtifactX was tested with No Man's Sky {tested} (build {TestedGameRelease.Build}).";
         string data = GameDataService.State switch
         {
             GameDataState.UpToDate => "ArtifactX's game data matches it.",
@@ -61,7 +127,7 @@ public sealed partial class AppTitleBar : UserControl
         };
         ToolTipService.SetToolTip(NmsCompatTxt, game is null
             ? "No Man's Sky wasn't found on this PC - choose its folder in Settings."
-            : $"Your No Man's Sky: {game.BuildLabel}{(game.SteamBuildId is { } s ? $" (Steam build {s})" : "")}, at {game.RootFolder}. {data}");
+            : $"Your No Man's Sky: {game.BuildLabel}{(game.SteamBuildId is { } s ? $" (Steam build {s})" : "")}, at {game.RootFolder}. {data} {testedNote}");
     }
 
     private void ThemeBtn_Click(object sender, RoutedEventArgs e)
@@ -96,9 +162,98 @@ public sealed partial class AppTitleBar : UserControl
 
     private async void UpdateAvailableBtn_Click(object sender, RoutedEventArgs e)
     {
-        string? url = UpdateCheckService.LastResult?.ReleaseUrl;
-        if (url is null) return;
-        await Launcher.LaunchUriAsync(new Uri(url));
+        var result = UpdateCheckService.LastResult;
+        if (result is null) return;
+
+        var panel = new StackPanel { Spacing = 12, MaxWidth = 420 };
+
+        var header = new TextBlock
+        {
+            Text = $"ArtifactX {result.NewVersion ?? "update"} is ready to install.",
+            FontWeight = FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap,
+        };
+        panel.Children.Add(header);
+
+        var note = new TextBlock
+        {
+            Text = $"You have v{AppVersionService.DisplayVersion}. Updating will close ArtifactX, apply the update, and relaunch the app.\n\nYour saves and settings are kept safe in %AppData% and won't be modified.",
+            FontSize = 12,
+            Style = (Style)Application.Current.Resources["ThemeDimTextStyle"],
+            TextWrapping = TextWrapping.Wrap,
+        };
+        panel.Children.Add(note);
+
+        if (!string.IsNullOrWhiteSpace(result.ReleaseNotes))
+        {
+            var notesBorder = new Border
+            {
+                Background = (Brush)Application.Current.Resources["ThemePanelAltBrush"],
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(10),
+                MaxHeight = 140,
+            };
+            var scroll = new ScrollViewer { Content = new TextBlock { Text = result.ReleaseNotes, FontSize = 11, TextWrapping = TextWrapping.Wrap } };
+            notesBorder.Child = scroll;
+            panel.Children.Add(notesBorder);
+        }
+
+        var progress = new ProgressBar { Minimum = 0, Maximum = 100, Visibility = Visibility.Collapsed };
+        panel.Children.Add(progress);
+
+        var statusTxt = new TextBlock { FontSize = 12, TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed };
+        panel.Children.Add(statusTxt);
+
+        var dialog = new ContentDialog
+        {
+            Title = "Update ArtifactX",
+            Content = panel,
+            PrimaryButtonText = UpdateCheckService.IsInstalled ? "Update & Restart" : "Open on GitHub",
+            SecondaryButtonText = "View Release Notes",
+            CloseButtonText = "Later",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+
+        dialog.SecondaryButtonClick += async (_, _) =>
+        {
+            if (result.ReleaseUrl is string url)
+                await Launcher.LaunchUriAsync(new Uri(url));
+        };
+
+        dialog.PrimaryButtonClick += async (d, args) =>
+        {
+            if (!UpdateCheckService.IsInstalled)
+            {
+                if (result.ReleaseUrl is string url)
+                    await Launcher.LaunchUriAsync(new Uri(url));
+                return;
+            }
+
+            var deferral = args.GetDeferral();
+            try
+            {
+                d.IsPrimaryButtonEnabled = false;
+                d.IsSecondaryButtonEnabled = false;
+                progress.Visibility = Visibility.Visible;
+                statusTxt.Visibility = Visibility.Visible;
+
+                await UpdateCheckService.DownloadAndRestartAsync(msg =>
+                {
+                    DispatcherQueue.TryEnqueue(() =>
+                    {
+                        statusTxt.Text = msg;
+                        progress.Value = UpdateCheckService.DownloadProgress;
+                    });
+                });
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        };
+
+        await dialog.ShowAsync();
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e)
@@ -121,13 +276,18 @@ public sealed partial class AppTitleBar : UserControl
     {
         DispatcherQueue.TryEnqueue(async () =>
         {
+            // Say what Reload costs: a player who applied a ship design while the game ran
+            // reloaded, lost the design and took it for a missing Save button (2026-10-16).
+            int pending = SaveSessionManager.PendingEditCount;
+            string lost = pending == 0 ? ""
+                : $"\n\nReloading discards your {(pending == 1 ? "1 unsaved change" : $"{pending} unsaved changes")} - make them again after it reloads. Nothing has been written to your save.";
             var dialog = new ContentDialog
             {
                 Title = "No Man's Sky was closed",
                 Content = "The save file on disk has changed since you loaded it - most likely from " +
                           "an in-game autosave. Continuing to edit and save now could overwrite that " +
-                          "recent progress.\n\nWe recommend reloading this save before making further changes.",
-                PrimaryButtonText = "Reload (recommended)",
+                          "recent progress.\n\nWe recommend reloading this save before making further changes." + lost,
+                PrimaryButtonText = pending == 0 ? "Reload (recommended)" : "Reload and discard changes (recommended)",
                 SecondaryButtonText = "Keep editing anyway",
                 DefaultButton = ContentDialogButton.Primary,
                 XamlRoot = XamlRoot
@@ -158,12 +318,17 @@ public sealed partial class AppTitleBar : UserControl
             SaveSwitchFlash.Begin();
         _lastActiveLabel = currentLabel;
 
+        // The name the player gave the save (General page), so it's clear which save is
+        // open - "Slot 8 · DELETEME" (#26). Not part of the flash check: renaming isn't switching.
+        string saveName = SaveSessionManager.IsSaveLoaded && SaveSessionManager.GetString(NmsSaveHeader.SaveNamePath) is { Length: > 0 } n
+            ? $" · {n}" : "";
         ActiveSaveTxt.Text = currentLabel is null
             ? string.Empty
-            : SaveSessionManager.IsExpeditionActive ? $"•  {currentLabel} (Expedition)" : $"•  {currentLabel}";
+            : SaveSessionManager.IsExpeditionActive ? $"•  {currentLabel}{saveName} (Expedition)" : $"•  {currentLabel}{saveName}";
 
         if (!SaveSessionManager.IsSaveLoaded)
         {
+            LocationRegion.Visibility = Visibility.Collapsed;
             ResetDisplayTokens();
             CurrencyDisplayRegion.Visibility = Visibility.Collapsed;
             SaveBtn.Visibility = Visibility.Collapsed;
@@ -173,6 +338,7 @@ public sealed partial class AppTitleBar : UserControl
         }
 
         CurrencyDisplayRegion.Visibility = Visibility.Visible;
+        ShowLocation(LiveSaveWatcher.FromSession());
 
         // ToDisplayValue undoes the uint32 wrap the game itself writes for a
         // balance over ~2.1 billion - see its doc comment. No-op for the
@@ -181,6 +347,8 @@ public sealed partial class AppTitleBar : UserControl
         long nanites = NmsPlayerStateData.ToDisplayValue(SaveSessionManager.GetLong(NmsPlayerStateData.NanitesPath) ?? 0);
         long quicksilver = NmsPlayerStateData.ToDisplayValue(SaveSessionManager.GetLong(NmsPlayerStateData.QuicksilverPath) ?? 0);
 
+        ShowParts(SaveSessionManager.GetValue("vLc", "6f=", "F?0") as Newtonsoft.Json.Linq.JArray,
+            SaveSessionManager.GetValue(NmsBuildCounts.LooseObjectsPath) as Newtonsoft.Json.Linq.JArray);
         UnitsTxt.Text = $"{units:N0} UNITS";
         NanitesTxt.Text = $"{nanites:N0} NANITES";
         QuicksilverTxt.Text = $"{quicksilver:N0} QUICKSILVER";

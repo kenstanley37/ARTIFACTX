@@ -18,10 +18,17 @@ public sealed record KnownPlanet(
     public ulong SystemAddress => NmsSpaceStationPaths.ToSystemAddress(Address);
     public string PortalCode => NmsSpaceStationPaths.PortalAddress(Address, PlanetIndex);
     public string TypeName => NmsPlanets.TypeName(BiomeIndex);
+    public string BiomeGroup => NmsPlanets.BiomeGroup(BiomeIndex);
+    public string Classification(string? descriptor, string ringSuffix = " with rings") =>
+        NmsPlanets.FormatClassification(BiomeIndex, descriptor, HasRings, ringSuffix);
 
     /// <summary>Where this planet was read from, e.g. "Slot 3" - set by
     /// callers that merge several saves; empty for the loaded save.</summary>
     public string Source { get; init; } = "";
+
+    /// <summary>Not in the save: a body nobody has discovered here yet, its type worked
+    /// out by the game's own generator (PlanetGenerator).</summary>
+    public bool Predicted { get; init; }
 }
 
 /// <summary>One star system the save knows about: every discovery record
@@ -68,12 +75,12 @@ public sealed record PlanetDiscoveryCounts(int Fauna, int Flora, int Minerals, i
 public static class NmsPlanets
 {
     /// <summary>Display names in GcBiomeType order (libMBIN). Weird is the
-    /// game's "exotic" world; Red/Green/Blue are the colour-shifted worlds;
+    /// game's "exotic" world; Red/Green/Blue are anomalies (see BiomeGroup);
     /// Test never appears in real saves.</summary>
     private static readonly string[] TypeNames =
     {
         "Lush", "Toxic", "Scorched", "Radioactive", "Frozen", "Barren", "Dead", "Exotic",
-        "Red", "Green", "Blue", "Unknown", "Swamp", "Volcanic", "Water World", "Gas Giant",
+        "Red Anomaly", "Green Anomaly", "Blue Anomaly", "Unknown", "Swamp", "Volcanic", "Water World", "Gas Giant",
     };
 
     /// <summary>Swatch colour per type (#RRGGBB) for the planet drawings.</summary>
@@ -90,6 +97,46 @@ public static class NmsPlanets
 
     public static string TypeColour(int biome) =>
         biome >= 0 && biome < TypeColours.Length ? TypeColours[biome] : "#777777";
+
+    /// <summary>Broad biome classification group. Red, Green and Blue are only the game's
+    /// internal names: it shows these worlds as anomalies - Aukel (Green, grey and blue
+    /// to look at) is a "Planetary Anomaly" in the game's Discoveries (2026-10-21) - so
+    /// they're grouped as Anomaly rather than by a colour the player never sees.</summary>
+    public static string BiomeGroup(int biome) => biome switch
+    {
+        8 or 9 or 10 => "Anomaly",
+        _ => TypeName(biome),
+    };
+
+    /// <summary>Dual classification format combining specific planetary descriptor with broad biome group
+    /// (e.g. "Crimson Planet (Red / Exotic)" or "Paradise Planet (Lush)"). If no descriptor is recorded,
+    /// cleanly falls back to the broad biome group.</summary>
+    public static string FormatClassification(int biome, string? descriptor, bool hasRings = false, string ringSuffix = " with rings")
+    {
+        string group = BiomeGroup(biome);
+        string baseText;
+        if (string.IsNullOrWhiteSpace(descriptor))
+        {
+            baseText = group;
+        }
+        else
+        {
+            string desc = descriptor.Trim();
+            if (string.Equals(desc, group, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(desc, TypeName(biome), StringComparison.OrdinalIgnoreCase)
+                || desc.EndsWith($"({group})", StringComparison.OrdinalIgnoreCase)
+                || desc.EndsWith($" {group}", StringComparison.OrdinalIgnoreCase)) // "Planetary Anomaly"
+            {
+                baseText = desc;
+            }
+            else
+            {
+                baseText = $"{desc} ({group})";
+            }
+        }
+
+        return hasRings ? $"{baseText}{ringSuffix}" : baseText;
+    }
 
     /// <summary>Real planet types that can actually occur (excludes Test).</summary>
     public static IEnumerable<int> SelectableTypes => Enumerable.Range(0, TypeNames.Length).Where(i => i != 11);
@@ -187,6 +234,47 @@ public static class NmsPlanets
 
         return bySystem.Select(kv => new KnownSystem(kv.Key, NmsSpaceStationPaths.GalaxyNumber(kv.Key),
             kv.Value.Planets.Count, kv.Value.Mine, kv.Value.Latest)).ToList();
+    }
+
+    /// <summary>Names players gave planets and systems, as the game shows them: a discovery
+    /// record's q9a/q5u ("Waterworld" for planet 6 of 04275B6DA013, 2026-10-18). The save
+    /// holds the player's own renames and those of other players' discoveries it has cached.
+    /// Planet = 0 for a system's own name.</summary>
+    public static List<(ulong System, int Planet, string Name)> ReadCustomNames(JArray? discoveries)
+    {
+        var names = new List<(ulong, int, string)>();
+        if (discoveries is null) return names;
+        foreach (var record in discoveries.OfType<JObject>())
+        {
+            string? type = record["8P3"]?["<Dn"]?.Value<string>();
+            if (type is not ("Planet" or "SolarSystem")) continue;
+            if (record["q9a"]?["q5u"]?.Value<string>()?.Trim() is not { Length: > 0 } name) continue;
+            if (NmsSpaceStationPaths.ParsePackedAddress(record["8P3"]?["5L6"]) is not ulong address) continue;
+            ulong system = NmsSpaceStationPaths.ToSystemAddress(address);
+            if ((system & 0xFFF_0000_FFFF_FFFFUL) == 0) continue;
+            names.Add((system, type == "Planet" ? (int)((address >> 52) & 0xF) : 0, name));
+        }
+        return names;
+    }
+
+    /// <summary>One planet's numeric ^PLANET_STATS values (stat groups ":rc", the planet in
+    /// "2Ak"; each stat in "gUR" is an id "b2n" with an int ">MX.>vs" or a float ">MX.eoL").
+    /// ^TIME / ^DIST_WALKED are seconds / metres (Cholton: 199 and 85 after a few minutes
+    /// on foot).</summary>
+    public static Dictionary<string, double> PlanetStats(JArray? statGroups, ulong planetAddress)
+    {
+        var result = new Dictionary<string, double>();
+        var group = statGroups?.OfType<JObject>().FirstOrDefault(g =>
+            g[":rc"]?.Value<string>() == "^PLANET_STATS" && NmsSpaceStationPaths.ParsePackedAddress(g["2Ak"]) == planetAddress);
+        if (group?["gUR"] is not JArray stats) return result;
+        foreach (var stat in stats.OfType<JObject>())
+        {
+            string? id = stat["b2n"]?.Value<string>();
+            var value = stat[">MX"]?[">vs"] ?? stat[">MX"]?["eoL"];
+            if (id is not null && value is not null && value.Type is JTokenType.Integer or JTokenType.Float)
+                result[id] = value.Value<double>();
+        }
+        return result;
     }
 
     /// <summary>Fauna/flora/mineral record counts per planet address.</summary>

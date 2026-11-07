@@ -26,14 +26,39 @@ namespace ArtifactX.Core.NmsModels;
 /// prefix for display while preserving every other group's entries untouched
 /// when staging an edit (see LanguageWordsControl).
 ///
-/// The catalog DB's GcAlienLanguageWords category (added via DataCataloger's
-/// `add-language-words` command, decoding language/nms_loc1_english.mbin -
-/// the exact same loc-string system used for every other item name) supplies
-/// real English names, keyed by these exact ids: TRA_ATTACK -> "attack",
-/// confirmed against the save's own entries exactly. ~1,100-1,170 possible
-/// words per race exist in the full vocabulary (Atlas's own pool is smaller,
-/// ~262); a given save's actual known subset is normally a small fraction of
-/// that (e.g. 21-140 in a real mid-progress save).
+/// Each entry is libMBIN's GcWordGroupKnowledge: MYl = the word GROUP id, D;o =
+/// one flag per GcAlienRace value (9), set for the race whose language the word
+/// is known in. Saves the game wrote (Slots 1, 4, 5, checked 2026-11-04) set
+/// only the word's own race: TRA_ index 0 (Traders), WAR_ 1, EXP_ 2, ATLAS_ 4,
+/// BUI_ 8 (Builders). Until 2026-11-04 ArtifactX wrote [true + 7 false] for
+/// every race, so Slot 7 holds over 2,000 Vy'keen/Korvax/Autophage/Atlas
+/// entries flagged as Gek only; whether the game counts those is unchecked.
+/// Confirmed in game 2026-11-04 (Slot 8): the Korvax milestone read 89 words,
+/// matching the 89 EXP_ groups in the save; six Korvax words written by
+/// ArtifactX with the Korvax flag, then one more learned in game, made it 96.
+/// The milestone number lagged until that next word was learned - it is the
+/// separate WORDS_LEARNT stat, which the game recounts only on a new word.
+///
+/// Controlled diff 2026-11-04 (Slot 8, save15 9:08:13 -> save16 9:08:39, the
+/// owner learned Korvax "gift" from an NPC and nothing else): besides ordinary
+/// save noise (clock, play time, positions, F?0/b69 timestamps), the game
+/// changed only
+///   - MF2: + {"MYl":"^EXP_GIFT","D;o":[F,F,T,F,F,F,F,F,F]};
+///   - GLOBAL_STATS ^WORDS_LEARNT 605 -> 606 and ^EWORDS_LEARNT 96 -> 97;
+///   - E?v[3].SEK[2] 18 -> 19 (GcSavedInteractionRaceData for NPC_Secondary,
+///     Explorers: which conversation that race's NPCs give next);
+///   - a6j[1].O49[931] Value 7 -> 8388623 (that NPC's stored interaction).
+/// After the save each race stat equals its list count exactly: TWORDS 142 =
+/// TRA_ 142, WWORDS 147 = WAR_, EWORDS 97 = EXP_, BWORDS 141 = BUI_, and
+/// WORDS_LEARNT 606 = every MF2 entry, Atlas's 79 included. Atlas has no stat
+/// of its own.
+///
+/// The catalog's GcAlienLanguageWords category (catalog format 71) lists the
+/// learnable groups from the game's speech table, with their English forms:
+/// Gek 928, Vy'keen 936, Korvax 864, Autophage 889, Atlas 226 in build 184271.
+/// Slot 1, which the game reports as knowing every Gek word, holds all 928 Gek
+/// groups. Several word forms share one group ("traveller", "travellers"), so
+/// the older list of every form left ~236 Gek words "unknown" forever (#31).
 ///
 /// That 5-word diff also matched the account's own Words Learned count
 /// precisely, corroborating this is really the same list that stat tracks.

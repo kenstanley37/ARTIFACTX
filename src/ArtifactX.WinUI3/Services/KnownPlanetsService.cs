@@ -12,7 +12,7 @@ namespace ArtifactX.WinUI3.Services;
 
 /// <summary>
 /// Reads the planets known to every OTHER save slot in a platform folder, for
-/// PlanetsPage's finder. Each slot's newest .hg file is decrypted straight from
+/// the Planet Finder. Each slot's newest .hg file is decrypted straight from
 /// disk (not the Working/ JSON cache, which can be stale) and only its
 /// discovery list is used. Results are cached per file until its timestamp
 /// changes, so revisiting the page doesn't re-decrypt anything.
@@ -82,8 +82,7 @@ public static class KnownPlanetsService
         try
         {
             string json = await SaveStreamProcessor.ExtractRawJsonAsync(path);
-            var root = JObject.Parse(json.TrimEnd('\0'));
-            var discoveries = root["fDu"]?["ETO"]?["OsQ"]?["?fB"] as JArray;
+            var discoveries = NmsJsonStream.ReadAt(json.TrimEnd('\0'), "fDu", "ETO", "OsQ", "?fB") as JArray;
             planets = NmsPlanets.ReadAll(discoveries);
             systems = NmsPlanets.ReadSystems(discoveries);
         }
@@ -99,7 +98,7 @@ public static class KnownPlanetsService
     }
 }
 
-/// <summary>What PlanetsPage needs from one save: the player's location
+/// <summary>What Current System and the Planet Finder need from one save: the player's location
 /// (yhJ), stat groups (per-planet ^PLANET_STATS), the discovery list, the
 /// "where you saved" line (n:R, e.g. "In the Plyimed system") and the map
 /// markers (nlG - named space stations and bases), plus the bases (F?0)
@@ -107,7 +106,10 @@ public static class KnownPlanetsService
 /// Spawn (rnc) and PlanetPositions (aHM) give the player's coordinates on the
 /// planet (NmsPlanetCoordinates).</summary>
 public sealed record PlanetSnapshot(JToken? Universe, JArray? StatGroups, JArray? Discoveries, string? Summary = null, JArray? Markers = null, JArray? Bases = null, JToken? Fishing = null,
-    JToken? Spawn = null, JToken? PlanetPositions = null)
+    JToken? Spawn = null, JToken? PlanetPositions = null, JArray? LooseObjects = null, JArray? Settlements = null, string? LocalOnlineId = null, JArray? ScanEvents = null,
+    JObject? EquipmentSaveInputs = null, JObject? ExosuitCargo = null,
+    IReadOnlyList<ArtifactX.Core.Recipes.CargoSupply>? CargoSupplies = null,
+    JArray? StoredInteractions = null)
 {
     /// <summary>The player's coordinates on the planet they're on, if any.</summary>
     public (double Latitude, double Longitude)? Coordinates =>
@@ -116,7 +118,7 @@ public sealed record PlanetSnapshot(JToken? Universe, JArray? StatGroups, JArray
 
 public static class LiveSaveReader
 {
-    /// <summary>Decrypts a save straight from disk for PlanetsPage's live
+    /// <summary>Decrypts a save straight from disk for the pages' live
     /// follow, using whichever character is active (main game, or the
     /// expedition root when XTp is "Season" - same rule as
     /// SaveSessionManager). Read-only; returns null if the file can't be read
@@ -133,7 +135,11 @@ public static class LiveSaveReader
             var player = context?["6f="];
             return new PlanetSnapshot(player?["yhJ"], player?["gUR"] as JArray, root["fDu"]?["ETO"]?["OsQ"]?["?fB"] as JArray,
                 player?["n:R"]?.Value<string>(), player?["nlG"] as JArray, player?["F?0"] as JArray, player?["bTf"],
-                context?["rnc"], player?["aHM"]);
+                context?["rnc"], player?["aHM"], player?["c5s"] as JArray, player?["GQA"] as JArray,
+                root["<h0"]?["F=J"]?[0]?["K7E"]?.Value<string>(), player?["A1f"] as JArray,
+                NmsMultiToolGenerationPaths.CopySavedInputs(root), player?[";l5"] as JObject,
+                ArtifactX.Core.Recipes.CargoSupplies.Read(player as JObject),
+                player?["a6j"] as JArray);
         }
         catch (Exception ex)
         {
@@ -161,8 +167,40 @@ public sealed class LiveSaveWatcher : IDisposable
 
     public LiveSaveWatcher(Microsoft.UI.Dispatching.DispatcherQueue dispatcher) => _dispatcher = dispatcher;
 
-    /// <summary>Snapshot of the loaded session (what the page shows before any live update).</summary>
-    public static PlanetSnapshot FromSession() => new(
+    /// <summary>The most recent live snapshot read from disk across any watcher or session.</summary>
+    public static PlanetSnapshot? LatestSnapshot { get; set; }
+
+    static LiveSaveWatcher()
+    {
+        SaveSessionManager.ActiveSessionChanged += (_, _) => LatestSnapshot = null;
+    }
+
+    /// <summary>Snapshot of the loaded session (or latest live snapshot if one has been read).</summary>
+    public static PlanetSnapshot FromSession() => LatestSnapshot ?? CreateFromSession();
+
+    /// <summary>Returns the latest live snapshot immediately, reading the newest save file from disk if not yet cached.</summary>
+    public static async Task<PlanetSnapshot> GetLatestAsync()
+    {
+        if (LatestSnapshot is not null) return LatestSnapshot;
+
+        if (SaveSessionManager.ActiveSlot is { } slot)
+        {
+            string newest = slot.Files.Select(f => f.FullPath).Where(File.Exists)
+                .OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault() ?? "";
+            if (newest.Length > 0)
+            {
+                var fresh = await LiveSaveReader.ReadAsync(newest);
+                if (fresh is not null)
+                {
+                    LatestSnapshot = fresh;
+                    return fresh;
+                }
+            }
+        }
+        return FromSession();
+    }
+
+    public static PlanetSnapshot CreateFromSession() => new(
         SaveSessionManager.GetValue(NmsSpaceStationPaths.CurrentUniverseAddressPath),
         SaveSessionManager.GetValue(NmsPlayerStatsPaths.StatGroupsArrayPath) as JArray,
         SaveSessionManager.GetValue(NmsSpaceStationPaths.DiscoveriesPath) as JArray,
@@ -171,7 +209,11 @@ public sealed class LiveSaveWatcher : IDisposable
         SaveSessionManager.GetValue("vLc", "6f=", "F?0") as JArray,
         SaveSessionManager.GetValue(NmsFishingPaths.RecordContainerPath),
         SaveSessionManager.GetValue(NmsPlanetCoordinates.SpawnStatePath),
-        SaveSessionManager.GetValue(NmsPlanetCoordinates.PlanetPositionsPath));
+        SaveSessionManager.GetValue(NmsPlanetCoordinates.PlanetPositionsPath),
+        SaveSessionManager.GetValue(NmsBuildCounts.LooseObjectsPath) as JArray,
+        SaveSessionManager.GetValue(NmsSettlementPaths.SettlementArrayPath) as JArray,
+        SaveSessionManager.GetValue(NmsSettlementPaths.LocalPlayerOnlineIdPath)?.Value<string>(),
+        SaveSessionManager.GetValue("vLc", "6f=", "A1f") as JArray);
 
     public void Start()
     {
@@ -242,6 +284,7 @@ public sealed class LiveSaveWatcher : IDisposable
             if (triesLeft > 1) { await Task.Delay(3000); await ReadAsync(triesLeft - 1); }
             return;
         }
+        LatestSnapshot = snapshot;
         SystemNameLearner.Learn(NmsSpaceStationPaths.ReadSystemAddress(snapshot.Universe),
             snapshot.Universe?["oZw"]?["jsv"]?.Value<int>() ?? 0, snapshot.Summary);
         SnapshotRead?.Invoke(snapshot);

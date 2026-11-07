@@ -25,15 +25,32 @@ public sealed record SystemAttributes(
     SystemRace Race,     // None when uncharted
     bool Uncharted,
     bool Abandoned,
-    bool Pirate);
+    bool Pirate)
+{
+    /// <summary>A gas-giant system whose first body is itself the gas giant (and six
+    /// prime bodies) - the inner 66% roll. Without it a gas-giant system still lays its
+    /// moons around the first body, but that body's type is picked as usual
+    /// (NMS.exe attribute output +0x2d vs +0x2c, 2026-10-22).</summary>
+    public bool GasGiantPlanet { get; init; }
+}
 
 public sealed record VoxelAttributes(int GuideStarCount, int BlackHoleCount, int AtlasStationCount, int InsideGap, int GuideStarRenegadeCount);
 
 /// <summary>Planets and moons the generator lays out for a system.</summary>
-public sealed record SystemBodies(ulong[] PlanetSeeds, int PlanetCount, int MoonCount, int[] Sizes);
+/// <param name="Hosts">Per body (index 0 = body 1): 0 for a planet, else the 1-based body a
+/// moon orbits. The loops below decide it - a large planet takes up to two moons right
+/// after it (Amogat-Aizu XIV: Reroldbur + Ackroit Ugin, Juneapo W40 + Puppinan XIII and
+/// Zionehou Omega, as the game's Discoveries page draws them, 2026-10-17).</param>
+public sealed record SystemBodies(ulong[] PlanetSeeds, int PlanetCount, int MoonCount, int[] Sizes, int[] Hosts)
+{
+    public bool IsMoon(int body) => body >= 1 && body <= Hosts.Length && Hosts[body - 1] > 0;
+}
 
 public static class SystemGenerator
 {
+    /// <summary>The fixed purple-system address range used by the generator.</summary>
+    public static bool IsPurpleSystemId(long systemId) => systemId > 0x3E7 && systemId < 0x429;
+
     private const ulong ConstA = 0x64DD81482CBD31D7;
     private const ulong ConstB = 0xE36AA5C613612997;
     private const double TinyDouble = 2.3283064370807974e-10;
@@ -162,7 +179,7 @@ public static class SystemGenerator
         if (systemId < va.GuideStarRenegadeCount)
             starType = (int)rng.Next(3) + 1;
 
-        if (systemId > 0x3E7 && systemId < 0x429)
+        if (IsPurpleSystemId(systemId))
             starType = 4; // purple
 
         rng.Step();
@@ -185,7 +202,7 @@ public static class SystemGenerator
         if (diffCount < 1) primeCount = 0;
         else if (rng.Next(100) >= 33 || diffCount < 2) primeCount = 1;
 
-        bool gasGiant = false;
+        bool gasGiant = false, gasGiantPlanet = false;
         if (starType == 4)
         {
             primeCount += planetCount;
@@ -195,6 +212,7 @@ public static class SystemGenerator
                 gasGiant = true;
                 if (rng.Next(100) < 66)
                 {
+                    gasGiantPlanet = true;
                     planetCount = 0;
                     primeCount = 6;
                 }
@@ -210,7 +228,7 @@ public static class SystemGenerator
         }
 
         return new SystemAttributes(planetCount, primeCount, safeStart, gasGiant, (StarColour)starType,
-            (SystemEconomy)economy, wealth, conflict, (SystemRace)race, uncharted, abandoned, pirate);
+            (SystemEconomy)economy, wealth, conflict, (SystemRace)race, uncharted, abandoned, pirate) { GasGiantPlanet = gasGiantPlanet };
     }
 
     // ------------------------------------------------------------------ planets and moons
@@ -240,11 +258,14 @@ public static class SystemGenerator
         int total = primary + attributes.PrimePlanetCount;
         int stop = attributes.SafeStartPlanet - 1;
         int moons = 0;
+        var hosts = new List<int>();
+        void Host(int body, int host) { while (hosts.Count < body) hosts.Add(0); hosts[body - 1] = host; }
 
         if (attributes.GasGiant)
         {
             for (int k = 0; k < total; k++) seeds.Add(BodySeed(rng));
-            return new SystemBodies(seeds.ToArray(), 1, total - 1, sizes.ToArray());
+            for (int b = 2; b <= total; b++) Host(b, 1);
+            return new SystemBodies(seeds.ToArray(), 1, total - 1, sizes.ToArray(), PadHosts(hosts, total));
         }
 
         int i = 0;
@@ -259,9 +280,11 @@ public static class SystemGenerator
                 int moonRoll = (int)rng.Next((uint)(m + 1));
                 if (moonRoll > 0)
                 {
+                    int host = i;
                     while (i != stop)
                     {
                         i++;
+                        Host(i, host);
                         moonRoll--;
                         moons++;
                         if (moonRoll <= 0) break;
@@ -287,8 +310,10 @@ public static class SystemGenerator
             {
                 int m = Math.Clamp(total - i, 0, 2);
                 int moonRoll = (int)rng.Next((uint)(m + 1));
+                int host = i;
                 while (moonRoll > 0 && i != stop)
                 {
+                    Host(i + 1, host);
                     seeds.Add(BodySeed(rng));
                     moons++;
                     moonRoll--;
@@ -296,7 +321,13 @@ public static class SystemGenerator
                 }
             }
         }
-        return new SystemBodies(seeds.ToArray(), total - moons, moons, sizes.ToArray());
+        return new SystemBodies(seeds.ToArray(), total - moons, moons, sizes.ToArray(), PadHosts(hosts, total));
+    }
+
+    private static int[] PadHosts(List<int> hosts, int total)
+    {
+        while (hosts.Count < total) hosts.Add(0);
+        return hosts.ToArray();
     }
 
     // ------------------------------------------------------------------ names

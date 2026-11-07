@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Located sites from the save and existing recorded Finds. -->
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.PlanetEquipmentPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:explore="using:ArtifactX.WinUI3.ViewModels.ExploreViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls">
+
+    <StackPanel Spacing="18">
+
+        <!-- The portal, worked out from the game's own placement rules, with a marker the player can add to the save. -->
+        <controls:FoldingCard Title="PORTAL" SettingKey="PlanetDetailsPortalCollapsed" Visibility="{x:Bind Equipment.HasPortal, Mode=OneWay}">
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <Grid Padding="18,14,18,16" ColumnSpacing="16" RowSpacing="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="{x:Bind Equipment.PortalCoordinates, Mode=OneWay}" FontSize="20" FontWeight="Bold"
+                               FontFamily="{ThemeResource ThemeDisplayFont}" Foreground="{ThemeResource ThemeAccentBrush}" IsTextSelectionEnabled="True"
+                               AutomationProperties.Name="Portal coordinates"/>
+                    <TextBlock Grid.Row="1" Text="Where this planet's portal stands - the coordinates your Analysis Visor shows there. Worked out from the game's own rules, so it works before anyone has found it."
+                               Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                    <TextBlock Grid.Row="2" Text="{x:Bind Equipment.PortalStatus, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+                    <StackPanel Grid.Column="1" Grid.RowSpan="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Button Content="{x:Bind Equipment.AddPortalMarkerText, Mode=OneWay}" Command="{x:Bind Equipment.AddPortalMarkerCommand}"
+                                IsEnabled="{x:Bind Equipment.CanAddPortalMarker, Mode=OneWay}"
+                                AutomationProperties.Name="Add a portal marker to my save"
+                                ToolTipService.ToolTip="Adds a marker for this portal to your save. Save your changes afterwards; the game shows it next time you load."/>
+                        <Button Content="Undo" Command="{x:Bind Equipment.UndoPortalMarkerCommand}"
+                                Visibility="{x:Bind Equipment.CanUndoPortalMarker, Mode=OneWay}"
+                                AutomationProperties.Name="Undo the portal marker"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </controls:FoldingCard>
+
+        <!-- Crashed ships nearest you (or the portal), worked out from the game's building grid, each with an optional marker. -->
+        <controls:FoldingCard Title="{x:Bind Equipment.CrashedShipsHeading, Mode=OneWay}" SettingKey="PlanetDetailsCrashedShipsCollapsed"
+                              Visibility="{x:Bind Equipment.HasCrashedShips, Mode=OneWay}">
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <StackPanel Padding="18,14,18,16" Spacing="12">
+                    <TextBlock Text="{x:Bind Equipment.CrashedShipsHint, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                    <!-- Search filters: class (S by default) and ship type, remembered. -->
+                    <StackPanel Orientation="Horizontal" Spacing="24">
+                        <RadioButtons Header="Class" MaxColumns="5" ItemsSource="{x:Bind Equipment.ShipClassChoices}"
+                                      SelectedIndex="{x:Bind Equipment.ShipClassChoice, Mode=TwoWay}"
+                                      AutomationProperties.Name="Class of crashed ship to search for"/>
+                        <ComboBox Header="Type" MinWidth="170" ItemsSource="{x:Bind Equipment.ShipTypeOptions, Mode=OneWay}"
+                                  SelectedItem="{x:Bind Equipment.SelectedShipType, Mode=TwoWay}"
+                                  AutomationProperties.Name="Type of crashed ship to search for"/>
+                        <ComboBox Header="Show" MinWidth="90" ItemsSource="{x:Bind Equipment.ShipCountChoices}"
+                                  SelectedIndex="{x:Bind Equipment.ShipCountChoice, Mode=TwoWay}"
+                                  AutomationProperties.Name="How many crashed ships to list"/>
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind Equipment.CrashedShipsSummary, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+                    <ItemsControl ItemsSource="{x:Bind Equipment.CrashedShips, Mode=OneWay}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="10"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="explore:CrashedShipRowViewModel">
+                                <Border Width="370" Padding="12,10" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                                        Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
+                                    <controls:CrashedShipRow Row="{x:Bind}"/>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </controls:FoldingCard>
+
+        <!-- Shops nearest the same point, each with an optional marker. -->
+        <controls:PlanetShopsPanel Shops="{x:Bind Equipment.Shops}"/>
+
+        <!-- Located sites with their recorded coordinates. -->
+        <controls:FoldingCard Title="{x:Bind Equipment.LocatedSitesHeading, Mode=OneWay}" SettingKey="PlanetDetailsLocatedSitesCollapsed">
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <StackPanel Padding="18,14,18,16" Spacing="14">
+                    <TextBlock Text="{x:Bind Equipment.LocatedSitesHint, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+
+                    <!-- Active Located Sites from Save / Finds -->
+                    <ItemsControl ItemsSource="{x:Bind Equipment.LocatedSites, Mode=OneWay}" Visibility="{x:Bind Equipment.HasLocatedSites, Mode=OneWay}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="10"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="explore:PlanetLocatedSite">
+                                <Border Width="370" Padding="12,10" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                                        Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
+                                    <StackPanel Spacing="4">
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Background="{x:Bind BadgeBackground}" Padding="6,1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" VerticalAlignment="Center">
+                                                <TextBlock Text="{x:Bind CategoryBadge}" FontSize="10" FontWeight="Bold"
+                                                           FontFamily="{ThemeResource ThemeDisplayFont}" CharacterSpacing="100"
+                                                           Foreground="{x:Bind BadgeForeground}"/>
+                                            </Border>
+                                            <TextBlock Grid.Column="1" Text="{x:Bind Coordinates}" FontSize="12" FontWeight="Bold"
+                                                       FontFamily="{ThemeResource ThemeDisplayFont}" Foreground="{ThemeResource ThemeAccentBrush}"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center" IsTextSelectionEnabled="True"/>
+                                        </Grid>
+                                        <TextBlock Text="{x:Bind Title}" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                                        <TextBlock Text="{x:Bind Details}" FontSize="11"
+                                                   Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                </StackPanel>
+            </Border>
+        </controls:FoldingCard>
+    </StackPanel>
+</UserControl>

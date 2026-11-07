@@ -13,15 +13,17 @@
     <StackPanel Spacing="10">
         <TextBlock x:Name="SummaryTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
                    Text="Loading..."/>
-        <TextBox x:Name="SearchBox" PlaceholderText="Search by name" TextChanged="Filter_Changed"/>
+        <TextBox x:Name="SearchBox" PlaceholderText="Search items" AutomationProperties.Name="Search available items" TextChanged="Filter_Changed"/>
         <Grid ColumnSpacing="8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <ComboBox x:Name="GroupBox" HorizontalAlignment="Stretch" SelectionChanged="Filter_Changed"/>
+            <ComboBox x:Name="GroupBox" AutomationProperties.Name="Group" HorizontalAlignment="Stretch" SelectionChanged="Filter_Changed"/>
             <CheckBox Grid.Column="1" x:Name="HideOwnedBox" Content="Hide ones I have" Checked="Filter_Changed" Unchecked="Filter_Changed" MinWidth="0"/>
         </Grid>
+        <ComboBox x:Name="TagBox" Header="Rarity" AutomationProperties.Name="Fish rarity"
+                  HorizontalAlignment="Stretch" Visibility="Collapsed" SelectionChanged="Filter_Changed"/>
         <Button x:Name="AddAllBtn" HorizontalAlignment="Stretch" Click="AddAll_Click"/>
         <TextBlock x:Name="StatusTxt" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"/>
 
@@ -55,7 +57,8 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <Image Source="{x:Bind Icon, Mode=OneWay}" Width="34" Height="34"/>
-                                <TextBlock Grid.Column="1" Text="{x:Bind Group}" FontSize="10" Opacity="0.7" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                <TextBlock Grid.Column="1" Text="{x:Bind GroupLabel}" Foreground="{ThemeResource ThemeTextBrush}"
+                                           FontSize="10" VerticalAlignment="Center" TextWrapping="Wrap"/>
                             </Grid>
                             <TextBlock Grid.Row="1" Text="{x:Bind Name}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap"
                                        TextTrimming="CharacterEllipsis" MaxLines="2" VerticalAlignment="Top"/>

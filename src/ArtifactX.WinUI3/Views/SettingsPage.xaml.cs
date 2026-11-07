@@ -1,4 +1,5 @@
 using ArtifactX.WinUI3.Services;
+using ArtifactX.WinUI3.ViewModels;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -32,6 +33,8 @@ public sealed partial class SettingsPage : Page
         Unloaded += (_, _) => UpdateCheckService.Changed -= OnUpdateCheckChanged;
 
         DailyBackupSwitch.IsOn = UserDatabase.DailyBackups;
+        CaptureLogSwitch.IsOn = ScreenCaptureLogService.Enabled;
+        RefreshCaptureLogStatus();
         foreach (int keep in DataKeepChoices) DataKeepBox.Items.Add(new ComboBoxItem { Content = $"{keep} backups", Tag = keep });
         DataKeepBox.SelectedItem = DataKeepBox.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (int)i.Tag == UserDatabase.BackupsToKeep)
             ?? DataKeepBox.Items[1];
@@ -52,6 +55,7 @@ public sealed partial class SettingsPage : Page
         RefreshGameData();
         RefreshFolder();
         RefreshDataBackups();
+        RefreshUserDbInfo();
         _ = RefreshSaveBackupsAsync();
         RefreshUpdateStatus();
     }
@@ -172,6 +176,53 @@ public sealed partial class SettingsPage : Page
 
     // ---------------------------------------------------------------- user.db
 
+    private void CaptureLog_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        ScreenCaptureLogService.Enabled = CaptureLogSwitch.IsOn;
+        RefreshCaptureLogStatus();
+    }
+
+    private void RefreshCaptureLogStatus()
+    {
+        long bytes = ScreenCaptureLogService.SizeOnDisk();
+        CaptureLogStatusTxt.Text = (bytes == 0 ? "Nothing read yet." : $"The reading log uses {bytes / 1048576.0:0.#} MB (the oldest is removed past 200 MB).")
+            + (PlanetPageReader.Filled > 0 ? $" {PlanetPageReader.Filled} planet{(PlanetPageReader.Filled == 1 ? "" : "s")} filled in from their Discoveries page this session." : "")
+            + (SystemPageReader.Filled > 0 ? $" {SystemPageReader.Filled} system{(SystemPageReader.Filled == 1 ? "" : "s")} filled in from the game's system screens." : "")
+            + (ScreenCaptureLogService.Enabled && !GameProcessMonitorService.IsGameRunning ? " Recording starts when you start No Man's Sky." : "");
+    }
+
+    private async void ManualCaptureSettingsBtn_Click(object sender, RoutedEventArgs e)
+    {
+        ManualCaptureSettingsBtn.IsEnabled = false;
+        try
+        {
+            var result = await ScreenCaptureLogService.CaptureNowAsync();
+            RefreshCaptureLogStatus();
+            CaptureLogStatusTxt.Text = result.Message;
+        }
+        finally
+        {
+            ManualCaptureSettingsBtn.IsEnabled = true;
+        }
+    }
+
+    private void OpenCaptureLog_Click(object sender, RoutedEventArgs e) =>
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = ScreenCaptureLogService.Folder, UseShellExecute = true });
+
+    private async void DeleteCaptureLog_Click(object sender, RoutedEventArgs e)
+    {
+        var confirm = new ContentDialog
+        {
+            Title = "Delete the reading log?",
+            Content = "The log of text read from game screens is removed. What was filled in from it (planet details, markets, creatures...), your saves and other ArtifactX data aren't touched.",
+            PrimaryButtonText = "Delete", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Close, XamlRoot = XamlRoot,
+        };
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+        ScreenCaptureLogService.DeleteAll();
+        RefreshCaptureLogStatus();
+    }
+
     private void DailyBackup_Toggled(object sender, RoutedEventArgs e)
     {
         if (_loading) return;
@@ -189,6 +240,7 @@ public sealed partial class SettingsPage : Page
         await Task.Run(() => UserDatabase.Backup("manual"));
         Status(DataStatusTxt, "Backed up.");
         RefreshDataBackups();
+        RefreshUserDbInfo();
     }
 
     private async void ExportData_Click(object sender, RoutedEventArgs e)
@@ -248,56 +300,56 @@ public sealed partial class SettingsPage : Page
             FindsService.Reload();
             PlanetWaterService.Reload();
             PlanetDetailsService.Reload();
+            BodyKindsService.Reload();
+            SystemMarketService.Reload();
             FishCatchService.Reload();
             GuidesService.Reload();
             HiddenStationsService.Reload();
+            VisitedSystemsService.Reload();
             if (AppSettingsService.ThemeId is { Length: > 0 } theme && theme != ThemeService.Current.Id)
                 ThemeService.Apply(theme);
         }
         Status(DataStatusTxt, error ?? $"Restored the backup from {label}. Your data from before is in the list below.");
         RefreshDataBackups();
+        RefreshUserDbInfo();
     }
+
+    private void RefreshUserDbInfo()
+    {
+        var (main, wal, total) = UserDatabase.GetDatabaseSizeDetails();
+        string sizeText = wal > 0
+            ? $"{Size(total)} (main: {Size(main)}, WAL: {Size(wal)})"
+            : Size(total);
+
+        UserDbInfoTxt.Text = $"Database: {Path.GetFileName(UserDatabase.FilePath)} ({sizeText})  ·  Schema v{UserDatabase.SchemaVersion}\nLocation: {UserDatabase.FilePath}";
+    }
+
+    private async void OpenDataFolder_Click(object sender, RoutedEventArgs e) =>
+        await Launcher.LaunchFolderPathAsync(LocalAppDataPaths.RootFolder);
 
     private void RefreshDataBackups()
     {
-        DataBackupsPanel.Children.Clear();
         List<UserDatabase.DataBackup> backups;
         try { backups = UserDatabase.ListBackups(); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { backups = new(); }
+        DataBackupsList.ItemsSource = backups.Select(b => new DataBackupRowViewModel(b.Path,
+            $"{b.Created:ddd MMM d, yyyy  h:mm tt}  ·  {ReasonLabel(b.Reason)}  ·  {Size(b.Bytes)}", $"{b.Created:MMM d, h:mm tt}")).ToList();
+        NoDataBackupsTxt.Visibility = backups.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
 
-        if (backups.Count == 0)
-        {
-            DataBackupsPanel.Children.Add(new TextBlock { Text = "No backups yet.", FontSize = 12, Opacity = 0.7 });
-            return;
-        }
-        foreach (var backup in backups)
-        {
-            var row = new Grid { ColumnSpacing = 10 };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            row.Children.Add(new TextBlock
-            {
-                Text = $"{backup.Created:ddd MMM d, yyyy  h:mm tt}  ·  {ReasonLabel(backup.Reason)}  ·  {Size(backup.Bytes)}",
-                FontSize = 13,
-                VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-            });
-            var restore = new Button { Content = "Restore", FontSize = 12, Padding = new Thickness(10, 3, 10, 3) };
-            restore.Click += async (_, _) => await RestoreAsync(backup.Path, $"{backup.Created:MMM d, h:mm tt}");
-            Grid.SetColumn(restore, 1);
-            row.Children.Add(restore);
-            var delete = new Button { Content = "Delete", FontSize = 12, Padding = new Thickness(10, 3, 10, 3) };
-            delete.Click += (_, _) =>
-            {
-                try { UserDatabase.DeleteBackup(backup.Path); }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Status(DataStatusTxt, $"Couldn't delete it: {ex.Message}"); }
-                RefreshDataBackups();
-            };
-            Grid.SetColumn(delete, 2);
-            row.Children.Add(delete);
-            DataBackupsPanel.Children.Add(row);
-        }
+    private static DataBackupRowViewModel? BackupOf(object sender) => (sender as FrameworkElement)?.DataContext as DataBackupRowViewModel;
+
+    private async void RestoreBackup_Click(object sender, RoutedEventArgs e)
+    {
+        if (BackupOf(sender) is { } backup) await RestoreAsync(backup.Path, backup.ShortDate);
+    }
+
+    private void DeleteBackup_Click(object sender, RoutedEventArgs e)
+    {
+        if (BackupOf(sender) is not { } backup) return;
+        try { UserDatabase.DeleteBackup(backup.Path); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Status(DataStatusTxt, $"Couldn't delete it: {ex.Message}"); }
+        RefreshDataBackups();
     }
 
     private static string ReasonLabel(string reason) => reason switch
@@ -328,24 +380,11 @@ public sealed partial class SettingsPage : Page
         CleanUpBtn.Content = extra > 0 ? $"Clean up now — frees {Size(freeable)}" : "Nothing to clean up";
         CleanUpBtn.IsEnabled = extra > 0;
 
-        SaveBackupsPanel.Children.Clear();
-        foreach (var account in groups.GroupBy(g => g.AccountFolder))
-        {
-            var block = new StackPanel { Spacing = 4 };
-            block.Children.Add(new TextBlock { Text = BackupService.AccountLabel(account.Key), FontWeight = FontWeights.SemiBold, FontSize = 13 });
-            foreach (var group in account.OrderBy(g => GroupOrder(g.Group)))
-            {
-                string beyond = group.CountBeyondKeep > 0 ? $"  ·  {group.CountBeyondKeep} older than the newest {keep}" : "";
-                block.Children.Add(new TextBlock
-                {
-                    Text = $"{GroupLabel(group.Group)}  ·  {group.Count} backups  ·  {Size(group.Bytes)}  ·  newest {group.Newest:MMM d, h:mm tt}{beyond}",
-                    FontSize = 12,
-                    Opacity = 0.85,
-                    TextWrapping = TextWrapping.Wrap,
-                });
-            }
-            SaveBackupsPanel.Children.Add(block);
-        }
+        SaveBackupsList.ItemsSource = groups.GroupBy(g => g.AccountFolder).Select(account => new SaveBackupAccountViewModel(
+            BackupService.AccountLabel(account.Key),
+            account.OrderBy(g => GroupOrder(g.Group)).Select(group =>
+                $"{GroupLabel(group.Group)}  ·  {group.Count} backups  ·  {Size(group.Bytes)}  ·  newest {group.Newest:MMM d, h:mm tt}"
+                + (group.CountBeyondKeep > 0 ? $"  ·  {group.CountBeyondKeep} older than the newest {keep}" : "")).ToList())).ToList();
     }
 
     private static string GroupLabel(string group) =>
@@ -405,7 +444,42 @@ public sealed partial class SettingsPage : Page
         VersionTxt.Text = $"ArtifactX v{AppVersionService.DisplayVersion}";
         var result = UpdateCheckService.LastResult;
         UpdateStatusTxt.Text = result?.Message ?? "";
-        ReleasePageLink.Visibility = result?.Status == UpdateCheckStatus.UpdateAvailable ? Visibility.Visible : Visibility.Collapsed;
+        bool hasUpdate = result?.Status == UpdateCheckStatus.UpdateAvailable;
+        ReleasePageLink.Visibility = hasUpdate ? Visibility.Visible : Visibility.Collapsed;
+        UpdateAndRestartBtn.Visibility = hasUpdate ? Visibility.Visible : Visibility.Collapsed;
+
+        if (hasUpdate)
+        {
+            UpdateAndRestartBtn.Content = UpdateCheckService.IsInstalled ? "Update and restart" : "Download update on GitHub";
+        }
+    }
+
+    private async void UpdateAndRestart_Click(object sender, RoutedEventArgs e)
+    {
+        if (!UpdateCheckService.IsInstalled)
+        {
+            if (UpdateCheckService.LastResult?.ReleaseUrl is string url)
+                await Launcher.LaunchUriAsync(new Uri(url));
+            return;
+        }
+
+        UpdateAndRestartBtn.IsEnabled = false;
+        CheckForUpdatesBtn.IsEnabled = false;
+        UpdateProgressBar.Visibility = Visibility.Visible;
+        UpdateProgressBar.Value = 0;
+
+        await UpdateCheckService.DownloadAndRestartAsync(status =>
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                UpdateStatusTxt.Text = status;
+                UpdateProgressBar.Value = UpdateCheckService.DownloadProgress;
+            });
+        });
+
+        UpdateAndRestartBtn.IsEnabled = true;
+        CheckForUpdatesBtn.IsEnabled = true;
+        UpdateProgressBar.Visibility = Visibility.Collapsed;
     }
 
     private async void CheckForUpdates_Click(object sender, RoutedEventArgs e)
@@ -430,9 +504,9 @@ public sealed partial class SettingsPage : Page
 
     private static string Size(long bytes) => bytes switch
     {
-        >= 1L << 30 => (bytes / (double)(1L << 30)).ToString("0.0", CultureInfo.CurrentCulture) + " GB",
-        >= 1L << 20 => (bytes / (double)(1L << 20)).ToString("0", CultureInfo.CurrentCulture) + " MB",
-        >= 1L << 10 => (bytes / (double)(1L << 10)).ToString("0", CultureInfo.CurrentCulture) + " KB",
+        >= 1L << 30 => (bytes / (double)(1L << 30)).ToString("0.#", CultureInfo.CurrentCulture) + " GB",
+        >= 1L << 20 => (bytes / (double)(1L << 20)).ToString("0.#", CultureInfo.CurrentCulture) + " MB",
+        >= 1L << 10 => (bytes / (double)(1L << 10)).ToString("0.#", CultureInfo.CurrentCulture) + " KB",
         _ => $"{bytes} bytes",
     };
 }

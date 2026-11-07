@@ -65,6 +65,14 @@
                 <Setter Property="CharacterSpacing" Value="180"/>
             </Style>
 
+            <!-- For something the player needs to act on (an offer to update the game data):
+                 warm amber with dark text. The accent blue blended into the app's own blue and
+                 purple and went unnoticed even while pulsing (2026-10-16). -->
+            <Style x:Key="ThemeAttentionButtonStyle" TargetType="Button" BasedOn="{StaticResource ThemeAccentButtonStyle}">
+                <Setter Property="Background" Value="{ThemeResource ThemeWarningBrush}"/>
+                <Setter Property="Foreground" Value="#1B1206"/>
+            </Style>
+
         </ResourceDictionary>
     </Application.Resources>
 </Application>

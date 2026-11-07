@@ -13,11 +13,15 @@
     <SolidColorBrush x:Key="ThemeLineBrush" Color="#2A3160"/>
     <SolidColorBrush x:Key="ThemeAccentBrush" Color="#39D0FF"/>
     <SolidColorBrush x:Key="ThemeAccentAltBrush" Color="#7C4DFF"/>
+    <!-- Purple star systems on the region map: a bright violet that reads apart from both accents (6.9:1 on the void). -->
+    <SolidColorBrush x:Key="ThemePurpleSystemBrush" Color="#C77DFF"/>
     <SolidColorBrush x:Key="ThemeDoneBrush" Color="#FFC62E"/>
     <SolidColorBrush x:Key="ThemeTextBrush" Color="#E9ECF6"/>
-    <SolidColorBrush x:Key="ThemeTextDimBrush" Color="#9AA3BF"/>
-    <SolidColorBrush x:Key="ThemeTextFaintBrush" Color="#67708D"/>
+    <SolidColorBrush x:Key="ThemeTextDimBrush" Color="#B4BCD6"/> <!-- 8.9:1 on panels; was 6.8 (2026-10-18, grey-on-dark too hard to read) -->
+    <SolidColorBrush x:Key="ThemeTextFaintBrush" Color="#8E97B4"/> <!-- 5.8:1, passes WCAG AA; was 3.5 -->
     <SolidColorBrush x:Key="ThemeOnAccentBrush" Color="#070912"/>
+    <!-- Text on ThemeAccentAltBrush badges (violet here). -->
+    <SolidColorBrush x:Key="ThemeOnAccentAltBrush" Color="#FFFFFF"/>
     <SolidColorBrush x:Key="ThemeBandTextBrush" Color="#FFFFFF"/>
     <!-- Fill behind a selected choice button (ship picker, Class S/A/B/C...). -->
     <SolidColorBrush x:Key="ThemeSelectedFillBrush" Color="#3339D0FF"/>
@@ -71,6 +75,9 @@
     <SolidColorBrush x:Key="ThemeSlotLockedBorderBrush" Color="#8C5A3C3C"/>
     <SolidColorBrush x:Key="ThemeSlotLabelBackgroundBrush" Color="#B3000000"/>
     <SolidColorBrush x:Key="ThemeSuperchargedBrush" Color="#FFB21E"/>
+    <!-- Station tool card stats: damage warm, scanner cool, distinct from each other in every theme. -->
+    <SolidColorBrush x:Key="ThemeDamageStatBrush" Color="#FFB21E"/>
+    <SolidColorBrush x:Key="ThemeScannerStatBrush" Color="#39D0FF"/>
     <SolidColorBrush x:Key="ThemeDamagedBrush" Color="#FF3B3B"/>
     <CornerRadius x:Key="ThemeSlotCornerRadius">2</CornerRadius>
 

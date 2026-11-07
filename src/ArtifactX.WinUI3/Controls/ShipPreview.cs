@@ -1,4 +1,4 @@
-using ArtifactX.GameData;
+﻿using ArtifactX.GameData;
 using ArtifactX.WinUI3.Services;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -30,35 +30,75 @@ public sealed class ShipPreview : UserControl
     };
     private ShipMesh? _mesh;
     private uint[] _triColours = Array.Empty<uint>();
+    private ModelTexture?[] _triTextures = Array.Empty<ModelTexture?>();
     private Vector3 _centre;
     // Opens on the nose, three-quarter view from above, nose to the lower left
     // - the angle the user picked by hand (2026-10-15; the tail-on start felt
     // "weird"). Ships face +Z; a negative pitch looks down on the hull.
     private const float StartYaw = MathF.PI + 0.75f, StartPitch = -0.52f;
     private float _yaw = StartYaw, _pitch = StartPitch;
+
+    /// <summary>Added to the opening turn for models whose front isn't +Z: freighters point
+    /// their bow along -Z (capital freighter z -3,210..+459, a fighter's -3..+8), so they
+    /// open with a half turn (2026-10-22).</summary>
+    public float StartYawOffset { get; set; }
+    private readonly TextBlock _status = new()
+    {
+        FontSize = 13, Opacity = 0.7, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center,
+        HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+        Margin = new Thickness(16), Visibility = Visibility.Collapsed,
+    };
+    private bool _hologram;
     private Windows.Foundation.Point? _drag;
     private int _drawing, _pending;
 
     public int PixelWidth { get; set; } = 420;
     public int PixelHeight { get; set; } = 260;
 
+    /// <summary>Draw at the control's own size instead of PixelWidth x PixelHeight - for a
+    /// preview that fills a resizable area (the Ship Designer, 2026-10-16).</summary>
+    public bool FitToSize { get; set; }
+
     public ShipPreview()
     {
         var grid = new Grid { Background = ThemeResources.Brush("ThemePanelAltBrush"), CornerRadius = new CornerRadius(6) };
         grid.Children.Add(_image);
+        grid.Children.Add(_status);
         grid.Children.Add(_hint);
         Content = grid;
         PointerPressed += (_, e) => { _drag = e.GetCurrentPoint(this).Position; CapturePointer(e.Pointer); };
         PointerReleased += (_, e) => { _drag = null; ReleasePointerCapture(e.Pointer); };
         PointerMoved += OnPointerMoved;
         ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.SizeAll);
+        SizeChanged += (_, e) =>
+        {
+            if (!FitToSize || e.NewSize.Width < 16 || e.NewSize.Height < 16) return;
+            PixelWidth = (int)e.NewSize.Width;
+            PixelHeight = (int)e.NewSize.Height;
+            Redraw();
+        };
     }
 
-    /// <summary>Shows a model; <paramref name="colourOf"/> gives each material's RGB.</summary>
-    public void Show(ShipMesh? mesh, Func<string, uint> colourOf)
+    /// <summary>Clears the view and says why (2026-10-17: switching ships kept showing
+    /// the previous ship for the seconds the next one took to build).</summary>
+    public void ShowMessage(string text)
     {
+        _mesh = null;
+        _image.Source = null;
+        _status.Text = text;
+        _status.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Shows a model; <paramref name="colourOf"/> gives each material's RGB,
+    /// <paramref name="textureOf"/> (optional) a painted texture that wins over it.
+    /// <paramref name="hologram"/> draws it as a scanner hologram instead - for a ship
+    /// whose real colours can't be shown, so its shape doesn't pass for a grey paint job.</summary>
+    public void Show(ShipMesh? mesh, Func<string, uint> colourOf, Func<string, ModelTexture?>? textureOf = null, bool hologram = false)
+    {
+        _status.Visibility = Visibility.Collapsed;
+        _hologram = hologram;
         _mesh = mesh;
-        _yaw = StartYaw; _pitch = StartPitch; // each ship opens on its front
+        _yaw = StartYaw + StartYawOffset; _pitch = StartPitch; // each ship opens on its front
         if (mesh is null) { _image.Source = null; return; }
         var colours = new uint[mesh.Materials.Length];
         var cache = new Dictionary<string, uint>();
@@ -68,11 +108,33 @@ public sealed class ShipPreview : UserControl
             colours[i] = c;
         }
         _triColours = colours;
+        var textures = new ModelTexture?[mesh.Materials.Length];
+        if (textureOf is not null && mesh.Uvs.Length == mesh.Corners.Length)
+        {
+            var texCache = new Dictionary<string, ModelTexture?>();
+            for (int i = 0; i < textures.Length; i++)
+            {
+                if (!texCache.TryGetValue(mesh.Materials[i], out var tx)) texCache[mesh.Materials[i]] = tx = textureOf(mesh.Materials[i]);
+                textures[i] = tx;
+            }
+        }
+        _triTextures = textures;
         // Centre on where most of the ship is (a few stray far points shouldn't move it).
         var min = new Vector3(float.MaxValue); var max = new Vector3(float.MinValue);
         foreach (var v in mesh.Corners) { min = Vector3.Min(min, v); max = Vector3.Max(max, v); }
         _centre = (min + max) / 2;
         Redraw();
+    }
+
+    /// <summary>The model shown, drawn at its opening angle at the given size - BGRA,
+    /// premultiplied, transparent background. For saved-design thumbnails (2026-10-17).
+    /// Null while nothing is shown.</summary>
+    public Task<byte[]?> SnapshotAsync(int width, int height)
+    {
+        if (_mesh is null) return Task.FromResult<byte[]?>(null);
+        var mesh = _mesh; var colours = _triColours; var textures = _triTextures; var centre = _centre; bool holo = _hologram;
+        float yaw = StartYaw + StartYawOffset;
+        return Task.Run(() => (byte[]?)Render(mesh, colours, textures, centre, yaw, StartPitch, width, height, holo));
     }
 
     private void OnPointerMoved(object sender, PointerRoutedEventArgs e)
@@ -92,9 +154,9 @@ public sealed class ShipPreview : UserControl
     {
         if (_mesh is null) return;
         if (Interlocked.Exchange(ref _drawing, 1) == 1) { _pending = 1; return; }
-        var mesh = _mesh; var colours = _triColours; var centre = _centre;
-        float yaw = _yaw, pitch = _pitch; int w = PixelWidth, h = PixelHeight;
-        Task.Run(() => Render(mesh, colours, centre, yaw, pitch, w, h)).ContinueWith(t =>
+        var mesh = _mesh; var colours = _triColours; var textures = _triTextures; var centre = _centre;
+        float yaw = _yaw, pitch = _pitch; int w = PixelWidth, h = PixelHeight; bool holo = _hologram;
+        Task.Run(() => Render(mesh, colours, textures, centre, yaw, pitch, w, h, holo)).ContinueWith(t =>
             DispatcherQueue.TryEnqueue(() =>
             {
                 if (t.Result is { } pixels && ReferenceEquals(mesh, _mesh))
@@ -109,14 +171,18 @@ public sealed class ShipPreview : UserControl
     }
 
     /// <summary>Rotate, fit to the frame, z-buffer, light from above-front.</summary>
-    private static byte[] Render(ShipMesh mesh, uint[] colours, Vector3 centre, float yaw, float pitch, int w, int h)
+    private static byte[] Render(ShipMesh mesh, uint[] colours, ModelTexture?[] textures, Vector3 centre, float yaw, float pitch, int w, int h, bool hologram = false)
     {
         var rot = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateRotationX(pitch);
         var p = new Vector3[mesh.Corners.Length];
         float minX = float.MaxValue, maxX = float.MinValue, minY = float.MaxValue, maxY = float.MinValue;
+        // The game's models are right-handed and this view is left-handed (nearer = smaller z),
+        // so X is flipped or every model comes out mirrored. Found 2026-10-16 on Hidden Oboya
+        // Tuner: its side disc and knob showed on the wrong side.
+        var mirror = new Vector3(-1, 1, 1);
         for (int i = 0; i < p.Length; i++)
         {
-            p[i] = Vector3.Transform(mesh.Corners[i] - centre, rot);
+            p[i] = Vector3.Transform((mesh.Corners[i] - centre) * mirror, rot);
             minX = MathF.Min(minX, p[i].X); maxX = MathF.Max(maxX, p[i].X);
             minY = MathF.Min(minY, p[i].Y); maxY = MathF.Max(maxY, p[i].Y);
         }
@@ -128,6 +194,7 @@ public sealed class ShipPreview : UserControl
         var px = new uint[w * h];
         Array.Fill(px, 0x00000000u); // transparent: the card shows through
         var light = Vector3.Normalize(new Vector3(-0.35f, 0.85f, -0.4f));
+        float depthSlack = 0.002f * MathF.Max(maxX - minX, maxY - minY);
         for (int t = 0; t < colours.Length; t++)
         {
             Vector3 a = p[3 * t], b = p[3 * t + 1], c = p[3 * t + 2];
@@ -136,10 +203,21 @@ public sealed class ShipPreview : UserControl
             if (len < 1e-12f) continue;
             float lit = 0.38f + 0.62f * MathF.Abs(Vector3.Dot(n / len, light));
             uint col = colours[t];
-            uint argb = 0xFF000000u
-                | (uint)MathF.Min(255, ((col >> 16) & 0xFF) * lit) << 16
-                | (uint)MathF.Min(255, ((col >> 8) & 0xFF) * lit) << 8
-                | (uint)MathF.Min(255, (col & 0xFF) * lit);
+            if (hologram)
+            {
+                // A scan: one cyan, faint where a surface faces the viewer and bright where
+                // it turns edge-on, so the outline and panel breaks read like a hologram.
+                float edge = 1 - MathF.Abs(n.Z / len);
+                lit = 0.30f + 0.30f * MathF.Abs(Vector3.Dot(n / len, light)) + 0.75f * edge * edge;
+                float level = 0.55f + 0.45f * (((col >> 16) & 0xFF) + ((col >> 8) & 0xFF) + (col & 0xFF)) / 765f;
+                col = (uint)(70 * level) << 16 | (uint)(200 * level) << 8 | (uint)(235 * level);
+            }
+            uint argb = Shade(col, lit);
+            var tex = hologram ? null : t < textures.Length ? textures[t] : null;
+            Vector2 ta = default, tb = default, tc = default, da = default, db = default, dc = default;
+            if (tex is not null) { ta = mesh.Uvs[3 * t]; tb = mesh.Uvs[3 * t + 1]; tc = mesh.Uvs[3 * t + 2]; }
+            var decal = tex?.Decal is { } dt && mesh.Uvs2.Length == mesh.Corners.Length ? dt : null;
+            if (decal is not null) { da = mesh.Uvs2[3 * t]; db = mesh.Uvs2[3 * t + 1]; dc = mesh.Uvs2[3 * t + 2]; }
             float ax = w / 2f + (a.X - cx) * scale, ay = h / 2f - (a.Y - cy) * scale;
             float bx = w / 2f + (b.X - cx) * scale, by = h / 2f - (b.Y - cy) * scale;
             float qx = w / 2f + (c.X - cx) * scale, qy = h / 2f - (c.Y - cy) * scale;
@@ -158,9 +236,40 @@ public sealed class ShipPreview : UserControl
                     if (w0 < 0 || w1 < 0 || w2 < 0) continue;
                     float z = w0 * a.Z + w1 * b.Z + w2 * c.Z;
                     int i = y * w + x;
-                    if (z < zbuf[i]) { zbuf[i] = z; px[i] = argb; }
+                    // A decal lies on the surface it marks, at the same depth: it wins the tie.
+                    bool overlay = tex is { Overlay: true };
+                    if (z < zbuf[i] || (overlay && z <= zbuf[i] + depthSlack))
+                    {
+                        if (tex is null) { zbuf[i] = z; px[i] = argb; }
+                        else
+                        {
+                            // Texture coordinates wrap, as the game's samplers do.
+                            float u = w0 * ta.X + w1 * tb.X + w2 * tc.X, v = w0 * ta.Y + w1 * tb.Y + w2 * tc.Y;
+                            int tx = (int)((u - MathF.Floor(u)) * tex.Width) % tex.Width, ty = (int)((v - MathF.Floor(v)) * tex.Height) % tex.Height;
+                            uint texel = tex.Pixels[ty * tex.Width + tx];
+                            if (overlay && texel >> 24 < 128) continue; // see-through part of a decal
+                            if (decal is not null)
+                            {
+                                float du = w0 * da.X + w1 * db.X + w2 * dc.X, dv = w0 * da.Y + w1 * db.Y + w2 * dc.Y;
+                                int dx = (int)((du - MathF.Floor(du)) * decal.Width) % decal.Width, dy = (int)((dv - MathF.Floor(dv)) * decal.Height) % decal.Height;
+                                uint d = decal.Pixels[dy * decal.Width + dx];
+                                float da2 = (d >> 24) / 255f;
+                                if (da2 > 0)
+                                {
+                                    uint Mix(int shift) => (uint)(((texel >> shift) & 0xFF) * (1 - da2) + ((d >> shift) & 0xFF) * da2) << shift;
+                                    texel = (texel & 0xFF000000u) | Mix(16) | Mix(8) | Mix(0);
+                                }
+                            }
+                            zbuf[i] = MathF.Min(z, zbuf[i]);
+                            px[i] = Shade(texel, lit);
+                        }
+                    }
                 }
         }
+        static uint Shade(uint c, float lit) => 0xFF000000u
+            | (uint)MathF.Min(255, ((c >> 16) & 0xFF) * lit) << 16
+            | (uint)MathF.Min(255, ((c >> 8) & 0xFF) * lit) << 8
+            | (uint)MathF.Min(255, (c & 0xFF) * lit);
         var bytes = new byte[px.Length * 4];
         Buffer.BlockCopy(px, 0, bytes, 0, bytes.Length); // BGRA, premultiplied (alpha is 0 or 255)
         return bytes;

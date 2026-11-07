@@ -77,7 +77,7 @@
                          Multi-Tool/Freighter) even without knowing an item's name -
                          see CataloguePage.xaml.cs's CategoryFilterMap for exactly which
                          UsageCategory values each option matches (2026-08-05 user ask). -->
-                    <ComboBox Grid.Column="1" x:Name="CategoryFilterBox" Width="150" SelectionChanged="Filter_Changed"
+                    <ComboBox Grid.Column="1" x:Name="CategoryFilterBox" AutomationProperties.Name="Category" Width="150" SelectionChanged="Filter_Changed"
                               ToolTipService.ToolTip="Filter by which device this tech can be installed on">
                         <ComboBoxItem Content="All Categories"/>
                         <ComboBoxItem Content="Suit"/>
@@ -85,7 +85,7 @@
                         <ComboBoxItem Content="Multi-Tool"/>
                         <ComboBoxItem Content="Freighter"/>
                     </ComboBox>
-                    <ComboBox Grid.Column="2" x:Name="KnownFilterBox" Width="150" SelectionChanged="Filter_Changed">
+                    <ComboBox Grid.Column="2" x:Name="KnownFilterBox" AutomationProperties.Name="Show" Width="150" SelectionChanged="Filter_Changed">
                         <ComboBoxItem Content="All Items"/>
                         <ComboBoxItem Content="Known Only"/>
                         <ComboBoxItem Content="Unknown Only"/>
@@ -137,7 +137,7 @@
                                         <!-- Padding/MinWidth zeroed - CheckBox's default template reserves
                                              room for a label even with none set, which read as a much
                                              bigger gap before the icon than the 8px ColumnSpacing alone. -->
-                                        <CheckBox Grid.Column="0" IsChecked="{x:Bind IsKnown, Mode=OneWay}" IsHitTestVisible="False"
+                                        <CheckBox Grid.Column="0" IsChecked="{x:Bind IsKnown, Mode=OneWay}" IsHitTestVisible="False" AutomationProperties.Name="{x:Bind DisplayName}"
                                                   VerticalAlignment="Center" Padding="0" MinWidth="0"/>
                                         <Border Grid.Column="1" Width="28" Height="28" CornerRadius="4" VerticalAlignment="Center"
                                                 Background="{x:Bind views:CataloguePage.IconBackground(IsBrokenSlotTech)}">

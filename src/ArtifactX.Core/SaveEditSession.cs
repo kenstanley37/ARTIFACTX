@@ -103,6 +103,24 @@ public sealed class SaveEditSession
         EditsChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Stages several edits with one change notice - every notice makes the open
+    /// pages and the title bar refresh, so 40 separate edits meant 40 refreshes (clearing
+    /// furniture from 40 stations took seconds, 2026-10-21).</summary>
+    public void StageEdits(IEnumerable<(JToken? Value, string[] Path)> edits)
+    {
+        bool any = false;
+        foreach (var (value, path) in edits)
+        {
+            string key = Join(path);
+            string prefix = key + PathSeparator;
+            foreach (var inside in _pendingEdits.Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal)).ToList())
+                _pendingEdits.Remove(inside);
+            _pendingEdits[key] = value;
+            any = true;
+        }
+        if (any) EditsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     public bool HasStagedEdit(string[] path) => _pendingEdits.ContainsKey(Join(path));
 
     /// <summary>True if this exact path, or anything nested under it, has a

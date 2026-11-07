@@ -86,7 +86,6 @@
                             <FontIcon Glyph="&#xE77B;" FontFamily="Segoe MDL2 Assets"/>
                         </NavigationViewItem.Icon>
                         <NavigationViewItem.MenuItems>
-                            <NavigationViewItem Content="Catalog" Tag="AccountData" Icon="List"/>
                             <NavigationViewItem x:Name="GuideNavItem" Content="Guide" Tag="Guide">
                                 <NavigationViewItem.Icon>
                                     <FontIcon Glyph="&#xE82D;" FontFamily="Segoe MDL2 Assets"/>
@@ -135,6 +134,12 @@
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
+                    <NavigationViewItem x:Name="ShipDesignerNavItem" Content="Ship Designer" Tag="ShipDesigner" Visibility="Collapsed">
+                        <NavigationViewItem.Icon>
+                            <FontIcon Glyph="&#xE790;"/>
+                        </NavigationViewItem.Icon>
+                    </NavigationViewItem>
+
                     <NavigationViewItem x:Name="FreighterNavItem" Content="Freighter" Tag="Freighter" Visibility="Collapsed">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="FreighterPathIcon"/>
@@ -170,33 +175,15 @@
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="BaseStorageNavItem" Content="Base Storage" Tag="BaseStorage" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="BasesNavItem" Content="Bases and Parts" Tag="Bases" Visibility="Collapsed">
                         <NavigationViewItem.Icon>
-                            <PathIcon x:Name="BaseStoragePathIcon"/>
+                            <FontIcon Glyph="&#xE80F;" FontFamily="Segoe MDL2 Assets"/>
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="ColdStorageNavItem" Content="Cold Storage" Tag="ColdStorage" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="CargoNavItem" Content="Cargo" Tag="Cargo" Visibility="Collapsed">
                         <NavigationViewItem.Icon>
-                            <FontIcon Glyph="&#xE9CA;"/>
-                        </NavigationViewItem.Icon>
-                    </NavigationViewItem>
-
-                    <NavigationViewItem x:Name="IngredientStorageNavItem" Content="Ingredient Storage" Tag="IngredientStorage" Visibility="Collapsed">
-                        <NavigationViewItem.Icon>
-                            <FontIcon Glyph="&#xED56;"/>
-                        </NavigationViewItem.Icon>
-                    </NavigationViewItem>
-
-                    <NavigationViewItem x:Name="BaseItemCacheNavItem" Content="Dismantled Base Components" Tag="BaseItemCache" Visibility="Collapsed">
-                        <NavigationViewItem.Icon>
-                            <FontIcon Glyph="&#xE7B8;"/>
-                        </NavigationViewItem.Icon>
-                    </NavigationViewItem>
-
-                    <NavigationViewItem x:Name="CorvetteCacheNavItem" Content="Corvette Cache" Tag="CorvetteCache" Visibility="Collapsed">
-                        <NavigationViewItem.Icon>
-                            <PathIcon x:Name="CorvetteCachePathIcon"/>
+                            <PathIcon x:Name="CargoPathIcon"/>
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
@@ -236,6 +223,7 @@
                         </NavigationViewItem.Icon>
                         <NavigationViewItem.MenuItems>
                             <NavigationViewItem Content="Milestones" Tag="Milestones" Icon="Flag"/>
+                            <NavigationViewItem Content="Alliance" Tag="Alliance" Icon="People"/>
                             <NavigationViewItem Content="Gek Language" Tag="LanguageGek">
                                 <NavigationViewItem.Icon>
                                     <PathIcon x:Name="GekLanguagePathIcon"/>
@@ -264,6 +252,12 @@
                         </NavigationViewItem.MenuItems>
                     </NavigationViewItem>
 
+                    <NavigationViewItem x:Name="GameCatalogNavItem" Content="Catalog" Tag="GameCatalog" Visibility="Collapsed">
+                        <NavigationViewItem.Icon>
+                            <PathIcon x:Name="GameCatalogPathIcon"/>
+                        </NavigationViewItem.Icon>
+                    </NavigationViewItem>
+
                     <NavigationViewItem x:Name="CatalogueNavItem" Content="Catalogue" Tag="Catalogue" Visibility="Collapsed">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="CataloguePathIcon"/>
@@ -285,9 +279,14 @@
                         <FontIcon Glyph="&#xE909;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.MenuItems>
-                        <NavigationViewItem x:Name="PlanetsNavItem" Content="Planets" Tag="Planets">
+                        <NavigationViewItem x:Name="PlanetsNavItem" Content="Current System" Tag="Planets">
                             <NavigationViewItem.Icon>
                                 <PathIcon x:Name="PlanetsPathIcon"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem x:Name="PlanetFinderNavItem" Content="Planet Finder" Tag="PlanetFinder">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE721;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem Content="Finds" Tag="Finds">
@@ -305,9 +304,9 @@
                                 <FontIcon Glyph="&#xE7B7;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
-                        <NavigationViewItem x:Name="BasesNavItem" Content="Bases" Tag="Bases">
+                        <NavigationViewItem x:Name="RegionsNavItem" Content="Regions" Tag="Regions">
                             <NavigationViewItem.Icon>
-                                <FontIcon Glyph="&#xE80F;" FontFamily="Segoe MDL2 Assets"/>
+                                <FontIcon Glyph="&#xE81E;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                     </NavigationViewItem.MenuItems>
@@ -320,9 +319,14 @@
                         <FontIcon Glyph="&#xE82D;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.MenuItems>
-                        <NavigationViewItem Content="Recipes" Tag="Recipes">
+                        <NavigationViewItem Content="Cooking Recipes" Tag="Recipes">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE8F1;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Content="Refiner Recipes" Tag="RefinerRecipes">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE7F7;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
                         <NavigationViewItem Content="Crafting" Tag="Crafting">
@@ -335,6 +339,12 @@
                                 <FontIcon Glyph="&#xE8EC;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
+                        <NavigationViewItem Content="Egg Sequencer" Tag="EggSequencer">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xEA86;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem Content="Industrial Cleanup" Tag="IndustrialCleanup"/>
                         <NavigationViewItem Content="Guides" Tag="Guides">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE714;" FontFamily="Segoe MDL2 Assets"/>
@@ -401,6 +411,18 @@
                          Title="You've switched saves in No Man's Sky" CloseButtonClick="SlotSwitchBar_Closed">
                     <InfoBar.ActionButton>
                         <Button x:Name="SlotSwitchButton" Click="SlotSwitch_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
+                    </InfoBar.ActionButton>
+                </InfoBar>
+                <!-- The game moved the loaded save between its expedition and the
+                     main game (SaveSessionManager.GameSavedLoadedSlot). Shares the
+                     row: at most one of these is ever relevant at a time. -->
+                <InfoBar x:Name="ContextSwitchBar" Grid.Row="1" Severity="Informational" IsOpen="False" Margin="16,8,16,0" Visibility="{x:Bind ContextSwitchBar.IsOpen, Mode=OneWay}"
+                         CloseButtonClick="ContextSwitchBar_Closed">
+                    <InfoBar.OpacityTransition>
+                        <ScalarTransition Duration="0:0:0.6"/>
+                    </InfoBar.OpacityTransition>
+                    <InfoBar.ActionButton>
+                        <Button x:Name="ContextSwitchButton" Content="Reload" Click="ContextSwitchReload_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
                     </InfoBar.ActionButton>
                 </InfoBar>
                 <Frame x:Name="ContentFrame" Grid.Row="2" Navigated="ContentFrame_Navigated"/>

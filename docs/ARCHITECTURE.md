@@ -30,7 +30,7 @@ completely untouched still loads correctly in-game — no manifest regeneration 
 implemented or currently believed necessary. This is unverified on other platforms;
 see the Platform Support Status table in the root `README.md`.
 
-## 4. Relational Data Layer (ArtifactX.Data / ArtifactX.Tools.DataCataloger)
+## 4. Relational Data Layer (ArtifactX.GameData / ArtifactX.Tools.DataCataloger)
 This layer is unrelated to save-editing state. It normalizes static item/text/icon
 data extracted from the game's own `.pak` files into a local SQLite instance via
 EF Core, used for reference lookups (item names, icons) when displaying save
@@ -58,3 +58,47 @@ Expedition rewards (`^EXPD_*` entries, found across `B1h`, `fyX`, and `d4U` in
 the same file) behave differently and more simply: locking/unlocking them holds
 regardless of network state, online or offline, with no special sequence
 required.
+
+## 6. Shared Libraries and Future MAUI Helper
+
+The owner plans to add a MAUI helper project to this solution after more NMS
+logic is verified (2026-10-27). Keep that future client on the same shared rules
+as the desktop app. Implement and maintain portable algorithms in the existing
+libraries as features evolve; do not copy them into a second app.
+
+Current project boundaries, verified from the project files:
+
+| Project | Responsibility | Reuse boundary |
+| --- | --- | --- |
+| `ArtifactX.Core` (`net10.0`) | Save-domain models/path helpers, generation algorithms and validation | Keep APIs independent of WinUI, Windows process access, rendering controls and platform storage paths. Pass explicit inputs and return portable results. |
+| `ArtifactX.Almanac` (`net10.0`) | Existing shared ship, multi-tool and freighter reference models | Reuse and extend appropriate reference models; extractable game content still comes from the catalog. |
+| `ArtifactX.GameData` (`net10.0`) | Read the player's game files and build the catalog; references Core and vendored libMBIN | Preserve the single extraction implementation. Its image/compression/database native dependencies require platform validation before another client references it. A portable target framework alone does not establish mobile support. |
+| `ArtifactX.WinUI3` | Desktop UI, app orchestration and Windows platform integrations | Keep WinUI controls, OCR/capture, game-process reads and desktop installation discovery here or behind platform adapters. Do not make a helper reference this project. |
+
+New procedural work should accept catalog-backed data and explicit runtime
+inputs in Core. Desktop services acquire those inputs and adapt results to
+view-models. For example, animation timing calculations can be shared, while
+reading a running Windows game's memory remains a desktop integration. Unknown
+or unavailable inputs must stay explicit rather than being silently replaced
+with a desktop assumption in another client.
+
+Before introducing MAUI, establish its target platforms and workflows. Then
+identify the portable catalog/query contracts and data transfer requirements
+actually needed. Extract shared catalog-reading or application services from
+WinUI where justified, keeping PAK/MBIN decoding in GameData. Review native
+packages, filesystem access and rendering support for each chosen target;
+reuse of a WinUI preview control is not automatically possible in MAUI.
+The helper must not require access to a running PC game merely to use verified
+portable calculations. Do not assume mobile targets can discover a PC install,
+open its process or write its saves.
+
+Shared-library changes should have targeted native/reference or in-game checks
+appropriate to the logic. Desktop save writes continue to use staged edits and
+the running-game save gate. Any future editing client must preserve those
+safety semantics through an explicit editing service rather than bypassing them
+with direct JSON mutation. New UI remains in each client's pages/UserControls,
+separate from the rules both clients consume.
+
+Backlog dependencies and acceptance criteria are tracked in
+[Feature 49](ISSUES_LOG.md#feature-49-shared-libraries-for-a-future-maui-helper-app).
+No MAUI project or package upgrade is introduced by this planning update.

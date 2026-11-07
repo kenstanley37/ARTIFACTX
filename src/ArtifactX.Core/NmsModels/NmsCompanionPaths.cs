@@ -207,6 +207,15 @@ public static class NmsCompanionPaths
 
     public static readonly string[] CompanionArrayPath = { "vLc", "6f=", "Mcl" };
 
+    /// <summary>The eggs (GcPlayerStateData.Eggs, 18 GcPetData slots, the field after
+    /// Pets): same record shape as a companion. Confirmed 2026-11-04 on Slot 8: slot 1
+    /// is "Mecha-Mouse" (XID ROBO_RODENT, JAy [0.8, -0.5, 0.2]), the robot egg the
+    /// owner sequenced; every Neural Calibrator word the game showed for it fits those
+    /// values (Sac Venom: Gentleness Decreasing, Dioxite: Helpfulness Increasing,
+    /// Silver: Independence Decreasing). An empty slot has XID "^". Which slot an
+    /// inventory egg (^EGG13, no seed) belongs to is not stored on the item.</summary>
+    public static readonly string[] EggArrayPath = { "vLc", "6f=", "uKZ" };
+
     public static string[] CompanionPath(int companionIndex) =>
         new[] { "vLc", "6f=", "Mcl", companionIndex.ToString() };
 
@@ -214,6 +223,11 @@ public static class NmsCompanionPaths
     public static string[] TrustPath(int companionIndex) => CompanionPath(companionIndex).Append("xDJ").ToArray();
     public static string[] NativeClimatePath(int companionIndex) => CompanionPath(companionIndex).Append("8jm").Append("8jm").ToArray();
     public static string[] SpeciesArchetypePath(int companionIndex) => CompanionPath(companionIndex).Append("XID").ToArray();
+
+    /// <summary>BirthTime (XwC): with XID, the seed of the name the game shows for a
+    /// companion never renamed (Core CreatureNames.CompanionSeed; 4/4 on Slot 8,
+    /// 2026-11-04).</summary>
+    public static string[] BirthTimePath(int companionIndex) => CompanionPath(companionIndex).Append("XwC").ToArray();
     public static string[] GenesImprovedPath(int companionIndex) => CompanionPath(companionIndex).Append("a2U").ToArray();
     public static string[] MutationProgressPath(int companionIndex) => CompanionPath(companionIndex).Append("KAx").ToArray();
     public static string[] HoloArenaVictoriesPath(int companionIndex) => CompanionPath(companionIndex).Append("u75").ToArray();

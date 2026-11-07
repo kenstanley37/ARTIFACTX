@@ -13,95 +13,93 @@ namespace ArtifactX.GameData;
 /// line (2026-10-14) so the app can run them on the player's PC.</summary>
 public static partial class CatalogSteps
 {
-    /// <summary>"DataCataloger add-language-words &lt;target-catalog-db-path&gt;" extracts every alien-language vocabulary word (the save-editable subset found at vLc.6f=.MF2 - see ArtifactX's project_language_words memory) from language/nms_loc1_english.mbin and writes them into an existing catalog DB as a new "GcAlienLanguageWords" category, UsageCategory = race name.  The loc table's TRA_/WAR_/EXP_/BUI_ prefixes aren't exclusively vocabulary words - the SAME prefixes are reused for lore paragraphs and other UI text (e.g. "EXP_1_PLAQUE_LORE_1" is a multi-sentence Korvax lore entry, not a word). Confirmed by direct inspection that every REAL word id follows a strict two-part shape - PREFIX_WORD, where WORD is letters/apostrophe only, no digits, no extra underscores - and that shape alone (not the text value) cleanly separates real words from lore noise with zero false positives spot-checked. Idempotent: re-running replaces any previously-inserted GcAlienLanguageWords category rather than duplicating them.</summary>
+    /// <summary>
+    /// Every alien word group a player can learn (format 71), one catalog row per
+    /// group in the "GcAlienLanguageWords" category: GameId = the group id the save
+    /// stores at vLc.6f=.MF2 (TRA_ATTACK), UsageCategory = race name, NameEnglish =
+    /// the group's forms ("traveller / travellers").
+    ///
+    /// Source is the game's word table, metadata/reality/tables/
+    /// nms_dialog_gcalienspeechtable.mbin (GcAlienSpeechTable): each row is one word
+    /// form with its Group and Race, and the game teaches and stores the GROUP.
+    /// Build 184271: Gek 1,164 forms in 928 groups, Vy'keen 1,170/936, Korvax
+    /// 1,106/864, Autophage 1,136/889, Atlas 269/226. Until format 70 this step took
+    /// every TRA_/WAR_/... key in the language file, one per form, so a save that
+    /// knew every Gek word still showed ~236 "unknown" (GitHub #31). Checked
+    /// 2026-11-04 on the owner's Slot 1, whose game reports Gek complete: it knows
+    /// all 928 Gek groups and none of the extra forms. Old saves can also hold a
+    /// few groups the table no longer lists (TRA_COLLECTION); they are left alone.
+    /// The table's one Race None row (BUI_MINE) is skipped.
+    /// </summary>
     public static void AddLanguageWords(string catalogPath, string pcbanksPath)
     {
-        string targetDbPath = catalogPath;
-        if (!File.Exists(targetDbPath))
+        if (!File.Exists(catalogPath))
         {
-            ConsoleStyle.Error($"Target catalog DB not found: {targetDbPath}");
+            ConsoleStyle.Error($"Target catalog DB not found: {catalogPath}");
             return;
         }
 
-
-        IPakDiscoveryService wordPakDiscovery = new PakDiscoveryService();
-        IPakReaderService wordPakReader = new PakReaderService();
-        var wordExtraction = new ExtractionService();
-        var wordPaks = wordPakDiscovery.Discover(pcbanksPath);
-
-        NMSTemplate? locTemplate = null;
-        foreach (var pak in wordPaks)
+        var reader = new PakReaderService();
+        var index = new GlobalFileIndexService();
+        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
         {
-            PakHeader header;
-            IReadOnlyList<PakEntry> entries;
-            try
-            {
-                header = wordPakReader.ReadHeader(pak.FullPath);
-                entries = wordPakReader.Read(pak.FullPath);
-            }
-            catch { continue; }
-
-            var match = entries.FirstOrDefault(e =>
-                !string.IsNullOrEmpty(e.FileName) &&
-                e.FileName.Contains("language/nms_loc1_english.mbin", StringComparison.OrdinalIgnoreCase));
-            if (match is null) continue;
-
-            byte[]? bytes;
-            try { bytes = wordExtraction.ExtractEntryBytes(pak.FullPath, match, header); }
-            catch (Exception ex) { ConsoleStyle.Error($"Extraction failed: {ex.Message}"); return; }
-            if (bytes is null || bytes.Length == 0) { ConsoleStyle.Error("Extraction returned no bytes."); return; }
-
-            using var ms = new MemoryStream(bytes);
-            var mbin = new MBINFile(ms);
+            if (pak.FullPath is not string path) continue;
+            try { index.Add(path, reader.ReadHeader(path), reader.Read(path)); }
+            catch (IOException) { /* Match the catalog's treatment of unreadable PAKs. */ }
+        }
+        var extraction = new ExtractionService();
+        NMSTemplate? Decode(string file)
+        {
+            if (!index.TryFind(file, out var pakPath, out var entry, out var header)) return null;
+            using var mbin = new MBINFile(new MemoryStream(extraction.ExtractEntryBytes(pakPath, entry, header)!));
             mbin.Load();
-            locTemplate = mbin.GetData();
-            break;
+            return mbin.GetData();
         }
 
-        if (locTemplate is null)
+        if (Decode("LANGUAGE/NMS_LOC1_ENGLISH.MBIN") is not NMSTemplate locTemplate)
         {
             ConsoleStyle.Error("Could not find/decode language/nms_loc1_english.mbin in any PAK.");
             return;
         }
-
         var lookup = LocalisationService.BuildEnglishLookup(locTemplate);
-        ConsoleStyle.Header($"Loc table decoded: {lookup.Count} total entries.");
-
-        var raceByPrefix = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        if (Decode("METADATA/REALITY/TABLES/NMS_DIALOG_GCALIENSPEECHTABLE.MBIN") is not libMBIN.NMS.GameComponents.GcAlienSpeechTable speech)
         {
-            ["TRA"] = "Gek",
-            ["WAR"] = "Vy'keen",
-            ["EXP"] = "Korvax",
-            ["BUI"] = "Autophage",
-            // Not a race - a smaller (~262-word) special vocabulary pool with no
-            // matching WORDS_LEARNT stat anywhere in Milestones, unlike the 4
-            // real races. Lives in the exact same MF2 array/id-shape though
-            // (confirmed 2026-08-04 - a few entries like ATLAS_STATION resolve
-            // to short phrases rather than single words, but still pass the
-            // same strict id-shape filter with zero lore-noise false positives).
-            ["ATLAS"] = "Atlas"
+            ConsoleStyle.Error("Could not find/decode the alien speech table (nms_dialog_gcalienspeechtable.mbin).");
+            return;
+        }
+
+        var raceNames = new Dictionary<libMBIN.NMS.GameComponents.GcAlienRace.AlienRaceEnum, string>
+        {
+            [libMBIN.NMS.GameComponents.GcAlienRace.AlienRaceEnum.Traders] = "Gek",
+            [libMBIN.NMS.GameComponents.GcAlienRace.AlienRaceEnum.Warriors] = "Vy'keen",
+            [libMBIN.NMS.GameComponents.GcAlienRace.AlienRaceEnum.Explorers] = "Korvax",
+            [libMBIN.NMS.GameComponents.GcAlienRace.AlienRaceEnum.Builders] = "Autophage",
+            // Not a race: a smaller vocabulary with no WORDS_LEARNT stat in Milestones.
+            [libMBIN.NMS.GameComponents.GcAlienRace.AlienRaceEnum.Atlas] = "Atlas",
         };
+        string English(string key) => lookup.TryGetValue(key, out var text) ? text.Trim() : "";
 
-        var wordPattern = new Regex(@"^(TRA|WAR|EXP|BUI|ATLAS)_[A-Z']+$", RegexOptions.Compiled);
-
-        var words = lookup
-            .Where(kv => wordPattern.IsMatch(kv.Key))
-            .Select(kv => (GameId: kv.Key.ToUpperInvariant(), NameEnglish: kv.Value, Race: raceByPrefix[kv.Key.Split('_')[0].ToUpperInvariant()]))
+        var words = speech.Table
+            .Where(row => raceNames.ContainsKey(row.Race.AlienRace) && !string.IsNullOrEmpty(row.Group.Value))
+            .GroupBy(row => (Race: raceNames[row.Race.AlienRace], Group: row.Group.Value.ToUpperInvariant()))
+            .Select(g =>
+            {
+                var forms = new[] { English(g.Key.Group) }.Concat(g.Select(row => English(row.Text.Value)))
+                    .Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                return (GameId: g.Key.Group, NameEnglish: forms.Count > 0 ? string.Join(" / ", forms) : g.First().Id.Value.ToLowerInvariant(), g.Key.Race);
+            })
             .ToList();
 
-        var byRace = words.GroupBy(w => w.Race).ToDictionary(g => g.Key, g => g.Count());
-        ConsoleStyle.Header($"Filtered to {words.Count} real vocabulary words (excludes lore/UI-text noise sharing the same prefixes):");
-        foreach (var (race, count) in byRace)
-            ConsoleStyle.Success($"  {race}: {count}");
+        ConsoleStyle.Header($"Alien speech table: {speech.Table.Count} word forms in {words.Count} learnable groups:");
+        foreach (var race in words.GroupBy(w => w.Race))
+            ConsoleStyle.Success($"  {race.Key}: {race.Count()}");
 
-        using var db = new CatalogDbContext(targetDbPath);
+        using var db = new CatalogDbContext(catalogPath);
 
         var existingCategory = db.Categories.FirstOrDefault(c => c.TemplateType == "GcAlienLanguageWords");
         if (existingCategory != null)
         {
-            ConsoleStyle.Info("Existing GcAlienLanguageWords category found - removing before re-inserting (idempotent re-run).");
-            var existingItems = db.Items.Where(i => i.CategoryId == existingCategory.Id);
-            db.Items.RemoveRange(existingItems);
+            db.Items.RemoveRange(db.Items.Where(i => i.CategoryId == existingCategory.Id));
             db.Categories.Remove(existingCategory);
             db.SaveChanges();
         }
@@ -109,8 +107,8 @@ public static partial class CatalogSteps
         var category = new CatalogCategory
         {
             TemplateType = "GcAlienLanguageWords",
-            RowType = "TkLocalisationEntry",
-            SourceMbinPath = "language/nms_loc1_english.mbin"
+            RowType = "GcAlienSpeechEntry",
+            SourceMbinPath = "metadata/reality/tables/nms_dialog_gcalienspeechtable.mbin"
         };
         db.Categories.Add(category);
         db.SaveChanges();
@@ -127,8 +125,7 @@ public static partial class CatalogSteps
         }
         db.SaveChanges();
 
-        ConsoleStyle.Success($"Wrote {words.Count} language word entries to {targetDbPath}.");
-        return;
+        ConsoleStyle.Success($"Wrote {words.Count} language word groups to {catalogPath}.");
     }
 
     /// <summary>"DataCataloger add-broken-tech-flag &lt;target-catalog-db-path&gt;" marks every GcTechnology row whose game-data "BrokenSlotTech" flag is set (the damaged- slot placeholders - Hull Fracture, Short Circuit, etc. - drawn red in-game) in an EXISTING catalog DB, adding the Items.IsBrokenSlotTech column first if the DB predates it. Same "patch the shipped DB in place" pattern as add-language-words/add-guide-topics, so their already-merged rows survive without a full rebuild; fresh full builds get the flag via CatalogClassifier directly. Idempotent - safe to re-run after a game update.  Found 2026-10-10 investigating a user save whose Install Technology menu was cluttered with useless red entries: a "Mark All Known" bulk edit had taught it all 36 BrokenSlotTech rows, which a healthy save never knows.</summary>
@@ -674,6 +671,7 @@ public static partial class CatalogSteps
             return;
         }
 
+        var corvetteSources = CorvettePartSources(pcbanksPath);
         var corvetteParts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         // The part's build-menu facts, kept as JSON in DescriptionEnglish - many
         // parts are rotations/mirrors of one buildable item (B_STR_K_NE, _NE1..3,
@@ -697,6 +695,9 @@ public static partial class CatalogSteps
                     ["isMod"] = part.IsModularCustomisation,
                     ["families"] = part.FamilyIDs?.Select(f => f?.Value ?? "").ToList() ?? new List<string>(),
                     ["composite"] = part.CompositePartObjectIDs?.Select(f => f?.Value ?? "").ToList() ?? new List<string>(),
+                    // Format 72 (CorvettePartSources): "basic", "barter", "reward:RS_..." or "".
+                    ["shop"] = corvetteSources.GetValueOrDefault(itemId).Shop ?? "",
+                    ["type"] = corvetteSources.GetValueOrDefault(itemId).Type ?? "",
                 });
         }
         ConsoleStyle.Header($"Found {corvetteParts.Count} corvette parts " +
@@ -1215,11 +1216,13 @@ public static partial class CatalogSteps
         IPakReaderService fishPakReader = new PakReaderService();
         var fishExtraction = new ExtractionService();
         libMBIN.NMS.GameComponents.GcFishTable? fishTable = null;
+        libMBIN.NMS.Globals.GcFishingGlobals? fishingGlobals = null;
+        libMBIN.NMS.GameComponents.GcBaitTable? baitTable = null;
         string fishSource = "";
 
         foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
         {
-            if (fishTable is not null) break;
+            if (fishTable is not null && fishingGlobals is not null && baitTable is not null) break;
             PakHeader header;
             IReadOnlyList<PakEntry> entries;
             try
@@ -1229,9 +1232,12 @@ public static partial class CatalogSteps
             }
             catch { continue; }
 
+            // The fish table, the fishing globals (gcfishingglobals.global.mbin: how depth picks a
+            // fish's size) and the bait table (metadata/reality/tables/baitdatatable.mbin).
             foreach (var entry in entries.Where(e => !string.IsNullOrEmpty(e.FileName)
                          && e.FileName.EndsWith(".mbin", StringComparison.OrdinalIgnoreCase)
-                         && e.FileName.Contains("fish", StringComparison.OrdinalIgnoreCase)))
+                         && !e.FileName.Contains("/anims/", StringComparison.OrdinalIgnoreCase)
+                         && (e.FileName.Contains("fish", StringComparison.OrdinalIgnoreCase) || e.FileName.Contains("bait", StringComparison.OrdinalIgnoreCase))))
             {
                 byte[]? bytes;
                 try { bytes = fishExtraction.ExtractEntryBytes(pak.FullPath, entry, header); }
@@ -1243,11 +1249,18 @@ public static partial class CatalogSteps
                     using var ms = new MemoryStream(bytes);
                     var mbin = new MBINFile(ms);
                     mbin.Load();
-                    if (mbin.GetData() is libMBIN.NMS.GameComponents.GcFishTable table)
+                    switch (mbin.GetData())
                     {
-                        fishTable = table;
-                        fishSource = entry.FileName!;
-                        break;
+                        case libMBIN.NMS.GameComponents.GcFishTable table when fishTable is null:
+                            fishTable = table;
+                            fishSource = entry.FileName!;
+                            break;
+                        case libMBIN.NMS.Globals.GcFishingGlobals globals when fishingGlobals is null:
+                            fishingGlobals = globals;
+                            break;
+                        case libMBIN.NMS.GameComponents.GcBaitTable baits when baitTable is null:
+                            baitTable = baits;
+                            break;
                     }
                 }
                 catch { continue; }
@@ -1309,7 +1322,81 @@ public static partial class CatalogSteps
         fishDb.SaveChanges();
 
         ConsoleStyle.Success($"Wrote {fishRows.Count} fish to {fishDbPath}.");
+        AddFishingRules(fishDb, fishingGlobals, baitTable);
         return;
+    }
+
+    /// <summary>Category "FishingRules" (#23): how the game picks a fish's size from the water's
+    /// depth and what each bait favours, from the player's own game files. Rows:
+    /// "DEPTH:&lt;size&gt;" (and "DEPTH:&lt;size&gt;:&lt;biome&gt;" for the planet types that override it -
+    /// Waterworld, GasGiant) with JSON {"size","biome","base","mod","min","max"} - GcFishSizeProbability;
+    /// "BAIT:&lt;product&gt;" with JSON {"id","rarity":[Junk..Legendary],"size":[S..XL],"day","night","storm"} -
+    /// GcBaitData. Read 2026-10-22: Small 0-1 (base 50, depth barely matters), Medium 5-15, Large 30-65,
+    /// ExtraLarge 45-90; water worlds 50-900; gas giants ignore depth. The game's own descriptions
+    /// agree ("shallower water", "deep water", "the deepest of water").</summary>
+    private static void AddFishingRules(CatalogDbContext db, libMBIN.NMS.Globals.GcFishingGlobals? globals, libMBIN.NMS.GameComponents.GcBaitTable? baits)
+    {
+        var existing = db.Categories.FirstOrDefault(c => c.TemplateType == "FishingRules");
+        if (existing != null)
+        {
+            db.Items.RemoveRange(db.Items.Where(i => i.CategoryId == existing.Id));
+            db.Categories.Remove(existing);
+            db.SaveChanges();
+        }
+        if (globals is null && baits is null)
+        {
+            ConsoleStyle.Error("No fishing globals or bait table found - fishing rules left out.");
+            return;
+        }
+
+        string[] sizes = { "Small", "Medium", "Large", "ExtraLarge" };
+        var rows = new List<CatalogItem>();
+        void Depth(libMBIN.NMS.GameComponents.GcFishSizeProbability[] weights, string? biome)
+        {
+            for (int i = 0; i < weights.Length && i < sizes.Length; i++)
+            {
+                var w = weights[i];
+                rows.Add(new CatalogItem
+                {
+                    GameId = "DEPTH:" + sizes[i] + (biome is null ? "" : ":" + biome),
+                    NameEnglish = sizes[i],
+                    DescriptionEnglish = new System.Text.Json.Nodes.JsonObject
+                    {
+                        ["size"] = sizes[i], ["biome"] = biome ?? "",
+                        ["base"] = w.BaseWeight, ["mod"] = w.DepthModifier, ["min"] = w.DepthRangeMin, ["max"] = w.DepthRangeMax,
+                    }.ToJsonString(),
+                });
+            }
+        }
+        if (globals?.SizeWeights is { } general) Depth(general, null);
+        foreach (var o in globals?.SizeWeightsBiomeOverrides ?? new())
+            if (o.SizeWeights is { } w) Depth(w, o.Biome?.Biome.ToString());
+
+        foreach (var bait in baits?.Bait ?? new())
+        {
+            string id = bait.ProductID?.Value ?? "";
+            if (id.Length == 0) continue;
+            rows.Add(new CatalogItem
+            {
+                GameId = "BAIT:" + id,
+                NameEnglish = id,
+                DescriptionEnglish = new System.Text.Json.Nodes.JsonObject
+                {
+                    ["id"] = id,
+                    ["rarity"] = new System.Text.Json.Nodes.JsonArray((bait.RarityBoosts ?? Array.Empty<float>()).Select(v => (System.Text.Json.Nodes.JsonNode)(double)v).ToArray()),
+                    ["size"] = new System.Text.Json.Nodes.JsonArray((bait.SizeBoosts ?? Array.Empty<float>()).Select(v => (System.Text.Json.Nodes.JsonNode)(double)v).ToArray()),
+                    ["day"] = bait.DayTimeBoost, ["night"] = bait.NightTimeBoost, ["storm"] = bait.StormBoost,
+                }.ToJsonString(),
+            });
+        }
+
+        var category = new CatalogCategory { TemplateType = "FishingRules", RowType = "GcFishSizeProbability/GcBaitData", SourceMbinPath = "gcfishingglobals.global.mbin + baitdatatable.mbin" };
+        db.Categories.Add(category);
+        db.SaveChanges();
+        foreach (var row in rows) row.CategoryId = category.Id;
+        db.Items.AddRange(rows);
+        db.SaveChanges();
+        ConsoleStyle.Success($"Wrote {rows.Count} fishing rules (depth by size, baits).");
     }
 
     /// <summary>"DataCataloger add-item-values &lt;target-catalog-db-path&gt;" adds the base Units value and trade data of every product and substance (GcProductTable / GcRealitySubstanceTable: BaseValue, TradeCategory, Legality, Rarity) as category "ItemValues". GameId = "VALUE:" + item id (prefixed so it never collides with the item's own catalog row in id lookups), NameEnglish = readable name, UsageCategory = TradeCategory (Mineral, Tech, Commodity, Component, Alloy, Exotic, Energy, None, SpecialShop), DescriptionEnglish = JSON {"id","value","legality","rarity","kind"}. Added 2026-10-11 for the Item Values tool; idempotent, same patch-in-place pattern as add-recipes.</summary>

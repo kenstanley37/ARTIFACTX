@@ -331,9 +331,202 @@ public static class UserDatabase
         ALTER TABLE fish_catches ADD COLUMN latitude REAL NULL;
         ALTER TABLE fish_catches ADD COLUMN longitude REAL NULL;
         """,
+
+        // 12 - designs saved on the Ship Designer page (2026-10-17), to add or
+        // apply to a ship later. payload = the design as JSON (ShipDesignsService).
+        """
+        CREATE TABLE ship_designs (
+            id          TEXT PRIMARY KEY,
+            profile_id  TEXT NOT NULL DEFAULT '',
+            name        TEXT NOT NULL DEFAULT '',
+            ship_type   TEXT NOT NULL DEFAULT '',
+            payload     TEXT NOT NULL,
+            created_at  TEXT NOT NULL,
+            updated_at  TEXT NOT NULL,
+            source      TEXT NOT NULL DEFAULT 'user',
+            synced_at   TEXT NULL,
+            deleted     INTEGER NOT NULL DEFAULT 0
+        );
+        """,
+
+        // 13 - a picture of each saved design for the designer's list (2026-10-17):
+        // PNG from the preview renderer. NULL until one is taken.
+        """
+        ALTER TABLE ship_designs ADD COLUMN thumbnail BLOB NULL;
+        """,
+
+        // 14 - how many kinds of fauna a planet has (2026-10-17), from its Discoveries
+        // page ("0 / 6 Discovered"; 0 = "No Planetary Fauna"). NULL = not known.
+        """
+        ALTER TABLE planet_details ADD COLUMN fauna_total INTEGER NULL;
+        """,
+
+        // 15 - planet or moon, as the game's own pop-up said it (MARK MOON / MARK PLANET),
+        // read by game screen recording (2026-10-17; BodyKindsService).
+        """
+        CREATE TABLE body_kinds (
+            system_address TEXT NOT NULL,
+            planet_index   INTEGER NOT NULL,
+            is_moon        INTEGER NOT NULL,
+            updated_at     TEXT NOT NULL,
+            source         TEXT NOT NULL DEFAULT 'captured',
+            synced_at      TEXT NULL,
+            deleted        INTEGER NOT NULL DEFAULT 0,
+            profile_id     TEXT NOT NULL DEFAULT '',
+            added_by       TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (system_address, planet_index)
+        );
+        """,
+
+        // 16 - what each system's station sells, from its trade terminal (2026-10-17,
+        // GitHub #9; SystemMarketService). price in units, change as shown ("-18.4%").
+        """
+        CREATE TABLE system_market (
+            system_address TEXT NOT NULL,
+            item_id        TEXT NOT NULL,
+            name           TEXT NOT NULL DEFAULT '',
+            price          INTEGER NOT NULL DEFAULT 0,
+            change         TEXT NOT NULL DEFAULT '',
+            stock          INTEGER NOT NULL DEFAULT 0,
+            seen_at        TEXT NOT NULL,
+            updated_at     TEXT NOT NULL,
+            source         TEXT NOT NULL DEFAULT 'captured',
+            synced_at      TEXT NULL,
+            deleted        INTEGER NOT NULL DEFAULT 0,
+            profile_id     TEXT NOT NULL DEFAULT '',
+            added_by       TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (system_address, item_id)
+        );
+        """,
+
+        // 17 - market by place (2026-10-17): a planet's trading post sells other stock at
+        // other prices than the system's space station. place = "station" or "planet:N".
+        // Rows from step 16 are copied in as "station"; system_market is left unused.
+        """
+        CREATE TABLE market_items (
+            system_address TEXT NOT NULL,
+            place          TEXT NOT NULL DEFAULT 'station',
+            item_id        TEXT NOT NULL,
+            name           TEXT NOT NULL DEFAULT '',
+            price          INTEGER NOT NULL DEFAULT 0,
+            change         TEXT NOT NULL DEFAULT '',
+            stock          INTEGER NOT NULL DEFAULT 0,
+            seen_at        TEXT NOT NULL,
+            updated_at     TEXT NOT NULL,
+            source         TEXT NOT NULL DEFAULT 'captured',
+            synced_at      TEXT NULL,
+            deleted        INTEGER NOT NULL DEFAULT 0,
+            profile_id     TEXT NOT NULL DEFAULT '',
+            added_by       TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (system_address, place, item_id)
+        );
+        INSERT INTO market_items (system_address, place, item_id, name, price, change, stock, seen_at, updated_at, source, synced_at, deleted, profile_id, added_by)
+            SELECT system_address, 'station', item_id, name, price, change, stock, seen_at, updated_at, source, synced_at, deleted, profile_id, added_by
+            FROM system_market WHERE price > 0;
+        """,
+
+        // 18 - provenance (2026-10-17, for the future shared database): which source set each
+        // value - "captured" off a game screen, "user" typed, "save" learned from a save - and
+        // the game build it was seen on, field by field (FieldSources). entity = "planet"
+        // (key "<system hex>|<index>") or "system" (key "<system hex>"). Market rows are a
+        // single reading each, so they just get the build column.
+        """
+        CREATE TABLE field_sources (
+            entity      TEXT NOT NULL,
+            entity_key  TEXT NOT NULL,
+            field       TEXT NOT NULL,
+            value       TEXT NOT NULL DEFAULT '',
+            source      TEXT NOT NULL DEFAULT '',
+            game_build  TEXT NOT NULL DEFAULT '',
+            recorded_at TEXT NOT NULL,
+            synced_at   TEXT NULL,
+            deleted     INTEGER NOT NULL DEFAULT 0,
+            profile_id  TEXT NOT NULL DEFAULT '',
+            added_by    TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (entity, entity_key, field)
+        );
+        ALTER TABLE market_items ADD COLUMN game_build TEXT NOT NULL DEFAULT '';
+        """,
+
+        // 19 - creatures on a planet (2026-10-18), read off the game's Discoveries fauna list
+        // (CreatureListService). The save keeps one record per creature but only its seeds,
+        // not its name or traits. name_key = the name without its "E. " initial, which the
+        // reading sometimes drops. picture = a picture was kept in creature-pictures.
+        """
+        CREATE TABLE planet_creatures (
+            system_address TEXT NOT NULL,
+            planet_index   INTEGER NOT NULL,
+            name_key       TEXT NOT NULL,
+            name           TEXT NOT NULL DEFAULT '',
+            rarity         TEXT NOT NULL DEFAULT '',
+            habitat        TEXT NOT NULL DEFAULT '',
+            activity       TEXT NOT NULL DEFAULT '',
+            gender         TEXT NOT NULL DEFAULT '',
+            size           TEXT NOT NULL DEFAULT '',
+            picture        INTEGER NOT NULL DEFAULT 0,
+            seen_at        TEXT NOT NULL,
+            updated_at     TEXT NOT NULL,
+            source         TEXT NOT NULL DEFAULT 'captured',
+            game_build     TEXT NOT NULL DEFAULT '',
+            synced_at      TEXT NULL,
+            deleted        INTEGER NOT NULL DEFAULT 0,
+            profile_id     TEXT NOT NULL DEFAULT '',
+            added_by       TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (system_address, planet_index, name_key)
+        );
+        """,
+        // 20 - specific planetary descriptor (e.g. "Crimson Planet", "Paradise Planet",
+        // "Verdant Planet", "Contaminated Moon"), captured from Discoveries pop-ups or flight cards.
+        """
+        ALTER TABLE planet_details ADD COLUMN descriptor TEXT NOT NULL DEFAULT '';
+        """,
+
+        // 21 - every system a save has been seen to know (2026-11-03, VisitedSystemsService):
+        // the save's own discovery list drops old visits (owner, Bug 58), so Regions
+        // counts this history too. save_key = account/slot (/expedition while one runs).
+        """
+        CREATE TABLE visited_systems (
+            save_key       TEXT NOT NULL,
+            system_address TEXT NOT NULL,
+            first_seen     TEXT NOT NULL,
+            last_seen      TEXT NOT NULL,
+            source         TEXT NOT NULL DEFAULT 'save',
+            synced_at      TEXT NULL,
+            deleted        INTEGER NOT NULL DEFAULT 0,
+            profile_id     TEXT NOT NULL DEFAULT '',
+            added_by       TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (save_key, system_address)
+        );
+        """,
     };
 
     public static int SchemaVersion => Migrations.Length;
+
+    /// <summary>Returns size details for user.db, WAL, and total bytes.</summary>
+    public static (long MainBytes, long WalBytes, long TotalBytes) GetDatabaseSizeDetails()
+    {
+        long main = 0;
+        long wal = 0;
+        long shm = 0;
+        try
+        {
+            if (File.Exists(FilePath))
+                main = new FileInfo(FilePath).Length;
+
+            string walPath = FilePath + "-wal";
+            if (File.Exists(walPath))
+                wal = new FileInfo(walPath).Length;
+
+            string shmPath = FilePath + "-shm";
+            if (File.Exists(shmPath))
+                shm = new FileInfo(shmPath).Length;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[UserDatabase] Failed to get database size details: {ex.Message}");
+        }
+        return (main, wal, main + wal + shm);
+    }
 
     public static string Now() => DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
 

@@ -1,6 +1,7 @@
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
+using libMBIN.NMS.GameComponents;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -32,7 +33,7 @@ public sealed partial class LanguageWordsControl : UserControl
     private List<LanguageWordRowViewModel> _currentlyVisibleRows = new();
 
     // MF2's entries are NOT plain id strings like 4kj/B1h - each is an object:
-    // {"MYl": "^TRA_ATTACK", "D;o": [8-9 booleans, semantics not fully decoded]}.
+    // {"MYl": "^TRA_ATTACK", "D;o": [one flag per race, see NmsLanguagePaths]}.
     // _fullEntries preserves every entry's own original JObject untouched
     // (including whatever D;o shape it already had) except for ones this
     // control adds/removes itself; _fullKnownIdSet is just the normalized
@@ -59,6 +60,7 @@ public sealed partial class LanguageWordsControl : UserControl
 
         SaveSessionManager.ActiveSessionChanged += OnActiveSessionChanged;
         SaveSessionManager.PendingEditsChanged += OnPendingEditsChanged;
+        SaveSessionManager.GameSavedLoadedSlot += OnGameSaved;
         Unloaded += Control_Unloaded;
 
         KnownFilterBox.SelectedIndex = 0;
@@ -79,6 +81,29 @@ public sealed partial class LanguageWordsControl : UserControl
     {
         SaveSessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
         SaveSessionManager.PendingEditsChanged -= OnPendingEditsChanged;
+        SaveSessionManager.GameSavedLoadedSlot -= OnGameSaved;
+    }
+
+    /// <summary>Words learned in game appear once the game saves, ticked in place
+    /// (no reload, scroll kept). Unsaved word edits win: LiveFieldsService leaves
+    /// the list alone while any are staged.</summary>
+    private void OnGameSaved(JObject disk)
+    {
+        if (_allWords is null) return;
+        if (LiveFieldsService.Adopt(disk, [NmsLanguagePaths.KnownWordsArrayPath]).Count == 0) return;
+        ReadKnownEntries();
+        foreach (var row in _allWords) row.IsKnown = _fullKnownIdSet.Contains(row.GameId);
+        string? knownFilter = (KnownFilterBox.SelectedItem as ComboBoxItem)?.Content as string;
+        if (knownFilter is "Known Only" or "Unknown Only") ApplyFilters();
+    }
+
+    private void ReadKnownEntries()
+    {
+        var knownArray = SaveSessionManager.GetValue(NmsLanguagePaths.KnownWordsArrayPath) as JArray;
+        _fullEntries = knownArray?.OfType<JObject>().ToList() ?? new();
+        _fullKnownIdSet = new HashSet<string>(
+            _fullEntries.Select(e => CatalogService.NormalizeId(e["MYl"]?.Value<string>() ?? "")).Where(s => s.Length > 0),
+            StringComparer.Ordinal);
     }
 
     private async Task LoadWordsAsync()
@@ -99,11 +124,7 @@ public sealed partial class LanguageWordsControl : UserControl
 
         var allCatalogWords = await CatalogService.GetAllLanguageWordsAsync();
 
-        var knownArray = SaveSessionManager.GetValue(NmsLanguagePaths.KnownWordsArrayPath) as JArray;
-        _fullEntries = knownArray?.OfType<JObject>().ToList() ?? new();
-        _fullKnownIdSet = new HashSet<string>(
-            _fullEntries.Select(e => CatalogService.NormalizeId(e["MYl"]?.Value<string>() ?? "")).Where(s => s.Length > 0),
-            StringComparer.Ordinal);
+        ReadKnownEntries();
 
         // The actual row-building (filter ~4,570 down to one race, construct
         // ~1,100-1,170 ObservableObject instances) is real work, not just a
@@ -119,7 +140,10 @@ public sealed partial class LanguageWordsControl : UserControl
                 GameId = w.GameId,
                 DisplayName = ToDisplayCase(w.DisplayName),
                 IsKnown = knownIdSet.Contains(w.GameId)
-            }).ToList());
+            })
+            // By the word shown, not the group id: TRA_TREASURE reads "Artifact".
+            .OrderBy(w => w.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+            .ToList());
 
         LoadingRing.IsActive = false;
         LoadingRing.Visibility = Visibility.Collapsed;
@@ -168,9 +192,8 @@ public sealed partial class LanguageWordsControl : UserControl
     /// <summary>Mutates only entries matching this control's own _idPrefix -
     /// every other race's entries in the shared array are left exactly as
     /// they were read, and get re-staged untouched alongside this change.
-    /// A newly-added entry's "D;o" shape (8 booleans, first True) matches
-    /// exactly what a reference tool itself wrote for new entries in the
-    /// confirming test - see NmsLanguagePaths' doc comment.</summary>
+    /// A newly-added entry's "D;o" is one flag per GcAlienRace value with only
+    /// the word's own race set, as the game writes them (NmsLanguagePaths).</summary>
     private void SetRowKnown(LanguageWordRowViewModel row, bool known)
     {
         row.IsKnown = known;
@@ -179,10 +202,12 @@ public sealed partial class LanguageWordsControl : UserControl
         {
             if (_fullKnownIdSet.Add(row.GameId))
             {
+                var flags = new bool[Enum.GetValues<GcAlienRace.AlienRaceEnum>().Length];
+                flags[(int)RaceOf(_idPrefix)] = true;
                 _fullEntries.Add(new JObject
                 {
                     ["MYl"] = "^" + row.GameId,
-                    ["D;o"] = new JArray(true, false, false, false, false, false, false, false)
+                    ["D;o"] = new JArray(flags.Cast<object>().ToArray())
                 });
             }
         }
@@ -192,6 +217,17 @@ public sealed partial class LanguageWordsControl : UserControl
                 _fullEntries.RemoveAll(e => CatalogService.NormalizeId(e["MYl"]?.Value<string>() ?? "") == row.GameId);
         }
     }
+
+    /// <summary>The race whose flag a word of this id prefix sets.</summary>
+    private static GcAlienRace.AlienRaceEnum RaceOf(string idPrefix) => idPrefix switch
+    {
+        "TRA" => GcAlienRace.AlienRaceEnum.Traders,
+        "WAR" => GcAlienRace.AlienRaceEnum.Warriors,
+        "EXP" => GcAlienRace.AlienRaceEnum.Explorers,
+        "BUI" => GcAlienRace.AlienRaceEnum.Builders,
+        "ATLAS" => GcAlienRace.AlienRaceEnum.Atlas,
+        _ => throw new ArgumentOutOfRangeException(nameof(idPrefix), idPrefix, "Not a language word prefix.")
+    };
 
     private void Tile_Tapped(object sender, TappedRoutedEventArgs e)
     {
