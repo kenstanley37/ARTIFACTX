@@ -85,4 +85,18 @@ public sealed class TemplatePreviewViewModel
     public IReadOnlyList<TemplatePreviewItemViewModel> Items { get; }
     public string Compatibility { get; }
     public bool HasProblems { get; }
+
+    public bool HasModelPreview => (Template.SourceKind == "Ship" || Template.SourceKind == "Freighter")
+        && Template.Scope == "FullBuild"
+        && !string.IsNullOrEmpty(Template.TypeScenePath);
+
+    public string ModelSubject => Template.SourceKind == "Freighter" ? "freighter" : "ship";
+
+    public BuiltLook? BuiltLook => ShipPartsService.BuiltLookFromCustomisation(Template.Customisation);
+
+    public Microsoft.UI.Xaml.Visibility ModelVisibility => HasModelPreview
+        ? Microsoft.UI.Xaml.Visibility.Visible
+        : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+    public double DialogContentMaxWidth => HasModelPreview ? 960.0 : 620.0;
 }

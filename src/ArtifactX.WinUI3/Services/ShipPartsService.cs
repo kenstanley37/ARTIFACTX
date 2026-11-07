@@ -188,6 +188,27 @@ public static class ShipPartsService
         return items.Count == 0 && colours.Count == 0 ? null : new BuiltLook(items, colours, styles);
     }
 
+    /// <summary>Extracts a built ship's parts, paint and styles from a captured
+    /// customisation JSON string (e.g. template.Customisation).</summary>
+    public static BuiltLook? BuiltLookFromCustomisation(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            var root = JObject.Parse(json);
+            var data = root["wnR"] as JObject ?? root;
+            var items = (data["SMP"] as JArray)?.Select(t => t.ToString().TrimStart('^')).Where(t => t.Length > 0).ToList() ?? new();
+            var colours = ModelPreviewService.StoredColours(data["Aak"]);
+            var styles = (data["T>1"] as JArray)?.Select(t => t["=Cv"]?.ToString().TrimStart('^') ?? "").Where(t => t.Length > 0)
+                .ToHashSet(StringComparer.Ordinal) ?? new();
+            return items.Count == 0 && colours.Count == 0 ? null : new BuiltLook(items, colours, styles);
+        }
+        catch (Newtonsoft.Json.JsonException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>A built ship's parts as model options: each builder item turns on its
     /// descriptor options (PartGroups - FIGHT_COCKAA -> _COCKPIT_A...).</summary>
     public static List<string>? StoredOptions(BuiltLook? built) =>

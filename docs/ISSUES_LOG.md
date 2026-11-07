@@ -587,16 +587,59 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 
 ### Feature 68: 3D Model Preview in Starship Template Preview Dialog
 - **Source**: Owner request, 2026-11-07, with screenshot `media_1794072002566_c2783150.jpg` of the `AwesomeVette` Full Build template preview dialog: "The preview of our starships show nothing but the tech and stats. We need to be able to give a 3d preview of the ship as well. Just another thing to add to the list"
-- **Goal**: When previewing a saved starship template from the Templates sidebar (in `StarshipsPage`, `LoadoutTemplatesPanel`), render an interactive 3D model preview of the starship alongside or within `TemplatePreview.xaml`.
+- **Status 2026-11-07**: Built on branch `feature/template-ship-3d-preview`.
+- **Implementation**:
+  - `TemplatePreview.xaml` / `TemplatePreviewViewModel.cs` updated to a dynamic side-by-side layout:
+    - Full Build Starships and Freighters (where `Scope == "FullBuild"` and `TypeScenePath` is present) expand dialog max width to 1,000px, rendering an interactive `ModelPreviewPanel` (Width 380px, Height 260px) in the left column with drag-to-orbit rotation.
+    - Right column houses the template facts, base stats bonuses, scrollable tech grid, and compatibility notes.
+    - Non-model or Tech Stack templates gracefully collapse the model column and remain at standard 620px width.
+  - Enhanced `ModelPreviewPanel.xaml.cs` to support:
+    - Fabricated ships with custom paint, styles, and options via `BuiltLook`.
+    - Fixed-look ships (Golden Vector, Starborn Runner, Boundary Herald, etc.) with authentic game textures via `FixedLookAsync`.
+    - Sentinel Interceptors with seed-derived palette painting.
+    - Conventional and freighter models with hologram scan fallback.
+  - Added `ShipPartsService.BuiltLookFromCustomisation` to parse saved paint, parts, and styles directly from `template.Customisation`.
+
+### Feature 69: Modular 3D Assembly & Rendering for Player Corvettes & Base Parts
+- **Source**: Owner feedback, 2026-11-07, with screenshot `media_1794073956925_637aa2d4.jpg` of `AwesomeVette`: "I don't think we have corvettes showing correctly yet... we want to be able to show the corvettes sooner or later because people will want to share them with each other either through json export or the api that we will design later on."
+- **Goal**: Render complete player-built Corvettes (`BIGGS`) and base-building structures in 3D by assembling modular parts (`InteriorObjects` / `PlayerShipBase` / `@ZJ`) placed in 3D local coordinates, enabling visual inspection, template sharing, and crowd-source design exports.
 - **Details**:
-  - **Existing State**: `TemplatePreview.xaml` / `TemplatePreviewViewModel.cs` displays a single-column layout containing template metadata facts (Class, Saved from, Saved date, Tech count, Unlocked slots, Supercharged slots, Cargo slots, Look info), base stat bonuses, and a scrollable grid of technology icons with compatibility notes.
-  - **Full Build Template Data**: Full Build templates (`Scope == "FullBuild"`, `SourceKind == "Ship"`) already store the ship's procedural hull `Seed`, `TypeScenePath` (model type, e.g. Fighter, Sentinel Interceptor, Explorer, Hauler, Solar, Shuttle, Exotic), and `Customisation` (paint colors/style). For corvettes, it also stores `ShipBase` and `InteriorObjects`.
-  - **Target UI Design**:
-    - For templates with `SourceKind == "Ship"` and a valid `TypeScenePath` / `Seed`:
-      - Expand the dialog layout to a comfortable two-column or split layout (e.g. 3D `ShipPreview` viewport on one side, facts/base stats/tech grid on the other), or embed an interactive preview card at the top.
-      - Embed the existing reusable `ShipPreview` control (from `ArtifactX.WinUI3.Controls`) bound to the template's scene path, seed, and customization colors.
-      - Allow mouse drag-to-orbit rotation matching `StarshipsPage` and `SquadronPage`.
-    - For non-ship templates (Multi-Tools, Freighters) or Tech Stack-only templates (which deliberately omit hull seed/model), gracefully retain the compact facts/stats/tech-only view.
+  - **Chassis vs Modular Construction**: In No Man's Sky, conventional starships use procedural descriptor scenes (`FIGHTER_PROC`, `SENTINELSHIP`). Corvettes, however, use only a bare landing frame chassis (`MODELS/COMMON/SPACESHIPS/BIGGS/BIGGS.SCENE.MBIN`), while the actual ship body is composed of dozens to hundreds of custom base modules (cockpits, habs, wings, engines, landing gear, hull panels) stored in `PlayerShipBase` / `InteriorObjects`.
+  - **Template & Save Data**: Templates and export files already capture these parts as `NmsLoadoutBaseObject` entries:
+    - `ObjectId`: part identifier (e.g. `^BIGGS_COCKPIT_A`, `^BIGGS_WING_B`, `^BIGGS_HAB_C`).
+    - `Position`: $[x, y, z]$ translation coordinates in local ship space.
+    - `Up`: $[x, y, z]$ local up normal vector.
+    - `At`: $[x, y, z]$ local forward facing vector.
+  - **Target 3D Composite Pipeline**:
+    1. Resolve each `ObjectId` to its building part scene path from the catalog / geometry tables.
+    2. Build/cache the geometry for each unique part type.
+    3. Calculate the $4\times4$ transform matrix ($Position$, $Up$, $At$, and orthonormal cross product).
+    4. Transform each part's vertex buffers into local model space and merge them into a single composite mesh for `ShipPreview`.
+  - **Immediate Interim State**: `ModelPreviewPanel` detects `ShipBaseService.IsCorvetteModel` and displays the chassis as a clean hologram with note: *"Corvette base chassis. Custom modular parts (cockpit, wings, thrusters) are placed in game — full modular 3D assembly in development."*
+
+### Feature 70: Seed Generation History (Undo & Redo) in SeedBox
+- **Source**: Owner request, 2026-11-07: "when a user is clicking generate to change the way the ship looks there is no back button. So unless he copies the seed he has lost it possibly forever... We need a forward button as well but it needs to be smart. It should become disabled when it gets to the end of the list and the back button should be disabled when it reaches the start of the list."
+- **Status 2026-11-07**: Solved and built on branch `feature/seed-undo-corvette-preview`.
+- **Implementation**:
+  - Maintained an in-memory session history list (`_history`, capped at 30 entries) and tracking index (`_historyIndex`) in the shared [`SeedBox`](file:///d:/Code-Projects/ARTIFACTX/src/ArtifactX.WinUI3/Controls/SeedBox.xaml) control.
+  - Added Back (Undo `&#xE7A7;`) and Forward (Redo `&#xE7A6;`) buttons directly between the seed TextBox and the Generate button.
+  - Smart boundary disabling:
+    - Back button disables at the beginning of history (`_historyIndex <= 0`).
+    - Forward button disables at the newest roll (`_historyIndex >= _history.Count - 1`).
+    - Clicking Generate from the middle of history truncates forward history and branches cleanly into the new roll.
+  - History is preserved during the active edit session on that ship/equipment, and resets cleanly when switching equipment or loading another save.
+  - App-wide: protects seed rolls across Starships, Freighters, Squadron Pilots, Frigates, Exocraft, and Companions.
+
+### Issue 71: Sentinel Interceptor Seed Colors Mismatch (In-Game vs 3D Preview)
+- **Source**: Owner comparison screenshots, 2026-11-07: ArtifactX preview (`media_1794075254036_4e7a5803.jpg`) vs in-game photo mode on landing pad (`media_1794075281636_f9aac39e.jpg`).
+- **Problem**:
+  - In-game, `DudeWing` is bright red with black wings and white accents.
+  - In ArtifactX's 3D preview, `DudeWing` displays with dark purple/blue hull and black trim.
+- **Root Cause & Research**:
+  - `ModelPreviewService.SeedColoursAsync` generates palette entries from the ship seed, but the shader layer assignment on `SENTINELSHIPMAT` / `DETMAT` in NMS does not map primary/secondary palette indices 1:1 with the current lookup order.
+  - Needs investigation into the exact palette layer mapping in `MODELS/COMMON/SPACESHIPS/SENTINELSHIP/` to align the primary/secondary hull color channels with in-game appearance.
+
+
 
 
 

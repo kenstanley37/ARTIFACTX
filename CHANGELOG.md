@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Seeds: Clicking Generate on any seed box (Starships, Freighters, Squadron, Frigates, Exocraft, Companions) now includes Previous and Next buttons to step backward and forward through your rolls during your edit session.
+- Templates: Previewing a full build starship or freighter template shows an interactive 3D model of the ship alongside its tech and stats, with drag-to-turn rotation.
 - Save Selection has a restore button on each account folder's header to pick and restore timestamped backups of account-wide data (accountdata.hg) such as expedition rewards, Twitch unlocks, and guide entries.
 - Squadron page shows a live 3D preview and procedural name for each pilot's assigned starship, generated from your game files and the ship's seed.
 - Official GitHub Pages project website showcasing features, 3D previews, safety architecture, and release download links.
