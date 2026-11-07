@@ -6,6 +6,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Starships: Corvettes now show a "Corvette 3D model coming soon" placeholder in the preview section rather than leaving the preview area empty.
 - Seeds: Clicking Generate on any seed box (Starships, Freighters, Squadron, Frigates, Exocraft, Companions) now includes Previous and Next buttons to step backward and forward through your rolls during your edit session.
 - Templates: Previewing a full build starship or freighter template shows an interactive 3D model of the ship alongside its tech and stats, with drag-to-turn rotation.
 - Save Selection has a restore button on each account folder's header to pick and restore timestamped backups of account-wide data (accountdata.hg) such as expedition rewards, Twitch unlocks, and guide entries.

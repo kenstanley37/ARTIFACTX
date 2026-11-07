@@ -49,9 +49,15 @@ public sealed partial class ShipsPage
         var root = ShipPartsService.LoadTree(ShipParts.DescriptorFor(scene));
         bool hasSeed = ShipPartsService.TryParseSeed(SeedBox.Text, out ulong seed);
         var built = ShipPartsService.BuiltLookOf(_selectedIndex);
-        // Every ship type has a model, parts or not - except a corvette, whose look is
-        // the modules built onto it, stored apart from the ship.
-        if (!IsCorvetteSelected() && (root is null || hasSeed))
+        // Corvettes are modular base-built ships placed in game; their parts are stored
+        // apart from the seed, so a placeholder is shown until full modular 3D assembly arrives.
+        if (IsCorvetteSelected())
+        {
+            ShipPreviewGroup.Visibility = Visibility.Visible;
+            ShipPreviewView.ShowMessage("Corvette 3D model coming soon");
+            ShipPreviewNote.Text = "Corvettes are built from modular components placed in game. Full modular 3D assembly is in development.";
+        }
+        else if (root is null || hasSeed)
         {
             await ShipPartsService.EnsureLookAsync();
             if (refresh != _previewVersion) return;

@@ -1,4 +1,4 @@
-﻿using ArtifactX.GameData;
+using ArtifactX.GameData;
 using ArtifactX.WinUI3.Services;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -87,6 +87,8 @@ public sealed class ShipPreview : UserControl
         _image.Source = null;
         _status.Text = text;
         _status.Visibility = Visibility.Visible;
+        _hint.Visibility = Visibility.Collapsed;
+        ProtectedCursor = null;
     }
 
     /// <summary>Shows a model; <paramref name="colourOf"/> gives each material's RGB,
@@ -96,6 +98,8 @@ public sealed class ShipPreview : UserControl
     public void Show(ShipMesh? mesh, Func<string, uint> colourOf, Func<string, ModelTexture?>? textureOf = null, bool hologram = false)
     {
         _status.Visibility = Visibility.Collapsed;
+        _hint.Visibility = mesh is null ? Visibility.Collapsed : Visibility.Visible;
+        ProtectedCursor = mesh is null ? null : InputSystemCursor.Create(InputSystemCursorShape.SizeAll);
         _hologram = hologram;
         _mesh = mesh;
         _yaw = StartYaw + StartYawOffset; _pitch = StartPitch; // each ship opens on its front
