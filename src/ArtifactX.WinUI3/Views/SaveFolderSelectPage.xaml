@@ -77,6 +77,11 @@
                                             <TextBlock Text="{x:Bind SubText, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                                            <Button Click="RestoreAccountBackupBtn_Click" Tag="{x:Bind}"
+                                                    Background="Transparent" BorderThickness="0" Padding="4" VerticalAlignment="Center"
+                                                    ToolTipService.ToolTip="Restore this account's shared data from a backup" AutomationProperties.Name="Restore account data from a backup">
+                                                <FontIcon Glyph="&#xE81C;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                                            </Button>
                                             <Button Click="RenameFolderBtn_Click" Tag="{x:Bind}"
                                                     Background="Transparent" BorderThickness="0" Padding="4" VerticalAlignment="Center"
                                                     ToolTipService.ToolTip="Give this account a nickname" AutomationProperties.Name="Rename">

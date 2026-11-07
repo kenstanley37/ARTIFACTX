@@ -5,6 +5,7 @@ using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -155,6 +156,82 @@ public sealed partial class SaveFolderSelectPage : Page
 
         await ShowSimpleDialogAsync("Restored",
             $"{slot.SlotLabel} was restored from the backup made {chosen.Timestamp:MMM d, yyyy • h:mm:ss tt}.");
+    }
+
+    private async void RestoreAccountBackupBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: SaveFolderCandidate candidate }) return;
+
+        if (GameProcessMonitorService.IsGameRunning)
+        {
+            await ShowSimpleDialogAsync("No Man's Sky is running",
+                "Close No Man's Sky before restoring a backup - overwriting save files while the game is running risks corrupting them.");
+            return;
+        }
+
+        string accountFolder = candidate.FolderPath;
+        string accountDataPath = Path.Combine(accountFolder, "accountdata.hg");
+        string groupKey = BackupService.BuildAccountDataGroupKey(accountFolder);
+        var restorePoints = BackupService.GetRestorePoints(groupKey);
+
+        if (restorePoints.Count == 0)
+        {
+            await ShowSimpleDialogAsync("No backups yet",
+                $"No backups have been made for {candidate.DisplayName}'s account data yet - one is created automatically before saving account-wide changes (Expedition Rewards, Twitch Rewards, or Guide).");
+            return;
+        }
+
+        var listView = new ListView
+        {
+            SelectionMode = ListViewSelectionMode.Single,
+            MaxHeight = 300,
+            ItemsSource = restorePoints
+                .Select(p => $"{p.Timestamp:MMM d, yyyy • h:mm:ss tt}  ({string.Join(", ", p.FileNames)})")
+                .ToList()
+        };
+
+        var dialog = new ContentDialog
+        {
+            Title = $"Restore {candidate.DisplayName} Account Data",
+            Content = new StackPanel
+            {
+                Spacing = 8,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        TextWrapping = TextWrapping.Wrap,
+                        Text = "Pick an account data backup to restore. This overwrites accountdata.hg (account-wide unlocks, expedition rewards, and guide progress). Whatever is on disk right now is backed up first, so this can be undone the same way."
+                    },
+                    listView
+                }
+            },
+            PrimaryButtonText = "Restore",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close,
+            IsPrimaryButtonEnabled = false,
+            XamlRoot = this.XamlRoot
+        };
+
+        listView.SelectionChanged += (_, _) => dialog.IsPrimaryButtonEnabled = listView.SelectedIndex >= 0;
+
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+        var chosen = restorePoints[listView.SelectedIndex];
+        var currentFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["accountdata.hg"] = accountDataPath
+        };
+        BackupService.Restore(chosen, currentFiles, groupKey);
+
+        if (AccountSessionManager.IsLoaded)
+        {
+            AccountSessionManager.CloseSession();
+            await AccountSessionManager.LoadAsync();
+        }
+
+        await ShowSimpleDialogAsync("Restored",
+            $"Account data for {candidate.DisplayName} was restored from the backup made {chosen.Timestamp:MMM d, yyyy • h:mm:ss tt}.");
     }
 
     private async Task ShowSimpleDialogAsync(string title, string message)

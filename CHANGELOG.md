@@ -6,6 +6,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Save Selection has a restore button on each account folder's header to pick and restore timestamped backups of account-wide data (accountdata.hg) such as expedition rewards, Twitch unlocks, and guide entries.
 - In-app automatic updater powered by Velopack: when an update is available on GitHub Releases, players can update and restart directly from the title bar or Settings page without having to manually download installers. Player data and databases in %AppData%\ArtifactX remain completely untouched.
 - GitHub Actions automated release pipeline and continuous integration workflows.
 
