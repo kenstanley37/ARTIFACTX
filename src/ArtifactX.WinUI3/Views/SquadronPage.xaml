@@ -57,7 +57,8 @@
                              descendant control is the whole point here. -->
                         <ContentControl x:Name="EditableFieldsPanel" HorizontalContentAlignment="Stretch"
                                         IsTabStop="False">
-                        <StackPanel Spacing="18">
+                        <ctcontrols:WrapPanel HorizontalSpacing="28" VerticalSpacing="18">
+                        <StackPanel Spacing="18" MaxWidth="660">
 
                         <!-- WrapPanel, not a plain horizontal StackPanel - a
                              fixed-orientation StackPanel doesn't reflow, so
@@ -126,6 +127,13 @@
                         </ctcontrols:WrapPanel>
 
                         </StackPanel>
+
+                        <!-- 3D Ship Preview -->
+                        <StackPanel x:Name="ShipPreviewGroup" Width="360" Spacing="8" VerticalAlignment="Top" Visibility="Collapsed">
+                            <TextBlock x:Name="ShipNameTxt" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold" FontSize="15" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+                            <controls:ModelPreviewPanel x:Name="ShipPreview" Subject="ship" Width="360"/>
+                        </StackPanel>
+                        </ctcontrols:WrapPanel>
                         </ContentControl>
                     </StackPanel>
                   </StackPanel>
