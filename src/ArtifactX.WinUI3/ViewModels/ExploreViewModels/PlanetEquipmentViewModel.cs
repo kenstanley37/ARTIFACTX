@@ -193,10 +193,15 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         (double Lat, double Lon)? from = here ? snapshot.Coordinates : _portal is { } p ? (p.Latitude, p.Longitude) : null;
         if (from is not { } at) return;
         int? savedBody = CabinetPoolService.SavedLoadBody(planet.SystemAddress, snapshot.EquipmentSaveInputs);
-        if (_shopsFrom != (planet.Address, at.Lat, at.Lon, savedBody))
+        bool shopsNeedReload = _shopsFrom is null
+            || _shopsFrom.Value.Address != planet.Address
+            || _shopsFrom.Value.SavedBody != savedBody
+            || System.Math.Abs(_shopsFrom.Value.Lat - at.Lat) > 0.005
+            || System.Math.Abs(_shopsFrom.Value.Lon - at.Lon) > 0.005;
+        if (shopsNeedReload)
         {
             _shopsFrom = (planet.Address, at.Lat, at.Lon, savedBody);
-            _ = Shops.LoadAsync(planet.Address, at.Lat, at.Lon, here, savedBody);
+            _ = Shops.LoadAsync(planet.Address, at.Lat, at.Lon, here, savedBody, snapshot);
         }
         var found = await CrashedShipService.SearchAsync(planet.Address, Matches, at.Lat, at.Lon, ShownShips);
         if (_planetAddress != planet.Address || found is null) return;

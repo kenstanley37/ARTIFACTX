@@ -5,25 +5,31 @@
     xmlns:controls="using:ArtifactX.WinUI3.Controls"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
     xmlns:viewModels="using:ArtifactX.WinUI3.ViewModels">
-        <controls:FoldingCard Title="STATION MULTI-TOOLS AFTER RELOADING THIS SAVE"
-                              SettingKey="CurrentSystemStationReloadToolsCollapsed"
-                              Visibility="{x:Bind ViewModel.HasStationReloadTools, Mode=OneWay}">
-            <Border Style="{StaticResource ThemeCardStyle}">
-                <StackPanel Padding="18,14,18,16" Spacing="14">
-                    <TextBlock Text="{x:Bind ViewModel.StationReloadHint, Mode=OneWay}" TextWrapping="Wrap"
-                               Foreground="{ThemeResource ThemeTextBrush}" FontSize="13"/>
-                    <ItemsControl ItemsSource="{x:Bind ViewModel.StationReloadTools, Mode=OneWay}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate><ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="14"/></ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="viewModels:StationReloadToolCard">
-                                <controls:StationMultiToolCard ViewModel="{x:Bind}"/>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+    <controls:FoldingCard Title="STATION MULTI-TOOLS"
+                          SettingKey="CurrentSystemStationReloadToolsCollapsed"
+                          Visibility="{x:Bind ViewModel.HasStationReloadTools, Mode=OneWay}">
+        <Border Style="{StaticResource ThemeCardStyle}">
+            <StackPanel Padding="18,14,18,16" Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <TextBlock Text="Reload source:" VerticalAlignment="Center" FontSize="13" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                    <ComboBox ItemsSource="{x:Bind ViewModel.PoolOptions, Mode=OneWay}"
+                              SelectedItem="{x:Bind ViewModel.SelectedPoolOption, Mode=TwoWay}"
+                              MinWidth="260"
+                              AutomationProperties.Name="Select reload location for station multi-tools"/>
                 </StackPanel>
-            </Border>
-        </controls:FoldingCard>
-
+                <TextBlock Text="{x:Bind ViewModel.StationReloadHint, Mode=OneWay}" TextWrapping="Wrap"
+                           Foreground="{ThemeResource ThemeTextBrush}" FontSize="13"/>
+                <ItemsControl ItemsSource="{x:Bind ViewModel.StationReloadTools, Mode=OneWay}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="14"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="viewModels:StationReloadToolCard">
+                            <controls:StationMultiToolCard ViewModel="{x:Bind}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+    </controls:FoldingCard>
 </UserControl>

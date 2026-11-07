@@ -3,7 +3,12 @@
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  xmlns:controls="using:ArtifactX.WinUI3.Controls"
  xmlns:viewModels="using:ArtifactX.WinUI3.ViewModels">
- <Border Style="{StaticResource ThemeCardStyle}" Padding="12">
+ <Border Style="{StaticResource ThemeCardStyle}" Padding="12"
+         Background="{x:Bind ViewModel.CardBackground, Mode=OneWay}"
+         BorderBrush="{x:Bind ViewModel.CardBorder, Mode=OneWay}"
+         BorderThickness="{x:Bind ViewModel.CardBorderThickness, Mode=OneWay}"
+         ToolTipService.ToolTip="Click to highlight and compare with in-game multi-tool"
+         Tapped="Card_Tapped">
   <StackPanel Spacing="10">
    <!-- Compact: a small preview beside the details; the full slot grid is opt-in (user, 2026-10-27). -->
    <Grid ColumnSpacing="12">

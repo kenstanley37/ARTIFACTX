@@ -45,6 +45,38 @@ public static class LocatedMultiToolService
         }, cancellationToken);
     }
 
+    /// <summary>Supported stock when the system's space station cabinets are loaded using the specified reload body's pool.</summary>
+    public static async Task<IReadOnlyList<LocatedMultiTool>> GenerateStationForBodyAsync(
+        ulong targetSystem, int body, JObject? savedInputs, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (savedInputs is null) return Array.Empty<LocatedMultiTool>();
+        return await Task.Run(async () =>
+        {
+            var stamp = GameDataService.Info?.BuiltAtUtc;
+            if (stamp is null || GameDataService.IsBuilding) return Array.Empty<LocatedMultiTool>();
+            var tables = await CatalogService.GetStationEquipmentTablesAsync().WaitAsync(cancellationToken);
+            if (tables is null || GameDataService.IsBuilding || GameDataService.Info?.BuiltAtUtc != stamp)
+                return Array.Empty<LocatedMultiTool>();
+            var request = NmsMultiToolGenerationPaths.ReadSavedStationRequest(savedInputs, tables);
+            if (request is null || request.Reload.SystemAddress != targetSystem) return Array.Empty<LocatedMultiTool>();
+            ulong reloadAddress = (targetSystem & ~(0xFUL << 52)) | ((ulong)(body & 15) << 52);
+            var reload = new MultiToolReloadContext(request.Reload.SystemAddress, reloadAddress, request.Reload.PlanetCount);
+            if (!reload.IsValid) return Array.Empty<LocatedMultiTool>();
+            request = request with { Reload = reload };
+            if (MultiToolPreviewRuntimeService.ReadOverheatDuration() is { } duration)
+                request = request with { Runtime = request.Runtime with { PreviewOverheatDuration = duration } };
+            request = request with { Runtime = request.Runtime with
+            {
+                HasVerifiedStandardIllegalModuleRoll = request.Runtime.HasVerifiedStandardIllegalModuleRoll
+                    || MultiToolPreviewRuntimeService.HasStandardIllegalModuleRoll()
+            } };
+            var result = await GenerateStationAsync(request, cancellationToken);
+            return !GameDataService.IsBuilding && GameDataService.Info?.BuiltAtUtc == stamp
+                ? result : Array.Empty<LocatedMultiTool>();
+        }, cancellationToken);
+    }
+
     /// <summary>Generates supported station records for an explicitly established reload/runtime scenario.</summary>
     public static async Task<IReadOnlyList<LocatedMultiTool>> GenerateStationAsync(
         StationMultiToolGenerationRequest request, CancellationToken cancellationToken = default)
