@@ -45,11 +45,30 @@ public sealed partial class ShipModels
         TkProceduralTextureList? ListIn(string slot) =>
             samplers.FirstOrDefault(s => (s.Name?.Value ?? "") == slot)?.Map?.Value is { Length: > 0 } map
                 ? Decode(Extension.Replace(map.Replace('\\', '/'), "") + ".TEXTURE.MBIN") as TkProceduralTextureList : null;
+        // In starship procedural hull shaders (TRIMS.TEXTURE.MBIN), Undercoat/Alternative4 is the base coating.
+        // In game, wings take the ship's secondary hull paint (Paint/Alternative2 or Paint/Primary),
+        // while the fuselage/cockpit/engine/fin take the ship's primary hull paint (Paint/Alternative1 or Undercoat/Alternative1).
+        Func<string, string, float[]?> effectiveColour = colour;
+        if (material.Contains("SPACECRAFT", StringComparison.OrdinalIgnoreCase))
+        {
+            bool isWing = material.Contains("WING", StringComparison.OrdinalIgnoreCase);
+            effectiveColour = (palette, slot) =>
+            {
+                if (palette == "Undercoat" && slot == "Alternative4")
+                {
+                    return isWing
+                        ? (colour("Paint", "Alternative2") ?? colour("Paint", "Primary"))
+                        : (colour("Paint", "Alternative1") ?? colour("Undercoat", "Alternative1") ?? colour("Undercoat", "Primary"));
+                }
+                return colour(palette, slot);
+            };
+        }
+
         // The main paint (gDiffuseMap); a decal material lays a second sheet over it
         // (gDiffuse2Map - the stripes along a tool's top, 2026-10-16).
-        if (ListIn("gDiffuseMap") is { } main && Layered(main, colour, size, textureSeed, styles) is { } painted)
+        if (ListIn("gDiffuseMap") is { } main && Layered(main, effectiveColour, size, textureSeed, styles) is { } painted)
         {
-            return ListIn("gDiffuse2Map") is { } decal && Layered(decal, colour, size, textureSeed, styles) is { } over
+            return ListIn("gDiffuse2Map") is { } decal && Layered(decal, effectiveColour, size, textureSeed, styles) is { } over
                 ? painted with { Decal = over } : painted;
         }
         // No layers: the plain diffuse image.
