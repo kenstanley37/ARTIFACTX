@@ -7,10 +7,8 @@ ArtifactX edits your saves, and it also follows your game while you play:
 it records where you catch fish, keeps notes on the planets and systems you
 visit, and shows what a starship seed gives before you commit to it.
 
-> **Status: early alpha (v1.0.0-alpha1).** No release has been published
-> yet, so for now you build it from source (see [Building](#building)).
-> Tested on Steam saves only. **Back up your saves** - ArtifactX makes a
-> backup every time it writes, but it's still young software.
+> **Status: v1.0.0.** Tested on Steam saves only. **Back up your saves** -
+> ArtifactX makes a backup every time it writes.
 
 ## What it does
 

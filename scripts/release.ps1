@@ -6,7 +6,7 @@
 #   pwsh scripts/release.ps1
 #
 # The version comes from <Version> in src/ArtifactX.WinUI3/ArtifactX.WinUI3.csproj
-# (e.g. 1.0.0-alpha1), so the app, the packages and the GitHub release tag
+# (e.g. 1.0.0), so the app, the packages and the GitHub release tag
 # (v + version) always agree. Needs the vpk tool: dotnet tool install -g vpk
 # Output: artifacts/release/<version>/ (gitignored).
 

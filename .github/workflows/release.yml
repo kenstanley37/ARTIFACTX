@@ -1,0 +1,123 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.0.0; defaults to Version in ArtifactX.WinUI3.csproj)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Publish Release
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run Core Checks
+        run: dotnet run --project tests/ArtifactX.Core.Checks
+
+      - name: Determine Version
+        id: ver
+        shell: pwsh
+        run: |
+          $project = 'src/ArtifactX.WinUI3/ArtifactX.WinUI3.csproj'
+          $csprojVersion = ([xml](Get-Content $project)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch' -and '${{ inputs.version }}' -ne '') {
+              $version = '${{ inputs.version }}'.TrimStart('v')
+          } elseif ('${{ github.ref_type }}' -eq 'tag') {
+              $version = '${{ github.ref_name }}'.TrimStart('v')
+          } else {
+              $version = $csprojVersion
+          }
+          
+          if (-not $version) {
+              throw "Could not determine release version from project or input."
+          }
+          
+          $tag = "v$version"
+          Write-Host "Target release version: $version ($tag)"
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+
+      - name: Install Velopack CLI
+        shell: pwsh
+        run: dotnet tool install -g vpk
+
+      - name: Publish ArtifactX (win-x64)
+        shell: pwsh
+        run: |
+          $version = '${{ steps.ver.outputs.version }}'
+          $publish = "artifacts/release/$version/publish"
+          dotnet publish src/ArtifactX.WinUI3/ArtifactX.WinUI3.csproj -c Release -p:Platform=x64 -p:PublishProfile=win-x64 -o $publish
+
+      - name: Package with Velopack
+        shell: pwsh
+        run: |
+          $version = '${{ steps.ver.outputs.version }}'
+          $publish = "artifacts/release/$version/publish"
+          $packages = "artifacts/release/$version/packages"
+          
+          vpk pack --packId ArtifactX --packVersion $version --runtime win-x64 `
+              --packDir $publish --mainExe ArtifactX.exe `
+              --icon src/ArtifactX.WinUI3/Assets/AppIcon.ico `
+              --packTitle ArtifactX --skipVeloAppCheck `
+              --msi --instLocation Either `
+              --instWelcome installer/welcome.txt `
+              --instLicense installer/license.md `
+              --instConclusion installer/conclusion.txt `
+              --msiTopBanner installer/banner.bmp `
+              --msiDialogBackground installer/dialog.bmp `
+              --outputDir $packages
+              
+          Write-Host "Generated release packages:"
+          Get-ChildItem $packages | ForEach-Object { Write-Host "  $($_.Name) ($([math]::Round($_.Length / 1MB, 1)) MB)" }
+
+      - name: Publish to GitHub Releases
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = '${{ steps.ver.outputs.tag }}'
+          $version = '${{ steps.ver.outputs.version }}'
+          $packages = "artifacts/release/$version/packages"
+          
+          $files = Get-ChildItem -Path $packages | Select-Object -ExpandProperty FullName
+          
+          $existingTags = gh release list --limit 100 --json tagName -q ".[].tagName"
+          if ($existingTags -contains $tag) {
+              Write-Host "Release $tag already exists. Uploading updated assets..."
+              gh release upload $tag @files --clobber
+          } else {
+              Write-Host "Creating GitHub Release $tag..."
+              gh release create $tag @files `
+                  --title "ArtifactX $tag" `
+                  --target "${{ github.sha }}" `
+                  --generate-notes
+          }
+
+      - name: Upload Artifacts to Workflow Run
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ArtifactX-${{ steps.ver.outputs.tag }}
+          path: artifacts/release/${{ steps.ver.outputs.version }}/packages/*
+          if-no-files-found: ignore
