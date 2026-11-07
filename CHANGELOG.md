@@ -4,6 +4,9 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ## Unreleased
 
+### Added
+
+- In-app automatic updater powered by Velopack: when an update is available on GitHub Releases, players can update and restart directly from the title bar or Settings page without having to manually download installers. Player data and databases in %AppData%\ArtifactX remain completely untouched.
 - GitHub Actions automated release pipeline and continuous integration workflows.
 
 ## 1.0.0 — 2026-11-07

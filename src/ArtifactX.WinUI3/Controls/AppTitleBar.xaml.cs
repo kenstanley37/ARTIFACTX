@@ -1,5 +1,7 @@
+using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.GameData;
 using ArtifactX.WinUI3.Helpers.Location;
@@ -160,9 +162,98 @@ public sealed partial class AppTitleBar : UserControl
 
     private async void UpdateAvailableBtn_Click(object sender, RoutedEventArgs e)
     {
-        string? url = UpdateCheckService.LastResult?.ReleaseUrl;
-        if (url is null) return;
-        await Launcher.LaunchUriAsync(new Uri(url));
+        var result = UpdateCheckService.LastResult;
+        if (result is null) return;
+
+        var panel = new StackPanel { Spacing = 12, MaxWidth = 420 };
+
+        var header = new TextBlock
+        {
+            Text = $"ArtifactX {result.NewVersion ?? "update"} is ready to install.",
+            FontWeight = FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap,
+        };
+        panel.Children.Add(header);
+
+        var note = new TextBlock
+        {
+            Text = $"You have v{AppVersionService.DisplayVersion}. Updating will close ArtifactX, apply the update, and relaunch the app.\n\nYour saves and settings are kept safe in %AppData% and won't be modified.",
+            FontSize = 12,
+            Style = (Style)Application.Current.Resources["ThemeDimTextStyle"],
+            TextWrapping = TextWrapping.Wrap,
+        };
+        panel.Children.Add(note);
+
+        if (!string.IsNullOrWhiteSpace(result.ReleaseNotes))
+        {
+            var notesBorder = new Border
+            {
+                Background = (Brush)Application.Current.Resources["ThemePanelAltBrush"],
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(10),
+                MaxHeight = 140,
+            };
+            var scroll = new ScrollViewer { Content = new TextBlock { Text = result.ReleaseNotes, FontSize = 11, TextWrapping = TextWrapping.Wrap } };
+            notesBorder.Child = scroll;
+            panel.Children.Add(notesBorder);
+        }
+
+        var progress = new ProgressBar { Minimum = 0, Maximum = 100, Visibility = Visibility.Collapsed };
+        panel.Children.Add(progress);
+
+        var statusTxt = new TextBlock { FontSize = 12, TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed };
+        panel.Children.Add(statusTxt);
+
+        var dialog = new ContentDialog
+        {
+            Title = "Update ArtifactX",
+            Content = panel,
+            PrimaryButtonText = UpdateCheckService.IsInstalled ? "Update & Restart" : "Open on GitHub",
+            SecondaryButtonText = "View Release Notes",
+            CloseButtonText = "Later",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+
+        dialog.SecondaryButtonClick += async (_, _) =>
+        {
+            if (result.ReleaseUrl is string url)
+                await Launcher.LaunchUriAsync(new Uri(url));
+        };
+
+        dialog.PrimaryButtonClick += async (d, args) =>
+        {
+            if (!UpdateCheckService.IsInstalled)
+            {
+                if (result.ReleaseUrl is string url)
+                    await Launcher.LaunchUriAsync(new Uri(url));
+                return;
+            }
+
+            var deferral = args.GetDeferral();
+            try
+            {
+                d.IsPrimaryButtonEnabled = false;
+                d.IsSecondaryButtonEnabled = false;
+                progress.Visibility = Visibility.Visible;
+                statusTxt.Visibility = Visibility.Visible;
+
+                await UpdateCheckService.DownloadAndRestartAsync(msg =>
+                {
+                    DispatcherQueue.TryEnqueue(() =>
+                    {
+                        statusTxt.Text = msg;
+                        progress.Value = UpdateCheckService.DownloadProgress;
+                    });
+                });
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        };
+
+        await dialog.ShowAsync();
     }
 
     private void OnSessionOrEditsChanged(object? sender, EventArgs e)

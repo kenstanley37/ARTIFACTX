@@ -444,7 +444,42 @@ public sealed partial class SettingsPage : Page
         VersionTxt.Text = $"ArtifactX v{AppVersionService.DisplayVersion}";
         var result = UpdateCheckService.LastResult;
         UpdateStatusTxt.Text = result?.Message ?? "";
-        ReleasePageLink.Visibility = result?.Status == UpdateCheckStatus.UpdateAvailable ? Visibility.Visible : Visibility.Collapsed;
+        bool hasUpdate = result?.Status == UpdateCheckStatus.UpdateAvailable;
+        ReleasePageLink.Visibility = hasUpdate ? Visibility.Visible : Visibility.Collapsed;
+        UpdateAndRestartBtn.Visibility = hasUpdate ? Visibility.Visible : Visibility.Collapsed;
+
+        if (hasUpdate)
+        {
+            UpdateAndRestartBtn.Content = UpdateCheckService.IsInstalled ? "Update and restart" : "Download update on GitHub";
+        }
+    }
+
+    private async void UpdateAndRestart_Click(object sender, RoutedEventArgs e)
+    {
+        if (!UpdateCheckService.IsInstalled)
+        {
+            if (UpdateCheckService.LastResult?.ReleaseUrl is string url)
+                await Launcher.LaunchUriAsync(new Uri(url));
+            return;
+        }
+
+        UpdateAndRestartBtn.IsEnabled = false;
+        CheckForUpdatesBtn.IsEnabled = false;
+        UpdateProgressBar.Visibility = Visibility.Visible;
+        UpdateProgressBar.Value = 0;
+
+        await UpdateCheckService.DownloadAndRestartAsync(status =>
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                UpdateStatusTxt.Text = status;
+                UpdateProgressBar.Value = UpdateCheckService.DownloadProgress;
+            });
+        });
+
+        UpdateAndRestartBtn.IsEnabled = true;
+        CheckForUpdatesBtn.IsEnabled = true;
+        UpdateProgressBar.Visibility = Visibility.Collapsed;
     }
 
     private async void CheckForUpdates_Click(object sender, RoutedEventArgs e)

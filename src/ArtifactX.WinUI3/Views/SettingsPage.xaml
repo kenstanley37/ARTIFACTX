@@ -192,6 +192,8 @@
                             <TextBlock x:Name="VersionTxt" Text="ArtifactX" FontFamily="{ThemeResource ThemeDisplayFont}" FontSize="15" FontWeight="SemiBold"
                                        Foreground="{ThemeResource ThemeTextBrush}"/>
                             <Button x:Name="CheckForUpdatesBtn" Content="Check for updates" Click="CheckForUpdates_Click" HorizontalAlignment="Left"/>
+                            <Button x:Name="UpdateAndRestartBtn" Content="Update and restart" Visibility="Collapsed" Click="UpdateAndRestart_Click" HorizontalAlignment="Left"/>
+                            <ProgressBar x:Name="UpdateProgressBar" Minimum="0" Maximum="100" Visibility="Collapsed"/>
                             <TextBlock x:Name="UpdateStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                             <HyperlinkButton x:Name="ReleasePageLink" Content="Open release page" Visibility="Collapsed" Padding="0" Click="ReleasePageLink_Click"/>
                         </StackPanel>
