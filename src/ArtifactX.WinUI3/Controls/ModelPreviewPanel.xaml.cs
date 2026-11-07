@@ -88,6 +88,12 @@ public sealed partial class ModelPreviewPanel : UserControl
             NoteTxt.Text = $"This {Subject}'s own shape in the colours you picked in game. Drag to turn.";
             return;
         }
+        if (ShipBaseService.IsCorvetteModel(scene))
+        {
+            Preview.Show(mesh, Colour, hologram: true);
+            NoteTxt.Text = "Corvette base chassis. Custom modular parts (cockpit, wings, thrusters) are placed in game — full modular 3D assembly in development. Drag to turn.";
+            return;
+        }
         if (await ModelPreviewService.FixedLookAsync(models, mesh) is { } own)
         {
             if (version != _version) return;

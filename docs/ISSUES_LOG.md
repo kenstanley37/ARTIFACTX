@@ -600,5 +600,34 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
     - Conventional and freighter models with hologram scan fallback.
   - Added `ShipPartsService.BuiltLookFromCustomisation` to parse saved paint, parts, and styles directly from `template.Customisation`.
 
+### Feature 69: Modular 3D Assembly & Rendering for Player Corvettes & Base Parts
+- **Source**: Owner feedback, 2026-11-07, with screenshot `media_1794073956925_637aa2d4.jpg` of `AwesomeVette`: "I don't think we have corvettes showing correctly yet... we want to be able to show the corvettes sooner or later because people will want to share them with each other either through json export or the api that we will design later on."
+- **Goal**: Render complete player-built Corvettes (`BIGGS`) and base-building structures in 3D by assembling modular parts (`InteriorObjects` / `PlayerShipBase` / `@ZJ`) placed in 3D local coordinates, enabling visual inspection, template sharing, and crowd-source design exports.
+- **Details**:
+  - **Chassis vs Modular Construction**: In No Man's Sky, conventional starships use procedural descriptor scenes (`FIGHTER_PROC`, `SENTINELSHIP`). Corvettes, however, use only a bare landing frame chassis (`MODELS/COMMON/SPACESHIPS/BIGGS/BIGGS.SCENE.MBIN`), while the actual ship body is composed of dozens to hundreds of custom base modules (cockpits, habs, wings, engines, landing gear, hull panels) stored in `PlayerShipBase` / `InteriorObjects`.
+  - **Template & Save Data**: Templates and export files already capture these parts as `NmsLoadoutBaseObject` entries:
+    - `ObjectId`: part identifier (e.g. `^BIGGS_COCKPIT_A`, `^BIGGS_WING_B`, `^BIGGS_HAB_C`).
+    - `Position`: $[x, y, z]$ translation coordinates in local ship space.
+    - `Up`: $[x, y, z]$ local up normal vector.
+    - `At`: $[x, y, z]$ local forward facing vector.
+  - **Target 3D Composite Pipeline**:
+    1. Resolve each `ObjectId` to its building part scene path from the catalog / geometry tables.
+    2. Build/cache the geometry for each unique part type.
+    3. Calculate the $4\times4$ transform matrix ($Position$, $Up$, $At$, and orthonormal cross product).
+    4. Transform each part's vertex buffers into local model space and merge them into a single composite mesh for `ShipPreview`.
+  - **Immediate Interim State**: `ModelPreviewPanel` detects `ShipBaseService.IsCorvetteModel` and displays the chassis as a clean hologram with note: *"Corvette base chassis. Custom modular parts (cockpit, wings, thrusters) are placed in game — full modular 3D assembly in development."*
+
+### Feature 70: Seed Generation History & Undo in SeedBox
+- **Source**: Owner request, 2026-11-07: "when a user is clicking generate to change the way the ship looks there is no back button. So unless he copies the seed he has lost it possibly forever. But let's think about the best way to handle this. We shouldn't store his previous generates forever, Maybe save them until he hits save or something."
+- **Status 2026-11-07**: Solved and built on branch `feature/seed-undo-corvette-preview`.
+- **Implementation**:
+  - Added an in-memory session history stack (`_history`, capped at 30 entries) to the shared [`SeedBox`](file:///d:/Code-Projects/ARTIFACTX/src/ArtifactX.WinUI3/Controls/SeedBox.xaml) control.
+  - Added an accessible Undo button (`FontIcon Glyph="&#xE7A7;"`, tooltip "Undo to previous seed") right between the seed TextBox and the Generate button.
+  - Disabled by default; automatically enables as soon as a seed is generated or rerolled.
+  - Clicking Undo steps backward through previously generated seeds one by one and stages the edit, immediately updating live 3D ship/freighter previews.
+  - History is kept in memory during the active edit session and cleanly resets when switching ships, slots, or saves.
+  - Protects seeds app-wide across Starships, Freighters, Squadron Pilots, Frigates, Exocraft, and Companions.
+
+
 
 

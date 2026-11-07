@@ -10,8 +10,14 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
         <TextBox x:Name="Box" LostFocus="Box_LostFocus"/>
-        <Button x:Name="GenerateBtn" Grid.Column="1" Content="Generate" Click="Generate_Click"/>
+        <Button x:Name="UndoBtn" Grid.Column="1" Click="Undo_Click" IsEnabled="False"
+                ToolTipService.ToolTip="Undo to previous seed"
+                AutomationProperties.Name="Undo previous seed">
+            <FontIcon Glyph="&#xE7A7;" FontSize="13"/>
+        </Button>
+        <Button x:Name="GenerateBtn" Grid.Column="2" Content="Generate" Click="Generate_Click"/>
     </Grid>
 </UserControl>

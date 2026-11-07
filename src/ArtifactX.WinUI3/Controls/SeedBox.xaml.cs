@@ -13,6 +13,7 @@ public sealed record SeedChange(string Seed, bool Generated);
 
 public sealed partial class SeedBox : UserControl
 {
+    private readonly System.Collections.Generic.List<string> _history = new();
     private string[]? _path;
 
     public SeedBox() => InitializeComponent();
@@ -36,6 +37,7 @@ public sealed partial class SeedBox : UserControl
         {
             AutomationProperties.SetName(Box, value);
             AutomationProperties.SetName(GenerateBtn, $"Generate a {value.ToLowerInvariant()}");
+            AutomationProperties.SetName(UndoBtn, $"Undo {value.ToLowerInvariant()} to previous roll");
         }
     }
 
@@ -49,6 +51,8 @@ public sealed partial class SeedBox : UserControl
     public void Show(string[]? path)
     {
         _path = path;
+        _history.Clear();
+        UndoBtn.IsEnabled = false;
         Box.Text = path is null ? "" : SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
     }
 
@@ -63,7 +67,26 @@ public sealed partial class SeedBox : UserControl
         Stage(seed, generated: false);
     }
 
-    private void Generate_Click(object sender, RoutedEventArgs e) => Stage(NmsSeedGenerator.GenerateRandom(), generated: true);
+    private void Generate_Click(object sender, RoutedEventArgs e)
+    {
+        string current = Box.Text?.Trim() ?? "";
+        if (current.Length > 0)
+        {
+            _history.Add(current);
+            if (_history.Count > 30) _history.RemoveAt(0);
+            UndoBtn.IsEnabled = true;
+        }
+        Stage(NmsSeedGenerator.GenerateRandom(), generated: true);
+    }
+
+    private void Undo_Click(object sender, RoutedEventArgs e)
+    {
+        if (_history.Count == 0) return;
+        string previous = _history[^1];
+        _history.RemoveAt(_history.Count - 1);
+        UndoBtn.IsEnabled = _history.Count > 0;
+        Stage(previous, generated: true);
+    }
 
     private void Stage(string seed, bool generated)
     {
