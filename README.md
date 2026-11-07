@@ -112,6 +112,7 @@ ArtifactX builds on the work of others - see
   how a seed picks a starship's parts, and its 3D model.
 - **[nms_namegen](https://github.com/hadsh/nms_namegen)** (MIT) - systems
   (names, star, economy, planet layout) from their addresses.
+- **[SignPath Foundation](https://signpath.org)** - Free code signing certificate and build signing provided by the SignPath Foundation.
 
 No Man's Sky is a trademark of Hello Games. ArtifactX is a fan project and
 isn't affiliated with or endorsed by Hello Games.
