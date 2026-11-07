@@ -6,18 +6,24 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <Grid ColumnSpacing="8">
+    <Grid ColumnSpacing="6">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
         <TextBox x:Name="Box" LostFocus="Box_LostFocus"/>
         <Button x:Name="UndoBtn" Grid.Column="1" Click="Undo_Click" IsEnabled="False"
-                ToolTipService.ToolTip="Undo to previous seed"
-                AutomationProperties.Name="Undo previous seed">
+                ToolTipService.ToolTip="Previous seed (Undo roll)"
+                AutomationProperties.Name="Previous seed">
             <FontIcon Glyph="&#xE7A7;" FontSize="13"/>
         </Button>
-        <Button x:Name="GenerateBtn" Grid.Column="2" Content="Generate" Click="Generate_Click"/>
+        <Button x:Name="RedoBtn" Grid.Column="2" Click="Redo_Click" IsEnabled="False"
+                ToolTipService.ToolTip="Next seed (Redo roll)"
+                AutomationProperties.Name="Next seed">
+            <FontIcon Glyph="&#xE7A6;" FontSize="13"/>
+        </Button>
+        <Button x:Name="GenerateBtn" Grid.Column="3" Content="Generate" Click="Generate_Click"/>
     </Grid>
 </UserControl>

@@ -617,16 +617,28 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
     4. Transform each part's vertex buffers into local model space and merge them into a single composite mesh for `ShipPreview`.
   - **Immediate Interim State**: `ModelPreviewPanel` detects `ShipBaseService.IsCorvetteModel` and displays the chassis as a clean hologram with note: *"Corvette base chassis. Custom modular parts (cockpit, wings, thrusters) are placed in game — full modular 3D assembly in development."*
 
-### Feature 70: Seed Generation History & Undo in SeedBox
-- **Source**: Owner request, 2026-11-07: "when a user is clicking generate to change the way the ship looks there is no back button. So unless he copies the seed he has lost it possibly forever. But let's think about the best way to handle this. We shouldn't store his previous generates forever, Maybe save them until he hits save or something."
+### Feature 70: Seed Generation History (Undo & Redo) in SeedBox
+- **Source**: Owner request, 2026-11-07: "when a user is clicking generate to change the way the ship looks there is no back button. So unless he copies the seed he has lost it possibly forever... We need a forward button as well but it needs to be smart. It should become disabled when it gets to the end of the list and the back button should be disabled when it reaches the start of the list."
 - **Status 2026-11-07**: Solved and built on branch `feature/seed-undo-corvette-preview`.
 - **Implementation**:
-  - Added an in-memory session history stack (`_history`, capped at 30 entries) to the shared [`SeedBox`](file:///d:/Code-Projects/ARTIFACTX/src/ArtifactX.WinUI3/Controls/SeedBox.xaml) control.
-  - Added an accessible Undo button (`FontIcon Glyph="&#xE7A7;"`, tooltip "Undo to previous seed") right between the seed TextBox and the Generate button.
-  - Disabled by default; automatically enables as soon as a seed is generated or rerolled.
-  - Clicking Undo steps backward through previously generated seeds one by one and stages the edit, immediately updating live 3D ship/freighter previews.
-  - History is kept in memory during the active edit session and cleanly resets when switching ships, slots, or saves.
-  - Protects seeds app-wide across Starships, Freighters, Squadron Pilots, Frigates, Exocraft, and Companions.
+  - Maintained an in-memory session history list (`_history`, capped at 30 entries) and tracking index (`_historyIndex`) in the shared [`SeedBox`](file:///d:/Code-Projects/ARTIFACTX/src/ArtifactX.WinUI3/Controls/SeedBox.xaml) control.
+  - Added Back (Undo `&#xE7A7;`) and Forward (Redo `&#xE7A6;`) buttons directly between the seed TextBox and the Generate button.
+  - Smart boundary disabling:
+    - Back button disables at the beginning of history (`_historyIndex <= 0`).
+    - Forward button disables at the newest roll (`_historyIndex >= _history.Count - 1`).
+    - Clicking Generate from the middle of history truncates forward history and branches cleanly into the new roll.
+  - History is preserved during the active edit session on that ship/equipment, and resets cleanly when switching equipment or loading another save.
+  - App-wide: protects seed rolls across Starships, Freighters, Squadron Pilots, Frigates, Exocraft, and Companions.
+
+### Issue 71: Sentinel Interceptor Seed Colors Mismatch (In-Game vs 3D Preview)
+- **Source**: Owner comparison screenshots, 2026-11-07: ArtifactX preview (`media_1794075254036_4e7a5803.jpg`) vs in-game photo mode on landing pad (`media_1794075281636_f9aac39e.jpg`).
+- **Problem**:
+  - In-game, `DudeWing` is bright red with black wings and white accents.
+  - In ArtifactX's 3D preview, `DudeWing` displays with dark purple/blue hull and black trim.
+- **Root Cause & Research**:
+  - `ModelPreviewService.SeedColoursAsync` generates palette entries from the ship seed, but the shader layer assignment on `SENTINELSHIPMAT` / `DETMAT` in NMS does not map primary/secondary palette indices 1:1 with the current lookup order.
+  - Needs investigation into the exact palette layer mapping in `MODELS/COMMON/SPACESHIPS/SENTINELSHIP/` to align the primary/secondary hull color channels with in-game appearance.
+
 
 
 
