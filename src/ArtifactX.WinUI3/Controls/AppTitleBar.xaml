@@ -83,7 +83,8 @@
                 <TextBlock x:Name="ThemeBtnTxt" FontSize="10" Opacity="0.8"/>
             </HyperlinkButton>
             <HyperlinkButton x:Name="UpdateAvailableBtn" Padding="6,0" Visibility="Collapsed" Click="UpdateAvailableBtn_Click"
-                             ToolTipService.ToolTip="A newer version of ArtifactX is available - click to open the release page">
+                             ToolTipService.ToolTip="A newer version of ArtifactX is available - click to update"
+                             AutomationProperties.Name="Update available">
                 <TextBlock Text="Update available" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}"/>
             </HyperlinkButton>
         </StackPanel>
