@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Numerics;
 using System.Text.RegularExpressions;
 using ArtifactX.GameData.Services;
@@ -61,7 +61,7 @@ public sealed partial class ShipModels
         }
     }
 
-    private NMSTemplate? Decode(string path) => _files.GetOrAdd(path.Replace('\\', '/').ToUpperInvariant(), p =>
+    internal NMSTemplate? Decode(string path) => _files.GetOrAdd(path.Replace('\\', '/').ToUpperInvariant(), p =>
     {
         if (!_index.TryFind(p, out var pak, out var entry, out var header)) return null;
         try

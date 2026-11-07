@@ -126,37 +126,40 @@ public static class PlanetShopService
             return null;
         }
 
-        var visited = ReadVisitedLocations(planetAddress, snapshot);
-        var dir = CrashedShipService.Direction(latitude, longitude);
+        return await Task.Run(() =>
+        {
+            var visited = ReadVisitedLocations(planetAddress, snapshot);
+            var dir = CrashedShipService.Direction(latitude, longitude);
 
-        var allShops = found.Sites
-            .Select(s =>
-            {
-                double angle = Math.Acos(Math.Clamp(Vector3.Dot(CrashedShipService.Direction(s.Latitude, s.Longitude), dir), -1f, 1f));
-                double distKm = angle * found.Radius / 1000.0;
-                bool isCurrent = here && distKm < 0.15;
-                bool isVisited = isCurrent || IsLocationVisited(s.Latitude, s.Longitude, visited);
-                return new PlanetShopSite(s with { DistanceKm = distKm }, isVisited, isCurrent);
-            })
-            .ToList();
+            var allShops = found.Sites
+                .Select(s =>
+                {
+                    double angle = Math.Acos(Math.Clamp(Vector3.Dot(CrashedShipService.Direction(s.Latitude, s.Longitude), dir), -1f, 1f));
+                    double distKm = angle * found.Radius / 1000.0;
+                    bool isCurrent = here && distKm < 0.15;
+                    bool isVisited = isCurrent || IsLocationVisited(s.Latitude, s.Longitude, visited);
+                    return new PlanetShopSite(s with { DistanceKm = distKm }, isVisited, isCurrent);
+                })
+                .ToList();
 
-        int totalOnPlanet = allShops.Count;
-        int totalVisited = allShops.Count(s => s.IsVisited);
-        int totalUnvisited = totalOnPlanet - totalVisited;
+            int totalOnPlanet = allShops.Count;
+            int totalVisited = allShops.Count(s => s.IsVisited);
+            int totalUnvisited = totalOnPlanet - totalVisited;
 
-        var filtered = allShops
-            .Where(s =>
-            {
-                if (visitedFilter == 1 && s.IsVisited) return false; // Unvisited only
-                if (visitedFilter == 2 && !s.IsVisited) return false; // Visited only
-                if (s.DistanceKm > maxDistanceKm) return false;
-                return true;
-            })
-            .OrderBy(s => s.DistanceKm)
-            .ToList();
+            var filtered = allShops
+                .Where(s =>
+                {
+                    if (visitedFilter == 1 && s.IsVisited) return false; // Unvisited only
+                    if (visitedFilter == 2 && !s.IsVisited) return false; // Visited only
+                    if (s.DistanceKm > maxDistanceKm) return false;
+                    return true;
+                })
+                .OrderBy(s => s.DistanceKm)
+                .ToList();
 
-        var nearest = filtered.Take(count).ToList();
-        return new ShopsOfPlanet(nearest, filtered.Count, totalUnvisited, totalVisited, totalOnPlanet);
+            var nearest = filtered.Take(count).ToList();
+            return new ShopsOfPlanet(nearest, filtered.Count, totalUnvisited, totalVisited, totalOnPlanet);
+        });
     }
 
     private static async Task<AllShopsOnPlanet?> AllShopsOnPlanetAsync(ulong planetAddress)

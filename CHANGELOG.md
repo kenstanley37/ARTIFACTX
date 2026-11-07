@@ -6,6 +6,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Starships: Corvettes now show a "Corvette 3D model coming soon" placeholder in the preview section rather than leaving the preview area empty.
 - Seeds: Clicking Generate on any seed box (Starships, Freighters, Squadron, Frigates, Exocraft, Companions) now includes Previous and Next buttons to step backward and forward through your rolls during your edit session.
 - Templates: Previewing a full build starship or freighter template shows an interactive 3D model of the ship alongside its tech and stats, with drag-to-turn rotation.
 - Save Selection has a restore button on each account folder's header to pick and restore timestamped backups of account-wide data (accountdata.hg) such as expedition rewards, Twitch unlocks, and guide entries.
@@ -13,6 +14,13 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Official GitHub Pages project website showcasing features, 3D previews, safety architecture, and release download links.
 - In-app automatic updater powered by Velopack: when an update is available on GitHub Releases, players can update and restart directly from the title bar or Settings page without having to manually download installers. Player data and databases in %AppData%\ArtifactX remain completely untouched.
 - GitHub Actions automated release pipeline and continuous integration workflows.
+
+### Fixed
+
+- Performance: Current System and Planet Details pages now process crashed ship spatial scans, shop distance calculations, and multi-tool model part resolutions entirely off the UI thread, eliminating UI freezes during navigation.
+- 3D Previews: Found and bought starships (Fighters, Haulers, Explorers, Solars, Shuttles, and Sentinel Interceptors) now display in full color from their seed rather than defaulting to a blue hologram scan.
+- 3D Previews: Fighter, Hauler, Solar, and Shuttle starship wings and hull coatings now render in their authentic primary and secondary seed paint colors rather than falling back to unpainted tan or grey on procedural trim surfaces.
+- 3D Previews: Sentinel Interceptor starships now accurately display their hull paint colors, accent decals, and wing trim from their seed (fixing an issue where procedural overlay coats marked for non-named procedural use were omitted).
 
 ## 1.0.0 — 2026-11-07
 

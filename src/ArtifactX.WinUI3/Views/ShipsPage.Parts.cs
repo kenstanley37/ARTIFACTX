@@ -49,9 +49,15 @@ public sealed partial class ShipsPage
         var root = ShipPartsService.LoadTree(ShipParts.DescriptorFor(scene));
         bool hasSeed = ShipPartsService.TryParseSeed(SeedBox.Text, out ulong seed);
         var built = ShipPartsService.BuiltLookOf(_selectedIndex);
-        // Every ship type has a model, parts or not - except a corvette, whose look is
-        // the modules built onto it, stored apart from the ship.
-        if (!IsCorvetteSelected() && (root is null || hasSeed))
+        // Corvettes are modular base-built ships placed in game; their parts are stored
+        // apart from the seed, so a placeholder is shown until full modular 3D assembly arrives.
+        if (IsCorvetteSelected())
+        {
+            ShipPreviewGroup.Visibility = Visibility.Visible;
+            ShipPreviewView.ShowMessage("Corvette 3D model coming soon");
+            ShipPreviewNote.Text = "Corvettes are built from modular components placed in game. Full modular 3D assembly is in development.";
+        }
+        else if (root is null || hasSeed)
         {
             await ShipPartsService.EnsureLookAsync();
             if (refresh != _previewVersion) return;
@@ -97,12 +103,13 @@ public sealed partial class ShipsPage
             ShipPreviewNote.Text = "Shape from your game files, in the paint saved for this ship - drag to turn.";
             return;
         }
-        // Found and bought ships: shown as a hologram for now. Test 2026-10-17 (Colour
-        // Test 1-5 on Slot 8, Gamada, Ashes - seeds in the procedural-ships notes): the
-        // palette table from the seed ITSELF (SeedColoursAsync rawSeed) holds the right
-        // colours, but which slot lands on the hull comes from texture-option picks we
-        // don't reproduce yet (Hauler blue hull came out red, Explorers' black hulls
-        // white/olive) - 2 of 6 right is too few to show as the ship's real colours.
+        if (ShipBaseService.IsCorvetteModel(scene))
+        {
+            if (version != _previewVersion) return;
+            ShipPreviewView.Show(mesh, material => ShipPartsService.MaterialColour(material, look), hologram: true);
+            ShipPreviewNote.Text = "Corvette base chassis. Custom modular parts (cockpit, wings, thrusters) are placed in game — full modular 3D assembly in development. Drag to turn.";
+            return;
+        }
         // A fixed-look ship (Boundary Herald, Starborn Runner, The Wraith...) keeps its
         // colours in its own textures, so it can be shown as the game shows it.
         if (mesh is not null && await ModelPreviewService.FixedLookAsync(models, mesh) is { } own)
@@ -113,13 +120,9 @@ public sealed partial class ShipsPage
             return;
         }
         if (version != _previewVersion) return;
-        // Sentinel Interceptors: one painted surface (SENTINELSHIPMAT + DETMAT, 98% of the
-        // ship), coloured from the palette table built from the seed itself - DudeWing
-        // (0xB1B6D078DC9DAD83, Slot 1) came out pale grey with dark trim like in game
-        // (2026-10-22); the first-child rule made it blue. Other seed-made types stay a
-        // hologram: their texture-option picks aren't reproduced yet (see above).
-        if (mesh is not null && scene.Contains("SENTINELSHIP", StringComparison.OrdinalIgnoreCase)
-            && await ModelPreviewService.SeedColoursAsync(seed, rawSeed: true) is { } seedColours)
+        // Procedural ships painted from their seed: Sentinel Interceptors, Fighters, Haulers,
+        // Explorers, Solars, Shuttles. The seed's raw palette table colours the procedural texture layers.
+        if (mesh is not null && await ModelPreviewService.SeedColoursAsync(seed, rawSeed: true) is { } seedColours)
         {
             var textures = await ModelPreviewService.PaintAsync(models, mesh, seedColours, seed);
             if (version != _previewVersion) return;
@@ -131,7 +134,7 @@ public sealed partial class ShipsPage
         if (mesh is null) ShipPreviewView.ShowMessage("This ship's model couldn't be read from your game files.");
         else ShipPreviewView.Show(mesh, material => ShipPartsService.MaterialColour(material, look), hologram: true);
         ShipPreviewNote.Text = mesh is null ? ""
-            : "Shape scan - the parts are this ship's own, but its colours can't be shown yet (only ships built at a station or painted). Drag to turn.";
+            : "Shape scan - the parts are this ship's own, but its colours can't be shown yet. Drag to turn.";
     }
 
     private void PaintShipBtn_Click(object sender, RoutedEventArgs e)

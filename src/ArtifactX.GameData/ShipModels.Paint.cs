@@ -45,11 +45,29 @@ public sealed partial class ShipModels
         TkProceduralTextureList? ListIn(string slot) =>
             samplers.FirstOrDefault(s => (s.Name?.Value ?? "") == slot)?.Map?.Value is { Length: > 0 } map
                 ? Decode(Extension.Replace(map.Replace('\\', '/'), "") + ".TEXTURE.MBIN") as TkProceduralTextureList : null;
+        // In starship procedural hull shaders, Undercoat layers (e.g. TRIMS Undercoat/Alternative4,
+        // SECONDARY Undercoat/Primary) represent the base hull coating and panels.
+        // In game, procedural spacecraft hulls take the ship's primary hull paint
+        // (Paint/Alternative1, falling back to Undercoat/Alternative1 or Paint/Primary).
+        // Specific accents (nose tip, wingtips, decals) use PRIMARY, SECONDARY, or TERTIARY materials.
+        Func<string, string, float[]?> effectiveColour = colour;
+        if (material.Contains("SPACECRAFT", StringComparison.OrdinalIgnoreCase))
+        {
+            effectiveColour = (palette, slot) =>
+            {
+                if (palette == "Undercoat")
+                {
+                    return colour("Paint", "Alternative1") ?? colour("Undercoat", slot) ?? colour("Paint", "Primary");
+                }
+                return colour(palette, slot);
+            };
+        }
+
         // The main paint (gDiffuseMap); a decal material lays a second sheet over it
         // (gDiffuse2Map - the stripes along a tool's top, 2026-10-16).
-        if (ListIn("gDiffuseMap") is { } main && Layered(main, colour, size, textureSeed, styles) is { } painted)
+        if (ListIn("gDiffuseMap") is { } main && Layered(main, effectiveColour, size, textureSeed, styles) is { } painted)
         {
-            return ListIn("gDiffuse2Map") is { } decal && Layered(decal, colour, size, textureSeed, styles) is { } over
+            return ListIn("gDiffuse2Map") is { } decal && Layered(decal, effectiveColour, size, textureSeed, styles) is { } over
                 ? painted with { Decal = over } : painted;
         }
         // No layers: the plain diffuse image.
@@ -164,7 +182,7 @@ public sealed partial class ShipModels
                 if (layer.Probability > x && layer.SelectToMatchBase) match = true;
                 else if (layer.Probability > x)
                 {
-                    var options = layer.Textures!.Where(t => (int)t.TextureGameplayUse == 0).ToList();
+                    var options = layer.Textures!.Where(t => t.TextureGameplayUse != TkProceduralTexture.TextureGameplayUseEnum.MatchName).ToList();
                     float total = 0f;
                     foreach (var o in options) total += o.Probability;
                     float r = (float)(Step() * Inv) * total, acc = 0f;
