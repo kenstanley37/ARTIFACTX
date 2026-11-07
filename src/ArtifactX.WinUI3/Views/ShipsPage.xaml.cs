@@ -32,7 +32,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
     // ActiveShipIndexPath (aBE) - confirmed against 15 real save files across
     // 3 characters.
     // Name is the button label: the player's name, else the one the game makes
-    // up for an unnamed ship (GameName, MultiToolKinds.ShipNameAsync), else "Starship N".
+    // up for an unnamed ship (GameName, StarshipService.ShipNameAsync), else "Starship N".
     private sealed record ShipEntry(int Index, string Name, bool IsGameActive, bool IsCorvette, int BuildParts,
         bool IsUnnamed = false, string? GameName = null);
 
@@ -251,7 +251,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         try
         {
             foreach (var (seed, scene) in missing)
-                GameNames[(seed, scene)] = await MultiToolKinds.ShipNameAsync(seed, scene);
+                GameNames[(seed, scene)] = await StarshipService.ShipNameAsync(seed, scene);
         }
         finally { _namingShips = false; }
         if (missing.All(m => GameNames[m] is null)) return;

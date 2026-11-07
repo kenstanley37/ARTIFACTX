@@ -221,7 +221,7 @@ public sealed partial class CompanionViewModel : ObservableObject
     {
         // Staged as typed, so a half-typed seed ("0x", "") waits until it's a real one.
         string seed = value.Trim();
-        if (_loading || _index < 0 || !ShipPartsService.TryParseSeed(seed, out _)) return;
+        if (_loading || _index < 0 || !NmsSeedGenerator.TryParse(seed, out _)) return;
         if (seed != (Read<string>(P.ColourBaseSeedPath(_index)) ?? "")) StageField(() => Stage(seed, P.ColourBaseSeedPath(_index)));
     }
 

@@ -135,7 +135,7 @@ public sealed partial class ShipDesignerPage : Page
         // Part names and icons, and the names of the items that unlock paint styles.
         await CatalogService.WarmCacheAsync(_types.SelectMany(t => t.Slots).SelectMany(s => s.Items).Select(i => i.Item)
             .Concat(_styles.Values.SelectMany(l => l).Select(s => s.Unlock).Where(u => u.Length > 0)));
-        await MultiToolKinds.EnsureTreesAsync();
+        await ShipPartsService.EnsureLoadedAsync();
 
         BodyGrid.Visibility = Visibility.Visible;
         _seed = NewSeed();
@@ -374,7 +374,7 @@ public sealed partial class ShipDesignerPage : Page
     {
         if (_type is null) return;
         if (_paintShip is not null) { ShipNameTxt.Text = _paintShipName; return; }
-        string? name = await MultiToolKinds.ShipNameAsync(_seed, _type.Scene);
+        string? name = await StarshipService.ShipNameAsync(_seed, _type.Scene);
         ShipNameTxt.Text = name ?? "";
     }
 
@@ -396,7 +396,7 @@ public sealed partial class ShipDesignerPage : Page
         if (models is null || version != _previewVersion) return;
 
         string scene = _type.Scene;
-        var root = MultiToolKinds.Load(ShipParts.DescriptorFor(scene));
+        var root = ShipPartsService.LoadTree(ShipParts.DescriptorFor(scene));
         // Each chosen item turns on its model parts (PartGroups: FIGHT_COCKAA -> _COCKPIT_A, _ANOSE_A),
         // looked up in its own slot: an Explorer's left and right wings share item ids
         // (SCIEN_WINGT_A) but not parts (SCIEN_L_WINGT_A / SCIEN_R_WINGT_A).
@@ -404,9 +404,9 @@ public sealed partial class ShipDesignerPage : Page
         var stored = (_paintShip is not null ? _paintShipParts : _type.Slots
             .SelectMany(slot => slot.Items.FirstOrDefault(i => i.Item == _parts.GetValueOrDefault(slot.Id))?.Groups ?? new()))
             .SelectMany(g => _partGroups.GetValueOrDefault(g) ?? new()).ToList();
-        var options = root is null ? new HashSet<string>(StringComparer.Ordinal) : ModelPreviewService.AllOptionIds(root, MultiToolKinds.Load, StringComparer.Ordinal);
+        var options = root is null ? new HashSet<string>(StringComparer.Ordinal) : ModelPreviewService.AllOptionIds(root, ShipPartsService.LoadTree, StringComparer.Ordinal);
         var chosen = root is null ? new HashSet<string>(StringComparer.Ordinal)
-            : ShipParts.Generate(scene, _seed, MultiToolKinds.Load, stored).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
+            : ShipParts.Generate(scene, _seed, ShipPartsService.LoadTree, stored).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
         var mesh = await Task.Run(() => models.Build(scene, options, chosen));
         if (version != _previewVersion) return;
         if (mesh is null)

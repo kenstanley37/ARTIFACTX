@@ -111,13 +111,8 @@ public static class ShipPartsService
         }
     }
 
-    public static bool TryParseSeed(string? text, out ulong seed)
-    {
-        seed = 0;
-        text = text?.Trim() ?? "";
-        if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
-        return text.Length > 0 && ulong.TryParse(text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out seed);
-    }
+    public static bool TryParseSeed(string? text, out ulong seed) =>
+        ArtifactX.Core.NmsModels.NmsSeedGenerator.TryParse(text, out seed);
 
     /// <summary>The ship-builder parts this ship type can have, grouped by set (cockpit,
     /// wings...). Builder data writes some ids in mixed case (_WingJointL_A vs the tree's

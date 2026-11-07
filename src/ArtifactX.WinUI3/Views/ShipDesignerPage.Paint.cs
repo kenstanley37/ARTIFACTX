@@ -48,7 +48,7 @@ public sealed partial class ShipDesignerPage
 
         ulong seed = TryParseSeed(index) ?? 0;
         string name = ship["NKm"]?.Value<string>() ?? "";
-        _paintShipName = name.Length > 0 ? name : await MultiToolKinds.ShipNameAsync(seed, scene) ?? $"Starship {index + 1}";
+        _paintShipName = name.Length > 0 ? name : await StarshipService.ShipNameAsync(seed, scene) ?? $"Starship {index + 1}";
         var data = SaveSessionManager.GetValue(CustomisationPath(index).Append("wnR").ToArray()) as JObject;
         _paintShipSmp = data?["SMP"]?.DeepClone();
         _paintShipParts = (data?["SMP"] as JArray)?.Select(t => t.ToString().TrimStart('^')).Where(t => t.Length > 0).ToList() ?? new();
