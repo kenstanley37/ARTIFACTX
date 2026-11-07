@@ -101,8 +101,7 @@ public sealed partial class ModelPreviewPanel : UserControl
             NoteTxt.Text = "Shape and colours from your game files - drag to turn.";
             return;
         }
-        if (scene.Contains("SENTINELSHIP", StringComparison.OrdinalIgnoreCase)
-            && await ModelPreviewService.SeedColoursAsync(seed, rawSeed: true) is { } seedColours)
+        if (await ModelPreviewService.SeedColoursAsync(seed, rawSeed: true) is { } seedColours)
         {
             var textures = await ModelPreviewService.PaintAsync(models, mesh, seedColours, seed);
             if (version != _version) return;
