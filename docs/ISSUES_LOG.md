@@ -551,3 +551,27 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Status 2026-11-04**: solved and built on `feature/egg-sequencer-helper`. The seed is Hash128to64(item hash, ResourceSeed); confirmed on Slot 1 frigate 24, whose ForcedTraitsSeed only FOOD_P_ALL1/2/3 reproduce, and whose first three traits the reroll gives exactly. The Frigates page shows a Feed Vessel list for organic frigates (Core `OrganicFrigateFeeding`).
 - **Confirmed in game 2026-11-04**: the owner fed Rutyulin DH8 (Slot 8) the app's top Trade food, Lumpen Doughnut; the game gave exactly the five predicted traits (Mesmerising Voice, Market Foresight, Peaceful Negotiator, Fleet Mascot, Stoic Endurance) and the predicted stats (Combat 27 to 11, Industrial 14 to 8, Trade 9 to 32, Exploration unchanged). Merged to development.
 - **Open**: which items the game's feed menu offers (the list uses cooking ingredients, unconfirmed). Add 1 to Exosuit on each food: owner-tested and merged 2026-11-04 (3280019).
+
+---
+
+## 2026-11-07 planetary exploration additions
+
+### Feature 65: Planetary Hotspot Locator (Power, Mineral, Gas) on Planet Details
+- **Source**: Owner request, 2026-11-07, with in-game Analysis Mode screenshot on planet Edelangm (`media_1794071304101_ca431196.jpg`) showing an Electromagnetic Power Hotspot at `+2.57, -109.31`.
+- **Goal**: Help players find deep-level resource hotspots on planets directly from the Planet Details page without having to wander blindly with the Survey Device.
+- **Details**:
+  - The Survey Device identifies 3 distinct hotspot categories:
+    1. **Electromagnetic Power Hotspots**: Clean, continuous energy generation for base grids (C, B, A, S class).
+    2. **Deep-Level Mineral Hotspots**: Continuous extraction for mineral extractors (e.g. Indium, Activated Copper, Gold, Magnetised Ferrite, Cobalt, etc. - C, B, A, S class).
+    3. **Atmospheric Gas Hotspots**: Continuous gas harvesting for gas extractors (Oxygen, Nitrogen, Radon, Sulphurine - C, B, A, S class).
+  - Add to the Planet Details page: list or locate hotspots near the player or across the planet with their resource type, rating/class (C, B, A, S), yield %, and exact Analysis Visor coordinates (e.g., `+2.57, -109.31`), with an "Add marker" action.
+  - Research path: investigate whether hotspots are procedurally placed from the planet's seed / coordinate grid (similar to `PlanetBuildingSites` and `BuildingClusterPlacement`) or if they are sampled from the game's noise grids.
+
+### Feature 66: Claimable Planetary Settlement Locator on Planet Details
+- **Source**: Owner request, 2026-11-07.
+- **Goal**: Help players discover claimable (unowned / Overseer-less) planetary settlements on planets across inhabited systems.
+- **Details**:
+  - Planetary settlements (Frontiers update) spawn across inhabited systems on non-dead planets. Players frequently want to find settlements on specific paradise or home worlds without waiting on settlement map RNG.
+  - Display on the Planet Details page: settlement name, dominant race, production class/stats, coordinates, distance from player/portal, and whether an Overseer is already assigned or if the settlement is open to claim.
+  - Provide an "Add marker" action to guide the player directly to the settlement site.
+
