@@ -87,7 +87,7 @@ public sealed partial class ShipDesignerPage
         foreach (var (index, scene, name) in owned)
         {
             string label = name.Length > 0 ? name
-                : TryParseSeed(index) is ulong seed && await MultiToolKinds.ShipNameAsync(seed, scene) is { } gameName ? gameName
+                : TryParseSeed(index) is ulong seed && await StarshipService.ShipNameAsync(seed, scene) is { } gameName ? gameName
                 : $"Starship {index + 1}";
             list.Items.Add(new ListViewItem { Content = label, Tag = index });
         }

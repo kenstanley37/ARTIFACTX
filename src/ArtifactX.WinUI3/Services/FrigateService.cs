@@ -39,7 +39,7 @@ public static class FrigateService
                 f?["uw7"]?["uw7"]?.Value<string>() ?? "",
                 f?["1o6"]?["1o6"]?.Value<string>() ?? "",
                 f?["SS2"]?["0Hi"]?.Value<string>() ?? "",
-                ShipPartsService.TryParseSeed(f?["SLc"]?[1]?.Value<string>(), out ulong resourceSeed) ? resourceSeed : 0,
+                NmsSeedGenerator.TryParse(f?["SLc"]?[1]?.Value<string>(), out ulong resourceSeed) ? resourceSeed : 0,
                 (f?["gUR"] as JArray)?.Select(v => v.Type == JTokenType.Integer ? v.Value<int>() : 0).ToArray() ?? [],
                 f?["5es"]?.Value<int>() ?? 0,
                 $"{identity}#{copy}"));
@@ -52,8 +52,8 @@ public static class FrigateService
     /// separately by the roster reader and LiveItemsService.</summary>
     internal static string? Identity(JToken? frigate)
     {
-        if (!ShipPartsService.TryParseSeed(frigate?["SLc"]?[1]?.Value<string>(), out ulong resource)) return null;
-        ShipPartsService.TryParseSeed(frigate?["@ui"]?[1]?.Value<string>(), out ulong home);
+        if (!NmsSeedGenerator.TryParse(frigate?["SLc"]?[1]?.Value<string>(), out ulong resource)) return null;
+        NmsSeedGenerator.TryParse(frigate?["@ui"]?[1]?.Value<string>(), out ulong home);
         return $"{resource:X16}|{home:X16}";
     }
 

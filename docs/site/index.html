@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ArtifactX — No Man's Sky Save Editor & Companion App</title>
+  <meta name="description"
+    content="ArtifactX is a modern, safe, and powerful save editor and companion app for No Man's Sky. 3D ship previews, multi-tool cabinet predictions, crash sites, and staged non-destructive editing.">
+  <meta name="keywords"
+    content="No Man's Sky, NMS, Save Editor, Companion, ArtifactX, Starships, Multi-Tool, Freighters, Procedural, WinUI 3, Windows 11">
+
+  <!-- Open Graph / Social Meta -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://kenstanley37.github.io/ARTIFACTX/">
+  <meta property="og:title" content="ArtifactX — No Man's Sky Save Editor & Companion App">
+  <meta property="og:description"
+    content="Modern, safe, non-destructive save editing, 3D ship models, cabinet reload predictions, and planetary exploration for No Man's Sky.">
+  <meta property="og:image" content="https://kenstanley37.github.io/ARTIFACTX/images/ShipDesigner.png">
+
+  <link rel="icon" type="image/png" href="images/AppIconMark.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+  <!-- Parallax Celestial Backdrop -->
+  <div class="parallax-backdrop" id="parallaxBackdrop"></div>
+
+  <!-- Site Navigation -->
+  <header class="site-header">
+    <div class="container nav-wrapper">
+      <a href="#" class="brand-link">
+        <img src="images/AppIconMark.png" alt="ArtifactX Logo" class="brand-logo">
+        <span class="brand-name">ArtifactX</span>
+      </a>
+
+      <nav>
+        <ul class="nav-links">
+          <li><a href="#deep-dive">Visual Tour</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#safety">Save Safety</a></li>
+          <li><a href="#downloads">Downloads</a></li>
+          <li><a href="#requirements">Requirements</a></li>
+        </ul>
+      </nav>
+
+      <div class="nav-actions">
+        <a href="https://github.com/kenstanley37/ARTIFACTX" class="btn btn-ghost" target="_blank"
+          rel="noopener">GitHub</a>
+        <a href="#downloads" class="btn btn-primary">Download v1.0.0</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="container hero-content">
+        <div class="badge badge-green">✦ Version 1.0.0 Released</div>
+        <h1 class="hero-title">The modern, safe companion for <span>No Man's Sky</span></h1>
+        <p class="hero-lead">
+          Inspect and edit starships, multi-tools, freighters, companions, and base inventory. Explore procedural galaxy
+          data, crash sites, and cabinet pools without risking your save files.
+        </p>
+
+        <div class="hero-ctas">
+          <a href="https://github.com/kenstanley37/ARTIFACTX/releases/latest/download/ArtifactX-win-Setup.exe"
+            class="btn btn-primary" download>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download Setup (.exe)
+          </a>
+          <a href="https://github.com/kenstanley37/ARTIFACTX/releases/latest" class="btn btn-secondary" target="_blank"
+            rel="noopener">
+            View All Release Assets
+          </a>
+        </div>
+
+        <div class="hero-meta">
+          <span>✓ Windows 10 & 11 (64-bit)</span>
+          <span>✓ Staged non-destructive edits</span>
+          <span>✓ Automatic In-App Updates</span>
+          <span>✓ Free & Open Source</span>
+        </div>
+      </div>
+
+      <!-- App Showcase Preview -->
+      <div class="container" id="showcase">
+        <div class="showcase-wrapper">
+          <div class="showcase-header">
+            <div class="window-dots">
+              <div class="window-dot"></div>
+              <div class="window-dot"></div>
+              <div class="window-dot"></div>
+            </div>
+            <div class="window-title">ArtifactX — Starship Designer & 3D Interactive Preview</div>
+            <div style="width: 48px;"></div>
+          </div>
+          <div class="showcase-image-container">
+            <img src="images/ShipDesigner.png" alt="ArtifactX Ship Designer Preview" class="showcase-image">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual Deep-Dive Tour (Alternating Showcase) -->
+    <section class="section showcase-section" id="deep-dive">
+      <div class="container">
+        <div class="section-head text-center">
+          <div class="badge">Visual Walkthrough</div>
+          <h2 class="section-title">Designed for clarity, engineered with precision</h2>
+          <p class="section-desc">
+            Explore the signature features that make ArtifactX an indispensable companion for your journey across Euclid
+            and beyond.
+          </p>
+        </div>
+
+        <div class="showcase-flow">
+          <!-- Feature 1: Starship Fabrication & 3D Previews -->
+          <div class="showcase-row">
+            <div class="showcase-media">
+              <div class="media-frame">
+                <div class="media-header">
+                  <div class="window-dots">
+                    <div class="window-dot"></div>
+                    <div class="window-dot"></div>
+                    <div class="window-dot"></div>
+                  </div>
+                  <div class="window-title">Starship Designer — 3D Fabricator</div>
+                  <div style="width: 28px;"></div>
+                </div>
+                <img src="images/ShipDesigner.png" alt="Starship Designer and 3D preview" loading="lazy">
+              </div>
+            </div>
+            <div class="showcase-text">
+              <div class="feature-tag">Starships</div>
+              <h3>Part-by-Part Starship Fabrication & 3D Previews</h3>
+              <p>
+                Fabricate Fighter, Hauler, Explorer, or Solar starships with authentic station fabricator parts
+                extracted directly from your own game install. Experiment with custom paint palettes, stealth textures,
+                and procedurally generated model seeds rendered in real-time 3D.
+              </p>
+              <ul class="check-list">
+                <li>Interactive 3D model with smooth mouse rotation and zoom</li>
+                <li>True fabricator part groups and verified paint styles</li>
+                <li>Export and import complete full-build templates</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Feature 2: Squadron Pilot Command -->
+          <div class="showcase-row reverse">
+            <div class="showcase-media">
+              <div class="media-frame">
+                <div class="media-header">
+                  <div class="window-dots">
+                    <div class="window-dot"></div>
+                    <div class="window-dot"></div>
+                    <div class="window-dot"></div>
+                  </div>
+                  <div class="window-title">Squadron Pilots — Fleet Wing Roster</div>
+                  <div style="width: 28px;"></div>
+                </div>
+                <img src="images/SquadronPreview.jpg" alt="Squadron Pilot Command and 3D ship viewer" loading="lazy">
+              </div>
+            </div>
+            <div class="showcase-text">
+              <div class="feature-tag">Squadron</div>
+              <h3>Squadron Pilot Roster with Assigned Starships</h3>
+              <p>
+                Inspect your 4 squadron pilot slots with their exact procedural names, traits, and combat ranks.
+                ArtifactX matches and reconstructs each pilot's assigned starship seed and scene in 3D so you can
+                inspect your escort fleet before heading into space battles.
+              </p>
+              <ul class="check-list">
+                <li>Procedural ship names generated using genuine NMS word banks</li>
+                <li>Live 3D ship viewer for Korvax, Vy'keen, and Gek pilots</li>
+                <li>Safely tweak pilot traits, seeds, and combat ranks</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Feature 3: Space Station Multi-Tool Prediction -->
+          <div class="showcase-row">
+            <div class="showcase-media">
+              <div class="media-frame">
+                <div class="media-header">
+                  <div class="window-dots">
+                    <div class="window-dot"></div>
+                    <div class="window-dot"></div>
+                    <div class="window-dot"></div>
+                  </div>
+                  <div class="window-title">Current System — Station Multi-Tool Reload Pools</div>
+                  <div style="width: 28px;"></div>
+                </div>
+                <img src="images/MultiToolPrediction.jpg" alt="Space station multi-tool prediction and starship catalog"
+                  loading="lazy">
+              </div>
+            </div>
+            <div class="showcase-text">
+              <div class="feature-tag">Current System</div>
+              <h3>Station Cabinets & System Starship Pools</h3>
+              <p>
+                No more guessing what a space station weapon cabinet will offer. ArtifactX predicts the exact multi-tool
+                models, supercharged slot arrangements, damage potential, and scanner ranges based on where your save
+                reloaded.
+              </p>
+              <ul class="check-list">
+                <li>Pistol, Rifle, Alien, and Experimental classifier</li>
+                <li>System starship spawn tables with S-Class base stat bonus estimates</li>
+                <li>Real-time market item trade values and system economies</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Feature 4: Minor Settlement Shop Locator -->
+          <div class="showcase-row reverse">
+            <div class="showcase-media">
+              <div class="media-frame">
+                <div class="media-header">
+                  <div class="window-dots">
+                    <div class="window-dot"></div>
+                    <div class="window-dot"></div>
+                    <div class="window-dot"></div>
+                  </div>
+                  <div class="window-title">Planet Exploration — Minor Settlement Shops</div>
+                  <div style="width: 28px;"></div>
+                </div>
+                <img src="images/MinorSettlements.jpg" alt="Minor Settlement shops and planetary navigation"
+                  loading="lazy">
+              </div>
+            </div>
+            <div class="showcase-text">
+              <div class="feature-tag">Planetary Exploration</div>
+              <h3>Minor Settlement Shops & Visor Coordinates</h3>
+              <p>
+                Locate planetary trader shops and weapon cabinets nearest to you or the planetary portal. Includes exact
+                planetary longitude and latitude coordinates matching your in-game Analysis Visor, real-time distance
+                calculations, and a "YOU ARE HERE" badge that follows your save.
+              </p>
+              <ul class="check-list">
+                <li>Analysis Visor coordinates (e.g. -30.04, -96.92) for precision navigation</li>
+                <li>Automatic tracking of visited vs. unvisited settlements</li>
+                <li>One-click "Add marker" directly into your active save session</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Feature 5: Planetary Crash Site Recovery -->
+          <div class="showcase-row">
+            <div class="showcase-media">
+              <div class="media-frame">
+                <div class="media-header">
+                  <div class="window-dots">
+                    <div class="window-dot"></div>
+                    <div class="window-dot"></div>
+                    <div class="window-dot"></div>
+                  </div>
+                  <div class="window-title">Crashed Ships Near You — Planetary Salvage</div>
+                  <div style="width: 28px;"></div>
+                </div>
+                <img src="images/CrashedShips.jpg" alt="Planetary crashed ships locator" loading="lazy">
+              </div>
+            </div>
+            <div class="showcase-text">
+              <div class="feature-tag">Crash Sites</div>
+              <h3>Crashed Ship Recovery & Valuation</h3>
+              <p>
+                Scan thousands of crashed ship sites across any planet in your current system. Filter by class (S, A, B,
+                C) and ship type, compare prospective stats against your current ship, and calculate scrap values before
+                flying out to claim them.
+              </p>
+              <ul class="check-list">
+                <li>Find salvaged interceptors, haulers, fighters, and shuttles</li>
+                <li>Compare core stats with intrinsic equipment bonuses</li>
+                <li>Filter by distance and depth for land and underwater wrecks</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Core Features Section -->
+    <section class="section section-alt" id="features">
+      <div class="container">
+        <div class="section-head">
+          <div class="badge">Comprehensive Toolkit</div>
+          <h2 class="section-title">Built for Travellers, backed by mathematics</h2>
+          <p class="section-desc">
+            ArtifactX reconstructs No Man's Sky's internal procedural rules to calculate exact stats, predict equipment
+            availability, and render 3D ships directly from your game data.
+          </p>
+        </div>
+
+        <div class="features-grid">
+          <!-- Card 1: Ships -->
+          <div class="feature-card">
+            <div class="feature-icon-wrapper">🚀</div>
+            <h3 class="feature-title">Starships & Fleet</h3>
+            <p class="feature-text">
+              Real-time 3D model previews, procedural ship name resolution, and class upgrades that actually adjust
+              intrinsic stats and supercharged layouts.
+            </p>
+            <ul class="feature-points">
+              <li>Procedural 3D model generator from seed & scene</li>
+              <li>Part-by-part Ship Designer with custom paint</li>
+              <li>Storage Hangar long-term archive viewer</li>
+              <li>Squadron pilot stats & authentic starship previews</li>
+              <li>Full loadout templates and exportable shares</li>
+            </ul>
+          </div>
+
+          <!-- Card 2: Multi-Tools -->
+          <div class="feature-card magenta">
+            <div class="feature-icon-wrapper">🔫</div>
+            <h3 class="feature-title">Multi-Tool Cabinets</h3>
+            <p class="feature-text">
+              Never miss an S-Class cabinet again. See exactly which multi-tools every Space Station and Minor
+              Settlement sells based on your reload location.
+            </p>
+            <ul class="feature-points">
+              <li>Station & planet reload pool prediction</li>
+              <li>Seed-based classifier (Alien, Experimental, Sentinel, Royal)</li>
+              <li>3D tool preview & procedural game names</li>
+              <li>Supercharged slot arrangements & bonus stat calculators</li>
+            </ul>
+          </div>
+
+          <!-- Card 3: Exploration -->
+          <div class="feature-card purple">
+            <div class="feature-icon-wrapper">🪐</div>
+            <h3 class="feature-title">Planetary Exploration</h3>
+            <p class="feature-text">
+              Discover crash sites, settlements, and portal glyphs before you even land on a planet. True coordinates
+              calculated without visiting.
+            </p>
+            <ul class="feature-points">
+              <li>Planetary crash site locator (S-Class & Sentinel ships)</li>
+              <li>12-glyph portal code & galactic coordinate translator</li>
+              <li>Minor Settlement shop finder with Analysis Visor coordinates</li>
+              <li>Region 3D star map & unvisited system counters</li>
+              <li>Fauna, flora, and mineral discovery checklists</li>
+            </ul>
+          </div>
+
+          <!-- Card 4: Companions & Genetic Sequencer -->
+          <div class="feature-card green">
+            <div class="feature-icon-wrapper">🐾</div>
+            <h3 class="feature-title">Companions & Egg Sequencer</h3>
+            <p class="feature-text">
+              Predict the exact outcome of egg gene sequencing before hatching. View your companions' species names and
+              tweak custom attributes.
+            </p>
+            <ul class="feature-points">
+              <li>Egg Sequencer dosage and trait predictor</li>
+              <li>Gentleness, aggression, helpfulness, and size effects</li>
+              <li>Companion archetype and part customizer</li>
+              <li>Wild fauna and battle creature statistics</li>
+            </ul>
+          </div>
+
+          <!-- Card 5: Almanac & Cooking -->
+          <div class="feature-card">
+            <div class="feature-icon-wrapper">🍳</div>
+            <h3 class="feature-title">Almanac & Recipes</h3>
+            <p class="feature-text">
+              Interactive recipe planner for cooking and nutrient processing, refiners, crafting trees, and Organic
+              Frigate feeding guides.
+            </p>
+            <ul class="feature-points">
+              <li>Full cooking, refiner, and manufacturing recipe trees</li>
+              <li>Organic Frigate Feed Vessel optimizer (stat changes per food)</li>
+              <li>"Add ingredients to Exosuit" one-click button</li>
+              <li>Item values, fish catch records, and personal records</li>
+            </ul>
+          </div>
+
+          <!-- Card 6: Settlements & Bases -->
+          <div class="feature-card magenta">
+            <div class="feature-icon-wrapper">🏛️</div>
+            <h3 class="feature-title">Settlements & Bases</h3>
+            <p class="feature-text">
+              Manage your Planetary Settlement's debt, production, policy flags, and construction status. Inspect base
+              parts against the game build limits.
+            </p>
+            <ul class="feature-points">
+              <li>Settlement debt, revenue, and citizen happiness controls</li>
+              <li>Base construction part counts against game limits</li>
+              <li>Base storage container contents and resource links</li>
+              <li>Exocraft customisation and technology unblockers</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Safety Section -->
+    <section class="section" id="safety">
+      <div class="container">
+        <div class="section-head">
+          <div class="badge badge-green">Save File Protection</div>
+          <h2 class="section-title">Engineered for absolute save safety</h2>
+          <p class="section-desc">
+            Your saves represent hundreds of hours of exploration. ArtifactX enforces multi-layered guardrails so your
+            game data is never placed at risk.
+          </p>
+        </div>
+
+        <div class="safety-box">
+          <div class="badge badge-green">✦ Safety Guardrails Active</div>
+          <div class="safety-grid">
+            <div class="safety-item">
+              <h4>🔒 Game-Running Lock</h4>
+              <p>ArtifactX actively monitors No Man's Sky and blocks saving whenever the game is running, preventing
+                write collisions and file corruption.</p>
+            </div>
+            <div class="safety-item">
+              <h4>💾 Staged Non-Destructive Edits</h4>
+              <p>Changes are held in memory in a staged state. Nothing touches disk until you click Save, and any change
+                can be reverted with one click.</p>
+            </div>
+            <div class="safety-item">
+              <h4>📦 Automatic Timestamped Backups</h4>
+              <p>Every write to a save slot or account data file automatically creates a timestamped backup copy.
+                One-click restore pickers let you roll back anytime.</p>
+            </div>
+            <div class="safety-item">
+              <h4>🛡️ Protected User Data</h4>
+              <p>Personal notes, captured findings, and templates live in a separate user database that in-app updates
+                and catalog rebuilds never overwrite.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Downloads Section -->
+    <section class="section section-alt" id="downloads">
+      <div class="container">
+        <div class="section-head">
+          <div class="badge">Get Started</div>
+          <h2 class="section-title">Download ArtifactX v1.0.0</h2>
+          <p class="section-desc">
+            Free, open-source, and updated for the latest version of No Man's Sky. Choose the installation format that
+            suits your setup.
+          </p>
+        </div>
+
+        <div class="downloads-grid">
+          <!-- Installer (.exe) -->
+          <div class="download-card featured">
+            <div>
+              <div class="badge badge-green" style="margin-bottom: 12px;">Recommended</div>
+              <h3 class="download-type">Windows Setup (.exe)</h3>
+              <p class="download-desc">Standard desktop installer powered by Velopack with automatic background update
+                detection.</p>
+            </div>
+            <div>
+              <a href="https://github.com/kenstanley37/ARTIFACTX/releases/latest/download/ArtifactX-win-Setup.exe"
+                class="btn btn-primary" style="width: 100%;">
+                Download Installer
+              </a>
+              <div class="download-filename">ArtifactX-win-Setup.exe</div>
+            </div>
+          </div>
+
+          <!-- Windows Installer (.msi) -->
+          <div class="download-card">
+            <div>
+              <h3 class="download-type">MSI Package (.msi)</h3>
+              <p class="download-desc">Enterprise-friendly Windows Installer package suitable for managed workstations.
+              </p>
+            </div>
+            <div>
+              <a href="https://github.com/kenstanley37/ARTIFACTX/releases/latest/download/ArtifactX-win.msi"
+                class="btn btn-secondary" style="width: 100%;">
+                Download MSI
+              </a>
+              <div class="download-filename">ArtifactX-win.msi</div>
+            </div>
+          </div>
+
+          <!-- Portable (.zip) -->
+          <div class="download-card">
+            <div>
+              <h3 class="download-type">Portable Archive (.zip)</h3>
+              <p class="download-desc">Extract anywhere and run directly without an installation footprint.</p>
+            </div>
+            <div>
+              <a href="https://github.com/kenstanley37/ARTIFACTX/releases/latest/download/ArtifactX-win-Portable.zip"
+                class="btn btn-secondary" style="width: 100%;">
+                Download Portable (.zip)
+              </a>
+              <div class="download-filename">ArtifactX-win-Portable.zip</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Requirements Table -->
+        <div id="requirements" style="margin-top: 60px;">
+          <h3 style="text-align: center; color: #fff; margin-bottom: 16px;">System Requirements</h3>
+          <table class="req-table">
+            <tr>
+              <th>Operating System</th>
+              <td>Windows 10 64-bit (Build 19041 or higher) or Windows 11</td>
+            </tr>
+            <tr>
+              <th>Platform Support</th>
+              <td>Steam, GOG, and PC Game Pass / Microsoft Store installs of No Man's Sky</td>
+            </tr>
+            <tr>
+              <th>Runtime</th>
+              <td>Self-contained .NET 10 & WinUI 3 (Windows App SDK) — no extra downloads needed</td>
+            </tr>
+            <tr>
+              <th>Display</th>
+              <td>Optimized for standard desktop resolutions; High-DPI and screen-reader accessible</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="brand-link">
+            <img src="images/AppIconMark.png" alt="ArtifactX Logo" class="brand-logo"
+              style="width: 28px; height: 28px;">
+            <span class="brand-name">ArtifactX</span>
+          </div>
+          <p>
+            An open-source companion and save editor for No Man's Sky players, designed for clarity, depth, and safety.
+          </p>
+        </div>
+
+        <div class="footer-links-group">
+          <h5>Project Links</h5>
+          <ul>
+            <li><a href="https://github.com/kenstanley37/ARTIFACTX" target="_blank" rel="noopener">GitHub Repository</a>
+            </li>
+            <li><a href="https://github.com/kenstanley37/ARTIFACTX/releases" target="_blank" rel="noopener">Releases &
+                Changelog</a></li>
+            <li><a href="https://github.com/kenstanley37/ARTIFACTX/issues" target="_blank" rel="noopener">Issue
+                Tracker</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-links-group">
+          <h5>Open Source & Partners</h5>
+          <ul>
+            <li><a href="https://github.com/kenstanley37/ARTIFACTX/blob/main/LICENSE" target="_blank"
+                rel="noopener">License (LGPL-3.0)</a></li>
+            <li><a href="https://signpath.org/" target="_blank" rel="noopener">SignPath Foundation (Code Signing)</a>
+            </li>
+            <li><a href="https://github.com/velopack/velopack" target="_blank" rel="noopener">Velopack
+                (Auto-Updates)</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div class="footer-disclaimer">
+          ArtifactX is an independent open-source project and is not affiliated with, endorsed by, or associated with
+          Hello Games Ltd. No Man's Sky is a registered trademark of Hello Games Ltd.
+        </div>
+        <div>
+          © 2026 Kenneth Stanley & ArtifactX Contributors.
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+
+</html>

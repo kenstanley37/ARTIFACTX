@@ -77,6 +77,11 @@
                                             <TextBlock Text="{x:Bind SubText, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                                            <Button Click="RestoreAccountBackupBtn_Click" Tag="{x:Bind}"
+                                                    Background="Transparent" BorderThickness="0" Padding="4" VerticalAlignment="Center"
+                                                    ToolTipService.ToolTip="Restore this account's shared data from a backup" AutomationProperties.Name="Restore account data from a backup">
+                                                <FontIcon Glyph="&#xE81C;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                                            </Button>
                                             <Button Click="RenameFolderBtn_Click" Tag="{x:Bind}"
                                                     Background="Transparent" BorderThickness="0" Padding="4" VerticalAlignment="Center"
                                                     ToolTipService.ToolTip="Give this account a nickname" AutomationProperties.Name="Rename">
@@ -103,6 +108,31 @@
                                         <TextBlock Text="No readable save files were found in this folder."
                                                    Foreground="{ThemeResource ThemeTextDimBrush}" FontSize="13"
                                                    Visibility="{x:Bind IsEmptyResult, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                                        <!-- Account-wide shared data strip (accountdata.hg) -->
+                                        <Border Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                                                CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
+                                            <Grid ColumnSpacing="12">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <SymbolIcon Symbol="World" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                                        <TextBlock Text="Account-Wide Data" FontWeight="SemiBold" FontSize="14" Foreground="{ThemeResource ThemeTextBrush}"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="Shared expedition rewards, Twitch drops, and Guide milestones across all slots (accountdata.hg)" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                                                </StackPanel>
+                                                <Button Grid.Column="1" Click="RestoreAccountBackupBtn_Click" Tag="{x:Bind}" VerticalAlignment="Center"
+                                                        ToolTipService.ToolTip="Restore this account's shared data from a timestamped backup" AutomationProperties.Name="Restore account-wide data from a backup">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <FontIcon Glyph="&#xE81C;" FontFamily="Segoe MDL2 Assets" FontSize="12"/>
+                                                        <TextBlock Text="Restore Account Backup" FontSize="12"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
 
                                         <!-- Compact grid (not a tall single column) so a full
                                              6-slot folder fits without scrolling. -->

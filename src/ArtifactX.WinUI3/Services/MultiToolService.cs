@@ -53,9 +53,6 @@ public static class MultiToolService
     {
         string? seedText = index < 0 ? null
             : SaveSessionManager.GetValue("vLc", "6f=", "SuJ", index.ToString(), "@EL", "1")?.Value<string>();
-        if (seedText is not { Length: > 2 }) return null;
-        string hex = seedText.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? seedText[2..] : seedText;
-        return ulong.TryParse(hex, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out ulong seed)
-            ? seed : null;
+        return NmsSeedGenerator.TryParse(seedText, out ulong seed) ? seed : null;
     }
 }

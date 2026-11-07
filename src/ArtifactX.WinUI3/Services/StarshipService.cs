@@ -1,10 +1,12 @@
 using ArtifactX.Core.NmsModels;
+using ArtifactX.Core.Procedural;
 using ArtifactX.WinUI3.Controls;
 using ArtifactX.WinUI3.Models;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Services;
 
@@ -118,4 +120,17 @@ public static class StarshipService
         "CORVETTE TECHNOLOGY" => Array.Empty<string>(),
         _ => new[] { "UP_HYP", "UP_LAUN", "UP_PULSE", "UP_SGUN", "UP_SLASR", "UP_SMINI", "UP_SSHOT", "UP_S_SHL", "UP_SBLOB" },
     };
+
+    /// <summary>The name the game gives a starship nobody renamed ("Ashes of the
+    /// Suitaka") - ShipNames, words from the catalog (format 12). Null for living
+    /// ships and Sentinel ships (their own name routines, not read yet) and corvettes.</summary>
+    public static async Task<string?> ShipNameAsync(ulong seed, string scenePath)
+    {
+        string path = (scenePath ?? "").ToUpperInvariant();
+        if (seed == 0 || path.Contains("/BIOPARTS/") || path.Contains("/SENTINELSHIP/") || path.Contains("/VINTAGEINTERCEPTOR.")
+            || ShipBaseService.IsCorvetteModel(scenePath ?? ""))
+            return null;
+        var words = await CatalogService.GetProceduralNameWordsAsync();
+        return words.Count == 0 ? null : ShipNames.Generate(seed, list => words.GetValueOrDefault(list));
+    }
 }

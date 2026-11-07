@@ -21,4 +21,14 @@ public static class NmsSeedGenerator
         Random.Shared.NextBytes(bytes);
         return "0x" + BitConverter.ToUInt64(bytes).ToString("X16");
     }
+
+    /// <summary>Parses a hex seed (e.g. "0x12AB..." or "12AB...") into a 64-bit unsigned integer.</summary>
+    public static bool TryParse(string? text, out ulong seed)
+    {
+        seed = 0;
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        text = text.Trim();
+        string hex = text.StartsWith("0x", System.StringComparison.OrdinalIgnoreCase) ? text[2..] : text;
+        return ulong.TryParse(hex, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out seed);
+    }
 }
