@@ -4,6 +4,10 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ## Unreleased
 
+- GitHub Actions automated release pipeline and continuous integration workflows.
+
+## 1.0.0 — 2026-11-07
+
 ### Added
 
 - Current System has a Multi-tools in cabinets section: which multi-tools every cabinet in the system sells, for each place you can load your game (the space station and each planet), with the place your save loads at highlighted. Every cabinet in a system - station and planet shops alike - sells from the list of the place you last loaded at, so save and reload where the multi-tool you want is.
