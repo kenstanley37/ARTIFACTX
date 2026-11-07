@@ -632,12 +632,22 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 
 ### Issue 71: Sentinel Interceptor Seed Colors Mismatch (In-Game vs 3D Preview)
 - **Source**: Owner comparison screenshots, 2026-11-07: ArtifactX preview (`media_1794075254036_4e7a5803.jpg`) vs in-game photo mode on landing pad (`media_1794075281636_f9aac39e.jpg`).
+- **Status 2026-11-07**: Solved on branch `fix/sentinel-interceptor-colors`.
 - **Problem**:
-  - In-game, `DudeWing` is bright red with black wings and white accents.
-  - In ArtifactX's 3D preview, `DudeWing` displays with dark purple/blue hull and black trim.
-- **Root Cause & Research**:
-  - `ModelPreviewService.SeedColoursAsync` generates palette entries from the ship seed, but the shader layer assignment on `SENTINELSHIPMAT` / `DETMAT` in NMS does not map primary/secondary palette indices 1:1 with the current lookup order.
-  - Needs investigation into the exact palette layer mapping in `MODELS/COMMON/SPACESHIPS/SENTINELSHIP/` to align the primary/secondary hull color channels with in-game appearance.
+  - In-game, `DudeWing` (`0x18CCABE432DC2725`) is bright coral red with black wings and white striping.
+  - In ArtifactX's 3D preview, `DudeWing` displayed with a dark purple/slate-blue hull and black trim.
+- **Root Cause**:
+  - In `ShipModels.Paint.cs` (and `ShipLook.cs`), layer texture options were filtered with `(int)t.TextureGameplayUse == 0` (and `o.Use != 0`), assuming anything non-zero was a special requested name.
+  - In NMS, `TkProceduralTexture.TextureGameplayUseEnum` defines:
+    - `0 = IgnoreName`: Always eligible for procedural generation.
+    - `1 = MatchName`: Only used if specifically requested (e.g. `POLICE` style decals).
+    - `2 = DoNotMatchName`: Standard procedural options (used whenever a special name is NOT requested).
+  - In `TEXTURES/COMMON/ROBOTS/SENTINELPROC.TEXTURE.MBIN`, the `OVERLAY` layer's 4 procedural textures (including `Texture 4`, which uses `Palette: Paint, Alt: Alternative1` — the bright red hull coat `#FB6B56` / `#CE5D50`) are marked `DoNotMatchName` (2).
+  - Filtering by `== 0` caused `options` to be completely empty for `OVERLAY`, silently dropping the entire hull overlay layer from every Sentinel ship and leaving only the slate-blue undercoat.
+- **Fix**:
+  - Updated `ShipModels.Paint.cs` to filter out only `MatchName` (`t.TextureGameplayUse != TkProceduralTexture.TextureGameplayUseEnum.MatchName`).
+  - Updated `ShipLook.cs` to ignore only `o.Use == 1` (`MatchName`).
+  - Verified with game files: `DudeWing` now paints with its bright red hull `#CE5D50`, white accent decals `#F3EBE5`, and dark chassis `#121111` exactly matching in-game appearance.
 
 
 

@@ -164,7 +164,7 @@ public sealed partial class ShipModels
                 if (layer.Probability > x && layer.SelectToMatchBase) match = true;
                 else if (layer.Probability > x)
                 {
-                    var options = layer.Textures!.Where(t => (int)t.TextureGameplayUse == 0).ToList();
+                    var options = layer.Textures!.Where(t => t.TextureGameplayUse != TkProceduralTexture.TextureGameplayUseEnum.MatchName).ToList();
                     float total = 0f;
                     foreach (var o in options) total += o.Probability;
                     float r = (float)(Step() * Inv) * total, acc = 0f;

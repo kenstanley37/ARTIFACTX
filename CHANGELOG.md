@@ -14,6 +14,10 @@ What changed in each ArtifactX release, written for players. The newest release 
 - In-app automatic updater powered by Velopack: when an update is available on GitHub Releases, players can update and restart directly from the title bar or Settings page without having to manually download installers. Player data and databases in %AppData%\ArtifactX remain completely untouched.
 - GitHub Actions automated release pipeline and continuous integration workflows.
 
+### Fixed
+
+- 3D Previews: Sentinel Interceptor starships now accurately display their hull paint colors, accent decals, and wing trim from their seed (fixing an issue where procedural overlay coats marked for non-named procedural use were omitted).
+
 ## 1.0.0 — 2026-11-07
 
 ### Added

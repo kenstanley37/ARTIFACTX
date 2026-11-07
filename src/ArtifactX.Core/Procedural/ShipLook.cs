@@ -124,7 +124,7 @@ public static class ShipLook
                     int at = slot.Options.FindIndex(x => x.Option.Name == o.Name && x.Option.Alt == o.Alt && x.Option.Palette == o.Palette);
                     if (at < 0)
                     {
-                        if (o.Use != 0) continue; // only for a requested name, never on ships
+                        if (o.Use == 1) continue; // MatchName (1): only for a requested name (e.g. POLICE), never on random ships
                         slot.Options.Add((o, 0f, 0));
                         at = slot.Options.Count - 1;
                     }
