@@ -190,6 +190,7 @@ These items directly extend existing open GitHub issues:
 - Allow editing pilot and ship information through the real saved fields or procedural inputs. Research generated values so edits produce the intended in-game effect.
 - Reuse the Starships page's actual 3D ship preview capability.
 - Design around the four squadron slots, using the game's compact 2-by-2 ship selection layout and selected pilot/ship details area. Show empty slots clearly.
+- **Status / Follow-up (2026-11-07)**: 3D interactive ship preview card and procedural starship name generation implemented for all 4 squadron pilots (`d1e0281`). Open item noted by owner: procedural seed colors for standard starships are not yet fully mapped (rendered in the cyan hologram style when not painted at a station fabricator). Tracked for procedural palette texture mapping.
 
 ### Feature 19: Storage Hangar
 
