@@ -48,7 +48,7 @@ public sealed partial class SystemMultiToolItemViewModel : ObservableObject
     {
         try
         {
-            if (await MultiToolKinds.KindAsync(Tool.Seed) is { Length: > 0 } kind)
+            if (await Task.Run(() => MultiToolKinds.KindAsync(Tool.Seed)) is { Length: > 0 } kind)
             {
                 if (dispatcher is null) Kind = kind;
                 else dispatcher.TryEnqueue(() => Kind = kind);
@@ -139,7 +139,11 @@ public sealed partial class SystemMultiToolsViewModel : ObservableObject
             HasPlaces = places.Length > 0;
             var (c, b, a, s) = EquipmentGeneration.GetClassProbabilities(facts.Wealth, facts.Pirate, tables);
             Odds = $"Cabinet class chances in this system: S {s:0}% · A {a:0}% · B {b:0}% · C {c:0}%";
-            foreach (var tool in places.SelectMany(p => p.Tools)) _ = tool.ResolveKindAsync(dispatcher);
+            _ = Task.Run(async () =>
+            {
+                await MultiToolKinds.EnsureTreesAsync();
+                foreach (var tool in places.SelectMany(p => p.Tools)) _ = tool.ResolveKindAsync(dispatcher);
+            });
         }
         foreach (var place in Places) place.IsSavedLoad = place.Body == savedBody;
     }

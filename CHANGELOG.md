@@ -16,6 +16,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Performance: Current System and Planet Details pages now process crashed ship spatial scans, shop distance calculations, and multi-tool model part resolutions entirely off the UI thread, eliminating UI freezes during navigation.
 - 3D Previews: Found and bought starships (Fighters, Haulers, Explorers, Solars, Shuttles, and Sentinel Interceptors) now display in full color from their seed rather than defaulting to a blue hologram scan.
 - 3D Previews: Fighter, Hauler, Solar, and Shuttle starship wings and hull coatings now render in their authentic primary and secondary seed paint colors rather than falling back to unpainted tan or grey on procedural trim surfaces.
 - 3D Previews: Sentinel Interceptor starships now accurately display their hull paint colors, accent decals, and wing trim from their seed (fixing an issue where procedural overlay coats marked for non-named procedural use were omitted).

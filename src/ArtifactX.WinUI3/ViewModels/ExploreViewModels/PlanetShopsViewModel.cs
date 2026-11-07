@@ -205,7 +205,11 @@ public sealed partial class PlanetShopsViewModel : ObservableObject
             var tools = pool.Select(t => new SystemMultiToolItemViewModel(t)).ToArray();
             Tools = tools;
             var dispatcher = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
-            foreach (var tool in tools) _ = tool.ResolveKindAsync(dispatcher);
+            _ = Task.Run(async () =>
+            {
+                await MultiToolKinds.EnsureTreesAsync();
+                foreach (var tool in tools) _ = tool.ResolveKindAsync(dispatcher);
+            });
         }
 
         await LoadFilteredShopsAsync();

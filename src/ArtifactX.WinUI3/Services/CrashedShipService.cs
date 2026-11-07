@@ -112,12 +112,15 @@ public static class CrashedShipService
             All.TryRemove(new KeyValuePair<ulong, Task<AllOnPlanet?>>(planetAddress, task));   // retry once the catalog is ready
             return null;
         }
-        var dir = Direction(latitude, longitude);
-        var ofClass = found.Sites.Where(match).ToList();
-        var nearest = ofClass
-            .Select(s => s with { DistanceKm = Angle(s, dir) * found.Radius / 1000 })
-            .OrderBy(s => s.DistanceKm).Take(count).ToList();
-        return new CrashedShipsOfClass(await CrashedShipDisplayStatsService.ApplyAsync(nearest), ofClass.Count, found.Uncharted);
+        return await Task.Run(async () =>
+        {
+            var dir = Direction(latitude, longitude);
+            var ofClass = found.Sites.Where(match).ToList();
+            var nearest = ofClass
+                .Select(s => s with { DistanceKm = Angle(s, dir) * found.Radius / 1000 })
+                .OrderBy(s => s.DistanceKm).Take(count).ToList();
+            return new CrashedShipsOfClass(await CrashedShipDisplayStatsService.ApplyAsync(nearest), ofClass.Count, found.Uncharted);
+        });
     }
 
     /// <summary>How many of the planet's crashed ships that <paramref name="match"/> accepts fall in each group of
@@ -126,8 +129,8 @@ public static class CrashedShipService
         Func<CrashedShipSite, bool> match, Func<CrashedShipSite, string> group)
     {
         if (await All.GetOrAdd(planetAddress, AllOnPlanetAsync) is not { } found) return [];
-        return found.Sites.Where(match).GroupBy(group).Select(g => (g.Key, g.Count()))
-            .OrderByDescending(g => g.Item2).ToList();
+        return await Task.Run(() => found.Sites.Where(match).GroupBy(group).Select(g => (g.Key, g.Count()))
+            .OrderByDescending(g => g.Item2).ToList());
     }
 
     private static async Task<AllOnPlanet?> AllOnPlanetAsync(ulong planetAddress)
