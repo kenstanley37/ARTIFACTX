@@ -45,18 +45,19 @@ public sealed partial class ShipModels
         TkProceduralTextureList? ListIn(string slot) =>
             samplers.FirstOrDefault(s => (s.Name?.Value ?? "") == slot)?.Map?.Value is { Length: > 0 } map
                 ? Decode(Extension.Replace(map.Replace('\\', '/'), "") + ".TEXTURE.MBIN") as TkProceduralTextureList : null;
-        // In starship procedural hull shaders (TRIMS.TEXTURE.MBIN), Undercoat/Alternative4 is the base hull coating.
-        // In game, the entire hull (fuselage, wings, engine, fins) takes the ship's primary hull paint
-        // (Paint/Alternative1, falling back to Undercoat/Alternative1 or Undercoat/Primary).
+        // In starship procedural hull shaders, Undercoat layers (e.g. TRIMS Undercoat/Alternative4,
+        // SECONDARY Undercoat/Primary) represent the base hull coating and panels.
+        // In game, procedural spacecraft hulls take the ship's primary hull paint
+        // (Paint/Alternative1, falling back to Undercoat/Alternative1 or Paint/Primary).
         // Specific accents (nose tip, wingtips, decals) use PRIMARY, SECONDARY, or TERTIARY materials.
         Func<string, string, float[]?> effectiveColour = colour;
         if (material.Contains("SPACECRAFT", StringComparison.OrdinalIgnoreCase))
         {
             effectiveColour = (palette, slot) =>
             {
-                if (palette == "Undercoat" && slot == "Alternative4")
+                if (palette == "Undercoat")
                 {
-                    return colour("Paint", "Alternative1") ?? colour("Undercoat", "Alternative1") ?? colour("Undercoat", "Primary");
+                    return colour("Paint", "Alternative1") ?? colour("Undercoat", slot) ?? colour("Paint", "Primary");
                 }
                 return colour(palette, slot);
             };
