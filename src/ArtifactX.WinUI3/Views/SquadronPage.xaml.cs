@@ -9,6 +9,7 @@ using ArtifactX.WinUI3.Services;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Windows.UI;
 
 namespace ArtifactX.WinUI3.Views;
@@ -114,6 +115,7 @@ public sealed partial class SquadronPage : Page
         ShipTypeBox.SelectedIndex = -1;
         ShipSeedBox.Show(null);
         TraitsSeedBox.Show(null);
+        ShipPreviewGroup.Visibility = Visibility.Collapsed;
     }
 
     private void LoadSelectedPilot()
@@ -162,6 +164,8 @@ public sealed partial class SquadronPage : Page
         PageResetBtn.Visibility = SaveSessionManager.HasStagedEditsUnder(NmsSquadronPaths.PilotPath(_selectedIndex))
             ? Visibility.Visible : Visibility.Collapsed;
 
+        _ = ShowShipPreviewAsync();
+
         _suppressFieldChangeEvent = false;
     }
 
@@ -174,6 +178,7 @@ public sealed partial class SquadronPage : Page
         EditableFieldsPanel.IsEnabled = unlocked;
         PageResetBtn.Visibility = Visibility.Visible;
         BuildSelectorStrip(PilotSelectorPanel.Children.Count);
+        _ = ShowShipPreviewAsync();
     }
 
     /// <summary>Drops the synthetic "(Current - not in known list)" entry
@@ -197,6 +202,7 @@ public sealed partial class SquadronPage : Page
 
         SaveSessionManager.StageEdit(newValue, path);
         PageResetBtn.Visibility = Visibility.Visible;
+        _ = ShowShipPreviewAsync();
     }
 
     private void RaceBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -210,6 +216,7 @@ public sealed partial class SquadronPage : Page
 
         SaveSessionManager.StageEdit(newValue, path);
         PageResetBtn.Visibility = Visibility.Visible;
+        _ = ShowShipPreviewAsync();
     }
 
     /// <summary>Only 0-3 are confirmed (C/B/A/S, matching
@@ -247,5 +254,39 @@ public sealed partial class SquadronPage : Page
     private void Seed_Changed(object? sender, SeedChange change)
     {
         PageResetBtn.Visibility = Visibility.Visible;
+        if (sender == ShipSeedBox) _ = ShowShipPreviewAsync();
+    }
+
+    private async Task ShowShipPreviewAsync()
+    {
+        if (_selectedIndex < 0)
+        {
+            ShipPreviewGroup.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        bool unlocked = SaveSessionManager.GetValue(NmsSquadronPaths.UnlockedPath(_selectedIndex))?.Value<bool>() ?? true;
+        if (!unlocked)
+        {
+            ShipPreviewGroup.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        string shipFilename = (ShipTypeBox.SelectedItem as ComboBoxItem)?.Tag as string
+            ?? SaveSessionManager.GetValue(NmsSquadronPaths.ShipFilenamePath(_selectedIndex))?.Value<string>() ?? "";
+        string shipSeedText = SaveSessionManager.GetValue(NmsSquadronPaths.ShipSeedPath(_selectedIndex))?.Value<string>() ?? "";
+
+        ShipPreviewGroup.Visibility = Visibility.Visible;
+        if (NmsSeedGenerator.TryParse(shipSeedText, out ulong seed) && seed != 0)
+        {
+            string? name = await StarshipService.ShipNameAsync(seed, shipFilename);
+            ShipNameTxt.Text = name is { Length: > 0 } ? name : "Squadron Starship";
+        }
+        else
+        {
+            ShipNameTxt.Text = "Squadron Starship";
+        }
+
+        await ShipPreview.ShowAsync(shipFilename, shipSeedText);
     }
 }
