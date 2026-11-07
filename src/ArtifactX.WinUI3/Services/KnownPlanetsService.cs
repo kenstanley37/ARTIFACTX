@@ -108,7 +108,8 @@ public static class KnownPlanetsService
 public sealed record PlanetSnapshot(JToken? Universe, JArray? StatGroups, JArray? Discoveries, string? Summary = null, JArray? Markers = null, JArray? Bases = null, JToken? Fishing = null,
     JToken? Spawn = null, JToken? PlanetPositions = null, JArray? LooseObjects = null, JArray? Settlements = null, string? LocalOnlineId = null, JArray? ScanEvents = null,
     JObject? EquipmentSaveInputs = null, JObject? ExosuitCargo = null,
-    IReadOnlyList<ArtifactX.Core.Recipes.CargoSupply>? CargoSupplies = null)
+    IReadOnlyList<ArtifactX.Core.Recipes.CargoSupply>? CargoSupplies = null,
+    JArray? StoredInteractions = null)
 {
     /// <summary>The player's coordinates on the planet they're on, if any.</summary>
     public (double Latitude, double Longitude)? Coordinates =>
@@ -137,7 +138,8 @@ public static class LiveSaveReader
                 context?["rnc"], player?["aHM"], player?["c5s"] as JArray, player?["GQA"] as JArray,
                 root["<h0"]?["F=J"]?[0]?["K7E"]?.Value<string>(), player?["A1f"] as JArray,
                 NmsMultiToolGenerationPaths.CopySavedInputs(root), player?[";l5"] as JObject,
-                ArtifactX.Core.Recipes.CargoSupplies.Read(player as JObject));
+                ArtifactX.Core.Recipes.CargoSupplies.Read(player as JObject),
+                player?["a6j"] as JArray);
         }
         catch (Exception ex)
         {

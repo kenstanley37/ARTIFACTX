@@ -693,3 +693,9 @@ Max noise layers and NoSeaBaseLevel on `TerrainSetting` (PLANETPROFILE row, ~454
 then `RegionCheck overrides <address> ... - buildingoverrides.json` reading only those catalog rows: **102/102**, same
 positions. Open: the Shelter and Portal model radii (prime planets' flatness ring) are the values measured in the
 running game (`CatalogSteps.MeasuredModelRadius`), not extracted from the model files yet.
+
+**Cluster re-centring (2026-11-05, build 184271).** A regular site's main building is not left on its point A: once the
+cluster members are placed, 0x1412B6BA0 shifts every building of the cluster by `-sum(r_i (p_i - A)) / sum(r_i)` (r =
+record radius `+0xC0`). Kaim 30/19 shops moved 10.0 and 25.5 m. The facing is `index * 45` **radians**. The live
+check and the open steps are in PLANETARY_MULTITOOL_LOCATIONS.md. Markers and crashed-ship checks so far had about
+20 m precision, so this needs re-checking for any class with cluster members before giving exact in-building positions.

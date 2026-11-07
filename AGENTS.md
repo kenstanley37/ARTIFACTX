@@ -60,6 +60,10 @@ This is the single shared rules file for every AI assistant: `CLAUDE.md` and `GE
 - App data: `%AppData%\ArtifactX` (catalog in `GameData\nms_catalog.sqlite`, decrypted save copies in `Working\`, logs in `logs\`).
 - `user.db` (player's own SQLite: notes, finds, templates, captures): additive-only numbered migrations, backup before upgrading, soft deletes (`deleted = 1`). Never ship it.
 - **Never commit game data** (`*.sqlite`, `*.sqlite.bak`, `*.hg`, `*.hg.json`, extracted icons). Check diffs before committing.
+- **Desktop and mobile get game data differently:**
+  - **Desktop** builds everything from the player's own installed game (`ArtifactX.GameData`) and ships no game data at all - not even tables.
+  - **Mobile** has no game install, so it may ship a **tables-only bundle**: numbers and text the generators need (building layouts, multi-tool pools, inventory and tech tables, name words). It never ships game **assets** - no models, textures, icons, images or audio; use our own artwork or leave pictures out.
+  - The mobile bundle is exported from the desktop pipeline at release time, is kept out of git (a release artifact, like the catalog), and records the game build it came from. Every NMS update needs a new bundle.
 
 ## 6. Git, changelog, releases
 

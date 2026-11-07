@@ -152,6 +152,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
 
     public async Task LoadAsync(KnownPlanet planet, PlanetSnapshot snapshot)
     {
+        _planet = null;
         _portal = null;
         HasPortal = false;
         if (_planetAddress != planet.Address)
@@ -192,10 +193,15 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         (double Lat, double Lon)? from = here ? snapshot.Coordinates : _portal is { } p ? (p.Latitude, p.Longitude) : null;
         if (from is not { } at) return;
         int? savedBody = CabinetPoolService.SavedLoadBody(planet.SystemAddress, snapshot.EquipmentSaveInputs);
-        if (_shopsFrom != (planet.Address, at.Lat, at.Lon, savedBody))
+        bool shopsNeedReload = _shopsFrom is null
+            || _shopsFrom.Value.Address != planet.Address
+            || _shopsFrom.Value.SavedBody != savedBody
+            || System.Math.Abs(_shopsFrom.Value.Lat - at.Lat) > 0.005
+            || System.Math.Abs(_shopsFrom.Value.Lon - at.Lon) > 0.005;
+        if (shopsNeedReload)
         {
             _shopsFrom = (planet.Address, at.Lat, at.Lon, savedBody);
-            _ = Shops.LoadAsync(planet.Address, at.Lat, at.Lon, here, savedBody);
+            _ = Shops.LoadAsync(planet.Address, at.Lat, at.Lon, here, savedBody, snapshot);
         }
         var found = await CrashedShipService.SearchAsync(planet.Address, Matches, at.Lat, at.Lon, ShownShips);
         if (_planetAddress != planet.Address || found is null) return;
@@ -266,6 +272,12 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         LocatedSitesHint = sites.Count > 0
             ? "Exact planetary coordinates (+Lat, +Lon) read directly from active markers/charts in your save and your logged Finds."
             : "No active Crashed Ship, Minor Settlement, or Sentinel Pillar markers are currently open on this planet in your save. Use a Planetary Chart, Sentinel Boundary Map, Echo Locator, or Signal Booster in game and save to see its exact +Lat, +Lon coordinates here automatically.";
+
+        if (_planet?.Address == planet.Address && !ReferenceEquals(_snapshot, snapshot))
+        {
+            _ = LoadCrashedShipsAsync(planet, snapshot);
+            RefreshMarkers();
+        }
     }
 
     /// <summary>Reads active markers and player-recorded Finds with exact locations for one planet.</summary>

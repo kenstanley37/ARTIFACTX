@@ -236,7 +236,8 @@ public static class CatalogService
             {
                 string? letter = reader.GetString(1) switch
                 {
-                    "Normal" => "C", "Rare" => "B", "Epic" => "A", "Legendary" => "S", "Illegal" => "X", _ => null,
+                    "Normal" => "C", "Rare" => "B", "Epic" => "A", "Legendary" => "S", "Illegal" => "X",
+                    "SeaTrash" => "!", "Sentinel" or "Robot" => "?", _ => null,
                 };
                 if (letter is not null) classes[reader.GetString(0)] = letter;
             }
@@ -1346,6 +1347,11 @@ public static class CatalogService
     /// building); null on game data built before catalog format 49.</summary>
     public static Task<ArtifactX.Core.Universe.BuildingClassPlacement[]?> GetBuildingPlacementAsync() =>
         GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.BuildingClassPlacement[]>("BUILDINGPLACEMENT");
+
+    /// <summary>Planet building L-system layouts, scene mesh bounds, weapon-crate transforms, cluster layouts and
+    /// record counts (catalog row BUILDINGLAYOUTS); null on game data built before catalog format 74.</summary>
+    public static Task<ArtifactX.Core.Universe.BuildingLayoutTables?> GetBuildingLayoutTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.BuildingLayoutTables>("BUILDINGLAYOUTS");
 
     /// <summary>Each building class's override rules (portal, shelter, base...); null on game data built before
     /// catalog format 48.</summary>

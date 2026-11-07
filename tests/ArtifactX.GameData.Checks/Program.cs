@@ -162,6 +162,12 @@ if (args.Length is 3 or 4 && args[0] == "--extraction-site-check")
     return;
 }
 
+if (args.Length == 4 && args[0] == "--building-layout-check")
+{
+    BuildingLayoutChecks.Live(args[1], args[2], args[3]);
+    return;
+}
+
 if (args.Length == 3 && args[0] == "--extraction-world-check")
 {
     ExtractionCatalogChecks.World(args[1], args[2]);

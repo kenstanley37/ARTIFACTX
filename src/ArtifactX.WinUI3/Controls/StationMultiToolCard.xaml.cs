@@ -48,6 +48,22 @@ public sealed partial class StationMultiToolCard : UserControl
     private void HostSizeChanged(object sender, SizeChangedEventArgs args) => FitWidth();
     private void FitWidth() => Width = Math.Min(460, Math.Max(1, _host?.ActualWidth ?? 460));
 
+    private void Card_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+    {
+        if (e.OriginalSource is DependencyObject obj)
+        {
+            while (obj is not null)
+            {
+                if (obj is Button || obj is Microsoft.UI.Xaml.Controls.Primitives.ToggleButton) return;
+                obj = VisualTreeHelper.GetParent(obj);
+            }
+        }
+        if (ViewModel is not null)
+        {
+            ViewModel.IsSelected = !ViewModel.IsSelected;
+        }
+    }
+
     private void SlotsToggle_Changed(object sender, RoutedEventArgs e)
     {
         bool shown = SlotsToggle.IsChecked == true;
