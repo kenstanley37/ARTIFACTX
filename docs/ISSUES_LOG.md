@@ -587,16 +587,18 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 
 ### Feature 68: 3D Model Preview in Starship Template Preview Dialog
 - **Source**: Owner request, 2026-11-07, with screenshot `media_1794072002566_c2783150.jpg` of the `AwesomeVette` Full Build template preview dialog: "The preview of our starships show nothing but the tech and stats. We need to be able to give a 3d preview of the ship as well. Just another thing to add to the list"
-- **Goal**: When previewing a saved starship template from the Templates sidebar (in `StarshipsPage`, `LoadoutTemplatesPanel`), render an interactive 3D model preview of the starship alongside or within `TemplatePreview.xaml`.
-- **Details**:
-  - **Existing State**: `TemplatePreview.xaml` / `TemplatePreviewViewModel.cs` displays a single-column layout containing template metadata facts (Class, Saved from, Saved date, Tech count, Unlocked slots, Supercharged slots, Cargo slots, Look info), base stat bonuses, and a scrollable grid of technology icons with compatibility notes.
-  - **Full Build Template Data**: Full Build templates (`Scope == "FullBuild"`, `SourceKind == "Ship"`) already store the ship's procedural hull `Seed`, `TypeScenePath` (model type, e.g. Fighter, Sentinel Interceptor, Explorer, Hauler, Solar, Shuttle, Exotic), and `Customisation` (paint colors/style). For corvettes, it also stores `ShipBase` and `InteriorObjects`.
-  - **Target UI Design**:
-    - For templates with `SourceKind == "Ship"` and a valid `TypeScenePath` / `Seed`:
-      - Expand the dialog layout to a comfortable two-column or split layout (e.g. 3D `ShipPreview` viewport on one side, facts/base stats/tech grid on the other), or embed an interactive preview card at the top.
-      - Embed the existing reusable `ShipPreview` control (from `ArtifactX.WinUI3.Controls`) bound to the template's scene path, seed, and customization colors.
-      - Allow mouse drag-to-orbit rotation matching `StarshipsPage` and `SquadronPage`.
-    - For non-ship templates (Multi-Tools, Freighters) or Tech Stack-only templates (which deliberately omit hull seed/model), gracefully retain the compact facts/stats/tech-only view.
+- **Status 2026-11-07**: Built on branch `feature/template-ship-3d-preview`.
+- **Implementation**:
+  - `TemplatePreview.xaml` / `TemplatePreviewViewModel.cs` updated to a dynamic side-by-side layout:
+    - Full Build Starships and Freighters (where `Scope == "FullBuild"` and `TypeScenePath` is present) expand dialog max width to 1,000px, rendering an interactive `ModelPreviewPanel` (Width 380px, Height 260px) in the left column with drag-to-orbit rotation.
+    - Right column houses the template facts, base stats bonuses, scrollable tech grid, and compatibility notes.
+    - Non-model or Tech Stack templates gracefully collapse the model column and remain at standard 620px width.
+  - Enhanced `ModelPreviewPanel.xaml.cs` to support:
+    - Fabricated ships with custom paint, styles, and options via `BuiltLook`.
+    - Fixed-look ships (Golden Vector, Starborn Runner, Boundary Herald, etc.) with authentic game textures via `FixedLookAsync`.
+    - Sentinel Interceptors with seed-derived palette painting.
+    - Conventional and freighter models with hologram scan fallback.
+  - Added `ShipPartsService.BuiltLookFromCustomisation` to parse saved paint, parts, and styles directly from `template.Customisation`.
 
 
 
