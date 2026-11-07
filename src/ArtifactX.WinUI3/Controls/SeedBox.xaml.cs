@@ -5,6 +5,8 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace ArtifactX.WinUI3.Controls;
 
@@ -13,7 +15,7 @@ public sealed record SeedChange(string Seed, bool Generated);
 
 public sealed partial class SeedBox : UserControl
 {
-    private readonly System.Collections.Generic.List<string> _history = new();
+    private readonly List<string> _history = new();
     private string[]? _path;
 
     public SeedBox() => InitializeComponent();
@@ -50,9 +52,17 @@ public sealed partial class SeedBox : UserControl
     /// and stages nothing.</summary>
     public void Show(string[]? path)
     {
+        bool samePath = _path is not null && path is not null && _path.SequenceEqual(path);
         _path = path;
-        _history.Clear();
-        UndoBtn.IsEnabled = false;
+        if (!samePath)
+        {
+            _history.Clear();
+            UndoBtn.IsEnabled = false;
+        }
+        else
+        {
+            UndoBtn.IsEnabled = _history.Count > 0;
+        }
         Box.Text = path is null ? "" : SaveSessionManager.GetValue(path)?.Value<string>() ?? "";
     }
 
