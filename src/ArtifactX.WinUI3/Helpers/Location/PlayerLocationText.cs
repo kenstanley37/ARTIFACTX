@@ -1,3 +1,4 @@
+using System.Linq;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using Newtonsoft.Json.Linq;
@@ -43,8 +44,20 @@ public static class PlayerLocationText
         };
         string line = state == "InNexus" ? place : $"{place} · {systemName}";
 
+        string typeDetail = "";
+        if (planet > 0)
+        {
+            var pDetails = PlanetDetailsService.Get(system, planet);
+            var kp = NmsPlanets.ReadAll(snapshot.Discoveries).FirstOrDefault(p => p.PlanetIndex == planet);
+            bool isMoon = BodyKindsService.IsMoon(system, planet);
+            string type = kp is not null
+                ? kp.Classification(pDetails?.Descriptor, isMoon: isMoon)
+                : pDetails?.Descriptor is { Length: > 0 } desc ? desc : "";
+            if (type.Length > 0) typeDetail = $" · {type}";
+        }
+
         int galaxy = S.GalaxyNumber(system);
-        string detail = $"{place}\n{systemName} · {UniverseInfo.Region(system)} · {PlanetText.GalaxyLabel(galaxy)}\n"
+        string detail = $"{place}{typeDetail}\n{systemName} · {UniverseInfo.Region(system)} · {PlanetText.GalaxyLabel(galaxy)}\n"
             + $"Portal address {S.PortalAddress(system, planet > 0 ? planet : 1)}";
         return (line, detail);
     }

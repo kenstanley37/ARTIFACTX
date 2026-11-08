@@ -1,4 +1,4 @@
-﻿using ArtifactX.Core.NmsModels;
+using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Microsoft.UI.Input;
@@ -105,7 +105,13 @@ public sealed partial class SystemMap : UserControl
                     Stroke = ThemeResources.Brush(body.IsHere ? "ThemeAccentBrush" : "ThemeTextDimBrush"), StrokeThickness = 1.5,
                     StrokeDashArray = new DoubleCollection { 2, 2 },
                 };
-            ToolTipService.SetToolTip(drawing, $"{body.Name}\n{body.Kind}" + (body.Planet is null ? "\nNot discovered yet" : ""));
+            string typeInfo = "";
+            if (body.Planet is KnownPlanet kp)
+            {
+                var details = PlanetDetailsService.Get(kp.SystemAddress, kp.PlanetIndex);
+                typeInfo = $" · {kp.Classification(details?.Descriptor, isMoon: body.IsMoon)}";
+            }
+            ToolTipService.SetToolTip(drawing, $"{body.Name}\n{body.Kind}{typeInfo}" + (body.Planet is null ? "\nNot discovered yet" : ""));
             var label = new TextBlock
             {
                 Text = body.Name, FontSize = body.IsMoon ? 11 : 12, IsHitTestVisible = false,

@@ -14,9 +14,10 @@ public sealed class PlanetRowViewModel
         var details = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex);
         NameLabel = UniverseInfo.PlanetName(planet.SystemAddress, planet.PlanetIndex);
         FactsLabel = UniverseInfo.Compact(planet.SystemAddress);
+        bool isMoon = BodyKindsService.IsMoon(planet.SystemAddress, planet.PlanetIndex);
         LocationLabel = string.Join(" · ", new[]
         {
-            planet.Classification(details?.Descriptor), PlanetText.Body(planet), PlanetText.GalaxyLabel(planet.Galaxy), planet.Source,
+            planet.Classification(details?.Descriptor, isMoon: isMoon), PlanetText.Body(planet), PlanetText.GalaxyLabel(planet.Galaxy), planet.Source,
         }.Where(s => s.Length > 0));
         NotesLabel = string.Join(" · ", new[]
         {

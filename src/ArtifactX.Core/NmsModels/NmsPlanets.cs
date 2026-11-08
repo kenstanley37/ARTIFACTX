@@ -20,8 +20,8 @@ public sealed record KnownPlanet(
     public string PortalCode => NmsSpaceStationPaths.PortalAddress(Address, PlanetIndex);
     public string TypeName => NmsPlanets.TypeName(BiomeIndex);
     public string BiomeGroup => NmsPlanets.BiomeGroup(BiomeIndex);
-    public string Classification(string? descriptor, string ringSuffix = " with rings") =>
-        NmsPlanets.FormatClassification(BiomeIndex, descriptor, HasRings, ringSuffix);
+    public string Classification(string? descriptor, string ringSuffix = " with rings", bool? isMoon = null) =>
+        NmsPlanets.FormatClassification(BiomeIndex, descriptor, HasRings, ringSuffix, isMoon);
 
     /// <summary>Where this planet was read from, e.g. "Slot 3" - set by
     /// callers that merge several saves; empty for the loaded save.</summary>
@@ -116,23 +116,49 @@ public static class NmsPlanets
     };
 
     /// <summary>Dual classification format combining specific planetary descriptor with broad biome group
-    /// (e.g. "Crimson Planet (Red / Exotic)" or "Paradise Planet (Lush)"). If no descriptor is recorded,
-    /// cleanly falls back to the broad biome group.</summary>
-    public static string FormatClassification(int biome, string? descriptor, bool hasRings = false, string ringSuffix = " with rings")
+    /// (e.g. "Tropical Moon (Lush)" or "Paradise Planet (Lush)"). If no descriptor is recorded,
+    /// cleanly falls back to the broad biome group, indicating moon status if known.</summary>
+    public static string FormatClassification(int biome, string? descriptor, bool hasRings = false, string ringSuffix = " with rings", bool? isMoon = null)
     {
         string group = BiomeGroup(biome);
+        string typeName = TypeName(biome);
         string baseText;
+
         if (string.IsNullOrWhiteSpace(descriptor))
         {
-            baseText = group;
+            if (isMoon == true)
+                baseText = $"{group} Moon";
+            else if (isMoon == false)
+                baseText = $"{group} Planet";
+            else
+                baseText = group;
         }
         else
         {
             string desc = descriptor.Trim();
-            if (string.Equals(desc, group, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(desc, TypeName(biome), StringComparison.OrdinalIgnoreCase)
+
+            // If descriptor doesn't specify Moon or Planet, and isMoon is known, align it
+            if (isMoon == true && !desc.EndsWith("Moon", StringComparison.OrdinalIgnoreCase) && !desc.EndsWith("Anomaly", StringComparison.OrdinalIgnoreCase))
+            {
+                if (desc.EndsWith("Planet", StringComparison.OrdinalIgnoreCase))
+                    desc = desc[..^6].TrimEnd() + " Moon";
+                else
+                    desc = $"{desc} Moon";
+            }
+            else if (isMoon == false && !desc.EndsWith("Planet", StringComparison.OrdinalIgnoreCase) && !desc.EndsWith("Moon", StringComparison.OrdinalIgnoreCase) && !desc.EndsWith("Anomaly", StringComparison.OrdinalIgnoreCase))
+            {
+                desc = $"{desc} Planet";
+            }
+
+            // Check if desc already mentions the group/type
+            bool alreadyHasGroup = string.Equals(desc, group, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(desc, typeName, StringComparison.OrdinalIgnoreCase)
+                || desc.StartsWith(group + " ", StringComparison.OrdinalIgnoreCase)
+                || desc.StartsWith(typeName + " ", StringComparison.OrdinalIgnoreCase)
                 || desc.EndsWith($"({group})", StringComparison.OrdinalIgnoreCase)
-                || desc.EndsWith($" {group}", StringComparison.OrdinalIgnoreCase)) // "Planetary Anomaly"
+                || desc.EndsWith($" {group}", StringComparison.OrdinalIgnoreCase);
+
+            if (alreadyHasGroup)
             {
                 baseText = desc;
             }
