@@ -131,7 +131,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         ShowRecorded();
         ShowSave();
         ShowFinds();
-        _ = ShowCreaturesAsync();
+        await ShowCreaturesAsync();
         _ = Equipment.LoadAsync(planet, _snapshot);
         _ = LoadSystemPictureAsync();
     }

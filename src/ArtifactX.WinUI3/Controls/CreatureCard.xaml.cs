@@ -55,6 +55,7 @@ public sealed partial class CreatureCard : UserControl
             if (version != _version) return;
             if (mesh is null) return;
 
+            Preview.StartYawOffset = Math.PI;
             Preview.Show(mesh, material => CreatureModelService.CreatureMaterialColour(material),
                 silhouette: card.IsSilhouette);
             _shownRig = card.RigId;

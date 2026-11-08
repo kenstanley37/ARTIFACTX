@@ -41,7 +41,7 @@ public sealed class ShipPreview : UserControl
     /// <summary>Added to the opening turn for models whose front isn't +Z: freighters point
     /// their bow along -Z (capital freighter z -3,210..+459, a fighter's -3..+8), so they
     /// open with a half turn (2026-10-22).</summary>
-    public float StartYawOffset { get; set; }
+    public double StartYawOffset { get; set; }
     private readonly TextBlock _status = new()
     {
         FontSize = 13, Opacity = 0.7, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center,
@@ -104,7 +104,7 @@ public sealed class ShipPreview : UserControl
         _hologram = hologram;
         _silhouette = silhouette;
         _mesh = mesh;
-        _yaw = StartYaw + StartYawOffset; _pitch = StartPitch; // each ship opens on its front
+        _yaw = StartYaw + (float)StartYawOffset; _pitch = StartPitch; // each ship opens on its front
         if (mesh is null) { _image.Source = null; return; }
         var colours = new uint[mesh.Materials.Length];
         var cache = new Dictionary<string, uint>();
@@ -140,7 +140,7 @@ public sealed class ShipPreview : UserControl
         if (_mesh is null) return Task.FromResult<byte[]?>(null);
         var mesh = _mesh; var colours = _triColours; var textures = _triTextures; var centre = _centre;
         bool holo = _hologram; bool sil = _silhouette;
-        float yaw = StartYaw + StartYawOffset;
+        float yaw = StartYaw + (float)StartYawOffset;
         return Task.Run(() => (byte[]?)Render(mesh, colours, textures, centre, yaw, StartPitch, width, height, holo, sil));
     }
 

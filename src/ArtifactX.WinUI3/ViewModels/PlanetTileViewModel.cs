@@ -133,19 +133,30 @@ public sealed partial class PlanetTileViewModel : ObservableObject
             found = await CrashedShipService.SearchAsync(Planet.Address, _ => true, at.Latitude, at.Longitude, 1);
             if (found is null) return;
         }
-        NotableShip = found!.Nearest.Count > 0
+        var notable = found!.Nearest.Count > 0
             ? new CrashedShipRowViewModel(found.Nearest[0], 1, IsHere, fromYou ? "away" : "from the portal")
             : null;
         string ships = shipClass < 0 ? "crashed ship" : $"{"CBAS"[shipClass]}-class crashed ship";
         string best = shipClass is >= 0 and < 3 ? ", the best class here" : "";
-        NotableSummary = found.Total switch
+        string summary = found.Total switch
         {
             0 => "No crashed ships on this planet.",
             1 when found.Uncharted => $"This planet's only {ships}, underwater.",
             1 => $"The only {ships} on this planet{best}.",
             _ => $"The nearest of {found.Total:N0} {ships}s on this planet{best}.",
         };
-        HasNotable = true;
+
+        void Apply()
+        {
+            NotableShip = notable;
+            NotableSummary = summary;
+            HasNotable = true;
+        }
+
+        if (App.MainWindowInstance?.DispatcherQueue is { } dq && !dq.HasThreadAccess)
+            dq.TryEnqueue(Apply);
+        else
+            Apply();
     }
 
     [ObservableProperty] public partial string Discovered { get; private set; } = "";
