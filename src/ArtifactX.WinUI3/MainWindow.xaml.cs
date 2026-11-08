@@ -428,6 +428,7 @@ public sealed partial class MainWindow : Window
                 "ItemValues" => typeof(ItemValuesPage),
                 "EggSequencer" => typeof(EggSequencerPage),
                 "NearCore" => typeof(NearCorePage),
+                "GalaxyTransfer" => typeof(GalaxyTransferPage),
                 "Regions" => typeof(RegionsPage),
                 "Milestones" => typeof(MilestonesPage),
                 "Alliance" => typeof(AlliancePage),
@@ -495,6 +496,7 @@ public sealed partial class MainWindow : Window
         CabinetMultiToolsNavItem.Visibility = PlanetsNavItem.Visibility;
         PlanetFinderNavItem.Visibility = PlanetsNavItem.Visibility;
         NearCoreNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        GalaxyTransferNavItem.Visibility = NearCoreNavItem.Visibility;
         RegionsNavItem.Visibility = NearCoreNavItem.Visibility;
         BasesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         SaveEditorNavItem.Visibility = SaveSessionManager.IsSaveLoaded || SaveSessionManager.HasActivePlatform
@@ -720,6 +722,7 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(ItemValuesPage) => "ItemValues",
             Type t when t == typeof(EggSequencerPage) => "EggSequencer",
             Type t when t == typeof(NearCorePage) => "NearCore",
+            Type t when t == typeof(GalaxyTransferPage) => "GalaxyTransfer",
             Type t when t == typeof(RegionsPage) => "Regions",
             Type t when t == typeof(MilestonesPage) => "Milestones",
             Type t when t == typeof(AlliancePage) => "Alliance",

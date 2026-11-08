@@ -314,6 +314,11 @@
                                 <FontIcon Glyph="&#xE7B7;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
+                        <NavigationViewItem x:Name="GalaxyTransferNavItem" Content="Galaxy Transfer" Tag="GalaxyTransfer">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE774;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
                         <NavigationViewItem x:Name="RegionsNavItem" Content="Regions" Tag="Regions">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE81E;" FontFamily="Segoe MDL2 Assets"/>

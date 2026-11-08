@@ -519,10 +519,14 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Direction**: build a per-item "how to get it" source from extracted game data: expedition rewards (catalog format 60), Twitch rewards, the Quicksilver and Anomaly shop and construction-terminal unlock trees (GcUnlockableTrees), platform rewards and recipes. Show it beside each item on the unlock pages. Unknown sources stay marked unknown.
 
 ### Feature 60: Travel to Any Galaxy
-- **Source**: Owner, 2026-11-03 (future feature).
-- **Request**: Let the player move a save to any of the game's 256 galaxies, arriving somewhere safe such as a space station.
-- **Known so far**: ArtifactX already reads the galaxy as part of the save's current universe address (Finds and Near the Core show "Budullangr (7)" from it) and lists all 256 galaxies by name in the Finds form.
-- **Needs before building**: a controlled Slot 8 diff of a real galaxy change in game (for example via the Atlas or a portal) to see every field it touches - the current address, the player's position and state, and anything the game keeps per galaxy - and an in-game check that an edited save loads at the chosen station. Never write while the game is running; stage the change like other edits.
+- **Source**: Owner, 2026-11-03 and 2026-11-07: "I would like a page for galaxy transfer. Allow the user to choose any galaxy 0 through 256 I think and place them in a system near the core (doesn't have to extermely close) in a spacestation."
+- **Status 2026-11-07**: Built on branch `feature/galaxy-transfer`. Live updates verified: listens to `FishCatchRecorder.SnapshotSeen`, `SaveSessionManager.ActiveSessionChanged`, and `PendingEditsChanged` to quietly move the "HERE" badge and update current location in-place without page reloads or list scrolling when the player travels in-game or reloads saves.
+- **Implementation**:
+  - `src/ArtifactX.Core/NmsModels/NmsGalaxyInfo.cs`: Full 256 galaxy database with names from `NmsGalaxyNames`, classification mathematical sequence (25 Lush, 26 Harsh, 26 Empty, 179 Normal), and gateway core destination coordinates (`X: 7, Y: -8, Z: -9`, system index `407`, ~5,571 LY from the galactic core, portal glyphs `1197777F8808`).
+  - `src/ArtifactX.WinUI3/Services/GalaxyTransferService.cs`: Stages edits to `CurrentUniverseAddressPath` (`yhJ`), `LocationDescriptionPath` (`n:R`), spawn state `SpawnStatePath` (`vLc.rnc` with `jk4: "InStation"`, docking walkway player position `mEH`, landing pad starship position `tnP`), and registers the station teleport endpoint in `nlG` via `SpaceStationService.EnsureStationMarkerStaged`. Reads live game snapshot (`LiveSaveWatcher.LatestSnapshot`) so "You are here" follows game progress.
+  - `src/ArtifactX.WinUI3/ViewModels/ExploreViewModels/GalaxyTransferViewModel.cs`: Search/filter by name or number (1..256), classification filter buttons (All, Lush, Harsh, Empty, Normal), current galaxy telemetry, staging status, and `UpdateCurrentGalaxy` for quiet in-place badge moves.
+  - `src/ArtifactX.WinUI3/Views/ExplorePages/GalaxyTransferPage.xaml`: Two-column layout with galaxy browser, detailed destination card, core proximity facts, copy portal glyphs, and confirmation dialog before staging. Subscribes to live snapshot feed.
+  - Added "Galaxy Transfer" to the Explore section in `MainWindow.xaml`.
 
 ### Bug 61: Cooking Recipes Shows Different Nutrient Ingestor Buffs From the Game
 - **Source**: Owner, 2026-11-03, Slot 8 screenshots.
@@ -648,6 +652,40 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
   - Updated `ShipModels.Paint.cs` to filter out only `MatchName` (`t.TextureGameplayUse != TkProceduralTexture.TextureGameplayUseEnum.MatchName`).
   - Updated `ShipLook.cs` to ignore only `o.Use == 1` (`MatchName`).
   - Verified with game files: `DudeWing` now paints with its bright red hull `#CE5D50`, white accent decals `#F3EBE5`, and dark chassis `#121111` exactly matching in-game appearance.
+
+### Feature 72: Track Visited Galaxies, Bases and Space Stations in Galaxy Transfer
+- **Source**: Owner request, 2026-11-07: "It would be nice to know if we have a base or spacestation in each galaxy. That would help us to know which galaxy we haven't been to yet. But you can add that to the issue list."
+- **Status**: Open / Proposed.
+- **Goal**: In the Galaxy Transfer browser (and galaxy telemetry):
+  - Track whether the player has visited each galaxy (1..256).
+  - Show badges / counts for player bases (`peI` / `BaseKind.Planet`, `BaseKind.Freighter`, `BaseKind.Station`) in that galaxy.
+  - Show whether a claimed space station or teleporter space station marker (`nlG`) exists in that galaxy.
+  - Provide a filter or badge to easily spot unvisited galaxies ("Never Visited") so players can systematically explore every galaxy.
+- **Data Source in Save**:
+  - `BaseListBuilder.Build(snapshot)` partitions all bases and settlements with `entry.Galaxy` (1..256 via `NmsSpaceStationPaths.GalaxyNumber(address)`).
+  - `snapshot.Markers` (`nlG`) contains space station teleport endpoints with galaxy addresses (`NmsSpaceStationPaths.GalaxyNumber(address)`).
+  - Visited systems history (`user.db` and save discovery records `fDu`) also records explored galaxy systems.
+
+### Bug 73: Planetary Rings Misdetected (Discovery Flags Bit 16 is Extreme Hazard, Not Rings)
+- **Source**: Owner comparison screenshots, 2026-11-07: ArtifactX Current System (`media_1794112478514_424f9488.jpg`) vs in-game Discoveries screen (`media_1794112540536_7f7effec.jpg`) in system Thwellus.
+- **Evidence**:
+  - In ArtifactX, Planet 1 (Voybrierfi Magao, Radioactive) is displayed with rings (`rings` suffix and ring graphic on card and system map), while Planet 3 (Keci, Barren) is displayed without rings.
+  - In-game Discoveries confirms that Keci (Planet 3) has prominent rings, while Voybrierfi Magao (Planet 1) has no rings.
+- **Investigation & Root Cause**:
+  - `NmsPlanets.ReadAll` read `HasRings = ((flags >> 16) & 1) == 1` from discovery key `8P3.bEr[1]`.
+  - In Thwellus save records:
+    - Planet 1 (Voybrierfi Magao, Radioactive): `bEr[1] = 65539 = 0x10003` (Biome 3, bit 16 = 1).
+    - Planet 3 (Keci, Barren): `bEr[1] = 5 = 0x5` (Biome 5, bit 16 = 0).
+  - Cross-save audit of all 2,069 planet discovery records in Slot 1:
+    - Bit 16 (`0x10000`) occurs exclusively on standard hazard biomes: Lush (3%), Toxic (27%), Scorched (23%), Radioactive (24%), Frozen (25%).
+    - Bit 16 NEVER occurs on Barren (0/192), Dead (0/260), Exotic (0/91), Anomalies (0/99), Swamp (0/41), Volcanic (0/33), Water (0/15), or Gas (0/3).
+    - Bit 16 in `bEr[1]` represents **Extreme Weather / Extreme Hazard**, NOT planetary rings.
+  - Planetary rings (`GcPlanetGenerationInputData.HasRings`) are determined procedurally by the game's solar generation routine (`GcSolarGenerationGlobals`), not saved in the discovery record flags.
+- **Required Fix**:
+  - Update `NmsPlanets.cs` documentation and remove the incorrect bit-16 ring heuristic (`HasRings` in `KnownPlanet`).
+  - Port or verify the solar system generator's ring roll (`GcSolarGenerationGlobals` / `SystemGenerator`) to predict `HasRings` accurately from the system/planet seed, matching in-game generation.
+
+
 
 
 
