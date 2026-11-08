@@ -44,7 +44,13 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
     /// <summary>
     /// Loads predicted hotspots for the specified planet centered around the given coordinates.
     /// </summary>
-    public async Task LoadAsync(ulong planetAddress, double centerLat, double centerLon, bool isHere)
+    public async Task LoadAsync(
+        ulong planetAddress,
+        double centerLat,
+        double centerLon,
+        bool isHere,
+        double? portalLat = null,
+        double? portalLon = null)
     {
         // Avoid reload if already on the same planet and coordinates haven't shifted significantly (< 50 meters)
         if (_currentPlanetAddress == planetAddress
@@ -67,7 +73,7 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 
         try
         {
-            var detected = await PlanetHotspotService.GetHotspotsAsync(planetAddress, centerLat, centerLon, expandSearch: true);
+            var detected = await PlanetHotspotService.GetHotspotsAsync(planetAddress, centerLat, centerLon, expandSearch: true, portalLat, portalLon);
             if (_currentPlanetAddress != planetAddress) return; // Switched planets meanwhile
 
             _all.Clear();

@@ -102,7 +102,9 @@ public static class PlanetHotspotService
         ulong planetAddress,
         double centerLat,
         double centerLon,
-        bool expandSearch = true)
+        bool expandSearch = true,
+        double? portalLat = null,
+        double? portalLon = null)
     {
         var tables = await GetTablesAsync();
         if (tables == null) return Array.Empty<PlanetHotspot>();
@@ -146,6 +148,18 @@ public static class PlanetHotspotService
                 (float)(Math.Cos(latRad) * Math.Cos(lonRad))
             );
             Vector3 targetPoint = targetDir * radius;
+
+            Vector3? portalDir = null;
+            if (portalLat.HasValue && portalLon.HasValue)
+            {
+                double pLatRad = portalLat.Value * Math.PI / 180.0;
+                double pLonRad = portalLon.Value * Math.PI / 180.0;
+                portalDir = new Vector3(
+                    (float)(Math.Cos(pLatRad) * Math.Sin(pLonRad)),
+                    (float)Math.Sin(pLatRad),
+                    (float)(Math.Cos(pLatRad) * Math.Cos(pLonRad))
+                );
+            }
 
             var categories = tables.Extraction.Hotspots.Select(h => h.Parameters).ToArray();
             var candidates = new List<HotspotCandidate>();
@@ -231,6 +245,18 @@ public static class PlanetHotspotService
                     ? $"{Math.Round(distanceMeters)}u away"
                     : $"{distanceMeters / 1000.0:F1} km away";
 
+                double? portalDistance = null;
+                string? portalDistanceLabel = null;
+                if (portalDir.HasValue)
+                {
+                    float dotPortal = Math.Clamp(Vector3.Dot(portalDir.Value, c.Direction), -1f, 1f);
+                    double pDist = Math.Acos(dotPortal) * radius;
+                    portalDistance = pDist;
+                    portalDistanceLabel = pDist < 1000
+                        ? $"{Math.Round(pDist)}u from portal"
+                        : $"{pDist / 1000.0:F1} km from portal";
+                }
+
                 ulong candidateKey = (ulong)c.Attributes.FinalSeed
                     ^ ((ulong)Math.Round(Math.Abs(cLat) * 1000) << 32)
                     ^ (ulong)Math.Round(Math.Abs(cLon) * 1000);
@@ -252,6 +278,8 @@ public static class PlanetHotspotService
                     Coordinates: NmsPlanetCoordinates.Format(cLat, cLon),
                     Distance: distanceMeters,
                     DistanceLabel: distanceLabel,
+                    PortalDistance: portalDistance,
+                    PortalDistanceLabel: portalDistanceLabel,
                     CandidateKey: candidateKey,
                     LocalPosition: localPos
                 ));

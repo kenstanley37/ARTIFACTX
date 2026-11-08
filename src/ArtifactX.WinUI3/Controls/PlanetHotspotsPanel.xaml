@@ -60,10 +60,9 @@
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <!-- Top Row: Category Icon & Badge, Class Badge, Coordinates -->
+                                    <!-- Top Row: Category Icon & Badge, Coordinates -->
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
@@ -73,26 +72,15 @@
                                                 BorderBrush="{ThemeResource ThemeLineBrush}"
                                                 BorderThickness="1" Padding="6,2"
                                                 CornerRadius="{ThemeResource ThemeCardCornerRadius}">
-                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <StackPanel Orientation="Horizontal" Spacing="5">
                                                 <FontIcon Glyph="{x:Bind KindGlyph}" FontSize="11" Foreground="{ThemeResource ThemeAccentBrush}"/>
                                                 <TextBlock Text="{x:Bind Kind}" FontSize="11" FontWeight="SemiBold"
                                                            Foreground="{ThemeResource ThemeTextBrush}"/>
                                             </StackPanel>
                                         </Border>
 
-                                        <!-- Class Badge -->
-                                        <Border Grid.Column="1"
-                                                Background="{ThemeResource ThemePanelAltBrush}"
-                                                BorderBrush="{ThemeResource ThemeLineBrush}"
-                                                BorderThickness="1" Padding="8,2"
-                                                CornerRadius="{ThemeResource ThemeCardCornerRadius}">
-                                            <TextBlock Text="{x:Bind Class}" FontSize="11" FontWeight="Bold"
-                                                       FontFamily="{ThemeResource ThemeDisplayFont}"
-                                                       Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                        </Border>
-
                                         <!-- Coordinates with Copy Button -->
-                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
                                             <TextBlock Text="{x:Bind Coordinates}" FontSize="12" FontWeight="Bold"
                                                        FontFamily="{ThemeResource ThemeDisplayFont}"
                                                        Foreground="{ThemeResource ThemeAccentBrush}"
@@ -101,22 +89,24 @@
                                         </StackPanel>
                                     </Grid>
 
-                                    <!-- Middle Row: Resource Name & Distance -->
-                                    <Grid Grid.Row="1" ColumnSpacing="8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="{x:Bind ResourceName}" FontSize="14" FontWeight="SemiBold"
+                                    <!-- Middle Row: Class Badge + Resource Name -->
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <Border Background="{x:Bind ClassBrush}" CornerRadius="4" Padding="7,2" VerticalAlignment="Center">
+                                            <TextBlock Text="{x:Bind ClassBadgeText}" FontSize="11" FontWeight="Bold" Foreground="White"
+                                                       FontFamily="{ThemeResource ThemeDisplayFont}"/>
+                                        </Border>
+                                        <TextBlock Text="{x:Bind ResourceName}" FontSize="15" FontWeight="SemiBold"
                                                    FontFamily="{ThemeResource ThemeDisplayFont}"
-                                                   Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-                                        <TextBlock Grid.Column="1" Text="{x:Bind DistanceLabel}" FontSize="12" FontWeight="SemiBold"
-                                                   Foreground="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>
-                                    </Grid>
+                                                   Foreground="{ThemeResource ThemeTextBrush}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                    </StackPanel>
 
-                                    <!-- Yield, Strength & Range -->
-                                    <TextBlock Grid.Row="2" Text="{x:Bind YieldLabel}" FontSize="11"
-                                               Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                                    <!-- Distance & Yield/Density -->
+                                    <StackPanel Grid.Row="2" Spacing="3">
+                                        <TextBlock Text="{x:Bind FullDistanceLabel}" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{ThemeResource ThemeDoneBrush}"/>
+                                        <TextBlock Text="{x:Bind YieldLabel}" FontSize="11"
+                                                   Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                                    </StackPanel>
 
                                     <!-- Actions Row: Add Marker / Undo -->
                                     <Grid Grid.Row="3" ColumnSpacing="8">

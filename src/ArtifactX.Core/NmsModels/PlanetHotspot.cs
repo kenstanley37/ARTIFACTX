@@ -22,6 +22,8 @@ public sealed record PlanetHotspot(
     string Coordinates,
     double Distance,
     string DistanceLabel,
+    double? PortalDistance,
+    string? PortalDistanceLabel,
     ulong CandidateKey,
     Vector3 LocalPosition)
 {
@@ -49,4 +51,3 @@ public sealed record PlanetHotspot(
         _ => "\uE90A"
     };
 }
-

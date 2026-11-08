@@ -2,6 +2,7 @@ using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.UI.Xaml.Media;
 using System;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
@@ -33,7 +34,16 @@ public sealed partial class PlanetHotspotItemViewModel : ObservableObject
     public string KindBadgeKey => Hotspot.KindBadgeKey;
     public string KindGlyph => Hotspot.KindGlyph;
 
-    public string YieldLabel => $"{YieldPercent}% Yield · {Math.Round(Strength)}/s · {Math.Round(Range)}u range";
+    public Brush ClassBrush => ThemeResources.ClassBrush(Class);
+    public string ClassBadgeText => $"CLASS {Class}";
+
+    public string FullDistanceLabel => Hotspot.PortalDistanceLabel is { Length: > 0 } pDist && Math.Abs(Distance - (Hotspot.PortalDistance ?? 0)) > 50
+        ? $"{DistanceLabel} · {pDist}"
+        : (Hotspot.PortalDistanceLabel ?? DistanceLabel);
+
+    public string YieldLabel => Kind == "Power"
+        ? $"Potential: {Math.Round(Strength)} kP ({YieldPercent}%) · {Math.Round(Range)}u range"
+        : $"Density: {YieldPercent}% · {Math.Round(Range)}u range";
 
     [ObservableProperty] public partial bool CanAddMarker { get; private set; }
     [ObservableProperty] public partial bool CanUndoMarker { get; private set; }
@@ -105,4 +115,3 @@ public sealed partial class PlanetHotspotItemViewModel : ObservableObject
         }
     }
 }
-

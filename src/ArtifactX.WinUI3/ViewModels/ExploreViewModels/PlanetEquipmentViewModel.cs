@@ -177,7 +177,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         (double Lat, double Lon)? from = here ? snapshot.Coordinates : _portal is { } p ? (p.Latitude, p.Longitude) : null;
         if (from is not null)
         {
-            _ = Hotspots.LoadAsync(planet.Address, from.Value.Lat, from.Value.Lon, here);
+            _ = Hotspots.LoadAsync(planet.Address, from.Value.Lat, from.Value.Lon, here, _portal?.Latitude, _portal?.Longitude);
         }
     }
 
@@ -291,7 +291,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
             (double Lat, double Lon)? from = here ? snapshot.Coordinates : _portal is { } p ? (p.Latitude, p.Longitude) : null;
             if (from is not null)
             {
-                _ = Hotspots.LoadAsync(planet.Address, from.Value.Lat, from.Value.Lon, here);
+                _ = Hotspots.LoadAsync(planet.Address, from.Value.Lat, from.Value.Lon, here, _portal?.Latitude, _portal?.Longitude);
             }
             RefreshMarkers();
         }
