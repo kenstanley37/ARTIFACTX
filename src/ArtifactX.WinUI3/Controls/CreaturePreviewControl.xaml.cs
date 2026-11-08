@@ -52,10 +52,17 @@ public sealed partial class CreaturePreviewControl : UserControl
         }
     }
 
+    private static readonly string[] LandRigs = [
+        "antelope", "cat", "cow", "triceratops", "trex", "strider",
+        "spider", "beetle", "sixleggedcow", "rodent", "blob"
+    ];
+
     private async Task<string?> FindMatchingCompanionRigAsync()
     {
         if (SaveSessionManager.GetValue(NmsCompanionPaths.CompanionArrayPath) is not JArray array)
             return null;
+
+        var nameService = await CreatureNameService.LoadAsync();
 
         for (int i = 0; i < array.Count; i++)
         {
@@ -63,11 +70,21 @@ public sealed partial class CreaturePreviewControl : UserControl
             if (string.IsNullOrEmpty(xid.TrimStart('^'))) continue;
 
             string customName = (string?)array[i]?["fH8"] ?? "";
-            bool nameMatches = !string.IsNullOrEmpty(customName) &&
-                string.Equals(customName, Creature.Name, StringComparison.OrdinalIgnoreCase);
+            ulong seedA = NmsSpaceStationPaths.ParsePackedAddress(array[i]?["m9o"]) ?? 0;
+            ulong seedB = NmsSpaceStationPaths.ParsePackedAddress(array[i]?["JrL"]) ?? 0;
+            string compSpecies = nameService.Companion(seedA, seedB) ?? "";
 
-            if (nameMatches || customName.Contains(Creature.Name, StringComparison.OrdinalIgnoreCase) ||
-                Creature.Name.Contains(customName, StringComparison.OrdinalIgnoreCase))
+            bool nameMatches = !string.IsNullOrEmpty(customName) &&
+                (string.Equals(customName, Creature.Name, StringComparison.OrdinalIgnoreCase) ||
+                 customName.Contains(Creature.Name, StringComparison.OrdinalIgnoreCase) ||
+                 Creature.Name.Contains(customName, StringComparison.OrdinalIgnoreCase));
+
+            bool speciesMatches = !string.IsNullOrEmpty(compSpecies) &&
+                (string.Equals(compSpecies, Creature.Name, StringComparison.OrdinalIgnoreCase) ||
+                 compSpecies.Contains(Creature.Name, StringComparison.OrdinalIgnoreCase) ||
+                 Creature.Name.Contains(compSpecies, StringComparison.OrdinalIgnoreCase));
+
+            if (nameMatches || speciesMatches)
             {
                 var oslToken = array[i]?["osl"];
                 var descriptors = new List<string>();
@@ -99,7 +116,10 @@ public sealed partial class CreaturePreviewControl : UserControl
         if (Regex.IsMatch(hab, "Fly|Flight|Air|Sky", RegexOptions.IgnoreCase))
             return "beetle";
 
-        return "anteloperobot";
+        uint hash = 2166136261;
+        foreach (char c in creature.Name)
+            hash = (hash ^ c) * 16777619;
+        return LandRigs[hash % (uint)LandRigs.Length];
     }
 
     private async void RigComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)

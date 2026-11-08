@@ -249,9 +249,53 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         if (Planet is not { } planet) return;
         var cards = CreatureListService.On(planet.SystemAddress, planet.PlanetIndex)
             .Select(c => new CreatureCardViewModel(c, planet.SystemAddress, planet.PlanetIndex)).ToList();
-        Creatures = cards;
-        ShowSpeciesLeft(planet, cards);
-        foreach (var card in cards) await card.LoadPictureAsync();
+
+        var existingNames = new HashSet<string>(cards.Select(c => CreatureListService.NameKey(c.Name)), StringComparer.OrdinalIgnoreCase);
+        var nameService = await CreatureNameService.LoadAsync();
+        var allCards = new List<CreatureCardViewModel>(cards);
+
+        if (_snapshot.Discoveries is JArray discoveries)
+        {
+            int fallbackIndex = 1;
+            foreach (var record in discoveries.OfType<JObject>())
+            {
+                if (record["8P3"] is not JObject key || key["<Dn"]?.Value<string>() != "Animal") continue;
+                if (NmsSpaceStationPaths.ParsePackedAddress(key["5L6"]) is not ulong addr || addr != planet.Address) continue;
+                if (string.IsNullOrEmpty(record["ksu"]?["f5Q"]?.Value<string>())) continue;
+                if (key["bEr"] is not JArray bEr || bEr.Count < 2) continue;
+
+                ulong seedA = bEr.Count > 2 ? (NmsSpaceStationPaths.ParsePackedAddress(bEr[2]) ?? 0) : 0;
+                ulong seedB = bEr.Count > 3 ? (NmsSpaceStationPaths.ParsePackedAddress(bEr[3]) ?? 0) : 0;
+
+                string? customName = record["q9a"]?["q5u"]?.Value<string>()?.Trim();
+                string speciesName = !string.IsNullOrWhiteSpace(customName)
+                    ? customName
+                    : (nameService.Companion(seedA, seedB) ?? $"Fauna #{fallbackIndex++}");
+
+                string keyName = CreatureListService.NameKey(speciesName);
+                if (CreatureListService.IsDeleted(planet.SystemAddress, planet.PlanetIndex, speciesName))
+                    continue;
+
+                if (!existingNames.Add(keyName))
+                    continue;
+
+                var creature = new Creature(
+                    Name: speciesName,
+                    Rarity: "Discovered",
+                    Habitat: "Native fauna",
+                    Activity: "",
+                    Gender: "",
+                    Size: "",
+                    Picture: false,
+                    SeenAt: "From save");
+
+                allCards.Add(new CreatureCardViewModel(creature, planet.SystemAddress, planet.PlanetIndex));
+            }
+        }
+
+        Creatures = allCards;
+        ShowSpeciesLeft(planet, allCards);
+        foreach (var card in allCards) await card.LoadPictureAsync();
     }
 
     /// <summary>
@@ -323,7 +367,11 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
 
     public void DeleteCreature(CreatureCardViewModel creature)
     {
-        if (Planet is { } planet) CreatureListService.Delete(planet.SystemAddress, planet.PlanetIndex, creature.Name);
+        if (Planet is { } planet)
+        {
+            CreatureListService.Delete(planet.SystemAddress, planet.PlanetIndex, creature.Name);
+            _ = ShowCreaturesAsync();
+        }
     }
 
     // ---------------------------------------------------------------- Following the game

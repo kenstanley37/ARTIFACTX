@@ -16,14 +16,23 @@
                     Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
                     <TextBlock Text="{x:Bind Creature.NoPictureText, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}" TextAlignment="Center"/>
-                    <Button x:Name="TakePictureBtn" Click="Capture_Click" Padding="8,4" HorizontalAlignment="Center"
-                            Visibility="{x:Bind Creature.CanCapture, Mode=OneWay}"
-                            ToolTipService.ToolTip="Open this creature in the game's fauna list, then click to take its picture">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon Glyph="&#xE722;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                            <TextBlock Text="Take picture" FontSize="11" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                        <Button Click="View3DModel_Click" Padding="8,4"
+                                ToolTipService.ToolTip="View 3D creature model and anatomy" AutomationProperties.Name="View 3D creature model">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE91B;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                <TextBlock Text="3D Model" FontSize="11" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="TakePictureBtn" Click="Capture_Click" Padding="8,4"
+                                Visibility="{x:Bind Creature.CanCapture, Mode=OneWay}"
+                                ToolTipService.ToolTip="Open this creature in the game's fauna list, then click to take its picture">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE722;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                <TextBlock Text="Take picture" FontSize="11" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 

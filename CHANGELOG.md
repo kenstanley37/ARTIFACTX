@@ -23,6 +23,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Current System: Removed a full-page modal loading overlay that intercepted clicks and scrolling during system refreshes, replacing it with an inline activity indicator that leaves the page responsive.
+- Planet Details: Planetary fauna discovered in your save now display creature cards with authentic Latin species names and 3D anatomy viewer buttons even without prior screen captures.
 - Space Stations: Claiming a station now automatically creates and stamps its teleport endpoint marker in your save so that newly claimed stations immediately appear in your Alliance Stations teleport list.
 - Catalog: Eliminated a race condition that could cause section navigation buttons at the top of the Catalog page to duplicate during rapid category switching or save reloads.
 - Performance: Current System and Planet Details pages now process crashed ship spatial scans, shop distance calculations, and multi-tool model part resolutions entirely off the UI thread, eliminating UI freezes during navigation.
