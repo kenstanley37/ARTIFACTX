@@ -48,11 +48,19 @@ public sealed partial class GalaxyTransferPage : Page
     private void OnExternalChangeDetected(object? sender, EventArgs e) =>
         DispatcherQueue.TryEnqueue(() => ViewModel.UpdateCurrentGalaxy());
 
-    private void FilterAll_Click(object sender, RoutedEventArgs e) => ViewModel.SetFilter("All");
-    private void FilterLush_Click(object sender, RoutedEventArgs e) => ViewModel.SetFilter("Lush");
-    private void FilterHarsh_Click(object sender, RoutedEventArgs e) => ViewModel.SetFilter("Harsh");
-    private void FilterEmpty_Click(object sender, RoutedEventArgs e) => ViewModel.SetFilter("Empty");
-    private void FilterNormal_Click(object sender, RoutedEventArgs e) => ViewModel.SetFilter("Normal");
+    // Presence Filters
+    private void FilterAll_Click(object sender, RoutedEventArgs e) => ViewModel.SetPresenceFilter("All");
+    private void FilterUnvisited_Click(object sender, RoutedEventArgs e) => ViewModel.SetPresenceFilter("Unvisited");
+    private void FilterVisited_Click(object sender, RoutedEventArgs e) => ViewModel.SetPresenceFilter("Visited");
+    private void FilterBases_Click(object sender, RoutedEventArgs e) => ViewModel.SetPresenceFilter("Bases");
+    private void FilterStations_Click(object sender, RoutedEventArgs e) => ViewModel.SetPresenceFilter("Stations");
+
+    // Biome/Category Filters
+    private void FilterTypeAll_Click(object sender, RoutedEventArgs e) => ViewModel.SetCategoryFilter("All");
+    private void FilterLush_Click(object sender, RoutedEventArgs e) => ViewModel.SetCategoryFilter("Lush");
+    private void FilterHarsh_Click(object sender, RoutedEventArgs e) => ViewModel.SetCategoryFilter("Harsh");
+    private void FilterEmpty_Click(object sender, RoutedEventArgs e) => ViewModel.SetCategoryFilter("Empty");
+    private void FilterNormal_Click(object sender, RoutedEventArgs e) => ViewModel.SetCategoryFilter("Normal");
 
     private async void Transfer_Click(object sender, RoutedEventArgs e)
     {
@@ -95,4 +103,3 @@ public sealed partial class GalaxyTransferPage : Page
         Clipboard.SetContent(package);
     }
 }
-

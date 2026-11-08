@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Galaxy Exploration & Presence Tracking: Galaxy Transfer now scans your bases, settlements, teleport network space stations, and system discoveries across all 256 galaxies. View base counts, space stations, and unvisited status badges on each galaxy, with 1-click filter tabs to isolate unvisited galaxies, visited galaxies, or those with active bases and space stations.
+
 - Planetary Hotspot Locator: Planet Details now predicts and lists all deep-level resource hotspots (Electromagnetic Power, Minerals, and Gases) in your vicinity using the game's procedural algorithms. View S/A/B/C classes, resource types, extraction yields, Survey Device range, visor coordinates, and distance from your position (or portal), with one-click actions to stage navigation markers into your save.
 
 - Galaxy Transfer: A dedicated Galaxy Transfer page under Explore lets you warp your save to any of the 256 galaxies in No Man's Sky. Transfers position you safely on foot inside the space station docking bay next to your starship in a Gateway system near the galactic core (~5,570 light-years away) and automatically register the station in your Teleport Network.
