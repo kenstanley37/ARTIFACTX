@@ -562,14 +562,13 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 
 ### Feature 65: Planetary Hotspot Locator (Power, Mineral, Gas) on Planet Details
 - **Source**: Owner request, 2026-11-07, with in-game Analysis Mode screenshot on planet Edelangm (`media_1794071304101_ca431196.jpg`) showing an Electromagnetic Power Hotspot at `+2.57, -109.31`.
+- **Status 2026-11-08**: Built on `feature/planet-hotspots`. Verified against owner's live screenshot (100% exact match: Power B-class, 64u away at `+2.56, -109.32`).
 - **Goal**: Help players find deep-level resource hotspots on planets directly from the Planet Details page without having to wander blindly with the Survey Device.
-- **Details**:
-  - The Survey Device identifies 3 distinct hotspot categories:
-    1. **Electromagnetic Power Hotspots**: Clean, continuous energy generation for base grids (C, B, A, S class).
-    2. **Deep-Level Mineral Hotspots**: Continuous extraction for mineral extractors (e.g. Indium, Activated Copper, Gold, Magnetised Ferrite, Cobalt, etc. - C, B, A, S class).
-    3. **Atmospheric Gas Hotspots**: Continuous gas harvesting for gas extractors (Oxygen, Nitrogen, Radon, Sulphurine - C, B, A, S class).
-  - Add to the Planet Details page: list or locate hotspots near the player or across the planet with their resource type, rating/class (C, B, A, S), yield %, and exact Analysis Visor coordinates (e.g., `+2.57, -109.31`), with an "Add marker" action.
-  - Research path: investigate whether hotspots are procedurally placed from the planet's seed / coordinate grid (similar to `PlanetBuildingSites` and `BuildingClusterPlacement`) or if they are sampled from the game's noise grids.
+- **Details & Implementation**:
+  - Evaluates the planet's procedural extraction algorithms (`HotspotNeighborhood.Around` and adjacent rings from native 0x1412F4AC0) around the player's visor coordinates when on the planet, or around the planet's portal when viewing from elsewhere.
+  - Categorizes into Electromagnetic Power, Deep-Level Minerals, and Atmospheric Gases with S/A/B/C classes, yield %, strength per second, and Survey Device detection range.
+  - Interactive cards display distance, coordinates with quick copy button, and "Add marker to save" / "Undo" actions that stage active scan markers into the save (`vLc.6f=.A1f`).
+  - Filter bar supports 1-click filtering: All, ⚡ Power, ⛏ Mineral, ☁ Gas, and ★ S-Class.
 
 ### Feature 66: Claimable Planetary Settlement Locator on Planet Details
 - **Source**: Owner request, 2026-11-07.

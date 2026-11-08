@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="ArtifactX.WinUI3.Controls.PlanetHotspotsPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:explore="using:ArtifactX.WinUI3.ViewModels.ExploreViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls">
+
+    <controls:FoldingCard Title="PLANETARY HOTSPOTS (SURVEY DEVICE)" SettingKey="PlanetDetailsHotspotsCollapsed"
+                          Visibility="{x:Bind ViewModel.HasHotspots, Mode=OneWay}">
+        <Border Style="{StaticResource ThemeCardStyle}">
+            <StackPanel Padding="18,14,18,16" Spacing="14">
+
+                <!-- Header / Subtitle Info -->
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="DEEP-LEVEL RESOURCE EXTRACTION SITES" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <TextBlock Text="{x:Bind ViewModel.ReferenceLocationLabel, Mode=OneWay}"
+                                   Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <ProgressRing Grid.Column="1" IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
+                                  Width="20" Height="20" VerticalAlignment="Center"/>
+                </Grid>
+
+                <!-- Filter Row -->
+                <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                    <RadioButtons Header="Filter" MaxColumns="5"
+                                  ItemsSource="{x:Bind ViewModel.FilterChoices, Mode=OneWay}"
+                                  SelectedIndex="{x:Bind ViewModel.SelectedFilterIndex, Mode=TwoWay}"
+                                  AutomationProperties.Name="Filter hotspots by type or class"/>
+                </StackPanel>
+
+                <!-- Status / Count -->
+                <TextBlock Text="{x:Bind ViewModel.TotalCountLabel, Mode=OneWay}"
+                           FontSize="12" Foreground="{ThemeResource ThemeTextBrush}"/>
+
+                <!-- Hotspot Cards Grid -->
+                <ItemsControl ItemsSource="{x:Bind ViewModel.Hotspots, Mode=OneWay}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="10"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="explore:PlanetHotspotItemViewModel">
+                            <Border Width="370" Padding="14,12" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                                    Background="{ThemeResource ThemeVoidBrush}"
+                                    BorderBrush="{ThemeResource ThemeLineBrush}"
+                                    BorderThickness="1">
+                                <Grid RowSpacing="10">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Top Row: Category Icon & Badge, Class Badge, Coordinates -->
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Kind Badge -->
+                                        <Border Background="{ThemeResource ThemePanelAltBrush}"
+                                                BorderBrush="{ThemeResource ThemeLineBrush}"
+                                                BorderThickness="1" Padding="6,2"
+                                                CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <FontIcon Glyph="{x:Bind KindGlyph}" FontSize="11" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                                <TextBlock Text="{x:Bind Kind}" FontSize="11" FontWeight="SemiBold"
+                                                           Foreground="{ThemeResource ThemeTextBrush}"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Class Badge -->
+                                        <Border Grid.Column="1"
+                                                Background="{ThemeResource ThemePanelAltBrush}"
+                                                BorderBrush="{ThemeResource ThemeLineBrush}"
+                                                BorderThickness="1" Padding="8,2"
+                                                CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                                            <TextBlock Text="{x:Bind Class}" FontSize="11" FontWeight="Bold"
+                                                       FontFamily="{ThemeResource ThemeDisplayFont}"
+                                                       Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                        </Border>
+
+                                        <!-- Coordinates with Copy Button -->
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <TextBlock Text="{x:Bind Coordinates}" FontSize="12" FontWeight="Bold"
+                                                       FontFamily="{ThemeResource ThemeDisplayFont}"
+                                                       Foreground="{ThemeResource ThemeAccentBrush}"
+                                                       VerticalAlignment="Center" IsTextSelectionEnabled="True"/>
+                                            <controls:CopyCodeButton Code="{x:Bind Coordinates}" Padding="6,2" Content="Copy" FontSize="11"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Middle Row: Resource Name & Distance -->
+                                    <Grid Grid.Row="1" ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{x:Bind ResourceName}" FontSize="14" FontWeight="SemiBold"
+                                                   FontFamily="{ThemeResource ThemeDisplayFont}"
+                                                   Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+                                        <TextBlock Grid.Column="1" Text="{x:Bind DistanceLabel}" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>
+                                    </Grid>
+
+                                    <!-- Yield, Strength & Range -->
+                                    <TextBlock Grid.Row="2" Text="{x:Bind YieldLabel}" FontSize="11"
+                                               Foreground="{ThemeResource ThemeTextDimBrush}"/>
+
+                                    <!-- Actions Row: Add Marker / Undo -->
+                                    <Grid Grid.Row="3" ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Content="{x:Bind AddMarkerText, Mode=OneWay}"
+                                                Command="{x:Bind AddMarkerCommand}"
+                                                IsEnabled="{x:Bind CanAddMarker, Mode=OneWay}"
+                                                HorizontalAlignment="Stretch"
+                                                ToolTipService.ToolTip="{x:Bind MarkerStatus, Mode=OneWay}"
+                                                AutomationProperties.Name="Add marker to save"/>
+                                        <Button Grid.Column="1" Content="Undo"
+                                                Command="{x:Bind UndoMarkerCommand}"
+                                                Visibility="{x:Bind CanUndoMarker, Mode=OneWay}"
+                                                AutomationProperties.Name="Undo hotspot marker"/>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+            </StackPanel>
+        </Border>
+    </controls:FoldingCard>
+</UserControl>
