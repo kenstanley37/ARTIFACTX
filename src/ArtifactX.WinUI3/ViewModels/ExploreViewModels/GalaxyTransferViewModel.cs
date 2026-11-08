@@ -30,7 +30,10 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
     public partial string SearchText { get; set; } = "";
 
     [ObservableProperty]
-    public partial string SelectedFilter { get; set; } = "All";
+    public partial string SelectedPresenceFilter { get; set; } = "All";
+
+    [ObservableProperty]
+    public partial string SelectedCategoryFilter { get; set; } = "All";
 
     [ObservableProperty]
     public partial bool IsTransferStaged { get; set; }
@@ -43,6 +46,13 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool CanTransfer { get; set; }
+
+    // Filter Button Labels with live counts
+    [ObservableProperty] public partial string AllFilterLabel { get; private set; } = "All (256)";
+    [ObservableProperty] public partial string VisitedFilterLabel { get; private set; } = "Visited (0)";
+    [ObservableProperty] public partial string UnvisitedFilterLabel { get; private set; } = "Unvisited (256)";
+    [ObservableProperty] public partial string BasesFilterLabel { get; private set; } = "Bases (0)";
+    [ObservableProperty] public partial string StationsFilterLabel { get; private set; } = "Stations (0)";
 
     public ObservableCollection<GalaxyRowViewModel> FilteredGalaxies { get; } = new();
 
@@ -64,10 +74,13 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
         await Task.Run(() =>
         {
             var current = GalaxyTransferService.GetCurrentGalaxy();
+            var presenceMap = GalaxyTransferService.GetGalaxyPresence();
             bool isStaged = GalaxyTransferService.HasStagedTransfer();
 
             var rows = NmsGalaxyInfo.AllGalaxies
-                .Select(g => new GalaxyRowViewModel(g, g.Number == current.Number))
+                .Select(g => new GalaxyRowViewModel(
+                    g,
+                    presenceMap.TryGetValue(g.Number, out var pres) ? pres : GalaxyPresence.Empty(g.Number, g.Number == current.Number)))
                 .ToList();
 
             App.MainWindowInstance?.DispatcherQueue?.TryEnqueue(() =>
@@ -78,6 +91,7 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
                 IsTransferStaged = isStaged;
                 _allRows = rows;
 
+                UpdateCounts();
                 ApplyFilter();
 
                 SelectedGalaxy = FilteredGalaxies.FirstOrDefault(r => r.Number == current.Number)
@@ -93,7 +107,12 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
         ApplyFilter();
     }
 
-    partial void OnSelectedFilterChanged(string value)
+    partial void OnSelectedPresenceFilterChanged(string value)
+    {
+        ApplyFilter();
+    }
+
+    partial void OnSelectedCategoryFilterChanged(string value)
     {
         ApplyFilter();
     }
@@ -103,20 +122,52 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
         UpdateTransferState();
     }
 
-    public void SetFilter(string filter)
+    public void SetPresenceFilter(string filter)
     {
-        SelectedFilter = filter;
+        SelectedPresenceFilter = filter;
+    }
+
+    public void SetCategoryFilter(string filter)
+    {
+        SelectedCategoryFilter = filter;
+    }
+
+    private void UpdateCounts()
+    {
+        int total = _allRows.Count;
+        int visited = _allRows.Count(r => r.IsVisited);
+        int unvisited = _allRows.Count(r => r.IsUnvisited);
+        int bases = _allRows.Count(r => r.HasBases);
+        int stations = _allRows.Count(r => r.HasStations);
+
+        AllFilterLabel = $"All ({total})";
+        VisitedFilterLabel = $"Visited ({visited})";
+        UnvisitedFilterLabel = $"Unvisited ({unvisited})";
+        BasesFilterLabel = $"Bases ({bases})";
+        StationsFilterLabel = $"Stations ({stations})";
     }
 
     private void ApplyFilter()
     {
         var query = SearchText?.Trim() ?? "";
-        var filter = SelectedFilter ?? "All";
+        var presenceFilter = SelectedPresenceFilter ?? "All";
+        var catFilter = SelectedCategoryFilter ?? "All";
 
         var filtered = _allRows.Where(r =>
         {
+            // Presence filter
+            bool presenceMatch = presenceFilter switch
+            {
+                "Visited" => r.IsVisited,
+                "Unvisited" => r.IsUnvisited,
+                "Bases" => r.HasBases,
+                "Stations" => r.HasStations,
+                _ => true
+            };
+            if (!presenceMatch) return false;
+
             // Category filter
-            bool categoryMatch = filter switch
+            bool categoryMatch = catFilter switch
             {
                 "Lush" => r.Classification == GalaxyClassification.Lush,
                 "Harsh" => r.Classification == GalaxyClassification.Harsh,
@@ -132,6 +183,7 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
             if (r.Number.ToString().Equals(query, StringComparison.OrdinalIgnoreCase)) return true;
             if (r.Name.Contains(query, StringComparison.OrdinalIgnoreCase)) return true;
             if (r.ClassificationName.Contains(query, StringComparison.OrdinalIgnoreCase)) return true;
+            if (r.PresenceSummary.Contains(query, StringComparison.OrdinalIgnoreCase)) return true;
 
             return false;
         }).ToList();
@@ -193,12 +245,13 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Quietly updates the current galaxy and HERE badge in-place without rebuilding the list
+    /// Quietly updates the current galaxy, telemetry, and HERE badge in-place without rebuilding the list
     /// or resetting scroll position/selection. Follows live game saves and staged edits.
     /// </summary>
     public void UpdateCurrentGalaxy(PlanetSnapshot? snapshot = null)
     {
         var current = GalaxyTransferService.GetCurrentGalaxy(snapshot);
+        var presenceMap = GalaxyTransferService.GetGalaxyPresence(snapshot);
         bool isStaged = GalaxyTransferService.HasStagedTransfer();
 
         App.MainWindowInstance?.DispatcherQueue?.TryEnqueue(() =>
@@ -221,10 +274,14 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
                 {
                     row.IsCurrent = isCur;
                 }
+                if (presenceMap.TryGetValue(row.Number, out var pres))
+                {
+                    row.Presence = pres;
+                }
             }
 
+            UpdateCounts();
             UpdateTransferState();
         });
     }
 }
-

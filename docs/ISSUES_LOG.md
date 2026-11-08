@@ -654,16 +654,17 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 
 ### Feature 72: Track Visited Galaxies, Bases and Space Stations in Galaxy Transfer
 - **Source**: Owner request, 2026-11-07: "It would be nice to know if we have a base or spacestation in each galaxy. That would help us to know which galaxy we haven't been to yet. But you can add that to the issue list."
-- **Status**: Open / Proposed.
-- **Goal**: In the Galaxy Transfer browser (and galaxy telemetry):
-  - Track whether the player has visited each galaxy (1..256).
-  - Show badges / counts for player bases (`peI` / `BaseKind.Planet`, `BaseKind.Freighter`, `BaseKind.Station`) in that galaxy.
-  - Show whether a claimed space station or teleporter space station marker (`nlG`) exists in that galaxy.
-  - Provide a filter or badge to easily spot unvisited galaxies ("Never Visited") so players can systematically explore every galaxy.
-- **Data Source in Save**:
-  - `BaseListBuilder.Build(snapshot)` partitions all bases and settlements with `entry.Galaxy` (1..256 via `NmsSpaceStationPaths.GalaxyNumber(address)`).
-  - `snapshot.Markers` (`nlG`) contains space station teleport endpoints with galaxy addresses (`NmsSpaceStationPaths.GalaxyNumber(address)`).
-  - Visited systems history (`user.db` and save discovery records `fDu`) also records explored galaxy systems.
+- **Status**: Completed and verified in game by owner, 2026-11-08 (merged into `development`).
+- **Implementation**:
+  - `src/ArtifactX.Core/NmsModels/GalaxyPresence.cs`: Domain model tracking `IsCurrent`, `IsVisited`, `BaseCount`, `StationCount`, `SettlementCount`, list of base names and station names, and presence summary.
+  - `src/ArtifactX.WinUI3/Services/GalaxyTransferService.cs`: Added `GetGalaxyPresence(snapshot)` scanning `F?0` (player bases/settlements/claimed stations), `nlG` (teleport network space stations), `fDu` (system discoveries), and `user.db` finds across all 256 galaxies.
+  - `src/ArtifactX.WinUI3/ViewModels/ExploreViewModels/GalaxyRowViewModel.cs`: Enhanced with `Presence`, `IsVisited`, `IsUnvisited`, `BaseCount`, `StationCount`, and badge texts (`X ⌂`, `Y ✦`, `UNVISITED`).
+  - `src/ArtifactX.WinUI3/ViewModels/ExploreViewModels/GalaxyTransferViewModel.cs`: Added dual-dimension filtering (Presence: All, Unvisited, Visited, Bases, Stations; and Biomes: All, Lush, Harsh, Empty, Normal) with live counts.
+  - `src/ArtifactX.WinUI3/Views/ExplorePages/GalaxyTransferPage.xaml`:
+    - List row shows `[HERE]`, `[X ⌂]`, `[Y ✦]`, and `[UNVISITED]` badges.
+    - Right details panel features a dedicated "YOUR PRESENCE IN THIS GALAXY" card with status badge, base names, and space stations.
+    - Gateway station details now include authentic glyph icons (`<controls:GlyphStrip>`) alongside the portal address copy button.
+    - Uncoupled layout to provide independent, isolated scrolling for both the galaxy browser list and the details panel.
 
 ### Bug 73: Planetary Rings Misdetected (Discovery Flags Bit 16 is Extreme Hazard, Not Rings)
 - **Source**: Owner comparison screenshots, 2026-11-07: ArtifactX Current System (`media_1794112478514_424f9488.jpg`) vs in-game Discoveries screen (`media_1794112540536_7f7effec.jpg`) in system Thwellus.

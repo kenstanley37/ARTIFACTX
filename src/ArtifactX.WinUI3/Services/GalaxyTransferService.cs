@@ -1,6 +1,7 @@
 using ArtifactX.Core.NmsModels;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace ArtifactX.WinUI3.Services;
@@ -12,6 +13,30 @@ namespace ArtifactX.WinUI3.Services;
 /// </summary>
 public static class GalaxyTransferService
 {
+    private sealed class PresenceAccumulator
+    {
+        public int GalaxyNumber { get; }
+        public bool IsCurrent { get; set; }
+        public bool IsVisited { get; set; }
+        public int BaseCount { get; set; }
+        public int StationCount { get; set; }
+        public int SettlementCount { get; set; }
+        public List<string> Bases { get; } = new();
+        public List<string> Stations { get; } = new();
+
+        public PresenceAccumulator(int number) => GalaxyNumber = number;
+
+        public GalaxyPresence ToPresence() => new(
+            GalaxyNumber,
+            IsCurrent,
+            IsVisited || IsCurrent || BaseCount > 0 || StationCount > 0 || SettlementCount > 0,
+            BaseCount,
+            StationCount,
+            SettlementCount,
+            Bases,
+            Stations);
+    }
+
     /// <summary>Reads the player's active galaxy from a live snapshot, loaded save, or staged edits.</summary>
     public static GalaxyInfo GetCurrentGalaxy(PlanetSnapshot? snapshot = null)
     {
@@ -27,6 +52,137 @@ public static class GalaxyTransferService
         }
 
         return NmsGalaxyInfo.AllGalaxies[0]; // Euclid default
+    }
+
+    /// <summary>
+    /// Analyzes the player's save snapshot, bases, teleport markers, discoveries, and logged finds
+    /// to determine player presence, base counts, and space station network presence across all 256 galaxies.
+    /// </summary>
+    public static IReadOnlyDictionary<int, GalaxyPresence> GetGalaxyPresence(PlanetSnapshot? snapshot = null)
+    {
+        var accumulators = new Dictionary<int, PresenceAccumulator>(256);
+        for (int i = 1; i <= 256; i++)
+        {
+            accumulators[i] = new PresenceAccumulator(i);
+        }
+
+        // 1. Current Galaxy
+        var current = GetCurrentGalaxy(snapshot);
+        if (accumulators.TryGetValue(current.Number, out var cur))
+        {
+            cur.IsCurrent = true;
+            cur.IsVisited = true;
+        }
+
+        // 2. Bases (F?0 / snapshot.Bases)
+        var basesArray = snapshot?.Bases ?? SaveSessionManager.GetValue(NmsSpaceStationPaths.BasesPath) as JArray;
+        if (basesArray is not null)
+        {
+            foreach (var b in basesArray.OfType<JObject>())
+            {
+                if (NmsSpaceStationPaths.ParsePackedAddress(b["oZw"]) is not ulong addr) continue;
+                int g = NmsSpaceStationPaths.GalaxyNumber(addr);
+                if (g < 1 || g > 256) continue;
+
+                string kind = b["peI"]?["DPp"]?.Value<string>() ?? "";
+                string name = b["NKm"]?.Value<string>() ?? "";
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    name = kind switch
+                    {
+                        "HomePlanetBase" => "Planet Base",
+                        "PlayerSpaceStationBase" => "Claimed Station",
+                        "Settlement" => "Settlement",
+                        _ => "Base"
+                    };
+                }
+
+                var acc = accumulators[g];
+                acc.IsVisited = true;
+                if (kind == "Settlement")
+                {
+                    acc.SettlementCount++;
+                    acc.Bases.Add($"{name} (Settlement)");
+                }
+                else if (kind == "PlayerSpaceStationBase")
+                {
+                    acc.StationCount++;
+                    acc.Stations.Add($"{name} (Claimed Station)");
+                }
+                else
+                {
+                    acc.BaseCount++;
+                    acc.Bases.Add(name);
+                }
+            }
+        }
+
+        // 3. Space Stations in Teleport Network (nlG / snapshot.Markers)
+        var markersArray = snapshot?.Markers ?? SaveSessionManager.GetValue(NmsSpaceStationPaths.MarkersPath) as JArray;
+        if (markersArray is not null)
+        {
+            foreach (var m in markersArray.OfType<JObject>())
+            {
+                if (m["iAF"]?.Value<string>() != NmsSpaceStationPaths.StationMarkerType) continue;
+
+                int g = 0;
+                if (m["yhJ"]?["Iis"]?.Value<int>() is int realityIndex)
+                {
+                    g = realityIndex + 1;
+                }
+                else if (NmsSpaceStationPaths.ReadSystemAddress(m["yhJ"]) is ulong addr)
+                {
+                    g = NmsSpaceStationPaths.GalaxyNumber(addr);
+                }
+
+                if (g < 1 || g > 256) continue;
+
+                string name = m["NKm"]?.Value<string>() ?? "Space Station";
+                var acc = accumulators[g];
+                acc.IsVisited = true;
+                if (!acc.Stations.Contains(name))
+                {
+                    acc.StationCount++;
+                    acc.Stations.Add(name);
+                }
+            }
+        }
+
+        // 4. Discoveries (fDu / snapshot.Discoveries)
+        var discoveries = snapshot?.Discoveries
+            ?? SaveSessionManager.GetValue(new[] { "fDu", "ETO", "OsQ", "?fB" }) as JArray;
+        if (discoveries is not null)
+        {
+            foreach (var record in discoveries.OfType<JObject>())
+            {
+                if (record["8P3"]?["5L6"] is JToken addrTok && NmsSpaceStationPaths.ParsePackedAddress(addrTok) is ulong addr)
+                {
+                    int g = NmsSpaceStationPaths.GalaxyNumber(addr);
+                    if (g >= 1 && g <= 256)
+                    {
+                        accumulators[g].IsVisited = true;
+                    }
+                }
+            }
+        }
+
+        // 5. Finds logged in user.db
+        try
+        {
+            foreach (var f in FindsService.All)
+            {
+                if (f.Galaxy >= 1 && f.Galaxy <= 256)
+                {
+                    accumulators[f.Galaxy].IsVisited = true;
+                }
+            }
+        }
+        catch
+        {
+            // Ignore if database is busy
+        }
+
+        return accumulators.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToPresence());
     }
 
     /// <summary>Checks whether a galaxy transfer is currently staged in this edit session.</summary>
@@ -81,4 +237,3 @@ public static class GalaxyTransferService
         SaveSessionManager.RevertEditsUnder(NmsSpaceStationPaths.MarkersPath);
     }
 }
-
