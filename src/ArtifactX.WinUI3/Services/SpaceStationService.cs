@@ -352,9 +352,9 @@ public static class SpaceStationService
         return -1;
     }
 
-    /// <summary>The 4 x uint32 stamp the game writes on an owned station's
-    /// marker - identical across all of a player's stations, so it's copied
-    /// from any marker that already carries one. Null on a first-ever claim.</summary>
+    /// <summary>Finds the player's 4 x uint32 alliance ownership stamp from an existing
+    /// station marker in nlG. Returns null if the player has not yet created or joined
+    /// an alliance in-game (their markers carry [0, 0, 0, 0]).</summary>
     public static JArray? FindOwnershipStamp()
     {
         if (SaveSessionManager.GetValue(S.MarkersPath) is not JArray markers) return null;
@@ -369,23 +369,11 @@ public static class SpaceStationService
         return null;
     }
 
-    /// <summary>Finds existing ownership stamp or derives a deterministic 4 x uint32
-    /// stamp from the player's account details (Steam ID / owner block) if none exist yet.</summary>
-    public static JArray GetOrCreateOwnershipStamp()
-    {
-        if (FindOwnershipStamp() is JArray existing) return existing;
-
-        string seed = FindOwnerBlock()?["f5Q"]?.Value<string>() ?? Guid.NewGuid().ToString();
-        using var md5 = System.Security.Cryptography.MD5.Create();
-        byte[] hash = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(seed));
-        return new JArray
-        {
-            BitConverter.ToUInt32(hash, 0),
-            BitConverter.ToUInt32(hash, 4),
-            BitConverter.ToUInt32(hash, 8),
-            BitConverter.ToUInt32(hash, 12)
-        };
-    }
+    /// <summary>Returns the player's existing alliance stamp if one has been established
+    /// in-game, or zeros [0, 0, 0, 0] if they have not created or joined an alliance yet.
+    /// This preserves the in-game prompt to create or join an alliance at the Station Core.</summary>
+    public static JArray GetOrCreateOwnershipStamp() =>
+        FindOwnershipStamp() ?? new JArray { 0, 0, 0, 0 };
 
     private static bool StampEquals(JToken? a, JToken? b)
     {
@@ -398,8 +386,10 @@ public static class SpaceStationService
         return true;
     }
 
-    /// <summary>Ensures the Spacestation marker for the system exists and is stamped
-    /// in nlG so the game displays it under Alliance Stations in the teleporter terminal.</summary>
+    /// <summary>Ensures the Spacestation marker for the system exists in nlG. If the player
+    /// already has an in-game alliance, stamps it with their alliance ID so it appears under
+    /// Alliance Stations. If not, leaves it unaligned [0, 0, 0, 0] so the game presents the
+    /// choice to create or join an alliance.</summary>
     private static void EnsureStationMarkerStaged(ulong systemAddress, string stationName)
     {
         var origMarkers = SaveSessionManager.GetValue(S.MarkersPath) as JArray ?? new JArray();
@@ -412,7 +402,8 @@ public static class SpaceStationService
 
         if (match is not null)
         {
-            match["6H2"] = new JObject { ["8?J"] = (JArray)stamp.DeepClone() };
+            if (FindOwnershipStamp() is not null)
+                match["6H2"] = new JObject { ["8?J"] = (JArray)stamp.DeepClone() };
             if (string.IsNullOrWhiteSpace(match["NKm"]?.Value<string>()))
                 match["NKm"] = stationName;
         }
@@ -424,12 +415,12 @@ public static class SpaceStationService
         SaveSessionManager.StageEdit(markers, S.MarkersPath);
     }
 
-    /// <summary>Counts how many owned stations (in F?0) lack a stamped Spacestation
-    /// marker in nlG with the player's alliance ownership stamp.</summary>
+    /// <summary>Counts how many owned stations (in F?0) either lack an nlG teleport marker,
+    /// or lack the player's established alliance stamp if an alliance exists.</summary>
     public static int CountUnregisteredStations()
     {
         if (SaveSessionManager.GetValue(S.MarkersPath) is not JArray markers) return 0;
-        var stamp = GetOrCreateOwnershipStamp();
+        var stamp = FindOwnershipStamp();
         var owned = ReadOwnedStations();
         int unregistered = 0;
 
@@ -439,22 +430,24 @@ public static class SpaceStationService
                 string.Equals(m["iAF"]?.Value<string>(), S.StationMarkerType, StringComparison.Ordinal)
                 && S.ReadSystemAddress(m["yhJ"]) == station.Address);
 
-            if (match is null || !StampEquals(match["6H2"]?["8?J"], stamp))
+            if (match is null)
+                unregistered++;
+            else if (stamp is not null && !StampEquals(match["6H2"]?["8?J"], stamp))
                 unregistered++;
         }
 
         return unregistered;
     }
 
-    /// <summary>Syncs all claimed stations in F?0 to nlG teleport markers, updating
-    /// unstamped markers and generating any missing markers so every directed station
-    /// appears under Alliance Stations in the Teleportation Terminal.</summary>
+    /// <summary>Syncs all claimed stations in F?0 to nlG teleport markers, generating
+    /// any missing markers and updating stamps with the player's alliance ID if established.</summary>
     public static (int Updated, int Added) SyncClaimedStationMarkers()
     {
         if (SaveSessionManager.GetValue(S.MarkersPath) is not JArray origMarkers) return (0, 0);
 
         var markers = (JArray)origMarkers.DeepClone();
         var stamp = GetOrCreateOwnershipStamp();
+        var hasAlliance = FindOwnershipStamp() is not null;
         var owned = ReadOwnedStations();
         int updated = 0, added = 0;
 
@@ -466,7 +459,7 @@ public static class SpaceStationService
 
             if (match is not null)
             {
-                if (!StampEquals(match["6H2"]?["8?J"], stamp))
+                if (hasAlliance && !StampEquals(match["6H2"]?["8?J"], stamp))
                 {
                     match["6H2"] = new JObject { ["8?J"] = (JArray)stamp.DeepClone() };
                     if (string.IsNullOrWhiteSpace(match["NKm"]?.Value<string>()))
