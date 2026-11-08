@@ -29,6 +29,7 @@ packages/
 
 ## ====== Testing ======
 TestResults/
+scratch/
 *.trx
 *.coverage
 *.coveragexml

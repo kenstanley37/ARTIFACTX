@@ -289,5 +289,17 @@ public static class PlanetHotspotService
             return (IReadOnlyList<PlanetHotspot>)results.OrderBy(r => r.Distance).ToList();
         });
     }
+
+    /// <summary>
+    /// Finds multi-hotspot clusters (pairs and triplets) within base building range.
+    /// Calculates the optimal Base Computer coordinate (minimum enclosing circle) for each cluster.
+    /// </summary>
+    public static IReadOnlyList<PlanetHotspotCluster> FindClusters(
+        IReadOnlyList<PlanetHotspot> hotspots,
+        double maxBaseRadius = 375.0,
+        double maxSpan = 650.0,
+        double? portalLat = null,
+        double? portalLon = null) =>
+        PlanetHotspotCluster.Find(hotspots, maxBaseRadius, maxSpan, portalLat, portalLon);
 }
 

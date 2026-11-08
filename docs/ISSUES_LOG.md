@@ -692,11 +692,13 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 
 ### Feature 74: Hotspot Cluster & Combo Finder (Base Computer Site Optimizer)
 - **Source**: Owner request, 2026-11-08: "we will want a search feature for the hotspots later but I'm not in a hurry for it. Players like me love power hotspots very close to the portal. Also, a combo search which may take more math, for example, I went around until I found 3 hotspots within 300u of each other. I then found a good place to put a base computer that was within range of all of them"
-- **Status**: Open / Planned.
-- **Goal**:
-  1. **Portal-Power Proximity Search**: Quick filter/sort to find the highest-class Electromagnetic Power hotspots closest to the planet's portal (ideal for portal base networks).
-  2. **Multi-Hotspot Combo Finder (Triangulation)**: Search across the planet or within a target region to locate clusters of 2 or 3 distinct hotspots (e.g., Power + Mineral, or Power + Mineral + Gas) located within standard base boundary radius (<= 300u–400u from each other).
-  3. **Optimal Base Computer Coordinate**: Automatically compute and display the geometric centroid / optimal placement coordinate for a Base Computer that brings all clustered hotspots within simultaneous extraction range.
+- **Status**: Completed (2026-11-08) on branch `feature/hotspot-combo-search`.
+- **Implementation**:
+  1. **Hotspot Search & Sort Toolbar**: Added resource name search text filter and 4-way sorting (Distance from You, Closest to Portal, Class S->C, and Resource Name A-Z) in `PlanetHotspotsPanel.xaml` and `PlanetHotspotsViewModel.cs`.
+  2. **Multi-Hotspot Cluster Triangulation**: Implemented `PlanetHotspotCluster.Find` in `ArtifactX.Core` using exact 3D minimum enclosing circle math for pairs and triplets of hotspots. Detects all viable clusters within single Base Computer reach (<= 375u radius, sites spanning <= 650u).
+  3. **Combo Categorization & Ranking**: Classifies clusters into Trifecta (⚡ Power + ⛏ Mineral + ☁ Gas - the holy grail), Power + Mineral, Power + Gas, Dual Mineral, and Dual Power, ranking Trifectas and highest-class sites first.
+  4. **Optimal Base Computer Coordinate Calculation**: Calculates the exact surface coordinates (Latitude/Longitude) for dropping the Base Computer to minimize maximum reach distance to all extraction sites.
+  5. **HUD Navigation Staging**: Added "Add base marker to save" action on cluster cards, staging an in-game HUD marker directly at the optimal Base Computer location so players can fly directly to the site in No Man's Sky.
 
 
 
