@@ -135,6 +135,10 @@ public sealed partial class ModelPreviewPanel : UserControl
         Preview.ShowMessage($"Building this {Subject}'s model from your game files...");
         NoteTxt.Text = "";
 
+        // Creatures in NMS point their head forward along -Z (opposite of starships which face +Z).
+        // A half turn offset (PI) opens on a front three-quarter view of the creature.
+        StartYawOffset = Math.PI;
+
         var mesh = await CreatureModelService.BuildCreatureMeshAsync(game, rigId, chosenDescriptors);
         if (version != _version) return;
         if (mesh is null)
