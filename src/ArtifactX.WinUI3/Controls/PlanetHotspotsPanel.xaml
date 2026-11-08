@@ -82,7 +82,7 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="explore:PlanetHotspotItemViewModel">
-                            <Border Width="370" Padding="14,12" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                            <Border Width="370" MinHeight="185" Padding="14,12" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
                                     Background="{x:Bind CardBackground, Mode=OneWay}"
                                     BorderBrush="{x:Bind CardBorderBrush, Mode=OneWay}"
                                     BorderThickness="{x:Bind CardBorderThickness, Mode=OneWay}">
@@ -90,7 +90,7 @@
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
@@ -192,14 +192,14 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="explore:PlanetHotspotClusterItemViewModel">
-                            <Border Width="460" Padding="16,14" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                            <Border Width="460" MinHeight="265" Padding="16,14" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
                                     Background="{x:Bind CardBackground, Mode=OneWay}"
                                     BorderBrush="{x:Bind CardBorderBrush, Mode=OneWay}"
                                     BorderThickness="{x:Bind CardBorderThickness, Mode=OneWay}">
                                 <Grid RowSpacing="12">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
@@ -249,7 +249,7 @@
                                     </Grid>
 
                                     <!-- Hotspot Rows in this Combo -->
-                                    <ItemsControl Grid.Row="1" ItemsSource="{x:Bind Hotspots}">
+                                    <ItemsControl Grid.Row="1" ItemsSource="{x:Bind Hotspots}" MinHeight="84" VerticalAlignment="Top">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="explore:PlanetHotspotItemViewModel">
                                                 <Grid Padding="0,3" ColumnSpacing="8">
@@ -285,8 +285,8 @@
                                     <!-- Optimal Base Computer Site Summary Box -->
                                     <Border Grid.Row="2" Background="{ThemeResource ThemePanelAltBrush}"
                                             BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                                            Padding="10,8" CornerRadius="4">
-                                        <StackPanel Spacing="3">
+                                            Padding="10,8" CornerRadius="4" MinHeight="54">
+                                        <StackPanel Spacing="3" VerticalAlignment="Center">
                                             <TextBlock Text="{x:Bind ReachDescription}" FontSize="11"
                                                        Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
                                             <TextBlock Text="{x:Bind PortalDistanceLabel}" FontSize="11"
@@ -296,7 +296,7 @@
                                     </Border>
 
                                     <!-- Actions Row: Add Base Marker / Undo -->
-                                    <Grid Grid.Row="3" ColumnSpacing="8">
+                                    <Grid Grid.Row="3" ColumnSpacing="8" VerticalAlignment="Bottom">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
