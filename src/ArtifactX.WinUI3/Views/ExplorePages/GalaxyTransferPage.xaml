@@ -72,11 +72,11 @@
 
                         <!-- Type Filters -->
                         <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6">
-                            <Button Content="All (256)" Click="FilterAll_Click" Style="{StaticResource ThemeActionButtonStyle}" Padding="8,4"/>
-                            <Button Content="Lush (25)" Click="FilterLush_Click" Style="{StaticResource ThemeActionButtonStyle}" Padding="8,4"/>
-                            <Button Content="Harsh (26)" Click="FilterHarsh_Click" Style="{StaticResource ThemeActionButtonStyle}" Padding="8,4"/>
-                            <Button Content="Empty (26)" Click="FilterEmpty_Click" Style="{StaticResource ThemeActionButtonStyle}" Padding="8,4"/>
-                            <Button Content="Normal (179)" Click="FilterNormal_Click" Style="{StaticResource ThemeActionButtonStyle}" Padding="8,4"/>
+                            <Button Content="All (256)" Click="FilterAll_Click" Padding="8,4"/>
+                            <Button Content="Lush (25)" Click="FilterLush_Click" Padding="8,4"/>
+                            <Button Content="Harsh (26)" Click="FilterHarsh_Click" Padding="8,4"/>
+                            <Button Content="Empty (26)" Click="FilterEmpty_Click" Padding="8,4"/>
+                            <Button Content="Normal (179)" Click="FilterNormal_Click" Padding="8,4"/>
                         </StackPanel>
 
                         <!-- Galaxy ListView -->
@@ -92,10 +92,10 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="{x:Bind Number}" FontSize="13" Foreground="{ThemeResource ThemeDimTextBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{x:Bind Number}" FontSize="13" Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                             <TextBlock Text="{x:Bind Name}" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}"/>
-                                            <TextBlock Text="{x:Bind ClassificationName}" FontSize="11" Foreground="{ThemeResource ThemeDimTextBrush}"/>
+                                            <TextBlock Text="{x:Bind ClassificationName}" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}"/>
                                         </StackPanel>
                                         <Border Grid.Column="2" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
                                                 BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center"
@@ -128,7 +128,7 @@
                                 </StackPanel>
                                 <Border Grid.Column="1" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="6" Padding="10,6" VerticalAlignment="Top">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <TextBlock Text="Internal Index:" FontSize="11" Foreground="{ThemeResource ThemeDimTextBrush}"/>
+                                        <TextBlock Text="Internal Index:" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}"/>
                                         <TextBlock Text="{x:Bind ViewModel.SelectedGalaxy.RealityIndex, Mode=OneWay}" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource ThemeTextBrush}"/>
                                     </StackPanel>
                                 </Border>
@@ -173,7 +173,7 @@
                                 <TextBlock Grid.Row="3" Text="Portal Glyph Address:" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
                                 <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="10">
                                     <TextBlock Text="{x:Bind ViewModel.GatewayPortalGlyphs}" FontFamily="Consolas" FontWeight="Bold" FontSize="14" Foreground="{ThemeResource ThemeTextBrush}" VerticalAlignment="Center"/>
-                                    <Button Content="Copy Glyphs" Click="CopyGlyphs_Click" Style="{StaticResource ThemeActionButtonStyle}" Padding="8,2" FontSize="11"/>
+                                    <Button Content="Copy Glyphs" Click="CopyGlyphs_Click" Padding="8,2" FontSize="11"/>
                                 </StackPanel>
                             </Grid>
 
@@ -200,16 +200,13 @@
                                 <Button Content="{x:Bind ViewModel.TransferActionText, Mode=OneWay}"
                                         Click="Transfer_Click"
                                         IsEnabled="{x:Bind ViewModel.CanTransfer, Mode=OneWay}"
-                                        Style="{StaticResource ThemeActionButtonStyle}"
-                                        Background="{ThemeResource ThemeAccentBrush}"
-                                        Foreground="{ThemeResource ThemeVoidBrush}"
-                                        FontWeight="Bold" Padding="18,10"
+                                        Style="{StaticResource ThemeAccentButtonStyle}"
+                                        Padding="18,10"
                                         AutomationProperties.Name="Transfer starship to selected galaxy space station"/>
 
                                 <Button Content="Revert Transfer"
                                         Click="Revert_Click"
                                         IsEnabled="{x:Bind ViewModel.IsTransferStaged, Mode=OneWay}"
-                                        Style="{StaticResource ThemeActionButtonStyle}"
                                         Padding="14,10"
                                         AutomationProperties.Name="Revert staged galaxy transfer"/>
                             </StackPanel>
@@ -222,3 +219,4 @@
         </StackPanel>
     </ScrollViewer>
 </Page>
+
