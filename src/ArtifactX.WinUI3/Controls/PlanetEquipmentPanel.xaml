@@ -42,46 +42,43 @@
             </Border>
         </controls:FoldingCard>
 
-        <!-- Crashed ships nearest you (or the portal), worked out from the game's building grid, each with an optional marker. -->
-        <controls:FoldingCard Title="{x:Bind Equipment.CrashedShipsHeading, Mode=OneWay}" SettingKey="PlanetDetailsCrashedShipsCollapsed"
-                              Visibility="{x:Bind Equipment.HasCrashedShips, Mode=OneWay}">
+        <!-- Crashed ships on this planet: offloaded to dedicated page -->
+        <controls:FoldingCard Title="CRASHED SHIPS ON THIS PLANET" SettingKey="PlanetDetailsCrashedShipsCollapsed">
             <Border Style="{StaticResource ThemeCardStyle}">
-                <StackPanel Padding="18,14,18,16" Spacing="12">
-                    <TextBlock Text="{x:Bind Equipment.CrashedShipsHint, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
-                    <!-- Search filters: class (S by default) and ship type, remembered. -->
-                    <StackPanel Orientation="Horizontal" Spacing="24">
-                        <RadioButtons Header="Class" MaxColumns="5" ItemsSource="{x:Bind Equipment.ShipClassChoices}"
-                                      SelectedIndex="{x:Bind Equipment.ShipClassChoice, Mode=TwoWay}"
-                                      AutomationProperties.Name="Class of crashed ship to search for"/>
-                        <ComboBox Header="Type" MinWidth="170" ItemsSource="{x:Bind Equipment.ShipTypeOptions, Mode=OneWay}"
-                                  SelectedItem="{x:Bind Equipment.SelectedShipType, Mode=TwoWay}"
-                                  AutomationProperties.Name="Type of crashed ship to search for"/>
-                        <ComboBox Header="Show" MinWidth="90" ItemsSource="{x:Bind Equipment.ShipCountChoices}"
-                                  SelectedIndex="{x:Bind Equipment.ShipCountChoice, Mode=TwoWay}"
-                                  AutomationProperties.Name="How many crashed ships to list"/>
+                <Grid Padding="18,14,18,16" ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="PREDICTED CRASH SITES &amp; SALVAGE" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <TextBlock Text="Search and inspect predicted crashed starships on this planet with interactive 3D model previews, S/A/B/C class filters, ship types, and visor coordinates."
+                                   Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"/>
                     </StackPanel>
-                    <TextBlock Text="{x:Bind Equipment.CrashedShipsSummary, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-                    <ItemsControl ItemsSource="{x:Bind Equipment.CrashedShips, Mode=OneWay}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="10"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="explore:CrashedShipRowViewModel">
-                                <Border Width="370" Padding="12,10" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
-                                        Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
-                                    <controls:CrashedShipRow Row="{x:Bind}"/>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
+                    <Button Grid.Column="1" Content="View Crashed Ships ›" Click="OpenCrashedShips_Click"
+                            Style="{StaticResource ThemeAccentButtonStyle}" VerticalAlignment="Center"/>
+                </Grid>
             </Border>
         </controls:FoldingCard>
 
-        <!-- Shops nearest the same point, each with an optional marker. -->
-        <controls:PlanetShopsPanel Shops="{x:Bind Equipment.Shops}"/>
+        <!-- Minor settlement shops & cabinets on this planet -->
+        <controls:FoldingCard Title="CABINET MULTI-TOOLS &amp; SHOPS" SettingKey="PlanetDetailsShopsCardCollapsed">
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <Grid Padding="18,14,18,16" ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="PLANET MINOR SETTLEMENTS &amp; MULTI-TOOLS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <TextBlock Text="View the multi-tools available from this planet's reload pool and find all minor settlement shops with weapon cabinets and traders on this planet."
+                                   Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="View Cabinet Multi-Tools ›" Click="OpenCabinetMultiTools_Click"
+                            Style="{StaticResource ThemeAccentButtonStyle}" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+        </controls:FoldingCard>
 
         <!-- Located sites with their recorded coordinates. -->
         <controls:FoldingCard Title="{x:Bind Equipment.LocatedSitesHeading, Mode=OneWay}" SettingKey="PlanetDetailsLocatedSitesCollapsed">

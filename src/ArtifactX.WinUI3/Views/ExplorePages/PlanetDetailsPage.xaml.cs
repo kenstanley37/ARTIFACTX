@@ -84,4 +84,14 @@ public sealed partial class PlanetDetailsPage : Page
         };
         if (await dialog.ShowAsync() == ContentDialogResult.Primary) ViewModel.DeleteCreature(request.Creature);
     }
+
+    private void PlanetEquipment_CrashedShipsRequested(object? sender, EventArgs e)
+    {
+        Frame.Navigate(typeof(CrashedShipsPage), ViewModel.Planet?.Address);
+    }
+
+    private void PlanetEquipment_CabinetMultiToolsRequested(object? sender, EventArgs e)
+    {
+        Frame.Navigate(typeof(CabinetMultiToolsPage), ViewModel.Planet?.Address);
+    }
 }

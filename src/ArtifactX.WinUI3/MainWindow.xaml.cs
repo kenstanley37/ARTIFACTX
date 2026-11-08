@@ -411,6 +411,8 @@ public sealed partial class MainWindow : Window
                 "SpaceStations" => typeof(SpaceStationsPage),
                 "Planets" => typeof(CurrentSystemPage),
                 "PlanetDetails" => typeof(PlanetDetailsPage),
+                "CrashedShips" => typeof(CrashedShipsPage),
+                "CabinetMultiTools" => typeof(CabinetMultiToolsPage),
                 "PlanetFinder" => typeof(PlanetFinderPage),
                 "Bases" => typeof(BasesPage),
                 "BaseDetails" => typeof(BaseDetailsPage),
@@ -489,6 +491,8 @@ public sealed partial class MainWindow : Window
         ExploreNavItem.Visibility = Visibility.Visible;
         ReferenceNavItem.Visibility = Visibility.Visible;
         PlanetsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
+        CrashedShipsNavItem.Visibility = PlanetsNavItem.Visibility;
+        CabinetMultiToolsNavItem.Visibility = PlanetsNavItem.Visibility;
         PlanetFinderNavItem.Visibility = PlanetsNavItem.Visibility;
         NearCoreNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         RegionsNavItem.Visibility = NearCoreNavItem.Visibility;
@@ -699,6 +703,8 @@ public sealed partial class MainWindow : Window
             Type t when t == typeof(SpaceStationsPage) => "SpaceStations",
             Type t when t == typeof(CurrentSystemPage) => "Planets",
             Type t when t == typeof(PlanetDetailsPage) => "Planets",
+            Type t when t == typeof(CrashedShipsPage) => "CrashedShips",
+            Type t when t == typeof(CabinetMultiToolsPage) => "CabinetMultiTools",
             Type t when t == typeof(PlanetFinderPage) => "PlanetFinder",
             Type t when t == typeof(BasesPage) => "Bases",
             Type t when t == typeof(BaseDetailsPage) => "Bases",
