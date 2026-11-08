@@ -51,40 +51,33 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
     /// <summary>Updates marker button states from the save session.</summary>
     public void Refresh()
     {
-        bool marked = ScanMarkerService.IsMarked(Cluster.ClusterKey);
-        bool unsaved = ScanMarkerService.IsUnsaved(Cluster.ClusterKey);
+        bool marked = SaveBeaconService.IsPlaced(Cluster.PlanetAddress, Cluster.BaseLocalPosition);
+        bool unsaved = SaveBeaconService.IsUnsaved(Cluster.PlanetAddress, Cluster.BaseLocalPosition);
 
         CanUndoMarker = unsaved;
-        CanAddMarker = !unsaved && ScanMarkerService.CanAdd;
-        AddMarkerText = marked && !unsaved ? "Mark base again" : "Add base marker to save";
+        CanAddMarker = !unsaved && SaveBeaconService.CanAdd;
+        AddMarkerText = marked && !unsaved ? "Save Beacon placed ✓" : "Place Save Beacon at site";
 
-        MarkerStatus = unsaved ? "Base marker added. Save your changes to write to your save."
-            : !SaveSessionManager.IsSaveLoaded ? "Load a save to add a base marker."
+        MarkerStatus = unsaved ? "Save Beacon placed at optimal site. Save your changes to write to your save."
+            : !SaveSessionManager.IsSaveLoaded ? "Load a save to place a Save Beacon."
             : marked && GameProcessMonitorService.IsGameRunning
-                ? "Marked in save. Close No Man's Sky to mark again."
-            : marked ? "Marked in save."
-            : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to add a base marker."
-            : "Adds an in-game HUD marker at the optimal Base Computer location.";
+                ? "Save Beacon placed in save. Close No Man's Sky to modify."
+            : marked ? "Save Beacon placed in save. Permanent star waypoint active."
+            : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to place a Save Beacon."
+            : "Places a physical in-game Save Beacon at the optimal Base Computer location.";
     }
 
     [RelayCommand]
-    public async Task AddMarkerAsync()
+    public void AddMarker()
     {
-        var centre = await PlanetCentreService.GetAsync(Cluster.PlanetAddress);
-        if (centre is not { } c) return;
-
-        double x = c.X + Cluster.BaseLocalPosition.X;
-        double y = c.Y + Cluster.BaseLocalPosition.Y;
-        double z = c.Z + Cluster.BaseLocalPosition.Z;
-
-        ScanMarkerService.Add(Cluster.PlanetAddress, Cluster.ClusterKey, x, y, z, 1, "BASE", "Base");
+        SaveBeaconService.Add(Cluster.PlanetAddress, Cluster.BaseLocalPosition);
         Refresh();
     }
 
     [RelayCommand]
     public void UndoMarker()
     {
-        ScanMarkerService.Remove(Cluster.ClusterKey);
+        SaveBeaconService.Remove(Cluster.PlanetAddress, Cluster.BaseLocalPosition);
         Refresh();
     }
 }

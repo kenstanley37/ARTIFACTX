@@ -32,11 +32,14 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
     [ObservableProperty] public partial string TotalCountLabel { get; private set; } = "";
     [ObservableProperty] public partial string ClusterCountLabel { get; private set; } = "";
 
+    private int _activeViewModeIndex = 0;
+    private int _activeFilterIndex = 0;
+
     // View Mode: 0 = All Sites, 1 = Base Clusters & Combos
     [ObservableProperty] public partial int SelectedViewModeIndex { get; set; } = 0;
     [ObservableProperty] public partial bool IsSingleSitesView { get; private set; } = true;
     [ObservableProperty] public partial bool IsClustersView { get; private set; } = false;
-    [ObservableProperty] public partial IReadOnlyList<string> ViewModeChoices { get; private set; } = ["All Sites", "Base Clusters & Combos"];
+    public ObservableCollection<string> ViewModeChoices { get; } = new(["All Sites", "Base Combos & Clusters"]);
 
     // Search and Sort
     [ObservableProperty] public partial string SearchText { get; set; } = "";
@@ -46,8 +49,7 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
     [ObservableProperty] public partial IReadOnlyList<string> SortChoices { get; private set; } =
         ["Distance: Nearest First", "Portal: Closest to Portal", "Quality: Class (S → C)", "Resource: Name (A-Z)"];
 
-    [ObservableProperty] public partial IReadOnlyList<string> FilterChoices { get; private set; } =
-        ["All", "⚡ Power", "⛏ Mineral", "☁ Gas", "★ S-Class"];
+    public ObservableCollection<string> FilterChoices { get; } = new(["All", "⚡ Power", "⛏ Mineral", "☁ Gas", "★ S-Class"]);
 
     [ObservableProperty] public partial string AllFilterLabel { get; private set; } = "All";
     [ObservableProperty] public partial string PowerFilterLabel { get; private set; } = "⚡ Power";
@@ -57,6 +59,13 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 
     partial void OnSelectedViewModeIndexChanged(int value)
     {
+        if (value < 0)
+        {
+            if (SelectedViewModeIndex != _activeViewModeIndex)
+                SelectedViewModeIndex = _activeViewModeIndex;
+            return;
+        }
+        _activeViewModeIndex = value;
         IsSingleSitesView = value == 0;
         IsClustersView = value == 1;
         ApplyFiltersAndSorting();
@@ -64,6 +73,13 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 
     partial void OnSelectedFilterIndexChanged(int value)
     {
+        if (value < 0)
+        {
+            if (SelectedFilterIndex != _activeFilterIndex)
+                SelectedFilterIndex = _activeFilterIndex;
+            return;
+        }
+        _activeFilterIndex = value;
         ApplyFiltersAndSorting();
     }
 
@@ -132,7 +148,14 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
             GasFilterLabel = $"☁ Gas ({gasCount})";
             SClassFilterLabel = $"★ S-Class ({sCount})";
 
-            FilterChoices = [AllFilterLabel, PowerFilterLabel, MineralFilterLabel, GasFilterLabel, SClassFilterLabel];
+            if (FilterChoices.Count >= 5)
+            {
+                FilterChoices[0] = AllFilterLabel;
+                FilterChoices[1] = PowerFilterLabel;
+                FilterChoices[2] = MineralFilterLabel;
+                FilterChoices[3] = GasFilterLabel;
+                FilterChoices[4] = SClassFilterLabel;
+            }
 
             // Calculate multi-hotspot clusters / combos within base reach
             var detectedClusters = PlanetHotspotService.FindClusters(detected, maxBaseRadius: 375.0, maxSpan: 650.0, portalLat: portalLat, portalLon: portalLon);
@@ -145,10 +168,13 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
             int clusterCount = _allClusters.Count;
             int trifectaCount = _allClusters.Count(c => c.ComboType == HotspotComboType.Trifecta);
 
-            ViewModeChoices = [
-                $"All Sites ({allCount})",
-                trifectaCount > 0 ? $"Base Combos ({clusterCount} · {trifectaCount} Trifecta)" : $"Base Combos ({clusterCount})"
-            ];
+            string mode0 = $"All Sites ({allCount})";
+            string mode1 = trifectaCount > 0 ? $"Base Combos ({clusterCount} · {trifectaCount} Trifecta)" : $"Base Combos ({clusterCount})";
+            if (ViewModeChoices.Count >= 2)
+            {
+                ViewModeChoices[0] = mode0;
+                ViewModeChoices[1] = mode1;
+            }
 
             TotalCountLabel = $"{allCount} hotspots detected within survey range.";
             ClusterCountLabel = clusterCount > 0
@@ -157,6 +183,10 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 
             HasHotspots = allCount > 0;
             HasClusters = clusterCount > 0;
+
+            // Ensure view mode is applied to single sites or clusters
+            IsSingleSitesView = SelectedViewModeIndex == 0;
+            IsClustersView = SelectedViewModeIndex == 1;
 
             ApplyFiltersAndSorting();
         }

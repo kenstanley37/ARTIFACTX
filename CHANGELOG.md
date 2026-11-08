@@ -6,7 +6,12 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
-- Planetary Hotspot Clusters & Base Site Optimizer: Planet Details can now locate multi-hotspot clusters (Power + Mineral, Power + Gas, and 3-way Trifectas) reachable from a single base. Calculates the mathematically optimal Base Computer coordinates to bring all extraction sites within simultaneous range, with search, sorting (nearest to you, closest to portal, class, name), and one-click actions to stage an in-game HUD marker right at the optimal base site.
+- Planetary Hotspot Clusters & Base Site Optimizer: Planet Details can now locate multi-hotspot clusters (Power + Mineral, Power + Gas, and 3-way Trifectas) reachable from a single base. Calculates the mathematically optimal Base Computer coordinates to bring all extraction sites within simultaneous range, with search, sorting (nearest to you, closest to portal, class, name), and one-click actions to place a Save Beacon right at the optimal base site.
+
+### Fixed
+
+- Planetary Hotspots & Base Sites: Replaced scan event markers with physical in-game Save Beacons (`^BUILDBEACON`) placed directly at the optimal Base Computer and hotspot coordinates. In No Man's Sky, scan events on open terrain are ignored by the game engine, while placed Save Beacons render directly in the world and produce a permanent star HUD waypoint visible across the system.
+- Planetary Hotspots Selection: Fixed radio buttons resetting and hiding all hotspot/cluster cards whenever a game save or landing occurred, preserving your active view mode and filter choices across save reloads.
 - Galaxy Exploration & Presence Tracking: Galaxy Transfer now scans your bases, settlements, teleport network space stations, and system discoveries across all 256 galaxies. View base counts, space stations, and unvisited status badges on each galaxy, with 1-click filter tabs to isolate unvisited galaxies, visited galaxies, or those with active bases and space stations.
 
 - Planetary Hotspot Locator: Planet Details now predicts and lists all deep-level resource hotspots (Electromagnetic Power, Minerals, and Gases) in your vicinity using the game's procedural algorithms. View S/A/B/C classes, resource types, extraction yields, Survey Device range, visor coordinates, and distance from your position (or portal), with one-click actions to stage navigation markers into your save.

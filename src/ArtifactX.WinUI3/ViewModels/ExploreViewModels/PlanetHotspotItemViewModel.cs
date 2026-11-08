@@ -60,40 +60,33 @@ public sealed partial class PlanetHotspotItemViewModel : ObservableObject
     /// <summary>Updates marker button states from the save session.</summary>
     public void Refresh()
     {
-        bool marked = ScanMarkerService.IsMarked(Hotspot.CandidateKey);
-        bool unsaved = ScanMarkerService.IsUnsaved(Hotspot.CandidateKey);
+        bool marked = SaveBeaconService.IsPlaced(Hotspot.PlanetAddress, Hotspot.LocalPosition);
+        bool unsaved = SaveBeaconService.IsUnsaved(Hotspot.PlanetAddress, Hotspot.LocalPosition);
 
         CanUndoMarker = unsaved;
-        CanAddMarker = !unsaved && ScanMarkerService.CanAdd;
-        AddMarkerText = marked && !unsaved ? "Mark again" : "Add marker to save";
+        CanAddMarker = !unsaved && SaveBeaconService.CanAdd;
+        AddMarkerText = marked && !unsaved ? "Save Beacon placed ✓" : "Place Save Beacon";
 
-        MarkerStatus = unsaved ? "Marker added. Save your changes to write to your save."
-            : !SaveSessionManager.IsSaveLoaded ? "Load a save to add a marker."
+        MarkerStatus = unsaved ? "Save Beacon placed. Save your changes to write to your save."
+            : !SaveSessionManager.IsSaveLoaded ? "Load a save to place a Save Beacon."
             : marked && GameProcessMonitorService.IsGameRunning
-                ? "Marked in save. Close No Man's Sky to mark again."
-            : marked ? "Marked in save."
-            : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to add a marker."
-            : "Adds an in-game HUD marker leading directly to this hotspot.";
+                ? "Save Beacon placed in save. Close No Man's Sky to modify."
+            : marked ? "Save Beacon placed in save. Permanent star waypoint active."
+            : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to place a Save Beacon."
+            : "Places an in-game Save Beacon at this extraction hotspot.";
     }
 
     [RelayCommand]
-    public async Task AddMarkerAsync()
+    public void AddMarker()
     {
-        var centre = await PlanetCentreService.GetAsync(Hotspot.PlanetAddress);
-        if (centre is not { } c) return;
-
-        double x = c.X + Hotspot.LocalPosition.X;
-        double y = c.Y + Hotspot.LocalPosition.Y;
-        double z = c.Z + Hotspot.LocalPosition.Z;
-
-        ScanMarkerService.Add(Hotspot.PlanetAddress, Hotspot.CandidateKey, x, y, z, 1, "HOTSPOT", "Hotspot");
+        SaveBeaconService.Add(Hotspot.PlanetAddress, Hotspot.LocalPosition);
         Refresh();
     }
 
     [RelayCommand]
     public void UndoMarker()
     {
-        ScanMarkerService.Remove(Hotspot.CandidateKey);
+        SaveBeaconService.Remove(Hotspot.PlanetAddress, Hotspot.LocalPosition);
         Refresh();
     }
 

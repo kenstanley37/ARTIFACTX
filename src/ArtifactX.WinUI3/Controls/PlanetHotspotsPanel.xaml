@@ -36,7 +36,7 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- View Mode Selector: All Sites vs Base Clusters -->
-                    <RadioButtons ItemsSource="{x:Bind ViewModel.ViewModeChoices, Mode=OneWay}"
+                    <RadioButtons ItemsSource="{x:Bind ViewModel.ViewModeChoices}"
                                   SelectedIndex="{x:Bind ViewModel.SelectedViewModeIndex, Mode=TwoWay}"
                                   MaxColumns="2" VerticalAlignment="Center"
                                   AutomationProperties.Name="Switch between individual sites and multi-hotspot base clusters"/>
@@ -58,7 +58,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center"
                             Visibility="{x:Bind ViewModel.IsSingleSitesView, Mode=OneWay}">
                     <RadioButtons Header="Filter" MaxColumns="5"
-                                  ItemsSource="{x:Bind ViewModel.FilterChoices, Mode=OneWay}"
+                                  ItemsSource="{x:Bind ViewModel.FilterChoices}"
                                   SelectedIndex="{x:Bind ViewModel.SelectedFilterIndex, Mode=TwoWay}"
                                   AutomationProperties.Name="Filter hotspots by type or class"/>
                 </StackPanel>
@@ -153,11 +153,11 @@
                                                 IsEnabled="{x:Bind CanAddMarker, Mode=OneWay}"
                                                 HorizontalAlignment="Stretch"
                                                 ToolTipService.ToolTip="{x:Bind MarkerStatus, Mode=OneWay}"
-                                                AutomationProperties.Name="Add marker to save"/>
+                                                AutomationProperties.Name="Place Save Beacon in save"/>
                                         <Button Grid.Column="1" Content="Undo"
                                                 Command="{x:Bind UndoMarkerCommand}"
                                                 Visibility="{x:Bind CanUndoMarker, Mode=OneWay}"
-                                                AutomationProperties.Name="Undo hotspot marker"/>
+                                                AutomationProperties.Name="Undo Save Beacon"/>
                                     </Grid>
                                 </Grid>
                             </Border>
@@ -275,11 +275,11 @@
                                                 IsEnabled="{x:Bind CanAddMarker, Mode=OneWay}"
                                                 HorizontalAlignment="Stretch"
                                                 ToolTipService.ToolTip="{x:Bind MarkerStatus, Mode=OneWay}"
-                                                AutomationProperties.Name="Add optimal base computer marker to save"/>
+                                                AutomationProperties.Name="Place Save Beacon at optimal base computer site"/>
                                         <Button Grid.Column="1" Content="Undo"
                                                 Command="{x:Bind UndoMarkerCommand}"
                                                 Visibility="{x:Bind CanUndoMarker, Mode=OneWay}"
-                                                AutomationProperties.Name="Undo base computer marker"/>
+                                                AutomationProperties.Name="Undo Save Beacon"/>
                                     </Grid>
                                 </Grid>
                             </Border>
