@@ -57,8 +57,9 @@
 
                 <!-- Left Column: Search, Filters, and Galaxy List -->
                 <Border Style="{StaticResource ThemeCardStyle}">
-                    <Grid Padding="16,14,16,16" RowSpacing="12">
+                    <Grid Padding="16,14,16,16" RowSpacing="10">
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
@@ -90,56 +91,63 @@
                             </StackPanel>
                         </StackPanel>
 
-                        <!-- Galaxy ListView -->
-                        <ListView Grid.Row="2" Height="500" ItemsSource="{x:Bind ViewModel.FilteredGalaxies, Mode=OneWay}"
-                                  SelectedItem="{x:Bind ViewModel.SelectedGalaxy, Mode=TwoWay}"
-                                  SelectionMode="Single"
-                                  AutomationProperties.Name="List of galaxies">
-                            <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="explore:GalaxyRowViewModel">
-                                    <Grid Padding="6,6" ColumnSpacing="10">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="34"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="{x:Bind Number}" FontSize="13" Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <TextBlock Text="{x:Bind Name}" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}"/>
-                                            <TextBlock Text="{x:Bind ClassificationName}" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                            <!-- HERE Badge -->
-                                            <Border Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
-                                                    BorderThickness="1" CornerRadius="4" Padding="6,2"
-                                                    Visibility="{x:Bind IsCurrent, Mode=OneWay}">
-                                                <TextBlock Text="HERE" FontSize="10" FontWeight="Bold" Foreground="{ThemeResource ThemeDoneBrush}"/>
-                                            </Border>
-                                            <!-- Bases Badge -->
-                                            <Border Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeAccentBrush}"
-                                                    BorderThickness="1" CornerRadius="4" Padding="6,2"
-                                                    Visibility="{x:Bind HasBases, Mode=OneWay}"
-                                                    ToolTipService.ToolTip="{x:Bind PresenceSummary, Mode=OneWay}">
-                                                <TextBlock Text="{x:Bind BasesBadgeText, Mode=OneWay}" FontSize="10" FontWeight="Bold" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                            </Border>
-                                            <!-- Stations Badge -->
-                                            <Border Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
-                                                    BorderThickness="1" CornerRadius="4" Padding="6,2"
-                                                    Visibility="{x:Bind HasStations, Mode=OneWay}"
-                                                    ToolTipService.ToolTip="{x:Bind PresenceSummary, Mode=OneWay}">
-                                                <TextBlock Text="{x:Bind StationsBadgeText, Mode=OneWay}" FontSize="10" FontWeight="Bold" Foreground="{ThemeResource ThemeWarningBrush}"/>
-                                            </Border>
-                                            <!-- Unvisited Badge -->
-                                            <Border Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
-                                                    BorderThickness="1" CornerRadius="4" Padding="5,2"
-                                                    Visibility="{x:Bind IsUnvisited, Mode=OneWay}">
-                                                <TextBlock Text="UNVISITED" FontSize="9" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                                            </Border>
-                                        </StackPanel>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
+                        <!-- Divider Line -->
+                        <Border Grid.Row="2" Height="1" Background="{ThemeResource ThemeLineBrush}" Margin="0,2,0,2"/>
+
+                        <!-- Galaxy ListView Container -->
+                        <Border Grid.Row="3" Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
+                                BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                            <ListView ItemsSource="{x:Bind ViewModel.FilteredGalaxies, Mode=OneWay}"
+                                      SelectedItem="{x:Bind ViewModel.SelectedGalaxy, Mode=TwoWay}"
+                                      SelectionMode="Single"
+                                      MinHeight="460"
+                                      AutomationProperties.Name="List of galaxies">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="explore:GalaxyRowViewModel">
+                                        <Grid Padding="8,8" ColumnSpacing="10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="34"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{x:Bind Number}" FontSize="13" Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{x:Bind Name}" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}"/>
+                                                <TextBlock Text="{x:Bind ClassificationName}" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                <!-- HERE Badge -->
+                                                <Border Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
+                                                        BorderThickness="1" CornerRadius="4" Padding="6,2"
+                                                        Visibility="{x:Bind IsCurrent, Mode=OneWay}">
+                                                    <TextBlock Text="HERE" FontSize="10" FontWeight="Bold" Foreground="{ThemeResource ThemeDoneBrush}"/>
+                                                </Border>
+                                                <!-- Bases Badge -->
+                                                <Border Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeAccentBrush}"
+                                                        BorderThickness="1" CornerRadius="4" Padding="6,2"
+                                                        Visibility="{x:Bind HasBases, Mode=OneWay}"
+                                                        ToolTipService.ToolTip="{x:Bind PresenceSummary, Mode=OneWay}">
+                                                    <TextBlock Text="{x:Bind BasesBadgeText, Mode=OneWay}" FontSize="10" FontWeight="Bold" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                                </Border>
+                                                <!-- Stations Badge -->
+                                                <Border Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
+                                                        BorderThickness="1" CornerRadius="4" Padding="6,2"
+                                                        Visibility="{x:Bind HasStations, Mode=OneWay}"
+                                                        ToolTipService.ToolTip="{x:Bind PresenceSummary, Mode=OneWay}">
+                                                    <TextBlock Text="{x:Bind StationsBadgeText, Mode=OneWay}" FontSize="10" FontWeight="Bold" Foreground="{ThemeResource ThemeWarningBrush}"/>
+                                                </Border>
+                                                <!-- Unvisited Badge -->
+                                                <Border Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
+                                                        BorderThickness="1" CornerRadius="4" Padding="5,2"
+                                                        Visibility="{x:Bind IsUnvisited, Mode=OneWay}">
+                                                    <TextBlock Text="UNVISITED" FontSize="9" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                                                </Border>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Border>
                     </Grid>
                 </Border>
 
