@@ -7,11 +7,18 @@
     xmlns:explore="using:ArtifactX.WinUI3.ViewModels.ExploreViewModels"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Padding="28,24,28,32" Spacing="20">
+    <Grid Padding="28,24,28,24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <!-- Row 0: Page Header -->
+            <RowDefinition Height="Auto"/>
+            <!-- Row 1: Current Location Banner -->
+            <RowDefinition Height="Auto"/>
+            <!-- Row 2: Main Content (Browser on Left, Details & Transfer Action on Right) -->
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-            <!-- Page Header -->
-            <StackPanel Spacing="6">
+        <!-- Page Header -->
+        <StackPanel Spacing="6">
                 <Grid>
                     <TextBlock Text="GALAXY TRANSFER" Style="{StaticResource ThemePageTitleStyle}"/>
                     <Border HorizontalAlignment="Right" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="4" Padding="8,4" Visibility="{x:Bind ViewModel.IsTransferStaged, Mode=OneWay}">
@@ -26,7 +33,7 @@
             </StackPanel>
 
             <!-- Current Location Banner -->
-            <Border Style="{StaticResource ThemeCardStyle}">
+            <Border Grid.Row="1" Style="{StaticResource ThemeCardStyle}">
                 <Grid Padding="18,14,18,14">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -50,7 +57,7 @@
             </Border>
 
             <!-- Main Content Grid (Browser on Left, Details & Transfer Action on Right) -->
-            <Grid ColumnSpacing="20">
+            <Grid Grid.Row="2" ColumnSpacing="20">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="500"/>
                     <ColumnDefinition Width="*"/>
@@ -101,7 +108,6 @@
                             <ListView ItemsSource="{x:Bind ViewModel.FilteredGalaxies, Mode=OneWay}"
                                       SelectedItem="{x:Bind ViewModel.SelectedGalaxy, Mode=TwoWay}"
                                       SelectionMode="Single"
-                                      MinHeight="460"
                                       AutomationProperties.Name="List of galaxies">
                                 <ListView.ItemTemplate>
                                     <DataTemplate x:DataType="explore:GalaxyRowViewModel">
@@ -152,8 +158,9 @@
                     </Grid>
                 </Border>
 
-                <!-- Right Column: Selected Galaxy Details & Warp Action -->
-                <StackPanel Grid.Column="1" Spacing="16">
+                <!-- Right Column: Selected Galaxy Details & Warp Action (Independently Scrollable) -->
+                <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Spacing="16" Margin="0,0,12,0">
 
                     <!-- Selected Galaxy Overview Card -->
                     <Border Style="{StaticResource ThemeCardStyle}">
@@ -310,9 +317,8 @@
                         </StackPanel>
                     </Border>
 
-                </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
             </Grid>
-
-        </StackPanel>
-    </ScrollViewer>
+    </Grid>
 </Page>
