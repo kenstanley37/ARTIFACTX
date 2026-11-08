@@ -269,7 +269,7 @@ public static class PlanetHotspotService
                     ^ (ulong)Math.Round(Math.Abs(cLon) * 1000);
 
                 float h = terrain != null ? PlanetTerrain.Height(terrain, c.Direction.X * radius, c.Direction.Y * radius, c.Direction.Z * radius) : 0f;
-                float surfaceRadius = radius + Math.Max(0f, h) + 15.0f;
+                float surfaceRadius = radius + h;
                 Vector3 localPos = c.Direction * surfaceRadius;
 
                 results.Add(new PlanetHotspot(

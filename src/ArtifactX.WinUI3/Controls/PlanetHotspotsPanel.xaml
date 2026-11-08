@@ -83,9 +83,9 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="explore:PlanetHotspotItemViewModel">
                             <Border Width="370" Padding="14,12" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
-                                    Background="{ThemeResource ThemeVoidBrush}"
-                                    BorderBrush="{ThemeResource ThemeLineBrush}"
-                                    BorderThickness="1">
+                                    Background="{x:Bind CardBackground, Mode=OneWay}"
+                                    BorderBrush="{x:Bind CardBorderBrush, Mode=OneWay}"
+                                    BorderThickness="{x:Bind CardBorderThickness, Mode=OneWay}">
                                 <Grid RowSpacing="10">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
@@ -94,11 +94,12 @@
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <!-- Top Row: Category Icon & Badge, Coordinates -->
+                                    <!-- Top Row: Category Icon & Badge, Coordinates, Pin -->
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
 
                                         <!-- Kind Badge -->
@@ -121,6 +122,20 @@
                                                        VerticalAlignment="Center" IsTextSelectionEnabled="True"/>
                                             <controls:CopyCodeButton Code="{x:Bind Coordinates}" Padding="6,2" Content="Copy" FontSize="11"/>
                                         </StackPanel>
+
+                                        <!-- Pin Button -->
+                                        <Button Grid.Column="2" Command="{x:Bind TogglePinCommand}" Padding="6,2" FontSize="11"
+                                                Background="{x:Bind PinButtonBackground, Mode=OneWay}"
+                                                BorderBrush="{x:Bind PinButtonBorderBrush, Mode=OneWay}"
+                                                BorderThickness="1"
+                                                ToolTipService.ToolTip="{x:Bind PinTooltip, Mode=OneWay}"
+                                                AutomationProperties.Name="{x:Bind PinTooltip, Mode=OneWay}">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <FontIcon Glyph="&#xE718;" FontSize="11" Foreground="{x:Bind PinForeground, Mode=OneWay}"/>
+                                                <TextBlock Text="{x:Bind PinButtonText, Mode=OneWay}" FontSize="11"
+                                                           Foreground="{x:Bind PinForeground, Mode=OneWay}"/>
+                                            </StackPanel>
+                                        </Button>
                                     </Grid>
 
                                     <!-- Middle Row: Class Badge + Resource Name -->
@@ -178,9 +193,9 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="explore:PlanetHotspotClusterItemViewModel">
                             <Border Width="460" Padding="16,14" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
-                                    Background="{ThemeResource ThemeVoidBrush}"
-                                    BorderBrush="{x:Bind CardBorderBrush}"
-                                    BorderThickness="{x:Bind CardBorderThickness}">
+                                    Background="{x:Bind CardBackground, Mode=OneWay}"
+                                    BorderBrush="{x:Bind CardBorderBrush, Mode=OneWay}"
+                                    BorderThickness="{x:Bind CardBorderThickness, Mode=OneWay}">
                                 <Grid RowSpacing="12">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
@@ -189,7 +204,7 @@
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <!-- Header: Combo Badge, Glyph, and Base Coords -->
+                                    <!-- Header: Combo Badge, Glyph, Base Coords, Pin, Copy -->
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
@@ -208,8 +223,22 @@
                                             </StackPanel>
                                         </Border>
 
-                                        <!-- Optimal Base Coordinates -->
+                                        <!-- Optimal Base Coordinates + Pin + Copy -->
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <!-- Pin Button -->
+                                            <Button Command="{x:Bind TogglePinCommand}" Padding="6,2" FontSize="11"
+                                                    Background="{x:Bind PinButtonBackground, Mode=OneWay}"
+                                                    BorderBrush="{x:Bind PinButtonBorderBrush, Mode=OneWay}"
+                                                    BorderThickness="1"
+                                                    ToolTipService.ToolTip="{x:Bind PinTooltip, Mode=OneWay}"
+                                                    AutomationProperties.Name="{x:Bind PinTooltip, Mode=OneWay}">
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <FontIcon Glyph="&#xE718;" FontSize="11" Foreground="{x:Bind PinForeground, Mode=OneWay}"/>
+                                                    <TextBlock Text="{x:Bind PinButtonText, Mode=OneWay}" FontSize="11"
+                                                               Foreground="{x:Bind PinForeground, Mode=OneWay}"/>
+                                                </StackPanel>
+                                            </Button>
+
                                             <FontIcon Glyph="&#xE7F4;" FontSize="11" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
                                             <TextBlock Text="{x:Bind BaseCoordinates}" FontSize="12" FontWeight="Bold"
                                                        FontFamily="{ThemeResource ThemeDisplayFont}"

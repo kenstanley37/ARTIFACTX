@@ -16,6 +16,9 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 {
     private readonly List<PlanetHotspotItemViewModel> _all = new();
     private readonly List<PlanetHotspotClusterItemViewModel> _allClusters = new();
+    private readonly HashSet<ulong> _pinnedClusterKeys = new();
+    private readonly HashSet<ulong> _pinnedHotspotKeys = new();
+
     private ulong _currentPlanetAddress;
     private double _currentLat;
     private double _currentLon;
@@ -93,6 +96,26 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
         ApplyFiltersAndSorting();
     }
 
+    private void OnClusterPinnedChanged(PlanetHotspotClusterItemViewModel item)
+    {
+        if (item.IsPinned)
+            _pinnedClusterKeys.Add(item.Cluster.ClusterKey);
+        else
+            _pinnedClusterKeys.Remove(item.Cluster.ClusterKey);
+
+        ApplyFiltersAndSorting();
+    }
+
+    private void OnHotspotPinnedChanged(PlanetHotspotItemViewModel item)
+    {
+        if (item.IsPinned)
+            _pinnedHotspotKeys.Add(item.Hotspot.CandidateKey);
+        else
+            _pinnedHotspotKeys.Remove(item.Hotspot.CandidateKey);
+
+        ApplyFiltersAndSorting();
+    }
+
     /// <summary>
     /// Loads predicted hotspots and multi-hotspot clusters for the specified planet centered around the given coordinates.
     /// </summary>
@@ -104,11 +127,24 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
         double? portalLat = null,
         double? portalLon = null)
     {
-        // Avoid reload if already on the same planet and coordinates haven't shifted significantly (< 50 meters)
-        if (_currentPlanetAddress == planetAddress
-            && _all.Count > 0
-            && Math.Abs(_currentLat - centerLat) < 0.0005
-            && Math.Abs(_currentLon - centerLon) < 0.0005)
+        // Calculate distance shifted to avoid scrambling cards while walking locally (< 300 meters)
+        double movedMeters = double.MaxValue;
+        if (_currentPlanetAddress == planetAddress && _all.Count > 0)
+        {
+            double lat1 = _currentLat * Math.PI / 180.0;
+            double lon1 = _currentLon * Math.PI / 180.0;
+            double lat2 = centerLat * Math.PI / 180.0;
+            double lon2 = centerLon * Math.PI / 180.0;
+            double dLat = lat2 - lat1;
+            double dLon = lon2 - lon1;
+            double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                       Math.Cos(lat1) * Math.Cos(lat2) *
+                       Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            movedMeters = c * 98304.0;
+        }
+
+        if (_currentPlanetAddress == planetAddress && _all.Count > 0 && movedMeters < 300.0)
         {
             RefreshMarkers();
             return;
@@ -133,7 +169,11 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
             _all.Clear();
             foreach (var h in data.Hotspots)
             {
-                _all.Add(new PlanetHotspotItemViewModel(h));
+                var item = new PlanetHotspotItemViewModel(h, OnHotspotPinnedChanged)
+                {
+                    IsPinned = _pinnedHotspotKeys.Contains(h.CandidateKey)
+                };
+                _all.Add(item);
             }
 
             int allCount = _all.Count;
@@ -161,7 +201,11 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
             _allClusters.Clear();
             foreach (var c in data.Clusters)
             {
-                _allClusters.Add(new PlanetHotspotClusterItemViewModel(c));
+                var item = new PlanetHotspotClusterItemViewModel(c, OnClusterPinnedChanged)
+                {
+                    IsPinned = _pinnedClusterKeys.Contains(c.ClusterKey)
+                };
+                _allClusters.Add(item);
             }
 
             int clusterCount = _allClusters.Count;
@@ -225,10 +269,18 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 
         query = SelectedSortIndex switch
         {
-            1 => query.OrderBy(h => h.Hotspot.PortalDistance ?? double.MaxValue).ThenBy(h => h.Distance),
-            2 => query.OrderByDescending(h => h.ClassGrade).ThenByDescending(h => h.YieldPercent).ThenBy(h => h.Distance),
-            3 => query.OrderBy(h => h.ResourceName).ThenBy(h => h.Distance),
-            _ => query.OrderBy(h => h.Distance)
+            1 => query.OrderBy(h => h.IsPinned ? 0 : (h.IsMarked ? 1 : 2))
+                      .ThenBy(h => h.Hotspot.PortalDistance ?? double.MaxValue)
+                      .ThenBy(h => h.Distance),
+            2 => query.OrderBy(h => h.IsPinned ? 0 : (h.IsMarked ? 1 : 2))
+                      .ThenByDescending(h => h.ClassGrade)
+                      .ThenByDescending(h => h.YieldPercent)
+                      .ThenBy(h => h.Distance),
+            3 => query.OrderBy(h => h.IsPinned ? 0 : (h.IsMarked ? 1 : 2))
+                      .ThenBy(h => h.ResourceName)
+                      .ThenBy(h => h.Distance),
+            _ => query.OrderBy(h => h.IsPinned ? 0 : (h.IsMarked ? 1 : 2))
+                      .ThenBy(h => h.Distance)
         };
 
         Hotspots.Clear();
@@ -249,10 +301,18 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 
         clusterQuery = SelectedSortIndex switch
         {
-            1 => clusterQuery.OrderBy(c => c.Cluster.PortalDistance ?? double.MaxValue).ThenBy(c => c.MaxRadius),
-            2 => clusterQuery.OrderByDescending(c => c.Hotspots.Sum(h => h.ClassGrade)).ThenBy(c => c.MaxRadius),
-            3 => clusterQuery.OrderBy(c => c.Title).ThenBy(c => c.MaxRadius),
-            _ => clusterQuery.OrderBy(c => c.IsTrifecta ? 0 : 1).ThenBy(c => c.MaxRadius)
+            1 => clusterQuery.OrderBy(c => c.IsPinned ? 0 : (c.IsMarked ? 1 : 2))
+                             .ThenBy(c => c.Cluster.PortalDistance ?? double.MaxValue)
+                             .ThenBy(c => c.MaxRadius),
+            2 => clusterQuery.OrderBy(c => c.IsPinned ? 0 : (c.IsMarked ? 1 : 2))
+                             .ThenByDescending(c => c.Hotspots.Sum(h => h.ClassGrade))
+                             .ThenBy(c => c.MaxRadius),
+            3 => clusterQuery.OrderBy(c => c.IsPinned ? 0 : (c.IsMarked ? 1 : 2))
+                             .ThenBy(c => c.Title)
+                             .ThenBy(c => c.MaxRadius),
+            _ => clusterQuery.OrderBy(c => c.IsPinned ? 0 : (c.IsMarked ? 1 : 2))
+                             .ThenBy(c => c.IsTrifecta ? 0 : 1)
+                             .ThenBy(c => c.MaxRadius)
         };
 
         Clusters.Clear();

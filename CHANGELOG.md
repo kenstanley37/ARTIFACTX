@@ -267,6 +267,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Ship Designer: Add, Apply and Repaint wait until No Man's Sky is closed, so changes can't be lost to the game's autosave.
 - Starships shows how many of your starship slots are used, with the empty ones as placeholders (click one to open the Ship Designer). The Ship Designer shows slots used and free (e.g. "7/12 ship slots used · 5 free") before you add a ship.
 - The Ship Designer works in narrower windows: the layout rearranges and the page scrolls.
+- **Planetary hotspots**: pin individual resource or multi-hotspot combo cards to keep them visible at the top of the grid while exploring. Pinned cards feature a glowing accent border and stay in place as you move across the planet.
+- **Save Beacons at hotspots**: placed beacons now match the planet's actual terrain elevation, bringing the in-game HUD marker down from the sky to ground level.
 - **Bases page** is grouped into Freighter, Planet bases, Claimed space stations, Settlements and Placed objects, each of which folds away. **Open** on a base shows its parts on a page of its own, and locations include the galaxy region. Bases is now in the Save Editor group, above Base Storage.
 - **Deleting bases and placed objects**: on the Bases page, select planet bases or loose placed objects (save beacons, refiners and so on) and delete them. On a base's own page, delete every part of a kind, or the whole base with **Delete base…**. Each asks you to confirm and lists what goes; the save is backed up before it's written. Your freighter, claimed stations and settlements can't be deleted here.
 - Each planet opens on a **page of its own** from Current System.

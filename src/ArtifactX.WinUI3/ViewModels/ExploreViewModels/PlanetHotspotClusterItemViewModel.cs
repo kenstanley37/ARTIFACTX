@@ -6,16 +6,17 @@ using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.ViewModels.ExploreViewModels;
 
 /// <summary>
 /// A cluster of 2 or 3 resource hotspots within single base building perimeter.
-/// Provides optimal Base Computer coordinates and one-click in-game HUD marker staging.
+/// Provides optimal Base Computer coordinates, card pinning/highlighting, and one-click in-game HUD marker staging.
 /// </summary>
 public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
 {
+    private readonly Action<PlanetHotspotClusterItemViewModel>? _onPinnedChanged;
+
     public PlanetHotspotCluster Cluster { get; }
 
     public string Title => Cluster.Title;
@@ -29,11 +30,36 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
     public string ComboGlyph => Cluster.ComboGlyph;
 
     public Brush BadgeBrush => ThemeResources.Brush(Cluster.ComboBadgeKey);
-    public Brush CardBorderBrush => ThemeResources.Brush(IsTrifecta ? "ThemeWarningBrush" : "ThemeLineBrush");
-    public Microsoft.UI.Xaml.Thickness CardBorderThickness => new(IsTrifecta ? 2 : 1);
+
+    public Brush CardBorderBrush => IsPinned
+        ? ThemeResources.Brush("ThemeAccentBrush")
+        : ThemeResources.Brush(IsTrifecta ? "ThemeWarningBrush" : "ThemeLineBrush");
+
+    public Microsoft.UI.Xaml.Thickness CardBorderThickness => new(IsPinned ? 2 : (IsTrifecta ? 2 : 1));
+
+    public Brush CardBackground => IsPinned
+        ? ThemeResources.Brush("ThemePanelAltBrush")
+        : ThemeResources.Brush("ThemeVoidBrush");
+
+    public string PinButtonText => IsPinned ? "Pinned" : "Pin";
+    public Brush PinForeground => IsPinned ? ThemeResources.Brush("ThemeAccentBrush") : ThemeResources.Brush("ThemeTextDimBrush");
+    public Brush PinButtonBackground => IsPinned ? ThemeResources.Brush("ThemeVoidBrush") : ThemeResources.Brush("ThemePanelAltBrush");
+    public Brush PinButtonBorderBrush => IsPinned ? ThemeResources.Brush("ThemeAccentBrush") : ThemeResources.Brush("ThemeLineBrush");
+    public string PinTooltip => IsPinned ? "Unpin card (allow normal sorting)" : "Pin card to top (keeps visible as you move)";
 
     public bool IsTrifecta => ComboType == HotspotComboType.Trifecta;
     public bool HasPortalDistance => !string.IsNullOrEmpty(PortalDistanceLabel);
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CardBorderBrush))]
+    [NotifyPropertyChangedFor(nameof(CardBorderThickness))]
+    [NotifyPropertyChangedFor(nameof(CardBackground))]
+    [NotifyPropertyChangedFor(nameof(PinButtonText))]
+    [NotifyPropertyChangedFor(nameof(PinForeground))]
+    [NotifyPropertyChangedFor(nameof(PinButtonBackground))]
+    [NotifyPropertyChangedFor(nameof(PinButtonBorderBrush))]
+    [NotifyPropertyChangedFor(nameof(PinTooltip))]
+    public partial bool IsPinned { get; set; }
 
     [ObservableProperty] public partial bool CanAddMarker { get; private set; }
     [ObservableProperty] public partial bool CanUndoMarker { get; private set; }
@@ -44,9 +70,10 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
     [ObservableProperty] public partial bool IsMarked { get; private set; }
     [ObservableProperty] public partial bool IsCopied { get; private set; }
 
-    public PlanetHotspotClusterItemViewModel(PlanetHotspotCluster cluster)
+    public PlanetHotspotClusterItemViewModel(PlanetHotspotCluster cluster, Action<PlanetHotspotClusterItemViewModel>? onPinnedChanged = null)
     {
         Cluster = cluster;
+        _onPinnedChanged = onPinnedChanged;
         Hotspots = cluster.Hotspots.Select(h => new PlanetHotspotItemViewModel(h)).ToList();
         Refresh();
     }
@@ -70,13 +97,22 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
                 ? "Save Beacon placed in save. Close No Man's Sky to remove."
             : marked ? "Save Beacon placed in save. Click Remove to take it out."
             : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to place a Save Beacon."
-            : "Places a physical in-game Save Beacon at the optimal Base Computer location.";
+            : "Places an in-game Save Beacon at the optimal Base Computer location.";
+    }
+
+    [RelayCommand]
+    public void TogglePin()
+    {
+        IsPinned = !IsPinned;
+        _onPinnedChanged?.Invoke(this);
     }
 
     [RelayCommand]
     public void AddMarker()
     {
         SaveBeaconService.Add(Cluster.PlanetAddress, Cluster.BaseLocalPosition);
+        IsPinned = true;
+        _onPinnedChanged?.Invoke(this);
         Refresh();
     }
 

@@ -15,6 +15,8 @@ namespace ArtifactX.WinUI3.ViewModels.ExploreViewModels;
 /// </summary>
 public sealed partial class PlanetHotspotItemViewModel : ObservableObject
 {
+    private readonly Action<PlanetHotspotItemViewModel>? _onPinnedChanged;
+
     public PlanetHotspot Hotspot { get; }
 
     public string Kind => Hotspot.Kind;
@@ -37,6 +39,22 @@ public sealed partial class PlanetHotspotItemViewModel : ObservableObject
     public Brush ClassBrush => ThemeResources.ClassBrush(Class);
     public string ClassBadgeText => $"CLASS {Class}";
 
+    public Brush CardBorderBrush => IsPinned
+        ? ThemeResources.Brush("ThemeAccentBrush")
+        : ThemeResources.Brush("ThemeLineBrush");
+
+    public Microsoft.UI.Xaml.Thickness CardBorderThickness => new(IsPinned ? 2 : 1);
+
+    public Brush CardBackground => IsPinned
+        ? ThemeResources.Brush("ThemePanelAltBrush")
+        : ThemeResources.Brush("ThemeVoidBrush");
+
+    public string PinButtonText => IsPinned ? "Pinned" : "Pin";
+    public Brush PinForeground => IsPinned ? ThemeResources.Brush("ThemeAccentBrush") : ThemeResources.Brush("ThemeTextDimBrush");
+    public Brush PinButtonBackground => IsPinned ? ThemeResources.Brush("ThemeVoidBrush") : ThemeResources.Brush("ThemePanelAltBrush");
+    public Brush PinButtonBorderBrush => IsPinned ? ThemeResources.Brush("ThemeAccentBrush") : ThemeResources.Brush("ThemeLineBrush");
+    public string PinTooltip => IsPinned ? "Unpin card (allow normal sorting)" : "Pin card to top (keeps visible as you move)";
+
     public string FullDistanceLabel => Hotspot.PortalDistanceLabel is { Length: > 0 } pDist && Math.Abs(Distance - (Hotspot.PortalDistance ?? 0)) > 50
         ? $"{DistanceLabel} · {pDist}"
         : (Hotspot.PortalDistanceLabel ?? DistanceLabel);
@@ -44,6 +62,17 @@ public sealed partial class PlanetHotspotItemViewModel : ObservableObject
     public string YieldLabel => Kind == "Power"
         ? $"Potential: {Math.Round(Strength)} kP ({YieldPercent}%) · {Math.Round(Range)}u range"
         : $"Density: {YieldPercent}% · {Math.Round(Range)}u range";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CardBorderBrush))]
+    [NotifyPropertyChangedFor(nameof(CardBorderThickness))]
+    [NotifyPropertyChangedFor(nameof(CardBackground))]
+    [NotifyPropertyChangedFor(nameof(PinButtonText))]
+    [NotifyPropertyChangedFor(nameof(PinForeground))]
+    [NotifyPropertyChangedFor(nameof(PinButtonBackground))]
+    [NotifyPropertyChangedFor(nameof(PinButtonBorderBrush))]
+    [NotifyPropertyChangedFor(nameof(PinTooltip))]
+    public partial bool IsPinned { get; set; }
 
     [ObservableProperty] public partial bool CanAddMarker { get; private set; }
     [ObservableProperty] public partial bool CanUndoMarker { get; private set; }
@@ -54,9 +83,10 @@ public sealed partial class PlanetHotspotItemViewModel : ObservableObject
     [ObservableProperty] public partial bool IsMarked { get; private set; }
     [ObservableProperty] public partial bool IsCopied { get; private set; }
 
-    public PlanetHotspotItemViewModel(PlanetHotspot hotspot)
+    public PlanetHotspotItemViewModel(PlanetHotspot hotspot, Action<PlanetHotspotItemViewModel>? onPinnedChanged = null)
     {
         Hotspot = hotspot;
+        _onPinnedChanged = onPinnedChanged;
         Refresh();
     }
 
@@ -83,9 +113,18 @@ public sealed partial class PlanetHotspotItemViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public void TogglePin()
+    {
+        IsPinned = !IsPinned;
+        _onPinnedChanged?.Invoke(this);
+    }
+
+    [RelayCommand]
     public void AddMarker()
     {
         SaveBeaconService.Add(Hotspot.PlanetAddress, Hotspot.LocalPosition);
+        IsPinned = true;
+        _onPinnedChanged?.Invoke(this);
         Refresh();
     }
 

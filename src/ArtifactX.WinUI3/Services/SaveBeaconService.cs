@@ -104,8 +104,8 @@ public static class SaveBeaconService
         Vector3 right = Vector3.Normalize(Vector3.Cross(up, temp));
         Vector3 at = Vector3.Normalize(Vector3.Cross(right, up));
 
-        // Offset slightly (+2m) along outward normal
-        Vector3 beaconPos = localPos + up * 2.0f;
+        // Offset slightly (+0.2m) along outward normal so it rests cleanly on ground terrain
+        Vector3 beaconPos = localPos + up * 0.2f;
 
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         ulong beaconSeed = ((ulong)(uint)Random.Shared.Next() << 32) | (ulong)(uint)Random.Shared.Next();
