@@ -284,6 +284,16 @@
                                 <PathIcon x:Name="PlanetsPathIcon"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
+                        <NavigationViewItem x:Name="CrashedShipsNavItem" Content="Crashed Ships" Tag="CrashedShips">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xEB9D;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
+                        <NavigationViewItem x:Name="CabinetMultiToolsNavItem" Content="Cabinet Multi-Tools" Tag="CabinetMultiTools">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xEDA3;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
                         <NavigationViewItem x:Name="PlanetFinderNavItem" Content="Planet Finder" Tag="PlanetFinder">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE721;" FontFamily="Segoe MDL2 Assets"/>

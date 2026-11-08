@@ -238,7 +238,9 @@
                         </controls:FoldingCard>
                     </ctcontrols:WrapPanel>
 
-                    <controls:PlanetEquipmentPanel Equipment="{x:Bind ViewModel.Equipment, Mode=OneWay}"/>
+                    <controls:PlanetEquipmentPanel Equipment="{x:Bind ViewModel.Equipment, Mode=OneWay}"
+                                                   CrashedShipsRequested="PlanetEquipment_CrashedShipsRequested"
+                                                   CabinetMultiToolsRequested="PlanetEquipment_CabinetMultiToolsRequested"/>
 
                     <controls:FoldingCard Title="CREATURES" SettingKey="PlanetDetailsCreaturesCollapsed">
                         <Border Style="{StaticResource ThemeCardStyle}">

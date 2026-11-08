@@ -91,6 +91,9 @@ public sealed partial class CurrentSystemPage : Page
     private void Map_BodyClicked(object? sender, SystemMapBody body) =>
         Frame.Navigate(typeof(ExplorePages.PlanetDetailsPage), body.Planet);
 
+    private void OpenCabinetMultiTools_Click(object sender, RoutedEventArgs e) =>
+        Frame.Navigate(typeof(ExplorePages.CabinetMultiToolsPage), ViewModel.SystemAddress);
+
     private void AssignUnmatched_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is UnmatchedBodyViewModel row) ViewModel.AssignUnmatched(row);

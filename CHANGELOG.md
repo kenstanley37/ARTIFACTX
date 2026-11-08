@@ -6,6 +6,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Explore: Dedicated "Crashed Ships" and "Cabinet Multi-Tools" pages under Explore, offloading heavy scans and lists from Current System and Planet Details into streamlined views with filters, planet selection, 3D model previews, and in-game coordinate markers.
 - Catalog: Wonders records (Treasures, Collected Glitches, Planet, Fauna, Flora, Mineral, Personal Records, and Fishing Records) can now be unlocked or cleared directly on the Catalog page with one-click toggling and Unlock All / Clear All support, staging authentic procedural record data and stats.
 - Space Stations: Added a "Register in Teleport Network" action to sync and register all your directed space stations with your Alliance ownership stamp, ensuring every claimed station appears under "Alliance Stations" in the in-game Teleportation Terminal.
 - Space Stations: "Claims in Progress" and "Stations you Direct" sections are now collapsible folding cards that remember their state across sessions.

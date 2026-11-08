@@ -206,8 +206,23 @@
                                 </StackPanel>
                             </controls:FoldingCard>
 
-                            <controls:SystemMultiToolsPanel MultiTools="{x:Bind ViewModel.MultiTools}"/>
-                            <controls:StationMultiToolsPanel ViewModel="{x:Bind ViewModel.StationTools}"/>
+                            <controls:FoldingCard Title="CABINET MULTI-TOOLS" SettingKey="CurrentSystemCabinetMultiToolsCollapsed">
+                                <Border Style="{StaticResource ThemeCardStyle}">
+                                    <Grid Padding="18,14,18,16" ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="SYSTEM MULTI-TOOLS &amp; CABINETS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                            <TextBlock Text="Inspect multi-tools across station cabinets, planet reload pools, and planetary minor settlements in this system."
+                                                       Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="View Cabinet Multi-Tools ›" Click="OpenCabinetMultiTools_Click"
+                                                Style="{StaticResource ThemeAccentButtonStyle}" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                            </controls:FoldingCard>
                             <controls:StationMarket Market="{x:Bind ViewModel.Market}"/>
                             <controls:SystemNotesPanel Notes="{x:Bind ViewModel.Notes}"/>
                             <controls:SystemStarshipsPanel Starships="{x:Bind ViewModel.Starships}"/>
