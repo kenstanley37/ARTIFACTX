@@ -31,6 +31,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Current System & Planets: Fixed planetary ring detection so planets with rings (and those without) match the game's actual generation across discovered and undiscovered worlds, replacing an earlier heuristic that mistook extreme weather flags for rings.
 - Galaxy Transfer: Current location and the "HERE" badge in the galaxy browser now quietly follow your in-game movements and save changes in real time without refreshing or scrolling the list.
 - Planet Details: Eliminated UI freezes and delays when opening planet details by loading creature 3D models immediately and removing redundant background crash site counting.
 - Planet Details: Removed manual screen capture controls for creatures in favor of automatic procedural 3D model generation and save discovery reading.

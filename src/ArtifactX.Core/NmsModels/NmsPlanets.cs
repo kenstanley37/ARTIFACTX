@@ -1,6 +1,7 @@
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Linq;
+using ArtifactX.Core.Universe;
 
 namespace ArtifactX.Core.NmsModels;
 
@@ -61,7 +62,9 @@ public sealed record PlanetDiscoveryCounts(int Fauna, int Flora, int Minerals, i
 /// each "Planet" record in the discovery list (fDu/ETO/OsQ/?fB):
 ///   8P3.5L6  packed address - its top nibble is the planet's index (1-6)
 ///   8P3.bEr  [seed, flags]: flags' low 16 bits are the biome (GcBiomeType
-///            order); bit 16 set on ringed planets.
+///            order); bit 16 is Extreme Hazard / Extreme Weather.
+///            (Planetary rings are NOT saved in flags; they are generated
+///            procedurally by GcSolarGenerationGlobals.PlanetRingProbability = 0.3f).
 ///   ksu      discoverer name (V?:), owner id (f5Q) and time (3I1).
 /// The discovery list also holds other players' discoveries downloaded by the
 /// game; those have an empty f5Q, which is how "discovered on this save" is
@@ -69,8 +72,12 @@ public sealed record PlanetDiscoveryCounts(int Fauna, int Flora, int Minerals, i
 /// K7E, under all of the player's names and accounts).
 ///
 /// Biome: checked against a real 6-planet system (3 green, 2 brown, 1 red in
-/// the game's Discoveries screen) and planet 1 = Cholton, a ringed Paradise
-/// world. Ring bit: one confirmed ringed planet so far, ~10% of all planets.
+/// the game's Discoveries screen).
+/// Ring determination: rings are generated procedurally by the game's solar
+/// generation routine (GcSolarGenerationGlobals.PlanetRingProbability = 0.3f);
+/// moons never have rings, and planets test child seed 22 against 0.3f.
+/// Bit 16 in bEr[1] was previously assumed to be rings, but cross-save analysis
+/// of 2,069 records proved it is Extreme Weather/Hazard (only occurs on hazard biomes).
 /// </summary>
 public static class NmsPlanets
 {
@@ -143,8 +150,8 @@ public static class NmsPlanets
 
     /// <summary>Types that always have water: Swamp and Water World. The save has
     /// no water flag for other planets (checked 2026-10-12: across 2,612 planets
-    /// on every slot, bEr's flags only ever use the biome bits, bit 16 = rings
-    /// and bit 17 on 3 Frozen/Scorched worlds), and the system generator doesn't
+    /// on every slot, bEr's flags only ever use the biome bits, bit 16 = extreme
+    /// hazard and bit 17 on 3 Frozen/Scorched worlds), and the system generator doesn't
     /// cover terrain, so for every other type water is unknown.</summary>
     public static bool AlwaysHasWater(int biome) => biome is 12 or 14;
 
@@ -155,6 +162,20 @@ public static class NmsPlanets
         var byAddress = new Dictionary<ulong, KnownPlanet>();
         if (discoveries is null) return new();
 
+        var systemBodiesCache = new Dictionary<ulong, SystemBodies>();
+        SystemBodies GetBodies(ulong addr)
+        {
+            ulong sysAddr = NmsSpaceStationPaths.ToSystemAddress(addr);
+            if (!systemBodiesCache.TryGetValue(sysAddr, out var bodies))
+            {
+                ulong portal = (((addr >> 40) & 0xFFF) << 32) | (addr & 0xFFFFFFFF);
+                int gal = (int)((addr >> 32) & 0xFF);
+                bodies = SystemGenerator.Bodies(portal, gal);
+                systemBodiesCache[sysAddr] = bodies;
+            }
+            return bodies;
+        }
+
         foreach (var record in discoveries.OfType<JObject>())
         {
             if (record["8P3"] is not JObject key || key["<Dn"]?.Value<string>() != "Planet") continue;
@@ -164,12 +185,27 @@ public static class NmsPlanets
             long flags = seedAndFlags[1].Type == JTokenType.Integer ? seedAndFlags[1].Value<long>() : 0;
             var owner = record["ksu"] as JObject;
 
+            int planetIndex = (int)((address >> 52) & 0xF);
+            var bodies = GetBodies(address);
+            bool isMoon = bodies.IsMoon(planetIndex);
+
+            ulong seed = 0;
+            if (seedAndFlags[0].Type == JTokenType.Integer)
+                seed = seedAndFlags[0].Value<ulong>();
+            else if (seedAndFlags[0].Type == JTokenType.String)
+                NmsSeedGenerator.TryParse(seedAndFlags[0].Value<string>(), out seed);
+
+            if (seed == 0 && planetIndex >= 1 && planetIndex <= bodies.PlanetSeeds.Length)
+                seed = bodies.PlanetSeeds[planetIndex - 1];
+
+            bool hasRings = PlanetProfileGenerator.HasRings(seed, isMoon);
+
             var planet = new KnownPlanet(
                 address,
                 NmsSpaceStationPaths.GalaxyNumber(address),
-                (int)((address >> 52) & 0xF),
+                planetIndex,
                 (int)(flags & 0xFFFF),
-                ((flags >> 16) & 1) == 1,
+                hasRings,
                 owner?["V?:"]?.Value<string>() ?? "",
                 !string.IsNullOrEmpty(owner?["f5Q"]?.Value<string>()),
                 owner?["3I1"]?.Value<long>() ?? 0);

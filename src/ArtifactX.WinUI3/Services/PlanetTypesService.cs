@@ -136,17 +136,23 @@ public static class PlanetTypesService
         ((((system >> 40) & 0xFFF) << 32) | (system & 0xFFFFFFFF), (int)((system >> 32) & 0xFF));
 
     /// <summary>The bodies in <paramref name="system"/> the save doesn't have, as planets
-    /// with their predicted type.</summary>
+    /// with their predicted type and ring status.</summary>
     public static IEnumerable<KnownPlanet> Undiscovered(ulong system, ICollection<int> known)
     {
         var types = For(system);
         ulong systemAddress = S.ToSystemAddress(system);
+        var (portal, galaxy) = Portal(systemAddress);
+        var bodies = SystemGenerator.Bodies(portal, galaxy);
         for (int i = 0; i < types.Length; i++)
         {
             int index = i + 1;
             if (known.Contains(index)) continue;
+            bool isMoon = bodies.IsMoon(index);
+            ulong seed = index <= bodies.PlanetSeeds.Length ? bodies.PlanetSeeds[index - 1] : 0;
+            bool hasRings = PlanetProfileGenerator.HasRings(seed, isMoon);
+
             yield return new KnownPlanet(systemAddress | ((ulong)index << 52), S.GalaxyNumber(systemAddress), index,
-                types[i].Biome, false, "", false, 0) { Predicted = true };
+                types[i].Biome, hasRings, "", false, 0) { Predicted = true };
         }
     }
 }
