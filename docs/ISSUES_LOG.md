@@ -666,6 +666,26 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
   - `snapshot.Markers` (`nlG`) contains space station teleport endpoints with galaxy addresses (`NmsSpaceStationPaths.GalaxyNumber(address)`).
   - Visited systems history (`user.db` and save discovery records `fDu`) also records explored galaxy systems.
 
+### Bug 73: Planetary Rings Misdetected (Discovery Flags Bit 16 is Extreme Hazard, Not Rings)
+- **Source**: Owner comparison screenshots, 2026-11-07: ArtifactX Current System (`media_1794112478514_424f9488.jpg`) vs in-game Discoveries screen (`media_1794112540536_7f7effec.jpg`) in system Thwellus.
+- **Evidence**:
+  - In ArtifactX, Planet 1 (Voybrierfi Magao, Radioactive) is displayed with rings (`rings` suffix and ring graphic on card and system map), while Planet 3 (Keci, Barren) is displayed without rings.
+  - In-game Discoveries confirms that Keci (Planet 3) has prominent rings, while Voybrierfi Magao (Planet 1) has no rings.
+- **Investigation & Root Cause**:
+  - `NmsPlanets.ReadAll` read `HasRings = ((flags >> 16) & 1) == 1` from discovery key `8P3.bEr[1]`.
+  - In Thwellus save records:
+    - Planet 1 (Voybrierfi Magao, Radioactive): `bEr[1] = 65539 = 0x10003` (Biome 3, bit 16 = 1).
+    - Planet 3 (Keci, Barren): `bEr[1] = 5 = 0x5` (Biome 5, bit 16 = 0).
+  - Cross-save audit of all 2,069 planet discovery records in Slot 1:
+    - Bit 16 (`0x10000`) occurs exclusively on standard hazard biomes: Lush (3%), Toxic (27%), Scorched (23%), Radioactive (24%), Frozen (25%).
+    - Bit 16 NEVER occurs on Barren (0/192), Dead (0/260), Exotic (0/91), Anomalies (0/99), Swamp (0/41), Volcanic (0/33), Water (0/15), or Gas (0/3).
+    - Bit 16 in `bEr[1]` represents **Extreme Weather / Extreme Hazard**, NOT planetary rings.
+  - Planetary rings (`GcPlanetGenerationInputData.HasRings`) are determined procedurally by the game's solar generation routine (`GcSolarGenerationGlobals`), not saved in the discovery record flags.
+- **Required Fix**:
+  - Update `NmsPlanets.cs` documentation and remove the incorrect bit-16 ring heuristic (`HasRings` in `KnownPlanet`).
+  - Port or verify the solar system generator's ring roll (`GcSolarGenerationGlobals` / `SystemGenerator`) to predict `HasRings` accurately from the system/planet seed, matching in-game generation.
+
+
 
 
 
