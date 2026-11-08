@@ -257,7 +257,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
             {
                 if (record["8P3"] is not JObject key || key["<Dn"]?.Value<string>() != "Animal") continue;
                 if (NmsSpaceStationPaths.ParsePackedAddress(key["5L6"]) is not ulong addr || addr != planet.Address) continue;
-                if (string.IsNullOrEmpty(record["ksu"]?["f5Q"]?.Value<string>())) continue;
+                if (string.IsNullOrEmpty(record["ksu"]?["f5Q"]?.Value<string>()) && string.IsNullOrEmpty(record["ksu"]?["K7E"]?.Value<string>())) continue;
                 if (key["bEr"] is not JArray bEr || bEr.Count < 2) continue;
 
                 ulong seedA = bEr.Count > 2 ? (NmsSpaceStationPaths.ParsePackedAddress(bEr[2]) ?? 0) : 0;
@@ -467,6 +467,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         _snapshot = snapshot;
         ShowSave();
         ShowRecorded(); // fish caught
+        _ = ShowCreaturesAsync();
         if (Planet is { } p) Equipment.UpdateLocations(p, _snapshot);
     });
 }
