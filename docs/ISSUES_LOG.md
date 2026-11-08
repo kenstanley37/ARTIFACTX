@@ -654,7 +654,7 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 
 ### Feature 72: Track Visited Galaxies, Bases and Space Stations in Galaxy Transfer
 - **Source**: Owner request, 2026-11-07: "It would be nice to know if we have a base or spacestation in each galaxy. That would help us to know which galaxy we haven't been to yet. But you can add that to the issue list."
-- **Status 2026-11-08**: Built on `feature/galaxy-transfer-tracking`.
+- **Status**: Completed and verified in game by owner, 2026-11-08 (merged into `development`).
 - **Implementation**:
   - `src/ArtifactX.Core/NmsModels/GalaxyPresence.cs`: Domain model tracking `IsCurrent`, `IsVisited`, `BaseCount`, `StationCount`, `SettlementCount`, list of base names and station names, and presence summary.
   - `src/ArtifactX.WinUI3/Services/GalaxyTransferService.cs`: Added `GetGalaxyPresence(snapshot)` scanning `F?0` (player bases/settlements/claimed stations), `nlG` (teleport network space stations), `fDu` (system discoveries), and `user.db` finds across all 256 galaxies.
@@ -663,6 +663,8 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
   - `src/ArtifactX.WinUI3/Views/ExplorePages/GalaxyTransferPage.xaml`:
     - List row shows `[HERE]`, `[X ⌂]`, `[Y ✦]`, and `[UNVISITED]` badges.
     - Right details panel features a dedicated "YOUR PRESENCE IN THIS GALAXY" card with status badge, base names, and space stations.
+    - Gateway station details now include authentic glyph icons (`<controls:GlyphStrip>`) alongside the portal address copy button.
+    - Uncoupled layout to provide independent, isolated scrolling for both the galaxy browser list and the details panel.
 
 ### Bug 73: Planetary Rings Misdetected (Discovery Flags Bit 16 is Extreme Hazard, Not Rings)
 - **Source**: Owner comparison screenshots, 2026-11-07: ArtifactX Current System (`media_1794112478514_424f9488.jpg`) vs in-game Discoveries screen (`media_1794112540536_7f7effec.jpg`) in system Thwellus.
