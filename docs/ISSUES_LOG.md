@@ -562,14 +562,13 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 
 ### Feature 65: Planetary Hotspot Locator (Power, Mineral, Gas) on Planet Details
 - **Source**: Owner request, 2026-11-07, with in-game Analysis Mode screenshot on planet Edelangm (`media_1794071304101_ca431196.jpg`) showing an Electromagnetic Power Hotspot at `+2.57, -109.31`.
+- **Status 2026-11-08**: Built on `feature/planet-hotspots`. Verified against owner's live screenshot (100% exact match: Power B-class, 64u away at `+2.56, -109.32`).
 - **Goal**: Help players find deep-level resource hotspots on planets directly from the Planet Details page without having to wander blindly with the Survey Device.
-- **Details**:
-  - The Survey Device identifies 3 distinct hotspot categories:
-    1. **Electromagnetic Power Hotspots**: Clean, continuous energy generation for base grids (C, B, A, S class).
-    2. **Deep-Level Mineral Hotspots**: Continuous extraction for mineral extractors (e.g. Indium, Activated Copper, Gold, Magnetised Ferrite, Cobalt, etc. - C, B, A, S class).
-    3. **Atmospheric Gas Hotspots**: Continuous gas harvesting for gas extractors (Oxygen, Nitrogen, Radon, Sulphurine - C, B, A, S class).
-  - Add to the Planet Details page: list or locate hotspots near the player or across the planet with their resource type, rating/class (C, B, A, S), yield %, and exact Analysis Visor coordinates (e.g., `+2.57, -109.31`), with an "Add marker" action.
-  - Research path: investigate whether hotspots are procedurally placed from the planet's seed / coordinate grid (similar to `PlanetBuildingSites` and `BuildingClusterPlacement`) or if they are sampled from the game's noise grids.
+- **Details & Implementation**:
+  - Evaluates the planet's procedural extraction algorithms (`HotspotNeighborhood.Around` and adjacent rings from native 0x1412F4AC0) around the player's visor coordinates when on the planet, or around the planet's portal when viewing from elsewhere.
+  - Categorizes into Electromagnetic Power, Deep-Level Minerals, and Atmospheric Gases with S/A/B/C classes, yield %, strength per second, and Survey Device detection range.
+  - Interactive cards display distance, coordinates with quick copy button, and "Add marker to save" / "Undo" actions that stage active scan markers into the save (`vLc.6f=.A1f`).
+  - Filter bar supports 1-click filtering: All, ⚡ Power, ⛏ Mineral, ☁ Gas, and ★ S-Class.
 
 ### Feature 66: Claimable Planetary Settlement Locator on Planet Details
 - **Source**: Owner request, 2026-11-07.
@@ -684,6 +683,14 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Required Fix**:
   - Update `NmsPlanets.cs` documentation and remove the incorrect bit-16 ring heuristic (`HasRings` in `KnownPlanet`).
   - Port or verify the solar system generator's ring roll (`GcSolarGenerationGlobals` / `SystemGenerator`) to predict `HasRings` accurately from the system/planet seed, matching in-game generation.
+
+### Feature 74: Hotspot Cluster & Combo Finder (Base Computer Site Optimizer)
+- **Source**: Owner request, 2026-11-08: "we will want a search feature for the hotspots later but I'm not in a hurry for it. Players like me love power hotspots very close to the portal. Also, a combo search which may take more math, for example, I went around until I found 3 hotspots within 300u of each other. I then found a good place to put a base computer that was within range of all of them"
+- **Status**: Open / Planned.
+- **Goal**:
+  1. **Portal-Power Proximity Search**: Quick filter/sort to find the highest-class Electromagnetic Power hotspots closest to the planet's portal (ideal for portal base networks).
+  2. **Multi-Hotspot Combo Finder (Triangulation)**: Search across the planet or within a target region to locate clusters of 2 or 3 distinct hotspots (e.g., Power + Mineral, or Power + Mineral + Gas) located within standard base boundary radius (<= 300u–400u from each other).
+  3. **Optimal Base Computer Coordinate**: Automatically compute and display the geometric centroid / optimal placement coordinate for a Base Computer that brings all clustered hotspots within simultaneous extraction range.
 
 
 

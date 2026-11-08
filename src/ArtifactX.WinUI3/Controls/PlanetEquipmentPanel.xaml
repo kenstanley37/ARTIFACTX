@@ -125,5 +125,8 @@
                 </StackPanel>
             </Border>
         </controls:FoldingCard>
+
+        <!-- Planetary deep-level resource hotspots (Survey Device) -->
+        <controls:PlanetHotspotsPanel ViewModel="{x:Bind Equipment.Hotspots, Mode=OneWay}"/>
     </StackPanel>
 </UserControl>

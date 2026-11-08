@@ -52,6 +52,8 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         NoLocatedSites = value.Count == 0;
     }
 
+    public PlanetHotspotsViewModel Hotspots { get; } = new();
+
     /// <summary>The planet's exact centre (markers are in system space), or null when it can't be generated.</summary>
     private (double X, double Y, double Z)? _centre;
 
@@ -169,6 +171,14 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         RefreshMarkers();
         _planet = planet;
         _snapshot = snapshot;
+
+        bool here = S.ReadSystemAddress(snapshot.Universe) == planet.SystemAddress
+            && snapshot.Universe?["oZw"]?["jsv"]?.Value<int>() == planet.PlanetIndex && snapshot.Coordinates is not null;
+        (double Lat, double Lon)? from = here ? snapshot.Coordinates : _portal is { } p ? (p.Latitude, p.Longitude) : null;
+        if (from is not null)
+        {
+            _ = Hotspots.LoadAsync(planet.Address, from.Value.Lat, from.Value.Lon, here, _portal?.Latitude, _portal?.Longitude);
+        }
     }
 
     /// <summary>Added to the crashed-ship summary in a system with no race, where only the planet's fixed underwater
@@ -226,6 +236,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     {
         foreach (var ship in CrashedShips) ship.Refresh();
         Shops.RefreshMarkers();
+        Hotspots.RefreshMarkers();
         HasPortal = _portal is not null;
         if (_portal is not { } portal) return;
         PortalCoordinates = portal.Coordinates;
@@ -275,6 +286,13 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         if (_planet?.Address == planet.Address && !ReferenceEquals(_snapshot, snapshot))
         {
             _ = LoadCrashedShipsAsync(planet, snapshot);
+            bool here = S.ReadSystemAddress(snapshot.Universe) == planet.SystemAddress
+                && snapshot.Universe?["oZw"]?["jsv"]?.Value<int>() == planet.PlanetIndex && snapshot.Coordinates is not null;
+            (double Lat, double Lon)? from = here ? snapshot.Coordinates : _portal is { } p ? (p.Latitude, p.Longitude) : null;
+            if (from is not null)
+            {
+                _ = Hotspots.LoadAsync(planet.Address, from.Value.Lat, from.Value.Lon, here, _portal?.Latitude, _portal?.Longitude);
+            }
             RefreshMarkers();
         }
     }
