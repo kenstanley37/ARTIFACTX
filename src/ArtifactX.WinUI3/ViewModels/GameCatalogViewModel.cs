@@ -147,7 +147,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
     private static string DisplayCase(string name) => name.Any(char.IsLower) ? name
         : System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name.ToLowerInvariant());
 
-    /// <summary>A Wonders category, read-only: the game records these as you play.</summary>
+    /// <summary>A Wonders category: the game records these as you play, and ArtifactX allows unlocking them.</summary>
     private static GameCatalogCategoryViewModel WonderCategory(Core.Unlocks.CatalogueCategory category, CatalogueSectionsService.Catalogue catalogue,
         (List<(string Id, string Name)> Items, HashSet<string> Caught) fish, CreatureNameService species)
     {
@@ -162,8 +162,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         }
         List<GameCatalogItemViewModel> items;
         if (category.Type == "Fish")
-            items = fish.Items.Select(f => new GameCatalogItemViewModel(f.Id, f.Name, fish.Caught.Contains(f.Id), false, true,
-                "caught in the game; edit catches on Fishing Records")).ToList();
+            items = fish.Items.Select(f => new GameCatalogItemViewModel(f.Id, f.Name, fish.Caught.Contains(f.Id), true, true, null)).ToList();
         else if (category.Type == "ExhibitBones")
             items = category.Items.Select(id => new GameCatalogItemViewModel(id, names.GetValueOrDefault(id, "Unnamed fossil"), true, false, true,
                 "always known in the game")).ToList();
@@ -181,7 +180,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
                 var generation = records?.ElementAtOrDefault(i)?["UqY"] as JArray;
                 var (recorded, detail, iconId) = ReadRecord(category.Type, generation);
                 if (category.Type is "TreasureWonders" or "WeirdBasePartWonders") iconId ??= SlotItem(name);
-                return new GameCatalogItemViewModel(id, name, recorded, false, true, "recorded by the game as you explore",
+                return new GameCatalogItemViewModel(id, name, recorded, true, true, null,
                     detail: detail, iconId: iconId, species: recorded ? SpeciesOf(category.Type, generation, species) : null);
             }).ToList();
         }
@@ -299,16 +298,29 @@ public sealed partial class GameCatalogViewModel : ObservableObject
 
     public void SetItem(GameCatalogItemViewModel item, bool known)
     {
-        if (!item.CanEdit || SelectedSection?.List is not { } list) return;
+        if (!item.CanEdit) return;
+        if (SelectedSection?.Key == "UI_PORTAL_CAT_COLLECTION")
+        {
+            Stage(() => WonderUnlockService.Set([item], known));
+            return;
+        }
+        if (SelectedSection?.List is not { } list) return;
         Stage(() => list.Set([item], known));
     }
 
     /// <summary>A mixed or empty scope learns everything; only a fully known one forgets it.</summary>
     public void ToggleAll()
     {
-        if (SelectedSection?.List is not { } list) return;
         bool learn = AllUnlocked != true;
-        Stage(() => list.Set(Scope().Where(i => i.CanEdit).ToList(), learn));
+        var editable = Scope().Where(i => i.CanEdit).ToList();
+        if (SelectedSection?.Key == "UI_PORTAL_CAT_COLLECTION")
+        {
+            Stage(() => WonderUnlockService.Set(editable, learn));
+            OnPropertyChanged(nameof(AllUnlocked));
+            return;
+        }
+        if (SelectedSection?.List is not { } list) return;
+        Stage(() => list.Set(editable, learn));
         OnPropertyChanged(nameof(AllUnlocked)); // the checkbox toggled itself; restore the real state
     }
 
@@ -322,15 +334,16 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         UpdateChanges();
     }
 
-    private static readonly string[][] EditedPaths =
+    private static readonly string[][] StandardPaths =
         [NmsGameCatalogPaths.KnownTechPath, NmsGameCatalogPaths.KnownProductsPath, NmsGameCatalogPaths.KnownRecipesPath];
 
-    public void UpdateChanges() => HasChanges = EditedPaths.Any(SaveSessionManager.HasStagedEditsUnder);
+    public void UpdateChanges() => HasChanges = StandardPaths.Concat(WonderUnlockService.EditedPaths).Any(SaveSessionManager.HasStagedEditsUnder);
 
-    /// <summary>Undoes this page's staged edits (known technology, products and recipes) only.</summary>
+    /// <summary>Undoes this page's staged edits (technology, products, recipes, wonders and fishing) only.</summary>
     public async Task ResetAsync()
     {
-        foreach (var path in EditedPaths) SaveSessionManager.RevertEdit(path);
+        foreach (var path in StandardPaths) SaveSessionManager.RevertEdit(path);
+        WonderUnlockService.RevertEdits();
         await LoadAsync();
     }
 }

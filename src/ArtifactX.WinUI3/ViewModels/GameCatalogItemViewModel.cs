@@ -29,11 +29,15 @@ public sealed partial class GameCatalogItemViewModel : ObservableObject, IUnlock
     public string GameId { get; }
 
     /// <summary>A second line under the name: where a Wonders record was set.</summary>
-    public string? Detail { get; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDetail))]
+    public partial string? Detail { get; set; }
     public bool HasDetail => !string.IsNullOrEmpty(Detail);
 
     /// <summary>The species name a Fauna or Flora record shows in game ("J. Mustlimii").</summary>
-    public string? Species { get; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSpecies))]
+    public partial string? Species { get; set; }
     public bool HasSpecies => !string.IsNullOrEmpty(Species);
 
     /// <summary>The catalog item whose picture the tile shows (a record shows the item it recorded).</summary>
