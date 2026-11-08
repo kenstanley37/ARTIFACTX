@@ -520,12 +520,12 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 
 ### Feature 60: Travel to Any Galaxy
 - **Source**: Owner, 2026-11-03 and 2026-11-07: "I would like a page for galaxy transfer. Allow the user to choose any galaxy 0 through 256 I think and place them in a system near the core (doesn't have to extermely close) in a spacestation."
-- **Status 2026-11-07**: Built on branch `feature/galaxy-transfer`.
+- **Status 2026-11-07**: Built on branch `feature/galaxy-transfer`. Live updates verified: listens to `FishCatchRecorder.SnapshotSeen`, `SaveSessionManager.ActiveSessionChanged`, and `PendingEditsChanged` to quietly move the "HERE" badge and update current location in-place without page reloads or list scrolling when the player travels in-game or reloads saves.
 - **Implementation**:
   - `src/ArtifactX.Core/NmsModels/NmsGalaxyInfo.cs`: Full 256 galaxy database with names from `NmsGalaxyNames`, classification mathematical sequence (25 Lush, 26 Harsh, 26 Empty, 179 Normal), and gateway core destination coordinates (`X: 7, Y: -8, Z: -9`, system index `407`, ~5,571 LY from the galactic core, portal glyphs `1197777F8808`).
-  - `src/ArtifactX.WinUI3/Services/GalaxyTransferService.cs`: Stages edits to `CurrentUniverseAddressPath` (`yhJ`), `LocationDescriptionPath` (`n:R`), spawn state `SpawnStatePath` (`vLc.rnc` with `jk4: "InStation"`, docking walkway player position `mEH`, landing pad starship position `tnP`), and registers the station teleport endpoint in `nlG` via `SpaceStationService.EnsureStationMarkerStaged`.
-  - `src/ArtifactX.WinUI3/ViewModels/ExploreViewModels/GalaxyTransferViewModel.cs`: Search/filter by name or number (1..256), classification filter buttons (All, Lush, Harsh, Empty, Normal), current galaxy telemetry, and staging status.
-  - `src/ArtifactX.WinUI3/Views/ExplorePages/GalaxyTransferPage.xaml`: Two-column layout with galaxy browser, detailed destination card, core proximity facts, copy portal glyphs, and confirmation dialog before staging.
+  - `src/ArtifactX.WinUI3/Services/GalaxyTransferService.cs`: Stages edits to `CurrentUniverseAddressPath` (`yhJ`), `LocationDescriptionPath` (`n:R`), spawn state `SpawnStatePath` (`vLc.rnc` with `jk4: "InStation"`, docking walkway player position `mEH`, landing pad starship position `tnP`), and registers the station teleport endpoint in `nlG` via `SpaceStationService.EnsureStationMarkerStaged`. Reads live game snapshot (`LiveSaveWatcher.LatestSnapshot`) so "You are here" follows game progress.
+  - `src/ArtifactX.WinUI3/ViewModels/ExploreViewModels/GalaxyTransferViewModel.cs`: Search/filter by name or number (1..256), classification filter buttons (All, Lush, Harsh, Empty, Normal), current galaxy telemetry, staging status, and `UpdateCurrentGalaxy` for quiet in-place badge moves.
+  - `src/ArtifactX.WinUI3/Views/ExplorePages/GalaxyTransferPage.xaml`: Two-column layout with galaxy browser, detailed destination card, core proximity facts, copy portal glyphs, and confirmation dialog before staging. Subscribes to live snapshot feed.
   - Added "Galaxy Transfer" to the Explore section in `MainWindow.xaml`.
 
 ### Bug 61: Cooking Recipes Shows Different Nutrient Ingestor Buffs From the Game
@@ -652,6 +652,20 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
   - Updated `ShipModels.Paint.cs` to filter out only `MatchName` (`t.TextureGameplayUse != TkProceduralTexture.TextureGameplayUseEnum.MatchName`).
   - Updated `ShipLook.cs` to ignore only `o.Use == 1` (`MatchName`).
   - Verified with game files: `DudeWing` now paints with its bright red hull `#CE5D50`, white accent decals `#F3EBE5`, and dark chassis `#121111` exactly matching in-game appearance.
+
+### Feature 72: Track Visited Galaxies, Bases and Space Stations in Galaxy Transfer
+- **Source**: Owner request, 2026-11-07: "It would be nice to know if we have a base or spacestation in each galaxy. That would help us to know which galaxy we haven't been to yet. But you can add that to the issue list."
+- **Status**: Open / Proposed.
+- **Goal**: In the Galaxy Transfer browser (and galaxy telemetry):
+  - Track whether the player has visited each galaxy (1..256).
+  - Show badges / counts for player bases (`peI` / `BaseKind.Planet`, `BaseKind.Freighter`, `BaseKind.Station`) in that galaxy.
+  - Show whether a claimed space station or teleporter space station marker (`nlG`) exists in that galaxy.
+  - Provide a filter or badge to easily spot unvisited galaxies ("Never Visited") so players can systematically explore every galaxy.
+- **Data Source in Save**:
+  - `BaseListBuilder.Build(snapshot)` partitions all bases and settlements with `entry.Galaxy` (1..256 via `NmsSpaceStationPaths.GalaxyNumber(address)`).
+  - `snapshot.Markers` (`nlG`) contains space station teleport endpoints with galaxy addresses (`NmsSpaceStationPaths.GalaxyNumber(address)`).
+  - Visited systems history (`user.db` and save discovery records `fDu`) also records explored galaxy systems.
+
 
 
 

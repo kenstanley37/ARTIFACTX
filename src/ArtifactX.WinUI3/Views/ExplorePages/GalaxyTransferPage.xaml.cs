@@ -1,3 +1,4 @@
+using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels.ExploreViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -15,6 +16,18 @@ public sealed partial class GalaxyTransferPage : Page
     public GalaxyTransferPage()
     {
         InitializeComponent();
+        FishCatchRecorder.SnapshotSeen += OnLiveSnapshot;
+        SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
+        SaveSessionManager.PendingEditsChanged += OnPendingEditsChanged;
+        SaveSessionManager.ExternalChangeDetected += OnExternalChangeDetected;
+
+        Unloaded += (_, _) =>
+        {
+            FishCatchRecorder.SnapshotSeen -= OnLiveSnapshot;
+            SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
+            SaveSessionManager.PendingEditsChanged -= OnPendingEditsChanged;
+            SaveSessionManager.ExternalChangeDetected -= OnExternalChangeDetected;
+        };
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -22,6 +35,18 @@ public sealed partial class GalaxyTransferPage : Page
         base.OnNavigatedTo(e);
         _ = ViewModel.LoadAsync();
     }
+
+    private void OnLiveSnapshot(PlanetSnapshot snapshot) =>
+        DispatcherQueue.TryEnqueue(() => ViewModel.UpdateCurrentGalaxy(snapshot));
+
+    private void OnSessionChanged(object? sender, EventArgs e) =>
+        DispatcherQueue.TryEnqueue(() => _ = ViewModel.LoadAsync());
+
+    private void OnPendingEditsChanged(object? sender, EventArgs e) =>
+        DispatcherQueue.TryEnqueue(() => ViewModel.UpdateCurrentGalaxy());
+
+    private void OnExternalChangeDetected(object? sender, EventArgs e) =>
+        DispatcherQueue.TryEnqueue(() => ViewModel.UpdateCurrentGalaxy());
 
     private void FilterAll_Click(object sender, RoutedEventArgs e) => ViewModel.SetFilter("All");
     private void FilterLush_Click(object sender, RoutedEventArgs e) => ViewModel.SetFilter("Lush");
@@ -70,3 +95,4 @@ public sealed partial class GalaxyTransferPage : Page
         Clipboard.SetContent(package);
     }
 }
+

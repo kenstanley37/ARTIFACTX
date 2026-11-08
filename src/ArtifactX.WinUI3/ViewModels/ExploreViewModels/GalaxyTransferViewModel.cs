@@ -189,6 +189,42 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
     public void RevertTransfer()
     {
         GalaxyTransferService.RevertTransfer();
-        _ = LoadAsync();
+        UpdateCurrentGalaxy();
+    }
+
+    /// <summary>
+    /// Quietly updates the current galaxy and HERE badge in-place without rebuilding the list
+    /// or resetting scroll position/selection. Follows live game saves and staged edits.
+    /// </summary>
+    public void UpdateCurrentGalaxy(PlanetSnapshot? snapshot = null)
+    {
+        var current = GalaxyTransferService.GetCurrentGalaxy(snapshot);
+        bool isStaged = GalaxyTransferService.HasStagedTransfer();
+
+        App.MainWindowInstance?.DispatcherQueue?.TryEnqueue(() =>
+        {
+            if (_allRows.Count == 0)
+            {
+                _ = LoadAsync();
+                return;
+            }
+
+            CurrentGalaxy = current;
+            CurrentGalaxyTitle = $"Galaxy {current.Number}: {current.Name}";
+            CurrentGalaxyClassification = current.ClassificationName;
+            IsTransferStaged = isStaged;
+
+            foreach (var row in _allRows)
+            {
+                bool isCur = (row.Number == current.Number);
+                if (row.IsCurrent != isCur)
+                {
+                    row.IsCurrent = isCur;
+                }
+            }
+
+            UpdateTransferState();
+        });
     }
 }
+

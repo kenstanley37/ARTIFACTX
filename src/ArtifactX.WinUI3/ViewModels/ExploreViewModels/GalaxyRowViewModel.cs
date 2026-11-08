@@ -33,3 +33,4 @@ public sealed partial class GalaxyRowViewModel : ObservableObject
         IsCurrent = isCurrent;
     }
 }
+

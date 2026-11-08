@@ -97,3 +97,4 @@ public static class NmsGalaxyInfo
     public static ulong GetGatewaySystemAddress(int realityIndex) =>
         NmsSpaceStationPaths.PackAddress(realityIndex, CoreGatewayX, CoreGatewayY, CoreGatewayZ, CoreGatewaySystemIndex, CoreGatewayPlanet);
 }
+

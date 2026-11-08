@@ -27,6 +27,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Galaxy Transfer: Current location and the "HERE" badge in the galaxy browser now quietly follow your in-game movements and save changes in real time without refreshing or scrolling the list.
 - Planet Details: Eliminated UI freezes and delays when opening planet details by loading creature 3D models immediately and removing redundant background crash site counting.
 - Planet Details: Removed manual screen capture controls for creatures in favor of automatic procedural 3D model generation and save discovery reading.
 - Current System: Removed a full-page modal loading overlay that intercepted clicks and scrolling during system refreshes, replacing it with an inline activity indicator that leaves the page responsive.

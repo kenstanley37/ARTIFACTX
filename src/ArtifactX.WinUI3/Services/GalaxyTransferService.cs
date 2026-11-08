@@ -12,14 +12,18 @@ namespace ArtifactX.WinUI3.Services;
 /// </summary>
 public static class GalaxyTransferService
 {
-    /// <summary>Reads the player's active galaxy from the loaded save (or staged edits).</summary>
-    public static GalaxyInfo GetCurrentGalaxy()
+    /// <summary>Reads the player's active galaxy from a live snapshot, loaded save, or staged edits.</summary>
+    public static GalaxyInfo GetCurrentGalaxy(PlanetSnapshot? snapshot = null)
     {
-        if (SaveSessionManager.GetValue(NmsSpaceStationPaths.CurrentUniverseAddressPath) is JObject yhj)
+        var universe = snapshot?.Universe
+            ?? LiveSaveWatcher.LatestSnapshot?.Universe
+            ?? SaveSessionManager.GetValue(NmsSpaceStationPaths.CurrentUniverseAddressPath);
+
+        if (universe is JToken yhj && yhj["Iis"]?.Value<int>() is int realityIndex)
         {
-            int realityIndex = yhj["Iis"]?.Value<int>() ?? 0;
             int galaxyNumber = realityIndex + 1;
-            return NmsGalaxyInfo.Get(galaxyNumber) ?? new GalaxyInfo(galaxyNumber, realityIndex, NmsGalaxyNames.ForNumber(galaxyNumber) ?? $"Galaxy {galaxyNumber}", GalaxyClassification.Normal);
+            return NmsGalaxyInfo.Get(galaxyNumber)
+                ?? new GalaxyInfo(galaxyNumber, realityIndex, NmsGalaxyNames.ForNumber(galaxyNumber) ?? $"Galaxy {galaxyNumber}", GalaxyClassification.Normal);
         }
 
         return NmsGalaxyInfo.AllGalaxies[0]; // Euclid default
@@ -77,3 +81,4 @@ public static class GalaxyTransferService
         SaveSessionManager.RevertEditsUnder(NmsSpaceStationPaths.MarkersPath);
     }
 }
+
