@@ -1,17 +1,23 @@
+using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels.ExploreViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using System;
+using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Controls;
 
-/// <summary>Which creature a CreatureCard's button was for, and the button (to show the result beside).</summary>
 public sealed record CreatureCardRequest(CreatureCardViewModel Creature, FrameworkElement Anchor);
 
 public sealed partial class CreatureCard : UserControl
 {
+    private int _version;
+    private string? _shownRig;
+
     public static readonly DependencyProperty CreatureProperty =
-        DependencyProperty.Register(nameof(Creature), typeof(CreatureCardViewModel), typeof(CreatureCard), new PropertyMetadata(null));
+        DependencyProperty.Register(nameof(Creature), typeof(CreatureCardViewModel), typeof(CreatureCard),
+            new PropertyMetadata(null, (sender, _) => ((CreatureCard)sender).Refresh()));
 
     public CreatureCardViewModel? Creature
     {
@@ -19,16 +25,45 @@ public sealed partial class CreatureCard : UserControl
         set => SetValue(CreatureProperty, value);
     }
 
-    /// <summary>"Take picture" was clicked.</summary>
-    public event EventHandler<CreatureCardRequest>? CaptureRequested;
+    public string PreviewName => $"3D model of {Creature?.Name ?? "creature"}. Drag to rotate.";
 
-    /// <summary>"Remove" was clicked.</summary>
     public event EventHandler<CreatureCardRequest>? DeleteRequested;
-
-    /// <summary>"View 3D model" was clicked.</summary>
     public event EventHandler<CreatureCardRequest>? Preview3DRequested;
 
-    public CreatureCard() => InitializeComponent();
+    public CreatureCard()
+    {
+        InitializeComponent();
+        Loaded += (_, _) => Refresh();
+        Unloaded += (_, _) => ++_version;
+    }
+
+    private void Refresh()
+    {
+        Bindings.Update();
+        if (IsLoaded) _ = BuildModelAsync();
+    }
+
+    private async Task BuildModelAsync()
+    {
+        int version = ++_version;
+        if (Creature is not { } card || GameDataService.Game is not { } game) return;
+        if (_shownRig == card.RigId) return;
+
+        try
+        {
+            var mesh = await CreatureModelService.BuildCreatureMeshAsync(game, card.RigId);
+            if (version != _version || !IsLoaded) return;
+            if (mesh is null) return;
+
+            Preview.Show(mesh, material => CreatureModelService.CreatureMaterialColour(material),
+                silhouette: card.IsSilhouette);
+            _shownRig = card.RigId;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[CreatureCard] Model build error: {ex.Message}");
+        }
+    }
 
     private async void View3DModel_Click(object sender, RoutedEventArgs e)
     {
@@ -37,13 +72,13 @@ public sealed partial class CreatureCard : UserControl
             if (Preview3DRequested is not null)
                 Preview3DRequested.Invoke(this, new(creature, (FrameworkElement)sender));
             else
-                await CreaturePreviewControl.ShowAsync(XamlRoot, creature.Creature);
+                await CreaturePreviewControl.ShowAsync(XamlRoot, creature.Creature, creature.RigId, creature.IsSilhouette);
         }
     }
 
-    private void Capture_Click(object sender, RoutedEventArgs e)
+    private void Preview_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (Creature is { } creature) CaptureRequested?.Invoke(this, new(creature, (FrameworkElement)sender));
+        View3DModel_Click(sender, e);
     }
 
     private void Delete_Click(object sender, RoutedEventArgs e)

@@ -1,5 +1,35 @@
 namespace ArtifactX.Core.Universe;
 
+/// <summary>One predicted procedural creature for a planet.</summary>
+public sealed record PredictedCreature(string Id, string Domain, int Role)
+{
+    public string Habitat => Domain switch
+    {
+        "air" => "Flying",
+        "water" => "Underwater",
+        "cave" => "Underground",
+        _ => "Ground"
+    };
+
+    public string DefaultDisplayName => Id switch
+    {
+        "ROBOTANTELOPE" => "Robot Antelope",
+        "SIXLEGCOW" => "Six-legged Creature",
+        "SIXLEGCAT" => "Six-legged Feline",
+        "BONECAT" => "Bone Cat",
+        "TRICERATOPS" => "Triceratops",
+        "TWOLEGANTELOPE" => "Bipedal Antelope",
+        "FLYINGBEETLE" => "Flying Beetle",
+        "FLYINGLIZARD" => "Flying Lizard",
+        "FLYINGSNAKE" => "Flying Snake",
+        "SEASNAKE" => "Sea Snake",
+        "SWIMCOW" => "Aquatic Grazer",
+        "SWIMRODENT" => "Aquatic Rodent",
+        "FLOATSPIDER" => "Floating Spider",
+        _ => System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(Id.ToLowerInvariant())
+    };
+}
+
 /// <summary>Global modifier lists for creature generation from GcCreatureGenerationData.</summary>
 public sealed record CreatureGlobals(
     float[] SandwormChance,
@@ -184,14 +214,14 @@ public static partial class PlanetProfileGenerator
     }
 
     /// <summary>
-    /// Predicts the planet's fauna total (number of creature roles) from its seed and environment.
+    /// Predicts the planet's fauna total and creature roles from its seed and environment.
     /// Reverse-engineered from NMS.exe 0x14169f4a0 (child seed 10).
     /// </summary>
-    public static int GenerateFaunaCount(ulong planetSeed, int biome, int subType, int planetClass,
+    public static (int Count, PredictedCreature[] Creatures) GenerateFauna(ulong planetSeed, int biome, int subType, int planetClass,
         int star, int faunaLevel, float sea, bool hasCaves, bool emptySystem, bool abandonedSystem,
         CreatureTables tables)
     {
-        if (faunaLevel <= 0) return 0;
+        if (faunaLevel <= 0) return (0, []);
         var seeds = ChildSeeds(planetSeed);
         var stack = new RngStack(seeds[10]);
 
@@ -282,7 +312,7 @@ public static partial class PlanetProfileGenerator
         stack.Pop();
 
         // 5. Tables
-        var collectedTables = new List<CreatureDomainTableEntry>();
+        var collectedTables = new List<(CreatureDomainTableEntry Entry, string Domain)>();
         stack.Push();
         string?[] chosen = [ground, air, water, cave];
 
@@ -306,7 +336,7 @@ public static partial class PlanetProfileGenerator
                 for (int t = 0; t < arch.Tables.Length; t++)
                 {
                     if (!string.IsNullOrEmpty(arch.Tables[t].Table))
-                        collectedTables.Add(arch.Tables[t]);
+                        collectedTables.Add((arch.Tables[t], DomainNames[d]));
                 }
                 stack.Pop();
             }
@@ -346,7 +376,7 @@ public static partial class PlanetProfileGenerator
                         var te = avail[idx];
                         avail.RemoveAt(idx);
                         if (!string.IsNullOrEmpty(te.Table))
-                            collectedTables.Add(te);
+                            collectedTables.Add((te, DomainNames[d]));
                     }
                 }
                 stack.Pop();
@@ -356,10 +386,10 @@ public static partial class PlanetProfileGenerator
         stack.Pop();
 
         // 6. Roles
-        int chosenRoleCount = 0;
+        var chosenCreatures = new List<PredictedCreature>();
         for (int i = 0; i < collectedTables.Count; i++)
         {
-            var te = collectedTables[i];
+            var (te, domain) = collectedTables[i];
             if (!tables.EcosystemTables.TryGetValue(te.Table, out var roles)) continue;
             stack.Push();
             stack.Push();
@@ -373,7 +403,7 @@ public static partial class PlanetProfileGenerator
                 stack.Push();
                 stack.Pop();
                 float draw = stack.NextFraction();
-                if (draw <= role.Prob && chosenRoleCount < 22)
+                if (draw <= role.Prob && chosenCreatures.Count < 22)
                 {
                     float totalWeight = 0.0f;
                     for (int cIdx = 0; cIdx < tables.Creatures.Length; cIdx++)
@@ -403,19 +433,57 @@ public static partial class PlanetProfileGenerator
 
                     if (totalWeight > 0.0f)
                     {
-                        _ = stack.NextFraction() * totalWeight;
+                        float roll = stack.NextFraction() * totalWeight;
+                        string chosenId = "";
+                        float acc = 0.0f;
+                        for (int cIdx = 0; cIdx < tables.Creatures.Length; cIdx++)
+                        {
+                            var c = tables.Creatures[cIdx];
+                            if (c.Type != role.ForceType) continue;
+                            if (!c.Eco) continue;
+                            if (c.ForcedOnly && role.ForceId != c.Id) continue;
+                            if (!string.IsNullOrEmpty(role.ForceId) && role.ForceId != c.Id) continue;
+                            if (!string.IsNullOrEmpty(role.ReqTag) && !ContainsTag(c.Tags, role.ReqTag)) continue;
+
+                            float roleMod;
+                            if (role.ForceId == c.Id) roleMod = 1.0f;
+                            else if (role.Role is 1 or 2) roleMod = tables.Globals.RoleFreq[c.PredMod];
+                            else if (role.Role is 3 or 4) roleMod = tables.Globals.RoleFreq[c.HerbMod];
+                            else roleMod = 1.0f;
+
+                            float rarityMod = tables.Globals.RarityFreq[c.Rarity];
+                            if (string.IsNullOrEmpty(role.ForceId) && string.IsNullOrEmpty(role.ReqTag))
+                            {
+                                for (int t = 0; t < c.Tags.Length; t++)
+                                    rarityMod *= tables.Globals.HerdPenalty;
+                            }
+
+                            acc += rarityMod * roleMod;
+                            if (acc >= roll)
+                            {
+                                chosenId = c.Id;
+                                break;
+                            }
+                        }
+
                         stack.Push();
                         _ = stack.NextFraction();
                         stack.Pop();
-                        chosenRoleCount++;
+                        chosenCreatures.Add(new PredictedCreature(chosenId, domain, role.Role));
                     }
                 }
                 stack.Pop();
             }
             stack.Pop();
         }
-        return chosenRoleCount;
+        return (chosenCreatures.Count, chosenCreatures.ToArray());
     }
+
+    /// <summary>Predicts the planet's fauna total count.</summary>
+    public static int GenerateFaunaCount(ulong planetSeed, int biome, int subType, int planetClass,
+        int star, int faunaLevel, float sea, bool hasCaves, bool emptySystem, bool abandonedSystem,
+        CreatureTables tables) =>
+        GenerateFauna(planetSeed, biome, subType, planetClass, star, faunaLevel, sea, hasCaves, emptySystem, abandonedSystem, tables).Count;
 
     private static bool ContainsTag(string[] tags, string reqTag)
     {

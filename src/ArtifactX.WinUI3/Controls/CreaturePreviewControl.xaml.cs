@@ -13,15 +13,24 @@ namespace ArtifactX.WinUI3.Controls;
 
 public sealed partial class CreaturePreviewControl : UserControl
 {
+    public static readonly string[] LandRigs = [
+        "antelope", "cat", "cow", "triceratops", "trex", "strider",
+        "spider", "beetle", "sixleggedcow", "rodent", "blob"
+    ];
+
     public Creature Creature { get; }
+    public string? PreferredRig { get; }
+    public bool IsSilhouette { get; }
     public IReadOnlyList<CreatureModelService.CreatureRigOption> AvailableRigs => CreatureModelService.AvailableRigs;
 
     private List<string>? _companionDescriptors;
     private bool _loading = true;
 
-    public CreaturePreviewControl(Creature creature)
+    public CreaturePreviewControl(Creature creature, string? preferredRig = null, bool isSilhouette = false)
     {
         Creature = creature;
+        PreferredRig = preferredRig;
+        IsSilhouette = isSilhouette;
         InitializeComponent();
         Loaded += CreaturePreviewControl_Loaded;
     }
@@ -33,7 +42,11 @@ public sealed partial class CreaturePreviewControl : UserControl
             .Where(s => !string.IsNullOrEmpty(s));
         CreatureTraitsTxt.Text = string.Join(" · ", traits);
 
-        string? initialRig = await FindMatchingCompanionRigAsync();
+        string? initialRig = PreferredRig;
+        if (string.IsNullOrEmpty(initialRig))
+        {
+            initialRig = await FindMatchingCompanionRigAsync();
+        }
 
         if (string.IsNullOrEmpty(initialRig))
         {
@@ -48,14 +61,9 @@ public sealed partial class CreaturePreviewControl : UserControl
         if (matchingOption is not null)
         {
             RigComboBox.SelectedItem = matchingOption;
-            await ModelPreview.ShowCreatureAsync(matchingOption.RigId, _companionDescriptors);
+            await ModelPreview.ShowCreatureAsync(matchingOption.RigId, _companionDescriptors, silhouette: IsSilhouette);
         }
     }
-
-    private static readonly string[] LandRigs = [
-        "antelope", "cat", "cow", "triceratops", "trex", "strider",
-        "spider", "beetle", "sixleggedcow", "rodent", "blob"
-    ];
 
     private async Task<string?> FindMatchingCompanionRigAsync()
     {
@@ -127,17 +135,17 @@ public sealed partial class CreaturePreviewControl : UserControl
         if (_loading) return;
         if (RigComboBox.SelectedItem is CreatureModelService.CreatureRigOption option)
         {
-            await ModelPreview.ShowCreatureAsync(option.RigId, _companionDescriptors);
+            await ModelPreview.ShowCreatureAsync(option.RigId, _companionDescriptors, silhouette: IsSilhouette);
         }
     }
 
     /// <summary>Displays a 3D creature anatomy viewer dialog.</summary>
-    public static async Task ShowAsync(XamlRoot root, Creature creature)
+    public static async Task ShowAsync(XamlRoot root, Creature creature, string? rigId = null, bool isSilhouette = false)
     {
-        var control = new CreaturePreviewControl(creature);
+        var control = new CreaturePreviewControl(creature, rigId, isSilhouette);
         var dialog = new ContentDialog
         {
-            Title = "Creature 3D Anatomy",
+            Title = isSilhouette ? "Undiscovered Species 3D Silhouette" : "Creature 3D Anatomy",
             Content = control,
             CloseButtonText = "Close",
             DefaultButton = ContentDialogButton.Close,
@@ -146,4 +154,3 @@ public sealed partial class CreaturePreviewControl : UserControl
         await dialog.ShowAsync();
     }
 }
-

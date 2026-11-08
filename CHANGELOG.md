@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Planet Fauna 3D Models & Silhouettes: Planet Details now displays 3D models for all planetary creatures before and after scanning. Undiscovered native species predictively generate from the planet's seed and display as sleek 3D mystery silhouettes with rim lighting, transitioning to full anatomical 3D models once discovered in game.
+- Creature 3D Camera: Creature and companion 3D model previews now face towards the player by default with a front three-quarter view, rather than facing away.
 - 3D Creature & Companion Models: Companions page now features an interactive 3D model preview rendered directly from your game install with your pet's active body parts and archetype; planet creature cards now feature a 3D anatomy viewer to inspect planetary fauna and examine 3D rigs.
 - Explore: Dedicated "Crashed Ships" and "Cabinet Multi-Tools" pages under Explore, offloading heavy scans and lists from Current System and Planet Details into streamlined views with filters, planet selection, 3D model previews, and in-game coordinate markers.
 - Catalog: Wonders records (Treasures, Collected Glitches, Planet, Fauna, Flora, Mineral, Personal Records, and Fishing Records) can now be unlocked or cleared directly on the Catalog page with one-click toggling and Unlock All / Clear All support, staging authentic procedural record data and stats.
@@ -23,6 +25,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Planet Details: Eliminated UI freezes and delays when opening planet details by loading creature 3D models immediately and removing redundant background crash site counting.
+- Planet Details: Removed manual screen capture controls for creatures in favor of automatic procedural 3D model generation and save discovery reading.
 - Current System: Removed a full-page modal loading overlay that intercepted clicks and scrolling during system refreshes, replacing it with an inline activity indicator that leaves the page responsive.
 - Planet Details: Planetary fauna discovered in your save now display creature cards with authentic Latin species names and 3D anatomy viewer buttons even without prior screen captures.
 - Space Stations: Claiming a station now automatically creates and stamps its teleport endpoint marker in your save so that newly claimed stations immediately appear in your Alliance Stations teleport list.

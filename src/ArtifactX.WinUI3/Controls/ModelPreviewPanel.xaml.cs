@@ -123,7 +123,7 @@ public sealed partial class ModelPreviewPanel : UserControl
     }
 
     /// <summary>Builds and shows a creature or companion model from its rig and chosen descriptors.</summary>
-    public async Task ShowCreatureAsync(string rigId, IEnumerable<string>? chosenDescriptors = null, bool hologram = false)
+    public async Task ShowCreatureAsync(string rigId, IEnumerable<string>? chosenDescriptors = null, bool hologram = false, bool silhouette = false)
     {
         int version = ++_version;
         if (GameDataService.Game is not { } game)
@@ -134,10 +134,7 @@ public sealed partial class ModelPreviewPanel : UserControl
         }
         Preview.ShowMessage($"Building this {Subject}'s model from your game files...");
         NoteTxt.Text = "";
-
-        // Creatures in NMS point their head forward along -Z (opposite of starships which face +Z).
-        // A half turn offset (PI) opens on a front three-quarter view of the creature.
-        StartYawOffset = Math.PI;
+        StartYawOffset = 0;
 
         var mesh = await CreatureModelService.BuildCreatureMeshAsync(game, rigId, chosenDescriptors);
         if (version != _version) return;
@@ -148,9 +145,11 @@ public sealed partial class ModelPreviewPanel : UserControl
         }
 
         uint Colour(string material) => CreatureModelService.CreatureMaterialColour(material);
-        Preview.Show(mesh, Colour, hologram: hologram);
-        NoteTxt.Text = hologram
-            ? $"Hologram scan — shape and anatomy from your game files. Drag to turn."
-            : $"Shape and anatomy from your game files and saved traits — drag to turn.";
+        Preview.Show(mesh, Colour, hologram: hologram, silhouette: silhouette);
+        NoteTxt.Text = silhouette
+            ? $"Unscanned species silhouette from planet generation. Drag to turn."
+            : hologram
+                ? $"Hologram scan — shape and anatomy from your game files. Drag to turn."
+                : $"Shape and anatomy from your game files and saved traits — drag to turn.";
     }
 }

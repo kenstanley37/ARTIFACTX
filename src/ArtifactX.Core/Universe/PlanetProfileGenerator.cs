@@ -51,7 +51,8 @@ public sealed record SentinelTables(
 /// <param name="Hints">Scanner hints (ResourceHint ids, e.g. PLANT_DUST, UI_BONES_HINT), in placing order.</param>
 /// <param name="Water">Has a sea (and so underwater objects).</param>
 public sealed record PlanetProfile(string Common, string Uncommon, string Rare, int WeatherType, bool Extreme, int Storms,
-    int Flora, int Fauna, int[] Sentinels, string[] Hints, bool ScrapWorld = false, bool Water = false, int? FaunaCount = null);
+    int Flora, int Fauna, int[] Sentinels, string[] Hints, bool ScrapWorld = false, bool Water = false, int? FaunaCount = null,
+    PredictedCreature[]? PredictedCreatures = null);
 
 /// <summary>
 /// A planet's resources, weather, life and sentinels from its seed - a port of NMS.exe's
@@ -158,11 +159,12 @@ public static partial class PlanetProfileGenerator
                 ExtremeLooking(biome, subType, weather, extreme), scrap, terrain.Sea, terrain.Caves, objects.Terrain.SeaStandard);
             hints = PlacedHints(Rng.Start(seeds[7]), file, objects, planet);
         }
-        int? faunaCount = t.Creatures is not null
-            ? (fauna <= 0 ? 0 : GenerateFaunaCount(planetSeed, biome, subType, planetClass, star, fauna, sea, caves, emptySystem, abandonedSystem, t.Creatures))
-            : null;
+        var faunaResult = t.Creatures is not null && fauna > 0
+            ? GenerateFauna(planetSeed, biome, subType, planetClass, star, fauna, sea, caves, emptySystem, abandonedSystem, t.Creatures)
+            : default;
+        int? faunaCount = t.Creatures is not null ? (fauna <= 0 ? 0 : faunaResult.Count) : null;
         return new PlanetProfile(common, uncommon, t.MiningRare[rareIndex], weather, extreme, storms, flora, fauna, sentinels,
-            hints, scrap, water, faunaCount);
+            hints, scrap, water, faunaCount, faunaResult.Creatures);
     }
 
     private const int Infested = 0x18;
