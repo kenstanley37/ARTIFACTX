@@ -15,6 +15,8 @@ namespace ArtifactX.WinUI3.ViewModels.ExploreViewModels;
 /// </summary>
 public sealed partial class PlanetHotspotItemViewModel : ObservableObject
 {
+    private readonly Action<PlanetHotspotItemViewModel>? _onPinnedChanged;
+
     public PlanetHotspot Hotspot { get; }
 
     public string Kind => Hotspot.Kind;
@@ -37,6 +39,22 @@ public sealed partial class PlanetHotspotItemViewModel : ObservableObject
     public Brush ClassBrush => ThemeResources.ClassBrush(Class);
     public string ClassBadgeText => $"CLASS {Class}";
 
+    public Brush CardBorderBrush => IsPinned
+        ? ThemeResources.Brush("ThemeAccentBrush")
+        : ThemeResources.Brush("ThemeLineBrush");
+
+    public Microsoft.UI.Xaml.Thickness CardBorderThickness => new(IsPinned ? 2 : 1);
+
+    public Brush CardBackground => IsPinned
+        ? ThemeResources.Brush("ThemePanelAltBrush")
+        : ThemeResources.Brush("ThemeVoidBrush");
+
+    public string PinButtonText => IsPinned ? "Pinned" : "Pin";
+    public Brush PinForeground => IsPinned ? ThemeResources.Brush("ThemeAccentBrush") : ThemeResources.Brush("ThemeTextDimBrush");
+    public Brush PinButtonBackground => IsPinned ? ThemeResources.Brush("ThemeVoidBrush") : ThemeResources.Brush("ThemePanelAltBrush");
+    public Brush PinButtonBorderBrush => IsPinned ? ThemeResources.Brush("ThemeAccentBrush") : ThemeResources.Brush("ThemeLineBrush");
+    public string PinTooltip => IsPinned ? "Unpin card (allow normal sorting)" : "Pin card to top (keeps visible as you move)";
+
     public string FullDistanceLabel => Hotspot.PortalDistanceLabel is { Length: > 0 } pDist && Math.Abs(Distance - (Hotspot.PortalDistance ?? 0)) > 50
         ? $"{DistanceLabel} · {pDist}"
         : (Hotspot.PortalDistanceLabel ?? DistanceLabel);
@@ -45,55 +63,75 @@ public sealed partial class PlanetHotspotItemViewModel : ObservableObject
         ? $"Potential: {Math.Round(Strength)} kP ({YieldPercent}%) · {Math.Round(Range)}u range"
         : $"Density: {YieldPercent}% · {Math.Round(Range)}u range";
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CardBorderBrush))]
+    [NotifyPropertyChangedFor(nameof(CardBorderThickness))]
+    [NotifyPropertyChangedFor(nameof(CardBackground))]
+    [NotifyPropertyChangedFor(nameof(PinButtonText))]
+    [NotifyPropertyChangedFor(nameof(PinForeground))]
+    [NotifyPropertyChangedFor(nameof(PinButtonBackground))]
+    [NotifyPropertyChangedFor(nameof(PinButtonBorderBrush))]
+    [NotifyPropertyChangedFor(nameof(PinTooltip))]
+    public partial bool IsPinned { get; set; }
+
     [ObservableProperty] public partial bool CanAddMarker { get; private set; }
     [ObservableProperty] public partial bool CanUndoMarker { get; private set; }
-    [ObservableProperty] public partial string AddMarkerText { get; private set; } = "Add marker to save";
+    [ObservableProperty] public partial bool CanRemoveMarker { get; private set; }
+    [ObservableProperty] public partial string RemoveButtonText { get; private set; } = "Undo";
+    [ObservableProperty] public partial string AddMarkerText { get; private set; } = "Place Save Beacon";
     [ObservableProperty] public partial string MarkerStatus { get; private set; } = "";
+    [ObservableProperty] public partial bool IsMarked { get; private set; }
     [ObservableProperty] public partial bool IsCopied { get; private set; }
 
-    public PlanetHotspotItemViewModel(PlanetHotspot hotspot)
+    public PlanetHotspotItemViewModel(PlanetHotspot hotspot, Action<PlanetHotspotItemViewModel>? onPinnedChanged = null)
     {
         Hotspot = hotspot;
+        _onPinnedChanged = onPinnedChanged;
         Refresh();
     }
 
     /// <summary>Updates marker button states from the save session.</summary>
     public void Refresh()
     {
-        bool marked = ScanMarkerService.IsMarked(Hotspot.CandidateKey);
-        bool unsaved = ScanMarkerService.IsUnsaved(Hotspot.CandidateKey);
+        bool marked = SaveBeaconService.IsPlaced(Hotspot.PlanetAddress, Hotspot.LocalPosition);
+        bool unsaved = SaveBeaconService.IsUnsaved(Hotspot.PlanetAddress, Hotspot.LocalPosition);
 
-        CanUndoMarker = unsaved;
-        CanAddMarker = !unsaved && ScanMarkerService.CanAdd;
-        AddMarkerText = marked && !unsaved ? "Mark again" : "Add marker to save";
+        IsMarked = marked;
+        CanAddMarker = !marked && SaveBeaconService.CanAdd;
+        CanUndoMarker = marked;
+        CanRemoveMarker = SaveBeaconService.CanRemove;
+        RemoveButtonText = unsaved ? "Undo" : "Remove";
+        AddMarkerText = marked ? "Save Beacon placed ✓" : "Place Save Beacon";
 
-        MarkerStatus = unsaved ? "Marker added. Save your changes to write to your save."
-            : !SaveSessionManager.IsSaveLoaded ? "Load a save to add a marker."
+        MarkerStatus = unsaved ? "Save Beacon placed. Save your changes to write to your save."
+            : !SaveSessionManager.IsSaveLoaded ? "Load a save to place a Save Beacon."
             : marked && GameProcessMonitorService.IsGameRunning
-                ? "Marked in save. Close No Man's Sky to mark again."
-            : marked ? "Marked in save."
-            : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to add a marker."
-            : "Adds an in-game HUD marker leading directly to this hotspot.";
+                ? "Save Beacon placed in save. Close No Man's Sky to remove."
+            : marked ? "Save Beacon placed in save. Click Remove to take it out."
+            : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to place a Save Beacon."
+            : "Places an in-game Save Beacon at this extraction hotspot.";
     }
 
     [RelayCommand]
-    public async Task AddMarkerAsync()
+    public void TogglePin()
     {
-        var centre = await PlanetCentreService.GetAsync(Hotspot.PlanetAddress);
-        if (centre is not { } c) return;
+        IsPinned = !IsPinned;
+        _onPinnedChanged?.Invoke(this);
+    }
 
-        double x = c.X + Hotspot.LocalPosition.X;
-        double y = c.Y + Hotspot.LocalPosition.Y;
-        double z = c.Z + Hotspot.LocalPosition.Z;
-
-        ScanMarkerService.Add(Hotspot.PlanetAddress, Hotspot.CandidateKey, x, y, z, 1, "HOTSPOT", "Hotspot");
+    [RelayCommand]
+    public void AddMarker()
+    {
+        SaveBeaconService.Add(Hotspot.PlanetAddress, Hotspot.LocalPosition);
+        IsPinned = true;
+        _onPinnedChanged?.Invoke(this);
         Refresh();
     }
 
     [RelayCommand]
     public void UndoMarker()
     {
-        ScanMarkerService.Remove(Hotspot.CandidateKey);
+        SaveBeaconService.Remove(Hotspot.PlanetAddress, Hotspot.LocalPosition);
         Refresh();
     }
 

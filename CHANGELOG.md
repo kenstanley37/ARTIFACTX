@@ -6,7 +6,17 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
-- Planetary Hotspot Clusters & Base Site Optimizer: Planet Details can now locate multi-hotspot clusters (Power + Mineral, Power + Gas, and 3-way Trifectas) reachable from a single base. Calculates the mathematically optimal Base Computer coordinates to bring all extraction sites within simultaneous range, with search, sorting (nearest to you, closest to portal, class, name), and one-click actions to stage an in-game HUD marker right at the optimal base site.
+- Planetary Hotspot Clusters & Base Site Optimizer: Planet Details can now locate multi-hotspot clusters (Power + Mineral, Power + Gas, and 3-way Trifectas) reachable from a single base. Calculates the mathematically optimal Base Computer coordinates to bring all extraction sites within simultaneous range, with search, sorting (nearest to you, closest to portal, class, name), and one-click actions to place a Save Beacon right at the optimal base site.
+
+### Changed
+
+- Planet Details POI Layout: Converted Portal, Crashed Ships, and Cabinet Multi-Tools from 100% full-width folding sections into compact responsive cards. They now render side-by-side in a responsive row, saving over 200px of vertical scrolling space while matching the 370px card format of the located sites and hotspots grids.
+
+### Fixed
+
+- Planetary Hotspots & Base Beacons: Resolved Save Beacon elevation calculations by evaluating procedural terrain elevation (`PlanetTerrain.Height`) so placed beacons sit cleanly above the planetary surface (~3m clearance) rather than spawning underground inside procedural bedrock. Added full "Remove" support directly on hotspot and cluster cards to delete and clean up any placed beacons from your save.
+- Planetary Hotspots & Base Sites: Replaced scan event markers with physical in-game Save Beacons (`^BUILDBEACON`) placed directly at the optimal Base Computer and hotspot coordinates. In No Man's Sky, scan events on open terrain are ignored by the game engine, while placed Save Beacons render directly in the world and produce a permanent star HUD waypoint visible across the system.
+- Planetary Hotspots Selection: Fixed radio buttons resetting and hiding all hotspot/cluster cards whenever a game save or landing occurred, preserving your active view mode and filter choices across save reloads.
 - Galaxy Exploration & Presence Tracking: Galaxy Transfer now scans your bases, settlements, teleport network space stations, and system discoveries across all 256 galaxies. View base counts, space stations, and unvisited status badges on each galaxy, with 1-click filter tabs to isolate unvisited galaxies, visited galaxies, or those with active bases and space stations.
 
 - Planetary Hotspot Locator: Planet Details now predicts and lists all deep-level resource hotspots (Electromagnetic Power, Minerals, and Gases) in your vicinity using the game's procedural algorithms. View S/A/B/C classes, resource types, extraction yields, Survey Device range, visor coordinates, and distance from your position (or portal), with one-click actions to stage navigation markers into your save.
@@ -257,6 +267,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Ship Designer: Add, Apply and Repaint wait until No Man's Sky is closed, so changes can't be lost to the game's autosave.
 - Starships shows how many of your starship slots are used, with the empty ones as placeholders (click one to open the Ship Designer). The Ship Designer shows slots used and free (e.g. "7/12 ship slots used · 5 free") before you add a ship.
 - The Ship Designer works in narrower windows: the layout rearranges and the page scrolls.
+- **Planetary hotspots**: pin individual resource or multi-hotspot combo cards to keep them visible at the top of the grid while exploring. Pinned cards feature a glowing accent border and stay in place as you move across the planet.
+- **Save Beacons at hotspots**: placed beacons now match the planet's actual terrain elevation, bringing the in-game HUD marker down from the sky to ground level.
 - **Bases page** is grouped into Freighter, Planet bases, Claimed space stations, Settlements and Placed objects, each of which folds away. **Open** on a base shows its parts on a page of its own, and locations include the galaxy region. Bases is now in the Save Editor group, above Base Storage.
 - **Deleting bases and placed objects**: on the Bases page, select planet bases or loose placed objects (save beacons, refiners and so on) and delete them. On a base's own page, delete every part of a kind, or the whole base with **Delete base…**. Each asks you to confirm and lists what goes; the save is backed up before it's written. Your freighter, claimed stations and settlements can't be deleted here.
 - Each planet opens on a **page of its own** from Current System.

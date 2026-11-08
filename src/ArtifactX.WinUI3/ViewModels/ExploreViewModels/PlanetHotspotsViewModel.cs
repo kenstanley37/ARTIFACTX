@@ -16,6 +16,9 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 {
     private readonly List<PlanetHotspotItemViewModel> _all = new();
     private readonly List<PlanetHotspotClusterItemViewModel> _allClusters = new();
+    private readonly HashSet<ulong> _pinnedClusterKeys = new();
+    private readonly HashSet<ulong> _pinnedHotspotKeys = new();
+
     private ulong _currentPlanetAddress;
     private double _currentLat;
     private double _currentLon;
@@ -32,11 +35,14 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
     [ObservableProperty] public partial string TotalCountLabel { get; private set; } = "";
     [ObservableProperty] public partial string ClusterCountLabel { get; private set; } = "";
 
+    private int _activeViewModeIndex = 0;
+    private int _activeFilterIndex = 0;
+
     // View Mode: 0 = All Sites, 1 = Base Clusters & Combos
     [ObservableProperty] public partial int SelectedViewModeIndex { get; set; } = 0;
     [ObservableProperty] public partial bool IsSingleSitesView { get; private set; } = true;
     [ObservableProperty] public partial bool IsClustersView { get; private set; } = false;
-    [ObservableProperty] public partial IReadOnlyList<string> ViewModeChoices { get; private set; } = ["All Sites", "Base Clusters & Combos"];
+    public ObservableCollection<string> ViewModeChoices { get; } = new(["All Sites", "Base Combos & Clusters"]);
 
     // Search and Sort
     [ObservableProperty] public partial string SearchText { get; set; } = "";
@@ -46,8 +52,7 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
     [ObservableProperty] public partial IReadOnlyList<string> SortChoices { get; private set; } =
         ["Distance: Nearest First", "Portal: Closest to Portal", "Quality: Class (S → C)", "Resource: Name (A-Z)"];
 
-    [ObservableProperty] public partial IReadOnlyList<string> FilterChoices { get; private set; } =
-        ["All", "⚡ Power", "⛏ Mineral", "☁ Gas", "★ S-Class"];
+    public ObservableCollection<string> FilterChoices { get; } = new(["All", "⚡ Power", "⛏ Mineral", "☁ Gas", "★ S-Class"]);
 
     [ObservableProperty] public partial string AllFilterLabel { get; private set; } = "All";
     [ObservableProperty] public partial string PowerFilterLabel { get; private set; } = "⚡ Power";
@@ -57,6 +62,13 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 
     partial void OnSelectedViewModeIndexChanged(int value)
     {
+        if (value < 0)
+        {
+            if (SelectedViewModeIndex != _activeViewModeIndex)
+                SelectedViewModeIndex = _activeViewModeIndex;
+            return;
+        }
+        _activeViewModeIndex = value;
         IsSingleSitesView = value == 0;
         IsClustersView = value == 1;
         ApplyFiltersAndSorting();
@@ -64,6 +76,13 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 
     partial void OnSelectedFilterIndexChanged(int value)
     {
+        if (value < 0)
+        {
+            if (SelectedFilterIndex != _activeFilterIndex)
+                SelectedFilterIndex = _activeFilterIndex;
+            return;
+        }
+        _activeFilterIndex = value;
         ApplyFiltersAndSorting();
     }
 
@@ -74,6 +93,26 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 
     partial void OnSearchTextChanged(string value)
     {
+        ApplyFiltersAndSorting();
+    }
+
+    private void OnClusterPinnedChanged(PlanetHotspotClusterItemViewModel item)
+    {
+        if (item.IsPinned)
+            _pinnedClusterKeys.Add(item.Cluster.ClusterKey);
+        else
+            _pinnedClusterKeys.Remove(item.Cluster.ClusterKey);
+
+        ApplyFiltersAndSorting();
+    }
+
+    private void OnHotspotPinnedChanged(PlanetHotspotItemViewModel item)
+    {
+        if (item.IsPinned)
+            _pinnedHotspotKeys.Add(item.Hotspot.CandidateKey);
+        else
+            _pinnedHotspotKeys.Remove(item.Hotspot.CandidateKey);
+
         ApplyFiltersAndSorting();
     }
 
@@ -88,11 +127,24 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
         double? portalLat = null,
         double? portalLon = null)
     {
-        // Avoid reload if already on the same planet and coordinates haven't shifted significantly (< 50 meters)
-        if (_currentPlanetAddress == planetAddress
-            && _all.Count > 0
-            && Math.Abs(_currentLat - centerLat) < 0.0005
-            && Math.Abs(_currentLon - centerLon) < 0.0005)
+        // Calculate distance shifted to avoid scrambling cards while walking locally (< 300 meters)
+        double movedMeters = double.MaxValue;
+        if (_currentPlanetAddress == planetAddress && _all.Count > 0)
+        {
+            double lat1 = _currentLat * Math.PI / 180.0;
+            double lon1 = _currentLon * Math.PI / 180.0;
+            double lat2 = centerLat * Math.PI / 180.0;
+            double lon2 = centerLon * Math.PI / 180.0;
+            double dLat = lat2 - lat1;
+            double dLon = lon2 - lon1;
+            double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                       Math.Cos(lat1) * Math.Cos(lat2) *
+                       Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            movedMeters = c * 98304.0;
+        }
+
+        if (_currentPlanetAddress == planetAddress && _all.Count > 0 && movedMeters < 300.0)
         {
             RefreshMarkers();
             return;
@@ -111,13 +163,17 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 
         try
         {
-            var detected = await PlanetHotspotService.GetHotspotsAsync(planetAddress, centerLat, centerLon, expandSearch: true, portalLat, portalLon);
+            var data = await PlanetHotspotService.GetHotspotDataAsync(planetAddress, centerLat, centerLon, expandSearch: true, portalLat, portalLon);
             if (_currentPlanetAddress != planetAddress) return; // Switched planets meanwhile
 
             _all.Clear();
-            foreach (var h in detected)
+            foreach (var h in data.Hotspots)
             {
-                _all.Add(new PlanetHotspotItemViewModel(h));
+                var item = new PlanetHotspotItemViewModel(h, OnHotspotPinnedChanged)
+                {
+                    IsPinned = _pinnedHotspotKeys.Contains(h.CandidateKey)
+                };
+                _all.Add(item);
             }
 
             int allCount = _all.Count;
@@ -132,23 +188,36 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
             GasFilterLabel = $"☁ Gas ({gasCount})";
             SClassFilterLabel = $"★ S-Class ({sCount})";
 
-            FilterChoices = [AllFilterLabel, PowerFilterLabel, MineralFilterLabel, GasFilterLabel, SClassFilterLabel];
-
-            // Calculate multi-hotspot clusters / combos within base reach
-            var detectedClusters = PlanetHotspotService.FindClusters(detected, maxBaseRadius: 375.0, maxSpan: 650.0, portalLat: portalLat, portalLon: portalLon);
-            _allClusters.Clear();
-            foreach (var c in detectedClusters)
+            if (FilterChoices.Count >= 5)
             {
-                _allClusters.Add(new PlanetHotspotClusterItemViewModel(c));
+                FilterChoices[0] = AllFilterLabel;
+                FilterChoices[1] = PowerFilterLabel;
+                FilterChoices[2] = MineralFilterLabel;
+                FilterChoices[3] = GasFilterLabel;
+                FilterChoices[4] = SClassFilterLabel;
+            }
+
+            // Populate multi-hotspot clusters / combos within base reach
+            _allClusters.Clear();
+            foreach (var c in data.Clusters)
+            {
+                var item = new PlanetHotspotClusterItemViewModel(c, OnClusterPinnedChanged)
+                {
+                    IsPinned = _pinnedClusterKeys.Contains(c.ClusterKey)
+                };
+                _allClusters.Add(item);
             }
 
             int clusterCount = _allClusters.Count;
             int trifectaCount = _allClusters.Count(c => c.ComboType == HotspotComboType.Trifecta);
 
-            ViewModeChoices = [
-                $"All Sites ({allCount})",
-                trifectaCount > 0 ? $"Base Combos ({clusterCount} · {trifectaCount} Trifecta)" : $"Base Combos ({clusterCount})"
-            ];
+            string mode0 = $"All Sites ({allCount})";
+            string mode1 = trifectaCount > 0 ? $"Base Combos ({clusterCount} · {trifectaCount} Trifecta)" : $"Base Combos ({clusterCount})";
+            if (ViewModeChoices.Count >= 2)
+            {
+                ViewModeChoices[0] = mode0;
+                ViewModeChoices[1] = mode1;
+            }
 
             TotalCountLabel = $"{allCount} hotspots detected within survey range.";
             ClusterCountLabel = clusterCount > 0
@@ -157,6 +226,10 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 
             HasHotspots = allCount > 0;
             HasClusters = clusterCount > 0;
+
+            // Ensure view mode is applied to single sites or clusters
+            IsSingleSitesView = SelectedViewModeIndex == 0;
+            IsClustersView = SelectedViewModeIndex == 1;
 
             ApplyFiltersAndSorting();
         }
@@ -196,10 +269,18 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 
         query = SelectedSortIndex switch
         {
-            1 => query.OrderBy(h => h.Hotspot.PortalDistance ?? double.MaxValue).ThenBy(h => h.Distance),
-            2 => query.OrderByDescending(h => h.ClassGrade).ThenByDescending(h => h.YieldPercent).ThenBy(h => h.Distance),
-            3 => query.OrderBy(h => h.ResourceName).ThenBy(h => h.Distance),
-            _ => query.OrderBy(h => h.Distance)
+            1 => query.OrderBy(h => h.IsPinned ? 0 : (h.IsMarked ? 1 : 2))
+                      .ThenBy(h => h.Hotspot.PortalDistance ?? double.MaxValue)
+                      .ThenBy(h => h.Distance),
+            2 => query.OrderBy(h => h.IsPinned ? 0 : (h.IsMarked ? 1 : 2))
+                      .ThenByDescending(h => h.ClassGrade)
+                      .ThenByDescending(h => h.YieldPercent)
+                      .ThenBy(h => h.Distance),
+            3 => query.OrderBy(h => h.IsPinned ? 0 : (h.IsMarked ? 1 : 2))
+                      .ThenBy(h => h.ResourceName)
+                      .ThenBy(h => h.Distance),
+            _ => query.OrderBy(h => h.IsPinned ? 0 : (h.IsMarked ? 1 : 2))
+                      .ThenBy(h => h.Distance)
         };
 
         Hotspots.Clear();
@@ -220,10 +301,18 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 
         clusterQuery = SelectedSortIndex switch
         {
-            1 => clusterQuery.OrderBy(c => c.Cluster.PortalDistance ?? double.MaxValue).ThenBy(c => c.MaxRadius),
-            2 => clusterQuery.OrderByDescending(c => c.Hotspots.Sum(h => h.ClassGrade)).ThenBy(c => c.MaxRadius),
-            3 => clusterQuery.OrderBy(c => c.Title).ThenBy(c => c.MaxRadius),
-            _ => clusterQuery.OrderBy(c => c.IsTrifecta ? 0 : 1).ThenBy(c => c.MaxRadius)
+            1 => clusterQuery.OrderBy(c => c.IsPinned ? 0 : (c.IsMarked ? 1 : 2))
+                             .ThenBy(c => c.Cluster.PortalDistance ?? double.MaxValue)
+                             .ThenBy(c => c.MaxRadius),
+            2 => clusterQuery.OrderBy(c => c.IsPinned ? 0 : (c.IsMarked ? 1 : 2))
+                             .ThenByDescending(c => c.Hotspots.Sum(h => h.ClassGrade))
+                             .ThenBy(c => c.MaxRadius),
+            3 => clusterQuery.OrderBy(c => c.IsPinned ? 0 : (c.IsMarked ? 1 : 2))
+                             .ThenBy(c => c.Title)
+                             .ThenBy(c => c.MaxRadius),
+            _ => clusterQuery.OrderBy(c => c.IsPinned ? 0 : (c.IsMarked ? 1 : 2))
+                             .ThenBy(c => c.IsTrifecta ? 0 : 1)
+                             .ThenBy(c => c.MaxRadius)
         };
 
         Clusters.Clear();

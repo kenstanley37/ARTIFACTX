@@ -36,7 +36,7 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- View Mode Selector: All Sites vs Base Clusters -->
-                    <RadioButtons ItemsSource="{x:Bind ViewModel.ViewModeChoices, Mode=OneWay}"
+                    <RadioButtons ItemsSource="{x:Bind ViewModel.ViewModeChoices}"
                                   SelectedIndex="{x:Bind ViewModel.SelectedViewModeIndex, Mode=TwoWay}"
                                   MaxColumns="2" VerticalAlignment="Center"
                                   AutomationProperties.Name="Switch between individual sites and multi-hotspot base clusters"/>
@@ -58,7 +58,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center"
                             Visibility="{x:Bind ViewModel.IsSingleSitesView, Mode=OneWay}">
                     <RadioButtons Header="Filter" MaxColumns="5"
-                                  ItemsSource="{x:Bind ViewModel.FilterChoices, Mode=OneWay}"
+                                  ItemsSource="{x:Bind ViewModel.FilterChoices}"
                                   SelectedIndex="{x:Bind ViewModel.SelectedFilterIndex, Mode=TwoWay}"
                                   AutomationProperties.Name="Filter hotspots by type or class"/>
                 </StackPanel>
@@ -82,23 +82,24 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="explore:PlanetHotspotItemViewModel">
-                            <Border Width="370" Padding="14,12" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
-                                    Background="{ThemeResource ThemeVoidBrush}"
-                                    BorderBrush="{ThemeResource ThemeLineBrush}"
-                                    BorderThickness="1">
+                            <Border Width="370" MinHeight="185" Padding="14,12" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                                    Background="{x:Bind CardBackground, Mode=OneWay}"
+                                    BorderBrush="{x:Bind CardBorderBrush, Mode=OneWay}"
+                                    BorderThickness="{x:Bind CardBorderThickness, Mode=OneWay}">
                                 <Grid RowSpacing="10">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <!-- Top Row: Category Icon & Badge, Coordinates -->
+                                    <!-- Top Row: Category Icon & Badge, Coordinates, Pin -->
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
 
                                         <!-- Kind Badge -->
@@ -121,6 +122,20 @@
                                                        VerticalAlignment="Center" IsTextSelectionEnabled="True"/>
                                             <controls:CopyCodeButton Code="{x:Bind Coordinates}" Padding="6,2" Content="Copy" FontSize="11"/>
                                         </StackPanel>
+
+                                        <!-- Pin Button -->
+                                        <Button Grid.Column="2" Command="{x:Bind TogglePinCommand}" Padding="6,2" FontSize="11"
+                                                Background="{x:Bind PinButtonBackground, Mode=OneWay}"
+                                                BorderBrush="{x:Bind PinButtonBorderBrush, Mode=OneWay}"
+                                                BorderThickness="1"
+                                                ToolTipService.ToolTip="{x:Bind PinTooltip, Mode=OneWay}"
+                                                AutomationProperties.Name="{x:Bind PinTooltip, Mode=OneWay}">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <FontIcon Glyph="&#xE718;" FontSize="11" Foreground="{x:Bind PinForeground, Mode=OneWay}"/>
+                                                <TextBlock Text="{x:Bind PinButtonText, Mode=OneWay}" FontSize="11"
+                                                           Foreground="{x:Bind PinForeground, Mode=OneWay}"/>
+                                            </StackPanel>
+                                        </Button>
                                     </Grid>
 
                                     <!-- Middle Row: Class Badge + Resource Name -->
@@ -153,11 +168,13 @@
                                                 IsEnabled="{x:Bind CanAddMarker, Mode=OneWay}"
                                                 HorizontalAlignment="Stretch"
                                                 ToolTipService.ToolTip="{x:Bind MarkerStatus, Mode=OneWay}"
-                                                AutomationProperties.Name="Add marker to save"/>
-                                        <Button Grid.Column="1" Content="Undo"
+                                                AutomationProperties.Name="Place Save Beacon in save"/>
+                                        <Button Grid.Column="1" Content="{x:Bind RemoveButtonText, Mode=OneWay}"
                                                 Command="{x:Bind UndoMarkerCommand}"
                                                 Visibility="{x:Bind CanUndoMarker, Mode=OneWay}"
-                                                AutomationProperties.Name="Undo hotspot marker"/>
+                                                IsEnabled="{x:Bind CanRemoveMarker, Mode=OneWay}"
+                                                ToolTipService.ToolTip="{x:Bind MarkerStatus, Mode=OneWay}"
+                                                AutomationProperties.Name="Remove Save Beacon"/>
                                     </Grid>
                                 </Grid>
                             </Border>
@@ -175,19 +192,19 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="explore:PlanetHotspotClusterItemViewModel">
-                            <Border Width="460" Padding="16,14" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
-                                    Background="{ThemeResource ThemeVoidBrush}"
-                                    BorderBrush="{x:Bind CardBorderBrush}"
-                                    BorderThickness="{x:Bind CardBorderThickness}">
+                            <Border Width="460" MinHeight="265" Padding="16,14" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                                    Background="{x:Bind CardBackground, Mode=OneWay}"
+                                    BorderBrush="{x:Bind CardBorderBrush, Mode=OneWay}"
+                                    BorderThickness="{x:Bind CardBorderThickness, Mode=OneWay}">
                                 <Grid RowSpacing="12">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <!-- Header: Combo Badge, Glyph, and Base Coords -->
+                                    <!-- Header: Combo Badge, Glyph, Base Coords, Pin, Copy -->
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
@@ -206,8 +223,22 @@
                                             </StackPanel>
                                         </Border>
 
-                                        <!-- Optimal Base Coordinates -->
+                                        <!-- Optimal Base Coordinates + Pin + Copy -->
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <!-- Pin Button -->
+                                            <Button Command="{x:Bind TogglePinCommand}" Padding="6,2" FontSize="11"
+                                                    Background="{x:Bind PinButtonBackground, Mode=OneWay}"
+                                                    BorderBrush="{x:Bind PinButtonBorderBrush, Mode=OneWay}"
+                                                    BorderThickness="1"
+                                                    ToolTipService.ToolTip="{x:Bind PinTooltip, Mode=OneWay}"
+                                                    AutomationProperties.Name="{x:Bind PinTooltip, Mode=OneWay}">
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <FontIcon Glyph="&#xE718;" FontSize="11" Foreground="{x:Bind PinForeground, Mode=OneWay}"/>
+                                                    <TextBlock Text="{x:Bind PinButtonText, Mode=OneWay}" FontSize="11"
+                                                               Foreground="{x:Bind PinForeground, Mode=OneWay}"/>
+                                                </StackPanel>
+                                            </Button>
+
                                             <FontIcon Glyph="&#xE7F4;" FontSize="11" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
                                             <TextBlock Text="{x:Bind BaseCoordinates}" FontSize="12" FontWeight="Bold"
                                                        FontFamily="{ThemeResource ThemeDisplayFont}"
@@ -218,7 +249,7 @@
                                     </Grid>
 
                                     <!-- Hotspot Rows in this Combo -->
-                                    <ItemsControl Grid.Row="1" ItemsSource="{x:Bind Hotspots}">
+                                    <ItemsControl Grid.Row="1" ItemsSource="{x:Bind Hotspots}" MinHeight="84" VerticalAlignment="Top">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="explore:PlanetHotspotItemViewModel">
                                                 <Grid Padding="0,3" ColumnSpacing="8">
@@ -254,8 +285,8 @@
                                     <!-- Optimal Base Computer Site Summary Box -->
                                     <Border Grid.Row="2" Background="{ThemeResource ThemePanelAltBrush}"
                                             BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                                            Padding="10,8" CornerRadius="4">
-                                        <StackPanel Spacing="3">
+                                            Padding="10,8" CornerRadius="4" MinHeight="54">
+                                        <StackPanel Spacing="3" VerticalAlignment="Center">
                                             <TextBlock Text="{x:Bind ReachDescription}" FontSize="11"
                                                        Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
                                             <TextBlock Text="{x:Bind PortalDistanceLabel}" FontSize="11"
@@ -265,7 +296,7 @@
                                     </Border>
 
                                     <!-- Actions Row: Add Base Marker / Undo -->
-                                    <Grid Grid.Row="3" ColumnSpacing="8">
+                                    <Grid Grid.Row="3" ColumnSpacing="8" VerticalAlignment="Bottom">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
@@ -275,11 +306,13 @@
                                                 IsEnabled="{x:Bind CanAddMarker, Mode=OneWay}"
                                                 HorizontalAlignment="Stretch"
                                                 ToolTipService.ToolTip="{x:Bind MarkerStatus, Mode=OneWay}"
-                                                AutomationProperties.Name="Add optimal base computer marker to save"/>
-                                        <Button Grid.Column="1" Content="Undo"
+                                                AutomationProperties.Name="Place Save Beacon at optimal base computer site"/>
+                                        <Button Grid.Column="1" Content="{x:Bind RemoveButtonText, Mode=OneWay}"
                                                 Command="{x:Bind UndoMarkerCommand}"
                                                 Visibility="{x:Bind CanUndoMarker, Mode=OneWay}"
-                                                AutomationProperties.Name="Undo base computer marker"/>
+                                                IsEnabled="{x:Bind CanRemoveMarker, Mode=OneWay}"
+                                                ToolTipService.ToolTip="{x:Bind MarkerStatus, Mode=OneWay}"
+                                                AutomationProperties.Name="Remove Save Beacon"/>
                                     </Grid>
                                 </Grid>
                             </Border>
