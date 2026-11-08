@@ -35,6 +35,10 @@
                 <TextBlock Text="{x:Bind Creature.Name, Mode=OneWay}" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}"
                            IsTextSelectionEnabled="True" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+                    <Button x:Name="View3DModelBtn" Click="View3DModel_Click" Padding="6,4" Background="Transparent" BorderThickness="0"
+                            ToolTipService.ToolTip="View 3D creature model" AutomationProperties.Name="View 3D creature model">
+                        <FontIcon Glyph="&#xE91B;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                    </Button>
                     <Button x:Name="RetakeBtn" Click="Capture_Click" Padding="6,4" Background="Transparent" BorderThickness="0"
                             Visibility="{x:Bind Creature.CanCapture, Mode=OneWay}"
                             ToolTipService.ToolTip="Take or update its picture from the game screen" AutomationProperties.Name="Take picture">

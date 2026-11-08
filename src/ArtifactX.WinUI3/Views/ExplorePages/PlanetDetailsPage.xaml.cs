@@ -85,6 +85,11 @@ public sealed partial class PlanetDetailsPage : Page
         if (await dialog.ShowAsync() == ContentDialogResult.Primary) ViewModel.DeleteCreature(request.Creature);
     }
 
+    private async void Creature_Preview3DRequested(object? sender, CreatureCardRequest request)
+    {
+        await CreaturePreviewControl.ShowAsync(XamlRoot, request.Creature.Creature);
+    }
+
     private void PlanetEquipment_CrashedShipsRequested(object? sender, EventArgs e)
     {
         Frame.Navigate(typeof(CrashedShipsPage), ViewModel.Planet?.Address);

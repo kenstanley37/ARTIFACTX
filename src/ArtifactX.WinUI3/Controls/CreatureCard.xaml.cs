@@ -25,7 +25,21 @@ public sealed partial class CreatureCard : UserControl
     /// <summary>"Remove" was clicked.</summary>
     public event EventHandler<CreatureCardRequest>? DeleteRequested;
 
+    /// <summary>"View 3D model" was clicked.</summary>
+    public event EventHandler<CreatureCardRequest>? Preview3DRequested;
+
     public CreatureCard() => InitializeComponent();
+
+    private async void View3DModel_Click(object sender, RoutedEventArgs e)
+    {
+        if (Creature is { } creature)
+        {
+            if (Preview3DRequested is not null)
+                Preview3DRequested.Invoke(this, new(creature, (FrameworkElement)sender));
+            else
+                await CreaturePreviewControl.ShowAsync(XamlRoot, creature.Creature);
+        }
+    }
 
     private void Capture_Click(object sender, RoutedEventArgs e)
     {

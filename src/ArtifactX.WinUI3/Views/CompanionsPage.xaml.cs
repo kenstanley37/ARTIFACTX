@@ -107,6 +107,55 @@ public sealed partial class CompanionsPage : Page
         if (version != _loadVersion) return;
         ShowSeeds(index);
         ShowResetButton();
+        _ = ShowCompanionPreviewAsync(index, version);
+    }
+
+    private string? _previewKey;
+
+    private async Task ShowCompanionPreviewAsync(int index, int version)
+    {
+        if (index < 0)
+        {
+            CompanionPreviewGroup.Visibility = Visibility.Collapsed;
+            _previewKey = null;
+            return;
+        }
+
+        string? archetype = (string?)SaveSessionManager.GetValue(NmsCompanionPaths.SpeciesArchetypePath(index));
+        var oslToken = SaveSessionManager.GetValue(NmsCompanionPaths.DescriptorsPath(index));
+        var descriptors = new List<string>();
+        if (oslToken is Newtonsoft.Json.Linq.JArray osl)
+        {
+            foreach (var item in osl)
+            {
+                var val = (string?)item;
+                if (!string.IsNullOrEmpty(val)) descriptors.Add(val);
+            }
+        }
+
+        string? rig = await CreatureModelService.ResolveRigAsync(archetype, descriptors);
+        if (version != _loadVersion) return;
+
+        if (string.IsNullOrEmpty(rig))
+        {
+            CompanionPreviewGroup.Visibility = Visibility.Collapsed;
+            _previewKey = null;
+            return;
+        }
+
+        string key = $"{index}|{rig}|{string.Join(",", descriptors)}";
+        if (key == _previewKey) return;
+        _previewKey = key;
+
+        CompanionPreviewGroup.Visibility = Visibility.Visible;
+        if (!string.IsNullOrEmpty(ViewModel.SpeciesName))
+            CompanionPreviewTitle.Text = ViewModel.SpeciesName.ToUpperInvariant();
+        else if (!string.IsNullOrEmpty(ViewModel.Species))
+            CompanionPreviewTitle.Text = ViewModel.Species.ToUpperInvariant();
+        else
+            CompanionPreviewTitle.Text = "COMPANION 3D PREVIEW";
+
+        await CompanionPreview.ShowCreatureAsync(rig, descriptors);
     }
 
     private void ShowResetButton() =>
@@ -133,6 +182,7 @@ public sealed partial class CompanionsPage : Page
     /// <summary>Undoes every staged change to the selected pet (and only that pet).</summary>
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
+        _previewKey = null;
         if (_selectedIndex >= 0) SaveSessionManager.RevertEditsUnder(NmsCompanionPaths.CompanionPath(_selectedIndex));
         PageResetBtn.Visibility = Visibility.Collapsed;
         LoadCompanionList();

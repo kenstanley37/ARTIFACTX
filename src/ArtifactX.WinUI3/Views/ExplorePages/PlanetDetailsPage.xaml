@@ -281,7 +281,7 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="explore:CreatureCardViewModel">
-                                            <controls:CreatureCard Creature="{x:Bind}" CaptureRequested="Creature_CaptureRequested" DeleteRequested="Creature_DeleteRequested"/>
+                                            <controls:CreatureCard Creature="{x:Bind}" CaptureRequested="Creature_CaptureRequested" DeleteRequested="Creature_DeleteRequested" Preview3DRequested="Creature_Preview3DRequested"/>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
