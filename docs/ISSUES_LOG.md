@@ -519,10 +519,14 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Direction**: build a per-item "how to get it" source from extracted game data: expedition rewards (catalog format 60), Twitch rewards, the Quicksilver and Anomaly shop and construction-terminal unlock trees (GcUnlockableTrees), platform rewards and recipes. Show it beside each item on the unlock pages. Unknown sources stay marked unknown.
 
 ### Feature 60: Travel to Any Galaxy
-- **Source**: Owner, 2026-11-03 (future feature).
-- **Request**: Let the player move a save to any of the game's 256 galaxies, arriving somewhere safe such as a space station.
-- **Known so far**: ArtifactX already reads the galaxy as part of the save's current universe address (Finds and Near the Core show "Budullangr (7)" from it) and lists all 256 galaxies by name in the Finds form.
-- **Needs before building**: a controlled Slot 8 diff of a real galaxy change in game (for example via the Atlas or a portal) to see every field it touches - the current address, the player's position and state, and anything the game keeps per galaxy - and an in-game check that an edited save loads at the chosen station. Never write while the game is running; stage the change like other edits.
+- **Source**: Owner, 2026-11-03 and 2026-11-07: "I would like a page for galaxy transfer. Allow the user to choose any galaxy 0 through 256 I think and place them in a system near the core (doesn't have to extermely close) in a spacestation."
+- **Status 2026-11-07**: Built on branch `feature/galaxy-transfer`.
+- **Implementation**:
+  - `src/ArtifactX.Core/NmsModels/NmsGalaxyInfo.cs`: Full 256 galaxy database with names from `NmsGalaxyNames`, classification mathematical sequence (25 Lush, 26 Harsh, 26 Empty, 179 Normal), and gateway core destination coordinates (`X: 7, Y: -8, Z: -9`, system index `407`, ~5,571 LY from the galactic core, portal glyphs `1197777F8808`).
+  - `src/ArtifactX.WinUI3/Services/GalaxyTransferService.cs`: Stages edits to `CurrentUniverseAddressPath` (`yhJ`), `LocationDescriptionPath` (`n:R`), spawn state `SpawnStatePath` (`vLc.rnc` with `jk4: "InStation"`, docking walkway player position `mEH`, landing pad starship position `tnP`), and registers the station teleport endpoint in `nlG` via `SpaceStationService.EnsureStationMarkerStaged`.
+  - `src/ArtifactX.WinUI3/ViewModels/ExploreViewModels/GalaxyTransferViewModel.cs`: Search/filter by name or number (1..256), classification filter buttons (All, Lush, Harsh, Empty, Normal), current galaxy telemetry, and staging status.
+  - `src/ArtifactX.WinUI3/Views/ExplorePages/GalaxyTransferPage.xaml`: Two-column layout with galaxy browser, detailed destination card, core proximity facts, copy portal glyphs, and confirmation dialog before staging.
+  - Added "Galaxy Transfer" to the Explore section in `MainWindow.xaml`.
 
 ### Bug 61: Cooking Recipes Shows Different Nutrient Ingestor Buffs From the Game
 - **Source**: Owner, 2026-11-03, Slot 8 screenshots.

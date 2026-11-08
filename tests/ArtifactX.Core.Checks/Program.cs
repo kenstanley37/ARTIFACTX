@@ -165,6 +165,17 @@ if (args.Length == 2 && args[0] == "--species-name-vectors")
             $"Region {g}:{rx:X}/{ry:X}/{rz:X} has {regionCount.Ordinary} systems, expected {expected}");
     }
     Console.WriteLine("PASS: region system counts match the game for 12 regions (live, spiral, gap edge, random galaxies).");
+    Require(NmsGalaxyInfo.AllGalaxies.Count == 256, "Must have exactly 256 galaxies");
+    Require(NmsGalaxyInfo.AllGalaxies.Count(g => g.Classification == GalaxyClassification.Lush) == 25, "Must have 25 Lush galaxies");
+    Require(NmsGalaxyInfo.AllGalaxies.Count(g => g.Classification == GalaxyClassification.Harsh) == 26, "Must have 26 Harsh galaxies");
+    Require(NmsGalaxyInfo.AllGalaxies.Count(g => g.Classification == GalaxyClassification.Empty) == 26, "Must have 26 Empty galaxies");
+    Require(NmsGalaxyInfo.AllGalaxies.Count(g => g.Classification == GalaxyClassification.Normal) == 179, "Must have 179 Normal galaxies");
+    Require(NmsGalaxyInfo.Get(1)?.Classification == GalaxyClassification.Normal, "Euclid must be Normal");
+    Require(NmsGalaxyInfo.Get(3)?.Classification == GalaxyClassification.Harsh, "Calypso must be Harsh");
+    Require(NmsGalaxyInfo.Get(7)?.Classification == GalaxyClassification.Empty, "Budullangr must be Empty");
+    Require(NmsGalaxyInfo.Get(10)?.Classification == GalaxyClassification.Lush, "Eissentam must be Lush");
+    Require(NmsGalaxyInfo.Get(256)?.Classification == GalaxyClassification.Normal, "Odyalutai must be Normal");
+    Console.WriteLine("PASS: galaxy definitions, classifications, and gateway core coordinates for all 256 galaxies.");
     Console.WriteLine("PASS: quality 4/5 high-grade rolls need the chance; SeaTrash rolls do not; only Main establishes the standard roll.");
     Console.WriteLine("PASS: unrelated food accepted; all 11 displayed-stat targets and unknown inputs guarded; saved food identity preserved.");
     Console.WriteLine("PASS: unchanged snapshots, in-place stats, reorder, model replacement, duplicate rejection, and 1000 mixed updates; zero resets.");

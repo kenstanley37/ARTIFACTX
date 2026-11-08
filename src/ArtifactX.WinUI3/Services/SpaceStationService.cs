@@ -390,7 +390,7 @@ public static class SpaceStationService
     /// already has an in-game alliance, stamps it with their alliance ID so it appears under
     /// Alliance Stations. If not, leaves it unaligned [0, 0, 0, 0] so the game presents the
     /// choice to create or join an alliance.</summary>
-    private static void EnsureStationMarkerStaged(ulong systemAddress, string stationName)
+    public static void EnsureStationMarkerStaged(ulong systemAddress, string stationName)
     {
         var origMarkers = SaveSessionManager.GetValue(S.MarkersPath) as JArray ?? new JArray();
         var markers = (JArray)origMarkers.DeepClone();

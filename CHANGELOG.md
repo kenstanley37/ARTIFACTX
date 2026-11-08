@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Galaxy Transfer: A dedicated Galaxy Transfer page under Explore lets you warp your save to any of the 256 galaxies in No Man's Sky. Transfers position you safely on foot inside the space station docking bay next to your starship in a Gateway system near the galactic core (~5,570 light-years away) and automatically register the station in your Teleport Network.
+
 - Planet Fauna 3D Models & Silhouettes: Planet Details now displays 3D models for all planetary creatures before and after scanning. Undiscovered native species predictively generate from the planet's seed and display as sleek 3D mystery silhouettes with rim lighting, transitioning to full anatomical 3D models once discovered in game.
 - Creature 3D Camera: Creature and companion 3D model previews now face towards the player by default with a front three-quarter view, rather than facing away.
 - 3D Creature & Companion Models: Companions page now features an interactive 3D model preview rendered directly from your game install with your pet's active body parts and archetype; planet creature cards now feature a 3D anatomy viewer to inspect planetary fauna and examine 3D rigs.
