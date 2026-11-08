@@ -158,8 +158,7 @@ public static class PlanetTypesService
             int index = i + 1;
             if (known.Contains(index)) continue;
             bool isMoon = bodies.IsMoon(index);
-            ulong seed = index <= bodies.PlanetSeeds.Length ? bodies.PlanetSeeds[index - 1] : 0;
-            bool hasRings = PlanetProfileGenerator.HasRings(seed, isMoon);
+            bool hasRings = !isMoon && PlanetRings.HasRings(portal, galaxy, index);
 
             yield return new KnownPlanet(systemAddress | ((ulong)index << 52), S.GalaxyNumber(systemAddress), index,
                 types[i].Biome, hasRings, "", false, 0) { Predicted = true };
