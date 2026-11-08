@@ -27,20 +27,54 @@
                                   Width="20" Height="20" VerticalAlignment="Center"/>
                 </Grid>
 
-                <!-- Filter Row -->
-                <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                <!-- Mode & Toolbar Row -->
+                <Grid ColumnSpacing="12" RowSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- View Mode Selector: All Sites vs Base Clusters -->
+                    <RadioButtons ItemsSource="{x:Bind ViewModel.ViewModeChoices, Mode=OneWay}"
+                                  SelectedIndex="{x:Bind ViewModel.SelectedViewModeIndex, Mode=TwoWay}"
+                                  MaxColumns="2" VerticalAlignment="Center"
+                                  AutomationProperties.Name="Switch between individual sites and multi-hotspot base clusters"/>
+
+                    <!-- Search Box -->
+                    <TextBox Grid.Column="1" PlaceholderText="Search resources (e.g. Indium, Oxygen, Power...)"
+                             Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             VerticalAlignment="Center" MaxWidth="320" HorizontalAlignment="Right"
+                             AutomationProperties.Name="Search hotspots by resource name"/>
+
+                    <!-- Sort ComboBox -->
+                    <ComboBox Grid.Column="2" ItemsSource="{x:Bind ViewModel.SortChoices}"
+                              SelectedIndex="{x:Bind ViewModel.SelectedSortIndex, Mode=TwoWay}"
+                              VerticalAlignment="Center" MinWidth="180"
+                              AutomationProperties.Name="Sort hotspots"/>
+                </Grid>
+
+                <!-- Filter Row (Single Sites View Only) -->
+                <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center"
+                            Visibility="{x:Bind ViewModel.IsSingleSitesView, Mode=OneWay}">
                     <RadioButtons Header="Filter" MaxColumns="5"
                                   ItemsSource="{x:Bind ViewModel.FilterChoices, Mode=OneWay}"
                                   SelectedIndex="{x:Bind ViewModel.SelectedFilterIndex, Mode=TwoWay}"
                                   AutomationProperties.Name="Filter hotspots by type or class"/>
                 </StackPanel>
 
-                <!-- Status / Count -->
+                <!-- Status / Count Label -->
                 <TextBlock Text="{x:Bind ViewModel.TotalCountLabel, Mode=OneWay}"
+                           Visibility="{x:Bind ViewModel.IsSingleSitesView, Mode=OneWay}"
                            FontSize="12" Foreground="{ThemeResource ThemeTextBrush}"/>
 
-                <!-- Hotspot Cards Grid -->
-                <ItemsControl ItemsSource="{x:Bind ViewModel.Hotspots, Mode=OneWay}">
+                <TextBlock Text="{x:Bind ViewModel.ClusterCountLabel, Mode=OneWay}"
+                           Visibility="{x:Bind ViewModel.IsClustersView, Mode=OneWay}"
+                           FontSize="12" Foreground="{ThemeResource ThemeTextBrush}"/>
+
+                <!-- 1. Single Hotspot Cards Grid -->
+                <ItemsControl ItemsSource="{x:Bind ViewModel.Hotspots, Mode=OneWay}"
+                              Visibility="{x:Bind ViewModel.IsSingleSitesView, Mode=OneWay}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="10"/>
@@ -124,6 +158,128 @@
                                                 Command="{x:Bind UndoMarkerCommand}"
                                                 Visibility="{x:Bind CanUndoMarker, Mode=OneWay}"
                                                 AutomationProperties.Name="Undo hotspot marker"/>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- 2. Multi-Hotspot Base Clusters & Combos Grid -->
+                <ItemsControl ItemsSource="{x:Bind ViewModel.Clusters, Mode=OneWay}"
+                              Visibility="{x:Bind ViewModel.IsClustersView, Mode=OneWay}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <ctcontrols:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="explore:PlanetHotspotClusterItemViewModel">
+                            <Border Width="460" Padding="16,14" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                                    Background="{ThemeResource ThemeVoidBrush}"
+                                    BorderBrush="{x:Bind CardBorderBrush}"
+                                    BorderThickness="{x:Bind CardBorderThickness}">
+                                <Grid RowSpacing="12">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Header: Combo Badge, Glyph, and Base Coords -->
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Combo Title Badge -->
+                                        <Border Background="{ThemeResource ThemePanelAltBrush}"
+                                                BorderBrush="{x:Bind BadgeBrush}"
+                                                BorderThickness="1" Padding="8,3"
+                                                CornerRadius="{ThemeResource ThemeCardCornerRadius}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <FontIcon Glyph="{x:Bind ComboGlyph}" FontSize="12" Foreground="{x:Bind BadgeBrush}"/>
+                                                <TextBlock Text="{x:Bind Title}" FontSize="11" FontWeight="Bold"
+                                                           Foreground="{x:Bind BadgeBrush}"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Optimal Base Coordinates -->
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <FontIcon Glyph="&#xE7F4;" FontSize="11" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{x:Bind BaseCoordinates}" FontSize="12" FontWeight="Bold"
+                                                       FontFamily="{ThemeResource ThemeDisplayFont}"
+                                                       Foreground="{ThemeResource ThemeAccentBrush}"
+                                                       VerticalAlignment="Center" IsTextSelectionEnabled="True"/>
+                                            <controls:CopyCodeButton Code="{x:Bind BaseCoordinates}" Padding="6,2" Content="Copy" FontSize="11"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Hotspot Rows in this Combo -->
+                                    <ItemsControl Grid.Row="1" ItemsSource="{x:Bind Hotspots}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="explore:PlanetHotspotItemViewModel">
+                                                <Grid Padding="0,3" ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- Class Badge -->
+                                                    <Border Background="{x:Bind ClassBrush}" CornerRadius="3" Padding="5,1" VerticalAlignment="Center">
+                                                        <TextBlock Text="{x:Bind ClassBadgeText}" FontSize="10" FontWeight="Bold" Foreground="White"
+                                                                   FontFamily="{ThemeResource ThemeDisplayFont}"/>
+                                                    </Border>
+
+                                                    <!-- Kind Glyph -->
+                                                    <FontIcon Grid.Column="1" Glyph="{x:Bind KindGlyph}" FontSize="12"
+                                                              Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
+
+                                                    <!-- Resource Name -->
+                                                    <TextBlock Grid.Column="2" Text="{x:Bind ResourceName}" FontSize="13" FontWeight="SemiBold"
+                                                               Foreground="{ThemeResource ThemeTextBrush}" VerticalAlignment="Center"/>
+
+                                                    <!-- Yield / Details -->
+                                                    <TextBlock Grid.Column="3" Text="{x:Bind YieldLabel}" FontSize="11"
+                                                               Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!-- Optimal Base Computer Site Summary Box -->
+                                    <Border Grid.Row="2" Background="{ThemeResource ThemePanelAltBrush}"
+                                            BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                                            Padding="10,8" CornerRadius="4">
+                                        <StackPanel Spacing="3">
+                                            <TextBlock Text="{x:Bind ReachDescription}" FontSize="11"
+                                                       Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{x:Bind PortalDistanceLabel}" FontSize="11"
+                                                       Foreground="{ThemeResource ThemeDoneBrush}"
+                                                       Visibility="{x:Bind HasPortalDistance, Mode=OneWay}"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Actions Row: Add Base Marker / Undo -->
+                                    <Grid Grid.Row="3" ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Content="{x:Bind AddMarkerText, Mode=OneWay}"
+                                                Command="{x:Bind AddMarkerCommand}"
+                                                IsEnabled="{x:Bind CanAddMarker, Mode=OneWay}"
+                                                HorizontalAlignment="Stretch"
+                                                ToolTipService.ToolTip="{x:Bind MarkerStatus, Mode=OneWay}"
+                                                AutomationProperties.Name="Add optimal base computer marker to save"/>
+                                        <Button Grid.Column="1" Content="Undo"
+                                                Command="{x:Bind UndoMarkerCommand}"
+                                                Visibility="{x:Bind CanUndoMarker, Mode=OneWay}"
+                                                AutomationProperties.Name="Undo base computer marker"/>
                                     </Grid>
                                 </Grid>
                             </Border>

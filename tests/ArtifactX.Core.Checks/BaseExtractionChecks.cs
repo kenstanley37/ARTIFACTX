@@ -142,6 +142,22 @@ internal static class BaseExtractionChecks
         if (ExtractionStock.DisplayAmount(10033886, new("test", 360000, 250)) != 6750
             || ExtractionStock.DisplayAmount(10134456, new("test", 360000, 250)) != 7000)
             throw new InvalidOperationException("Whole-yield stock conversion differs from the displayed reference.");
+
+        // Test Hotspot Cluster & Combo Finder with Trifecta
+        float planetR = 98304f;
+        var pos1 = new System.Numerics.Vector3(0, 0, planetR);
+        var pos2 = new System.Numerics.Vector3(250, 0, planetR);
+        var pos3 = new System.Numerics.Vector3(125, 216.5f, planetR);
+        var h1 = new ArtifactX.Core.NmsModels.PlanetHotspot(0x100, "Power", "POWER", "Electromagnetic Power", "S", 3, 300, 100, 200, 0, 0, "+0.00, +0.00", 0, "0u", null, null, 1, pos1);
+        var h2 = new ArtifactX.Core.NmsModels.PlanetHotspot(0x100, "Mineral", "IND", "Indium", "A", 2, 200, 80, 200, 0, 0, "+0.00, +0.00", 0, "0u", null, null, 2, pos2);
+        var h3 = new ArtifactX.Core.NmsModels.PlanetHotspot(0x100, "Gas", "OXY", "Oxygen", "B", 1, 100, 60, 200, 0, 0, "+0.00, +0.00", 0, "0u", null, null, 3, pos3);
+
+        var clusters = ArtifactX.Core.NmsModels.PlanetHotspotCluster.Find([h1, h2, h3], maxBaseRadius: 350.0, maxSpan: 600.0);
+        if (clusters.Count == 0 || clusters[0].ComboType != ArtifactX.Core.NmsModels.HotspotComboType.Trifecta)
+            throw new InvalidOperationException("Failed to discover Trifecta hotspot cluster.");
+        if (clusters[0].MaxRadius > 160)
+            throw new InvalidOperationException($"Trifecta base reach radius {clusters[0].MaxRadius} exceeded expected ~145u.");
+        Console.WriteLine($"PASS: hotspot cluster finder identified {clusters.Count} valid combos; top cluster is {clusters[0].Title} with optimal Base Computer reach {clusters[0].MaxRadius:F1}u.");
     }
 
     public static void Reference(string path)
