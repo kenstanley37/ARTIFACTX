@@ -1921,6 +1921,26 @@ public static class CatalogService
         return results;
     }
 
+    /// <summary>Finds which creature rig an option ID belongs to in CreatureDescriptorOptions.</summary>
+    public static async Task<string?> GetRigForDescriptorOptionAsync(string optionId)
+    {
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return null;
+        try
+        {
+            return await Task.Run(() =>
+            {
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = "SELECT RigId FROM CreatureDescriptorOptions WHERE OptionId = @opt LIMIT 1";
+                command.Parameters.AddWithValue("@opt", optionId.TrimStart('^'));
+                return command.ExecuteScalar() as string;
+            });
+        }
+        catch { return null; }
+    }
+
     private static List<LanguageWord>? _languageWordsCache;
 
     /// <summary>Every learnable alien word group (~3,840 across the 4 races and

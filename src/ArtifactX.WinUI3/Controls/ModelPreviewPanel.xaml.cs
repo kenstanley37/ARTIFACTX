@@ -121,4 +121,35 @@ public sealed partial class ModelPreviewPanel : UserControl
         return name.Contains("ENGINEGLOW", StringComparison.OrdinalIgnoreCase)
             || (material.Contains("THRUSTER", StringComparison.OrdinalIgnoreCase) && name.Contains("GLOW", StringComparison.OrdinalIgnoreCase));
     }
+
+    /// <summary>Builds and shows a creature or companion model from its rig and chosen descriptors.</summary>
+    public async Task ShowCreatureAsync(string rigId, IEnumerable<string>? chosenDescriptors = null, bool hologram = false, bool silhouette = false)
+    {
+        int version = ++_version;
+        if (GameDataService.Game is not { } game)
+        {
+            Preview.ShowMessage("Update your game data (Settings › Game data) to see the model.");
+            NoteTxt.Text = "";
+            return;
+        }
+        Preview.ShowMessage($"Building this {Subject}'s model from your game files...");
+        NoteTxt.Text = "";
+        StartYawOffset = Math.PI;
+
+        var mesh = await CreatureModelService.BuildCreatureMeshAsync(game, rigId, chosenDescriptors);
+        if (version != _version) return;
+        if (mesh is null)
+        {
+            Preview.ShowMessage($"This {Subject}'s 3D model couldn't be built from your game files.");
+            return;
+        }
+
+        uint Colour(string material) => CreatureModelService.CreatureMaterialColour(material);
+        Preview.Show(mesh, Colour, hologram: hologram, silhouette: silhouette);
+        NoteTxt.Text = silhouette
+            ? $"Unscanned species silhouette from planet generation. Drag to turn."
+            : hologram
+                ? $"Hologram scan — shape and anatomy from your game files. Drag to turn."
+                : $"Shape and anatomy from your game files and saved traits — drag to turn.";
+    }
 }

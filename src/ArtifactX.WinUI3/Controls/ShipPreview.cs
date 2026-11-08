@@ -22,7 +22,7 @@ namespace ArtifactX.WinUI3.Controls;
 /// </summary>
 public sealed class ShipPreview : UserControl
 {
-    private readonly Image _image = new() { Stretch = Microsoft.UI.Xaml.Media.Stretch.None };
+    private readonly Image _image = new() { Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform };
     private readonly TextBlock _hint = new()
     {
         Text = "Drag to turn", FontSize = 11, Opacity = 0.6, Margin = new Thickness(8, 6, 8, 6),
@@ -41,7 +41,7 @@ public sealed class ShipPreview : UserControl
     /// <summary>Added to the opening turn for models whose front isn't +Z: freighters point
     /// their bow along -Z (capital freighter z -3,210..+459, a fighter's -3..+8), so they
     /// open with a half turn (2026-10-22).</summary>
-    public float StartYawOffset { get; set; }
+    public double StartYawOffset { get; set; }
     private readonly TextBlock _status = new()
     {
         FontSize = 13, Opacity = 0.7, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center,
@@ -49,6 +49,7 @@ public sealed class ShipPreview : UserControl
         Margin = new Thickness(16), Visibility = Visibility.Collapsed,
     };
     private bool _hologram;
+    private bool _silhouette;
     private Windows.Foundation.Point? _drag;
     private int _drawing, _pending;
 
@@ -95,14 +96,15 @@ public sealed class ShipPreview : UserControl
     /// <paramref name="textureOf"/> (optional) a painted texture that wins over it.
     /// <paramref name="hologram"/> draws it as a scanner hologram instead - for a ship
     /// whose real colours can't be shown, so its shape doesn't pass for a grey paint job.</summary>
-    public void Show(ShipMesh? mesh, Func<string, uint> colourOf, Func<string, ModelTexture?>? textureOf = null, bool hologram = false)
+    public void Show(ShipMesh? mesh, Func<string, uint> colourOf, Func<string, ModelTexture?>? textureOf = null, bool hologram = false, bool silhouette = false)
     {
         _status.Visibility = Visibility.Collapsed;
         _hint.Visibility = mesh is null ? Visibility.Collapsed : Visibility.Visible;
         ProtectedCursor = mesh is null ? null : InputSystemCursor.Create(InputSystemCursorShape.SizeAll);
         _hologram = hologram;
+        _silhouette = silhouette;
         _mesh = mesh;
-        _yaw = StartYaw + StartYawOffset; _pitch = StartPitch; // each ship opens on its front
+        _yaw = StartYaw + (float)StartYawOffset; _pitch = StartPitch; // each ship opens on its front
         if (mesh is null) { _image.Source = null; return; }
         var colours = new uint[mesh.Materials.Length];
         var cache = new Dictionary<string, uint>();
@@ -136,9 +138,10 @@ public sealed class ShipPreview : UserControl
     public Task<byte[]?> SnapshotAsync(int width, int height)
     {
         if (_mesh is null) return Task.FromResult<byte[]?>(null);
-        var mesh = _mesh; var colours = _triColours; var textures = _triTextures; var centre = _centre; bool holo = _hologram;
-        float yaw = StartYaw + StartYawOffset;
-        return Task.Run(() => (byte[]?)Render(mesh, colours, textures, centre, yaw, StartPitch, width, height, holo));
+        var mesh = _mesh; var colours = _triColours; var textures = _triTextures; var centre = _centre;
+        bool holo = _hologram; bool sil = _silhouette;
+        float yaw = StartYaw + (float)StartYawOffset;
+        return Task.Run(() => (byte[]?)Render(mesh, colours, textures, centre, yaw, StartPitch, width, height, holo, sil));
     }
 
     private void OnPointerMoved(object sender, PointerRoutedEventArgs e)
@@ -159,8 +162,9 @@ public sealed class ShipPreview : UserControl
         if (_mesh is null) return;
         if (Interlocked.Exchange(ref _drawing, 1) == 1) { _pending = 1; return; }
         var mesh = _mesh; var colours = _triColours; var textures = _triTextures; var centre = _centre;
-        float yaw = _yaw, pitch = _pitch; int w = PixelWidth, h = PixelHeight; bool holo = _hologram;
-        Task.Run(() => Render(mesh, colours, textures, centre, yaw, pitch, w, h, holo)).ContinueWith(t =>
+        float yaw = _yaw, pitch = _pitch; int w = PixelWidth, h = PixelHeight;
+        bool holo = _hologram; bool sil = _silhouette;
+        Task.Run(() => Render(mesh, colours, textures, centre, yaw, pitch, w, h, holo, sil)).ContinueWith(t =>
             DispatcherQueue.TryEnqueue(() =>
             {
                 if (t.Result is { } pixels && ReferenceEquals(mesh, _mesh))
@@ -175,7 +179,7 @@ public sealed class ShipPreview : UserControl
     }
 
     /// <summary>Rotate, fit to the frame, z-buffer, light from above-front.</summary>
-    private static byte[] Render(ShipMesh mesh, uint[] colours, ModelTexture?[] textures, Vector3 centre, float yaw, float pitch, int w, int h, bool hologram = false)
+    private static byte[] Render(ShipMesh mesh, uint[] colours, ModelTexture?[] textures, Vector3 centre, float yaw, float pitch, int w, int h, bool hologram = false, bool silhouette = false)
     {
         var rot = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateRotationX(pitch);
         var p = new Vector3[mesh.Corners.Length];
@@ -216,8 +220,19 @@ public sealed class ShipPreview : UserControl
                 float level = 0.55f + 0.45f * (((col >> 16) & 0xFF) + ((col >> 8) & 0xFF) + (col & 0xFF)) / 765f;
                 col = (uint)(70 * level) << 16 | (uint)(200 * level) << 8 | (uint)(235 * level);
             }
+            else if (silhouette)
+            {
+                // A mystery silhouette: dark slate base with soft rim-lighting edge highlights
+                float edge = 1 - MathF.Abs(n.Z / len);
+                float rim = MathF.Pow(edge, 2.5f);
+                byte cr = (byte)Math.Clamp((int)(26 + 65 * rim), 0, 255);
+                byte cg = (byte)Math.Clamp((int)(28 + 70 * rim), 0, 255);
+                byte cb = (byte)Math.Clamp((int)(38 + 90 * rim), 0, 255);
+                col = (uint)cr << 16 | (uint)cg << 8 | (uint)cb;
+                lit = 0.45f + 0.55f * rim;
+            }
             uint argb = Shade(col, lit);
-            var tex = hologram ? null : t < textures.Length ? textures[t] : null;
+            var tex = (hologram || silhouette) ? null : t < textures.Length ? textures[t] : null;
             Vector2 ta = default, tb = default, tc = default, da = default, db = default, dc = default;
             if (tex is not null) { ta = mesh.Uvs[3 * t]; tb = mesh.Uvs[3 * t + 1]; tc = mesh.Uvs[3 * t + 2]; }
             var decal = tex?.Decal is { } dt && mesh.Uvs2.Length == mesh.Corners.Length ? dt : null;

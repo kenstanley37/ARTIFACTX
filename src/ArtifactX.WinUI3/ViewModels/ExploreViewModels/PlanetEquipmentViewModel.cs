@@ -169,7 +169,6 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         RefreshMarkers();
         _planet = planet;
         _snapshot = snapshot;
-        await ReloadAsync(planet, snapshot);
     }
 
     /// <summary>Added to the crashed-ship summary in a system with no race, where only the planet's fixed underwater

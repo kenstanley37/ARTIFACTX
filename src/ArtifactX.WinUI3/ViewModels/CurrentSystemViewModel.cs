@@ -1,4 +1,4 @@
-﻿using ArtifactX.Core.Collections;
+using ArtifactX.Core.Collections;
 using System.Collections.ObjectModel;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.Core.Universe;
@@ -404,9 +404,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
         var known = planets.Select(p => p.PlanetIndex).ToHashSet();
         var allBodies = planets.Concat(PlanetTypesService.Undiscovered(system, known)).OrderBy(p => p.PlanetIndex).ToList();
-        int? savedBody = CabinetPoolService.SavedLoadBody(system, _snapshot?.EquipmentSaveInputs);
-        _ = MultiTools.LoadAsync(system, facts, station.Length > 0 ? station : "the space station",
-            allBodies.Select(p => (p.PlanetIndex, UniverseInfo.PlanetName(system, p.PlanetIndex))).ToList(), savedBody);
 
         var tiles = allBodies.Select(p =>
         {
@@ -419,7 +416,14 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             (current, next) => current.HasSamePresentation(next));
         foreach (var tile in Tiles) _ = tile.LoadPortalAsync();
         UpdateTiles();
-        foreach (var tile in Tiles) _ = tile.LoadNotableAsync();
+        _ = Task.Run(async () =>
+        {
+            var tileList = Tiles.OrderByDescending(t => t.IsHere).ToList();
+            foreach (var tile in tileList)
+            {
+                await tile.LoadNotableAsync();
+            }
+        });
         _ = RefreshPictureAsync();
     }
 

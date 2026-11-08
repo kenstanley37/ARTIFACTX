@@ -1,44 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- One creature on a planet's page (CreatureCardViewModel): its picture, what the
-     game's fauna list said about it, and buttons to take its picture or remove it. -->
+<!-- One creature on a planet's page (CreatureCardViewModel): 3D model preview, name, and traits. -->
 <UserControl
     x:Class="ArtifactX.WinUI3.Controls.CreatureCard"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls">
 
     <Border Padding="10" CornerRadius="6" Background="{ThemeResource ThemeVoidBrush}"
             BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
-        <StackPanel Width="250" Spacing="2">
-            <Border Height="140" CornerRadius="6" Margin="0,0,0,4" Visibility="{x:Bind Creature.HasPicture, Mode=OneWay}">
-                <Image Source="{x:Bind Creature.Picture, Mode=OneWay}" Stretch="UniformToFill"/>
-            </Border>
-            <Border Height="140" CornerRadius="6" Margin="0,0,0,4" Visibility="{x:Bind Creature.ShowPlaceholder, Mode=OneWay}"
-                    Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
-                    <TextBlock Text="{x:Bind Creature.NoPictureText, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}" TextAlignment="Center"/>
-                    <Button x:Name="TakePictureBtn" Click="Capture_Click" Padding="8,4" HorizontalAlignment="Center"
-                            Visibility="{x:Bind Creature.CanCapture, Mode=OneWay}"
-                            ToolTipService.ToolTip="Open this creature in the game's fauna list, then click to take its picture">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon Glyph="&#xE722;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                            <TextBlock Text="Take picture" FontSize="11" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
+        <StackPanel Width="250" Spacing="4">
+            <!-- 3D Creature Preview -->
+            <Border Height="140" CornerRadius="6" Background="{ThemeResource ThemePanelAltBrush}"
+                    BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                    PointerPressed="Preview_PointerPressed">
+                <controls:ShipPreview x:Name="Preview" Height="140" Width="248" PixelWidth="248" PixelHeight="140" FitToSize="True"
+                                      AutomationProperties.Name="{x:Bind PreviewName, Mode=OneWay}"/>
             </Border>
 
-            <Grid Margin="0,2">
+            <!-- Status Badge and Actions -->
+            <Grid Margin="0,4,0,2">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="{x:Bind Creature.Name, Mode=OneWay}" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}"
-                           IsTextSelectionEnabled="True" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <Border Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
+                        BorderThickness="1" CornerRadius="4" Padding="6,1" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind Creature.BadgeText, Mode=OneWay}" FontSize="10" FontWeight="Bold"
+                               FontFamily="{ThemeResource ThemeDisplayFont}"
+                               Foreground="{ThemeResource ThemeAccentBrush}"/>
+                </Border>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
-                    <Button x:Name="RetakeBtn" Click="Capture_Click" Padding="6,4" Background="Transparent" BorderThickness="0"
-                            Visibility="{x:Bind Creature.CanCapture, Mode=OneWay}"
-                            ToolTipService.ToolTip="Take or update its picture from the game screen" AutomationProperties.Name="Take picture">
-                        <FontIcon Glyph="&#xE722;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                    <Button x:Name="View3DModelBtn" Click="View3DModel_Click" Padding="6,4" Background="Transparent" BorderThickness="0"
+                            ToolTipService.ToolTip="Inspect 3D creature anatomy and rig" AutomationProperties.Name="Inspect 3D creature anatomy">
+                        <FontIcon Glyph="&#xE91B;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
                     </Button>
                     <Button Click="Delete_Click" Padding="6,4" Background="Transparent" BorderThickness="0"
                             ToolTipService.ToolTip="Remove this creature from ArtifactX's records" AutomationProperties.Name="Remove creature">
@@ -46,9 +40,15 @@
                     </Button>
                 </StackPanel>
             </Grid>
-            <TextBlock Text="{x:Bind Creature.Traits, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
-            <TextBlock Text="{x:Bind Creature.Body, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
-            <TextBlock Text="{x:Bind Creature.CompanionNote, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}" Margin="0,2,0,0" TextWrapping="Wrap"/>
+
+            <!-- Name and Details -->
+            <TextBlock Text="{x:Bind Creature.Name, Mode=OneWay}" FontSize="14" FontWeight="SemiBold"
+                       Foreground="{ThemeResource ThemeTextBrush}" IsTextSelectionEnabled="True"
+                       TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{x:Bind Creature.Traits, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}"
+                       FontSize="12" TextWrapping="Wrap"/>
+            <TextBlock Text="{x:Bind Creature.CompanionNote, Mode=OneWay}" FontSize="11"
+                       Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
         </StackPanel>
     </Border>
 </UserControl>

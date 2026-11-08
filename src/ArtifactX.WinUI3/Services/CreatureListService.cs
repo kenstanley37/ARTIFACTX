@@ -117,7 +117,18 @@ public static class CreatureListService
             cmd.Parameters.AddWithValue("$p", planet);
             cmd.Parameters.AddWithValue("$k", key);
             cmd.Parameters.AddWithValue("$now", now);
-            cmd.ExecuteNonQuery();
+            int rows = cmd.ExecuteNonQuery();
+            if (rows == 0)
+            {
+                using var ins = connection.CreateCommand();
+                ins.CommandText = "INSERT INTO planet_creatures (system_address, planet_index, name_key, name, rarity, habitat, activity, gender, size, picture, seen_at, deleted, updated_at) VALUES ($s, $p, $k, $name, '', '', '', '', '', 0, $now, 1, $now)";
+                ins.Parameters.AddWithValue("$s", Hex(system));
+                ins.Parameters.AddWithValue("$p", planet);
+                ins.Parameters.AddWithValue("$k", key);
+                ins.Parameters.AddWithValue("$name", name);
+                ins.Parameters.AddWithValue("$now", now);
+                ins.ExecuteNonQuery();
+            }
         }
         catch (Exception ex)
         {
@@ -139,6 +150,17 @@ public static class CreatureListService
 
         Changed?.Invoke(system, planet);
         return removed;
+    }
+
+    /// <summary>Checks whether a creature has been marked deleted by the player.</summary>
+    public static bool IsDeleted(ulong system, int planet, string name)
+    {
+        string fullKey = $"{Hex(system)}|{planet}|{NameKey(name)}";
+        lock (Lock)
+        {
+            _ = All; // ensure DeletedKeys loaded
+            return DeletedKeys.Contains(fullKey);
+        }
     }
 
     /// <summary>Whether a recorded creature on the planet lives underwater.</summary>
