@@ -154,10 +154,12 @@
                                                 HorizontalAlignment="Stretch"
                                                 ToolTipService.ToolTip="{x:Bind MarkerStatus, Mode=OneWay}"
                                                 AutomationProperties.Name="Place Save Beacon in save"/>
-                                        <Button Grid.Column="1" Content="Undo"
+                                        <Button Grid.Column="1" Content="{x:Bind RemoveButtonText, Mode=OneWay}"
                                                 Command="{x:Bind UndoMarkerCommand}"
                                                 Visibility="{x:Bind CanUndoMarker, Mode=OneWay}"
-                                                AutomationProperties.Name="Undo Save Beacon"/>
+                                                IsEnabled="{x:Bind CanRemoveMarker, Mode=OneWay}"
+                                                ToolTipService.ToolTip="{x:Bind MarkerStatus, Mode=OneWay}"
+                                                AutomationProperties.Name="Remove Save Beacon"/>
                                     </Grid>
                                 </Grid>
                             </Border>
@@ -276,10 +278,12 @@
                                                 HorizontalAlignment="Stretch"
                                                 ToolTipService.ToolTip="{x:Bind MarkerStatus, Mode=OneWay}"
                                                 AutomationProperties.Name="Place Save Beacon at optimal base computer site"/>
-                                        <Button Grid.Column="1" Content="Undo"
+                                        <Button Grid.Column="1" Content="{x:Bind RemoveButtonText, Mode=OneWay}"
                                                 Command="{x:Bind UndoMarkerCommand}"
                                                 Visibility="{x:Bind CanUndoMarker, Mode=OneWay}"
-                                                AutomationProperties.Name="Undo Save Beacon"/>
+                                                IsEnabled="{x:Bind CanRemoveMarker, Mode=OneWay}"
+                                                ToolTipService.ToolTip="{x:Bind MarkerStatus, Mode=OneWay}"
+                                                AutomationProperties.Name="Remove Save Beacon"/>
                                     </Grid>
                                 </Grid>
                             </Border>

@@ -47,8 +47,11 @@ public sealed partial class PlanetHotspotItemViewModel : ObservableObject
 
     [ObservableProperty] public partial bool CanAddMarker { get; private set; }
     [ObservableProperty] public partial bool CanUndoMarker { get; private set; }
-    [ObservableProperty] public partial string AddMarkerText { get; private set; } = "Add marker to save";
+    [ObservableProperty] public partial bool CanRemoveMarker { get; private set; }
+    [ObservableProperty] public partial string RemoveButtonText { get; private set; } = "Undo";
+    [ObservableProperty] public partial string AddMarkerText { get; private set; } = "Place Save Beacon";
     [ObservableProperty] public partial string MarkerStatus { get; private set; } = "";
+    [ObservableProperty] public partial bool IsMarked { get; private set; }
     [ObservableProperty] public partial bool IsCopied { get; private set; }
 
     public PlanetHotspotItemViewModel(PlanetHotspot hotspot)
@@ -63,15 +66,18 @@ public sealed partial class PlanetHotspotItemViewModel : ObservableObject
         bool marked = SaveBeaconService.IsPlaced(Hotspot.PlanetAddress, Hotspot.LocalPosition);
         bool unsaved = SaveBeaconService.IsUnsaved(Hotspot.PlanetAddress, Hotspot.LocalPosition);
 
-        CanUndoMarker = unsaved;
-        CanAddMarker = !unsaved && SaveBeaconService.CanAdd;
-        AddMarkerText = marked && !unsaved ? "Save Beacon placed ✓" : "Place Save Beacon";
+        IsMarked = marked;
+        CanAddMarker = !marked && SaveBeaconService.CanAdd;
+        CanUndoMarker = marked;
+        CanRemoveMarker = SaveBeaconService.CanRemove;
+        RemoveButtonText = unsaved ? "Undo" : "Remove";
+        AddMarkerText = marked ? "Save Beacon placed ✓" : "Place Save Beacon";
 
         MarkerStatus = unsaved ? "Save Beacon placed. Save your changes to write to your save."
             : !SaveSessionManager.IsSaveLoaded ? "Load a save to place a Save Beacon."
             : marked && GameProcessMonitorService.IsGameRunning
-                ? "Save Beacon placed in save. Close No Man's Sky to modify."
-            : marked ? "Save Beacon placed in save. Permanent star waypoint active."
+                ? "Save Beacon placed in save. Close No Man's Sky to remove."
+            : marked ? "Save Beacon placed in save. Click Remove to take it out."
             : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to place a Save Beacon."
             : "Places an in-game Save Beacon at this extraction hotspot.";
     }

@@ -98,7 +98,7 @@ public static class PlanetHotspotService
     /// Evaluates the 4 surrounding poles (and optional neighboring rings) to discover all Power, Mineral,
     /// and Gas hotspots within analysis/survey range.
     /// </summary>
-    public static async Task<IReadOnlyList<PlanetHotspot>> GetHotspotsAsync(
+    public static async Task<PlanetHotspotData> GetHotspotDataAsync(
         ulong planetAddress,
         double centerLat,
         double centerLon,
@@ -107,7 +107,7 @@ public static class PlanetHotspotService
         double? portalLon = null)
     {
         var tables = await GetTablesAsync();
-        if (tables == null) return Array.Empty<PlanetHotspot>();
+        if (tables == null) return new PlanetHotspotData(Array.Empty<PlanetHotspot>(), Array.Empty<PlanetHotspotCluster>());
 
         var itemNames = await CatalogService.GetItemNamesAsync();
 
@@ -115,7 +115,7 @@ public static class PlanetHotspotService
         {
             int planet = (int)((planetAddress >> 52) & 15);
             int galaxy = NmsSpaceStationPaths.GalaxyNumber(planetAddress) - 1;
-            if (planet <= 0) return Array.Empty<PlanetHotspot>();
+            if (planet <= 0) return new PlanetHotspotData(Array.Empty<PlanetHotspot>(), Array.Empty<PlanetHotspotCluster>());
 
             ulong portalCode;
             try
@@ -124,20 +124,27 @@ public static class PlanetHotspotService
             }
             catch
             {
-                return Array.Empty<PlanetHotspot>();
+                return new PlanetHotspotData(Array.Empty<PlanetHotspot>(), Array.Empty<PlanetHotspotCluster>());
             }
 
             var types = PlanetGenerator.Generate(portalCode, galaxy, tables.Biomes);
             var bodies = SystemGenerator.Bodies(portalCode, galaxy);
             int index = planet - 1;
             if (index < 0 || index >= types.Length || index >= bodies.PlanetSeeds.Length)
-                return Array.Empty<PlanetHotspot>();
+                return new PlanetHotspotData(Array.Empty<PlanetHotspot>(), Array.Empty<PlanetHotspotCluster>());
 
             float radius = PlanetBuildingSites.Radius(types[index].BodyClass) ?? 98304f;
             var system = SystemGenerator.Attributes(portalCode, galaxy);
-            var profile = PlanetProfileGenerator.Generate(bodies.PlanetSeeds[index], index, types[index], (int)system.Star,
+            var body = types[index];
+            var profile = PlanetProfileGenerator.Generate(bodies.PlanetSeeds[index], index, body, (int)system.Star,
                 PlanetGenerator.GalaxyType(galaxy), system.GasGiantPlanet, tables.Profiles with { Objects = null }, system.Uncharted, system.Abandoned);
-            var resources = tables.Extraction.ResourcesFor(profile, types[index].Biome);
+            var resources = tables.Extraction.ResourcesFor(profile, body.Biome);
+
+            var terrainTables = tables.Profiles.Objects?.Terrain;
+            var choice = terrainTables is null ? null : PlanetProfileGenerator.TerrainChoiceFor(bodies.PlanetSeeds[index], body, (int)system.Star, tables.Profiles);
+            var terrain = choice is null || choice.SettingIndex >= terrainTables!.Settings.Length ? null
+                : PlanetTerrain.Generate(bodies.PlanetSeeds[index], terrainTables.Settings[choice.SettingIndex], choice, terrainTables.SeaStandard,
+                    body.BodyClass == 3, body.DeadToWeird);
 
             // Compute target 3D point from center (latitude, longitude)
             double latRad = centerLat * Math.PI / 180.0;
@@ -261,7 +268,9 @@ public static class PlanetHotspotService
                     ^ ((ulong)Math.Round(Math.Abs(cLat) * 1000) << 32)
                     ^ (ulong)Math.Round(Math.Abs(cLon) * 1000);
 
-                Vector3 localPos = c.Direction * radius;
+                float h = terrain != null ? PlanetTerrain.Height(terrain, c.Direction.X * radius, c.Direction.Y * radius, c.Direction.Z * radius) : 0f;
+                float surfaceRadius = radius + Math.Max(0f, h) + 15.0f;
+                Vector3 localPos = c.Direction * surfaceRadius;
 
                 results.Add(new PlanetHotspot(
                     PlanetAddress: planetAddress,
@@ -286,8 +295,25 @@ public static class PlanetHotspotService
             }
 
             // Sort nearest first
-            return (IReadOnlyList<PlanetHotspot>)results.OrderBy(r => r.Distance).ToList();
+            var sorted = (IReadOnlyList<PlanetHotspot>)results.OrderBy(r => r.Distance).ToList();
+            var clusters = PlanetHotspotCluster.Find(sorted, maxBaseRadius: 375.0, maxSpan: 650.0, portalLat, portalLon, terrain, radius);
+            return new PlanetHotspotData(sorted, clusters);
         });
+    }
+
+    /// <summary>
+    /// Predicts and returns hotspots around a specific latitude and longitude on the given planet.
+    /// </summary>
+    public static async Task<IReadOnlyList<PlanetHotspot>> GetHotspotsAsync(
+        ulong planetAddress,
+        double centerLat,
+        double centerLon,
+        bool expandSearch = true,
+        double? portalLat = null,
+        double? portalLon = null)
+    {
+        var data = await GetHotspotDataAsync(planetAddress, centerLat, centerLon, expandSearch, portalLat, portalLon);
+        return data.Hotspots;
     }
 
     /// <summary>
@@ -302,4 +328,8 @@ public static class PlanetHotspotService
         double? portalLon = null) =>
         PlanetHotspotCluster.Find(hotspots, maxBaseRadius, maxSpan, portalLat, portalLon);
 }
+
+public sealed record PlanetHotspotData(
+    IReadOnlyList<PlanetHotspot> Hotspots,
+    IReadOnlyList<PlanetHotspotCluster> Clusters);
 

@@ -127,11 +127,11 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 
         try
         {
-            var detected = await PlanetHotspotService.GetHotspotsAsync(planetAddress, centerLat, centerLon, expandSearch: true, portalLat, portalLon);
+            var data = await PlanetHotspotService.GetHotspotDataAsync(planetAddress, centerLat, centerLon, expandSearch: true, portalLat, portalLon);
             if (_currentPlanetAddress != planetAddress) return; // Switched planets meanwhile
 
             _all.Clear();
-            foreach (var h in detected)
+            foreach (var h in data.Hotspots)
             {
                 _all.Add(new PlanetHotspotItemViewModel(h));
             }
@@ -157,10 +157,9 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
                 FilterChoices[4] = SClassFilterLabel;
             }
 
-            // Calculate multi-hotspot clusters / combos within base reach
-            var detectedClusters = PlanetHotspotService.FindClusters(detected, maxBaseRadius: 375.0, maxSpan: 650.0, portalLat: portalLat, portalLon: portalLon);
+            // Populate multi-hotspot clusters / combos within base reach
             _allClusters.Clear();
-            foreach (var c in detectedClusters)
+            foreach (var c in data.Clusters)
             {
                 _allClusters.Add(new PlanetHotspotClusterItemViewModel(c));
             }

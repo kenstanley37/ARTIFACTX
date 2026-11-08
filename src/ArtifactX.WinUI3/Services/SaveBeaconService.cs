@@ -17,10 +17,35 @@ public static class SaveBeaconService
 
     public static bool CanAdd => SaveSessionManager.IsSaveLoaded && !GameProcessMonitorService.IsGameRunning;
 
-    public static string PosKey(ulong planetAddress, Vector3 pos) =>
-        $"{planetAddress:X}_{Math.Round(pos.X / 10.0)}_{Math.Round(pos.Y / 10.0)}_{Math.Round(pos.Z / 10.0)}";
+    public static bool CanRemove => SaveSessionManager.IsSaveLoaded && !GameProcessMonitorService.IsGameRunning;
 
-    /// <summary>Checks if a Save Beacon exists in c5s near this planet-local position (within 15m).</summary>
+    public static string PosKey(ulong planetAddress, Vector3 pos)
+    {
+        float l = pos.Length();
+        Vector3 dir = l > 1f ? pos / l : pos;
+        return $"{planetAddress:X}_{Math.Round(dir.X * 100.0)}_{Math.Round(dir.Y * 100.0)}_{Math.Round(dir.Z * 100.0)}";
+    }
+
+    /// <summary>
+    /// Checks if two planet-relative coordinates refer to the same geographical site on the planet.
+    /// Uses angular surface distance on the planet rather than raw Euclidean distance, so that elevation
+    /// offsets (e.g. subterranean vs floating beacons) still correctly match the site.
+    /// </summary>
+    public static bool MatchesSite(Vector3 p1, Vector3 p2, float maxSurfaceDistMeters = 50.0f)
+    {
+        float l1 = p1.Length();
+        float l2 = p2.Length();
+        if (l1 < 100f || l2 < 100f) return Vector3.Distance(p1, p2) < maxSurfaceDistMeters;
+
+        Vector3 dir1 = p1 / l1;
+        Vector3 dir2 = p2 / l2;
+        float dot = Math.Clamp(Vector3.Dot(dir1, dir2), -1f, 1f);
+        float angle = MathF.Acos(dot);
+        float avgRadius = (l1 + l2) * 0.5f;
+        return (angle * avgRadius) < maxSurfaceDistMeters;
+    }
+
+    /// <summary>Checks if a Save Beacon exists in c5s at this planetary site (within 50m surface distance).</summary>
     public static bool IsPlaced(ulong planetAddress, Vector3 localPos)
     {
         if (SaveSessionManager.GetValue(NmsBuildCounts.LooseObjectsPath) is not JArray objects) return false;
@@ -36,7 +61,7 @@ public static class SaveBeaconService
             float y = posArr[1]?.Value<float>() ?? 0;
             float z = posArr[2]?.Value<float>() ?? 0;
 
-            if (Vector3.Distance(new Vector3(x, y, z), localPos) < 15.0f)
+            if (MatchesSite(new Vector3(x, y, z), localPos, 50.0f))
                 return true;
         }
 
@@ -58,7 +83,7 @@ public static class SaveBeaconService
             ? (JArray)current.DeepClone()
             : new JArray();
 
-        // Remove any existing beacon within 15m at this spot first
+        // Remove any existing beacon at this site first
         for (int i = objects.Count - 1; i >= 0; i--)
         {
             if (objects[i] is JObject obj
@@ -69,7 +94,7 @@ public static class SaveBeaconService
                 float ox = arr[0]?.Value<float>() ?? 0;
                 float oy = arr[1]?.Value<float>() ?? 0;
                 float oz = arr[2]?.Value<float>() ?? 0;
-                if (Vector3.Distance(new Vector3(ox, oy, oz), localPos) < 15.0f)
+                if (MatchesSite(new Vector3(ox, oy, oz), localPos, 50.0f))
                     objects.RemoveAt(i);
             }
         }
@@ -79,16 +104,17 @@ public static class SaveBeaconService
         Vector3 right = Vector3.Normalize(Vector3.Cross(up, temp));
         Vector3 at = Vector3.Normalize(Vector3.Cross(right, up));
 
-        // Offset slightly (+2m) above surface sphere along outward normal
+        // Offset slightly (+2m) along outward normal
         Vector3 beaconPos = localPos + up * 2.0f;
 
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        ulong beaconSeed = ((ulong)(uint)Random.Shared.Next() << 32) | (ulong)(uint)Random.Shared.Next();
         var beacon = new JObject
         {
             ["b1:"] = now,
             ["r<7"] = "^BUILDBEACON",
             ["oZw"] = $"0x{planetAddress:X}",
-            ["ofi"] = 0,
+            ["ofi"] = $"0x{beaconSeed:X16}",
             ["CVX"] = 0,
             ["wMC"] = new JArray(Math.Round(beaconPos.X, 3), Math.Round(beaconPos.Y, 3), Math.Round(beaconPos.Z, 3)),
             ["wJ0"] = new JArray(Math.Round(up.X, 4), Math.Round(up.Y, 4), Math.Round(up.Z, 4)),
@@ -118,7 +144,7 @@ public static class SaveBeaconService
                 float ox = arr[0]?.Value<float>() ?? 0;
                 float oy = arr[1]?.Value<float>() ?? 0;
                 float oz = arr[2]?.Value<float>() ?? 0;
-                if (Vector3.Distance(new Vector3(ox, oy, oz), localPos) < 15.0f)
+                if (MatchesSite(new Vector3(ox, oy, oz), localPos, 50.0f))
                 {
                     objects.RemoveAt(i);
                     changed = true;

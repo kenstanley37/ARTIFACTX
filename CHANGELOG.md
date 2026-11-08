@@ -14,6 +14,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Planetary Hotspots & Base Beacons: Resolved Save Beacon elevation calculations by evaluating procedural terrain elevation (`PlanetTerrain.Height`) so placed beacons sit cleanly above the planetary surface (~3m clearance) rather than spawning underground inside procedural bedrock. Added full "Remove" support directly on hotspot and cluster cards to delete and clean up any placed beacons from your save.
 - Planetary Hotspots & Base Sites: Replaced scan event markers with physical in-game Save Beacons (`^BUILDBEACON`) placed directly at the optimal Base Computer and hotspot coordinates. In No Man's Sky, scan events on open terrain are ignored by the game engine, while placed Save Beacons render directly in the world and produce a permanent star HUD waypoint visible across the system.
 - Planetary Hotspots Selection: Fixed radio buttons resetting and hiding all hotspot/cluster cards whenever a game save or landing occurred, preserving your active view mode and filter choices across save reloads.
 - Galaxy Exploration & Presence Tracking: Galaxy Transfer now scans your bases, settlements, teleport network space stations, and system discoveries across all 256 galaxies. View base counts, space stations, and unvisited status badges on each galaxy, with 1-click filter tabs to isolate unvisited galaxies, visited galaxies, or those with active bases and space stations.

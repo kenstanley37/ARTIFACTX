@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using ArtifactX.Core.Universe;
 
 namespace ArtifactX.Core.NmsModels;
 
@@ -64,7 +65,9 @@ public sealed record PlanetHotspotCluster(
         double maxBaseRadius = 375.0,
         double maxSpan = 650.0,
         double? portalLat = null,
-        double? portalLon = null)
+        double? portalLon = null,
+        PlanetTerrainData? terrain = null,
+        float baseRadius = 0f)
     {
         if (hotspots == null || hotspots.Count < 2) return Array.Empty<PlanetHotspotCluster>();
 
@@ -113,7 +116,13 @@ public sealed record PlanetHotspotCluster(
                     if (enclosingRadius > maxBaseRadius) continue;
 
                     Vector3 baseDir = Vector3.Normalize(center);
-                    Vector3 baseLocalPos = baseDir * planetRadius;
+                    float clusterRadius = baseRadius > 0f ? baseRadius : planetRadius;
+                    if (terrain != null && baseRadius > 0f)
+                    {
+                        float h = PlanetTerrain.Height(terrain, baseDir.X * baseRadius, baseDir.Y * baseRadius, baseDir.Z * baseRadius);
+                        clusterRadius = baseRadius + Math.Max(0f, h) + 15.0f;
+                    }
+                    Vector3 baseLocalPos = baseDir * clusterRadius;
 
                     // Compute true surface distances
                     double sDist1 = SurfaceDistance(baseDir, h1.LocalPosition, planetRadius);
@@ -180,7 +189,13 @@ public sealed record PlanetHotspotCluster(
                 if (enclosingRadius > maxBaseRadius) continue;
 
                 Vector3 baseDir = Vector3.Normalize(center);
-                Vector3 baseLocalPos = baseDir * planetRadius;
+                float clusterRadius = baseRadius > 0f ? baseRadius : planetRadius;
+                if (terrain != null && baseRadius > 0f)
+                {
+                    float h = PlanetTerrain.Height(terrain, baseDir.X * baseRadius, baseDir.Y * baseRadius, baseDir.Z * baseRadius);
+                    clusterRadius = baseRadius + Math.Max(0f, h) + 15.0f;
+                }
+                Vector3 baseLocalPos = baseDir * clusterRadius;
 
                 double sDist1 = SurfaceDistance(baseDir, h1.LocalPosition, planetRadius);
                 double sDist2 = SurfaceDistance(baseDir, h2.LocalPosition, planetRadius);
