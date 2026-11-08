@@ -6,6 +6,9 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Space Stations: Added a "Register in Teleport Network" action to sync and register all your directed space stations with your Alliance ownership stamp, ensuring every claimed station appears under "Alliance Stations" in the in-game Teleportation Terminal.
+- Space Stations: "Claims in Progress" and "Stations you Direct" sections are now collapsible folding cards that remember their state across sessions.
+- Squadron: Expanded seed boxes with generous width so 18-character hex seeds and roll buttons have comfortable breathing room, with the 3D ship preview positioned to the right with responsive wrapping.
 - Starships: Corvettes now show a "Corvette 3D model coming soon" placeholder in the preview section rather than leaving the preview area empty.
 - Seeds: Clicking Generate on any seed box (Starships, Freighters, Squadron, Frigates, Exocraft, Companions) now includes Previous and Next buttons to step backward and forward through your rolls during your edit session.
 - Templates: Previewing a full build starship or freighter template shows an interactive 3D model of the ship alongside its tech and stats, with drag-to-turn rotation.
@@ -17,6 +20,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Space Stations: Claiming a station now automatically creates and stamps its teleport endpoint marker in your save so that newly claimed stations immediately appear in your Alliance Stations teleport list.
+- Catalog: Eliminated a race condition that could cause section navigation buttons at the top of the Catalog page to duplicate during rapid category switching or save reloads.
 - Performance: Current System and Planet Details pages now process crashed ship spatial scans, shop distance calculations, and multi-tool model part resolutions entirely off the UI thread, eliminating UI freezes during navigation.
 - 3D Previews: Found and bought starships (Fighters, Haulers, Explorers, Solars, Shuttles, and Sentinel Interceptors) now display in full color from their seed rather than defaulting to a blue hologram scan.
 - 3D Previews: Fighter, Hauler, Solar, and Shuttle starship wings and hull coatings now render in their authentic primary and secondary seed paint colors rather than falling back to unpainted tan or grey on procedural trim surfaces.
