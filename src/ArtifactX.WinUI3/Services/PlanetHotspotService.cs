@@ -40,12 +40,14 @@ public static class PlanetHotspotService
         ["ASTEROID3"] = "Platinum",
         ["WATER1"] = "Salt",
         ["OXYGEN"] = "Oxygen",
-        ["GAS1"] = "Nitrogen",
+        ["GAS1"] = "Sulphurine",
         ["GAS2"] = "Radon",
-        ["GAS3"] = "Sulphurine",
+        ["GAS3"] = "Nitrogen",
+        ["GAS4"] = "Methane",
         ["CATALYST1"] = "Sodium",
         ["CAVE1"] = "Cobalt",
         ["MAGNET"] = "Magnetised Ferrite",
+        ["LAND3"] = "Magnetised Ferrite",
     };
 
     /// <summary>Loads extraction and profile tables from the game catalog.</summary>
@@ -228,9 +230,9 @@ public static class PlanetHotspotService
                 string resourceId = c.Attributes.Flag == 1 ? "POWER" : tables.Extraction.ResourceForFlag(resources, c.Attributes.Flag);
                 if (string.IsNullOrEmpty(resourceId)) resourceId = "UNKNOWN";
 
-                string resourceName = FallbackResourceNames.TryGetValue(resourceId, out var fallback)
-                    ? fallback
-                    : itemNames.TryGetValue(resourceId, out var catalogName) ? catalogName : resourceId;
+                string resourceName = itemNames.TryGetValue(resourceId, out var catalogName) && !string.IsNullOrWhiteSpace(catalogName)
+                    ? catalogName
+                    : FallbackResourceNames.TryGetValue(resourceId, out var fallback) ? fallback : resourceId;
 
                 string grade = c.Attributes.Class switch
                 {
