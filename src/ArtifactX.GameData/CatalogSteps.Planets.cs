@@ -105,10 +105,19 @@ public static partial class CatalogSteps
             rows.Add(new CatalogItem { GameId = "BIOMETABLES", NameEnglish = "BiomeTables", DescriptionEnglish = JsonSerializer.Serialize(tables) });
 
             var details = ProfileTables(files, biomes, Decode);
-            if (details?.Objects is { } objects)
+            if (details is not null)
             {
-                var keys = objects.Groups.SelectMany(g => g.Files).Select(f => f.Hint).Where(h => h.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                details = details with { HintNames = EnglishTexts(index, extraction, keys) };
+                var descTexts = EnglishTexts(index, extraction, DescriptorKeys);
+                var descriptors = descTexts.ToDictionary(
+                    kv => kv.Key,
+                    kv => kv.Value.Replace(" %PLANETCLASS%", "").Replace("%PLANETCLASS%", "").Trim(),
+                    StringComparer.OrdinalIgnoreCase);
+                details = details with { Descriptors = descriptors };
+                if (details.Objects is { } objects)
+                {
+                    var keys = objects.Groups.SelectMany(g => g.Files).Select(f => f.Hint).Where(h => h.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    details = details with { HintNames = EnglishTexts(index, extraction, keys) };
+                }
             }
             if (details is null) ConsoleStyle.Warning("Planet detail tables not found - planet resources and weather left out.");
             else rows.Add(new CatalogItem { GameId = "PLANETPROFILE", NameEnglish = "PlanetProfileTables", DescriptionEnglish = JsonSerializer.Serialize(details) });
@@ -613,4 +622,49 @@ public static partial class CatalogSteps
             shipClasses, shipLayouts, shipCostData, shipModelRules,
             aiShipGlobals?.CrashedShipBrokenSlotChance, aiShipGlobals?.CrashedShipMinNonBrokenSlots, technologyOverrides);
     }
+
+    private static readonly HashSet<string> DescriptorKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "UI_PARADISE_PLANET",
+        "LUSH1", "LUSH2", "LUSH3", "LUSH4", "LUSH5", "LUSH6", "LUSH7", "LUSH8", "LUSH9", "LUSH10",
+        "TOXIC1", "TOXIC2", "TOXIC3", "TOXIC4", "TOXIC5", "TOXIC6", "TOXIC7", "TOXIC8", "TOXIC9", "TOXIC10",
+        "SCORCHED1", "SCORCHED2", "SCORCHED3", "SCORCHED4", "SCORCHED5", "SCORCHED6", "SCORCHED7", "SCORCHED8", "SCORCHED9", "SCORCHED10",
+        "IRRADIATED1", "IRRADIATED2", "IRRADIATED3", "IRRADIATED4", "IRRADIATED5", "IRRADIATED6", "IRRADIATED7", "IRRADIATED8", "IRRADIATED9", "IRRADIATED10",
+        "FROZEN1", "FROZEN2", "FROZEN3", "FROZEN4", "FROZEN5", "FROZEN6", "FROZEN7", "FROZEN8", "FROZEN9", "FROZEN10",
+        "BARREN1", "BARREN2", "BARREN3", "BARREN4", "BARREN5", "BARREN6", "BARREN7", "BARREN8", "BARREN9", "BARREN10",
+        "DEAD1", "DEAD2", "DEAD3", "DEAD4", "DEAD5", "DEAD6", "DEAD7", "DEAD8", "DEAD9", "DEAD10",
+        "GLITCHBIOME1", "GLITCHBIOME2", "GLITCHBIOME3", "GLITCHBIOME4", "GLITCHBIOME5", "GLITCHBIOME6", "GLITCHBIOME7", "GLITCHBIOME8", "GLITCHBIOME9", "GLITCHBIOME10", "GLITCHBIOME11", "GLITCHBIOME12",
+        "REDBIOME1", "REDBIOME2", "REDBIOME3", "REDBIOME4", "REDBIOME5", "REDBIOME6", "REDBIOME7", "REDBIOME8", "REDBIOME9", "REDBIOME10",
+        "GREENBIOME1", "GREENBIOME2", "GREENBIOME3", "GREENBIOME4", "GREENBIOME5", "GREENBIOME6", "GREENBIOME7", "GREENBIOME8", "GREENBIOME9", "GREENBIOME10",
+        "BLUEBIOME1", "BLUEBIOME2", "BLUEBIOME3", "BLUEBIOME4", "BLUEBIOME5", "BLUEBIOME6", "BLUEBIOME7", "BLUEBIOME8", "BLUEBIOME9", "BLUEBIOME10",
+        "SWAMPBIOME1", "SWAMPBIOME2", "SWAMPBIOME3", "SWAMPBIOME4", "SWAMPBIOME5", "SWAMPBIOME6", "SWAMPBIOME7", "SWAMPBIOME8", "SWAMPBIOME9", "SWAMPBIOME10", "SWAMPBIOME11", "SWAMPBIOME12", "SWAMPBIOME13", "SWAMPBIOME14",
+        "LAVABIOME1", "LAVABIOME2", "LAVABIOME3", "LAVABIOME4", "LAVABIOME5", "LAVABIOME6", "LAVABIOME7", "LAVABIOME8", "LAVABIOME9", "LAVABIOME10", "LAVABIOME11", "LAVABIOME12", "LAVABIOME13", "LAVABIOME14",
+        "WATERWORLD1", "WATERWORLD2", "WATERWORLD3", "WATERWORLD4", "WATERWORLD5", "WATERWORLD6", "WATERWORLD7", "WATERWORLD8",
+        "GASGIANT1",
+        "MSTRUCTBIOME1", "MSTRUCTBIOME2", "MSTRUCTBIOME3",
+        "BEAMSBIOME1", "BEAMSBIOME2", "BEAMSBIOME3",
+        "HEXAGONBIOME1", "HEXAGONBIOME2", "HEXAGONBIOME3",
+        "FRACTCUBEBIOME1", "FRACTCUBEBIOME2", "FRACTCUBEBIOME3",
+        "BUBBLEBIOME1", "BUBBLEBIOME2", "BUBBLEBIOME3",
+        "SHARDSBIOME1", "SHARDSBIOME2", "SHARDSBIOME3",
+        "CONTOURBIOME1", "CONTOURBIOME2", "CONTOURBIOME3",
+        "IRRISHELLSBIOME1", "IRRISHELLSBIOME2", "IRRISHELLSBIOME3",
+        "BONESPIREBIOME1", "BONESPIREBIOME2", "BONESPIREBIOME3",
+        "WIRECELLSBIOME1", "WIRECELLSBIOME2", "WIRECELLSBIOME3",
+        "HYDROGARDENBIOME1", "HYDROGARDENBIOME2", "HYDROGARDENBIOME3",
+        "INFESTEDLUSH1", "INFESTEDLUSH2", "INFESTEDLUSH3", "INFESTEDLUSH4",
+        "INFESTEDTOX1", "INFESTEDTOX2", "INFESTEDTOX3",
+        "INFESTEDHOT1", "INFESTEDHOT2", "INFESTEDHOT3", "INFESTEDHOT4",
+        "INFESTEDRAD1", "INFESTEDRAD2", "INFESTEDRAD3",
+        "INFESTEDCOLD1", "INFESTEDCOLD2", "INFESTEDCOLD3",
+        "INFESTEDDUST1", "INFESTEDDUST2", "INFESTEDDUST3", "INFESTEDDUST4",
+        "INFESTED1",
+        "RUINEDLUSH1", "RUINEDLUSH2", "RUINEDLUSH3", "RUINEDLUSH4",
+        "RUINEDTOX1", "RUINEDTOX2", "RUINEDTOX3",
+        "RUINEDHOT1", "RUINEDHOT2", "RUINEDHOT3", "RUINEDHOT4",
+        "RUINEDRAD1", "RUINEDRAD2", "RUINEDRAD3",
+        "RUINEDCOLD1", "RUINEDCOLD2", "RUINEDCOLD3",
+        "RUINEDDUST1", "RUINEDDUST2", "RUINEDDUST3", "RUINEDDUST4",
+        "RUINED1"
+    };
 }

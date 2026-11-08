@@ -166,6 +166,7 @@ public static class PlanetText
     /// what's recorded about it and its system, and its creatures ("Underwater", "Nocturnal").</summary>
     public static string SearchText(KnownPlanet p) => string.Join(" ",
         UniverseInfo.PlanetName(p.SystemAddress, p.PlanetIndex), UniverseInfo.SystemName(p.SystemAddress), UniverseInfo.Region(p.SystemAddress), p.TypeName, p.BiomeGroup,
+        PlanetTypesService.Descriptor(p.SystemAddress, p.PlanetIndex),
         DetailsSummary(PlanetDetailsService.Get(p.SystemAddress, p.PlanetIndex), PlanetWaterService.Get(p.SystemAddress, p.PlanetIndex)),
         NoteSummary(SystemNotesService.Get(p.SystemAddress)),
         string.Join(" ", CreatureListService.On(p.SystemAddress, p.PlanetIndex).Select(c => $"{c.Name} {c.Rarity} {c.Habitat} {c.Activity}")));

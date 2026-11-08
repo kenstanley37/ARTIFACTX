@@ -166,12 +166,18 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         bool? water = PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex);
         string Or(string? value) => string.IsNullOrEmpty(value) ? NotRecorded : value;
 
-        Classification = planet.Classification(d?.Descriptor);
+        bool isMoon = BodyKindsService.IsMoon(planet.SystemAddress, planet.PlanetIndex);
+        var profile = PlanetTypesService.Profile(planet.SystemAddress, planet.PlanetIndex);
+        string? desc = PlanetTypesService.Descriptor(planet.SystemAddress, planet.PlanetIndex);
+        Classification = planet.Classification(desc, isMoon: isMoon);
         // Weather, sentinels and resources from the game's own generator where the game data
         // has its tables (format 16+); what was recorded otherwise.
-        var profile = PlanetTypesService.Profile(planet.SystemAddress, planet.PlanetIndex);
         Conditions =
         [
+            new("Type", desc is { Length: > 0 }
+                ? (desc.EndsWith(" Moon", StringComparison.OrdinalIgnoreCase) || desc.EndsWith(" Planet", StringComparison.OrdinalIgnoreCase) || desc.EndsWith(" Anomaly", StringComparison.OrdinalIgnoreCase) ? desc : (isMoon ? $"{desc} Moon" : $"{desc} Planet"))
+                : (isMoon ? $"{planet.BiomeGroup} Moon" : $"{planet.BiomeGroup} Planet")),
+            new("Biome", planet.BiomeGroup),
             new("Weather", profile is not null ? PlanetText.Weather(profile) : Or(d?.Weather)),
             new("Sentinels", profile is not null ? PlanetText.Sentinels(profile) : Or(d?.Sentinels)),
             new("Flora", d?.Flora is { Length: > 0 } flora ? flora : profile is not null ? PlanetText.Flora(profile) : Or(null)),

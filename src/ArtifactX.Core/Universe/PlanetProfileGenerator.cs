@@ -28,7 +28,8 @@ public sealed record PlanetProfileTables(
     ObjectTables? Objects = null,
     Dictionary<string, string>? HintNames = null,
     float[]? ScrapYardDensity = null,
-    CreatureTables? Creatures = null);
+    CreatureTables? Creatures = null,
+    Dictionary<string, string>? Descriptors = null);
 
 /// <summary>A weather type's storm odds (GcWeatherProperties LowStormsChance, HighStormsChance).</summary>
 public sealed record StormChance(float Low, float High);
@@ -50,17 +51,18 @@ public sealed record SentinelTables(
 /// <param name="ScrapWorld">Scrapyard planet (Salvageable Scrap on the scanner; no bones there).</param>
 /// <param name="Hints">Scanner hints (ResourceHint ids, e.g. PLANT_DUST, UI_BONES_HINT), in placing order.</param>
 /// <param name="Water">Has a sea (and so underwater objects).</param>
-/// <param name="HasRings">Has planetary rings (procedurally generated from seed; moons never have rings).</param>
+/// <param name="Descriptor">The procedural planet descriptor adjective (e.g. "Tropical", "Paradise", "Verdant", "Glacial").</param>
 public sealed record PlanetProfile(string Common, string Uncommon, string Rare, int WeatherType, bool Extreme, int Storms,
     int Flora, int Fauna, int[] Sentinels, string[] Hints, bool ScrapWorld = false, bool Water = false, int? FaunaCount = null,
-    PredictedCreature[]? PredictedCreatures = null, bool HasRings = false);
+    PredictedCreature[]? PredictedCreatures = null, string Descriptor = "");
 
 /// <summary>
 /// A planet's resources, weather, life and sentinels from its seed - a port of NMS.exe's
 /// planet-data routine (build 180836, 0x1416a7880, read 2026-10-22): the planet seed starts
 /// a random state that gives 26 child seeds (two draws, joined and mixed, like body seeds);
 /// the life step (0x1416956c0: flora, fauna, sentinels) restarts from child 0, the weather
-/// step (0x141696760) from child 12 and the resource step (0x141696dc0) from child 19.
+/// step (0x141696760) from child 12, the resource step (0x141696dc0) from child 19 and the
+/// descriptor step (0x1416ce4a0: planet type adjective) restarts from child 21 (NMS.exe build 184271, 2026-11-08).
 /// Checked against the game's own code run in an emulator (808 planets: sentinels 807,
 /// weather type 807, resources 803, the rest the emulator's own gaps) and against a real
 /// save's screen-reader records (extreme weather right on all but 5 of ~800). Terrain (child 4)
@@ -71,7 +73,6 @@ public static partial class PlanetProfileGenerator
 {
     private const ulong Multiplier = 0x5A76F899;
     private const double Fraction = 2.3283064370807974e-10;
-    public const float PlanetRingProbability = 0.3f;
     private const int Lush = 0, Barren = 5, Dead = 6, Weird = 7, Swamp = 12, Lava = 13, Waterworld = 14, GasGiant = 15;
     private const int DustWeather = 1, HumidWeather = 2, ScorchedWeather = 5, WeirdWeather = 13;
     private const int SwampSub = 0x19, LavaSub = 0x1A;
@@ -117,17 +118,6 @@ public static partial class PlanetProfileGenerator
         return seeds;
     }
 
-    /// <summary>
-    /// Whether a planet has planetary rings.
-    /// Moons never have rings. For planets, the solar generator (GcSolarGenerationGlobals)
-    /// tests child seed 22 against PlanetRingProbability (0.3f / 30% chance).
-    /// </summary>
-    public static bool HasRings(ulong planetSeed, bool isMoon = false)
-    {
-        if (isMoon || planetSeed == 0) return false;
-        var seeds = ChildSeeds(planetSeed);
-        return Rng.Start(seeds[22]).NextFraction() < PlanetRingProbability;
-    }
 
     /// <param name="planetIndex">The body's 0-based index in its system (save planet index - 1).</param>
     /// <param name="body">The body's type from PlanetGenerator (biome, the game's subtype - not the
@@ -177,9 +167,9 @@ public static partial class PlanetProfileGenerator
             ? GenerateFauna(planetSeed, biome, subType, planetClass, star, fauna, sea, caves, emptySystem, abandonedSystem, t.Creatures)
             : default;
         int? faunaCount = t.Creatures is not null ? (fauna <= 0 ? 0 : faunaResult.Count) : null;
-        bool hasRings = HasRings(planetSeed, body.BodyClass == 3);
+        string descriptor = GenerateDescriptor(seeds[21], biome, subType, weather, storms, sentinels, t);
         return new PlanetProfile(common, uncommon, t.MiningRare[rareIndex], weather, extreme, storms, flora, fauna, sentinels,
-            hints, scrap, water, faunaCount, faunaResult.Creatures, hasRings);
+            hints, scrap, water, faunaCount, faunaResult.Creatures, descriptor);
     }
 
     private const int Infested = 0x18;

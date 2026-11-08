@@ -95,7 +95,7 @@ public static class BodyKindsService
             // "Contaminated Moon", "Verdant Planet" (2026-10-17).
             int by0 = list.FindIndex(l => l.Contains("Discovered by", StringComparison.OrdinalIgnoreCase));
             if (by0 < 0) return null;
-            type = list.Skip(by0 + 1).Take(3).Select(l => l.Trim())
+            type = list.Skip(by0 + 1).Take(6).Select(l => l.Trim())
                 .FirstOrDefault(PlanetPageReader.IsBodyType);
             if (type is null)
             {
@@ -139,7 +139,7 @@ public static class BodyKindsService
             var existingDetails = PlanetDetailsService.Get(system, body);
             var details = existingDetails?.Copy() ?? new PlanetDetails();
             bool changed = false;
-            if (!string.IsNullOrEmpty(type) && string.IsNullOrEmpty(details.Descriptor)) { details.Descriptor = type; changed = true; }
+            if (!string.IsNullOrEmpty(type) && (string.IsNullOrEmpty(details.Descriptor) || !string.Equals(details.Descriptor, type, StringComparison.OrdinalIgnoreCase))) { details.Descriptor = type; changed = true; }
             if (popupSentinels.Length > 0 && string.IsNullOrEmpty(details.Sentinels)) { details.Sentinels = popupSentinels; changed = true; resources += $"; sentinels {popupSentinels}"; }
             if (changed) PlanetDetailsService.Save(system, body, details, source: "captured");
         }

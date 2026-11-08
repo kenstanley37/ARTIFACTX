@@ -170,7 +170,11 @@ public sealed partial class FindsPage : Page
         {
             parts.Add($"On {UniverseInfo.PlanetName(system, _herePlanet)} (planet {_herePlanet})");
             var planet = _herePlanets.FirstOrDefault(p => p.SystemAddress == system && p.PlanetIndex == _herePlanet);
-            if (planet is not null) parts.Add(planet.Classification(PlanetDetailsService.Get(system, _herePlanet)?.Descriptor));
+            if (planet is not null)
+            {
+                bool isMoon = BodyKindsService.IsMoon(system, _herePlanet);
+                parts.Add(planet.Classification(PlanetTypesService.Descriptor(system, _herePlanet), isMoon: isMoon));
+            }
         }
         else parts.Add("In space");
         parts.Add(GalaxyLabel(S.GalaxyNumber(system)));

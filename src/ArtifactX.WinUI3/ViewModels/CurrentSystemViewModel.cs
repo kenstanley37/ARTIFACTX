@@ -373,9 +373,26 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         string bodies = moons > 0
             ? $"{planets.Count - moons} planet{(planets.Count - moons == 1 ? "" : "s")} · {moons} moon{(moons == 1 ? "" : "s")}"
             : $"{planets.Count} known planet{(planets.Count == 1 ? "" : "s")}";
-        string where = CurrentPlanet == 0 ? "you're in space"
-            : BodyKindsService.IsMoon(system, CurrentPlanet) ? "you're on a moon"
-            : $"you're on planet {CurrentPlanet}";
+        string where;
+        if (CurrentPlanet == 0)
+        {
+            where = "you're in space";
+        }
+        else
+        {
+            var curPlanet = planets.FirstOrDefault(p => p.PlanetIndex == CurrentPlanet);
+            string curName = UniverseInfo.PlanetName(system, CurrentPlanet);
+            bool isMoon = BodyKindsService.IsMoon(system, CurrentPlanet);
+            string bodyKind = isMoon ? "moon" : "planet";
+            var curDesc = PlanetTypesService.Descriptor(system, CurrentPlanet);
+            string typeInfo = curPlanet is not null
+                ? curPlanet.Classification(curDesc, isMoon: isMoon)
+                : curDesc is { Length: > 0 } cd ? (isMoon ? $"{cd} Moon" : $"{cd} Planet") : "";
+
+            where = typeInfo.Length > 0
+                ? $"you're on {bodyKind} {curName} · {typeInfo}"
+                : $"you're on {bodyKind} {curName}";
+        }
         string galaxyText = $"{UniverseInfo.Region(system)} · {NmsGalaxyNames.ForNumber(galaxy) ?? "Galaxy"} ({galaxy})";
         Sub = (planets.Count == 0 ? $"{galaxyText} · no planets discovered here yet" : $"{galaxyText} · {bodies} · {where}")
             + $" · about {NmsPlanets.DistanceToCoreLightYears(system):N0} ly from the galaxy core";
@@ -550,9 +567,10 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         var open = UnmatchedBodiesService.UnaccountedBodies(system);
         var bodies = (open.Count > 0 ? open : Enumerable.Range(1, UniverseInfo.For(system).PlanetCount + UniverseInfo.For(system).MoonCount).ToList()).Select(b =>
         {
-            string kind = BodyKindsService.IsMoon(system, b) ? "Moon" : "Planet";
+            bool isMoon = BodyKindsService.IsMoon(system, b);
+            string kind = isMoon ? "Moon" : "Planet";
             var planet = planets.FirstOrDefault(p => p.PlanetIndex == b);
-            string type = planet is not null ? $" · {planet.Classification(PlanetDetailsService.Get(system, b)?.Descriptor)}" : "";
+            string type = planet is not null ? $" · {planet.Classification(PlanetTypesService.Descriptor(system, b), isMoon: isMoon)}" : "";
             return new ChoiceItem($"{kind} {b} · {UniverseInfo.PlanetName(system, b)}{type}", b.ToString(CultureInfo.InvariantCulture));
         }).ToList();
         return UnmatchedBodiesService.For(system).Select(h => new UnmatchedBodyViewModel(h, bodies)).ToList();

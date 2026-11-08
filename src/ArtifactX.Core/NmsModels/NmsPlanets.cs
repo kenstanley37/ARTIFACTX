@@ -20,8 +20,8 @@ public sealed record KnownPlanet(
     public string PortalCode => NmsSpaceStationPaths.PortalAddress(Address, PlanetIndex);
     public string TypeName => NmsPlanets.TypeName(BiomeIndex);
     public string BiomeGroup => NmsPlanets.BiomeGroup(BiomeIndex);
-    public string Classification(string? descriptor, string ringSuffix = " with rings") =>
-        NmsPlanets.FormatClassification(BiomeIndex, descriptor, HasRings, ringSuffix);
+    public string Classification(string? descriptor, string ringSuffix = " with rings", bool? isMoon = null) =>
+        NmsPlanets.FormatClassification(BiomeIndex, descriptor, HasRings, ringSuffix, isMoon);
 
     /// <summary>Where this planet was read from, e.g. "Slot 3" - set by
     /// callers that merge several saves; empty for the loaded save.</summary>
@@ -63,8 +63,8 @@ public sealed record PlanetDiscoveryCounts(int Fauna, int Flora, int Minerals, i
 ///   8P3.5L6  packed address - its top nibble is the planet's index (1-6)
 ///   8P3.bEr  [seed, flags]: flags' low 16 bits are the biome (GcBiomeType
 ///            order); bit 16 is Extreme Hazard / Extreme Weather.
-///            (Planetary rings are NOT saved in flags; they are generated
-///            procedurally by GcSolarGenerationGlobals.PlanetRingProbability = 0.3f).
+///            (Planetary rings are NOT saved in flags; the solar layout picks
+///            one primary planet per system - see PlanetRings).
 ///   ksu      discoverer name (V?:), owner id (f5Q) and time (3I1).
 /// The discovery list also holds other players' discoveries downloaded by the
 /// game; those have an empty f5Q, which is how "discovered on this save" is
@@ -73,9 +73,9 @@ public sealed record PlanetDiscoveryCounts(int Fauna, int Flora, int Minerals, i
 ///
 /// Biome: checked against a real 6-planet system (3 green, 2 brown, 1 red in
 /// the game's Discoveries screen).
-/// Ring determination: rings are generated procedurally by the game's solar
-/// generation routine (GcSolarGenerationGlobals.PlanetRingProbability = 0.3f);
-/// moons never have rings, and planets test child seed 22 against 0.3f.
+/// Ring determination: PlanetRings (one primary planet per system, drawn on the
+/// solar layout stream; moons never have rings). Confirmed 2026-11-08 on
+/// Apolok-Sats, where the older child-seed-22 / 30% test ringed the wrong three planets.
 /// Bit 16 in bEr[1] was previously assumed to be rings, but cross-save analysis
 /// of 2,069 records proved it is Extreme Weather/Hazard (only occurs on hazard biomes).
 /// </summary>
@@ -116,23 +116,49 @@ public static class NmsPlanets
     };
 
     /// <summary>Dual classification format combining specific planetary descriptor with broad biome group
-    /// (e.g. "Crimson Planet (Red / Exotic)" or "Paradise Planet (Lush)"). If no descriptor is recorded,
-    /// cleanly falls back to the broad biome group.</summary>
-    public static string FormatClassification(int biome, string? descriptor, bool hasRings = false, string ringSuffix = " with rings")
+    /// (e.g. "Tropical Moon (Lush)" or "Paradise Planet (Lush)"). If no descriptor is recorded,
+    /// cleanly falls back to the broad biome group, indicating moon status if known.</summary>
+    public static string FormatClassification(int biome, string? descriptor, bool hasRings = false, string ringSuffix = " with rings", bool? isMoon = null)
     {
         string group = BiomeGroup(biome);
+        string typeName = TypeName(biome);
         string baseText;
+
         if (string.IsNullOrWhiteSpace(descriptor))
         {
-            baseText = group;
+            if (isMoon == true)
+                baseText = $"{group} Moon";
+            else if (isMoon == false)
+                baseText = $"{group} Planet";
+            else
+                baseText = group;
         }
         else
         {
             string desc = descriptor.Trim();
-            if (string.Equals(desc, group, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(desc, TypeName(biome), StringComparison.OrdinalIgnoreCase)
+
+            // If descriptor doesn't specify Moon or Planet, and isMoon is known, align it
+            if (isMoon == true && !desc.EndsWith("Moon", StringComparison.OrdinalIgnoreCase) && !desc.EndsWith("Anomaly", StringComparison.OrdinalIgnoreCase))
+            {
+                if (desc.EndsWith("Planet", StringComparison.OrdinalIgnoreCase))
+                    desc = desc[..^6].TrimEnd() + " Moon";
+                else
+                    desc = $"{desc} Moon";
+            }
+            else if (isMoon == false && !desc.EndsWith("Planet", StringComparison.OrdinalIgnoreCase) && !desc.EndsWith("Moon", StringComparison.OrdinalIgnoreCase) && !desc.EndsWith("Anomaly", StringComparison.OrdinalIgnoreCase))
+            {
+                desc = $"{desc} Planet";
+            }
+
+            // Check if desc already mentions the group/type
+            bool alreadyHasGroup = string.Equals(desc, group, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(desc, typeName, StringComparison.OrdinalIgnoreCase)
+                || desc.StartsWith(group + " ", StringComparison.OrdinalIgnoreCase)
+                || desc.StartsWith(typeName + " ", StringComparison.OrdinalIgnoreCase)
                 || desc.EndsWith($"({group})", StringComparison.OrdinalIgnoreCase)
-                || desc.EndsWith($" {group}", StringComparison.OrdinalIgnoreCase)) // "Planetary Anomaly"
+                || desc.EndsWith($" {group}", StringComparison.OrdinalIgnoreCase);
+
+            if (alreadyHasGroup)
             {
                 baseText = desc;
             }
@@ -189,16 +215,8 @@ public static class NmsPlanets
             var bodies = GetBodies(address);
             bool isMoon = bodies.IsMoon(planetIndex);
 
-            ulong seed = 0;
-            if (seedAndFlags[0].Type == JTokenType.Integer)
-                seed = seedAndFlags[0].Value<ulong>();
-            else if (seedAndFlags[0].Type == JTokenType.String)
-                NmsSeedGenerator.TryParse(seedAndFlags[0].Value<string>(), out seed);
-
-            if (seed == 0 && planetIndex >= 1 && planetIndex <= bodies.PlanetSeeds.Length)
-                seed = bodies.PlanetSeeds[planetIndex - 1];
-
-            bool hasRings = PlanetProfileGenerator.HasRings(seed, isMoon);
+            bool hasRings = !isMoon && PlanetRings.HasRings(
+                (((address >> 40) & 0xFFF) << 32) | (address & 0xFFFFFFFF), (int)((address >> 32) & 0xFF), planetIndex);
 
             var planet = new KnownPlanet(
                 address,

@@ -6,6 +6,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Procedural Planet Descriptors: Planet type descriptors (e.g. "Tropical Moon", "Paradise Planet", "Glacial Moon", "Ossified Planet") are now generated procedurally from the planet's seed using the game engine's exact algorithm, displaying alongside the broad biome classification ("Tropical Moon (Lush)", "Paradise Planet (Lush)") across planet cards, details headers, location summaries, system maps, and find lists without requiring visor screen capture. Searchable directly in Planet Finder.
 - Planetary Hotspot Clusters & Base Site Optimizer: Planet Details can now locate multi-hotspot clusters (Power + Mineral, Power + Gas, and 3-way Trifectas) reachable from a single base. Calculates the mathematically optimal Base Computer coordinates to bring all extraction sites within simultaneous range, with search, sorting (nearest to you, closest to portal, class, name), and one-click actions to place a Save Beacon right at the optimal base site.
 
 ### Changed
@@ -14,6 +15,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Planetary Rings: Fixed planetary ring detection so only the single planet chosen by the game's solar system layout shows rings, matching in-game Discoveries instead of marking multiple planets per system.
 - Planetary Hotspots & Base Beacons: Resolved Save Beacon elevation calculations by evaluating procedural terrain elevation (`PlanetTerrain.Height`) so placed beacons sit cleanly above the planetary surface (~3m clearance) rather than spawning underground inside procedural bedrock. Added full "Remove" support directly on hotspot and cluster cards to delete and clean up any placed beacons from your save.
 - Planetary Hotspots & Base Sites: Replaced scan event markers with physical in-game Save Beacons (`^BUILDBEACON`) placed directly at the optimal Base Computer and hotspot coordinates. In No Man's Sky, scan events on open terrain are ignored by the game engine, while placed Save Beacons render directly in the world and produce a permanent star HUD waypoint visible across the system.
 - Planetary Hotspots Selection: Fixed radio buttons resetting and hiding all hotspot/cluster cards whenever a game save or landing occurred, preserving your active view mode and filter choices across save reloads.
