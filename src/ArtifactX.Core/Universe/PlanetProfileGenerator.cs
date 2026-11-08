@@ -50,9 +50,10 @@ public sealed record SentinelTables(
 /// <param name="ScrapWorld">Scrapyard planet (Salvageable Scrap on the scanner; no bones there).</param>
 /// <param name="Hints">Scanner hints (ResourceHint ids, e.g. PLANT_DUST, UI_BONES_HINT), in placing order.</param>
 /// <param name="Water">Has a sea (and so underwater objects).</param>
+/// <param name="HasRings">Has planetary rings (procedurally generated from seed; moons never have rings).</param>
 public sealed record PlanetProfile(string Common, string Uncommon, string Rare, int WeatherType, bool Extreme, int Storms,
     int Flora, int Fauna, int[] Sentinels, string[] Hints, bool ScrapWorld = false, bool Water = false, int? FaunaCount = null,
-    PredictedCreature[]? PredictedCreatures = null);
+    PredictedCreature[]? PredictedCreatures = null, bool HasRings = false);
 
 /// <summary>
 /// A planet's resources, weather, life and sentinels from its seed - a port of NMS.exe's
@@ -70,6 +71,7 @@ public static partial class PlanetProfileGenerator
 {
     private const ulong Multiplier = 0x5A76F899;
     private const double Fraction = 2.3283064370807974e-10;
+    public const float PlanetRingProbability = 0.3f;
     private const int Lush = 0, Barren = 5, Dead = 6, Weird = 7, Swamp = 12, Lava = 13, Waterworld = 14, GasGiant = 15;
     private const int DustWeather = 1, HumidWeather = 2, ScorchedWeather = 5, WeirdWeather = 13;
     private const int SwampSub = 0x19, LavaSub = 0x1A;
@@ -103,7 +105,7 @@ public static partial class PlanetProfileGenerator
     }
 
     /// <summary>The 26 child seeds each planet step restarts from.</summary>
-    private static ulong[] ChildSeeds(ulong planetSeed)
+    public static ulong[] ChildSeeds(ulong planetSeed)
     {
         var rng = Rng.Start(planetSeed);
         var seeds = new ulong[26];
@@ -113,6 +115,18 @@ public static partial class PlanetProfileGenerator
             seeds[i] = Mix64((hi << 32) | lo);
         }
         return seeds;
+    }
+
+    /// <summary>
+    /// Whether a planet has planetary rings.
+    /// Moons never have rings. For planets, the solar generator (GcSolarGenerationGlobals)
+    /// tests child seed 22 against PlanetRingProbability (0.3f / 30% chance).
+    /// </summary>
+    public static bool HasRings(ulong planetSeed, bool isMoon = false)
+    {
+        if (isMoon || planetSeed == 0) return false;
+        var seeds = ChildSeeds(planetSeed);
+        return Rng.Start(seeds[22]).NextFraction() < PlanetRingProbability;
     }
 
     /// <param name="planetIndex">The body's 0-based index in its system (save planet index - 1).</param>
@@ -163,8 +177,9 @@ public static partial class PlanetProfileGenerator
             ? GenerateFauna(planetSeed, biome, subType, planetClass, star, fauna, sea, caves, emptySystem, abandonedSystem, t.Creatures)
             : default;
         int? faunaCount = t.Creatures is not null ? (fauna <= 0 ? 0 : faunaResult.Count) : null;
+        bool hasRings = HasRings(planetSeed, body.BodyClass == 3);
         return new PlanetProfile(common, uncommon, t.MiningRare[rareIndex], weather, extreme, storms, flora, fauna, sentinels,
-            hints, scrap, water, faunaCount, faunaResult.Creatures);
+            hints, scrap, water, faunaCount, faunaResult.Creatures, hasRings);
     }
 
     private const int Infested = 0x18;

@@ -681,9 +681,14 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
     - Bit 16 NEVER occurs on Barren (0/192), Dead (0/260), Exotic (0/91), Anomalies (0/99), Swamp (0/41), Volcanic (0/33), Water (0/15), or Gas (0/3).
     - Bit 16 in `bEr[1]` represents **Extreme Weather / Extreme Hazard**, NOT planetary rings.
   - Planetary rings (`GcPlanetGenerationInputData.HasRings`) are determined procedurally by the game's solar generation routine (`GcSolarGenerationGlobals`), not saved in the discovery record flags.
-- **Required Fix**:
-  - Update `NmsPlanets.cs` documentation and remove the incorrect bit-16 ring heuristic (`HasRings` in `KnownPlanet`).
-  - Port or verify the solar system generator's ring roll (`GcSolarGenerationGlobals` / `SystemGenerator`) to predict `HasRings` accurately from the system/planet seed, matching in-game generation.
+- **Resolution**:
+  - Identified that planetary rings are generated procedurally by `GcSolarGenerationGlobals.PlanetRingProbability = 0.3f`, where moons (`isMoon == true`) never have rings and planets test child seed 22 against 0.3f.
+  - Implemented `PlanetProfileGenerator.HasRings(ulong planetSeed, bool isMoon = false)` and exposed `PlanetProfile.HasRings`.
+  - Updated `NmsPlanets.ReadAll` to derive `HasRings` procedurally via `SystemGenerator.Bodies` and `PlanetProfileGenerator.HasRings`.
+  - Updated `PlanetTypesService.Undiscovered` to compute `HasRings` for undiscovered planets.
+  - Corrected doc comments in `NmsPlanets.cs`: bit 16 in `8P3.bEr[1]` represents Extreme Weather/Hazard, not rings.
+  - Verified on Slot 1 system Thwellus against in-game Discoveries screen: Planet 1 (Voybrierfi Magao) now correctly evaluates `HasRings = false`, and Planet 3 (Keci) evaluates `HasRings = true` (`Barren with rings`).
+- **Status**: Completed (2026-11-08) on branch `fix/planet-rings-heuristic`.
 
 ### Feature 74: Hotspot Cluster & Combo Finder (Base Computer Site Optimizer)
 - **Source**: Owner request, 2026-11-08: "we will want a search feature for the hotspots later but I'm not in a hurry for it. Players like me love power hotspots very close to the portal. Also, a combo search which may take more math, for example, I went around until I found 3 hotspots within 300u of each other. I then found a good place to put a base computer that was within range of all of them"
