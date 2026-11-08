@@ -67,6 +67,8 @@ public sealed partial class SpaceStationsPage : Page
 
     private void ClaimStationBtn_Click(object sender, RoutedEventArgs e) => ViewModel.Claim();
 
+    private void SyncStationsBtn_Click(object sender, RoutedEventArgs e) => ViewModel.SyncAllToTeleportNetwork();
+
     private async void ClearFurnitureBtn_Click(object sender, RoutedEventArgs e)
     {
         var kinds = ViewModel.FurnitureSummary();

@@ -49,16 +49,21 @@ public sealed partial class GameCatalogViewModel : ObservableObject
     /// <summary>True while this page is staging, so its own edits don't trigger a reload.</summary>
     public bool IsStaging => _staging;
 
+    private int _loadVersion;
+
     public async Task LoadAsync()
     {
+        int version = ++_loadVersion;
         IsLoading = true;
         string? keepSection = SelectedSection?.Key;
         string? keepCategory = SelectedCategory?.Name;
         var catalogue = await CatalogueSectionsService.LoadAsync();
-        Sections.Clear();
+        if (version != _loadVersion) return;
+
         NeedsGameData = catalogue.Sections.Length == 0;
         if (!SaveSessionManager.IsSaveLoaded || NeedsGameData)
         {
+            Sections.Clear();
             IsLoading = false;
             return;
         }
@@ -74,12 +79,16 @@ public sealed partial class GameCatalogViewModel : ObservableObject
             ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var fish = await WonderFishAsync(catalogue.FishOrder);
+        if (version != _loadVersion) return;
         var species = await CreatureNameService.LoadAsync();
+        if (version != _loadVersion) return;
+
+        var newSections = new List<GameCatalogSectionViewModel>();
         foreach (var section in catalogue.Sections)
         {
             if (section.Key == "UI_PORTAL_CAT_COLLECTION")
             {
-                Sections.Add(new GameCatalogSectionViewModel(section,
+                newSections.Add(new GameCatalogSectionViewModel(section,
                     section.Categories.Select(c => WonderCategory(c, catalogue, fish, species)).ToList(), null, tracksKnown: true));
                 continue;
             }
@@ -105,8 +114,13 @@ public sealed partial class GameCatalogViewModel : ObservableObject
                     return new GameCatalogItemViewModel(id, name, true, false, true, "unlocked as a special reward");
                 return new GameCatalogItemViewModel(id, name, list.IsUnlocked(id), true, true, null);
             }).ToList())).ToList();
-            Sections.Add(new GameCatalogSectionViewModel(section, categories, list, tracksKnown: list is not null));
+            newSections.Add(new GameCatalogSectionViewModel(section, categories, list, tracksKnown: list is not null));
         }
+
+        if (version != _loadVersion) return;
+
+        Sections.Clear();
+        foreach (var s in newSections) Sections.Add(s);
 
         IsLoading = false;
         SelectedSection = Sections.FirstOrDefault(s => s.Key == keepSection) ?? Sections.FirstOrDefault(s => s.TracksKnown) ?? Sections.FirstOrDefault();

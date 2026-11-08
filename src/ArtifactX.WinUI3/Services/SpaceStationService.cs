@@ -193,10 +193,9 @@ public static class SpaceStationService
             SaveSessionManager.StageEdit((int)(SaveSessionManager.GetLong(path) ?? 0) + 1, path);
         }
 
-        // No marker yet = nothing to stamp; a first-ever claim without a stamp
-        // was confirmed fine in-game (2026-10-09), so the claim still works.
-        if (markerIndex >= 0 && FindOwnershipStamp() is JArray stamp)
-            SaveSessionManager.StageEdit(stamp.DeepClone(), S.MarkerOwnershipStampPath(markerIndex));
+        // Stamping/registering the Spacestation marker in nlG is required by the game
+        // so that the station appears in the Teleportation Terminal under "Alliance Stations".
+        EnsureStationMarkerStaged(address, stationName);
 
         return null;
     }
@@ -213,6 +212,7 @@ public static class SpaceStationService
         if (PendingClaimIndex() is int claim) SaveSessionManager.RevertEditsUnder(S.BasePath(claim));
         if (FindStationsOwnedStat() is (int g, int s))
             SaveSessionManager.RevertEditsUnder(NmsPlayerStatsPaths.StatIntValuePath(g, s));
+        SaveSessionManager.RevertEditsUnder(S.MarkersPath);
         if (overview.CurrentAddress is ulong address && FindStationMarkerIndex(address, out _) is int marker and >= 0)
             SaveSessionManager.RevertEditsUnder(S.MarkerOwnershipStampPath(marker));
     }
@@ -354,10 +354,8 @@ public static class SpaceStationService
 
     /// <summary>The 4 x uint32 stamp the game writes on an owned station's
     /// marker - identical across all of a player's stations, so it's copied
-    /// from any marker that already carries one. Null on a first-ever claim,
-    /// in which case the marker is left as-is - CONFIRMED fine in-game
-    /// 2026-10-09 (first claim on a fresh Slot 5 still showed Manage Station).</summary>
-    private static JArray? FindOwnershipStamp()
+    /// from any marker that already carries one. Null on a first-ever claim.</summary>
+    public static JArray? FindOwnershipStamp()
     {
         if (SaveSessionManager.GetValue(S.MarkersPath) is not JArray markers) return null;
 
@@ -369,6 +367,124 @@ public static class SpaceStationService
         }
 
         return null;
+    }
+
+    /// <summary>Finds existing ownership stamp or derives a deterministic 4 x uint32
+    /// stamp from the player's account details (Steam ID / owner block) if none exist yet.</summary>
+    public static JArray GetOrCreateOwnershipStamp()
+    {
+        if (FindOwnershipStamp() is JArray existing) return existing;
+
+        string seed = FindOwnerBlock()?["f5Q"]?.Value<string>() ?? Guid.NewGuid().ToString();
+        using var md5 = System.Security.Cryptography.MD5.Create();
+        byte[] hash = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(seed));
+        return new JArray
+        {
+            BitConverter.ToUInt32(hash, 0),
+            BitConverter.ToUInt32(hash, 4),
+            BitConverter.ToUInt32(hash, 8),
+            BitConverter.ToUInt32(hash, 12)
+        };
+    }
+
+    private static bool StampEquals(JToken? a, JToken? b)
+    {
+        if (a is not JArray arrA || b is not JArray arrB) return false;
+        if (arrA.Count != arrB.Count) return false;
+        for (int i = 0; i < arrA.Count; i++)
+        {
+            if (arrA[i]?.Value<long>() != arrB[i]?.Value<long>()) return false;
+        }
+        return true;
+    }
+
+    /// <summary>Ensures the Spacestation marker for the system exists and is stamped
+    /// in nlG so the game displays it under Alliance Stations in the teleporter terminal.</summary>
+    private static void EnsureStationMarkerStaged(ulong systemAddress, string stationName)
+    {
+        var origMarkers = SaveSessionManager.GetValue(S.MarkersPath) as JArray ?? new JArray();
+        var markers = (JArray)origMarkers.DeepClone();
+        var stamp = GetOrCreateOwnershipStamp();
+
+        var match = markers.OfType<JObject>().FirstOrDefault(m =>
+            string.Equals(m["iAF"]?.Value<string>(), S.StationMarkerType, StringComparison.Ordinal)
+            && S.ReadSystemAddress(m["yhJ"]) == systemAddress);
+
+        if (match is not null)
+        {
+            match["6H2"] = new JObject { ["8?J"] = (JArray)stamp.DeepClone() };
+            if (string.IsNullOrWhiteSpace(match["NKm"]?.Value<string>()))
+                match["NKm"] = stationName;
+        }
+        else
+        {
+            markers.Add(S.CreateStationMarker(systemAddress, stationName, stamp));
+        }
+
+        SaveSessionManager.StageEdit(markers, S.MarkersPath);
+    }
+
+    /// <summary>Counts how many owned stations (in F?0) lack a stamped Spacestation
+    /// marker in nlG with the player's alliance ownership stamp.</summary>
+    public static int CountUnregisteredStations()
+    {
+        if (SaveSessionManager.GetValue(S.MarkersPath) is not JArray markers) return 0;
+        var stamp = GetOrCreateOwnershipStamp();
+        var owned = ReadOwnedStations();
+        int unregistered = 0;
+
+        foreach (var station in owned)
+        {
+            var match = markers.OfType<JObject>().FirstOrDefault(m =>
+                string.Equals(m["iAF"]?.Value<string>(), S.StationMarkerType, StringComparison.Ordinal)
+                && S.ReadSystemAddress(m["yhJ"]) == station.Address);
+
+            if (match is null || !StampEquals(match["6H2"]?["8?J"], stamp))
+                unregistered++;
+        }
+
+        return unregistered;
+    }
+
+    /// <summary>Syncs all claimed stations in F?0 to nlG teleport markers, updating
+    /// unstamped markers and generating any missing markers so every directed station
+    /// appears under Alliance Stations in the Teleportation Terminal.</summary>
+    public static (int Updated, int Added) SyncClaimedStationMarkers()
+    {
+        if (SaveSessionManager.GetValue(S.MarkersPath) is not JArray origMarkers) return (0, 0);
+
+        var markers = (JArray)origMarkers.DeepClone();
+        var stamp = GetOrCreateOwnershipStamp();
+        var owned = ReadOwnedStations();
+        int updated = 0, added = 0;
+
+        foreach (var station in owned)
+        {
+            var match = markers.OfType<JObject>().FirstOrDefault(m =>
+                string.Equals(m["iAF"]?.Value<string>(), S.StationMarkerType, StringComparison.Ordinal)
+                && S.ReadSystemAddress(m["yhJ"]) == station.Address);
+
+            if (match is not null)
+            {
+                if (!StampEquals(match["6H2"]?["8?J"], stamp))
+                {
+                    match["6H2"] = new JObject { ["8?J"] = (JArray)stamp.DeepClone() };
+                    if (string.IsNullOrWhiteSpace(match["NKm"]?.Value<string>()))
+                        match["NKm"] = station.Name;
+                    updated++;
+                }
+            }
+            else
+            {
+                markers.Add(S.CreateStationMarker(station.Address, station.Name, stamp));
+                added++;
+            }
+        }
+
+        if (updated + added > 0)
+            SaveSessionManager.StageEdit(markers, S.MarkersPath);
+
+        return (updated, added);
     }
 
     /// <summary>Owner block (3?K: platform user id, username, platform) from

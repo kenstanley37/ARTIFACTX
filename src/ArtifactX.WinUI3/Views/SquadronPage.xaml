@@ -57,8 +57,8 @@
                              descendant control is the whole point here. -->
                         <ContentControl x:Name="EditableFieldsPanel" HorizontalContentAlignment="Stretch"
                                         IsTabStop="False">
-                        <ctcontrols:WrapPanel HorizontalSpacing="28" VerticalSpacing="18">
-                        <StackPanel Spacing="18" MaxWidth="660">
+                        <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="20">
+                        <StackPanel Spacing="22" MinWidth="480" MaxWidth="800">
 
                         <!-- WrapPanel, not a plain horizontal StackPanel - a
                              fixed-orientation StackPanel doesn't reflow, so
@@ -97,41 +97,43 @@
                              columns on a narrow window the way WrapPanel
                              does) - MinHeight is the tradeoff that keeps
                              both responsiveness and alignment. -->
-                        <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
-                            <StackPanel Spacing="6" Width="300">
+                        <!-- Seed fields: 360px cards with generous 220px box width so full 18-character
+                             hex seeds and their copy/generate buttons have full breathing room. -->
+                        <ctcontrols:WrapPanel HorizontalSpacing="28" VerticalSpacing="18">
+                            <StackPanel Spacing="6" Width="360">
                                 <StackPanel Spacing="4" MinHeight="96">
                                     <TextBlock Text="PILOT APPEARANCE SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
                                     <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" HorizontalAlignment="Left"
                                                Text="Drives this pilot's procedural look. Paste a seed you've found elsewhere, or click Generate for a new random look - you won't see it until you load into the game."/>
                                 </StackPanel>
-                                <controls:SeedBox x:Name="NpcSeedBox" Label="Pilot seed" Changed="Seed_Changed" BoxWidth="180"/>
+                                <controls:SeedBox x:Name="NpcSeedBox" Label="Pilot seed" Changed="Seed_Changed" BoxWidth="220"/>
                             </StackPanel>
 
-                            <StackPanel Spacing="6" Width="300">
+                            <StackPanel Spacing="6" Width="360">
                                 <StackPanel Spacing="4" MinHeight="96">
                                     <TextBlock Text="PILOT &amp; SHIP NAME SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
                                     <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" HorizontalAlignment="Left"
                                                Text="Rerolls the pilot's Name AND the ship's flavor name together."/>
                                 </StackPanel>
-                                <controls:SeedBox x:Name="ShipSeedBox" Label="Ship seed" Changed="Seed_Changed" BoxWidth="180"/>
+                                <controls:SeedBox x:Name="ShipSeedBox" Label="Ship seed" Changed="Seed_Changed" BoxWidth="220"/>
                             </StackPanel>
 
-                            <StackPanel Spacing="6" Width="300">
+                            <StackPanel Spacing="6" Width="360">
                                 <StackPanel Spacing="4" MinHeight="96">
                                     <TextBlock Text="PILOT TRAITS SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
                                     <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" HorizontalAlignment="Left"
                                                Text="Drives the pilot's 4 stat categories AND their ratings (the category set itself varies per pilot, not just the values), Confirmed Kills, and the Notes line."/>
                                 </StackPanel>
-                                <controls:SeedBox x:Name="TraitsSeedBox" Label="Traits seed" Changed="Seed_Changed" BoxWidth="180"/>
+                                <controls:SeedBox x:Name="TraitsSeedBox" Label="Traits seed" Changed="Seed_Changed" BoxWidth="220"/>
                             </StackPanel>
                         </ctcontrols:WrapPanel>
 
                         </StackPanel>
 
-                        <!-- 3D Ship Preview -->
-                        <StackPanel x:Name="ShipPreviewGroup" Width="360" Spacing="8" VerticalAlignment="Top" Visibility="Collapsed">
+                        <!-- 3D Ship Preview: docked to the far right, wraps below on narrow windows -->
+                        <StackPanel x:Name="ShipPreviewGroup" Width="380" Spacing="8" VerticalAlignment="Top" Visibility="Collapsed">
                             <TextBlock x:Name="ShipNameTxt" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold" FontSize="15" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
-                            <controls:ModelPreviewPanel x:Name="ShipPreview" Subject="ship" Width="360"/>
+                            <controls:ModelPreviewPanel x:Name="ShipPreview" Subject="ship" Width="380"/>
                         </StackPanel>
                         </ctcontrols:WrapPanel>
                         </ContentControl>
