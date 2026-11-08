@@ -17,7 +17,7 @@ The following items from the notes are already fully addressed in the codebase o
 | **#27** | *Show user.db database size in UI.* | **Completed**: Added database size calculation (including WAL breakdown), schema version, full file path, and an "Open data folder" button directly to the ArtifactX Data card on `SettingsPage` on branch `feature/user-db-size-display`. |
 | **#22** | *Inventory sorting: sort by category/type then by name.* | **Completed**: Enhanced `InventoryGridViewModel.SortItems` with category taxonomy (Technology, Raw Materials/Substances, Crafted Components, Curiosities & Artifacts, Consumables/Navigation, Cooking & Edibles, Trade Goods, Construction Parts) and secondary A-Z alphabetical sorting on branch `feature/inventory-category-sorting`. |
 | **#26** | *Manual "Capture Screenshot Now" button for OCR reader.* | **Completed**: Added contextual manual capture buttons to `SystemViewFrame` and `CURRENT SYSTEM` header on `PlanetsPage`, and inline on creature cards + fauna header on `PlanetDetailsPage`. Contextual buttons serve as true manual overrides that bypass OCR detection heuristics to unconditionally crop and save system and creature pictures with offline fallback and immediate card refresh on branch `feature/manual-capture-button`. |
-| **#28** | *Dual planet classification display (Biome Group + Specific Descriptor).* | **Completed**: Added Schema Migration 20 to `user.db` adding `descriptor` column to `planet_details`. Integrated descriptor extraction from Discoveries pop-ups (`BodyKindsService`), flight cards, visor scans, and full planet pages (`PlanetPageReader`), with clean fallback to broad biome group (`NmsPlanets.BiomeGroup` / `FormatClassification`, e.g. *Crimson Planet (Red / Exotic)* or *Paradise Planet (Lush)*), manual descriptor viewing & editing in `PlanetDetailsPage`, and dual classification display across `PlanetsPage`, `PlanetDetailsPage`, `BasesPage`, `FindsPage`, and `FishingPage` on branch `feature/dual-planet-classification`. |
+| **#28** | *Dual planet classification display (Biome Group + Specific Descriptor).* | **Completed**: Originally added Schema Migration 20 (`planet_details.descriptor`) on `feature/dual-planet-classification`; upgraded 2026-11-08 on `feat/planet-type-descriptor` ([Issue #59](https://github.com/kenstanley37/ARTIFACTX/issues/59)) to procedurally generate exact planet type descriptors (`PlanetProfileGenerator.Descriptor.cs`, catalog format 74) directly from the planet seed using `NMS.exe`'s algorithm (`0x14168eb00`), displaying `"Tropical Moon (Lush)"`, `"Pillared Planet (Exotic) · rings"`, `"Desolate Planet (Barren)"`, etc., across the entire app without requiring screen capture. |
 | **#21** | *Collapsible categorized bases page (Freighter, Planets, Stations, Settlements, Placed Equipment), galactic regions, and BaseDetailsPage drill-down.* | **Completed**: Grouped `BasesPage.xaml` into 5 collapsible categories: 1) Freighter Base (pinned at top), 2) Planetary Bases, 3) Claimed Space Stations & Outposts, 4) Settlements, and 5) Placed Equipment (No Base) to track standalone refiners, save points, and beacons counting toward the 21,000 construction cap. Resolved page transition lag with instant visual navigation and background `Task.Run` processing. Added galactic region names to location telemetry (`UniverseInfo.LocationWithRegion`). Decoupled itemized building parts into `BaseDetailsPage.xaml` with comprehensive icons and styled fallback glyph badges for all station and base components on branch `feature/collapsible-bases`. |
 
 ---
@@ -141,8 +141,10 @@ These items directly extend existing open GitHub issues:
 - **Status**: Implemented in Settings (`4618392`): size including the WAL file, schema version and location, with an open-folder button. Already on `development`.
 
 ### Feature 12: Dual Planet Classification Display (Biome Group + Specific Descriptor) [Resolved]
+- **GitHub**: [Issue #59](https://github.com/kenstanley37/ARTIFACTX/issues/59)
 - **Note #28**
-- **Description**: Display both the broad biome group and the specific planetary descriptor on planet pages (e.g. *"Crimson Planet (Red / Exotic)"*).
+- **Description**: Display both the broad biome group and the specific planetary descriptor on planet pages (e.g. *"Tropical Moon (Lush)"*, *"Crimson Planet (Exotic)"*).
+- **Status**: Completed and verified in game by owner, 2026-11-08 (`feat/planet-type-descriptor`, merged `da862c4`). Replaced screen-reader dependence with procedural descriptor generation from `NMS.exe` (`0x14168eb00`, `PlanetProfileGenerator.Descriptor.cs`, catalog format 74). See Feature 76.
 
 ### Feature 13: Mission Target Tracking: Industrial Cleanup
 - **Note #30**
@@ -378,7 +380,8 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Request**: Display the selected companion's actual creature name and a rotatable 3D preview representing that creature.
 - **Implementation**: Reuse the existing preview pipeline where compatible; investigate creature model, descriptor, seed, scale and colour inputs. Distinguish the creature/species name from the player's pet nickname. Do not invent names or substitute a generic model as an exact preview.
 - **Companion name solved 2026-11-04**: a companion never renamed shows the game's own name ("Witchilly", "Ana-Ana") in the picker and as the Name box's placeholder; seed from XID + BirthTime, 4/4 on Slot 8 and 560/560 against NMS.exe's routine run in an emulator (Core `CreatureNames`, `feature/species-names`).
-- **Species name solved 2026-11-04**: the Companions page shows the game's species name ("Z. Wingeebus") from m9o/JrL, or the player's own when set; 4/4 against the owner's Genetic Profile screens (Core `SpeciesNames`, `feature/species-names`). The 3D preview remains open.
+- **Species name solved 2026-11-04**: the Companions page shows the game's species name ("Z. Wingeebus") from m9o/JrL, or the player's own when set; 4/4 against the owner's Genetic Profile screens (Core `SpeciesNames`, `feature/species-names`).
+- **3D preview solved 2026-11-08** (`feature/creature-companion-3d-models`, merged `17d93dc` + `fb90169`): Companions page and Planet Details creature cards now render interactive 3D creature models from the game install using the creature's archetype and active body descriptors, oriented in a front three-quarter view facing the player. Undiscovered planetary fauna render as procedural 3D mystery silhouettes with rim lighting and transition to full 3D models on discovery (including live save updates across both `8P3` and `S48` discovery arrays).
 - **Acceptance**: Compare names and appearance with the same companion in game; retain preview rotation while unrelated fields change and avoid rebuilding the model on every keystroke. Track unresolved model types explicitly.
 
 ### Feature 43: Egg Sequencer Helper
@@ -666,39 +669,62 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
     - Gateway station details now include authentic glyph icons (`<controls:GlyphStrip>`) alongside the portal address copy button.
     - Uncoupled layout to provide independent, isolated scrolling for both the galaxy browser list and the details panel.
 
-### Bug 73: Planetary Rings Misdetected (Discovery Flags Bit 16 is Extreme Hazard, Not Rings)
-- **Source**: Owner comparison screenshots, 2026-11-07: ArtifactX Current System (`media_1794112478514_424f9488.jpg`) vs in-game Discoveries screen (`media_1794112540536_7f7effec.jpg`) in system Thwellus.
-- **Evidence**:
-  - In ArtifactX, Planet 1 (Voybrierfi Magao, Radioactive) is displayed with rings (`rings` suffix and ring graphic on card and system map), while Planet 3 (Keci, Barren) is displayed without rings.
-  - In-game Discoveries confirms that Keci (Planet 3) has prominent rings, while Voybrierfi Magao (Planet 1) has no rings.
+### Bug 73: Planetary Rings Misdetected (Discovery Flags Bit 16 is Extreme Hazard, and Solar Layout Picks One Ringed Planet per System)
+- **Source**: Owner comparison screenshots, 2026-11-07 and 2026-11-08:
+  - System **Thwellus** (`media_1794112478514_424f9488.jpg` vs `media_1794112540536_7f7effec.jpg`): Planet 3 (Keci) has rings in game; Planet 1 (Voybrierfi Magao) does not.
+  - System **Apolok-Sats** (`0xB016F9FF9007`, `media_1794174292316_16b56799.jpg` vs `media_1794174300388_dcc314e2.jpg`): Only Planet 1 (Seburydes) has rings in game; the `0.3f` per-planet roll wrongly showed 3 planets with rings (Iolcuse, Toletcohwo Anzak, Hawayn XI).
+  - System **Upusichrot** (`0x0EA0205003FFA`, `media_1794180690369_5cfe95b6.jpg` vs `media_1794180695996_d264a130.jpg`): Only Planet 2 (Edmo IX) has rings in game.
 - **Investigation & Root Cause**:
-  - `NmsPlanets.ReadAll` read `HasRings = ((flags >> 16) & 1) == 1` from discovery key `8P3.bEr[1]`.
-  - In Thwellus save records:
-    - Planet 1 (Voybrierfi Magao, Radioactive): `bEr[1] = 65539 = 0x10003` (Biome 3, bit 16 = 1).
-    - Planet 3 (Keci, Barren): `bEr[1] = 5 = 0x5` (Biome 5, bit 16 = 0).
-  - Cross-save audit of all 2,069 planet discovery records in Slot 1:
-    - Bit 16 (`0x10000`) occurs exclusively on standard hazard biomes: Lush (3%), Toxic (27%), Scorched (23%), Radioactive (24%), Frozen (25%).
-    - Bit 16 NEVER occurs on Barren (0/192), Dead (0/260), Exotic (0/91), Anomalies (0/99), Swamp (0/41), Volcanic (0/33), Water (0/15), or Gas (0/3).
-    - Bit 16 in `bEr[1]` represents **Extreme Weather / Extreme Hazard**, NOT planetary rings.
-  - Planetary rings (`GcPlanetGenerationInputData.HasRings`) are determined procedurally by the game's solar generation routine (`GcSolarGenerationGlobals`), not saved in the discovery record flags.
+  1. **Discovery Flag Bit 16**: `NmsPlanets.ReadAll` originally read `HasRings = ((flags >> 16) & 1) == 1` from discovery key `8P3.bEr[1]`. Cross-save audit of all 2,069 planet discovery records in Slot 1 proved bit 16 (`0x10000`) occurs exclusively on standard hazard biomes (Lush, Toxic, Scorched, Radioactive, Frozen) and represents **Extreme Weather / Extreme Hazard**, NOT planetary rings.
+  2. **Solar System Layout Stream (`0x141683f50` in `NMS.exe`)**: Planetary rings (`GcPlanetGenerationInputData.HasRings` at `+0x4D` / slot `+0x21CD`) are NOT rolled independently per planet against `PlanetRingProbability = 0.3f` (`0x3e99999a` has zero xrefs in `NMS.exe`). Instead, the solar system layout function (`0x141683f50`, seeded by `SolarLayoutGeneration.RandomFor(address)` at `[rcx + 0x510]`) picks **at most one ringed primary planet per system** through the following exact RNG draw sequence:
+     - `0x141683fff`: 1 `rng.NextWord()` draw for the solar system's initial orbit angle.
+     - `0x141684460`, `0x1416845b7`, `0x14168474a`: 3 `rng.NextWord()` draws per non-moon primary planet (`increment`, `elevation`, `spacing`).
+     - `0x141684820`: 1 `rng.NextWord()` draw per primary host planet that has moons (`MoonDirections`).
+     - `0x141684941`: 1 `rng.Next((uint)primaryPlanets.Count)` draw to select the single ringed primary planet (`primaryPlanets[ringIdx].HasRings = true` at `0x14168499e`).
+     - `0x141684dcb`: If `Star == StarColour.Purple` (`[rbx + 0x2550] == 4`) and `PrimePlanetCount > 0`, 1 additional `rng.Next((uint)allPlanets.Count)` draw across all non-moon planets (prime body placement at `0x1416849f0`..`0x141684d79` operates on register copies and does not write back to `[r13 + 0x510]`).
 - **Resolution**:
-  - Identified that planetary rings are generated procedurally by `GcSolarGenerationGlobals.PlanetRingProbability = 0.3f`, where moons (`isMoon == true`) never have rings and planets test child seed 22 against 0.3f.
-  - Implemented `PlanetProfileGenerator.HasRings(ulong planetSeed, bool isMoon = false)` and exposed `PlanetProfile.HasRings`.
-  - Updated `NmsPlanets.ReadAll` to derive `HasRings` procedurally via `SystemGenerator.Bodies` and `PlanetProfileGenerator.HasRings`.
-  - Updated `PlanetTypesService.Undiscovered` to compute `HasRings` for undiscovered planets.
-  - Corrected doc comments in `NmsPlanets.cs`: bit 16 in `8P3.bEr[1]` represents Extreme Weather/Hazard, not rings.
-  - Verified on Slot 1 system Thwellus against in-game Discoveries screen: Planet 1 (Voybrierfi Magao) now correctly evaluates `HasRings = false`, and Planet 3 (Keci) evaluates `HasRings = true` (`Barren with rings`).
-- **Status**: Completed (2026-11-08) on branch `fix/planet-rings-heuristic`.
+  - Implemented `PlanetRings.RingedBody` and `PlanetRings.BodyHasRings` in `src/ArtifactX.Core/Universe/PlanetRings.cs` reproducing the exact `0x141683f50` solar layout RNG sequence.
+  - Updated `NmsPlanets.ReadAll`, `PlanetTypesService.Undiscovered`, `CurrentSystemViewModel`, and `PlanetDetailsViewModel` to determine `HasRings` from `PlanetRings`.
+  - Added regression checks in `tests/ArtifactX.Core.Checks/PlanetRingChecks.cs` verifying **Apolok-Sats** (`0xB016F9FF9007` -> body `1`, Seburydes) and **Upusichrot** (`0x0EA0205003FFA` -> body `2`, Edmo IX).
+- **Status**: Completed and verified in game by owner (2026-11-08, merged in `da862c4`).
 
 ### Feature 74: Hotspot Cluster & Combo Finder (Base Computer Site Optimizer)
 - **Source**: Owner request, 2026-11-08: "we will want a search feature for the hotspots later but I'm not in a hurry for it. Players like me love power hotspots very close to the portal. Also, a combo search which may take more math, for example, I went around until I found 3 hotspots within 300u of each other. I then found a good place to put a base computer that was within range of all of them"
-- **Status**: Completed (2026-11-08) on branch `feature/hotspot-combo-search`.
+- **Status**: Completed and verified in game by owner (2026-11-08) on `feature/hotspot-combo-search` and `fix/hotspot-save-beacon` (merged `970d4e0` and `d432771`).
 - **Implementation**:
   1. **Hotspot Search & Sort Toolbar**: Added resource name search text filter and 4-way sorting (Distance from You, Closest to Portal, Class S->C, and Resource Name A-Z) in `PlanetHotspotsPanel.xaml` and `PlanetHotspotsViewModel.cs`.
   2. **Multi-Hotspot Cluster Triangulation**: Implemented `PlanetHotspotCluster.Find` in `ArtifactX.Core` using exact 3D minimum enclosing circle math for pairs and triplets of hotspots. Detects all viable clusters within single Base Computer reach (<= 375u radius, sites spanning <= 650u).
   3. **Combo Categorization & Ranking**: Classifies clusters into Trifecta (⚡ Power + ⛏ Mineral + ☁ Gas - the holy grail), Power + Mineral, Power + Gas, Dual Mineral, and Dual Power, ranking Trifectas and highest-class sites first.
   4. **Optimal Base Computer Coordinate Calculation**: Calculates the exact surface coordinates (Latitude/Longitude) for dropping the Base Computer to minimize maximum reach distance to all extraction sites.
-  5. **HUD Navigation Staging**: Added "Add base marker to save" action on cluster cards, staging an in-game HUD marker directly at the optimal Base Computer location so players can fly directly to the site in No Man's Sky.
+  5. **Physical Save Beacon Staging**: Added "Place Save Beacon at site" and "Remove" actions on cluster and hotspot cards, staging a physical in-game Save Beacon (`^BUILDBEACON`) directly at the optimal Base Computer or hotspot location.
+
+### Bug 75: Planetary Hotspot Save Beacons, Terrain Elevation, Gas ID Mapping, and Card Pinning
+- **Source**: Owner in-game testing on planet **Abridg Kita** (`Apolok-Sats`, Tropical Moon / Lush) at `+35.15, +34.15`, 2026-11-08 (`media_1794167194051_c5a8c656.jpg`, `media_1794167205975_9392187c.jpg`, `media_1794167212141_8ea4ce7d.jpg`, `media_1794168101366_5f993556.jpg`).
+- **Status**: Completed and verified in game by owner (2026-11-08, merged in `d432771`).
+- **Issues Resolved**:
+  1. **Physical Save Beacons (`^BUILDBEACON`) & Removal**: Scan event markers (`vLc.6f=.A1f`) on open terrain without a building are ignored by No Man's Sky. Replaced with physical Save Beacons (`^BUILDBEACON`) placed in `vLc.6f=.@ZJ` (`PersistentPlayerBases` loose objects), which create a permanent star HUD icon visible across the system and a physical beacon on the ground, with a "Remove" button on the card to delete placed beacons.
+  2. **Procedural Terrain Elevation (`PlanetTerrain.Height`)**: Evaluated `PlanetTerrain.Height` at the target unit-sphere direction (without sea-level water clamping on base-site surface coordinates, with a `+1.5m` surface offset) so placed Save Beacons sit cleanly on the ground instead of spawning underground or high above the player's head.
+  3. **Atmospheric Gas ID Mapping (`GAS1`/`GAS2`/`GAS3`)**: On Lush and Toxic worlds, the app previously displayed **Sulphurine** (`GAS1`) instead of **Nitrogen** (`GAS3`). Corrected `PlanetHotspots.cs` gas mapping to match `NMS.exe`: `GAS1` (Sulphurine) on Scorched/Barren/Radioactive, `GAS2` (Radon) on Frozen, and `GAS3` (Nitrogen) on Lush/Toxic. Verified in game on Abridg Kita (`+35.15, +34.15`): Supply Depots confirmed **Activated Copper** (`1,397/hr`) + **Nitrogen** (`1,402/hr`) + **Electromagnetic Power**.
+  4. **Card Pinning & Anti-Shuffle While Walking**: Added a `Pin` / `Pinned` toggle button on every hotspot and combo card (`PlanetHotspotsViewModel.cs`, `PlanetHotspotsPanel.xaml`) that locks pinned cards to the top of the list with a gold highlight border, and suppressed automatic distance re-sorting on small movements (`< 50u`) during live save reloads.
+  5. **Consistent Card Footer Alignment & View Mode Preservation**: Fixed two-way `RadioButton` binding resetting `IsComboMode` on save reloads, and structured hotspot and combo cards with a 4-row `Grid` (`Auto, *, Auto, Auto`) so the "Base Computer placed here..." summary box and action buttons always stay aligned at the bottom of every card.
+
+### Feature 76: Procedural Planet Type Descriptors & Dual Biome Classification
+- **GitHub**: [Issue #59](https://github.com/kenstanley37/ARTIFACTX/issues/59)
+- **Source**: Owner request, 2026-11-08 (`media_1794168390582_d69b0f0e.jpg`): "Let's see if we can get the planet type 'Tropical Moon' as well as Lush etc. It would be nice for the user to see both... I don't want the screen reader to determine this. I want us to know this through the procedural generation."
+- **Status**: Completed and verified in game by owner (2026-11-08) on `feat/planet-type-descriptor` (merged `da862c4`).
+- **Implementation**:
+  - Disassembled `0x14168eb00` (`GetPlanetTypeString`) in `NMS.exe` and ported the exact procedural planet descriptor selection to `src/ArtifactX.Core/Universe/PlanetProfileGenerator.Descriptor.cs`.
+  - Extended `CatalogSteps.Planets.cs` (catalog format 74) to extract all localized planet descriptor word lists (`PLANET_DESC_*`, `WEIRD_PLANET_*`, `WATERWORLD_*`, `GASGIANT_*`, etc.) from the player's installed game files into `nms_catalog.sqlite`.
+  - Exposed `PlanetProfile.PlanetTypeDescriptor` and formatted dual labels via `NmsPlanets.FormatClassification` (e.g. `"Tropical Moon (Lush)"`, `"Freezing Planet (Frozen) · rings"`, `"Pillared Planet (Exotic) · rings"`, `"Desolate Planet (Barren)"`, `"Volcanic Planet"`, omitting redundant suffixes when descriptor and biome match).
+  - Wired procedural descriptors across `CurrentSystemViewModel`, `PlanetDetailsViewModel`, `PlayerLocationText` (title bar location), `SystemMap`, `BaseListBuilder`, `FindsPage`, `FishingPage`, and `PlanetFinder` without relying on screen capture.
+
+### Feature 77: Dedicated Crashed Ships & Cabinet Multi-Tools Pages and Compact Planet Details POI Cards
+- **Source**: Owner feedback, 2026-11-08 (`feature/exploration-crashed-ships-multitools` merged `1c124cc`, and `f664ce1`).
+- **Status**: Completed and merged to `development` (2026-11-08).
+- **Implementation**:
+  - Added dedicated **Crashed Ships** and **Cabinet Multi-Tools** pages under **Explore** in `MainWindow.xaml`, moving heavy spatial scans, filters, 3D model previews, and coordinate marker actions into dedicated views.
+  - Converted the Portal, Crashed Ships, and Cabinet Multi-Tools summary sections on `PlanetDetailsPage.xaml` from full-width stacked rows into compact 370px side-by-side summary cards with quick navigation links, saving over 200px of vertical height.
+
 
 
 
