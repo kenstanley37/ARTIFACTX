@@ -109,6 +109,15 @@ public static class PlanetTypesService
     public static string? HintName(string id) =>
         _profileTables?.HintNames is { } names && names.TryGetValue(id, out var name) ? name : null;
 
+    /// <summary>The body's specific procedural descriptor (e.g. "Tropical", "Paradise", "Glacial"),
+    /// falling back to recorded OCR descriptor if present.</summary>
+    public static string? Descriptor(ulong system, int planetIndex)
+    {
+        if (Profile(system, planetIndex) is { Descriptor: { Length: > 0 } desc })
+            return desc;
+        return PlanetDetailsService.Get(system, planetIndex)?.Descriptor;
+    }
+
     /// <summary>Whether the given planet (1-based index) has Corrupted Sentinels (Dissonant).</summary>
     public static bool HasCorruptedSentinels(ulong system, int planetIndex)
     {
@@ -117,7 +126,8 @@ public static class PlanetTypesService
         var details = PlanetDetailsService.Get(system, planetIndex);
         return details?.Sentinels?.Contains("Corrupt", StringComparison.OrdinalIgnoreCase) == true
             || details?.Sentinels?.Contains("Dissonan", StringComparison.OrdinalIgnoreCase) == true
-            || details?.Descriptor?.Contains("Dissonan", StringComparison.OrdinalIgnoreCase) == true;
+            || details?.Descriptor?.Contains("Dissonan", StringComparison.OrdinalIgnoreCase) == true
+            || Profile(system, planetIndex)?.Descriptor.Contains("Dissonan", StringComparison.OrdinalIgnoreCase) == true;
     }
 
     /// <summary>Whether any planet or moon in the system has Corrupted Sentinels (Dissonant).</summary>

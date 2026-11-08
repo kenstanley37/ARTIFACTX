@@ -173,7 +173,7 @@ public sealed partial class FindsPage : Page
             if (planet is not null)
             {
                 bool isMoon = BodyKindsService.IsMoon(system, _herePlanet);
-                parts.Add(planet.Classification(PlanetDetailsService.Get(system, _herePlanet)?.Descriptor, isMoon: isMoon));
+                parts.Add(planet.Classification(PlanetTypesService.Descriptor(system, _herePlanet), isMoon: isMoon));
             }
         }
         else parts.Add("In space");

@@ -85,7 +85,7 @@ public static class BaseListBuilder
         {
             if (!planets.TryGetValue(address, out var planet)) return "Planet";
             bool isMoon = BodyKindsService.IsMoon(planet.SystemAddress, planet.PlanetIndex);
-            return planet.Classification(PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex)?.Descriptor, ringSuffix: ringSuffix, isMoon: isMoon);
+            return planet.Classification(PlanetTypesService.Descriptor(planet.SystemAddress, planet.PlanetIndex), ringSuffix: ringSuffix, isMoon: isMoon);
         }
         string Swatch(ulong address, string fallback) =>
             planets.TryGetValue(address, out var planet) ? NmsPlanets.TypeColour(planet.BiomeIndex) : fallback;

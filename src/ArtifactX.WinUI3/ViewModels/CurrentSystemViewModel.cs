@@ -384,10 +384,10 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             string curName = UniverseInfo.PlanetName(system, CurrentPlanet);
             bool isMoon = BodyKindsService.IsMoon(system, CurrentPlanet);
             string bodyKind = isMoon ? "moon" : "planet";
-            var curDetails = PlanetDetailsService.Get(system, CurrentPlanet);
+            var curDesc = PlanetTypesService.Descriptor(system, CurrentPlanet);
             string typeInfo = curPlanet is not null
-                ? curPlanet.Classification(curDetails?.Descriptor, isMoon: isMoon)
-                : curDetails?.Descriptor is { Length: > 0 } cd ? cd : "";
+                ? curPlanet.Classification(curDesc, isMoon: isMoon)
+                : curDesc is { Length: > 0 } cd ? (isMoon ? $"{cd} Moon" : $"{cd} Planet") : "";
 
             where = typeInfo.Length > 0
                 ? $"you're on {bodyKind} {curName} · {typeInfo}"
@@ -570,7 +570,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             bool isMoon = BodyKindsService.IsMoon(system, b);
             string kind = isMoon ? "Moon" : "Planet";
             var planet = planets.FirstOrDefault(p => p.PlanetIndex == b);
-            string type = planet is not null ? $" · {planet.Classification(PlanetDetailsService.Get(system, b)?.Descriptor, isMoon: isMoon)}" : "";
+            string type = planet is not null ? $" · {planet.Classification(PlanetTypesService.Descriptor(system, b), isMoon: isMoon)}" : "";
             return new ChoiceItem($"{kind} {b} · {UniverseInfo.PlanetName(system, b)}{type}", b.ToString(CultureInfo.InvariantCulture));
         }).ToList();
         return UnmatchedBodiesService.For(system).Select(h => new UnmatchedBodyViewModel(h, bodies)).ToList();

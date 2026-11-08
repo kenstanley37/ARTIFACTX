@@ -6,7 +6,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
-- Planet Classification & Biome Display: Planet cards, details headers, system location summaries, 3D system maps, and find lists now display both the specific planetary descriptor (e.g. "Tropical Moon", "Paradise Planet", "Glacial Moon") alongside the broad biome group ("Lush", "Frozen", etc.). Shows moon status even before screen capture and provides dedicated Type and Biome pills under Conditions in Planet Details.
+- Procedural Planet Descriptors: Planet type descriptors (e.g. "Tropical Moon", "Paradise Planet", "Glacial Moon", "Ossified Planet") are now generated procedurally from the planet's seed using the game engine's exact algorithm, displaying alongside the broad biome classification ("Tropical Moon (Lush)", "Paradise Planet (Lush)") across planet cards, details headers, location summaries, system maps, and find lists without requiring visor screen capture. Searchable directly in Planet Finder.
 - Planetary Hotspot Clusters & Base Site Optimizer: Planet Details can now locate multi-hotspot clusters (Power + Mineral, Power + Gas, and 3-way Trifectas) reachable from a single base. Calculates the mathematically optimal Base Computer coordinates to bring all extraction sites within simultaneous range, with search, sorting (nearest to you, closest to portal, class, name), and one-click actions to place a Save Beacon right at the optimal base site.
 
 ### Changed

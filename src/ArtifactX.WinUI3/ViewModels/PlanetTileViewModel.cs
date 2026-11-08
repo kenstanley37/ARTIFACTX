@@ -37,7 +37,8 @@ public sealed partial class PlanetTileViewModel : ObservableObject
         // "Originally Irskya XIX" (2026-10-18): guides and other players may still use the game's original name.
         OriginalName = string.Equals(Name, generated, StringComparison.OrdinalIgnoreCase) ? "" : $"Originally {generated}";
         var details = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex);
-        TypeText = planet.Classification(details?.Descriptor, ringSuffix: " · rings", isMoon: isMoon);
+        var desc = PlanetTypesService.Descriptor(planet.SystemAddress, planet.PlanetIndex);
+        TypeText = planet.Classification(desc, ringSuffix: " · rings", isMoon: isMoon);
         BasesLabel = baseNames.Count == 1 ? "Your base" : "Your bases";
         Bases = string.Join(", ", baseNames);
         FoundBy = planet.Predicted ? "Not discovered yet" : planet.DiscoveredHere ? "You" : planet.Discoverer;

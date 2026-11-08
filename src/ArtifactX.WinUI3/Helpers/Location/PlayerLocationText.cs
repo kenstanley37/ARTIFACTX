@@ -47,12 +47,12 @@ public static class PlayerLocationText
         string typeDetail = "";
         if (planet > 0)
         {
-            var pDetails = PlanetDetailsService.Get(system, planet);
+            var desc = PlanetTypesService.Descriptor(system, planet);
             var kp = NmsPlanets.ReadAll(snapshot.Discoveries).FirstOrDefault(p => p.PlanetIndex == planet);
             bool isMoon = BodyKindsService.IsMoon(system, planet);
             string type = kp is not null
-                ? kp.Classification(pDetails?.Descriptor, isMoon: isMoon)
-                : pDetails?.Descriptor is { Length: > 0 } desc ? desc : "";
+                ? kp.Classification(desc, isMoon: isMoon)
+                : desc is { Length: > 0 } ? (isMoon ? $"{desc} Moon" : $"{desc} Planet") : "";
             if (type.Length > 0) typeDetail = $" · {type}";
         }
 

@@ -108,8 +108,8 @@ public sealed partial class SystemMap : UserControl
             string typeInfo = "";
             if (body.Planet is KnownPlanet kp)
             {
-                var details = PlanetDetailsService.Get(kp.SystemAddress, kp.PlanetIndex);
-                typeInfo = $" · {kp.Classification(details?.Descriptor, isMoon: body.IsMoon)}";
+                var desc = PlanetTypesService.Descriptor(kp.SystemAddress, kp.PlanetIndex);
+                typeInfo = $" · {kp.Classification(desc, isMoon: body.IsMoon)}";
             }
             ToolTipService.SetToolTip(drawing, $"{body.Name}\n{body.Kind}{typeInfo}" + (body.Planet is null ? "\nNot discovered yet" : ""));
             var label = new TextBlock

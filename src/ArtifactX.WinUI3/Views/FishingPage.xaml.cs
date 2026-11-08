@@ -634,7 +634,7 @@ public sealed partial class FishingPage : Page
     {
         string planetName = UniverseInfo.PlanetName(p.SystemAddress, p.PlanetIndex);
         bool isMoon = BodyKindsService.IsMoon(p.SystemAddress, p.PlanetIndex);
-        var detail = new List<string> { p.Classification(PlanetDetailsService.Get(p.SystemAddress, p.PlanetIndex)?.Descriptor, ringSuffix: " · rings", isMoon: isMoon) };
+        var detail = new List<string> { p.Classification(PlanetTypesService.Descriptor(p.SystemAddress, p.PlanetIndex), ringSuffix: " · rings", isMoon: isMoon) };
         detail.Add(UniverseInfo.SystemName(p.SystemAddress));
         detail.Add(UniverseInfo.Compact(p.SystemAddress));
         detail.Add(GalaxyLabel(p.Galaxy));
