@@ -33,14 +33,14 @@ public sealed partial class CreatureCard : UserControl
     public CreatureCard()
     {
         InitializeComponent();
-        Loaded += (_, _) => Refresh();
+        Loaded += (_, _) => _ = BuildModelAsync();
         Unloaded += (_, _) => ++_version;
     }
 
     private void Refresh()
     {
         Bindings.Update();
-        if (IsLoaded) _ = BuildModelAsync();
+        _ = BuildModelAsync();
     }
 
     private async Task BuildModelAsync()
@@ -52,7 +52,7 @@ public sealed partial class CreatureCard : UserControl
         try
         {
             var mesh = await CreatureModelService.BuildCreatureMeshAsync(game, card.RigId);
-            if (version != _version || !IsLoaded) return;
+            if (version != _version) return;
             if (mesh is null) return;
 
             Preview.Show(mesh, material => CreatureModelService.CreatureMaterialColour(material),

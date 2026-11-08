@@ -13,7 +13,7 @@
             <Border Height="140" CornerRadius="6" Background="{ThemeResource ThemePanelAltBrush}"
                     BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                     PointerPressed="Preview_PointerPressed">
-                <controls:ShipPreview x:Name="Preview" Height="140" FitToSize="True"
+                <controls:ShipPreview x:Name="Preview" Height="140" Width="248" PixelWidth="248" PixelHeight="140" FitToSize="True"
                                       AutomationProperties.Name="{x:Bind PreviewName, Mode=OneWay}"/>
             </Border>
 

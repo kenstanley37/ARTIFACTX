@@ -22,7 +22,7 @@ namespace ArtifactX.WinUI3.Controls;
 /// </summary>
 public sealed class ShipPreview : UserControl
 {
-    private readonly Image _image = new() { Stretch = Microsoft.UI.Xaml.Media.Stretch.None };
+    private readonly Image _image = new() { Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform };
     private readonly TextBlock _hint = new()
     {
         Text = "Drag to turn", FontSize = 11, Opacity = 0.6, Margin = new Thickness(8, 6, 8, 6),

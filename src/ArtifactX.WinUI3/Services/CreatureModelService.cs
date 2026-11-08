@@ -1,4 +1,5 @@
 using ArtifactX.GameData;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -147,12 +148,46 @@ public static class CreatureModelService
         var tree = await CatalogService.GetCreatureDescriptorTreeAsync(rigId);
         var allOptions = tree.Select(n => n.OptionId).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var chosen = chosenDescriptors is null
-            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            : chosenDescriptors
+        HashSet<string> chosen;
+        if (chosenDescriptors is not null && chosenDescriptors.Any())
+        {
+            chosen = chosenDescriptors
                 .Select(d => d.TrimStart('^').Trim())
                 .Where(d => !ulong.TryParse(d, out _))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+        else
+        {
+            // When no descriptors are given (procedural wild fauna), pick the rig's default descriptor set
+            // so that head, body, legs, and tail parts are included rather than omitted.
+            chosen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var rootCategories = tree
+                .Where(n => n.ParentOptionId == null)
+                .GroupBy(n => n.Category)
+                .OrderBy(g => g.Min(n => n.SortOrder));
+
+            foreach (var rootCategory in rootCategories)
+            {
+                var root = rootCategory
+                    .OrderBy(n => n.OptionId.EndsWith("XRARE", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+                    .ThenBy(n => n.SortOrder)
+                    .First();
+                var defaults = CompanionService.BuildDefaultDescriptorArray(tree, root.OptionId, new JArray());
+                foreach (var d in defaults)
+                {
+                    string id = (d?.ToString() ?? "").TrimStart('^').Trim();
+                    if (id.Length > 0) chosen.Add(id);
+                }
+            }
+
+            if (chosen.Count == 0 && tree.Count > 0)
+            {
+                foreach (var cat in tree.GroupBy(n => n.Category))
+                {
+                    chosen.Add(cat.OrderBy(n => n.SortOrder).First().OptionId);
+                }
+            }
+        }
 
         // A creature mesh is built off the UI thread
         return await Task.Run(() => models.Build(scene, allOptions, chosen));
