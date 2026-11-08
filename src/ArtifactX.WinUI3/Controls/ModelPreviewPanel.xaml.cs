@@ -134,7 +134,7 @@ public sealed partial class ModelPreviewPanel : UserControl
         }
         Preview.ShowMessage($"Building this {Subject}'s model from your game files...");
         NoteTxt.Text = "";
-        StartYawOffset = 0;
+        StartYawOffset = Math.PI;
 
         var mesh = await CreatureModelService.BuildCreatureMeshAsync(game, rigId, chosenDescriptors);
         if (version != _version) return;

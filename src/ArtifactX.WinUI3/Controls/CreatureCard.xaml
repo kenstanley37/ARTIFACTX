@@ -14,6 +14,7 @@
                     BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                     PointerPressed="Preview_PointerPressed">
                 <controls:ShipPreview x:Name="Preview" Height="140" Width="248" PixelWidth="248" PixelHeight="140" FitToSize="True"
+                                      StartYawOffset="3.14159"
                                       AutomationProperties.Name="{x:Bind PreviewName, Mode=OneWay}"/>
             </Border>
 

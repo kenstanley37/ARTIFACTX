@@ -14,7 +14,7 @@
         <!-- 3D Model Viewport -->
         <Border CornerRadius="8" Background="{ThemeResource ThemeVoidBrush}"
                 BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" Padding="8">
-            <controls:ModelPreviewPanel x:Name="ModelPreview" Subject="creature" Height="340"/>
+            <controls:ModelPreviewPanel x:Name="ModelPreview" Subject="creature" StartYawOffset="3.14159" Height="340"/>
         </Border>
 
         <!-- Creature Info and Rig Selection -->
