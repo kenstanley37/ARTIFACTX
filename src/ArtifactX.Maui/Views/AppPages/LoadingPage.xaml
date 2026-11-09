@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:ArtifactX.Maui.Controls"
+    xmlns:vm="clr-namespace:ArtifactX.Maui.ViewModels"
+    x:Class="ArtifactX.Maui.Views.AppPages.LoadingPage"
+    x:DataType="vm:LoadingViewModel"
+    Shell.NavBarIsVisible="False"
+    Background="{DynamicResource ThemeVoidBrush}">
+
+    <Grid RowDefinitions="*,Auto,*" Padding="32,48">
+
+        <!-- Centerpiece: Animated Vector Hexagon + X Mark, Title, and Progress Bar -->
+        <VerticalStackLayout
+            Grid.Row="1"
+            Spacing="22"
+            HorizontalOptions="Center"
+            VerticalOptions="Center">
+
+            <controls:AnimatedLogoView
+                x:Name="LogoCanvas"
+                WidthRequest="136"
+                HeightRequest="136"
+                HorizontalOptions="Center"
+                Progress="{Binding LogoProgress}"
+                PrimaryColor="{DynamicResource ThemeAccentColor}"
+                CyanGhostColor="{DynamicResource ThemeCyanColor}"
+                SemanticProperties.Description="ArtifactX animated hexagon and X emblem" />
+
+            <Label
+                Text="ARTIFACTX"
+                FontFamily="Exo2"
+                FontAttributes="Bold"
+                FontSize="22"
+                CharacterSpacing="7.5"
+                HorizontalOptions="Center"
+                HorizontalTextAlignment="Center"
+                Opacity="{Binding TitleOpacity}"
+                TextColor="{DynamicResource ThemeTextColor}" />
+
+            <!-- Progress Track -->
+            <Border
+                WidthRequest="148"
+                HeightRequest="3"
+                HorizontalOptions="Center"
+                Background="{DynamicResource ThemeLineBrush}"
+                StrokeThickness="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="2" />
+                </Border.StrokeShape>
+                <BoxView
+                    HorizontalOptions="Start"
+                    WidthRequest="{Binding BarProgress}"
+                    HeightRequest="3"
+                    Color="{DynamicResource ThemeAccentColor}" />
+            </Border>
+        </VerticalStackLayout>
+
+        <!-- Bottom Footer: Status + Skip to Home -->
+        <VerticalStackLayout
+            Grid.Row="2"
+            Spacing="10"
+            VerticalOptions="End"
+            HorizontalOptions="Center">
+
+            <Label
+                Text="{Binding StatusText}"
+                Style="{StaticResource ThemeDimTextStyle}"
+                HorizontalTextAlignment="Center" />
+
+            <Button
+                Text="Skip to Home"
+                Command="{Binding SkipToHomeCommand}"
+                BackgroundColor="Transparent"
+                BorderWidth="0"
+                FontFamily="Exo2"
+                FontAttributes="Bold"
+                FontSize="14"
+                TextColor="{DynamicResource ThemeAccentColor}"
+                HorizontalOptions="Center"
+                SemanticProperties.Description="Skip loading animation and open Home" />
+        </VerticalStackLayout>
+
+    </Grid>
+</ContentPage>

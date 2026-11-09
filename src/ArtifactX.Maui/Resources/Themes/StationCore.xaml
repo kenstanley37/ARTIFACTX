@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- "Station Core" theme (shared with ArtifactX.WinUI3) - deep indigo panels,
+     cyan HUD highlights, purple-to-blue header bands, crisp tech corners. -->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="ArtifactX.Maui.Resources.Themes.StationCore">
+
+    <Color x:Key="ThemeVoidColor">#070912</Color>
+    <Color x:Key="ThemeChromeColor">#0C1024</Color>
+    <Color x:Key="ThemePanelColor">#10142A</Color>
+    <Color x:Key="ThemePanelAltColor">#161B38</Color>
+    <Color x:Key="ThemeLineColor">#2A3160</Color>
+    <Color x:Key="ThemeAccentColor">#39D0FF</Color>
+    <Color x:Key="ThemeAccentAltColor">#7C4DFF</Color>
+    <Color x:Key="ThemeCyanColor">#39D0FF</Color>
+    <Color x:Key="ThemePurpleSystemColor">#C77DFF</Color>
+    <Color x:Key="ThemeDoneColor">#FFC62E</Color>
+    <Color x:Key="ThemeTextColor">#E9ECF6</Color>
+    <Color x:Key="ThemeTextDimColor">#B4BCD6</Color>
+    <Color x:Key="ThemeTextFaintColor">#8E97B4</Color>
+    <Color x:Key="ThemeOnAccentColor">#070912</Color>
+    <Color x:Key="ThemeSelectedFillColor">#3339D0FF</Color>
+    <Color x:Key="ThemeWarningColor">#FFB454</Color>
+
+    <SolidColorBrush x:Key="ThemeVoidBrush" Color="{StaticResource ThemeVoidColor}" />
+    <SolidColorBrush x:Key="ThemeChromeBrush" Color="{StaticResource ThemeChromeColor}" />
+    <SolidColorBrush x:Key="ThemePanelBrush" Color="{StaticResource ThemePanelColor}" />
+    <SolidColorBrush x:Key="ThemePanelAltBrush" Color="{StaticResource ThemePanelAltColor}" />
+    <SolidColorBrush x:Key="ThemeLineBrush" Color="{StaticResource ThemeLineColor}" />
+    <SolidColorBrush x:Key="ThemeAccentBrush" Color="{StaticResource ThemeAccentColor}" />
+    <SolidColorBrush x:Key="ThemeAccentAltBrush" Color="{StaticResource ThemeAccentAltColor}" />
+    <SolidColorBrush x:Key="ThemeCyanBrush" Color="{StaticResource ThemeCyanColor}" />
+    <SolidColorBrush x:Key="ThemeDoneBrush" Color="{StaticResource ThemeDoneColor}" />
+    <SolidColorBrush x:Key="ThemeTextBrush" Color="{StaticResource ThemeTextColor}" />
+    <SolidColorBrush x:Key="ThemeTextDimBrush" Color="{StaticResource ThemeTextDimColor}" />
+    <SolidColorBrush x:Key="ThemeTextFaintBrush" Color="{StaticResource ThemeTextFaintColor}" />
+    <SolidColorBrush x:Key="ThemeOnAccentBrush" Color="{StaticResource ThemeOnAccentColor}" />
+
+    <LinearGradientBrush x:Key="ThemePageBackdropBrush" StartPoint="1,0" EndPoint="0,1">
+        <GradientStop Color="#1E1440" Offset="0.0" />
+        <GradientStop Color="#070912" Offset="0.45" />
+        <GradientStop Color="#071322" Offset="1.0" />
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="ThemeBandBrush" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#5B2BB8" Offset="0.0" />
+        <GradientStop Color="#2350D8" Offset="1.0" />
+    </LinearGradientBrush>
+
+    <x:Double x:Key="ThemeCardRadius">4</x:Double>
+    <x:String x:Key="ThemeDisplayFont">Exo2</x:String>
+    <x:String x:Key="ThemeBodyFont">TitilliumWeb</x:String>
+</ResourceDictionary>
