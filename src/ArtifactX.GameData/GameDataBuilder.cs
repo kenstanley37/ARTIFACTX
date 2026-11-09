@@ -138,6 +138,7 @@ public static class GameDataBuilder
         }
         finally
         {
+            CatalogSteps.ClearCache();
             SqliteConnection.ClearAllPools();
             DeleteIfThere(full);
             DeleteIfThere(trimmed);

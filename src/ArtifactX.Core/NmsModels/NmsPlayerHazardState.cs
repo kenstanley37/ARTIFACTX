@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 
 namespace ArtifactX.Core.NmsModels;
 
@@ -19,7 +19,7 @@ public class NmsPlayerHazardState
 
     // Environmental resistances (array of 4 floats)
     [JsonProperty("qLk")]
-    public float[] EnvironmentalResistances { get; set; }
+    public float[]? EnvironmentalResistances { get; set; }
 
     // Hazard protection capacity (75 = full)
     [JsonProperty("yGF")]
@@ -27,7 +27,7 @@ public class NmsPlayerHazardState
 
     // Hazard protection mode (Off, Active, etc.)
     [JsonProperty("0tA")]
-    public string HazardMode { get; set; }
+    public string? HazardMode { get; set; }
 
     // Radiation resistance
     [JsonProperty("RUO")]

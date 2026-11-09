@@ -18,8 +18,8 @@ public partial class GuideTopicRowViewModel : ObservableObject
     public required string Category { get; init; }
 
     [ObservableProperty]
-    private bool isUnlocked;
+    public partial bool IsUnlocked { get; set; }
 
     [ObservableProperty]
-    private bool isSeen;
+    public partial bool IsSeen { get; set; }
 }

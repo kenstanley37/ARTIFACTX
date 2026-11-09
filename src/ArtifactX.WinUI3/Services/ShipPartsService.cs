@@ -216,6 +216,66 @@ public static class ShipPartsService
             : built.Items.SelectMany(id => _partGroups.Where(g => string.Equals(g.Id, id, StringComparison.OrdinalIgnoreCase))
                 .SelectMany(g => g.Descriptors)).ToList();
 
+    public sealed record ShipPreviewBuild(
+        ArtifactX.GameData.ShipMesh? Mesh,
+        Func<string, uint> MaterialColour,
+        Func<string, ArtifactX.GameData.ModelTexture?>? Painted,
+        bool Hologram,
+        string Note);
+
+    /// <summary>Builds the 3D preview mesh and textures for a starship from the player's own game files.</summary>
+    public static async Task<ShipPreviewBuild?> BuildPreviewAsync(
+        string scene,
+        ulong seed,
+        IReadOnlyList<PartGroup>? root,
+        BuiltLook? built,
+        Func<bool> isCancelled)
+    {
+        if (GameDataService.Game is not { } game) return null;
+        var models = await ModelPreviewService.ModelsAsync(game);
+        if (models is null || isCancelled()) return null;
+
+        var options = root is null ? new HashSet<string>(StringComparer.Ordinal)
+            : ModelPreviewService.AllOptionIds(root, LoadTree, StringComparer.Ordinal);
+        var chosen = root is null ? new HashSet<string>(StringComparer.Ordinal)
+            : ShipParts.Generate(scene, seed, LoadTree, StoredOptions(built)).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
+        var mesh = await Task.Run(() => models.Build(scene, options, chosen));
+        if (isCancelled()) return null;
+
+        var look = Look;
+        uint Colour(string material) => MaterialColour(material, look);
+
+        if (mesh is not null && built is { Colours.Count: > 0 })
+        {
+            var textures = await ModelPreviewService.PaintAsync(models, mesh, ModelPreviewService.StoredColourLookup(built.Colours), seed, built.Styles);
+            if (isCancelled()) return null;
+            return new ShipPreviewBuild(mesh, Colour, m => textures.GetValueOrDefault(m), false,
+                "Shape from your game files, in the paint saved for this ship - drag to turn.");
+        }
+        if (ShipBaseService.IsCorvetteModel(scene))
+        {
+            return new ShipPreviewBuild(mesh, Colour, null, true,
+                "Corvette base chassis. Custom modular parts (cockpit, wings, thrusters) are placed in game — full modular 3D assembly in development. Drag to turn.");
+        }
+        if (mesh is not null && await ModelPreviewService.FixedLookAsync(models, mesh) is { } own)
+        {
+            if (isCancelled()) return null;
+            return new ShipPreviewBuild(mesh, Colour, m => own.GetValueOrDefault(m), false,
+                "Shape and colours from your game files - drag to turn.");
+        }
+        if (isCancelled()) return null;
+        if (mesh is not null && await ModelPreviewService.SeedColoursAsync(seed, rawSeed: true) is { } seedColours)
+        {
+            var textures = await ModelPreviewService.PaintAsync(models, mesh, seedColours, seed);
+            if (isCancelled()) return null;
+            return new ShipPreviewBuild(mesh, Colour, m => textures.GetValueOrDefault(m), false,
+                "Shape and colours from your game files and the ship's seed - drag to turn. Colours are close to the game's, not always exact.");
+        }
+        string note = mesh is null ? ""
+            : "Shape scan - the parts are this ship's own, but its colours can't be shown yet. Drag to turn.";
+        return new ShipPreviewBuild(mesh, Colour, null, true, note);
+    }
+
     /// <summary>The ship types the station builder makes, and so can be painted (an
     /// in-game test, 2026-10-17: a found Hauler took colours and Titan Stripes, and kept them).</summary>
     public static bool IsPaintable(string scene)

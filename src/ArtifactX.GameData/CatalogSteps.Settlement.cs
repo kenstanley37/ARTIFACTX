@@ -45,16 +45,7 @@ public static partial class CatalogSteps
             return;
         }
 
-        var reader = new PakReaderService();
-        var index = new GlobalFileIndexService();
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
-        {
-            try { index.Add(pak.FullPath, reader.ReadHeader(pak.FullPath), reader.Read(pak.FullPath)); }
-            catch { /* unreadable PAK - skip */ }
-        }
-        var extraction = new ExtractionService();
-        byte[]? Bytes(string path) =>
-            index.TryFind(path, out var pakPath, out var entry, out var header) ? extraction.ExtractEntryBytes(pakPath, entry, header) : null;
+        byte[]? Bytes(string path) => ExtractBytes(pcbanksPath, path);
 
         using var db = new CatalogDbContext(catalogPath);
         var known = db.Items.Where(i => i.NameEnglish != null || i.NameLowerEnglish != null)
@@ -213,24 +204,5 @@ public static partial class CatalogSteps
         Replace(db, "SettlementBuildingNames", "LocalisedText", "language/nms_loc*_english.mbin", nameRows);
         Replace(db, "TradeClasses", "GcTradingClassData", tradeFile, tradeRows);
         ConsoleStyle.Success($"Wrote {costRows.Count} settlement costs and {tradeRows.Count} economy types to {catalogPath}.");
-    }
-
-    /// <summary>Replaces a category's rows (idempotent re-runs).</summary>
-    private static void Replace(CatalogDbContext db, string templateType, string rowType, string source, List<CatalogItem> rows)
-    {
-        var existing = db.Categories.FirstOrDefault(c => c.TemplateType == templateType);
-        if (existing != null)
-        {
-            db.Items.RemoveRange(db.Items.Where(i => i.CategoryId == existing.Id));
-            db.Categories.Remove(existing);
-            db.SaveChanges();
-        }
-        if (rows.Count == 0) return;
-        var category = new CatalogCategory { TemplateType = templateType, RowType = rowType, SourceMbinPath = source };
-        db.Categories.Add(category);
-        db.SaveChanges();
-        foreach (var row in rows) row.CategoryId = category.Id;
-        db.Items.AddRange(rows);
-        db.SaveChanges();
     }
 }

@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). -->
+<Page
+    x:Class="ArtifactX.WinUI3.Views.SaveEditorPages.GeneralPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <ScrollViewer>
+        <StackPanel Padding="28,26,28,40" Spacing="22">
+            <!-- Reset button on the title's own row, pinned far right, so it
+                 appearing never shifts the page down. -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="GENERAL" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
+                <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset General Changes" Click="PageResetBtn_Click"
+                        Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+            </Grid>
+
+            <ctcontrols:WrapPanel HorizontalSpacing="22" VerticalSpacing="22">
+                <Border Style="{StaticResource ThemeCardStyle}" Width="520" VerticalAlignment="Top">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <TextBlock Text="SAVE INFO" Style="{StaticResource ThemeBandTextStyle}"/>
+                        </Border>
+                        <StackPanel Padding="18,14,18,18" Spacing="16">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="SAVE NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <TextBox x:Name="SaveNameBox" AutomationProperties.Name="Save name" FontSize="14" LostFocus="SaveNameBox_LostFocus"/>
+                            </StackPanel>
+                            <!-- "Where the player was when they saved" - vLc/6f=/n:R, the same
+                                 field the game's Continue screen draws its location line from.
+                                 Editable, but unconfirmed whether hand-editing it changes
+                                 anything the game reads back. -->
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="SUMMARY" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <TextBox x:Name="SummaryBox" AutomationProperties.Name="Save summary" FontSize="14" TextWrapping="Wrap" AcceptsReturn="False"
+                                         LostFocus="SummaryBox_LostFocus"/>
+                            </StackPanel>
+                            <!-- GLOBAL_STATS' TIME stat, not F2P (project_playtime_field_fix).
+                                 Read-only: a reference tool reads a different stat
+                                 (LONGEST_LIFE) for its "Total Play Time"; which one users want
+                                 is unresolved (project_general_page_save_info). -->
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="TOTAL PLAY TIME" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <TextBlock x:Name="PlayTimeTxt" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold" FontSize="20"
+                                           Foreground="{ThemeResource ThemeTextBrush}"/>
+                            </StackPanel>
+                            <!-- Editing just the Current preset LABEL (brJ) is CONFIRMED to work:
+                                 the game re-derives every individual setting under LyC/:fe from
+                                 the label at load time (2026-08-06). -->
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="DIFFICULTY" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                <ctcontrols:WrapPanel HorizontalSpacing="16" VerticalSpacing="10">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="Current" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                        <ComboBox x:Name="CurrentPresetBox" AutomationProperties.Name="Current difficulty" Width="138" SelectionChanged="CurrentPresetBox_SelectionChanged">
+                                            <ComboBoxItem Content="Normal"/>
+                                            <ComboBoxItem Content="Creative"/>
+                                            <ComboBoxItem Content="Relaxed"/>
+                                            <ComboBoxItem Content="Survival"/>
+                                            <ComboBoxItem Content="Permadeath"/>
+                                            <ComboBoxItem Content="Custom"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="Easiest Used" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                        <ComboBox x:Name="EasiestPresetBox" AutomationProperties.Name="Easiest difficulty used" Width="138" SelectionChanged="EasiestPresetBox_SelectionChanged">
+                                            <ComboBoxItem Content="Normal"/>
+                                            <ComboBoxItem Content="Creative"/>
+                                            <ComboBoxItem Content="Relaxed"/>
+                                            <ComboBoxItem Content="Survival"/>
+                                            <ComboBoxItem Content="Permadeath"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="Hardest Used" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                        <ComboBox x:Name="HardestPresetBox" AutomationProperties.Name="Hardest difficulty used" Width="138" SelectionChanged="HardestPresetBox_SelectionChanged">
+                                            <ComboBoxItem Content="Normal"/>
+                                            <ComboBoxItem Content="Creative"/>
+                                            <ComboBoxItem Content="Relaxed"/>
+                                            <ComboBoxItem Content="Survival"/>
+                                            <ComboBoxItem Content="Permadeath"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </ctcontrols:WrapPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Spacing="22" VerticalAlignment="Top">
+                    <Border Style="{StaticResource ThemeCardStyle}" Width="340">
+                        <StackPanel>
+                            <Border Style="{StaticResource ThemeBandStyle}">
+                                <TextBlock Text="CURRENCY" Style="{StaticResource ThemeBandTextStyle}"/>
+                            </Border>
+                            <!-- Maximum=4294967295 (uint32.MaxValue) is a REAL ceiling: the game
+                                 stores these as a wrapping 32-bit field, and past this value the
+                                 ToDisplayValue/ToRawValue wraparound math silently stages a WRONG
+                                 raw value (4294967296 would stage 0). Don't remove the cap without
+                                 re-deriving that math (NmsPlayerStateData). -->
+                            <StackPanel Padding="18,14,18,18" Spacing="16">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="UNITS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <NumberBox Grid.Column="0" x:Name="UnitsBox" AutomationProperties.Name="Units" Minimum="0" Maximum="4294967295" SpinButtonPlacementMode="Hidden"
+                                                   ValueChanged="UnitsBox_ValueChanged" LostFocus="UnitsBox_LostFocus"/>
+                                        <Button Grid.Column="1" Content="Max" Click="MaxUnitsBtn_Click" AutomationProperties.Name="Set units to the most the game can store" VerticalAlignment="Stretch"
+                                                ToolTipService.ToolTip="Sets to 4,294,967,295, the most the game can store"/>
+                                    </Grid>
+                                </StackPanel>
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="NANITES" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <NumberBox Grid.Column="0" x:Name="NanitesBox" AutomationProperties.Name="Nanites" Minimum="0" Maximum="4294967295" SpinButtonPlacementMode="Hidden"
+                                                   ValueChanged="NanitesBox_ValueChanged" LostFocus="NanitesBox_LostFocus"/>
+                                        <Button Grid.Column="1" Content="Max" Click="MaxNanitesBtn_Click" AutomationProperties.Name="Set nanites to the most the game can store" VerticalAlignment="Stretch"
+                                                ToolTipService.ToolTip="Sets to 4,294,967,295, the most the game can store"/>
+                                    </Grid>
+                                </StackPanel>
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="QUICKSILVER" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <NumberBox Grid.Column="0" x:Name="QuicksilverBox" AutomationProperties.Name="Quicksilver" Minimum="0" Maximum="4294967295" SpinButtonPlacementMode="Hidden"
+                                                   ValueChanged="QuicksilverBox_ValueChanged" LostFocus="QuicksilverBox_LostFocus"/>
+                                        <Button Grid.Column="1" Content="Max" Click="MaxQuicksilverBtn_Click" AutomationProperties.Name="Set quicksilver to the most the game can store" VerticalAlignment="Stretch"
+                                                ToolTipService.ToolTip="Sets to 4,294,967,295, the most the game can store"/>
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ctcontrols:WrapPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

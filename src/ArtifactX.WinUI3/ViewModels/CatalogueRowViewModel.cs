@@ -28,8 +28,8 @@ public partial class CatalogueRowViewModel : ObservableObject
     public bool IsBrokenSlotTech { get; init; }
 
     [ObservableProperty]
-    private bool isKnown;
+    public partial bool IsKnown { get; set; }
 
     [ObservableProperty]
-    private BitmapImage? icon;
+    public partial BitmapImage? Icon { get; set; }
 }

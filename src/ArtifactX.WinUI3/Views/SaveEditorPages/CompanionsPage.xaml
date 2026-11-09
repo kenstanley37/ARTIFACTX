@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Animal Companions (CompanionViewModel for the selected pet). -->
+<Page
+    x:Class="ArtifactX.WinUI3.Views.SaveEditorPages.CompanionsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:input="using:ArtifactX.WinUI3.Helpers.Input"
+    xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Page.Resources>
+        <Style x:Key="FieldStyle" TargetType="NumberBox">
+            <Setter Property="Width" Value="140"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="Minimum" Value="0"/>
+            <Setter Property="SpinButtonPlacementMode" Value="Hidden"/>
+            <Setter Property="input:NumberBoxTyping.CommitWhileTyping" Value="True"/>
+        </Style>
+    </Page.Resources>
+
+    <ScrollViewer>
+        <StackPanel Padding="28,26,28,40" Spacing="22" HorizontalAlignment="Stretch">
+
+            <!-- Same row as the title, not its own row below - so the Reset
+                 button appearing/disappearing doesn't shift everything under
+                 it down. Styled to stand out since it's a destructive action
+                 (discards pending edits). -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="COMPANIONS" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
+                <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Companion Changes" Click="PageResetBtn_Click"
+                        Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+            </Grid>
+
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="OWNED COMPANIONS" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <ScrollViewer MaxHeight="150" Padding="18,14,18,16" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+                        <controls:EquipmentStrip x:Name="CompanionStrip" ChipClicked="CompanionStrip_ChipClicked"/>
+                    </ScrollViewer>
+                </StackPanel>
+            </Border>
+
+            <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="18">
+                <!-- Wide/short instead of narrow/tall - related fields sit in rows side by
+                     side rather than stacking the whole card into one long column. -->
+                <Border Style="{StaticResource ThemeCardStyle}" MaxWidth="900" HorizontalAlignment="Left">
+              <StackPanel>
+                <Border Style="{StaticResource ThemeBandStyle}">
+                    <TextBlock Text="COMPANION DETAILS" Style="{StaticResource ThemeBandTextStyle}"/>
+                </Border>
+                <StackPanel Spacing="20" Padding="20,16,20,20">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <TextBox Width="300" HorizontalAlignment="Left" AutomationProperties.Name="Name"
+                                 PlaceholderText="{x:Bind ViewModel.GameName, Mode=OneWay}"
+                                 Text="{x:Bind ViewModel.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="32">
+                        <StackPanel Spacing="6" Width="190">
+                            <TextBlock Text="SPECIES" Style="{StaticResource ThemeEyebrowStyle}"/>
+                            <TextBlock Text="{x:Bind ViewModel.SpeciesName, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}"
+                                       Visibility="{x:Bind ViewModel.HasSpeciesName, Mode=OneWay}"/>
+                            <TextBlock Text="{x:Bind ViewModel.Species, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6" Width="190">
+                            <TextBlock Text="NATIVE CLIMATE" Style="{StaticResource ThemeEyebrowStyle}"/>
+                            <TextBlock Text="{x:Bind ViewModel.Climate, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6" Width="190">
+                            <TextBlock Text="RARITY" Style="{StaticResource ThemeEyebrowStyle}"/>
+                            <TextBlock Text="{x:Bind ViewModel.Rarity, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6" Width="190">
+                            <TextBlock Text="TRUST" Style="{StaticResource ThemeEyebrowStyle}"/>
+                            <NumberBox Style="{StaticResource FieldStyle}" Maximum="100" AutomationProperties.Name="Trust"
+                                       Value="{x:Bind ViewModel.Trust.Value, Mode=TwoWay}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="TRAITS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                   Text="The 3 personality traits shown in-game (e.g. Playfulness/Gentleness/Independence) - which named trait each slot below actually is differs per pet and isn't determinable from the save, so they're labeled generically. Only magnitude is editable; each value's underlying sign (which descriptor word it picks, e.g. Placid vs its opposite) is preserved as-is."/>
+                        <StackPanel Orientation="Horizontal" Spacing="32">
+                            <StackPanel Spacing="6" Width="190">
+                                <TextBlock Text="Trait 1" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                <NumberBox Style="{StaticResource FieldStyle}" Maximum="100" AutomationProperties.Name="Trait 1"
+                                           Value="{x:Bind ViewModel.Trait1.Value, Mode=TwoWay}"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6" Width="190">
+                                <TextBlock Text="Trait 2" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                <NumberBox Style="{StaticResource FieldStyle}" Maximum="100" AutomationProperties.Name="Trait 2"
+                                           Value="{x:Bind ViewModel.Trait2.Value, Mode=TwoWay}"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6" Width="190">
+                                <TextBlock Text="Trait 3" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                <NumberBox Style="{StaticResource FieldStyle}" Maximum="100" AutomationProperties.Name="Trait 3"
+                                           Value="{x:Bind ViewModel.Trait3.Value, Mode=TwoWay}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="32">
+                        <StackPanel Spacing="6" Width="190">
+                            <TextBlock Text="GENES IMPROVED" Style="{StaticResource ThemeEyebrowStyle}"/>
+                            <NumberBox Style="{StaticResource FieldStyle}" Maximum="30" AutomationProperties.Name="Genes improved"
+                                       Value="{x:Bind ViewModel.GenesImproved.Value, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6" Width="190">
+                            <TextBlock Text="MUTATION PROGRESS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                            <NumberBox Style="{StaticResource FieldStyle}" Maximum="100" AutomationProperties.Name="Mutation progress"
+                                       Value="{x:Bind ViewModel.MutationProgress.Value, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6" Width="190">
+                            <TextBlock Text="HOLO-ARENA VICTORIES" Style="{StaticResource ThemeEyebrowStyle}"/>
+                            <NumberBox Style="{StaticResource FieldStyle}" AutomationProperties.Name="Holo-arena victories"
+                                       Value="{x:Bind ViewModel.Victories.Value, Mode=TwoWay}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" MaxWidth="700" HorizontalAlignment="Left"
+                                   Text="Drives this pet's pattern/texture (markings, scale/fur style) and, while Color Override below is off, its color too. Generate rolls a fresh value into both of this pet's active color-seed slots together (they were always found mirrored on real saves); paste a seed you've found elsewhere to set just the primary one."/>
+                        <controls:SeedBox x:Name="SeedBox" Label="Seed" Changed="Seed_Changed" BoxWidth="220" HorizontalAlignment="Left"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="COLOR OVERRIDE SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" MaxWidth="700" HorizontalAlignment="Left"
+                                   Text="Overrides ONLY the primary Seed's contribution to color while Active is checked, leaving pattern/texture untouched. Dormant on every wild-tamed pet until turned on - regenerating this while Active is unchecked has no visible effect. Generate activates it and rolls a fresh value; unchecking Active goes back to the primary Seed's own color."/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <CheckBox Content="Active" IsChecked="{x:Bind ViewModel.ColourOverrideActive, Mode=TwoWay}"/>
+                            <TextBox Width="220" AutomationProperties.Name="Color override seed"
+                                     Text="{x:Bind ViewModel.ColourOverrideSeed, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <Button Content="Generate" Click="GenerateColourOverrideSeed_Click" AutomationProperties.Name="Generate a color override seed"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="BATTLE ABILITY SEEDS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" MaxWidth="700" HorizontalAlignment="Left"
+                                   Text="Two co-inputs that together drive the in-game Battle Abilities badges (Combat Effectiveness/Agility/Health grades) AND the fancy auto-generated species name shown in-game - changing either one alone shifts both the name and all three badges. Distinct from the color Seed above, which does not touch either of these."/>
+                        <controls:SeedBox x:Name="BattleAbilitySeedBox" Label="Battle abilities seed" Changed="Seed_Changed" BoxWidth="220" HorizontalAlignment="Left"/>
+                        <controls:SeedBox x:Name="BattleAbilitySeed2Box" Label="Battle abilities second seed" Changed="Seed_Changed" BoxWidth="220" HorizontalAlignment="Left"/>
+                    </StackPanel>
+
+                    <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14" Background="{ThemeResource ThemePanelAltBrush}">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="BATTLE ABILITY OVERRIDE" Style="{StaticResource ThemeEyebrowStyle}"/>
+                            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" MaxWidth="700" HorizontalAlignment="Left"
+                                       Text="When Override Active is checked, the Battle Abilities badges are read directly from the Class Letters below instead of the Battle Ability Seeds above. Unchecked (the default on every wild-tamed pet) leaves the badges driven by the Seeds, and these letters sit dormant - disabled below so it's clear they don't do anything while Override Active is off, no matter what they say. Display order here is Health/Agility/Combat, NOT the Agility/Health/Combat order used above and in Genetic Profile below."/>
+                            <CheckBox Content="Override Active" IsChecked="{x:Bind ViewModel.LetterOverrideActive, Mode=TwoWay}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="32">
+                                <StackPanel Spacing="6" Width="190">
+                                    <TextBlock Text="Health" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                    <ComboBox Width="70" HorizontalAlignment="Left" AutomationProperties.Name="Health class letter"
+                                              ItemsSource="{x:Bind viewmodels:CompanionViewModel.ClassLetters}"
+                                              SelectedIndex="{x:Bind ViewModel.HealthLetter, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.LetterOverrideActive, Mode=OneWay}"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="190">
+                                    <TextBlock Text="Agility" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                    <ComboBox Width="70" HorizontalAlignment="Left" AutomationProperties.Name="Agility class letter"
+                                              ItemsSource="{x:Bind viewmodels:CompanionViewModel.ClassLetters}"
+                                              SelectedIndex="{x:Bind ViewModel.AgilityLetter, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.LetterOverrideActive, Mode=OneWay}"/>
+                                </StackPanel>
+                                <StackPanel Spacing="6" Width="190">
+                                    <TextBlock Text="Combat" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                    <ComboBox Width="70" HorizontalAlignment="Left" AutomationProperties.Name="Combat class letter"
+                                              ItemsSource="{x:Bind viewmodels:CompanionViewModel.ClassLetters}"
+                                              SelectedIndex="{x:Bind ViewModel.CombatLetter, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.LetterOverrideActive, Mode=OneWay}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="GENETIC PROFILE" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" MaxWidth="700" HorizontalAlignment="Left"
+                                   Text="Points (max 10 each) per mutation stat."/>
+                        <StackPanel Orientation="Horizontal" Spacing="32">
+                            <StackPanel Spacing="6" Width="190">
+                                <TextBlock Text="Agility" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                <NumberBox Style="{StaticResource FieldStyle}" Maximum="10" AutomationProperties.Name="Agility points"
+                                           Value="{x:Bind ViewModel.AgilityPoints.Value, Mode=TwoWay}"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6" Width="190">
+                                <TextBlock Text="Health" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                <NumberBox Style="{StaticResource FieldStyle}" Maximum="10" AutomationProperties.Name="Health points"
+                                           Value="{x:Bind ViewModel.HealthPoints.Value, Mode=TwoWay}"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6" Width="190">
+                                <TextBlock Text="Combat" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                <NumberBox Style="{StaticResource FieldStyle}" Maximum="10" AutomationProperties.Name="Combat points"
+                                           Value="{x:Bind ViewModel.CombatPoints.Value, Mode=TwoWay}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14" Background="{ThemeResource ThemePanelAltBrush}">
+                        <StackPanel Spacing="6">
+                            <!-- osl descriptors. On some species one row is labelled "- ARCHETYPE":
+                                 it decides which OTHER slots apply, so changing it rebuilds every row
+                                 below with default picks rather than swapping in place - NOT yet
+                                 tested in-game. Labels are cleaned-up internal part codes
+                                 ("_HEAD_TURTLE" -> "Turtle"; hover for the raw code); unnamed
+                                 accessory slots show as "Variant N". A row with no dropdown matches no
+                                 catalog option (e.g. the per-instance detail seed) and isn't editable. -->
+                            <TextBlock Text="BODY PARTS" Style="{StaticResource ThemeEyebrowStyle}"/>
+                            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" MaxWidth="820" HorizontalAlignment="Left"
+                                       Text="Each row swaps one body part for another option from the same slot. On some species one row is marked &quot;- ARCHETYPE&quot;: changing it resets the other parts, so save and check in-game before relying on the result. Hover an option to see the game's own part code."/>
+                            <controls:CompanionPartsPanel Rows="{x:Bind ViewModel.Parts}" ShowNoData="{x:Bind ViewModel.NoPartsData, Mode=OneWay}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="ADVANCED FIELDS (UNCONFIRMED PURPOSE)" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" MaxWidth="820" HorizontalAlignment="Left"
+                                   Text="Every other raw field on this pet with no confirmed in-game effect yet - edit one at a time and check in-game what changes, if anything."/>
+                        <controls:RawFieldsPanel Rows="{x:Bind ViewModel.RawFields}"/>
+                    </StackPanel>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <!-- 3D Creature & Companion Model Preview -->
+            <StackPanel x:Name="CompanionPreviewGroup" Width="400" Spacing="8" VerticalAlignment="Top" Visibility="Collapsed">
+                <Border Style="{StaticResource ThemeCardStyle}">
+                    <StackPanel>
+                        <Border Style="{StaticResource ThemeBandStyle}">
+                            <TextBlock x:Name="CompanionPreviewTitle" Text="COMPANION 3D PREVIEW" Style="{StaticResource ThemeBandTextStyle}"/>
+                        </Border>
+                        <StackPanel Padding="16" Spacing="10">
+                            <controls:ModelPreviewPanel x:Name="CompanionPreview" Subject="companion" StartYawOffset="3.14159" Height="340"/>
+                            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="11" TextWrapping="Wrap"
+                                       Text="3D creature model rendered from your game files and active body parts. Drag to rotate."/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ctcontrols:WrapPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

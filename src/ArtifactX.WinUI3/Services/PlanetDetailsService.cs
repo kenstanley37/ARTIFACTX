@@ -71,7 +71,7 @@ public static class PlanetDetailsService
                     PlanetDetails For(string system, int planet)
                     {
                         string key = Key(system, planet);
-                        if (!_details.TryGetValue(key, out var d)) _details[key] = d = new PlanetDetails();
+                        if (!_details!.TryGetValue(key, out var d)) _details[key] = d = new PlanetDetails();
                         return d;
                     }
                     using (var cmd = connection.CreateCommand())

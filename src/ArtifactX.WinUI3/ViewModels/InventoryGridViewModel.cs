@@ -21,13 +21,13 @@ public partial class InventoryGridViewModel : ObservableObject
     public ObservableCollection<InventorySlotViewModel> Cells { get; } = new();
 
     [ObservableProperty]
-    private int columns;
+    public partial int Columns { get; set; }
 
     [ObservableProperty]
-    private int rows;
+    public partial int Rows { get; set; }
 
     [ObservableProperty]
-    private bool hasLocalChanges;
+    public partial bool HasLocalChanges { get; set; }
 
     /// <summary>The container's rarity/quality rating (S/A/B/C) - a plain literal
     /// string at B@N.1o6, sibling of :No/hl?/etc within this same container.
@@ -35,7 +35,7 @@ public partial class InventoryGridViewModel : ObservableObject
     /// procedural seed (the top-level @EL identity hash) - so setting it directly
     /// is safe and doesn't touch appearance/stats seeding at all.</summary>
     [ObservableProperty]
-    private string? currentClass;
+    public partial string? CurrentClass { get; set; }
 
     public InventoryGridViewModel(string[] containerPath, int maxColumns, int maxRows)
     {

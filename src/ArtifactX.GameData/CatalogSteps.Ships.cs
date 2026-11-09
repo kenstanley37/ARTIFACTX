@@ -43,16 +43,10 @@ public static partial class CatalogSteps
                 }).ToList() ?? new List<object>(),
             }).ToList() ?? new List<object>();
 
-        var reader = new PakReaderService();
-        var extraction = new ExtractionService();
         var rows = new List<CatalogItem>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
+        foreach (var (pakPath, header, entries) in GetPakEntries(pcbanksPath))
         {
-            Models.PakHeader header;
-            IReadOnlyList<Models.PakEntry> entries;
-            try { header = reader.ReadHeader(pak.FullPath); entries = reader.Read(pak.FullPath); }
-            catch { continue; }
             foreach (var entry in entries.Where(e => !string.IsNullOrEmpty(e.FileName)
                          && (e.FileName.StartsWith("MODELS/COMMON/SPACECRAFT/", StringComparison.OrdinalIgnoreCase)
                              || e.FileName.StartsWith("MODELS/COMMON/WEAPONS/MULTITOOL/", StringComparison.OrdinalIgnoreCase))
@@ -61,7 +55,7 @@ public static partial class CatalogSteps
                 if (!seen.Add(entry.FileName)) continue;
                 try
                 {
-                    var bytes = extraction.ExtractEntryBytes(pak.FullPath, entry, header);
+                    var bytes = SharedExtraction.ExtractEntryBytes(pakPath, entry, header);
                     if (bytes is null || bytes.Length == 0) continue;
                     var mbin = new MBINFile(new MemoryStream(bytes));
                     mbin.Load();
@@ -101,27 +95,8 @@ public static partial class CatalogSteps
     public static void AddPartGroups(string catalogPath, string pcbanksPath)
     {
         if (!File.Exists(catalogPath)) { ConsoleStyle.Error($"Target catalog DB not found: {catalogPath}"); return; }
-        var reader = new PakReaderService();
-        var extraction = new ExtractionService();
         const string file = "METADATA/GAMESTATE/PLAYERDATA/CHARACTERCUSTOMISATIONDESCRIPTORGROUPSDATA.MBIN";
-        libMBIN.NMS.GameComponents.GcCustomisationDescriptorGroups? table = null;
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
-        {
-            Models.PakHeader header;
-            IReadOnlyList<Models.PakEntry> entries;
-            try { header = reader.ReadHeader(pak.FullPath); entries = reader.Read(pak.FullPath); }
-            catch { continue; }
-            var entry = entries.FirstOrDefault(e => string.Equals(e.FileName, file, StringComparison.OrdinalIgnoreCase));
-            if (entry is null) continue;
-            try
-            {
-                var mbin = new MBINFile(new MemoryStream(extraction.ExtractEntryBytes(pak.FullPath, entry, header)!));
-                mbin.Load();
-                table = mbin.GetData() as libMBIN.NMS.GameComponents.GcCustomisationDescriptorGroups;
-            }
-            catch (Exception ex) { ConsoleStyle.Warning($"Couldn't read the part groups: {ex.Message}"); }
-            break;
-        }
+        var table = DecodeMbin(pcbanksPath, file) as libMBIN.NMS.GameComponents.GcCustomisationDescriptorGroups;
         var rows = new List<CatalogItem>();
         foreach (var set in table?.DescriptorGroupSets ?? new())
             foreach (var g in set.DescriptorGroups ?? new())
@@ -158,26 +133,7 @@ public static partial class CatalogSteps
     {
         if (!File.Exists(catalogPath)) { ConsoleStyle.Error($"Target catalog DB not found: {catalogPath}"); return; }
         const string file = "METADATA/SIMULATION/SOLARSYSTEM/COLOURS/BASECOLOURPALETTES.MBIN";
-        var reader = new PakReaderService();
-        var extraction = new ExtractionService();
-        libMBIN.NMS.GameComponents.GcPaletteList? list = null;
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
-        {
-            Models.PakHeader header;
-            IReadOnlyList<Models.PakEntry> entries;
-            try { header = reader.ReadHeader(pak.FullPath); entries = reader.Read(pak.FullPath); }
-            catch { continue; }
-            var entry = entries.FirstOrDefault(e => string.Equals(e.FileName, file, StringComparison.OrdinalIgnoreCase));
-            if (entry is null) continue;
-            try
-            {
-                var mbin = new MBINFile(new MemoryStream(extraction.ExtractEntryBytes(pak.FullPath, entry, header)!));
-                mbin.Load();
-                list = mbin.GetData() as libMBIN.NMS.GameComponents.GcPaletteList;
-            }
-            catch (Exception ex) { ConsoleStyle.Warning($"Couldn't read the colour palettes: {ex.Message}"); }
-            break;
-        }
+        var list = DecodeMbin(pcbanksPath, file) as libMBIN.NMS.GameComponents.GcPaletteList;
         var rows = new List<CatalogItem>();
         for (int i = 0; i < (list?.Palettes?.Length ?? 0); i++)
         {
@@ -217,27 +173,8 @@ public static partial class CatalogSteps
     public static void AddShipLooks(string catalogPath, string pcbanksPath)
     {
         if (!File.Exists(catalogPath)) { ConsoleStyle.Error($"Target catalog DB not found: {catalogPath}"); return; }
-        var reader = new PakReaderService();
-        var index = new GlobalFileIndexService();
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
-        {
-            try { index.Add(pak.FullPath, reader.ReadHeader(pak.FullPath), reader.Read(pak.FullPath)); }
-            catch { /* unreadable PAK - skip */ }
-        }
-        var extraction = new ExtractionService();
-        NMSTemplate? Decode(string path)
-        {
-            if (!index.TryFind(path.ToUpperInvariant(), out var pakPath, out var entry, out var header)) return null;
-            try
-            {
-                var bytes = extraction.ExtractEntryBytes(pakPath, entry, header);
-                if (bytes is null) return null;
-                var mbin = new MBINFile(new MemoryStream(bytes));
-                mbin.Load();
-                return mbin.GetData();
-            }
-            catch { return null; }
-        }
+        var index = GetIndex(pcbanksPath);
+        NMSTemplate? Decode(string path) => DecodeMbin(pcbanksPath, path.ToUpperInvariant());
 
         // Scenes: every procedural ship root, then everything they reference.
         var scenes = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);

@@ -60,14 +60,6 @@
   <ItemGroup>
     <None Remove="Controls\AppTitleBar.xaml" />
     <None Remove="Controls\InventorySlotGrid.xaml" />
-    <None Remove="Views\AncestrySearchView.xaml" />
-    <None Remove="Views\ExosuitPage.xaml" />
-    <None Remove="Views\InspectionPages\HGDecryptionPage.xaml" />
-    <None Remove="Views\MultiToolPage.xaml" />
-    <None Remove="Views\SaveFolderSelectPage.xaml" />
-    <None Remove="Views\ShipsPage.xaml" />
-    <None Remove="Views\FreighterPage.xaml" />
-    <None Remove="Views\PetsPage.xaml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -137,26 +129,6 @@
     <ProjectReference Include="..\ArtifactX.Tools\NMS.Tools.libMBIN\NMS.Tools.libMBIN.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Page Update="Views\MultiToolPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="Views\ExosuitPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="Views\ShipsPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="Views\FreighterPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
     <Page Update="Controls\BaseStorageControl.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -167,32 +139,12 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <Page Update="Views\PetsPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
     <Page Update="Controls\InventorySlotGrid.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <Page Update="Views\AncestrySearchView.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
     <Page Update="Controls\AppTitleBar.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="Views\InspectionPages\HGDecryptionPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="Views\SaveFolderSelectPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
@@ -245,14 +197,6 @@
   <ItemGroup>
     <None Include="..\..\licenses\*.txt" Link="licenses\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="Views\ExplorePages\PlanetDetailsPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="Views\ExplorePages\BaseDetailsPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
   </ItemGroup>
 
   <Target Name="TrimPublishLocaleFolders" AfterTargets="Publish" Condition="'$(SelfContained)' == 'true' and Exists('$(PublishDir)')">

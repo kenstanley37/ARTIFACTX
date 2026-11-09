@@ -18,10 +18,10 @@ public partial class FreighterUpgradeRowViewModel : ObservableObject
     public required string Group { get; init; }
 
     [ObservableProperty]
-    private bool isUnlocked;
+    public partial bool IsUnlocked { get; set; }
 
     [ObservableProperty]
-    private BitmapImage? icon;
+    public partial BitmapImage? Icon { get; set; }
 
     /// <summary>Paint colour drawn in place of an icon (Recolouring only).</summary>
     public Brush? Swatch { get; init; }
