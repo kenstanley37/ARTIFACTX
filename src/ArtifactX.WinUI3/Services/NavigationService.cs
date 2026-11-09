@@ -1,6 +1,10 @@
-using ArtifactX.WinUI3.Views;
+using ArtifactX.WinUI3.Views.AccountPages;
+using ArtifactX.WinUI3.Views.AppPages;
 using ArtifactX.WinUI3.Views.ExplorePages;
 using ArtifactX.WinUI3.Views.InspectionPages;
+using ArtifactX.WinUI3.Views.ProgressionPages;
+using ArtifactX.WinUI3.Views.ReferencePages;
+using ArtifactX.WinUI3.Views.SaveEditorPages;
 using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Collections.Generic;

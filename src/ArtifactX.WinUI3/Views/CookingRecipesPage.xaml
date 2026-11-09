@@ -1,7 +1,0 @@
-<Page x:Class="ArtifactX.WinUI3.Views.CookingRecipesPage"
- xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
- xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- xmlns:controls="using:ArtifactX.WinUI3.Controls"
- NavigationCacheMode="Required" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
- <controls:RecipePlanner ViewModel="{x:Bind ViewModel}"/>
-</Page>
