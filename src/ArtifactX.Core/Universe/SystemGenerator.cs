@@ -246,7 +246,7 @@ public static class SystemGenerator
         var seeds = new List<ulong>();
         var sizes = new List<int>();
         ulong galacticCoords = portalCode & 0xFFFFFFFF;
-        ulong systemIndex = ((portalCode & 0x0FFF00000000) >> 24) | (ulong)galaxy;
+        ulong systemIndex = ((portalCode & 0x0FFF00000000) >> 24) | (uint)galaxy;
 
         ulong register = Mix64((systemIndex << 32) | galacticCoords);
         ulong seedH = ((((register & 0xFFFF0000) >> 16) | ((register & 0x0000FFFF) << 16)) ^ (register & 0xFFFFFFFF) ^ (register >> 32)) & 0xFFFFFFFF;
@@ -354,7 +354,7 @@ public static class SystemGenerator
     public static string SystemName(ulong portalCode, int galaxy)
     {
         ulong galacticCoords = portalCode & 0xFFFFFFFF;
-        ulong systemIndex = ((portalCode & 0x0FFF00000000) >> 24) | (ulong)galaxy;
+        ulong systemIndex = ((portalCode & 0x0FFF00000000) >> 24) | (uint)galaxy;
         ulong rolCoords = (((galacticCoords & 0x0000FFFF) << 16) | ((galacticCoords & 0xFFFF0000) >> 16)) ^ galacticCoords ^ systemIndex;
         rolCoords &= 0xFFFFFFFF;
         ulong seed = galacticCoords == 0 ? (galacticCoords + 1) * UniverseRandom.Multiplier + rolCoords : galacticCoords * UniverseRandom.Multiplier + rolCoords;

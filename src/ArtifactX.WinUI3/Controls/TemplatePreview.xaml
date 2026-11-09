@@ -9,7 +9,7 @@
     xmlns:viewmodels="using:ArtifactX.WinUI3.ViewModels"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls">
 
-    <Grid ColumnSpacing="24" MaxWidth="{x:Bind Preview.DialogContentMaxWidth, Mode=OneWay}">
+    <Grid ColumnSpacing="24" MaxWidth="{x:Bind Preview.DialogContentMaxWidth}">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="*"/>
@@ -17,15 +17,15 @@
 
         <!-- 3D Model Preview Column (Starships and Freighters with Full Build models) -->
         <StackPanel Grid.Column="0" Width="380" Spacing="8"
-                    Visibility="{x:Bind Preview.ModelVisibility, Mode=OneWay}">
+                    Visibility="{x:Bind Preview.ModelVisibility}">
             <controls:ModelPreviewPanel x:Name="ShipModelPreview" Width="380"/>
         </StackPanel>
 
         <!-- Template Details Column (Facts, Stats, Tech) -->
         <StackPanel Grid.Column="1" Spacing="14">
-            <TextBlock Text="{x:Bind Preview.Heading, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}"/>
+            <TextBlock Text="{x:Bind Preview.Heading}" Style="{StaticResource ThemeEyebrowStyle}"/>
 
-            <ItemsControl ItemsSource="{x:Bind Preview.Facts, Mode=OneWay}">
+            <ItemsControl ItemsSource="{x:Bind Preview.Facts}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <ctcontrols:WrapPanel HorizontalSpacing="22" VerticalSpacing="8"/>
@@ -41,9 +41,9 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <StackPanel Spacing="6" Visibility="{x:Bind Preview.HasStats, Mode=OneWay}">
+            <StackPanel Spacing="6" Visibility="{x:Bind Preview.HasStats}">
                 <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                <ItemsControl ItemsSource="{x:Bind Preview.Stats, Mode=OneWay}">
+                <ItemsControl ItemsSource="{x:Bind Preview.Stats}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <ctcontrols:WrapPanel HorizontalSpacing="22" VerticalSpacing="6"/>
@@ -63,7 +63,7 @@
             <StackPanel Spacing="6">
                 <TextBlock Text="TECH" Style="{StaticResource ThemeEyebrowStyle}"/>
                 <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{x:Bind Preview.Items, Mode=OneWay}">
+                    <ItemsControl ItemsSource="{x:Bind Preview.Items}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <ctcontrols:WrapPanel HorizontalSpacing="6" VerticalSpacing="6"/>
@@ -89,7 +89,7 @@
                 </ScrollViewer>
             </StackPanel>
 
-            <TextBlock Text="{x:Bind Preview.Compatibility, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+            <TextBlock Text="{x:Bind Preview.Compatibility}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
         </StackPanel>
     </Grid>
 </UserControl>

@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -35,7 +35,7 @@ public sealed partial class SaveFolderCandidate : ObservableObject, IEquatable<S
     /// indexing (SaveFolderIndexingService), before the card is shown.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayName))]
-    private string? playerName;
+    public partial string? PlayerName { get; set; }
 
     /// <summary>Steam's cached avatar for the account, if any.</summary>
     public string? AvatarPath { get; set; }
@@ -75,17 +75,17 @@ public sealed partial class SaveFolderCandidate : ObservableObject, IEquatable<S
     /// platforms can be open at once so a user with saves on more than one
     /// storefront can see all of them.</summary>
     [ObservableProperty]
-    private bool isExpanded;
+    public partial bool IsExpanded { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SubText))]
-    private bool isLoadingSlots;
+    public partial bool IsLoadingSlots { get; set; }
 
     [ObservableProperty]
-    private bool hasLoadedSlots;
+    public partial bool HasLoadedSlots { get; set; }
 
     [ObservableProperty]
-    private bool isEmptyResult;
+    public partial bool IsEmptyResult { get; set; }
 
     /// <summary>True when this candidate's FolderPath matches
     /// SaveSessionManager.ActivePlatformFolder - kept in sync by
@@ -93,7 +93,7 @@ public sealed partial class SaveFolderCandidate : ObservableObject, IEquatable<S
     /// here, since this model has no reference back to that service. Drives
     /// the Expander's highlighted border/badge on SaveFolderSelectPage.</summary>
     [ObservableProperty]
-    private bool isActivePlatform;
+    public partial bool IsActivePlatform { get; set; }
 
     /// <summary>User-given label, persisted separately (see
     /// SaveFolderSettingsService) - pure display metadata, never renames the
@@ -101,7 +101,7 @@ public sealed partial class SaveFolderCandidate : ObservableObject, IEquatable<S
     /// one platform can be told apart.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayName))]
-    private string? customName;
+    public partial string? CustomName { get; set; }
 
     public ObservableCollection<SaveSlotGroup> SlotGroups { get; } = new();
 

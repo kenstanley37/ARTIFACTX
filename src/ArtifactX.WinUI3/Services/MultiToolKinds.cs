@@ -91,11 +91,6 @@ public static class MultiToolKinds
         return MultiToolNames.Generate(seed, staff, list => words.GetValueOrDefault(list));
     }
 
-    /// <summary>Redirects to StarshipService.ShipNameAsync to preserve compatibility.</summary>
-    [Obsolete("Use StarshipService.ShipNameAsync instead.")]
-    public static Task<string?> ShipNameAsync(ulong seed, string scenePath) =>
-        StarshipService.ShipNameAsync(seed, scenePath);
-
     /// <summary>Reads the part trees from the catalog - again after a game-data
     /// rebuild (the old data had no multi-tool trees).</summary>
     public static async Task EnsureTreesAsync()

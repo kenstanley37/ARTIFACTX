@@ -626,6 +626,6 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     private void Seed_Changed(object? sender, SeedChange change)
     {
         PageResetBtn.Visibility = Visibility.Visible;
-        if (sender == ModelSeedBox) _ = ShowFreighterPreviewAsync();
+        if (ReferenceEquals(sender, ModelSeedBox)) _ = ShowFreighterPreviewAsync();
     }
 }

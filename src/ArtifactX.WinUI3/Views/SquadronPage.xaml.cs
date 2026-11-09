@@ -254,7 +254,7 @@ public sealed partial class SquadronPage : Page
     private void Seed_Changed(object? sender, SeedChange change)
     {
         PageResetBtn.Visibility = Visibility.Visible;
-        if (sender == ShipSeedBox) _ = ShowShipPreviewAsync();
+        if (ReferenceEquals(sender, ShipSeedBox)) _ = ShowShipPreviewAsync();
     }
 
     private async Task ShowShipPreviewAsync()

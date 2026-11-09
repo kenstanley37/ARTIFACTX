@@ -24,7 +24,7 @@ namespace ArtifactX.WinUI3;
 
 public sealed partial class MainWindow : Window
 {
-    private AppWindow _appWindow;
+    private AppWindow _appWindow = null!;
 
     // Set right before a programmatic re-Close() following user confirmation,
     // so MainWindow_Closed lets that second attempt through instead of
@@ -390,9 +390,9 @@ public sealed partial class MainWindow : Window
 
     private void RootNav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
-        if (args.SelectedItemContainer is NavigationViewItem selectedItem && selectedItem.Tag != null)
+        if (args.SelectedItemContainer is NavigationViewItem selectedItem && selectedItem.Tag is not null)
         {
-            string tag = selectedItem.Tag.ToString();
+            string tag = selectedItem.Tag.ToString() ?? "";
             Type targetPageType = tag switch
             {
                 "SaveFolderSelect" => typeof(SaveFolderSelectPage),

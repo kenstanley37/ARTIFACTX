@@ -173,7 +173,7 @@ public sealed partial class CompanionsPage : Page
     {
         // Generate rolls both of the pet's colour-seed slots together (they were
         // always found mirrored on real saves); a pasted seed sets just the primary.
-        if (sender == SeedBox && change.Generated && _selectedIndex >= 0)
+        if (ReferenceEquals(sender, SeedBox) && change.Generated && _selectedIndex >= 0)
             SaveSessionManager.StageEdit(change.Seed, NmsCompanionPaths.BoneScaleSeedPath(_selectedIndex));
     }
 

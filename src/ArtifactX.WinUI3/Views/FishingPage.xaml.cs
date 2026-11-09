@@ -292,7 +292,7 @@ public sealed partial class FishingPage : Page
 
     private void Filter_Changed(object sender, SelectionChangedEventArgs e)
     {
-        if (sender == PlanetTypeBox) _anywhereOnly = false;
+        if (ReferenceEquals(sender, PlanetTypeBox)) _anywhereOnly = false;
         Apply();
     }
     private void Filter_Click(object sender, RoutedEventArgs e) => Apply();
