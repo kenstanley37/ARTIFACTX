@@ -1,15 +1,18 @@
 using ArtifactX.Core.Procedural;
+using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
 using Microsoft.UI;
+using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Navigation;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Views;
@@ -23,21 +26,12 @@ namespace ArtifactX.WinUI3.Views;
 ///
 /// A built ship keeps its design in the save, not in its seed (in-game build
 /// diff): the parts by item id, the style as a texture option and every
-/// palette's colours. The seed only names it. Writing a design into the save
-/// is in ShipDesignerPage.Save.cs.
+/// palette's colours. The seed only names it. Save-staging and catalog loading
+/// live in <see cref="ShipBuilderService"/>.
 /// </summary>
 public sealed partial class ShipDesignerPage : Page
 {
-    private sealed record BuilderItem(string Item, List<string> Groups, string? Cls);
-    private sealed record BuilderSlot(string Id, string Label, List<BuilderItem> Items);
-    private sealed record ColourGroup(string Title, int DefaultIndex, List<string[]> Slots);
-    private sealed record ColourData(string Option, string Swatches, List<ColourGroup> Groups);
-    private sealed record BuilderType(string Type, string Title, string Scene, bool Enabled, string StyleGroup,
-        List<BuilderSlot> Slots, List<ColourData> Colours);
-    private sealed record PaintStyle(string Option, string Name, string Unlock, List<string[]> Layers);
-    private sealed record Swatch(float[] Rgb, string Name);
-
-    private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
+    private const int ThumbWidth = 288, ThumbHeight = 180; // drawn at 2x the card's 144 x 90
 
     private List<BuilderType> _types = new();
     private Dictionary<string, List<PaintStyle>> _styles = new();
@@ -52,6 +46,26 @@ public sealed partial class ShipDesignerPage : Page
     private readonly Dictionary<string, int> _colourPicks = new(); // colour group title -> swatch index
     private ulong _seed;
     private int _previewVersion;
+
+    // The saved design being edited, if one was saved or loaded: as saved, to tell
+    // whether it has unsaved changes.
+    private ShipDesign? _editing;
+    private string? _designId;
+    private string _designName = "";
+    private string _designCreated = "";
+    private List<SavedDesign> _savedDesigns = new();
+    private readonly Dictionary<string, BitmapImage> _thumbs = new();
+    private ShipDesign? _needsThumbnail;
+    private bool _previewReady;
+
+    // Paint mode (2026-10-17): Starships' "Paint this ship" opens the designer on one
+    // of the player's own ships.
+    private int? _paintShip;
+    private string _paintShipName = "";
+    private List<string> _paintShipParts = new();
+    private JToken? _paintShipSmp;
+    private bool _paintShipHasPaint;
+    private bool _paintRemoved;
 
     public ShipDesignerPage()
     {
@@ -105,37 +119,22 @@ public sealed partial class ShipDesignerPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        // From Starships' "Paint this ship": the ship's index (Paint.cs).
         _paintShip = e.Parameter is int ship ? ship : null;
         await LoadAsync();
     }
 
     private async Task LoadAsync()
     {
-        var rows = await CatalogService.GetJsonCategoryAsync("ShipBuilder");
-        bool IsList(string json, string field) =>
-            json.TrimStart().StartsWith("[", StringComparison.Ordinal) && json.Contains($"\"{field}\"", StringComparison.Ordinal);
-        _types = rows.Where(r => r.Value.TrimStart().StartsWith("{", StringComparison.Ordinal))
-            .Select(r => JsonSerializer.Deserialize<BuilderType>(r.Value, Json)).OfType<BuilderType>()
-            .Where(t => t.Enabled && t.Slots.Count > 0)
-            .OrderBy(t => t.Type switch { "Fighter" => 0, "Dropship" => 1, "Scientific" => 2, "Sail" => 3, _ => 4 })
-            .ToList();
-        // Style rows list options, swatch rows colours ("SHIP_METALLIC" is a swatch set).
-        _styles = rows.Where(r => IsList(r.Value, "option"))
-            .ToDictionary(r => r.Key, r => JsonSerializer.Deserialize<List<PaintStyle>>(r.Value, Json) ?? new());
-        _swatches = rows.Where(r => IsList(r.Value, "rgb"))
-            .ToDictionary(r => r.Key, r => JsonSerializer.Deserialize<List<Swatch>>(r.Value, Json) ?? new());
+        var data = await ShipBuilderService.LoadCatalogDataAsync();
+        _types = data.Types;
+        _styles = data.Styles;
+        _swatches = data.Swatches;
+        _partGroups = data.PartGroups;
         if (_types.Count == 0)
         {
             NoDataPanel.Visibility = Visibility.Visible;
             return;
         }
-        _partGroups = (await CatalogService.GetPartGroupsAsync())
-            .GroupBy(g => g.Id, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First().Descriptors, StringComparer.OrdinalIgnoreCase);
-        // Part names and icons, and the names of the items that unlock paint styles.
-        await CatalogService.WarmCacheAsync(_types.SelectMany(t => t.Slots).SelectMany(s => s.Items).Select(i => i.Item)
-            .Concat(_styles.Values.SelectMany(l => l).Select(s => s.Unlock).Where(u => u.Length > 0)));
-        await ShipPartsService.EnsureLoadedAsync();
 
         BodyGrid.Visibility = Visibility.Visible;
         _seed = NewSeed();
@@ -301,7 +300,7 @@ public sealed partial class ShipDesignerPage : Page
             });
         PaintPanel.Children.Add(stylePanel);
 
-        var data = CurrentColours();
+        var data = ShipBuilderService.CurrentColours(_type, _style);
         if (data is null) return;
         var swatches = _swatches.GetValueOrDefault(data.Swatches) ?? new();
         foreach (var group in data.Groups)
@@ -345,16 +344,11 @@ public sealed partial class ShipDesignerPage : Page
         }
     }
 
-    /// <summary>The colour settings for the chosen style: the entry for its option, or the type's only one.</summary>
-    private ColourData? CurrentColours() =>
-        _type is null ? null
-            : _type.Colours.FirstOrDefault(c => c.Option == _style?.Option) ?? _type.Colours.FirstOrDefault(c => c.Option.Length == 0)
-              ?? _type.Colours.FirstOrDefault();
-
     private void ResetColours()
     {
         _colourPicks.Clear();
-        foreach (var group in CurrentColours()?.Groups ?? new()) _colourPicks[group.Title] = group.DefaultIndex;
+        foreach (var group in ShipBuilderService.CurrentColours(_type, _style)?.Groups ?? new())
+            _colourPicks[group.Title] = group.DefaultIndex;
     }
 
     private static void MarkPicked(List<Border> cells, int picked)
@@ -416,7 +410,7 @@ public sealed partial class ShipDesignerPage : Page
             return;
         }
 
-        var colour = DesignColours();
+        var colour = ShipBuilderService.DesignColours(_type, _style, _swatches, _colourPicks);
         var styles = (_style?.Layers ?? new()).Select(l => l.Length > 1 ? l[1] : "").Where(o => o.Length > 0).ToHashSet(StringComparer.Ordinal);
         if (_paintRemoved)
         {
@@ -437,23 +431,455 @@ public sealed partial class ShipDesignerPage : Page
         OnPreviewReady();
     }
 
-    /// <summary>The design's colours: each colour group sets its palette slots to the picked
-    /// swatch; every other slot is the dark metal grey the game itself filled in on a
-    /// built ship (0.351 - most palettes of "The Eagle of Beauty").</summary>
-    private Func<string, string, float[]?> DesignColours()
+    private void UpdateDataLink_Click(object sender, RoutedEventArgs e) => App.MainWindowInstance?.StartGameDataUpdate();
+
+    // ------------------------------------------------------------------ saved designs
+
+    /// <summary>Editing a saved design: saves the changes under its name, no questions
+    /// (2026-10-17, the user: "Save changes shouldn't ask for a name"). A new design:
+    /// asks for a name first.</summary>
+    private async void SaveDesignBtn_Click(object sender, RoutedEventArgs e)
     {
-        var set = new Dictionary<(string, string), float[]>();
-        var data = CurrentColours();
-        var swatches = data is null ? new() : _swatches.GetValueOrDefault(data.Swatches) ?? new();
-        foreach (var group in data?.Groups ?? new())
-        {
-            int index = _colourPicks.GetValueOrDefault(group.Title, group.DefaultIndex);
-            if (index < 0 || index >= swatches.Count) continue;
-            foreach (var slot in group.Slots.Where(s => s.Length > 1)) set[(slot[0], slot[1])] = swatches[index].Rgb;
-        }
-        var grey = new[] { 0.351f, 0.351f, 0.351f };
-        return (palette, slot) => set.GetValueOrDefault((palette, slot == "Unique" ? "Alternative3" : slot)) ?? grey;
+        if (_type is null) return;
+        if (_editing is { } saved) await SaveAsync(CurrentDesign(saved.Id, saved.Name, saved.CreatedAt));
+        else await SaveAsNewAsync();
     }
 
-    private void UpdateDataLink_Click(object sender, RoutedEventArgs e) => App.MainWindowInstance?.StartGameDataUpdate();
+    private async void SaveAsNewBtn_Click(object sender, RoutedEventArgs e) => await SaveAsNewAsync();
+
+    private async Task SaveAsNewAsync()
+    {
+        if (_type is null) return;
+        var nameBox = new TextBox
+        {
+            Header = "Design name",
+            Text = _editing is null ? ShipNameTxt.Text : $"{_designName} (copy)",
+            MaxLength = 80,
+        };
+        nameBox.SelectAll();
+        var dialog = new ContentDialog
+        {
+            Title = "Save as a new design",
+            Content = nameBox,
+            PrimaryButtonText = "Save",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+        nameBox.TextChanged += (_, _) => dialog.IsPrimaryButtonEnabled = nameBox.Text.Trim().Length > 0;
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        await SaveAsync(CurrentDesign(Guid.NewGuid().ToString("N"), nameBox.Text.Trim(), UserDatabase.Now()));
+    }
+
+    private async Task SaveAsync(ShipDesign design)
+    {
+        byte[]? thumbnail = _previewReady ? await TakeThumbnailAsync() : null;
+        try
+        {
+            await ShipDesignsService.SaveAsync(design, thumbnail);
+        }
+        catch (Exception ex)
+        {
+            await Message("Couldn't save the design", ex.Message);
+            return;
+        }
+        _thumbs.Remove(design.Id);
+        _needsThumbnail = thumbnail is null ? design : null;
+        SetDesign(design);
+        await RefreshDesignsAsync();
+    }
+
+    private ShipDesign CurrentDesign(string id, string name, string createdAt) => new(
+        id, name, _type!.Type,
+        new Dictionary<string, string>(_parts),
+        _style?.Option,
+        new Dictionary<string, int>(_colourPicks),
+        "0x" + _seed.ToString("X16", CultureInfo.InvariantCulture),
+        createdAt);
+
+    private async Task RefreshDesignsAsync()
+    {
+        _savedDesigns = await ShipDesignsService.LoadAllAsync();
+        await ShowDesignsAsync();
+    }
+
+    private async void DesignSearchBox_TextChanged(object sender, TextChangedEventArgs e) => await ShowDesignsAsync();
+
+    private async Task ShowDesignsAsync()
+    {
+        string find = DesignSearchBox.Text.Trim();
+        var shown = _savedDesigns.Where(d => find.Length == 0
+            || d.Design.Name.Contains(find, StringComparison.CurrentCultureIgnoreCase)
+            || DesignSubtitle(d.Design).Contains(find, StringComparison.CurrentCultureIgnoreCase)).ToList();
+        DesignsEmptyTxt.Text = _savedDesigns.Count == 0
+            ? "No saved designs yet. Make a ship you like and click Save design to keep it here."
+            : shown.Count == 0 ? $"No design matches \"{find}\"." : "";
+        DesignsEmptyTxt.Visibility = DesignsEmptyTxt.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        DesignsPanel.Children.Clear();
+        foreach (var saved in shown)
+            DesignsPanel.Children.Add(await DesignCardAsync(saved));
+    }
+
+    /// <summary>A card: the picture, name and type/style. Click to load; the small
+    /// button in the corner deletes (beside the card, not inside its button).</summary>
+    private async Task<UIElement> DesignCardAsync(SavedDesign saved)
+    {
+        var design = saved.Design;
+        var picture = new Grid { Width = 144, Height = 90, CornerRadius = new CornerRadius(4), Background = ThemeResources.Brush("ThemePanelAltBrush") };
+        if (await ThumbnailAsync(saved) is { } image)
+            picture.Children.Add(new Image { Source = image, Stretch = Stretch.Uniform });
+        else
+            picture.Children.Add(new TextBlock
+            {
+                Text = "Load it to take a picture", FontSize = 11, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center,
+                Style = (Style)Application.Current.Resources["ThemeDimTextStyle"],
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8),
+            });
+        var content = new StackPanel { Width = 144, Spacing = 2 };
+        content.Children.Add(picture);
+        content.Children.Add(new TextBlock { Text = design.Name, FontWeight = FontWeights.SemiBold, FontSize = 13, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 4, 0, 0) });
+        content.Children.Add(new TextBlock
+        {
+            Text = DesignSubtitle(design), FontSize = 11, TextTrimming = TextTrimming.CharacterEllipsis,
+            Style = (Style)Application.Current.Resources["ThemeDimTextStyle"],
+        });
+        var card = new Button { Content = content, Tag = design.Id, Padding = new Thickness(6), VerticalAlignment = VerticalAlignment.Stretch };
+        ThemeResources.StyleChoiceButton(card, design.Id == _designId);
+        ToolTipService.SetToolTip(card, $"Load \"{design.Name}\"");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(card, $"Load {design.Name}");
+        // Painting a ship: a design lends its paint only (its parts would be a different ship).
+        card.Click += (_, _) => { if (_paintShip is not null) UseDesignPaint(design); else LoadDesign(design, saved.Thumbnail is null); };
+
+        var delete = new Button
+        {
+            Content = new FontIcon { Glyph = "", FontSize = 12 }, Padding = new Thickness(6),
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 10, 10, 0),
+        };
+        ToolTipService.SetToolTip(delete, "Delete this design");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(delete, $"Delete {design.Name}");
+        delete.Click += async (_, _) =>
+        {
+            if (!await Confirm($"Delete \"{design.Name}\"?", "The design is removed from My designs. Ships you already made from it stay as they are.", "Delete")) return;
+            await ShipDesignsService.DeleteAsync(design.Id);
+            _thumbs.Remove(design.Id);
+            if (design.Id == _designId) SetDesign(null);
+            await RefreshDesignsAsync();
+        };
+
+        var cell = new Grid();
+        cell.Children.Add(card);
+        cell.Children.Add(delete);
+        return cell;
+    }
+
+    private string DesignSubtitle(ShipDesign design)
+    {
+        var type = _types.FirstOrDefault(t => t.Type == design.Type);
+        string style = type is null ? "" : _styles.GetValueOrDefault(type.StyleGroup)?.FirstOrDefault(s => s.Option == design.Style)?.Name ?? "";
+        return string.Join(" · ", new[] { type is null ? design.Type : Title(type.Title), style }.Where(t => t.Length > 0));
+    }
+
+    private async Task<BitmapImage?> ThumbnailAsync(SavedDesign saved)
+    {
+        if (saved.Thumbnail is not { Length: > 0 } png) return null;
+        if (_thumbs.TryGetValue(saved.Design.Id, out var cached)) return cached;
+        var image = await ShipBuilderService.DecodeBitmapAsync(png);
+        if (image is not null) _thumbs[saved.Design.Id] = image;
+        return image;
+    }
+
+    /// <summary>The preview, as a PNG at its opening angle.</summary>
+    private async Task<byte[]?> TakeThumbnailAsync()
+    {
+        if (await PreviewView.SnapshotAsync(ThumbWidth, ThumbHeight) is not { } pixels) return null;
+        return await ShipBuilderService.EncodeThumbnailPngAsync(pixels, ThumbWidth, ThumbHeight);
+    }
+
+    /// <summary>Called when the preview has drawn the current design: a loaded design
+    /// with no picture gets one - if the preview still shows exactly that design.</summary>
+    private async void OnPreviewReady()
+    {
+        if (_needsThumbnail is not { } design || design.Id != _designId) return;
+        if (_type?.Type != design.Type || _style?.Option != design.Style
+            || !design.Parts.OrderBy(p => p.Key).SequenceEqual(_parts.OrderBy(p => p.Key))) return;
+        _needsThumbnail = null;
+        if (await TakeThumbnailAsync() is not { } png) return;
+        try
+        {
+            await ShipDesignsService.SetThumbnailAsync(design.Id, png);
+        }
+        catch (Exception)
+        {
+            return; // no picture this time; the card keeps its placeholder
+        }
+        await RefreshDesignsAsync();
+    }
+
+    /// <summary>Puts a saved design back into the designer. Anything the game data no
+    /// longer has (after a game update) falls back to the builder's default.</summary>
+    private async void LoadDesign(ShipDesign design, bool needsThumbnail)
+    {
+        var type = _types.FirstOrDefault(t => t.Type == design.Type);
+        if (type is null)
+        {
+            await Message("Can't load this design", $"Your game data has no \"{design.Type}\" ship type. Update your game data, or delete the design.");
+            return;
+        }
+        bool missing = false;
+        _type = type;
+        _parts.Clear();
+        foreach (var slot in type.Slots)
+        {
+            if (design.Parts.TryGetValue(slot.Id, out string? item) && slot.Items.Any(i => i.Item == item)) _parts[slot.Id] = item;
+            else if (slot.Items.Count > 0) { _parts[slot.Id] = slot.Items[0].Item; missing = true; }
+        }
+        _slot = type.Slots.FirstOrDefault()?.Id ?? "";
+        PartSearchBox.Text = "";
+        var styles = _styles.GetValueOrDefault(type.StyleGroup) ?? new();
+        _style = styles.FirstOrDefault(s => s.Option == design.Style);
+        if (_style is null) { _style = styles.FirstOrDefault(); missing |= design.Style is not null; }
+        ResetColours();
+        int swatchCount = _swatches.GetValueOrDefault(ShipBuilderService.CurrentColours(_type, _style)?.Swatches ?? "")?.Count ?? 0;
+        foreach (var (group, index) in design.Colours)
+            if (_colourPicks.ContainsKey(group) && index >= 0 && index < swatchCount) _colourPicks[group] = index;
+        string seed = design.Seed.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? design.Seed[2..] : design.Seed;
+        if (ulong.TryParse(seed, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out ulong parsed)) _seed = parsed;
+
+        _needsThumbnail = needsThumbnail && !missing ? design : null;
+        SetDesign(design);
+        BuildTypePanel();
+        BuildSlotTabs();
+        ShowParts();
+        ShowPaint();
+        RefreshName();
+        RefreshPreview();
+        if (missing)
+            await Message("Some parts have changed", "Your game data no longer has everything this design used, so those choices are back to the default. Save the design again to keep it this way.");
+    }
+
+    private void NewDesignBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_type is null) return;
+        SetDesign(null);
+        _seed = NewSeed();
+        SelectType(_type);
+    }
+
+    /// <summary>Says whether this is a new design or a saved one being edited, and
+    /// whether that one has changed since it was saved.</summary>
+    private void UpdateDesignState()
+    {
+        if (_paintShip is not null) return;
+        if (_editing is not { } saved || _type is null)
+        {
+            DesignNameTxt.Text = "New design · not saved yet";
+            NewDesignBtn.Visibility = Visibility.Collapsed;
+            SaveDesignBtn.Content = "Save design...";
+            SaveDesignBtn.IsEnabled = true;
+            SaveAsNewBtn.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var now = CurrentDesign(saved.Id, saved.Name, saved.CreatedAt);
+        bool changed = now.Type != saved.Type || now.Style != saved.Style || now.Seed != saved.Seed
+            || !SameEntries(now.Parts, saved.Parts) || !SameEntries(now.Colours, saved.Colours);
+        DesignNameTxt.Text = $"Editing: {saved.Name}" + (changed ? " · unsaved changes" : "");
+        NewDesignBtn.Visibility = Visibility.Visible;
+        SaveDesignBtn.Content = "Save changes";
+        SaveDesignBtn.IsEnabled = changed;
+        SaveAsNewBtn.Visibility = Visibility.Visible;
+    }
+
+    private static bool SameEntries<T>(Dictionary<string, T> a, Dictionary<string, T> b) =>
+        a.Count == b.Count && a.All(kv => b.TryGetValue(kv.Key, out var v) && Equals(v, kv.Value));
+
+    private void SetDesign(ShipDesign? design)
+    {
+        _editing = design;
+        _designId = design?.Id;
+        _designName = design?.Name ?? "";
+        _designCreated = design?.CreatedAt ?? "";
+        UpdateDesignState();
+        foreach (var card in DesignsPanel.Children.OfType<Grid>().Select(g => g.Children.OfType<Button>().FirstOrDefault()).OfType<Button>())
+            ThemeResources.StyleChoiceButton(card, card.Tag is string id && id == design?.Id);
+    }
+
+    // ------------------------------------------------------------------ paint mode
+
+    private async Task EnterPaintModeAsync()
+    {
+        int index = _paintShip!.Value;
+        var target = await ShipBuilderService.ReadPaintTargetAsync(index, _types);
+        if (target is null)
+        {
+            _paintShip = null;
+            await Message("This ship can't be painted here", "Only Fighters, Haulers, Explorers and Solars can be painted - the ship types a space station's fabricator builds.");
+            return;
+        }
+
+        _paintShipName = target.ShipName;
+        _paintShipSmp = target.SmpClone;
+        _paintShipParts = target.StoredParts;
+        _paintShipHasPaint = target.HasPaint;
+
+        SetDesign(null);
+        SelectType(target.Type);
+        _seed = target.Seed;
+        if (target.CustomisationData is not null && _paintShipHasPaint)
+            _style = ShipBuilderService.PickCurrentPaint(target.CustomisationData, target.Type, _styles, _swatches, _style, _colourPicks);
+
+        TypeSection.Visibility = PartsSection.Visibility = PartSearchBox.Visibility = PartsScroll.Visibility = Visibility.Collapsed;
+        PaintPartsNote.Visibility = Visibility.Visible;
+        PaintPartsTxt.Text = (_paintShipParts.Count > 0
+                ? "This ship keeps the parts it was built with."
+                : "This ship keeps its own parts - the ones its seed gives.")
+            + " Only its paint changes. The game itself doesn't let you repaint a ship you found or bought; this changes its colours in your save.";
+        DesignNameTxt.Text = "Repainting your ship · its parts and name stay as they are";
+        NewDesignBtn.Visibility = NewNameBtn.Visibility = Visibility.Collapsed;
+        DesignActions.Visibility = SaveActions.Visibility = Visibility.Collapsed;
+        PaintActions.Visibility = Visibility.Visible;
+        RemovePaintBtn.Visibility = _paintShipHasPaint && _paintShipParts.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        UpdateWriteButtons();
+        ShowPaint();
+        RefreshName();
+        RefreshPreview();
+    }
+
+    private async void RepaintBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_paintShip is not int index || _type is null || !SaveSessionManager.IsSaveLoaded || GameProcessMonitorService.IsGameRunning) return;
+        ShipBuilderService.StageRepaint(index, _paintShipSmp, _type, _style, _parts, _swatches, _colourPicks);
+        _paintShipHasPaint = true;
+        _paintRemoved = false;
+        RefreshPreview();
+        RemovePaintBtn.Visibility = _paintShipParts.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        await Message("Repainted", $"\"{_paintShipName}\" has its new paint. Save from the title bar to write it to your save, then load the save in game.");
+    }
+
+    private async void RemovePaintBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_paintShip is not int index || !SaveSessionManager.IsSaveLoaded || GameProcessMonitorService.IsGameRunning) return;
+        if (!await Confirm($"Remove the paint from \"{_paintShipName}\"?",
+                "It goes back to the colours it had when you found or bought it. Nothing is written to your save until you Save.", "Remove paint")) return;
+        ShipBuilderService.StageRemovePaint(index);
+        _paintShipHasPaint = false;
+        _paintRemoved = true;
+        RemovePaintBtn.Visibility = Visibility.Collapsed;
+        RefreshPreview();
+        await Message("Paint removed", "Save from the title bar to write it to your save.");
+    }
+
+    private void ExitPaintBtn_Click(object sender, RoutedEventArgs e) => Frame.Navigate(typeof(ShipDesignerPage));
+
+    /// <summary>Paint mode: a saved design lends its paint style and colours.</summary>
+    private async void UseDesignPaint(ShipDesign design)
+    {
+        if (_type is null) return;
+        var style = (_styles.GetValueOrDefault(_type.StyleGroup) ?? new()).FirstOrDefault(s => s.Option == design.Style);
+        if (design.Style is not null && style is null)
+        {
+            await Message("That paint style isn't offered here", $"\"{design.Name}\" uses a paint style this ship type doesn't have.");
+            return;
+        }
+        _style = style ?? _style;
+        _paintRemoved = false;
+        ResetColours();
+        foreach (var (group, swatch) in design.Colours)
+            if (_colourPicks.ContainsKey(group)) _colourPicks[group] = swatch;
+        ShowPaint();
+        RefreshPreview();
+    }
+
+    // ------------------------------------------------------------------ add & apply to save
+
+    private async void AddNewBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_type is null || !SaveSessionManager.IsSaveLoaded || GameProcessMonitorService.IsGameRunning) return;
+        var owned = ShipBuilderService.RegularShips();
+        int active = SaveSessionManager.GetValue(ArtifactX.Core.NmsModels.NmsInventoryContainer.ActiveShipIndexPath)?.Value<int>() ?? -1;
+        // The new ship starts as a copy of one you own (its tech, so it flies straight away).
+        int skeleton = owned.Any(s => s.Index == active) ? active : owned.FirstOrDefault().Index;
+        if (owned.Count == 0 || NewFromTemplateService.FirstEmptyShipSlot() is not int slot)
+        {
+            await Message("No room for another Starship", owned.Count == 0
+                ? "This save doesn't have a starship to start from yet. Get one in game first."
+                : $"All {NewFromTemplateService.ShipSlotCount} Starship slots are in use. Sell or scrap one in game, or delete one on the Starships page, then try again.");
+            return;
+        }
+        if (!await Confirm($"Add \"{ShipNameTxt.Text}\" as a new Starship?",
+                $"It goes in empty slot {slot + 1} with these parts and paint. It starts with the technology of one of your ships so it can fly, and an empty cargo hold. Nothing is written to your save until you Save.",
+                "Add")) return;
+
+        ShipBuilderService.StageNewShip(skeleton, slot, _type, _seed, _style, _parts, _swatches, _colourPicks);
+        await Message("Added", $"\"{ShipNameTxt.Text}\" is in slot {slot + 1}. Save from the title bar to write it to your save, then load the save in game.");
+    }
+
+    private async void ApplyBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_type is null || !SaveSessionManager.IsSaveLoaded || GameProcessMonitorService.IsGameRunning) return;
+        var owned = ShipBuilderService.RegularShips();
+        if (owned.Count == 0) { await Message("No ship to apply it to", "This save has no starship the design can go on."); return; }
+
+        var list = new ListView { SelectionMode = ListViewSelectionMode.Single, MaxHeight = 360 };
+        foreach (var (index, scene, name) in owned)
+        {
+            string label = name.Length > 0 ? name
+                : ShipBuilderService.TryParseSeed(index) is ulong seed && await StarshipService.ShipNameAsync(seed, scene) is { } gameName ? gameName
+                : $"Starship {index + 1}";
+            list.Items.Add(new ListViewItem { Content = label, Tag = index });
+        }
+        // A ship with a name of its own keeps it unless asked; one without takes the
+        // design's name anyway (the game names it from the new seed). Always shown, so
+        // the choice can be found: greyed out and ticked when there is nothing to choose.
+        var rename = new CheckBox { Content = $"Rename it to \"{ShipNameTxt.Text}\"", IsChecked = true, IsEnabled = false };
+        var renameNote = new TextBlock
+        {
+            Style = (Style)Application.Current.Resources["ThemeDimTextStyle"], FontSize = 12, TextWrapping = TextWrapping.Wrap,
+            Text = "Pick a ship. One you named yourself can keep its name.",
+        };
+        bool renameChoice = true;
+        rename.Click += (_, _) => { if (rename.IsEnabled) renameChoice = rename.IsChecked == true; };
+        var panel = new StackPanel { Spacing = 10 };
+        panel.Children.Add(new TextBlock
+        {
+            TextWrapping = TextWrapping.Wrap,
+            Text = $"The ship gets this design's type, parts, paint and name (\"{ShipNameTxt.Text}\"). Its technology, cargo, class and stats stay as they are.",
+        });
+        panel.Children.Add(list);
+        panel.Children.Add(rename);
+        panel.Children.Add(renameNote);
+        var dialog = new ContentDialog
+        {
+            Title = "Apply the design to which ship?",
+            Content = panel,
+            PrimaryButtonText = "Apply",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            IsPrimaryButtonEnabled = false,
+            XamlRoot = XamlRoot,
+        };
+        list.SelectionChanged += (_, _) =>
+        {
+            dialog.IsPrimaryButtonEnabled = list.SelectedItem is not null;
+            bool named = list.SelectedItem is ListViewItem { Tag: int picked } && owned.Any(s => s.Index == picked && s.Name.Length > 0);
+            rename.IsEnabled = named;
+            rename.IsChecked = !named || renameChoice;
+            renameNote.Text = named ? "You named this ship. Untick to keep its name."
+                : "The game named this ship, so it takes the design's name.";
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary || list.SelectedItem is not ListViewItem { Tag: int target }) return;
+
+        ShipBuilderService.StageApplyDesign(target, rename.IsChecked == true, _type, _seed, _style, _parts, _swatches, _colourPicks);
+        await Message("Applied", "Save from the title bar to write it to your save, then load the save in game.");
+    }
+
+    private async Task Message(string title, string text) =>
+        await new ContentDialog { Title = title, Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap }, CloseButtonText = "OK", XamlRoot = XamlRoot }.ShowAsync();
+
+    private async Task<bool> Confirm(string title, string text, string action) =>
+        await new ContentDialog
+        {
+            Title = title, Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap },
+            PrimaryButtonText = action, CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = XamlRoot,
+        }.ShowAsync() == ContentDialogResult.Primary;
 }

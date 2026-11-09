@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using ArtifactX.Almanac.Starship;
 using ArtifactX.Core.NmsModels;
+using ArtifactX.Core.Procedural;
 using ArtifactX.WinUI3.Controls;
 using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
@@ -839,5 +840,93 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
     {
         RefreshShipParts();
         PageResetBtn.Visibility = Visibility.Visible;
+    }
+
+    // ------------------------------------------------------------ Parts & 3D preview
+
+    private int _previewVersion;
+
+    private string? CurrentScene() => _selectedIndex < 0 ? null
+        : SaveSessionManager.GetValue("vLc", "6f=", "@Cs", _selectedIndex.ToString(CultureInfo.InvariantCulture), "NTx", "93M")?.ToString();
+
+    private bool IsCorvetteSelected() =>
+        _ships.FirstOrDefault(s => s.Index == _selectedIndex)?.IsCorvette ?? false;
+
+    /// <summary>Rebuilds the parts list and preview for the selected ship's type and the seed in the box.</summary>
+    private async void RefreshShipParts()
+    {
+        ShowFoldedName(); // the closed band names the ship shown
+        PartsPanel.ViewModel.Clear();
+        // Hide the last ship's model (and drop a build still running for it), or a ship
+        // that shows no parts kept the previous ship's model (2026-10-15).
+        int refresh = ++_previewVersion;
+        ShipPreviewGroup.Visibility = Visibility.Collapsed;
+        string? scene = CurrentScene();
+        PaintShipBtn.Visibility = scene is not null && ShipPartsService.IsPaintable(scene) ? Visibility.Visible : Visibility.Collapsed;
+        if (scene is null) return;
+
+        bool hasData = await ShipPartsService.EnsureLoadedAsync();
+        // A newer refresh started while this one waited (switching ships fires two):
+        // let that one fill the panel, or the parts list showed twice (2026-10-17).
+        if (refresh != _previewVersion) return;
+        if (!hasData)
+        {
+            PartsPanel.ViewModel.ShowMessage("Update your game data (Settings › Game data) to see which parts a seed gives.");
+            return;
+        }
+
+        var root = ShipPartsService.LoadTree(ShipParts.DescriptorFor(scene));
+        bool hasSeed = ShipPartsService.TryParseSeed(SeedBox.Text, out ulong seed);
+        var built = ShipPartsService.BuiltLookOf(_selectedIndex);
+        // Corvettes are modular base-built ships placed in game; their parts are stored
+        // apart from the seed, so a placeholder is shown until full modular 3D assembly arrives.
+        if (IsCorvetteSelected())
+        {
+            ShipPreviewGroup.Visibility = Visibility.Visible;
+            ShipPreviewView.ShowMessage("Corvette 3D model coming soon");
+            ShipPreviewNote.Text = "Corvettes are built from modular components placed in game. Full modular 3D assembly is in development.";
+        }
+        else if (root is null || hasSeed)
+        {
+            await ShipPartsService.EnsureLookAsync();
+            if (refresh != _previewVersion) return;
+            ShowPreview(scene, hasSeed ? seed : 0, root, built);
+        }
+        PartsPanel.ViewModel.Show(scene, root, hasSeed ? seed : null, built);
+    }
+
+    /// <summary>A found seed's Use: stages it; Seed_Changed refreshes the parts.</summary>
+    private void PartsPanel_SeedChosen(object? sender, string seed)
+    {
+        if (_selectedIndex >= 0) SeedBox.Set(seed);
+    }
+
+    /// <summary>The 3D preview: the seed's parts built from the player's own game files
+    /// (ShipModels). A ship built at a station (or repainted) shows its saved paint;
+    /// found and bought ships show as a hologram scan.</summary>
+    private async void ShowPreview(string scene, ulong seed, IReadOnlyList<PartGroup>? root, BuiltLook? built = null)
+    {
+        int version = ++_previewVersion;
+        if (GameDataService.Game is null) { ShipPreviewGroup.Visibility = Visibility.Collapsed; return; }
+        // Cleared first: the previous ship stayed on screen while this one built (2026-10-17).
+        ShipPreviewView.ShowMessage("Building this ship's model from your game files...");
+        ShipPreviewNote.Text = "";
+        ShipPreviewGroup.Visibility = Visibility.Visible;
+
+        var preview = await ShipPartsService.BuildPreviewAsync(scene, seed, root, built, () => version != _previewVersion);
+        if (preview is null || version != _previewVersion) return;
+
+        if (preview.Mesh is null)
+            ShipPreviewView.ShowMessage("This ship's model couldn't be read from your game files.");
+        else if (preview.Hologram)
+            ShipPreviewView.Show(preview.Mesh, preview.MaterialColour, hologram: true);
+        else
+            ShipPreviewView.Show(preview.Mesh, preview.MaterialColour, preview.Painted);
+        ShipPreviewNote.Text = preview.Note;
+    }
+
+    private void PaintShipBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIndex >= 0) Frame.Navigate(typeof(ShipDesignerPage), _selectedIndex);
     }
 }

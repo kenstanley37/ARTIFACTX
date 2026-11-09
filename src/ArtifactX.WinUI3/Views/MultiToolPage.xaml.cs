@@ -786,4 +786,28 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
     private void ShowFoldedName() => DetailsCard.FoldedName = NameEditBox.Text?.Trim() is { Length: > 0 } typed ? typed : NameEditBox.PlaceholderText ?? "";
 
     private void Inventory_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
+
+    // ------------------------------------------------------------ 3D preview
+
+    private int _previewVersion;
+
+    private async void ShowToolPreview()
+    {
+        int version = ++_previewVersion;
+        string scene = _selectedIndex < 0 ? ""
+            : SaveSessionManager.GetValue("vLc", "6f=", "SuJ", _selectedIndex.ToString(CultureInfo.InvariantCulture), "NTx", "93M")?.Value<string>() ?? "";
+        if (string.IsNullOrEmpty(scene) || GameDataService.Game is null)
+        {
+            ToolPreviewGroup.Visibility = Visibility.Collapsed;
+            return;
+        }
+        ToolPreviewGroup.Visibility = Visibility.Visible;
+        ToolPreviewNote.Text = "Building the model from your game files...";
+
+        var preview = await MultiToolService.BuildOwnedPreviewAsync(_selectedIndex, () => version != _previewVersion);
+        if (preview is null || version != _previewVersion) return;
+
+        ToolPreviewView.Show(preview.Mesh, MultiToolService.MaterialColour, preview.Painted);
+        ToolPreviewNote.Text = preview.Note;
+    }
 }
