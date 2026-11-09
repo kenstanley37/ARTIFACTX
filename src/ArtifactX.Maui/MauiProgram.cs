@@ -21,6 +21,9 @@ public static class MauiProgram
         builder.Logging.AddDebug();
 #endif
 
+        builder.Services.AddSingleton<Services.IPortalPhotoScanService, Services.PortalPhotoScanService>();
+        builder.Services.AddTransient<ViewModels.PortalScannerViewModel>();
+        builder.Services.AddTransient<Views.ExplorePages.PortalGlyphsPage>();
         return builder.Build();
     }
 }

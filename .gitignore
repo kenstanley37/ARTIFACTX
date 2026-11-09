@@ -96,3 +96,5 @@ scripts/research/**/*.log
 __pycache__/
 # Local recipe design data and extracted appliance images.
 docs/mockups/recipe-preview.local/
+# Generated, build-stamped recognition statistics; never commit local game-derived data.
+src/ArtifactX.Maui/Resources/Raw/portal-glyph-model.json

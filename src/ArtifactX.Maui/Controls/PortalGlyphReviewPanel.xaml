@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ArtifactX.Maui.ViewModels"
+             xmlns:models="clr-namespace:ArtifactX.Maui.Models"
+             xmlns:art="clr-namespace:ArtifactX.Core.Theming;assembly=ArtifactX.Core"
+             x:Class="ArtifactX.Maui.Controls.PortalGlyphReviewPanel"
+             x:DataType="vm:PortalScannerViewModel">
+    <Border Style="{StaticResource ThemeCardStyle}" Padding="16">
+        <VerticalStackLayout Spacing="12">
+            <Label Text="Review glyphs" Style="{StaticResource ThemeCardTitleStyle}" />
+            <Label Text="Check all 12 positions against your screen. A ? marks a less certain reading. Tap a position, then its glyph below to correct it."
+                   Style="{StaticResource ThemeBodyTextStyle}" />
+            <FlexLayout BindableLayout.ItemsSource="{Binding Slots}" Wrap="Wrap" JustifyContent="Start">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="models:PortalReviewSlot">
+                        <Border Margin="2" WidthRequest="44" HeightRequest="66" Style="{StaticResource ThemeCardAltStyle}">
+                            <Border.Triggers>
+                                <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                                    <Setter Property="Stroke" Value="{DynamicResource ThemeAccentBrush}" />
+                                    <Setter Property="StrokeThickness" Value="2" />
+                                </DataTrigger>
+                            </Border.Triggers>
+                            <Grid>
+                                <Button Padding="0"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:PortalScannerViewModel}}, Path=SelectSlotCommand}"
+                                        CommandParameter="{Binding .}" SemanticProperties.Description="{Binding AccessibleName}"
+                                        BackgroundColor="{DynamicResource ThemePanelAltColor}" />
+                                <VerticalStackLayout Padding="4" Spacing="2" InputTransparent="True">
+                                <Path Data="{Binding PathData}" Stroke="{DynamicResource ThemeTextBrush}" StrokeThickness="1.6"
+                                      Aspect="Uniform" HeightRequest="28" InputTransparent="True" />
+                                <Label Text="{Binding Label}" FontSize="14" HorizontalTextAlignment="Center" TextColor="{DynamicResource ThemeAccentColor}" />
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </FlexLayout>
+            <Label Text="{Binding SelectedPosition, StringFormat='Editing position {0}'}" Style="{StaticResource ThemeBodyTextStyle}" />
+            <FlexLayout BindableLayout.ItemsSource="{Binding Keys}" Wrap="Wrap" JustifyContent="Start">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="art:PortalGlyphVector">
+                        <Border Style="{StaticResource ThemeCardAltStyle}" Margin="3" WidthRequest="64" HeightRequest="76">
+                            <Grid>
+                                <Button Padding="0"
+                                        SemanticProperties.Description="{Binding Name, StringFormat='Enter glyph {0} at the selected position'}"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:PortalScannerViewModel}}, Path=TapGlyphCommand}"
+                                        CommandParameter="{Binding .}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
+                                <VerticalStackLayout Padding="6" Spacing="4" InputTransparent="True">
+                                <Path Data="{Binding PathData}" Stroke="{DynamicResource ThemeTextBrush}" StrokeThickness="1.6" Aspect="Uniform" HeightRequest="28" />
+                                <Label Text="{Binding Name}" FontSize="12" HorizontalTextAlignment="Center" TextColor="{DynamicResource ThemeTextColor}" />
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </FlexLayout>
+            <Entry Text="{Binding ReviewInput}" MaxLength="12" TextColor="{DynamicResource ThemeTextColor}"
+                   SemanticProperties.Description="Edit the 12-glyph scan candidate" />
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                <Button Text="Use address" Command="{Binding AcceptReviewCommand}"
+                        BackgroundColor="{DynamicResource ThemeAccentColor}" TextColor="{DynamicResource ThemeOnAccentColor}" />
+                <Button Grid.Column="1" Text="Discard" Command="{Binding DiscardReviewCommand}"
+                        BackgroundColor="{DynamicResource ThemePanelAltColor}" TextColor="{DynamicResource ThemeTextColor}" />
+            </Grid>
+        </VerticalStackLayout>
+    </Border>
+</ContentView>
