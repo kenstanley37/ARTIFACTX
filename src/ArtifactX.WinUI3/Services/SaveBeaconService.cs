@@ -9,10 +9,32 @@ namespace ArtifactX.WinUI3.Services;
 /// <summary>
 /// Places and removes physical in-game Save Beacons (^BUILDBEACON in vLc.6f=.c5s) at planetary coordinates.
 /// Unlike scan events (A1f), which only show for registered procedural buildings, a Save Beacon is a real
-/// physical waypoint object that produces a permanent in-game HUD waypoint visible from space and terrain.
+/// physical object with a permanent in-game HUD waypoint.
+///
+/// Save format (2026-11-10, read-only inspection of Slots 5, 7 and 8): every beacon the game placed away from a
+/// base is one c5s entry {b1: unix seconds, r&lt;7: "^BUILDBEACON", oZw: planet address, ofi: 64-bit seed, CVX: 0,
+/// wMC: position from the planet centre, wJ0: up (= normalised wMC), aNu: facing}; its seed appears nowhere else
+/// in the save. ArtifactX writes the same shape.
+///
+/// Height: the game stores the beacon where it stands. On ordinary ground Core's <c>PlanetTerrain.Height</c> is the
+/// ground: game-placed beacons from 12 and 28 October sit 0.0 m from it (Slots 7 and 8); others stood higher on rocks,
+/// edited ground or beside buildings (+1.5 to +48 m), never on bare terrain below it. Placing 0.2 m above the estimate
+/// is kept. OPEN (owner, 2026-11-10): an ArtifactX beacon written this way (Slot 1, 0x2FF9A6362974EC9E, 0.2 m above
+/// the estimate) shows its HUD waypoint, but nothing stands at the site, even after digging around it. A game-placed
+/// beacon (controlled save diff on Slot 8, 2026-11-10) adds only one c5s entry of the same shape, so the cause is in
+/// the values, not in a missing record. Not solved yet.
+///
+/// Ownership: ArtifactX's beacons carry a seed derived from their site (<see cref="SeedFor"/>), so Add and Remove
+/// only ever replace or delete beacons ArtifactX placed, never ones the player built in game nearby.
 /// </summary>
 public static class SaveBeaconService
 {
+    /// <summary>Height above Core's terrain estimate, matching game-placed beacons on ordinary ground.</summary>
+    public const float ClearanceMeters = 0.2f;
+
+    /// <summary>Marks ArtifactX's beacon seeds (the low 16 bits); the rest identifies the site.</summary>
+    private const ulong SeedTag = 0xA87F;
+
     private static readonly HashSet<string> AddedKeys = new(StringComparer.OrdinalIgnoreCase);
 
     public static bool CanAdd => SaveSessionManager.IsSaveLoaded && !GameProcessMonitorService.IsGameRunning;
@@ -45,28 +67,36 @@ public static class SaveBeaconService
         return (angle * avgRadius) < maxSurfaceDistMeters;
     }
 
-    /// <summary>Checks if a Save Beacon exists in c5s at this planetary site (within 50m surface distance).</summary>
-    public static bool IsPlaced(ulong planetAddress, Vector3 localPos)
+    /// <summary>The seed ArtifactX gives a beacon at this site: the same site always gets the same seed.</summary>
+    public static ulong SeedFor(ulong planetAddress, Vector3 localPos)
     {
-        if (SaveSessionManager.GetValue(NmsBuildCounts.LooseObjectsPath) is not JArray objects) return false;
-
-        foreach (var token in objects)
-        {
-            if (token is not JObject obj) continue;
-            if (obj["r<7"]?.Value<string>() != "^BUILDBEACON") continue;
-            if (NmsSpaceStationPaths.ParsePackedAddress(obj["oZw"]) != planetAddress) continue;
-            if (obj["wMC"] is not JArray posArr || posArr.Count != 3) continue;
-
-            float x = posArr[0]?.Value<float>() ?? 0;
-            float y = posArr[1]?.Value<float>() ?? 0;
-            float z = posArr[2]?.Value<float>() ?? 0;
-
-            if (MatchesSite(new Vector3(x, y, z), localPos, 50.0f))
-                return true;
-        }
-
-        return false;
+        ulong hash = 1469598103934665603UL;
+        foreach (char ch in PosKey(planetAddress, localPos))
+            hash = (hash ^ ch) * 1099511628211UL;
+        return (hash & ~0xFFFFUL) | SeedTag;
     }
+
+    private static bool IsArtifactXBeacon(JObject obj) =>
+        NmsSpaceStationPaths.ParsePackedAddress(obj["ofi"]) is ulong seed && (seed & 0xFFFF) == SeedTag;
+
+    /// <summary>The c5s index of ArtifactX's beacon at this site (within 50 m of surface distance), or -1.</summary>
+    private static int FindOwnBeacon(JArray objects, ulong planetAddress, Vector3 localPos)
+    {
+        for (int i = objects.Count - 1; i >= 0; i--)
+        {
+            if (objects[i] is not JObject obj || obj["r<7"]?.Value<string>() != "^BUILDBEACON" || !IsArtifactXBeacon(obj)) continue;
+            if (NmsSpaceStationPaths.ParsePackedAddress(obj["oZw"]) != planetAddress) continue;
+            if (obj["wMC"] is not JArray arr || arr.Count != 3) continue;
+            var position = new Vector3(arr[0]?.Value<float>() ?? 0, arr[1]?.Value<float>() ?? 0, arr[2]?.Value<float>() ?? 0);
+            if (MatchesSite(position, localPos, 50.0f)) return i;
+        }
+        return -1;
+    }
+
+    /// <summary>Checks if ArtifactX's Save Beacon exists in c5s at this planetary site.</summary>
+    public static bool IsPlaced(ulong planetAddress, Vector3 localPos) =>
+        SaveSessionManager.GetValue(NmsBuildCounts.LooseObjectsPath) is JArray objects
+        && FindOwnBeacon(objects, planetAddress, localPos) >= 0;
 
     /// <summary>Checks if a beacon at this position was added in the current session and is waiting to be saved.</summary>
     public static bool IsUnsaved(ulong planetAddress, Vector3 localPos) =>
@@ -74,7 +104,7 @@ public static class SaveBeaconService
         && SaveSessionManager.HasStagedEdit(NmsBuildCounts.LooseObjectsPath)
         && IsPlaced(planetAddress, localPos);
 
-    /// <summary>Places a Save Beacon in c5s at the given planet-local position.</summary>
+    /// <summary>Places a Save Beacon in c5s at the given planet-local ground position.</summary>
     public static void Add(ulong planetAddress, Vector3 localPos)
     {
         if (!CanAdd) return;
@@ -83,38 +113,24 @@ public static class SaveBeaconService
             ? (JArray)current.DeepClone()
             : new JArray();
 
-        // Remove any existing beacon at this site first
-        for (int i = objects.Count - 1; i >= 0; i--)
-        {
-            if (objects[i] is JObject obj
-                && obj["r<7"]?.Value<string>() == "^BUILDBEACON"
-                && NmsSpaceStationPaths.ParsePackedAddress(obj["oZw"]) == planetAddress
-                && obj["wMC"] is JArray arr && arr.Count == 3)
-            {
-                float ox = arr[0]?.Value<float>() ?? 0;
-                float oy = arr[1]?.Value<float>() ?? 0;
-                float oz = arr[2]?.Value<float>() ?? 0;
-                if (MatchesSite(new Vector3(ox, oy, oz), localPos, 50.0f))
-                    objects.RemoveAt(i);
-            }
-        }
+        // Replace ArtifactX's own beacon at this site; never touch beacons the player built.
+        if (FindOwnBeacon(objects, planetAddress, localPos) is int existing and >= 0)
+            objects.RemoveAt(existing);
 
         Vector3 up = Vector3.Normalize(localPos);
         Vector3 temp = Math.Abs(up.Y) < 0.99f ? Vector3.UnitY : Vector3.UnitZ;
         Vector3 right = Vector3.Normalize(Vector3.Cross(up, temp));
         Vector3 at = Vector3.Normalize(Vector3.Cross(right, up));
 
-        // Offset slightly (+0.2m) along outward normal so it rests cleanly on ground terrain
-        Vector3 beaconPos = localPos + up * 0.2f;
+        Vector3 beaconPos = localPos + up * ClearanceMeters;
 
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        ulong beaconSeed = ((ulong)(uint)Random.Shared.Next() << 32) | (ulong)(uint)Random.Shared.Next();
         var beacon = new JObject
         {
             ["b1:"] = now,
             ["r<7"] = "^BUILDBEACON",
             ["oZw"] = $"0x{planetAddress:X}",
-            ["ofi"] = $"0x{beaconSeed:X16}",
+            ["ofi"] = $"0x{SeedFor(planetAddress, localPos):X16}",
             ["CVX"] = 0,
             ["wMC"] = new JArray(Math.Round(beaconPos.X, 3), Math.Round(beaconPos.Y, 3), Math.Round(beaconPos.Z, 3)),
             ["wJ0"] = new JArray(Math.Round(up.X, 4), Math.Round(up.Y, 4), Math.Round(up.Z, 4)),
@@ -126,37 +142,17 @@ public static class SaveBeaconService
         AddedKeys.Add(PosKey(planetAddress, localPos));
     }
 
-    /// <summary>Removes a placed Save Beacon near this local position.</summary>
+    /// <summary>Removes ArtifactX's Save Beacon at this site; beacons the player built are left alone.</summary>
     public static void Remove(ulong planetAddress, Vector3 localPos)
     {
-        if (SaveSessionManager.GetValue(NmsBuildCounts.LooseObjectsPath) is not JArray current) return;
+        if (!CanRemove || SaveSessionManager.GetValue(NmsBuildCounts.LooseObjectsPath) is not JArray current) return;
 
         var objects = (JArray)current.DeepClone();
-        bool changed = false;
+        int index = FindOwnBeacon(objects, planetAddress, localPos);
+        if (index < 0) return;
 
-        for (int i = objects.Count - 1; i >= 0; i--)
-        {
-            if (objects[i] is JObject obj
-                && obj["r<7"]?.Value<string>() == "^BUILDBEACON"
-                && NmsSpaceStationPaths.ParsePackedAddress(obj["oZw"]) == planetAddress
-                && obj["wMC"] is JArray arr && arr.Count == 3)
-            {
-                float ox = arr[0]?.Value<float>() ?? 0;
-                float oy = arr[1]?.Value<float>() ?? 0;
-                float oz = arr[2]?.Value<float>() ?? 0;
-                if (MatchesSite(new Vector3(ox, oy, oz), localPos, 50.0f))
-                {
-                    objects.RemoveAt(i);
-                    changed = true;
-                }
-            }
-        }
-
-        if (changed)
-        {
-            SaveSessionManager.StageEdit(objects, NmsBuildCounts.LooseObjectsPath);
-            AddedKeys.Remove(PosKey(planetAddress, localPos));
-        }
+        objects.RemoveAt(index);
+        SaveSessionManager.StageEdit(objects, NmsBuildCounts.LooseObjectsPath);
+        AddedKeys.Remove(PosKey(planetAddress, localPos));
     }
 }
-
