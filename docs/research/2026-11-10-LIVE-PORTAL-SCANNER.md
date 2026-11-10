@@ -16,6 +16,29 @@ Continues `feature/maui-foundation`. The owner's Photo Mode screenshot shows all
 
 All seven default synthetic check suites passed. New synthetic coverage includes galaxy 110, multiword names, partial/unknown/conflicting text rejection, three-frame agreement, uncertainty, changed addresses and galaxies, duplicate timestamps, long gaps, cancellation during the final frame, camera release before navigation, frame disposal and missing model behavior.
 
-MAUI Android and Windows builds, and iOS/Mac Catalyst managed compile targets, complete with zero warnings/errors. Apple packaging/signing still requires a Mac. The WinUI build is also checked. No app or device was launched or clicked through.
+MAUI Android and Windows builds, and iOS/Mac Catalyst managed compile targets, complete with zero warnings/errors. Apple packaging/signing still requires a Mac. The WinUI build is also checked. No app or device was launched during those initial build checks; subsequent owner-authorized Pixel tests are recorded below.
 
 These are structural and build checks, not a camera accuracy or timing benchmark. The previous recognizer still has limited real-image class coverage (nine of sixteen in the earlier private reference set). Three-frame agreement reduces transient errors but cannot eliminate a consistently wrong read. The new galaxy OCR and spatial pairing need owner phone tests against real screens, glare, distance and orientation. Numerical glyph data remains generated/ignored, not committed game data; builds without it keep manual entry and show a clear message before starting the camera.
+
+## Owner-authorized Pixel testing and lock-on guide
+
+The owner explicitly authorized testing on the development-only Pixel. ADB identifies it as a Pixel 7 Pro running Android 17. The signed Debug APK was updated in place, preserving app data. Android 17 blocked the Android CLI instrumentation helper; testing used native ADB UI dumps and screen capture instead, without overriding Play Protect.
+
+The first live camera run read `1045FBFFB004` and `Nudquathsenfe` (galaxy 110), matching the visible game screen. It exposed two runtime problems: ten-second processing intervals reset agreement indefinitely, and backgrounding could leave the scanner processing a frozen preview. The fixes distinguish analysis time from actual capture idle gaps, attach window lifecycle handlers after the Shell page is loaded, and restart cancelled sessions on activation. Regression checks include consecutive fifteen-second analyses and a separate idle gap.
+
+A subsequent Pixel run completed three matching readings, automatically opened `Gelatanes XVIII` with address `1045FBFFB004` in Nudquathsenfe, and released the rear camera. Back returned to address entry. Background/foreground testing showed an empty active-camera list while stopped, followed by a new camera connection and fresh scan on return. No game controls or save files were touched.
+
+Frame timings in the Debug APK remained approximately 9-11 seconds for this target. Tracking tries a smaller region after a detection and falls back to the full frame on loss; a broad speed improvement has not been established. More lighting, angle and address coverage remains necessary.
+
+The owner's requested visual guide is a separate custom-drawn `PortalScanOverlay` above the camera view. It uses normalized bounds from the detected strip and nearby galaxy band, smoothly moves corner brackets to that area, and turns green for a 450 ms confirmation after three matching pairs. The camera is closed before that confirmation completes and before navigating. The overlay is not part of the camera pixels passed to recognition. Guide, tracking and lock colors use theme resources in both themes. Synthetic checks cover normalized scaling, boundary clamping, invalid bounds and accepted lock state. Pixel visual checks verify the guide and its relation to the camera preview.
+
+## Recognizer speed, result-preserving (2026-11-10, Claude)
+
+Desktop stage timing on `PXL_20261109_193430115.MP.jpg` showed the threshold/slope band search dominating every pass, and each of up to 81 threshold/slope/pass searches per frame allocated roughly 12 MB of shear, flood-fill and column-prefix buffers. Changes in `PortalGlyphRecognizer`, none of which alter which strip is chosen:
+
+- Local contrast and saturation are evaluated once per colour pass instead of once per brightness threshold.
+- Shear, flood-fill and column-prefix buffers are rented per worker from `ArrayPool` and cleared to the used length.
+- The 27 threshold/slope searches per pass run on at most four workers (one core left for the camera preview and UI), then merge in the original sequential order with the same strict `<` comparison, so ties resolve exactly as before.
+- Within a band, each run's shape match is computed once and reused by every overlapping 12-run window (previously up to twelve times).
+
+Evidence: the eleven private Pixel references (seven reads, five rejections in the earlier table, minus the unlocated original screenshot) produce byte-identical candidates, per-glyph distances and margins before and after. Release-mode desktop time for that run fell from 35.8 s to 16.2 s including process start and the tracking re-check; the slowest photo fell from 5.4 s to 2.3 s. Phone timing was not measured after this change; the earlier 9-11 s figure is a Debug APK and needs a fresh Pixel measurement, ideally Debug and Release.

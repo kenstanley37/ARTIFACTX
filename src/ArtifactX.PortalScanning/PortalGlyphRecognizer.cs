@@ -10,20 +10,20 @@ namespace ArtifactX.PortalScanning;
 /// </summary>
 public sealed class PortalGlyphRecognizer(PortalGlyphModel model, Action<string>? diagnostic = null)
 {
-    public PortalScanResult Recognize(SKBitmap image, CancellationToken cancellationToken = default)
+    public PortalScanResult Recognize(SKBitmap image, CancellationToken cancellationToken = default, ScanRegion? searchRegion = null)
     {
         // Preserve small, neutral screenshot strokes. Only try screen-specific colour/moire
         // recovery after that pass fails; every pass uses the same whole-strip acceptance gate.
-        var direct = RecognizeCore(image, 0, cancellationToken);
+        var direct = RecognizeCore(image, 0, cancellationToken, searchRegion);
         if (direct.HasCandidate) return direct;
         diagnostic?.Invoke("Trying screen-pattern suppression and blue-cast compensation.");
-        var compensated = RecognizeCore(image, 1, cancellationToken);
+        var compensated = RecognizeCore(image, 1, cancellationToken, searchRegion);
         if (compensated.HasCandidate) return compensated;
         diagnostic?.Invoke("Trying smoothed blue-channel contrast.");
-        return RecognizeCore(image, 2, cancellationToken);
+        return RecognizeCore(image, 2, cancellationToken, searchRegion);
     }
 
-    private PortalScanResult RecognizeCore(SKBitmap image, int pass, CancellationToken cancellationToken)
+    private PortalScanResult RecognizeCore(SKBitmap image, int pass, CancellationToken cancellationToken, ScanRegion? searchRegion)
     {
         bool suppressScreenPattern = pass != 0;
         model.Validate();
@@ -59,83 +59,157 @@ public sealed class PortalGlyphRecognizer(PortalGlyphModel model, Action<string>
                     brightness[y * width + x] = (byte)(RectSum(source, width + 1, l, t, r, b) / ((r - l) * (b - t)));
                 }
         }
+        // Local contrast does not depend on the brightness threshold: evaluate it once per pass.
         int[] integral = BuildIntegral(brightness, width, height);
-        (GlyphMatch[] Matches, double Score, ScanRegion Region)? best = null;
-        foreach (int threshold in new[] { 150, 190, 220 })
-        {
-            byte[] mask = new byte[brightness.Length];
-            for (int y = 0; y < height; y++)
-                for (int x = 0; x < width; x++)
-                {
-                    int i = y * width + x;
-                    int l = Math.Max(0, x - 10), r = Math.Min(width, x + 11);
-                    int t = Math.Max(0, y - 10), b = Math.Min(height, y + 11);
-                    double background = RectSum(integral, width + 1, l, t, r, b) / (double)((r - l) * (b - t));
-                    mask[i] = (byte)(brightness[i] >= threshold && saturation[i] < (suppressScreenPattern ? 140 : 110) &&
-                        brightness[i] - background > (suppressScreenPattern ? 8 : 12) ? 1 : 0);
-                }
-            if (suppressScreenPattern) ScreenPatternSuppression.RemoveSpeckles(mask, width, height);
-            foreach (double slope in new[] { 0, 0.02, -0.02, 0.04, -0.04, 0.08, -0.08, 0.12, -0.12 })
+        bool[] contrasted = new bool[brightness.Length];
+        int saturationLimit = suppressScreenPattern ? 140 : 110, contrastLimit = suppressScreenPattern ? 8 : 12;
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var sheared = Shear(mask, width, height, slope);
-                int shearedHeight = sheared.Length / width;
-                var bands = FindBands(sheared, width, shearedHeight);
-                int[] columnPrefix = ColumnPrefix(sheared, width, shearedHeight);
-                foreach (var (top, bottom) in bands)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    int h = bottom - top;
-                    var runs = FindRuns(columnPrefix, width, top, bottom,
-                        Math.Max(0, h / (suppressScreenPattern ? 7 : 18)));
-                    if (runs.Count < 10 || runs.Count > 160) continue;
-                    // Neighbouring wide horizon glyphs may meet after blur/downsampling.
-                    double medianWidth = runs.Select(r => r.Right - r.Left).Order().ElementAt(runs.Count / 2);
-                    runs = runs.SelectMany(r => r.Right - r.Left > medianWidth * 1.8 &&
-                        r.Right - r.Left < medianWidth * 2.8
-                        ? new[] { (r.Left, (r.Left + r.Right) / 2), ((r.Left + r.Right) / 2, r.Right) }
-                        : new[] { r }).ToList();
-                    for (int start = 0; start + 12 <= runs.Count; start++)
-                    {
-                        var strip = runs.Skip(start).Take(12).ToArray();
-                        double[] centers = strip.Select(r => (r.Left + r.Right) / 2.0).ToArray();
-                        double pitch = (centers[11] - centers[0]) / 11;
-                        if (pitch < h * 0.65 || pitch > h * 3 ||
-                            centers.Skip(1).Select((v, i) => Math.Abs(v - centers[i] - pitch)).Max() > pitch * 0.30)
-                            continue;
-                        GlyphMatch[] matches = new GlyphMatch[12];
-                        bool valid = true;
-                        for (int slot = 0; slot < 12; slot++)
-                        {
-                            var points = Points(sheared, width, strip[slot].Left, top, strip[slot].Right, bottom);
-                            if (points.Count < 8 || points.Max(p => p.Y) - points.Min(p => p.Y) < h * 0.35)
-                            { valid = false; break; }
-                            matches[slot] = model.Match(GlyphShape.Describe(points));
-                            if (matches[slot].Distance > 0.55) { valid = false; break; }
-                        }
-                        if (!valid) continue;
-                        if (!PortalScanQuality.CanReview(matches)) continue;
-                        double score = matches.Average(m => m.Distance) + matches.Max(m => m.Distance) * 0.25;
-                        if (best is null || score < best.Value.Score)
-                        {
-                            int pad = (int)Math.Ceiling(Math.Abs(slope) * width);
-                            int shiftLeft = (int)Math.Round(slope * strip[0].Left) - pad;
-                            int shiftRight = (int)Math.Round(slope * strip[11].Right) - pad;
-                            var region = new ScanRegion(strip[0].Left, Math.Max(0, top + Math.Min(shiftLeft, shiftRight)),
-                                strip[11].Right, Math.Min(height, bottom + Math.Max(shiftLeft, shiftRight)));
-                            best = (matches, score, region);
-                            diagnostic?.Invoke($"threshold={threshold}, slope={slope}, band={top}..{bottom}, x={strip[0].Left}..{strip[11].Right}: {new string(matches.Select(m => m.Digit).ToArray())}, score={score:F3}, certain={matches.Count(m => m.IsCertain)}");
-                        }
-                    }
-                }
+                if (searchRegion is { } area && (x < area.Left || x >= area.Right || y < area.Top || y >= area.Bottom))
+                    continue;
+                int i = y * width + x;
+                if (saturation[i] >= saturationLimit) continue;
+                int l = Math.Max(0, x - 10), r = Math.Min(width, x + 11);
+                int t = Math.Max(0, y - 10), b = Math.Min(height, y + 11);
+                double background = RectSum(integral, width + 1, l, t, r, b) / (double)((r - l) * (b - t));
+                contrasted[i] = brightness[i] - background > contrastLimit;
             }
+        // Every threshold/slope pair is independent. Searching them on a few cores and then merging
+        // in the original sequential order with the same strict comparison selects the identical strip.
+        // At most four workers keeps a camera preview and UI responsive on modest phones.
+        var options = new ParallelOptions
+        {
+            CancellationToken = cancellationToken,
+            MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount - 1, 1, 4)
+        };
+        byte[][] masks = new byte[Thresholds.Length][];
+        Parallel.For(0, Thresholds.Length, options, n =>
+        {
+            int threshold = Thresholds[n];
+            byte[] mask = masks[n] = new byte[brightness.Length];
+            for (int i = 0; i < mask.Length; i++)
+                mask[i] = (byte)(contrasted[i] && brightness[i] >= threshold ? 1 : 0);
+            if (suppressScreenPattern) ScreenPatternSuppression.RemoveSpeckles(mask, width, height);
+        });
+
+        var found = new Candidate?[Thresholds.Length * Slopes.Length];
+        int maxPad = (int)Math.Ceiling(Slopes.Max(Math.Abs) * width);
+        Parallel.For(0, found.Length, options,
+            () => new Workspace(width * (height + 2 * maxPad), width),
+            (index, _, workspace) =>
+            {
+                found[index] = SearchSlope(masks[index / Slopes.Length], width, height,
+                    Slopes[index % Slopes.Length], suppressScreenPattern, workspace, cancellationToken);
+                return workspace;
+            },
+            workspace => workspace.Dispose());
+        cancellationToken.ThrowIfCancellationRequested();
+
+        Candidate? best = null;
+        for (int index = 0; index < found.Length; index++)
+        {
+            if (found[index] is not { } candidate || best is not null && candidate.Score >= best.Score) continue;
+            best = candidate;
+            diagnostic?.Invoke($"threshold={Thresholds[index / Slopes.Length]}, slope={Slopes[index % Slopes.Length]}, region={candidate.Region}: {new string(candidate.Matches.Select(m => m.Digit).ToArray())}, score={candidate.Score:F3}, certain={candidate.Matches.Count(m => m.IsCertain)}");
         }
         if (best is null)
             return new(null, [], "Could not read all 12 glyphs. Move closer, keep the strip level, and avoid glare. You can also enter the glyphs by hand.");
-        var found = best.Value.Matches;
-        return new(new string(found.Select(m => m.Digit).ToArray()), found,
-            found.All(m => m.IsCertain) ? "Review the 12 glyphs before using this address." :
-            "Check the marked positions carefully before using this address.") { Region = best.Value.Region };
+        var glyphs = best.Matches;
+        return new(new string(glyphs.Select(m => m.Digit).ToArray()), glyphs,
+            glyphs.All(m => m.IsCertain) ? "Review the 12 glyphs before using this address." :
+            "Check the marked positions carefully before using this address.") { Region = best.Region };
+    }
+
+    private static readonly int[] Thresholds = [150, 190, 220];
+    private static readonly double[] Slopes = [0, 0.02, -0.02, 0.04, -0.04, 0.08, -0.08, 0.12, -0.12];
+
+    private sealed record Candidate(GlyphMatch[] Matches, double Score, ScanRegion Region);
+
+    /// <summary>
+    /// Pooled per-worker buffers. A live camera scan otherwise allocated ~12 MB for each of up to
+    /// 81 threshold/slope/pass searches per frame, which dominated phone frame time through GC.
+    /// </summary>
+    private sealed class Workspace(int length, int width) : IDisposable
+    {
+        public readonly byte[] Sheared = System.Buffers.ArrayPool<byte>.Shared.Rent(length);
+        public readonly bool[] Seen = System.Buffers.ArrayPool<bool>.Shared.Rent(length);
+        public readonly int[] Prefix = System.Buffers.ArrayPool<int>.Shared.Rent(length + width);
+        public readonly Queue<int> Queue = new();
+
+        public void Dispose()
+        {
+            System.Buffers.ArrayPool<byte>.Shared.Return(Sheared);
+            System.Buffers.ArrayPool<bool>.Shared.Return(Seen);
+            System.Buffers.ArrayPool<int>.Shared.Return(Prefix);
+        }
+    }
+
+    private Candidate? SearchSlope(byte[] mask, int width, int height, double slope, bool suppressScreenPattern,
+        Workspace workspace, CancellationToken cancellationToken)
+    {
+        if (cancellationToken.IsCancellationRequested) return null;
+        byte[] sheared = workspace.Sheared;
+        int shearedHeight = Shear(mask, width, height, slope, sheared);
+        var bands = FindBands(sheared, width, shearedHeight, workspace.Seen, workspace.Queue);
+        int[] columnPrefix = workspace.Prefix;
+        ColumnPrefix(sheared, width, shearedHeight, columnPrefix);
+        Candidate? best = null;
+        foreach (var (top, bottom) in bands)
+        {
+            if (cancellationToken.IsCancellationRequested) return null;
+            int h = bottom - top;
+            var runs = FindRuns(columnPrefix, width, top, bottom,
+                Math.Max(0, h / (suppressScreenPattern ? 7 : 18)));
+            if (runs.Count < 10 || runs.Count > 160) continue;
+            // Neighbouring wide horizon glyphs may meet after blur/downsampling.
+            double medianWidth = runs.Select(r => r.Right - r.Left).Order().ElementAt(runs.Count / 2);
+            runs = runs.SelectMany(r => r.Right - r.Left > medianWidth * 1.8 &&
+                r.Right - r.Left < medianWidth * 2.8
+                ? new[] { (r.Left, (r.Left + r.Right) / 2), ((r.Left + r.Right) / 2, r.Right) }
+                : new[] { r }).ToList();
+            // A run's match depends only on the run and band; overlapping 12-run windows reuse it
+            // instead of re-describing each symbol up to twelve times. Null marks an unusable run.
+            var matchCache = new GlyphMatch?[runs.Count];
+            var matched = new bool[runs.Count];
+            GlyphMatch? MatchRun(int index)
+            {
+                if (matched[index]) return matchCache[index];
+                matched[index] = true;
+                var points = Points(sheared, width, runs[index].Left, top, runs[index].Right, bottom);
+                if (points.Count < 8 || points.Max(p => p.Y) - points.Min(p => p.Y) < h * 0.35) return null;
+                var match = model.Match(GlyphShape.Describe(points));
+                return matchCache[index] = match.Distance > 0.55 ? null : match;
+            }
+            for (int start = 0; start + 12 <= runs.Count; start++)
+            {
+                var strip = runs.Skip(start).Take(12).ToArray();
+                double[] centers = strip.Select(r => (r.Left + r.Right) / 2.0).ToArray();
+                double pitch = (centers[11] - centers[0]) / 11;
+                if (pitch < h * 0.65 || pitch > h * 3 ||
+                    centers.Skip(1).Select((v, i) => Math.Abs(v - centers[i] - pitch)).Max() > pitch * 0.30)
+                    continue;
+                GlyphMatch[] matches = new GlyphMatch[12];
+                bool valid = true;
+                for (int slot = 0; slot < 12; slot++)
+                {
+                    if (MatchRun(start + slot) is not { } match) { valid = false; break; }
+                    matches[slot] = match;
+                }
+                if (!valid) continue;
+                if (!PortalScanQuality.CanReview(matches)) continue;
+                double score = matches.Average(m => m.Distance) + matches.Max(m => m.Distance) * 0.25;
+                if (best is null || score < best.Score)
+                {
+                    int pad = (int)Math.Ceiling(Math.Abs(slope) * width);
+                    int shiftLeft = (int)Math.Round(slope * strip[0].Left) - pad;
+                    int shiftRight = (int)Math.Round(slope * strip[11].Right) - pad;
+                    best = new(matches, score, new ScanRegion(strip[0].Left, Math.Max(0, top + Math.Min(shiftLeft, shiftRight)),
+                        strip[11].Right, Math.Min(height, bottom + Math.Max(shiftLeft, shiftRight))));
+                }
+            }
+        }
+        return best;
     }
 
     internal static List<(int X, int Y)> Points(byte[] mask, int width, int left, int top, int right, int bottom)
@@ -147,24 +221,27 @@ public sealed class PortalGlyphRecognizer(PortalGlyphModel model, Action<string>
         return points;
     }
 
-    private static byte[] Shear(byte[] mask, int width, int height, double slope)
+    /// <summary>Shears <paramref name="mask"/> into the start of <paramref name="result"/>; returns the sheared height.</summary>
+    private static int Shear(byte[] mask, int width, int height, double slope, byte[] result)
     {
         int pad = (int)Math.Ceiling(Math.Abs(slope) * width);
-        byte[] result = new byte[width * (height + 2 * pad)];
+        int shearedHeight = height + 2 * pad;
+        Array.Clear(result, 0, width * shearedHeight);
         for (int x = 0; x < width; x++)
         {
             int shift = pad - (int)Math.Round(slope * x);
             for (int y = 0; y < height; y++) result[(y + shift) * width + x] = mask[y * width + x];
         }
-        return result;
+        return shearedHeight;
     }
 
-    private static HashSet<(int Top, int Bottom)> FindBands(byte[] mask, int width, int height)
+    private static HashSet<(int Top, int Bottom)> FindBands(byte[] mask, int width, int height, bool[] seen, Queue<int> queue)
     {
         var bands = new HashSet<(int, int)>();
-        bool[] seen = new bool[mask.Length];
-        var queue = new Queue<int>();
-        for (int i = 0; i < mask.Length; i++)
+        int length = width * height;
+        Array.Clear(seen, 0, length);
+        queue.Clear();
+        for (int i = 0; i < length; i++)
         {
             if (mask[i] == 0 || seen[i]) continue;
             int minX = i % width, maxX = minX, minY = i / width, maxY = minY, count = 0;
@@ -215,13 +292,12 @@ public sealed class PortalGlyphRecognizer(PortalGlyphModel model, Action<string>
         return runs;
     }
 
-    private static int[] ColumnPrefix(byte[] mask, int width, int height)
+    private static void ColumnPrefix(byte[] mask, int width, int height, int[] result)
     {
-        int[] result = new int[width * (height + 1)];
+        Array.Clear(result, 0, width);
         for (int y = 0; y < height; y++)
             for (int x = 0; x < width; x++)
                 result[(y + 1) * width + x] = result[y * width + x] + mask[y * width + x];
-        return result;
     }
 
     private static int[] BuildIntegral(byte[] pixels, int width, int height)

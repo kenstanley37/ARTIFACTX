@@ -9,6 +9,7 @@ namespace ArtifactX.Maui.Services;
 public sealed class PortalFrameAnalyzer(IGalaxyTextReader textReader) : IPortalFrameAnalyzer
 {
     private PortalGlyphModel? _model;
+    private ScanRegion? _trackedRegion;
     private readonly GalaxyNameMatcher _galaxies = new(NmsGalaxyInfo.AllGalaxies.ToDictionary(g => g.Number, g => g.Name));
 
     public async Task InitializeAsync(CancellationToken cancellationToken)
@@ -25,16 +26,20 @@ public sealed class PortalFrameAnalyzer(IGalaxyTextReader textReader) : IPortalF
     {
         await InitializeAsync(cancellationToken);
         // Decode, glyph matching and crop/encode never block the UI thread.
-        var (glyphs, crop) = await Task.Run(() =>
+        var (glyphs, crop, target) = await Task.Run(() =>
         {
             using var image = PortalPhotoDecoder.Decode(frame);
-            var result = new PortalGlyphRecognizer(_model!).Recognize(image, cancellationToken);
+            var result = RecognizeFrame(image, cancellationToken);
             byte[]? bytes = null;
+            PortalScanTarget? targetBounds = null;
             if (result.Region is { } region && result.HasCandidate && !result.NeedsCorrection)
             {
                 int height = Math.Max(1, region.Bottom - region.Top);
                 var rectangle = new SKRectI(Math.Max(0, region.Left - height), Math.Max(0, region.Bottom - height / 4),
                     Math.Min(image.Width, region.Right + height), Math.Min(image.Height, region.Bottom + height * 4));
+                targetBounds = PortalScanTarget.FromRegion(new ScanRegion(rectangle.Left,
+                    Math.Max(0, region.Top - height / 4), rectangle.Right,
+                    Math.Min(image.Height, region.Bottom + height * 2)), image.Width, image.Height);
                 if (rectangle.Width > 0 && rectangle.Height >= 8)
                 {
                     using var cropped = new SKBitmap();
@@ -48,11 +53,42 @@ public sealed class PortalFrameAnalyzer(IGalaxyTextReader textReader) : IPortalF
                     }
                 }
             }
-            return (result, bytes);
+            return (result, bytes, targetBounds);
         }, cancellationToken);
-        if (crop is null) return new(glyphs, null);
+        if (crop is null) return new(glyphs, null) { Target = target };
         var lines = await textReader.ReadLinesAsync(crop, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        return new(glyphs, _galaxies.Match(lines));
+        return new(glyphs, _galaxies.Match(lines)) { Target = target };
     }
+
+    private PortalScanResult RecognizeFrame(SKBitmap image, CancellationToken cancellationToken)
+    {
+        var recognizer = new PortalGlyphRecognizer(_model!);
+        if (_trackedRegion is { } previous)
+        {
+            int height = Math.Max(8, previous.Bottom - previous.Top);
+            int margin = Math.Max(height, (previous.Right - previous.Left) / 12);
+            int verticalMargin = Math.Max(12, height / 2);
+            var rectangle = new SKRectI(Math.Max(0, previous.Left - margin), Math.Max(0, previous.Top - verticalMargin),
+                Math.Min(image.Width, previous.Right + margin), Math.Min(image.Height, previous.Bottom + verticalMargin));
+            PortalScanDiagnostics.Write($"Tracked glyph search: {rectangle.Width} x {rectangle.Height}");
+            if (rectangle.Width > 0 && rectangle.Height > 0)
+            {
+                // Keep the full-frame coordinate system: cropping shifts quantized candidate bands and
+                // can change the classifier's sampling. Only the search mask is restricted.
+                var tracked = recognizer.Recognize(image, cancellationToken,
+                    new ScanRegion(rectangle.Left, rectangle.Top, rectangle.Right, rectangle.Bottom));
+                if (tracked.HasCandidate && !tracked.NeedsCorrection)
+                {
+                    _trackedRegion = tracked.Region;
+                    return tracked;
+                }
+            }
+        }
+        // Moving the phone away from the previous strip must recover through a full-frame search.
+        var result = recognizer.Recognize(image, cancellationToken);
+        _trackedRegion = result.Region;
+        return result;
+    }
+
 }

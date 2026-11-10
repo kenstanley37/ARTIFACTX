@@ -21,6 +21,7 @@
     <Color x:Key="ThemeTextFaintColor">#8E97B4</Color>
     <Color x:Key="ThemeOnAccentColor">#070912</Color>
     <Color x:Key="ThemeSelectedFillColor">#3339D0FF</Color>
+    <Color x:Key="ThemeScanLockColor">#7EF0C2</Color>
     <Color x:Key="ThemeWarningColor">#FFB454</Color>
 
     <SolidColorBrush x:Key="ThemeVoidBrush" Color="{StaticResource ThemeVoidColor}" />

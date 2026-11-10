@@ -7,6 +7,7 @@ public sealed class CameraPreviewSource(CameraView camera) : IPortalPreviewSourc
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        PortalScanDiagnostics.Write("Opening camera preview");
         var permission = await Permissions.RequestAsync<Permissions.Camera>();
         if (permission != PermissionStatus.Granted)
             throw new CameraScanException("Allow camera access to scan the screen. You can still enter an address by hand.");
@@ -26,6 +27,7 @@ public sealed class CameraPreviewSource(CameraView camera) : IPortalPreviewSourc
             if (await camera.StartCameraAsync(new Size(1920, 1080)) != CameraResult.Success)
                 throw new CameraScanException("The camera could not start. Close other camera apps and try again.");
             cancellationToken.ThrowIfCancellationRequested();
+            PortalScanDiagnostics.Write("Camera preview opened");
         }
         finally { camera.CamerasLoaded -= OnLoaded; }
     }
@@ -46,5 +48,9 @@ public sealed class CameraPreviewSource(CameraView camera) : IPortalPreviewSourc
         catch { owned.Dispose(); throw; }
     }
 
-    public async Task StopAsync() => await camera.StopCameraAsync();
+    public async Task StopAsync()
+    {
+        await camera.StopCameraAsync();
+        PortalScanDiagnostics.Write("Camera preview closed");
+    }
 }

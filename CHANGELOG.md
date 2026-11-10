@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Mobile camera scanning now shows moving brackets around detected portal details and a green lock before opening the system.
+
 - Mobile camera scanning now watches portal glyphs and the galaxy name together, opening system details automatically after stable readings without taking a photo.
 
 - Mobile portal addresses now open system details with planets, moons and possible starships, and recently opened systems appear on Home.
@@ -20,6 +22,10 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Planet Details POI Layout: Converted Portal, Crashed Ships, and Cabinet Multi-Tools from 100% full-width folding sections into compact responsive cards. They now render side-by-side in a responsive row, saving over 200px of vertical scrolling space while matching the 370px card format of the located sites and hotspots grids.
 
 ### Fixed
+
+- Mobile live scans now keep matching readings on slower phones and restart the camera after returning to the app.
+
+- Mobile live scans read each camera frame about twice as fast.
 
 - Mobile glyph review now draws the glyph symbols correctly, keeps the address in two rows, and opens correction keys when you select a position.
 

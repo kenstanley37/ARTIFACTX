@@ -14,6 +14,13 @@ internal static class LiveScanChecks
         Require(names.Match(["Euclid Galaxy", "Calypso Galaxy"]) is null, "Conflicting galaxies were accepted.");
         Require(names.Match(["Euclidish Galaxy"]) is null && names.Match(["Unrecognized Galaxy"]) is null, "A partial or unknown name was guessed.");
 
+        var target = PortalScanTarget.FromRegion(new(20, 10, 80, 30), 200, 100);
+        Require(target is { X: 0.1, Y: 0.1, Width: 0.3, Height: 0.2 }, "Preview bounds did not normalize correctly.");
+        Require(PortalScanTarget.FromRegion(new(-20, -10, 220, 110), 200, 100) is { X: 0, Y: 0, Width: 1, Height: 1 },
+            "Preview bounds escaped the camera surface.");
+        Require(PortalScanTarget.FromRegion(new(80, 30, 20, 10), 200, 100) is null &&
+            PortalScanTarget.FromRegion(new(20, 10, 80, 30), 0, 100) is null, "Invalid preview bounds were accepted.");
+
         var a = Observation("11FA016452DB", 110);
         var b = Observation("21FA016452DB", 110);
         var state = new LivePortalScanState();
@@ -37,6 +44,14 @@ internal static class LiveScanChecks
         state.Observe(a, TimeSpan.FromSeconds(20));
         Require(state.MatchingFrames == 1, "A long frame gap retained agreement.");
 
+        state.Reset();
+        state.Observe(a, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(16));
+        state.Observe(a, TimeSpan.FromSeconds(17), TimeSpan.FromSeconds(32));
+        Require(state.Observe(a, TimeSpan.FromSeconds(33), TimeSpan.FromSeconds(48)) is not null,
+            "Slow frame analysis incorrectly reset consecutive agreement.");
+        Require(state.Observe(a, TimeSpan.FromSeconds(65), TimeSpan.FromSeconds(80)) is null && state.MatchingFrames == 1,
+            "An actual capture idle gap did not reset agreement.");
+
         var preview = new FakePreview();
         var navigation = new FakeNavigation(preview);
         var analyzer = new FakeAnalyzer(a);
@@ -44,7 +59,7 @@ internal static class LiveScanChecks
         await vm.RunAsync(preview, CancellationToken.None);
         Require(navigation.Address == "11FA016452DB" && navigation.Galaxy == 110 && navigation.Calls == 1,
             "Live scan lost the address/galaxy or navigated repeatedly.");
-        Require(analyzer.Calls == 3 && preview.DisposedFrames == 3 && !vm.IsRunning, "Frames leaked or did not stop at agreement.");
+        Require(analyzer.Calls == 3 && preview.DisposedFrames == 3 && !vm.IsRunning && vm.IsLocked, "Frames leaked or did not stop at agreement.");
 
         using var cancel = new CancellationTokenSource();
         preview = new FakePreview();

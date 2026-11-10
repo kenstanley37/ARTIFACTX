@@ -18,5 +18,6 @@
     <Compile Include="../../src/ArtifactX.Maui/ViewModels/LivePortalScannerViewModel.cs" Link="LivePortalScannerViewModel.cs" />
     <Compile Include="../../src/ArtifactX.Maui/Services/IPortalFrameAnalyzer.cs" Link="IPortalFrameAnalyzer.cs" />
     <Compile Include="../../src/ArtifactX.Maui/Services/IPortalPreviewSource.cs" Link="IPortalPreviewSource.cs" />
+    <Compile Include="../../src/ArtifactX.Maui/Services/PortalScanDiagnostics.cs" Link="PortalScanDiagnostics.cs" />
   </ItemGroup>
 </Project>

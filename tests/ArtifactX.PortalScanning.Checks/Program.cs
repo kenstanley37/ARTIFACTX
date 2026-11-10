@@ -114,6 +114,15 @@ if (args.Length > 0)
         var watch = Stopwatch.StartNew();
         Action<string>? trace = Environment.GetEnvironmentVariable("ARTIFACTX_SCAN_TRACE") == "1" ? Console.WriteLine : null;
         var result = new PortalGlyphRecognizer(model, trace).Recognize(image);
+        if (result.HasCandidate && result.Region is { } bounds)
+        {
+            int pad = Math.Max(20, bounds.Bottom - bounds.Top);
+            var search = new ScanRegion(Math.Max(0, bounds.Left - pad), Math.Max(0, bounds.Top - pad),
+                Math.Min(image.Width, bounds.Right + pad), Math.Min(image.Height, bounds.Bottom + pad));
+            var tracked = new PortalGlyphRecognizer(model).Recognize(image, default, search);
+            Require(tracked.Candidate == result.Candidate, "Tracking search changed an accepted reference address.");
+        }
+
         Console.WriteLine($"{Path.GetFileName(args[i])}: {result.Candidate ?? "unreadable"}, correction={result.NeedsCorrection}, {watch.ElapsedMilliseconds}ms");
         Console.WriteLine(string.Join(" ", result.Glyphs.Select(g => $"{g.Digit}:{g.Distance:F3}/{g.Margin:F2}")));
         bool mayReject = args[i + 1].StartsWith('?');

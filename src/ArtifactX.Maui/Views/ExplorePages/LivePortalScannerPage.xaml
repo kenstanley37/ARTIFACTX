@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:camera="clr-namespace:Camera.MAUI;assembly=Camera.MAUI"
+             xmlns:controls="clr-namespace:ArtifactX.Maui.Controls"
              xmlns:vm="clr-namespace:ArtifactX.Maui.ViewModels"
              x:Class="ArtifactX.Maui.Views.ExplorePages.LivePortalScannerPage"
              x:DataType="vm:LivePortalScannerViewModel"
@@ -9,6 +10,10 @@
              BackgroundColor="{DynamicResource ThemeVoidColor}">
     <Grid RowDefinitions="*,Auto">
         <camera:CameraView x:Name="Preview" Grid.Row="0" SemanticProperties.Description="Live camera preview. Point at the 12 portal glyphs and galaxy name below them." />
+        <controls:PortalScanOverlay Grid.Row="0" Target="{Binding ScanTarget}" IsLocked="{Binding IsLocked}"
+                                    GuideColor="{DynamicResource ThemeTextColor}"
+                                    TrackingColor="{DynamicResource ThemeAccentColor}"
+                                    LockColor="{DynamicResource ThemeScanLockColor}" />
         <Border Grid.Row="1" Style="{StaticResource ThemeCardStyle}" Padding="20">
             <VerticalStackLayout Spacing="10">
                 <Label Text="{Binding AddressPreview}" Style="{StaticResource ThemeCardTitleStyle}" />

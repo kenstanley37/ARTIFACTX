@@ -248,8 +248,8 @@ public sealed record PortalSystemReadout(
             string bodyPortalCode = $"{bodyIndex:X}{normalizedCode[1..]}";
 
             const string swatchHex = "#5CE1E6";
-            string primaryLine = isMoon ? $"Moon of {hostName}" : $"Planet {planetNumber} ? {sizeLabel}";
-            if (hasRings) primaryLine += " ? Planetary rings";
+            string primaryLine = isMoon ? $"Moon of {hostName}" : $"Planet {planetNumber} \u00b7 {sizeLabel}";
+            if (hasRings) primaryLine += " \u00b7 Planetary rings";
             string secondaryLine = $"Portal address {bodyPortalCode}";
 
             bodyList.Add(new GeneratedSystemBody(

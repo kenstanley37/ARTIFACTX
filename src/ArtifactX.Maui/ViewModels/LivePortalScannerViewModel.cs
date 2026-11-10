@@ -18,10 +18,17 @@ public sealed partial class LivePortalScannerViewModel(IPortalFrameAnalyzer anal
     [ObservableProperty]
     public partial string GalaxyPreview { get; set; } = "Searching for galaxy name";
 
+    [ObservableProperty]
+    public partial PortalScanTarget? ScanTarget { get; set; }
+    [ObservableProperty]
+    public partial bool IsLocked { get; set; }
+
     public async Task RunAsync(IPortalPreviewSource source, CancellationToken cancellationToken)
     {
         if (IsRunning) return;
         IsRunning = true;
+        IsLocked = false;
+        ScanTarget = null;
         AddressPreview = "Searching for 12 glyphs";
         GalaxyPreview = "Searching for galaxy name";
         Status = "Point at the glyphs and galaxy name together.";
@@ -38,15 +45,20 @@ public sealed partial class LivePortalScannerViewModel(IPortalFrameAnalyzer anal
                 var capturedAt = clock.Elapsed;
                 if (frame is null) { stable.Reset(); await Task.Delay(400, cancellationToken); continue; }
                 var observation = await analyzer.AnalyzeAsync(frame, cancellationToken);
+                PortalScanDiagnostics.Write($"Frame analysis: {(clock.Elapsed - capturedAt).TotalMilliseconds:F0} ms");
                 cancellationToken.ThrowIfCancellationRequested();
                 AddressPreview = observation.Glyphs.HasCandidate ? observation.Glyphs.Candidate! : "Searching for 12 glyphs";
                 GalaxyPreview = observation.GalaxyNumber is int galaxy ? NmsGalaxyNames.ForNumber(galaxy) ?? "Galaxy not recognized" : "Searching for galaxy name";
-                var accepted = stable.Observe(observation, capturedAt);
+                ScanTarget = observation.Target;
+                var accepted = stable.Observe(observation, capturedAt, clock.Elapsed);
                 Status = stable.MatchingFrames > 0 ? $"Hold steady: {stable.MatchingFrames} of 3 matching readings" :
                     "Keep all 12 glyphs and the galaxy name beneath them visible. Move closer if the text is too small.";
                 if (accepted is not null)
                 {
+                    IsLocked = true;
+                    Status = "Address found. Opening system...";
                     await source.StopAsync();
+                    await Task.Delay(450, cancellationToken);
                     cancellationToken.ThrowIfCancellationRequested();
                     await navigation.OpenScanResultAsync(accepted.PortalCode, accepted.GalaxyNumber);
                     return;

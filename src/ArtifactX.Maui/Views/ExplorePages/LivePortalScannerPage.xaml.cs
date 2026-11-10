@@ -9,27 +9,44 @@ public partial class LivePortalScannerPage : ContentPage
     private readonly CameraPreviewSource _source;
     private CancellationTokenSource? _lifetime;
     private Task _scan = Task.CompletedTask;
+    private Window? _observedWindow;
+    private bool _visible;
 
     public LivePortalScannerPage(LivePortalScannerViewModel viewModel)
     {
         InitializeComponent();
         BindingContext = _viewModel = viewModel;
         _source = new CameraPreviewSource(Preview);
+        Loaded += OnLoaded;
     }
 
     protected override void OnAppearing()
     {
         base.OnAppearing();
-        if (Window is { } window)
+        _visible = true;
+        if (IsLoaded) AttachAndStart();
+    }
+
+    private void OnLoaded(object? sender, EventArgs args)
+    {
+        if (_visible) AttachAndStart();
+    }
+
+    private void AttachAndStart()
+    {
+        // Shell can raise Appearing before the page has a Window. Loaded has the native camera handler.
+        if (_observedWindow is null && Window is { } window)
         {
+            _observedWindow = window;
             window.Stopped += OnWindowStopped;
-            window.Resumed += OnWindowResumed;
+            window.Activated += OnWindowActivated;
         }
-        StartScan();
+        if (_lifetime is null || _lifetime.IsCancellationRequested) StartScan();
     }
 
     private void StartScan()
     {
+        PortalScanDiagnostics.Write("Starting visible scanner session");
         _lifetime?.Cancel();
         _lifetime?.Dispose();
         _lifetime = new CancellationTokenSource();
@@ -42,18 +59,28 @@ public partial class LivePortalScannerPage : ContentPage
         if (!token.IsCancellationRequested) await _viewModel.RunAsync(_source, token);
     }
 
-    private void OnWindowStopped(object? sender, EventArgs args) => _lifetime?.Cancel();
-    private void OnWindowResumed(object? sender, EventArgs args) => StartScan();
+    private void OnWindowStopped(object? sender, EventArgs args)
+    {
+        PortalScanDiagnostics.Write("Window stopped; cancelling scanner");
+        _lifetime?.Cancel();
+    }
+
+    private void OnWindowActivated(object? sender, EventArgs args)
+    {
+        if (_visible && (_lifetime is null || _lifetime.IsCancellationRequested)) StartScan();
+    }
 
     protected override void OnDisappearing()
     {
+        _visible = false;
         _lifetime?.Cancel();
         _lifetime?.Dispose();
         _lifetime = null;
-        if (Window is { } window)
+        if (_observedWindow is { } window)
         {
             window.Stopped -= OnWindowStopped;
-            window.Resumed -= OnWindowResumed;
+            window.Activated -= OnWindowActivated;
+            _observedWindow = null;
         }
         base.OnDisappearing();
     }
