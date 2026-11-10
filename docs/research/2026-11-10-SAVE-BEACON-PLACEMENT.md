@@ -102,3 +102,21 @@ and `GridLayers` (TkNoiseGridData primitives: rocks, formations), neither ported
 evaluation in NMS.exe (callers of the uber-noise height around 0x14128AA20 / the voxel density builder), port Blob
 first (in every setting), extract Features and GridLayers into the catalog (new format), and re-run this beacon table;
 the target is every beacon within ~1 m except ones on structures or player-edited ground.
+
+### Route to the exact ground (next session)
+
+`scripts/research/region-generator/emu_far.py` runs the game's own Far-region generation (0x141294A00 ->
+0x1412B3770) in Unicorn and reproduced a live Far height grid exactly (max diff 0.0, 2026-11-06,
+PLANETARY_MULTITOOL_LOCATIONS.md). That grid is the voxel surface, so it already includes whatever features and grid
+layers reach it. Plan:
+
+1. With the game parked on planet 5 of system 0052 (Slot 8, the owner's real beacon at 0x540CE87FE07759C4, 281.2 m):
+   `read_planet_object_live.py` (planet object bundle), a `.data` snapshot, and the live Far region dump around the
+   beacon, all read-only, as in the cabinet work.
+2. `emu_far.py ... SAMPLE=<beacon points>`: if the emulated surface gives 281.2 m where Core's `Height` gives 267.7 m,
+   the reference covers the missing terms; then trace which calls add them (expect the TkNoiseFeatureData Blob/Tube and
+   TkNoiseGridData evaluation inside 0x1412B3770's density pass) and port those.
+3. Extract Features and GridLayers (Min/Max sets, drawn like the noise layers by 0x1416C4F60's neighbours) into the
+   catalog and port their evaluation; re-run the beacon table above.
+
+Check first that the installed NMS.exe is still build 184271 (the emulator's addresses).
