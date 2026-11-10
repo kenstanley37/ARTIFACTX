@@ -16,13 +16,12 @@ namespace ArtifactX.WinUI3.Services;
 /// wMC: position from the planet centre, wJ0: up (= normalised wMC), aNu: facing}; its seed appears nowhere else
 /// in the save. ArtifactX writes the same shape.
 ///
-/// Height: the game stores the beacon where it stands. On ordinary ground Core's <c>PlanetTerrain.Height</c> is the
-/// ground: game-placed beacons from 12 and 28 October sit 0.0 m from it (Slots 7 and 8); others stood higher on rocks,
-/// edited ground or beside buildings (+1.5 to +48 m), never on bare terrain below it. Placing 0.2 m above the estimate
-/// is kept. OPEN (owner, 2026-11-10): an ArtifactX beacon written this way (Slot 1, 0x2FF9A6362974EC9E, 0.2 m above
-/// the estimate) shows its HUD waypoint, but nothing stands at the site, even after digging around it. A game-placed
-/// beacon (controlled save diff on Slot 8, 2026-11-10) adds only one c5s entry of the same shape, so the cause is in
-/// the values, not in a missing record. Not solved yet.
+/// Why only the waypoint shows (owner tests on Slot 8, 2026-11-10; docs/research/2026-11-10-SAVE-BEACON-PLACEMENT.md):
+/// the c5s entry above is all a real beacon is, and the game accepts ArtifactX's. Two things stop it being built:
+/// the game's limits (BUILDBEACON RegionLimit 1, PlanetLimit 5 in GcBaseBuildingTable; a beacon over a limit keeps
+/// only its waypoint) and height. Beacons are stored where they stand; <c>PlanetTerrain.Height</c> + 0.2 m is the
+/// ground on some planets but 13-21 m too low on others (a real beacon on open ground stood 13.5 m above it), so
+/// the beacon is buried. Placement stays as it is until the full ground height is researched (owner decision).
 ///
 /// Ownership: ArtifactX's beacons carry a seed derived from their site (<see cref="SeedFor"/>), so Add and Remove
 /// only ever replace or delete beacons ArtifactX placed, never ones the player built in game nearby.
