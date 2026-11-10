@@ -12,6 +12,20 @@ public sealed class PortalGlyphRecognizer(PortalGlyphModel model, Action<string>
 {
     public PortalScanResult Recognize(SKBitmap image, CancellationToken cancellationToken = default)
     {
+        // Preserve small, neutral screenshot strokes. Only try screen-specific colour/moire
+        // recovery after that pass fails; every pass uses the same whole-strip acceptance gate.
+        var direct = RecognizeCore(image, 0, cancellationToken);
+        if (direct.HasCandidate) return direct;
+        diagnostic?.Invoke("Trying screen-pattern suppression and blue-cast compensation.");
+        var compensated = RecognizeCore(image, 1, cancellationToken);
+        if (compensated.HasCandidate) return compensated;
+        diagnostic?.Invoke("Trying smoothed blue-channel contrast.");
+        return RecognizeCore(image, 2, cancellationToken);
+    }
+
+    private PortalScanResult RecognizeCore(SKBitmap image, int pass, CancellationToken cancellationToken)
+    {
+        bool suppressScreenPattern = pass != 0;
         model.Validate();
         int width = image.Width, height = image.Height;
         if (width > PortalPhotoDecoder.MaxDimension || height > PortalPhotoDecoder.MaxDimension)
@@ -22,8 +36,28 @@ public sealed class PortalGlyphRecognizer(PortalGlyphModel model, Action<string>
         for (int i = 0; i < colors.Length; i++)
         {
             int min = Math.Min(colors[i].Red, Math.Min(colors[i].Green, colors[i].Blue));
-            brightness[i] = (byte)min;
+            brightness[i] = pass switch
+            {
+                // Blue/red opposition separates the blue-tinted white glyphs from a warm display.
+                // The blue-only pass also retains strokes that have little opposing-colour signal.
+                1 => (byte)Math.Clamp(128 + 2 * (colors[i].Blue - colors[i].Red), 0, 255),
+                2 => colors[i].Blue,
+                _ => (byte)min
+            };
             saturation[i] = (byte)(Math.Max(colors[i].Red, Math.Max(colors[i].Green, colors[i].Blue)) - min);
+        }
+        if (suppressScreenPattern)
+        {
+            // Average at the working resolution to suppress the monitor's RGB subpixel grid.
+            // Keep the unsmoothed pass first: very small screenshot glyphs need their thin strokes.
+            int[] source = BuildIntegral(brightness, width, height);
+            for (int y = 0; y < height; y++)
+                for (int x = 0; x < width; x++)
+                {
+                    int l = Math.Max(0, x - 1), r = Math.Min(width, x + 2);
+                    int t = Math.Max(0, y - 1), b = Math.Min(height, y + 2);
+                    brightness[y * width + x] = (byte)(RectSum(source, width + 1, l, t, r, b) / ((r - l) * (b - t)));
+                }
         }
         int[] integral = BuildIntegral(brightness, width, height);
         (GlyphMatch[] Matches, double Score)? best = null;
@@ -37,9 +71,10 @@ public sealed class PortalGlyphRecognizer(PortalGlyphModel model, Action<string>
                     int l = Math.Max(0, x - 10), r = Math.Min(width, x + 11);
                     int t = Math.Max(0, y - 10), b = Math.Min(height, y + 11);
                     double background = RectSum(integral, width + 1, l, t, r, b) / (double)((r - l) * (b - t));
-                    mask[i] = (byte)(brightness[i] >= threshold && saturation[i] < 110 &&
-                        brightness[i] - background > 12 ? 1 : 0);
+                    mask[i] = (byte)(brightness[i] >= threshold && saturation[i] < (suppressScreenPattern ? 140 : 110) &&
+                        brightness[i] - background > (suppressScreenPattern ? 8 : 12) ? 1 : 0);
                 }
+            if (suppressScreenPattern) ScreenPatternSuppression.RemoveSpeckles(mask, width, height);
             foreach (double slope in new[] { 0, 0.02, -0.02, 0.04, -0.04, 0.08, -0.08, 0.12, -0.12 })
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -51,7 +86,8 @@ public sealed class PortalGlyphRecognizer(PortalGlyphModel model, Action<string>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     int h = bottom - top;
-                    var runs = FindRuns(columnPrefix, width, top, bottom, Math.Max(0, h / 18));
+                    var runs = FindRuns(columnPrefix, width, top, bottom,
+                        Math.Max(0, h / (suppressScreenPattern ? 7 : 18)));
                     if (runs.Count < 10 || runs.Count > 160) continue;
                     // Neighbouring wide horizon glyphs may meet after blur/downsampling.
                     double medianWidth = runs.Select(r => r.Right - r.Left).Order().ElementAt(runs.Count / 2);
@@ -78,6 +114,7 @@ public sealed class PortalGlyphRecognizer(PortalGlyphModel model, Action<string>
                             if (matches[slot].Distance > 0.55) { valid = false; break; }
                         }
                         if (!valid) continue;
+                        if (!PortalScanQuality.CanReview(matches)) continue;
                         double score = matches.Average(m => m.Distance) + matches.Max(m => m.Distance) * 0.25;
                         if (best is null || score < best.Value.Score)
                         {
@@ -88,8 +125,7 @@ public sealed class PortalGlyphRecognizer(PortalGlyphModel model, Action<string>
                 }
             }
         }
-        if (best is null || best.Value.Score > 0.20 || best.Value.Matches.Max(m => m.Distance) > 0.38 ||
-            best.Value.Matches.Count(m => m.IsCertain) < 8)
+        if (best is null)
             return new(null, [], "Could not read all 12 glyphs. Move closer, keep the strip level, and avoid glare. You can also enter the glyphs by hand.");
         var found = best.Value.Matches;
         return new(new string(found.Select(m => m.Digit).ToArray()), found,

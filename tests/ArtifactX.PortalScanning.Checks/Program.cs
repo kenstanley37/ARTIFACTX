@@ -10,6 +10,32 @@ static void Require(bool condition, string message)
 
 await ReviewStateChecks.RunAsync();
 
+byte[] speckles = new byte[30];
+foreach (int i in new[] { 7, 8, 9, 10, 11, 12 }) speckles[i] = 1;
+ScreenPatternSuppression.RemoveSpeckles(speckles, 10, 3);
+Require(speckles.All(p => p == 0), "Disconnected edge specks wrapped across image rows.");
+byte[] diagonal = new byte[36];
+for (int i = 0; i < 6; i++) diagonal[i * 7] = 1;
+ScreenPatternSuppression.RemoveSpeckles(diagonal, 6, 6);
+Require(diagonal.Count(p => p == 1) == 6, "Thin diagonal glyph strokes were removed.");
+try { ScreenPatternSuppression.RemoveSpeckles([], 0, 0); throw new Exception("Accepted invalid mask dimensions."); }
+catch (ArgumentException) { }
+Console.WriteLine("PASS: isolated screen specks, row boundaries, diagonal stroke preservation and invalid dimensions.");
+
+var cleanMatches = Enumerable.Range(0, 12).Select(_ => new GlyphMatch('0', 0.05, 0.7)).ToArray();
+Require(PortalScanQuality.CanReview(cleanMatches), "A clean strip was rejected.");
+var obscuredMatches = cleanMatches.ToArray();
+obscuredMatches[4] = new('C', 0.18, 0.3);
+Require(!PortalScanQuality.CanReview(obscuredMatches), "An isolated damaged glyph was accepted despite much cleaner neighbours.");
+var ambiguousMatches = cleanMatches.ToArray();
+ambiguousMatches[4] = new('F', 0.1, 0.15); ambiguousMatches[11] = new('A', 0.1, 0.15);
+Require(!PortalScanQuality.CanReview(ambiguousMatches), "A strip with multiple ambiguous symbols was accepted.");
+ambiguousMatches[11] = cleanMatches[11];
+Require(PortalScanQuality.CanReview(ambiguousMatches), "A single marked correction should remain reviewable.");
+ambiguousMatches[0] = new('0', -0.1, 0.7);
+Require(!PortalScanQuality.CanReview(ambiguousMatches), "Negative match distances were accepted.");
+Console.WriteLine("PASS: whole-strip quality, isolated poor fits, multiple ambiguities and one reviewable correction.");
+
 var shape = new List<(int X, int Y)> { (0, 0), (0, 1), (0, 2), (1, 2), (2, 2) };
 var translated = shape.Select(p => (p.X * 3 + 15, p.Y * 3 + 42)).ToArray();
 Require(GlyphShape.Describe(shape).Zip(GlyphShape.Describe(translated)).All(p => Math.Abs(p.First - p.Second) < 1e-10),
@@ -68,9 +94,11 @@ Console.WriteLine("PASS: all eight EXIF orientations, including mirrored camera 
 // Optional private reference checks. Photos and generated game-derived model stay outside git.
 if (args.Length > 0)
 {
+    if (args.Length % 2 != 1) throw new ArgumentException("Expected <model> followed by pairs of <photo> <address or ->. Prefix an address with ? to permit rejection.");
     var model = JsonSerializer.Deserialize(File.ReadAllText(args[0]), PortalGlyphModelJsonContext.Default.PortalGlyphModel)
         ?? throw new InvalidDataException("Missing model.");
     model.Validate();
+    var failures = new List<string>();
     for (int i = 1; i < args.Length; i += 2)
     {
         using var stream = File.OpenRead(args[i]);
@@ -83,10 +111,14 @@ if (args.Length > 0)
             data.SaveTo(output);
         }
         var watch = Stopwatch.StartNew();
-        var result = new PortalGlyphRecognizer(model, Console.WriteLine).Recognize(image);
+        Action<string>? trace = Environment.GetEnvironmentVariable("ARTIFACTX_SCAN_TRACE") == "1" ? Console.WriteLine : null;
+        var result = new PortalGlyphRecognizer(model, trace).Recognize(image);
         Console.WriteLine($"{Path.GetFileName(args[i])}: {result.Candidate ?? "unreadable"}, correction={result.NeedsCorrection}, {watch.ElapsedMilliseconds}ms");
         Console.WriteLine(string.Join(" ", result.Glyphs.Select(g => $"{g.Digit}:{g.Distance:F3}/{g.Margin:F2}")));
-        string? expected = args[i + 1] == "-" ? null : args[i + 1];
-        Require(result.Candidate == expected, $"Expected {expected ?? "no candidate"}, got {result.Candidate ?? "no candidate"}.");
+        bool mayReject = args[i + 1].StartsWith('?');
+        string? expected = args[i + 1] == "-" ? null : args[i + 1].TrimStart('?');
+        if (result.Candidate != expected && !(mayReject && !result.HasCandidate))
+            failures.Add($"{Path.GetFileName(args[i])}: expected {expected ?? "no candidate"}, got {result.Candidate ?? "no candidate"}.");
     }
+    Require(failures.Count == 0, string.Join(Environment.NewLine, failures));
 }

@@ -49,7 +49,7 @@ public sealed record PortalGlyphModel(int Version, string GameBuild, GlyphShapeE
 public sealed record GlyphMatch(char Digit, double Distance, double Margin)
 {
     // An acceptance heuristic, not a calibrated probability. Every result still requires review.
-    public bool IsCertain => Distance < 0.30 && Margin > 0.12;
+    public bool IsCertain => Distance < 0.30 && Margin > 0.20;
 }
 
 public sealed record PortalScanResult(string? Candidate, IReadOnlyList<GlyphMatch> Glyphs, string Message)

@@ -17,6 +17,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Mobile camera scans handle blue-tinted monitor photos and screen pixel patterns more reliably, and reject more obscured or ambiguous strips before showing an address for review.
+
 - Planetary Rings: Fixed planetary ring detection so only the single planet chosen by the game's solar system layout shows rings, matching in-game Discoveries instead of marking multiple planets per system.
 - Planetary Hotspots & Base Beacons: Resolved Save Beacon elevation calculations by evaluating procedural terrain elevation (`PlanetTerrain.Height`) so placed beacons sit cleanly above the planetary surface (~3m clearance) rather than spawning underground inside procedural bedrock. Added full "Remove" support directly on hotspot and cluster cards to delete and clean up any placed beacons from your save.
 - Planetary Hotspots & Base Sites: Replaced scan event markers with physical in-game Save Beacons (`^BUILDBEACON`) placed directly at the optimal Base Computer and hotspot coordinates. In No Man's Sky, scan events on open terrain are ignored by the game engine, while placed Save Beacons render directly in the world and produce a permanent star HUD waypoint visible across the system.
