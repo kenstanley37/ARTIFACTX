@@ -1,0 +1,83 @@
+using System.Diagnostics;
+using ArtifactX.Core.NmsModels;
+using ArtifactX.Maui.Services;
+using ArtifactX.PortalScanning;
+using CommunityToolkit.Mvvm.ComponentModel;
+
+namespace ArtifactX.Maui.ViewModels;
+
+/// <summary>One cancellable scan per visible scanner page; never accepts a lone or ambiguous frame.</summary>
+public sealed partial class LivePortalScannerViewModel(IPortalFrameAnalyzer analyzer, ISystemNavigationService navigation) : ObservableObject
+{
+    [ObservableProperty]
+    public partial bool IsRunning { get; set; }
+    [ObservableProperty]
+    public partial string Status { get; set; } = "Fit the 12 glyphs and the galaxy name inside the box.";
+    [ObservableProperty]
+    public partial string AddressPreview { get; set; } = "Searching for 12 glyphs";
+    [ObservableProperty]
+    public partial string GalaxyPreview { get; set; } = "Searching for galaxy name";
+
+    [ObservableProperty]
+    public partial PortalScanTarget? ScanTarget { get; set; }
+    [ObservableProperty]
+    public partial bool IsLocked { get; set; }
+
+    public async Task RunAsync(IPortalPreviewSource source, CancellationToken cancellationToken)
+    {
+        if (IsRunning) return;
+        IsRunning = true;
+        IsLocked = false;
+        ScanTarget = null;
+        AddressPreview = "Searching for 12 glyphs";
+        GalaxyPreview = "Searching for galaxy name";
+        Status = "Fit the 12 glyphs and the galaxy name inside the box.";
+        var stable = new LivePortalScanState();
+        var clock = Stopwatch.StartNew();
+        try
+        {
+            await analyzer.InitializeAsync(cancellationToken);
+            await source.StartAsync(cancellationToken);
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                using var frame = await source.ReadFrameAsync(cancellationToken);
+                var capturedAt = clock.Elapsed;
+                if (frame is null) { stable.Reset(); await Task.Delay(400, cancellationToken); continue; }
+                var observation = await analyzer.AnalyzeAsync(frame, cancellationToken);
+                PortalScanDiagnostics.Write($"Frame analysis: {(clock.Elapsed - capturedAt).TotalMilliseconds:F0} ms");
+                cancellationToken.ThrowIfCancellationRequested();
+                AddressPreview = observation.Glyphs.HasCandidate ? observation.Glyphs.Candidate! : "Searching for 12 glyphs";
+                GalaxyPreview = observation.GalaxyNumber is int galaxy ? NmsGalaxyNames.ForNumber(galaxy) ?? "Galaxy not recognized" : "Searching for galaxy name";
+                ScanTarget = observation.Target;
+                var accepted = stable.Observe(observation, capturedAt, clock.Elapsed);
+                Status = stable.MatchingFrames >= LivePortalScanState.RequiredFrames ? "Hold steady: confirming the last symbols" :
+                    stable.MatchingFrames > 0 ? $"Hold steady: {stable.MatchingFrames} of {LivePortalScanState.RequiredFrames} matching readings" :
+                    "Fit the 12 glyphs and the galaxy name inside the box. Move closer if the text is too small.";
+                if (accepted is not null)
+                {
+                    IsLocked = true;
+                    Status = "Address found. Opening system...";
+                    await source.StopAsync();
+                    await Task.Delay(450, cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await navigation.OpenScanResultAsync(accepted.PortalCode, accepted.GalaxyNumber);
+                    return;
+                }
+                // Backpressure: process one frame fully before sampling another; never queue stale frames.
+                // A short pause keeps the preview smooth without adding much to a ~1 s lock.
+                await Task.Delay(100, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (FileNotFoundException) { Status = "Scanner data is not installed in this build. Go back to enter the glyphs by hand."; }
+        catch (CameraScanException ex) { Status = ex.Message; }
+        catch (Exception ex) { Debug.WriteLine(ex); Status = "The camera scanner could not continue. Go back and try again, or enter the glyphs by hand."; }
+        finally
+        {
+            try { await source.StopAsync(); }
+            catch (Exception) { /* The camera may already be disconnected after navigating or backgrounding. */ }
+            IsRunning = false;
+        }
+    }
+}

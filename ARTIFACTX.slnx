@@ -4,6 +4,7 @@
     <File Path="docs/CONTRIBUTING.md" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/ArtifactX.PortalScanning/ArtifactX.PortalScanning.csproj" />
     <Project Path="src/ArtifactX.Almanac/ArtifactX.Almanac.csproj" Id="68d99de1-f1fd-4a68-981f-378ce661b134" />
     <Project Path="src/ArtifactX.Core/ArtifactX.Core.csproj" />
     <Project Path="src/ArtifactX.GameData/ArtifactX.GameData.csproj" />
@@ -28,6 +29,7 @@
     <Project Path="src/ArtifactX.Tools/NMS.Tools.libMBIN/NMS.Tools.libMBIN.csproj" Id="fdb6b12e-3db6-4809-a673-4906fadd64bb" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/ArtifactX.PortalScanning.Checks/ArtifactX.PortalScanning.Checks.csproj" />
     <Project Path="tests/ArtifactX.Cargo.Checks/ArtifactX.Cargo.Checks.csproj" />
     <Project Path="tests/ArtifactX.Core.Checks/ArtifactX.Core.Checks.csproj" />
     <Project Path="tests/ArtifactX.GameData.Checks/ArtifactX.GameData.Checks.csproj" />

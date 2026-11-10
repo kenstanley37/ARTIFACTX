@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:ArtifactX.Maui.ViewModels"
+    xmlns:controls="clr-namespace:ArtifactX.Maui.Controls"
+    xmlns:models="clr-namespace:ArtifactX.Maui.Models"
+    x:Class="ArtifactX.Maui.Views.ExplorePages.PortalGlyphsPage"
+    x:DataType="vm:PortalScannerViewModel"
+    Shell.NavBarIsVisible="False"
+    Background="{DynamicResource ThemePageBackdropBrush}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20,24" Spacing="16" MaximumWidthRequest="680" HorizontalOptions="Fill">
+            <Label Text="Portal glyphs" Style="{StaticResource ThemePageTitleStyle}" />
+            <Label Text="Point your phone at the 12 portal glyphs and the galaxy name beneath them. The scanner opens the system automatically once both are clear."
+                   Style="{StaticResource ThemeBodyTextStyle}" />
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12" IsEnabled="{Binding CanEdit}">
+                <Button Text="Scan screen" Command="{Binding StartLiveScanCommand}" SemanticProperties.Description="Scan portal glyphs and galaxy name with the live camera"
+                        BackgroundColor="{DynamicResource ThemeAccentColor}" TextColor="{DynamicResource ThemeOnAccentColor}" />
+                <Button Grid.Column="1" Text="Choose photo" Command="{Binding ChoosePhotoCommand}" SemanticProperties.Description="Choose a photo or screenshot of portal glyphs"
+                        BackgroundColor="{DynamicResource ThemePanelAltColor}" TextColor="{DynamicResource ThemeTextColor}" />
+            </Grid>
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="{DynamicResource ThemeAccentColor}" />
+            <Button Text="Cancel scan" Command="{Binding CancelScanCommand}" IsVisible="{Binding IsBusy}"
+                    TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
+            <Label Text="{Binding Status}" Style="{StaticResource ThemeBodyTextStyle}" SemanticProperties.Description="{Binding Status}" />
+            <controls:PortalGlyphReviewPanel IsVisible="{Binding HasReview}" IsEnabled="{Binding CanEdit}" />
+            <Border Style="{StaticResource ThemeCardStyle}" Padding="16" IsEnabled="{Binding CanEdit}">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Your address" Style="{StaticResource ThemeCardTitleStyle}" />
+                    <Entry Text="{Binding AddressInput}" Placeholder="12-glyph address" MaxLength="12" FontSize="20"
+                           TextColor="{DynamicResource ThemeTextColor}" PlaceholderColor="{DynamicResource ThemeTextDimColor}"
+                           SemanticProperties.Description="Portal address, 12 hexadecimal characters" />
+                    <Button Text="Enter glyphs by hand" Command="{Binding EnterManuallyCommand}"
+                            TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
+                    <Label Text="Galaxy" Style="{StaticResource ThemeBodyTextStyle}" />
+                    <Picker ItemsSource="{Binding Galaxies}" SelectedItem="{Binding SelectedGalaxy}" ItemDisplayBinding="{Binding DisplayName, x:DataType='models:PortalGalaxyOption'}"
+                            TextColor="{DynamicResource ThemeTextColor}" Title="Select your galaxy"
+                            SemanticProperties.Description="Galaxy containing this portal address" />
+                    <Label Text="The same glyphs lead to different systems in different galaxies." Style="{StaticResource ThemeDimTextStyle}" />
+                    <Button Text="Find system" Command="{Binding FindSystemCommand}"
+                            BackgroundColor="{DynamicResource ThemeAccentColor}" TextColor="{DynamicResource ThemeOnAccentColor}" />
+                    <Label Text="{Binding SystemSummary}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="18" />
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

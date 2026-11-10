@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/ArtifactX.Core/ArtifactX.Core.csproj" />
+    <ProjectReference Include="../../src/ArtifactX.PortalScanning/ArtifactX.PortalScanning.csproj" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <Compile Include="../../src/ArtifactX.Maui/ViewModels/PortalScannerViewModel.cs" Link="PortalScannerViewModel.cs" />
+    <Compile Include="../../src/ArtifactX.Maui/Models/PortalReviewSlot.cs" Link="PortalReviewSlot.cs" />
+    <Compile Include="../../src/ArtifactX.Maui/Services/IPortalPhotoScanService.cs" Link="IPortalPhotoScanService.cs" />
+    <Compile Include="../../src/ArtifactX.Maui/Services/ISystemNavigationService.cs" Link="ISystemNavigationService.cs" />
+    <Compile Include="../../src/ArtifactX.Maui/Services/RecentSystemsService.cs" Link="RecentSystemsService.cs" />
+    <Compile Include="../../src/ArtifactX.Maui/Models/RecentSystemSummary.cs" Link="RecentSystemSummary.cs" />
+    <Compile Include="../../src/ArtifactX.Maui/ViewModels/LivePortalScannerViewModel.cs" Link="LivePortalScannerViewModel.cs" />
+    <Compile Include="../../src/ArtifactX.Maui/Services/IPortalFrameAnalyzer.cs" Link="IPortalFrameAnalyzer.cs" />
+    <Compile Include="../../src/ArtifactX.Maui/Services/IPortalPreviewSource.cs" Link="IPortalPreviewSource.cs" />
+    <Compile Include="../../src/ArtifactX.Maui/Services/PortalScanDiagnostics.cs" Link="PortalScanDiagnostics.cs" />
+  </ItemGroup>
+</Project>

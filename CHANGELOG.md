@@ -6,6 +6,16 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Mobile camera scanning now shows moving brackets around detected portal details and a green lock before opening the system.
+
+- Mobile system details show the address as glyph pictures, ready to dial at a portal.
+
+- Mobile camera scanning now watches portal glyphs and the galaxy name together, opening system details automatically after stable readings without taking a photo.
+
+- Mobile portal addresses now open system details with planets, moons and possible starships, and recently opened systems appear on Home.
+
+- Mobile portal scanner: take or choose a photo of a glyph strip, review and correct the address, then select its galaxy to look up the system. Unreadable photos leave your entered address intact.
+
 - Procedural Planet Descriptors: Planet type descriptors (e.g. "Tropical Moon", "Paradise Planet", "Glacial Moon", "Ossified Planet") are now generated procedurally from the planet's seed using the game engine's exact algorithm, displaying alongside the broad biome classification ("Tropical Moon (Lush)", "Paradise Planet (Lush)") across planet cards, details headers, location summaries, system maps, and find lists without requiring visor screen capture. Searchable directly in Planet Finder.
 - Planetary Hotspot Clusters & Base Site Optimizer: Planet Details can now locate multi-hotspot clusters (Power + Mineral, Power + Gas, and 3-way Trifectas) reachable from a single base. Calculates the mathematically optimal Base Computer coordinates to bring all extraction sites within simultaneous range, with search, sorting (nearest to you, closest to portal, class, name), and one-click actions to place a Save Beacon right at the optimal base site.
 
@@ -14,6 +24,16 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Planet Details POI Layout: Converted Portal, Crashed Ships, and Cabinet Multi-Tools from 100% full-width folding sections into compact responsive cards. They now render side-by-side in a responsive row, saving over 200px of vertical scrolling space while matching the 370px card format of the located sites and hotspots grids.
 
 ### Fixed
+
+- Mobile live scans now keep matching readings on slower phones and restart the camera after returning to the app.
+
+- Mobile live scans now usually open the system within a few seconds: line up the glyphs in the on-screen box. Scans no longer restart when one symbol is briefly unclear over bright scenery or the phone wobbles.
+
+- Mobile glyph keys and review now use clearer, bolder glyph pictures with their common names.
+
+- Mobile glyph review now draws the glyph symbols correctly, keeps the address in two rows, and opens correction keys when you select a position.
+
+- Mobile camera scans handle blue-tinted monitor photos and screen pixel patterns more reliably, and reject more obscured or ambiguous strips before showing an address for review.
 
 - Planetary Rings: Fixed planetary ring detection so only the single planet chosen by the game's solar system layout shows rings, matching in-game Discoveries instead of marking multiple planets per system.
 - Planetary Hotspots & Base Beacons: Resolved Save Beacon elevation calculations by evaluating procedural terrain elevation (`PlanetTerrain.Height`) so placed beacons sit cleanly above the planetary surface (~3m clearance) rather than spawning underground inside procedural bedrock. Added full "Remove" support directly on hotspot and cluster cards to delete and clean up any placed beacons from your save.

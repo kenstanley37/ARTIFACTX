@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Shared styles built from the Theme* keys defined in GalaxyMap.xaml and StationCore.xaml.
+     Uses DynamicResource so live theme switching updates every card and label immediately. -->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="ArtifactX.Maui.Resources.Themes.ThemeStyles">
+
+    <Style x:Key="ThemeCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource ThemePanelBrush}" />
+        <Setter Property="Stroke" Value="{DynamicResource ThemeLineBrush}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="10" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ThemeHeroCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource ThemePanelBrush}" />
+        <Setter Property="Stroke" Value="{DynamicResource ThemeAccentBrush}" />
+        <Setter Property="StrokeThickness" Value="1.5" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="12" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ThemeCardAltStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource ThemePanelAltBrush}" />
+        <Setter Property="Stroke" Value="{DynamicResource ThemeLineBrush}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="10" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ThemeEyebrowStyle" TargetType="Label">
+        <Setter Property="FontFamily" Value="Exo2" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="CharacterSpacing" Value="2.2" />
+        <Setter Property="TextColor" Value="{DynamicResource ThemeAccentColor}" />
+    </Style>
+
+    <Style x:Key="ThemeSectionHeaderStyle" TargetType="Label">
+        <Setter Property="FontFamily" Value="Exo2" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="CharacterSpacing" Value="1.8" />
+        <Setter Property="TextColor" Value="{DynamicResource ThemeTextFaintColor}" />
+    </Style>
+
+    <Style x:Key="ThemePageTitleStyle" TargetType="Label">
+        <Setter Property="FontFamily" Value="Exo2" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="FontSize" Value="24" />
+        <Setter Property="CharacterSpacing" Value="0.6" />
+        <Setter Property="TextColor" Value="{DynamicResource ThemeTextColor}" />
+    </Style>
+
+    <Style x:Key="ThemeCardTitleStyle" TargetType="Label">
+        <Setter Property="FontFamily" Value="Exo2" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="TextColor" Value="{DynamicResource ThemeTextColor}" />
+    </Style>
+
+    <Style x:Key="ThemeBodyTextStyle" TargetType="Label">
+        <Setter Property="FontFamily" Value="TitilliumWeb" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextColor" Value="{DynamicResource ThemeTextColor}" />
+    </Style>
+
+    <Style x:Key="ThemeDimTextStyle" TargetType="Label">
+        <Setter Property="FontFamily" Value="TitilliumWeb" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="TextColor" Value="{DynamicResource ThemeTextDimColor}" />
+    </Style>
+
+</ResourceDictionary>
