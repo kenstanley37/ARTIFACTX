@@ -178,7 +178,20 @@ if (args.Length == 2 && args[0] == "--species-name-vectors")
     Require(NmsGalaxyInfo.Get(7)?.Classification == GalaxyClassification.Empty, "Budullangr must be Empty");
     Require(NmsGalaxyInfo.Get(10)?.Classification == GalaxyClassification.Lush, "Eissentam must be Lush");
     Require(NmsGalaxyInfo.Get(256)?.Classification == GalaxyClassification.Normal, "Odyalutai must be Normal");
-    Console.WriteLine("PASS: galaxy definitions, classifications, and gateway core coordinates for all 256 galaxies.");
+    Require(NmsGalaxyInfo.DistanceToCoreLightYears is > 3200 and < 5000, "Galaxy transfer region must be outside the goal gap and within 5,000 ly");
+    for (int g = 0; g < 256; g++)
+    {
+        int systems = RegionStarGeneration.Count(NmsGalaxyInfo.GatewayRegionAddress(g), galaxySettings).Ordinary;
+        Require(NmsGalaxyInfo.FindGatewaySystemAddress(g, systems) is ulong destination
+            && (int)((destination >> 40) & 0xFFF) is int system && system >= 1 && system <= systems
+            && SystemGenerator.Attributes(ulong.Parse(NmsSpaceStationPaths.PortalAddress(destination, 0), System.Globalization.NumberStyles.HexNumber), g)
+                is { Uncharted: false, Abandoned: false, Pirate: false },
+            $"Galaxy {g + 1} has no existing station system for a transfer");
+    }
+    Require(NmsGalaxyInfo.FindGatewaySystemAddress(0, 531) is ulong euclid && ((euclid >> 40) & 0xFFF) == 12,
+        "Euclid's transfer destination must be system 12 (1-11 are Uncharted or Abandoned)");
+    Require(NmsGalaxyInfo.FindGatewaySystemAddress(0, 11) is null, "A region with no station system must not return a destination");
+    Console.WriteLine("PASS: galaxy definitions, classifications, and a real station system for a transfer in all 256 galaxies.");
     Console.WriteLine("PASS: quality 4/5 high-grade rolls need the chance; SeaTrash rolls do not; only Main establishes the standard roll.");
     Console.WriteLine("PASS: unrelated food accepted; all 11 displayed-stat targets and unknown inputs guarded; saved food identity preserved.");
     Console.WriteLine("PASS: unchanged snapshots, in-place stats, reorder, model replacement, duplicate rejection, and 1000 mixed updates; zero resets.");

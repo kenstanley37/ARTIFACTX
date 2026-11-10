@@ -73,7 +73,7 @@ public sealed partial class GalaxyTransferPage : Page
             Content = new TextBlock
             {
                 Text = $"Are you sure you want to stage a transfer to {target.Name}?\n\n" +
-                       $"• Destination: Gateway Space Station (~5,571 LY from the Galactic Core)\n" +
+                       $"• Destination: the space station in {ViewModel.GatewayCoordinatesText} (~{ViewModel.DistanceToCoreText} from the Galactic Core)\n" +
                        $"• Spawn: Inside the station docking bay walkway next to your starship\n" +
                        $"• Network: Station will be registered in your Teleport Network\n\n" +
                        $"Edits are staged in memory. Click Save at the top of the window to write changes when No Man's Sky is closed.",

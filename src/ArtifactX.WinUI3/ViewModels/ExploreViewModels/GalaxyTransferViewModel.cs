@@ -56,14 +56,18 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
 
     public ObservableCollection<GalaxyRowViewModel> FilteredGalaxies { get; } = new();
 
-    public string GatewayCoordinatesText =>
-        $"X: {NmsGalaxyInfo.CoreGatewayX}, Y: {NmsGalaxyInfo.CoreGatewayY}, Z: {NmsGalaxyInfo.CoreGatewayZ} · Solar System {NmsGalaxyInfo.CoreGatewaySystemIndex}";
+    /// <summary>The selected galaxy's destination system (exists, has a working station); null until found.</summary>
+    private ulong? _destinationAddress;
+    private int _destinationVersion;
+
+    [ObservableProperty]
+    public partial string GatewayCoordinatesText { get; set; } = "Finding a station system…";
+
+    [ObservableProperty]
+    public partial string GatewayPortalGlyphs { get; set; } = "";
 
     public string DistanceToCoreText =>
         $"{NmsGalaxyInfo.DistanceToCoreLightYears:N0} Light-Years";
-
-    public string GatewayPortalGlyphs =>
-        NmsGalaxyInfo.CoreGatewayPortalAddress;
 
     public GalaxyTransferViewModel()
     {
@@ -119,6 +123,32 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
 
     partial void OnSelectedGalaxyChanged(GalaxyRowViewModel? value)
     {
+        _ = FindDestinationAsync(value);
+    }
+
+    /// <summary>Works out where a transfer to the selected galaxy lands; the latest selection wins.</summary>
+    private async Task FindDestinationAsync(GalaxyRowViewModel? galaxy)
+    {
+        int version = ++_destinationVersion;
+        _destinationAddress = null;
+        GatewayPortalGlyphs = "";
+        GatewayCoordinatesText = galaxy is null ? "" : "Finding a station system…";
+        UpdateTransferState();
+        if (galaxy is null) return;
+
+        ulong? address = await GalaxyTransferService.FindDestinationAsync(galaxy.Info);
+        if (version != _destinationVersion) return;
+        _destinationAddress = address;
+        if (address is ulong found)
+        {
+            int system = (int)((found >> 40) & 0xFFF);
+            GatewayCoordinatesText = $"Region X: {NmsGalaxyInfo.CoreGatewayX}, Y: {NmsGalaxyInfo.CoreGatewayY}, Z: {NmsGalaxyInfo.CoreGatewayZ} · Star system {system}";
+            GatewayPortalGlyphs = NmsSpaceStationPaths.PortalAddress(found, 1);
+        }
+        else
+        {
+            GatewayCoordinatesText = "Can't pick a station system yet. Read the game data again in Settings, then come back.";
+        }
         UpdateTransferState();
     }
 
@@ -205,7 +235,7 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
         if (SelectedGalaxy is { } selected)
         {
             TransferActionText = $"Transfer to {selected.Name} Station";
-            CanTransfer = !selected.IsCurrent || IsTransferStaged;
+            CanTransfer = IsTransferStaged || _destinationAddress is not null;
 
             if (IsTransferStaged)
             {
@@ -231,9 +261,9 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
     [RelayCommand]
     public void StageTransfer()
     {
-        if (SelectedGalaxy is not { } target) return;
+        if (SelectedGalaxy is not { } target || _destinationAddress is not ulong destination) return;
 
-        GalaxyTransferService.StageTransfer(target.Info);
+        GalaxyTransferService.StageTransfer(target.Info, destination);
         UpdateTransferState();
     }
 

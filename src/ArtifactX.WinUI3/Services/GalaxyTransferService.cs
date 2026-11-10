@@ -3,6 +3,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Services;
 
@@ -192,14 +193,29 @@ public static class GalaxyTransferService
             || SaveSessionManager.HasStagedEditsUnder(NmsPlanetCoordinates.SpawnStatePath);
     }
 
+    /// <summary>The teleporter marker this session's transfer added, so undoing it removes only that marker.</summary>
+    private static ulong? _addedMarkerAddress;
+
     /// <summary>
-    /// Stages a complete galaxy transfer to the gateway space station of the specified galaxy.
-    /// Safely positions the player on foot inside the station docking walkway, places their starship
-    /// on the landing pad, and registers the station in their teleporter network.
+    /// The system a transfer to <paramref name="destination"/> lands in: one that exists and has a working space
+    /// station (<see cref="NmsGalaxyInfo.FindGatewaySystemAddress"/>). Null when the catalog has no galaxy-generation
+    /// settings yet (rebuild the game data) or, in theory, when no system in the region qualifies.
     /// </summary>
-    public static void StageTransfer(GalaxyInfo destination)
+    public static async Task<ulong?> FindDestinationAsync(GalaxyInfo destination)
     {
-        ulong gatewayAddress = NmsGalaxyInfo.GetGatewaySystemAddress(destination.RealityIndex);
+        if (await RegionSystemsService.GetAsync(NmsGalaxyInfo.GatewayRegionAddress(destination.RealityIndex)) is not { } count)
+            return null;
+        return await Task.Run(() => NmsGalaxyInfo.FindGatewaySystemAddress(destination.RealityIndex, count.Ordinary));
+    }
+
+    /// <summary>
+    /// Stages a complete galaxy transfer to the space station of <paramref name="gatewayAddress"/> (from
+    /// <see cref="FindDestinationAsync"/>). The player spawns "InStation"; the game places them inside that system's
+    /// station (owner-tested transfers, 2026-11-10). The station is added to the teleport network as an ordinary,
+    /// unowned station; a transfer never claims it or stamps it with the player's alliance.
+    /// </summary>
+    public static void StageTransfer(GalaxyInfo destination, ulong gatewayAddress)
+    {
         var yhj = NmsSpaceStationPaths.CreateUniverseAddress(gatewayAddress);
 
         // 1. Stage universe address
@@ -224,16 +240,42 @@ public static class GalaxyTransferService
 
         SaveSessionManager.StageEdit(spawn, NmsPlanetCoordinates.SpawnStatePath);
 
-        // 4. Register the station in the teleport network (nlG)
-        SpaceStationService.EnsureStationMarkerStaged(gatewayAddress, $"{destination.Name} Gateway Station");
+        // 4. Add the station to the teleport network (nlG) as an ordinary visited station, if it isn't there yet.
+        RemoveAddedMarker();
+        var markers = SaveSessionManager.GetValue(NmsSpaceStationPaths.MarkersPath) as JArray ?? new JArray();
+        bool known = markers.OfType<JObject>().Any(m =>
+            m["iAF"]?.Value<string>() == NmsSpaceStationPaths.StationMarkerType
+            && NmsSpaceStationPaths.ReadSystemAddress(m["yhJ"]) == gatewayAddress);
+        if (!known)
+        {
+            var updated = (JArray)markers.DeepClone();
+            updated.Add(NmsSpaceStationPaths.CreateStationMarker(gatewayAddress, $"{destination.Name} Gateway Station",
+                new JArray { 0, 0, 0, 0 }));
+            SaveSessionManager.StageEdit(updated, NmsSpaceStationPaths.MarkersPath);
+            _addedMarkerAddress = gatewayAddress;
+        }
     }
 
-    /// <summary>Reverts all staged galaxy transfer edits, restoring original location and spawn state.</summary>
+    /// <summary>
+    /// Reverts a staged galaxy transfer: location, spawn state, and only the teleporter marker the transfer added,
+    /// so station claims staged on the Space Stations page (same marker array) are kept.
+    /// </summary>
     public static void RevertTransfer()
     {
         SaveSessionManager.RevertEditsUnder(NmsSpaceStationPaths.CurrentUniverseAddressPath);
         SaveSessionManager.RevertEditsUnder(NmsPlanetCoordinates.SpawnStatePath);
         SaveSessionManager.RevertEditsUnder(NmsPlayerStateData.LocationDescriptionPath);
-        SaveSessionManager.RevertEditsUnder(NmsSpaceStationPaths.MarkersPath);
+        RemoveAddedMarker();
+    }
+
+    private static void RemoveAddedMarker()
+    {
+        if (_addedMarkerAddress is not ulong added) return;
+        _addedMarkerAddress = null;
+        if (SaveSessionManager.GetValue(NmsSpaceStationPaths.MarkersPath) is not JArray markers) return;
+        var updated = new JArray(markers.Where(m => !(m is JObject o
+            && o["iAF"]?.Value<string>() == NmsSpaceStationPaths.StationMarkerType
+            && NmsSpaceStationPaths.ReadSystemAddress(o["yhJ"]) == added)).Select(m => m.DeepClone()));
+        if (updated.Count != markers.Count) SaveSessionManager.StageEdit(updated, NmsSpaceStationPaths.MarkersPath);
     }
 }
