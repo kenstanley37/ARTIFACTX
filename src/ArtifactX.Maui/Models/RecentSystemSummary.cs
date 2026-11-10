@@ -7,4 +7,5 @@ public sealed record RecentSystemSummary(
     string Name,
     string Subtitle,
     string PortalCode,
-    string GalaxyName);
+    string GalaxyName,
+    int GalaxyNumber = 1);

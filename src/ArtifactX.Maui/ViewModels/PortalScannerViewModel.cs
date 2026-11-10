@@ -14,7 +14,7 @@ namespace ArtifactX.Maui.ViewModels;
 /// Retains committed input while a separate scan candidate is reviewed. A failed/cancelled scan
 /// never changes the accepted address. Galaxy is always player-selected, not guessed from a photo.
 /// </summary>
-public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scanner) : ObservableObject
+public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scanner, ISystemNavigationService navigation) : ObservableObject
 {
     private CancellationTokenSource? _scanCancellation;
     public ObservableCollection<PortalReviewSlot> Slots { get; } = new(Enumerable.Range(1, 12).Select(i => new PortalReviewSlot(i)));
@@ -30,6 +30,8 @@ public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scann
     public partial string ReviewInput { get; set; } = "";
     [ObservableProperty]
     public partial bool HasReview { get; set; }
+    [ObservableProperty]
+    public partial bool IsKeypadOpen { get; set; }
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanEdit))]
     public partial bool IsBusy { get; set; }
@@ -80,6 +82,7 @@ public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scann
             for (int i = 0; i < 12; i++) Slots[i].NeedsReview = !result.Glyphs[i].IsCertain;
             SelectedPosition = Slots.FirstOrDefault(s => s.NeedsReview)?.Position ?? 1;
             HasReview = true;
+            IsKeypadOpen = false;
         }
         catch (OperationCanceledException) { Status = "Scan cancelled."; }
         catch (Exception) { Status = "The photo could not be read. Try another photo or enter the glyphs by hand."; }
@@ -92,7 +95,11 @@ public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scann
     [RelayCommand]
     private void SelectSlot(PortalReviewSlot? slot)
     {
-        if (slot is not null) SelectedPosition = slot.Position;
+        if (slot is not null)
+        {
+            SelectedPosition = slot.Position;
+            IsKeypadOpen = true;
+        }
     }
 
     [RelayCommand]
@@ -111,6 +118,7 @@ public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scann
     {
         ReviewInput = AddressInput;
         HasReview = true;
+        IsKeypadOpen = true;
         SelectedPosition = 1;
     }
 
@@ -121,12 +129,16 @@ public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scann
         { Status = string.IsNullOrWhiteSpace(error) ? "Enter all 12 glyphs." : error; return; }
         AddressInput = code;
         HasReview = false;
+        IsKeypadOpen = false;
         SystemSummary = "";
         Status = $"Address ready · {NmsPortalCode.ToCoordinates(code)}. Select the galaxy before looking up the system.";
     }
 
     [RelayCommand]
-    private void DiscardReview() => HasReview = false;
+    private void DiscardReview() { HasReview = false; IsKeypadOpen = false; }
+
+    [RelayCommand]
+    private void CloseKeypad() => IsKeypadOpen = false;
 
     [RelayCommand]
     private async Task FindSystemAsync()
@@ -138,15 +150,7 @@ public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scann
         IsBusy = true;
         try
         {
-            SystemSummary = await Task.Run(() =>
-            {
-                ulong portal = ulong.Parse(code, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-                string name = SystemGenerator.SystemName(portal, galaxy - 1);
-                string region = SystemGenerator.RegionName(portal, galaxy - 1);
-                var bodies = SystemGenerator.Bodies(portal, galaxy - 1);
-                return $"{name}\n{region} · {NmsGalaxyNames.ForNumber(galaxy)}\n{bodies.PlanetCount} planets · {bodies.MoonCount} moons\n{NmsPortalCode.ToCoordinates(code)}";
-            });
-            Status = "System details generated from the address. Player-renamed systems may have a different name in game.";
+            await navigation.OpenAsync(code, galaxy);
         }
         catch (Exception) { Status = "The system could not be generated from this address."; }
         finally { IsBusy = false; }

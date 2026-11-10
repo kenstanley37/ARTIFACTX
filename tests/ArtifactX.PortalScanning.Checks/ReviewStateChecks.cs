@@ -7,12 +7,14 @@ internal static class ReviewStateChecks
     public static async Task RunAsync()
     {
         var fake = new FakeScanner();
-        var vm = new PortalScannerViewModel(fake) { AddressInput = "123456789ABC" };
+        var navigation = new FakeNavigation();
+        var vm = new PortalScannerViewModel(fake, navigation) { AddressInput = "123456789ABC" };
         const string candidate = "FEDCBA987654";
         fake.Result = new(candidate, candidate.Select(c => new GlyphMatch(c, 0.1, 0.5)).ToArray(), "Review");
         await vm.TakePhotoCommand.ExecuteAsync(null);
         Require(vm.AddressInput == "123456789ABC" && vm.HasReview && vm.ReviewInput == candidate,
             "A scan must stay separate until the player accepts it.");
+        Require(!vm.IsKeypadOpen, "A scan review should show the address before opening correction keys.");
         vm.DiscardReviewCommand.Execute(null);
         Require(vm.AddressInput == "123456789ABC" && !vm.HasReview, "Discard changed the accepted address.");
 
@@ -44,14 +46,49 @@ internal static class ReviewStateChecks
 
         vm.EnterManuallyCommand.Execute(null);
         vm.SelectSlotCommand.Execute(vm.Slots[4]);
+        Require(vm.IsKeypadOpen && vm.Slots[4].IsSelected, "Selecting a position did not open correction keys.");
         vm.TapGlyphCommand.Execute(vm.Keys[0]);
         Require(vm.ReviewInput == "FEDC0A987654" && vm.SelectedPosition == 6, "Manual correction changed the wrong position.");
+        vm.CloseKeypadCommand.Execute(null);
+        Require(!vm.IsKeypadOpen && vm.HasReview && vm.ReviewInput == "FEDC0A987654", "Closing correction keys discarded the review.");
+        vm.AddressInput = "invalid";
+        await vm.FindSystemCommand.ExecuteAsync(null);
+        Require(navigation.Address is null && !vm.IsBusy, "Invalid input navigated.");
+        vm.AddressInput = "11FA016452DB";
+        vm.SelectedGalaxy = vm.Galaxies[1];
+        await vm.FindSystemCommand.ExecuteAsync(null);
+        Require(navigation.Address == "11FA016452DB" && navigation.Galaxy == 2 && !vm.IsBusy,
+            "Navigation lost the accepted address or galaxy.");
+        var readout = ArtifactX.Core.Universe.PortalSystemReadout.Generate("11FA016452DB", 1);
+        RecentSystemsService.Record(readout);
+        RecentSystemsService.Record(ArtifactX.Core.Universe.PortalSystemReadout.Generate("21FA016452DB", 1));
+        Require(RecentSystemsService.Items.Count == 1 && RecentSystemsService.Items[0].PortalCode == "21FA016452DB",
+            "Different bodies duplicated the same recent system.");
+        RecentSystemsService.Record(ArtifactX.Core.Universe.PortalSystemReadout.Generate("11FA016452DB", 2));
+        Require(RecentSystemsService.Items.Count == 2 && RecentSystemsService.Items[0].GalaxyNumber == 2,
+            "Recent systems merged different galaxies or lost ordering.");
+        for (int i = 0; i < 12; i++)
+            RecentSystemsService.Record(ArtifactX.Core.Universe.PortalSystemReadout.Generate($"11FA01645{i:X3}", 1));
+        Require(RecentSystemsService.Items.Count == 10, "Recent systems did not enforce the history limit.");
+        Console.WriteLine("PASS: navigation validation, galaxy handoff, recent system identity and history limit.");
         Console.WriteLine("PASS: review/accept/discard, incomplete input, failure/exception preservation, concurrency, cancellation, manual correction.");
     }
 
     private static void Require(bool value, string message)
     {
         if (!value) throw new InvalidOperationException(message);
+    }
+
+    private sealed class FakeNavigation : ISystemNavigationService
+    {
+        public string? Address { get; private set; }
+        public int Galaxy { get; private set; }
+        public Task OpenAsync(string portalCode, int galaxyNumber)
+        {
+            Address = portalCode;
+            Galaxy = galaxyNumber;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeScanner : IPortalPhotoScanService

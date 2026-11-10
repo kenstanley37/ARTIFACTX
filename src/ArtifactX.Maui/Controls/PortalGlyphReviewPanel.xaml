@@ -4,8 +4,12 @@
              xmlns:vm="clr-namespace:ArtifactX.Maui.ViewModels"
              xmlns:models="clr-namespace:ArtifactX.Maui.Models"
              xmlns:art="clr-namespace:ArtifactX.Core.Theming;assembly=ArtifactX.Core"
+             xmlns:helpers="clr-namespace:ArtifactX.Maui.Helpers.PortalGlyphs"
              x:Class="ArtifactX.Maui.Controls.PortalGlyphReviewPanel"
              x:DataType="vm:PortalScannerViewModel">
+    <ContentView.Resources>
+        <helpers:PortalGlyphGeometryConverter x:Key="GlyphGeometryConverter" />
+    </ContentView.Resources>
     <Border Style="{StaticResource ThemeCardStyle}" Padding="16">
         <VerticalStackLayout Spacing="12">
             <Label Text="Review glyphs" Style="{StaticResource ThemeCardTitleStyle}" />
@@ -14,7 +18,7 @@
             <FlexLayout BindableLayout.ItemsSource="{Binding Slots}" Wrap="Wrap" JustifyContent="Start">
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="models:PortalReviewSlot">
-                        <Border Margin="2" WidthRequest="44" HeightRequest="66" Style="{StaticResource ThemeCardAltStyle}">
+                        <Border Margin="2" FlexLayout.Basis="15%" FlexLayout.Grow="1" HeightRequest="66" Style="{StaticResource ThemeCardAltStyle}">
                             <Border.Triggers>
                                 <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
                                     <Setter Property="Stroke" Value="{DynamicResource ThemeAccentBrush}" />
@@ -27,8 +31,8 @@
                                         CommandParameter="{Binding .}" SemanticProperties.Description="{Binding AccessibleName}"
                                         BackgroundColor="{DynamicResource ThemePanelAltColor}" />
                                 <VerticalStackLayout Padding="4" Spacing="2" InputTransparent="True">
-                                <Path Data="{Binding PathData}" Stroke="{DynamicResource ThemeTextBrush}" StrokeThickness="1.6"
-                                      Aspect="Uniform" HeightRequest="28" InputTransparent="True" />
+                                <Path Data="{Binding PathData, Converter={StaticResource GlyphGeometryConverter}}" Stroke="{DynamicResource ThemeTextBrush}" StrokeThickness="1.6"
+                                      Aspect="Uniform" WidthRequest="28" HeightRequest="28" HorizontalOptions="Center" InputTransparent="True" />
                                 <Label Text="{Binding Label}" FontSize="14" HorizontalTextAlignment="Center" TextColor="{DynamicResource ThemeAccentColor}" />
                                 </VerticalStackLayout>
                             </Grid>
@@ -36,18 +40,22 @@
                     </DataTemplate>
                 </BindableLayout.ItemTemplate>
             </FlexLayout>
-            <Label Text="{Binding SelectedPosition, StringFormat='Editing position {0}'}" Style="{StaticResource ThemeBodyTextStyle}" />
-            <FlexLayout BindableLayout.ItemsSource="{Binding Keys}" Wrap="Wrap" JustifyContent="Start">
+            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsKeypadOpen}">
+                <Label Text="{Binding SelectedPosition, StringFormat='Editing position {0}'}" Style="{StaticResource ThemeBodyTextStyle}" VerticalOptions="Center" />
+                <Button Grid.Column="1" Text="Done correcting" Command="{Binding CloseKeypadCommand}"
+                        BackgroundColor="{DynamicResource ThemePanelAltColor}" TextColor="{DynamicResource ThemeTextColor}" />
+            </Grid>
+            <FlexLayout BindableLayout.ItemsSource="{Binding Keys}" Wrap="Wrap" JustifyContent="Start" IsVisible="{Binding IsKeypadOpen}">
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="art:PortalGlyphVector">
-                        <Border Style="{StaticResource ThemeCardAltStyle}" Margin="3" WidthRequest="64" HeightRequest="76">
+                        <Border Style="{StaticResource ThemeCardAltStyle}" Margin="3" FlexLayout.Basis="21%" FlexLayout.Grow="1" HeightRequest="76">
                             <Grid>
                                 <Button Padding="0"
                                         SemanticProperties.Description="{Binding Name, StringFormat='Enter glyph {0} at the selected position'}"
                                         Command="{Binding Source={RelativeSource AncestorType={x:Type vm:PortalScannerViewModel}}, Path=TapGlyphCommand}"
                                         CommandParameter="{Binding .}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
                                 <VerticalStackLayout Padding="6" Spacing="4" InputTransparent="True">
-                                <Path Data="{Binding PathData}" Stroke="{DynamicResource ThemeTextBrush}" StrokeThickness="1.6" Aspect="Uniform" HeightRequest="28" />
+                                <Path Data="{Binding PathData, Converter={StaticResource GlyphGeometryConverter}}" Stroke="{DynamicResource ThemeTextBrush}" StrokeThickness="1.6" Aspect="Uniform" WidthRequest="28" HeightRequest="28" HorizontalOptions="Center" />
                                 <Label Text="{Binding Name}" FontSize="12" HorizontalTextAlignment="Center" TextColor="{DynamicResource ThemeTextColor}" />
                                 </VerticalStackLayout>
                             </Grid>

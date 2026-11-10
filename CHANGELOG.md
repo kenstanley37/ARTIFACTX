@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Mobile portal addresses now open system details with planets, moons and possible starships, and recently opened systems appear on Home.
+
 - Mobile portal scanner: take or choose a photo of a glyph strip, review and correct the address, then select its galaxy to look up the system. Unreadable photos leave your entered address intact.
 
 - Procedural Planet Descriptors: Planet type descriptors (e.g. "Tropical Moon", "Paradise Planet", "Glacial Moon", "Ossified Planet") are now generated procedurally from the planet's seed using the game engine's exact algorithm, displaying alongside the broad biome classification ("Tropical Moon (Lush)", "Paradise Planet (Lush)") across planet cards, details headers, location summaries, system maps, and find lists without requiring visor screen capture. Searchable directly in Planet Finder.
@@ -16,6 +18,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Planet Details POI Layout: Converted Portal, Crashed Ships, and Cabinet Multi-Tools from 100% full-width folding sections into compact responsive cards. They now render side-by-side in a responsive row, saving over 200px of vertical scrolling space while matching the 370px card format of the located sites and hotspots grids.
 
 ### Fixed
+
+- Mobile glyph review now draws the glyph symbols correctly, keeps the address in two rows, and opens correction keys when you select a position.
 
 - Mobile camera scans handle blue-tinted monitor photos and screen pixel patterns more reliably, and reject more obscured or ambiguous strips before showing an address for review.
 
