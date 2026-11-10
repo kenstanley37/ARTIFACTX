@@ -108,7 +108,7 @@ public sealed partial class AppTitleBar : UserControl
     private void RefreshGameLabel()
     {
         var game = GameDataService.Game;
-        string tested = $"{TestedGameRelease.Name} {TestedGameRelease.Version}";
+        string tested = TestedGameRelease.Label;
         NmsCompatTxt.Text = game is null ? "NMS: not found" : TestedGameRelease.Compare(game) switch
         {
             0 => $"NMS {tested} · {game.BuildLabel}",
