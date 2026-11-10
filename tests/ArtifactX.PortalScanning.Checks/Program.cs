@@ -114,16 +114,22 @@ if (args.Length > 0)
         var watch = Stopwatch.StartNew();
         Action<string>? trace = Environment.GetEnvironmentVariable("ARTIFACTX_SCAN_TRACE") == "1" ? Console.WriteLine : null;
         var result = new PortalGlyphRecognizer(model, trace).Recognize(image);
+        long fullMs = watch.ElapsedMilliseconds;
+        string trackedNote = "";
         if (result.HasCandidate && result.Region is { } bounds)
         {
-            int pad = Math.Max(20, bounds.Bottom - bounds.Top);
-            var search = new ScanRegion(Math.Max(0, bounds.Left - pad), Math.Max(0, bounds.Top - pad),
-                Math.Min(image.Width, bounds.Right + pad), Math.Min(image.Height, bounds.Bottom + pad));
-            var tracked = new PortalGlyphRecognizer(model).Recognize(image, default, search);
-            Require(tracked.Candidate == result.Candidate, "Tracking search changed an accepted reference address.");
+            // Same area the phone searches on the next frame; must re-find the strip in place.
+            var trackWatch = Stopwatch.StartNew();
+            var tracked = new PortalGlyphRecognizer(model).Recognize(image, default,
+                PortalGlyphRecognizer.TrackingArea(bounds, image.Width, image.Height));
+            trackedNote = $", tracked {trackWatch.ElapsedMilliseconds}ms";
+            if (tracked.Candidate != result.Candidate)
+                failures.Add($"{Path.GetFileName(args[i])}: tracking read {tracked.Candidate ?? "no candidate"} instead of {result.Candidate}.");
+            else if (tracked.Region is not { } again || Math.Abs(again.Left - bounds.Left) > 2 || Math.Abs(again.Right - bounds.Right) > 2)
+                failures.Add($"{Path.GetFileName(args[i])}: tracking returned a shifted strip position.");
         }
 
-        Console.WriteLine($"{Path.GetFileName(args[i])}: {result.Candidate ?? "unreadable"}, correction={result.NeedsCorrection}, {watch.ElapsedMilliseconds}ms");
+        Console.WriteLine($"{Path.GetFileName(args[i])}: {result.Candidate ?? "unreadable"}, correction={result.NeedsCorrection}, {fullMs}ms{trackedNote}");
         Console.WriteLine(string.Join(" ", result.Glyphs.Select(g => $"{g.Digit}:{g.Distance:F3}/{g.Margin:F2}")));
         bool mayReject = args[i + 1].StartsWith('?');
         string? expected = args[i + 1] == "-" ? null : args[i + 1].TrimStart('?');

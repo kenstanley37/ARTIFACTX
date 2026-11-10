@@ -28,11 +28,16 @@ public sealed class PortalFrameAnalyzer(IGalaxyTextReader textReader) : IPortalF
         // Decode, glyph matching and crop/encode never block the UI thread.
         var (glyphs, crop, target) = await Task.Run(() =>
         {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             using var image = PortalPhotoDecoder.Decode(frame);
+            PortalScanDiagnostics.Write($"Decode {image.Width} x {image.Height}: {watch.ElapsedMilliseconds} ms");
             var result = RecognizeFrame(image, cancellationToken);
+            PortalScanDiagnostics.Write($"Glyphs {result.Candidate ?? "none"} (certain={!result.NeedsCorrection}): {watch.ElapsedMilliseconds} ms " +
+                string.Join(" ", result.Glyphs.Select((g, i) => g.IsCertain ? "" : $"#{i + 1}:{g.Digit} d={g.Distance:F3} m={g.Margin:F2}")).Trim());
             byte[]? bytes = null;
             PortalScanTarget? targetBounds = null;
-            if (result.Region is { } region && result.HasCandidate && !result.NeedsCorrection)
+            // Strips with one uncertain symbol still count toward multi-frame agreement, so read their galaxy too.
+            if (result.Region is { } region && result.HasCandidate)
             {
                 int height = Math.Max(1, region.Bottom - region.Top);
                 var rectangle = new SKRectI(Math.Max(0, region.Left - height), Math.Max(0, region.Bottom - height / 4),
@@ -56,9 +61,12 @@ public sealed class PortalFrameAnalyzer(IGalaxyTextReader textReader) : IPortalF
             return (result, bytes, targetBounds);
         }, cancellationToken);
         if (crop is null) return new(glyphs, null) { Target = target };
+        var ocrWatch = System.Diagnostics.Stopwatch.StartNew();
         var lines = await textReader.ReadLinesAsync(crop, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        return new(glyphs, _galaxies.Match(lines)) { Target = target };
+        int? galaxy = _galaxies.Match(lines);
+        PortalScanDiagnostics.Write($"Galaxy OCR {ocrWatch.ElapsedMilliseconds} ms -> {galaxy?.ToString() ?? "no match"} [{string.Join(" | ", lines)}]");
+        return new(glyphs, galaxy) { Target = target };
     }
 
     private PortalScanResult RecognizeFrame(SKBitmap image, CancellationToken cancellationToken)
@@ -66,23 +74,19 @@ public sealed class PortalFrameAnalyzer(IGalaxyTextReader textReader) : IPortalF
         var recognizer = new PortalGlyphRecognizer(_model!);
         if (_trackedRegion is { } previous)
         {
-            int height = Math.Max(8, previous.Bottom - previous.Top);
-            int margin = Math.Max(height, (previous.Right - previous.Left) / 12);
-            int verticalMargin = Math.Max(12, height / 2);
-            var rectangle = new SKRectI(Math.Max(0, previous.Left - margin), Math.Max(0, previous.Top - verticalMargin),
-                Math.Min(image.Width, previous.Right + margin), Math.Min(image.Height, previous.Bottom + verticalMargin));
-            PortalScanDiagnostics.Write($"Tracked glyph search: {rectangle.Width} x {rectangle.Height}");
-            if (rectangle.Width > 0 && rectangle.Height > 0)
+            var area = PortalGlyphRecognizer.TrackingArea(previous, image.Width, image.Height);
+            PortalScanDiagnostics.Write($"Tracked glyph search: {area.Right - area.Left} x {area.Bottom - area.Top}");
+            if (area.Right > area.Left && area.Bottom > area.Top)
             {
-                // Keep the full-frame coordinate system: cropping shifts quantized candidate bands and
-                // can change the classifier's sampling. Only the search mask is restricted.
-                var tracked = recognizer.Recognize(image, cancellationToken,
-                    new ScanRegion(rectangle.Left, rectangle.Top, rectangle.Right, rectangle.Bottom));
-                if (tracked.HasCandidate && !tracked.NeedsCorrection)
+                // The recognizer crops to this area and returns full-frame coordinates.
+                var tracked = recognizer.Recognize(image, cancellationToken, area);
+                if (tracked.HasCandidate)
                 {
+                    PortalScanDiagnostics.Write("Tracked search hit");
                     _trackedRegion = tracked.Region;
                     return tracked;
                 }
+                PortalScanDiagnostics.Write("Tracked search missed; full-frame search");
             }
         }
         // Moving the phone away from the previous strip must recover through a full-frame search.

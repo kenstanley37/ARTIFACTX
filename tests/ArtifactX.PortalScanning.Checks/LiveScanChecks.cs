@@ -35,9 +35,28 @@ internal static class LiveScanChecks
         Require(state.MatchingFrames == 1, "Changed galaxy did not reset agreement.");
         state.Observe(a with { GalaxyNumber = null }, TimeSpan.FromSeconds(4));
         Require(state.MatchingFrames == 0, "Missing galaxy retained stale agreement.");
-        var uncertain = a.Glyphs with { Glyphs = a.Glyphs.Glyphs.Select((g, i) => i == 0 ? g with { Margin = 0.01 } : g).ToArray() };
-        state.Observe(a with { Glyphs = uncertain }, TimeSpan.FromSeconds(5));
-        Require(state.MatchingFrames == 0, "Uncertain glyphs advanced the automatic scan.");
+        var uncertain = a with { Glyphs = a.Glyphs with { Glyphs = a.Glyphs.Glyphs.Select((g, i) => i == 0 ? g with { Margin = 0.01 } : g).ToArray() } };
+        var twoUncertain = a with { Glyphs = a.Glyphs with { Glyphs = a.Glyphs.Glyphs.Select((g, i) => i < 2 ? g with { Margin = 0.01 } : g).ToArray() } };
+        state.Reset();
+        state.Observe(twoUncertain, TimeSpan.FromSeconds(1));
+        Require(state.MatchingFrames == 0, "A strip with two uncertain symbols advanced the automatic scan.");
+        state.Observe(a, TimeSpan.FromSeconds(2));
+        state.Observe(a, TimeSpan.FromSeconds(3));
+        Require(state.Observe(uncertain, TimeSpan.FromSeconds(4)) is not null,
+            "Three agreeing frames with every position confident twice were not accepted.");
+        state.Reset();
+        state.Observe(uncertain, TimeSpan.FromSeconds(1));
+        state.Observe(uncertain, TimeSpan.FromSeconds(2));
+        Require(state.Observe(a, TimeSpan.FromSeconds(3)) is null && state.MatchingFrames == 3,
+            "A position read confidently only once was accepted.");
+        Require(state.Observe(a, TimeSpan.FromSeconds(4)) is not null,
+            "A fourth agreeing frame did not complete the uncertain position.");
+        state.Reset();
+        state.Observe(uncertain, TimeSpan.FromSeconds(1));
+        state.Observe(uncertain, TimeSpan.FromSeconds(2));
+        state.Observe(uncertain, TimeSpan.FromSeconds(3));
+        Require(state.Observe(uncertain, TimeSpan.FromSeconds(4)) is null, "A never-confident position was accepted.");
+        state.Reset();
         state.Observe(a, TimeSpan.FromSeconds(6));
         state.Observe(a, TimeSpan.FromSeconds(6));
         Require(state.MatchingFrames == 1, "The same frame timestamp was counted twice.");

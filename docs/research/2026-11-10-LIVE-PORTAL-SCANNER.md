@@ -42,3 +42,15 @@ Desktop stage timing on `PXL_20261109_193430115.MP.jpg` showed the threshold/slo
 - Within a band, each run's shape match is computed once and reused by every overlapping 12-run window (previously up to twelve times).
 
 Evidence: the eleven private Pixel references (seven reads, five rejections in the earlier table, minus the unlocated original screenshot) produce byte-identical candidates, per-glyph distances and margins before and after. Release-mode desktop time for that run fell from 35.8 s to 16.2 s including process start and the tracking re-check; the slowest photo fell from 5.4 s to 2.3 s. Phone timing was not measured after this change; the earlier 9-11 s figure is a Debug APK and needs a fresh Pixel measurement, ideally Debug and Release.
+
+## Pixel live tests, cropped tracking and multi-frame agreement (2026-11-10, Claude)
+
+Owner granted standing use of the test Pixel. Debug APK, phone held at the owner's monitor, address `3045FBFFB004` (Nudquathsenfe, galaxy 110). Glyph 3 had not appeared in the earlier photo set, so real-image class coverage is now ten of sixteen.
+
+Per-step Debug timings: decode 35-85 ms; full glyph search 2.1-3.9 s (no strip) / 2.5-3.2 s (strip); ML Kit galaxy OCR 140-480 ms; ~1 s between frames. OCR is not the bottleneck.
+
+- The masked tracking search cost the same as a full search (~2.6 s), and a miss doubled the frame (6.1 s). `PortalGlyphRecognizer.Recognize` now crops to the tracking area and maps the region back. `TrackingArea` is shared by the phone and the reference runner, which now requires the tracked re-read to return the same address and strip position: all seven readable references pass, tracked reads 13-267 ms on desktop.
+- The game draws the strip on a transparent background. Over bright scenery, position 8 `F` alternated between confident and d=0.187/m=0.15, and position 12 `4` once read d=0.230/m=0.09; the all-confident rule kept resetting. `LivePortalScanState` now counts frames with at most one uncertain symbol (the existing quality limit) and locks only when every position was confident in at least two of three or more agreeing frames. Synthetic checks cover one/two uncertain symbols, confident-once and never-confident positions.
+- Results: four locks onto `Gelatanes XVIII`; the last, with the new rule, locked 13 s after the strip first appeared, with an uncertain final symbol on the locking frame.
+
+Open: one cropped tracked hit took 4.9 s on the phone (0.2 s on desktop for comparable crops) while the phone's CPU sensor read 90 C after ~30 min of continuous scanning and charging. Debug-on-Android timings are unreliable; the next measurement should be a Release APK. Tracking still misses on some hand-held frames; the vertical margin (half a strip height) may be too tight.

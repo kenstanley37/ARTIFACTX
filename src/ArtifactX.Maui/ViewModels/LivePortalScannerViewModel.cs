@@ -51,7 +51,8 @@ public sealed partial class LivePortalScannerViewModel(IPortalFrameAnalyzer anal
                 GalaxyPreview = observation.GalaxyNumber is int galaxy ? NmsGalaxyNames.ForNumber(galaxy) ?? "Galaxy not recognized" : "Searching for galaxy name";
                 ScanTarget = observation.Target;
                 var accepted = stable.Observe(observation, capturedAt, clock.Elapsed);
-                Status = stable.MatchingFrames > 0 ? $"Hold steady: {stable.MatchingFrames} of 3 matching readings" :
+                Status = stable.MatchingFrames >= LivePortalScanState.RequiredFrames ? "Hold steady: confirming the last symbols" :
+                    stable.MatchingFrames > 0 ? $"Hold steady: {stable.MatchingFrames} of {LivePortalScanState.RequiredFrames} matching readings" :
                     "Keep all 12 glyphs and the galaxy name beneath them visible. Move closer if the text is too small.";
                 if (accepted is not null)
                 {

@@ -25,7 +25,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 - Mobile live scans now keep matching readings on slower phones and restart the camera after returning to the app.
 
-- Mobile live scans read each camera frame about twice as fast.
+- Mobile live scans read each camera frame faster, especially while following the same glyph strip, and no longer restart when one symbol is briefly unclear over bright scenery.
 
 - Mobile glyph review now draws the glyph symbols correctly, keeps the address in two rows, and opens correction keys when you select a position.
 

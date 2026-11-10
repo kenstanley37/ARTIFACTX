@@ -10,20 +10,53 @@ namespace ArtifactX.PortalScanning;
 /// </summary>
 public sealed class PortalGlyphRecognizer(PortalGlyphModel model, Action<string>? diagnostic = null)
 {
+    private const string NotFound = "Could not read all 12 glyphs. Move closer, keep the strip level, and avoid glare. You can also enter the glyphs by hand.";
+
+    /// <summary>
+    /// Reads the strip from the whole image, or only from <paramref name="searchRegion"/> when tracking a
+    /// strip found in an earlier camera frame. The region is cropped, not masked: on the Pixel 7 Pro a
+    /// masked full-frame search took as long as an untracked one (~2.6 s Debug, 2026-11-10).
+    /// </summary>
     public PortalScanResult Recognize(SKBitmap image, CancellationToken cancellationToken = default, ScanRegion? searchRegion = null)
+    {
+        if (searchRegion is not { } area) return RecognizeAllPasses(image, cancellationToken);
+        // An even top keeps the band quantization (top / 2 * 2) aligned with the full frame.
+        int left = Math.Clamp(area.Left, 0, image.Width), right = Math.Clamp(area.Right, 0, image.Width);
+        int top = Math.Clamp(area.Top, 0, image.Height) & ~1, bottom = Math.Clamp(area.Bottom, 0, image.Height);
+        if (right - left < 24 || bottom - top < 8) return new(null, [], NotFound);
+        using var view = new SKBitmap();
+        if (!image.ExtractSubset(view, new SKRectI(left, top, right, bottom))) return new(null, [], NotFound);
+        using var crop = view.Copy();
+        var result = RecognizeAllPasses(crop, cancellationToken);
+        return result.Region is { } found
+            ? result with { Region = new(found.Left + left, found.Top + top, found.Right + left, found.Bottom + top) }
+            : result;
+    }
+
+    /// <summary>Search area around a strip found in the previous frame, allowing for small hand movement.</summary>
+    public static ScanRegion TrackingArea(ScanRegion previous, int imageWidth, int imageHeight)
+    {
+        int height = Math.Max(8, previous.Bottom - previous.Top);
+        int margin = Math.Max(height, (previous.Right - previous.Left) / 12);
+        int verticalMargin = Math.Max(12, height / 2);
+        return new(Math.Max(0, previous.Left - margin), Math.Max(0, previous.Top - verticalMargin),
+            Math.Min(imageWidth, previous.Right + margin), Math.Min(imageHeight, previous.Bottom + verticalMargin));
+    }
+
+    private PortalScanResult RecognizeAllPasses(SKBitmap image, CancellationToken cancellationToken)
     {
         // Preserve small, neutral screenshot strokes. Only try screen-specific colour/moire
         // recovery after that pass fails; every pass uses the same whole-strip acceptance gate.
-        var direct = RecognizeCore(image, 0, cancellationToken, searchRegion);
+        var direct = RecognizeCore(image, 0, cancellationToken);
         if (direct.HasCandidate) return direct;
         diagnostic?.Invoke("Trying screen-pattern suppression and blue-cast compensation.");
-        var compensated = RecognizeCore(image, 1, cancellationToken, searchRegion);
+        var compensated = RecognizeCore(image, 1, cancellationToken);
         if (compensated.HasCandidate) return compensated;
         diagnostic?.Invoke("Trying smoothed blue-channel contrast.");
-        return RecognizeCore(image, 2, cancellationToken, searchRegion);
+        return RecognizeCore(image, 2, cancellationToken);
     }
 
-    private PortalScanResult RecognizeCore(SKBitmap image, int pass, CancellationToken cancellationToken, ScanRegion? searchRegion)
+    private PortalScanResult RecognizeCore(SKBitmap image, int pass, CancellationToken cancellationToken)
     {
         bool suppressScreenPattern = pass != 0;
         model.Validate();
@@ -66,8 +99,6 @@ public sealed class PortalGlyphRecognizer(PortalGlyphModel model, Action<string>
         for (int y = 0; y < height; y++)
             for (int x = 0; x < width; x++)
             {
-                if (searchRegion is { } area && (x < area.Left || x >= area.Right || y < area.Top || y >= area.Bottom))
-                    continue;
                 int i = y * width + x;
                 if (saturation[i] >= saturationLimit) continue;
                 int l = Math.Max(0, x - 10), r = Math.Min(width, x + 11);
@@ -114,7 +145,7 @@ public sealed class PortalGlyphRecognizer(PortalGlyphModel model, Action<string>
             diagnostic?.Invoke($"threshold={Thresholds[index / Slopes.Length]}, slope={Slopes[index % Slopes.Length]}, region={candidate.Region}: {new string(candidate.Matches.Select(m => m.Digit).ToArray())}, score={candidate.Score:F3}, certain={candidate.Matches.Count(m => m.IsCertain)}");
         }
         if (best is null)
-            return new(null, [], "Could not read all 12 glyphs. Move closer, keep the strip level, and avoid glare. You can also enter the glyphs by hand.");
+            return new(null, [], NotFound);
         var glyphs = best.Matches;
         return new(new string(glyphs.Select(m => m.Digit).ToArray()), glyphs,
             glyphs.All(m => m.IsCertain) ? "Review the 12 glyphs before using this address." :
