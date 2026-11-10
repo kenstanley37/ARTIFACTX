@@ -1,9 +1,9 @@
 name: Release
 
+# Releases are cut by tagging (git tag -a vX.Y.Z), never by every push to main: a merge to main
+# without a version bump must not rebuild or replace an already-published release.
 on:
   push:
-    branches:
-      - main
     tags:
       - 'v*'
   workflow_dispatch:
@@ -102,17 +102,16 @@ jobs:
           
           $files = Get-ChildItem -Path $packages | Select-Object -ExpandProperty FullName
           
-          $existingTags = gh release list --limit 100 --json tagName -q ".[].tagName"
-          if ($existingTags -contains $tag) {
-              Write-Host "Release $tag already exists. Uploading updated assets..."
-              gh release upload $tag @files --clobber
-          } else {
-              Write-Host "Creating GitHub Release $tag..."
-              gh release create $tag @files `
-                  --title "ArtifactX $tag" `
-                  --target "${{ github.sha }}" `
-                  --generate-notes
+          # Published downloads are never replaced: players and the in-app updater may already have them.
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+              throw "Release $tag already exists. Bump the version and tag a new release instead of replacing published files."
           }
+          Write-Host "Creating GitHub Release $tag..."
+          gh release create $tag @files `
+              --title "ArtifactX $tag" `
+              --target "${{ github.sha }}" `
+              --generate-notes
 
       - name: Upload Artifacts to Workflow Run
         uses: actions/upload-artifact@v4
