@@ -72,3 +72,33 @@ game would not build.
    flattening (`BuildingSmoothingHeight/Radius`) near structures (the cave beacon stood beside one).
 
 Validation set: the six beacons in the table plus Slots 5 and 7; any candidate must keep the 0.0 m planets exact.
+
+## Findings, 2026-11-10 evening
+
+- **Layers 4 and 5** (unused by the ported height) are inactive on every beacon planet checked. Ruled out.
+- **Summing layers 0-3** instead of the ported max/min: matched the planet-5 open-ground beacon exactly (281.2 m) but
+  missed the other 17 by up to 28 m. Coincidence; the ported combination stays.
+- **Grid layers and features are active in every terrain setting** (VOXELGENERATORSETTINGS.MBIN, owner's install,
+  Min/Max sets; not in the catalog beyond feature Active flags):
+
+| Setting | Beacons (real - ported) | Grid layers | Features |
+| --- | --- | --- | --- |
+| 2 | +48.6, 0.0 | G0 sphere 8 m; G2-G8 spheres 10 m tall, 10-30 m wide, offset -8 | F6 Blob 50 |
+| 3 | +2.2 (x3) | as 2 | F2/F3 Tube 48 (+16); F4 Blob 50 (+15); F6 Blob 50 |
+| 4 | +13.5 (open ground), +2.7, +1.7 | G0 SuperFormula_03, G1 SuperFormula_08 256 x 256 (-160); G2-G8 | F4 Blob 256 (-16); F5 Blob 128 (+80); F6 Blob 50 |
+| 5 | +1.5, 0.0 | G0 sphere 256 (-205), G1 sphere 256 (+20); G2-G8 | F0 Blob 100 (-30); F1 Blob 100 sub (+25); F6 Blob 50 |
+| 6 | -7.5, +5.2, +3.3 | as 2 | F0 Tube 40 sub (+50); F6 Blob 50 |
+| 9 | +5.3 | G0 sphere / G1 cone 128 tall, 64-96 wide | F0 Tube 64 sub; F4 Blob 256 (+16); F6 Blob 50 |
+| 13 | +32.4, +6.9 | as 2 | F6 Blob 50 |
+| 22 | +3.5 | G2-G8 | F6 Blob 50 |
+| 24 | -3.0 | as 2 | as 3 |
+
+  The small G2-G8 spheres (rocks/boulders) fit the common +2 to +7 m. The 50 m Blob feature present everywhere fits
+  the +32 and +48 m beacons on settings 2 and 13, which have nothing larger. Setting 4's large superformula grids and
+  128/256 m blobs fit the planet-5 +13.5 m.
+
+**Conclusion:** the missing ground is the voxel generator's `Features` (TkNoiseFeatureData Blob/Tube: hills, trenches)
+and `GridLayers` (TkNoiseGridData primitives: rocks, formations), neither ported. Next: find the feature and grid
+evaluation in NMS.exe (callers of the uber-noise height around 0x14128AA20 / the voxel density builder), port Blob
+first (in every setting), extract Features and GridLayers into the catalog (new format), and re-run this beacon table;
+the target is every beacon within ~1 m except ones on structures or player-edited ground.
