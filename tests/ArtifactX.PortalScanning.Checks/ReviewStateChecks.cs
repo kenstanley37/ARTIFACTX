@@ -11,7 +11,7 @@ internal static class ReviewStateChecks
         var vm = new PortalScannerViewModel(fake, navigation) { AddressInput = "123456789ABC" };
         const string candidate = "FEDCBA987654";
         fake.Result = new(candidate, candidate.Select(c => new GlyphMatch(c, 0.1, 0.5)).ToArray(), "Review");
-        await vm.TakePhotoCommand.ExecuteAsync(null);
+        await vm.ChoosePhotoCommand.ExecuteAsync(null);
         Require(vm.AddressInput == "123456789ABC" && vm.HasReview && vm.ReviewInput == candidate,
             "A scan must stay separate until the player accepts it.");
         Require(!vm.IsKeypadOpen, "A scan review should show the address before opening correction keys.");
@@ -29,15 +29,15 @@ internal static class ReviewStateChecks
         foreach (var result in new PortalScanResult?[] { null, new(null, [], "Unreadable") })
         {
             fake.Result = result;
-            await vm.TakePhotoCommand.ExecuteAsync(null);
+            await vm.ChoosePhotoCommand.ExecuteAsync(null);
             Require(vm.AddressInput == candidate && !vm.HasReview && !vm.IsBusy, "Cancellation/failure changed the address.");
         }
         fake.Throw = true;
-        await vm.TakePhotoCommand.ExecuteAsync(null);
+        await vm.ChoosePhotoCommand.ExecuteAsync(null);
         Require(vm.AddressInput == candidate && !vm.IsBusy, "An exception lost input or left the scanner busy.");
         fake.Throw = false;
         fake.WaitForCancellation = true;
-        var pending = vm.TakePhotoCommand.ExecuteAsync(null);
+        var pending = vm.ChoosePhotoCommand.ExecuteAsync(null);
         await vm.ChoosePhotoCommand.ExecuteAsync(null);
         Require(fake.ActiveCalls == 1, "Two media operations overlapped.");
         vm.CancelScanCommand.Execute(null);
@@ -83,6 +83,8 @@ internal static class ReviewStateChecks
     {
         public string? Address { get; private set; }
         public int Galaxy { get; private set; }
+        public Task StartScanAsync() => Task.CompletedTask;
+        public Task OpenScanResultAsync(string portalCode, int galaxyNumber) => OpenAsync(portalCode, galaxyNumber);
         public Task OpenAsync(string portalCode, int galaxyNumber)
         {
             Address = portalCode;
@@ -97,7 +99,7 @@ internal static class ReviewStateChecks
         public bool Throw { get; set; }
         public bool WaitForCancellation { get; set; }
         public int ActiveCalls { get; private set; }
-        public async Task<PortalScanResult?> ScanAsync(bool useCamera, CancellationToken cancellationToken)
+        public async Task<PortalScanResult?> ScanAsync(CancellationToken cancellationToken)
         {
             ActiveCalls++;
             try

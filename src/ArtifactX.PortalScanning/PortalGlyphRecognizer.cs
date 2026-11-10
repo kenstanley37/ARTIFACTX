@@ -60,7 +60,7 @@ public sealed class PortalGlyphRecognizer(PortalGlyphModel model, Action<string>
                 }
         }
         int[] integral = BuildIntegral(brightness, width, height);
-        (GlyphMatch[] Matches, double Score)? best = null;
+        (GlyphMatch[] Matches, double Score, ScanRegion Region)? best = null;
         foreach (int threshold in new[] { 150, 190, 220 })
         {
             byte[] mask = new byte[brightness.Length];
@@ -118,7 +118,12 @@ public sealed class PortalGlyphRecognizer(PortalGlyphModel model, Action<string>
                         double score = matches.Average(m => m.Distance) + matches.Max(m => m.Distance) * 0.25;
                         if (best is null || score < best.Value.Score)
                         {
-                            best = (matches, score);
+                            int pad = (int)Math.Ceiling(Math.Abs(slope) * width);
+                            int shiftLeft = (int)Math.Round(slope * strip[0].Left) - pad;
+                            int shiftRight = (int)Math.Round(slope * strip[11].Right) - pad;
+                            var region = new ScanRegion(strip[0].Left, Math.Max(0, top + Math.Min(shiftLeft, shiftRight)),
+                                strip[11].Right, Math.Min(height, bottom + Math.Max(shiftLeft, shiftRight)));
+                            best = (matches, score, region);
                             diagnostic?.Invoke($"threshold={threshold}, slope={slope}, band={top}..{bottom}, x={strip[0].Left}..{strip[11].Right}: {new string(matches.Select(m => m.Digit).ToArray())}, score={score:F3}, certain={matches.Count(m => m.IsCertain)}");
                         }
                     }
@@ -130,7 +135,7 @@ public sealed class PortalGlyphRecognizer(PortalGlyphModel model, Action<string>
         var found = best.Value.Matches;
         return new(new string(found.Select(m => m.Digit).ToArray()), found,
             found.All(m => m.IsCertain) ? "Review the 12 glyphs before using this address." :
-            "Check the marked positions carefully before using this address.");
+            "Check the marked positions carefully before using this address.") { Region = best.Value.Region };
     }
 
     internal static List<(int X, int Y)> Points(byte[] mask, int width, int left, int top, int right, int bottom)

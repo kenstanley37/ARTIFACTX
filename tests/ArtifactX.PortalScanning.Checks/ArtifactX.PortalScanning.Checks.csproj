@@ -15,5 +15,8 @@
     <Compile Include="../../src/ArtifactX.Maui/Services/ISystemNavigationService.cs" Link="ISystemNavigationService.cs" />
     <Compile Include="../../src/ArtifactX.Maui/Services/RecentSystemsService.cs" Link="RecentSystemsService.cs" />
     <Compile Include="../../src/ArtifactX.Maui/Models/RecentSystemSummary.cs" Link="RecentSystemSummary.cs" />
+    <Compile Include="../../src/ArtifactX.Maui/ViewModels/LivePortalScannerViewModel.cs" Link="LivePortalScannerViewModel.cs" />
+    <Compile Include="../../src/ArtifactX.Maui/Services/IPortalFrameAnalyzer.cs" Link="IPortalFrameAnalyzer.cs" />
+    <Compile Include="../../src/ArtifactX.Maui/Services/IPortalPreviewSource.cs" Link="IPortalPreviewSource.cs" />
   </ItemGroup>
 </Project>

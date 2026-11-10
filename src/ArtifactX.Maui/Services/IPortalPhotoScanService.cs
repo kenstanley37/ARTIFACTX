@@ -4,5 +4,5 @@ namespace ArtifactX.Maui.Services;
 
 public interface IPortalPhotoScanService
 {
-    Task<PortalScanResult?> ScanAsync(bool useCamera, CancellationToken cancellationToken);
+    Task<PortalScanResult?> ScanAsync(CancellationToken cancellationToken);
 }

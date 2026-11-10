@@ -190,6 +190,9 @@ App:
 | SQLitePCLRaw | Apache-2.0 | https://github.com/ericsink/SQLitePCL.raw |
 | SQLite | Public domain | https://sqlite.org |
 | Velopack | MIT | https://github.com/velopack/velopack |
+| CameraMaui | MIT | https://github.com/janusw/CameraMaui |
+| Xamarin.Google.MLKit.TextRecognition and Android bindings | MIT (bindings); underlying Google ML Kit binaries subject to Google's ML Kit terms | https://github.com/dotnet/android-libraries and https://developers.google.com/ml-kit/terms |
+| ZXing.Net (CameraMaui dependency) | Apache-2.0 | https://github.com/micjahn/ZXing.Net |
 
 Game-data tool (DataCataloger, not shipped in the app):
 

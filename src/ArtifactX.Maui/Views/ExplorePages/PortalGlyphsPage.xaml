@@ -13,10 +13,10 @@
     <ScrollView>
         <VerticalStackLayout Padding="20,24" Spacing="16" MaximumWidthRequest="680" HorizontalOptions="Fill">
             <Label Text="Portal glyphs" Style="{StaticResource ThemePageTitleStyle}" />
-            <Label Text="Photograph the 12 glyphs on your TV or monitor. Keep the whole strip visible and as level as possible."
+            <Label Text="Point your phone at the 12 portal glyphs and the galaxy name beneath them. The scanner opens the system automatically once both are clear."
                    Style="{StaticResource ThemeBodyTextStyle}" />
             <Grid ColumnDefinitions="*,*" ColumnSpacing="12" IsEnabled="{Binding CanEdit}">
-                <Button Text="Take photo" Command="{Binding TakePhotoCommand}" SemanticProperties.Description="Take a photo of portal glyphs"
+                <Button Text="Scan screen" Command="{Binding StartLiveScanCommand}" SemanticProperties.Description="Scan portal glyphs and galaxy name with the live camera"
                         BackgroundColor="{DynamicResource ThemeAccentColor}" TextColor="{DynamicResource ThemeOnAccentColor}" />
                 <Button Grid.Column="1" Text="Choose photo" Command="{Binding ChoosePhotoCommand}" SemanticProperties.Description="Choose a photo or screenshot of portal glyphs"
                         BackgroundColor="{DynamicResource ThemePanelAltColor}" TextColor="{DynamicResource ThemeTextColor}" />

@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Mobile camera scanning now watches portal glyphs and the galaxy name together, opening system details automatically after stable readings without taking a photo.
+
 - Mobile portal addresses now open system details with planets, moons and possible starships, and recently opened systems appear on Home.
 
 - Mobile portal scanner: take or choose a photo of a glyph strip, review and correct the address, then select its galaxy to look up the system. Unreadable photos leave your entered address intact.

@@ -48,15 +48,20 @@ public sealed record PortalGlyphModel(int Version, string GameBuild, GlyphShapeE
 
 public sealed record GlyphMatch(char Digit, double Distance, double Margin)
 {
-    // An acceptance heuristic, not a calibrated probability. Every result still requires review.
+    // An acceptance heuristic, not a calibrated probability. Photo imports require review;
+    // live scans additionally require a complete galaxy/address pair and repeated-frame agreement.
     public bool IsCertain => Distance < 0.30 && Margin > 0.20;
 }
 
 public sealed record PortalScanResult(string? Candidate, IReadOnlyList<GlyphMatch> Glyphs, string Message)
 {
+    public ScanRegion? Region { get; init; }
     public bool HasCandidate => Candidate is { Length: 12 };
     public bool NeedsCorrection => Glyphs.Any(g => !g.IsCertain);
 }
 
 [JsonSerializable(typeof(PortalGlyphModel))]
 public partial class PortalGlyphModelJsonContext : JsonSerializerContext;
+
+/// <summary>Glyph-strip bounds in upright image pixels, including shallow viewing-angle shear.</summary>
+public sealed record ScanRegion(int Left, int Top, int Right, int Bottom);

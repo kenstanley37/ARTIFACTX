@@ -12,7 +12,7 @@ namespace ArtifactX.Maui.ViewModels;
 
 /// <summary>
 /// Retains committed input while a separate scan candidate is reviewed. A failed/cancelled scan
-/// never changes the accepted address. Galaxy is always player-selected, not guessed from a photo.
+/// never changes the accepted address. Manual and imported addresses retain a player-selected galaxy; live scanning reads the galaxy from screen text.
 /// </summary>
 public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scanner, ISystemNavigationService navigation) : ObservableObject
 {
@@ -37,7 +37,7 @@ public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scann
     public partial bool IsBusy { get; set; }
     public bool CanEdit => !IsBusy;
     [ObservableProperty]
-    public partial string Status { get; set; } = "Take a photo of the 12 glyphs, or enter them in order.";
+    public partial string Status { get; set; } = "Scan the glyphs and galaxy name on your screen, or enter an address by hand.";
     [ObservableProperty]
     public partial string SystemSummary { get; set; } = "";
     [ObservableProperty]
@@ -62,11 +62,11 @@ public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scann
     }
 
     [RelayCommand]
-    private Task TakePhotoAsync() => ScanAsync(true);
+    private Task StartLiveScanAsync() => navigation.StartScanAsync();
     [RelayCommand]
-    private Task ChoosePhotoAsync() => ScanAsync(false);
+    private Task ChoosePhotoAsync() => ScanAsync();
 
-    private async Task ScanAsync(bool camera)
+    private async Task ScanAsync()
     {
         if (IsBusy) return;
         IsBusy = true;
@@ -74,7 +74,7 @@ public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scann
         Status = "Reading portal glyphs…";
         try
         {
-            var result = await scanner.ScanAsync(camera, _scanCancellation.Token);
+            var result = await scanner.ScanAsync(_scanCancellation.Token);
             if (result is null) { Status = "Photo selection cancelled."; return; }
             Status = result.Message;
             if (!result.HasCandidate) return;

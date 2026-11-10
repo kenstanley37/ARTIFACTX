@@ -9,6 +9,7 @@ static void Require(bool condition, string message)
 }
 
 await ReviewStateChecks.RunAsync();
+await LiveScanChecks.RunAsync();
 
 byte[] speckles = new byte[30];
 foreach (int i in new[] { 7, 8, 9, 10, 11, 12 }) speckles[i] = 1;
