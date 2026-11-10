@@ -8,6 +8,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 - Mobile camera scanning now shows moving brackets around detected portal details and a green lock before opening the system.
 
+- Mobile system details show the address as glyph pictures, ready to dial at a portal.
+
 - Mobile camera scanning now watches portal glyphs and the galaxy name together, opening system details automatically after stable readings without taking a photo.
 
 - Mobile portal addresses now open system details with planets, moons and possible starships, and recently opened systems appear on Home.
@@ -25,7 +27,9 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 - Mobile live scans now keep matching readings on slower phones and restart the camera after returning to the app.
 
-- Mobile live scans read each camera frame faster, especially while following the same glyph strip, and no longer restart when one symbol is briefly unclear over bright scenery.
+- Mobile live scans now usually open the system within a few seconds: line up the glyphs in the on-screen box. Scans no longer restart when one symbol is briefly unclear over bright scenery or the phone wobbles.
+
+- Mobile glyph keys and review now use clearer, bolder glyph pictures with their common names.
 
 - Mobile glyph review now draws the glyph symbols correctly, keeps the address in two rows, and opens correction keys when you select a position.
 

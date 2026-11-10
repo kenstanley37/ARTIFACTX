@@ -3,10 +3,15 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:vm="clr-namespace:ArtifactX.Maui.ViewModels"
+    xmlns:art="clr-namespace:ArtifactX.Core.Theming;assembly=ArtifactX.Core"
+    xmlns:helpers="clr-namespace:ArtifactX.Maui.Helpers.PortalGlyphs"
     x:Class="ArtifactX.Maui.Views.ExplorePages.SystemDetailsPage"
     x:DataType="vm:SystemFromGlyphsViewModel"
     Shell.NavBarIsVisible="False"
     Background="{DynamicResource ThemePageBackdropBrush}">
+    <ContentPage.Resources>
+        <helpers:PortalGlyphGeometryConverter x:Key="GlyphGeometryConverter" />
+    </ContentPage.Resources>
     <Grid>
     <ScrollView>
         <VerticalStackLayout Padding="20,20,20,28" Spacing="16" MaximumWidthRequest="720" HorizontalOptions="Fill">
@@ -15,6 +20,19 @@
             <Label Text="{Binding SystemName}" Style="{StaticResource ThemePageTitleStyle}" />
             <Label Text="{Binding RegionAndGalaxySubtitle}" Style="{StaticResource ThemeBodyTextStyle}" />
             <Label Text="{Binding CoordinatesAndDistanceText}" Style="{StaticResource ThemeBodyTextStyle}" />
+            <!-- The address as glyph pictures, in the order they are dialled at a portal. -->
+            <Border Style="{StaticResource ThemeCardAltStyle}" Padding="10,8"
+                    SemanticProperties.Description="{Binding GlyphsDescription}">
+                <FlexLayout BindableLayout.ItemsSource="{Binding GlyphVectors}" Wrap="NoWrap" JustifyContent="SpaceBetween">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="art:PortalGlyphVector">
+                            <Path Data="{Binding PathData, Converter={StaticResource GlyphGeometryConverter}}"
+                                  Fill="{DynamicResource ThemeTextBrush}" Aspect="Uniform"
+                                  WidthRequest="24" HeightRequest="24" FlexLayout.Shrink="1" />
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </FlexLayout>
+            </Border>
             <Label Text="Generated names may differ from names chosen by players." Style="{StaticResource ThemeDimTextStyle}" />
             <Label Text="{Binding StarPill}" Style="{StaticResource ThemeBodyTextStyle}" />
             <Label Text="{Binding RacePill}" Style="{StaticResource ThemeBodyTextStyle}" />

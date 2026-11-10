@@ -86,13 +86,27 @@ public sealed class PortalFrameAnalyzer(IGalaxyTextReader textReader) : IPortalF
                     _trackedRegion = tracked.Region;
                     return tracked;
                 }
-                PortalScanDiagnostics.Write("Tracked search missed; full-frame search");
+                PortalScanDiagnostics.Write("Tracked search missed");
             }
         }
-        // Moving the phone away from the previous strip must recover through a full-frame search.
+        // Then the guide box the player is asked to fill; the full frame only every third miss, so a strip
+        // held outside the box is still found and tracked without paying a full search on every frame.
+        var guided = recognizer.Recognize(image, cancellationToken, PortalScanTarget.Guide.ToRegion(image.Width, image.Height, 0.04));
+        if (guided.HasCandidate || ++_missesSinceFullSearch < FullSearchEvery)
+        {
+            PortalScanDiagnostics.Write(guided.HasCandidate ? "Guide search hit" : "Guide search missed");
+            _trackedRegion = guided.Region;
+            if (guided.HasCandidate) _missesSinceFullSearch = 0;
+            return guided;
+        }
+        _missesSinceFullSearch = 0;
+        PortalScanDiagnostics.Write("Full-frame search");
         var result = recognizer.Recognize(image, cancellationToken);
         _trackedRegion = result.Region;
         return result;
     }
+
+    private const int FullSearchEvery = 3;
+    private int _missesSinceFullSearch;
 
 }

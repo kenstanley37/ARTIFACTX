@@ -36,7 +36,10 @@ public sealed class CameraPreviewSource(CameraView camera) : IPortalPreviewSourc
     {
         cancellationToken.ThrowIfCancellationRequested();
         // Snapshot APIs sample preview pixels: there is no still capture, shutter or gallery write.
-        using var frame = camera.GetSnapShotStream(Camera.MAUI.ImageFormat.PNG);
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        // JPEG, not PNG: on the Pixel 7 Pro (Release, 2026-11-10) PNG encoding alone took ~600 ms per frame.
+        using var frame = camera.GetSnapShotStream(Camera.MAUI.ImageFormat.JPEG);
+        PortalScanDiagnostics.Write($"Snapshot: {watch.ElapsedMilliseconds} ms");
         if (frame is null) return null;
         var owned = new MemoryStream();
         try

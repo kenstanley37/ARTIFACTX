@@ -31,8 +31,8 @@
                                         CommandParameter="{Binding .}" SemanticProperties.Description="{Binding AccessibleName}"
                                         BackgroundColor="{DynamicResource ThemePanelAltColor}" />
                                 <VerticalStackLayout Padding="4" Spacing="2" InputTransparent="True">
-                                <Path Data="{Binding PathData, Converter={StaticResource GlyphGeometryConverter}}" Stroke="{DynamicResource ThemeTextBrush}" StrokeThickness="1.6"
-                                      Aspect="Uniform" WidthRequest="28" HeightRequest="28" HorizontalOptions="Center" InputTransparent="True" />
+                                <Path Data="{Binding PathData, Converter={StaticResource GlyphGeometryConverter}}" Fill="{DynamicResource ThemeTextBrush}"
+                                      Aspect="Uniform" WidthRequest="32" HeightRequest="32" HorizontalOptions="Center" InputTransparent="True" />
                                 <Label Text="{Binding Label}" FontSize="14" HorizontalTextAlignment="Center" TextColor="{DynamicResource ThemeAccentColor}" />
                                 </VerticalStackLayout>
                             </Grid>
@@ -55,7 +55,7 @@
                                         Command="{Binding Source={RelativeSource AncestorType={x:Type vm:PortalScannerViewModel}}, Path=TapGlyphCommand}"
                                         CommandParameter="{Binding .}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
                                 <VerticalStackLayout Padding="6" Spacing="4" InputTransparent="True">
-                                <Path Data="{Binding PathData, Converter={StaticResource GlyphGeometryConverter}}" Stroke="{DynamicResource ThemeTextBrush}" StrokeThickness="1.6" Aspect="Uniform" WidthRequest="28" HeightRequest="28" HorizontalOptions="Center" />
+                                <Path Data="{Binding PathData, Converter={StaticResource GlyphGeometryConverter}}" Fill="{DynamicResource ThemeTextBrush}" Aspect="Uniform" WidthRequest="40" HeightRequest="40" HorizontalOptions="Center" />
                                 <Label Text="{Binding Name}" FontSize="12" HorizontalTextAlignment="Center" TextColor="{DynamicResource ThemeTextColor}" />
                                 </VerticalStackLayout>
                             </Grid>

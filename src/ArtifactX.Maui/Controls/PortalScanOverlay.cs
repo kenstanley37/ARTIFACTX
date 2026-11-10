@@ -5,7 +5,9 @@ namespace ArtifactX.Maui.Controls;
 /// <summary>Draws and animates camera framing brackets; never samples or modifies camera pixels.</summary>
 public sealed class PortalScanOverlay : GraphicsView, IDrawable
 {
-    private RectF _rendered = new(0.08f, 0.37f, 0.84f, 0.22f);
+    private static readonly RectF GuideRect = new((float)PortalScanTarget.Guide.X, (float)PortalScanTarget.Guide.Y,
+        (float)PortalScanTarget.Guide.Width, (float)PortalScanTarget.Guide.Height);
+    private RectF _rendered = GuideRect;
     private const string TrackAnimation = "PortalTargetTracking";
 
     public static readonly BindableProperty TargetProperty = BindableProperty.Create(nameof(Target), typeof(PortalScanTarget),
@@ -39,7 +41,7 @@ public sealed class PortalScanOverlay : GraphicsView, IDrawable
         var from = view._rendered;
         var to = newValue is PortalScanTarget target
             ? new RectF((float)target.X, (float)target.Y, (float)target.Width, (float)target.Height)
-            : new RectF(0.08f, 0.37f, 0.84f, 0.22f);
+            : GuideRect;
         view.AbortAnimation(TrackAnimation);
         view.Animate(TrackAnimation, amount =>
         {

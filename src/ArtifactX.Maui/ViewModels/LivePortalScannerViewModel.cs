@@ -12,7 +12,7 @@ public sealed partial class LivePortalScannerViewModel(IPortalFrameAnalyzer anal
     [ObservableProperty]
     public partial bool IsRunning { get; set; }
     [ObservableProperty]
-    public partial string Status { get; set; } = "Point at the glyphs and galaxy name together.";
+    public partial string Status { get; set; } = "Fit the 12 glyphs and the galaxy name inside the box.";
     [ObservableProperty]
     public partial string AddressPreview { get; set; } = "Searching for 12 glyphs";
     [ObservableProperty]
@@ -31,7 +31,7 @@ public sealed partial class LivePortalScannerViewModel(IPortalFrameAnalyzer anal
         ScanTarget = null;
         AddressPreview = "Searching for 12 glyphs";
         GalaxyPreview = "Searching for galaxy name";
-        Status = "Point at the glyphs and galaxy name together.";
+        Status = "Fit the 12 glyphs and the galaxy name inside the box.";
         var stable = new LivePortalScanState();
         var clock = Stopwatch.StartNew();
         try
@@ -53,7 +53,7 @@ public sealed partial class LivePortalScannerViewModel(IPortalFrameAnalyzer anal
                 var accepted = stable.Observe(observation, capturedAt, clock.Elapsed);
                 Status = stable.MatchingFrames >= LivePortalScanState.RequiredFrames ? "Hold steady: confirming the last symbols" :
                     stable.MatchingFrames > 0 ? $"Hold steady: {stable.MatchingFrames} of {LivePortalScanState.RequiredFrames} matching readings" :
-                    "Keep all 12 glyphs and the galaxy name beneath them visible. Move closer if the text is too small.";
+                    "Fit the 12 glyphs and the galaxy name inside the box. Move closer if the text is too small.";
                 if (accepted is not null)
                 {
                     IsLocked = true;
@@ -65,7 +65,8 @@ public sealed partial class LivePortalScannerViewModel(IPortalFrameAnalyzer anal
                     return;
                 }
                 // Backpressure: process one frame fully before sampling another; never queue stale frames.
-                await Task.Delay(350, cancellationToken);
+                // A short pause keeps the preview smooth without adding much to a ~1 s lock.
+                await Task.Delay(100, cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }

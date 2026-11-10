@@ -22,6 +22,8 @@ public sealed class LivePortalScanState
     private LivePortalAddress? _candidate;
     private TimeSpan _lastFrame;
     private TimeSpan _lastCompleted;
+    private const int AllowedEmptyFrames = 2;
+    private int _emptyFrames;
     private readonly int[] _confident = new int[12];
     public int MatchingFrames { get; private set; }
 
@@ -30,11 +32,19 @@ public sealed class LivePortalScanState
         TimeSpan completed = completedAt ?? capturedAt;
         if (completed < capturedAt) { Reset(); return null; }
         var glyphs = observation.Glyphs;
-        if (!glyphs.HasCandidate || glyphs.Candidate!.Any(c => !"0123456789ABCDEF".Contains(c)) || glyphs.Glyphs.Count != 12 ||
-            !PortalScanQuality.CanReview(glyphs.Glyphs) ||
-            glyphs.Candidate != new string(glyphs.Glyphs.Select(g => g.Digit).ToArray()) ||
-            observation.GalaxyNumber is not (>= 1 and <= 256))
-        { Reset(); return null; }
+        bool validStrip = glyphs.HasCandidate && glyphs.Candidate!.All(c => "0123456789ABCDEF".Contains(c)) && glyphs.Glyphs.Count == 12 &&
+            PortalScanQuality.CanReview(glyphs.Glyphs) &&
+            glyphs.Candidate == new string(glyphs.Glyphs.Select(g => g.Digit).ToArray());
+        if (!validStrip || observation.GalaxyNumber is not (>= 1 and <= 256))
+        {
+            // A strip that disagrees with the current candidate is a conflict. A frame with nothing usable
+            // (hand moved, motion blur, galaxy text not read) carries no evidence either way: a short run of
+            // them keeps agreement, so one blurred frame does not restart a hand-held scan.
+            if (validStrip && _candidate is not null && glyphs.Candidate != _candidate.PortalCode) { Reset(); return null; }
+            if (++_emptyFrames > AllowedEmptyFrames) Reset();
+            return null;
+        }
+        _emptyFrames = 0;
 
         var next = new LivePortalAddress(glyphs.Candidate!, observation.GalaxyNumber.Value);
         if (_candidate != next || capturedAt <= _lastFrame || capturedAt - _lastCompleted > TimeSpan.FromSeconds(10))
@@ -53,7 +63,7 @@ public sealed class LivePortalScanState
 
     public void Reset()
     {
-        _candidate = null; MatchingFrames = 0; _lastFrame = default; _lastCompleted = default;
+        _candidate = null; MatchingFrames = 0; _lastFrame = default; _lastCompleted = default; _emptyFrames = 0;
         Array.Clear(_confident);
     }
 }

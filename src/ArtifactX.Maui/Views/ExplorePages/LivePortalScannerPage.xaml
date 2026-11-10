@@ -9,7 +9,7 @@
              Shell.NavBarIsVisible="True" Title="Scan portal address"
              BackgroundColor="{DynamicResource ThemeVoidColor}">
     <Grid RowDefinitions="*,Auto">
-        <camera:CameraView x:Name="Preview" Grid.Row="0" SemanticProperties.Description="Live camera preview. Point at the 12 portal glyphs and galaxy name below them." />
+        <camera:CameraView x:Name="Preview" Grid.Row="0" SemanticProperties.Description="Live camera preview. Fit the 12 portal glyphs and the galaxy name below them inside the box." />
         <controls:PortalScanOverlay Grid.Row="0" Target="{Binding ScanTarget}" IsLocked="{Binding IsLocked}"
                                     GuideColor="{DynamicResource ThemeTextColor}"
                                     TrackingColor="{DynamicResource ThemeAccentColor}"

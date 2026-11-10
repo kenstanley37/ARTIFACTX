@@ -21,6 +21,11 @@ internal static class LiveScanChecks
         Require(PortalScanTarget.FromRegion(new(80, 30, 20, 10), 200, 100) is null &&
             PortalScanTarget.FromRegion(new(20, 10, 80, 30), 0, 100) is null, "Invalid preview bounds were accepted.");
 
+        var guide = PortalScanTarget.Guide.ToRegion(1000, 2000);
+        Require(guide is { Left: 60, Top: 720, Right: 940, Bottom: 1200 }, "Guide box did not map to image pixels.");
+        Require(PortalScanTarget.Guide.ToRegion(1000, 2000, 0.5) is { Left: 0, Top: 0, Right: 1000, Bottom: 2000 },
+            "Widened guide box escaped the image.");
+
         var a = Observation("11FA016452DB", 110);
         var b = Observation("21FA016452DB", 110);
         var state = new LivePortalScanState();
@@ -56,6 +61,24 @@ internal static class LiveScanChecks
         state.Observe(uncertain, TimeSpan.FromSeconds(2));
         state.Observe(uncertain, TimeSpan.FromSeconds(3));
         Require(state.Observe(uncertain, TimeSpan.FromSeconds(4)) is null, "A never-confident position was accepted.");
+        var empty = new LivePortalObservation(new(null, [], ""), null);
+        state.Reset();
+        state.Observe(a, TimeSpan.FromSeconds(1));
+        state.Observe(a, TimeSpan.FromSeconds(2));
+        state.Observe(empty, TimeSpan.FromSeconds(3));
+        state.Observe(a with { GalaxyNumber = null }, TimeSpan.FromSeconds(4));
+        Require(state.MatchingFrames == 2, "Frames with nothing usable discarded hand-held agreement.");
+        Require(state.Observe(a, TimeSpan.FromSeconds(5)) is not null, "Agreement did not resume after brief empty frames.");
+        state.Reset();
+        state.Observe(a, TimeSpan.FromSeconds(1));
+        state.Observe(a, TimeSpan.FromSeconds(2));
+        state.Observe(empty, TimeSpan.FromSeconds(3));
+        state.Observe(empty, TimeSpan.FromSeconds(4));
+        state.Observe(empty, TimeSpan.FromSeconds(5));
+        Require(state.MatchingFrames == 0, "A long run of empty frames retained agreement.");
+        state.Observe(a, TimeSpan.FromSeconds(6));
+        state.Observe(b with { GalaxyNumber = null }, TimeSpan.FromSeconds(7));
+        Require(state.MatchingFrames == 0, "A conflicting strip without a galaxy kept agreement.");
         state.Reset();
         state.Observe(a, TimeSpan.FromSeconds(6));
         state.Observe(a, TimeSpan.FromSeconds(6));

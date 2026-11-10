@@ -43,7 +43,11 @@ public sealed partial class SystemFromGlyphsViewModel : ObservableObject
     public partial string ConflictPill { get; set; } = "";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GlyphsDescription))]
     public partial IReadOnlyList<PortalGlyphVector> GlyphVectors { get; set; } = [];
+
+    /// <summary>Screen-reader text for the glyph strip, in dialling order.</summary>
+    public string GlyphsDescription => "Portal glyphs: " + string.Join(", ", GlyphVectors.Select(g => g.Name));
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsPlanetsTabSelected), nameof(IsShipsTabSelected), nameof(IsMultiToolsTabSelected))]

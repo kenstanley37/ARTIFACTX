@@ -54,3 +54,17 @@ Per-step Debug timings: decode 35-85 ms; full glyph search 2.1-3.9 s (no strip) 
 - Results: four locks onto `Gelatanes XVIII`; the last, with the new rule, locked 13 s after the strip first appeared, with an uncertain final symbol on the locking frame.
 
 Open: one cropped tracked hit took 4.9 s on the phone (0.2 s on desktop for comparable crops) while the phone's CPU sensor read 90 C after ~30 min of continuous scanning and charging. Debug-on-Android timings are unreliable; the next measurement should be a Release APK. Tracking still misses on some hand-held frames; the vertical margin (half a strip height) may be too tight.
+
+## Release timing, guide-box search and empty-frame tolerance (2026-11-10, Claude)
+
+Release APK with `-p:ScanDiagnostics=true` (logs are compiled out of normal Release builds). Before these changes a Release frame cycle was ~2.2 s: PNG snapshot ~600 ms, decode ~80 ms, full-frame search 1.05-1.26 s (Debug: 3.8 s), 350 ms pause.
+
+- Snapshot as JPEG: 30-130 ms.
+- Search order: tracked strip area, then `PortalScanTarget.Guide` (the bracket box, widened by 4% of the frame), and the full frame only every third miss. Box search 0.4-0.7 s.
+- Pause between frames 100 ms.
+- Tracking margin widened to one strip height vertically and two horizontally; half a strip missed most hand-held frames. Reference runner re-reads all seven strips in place.
+- `LivePortalScanState` ignores up to two consecutive frames with nothing usable (no strip, or strip without a read galaxy name). A strip that disagrees still resets.
+
+Pixel result, hand-held at the monitor: frames 0.55-0.9 s; locked 2.4 s after the strip first appeared, 4.6 s after the camera opened.
+
+Glyph artwork: `ArtifactXPortalGlyphs` replaced with ArtifactX's own filled cartoon silhouettes (48x48, even-odd), named Sunset, Bird, Face, Diplo, Eclipse, Balloon, Boat, Bug, Dragonfly, Galaxy, Voxel, Fish, Tent, Rocket, Tree, Atlas. No game assets used. Verified on the Pixel: the keypad entered `3045FBFFB004` and System details shows the strip.

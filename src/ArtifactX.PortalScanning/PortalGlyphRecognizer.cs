@@ -33,12 +33,15 @@ public sealed class PortalGlyphRecognizer(PortalGlyphModel model, Action<string>
             : result;
     }
 
-    /// <summary>Search area around a strip found in the previous frame, allowing for small hand movement.</summary>
+    /// <summary>
+    /// Search area around a strip found in the previous frame, allowing for hand movement between frames
+    /// (~0.7 s apart). A half-strip vertical margin missed most hand-held Pixel frames on 2026-11-10.
+    /// </summary>
     public static ScanRegion TrackingArea(ScanRegion previous, int imageWidth, int imageHeight)
     {
         int height = Math.Max(8, previous.Bottom - previous.Top);
-        int margin = Math.Max(height, (previous.Right - previous.Left) / 12);
-        int verticalMargin = Math.Max(12, height / 2);
+        int margin = Math.Max(height * 2, (previous.Right - previous.Left) / 8);
+        int verticalMargin = Math.Max(16, height);
         return new(Math.Max(0, previous.Left - margin), Math.Max(0, previous.Top - verticalMargin),
             Math.Min(imageWidth, previous.Right + margin), Math.Min(imageHeight, previous.Bottom + verticalMargin));
     }
