@@ -33,5 +33,6 @@ These scripts are not part of the app.
 | `regionport.py` | Random-stream checkpoints between generator stages. |
 | `segconsts.py`, `noisetest.py` | Constant/jump-table dump and direct noise-routine test. |
 | `static/` | Static helpers: disassembly, call sites, rip-relative references, byte search, `.pdata` bounds, data peeks. |
+| `nmsbuild.py`, `static/remap.py`, `static/insdiff.py`, `static/ExportBlocks.java` | After a game update: export the old build from its Ghidra project (`ExportBlocks.java`, headless, read-only), find each emulator address in the new NMS.exe (`remap.py`, masked byte match; `VERIFY=old:new,...` checks whole bodies), list any real code change (`insdiff.py`), then add the build's row to `nmsbuild.py`. Emulators call `A(0x...)` with build-184271 addresses. Keep the old build's Ghidra project until the new row is in. |
 
 Run with plain `python` (not `-I`): the packages are usually user-site installs.

@@ -128,3 +128,10 @@ table setup. Live reads still work: planet 5's building block was found at 0x1BB
 `.data` snapshot must be keyed at ImageBase (scratch `data_snapshot.py` does this). Next session: re-find the
 184271 functions in 185034 by byte signatures (static helpers in `scripts/research/region-generator/static/`), then
 run step 2.
+
+**Unblocked, 2026-11-10 (later):** build 185034 is Forsaken 7.14. The 184271 code came from the Ghidra project of
+2026-11-05 (`static/ExportBlocks.java`, read-only); `static/remap.py` found all 13 emulator functions in 185034 by masked
+byte match, and every body is the same code (only moved: +0x3A0 for the terrain functions, +0x5E0 for the frame
+allocator). `nmsbuild.py` maps the 184271 addresses for the installed build; `emu_far.py` and `emu_columns.py` call
+`A(0x...)`. `emu_columns.py` now runs on the planet-5 snapshot taken today: column 4 (the beacon) 267.67 m, as Core's
+`Height`. Step 2 still needs a live Far region dump around the beacon (game loaded on planet 5 of system 0052, Slot 8).
