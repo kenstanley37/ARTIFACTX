@@ -120,3 +120,11 @@ layers reach it. Plan:
    catalog and port their evaluation; re-run the beacon table above.
 
 Check first that the installed NMS.exe is still build 184271 (the emulator's addresses).
+
+**Blocked, 2026-11-10:** the installed NMS.exe is build **185034** (updated 2026-11-09); every emulator address
+(`emu_columns.py`, `emu_far.py`, 0x14128DB30, 0x1412B5F70...) is from 184271, and `emu_columns.py` now crashes in the
+table setup. Live reads still work: planet 5's building block was found at 0x1BBB66E8798 (UA 00505200FF67B291) with
+`read_planet_object_live.py`, and the game loads at an ASLR base (0x7FF743AE0000 vs ImageBase 0x140000000), so a
+`.data` snapshot must be keyed at ImageBase (scratch `data_snapshot.py` does this). Next session: re-find the
+184271 functions in 185034 by byte signatures (static helpers in `scripts/research/region-generator/static/`), then
+run step 2.
