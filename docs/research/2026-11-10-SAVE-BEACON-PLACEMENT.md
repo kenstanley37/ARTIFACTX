@@ -54,3 +54,21 @@ voxel generator around 0x14128AA20 (the ported height) and find what else feeds 
 near-LOD. Validate against the owner's real beacons in the table above (Slot 8 save files from 16:33 are a clean pair).
 Then place at the real ground, and add the RegionLimit/PlanetLimit to the catalog so ArtifactX can refuse a beacon the
 game would not build.
+
+## Leads (not yet tested)
+
+`TkVoxelGeneratorData` has four terrain parts; Core ports only `NoiseLayers` (8 uber-noise layers):
+
+1. **Noise layer LOD gating.** Each `TkNoiseUberLayerData`/`TkNoiseGridData` has `MaximumLOD`. If some layers only
+   contribute at near LODs, the ported height (0x14128AA20) may be the far-LOD surface, and the ground the player
+   stands on adds those layers. Best fit for an even +13.5 m on open, flat ground. Check how 0x14128AA20 is called
+   (LOD argument) and which layers the near-LOD path adds.
+2. **`GridLayers` (`TkNoiseGridData[]`):** 3D primitives (Cube, Cone, Torus, Sphere, Cylinder, Capsule, Corridor,
+   Pipe, Puck, SuperFormula 1-8, SuperPrimitive, File) with Min/MaxHeight, offsets, region ratio/scale. Rock
+   formations and arches: local, so unlikely to explain uniform offsets, but they will matter near formations.
+3. **`Features` (`TkNoiseFeatureData[]`, Tube or Blob, Height/HeightOffset/Subtract/Trench):** only their Active flags
+   are in the catalog (for draw counting). Same local caveat.
+4. **Voxel quantisation** (`PlanetShopCabinetGenerator.FarGridValue`, u16 density per layer) and building
+   flattening (`BuildingSmoothingHeight/Radius`) near structures (the cave beacon stood beside one).
+
+Validation set: the six beacons in the table plus Slots 5 and 7; any candidate must keep the 0.0 m planets exact.
