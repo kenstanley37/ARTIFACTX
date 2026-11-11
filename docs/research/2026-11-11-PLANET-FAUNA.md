@@ -60,6 +60,23 @@ Working folder as third argument compares them (read-only), by discovery year (`
 307 of 335 planets have every recorded creature predicted. Next: the 37 current-version misses (which planets,
 which roles), then the name seeds `bEr[2]`/`bEr[3]` that `SpeciesNames.Fauna` turns into the species name.
 
+## Name seeds bEr[2] / bEr[3]: not from the planet (2026-11-11)
+
+A creature discovery's `bEr` is [creature seed (predicted, above), type value, name seed A, name seed B, optional 5th].
+`SpeciesNames.Fauna` makes the species name from A and B (`bEr[2]`, `bEr[3]`). From the 1,494 discoveries whose seed is
+predicted (`fauna-check` "probe" and "name seeds" lines):
+
+- `bEr[1]` is fixed per creature kind across all planets (every BIRD: E7CAD69E2F26FF55), but not unique per id
+  (CRAB and SPIDER share one): probably the model or body plan.
+- `bEr[3]` is never shared between planets and mostly differs per creature; on 100 of 156 planets with several 2026
+  discoveries, creatures with the same `bEr[1]` share it.
+- Neither A nor B equals the planet seed, any of its 26 child seeds, the address, the creature seed or Mix64 of it.
+- `GcCreatureRoleData.Info` (GcCreatureInfo) holds only descriptive traits, no seeds.
+
+So the name seeds are added when the live creature is discovered. Next: in Ghidra, find the code that builds an
+"Animal" discovery key and writes its +0x18 / +0x20 (the species namer at 184271 `0x140524d3b` reads them), and
+follow those values back to the spawned creature.
+
 ## Next layers
 
 1. ~~Waterworld air rule~~ (solved above).

@@ -110,6 +110,9 @@ if (args.Length > 2)
     int found = 0, missingSeed = 0;
     var seen = new HashSet<(ulong, ulong)>();
     var planetCache = new Dictionary<ulong, HashSet<ulong>>();
+    var creatureBySeed = new Dictionary<ulong, (PredictedCreature C, ulong PlanetSeed)>();
+    var probe = new List<string>();
+    var nameProbe = new List<(ulong Seed, ulong B2, ulong B3, ulong PlanetSeed, ulong Address)>();
     var examples = new List<string>();
     var perPlanet = new Dictionary<ulong, (int, int)>();
     var byYear = new SortedDictionary<int, (int, int)>();
@@ -145,7 +148,7 @@ if (args.Length > 2)
                     {
                         var p = PlanetProfileGenerator.Generate(bodySeeds[i], i, types[i], (int)attributes.Star, PlanetGenerator.GalaxyType(galaxy),
                             attributes.GasGiantPlanet, profiles, attributes.Uncharted, attributes.Abandoned);
-                        foreach (var c in p.PredictedCreatures ?? []) seeds.Add(c.Seed);
+                        foreach (var c in p.PredictedCreatures ?? []) { seeds.Add(c.Seed); creatureBySeed[c.Seed] = (c, bodySeeds[i]); }
                     }
                 }
                 catch { }
@@ -157,6 +160,12 @@ if (args.Length > 2)
             int year = when > 0 ? DateTimeOffset.FromUnixTimeSeconds(when).Year : 0;
             var yt = byYear.TryGetValue(year, out var y0) ? y0 : (0, 0);
             byYear[year] = seeds.Contains(seed) ? (yt.Item1 + 1, yt.Item2) : (yt.Item1, yt.Item2 + 1);
+            if (seeds.Contains(seed) && v.Count >= 4 && creatureBySeed.TryGetValue(seed, out var pn)
+                && ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ParsePackedAddress(v[2]) is ulong b2
+                && ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ParsePackedAddress(v[3]) is ulong b3)
+                nameProbe.Add((seed, b2, b3, pn.PlanetSeed, address));
+            if (seeds.Contains(seed) && probe.Count < 14 && creatureBySeed.TryGetValue(seed, out var pc))
+                probe.Add($"{address:X} {pc.C.Id,-14} role {pc.C.Role} planetSeed {pc.PlanetSeed:X16} bEr [{string.Join(", ", v.Select(x => ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ParsePackedAddress(x)?.ToString("X16")))}]");
             if (seeds.Contains(seed)) found++;
             else { missingSeed++; if (examples.Count < 6) examples.Add($"{address:X} seed {seed:X16} predicted [{string.Join(",", seeds.Take(4).Select(s => s.ToString("X16")))}...]"); }
         }
@@ -165,6 +174,24 @@ if (args.Length > 2)
     var all = perPlanet.Where(k => k.Value.Item1 == 0 && k.Value.Item2 > 0).ToList();
     var part = perPlanet.Where(k => k.Value.Item1 > 0 && k.Value.Item2 > 0).ToList();
     Console.WriteLine($"planets {perPlanet.Count}: all found {perPlanet.Count(k => k.Value.Item2 == 0)}, none found {all.Count} ({all.Sum(k => k.Value.Item2)} creatures), some missing {part.Count} ({part.Sum(k => k.Value.Item2)} creatures)");
+    foreach (var line in probe) Console.WriteLine("probe " + line);
+    // Where do bEr[2] and bEr[3] come from? Test candidates for matched discoveries.
+    static ulong Mix(ulong v) { v = (v ^ (v >> 33)) * 0x64DD81482CBD31D7UL; v = (v ^ (v >> 33)) * 0xE36AA5C613612997UL; return v ^ (v >> 33); }
+    var hits3 = new Dictionary<string, int>(); var hits2 = new Dictionary<string, int>(); int tested = 0;
+    foreach (var (discSeed, b2, b3, planetSeed, address) in nameProbe)
+    {
+        tested++;
+        var cand = new Dictionary<string, ulong> { ["planetSeed"] = planetSeed, ["address"] = address, ["system"] = address & ~(0xFUL << 52),
+            ["mix(planetSeed)"] = Mix(planetSeed), ["mix(bEr0)"] = Mix(discSeed), ["bEr0"] = discSeed };
+        var child = PlanetProfileGenerator.ChildSeeds(planetSeed);
+        for (int c = 0; c < child.Length; c++) cand[$"child{c}"] = child[c];
+        foreach (var (name, value) in cand)
+        {
+            if (value == b3) hits3[name] = hits3.GetValueOrDefault(name) + 1;
+            if (value == b2) hits2[name] = hits2.GetValueOrDefault(name) + 1;
+        }
+    }
+    Console.WriteLine($"name seeds tested {tested}: bEr[3] = {string.Join(", ", hits3.Select(k => k.Key + " x" + k.Value))}; bEr[2] = {string.Join(", ", hits2.Select(k => k.Key + " x" + k.Value))}");
     foreach (var (year, (hit, miss)) in byYear) Console.WriteLine($"  discovered {year}: predicted {hit}, not {miss}");
     foreach (var k in part.Take(8)) Console.WriteLine($"  partial {k.Key:X}: found {k.Value.Item1}, missing {k.Value.Item2}");
     foreach (var k in all.Take(8)) Console.WriteLine($"  none {k.Key:X}: missing {k.Value.Item2}");
