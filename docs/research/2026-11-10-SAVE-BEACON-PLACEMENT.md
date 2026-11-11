@@ -151,3 +151,32 @@ Read-only: `read_far_region_live.py` (Far vtable 0x144BC0690 on 185034, via `sta
 beacon stands; Core's port leaves those metres out. This confirms that the missing ground is added inside the voxel
 pass (Features / GridLayers in 0x1412B3770's density pass, 0x1412B3B10 on 185034), not by an LOD switch. Next: hook the
 density pass in `emu_far.py` to split the column into the ported noise term and the rest, then port the rest.
+
+### Where the missing metres come from (2026-11-10 night, emulator experiments + 184271 decompile)
+
+Wiping parts of TkVoxelGeneratorData (planet + 0x2090) before an exact Far regeneration: GridLayers or Features wiped -
+**no change**; noise layers wiped - ground falls to `NoSeaBaseLevel` (20 m). Features are skipped at Far detail (only
+their MaximumLOD is read). So on this ground the gap is the noise layers, combined differently from Core's `Height`.
+
+The density pass (0x1412B1D60; 0x1412B2100 on 185034) reads one 2D column per noise layer from the column table at
+**+0x8 + layer * 0x20** (+0x8 layer 0, +0xC8 layer 6 = Core `BaseHeight` exactly, +0xE8 layer 7). The voxel density
+starts as `y - (NoSeaBaseLevel + column0)`; then for each active layer 1-4 within its MaximumLOD,
+`FUN_1412b05d0` (184271) adds the layer's column on top of a reference chosen by its **Offset**
+(TkNoiseOffsetEnum: Zero = 0, Base = node base surface +0x1C, All = surface so far, SeaLevel), plus HeightOffset,
+a smooth-min over SmoothRadius (+0x6C), the WaterFade ramp (+0x78, divided by WaterFadeInDistance 0x114C) and
+Subtract. Core's `Height` (0x14128AA20) instead takes `max(NoSeaBaseLevel, layer)` for layers 0-3, which drops
+layer 0 whenever it is under 20 m.
+
+Core's own `LayerValue` reproduces the game's columns (layer 0: 12.1904 vs 12.190; base 251.819 vs 251.819). Beacon
+check with the 2D rule "NoSeaBaseLevel + base + Base-offset layers":
+
+| Beacon | Real | Core `Height` | Rule | Notes |
+| --- | --- | --- | --- | --- |
+| 505200FF67B291 | 281.2 | 267.7 | **281.24** | L0, L1 Offset Base |
+| 20FE00011476E2 | 20.0 | 20.0 | 20.0 | base 0 |
+| 242700FF67B291 | 411.1 | 407.6 | - | L2/L3 Offset All: needs FUN_1412b05d0's All path |
+| 2409005B6DA013 | 73.3 | 76.3 | - | L0 Offset Zero, L3 All |
+
+**Next:** port FUN_1412b05d0 (1,178 bytes; decompile it again with `DecompileList.java` on the 184271 Ghidra project)
+and the surface crossing as Core `PlanetTerrain.SurfaceHeight`, check it against `emu_far.py` regions on several
+planets, then all beacons in the table, then place beacons with it.
