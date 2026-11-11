@@ -37,6 +37,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Galaxy Transfer: the galaxy list opens at the galaxy you're in and stays where you scrolled it while the game saves. Filters no longer jump the list back to the top, and a galaxy's base and station badges update as soon as the game saves.
+
 - Planet fauna totals are now right on waterworlds too: they were often a few creatures short, and missed the flying creatures some waterworlds have.
 
 - Save Beacons placed from Planet Details are now real beacons standing on the ground. Before, the game showed only their waypoint.
