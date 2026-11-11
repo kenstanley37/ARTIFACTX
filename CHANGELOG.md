@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Ship Designer: the Paint and My designs cards can be hidden with a button in their heading. Hide Paint to give your saved designs the whole column; the choice is remembered.
+
 - Mobile camera scanning now shows moving brackets around detected portal details and a green lock before opening the system.
 
 - Mobile system details show the address as glyph pictures, ready to dial at a portal.

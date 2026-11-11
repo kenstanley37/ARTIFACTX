@@ -301,16 +301,12 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <Border Style="{StaticResource ThemeCardStyle}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <Border Style="{StaticResource ThemeBandStyle}">
-                            <TextBlock Text="PAINT" Style="{StaticResource ThemeBandTextStyle}"/>
-                        </Border>
-                        <ScrollViewer Grid.Row="1">
+                <!-- Both cards fold (2026-11-11, the user: My designs was a small area to scroll) - hide
+                     Paint and the designs take the whole column. Remembered across visits. -->
+                <controls:FoldingCard Title="PAINT" FoldedName="{x:Bind ViewModel.PaintStyleName, Mode=OneWay}"
+                                      SettingKey="ShipDesignerPaintCollapsed">
+                    <Border Style="{StaticResource ThemeCardStyle}">
+                        <ScrollViewer>
                             <StackPanel Padding="16,14,16,16" Spacing="16">
                                 <!-- The style, then each colour the style offers. -->
                                 <StackPanel Spacing="6">
@@ -369,21 +365,19 @@
                                 </ItemsControl>
                             </StackPanel>
                         </ScrollViewer>
-                    </Grid>
-                </Border>
-                <Border Grid.Row="1" MinHeight="260" Style="{StaticResource ThemeCardStyle}">
+                    </Border>
+                </controls:FoldingCard>
+                <controls:FoldingCard Grid.Row="1" Title="MY DESIGNS" Summary="{x:Bind ViewModel.DesignsSummary, Mode=OneWay}"
+                                      SettingKey="ShipDesignerDesignsCollapsed">
+                    <Border MinHeight="220" Style="{StaticResource ThemeCardStyle}">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        <Border Style="{StaticResource ThemeBandStyle}">
-                            <TextBlock Text="MY DESIGNS" Style="{StaticResource ThemeBandTextStyle}"/>
-                        </Border>
-                        <TextBox Grid.Row="1" Margin="16,12,16,0" PlaceholderText="Find a design" AutomationProperties.Name="Find a design"
+                        <TextBox Margin="16,12,16,0" PlaceholderText="Find a design" AutomationProperties.Name="Find a design"
                                  Text="{x:Bind ViewModel.DesignSearch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                        <ScrollViewer Grid.Row="2" Margin="0,10,0,0">
+                        <ScrollViewer Grid.Row="1" Margin="0,10,0,0">
                             <StackPanel Margin="16,0,16,16">
                                 <TextBlock Text="{x:Bind ViewModel.DesignsEmptyText, Mode=OneWay}" Visibility="{x:Bind ViewModel.DesignsEmptyVisible, Mode=OneWay}"
                                            Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
@@ -424,7 +418,8 @@
                             </StackPanel>
                         </ScrollViewer>
                     </Grid>
-                </Border>
+                    </Border>
+                </controls:FoldingCard>
             </Grid>
 
         </Grid>

@@ -7,7 +7,13 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <StackPanel>
+    <!-- Band, then the body in the remaining height: a card given a stretched height (the Ship
+         Designer's My designs) lets its body fill and scroll; elsewhere it sizes to the body. -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
         <Border Style="{StaticResource ThemeBandStyle}">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -25,6 +31,6 @@
                         Padding="10,4" Content="Hide"/>
             </Grid>
         </Border>
-        <ContentPresenter x:Name="BodyPresenter" Content="{x:Bind Body, Mode=OneWay}"/>
-    </StackPanel>
+        <ContentPresenter x:Name="BodyPresenter" Grid.Row="1" Content="{x:Bind Body, Mode=OneWay}"/>
+    </Grid>
 </UserControl>

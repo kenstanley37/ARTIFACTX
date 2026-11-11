@@ -83,6 +83,10 @@ public sealed partial class ShipDesignerViewModel : ObservableObject
     [ObservableProperty] public partial string PartSearch { get; set; } = "";
     [ObservableProperty, NotifyPropertyChangedFor(nameof(PartsEmptyVisible))] public partial string PartsEmptyText { get; set; } = "";
     [ObservableProperty, NotifyPropertyChangedFor(nameof(StyleUnlockVisible))] public partial string StyleUnlockNote { get; set; } = "";
+    /// <summary>The picked paint style, said in the Paint card's band while it is folded.</summary>
+    [ObservableProperty] public partial string PaintStyleName { get; set; } = "";
+    /// <summary>How many designs are saved, said in the My designs band (also while folded).</summary>
+    [ObservableProperty] public partial string DesignsSummary { get; set; } = "";
     [ObservableProperty] public partial string ShipName { get; set; } = "";
     [ObservableProperty] public partial string DesignStateText { get; set; } = "";
     [ObservableProperty] public partial bool NewDesignVisible { get; set; }
@@ -269,6 +273,7 @@ public sealed partial class ShipDesignerViewModel : ObservableObject
         PaintStyles.Clear();
         ColourGroups.Clear();
         StyleUnlockNote = "";
+        PaintStyleName = _style?.Name ?? "";
         if (_type is null) return;
         foreach (var style in _styles.GetValueOrDefault(_type.StyleGroup) ?? new())
             PaintStyles.Add(new PaintStyleChoiceViewModel(style, SelectStyle) { IsSelected = style == _style });
@@ -437,6 +442,7 @@ public sealed partial class ShipDesignerViewModel : ObservableObject
     private async Task ShowDesignsAsync()
     {
         string find = DesignSearch.Trim();
+        DesignsSummary = _savedDesigns.Count == 0 ? "" : $"{_savedDesigns.Count} saved";
         var shown = _savedDesigns.Where(d => find.Length == 0
             || d.Design.Name.Contains(find, StringComparison.CurrentCultureIgnoreCase)
             || DesignSubtitle(d.Design).Contains(find, StringComparison.CurrentCultureIgnoreCase)).ToList();
