@@ -43,6 +43,11 @@ public sealed partial class GameCatalogViewModel : ObservableObject
     [ObservableProperty] public partial bool IsLoading { get; private set; } = true;
     [ObservableProperty] public partial bool NeedsGameData { get; private set; }
     [ObservableProperty] public partial bool HasChanges { get; private set; }
+    /// <summary>The Wonders section is open: its records can be unlocked, with placeholder values.</summary>
+    [ObservableProperty] public partial bool IsWondersSelected { get; private set; }
+    /// <summary>Why some Wonders records could not be unlocked just now; empty when all were.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasWonderProblem))] public partial string WonderProblem { get; private set; } = "";
+    public bool HasWonderProblem => WonderProblem.Length > 0;
 
     public bool CanToggleAll => SelectedSection?.TracksKnown == true && Scope().Any(i => i.CanEdit);
 
@@ -233,6 +238,8 @@ public sealed partial class GameCatalogViewModel : ObservableObject
     partial void OnSelectedSectionChanged(GameCatalogSectionViewModel? value)
     {
         foreach (var section in Sections) section.IsSelected = section == value;
+        IsWondersSelected = value?.Key == "UI_PORTAL_CAT_COLLECTION";
+        WonderProblem = "";
         Categories = value?.Categories ?? [];
         SelectedCategory = Categories.FirstOrDefault(c => c.Items.Count > 0);
         ApplyFilter();
@@ -301,7 +308,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         if (!item.CanEdit) return;
         if (SelectedSection?.Key == "UI_PORTAL_CAT_COLLECTION")
         {
-            Stage(() => WonderUnlockService.Set([item], known));
+            Stage(() => WonderProblem = WonderUnlockService.Set([item], known) ?? "");
             return;
         }
         if (SelectedSection?.List is not { } list) return;
@@ -315,7 +322,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         var editable = Scope().Where(i => i.CanEdit).ToList();
         if (SelectedSection?.Key == "UI_PORTAL_CAT_COLLECTION")
         {
-            Stage(() => WonderUnlockService.Set(editable, learn));
+            Stage(() => WonderProblem = WonderUnlockService.Set(editable, learn) ?? "");
             OnPropertyChanged(nameof(AllUnlocked));
             return;
         }
