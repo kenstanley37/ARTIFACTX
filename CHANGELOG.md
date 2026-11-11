@@ -25,6 +25,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Planet Details: the Portal, Crashed Ships and Multi-Tools card labels and descriptions are easier to read.
+
 - Works with No Man's Sky Forsaken 7.14: game data is rebuilt once, and planet buildings and cabinet multi-tools are placed with the right spacing again.
 
 - Mobile live scans now keep matching readings on slower phones and restart the camera after returning to the app.
