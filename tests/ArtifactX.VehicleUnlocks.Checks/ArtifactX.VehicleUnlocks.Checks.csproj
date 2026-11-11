@@ -5,6 +5,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/ArtifactX.Core/ArtifactX.Core.csproj" />
-    <Compile Include="../../src/ArtifactX.WinUI3/Services/VehicleUnlockEditor.cs" Link="VehicleUnlockEditor.cs" />
+    <Compile Include="../../src/ArtifactX.WinUI3/Services/RewardUnlockEditor.cs" Link="RewardUnlockEditor.cs" />
   </ItemGroup>
 </Project>

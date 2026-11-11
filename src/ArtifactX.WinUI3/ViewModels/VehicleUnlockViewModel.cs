@@ -17,7 +17,7 @@ namespace ArtifactX.WinUI3.ViewModels;
 public sealed partial class VehicleUnlockViewModel : ObservableObject
 {
     private readonly VehicleUnlockService _service = new();
-    private VehicleUnlockEditor Editor => VehicleUnlockEditor.Current;
+    private RewardUnlockEditor Editor => RewardUnlockEditor.Current;
     public bool HasChanges => Editor.HasChanges;
     public void ResetChanges() { Editor.Reset(); _ = RefreshAsync(); }
     private int _loadVersion, _refreshVersion;
@@ -78,9 +78,9 @@ public sealed partial class VehicleUnlockViewModel : ObservableObject
             Value: s[">MX"]?[">vs"]?.Value<double>() ?? s[">MX"]?["eoL"]?.Value<double>() ?? 0))
             .GroupBy(s => s.Id).ToDictionary(g => g.Key, g => g.First().Value);
         bool loaded = SaveSessionManager.IsSaveLoaded;
-        var specials = SaveSessionManager.GetValue(VehicleUnlockEditor.SpecialsPath) as JArray;
+        var specials = SaveSessionManager.GetValue(RewardUnlockEditor.SpecialsPath) as JArray;
         var local = specials?.Select(t => CatalogService.NormalizeId(t.Value<string>() ?? "")).ToHashSet(StringComparer.Ordinal) ?? [];
-        VehicleUnlockAccount? account = null;
+        RewardUnlockAccount? account = null;
         try { if (loaded) { await Editor.LoadAsync(); account = Editor.Account; } }
         catch (Exception ex) when (ex is System.IO.IOException or Newtonsoft.Json.JsonException or UnauthorizedAccessException)
         { System.Diagnostics.Debug.WriteLine(ex); }
@@ -142,7 +142,7 @@ public sealed partial class VehicleUnlockItemViewModel : ObservableObject
                 + (r.StatId.Length > 0 ? $"\nTarget: {r.StatValue:N0}" : "")));
     }
 
-    internal void Refresh(VehicleUnlockAccount? account, Dictionary<string, double>? stats, bool loaded, HashSet<string> local, bool pendingEnable)
+    internal void Refresh(RewardUnlockAccount? account, Dictionary<string, double>? stats, bool loaded, HashSet<string> local, bool pendingEnable)
     {
         bool owned = Option.SpecialId.Length == 0 || account?.Rewards.Contains(Option.SpecialId) == true;
         bool inSave = local.Contains(Option.SpecialId);

@@ -7,21 +7,24 @@ using Newtonsoft.Json.Linq;
 
 namespace ArtifactX.WinUI3.Services;
 
-/// <summary>Stages whole-array, loaded-save edits through the normal title bar
+/// <summary>Grants (and takes back, before Save) expedition and title rewards: the save's
+/// KnownSpecials, the account's reward lists and the user settings, together. Used by the
+/// vehicle customisation unlocks and the Ship Designer's paint styles; named for vehicles until
+/// 2026-11-11. Stages whole-array, loaded-save edits through the normal title bar
 /// Save/Reset workflow. No direct save/account writes. Account edits are enlisted in the same Save/Reset workflow.</summary>
-internal sealed class VehicleUnlockEditor
+internal sealed class RewardUnlockEditor
 {
-    private static VehicleUnlockEditor? _current;
+    private static RewardUnlockEditor? _current;
     private readonly Dictionary<string, TitleUnlockRule[]> _pendingEnables = [];
     private readonly object? _owner = SaveSessionManager.SessionIdentity;
-    private readonly VehicleUnlockAccountEdits _account = new();
-    private readonly VehicleUnlockSettingsEdits _settings = new();
+    private readonly RewardUnlockAccountEdits _account = new();
+    private readonly RewardUnlockSettingsEdits _settings = new();
     private readonly Dictionary<string, (string[] Path, JArray Original, JArray Applied, bool Staged, HashSet<string> Ids)> _changes = [];
-    public static VehicleUnlockEditor Current => _current is not null && ReferenceEquals(_current._owner, SaveSessionManager.SessionIdentity)
+    public static RewardUnlockEditor Current => _current is not null && ReferenceEquals(_current._owner, SaveSessionManager.SessionIdentity)
         ? _current : _current = new();
     public async System.Threading.Tasks.Task LoadAsync()
     { await _account.LoadAsync(); await _settings.LoadAsync(); }
-    public VehicleUnlockAccount? Account
+    public RewardUnlockAccount? Account
     {
         get
         {
@@ -51,7 +54,7 @@ internal sealed class VehicleUnlockEditor
             var ids = c.Ids;
             var entries = ids.Select(id => new UnlockEntryChange(id, c.Original.FirstOrDefault(t => Key(t) == id), c.Applied.FirstOrDefault(t => Key(t) == id)))
                 .Where(e => !JToken.DeepEquals(e.Original, e.Applied));
-            var restored = VehicleUnlockEdits.RestoreEntries(current, entries, field);
+            var restored = RewardUnlockEdits.RestoreEntries(current, entries, field);
             yield return (c.Path, restored, !c.Staged && JToken.DeepEquals(restored, c.Original));
         }
     }
@@ -79,7 +82,7 @@ internal sealed class VehicleUnlockEditor
             // staged state. Shared counters are recalculated for remaining picks.
             var reset = ResetPlan().ToArray();
             foreach (var counter in reset.Where(e => e.Path.Last() == "gUR"))
-                _ = VehicleUnlockEdits.RaiseRequirements(counter.Value, remaining.SelectMany(e => e.Value));
+                _ = RewardUnlockEdits.RaiseRequirements(counter.Value, remaining.SelectMany(e => e.Value));
             foreach (var entry in remaining)
             {
                 _ = _account.Plan(entry.Key, entry.Value, true);
@@ -99,7 +102,7 @@ internal sealed class VehicleUnlockEditor
         var accountEdits = _account.Plan(id, rules, enabled);
         var settingsEdit = _settings.Plan(id, enabled);
         var edits = new List<(JToken? Value, string[] Path)>();
-        var updatedSpecials = VehicleUnlockEdits.Specials(specials, id, enabled);
+        var updatedSpecials = RewardUnlockEdits.Specials(specials, id, enabled);
         if (enabled && rules.Length > 0)
         {
             if (SaveSessionManager.IsExpeditionActive && rules.Any(r => r.BlockedInSeasons.Length > 0))
@@ -110,7 +113,7 @@ internal sealed class VehicleUnlockEditor
                 .FirstOrDefault(i => groups[i][":rc"]?.Value<string>()?.TrimStart('^') == "GLOBAL_STATS", -1);
             if (index < 0 || SaveSessionManager.GetValue(NmsPlayerStatsPaths.GroupStatsArrayPath(index)) is not JArray stats)
                 throw new InvalidOperationException("The save's global progress counters are unavailable.");
-            var raised = VehicleUnlockEdits.RaiseRequirements(stats, rules);
+            var raised = RewardUnlockEdits.RaiseRequirements(stats, rules);
             if (!JToken.DeepEquals(stats, raised)) edits.Add((raised, NmsPlayerStatsPaths.GroupStatsArrayPath(index)));
         }
         if (!JToken.DeepEquals(specials, updatedSpecials)) edits.Add((updatedSpecials, SpecialsPath));

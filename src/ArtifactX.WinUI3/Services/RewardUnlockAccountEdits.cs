@@ -13,7 +13,7 @@ namespace ArtifactX.WinUI3.Services;
 /// Save/Reset operation. Does not commit edits belonging to the account editor.
 /// Bgb/fyX and expedition records were inspected in real account data on
 /// 2026-11-02; existing-title grant guards are native-tested on build 184271.</summary>
-internal sealed class VehicleUnlockAccountEdits : IStagedSaveCompanion
+internal sealed class RewardUnlockAccountEdits : IStagedSaveCompanion
 {
     private readonly object? _owner = SaveSessionManager.SessionIdentity;
     private SaveEditSession? _session;
@@ -33,7 +33,7 @@ internal sealed class VehicleUnlockAccountEdits : IStagedSaveCompanion
         if (ReferenceEquals(_owner, SaveSessionManager.SessionIdentity)) SaveSessionManager.Enlist(this);
     }
 
-    public VehicleUnlockAccount? Read()
+    public RewardUnlockAccount? Read()
     {
         if (_session is null) return null;
         System.Collections.Generic.HashSet<string> ReadIds(params string[] fields) => fields
@@ -52,7 +52,7 @@ internal sealed class VehicleUnlockAccountEdits : IStagedSaveCompanion
         {
             if (_session.GetValue("B89", field) is not JArray current)
                 throw new InvalidOperationException("The account unlock list has an unexpected format.");
-            var updated = VehicleUnlockEdits.Specials(current, id, enabled);
+            var updated = RewardUnlockEdits.Specials(current, id, enabled);
             if (!JToken.DeepEquals(current, updated)) edits.Add((updated, ["B89", field]));
         }
         if (enabled && rules.Length > 0)
@@ -60,7 +60,7 @@ internal sealed class VehicleUnlockAccountEdits : IStagedSaveCompanion
             if (_session.GetValue("B89", "Bgb") is not JArray titles)
                 throw new InvalidOperationException("The account title list has an unexpected format.");
             JArray updated = titles;
-            foreach (var rule in rules) updated = VehicleUnlockEdits.Specials(updated, rule.TitleId, true);
+            foreach (var rule in rules) updated = RewardUnlockEdits.Specials(updated, rule.TitleId, true);
             if (!JToken.DeepEquals(titles, updated)) edits.Add((updated, ["B89", "Bgb"]));
         }
         return edits.ToArray();
