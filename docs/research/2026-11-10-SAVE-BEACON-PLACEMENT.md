@@ -259,3 +259,20 @@ the garages has another seed (likely a region boundary).
 region object carries it, then the function that computes it (Ghidra on NMS.exe), and port it to Core. ArtifactX's
 ownership tag in `ofi` (`SaveBeaconService.SeedFor`, low 16 bits A87F) must move elsewhere, since `ofi` has to be the
 real RegionSeed.
+
+### Hunting the RegionSeed computation (2026-11-10 night, build 185034) - not found yet
+
+- Live memory, game loaded beside the restored beacon: its seed 0x7B89DC37B31051CB appears 6 times - 4 copies of
+  the c5s entry, one record of the beacon object itself (its position and up vector, then the seed, then u16 18, 32,
+  0xFFFF and a -160.0), and one hash-map-like node near a "BASE_ORBIT" string. Not inside any terrain region object.
+- The beacon record does not follow the player: a ~1 km walk on Riwor V left the seed unchanged, so seeds cannot be
+  sampled by walking.
+- Regenerating the Far region that held the crashed-ship beacon (seed 0xA2002E18F2476BE1) in the emulator never
+  writes that value: the Far terrain pass does not compute it.
+- Static scans of NMS.exe: code storing +0x40/+0x48/+0x50/+0x58 plus vector stores (24 sites) and 64-bit compares of
+  [reg+0x48] next to [reg+0x40] (34 sites, 7 with separate seed and address registers) - none checked so far computes
+  the seed (0x1413E1E19 is a constructor; 0x14160D383 walks a 0xD0-stride table).
+
+**Next:** Ghidra on the 184271 project (or a new 185034 one): follow the code that places a buildable (ObjectID
+`^BUILDBEACON`, timestamp, the Position/Up/At copies) to where it fills RegionSeed, and the loader that matches saved
+objects to a region. Scripts: scratch `findseed.py`, `findrecs.py`, `pollrec.py`, `remap/bbstores.py`, `remap/seedcmp.py`.
