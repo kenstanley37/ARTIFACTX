@@ -234,3 +234,28 @@ Planet Details' hotspot and base-site positions (`PlanetHotspotService`, `Planet
 `SurfaceHeight`; `SaveBeaconService` still adds 0.2 m. Building, override, cabinet and crashed-ship code keeps the
 game's own `Height` (that is what the game uses for them). Not modelled: building flattening near sites, caves.
 Still to check in game: a beacon placed by ArtifactX at a hotspot shows as a real beacon (limits permitting).
+
+### Why ArtifactX beacons are never built: `ofi` is the RegionSeed (2026-11-10 night)
+
+In-game tests on Riwor V, Slot 8 (game closed for every write, backups in the session scratch):
+
+- ArtifactX beacon at a game beacon's exact spot and ground height, alone on the planet: waypoint only.
+- The owner's removed game-built beacon put back byte for byte: **built** ("Save Beacon, Abandoned Object").
+- Four beacons 2 km apart varying the `ofi` tag, vector precision and `b1`: all waypoint only, including a fully
+  game-like one with a random `ofi`.
+- A full recursive diff of the 16:33 before/after pair (3,096 differences) shows building a beacon changes only the
+  new `c5s` entry and the used kit in the inventory; the rest is timestamps (base objects, a settlement's production).
+
+The `c5s` entries are `GcPersistentBBObjectData` {At, Position, Up, ObjectID, GalacticAddress, **RegionSeed** (`ofi`),
+Timestamp (`b1:`), UserData (`CVX`)}. `ofi` is the seed of the terrain region the object stands in, not a free
+per-object value: the game builds a saved object when it builds a region with that seed. ArtifactX wrote random or
+tagged seeds, so its beacons never matched a region. The region limit and height were not the cause of the
+waypoint-only beacons (earlier tests that blamed the RegionLimit were wrong).
+
+Saved objects sharing a seed: five garages across 44 m; a beacon and a cooker 2.8 m apart. A summon garage 10 m from
+the garages has another seed (likely a region boundary).
+
+**Next:** with the game loaded beside a game-built beacon, find its RegionSeed in memory (read-only) to learn which
+region object carries it, then the function that computes it (Ghidra on NMS.exe), and port it to Core. ArtifactX's
+ownership tag in `ofi` (`SaveBeaconService.SeedFor`, low 16 bits A87F) must move elsewhere, since `ofi` has to be the
+real RegionSeed.
