@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Text.Json;
 using ArtifactX.Core.Universe;
 using Microsoft.Data.Sqlite;
+using Newtonsoft.Json.Linq;
 
 string catalog = args[0], userDb = args[1];
 T Row<T>(string id)
@@ -101,3 +102,71 @@ foreach (var ((system, index), habitats) in recorded)
 }
 Console.WriteLine($"planets with recorded creatures {planets}: habitats fit {fit}, don't fit {misfit}");
 foreach (var l in misfitLines.Take(12)) Console.WriteLine("  " + l);
+
+// Seeds: each creature discovery in the decrypted saves (read-only) stores bEr[0]; does the planet's predicted list
+// contain a creature with that seed? Usage: third argument = %AppData%\ArtifactX\Working.
+if (args.Length > 2)
+{
+    int found = 0, missingSeed = 0;
+    var seen = new HashSet<(ulong, ulong)>();
+    var planetCache = new Dictionary<ulong, HashSet<ulong>>();
+    var examples = new List<string>();
+    var perPlanet = new Dictionary<ulong, (int, int)>();
+    var byYear = new SortedDictionary<int, (int, int)>();
+    foreach (var file in Directory.EnumerateFiles(args[2], "save*.hg.json", SearchOption.AllDirectories))
+    {
+        Newtonsoft.Json.Linq.JToken? root;
+        try
+        {
+            using var reader = new Newtonsoft.Json.JsonTextReader(new StreamReader(file)) { SupportMultipleContent = true };
+            root = Newtonsoft.Json.Linq.JToken.ReadFrom(reader);
+        }
+        catch { continue; }
+        if (root?.SelectToken("fDu.ETO.OsQ.?fB") is not Newtonsoft.Json.Linq.JArray discoveries) continue;
+        foreach (var record in discoveries.OfType<Newtonsoft.Json.Linq.JObject>())
+        {
+            if (record["8P3"] is not Newtonsoft.Json.Linq.JObject key || key["<Dn"]?.Value<string>() != "Animal") continue;
+            if (ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ParsePackedAddress(key["5L6"]) is not ulong address) continue;
+            if (key["bEr"] is not Newtonsoft.Json.Linq.JArray v || v.Count < 1
+                || ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ParsePackedAddress(v[0]) is not ulong seed) continue;
+            if (!seen.Add((address, seed))) continue;
+            if (!planetCache.TryGetValue(address, out var seeds))
+            {
+                seeds = new HashSet<ulong>();
+                int index = (int)((address >> 52) & 0xF);
+                var (code, galaxy) = Gen(address & ~(0xFUL << 52));
+                try
+                {
+                    var types = PlanetGenerator.Generate(code, galaxy, biomes);
+                    var attributes = SystemGenerator.Attributes(code, galaxy);
+                    var bodySeeds = SystemGenerator.Bodies(code, galaxy).PlanetSeeds;
+                    int i = index - 1;
+                    if (i >= 0 && i < types.Length && i < bodySeeds.Length)
+                    {
+                        var p = PlanetProfileGenerator.Generate(bodySeeds[i], i, types[i], (int)attributes.Star, PlanetGenerator.GalaxyType(galaxy),
+                            attributes.GasGiantPlanet, profiles, attributes.Uncharted, attributes.Abandoned);
+                        foreach (var c in p.PredictedCreatures ?? []) seeds.Add(c.Seed);
+                    }
+                }
+                catch { }
+                planetCache[address] = seeds;
+            }
+            var tally = perPlanet.TryGetValue(address, out var t0) ? t0 : (0, 0);
+            perPlanet[address] = seeds.Contains(seed) ? (tally.Item1 + 1, tally.Item2) : (tally.Item1, tally.Item2 + 1);
+            long when = record.SelectToken("ksu.3I1")?.Value<long>() ?? 0;
+            int year = when > 0 ? DateTimeOffset.FromUnixTimeSeconds(when).Year : 0;
+            var yt = byYear.TryGetValue(year, out var y0) ? y0 : (0, 0);
+            byYear[year] = seeds.Contains(seed) ? (yt.Item1 + 1, yt.Item2) : (yt.Item1, yt.Item2 + 1);
+            if (seeds.Contains(seed)) found++;
+            else { missingSeed++; if (examples.Count < 6) examples.Add($"{address:X} seed {seed:X16} predicted [{string.Join(",", seeds.Take(4).Select(s => s.ToString("X16")))}...]"); }
+        }
+    }
+    Console.WriteLine($"creature discoveries {found + missingSeed}: seed predicted {found}, not predicted {missingSeed}");
+    var all = perPlanet.Where(k => k.Value.Item1 == 0 && k.Value.Item2 > 0).ToList();
+    var part = perPlanet.Where(k => k.Value.Item1 > 0 && k.Value.Item2 > 0).ToList();
+    Console.WriteLine($"planets {perPlanet.Count}: all found {perPlanet.Count(k => k.Value.Item2 == 0)}, none found {all.Count} ({all.Sum(k => k.Value.Item2)} creatures), some missing {part.Count} ({part.Sum(k => k.Value.Item2)} creatures)");
+    foreach (var (year, (hit, miss)) in byYear) Console.WriteLine($"  discovered {year}: predicted {hit}, not {miss}");
+    foreach (var k in part.Take(8)) Console.WriteLine($"  partial {k.Key:X}: found {k.Value.Item1}, missing {k.Value.Item2}");
+    foreach (var k in all.Take(8)) Console.WriteLine($"  none {k.Key:X}: missing {k.Value.Item2}");
+    foreach (var e in examples) Console.WriteLine("  " + e);
+}

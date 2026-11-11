@@ -1,7 +1,8 @@
 namespace ArtifactX.Core.Universe;
 
-/// <summary>One predicted procedural creature for a planet.</summary>
-public sealed record PredictedCreature(string Id, string Domain, int Role)
+/// <summary>One predicted procedural creature for a planet. Seed is the creature's GcCreatureRoleData.Seed (NMS.exe
+/// 184271 0x1416d60e0: the mixed seed of the next two draws of its role's stream, right after the creature is picked).</summary>
+public sealed record PredictedCreature(string Id, string Domain, int Role, ulong Seed = 0)
 {
     public string Habitat => Domain switch
     {
@@ -153,6 +154,14 @@ public static partial class PlanetProfileGenerator
         }
 
         public uint Next() => Top.Next();
+
+        /// <summary>The seed a child stream would start from (two draws, mixed), without starting it.</summary>
+        public ulong NextSeed()
+        {
+            ref var top = ref Top;
+            ulong lo = top.Next(), hi = top.Next();
+            return Mix64((hi << 32) | lo);
+        }
         public float NextFraction() => Top.NextFraction();
     }
 
@@ -485,10 +494,15 @@ public static partial class PlanetProfileGenerator
                             }
                         }
 
-                        stack.Push();
-                        _ = stack.NextFraction();
-                        stack.Pop();
-                        chosenCreatures.Add(new PredictedCreature(chosenId, domain, role.Role));
+                        // The creature's own seed, then (not for robot ground life) a diet roll for roles 1 and 7.
+                        ulong seed = stack.NextSeed();
+                        if (ground != "ROBOT" && role.Role is 1 or 7)
+                        {
+                            stack.Push();
+                            _ = stack.NextFraction();
+                            stack.Pop();
+                        }
+                        chosenCreatures.Add(new PredictedCreature(chosenId, domain, role.Role, seed));
                     }
                 }
                 stack.Pop();

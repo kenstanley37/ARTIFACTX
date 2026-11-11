@@ -40,12 +40,32 @@ scripts in `scripts/research/ghidra`). The creature routine is `cGcPlanetGenerat
 - Small difference left alone: the game stops adding creatures once more than 22 exist (so up to 23); the port stops
   at 22. No recorded planet comes close.
 
+## Creature seeds: 96% of this year's discoveries (2026-11-11)
+
+`GenerateCreatureRoles` writes each creature's `GcCreatureRoleData.Seed` (+0x5B0) right after picking it: the next
+two draws of the role's stream, mixed with the same Mix64 a child stream starts from (`0x1416d60e0`, around the
+`_stricmp(.., "ROBOT")`). Roles 1 and 7 then roll a diet in a child stream (not for ROBOT ground life). The port now
+keeps that seed on each `PredictedCreature`.
+
+The save's creature discovery (`fDu.ETO.OsQ.?fB`, `8P3.<Dn` "Animal") stores it as `bEr[0]`. `fauna-check` with the
+Working folder as third argument compares them (read-only), by discovery year (`ksu.3I1`):
+
+| Discovered | Seed predicted |
+|---|---|
+| 2016-2019 | 0 / 38 (older game versions generated creatures differently) |
+| 2020-2024 | 209 / 241 |
+| 2025 | 397 / 415 |
+| 2026 | **888 / 925 (96%)** |
+
+307 of 335 planets have every recorded creature predicted. Next: the 37 current-version misses (which planets,
+which roles), then the name seeds `bEr[2]`/`bEr[3]` that `SpeciesNames.Fauna` turns into the species name.
+
 ## Next layers
 
 1. ~~Waterworld air rule~~ (solved above).
 2. Habitat split: 17 planets where recorded habitats don't fit (e.g. recorded flying x4, predicted flying x1).
    Some are capture noise (blank habitat rows).
-3. Creature identity: the port gives an archetype id per creature, not the creature's seed. With the seed pair
+3. ~~Creature identity seed~~ (96%, above); name seeds next. With the seed pair
    that `SpeciesNames.Fauna` takes, predicted creatures get their real species names, and can be matched one by
    one against the 510 recorded creatures by name.
 4. Traits: rarity, gender, activity, size.
