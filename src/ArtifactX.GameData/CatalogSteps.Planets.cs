@@ -342,7 +342,9 @@ public static partial class CatalogSteps
                     (int)c.PredatorProbabilityModifier.CreatureRoleFrequencyModifier,
                     (int)c.Rarity.CreatureRarity,
                     tags,
-                    (int)c.RealType.CreatureType));
+                    (int)c.RealType.CreatureType,
+                    c.MinScale,
+                    c.MaxScale));
             }
         }
 
@@ -423,7 +425,10 @@ public static partial class CatalogSteps
             }
         }
 
-        return new CreatureTables(globals, creatures.ToArray(), archetypeLists, domainArchetypes, ecosystemTables);
+        var sizes = decode("GCCREATUREGLOBALS.MBIN") is GcCreatureGlobals cg
+            ? new CreatureSizeGlobals(cg.CreatureMedMinSize, cg.CreatureLargeMinSize, cg.CreatureHugeMinSize, cg.MaxCreatureSize)
+            : null;
+        return new CreatureTables(globals, creatures.ToArray(), archetypeLists, domainArchetypes, ecosystemTables, sizes);
     }
 
     private static InventoryGenerationTables? InventoryTables(Func<string, NMSTemplate?> decode)

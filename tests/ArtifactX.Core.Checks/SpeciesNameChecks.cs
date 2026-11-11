@@ -92,4 +92,18 @@ internal static class SpeciesNameChecks
         }
         Console.WriteLine($"PASS: creature species and genus seeds for {birds.Length} discoveries from the saves.");
     }
+
+    /// <summary>A flying lizard discovered in the owner's saves (fauna-check "size example", 2026-11-11): its
+    /// creature data scales 1-4.5, role size range 0-3 and the game's size settings (Medium from 1.2, Large from 2.5,
+    /// Huge from 4.5, cap 8, build 185034) give scale 4.3946 - Large, the size class its saved genus seed was made
+    /// with.</summary>
+    public static void FaunaSizeClass()
+    {
+        var lizard = new ArtifactX.Core.Universe.CreatureEntry("FLYINGLIZARD", 0, true, false, 0, 0, 0, [], 0, 1f, 4.5f);
+        var sizes = new ArtifactX.Core.Universe.CreatureSizeGlobals(1.2f, 2.5f, 4.5f, 8f);
+        var (scale, sizeClass) = ArtifactX.Core.Universe.PlanetProfileGenerator.SpeciesScale(0x82772FBC8FB5C320, lizard, 0, 3, sizes);
+        if (Math.Abs(scale - 4.3946304f) > 1e-5f || sizeClass != 2)
+            throw new InvalidOperationException($"Flying lizard scale {scale} class {sizeClass}, expected 4.3946304 class 2.");
+        Console.WriteLine("PASS: a creature's spawn scale and size class from its role seed.");
+    }
 }

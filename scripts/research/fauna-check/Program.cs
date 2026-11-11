@@ -196,7 +196,7 @@ if (args.Length > 2)
     {
         tested++;
         var c = creatureBySeed[discSeed].C;
-        var (species, genus) = ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(discSeed, c.Id, address, c.CreatureType, c.Diet);
+        var (species, genus) = ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(discSeed, c.Id, address, c.CreatureType, c.SizeClass);
         if (species == b2)
         {
             speciesHit++;
@@ -265,11 +265,19 @@ if (args.Length > 2)
         int real = -1;
         for (int y = 0; y < 4; y++)
             if (ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(discSeed, c.Id, address, c.CreatureType, y).Genus == b3) { real = y; break; }
-        string k = real < 0 ? "type wrong" : $"range {c.MinSize}-{c.MaxSize}: real {real}";
+        if (real == 2 && c.SizeClass == 2 && c.MinSize != c.MaxSize && !sizeTally.ContainsKey("example"))
+        {
+            var e = profiles.Creatures!.Creatures.First(x => x.Id == c.Id);
+            var z = profiles.Creatures.Sizes!;
+            Console.WriteLine($"  size example: {c.Id} seed 0x{discSeed:X16} scale {e.MinScale}-{e.MaxScale} range {c.MinSize}-{c.MaxSize} " +
+                $"sizes {z.MedMinSize}/{z.LargeMinSize}/{z.HugeMinSize}/{z.MaxCreatureSize} -> {c.Scale:R} class {c.SizeClass}");
+            sizeTally["example"] = 0;
+        }
+        string k = real < 0 ? "type wrong" : real == c.SizeClass ? "class predicted" : $"class wrong: predicted {c.SizeClass} (scale {c.Scale:F2}) real {real}, {c.Id} range {c.MinSize}-{c.MaxSize}";
         sizeTally[k] = sizeTally.GetValueOrDefault(k) + 1;
     }
-    foreach (var t in sizeTally.OrderBy(k => k.Key)) Console.WriteLine($"  size {t.Key} x{t.Value}");
-    Console.WriteLine($"name seeds tested {tested}: species {speciesHit}, genus with diet in place of the size class (placeholder) {genusHit}, both {bothHit}");
+    foreach (var t in sizeTally.OrderByDescending(k => k.Value).Take(25)) Console.WriteLine($"  size {t.Key} x{t.Value}");
+    Console.WriteLine($"name seeds tested {tested}: species {speciesHit}, genus {genusHit}, both {bothHit}");
     foreach (var m in speciesMiss.OrderByDescending(k => k.Value).Take(15)) Console.WriteLine($"  species miss x{m.Value}: {m.Key}");
     foreach (var m in genusMiss.OrderByDescending(k => k.Value).Take(15)) Console.WriteLine($"  genus miss x{m.Value}: {m.Key}");
     // The genus's second int (@+0xac, 0-3) is not the role's diet. Name every discovery from its real seeds, find the

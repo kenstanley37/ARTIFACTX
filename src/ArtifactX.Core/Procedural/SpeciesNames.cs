@@ -44,8 +44,9 @@ namespace ArtifactX.Core.Procedural;
 ///   genus   = Hash128to64(low = size class, high = Hash128to64(low = creature type, high = planet address)),
 /// the type as the role data has it (PredictedCreature.CreatureType: right for all 1,494 discoveries in the owner's
 /// saves whose creature seed the generator predicts) and the live creature's size class (GcCreatureSizeClasses
-/// 0-3, bucketed from its spawn scale in 0x1412345f0; not predicted yet). Species matches 1,304 of those 1,494; the
-/// rest spawn with other creature data than the role picked (ANTELOPE as TRICERATOPS...). A pet keeps the pair as
+/// 0-3, PredictedCreature.SizeClass from PlanetProfileGenerator.SpeciesScale). Of 1,496 such discoveries: species
+/// 1,306, genus 1,261, both 1,198 (80%); most misses spawn with other creature data than the role picked (ANTELOPE as
+/// TRICERATOPS...). A pet keeps the pair as
 /// SpeciesSeed (0x23a8 at run time) and GenusSeed (0x23b0), copied by 0x141230ad0.
 /// </summary>
 public static class SpeciesNames

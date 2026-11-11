@@ -6,9 +6,11 @@ namespace ArtifactX.Core.Universe;
 /// Type is the creature's RealType, else its ForceType, else role + 22 (Predator, PlayerPredator, Prey, Passive);
 /// Diet is Robot on ROBOT worlds, Carnivore for role 2, a roll for roles 1 and 7 (Omnivore above 0.5, else
 /// Carnivore), Herbivore otherwise. CreatureType feeds the genus seed (SpeciesNames.FaunaSeeds); Diet is kept for
-/// the creature's traits. MinSize/MaxSize are the role description's size-class range (GcCreatureSizeClasses).</summary>
+/// the creature's traits. MinSize/MaxSize are the role description's size-class range (GcCreatureSizeClasses).
+/// Scale is the species' spawn scale and SizeClass its GcCreatureSizeClasses bucket (Small 0 to Huge 3), which
+/// feeds the genus seed; both 0 on catalogs before format 78 (see <see cref="PlanetProfileGenerator.SpeciesScale"/>).</summary>
 public sealed record PredictedCreature(string Id, string Domain, int Role, ulong Seed = 0, int CreatureType = 0, int Diet = 0,
-    int MinSize = 0, int MaxSize = 0)
+    int MinSize = 0, int MaxSize = 0, float Scale = 0, int SizeClass = 0)
 {
     public string Habitat => Domain switch
     {
@@ -53,7 +55,7 @@ public sealed record CreatureGlobals(
 
 /// <summary>An individual creature definition from GcCreatureDataTable (filtered by GcCreatureFilenameTable).
 /// Type is its ForceType (what roles filter on); RealType (catalog format 78; 0 on older catalogs) is the type the
-/// spawned creature reports.</summary>
+/// spawned creature reports. MinScale/MaxScale (format 78) bound its spawn scale.</summary>
 public sealed record CreatureEntry(
     string Id,
     int Type,
@@ -63,7 +65,9 @@ public sealed record CreatureEntry(
     int PredMod,
     int Rarity,
     string[] Tags,
-    int RealType = 0);
+    int RealType = 0,
+    float MinScale = 0,
+    float MaxScale = 0);
 
 /// <summary>An archetype option entry with an ID and a weight.</summary>
 public sealed record CreatureWeightedEntry(string Id, float Weight);
@@ -126,7 +130,12 @@ public sealed record CreatureTables(
     CreatureEntry[] Creatures,
     CreatureArchetypeLists ArchetypeLists,
     Dictionary<string, Dictionary<string, CreatureDomainArchetype>> DomainArchetypes,
-    Dictionary<string, CreatureRoleCandidate[]> EcosystemTables);
+    Dictionary<string, CreatureRoleCandidate[]> EcosystemTables,
+    CreatureSizeGlobals? Sizes = null);
+
+/// <summary>GcCreatureGlobals' size settings (catalog format 78; null on older catalogs): the scales where the
+/// Medium, Large and Huge size classes start, and the largest scale any creature spawns at.</summary>
+public sealed record CreatureSizeGlobals(float MedMinSize, float LargeMinSize, float HugeMinSize, float MaxCreatureSize);
 
 public static partial class PlanetProfileGenerator
 {
@@ -526,7 +535,10 @@ public static partial class PlanetProfileGenerator
                             : picked.RealType != 0 ? picked.RealType
                             : picked.Type != 0 ? picked.Type
                             : role.Role + 22;
-                        chosenCreatures.Add(new PredictedCreature(chosenId, domain, role.Role, seed, type, diet, role.MinSize, role.MaxSize));
+                        var (scale, sizeClass) = picked is null || tables.Sizes is null ? (0f, 0)
+                            : SpeciesScale(seed, picked, role.MinSize, role.MaxSize, tables.Sizes);
+                        chosenCreatures.Add(new PredictedCreature(chosenId, domain, role.Role, seed, type, diet, role.MinSize,
+                            role.MaxSize, scale, sizeClass));
                     }
                 }
                 stack.Pop();
@@ -534,6 +546,33 @@ public static partial class PlanetProfileGenerator
             stack.Pop();
         }
         return (chosenCreatures.Count, chosenCreatures.ToArray());
+    }
+
+    /// <summary>
+    /// A species' spawn scale and size class (NMS.exe 184271, Ghidra 2026-11-11). 0x1416d9650 builds a role's spawn
+    /// data: with min = the creature data's MinScale and max = its MaxScale capped at MaxCreatureSize, the role
+    /// description's size range picks a band, lo = min + (max - min) * 0.25 * MinSize and hi = min + (max - min) *
+    /// 0.25 * (MaxSize + 1), and one draw f from the role seed (StartState, one step) gives lo + (hi - lo) * f,
+    /// clamped to [min, max]; spawn MinScale and MaxScale are both set to it, so every individual shares it (babies
+    /// are scaled down, and 0x1412345f0 divides that back out by GroupBabyScale before bucketing). 0x1412345f0 then
+    /// buckets it: Small below CreatureMedMinSize, Medium below CreatureLargeMinSize, Large below CreatureHugeMinSize,
+    /// else Huge.
+    /// </summary>
+    public static (float Scale, int SizeClass) SpeciesScale(ulong roleSeed, CreatureEntry creature, int minSize, int maxSize,
+        CreatureSizeGlobals sizes)
+    {
+        uint lo = (uint)roleSeed, hi = (uint)(roleSeed >> 32);
+        ulong state = ((ulong)(((lo >> 16) | (lo << 16)) ^ hi ^ lo) + (ulong)(lo == 0 ? 1u : lo) * 0x5A76F899UL);
+        float f = (float)((uint)state * 2.3283064370807974e-10);
+        float min = creature.MinScale;
+        float max = Math.Min(creature.MaxScale, sizes.MaxCreatureSize);
+        float low = minSize * 0.25f * (max - min) + min;
+        float high = (maxSize + 1) * 0.25f * (max - min) + min;
+        float scale = (high - low) * f + low;
+        if (scale < min) scale = min;
+        if (scale > max) scale = max;
+        int sizeClass = scale < sizes.MedMinSize ? 0 : scale < sizes.LargeMinSize ? 1 : scale < sizes.HugeMinSize ? 2 : 3;
+        return (scale, sizeClass);
     }
 
     /// <summary>Predicts the planet's fauna total count.</summary>
