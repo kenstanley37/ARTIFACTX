@@ -10,9 +10,18 @@ namespace ArtifactX.WinUI3.Services;
 
 /// <summary>
 /// Handles unlocking and locking of Wonders and Fishing records on the Catalog page.
-/// Manages the 7 fixed-size GcWonderRecord arrays (Planet, Fauna, Flora, Mineral,
-/// Treasures, Glitches, Personal), personal record names (YvA), and the 3 parallel
-/// fishing arrays (ProductList, ProductCountList, LargestCatchList).
+/// Manages 6 of the fixed-size GcWonderRecord arrays (Planet, Fauna, Flora, Mineral,
+/// Treasures, Glitches) and the 3 parallel fishing arrays (ProductList, ProductCountList,
+/// LargestCatchList). Personal Records are never touched (2026-11-11, the owner): players choose
+/// those themselves in game from their own discoveries, so the app has nothing honest to put there.
+///
+/// The owner asked for this (2026-11-07) and confirmed in game that unlocked records show in the Wonders
+/// screen. The values written are PLACEHOLDERS, not discoveries: a fixed measurement per record (the
+/// *DefaultStats tables), a seed derived from the slot, and a place in the system the player is in now.
+/// 2026-11-11: the place is always the player's current system (no fixed fallback address) and a body that
+/// system really has - the generator's body count, numbered from 1 as the game's own records are (direct
+/// inspection of real saves: recorded planet numbers run 1-6, never 0). Records that need a place are
+/// skipped, and said so, when the save gives no current system.
 /// </summary>
 public static class WonderUnlockService
 {
@@ -90,7 +99,6 @@ public static class WonderUnlockService
         ["MineralWonders"] = 8,
         ["TreasureWonders"] = 13,
         ["WeirdBasePartWonders"] = 11,
-        ["CustomWonders"] = 12,
     };
 
     /// <summary>Every save path that wonder and fishing record edits stage to.</summary>
@@ -102,8 +110,6 @@ public static class WonderUnlockService
         NmsGameCatalogPaths.WonderRecordPaths["MineralWonders"],
         NmsGameCatalogPaths.WonderRecordPaths["TreasureWonders"],
         NmsGameCatalogPaths.WonderRecordPaths["WeirdBasePartWonders"],
-        NmsGameCatalogPaths.WonderRecordPaths["CustomWonders"],
-        NmsGameCatalogPaths.PersonalRecordNamesPath,
         NmsFishingPaths.ProductListPath,
         NmsFishingPaths.ProductCountListPath,
         NmsFishingPaths.LargestCatchListPath,
@@ -117,10 +123,12 @@ public static class WonderUnlockService
     }
 
     /// <summary>
-    /// Unlocks or locks the given wonder or fishing items and stages whole updated arrays.
+    /// Unlocks or locks the given wonder or fishing items and stages whole updated arrays. Returns a plain
+    /// message when some records could not be unlocked, otherwise null.
     /// </summary>
-    public static void Set(IEnumerable<GameCatalogItemViewModel> items, bool unlock)
+    public static string? Set(IEnumerable<GameCatalogItemViewModel> items, bool unlock)
     {
+        int skipped = 0;
         var wonderItems = new List<(string CategoryType, int SlotIndex, GameCatalogItemViewModel Item)>();
         var fishItems = new List<GameCatalogItemViewModel>();
 
@@ -150,53 +158,31 @@ public static class WonderUnlockService
                 ? new JArray(existingArray.Select(v => v.DeepClone()))
                 : CreateDefaultWonderArray(expectedCount);
 
-            JArray? updatedYva = null;
-            if (categoryType.Equals("CustomWonders", StringComparison.OrdinalIgnoreCase))
-            {
-                var existingYva = SaveSessionManager.GetValue(NmsGameCatalogPaths.PersonalRecordNamesPath) as JArray;
-                updatedYva = existingYva is not null && existingYva.Count >= expectedCount
-                    ? new JArray(existingYva.Select(v => v.DeepClone()))
-                    : CreateDefaultYvaArray(expectedCount);
-            }
-
-            ulong systemAddress = CurrentSystemAddress();
+            // Treasures and glitches name an item; every other record names a place.
+            bool needsPlace = !categoryType.Equals("TreasureWonders", StringComparison.OrdinalIgnoreCase)
+                && !categoryType.Equals("WeirdBasePartWonders", StringComparison.OrdinalIgnoreCase);
+            ulong? currentSystem = CurrentSystemAddress();
+            ulong systemAddress = currentSystem ?? 0;
 
             foreach (var (_, slotIndex, item) in group)
             {
                 if (slotIndex < 0 || slotIndex >= updated.Count) continue;
+                if (unlock && needsPlace && currentSystem is null) { skipped++; continue; }
 
                 item.IsUnlocked = unlock;
                 if (unlock)
                 {
                     updated[slotIndex] = CreateUnlockedRecord(categoryType, slotIndex, systemAddress, item);
-                    if (updatedYva is not null && slotIndex < updatedYva.Count)
-                    {
-                        updatedYva[slotIndex] = new JObject
-                        {
-                            ["fH8"] = $"Personal Record {slotIndex + 1}",
-                            ["7bp"] = new JObject { ["93I"] = "Planet" },
-                        };
-                    }
                 }
                 else
                 {
                     updated[slotIndex] = CreateEmptyWonderRecord();
                     item.Detail = null;
                     item.Species = null;
-                    if (updatedYva is not null && slotIndex < updatedYva.Count)
-                    {
-                        updatedYva[slotIndex] = new JObject
-                        {
-                            ["fH8"] = "",
-                            ["7bp"] = new JObject { ["93I"] = "Custom" },
-                        };
-                    }
                 }
             }
 
             SaveSessionManager.StageEdit(updated, recordPath);
-            if (updatedYva is not null)
-                SaveSessionManager.StageEdit(updatedYva, NmsGameCatalogPaths.PersonalRecordNamesPath);
         }
 
         // 2. Process Fishing records
@@ -204,70 +190,23 @@ public static class WonderUnlockService
         {
             SetFishCatches(fishItems, unlock);
         }
+
+        return skipped == 0 ? null
+            : $"{skipped} record{(skipped == 1 ? " needs" : "s need")} a place, and this save doesn't say which system you are in. Load the save in game once, save, and try again.";
     }
 
+    /// <summary>Fish are edited through <see cref="FishingRecordEditor"/>, the same code the Fishing Records page
+    /// uses, so the three parallel arrays are written one way.</summary>
     private static void SetFishCatches(List<GameCatalogItemViewModel> fishItems, bool unlock)
     {
-        var productIdsArray = SaveSessionManager.GetValue(NmsFishingPaths.ProductListPath) as JArray;
-        var productCountsArray = SaveSessionManager.GetValue(NmsFishingPaths.ProductCountListPath) as JArray;
-        var largestCatchesArray = SaveSessionManager.GetValue(NmsFishingPaths.LargestCatchListPath) as JArray;
-
-        var productIds = productIdsArray?.Select(t => t.Value<string>() ?? "^").ToList()
-            ?? Enumerable.Repeat("^", NmsFishingPaths.SlotCount).ToList();
-        var productCounts = productCountsArray?.Select(t => t.Value<uint>()).ToList()
-            ?? Enumerable.Repeat(0u, NmsFishingPaths.SlotCount).ToList();
-        var largestCatches = largestCatchesArray?.Select(t => t.Value<float>()).ToList()
-            ?? Enumerable.Repeat(0f, NmsFishingPaths.SlotCount).ToList();
-
-        while (productIds.Count < NmsFishingPaths.SlotCount) productIds.Add("^");
-        while (productCounts.Count < NmsFishingPaths.SlotCount) productCounts.Add(0u);
-        while (largestCatches.Count < NmsFishingPaths.SlotCount) largestCatches.Add(0f);
-
-        var caughtIdSet = new HashSet<string>(
-            productIds.Where(id => id.Length > 0 && id != "^").Select(CatalogService.NormalizeId),
-            StringComparer.Ordinal);
-
+        var records = FishingRecordEditor.Load();
         bool changed = false;
-
         foreach (var item in fishItems)
         {
-            item.IsUnlocked = unlock;
-            string cleanId = CatalogService.NormalizeId(item.GameId);
-
-            if (unlock)
-            {
-                if (!caughtIdSet.Add(cleanId)) continue;
-                int emptyIndex = productIds.FindIndex(id => id.Length == 0 || id == "^");
-                if (emptyIndex < 0) continue;
-
-                productIds[emptyIndex] = "^" + cleanId;
-                productCounts[emptyIndex] = 1u;
-                largestCatches[emptyIndex] = 0f;
-                changed = true;
-            }
-            else
-            {
-                if (!caughtIdSet.Remove(cleanId)) continue;
-                int idx = productIds.FindIndex(id => CatalogService.NormalizeId(id) == cleanId);
-                if (idx < 0) continue;
-
-                productIds.RemoveAt(idx);
-                productCounts.RemoveAt(idx);
-                largestCatches.RemoveAt(idx);
-
-                productIds.Add("^");
-                productCounts.Add(0u);
-                largestCatches.Add(0f);
-                changed = true;
-            }
+            changed |= records.SetCaught(item.GameId, unlock);
+            item.IsUnlocked = records.IsCaught(item.GameId);
         }
-
-        if (changed)
-        {
-            SaveSessionManager.StageEdit(new JArray(productIds), NmsFishingPaths.ProductListPath);
-            SaveSessionManager.StageEdit(new JArray(productCounts), NmsFishingPaths.ProductCountListPath);
-            SaveSessionManager.StageEdit(new JArray(largestCatches), NmsFishingPaths.LargestCatchListPath);
-        }
+        if (changed) records.Stage();
     }
 
     private static JArray CreateDefaultWonderArray(int count)
@@ -275,20 +214,6 @@ public static class WonderUnlockService
         var array = new JArray();
         for (int i = 0; i < count; i++)
             array.Add(CreateEmptyWonderRecord());
-        return array;
-    }
-
-    private static JArray CreateDefaultYvaArray(int count)
-    {
-        var array = new JArray();
-        for (int i = 0; i < count; i++)
-        {
-            array.Add(new JObject
-            {
-                ["fH8"] = "",
-                ["7bp"] = new JObject { ["93I"] = "Custom" },
-            });
-        }
         return array;
     }
 
@@ -328,7 +253,9 @@ public static class WonderUnlockService
             };
         }
 
-        int planet = (slotIndex % 6) + 1;
+        // A body this system really has (planets and moons, numbered from 1), not an assumed six.
+        int bodyCount = Math.Max(1, UniverseInfo.Bodies(systemAddress).PlanetSeeds.Length);
+        int planet = (slotIndex % bodyCount) + 1;
         ulong planetAddress = (systemAddress & ~(0xFUL << 52)) | ((ulong)planet << 52);
         ulong seed = 0x81C896F4D18A3585UL ^ ((ulong)slotIndex * 0x9E3779B97F4A7C15UL);
 
@@ -368,11 +295,10 @@ public static class WonderUnlockService
         return (first, second);
     }
 
-    private static ulong CurrentSystemAddress()
-    {
-        if (NmsSpaceStationPaths.ReadSystemAddress(SaveSessionManager.GetValue(NmsSpaceStationPaths.CurrentUniverseAddressPath)) is ulong current && current != 0)
-            return current;
-        return 0x1D09E8F80732UL; // Oskrem-Tat fallback
-    }
+    /// <summary>The system the player is in, or null when the save doesn't say. There is deliberately no
+    /// fallback: a fixed address would put every player's records in one stranger's system.</summary>
+    private static ulong? CurrentSystemAddress() =>
+        NmsSpaceStationPaths.ReadSystemAddress(SaveSessionManager.GetValue(NmsSpaceStationPaths.CurrentUniverseAddressPath)) is ulong current && current != 0
+            ? current : null;
 }
 

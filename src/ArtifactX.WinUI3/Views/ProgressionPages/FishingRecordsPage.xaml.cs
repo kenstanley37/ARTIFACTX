@@ -13,26 +13,14 @@ using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Views.ProgressionPages;
 
-/// <summary>This save slot's fishing-record checklist (NmsFishingPaths, "vLc/6f=/bTf") -
-/// three PARALLEL fixed 256-slot arrays (ProductList/ProductCountList/LargestCatchList),
-/// unlike CataloguePage's single flat array. A caught species is present (non-"^")
-/// in ProductList; toggling here keeps all three arrays index-aligned and exactly
-/// 256 long, matching the shape every real save uses (see NmsFishingPaths' doc
-/// comment). Edited through the normal SaveSessionManager Get/Stage/Revert/Commit
-/// flow every other per-slot page in this app already uses (title bar Save/Reset).</summary>
+/// <summary>This save slot's fishing-record checklist. Editing goes through <see cref="FishingRecordEditor"/>,
+/// which keeps the save's three parallel 256-slot arrays aligned (title bar Save/Reset).</summary>
 public sealed partial class FishingRecordsPage : Page
 {
     private List<FishingRecordRowViewModel>? _allItems;
     private List<FishingRecordRowViewModel> _currentlyVisibleRows = new();
 
-    // The three parallel arrays, kept in lockstep - see SetRowCaught. _caughtIdSet
-    // mirrors _productIds' non-empty entries (normalized) for O(1) lookup against
-    // FishingRecordRowViewModel.GameId, the same shape CataloguePage's
-    // _knownIds/_knownIdSet pair uses for its own single array.
-    private List<string> _productIds = new();
-    private List<uint> _productCounts = new();
-    private List<float> _largestCatches = new();
-    private HashSet<string> _caughtIdSet = new(StringComparer.Ordinal);
+    private FishingRecordEditor _records = FishingRecordEditor.Load();
 
     public FishingRecordsPage()
     {
@@ -81,19 +69,19 @@ public sealed partial class FishingRecordsPage : Page
 
         await CatalogService.WarmCacheAsync(fishItems.Concat(flotsamItems).Select(c => c.GameId));
 
-        LoadFishingRecordArrays();
+        _records = FishingRecordEditor.Load();
 
         _allItems = fishItems.Select(c => new FishingRecordRowViewModel
         {
             GameId = c.GameId,
             DisplayName = ToDisplayCase(c.DisplayName),
-            IsCaught = _caughtIdSet.Contains(c.GameId),
+            IsCaught = _records.IsCaught(c.GameId),
             Icon = CatalogService.TryGet(c.GameId)?.Icon
         }).Concat(flotsamItems.Select(c => new FishingRecordRowViewModel
         {
             GameId = c.GameId,
             DisplayName = ToDisplayCase(c.DisplayName),
-            IsCaught = _caughtIdSet.Contains(c.GameId),
+            IsCaught = _records.IsCaught(c.GameId),
             Icon = CatalogService.TryGet(c.GameId)?.Icon,
             IsFlotsam = true,
         })).ToList();
@@ -104,27 +92,6 @@ public sealed partial class FishingRecordsPage : Page
 
         ApplyFilters();
         UpdateResetButton();
-    }
-
-    /// <summary>Reads all three parallel arrays fresh from the active session,
-    /// defaulting to 256 empty slots if this save has never fished at all
-    /// (the field may not exist yet in that case).</summary>
-    private void LoadFishingRecordArrays()
-    {
-        var productIdsArray = SaveSessionManager.GetValue(NmsFishingPaths.ProductListPath) as JArray;
-        var productCountsArray = SaveSessionManager.GetValue(NmsFishingPaths.ProductCountListPath) as JArray;
-        var largestCatchesArray = SaveSessionManager.GetValue(NmsFishingPaths.LargestCatchListPath) as JArray;
-
-        _productIds = productIdsArray?.Select(t => t.Value<string>() ?? "^").ToList()
-            ?? Enumerable.Repeat("^", NmsFishingPaths.SlotCount).ToList();
-        _productCounts = productCountsArray?.Select(t => t.Value<uint>()).ToList()
-            ?? Enumerable.Repeat(0u, NmsFishingPaths.SlotCount).ToList();
-        _largestCatches = largestCatchesArray?.Select(t => t.Value<float>()).ToList()
-            ?? Enumerable.Repeat(0f, NmsFishingPaths.SlotCount).ToList();
-
-        _caughtIdSet = new HashSet<string>(
-            _productIds.Where(id => id.Length > 0 && id != "^").Select(CatalogService.NormalizeId),
-            StringComparer.Ordinal);
     }
 
     /// <summary>The catalog DB's NameEnglish is the game's own raw ALL-CAPS
@@ -168,50 +135,10 @@ public sealed partial class FishingRecordsPage : Page
         ResultCountTxt.Text = $"{_currentlyVisibleRows.Count(r => !r.IsFlotsam):N0} of {fish:N0} species · {flotsam.Count} of {_allItems.Count - fish} flotsam";
     }
 
-    /// <summary>Keeps all three parallel arrays in lockstep and exactly
-    /// NmsFishingPaths.SlotCount long, matching every real save's shape - see
-    /// NmsFishingPaths' doc comment. Marking caught fills the first open
-    /// ("^") slot with a plausible-but-not-authentic count/size (1 catch,
-    /// 0.0 largest); marking uncaught removes that slot and re-appends an
-    /// empty one at the tail, keeping every other entry's index (and the
-    /// game's own observed "packed from index 0, no gaps" shape) intact.</summary>
     private void SetRowCaught(FishingRecordRowViewModel row, bool caught)
     {
         row.IsCaught = caught;
-
-        if (caught)
-        {
-            if (!_caughtIdSet.Add(row.GameId)) return;
-
-            int emptyIndex = _productIds.FindIndex(id => id.Length == 0 || id == "^");
-            if (emptyIndex < 0) return; // all 256 slots already full - don't corrupt the array
-
-            _productIds[emptyIndex] = "^" + row.GameId;
-            _productCounts[emptyIndex] = 1;
-            _largestCatches[emptyIndex] = 0f;
-        }
-        else
-        {
-            if (!_caughtIdSet.Remove(row.GameId)) return;
-
-            int idx = _productIds.FindIndex(id => CatalogService.NormalizeId(id) == row.GameId);
-            if (idx < 0) return;
-
-            _productIds.RemoveAt(idx);
-            _productCounts.RemoveAt(idx);
-            _largestCatches.RemoveAt(idx);
-
-            _productIds.Add("^");
-            _productCounts.Add(0u);
-            _largestCatches.Add(0f);
-        }
-    }
-
-    private void StageFishingRecordArrays()
-    {
-        SaveSessionManager.StageEdit(new JArray(_productIds), NmsFishingPaths.ProductListPath);
-        SaveSessionManager.StageEdit(new JArray(_productCounts), NmsFishingPaths.ProductCountListPath);
-        SaveSessionManager.StageEdit(new JArray(_largestCatches), NmsFishingPaths.LargestCatchListPath);
+        _records.SetCaught(row.GameId, caught);
     }
 
     private void Tile_Tapped(object sender, TappedRoutedEventArgs e)
@@ -219,7 +146,7 @@ public sealed partial class FishingRecordsPage : Page
         if (sender is not FrameworkElement { Tag: FishingRecordRowViewModel row }) return;
 
         SetRowCaught(row, !row.IsCaught);
-        StageFishingRecordArrays();
+        _records.Stage();
         UpdateResetButton();
 
         string? caughtFilter = (CaughtFilterBox.SelectedItem as ComboBoxItem)?.Content as string;
@@ -238,19 +165,19 @@ public sealed partial class FishingRecordsPage : Page
         foreach (var row in _currentlyVisibleRows)
             SetRowCaught(row, caught);
 
-        StageFishingRecordArrays();
+        _records.Stage();
         UpdateResetButton();
         ApplyFilters();
     }
 
     private void UpdateResetButton() =>
-        PageResetBtn.Visibility = SaveSessionManager.HasStagedEditsUnder(NmsFishingPaths.RecordContainerPath)
+        PageResetBtn.Visibility = FishingRecordEditor.HasStagedEdits
             ? Visibility.Visible
             : Visibility.Collapsed;
 
     private void PageResetBtn_Click(object sender, RoutedEventArgs e)
     {
-        SaveSessionManager.RevertEditsUnder(NmsFishingPaths.RecordContainerPath);
+        FishingRecordEditor.RevertEdits();
         _ = LoadFishingRecordsAsync();
     }
 }
