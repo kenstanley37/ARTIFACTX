@@ -111,21 +111,25 @@ public sealed partial class SwatchChoiceViewModel(int index, Swatch swatch, Acti
     public Brush Fill { get; } = new SolidColorBrush(Windows.UI.Color.FromArgb(255, Byte(swatch.Rgb[0]), Byte(swatch.Rgb[1]), Byte(swatch.Rgb[2])));
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Outline))]
+    [NotifyPropertyChangedFor(nameof(Outline), nameof(AccessibleName))]
     public partial bool IsPicked { get; set; }
 
     public Brush Outline => new SolidColorBrush(IsPicked ? Colors.White : Colors.Transparent);
 
-    public void Pick() => pick(Index);
+    /// <summary>What a screen reader says: the colour, and whether it is the one picked.</summary>
+    public string AccessibleName => IsPicked ? $"{Name}, picked" : Name;
+
+    [RelayCommand]
+    private void Pick() => pick(Index);
 
     private static byte Byte(float v) => (byte)Math.Clamp(v * 255f, 0f, 255f);
 }
 
 /// <summary>One colour group of the paint style (primary, secondary...): the game's own grid, two rows with half the
-/// swatches in each.</summary>
+/// swatches in each. One list in a two-row grid, not one list per row: each list is its own Tab stop, so with
+/// two rows Tab skipped the second row (2026-11-11, the owner's keyboard test).</summary>
 public sealed partial class ColourGroupViewModel : ObservableObject
 {
-    private readonly List<SwatchChoiceViewModel> _all = new();
     private readonly Action<string, int> _picked;
 
     public ColourGroupViewModel(ColourGroup group, IReadOnlyList<Swatch> swatches, int current, Action<string, int> picked)
@@ -133,20 +137,16 @@ public sealed partial class ColourGroupViewModel : ObservableObject
         GroupTitle = group.Title;
         Title = group.Title.ToUpperInvariant();
         _picked = picked;
-        int columns = Math.Max(1, (swatches.Count + 1) / 2);
         for (int i = 0; i < swatches.Count; i++)
-        {
-            var choice = new SwatchChoiceViewModel(i, swatches[i], Pick);
-            _all.Add(choice);
-            (i < columns ? TopRow : BottomRow).Add(choice);
-        }
+            Swatches.Add(new SwatchChoiceViewModel(i, swatches[i], Pick));
         Mark(current);
     }
 
     public string GroupTitle { get; }
     public string Title { get; }
-    public List<SwatchChoiceViewModel> TopRow { get; } = new();
-    public List<SwatchChoiceViewModel> BottomRow { get; } = new();
+
+    /// <summary>Every colour, in the game's order; the page lays them out in two rows.</summary>
+    public List<SwatchChoiceViewModel> Swatches { get; } = new();
 
     [ObservableProperty]
     public partial string PickedName { get; set; } = "";
@@ -159,8 +159,8 @@ public sealed partial class ColourGroupViewModel : ObservableObject
 
     private void Mark(int index)
     {
-        foreach (var s in _all) s.IsPicked = s.Index == index;
-        PickedName = index >= 0 && index < _all.Count ? _all[index].Name : "";
+        foreach (var s in Swatches) s.IsPicked = s.Index == index;
+        PickedName = index >= 0 && index < Swatches.Count ? Swatches[index].Name : "";
     }
 }
 

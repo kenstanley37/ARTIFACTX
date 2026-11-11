@@ -3,7 +3,10 @@ using ArtifactX.WinUI3.Controls;
 using ArtifactX.WinUI3.ViewModels.ShipDesignerViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
+using Windows.System;
 using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
@@ -24,6 +27,14 @@ public sealed partial class ShipDesignerPage : Page, IShipDesignerHost
         InitializeComponent();
         ViewModel.Attach();
         Unloaded += (_, _) => ViewModel.Detach();
+        ViewModel.PropertyChanged += OnViewModelChanged;
+    }
+
+    /// <summary>Paint mode is only paint: open the Paint card even if the player folded it on an earlier visit
+    /// (2026-11-11; folded, the page would show a ship and nothing to change).</summary>
+    private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ShipDesignerViewModel.IsPaintMode) && ViewModel.IsPaintMode) PaintCard.IsExpanded = true;
     }
 
     public ShipDesignerViewModel ViewModel { get; }
@@ -32,6 +43,20 @@ public sealed partial class ShipDesignerPage : Page, IShipDesignerHost
     {
         base.OnNavigatedTo(e);
         await ViewModel.LoadAsync(e.Parameter is int ship ? ship : null);
+    }
+
+    /// <summary>Left and Right follow the colours in order, so Right at the end of the top row carries on along the
+    /// bottom row (2026-11-11, the owner's keyboard test: by screen position it stopped there). Up and Down are
+    /// left to the grid's own spatial movement between the two rows.</summary>
+    private void Swatches_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key is not (VirtualKey.Left or VirtualKey.Right) || sender is not ItemsControl list
+            || FocusManager.GetFocusedElement(XamlRoot) is not FrameworkElement { DataContext: SwatchChoiceViewModel swatch }) return;
+        int target = swatch.Index + (e.Key == VirtualKey.Right ? 1 : -1);
+        e.Handled = true; // at either end it stays put, rather than leaving the group
+        if (list.ContainerFromIndex(target) is DependencyObject container && VisualTreeHelper.GetChildrenCount(container) > 0
+            && VisualTreeHelper.GetChild(container, 0) is Control next)
+            next.Focus(FocusState.Keyboard);
     }
 
     // ------------------------------------------------------------------ IShipDesignerHost

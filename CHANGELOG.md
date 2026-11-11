@@ -10,7 +10,9 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 - Ship Designer: "Put these parts in my Exosuit" gives you the design's parts as items, so you can build the ship yourself at a space station. Right-click any part to add just that one.
 
-- Ship Designer: the Paint and My designs cards can be hidden with a button in their heading. Hide Paint to give your saved designs the whole column; the choice is remembered.
+- Ship Designer: the Paint and My designs cards can be hidden with a button in their heading. Hide Paint to give your saved designs the whole column; the choice is remembered. Painting one of your ships always opens Paint.
+
+- Ship Designer: paint colours can be picked with the keyboard (Tab to a colour group, arrow keys to move, Enter to pick), and screen readers say which colour is picked.
 
 - Mobile camera scanning now shows moving brackets around detected portal details and a green lock before opening the system.
 
