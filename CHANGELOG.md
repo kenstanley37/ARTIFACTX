@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- The Catalogue page is now part of the Catalog page: its technology is the Catalog's Technology section, which also tells you about broken technology placeholders and has a Forget broken technology button.
+
 - Catalog: Wonders records have pictures. Planet Records show each planet in its type's colour, with rings if it has them, and Fauna, Flora and Mineral Records show the game's own paw, leaf and crystal icons. Update your game data once to get them.
 
 - Ship Designer: paint styles you haven't unlocked yet (expedition rewards such as Titan Stripes) show a padlock. You can still try them on, and a new button unlocks the picked style.

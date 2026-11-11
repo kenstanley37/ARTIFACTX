@@ -54,4 +54,6 @@ public sealed partial class GameCatalogPage : Page
     private void All_Click(object sender, RoutedEventArgs e) => ViewModel.ToggleAll();
 
     private async void Reset_Click(object sender, RoutedEventArgs e) => await ViewModel.ResetAsync();
+
+    private void ForgetBrokenTech_Click(object sender, RoutedEventArgs e) => ViewModel.ForgetBrokenTech();
 }

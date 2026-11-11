@@ -23,6 +23,8 @@ public sealed partial class GameCatalogViewModel : ObservableObject
 {
     private bool _staging;
     private int _iconVersion;
+    private UnlockListViewModel? _tech;
+    private List<string> _brokenTech = [];
 
     public ObservableCollection<GameCatalogSectionViewModel> Sections { get; } = new();
 
@@ -49,6 +51,16 @@ public sealed partial class GameCatalogViewModel : ObservableObject
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasWonderProblem))] public partial string WonderProblem { get; private set; } = "";
     public bool HasWonderProblem => WonderProblem.Length > 0;
 
+    /// <summary>The Technology section is open: broken-technology placeholders are said there.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(ShowBrokenTech))] public partial bool IsTechnologySelected { get; private set; }
+    /// <summary>How many broken-slot placeholders this save knows (the game's BrokenSlotTech flag): red entries in the
+    /// Install Technology menu that do nothing. The game's own Catalog lists none of them.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(ShowBrokenTech), nameof(BrokenTechText))] public partial int BrokenTechCount { get; private set; }
+    public bool ShowBrokenTech => IsTechnologySelected && BrokenTechCount > 0;
+    public string BrokenTechText => BrokenTechCount == 1
+        ? "This save knows 1 broken technology placeholder. It shows red in the Install Technology menu and does nothing."
+        : $"This save knows {BrokenTechCount} broken technology placeholders. They show red in the Install Technology menu and do nothing.";
+
     public bool CanToggleAll => SelectedSection?.TracksKnown == true && Scope().Any(i => i.CanEdit);
 
     /// <summary>True while this page is staging, so its own edits don't trigger a reload.</summary>
@@ -73,7 +85,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
             return;
         }
 
-        var tech = new UnlockListViewModel(UnlockListStore.ForSave(NmsGameCatalogPaths.KnownTechPath));
+        var tech = _tech = new UnlockListViewModel(UnlockListStore.ForSave(NmsGameCatalogPaths.KnownTechPath));
         var products = new UnlockListViewModel(UnlockListStore.ForSave(NmsGameCatalogPaths.KnownProductsPath));
         var recipes = new UnlockListViewModel(UnlockListStore.ForSave(NmsGameCatalogPaths.KnownRecipesPath));
         tech.Load();
@@ -89,6 +101,9 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         if (version != _loadVersion) return;
         await PlanetTypesService.EnsureLoadedAsync(); // Planet Records draw each planet's type
         if (version != _loadVersion) return;
+        _brokenTech = (await CatalogService.GetAllUnlockableItemsAsync()).Where(i => i.IsBrokenSlotTech).Select(i => i.GameId).ToList();
+        if (version != _loadVersion) return;
+        UpdateBrokenTech();
 
         var newSections = new List<GameCatalogSectionViewModel>();
         foreach (var section in catalogue.Sections)
@@ -252,6 +267,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
     {
         foreach (var section in Sections) section.IsSelected = section == value;
         IsWondersSelected = value?.Key == "UI_PORTAL_CAT_COLLECTION";
+        IsTechnologySelected = value?.Key == "UI_PORTAL_CAT_CRAFTING";
         WonderProblem = "";
         Categories = value?.Categories ?? [];
         SelectedCategory = Categories.FirstOrDefault(c => c.Items.Count > 0);
@@ -342,6 +358,27 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         if (SelectedSection?.List is not { } list) return;
         Stage(() => list.Set(editable, learn));
         OnPropertyChanged(nameof(AllUnlocked)); // the checkbox toggled itself; restore the real state
+    }
+
+    /// <summary>Forgets every broken-slot placeholder this save knows (moved here from the old Catalogue page,
+    /// 2026-11-11). Found on a real save that had all 36 (2026-10-10); teaching them is how a save gets red entries
+    /// it can't use. Staged like any edit.</summary>
+    public void ForgetBrokenTech()
+    {
+        if (_tech is not { } tech) return;
+        var known = _brokenTech.Where(tech.IsUnlocked).Select(id => (IUnlockRow)new BrokenTechRow(id)).ToList();
+        if (known.Count == 0) return;
+        Stage(() => tech.Set(known, false));
+        UpdateBrokenTech();
+    }
+
+    private void UpdateBrokenTech() => BrokenTechCount = _tech is { } tech ? _brokenTech.Count(tech.IsUnlocked) : 0;
+
+    /// <summary>A broken placeholder as a row for the known-technology list.</summary>
+    private sealed class BrokenTechRow(string gameId) : IUnlockRow
+    {
+        public string GameId { get; } = gameId;
+        public bool IsUnlocked { get; set; } = true;
     }
 
     private void Stage(Action stage)

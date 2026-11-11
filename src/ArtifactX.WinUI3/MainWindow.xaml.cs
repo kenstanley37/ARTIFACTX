@@ -175,7 +175,6 @@ public sealed partial class MainWindow : Window
         KorvaxLanguagePathIcon.Data = G(NavIconGeometries.Language);
         AutophageLanguagePathIcon.Data = G(NavIconGeometries.Language);
         AtlasLanguagePathIcon.Data = G(NavIconGeometries.Language);
-        CataloguePathIcon.Data = G(NavIconGeometries.Catalogue);
         GameCatalogPathIcon.Data = G(NavIconGeometries.Catalogue);
         FishingRecordsPathIcon.Data = G(NavIconGeometries.FishingRecords);
         FishingPathIcon.Data = G(NavIconGeometries.FishingRecords);
@@ -450,7 +449,6 @@ public sealed partial class MainWindow : Window
         ExploreSeparator.Visibility = ExploreNavItem.Visibility;
         ReferenceSeparator.Visibility = ReferenceNavItem.Visibility;
         MilestonesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        CatalogueNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         GameCatalogNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         FishingRecordsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         ExocraftNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;

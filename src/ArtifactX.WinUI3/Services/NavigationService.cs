@@ -59,7 +59,6 @@ public static class NavigationService
         ["Guide"] = typeof(GuidePage),
         ["ExpeditionRewards"] = typeof(ExpeditionRewardsPage),
         ["TwitchRewards"] = typeof(TwitchRewardsPage),
-        ["Catalogue"] = typeof(CataloguePage),
         ["GameCatalog"] = typeof(GameCatalogPage),
         ["FishingRecords"] = typeof(FishingRecordsPage),
         ["Exocraft"] = typeof(ExocraftPage),

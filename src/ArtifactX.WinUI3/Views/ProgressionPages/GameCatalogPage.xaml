@@ -36,6 +36,14 @@
                        Text="Wonders you tick here are filled in for you: each gets a typical value and a place in the system you are in now, not a discovery of your own. Records the game made while you played are left as they are unless you untick them."/>
             <TextBlock Foreground="{ThemeResource ThemeWarningBrush}" TextWrapping="Wrap" Text="{x:Bind ViewModel.WonderProblem, Mode=OneWay}"
                        Visibility="{x:Bind ViewModel.HasWonderProblem, Mode=OneWay}" AutomationProperties.LiveSetting="Polite"/>
+            <!-- Broken-slot placeholders: not in the game's Catalog list, so said here with a way to clear them
+                 (moved from the old Catalogue page, 2026-11-11). -->
+            <StackPanel Orientation="Horizontal" Spacing="12" Visibility="{x:Bind ViewModel.ShowBrokenTech, Mode=OneWay}">
+                <TextBlock Foreground="{ThemeResource ThemeWarningBrush}" TextWrapping="Wrap" VerticalAlignment="Center"
+                           Text="{x:Bind ViewModel.BrokenTechText, Mode=OneWay}"/>
+                <Button Content="Forget broken technology" Click="ForgetBrokenTech_Click"
+                        ToolTipService.ToolTip="Removes the broken placeholders from what this save knows. Nothing is written until you Save."/>
+            </StackPanel>
         </StackPanel>
 
         <!-- Section tiles, as the game's Catalog front page. -->
