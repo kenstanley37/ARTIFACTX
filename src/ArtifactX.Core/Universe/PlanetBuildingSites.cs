@@ -67,6 +67,11 @@ public static class PlanetBuildingSites
     /// <summary>Planet radius for a GcPlanetSize, or null for a size not measured yet.</summary>
     public static float? Radius(int planetSize) => planetSize >= 0 && planetSize < Radii.Length ? Radii[planetSize] : null;
 
+    /// <summary>The planet radius nearest a distance from the planet centre. The radii are at least 30 km apart and
+    /// ground heights only a few km, so a point on or above the ground names its planet's radius.</summary>
+    public static float NearestRadius(float distanceFromCentre) =>
+        Radii.MinBy(r => MathF.Abs(r - distanceFromCentre));
+
     /// <summary>GcPlanetData.BuildingLevel (GcBuildingDensityLevels) from the planet's type, as set at 0x141695B22:
     /// the safe start planet (class 1) Full, then Weird, Infested (HalfWeird), Waterworld, GasGiant, Dead, else Mid.</summary>
     public static int DensityLevel(int biome, int subType, int planetClass) =>

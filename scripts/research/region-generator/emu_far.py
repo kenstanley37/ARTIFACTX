@@ -9,6 +9,7 @@ import struct, sys, json, math, os, pickle
 import pefile
 from unicorn import Uc, UC_ARCH_X86, UC_MODE_64, UC_HOOK_CODE, UC_HOOK_MEM_UNMAPPED, UcError, UC_PROT_ALL
 from unicorn import x86_const as X
+from nmsbuild import A, BUILD   # build-184271 addresses moved to the installed build
 
 EXE = os.environ.get("NMS_EXE", r"D:\SteamLibrary\steamapps\common\No Man's Sky\Binaries\NMS.exe")
 data = open(EXE, 'rb').read()
@@ -114,9 +115,9 @@ def ret_with(rax):
 # The game's frame allocator (build 184271): 0x142C91990(0) -> allocator, 0x142C92910(alloc, size, align, flag) ->
 # block, 0x142C93ED0(alloc, mark, mark) -> rewind. Served from the emulator heap.
 ALLOCATOR = alloc(0x100)
-HOOKS = {0x142C91990: lambda: ret_with(ALLOCATOR),
-         0x142C92910: lambda: ret_with(alloc(mu.reg_read(X.UC_X86_REG_RDX), max(16, min(4096, mu.reg_read(X.UC_X86_REG_R8) or 16)))),
-         0x142C93ED0: lambda: ret_with(0)}
+HOOKS = {A(0x142C91990): lambda: ret_with(ALLOCATOR),
+         A(0x142C92910): lambda: ret_with(alloc(mu.reg_read(X.UC_X86_REG_RDX), max(16, min(4096, mu.reg_read(X.UC_X86_REG_R8) or 16)))),
+         A(0x142C93ED0): lambda: ret_with(0)}
 
 
 def on_hook(mu, addr, size, _):
@@ -172,9 +173,18 @@ def on_density(mu, addr, size, _):
     def arr(off, k=1):
         p = struct.unpack('<Q', bytes(mu.mem_read(tbl + off, 8)))[0]
         return list(struct.unpack(f'<{n * k}f', bytes(mu.mem_read(p, 4 * n * k)))) if p else None
+    regs = [mu.reg_read(r) for r in (X.UC_X86_REG_RDX, X.UC_X86_REG_R8, X.UC_X86_REG_R9)]
+    captured['xyz'] = [list(struct.unpack(f'<{n}f', bytes(mu.mem_read(p, 4 * n)))) for p in regs]
     captured.update(pads=arr(0x390, 4), l0=arr(0x8), l6=arr(0xC8), l7=arr(0xE8), r=arr(0x3C0))
-mu.hook_add(UC_HOOK_CODE, on_density, begin=0x1412B1D60, end=0x1412B1D60)
-call(0x141294A00, (region,))
+mu.hook_add(UC_HOOK_CODE, on_density, begin=A(0x1412B1D60), end=A(0x1412B1D60))
+# optional, emulator copy only: ZERO=lo-hi;... wipes and PATCH=off:fmt:value;... sets fields of the planet's
+# TkVoxelGeneratorData (planet + 0x2090) before the run, to see what each part adds (2026-11-10).
+VOX = B['planet'] + 0x2090
+for spec in [v for v in os.environ.get('ZERO', '').split(';') if v]:
+    lo, hi = (int(x, 16) for x in spec.split('-')); mu.mem_write(VOX + lo, bytes(hi - lo))
+for spec in [v for v in os.environ.get('PATCH', '').split(';') if v]:
+    off, fmt, val = spec.split(':'); mu.mem_write(VOX + int(off, 16), struct.pack(fmt, float(val) if 'f' in fmt else int(val)))
+call(A(0x141294A00), (region,))
 json.dump(captured, open(sys.argv[4] + '.table.json', 'w'))
 grid = struct.unpack(f'<{stride * stride}f', bytes(mu.mem_read(grid_ptr, 4 * stride * stride)))
 json.dump({'grid': grid, 'unmapped': [(hex(a), hex(r)) for a, r in unmapped]}, open(sys.argv[4], 'w'))
@@ -205,7 +215,7 @@ if os.environ.get('SAMPLE'):
     S = alloc(0x100)
     for p in json.load(open(os.environ['SAMPLE'])):
         mu.mem_write(S, struct.pack('<4f', *p, 1.0))
-        call(0x141291DF0, (region, S + 0x40, S))
+        call(A(0x141291DF0), (region, S + 0x40, S))
         L = np.array(struct.unpack('<4f', bytes(mu.mem_read(S + 0x40, 16))), dtype=f32)
         g = L / np.array([cx, cy, cx, 1], dtype=f32)
         i, j = int(np.floor(g[0])), int(np.floor(g[2]))
@@ -218,7 +228,25 @@ if os.environ.get('SAMPLE'):
         a = (P01 - P00) * fz + P00
         pt = (P10 - a) * fx + a
         mu.mem_write(S + 0x80, pt.astype('<f4').tobytes()); mu.mem_write(S + 0xC0, struct.pack('<4f', 0, 1, 0, 0))
-        call(0x141291310, (region, S + 0x40, S + 0x80, S + 0xC0))
+        call(A(0x141291310), (region, S + 0x40, S + 0x80, S + 0xC0))
         w = np.array(struct.unpack('<4f', bytes(mu.mem_read(S + 0x40, 16))), dtype=f32)
         print('   L', np.round(L, 3), 'g', np.round(g, 3), 'ij', i, j, 'f', round(float(fx), 3), round(float(fz), 3), 'pt', np.round(pt, 3), 'w', np.round(w, 2))
-        print(f'point {np.round(p, 2)}: game sampling height {float(np.sqrt(np.sum(w[:3] * w[:3], dtype=f32))) - 130048:.4f}')
+        print(f'point {np.round(p, 2)}: game sampling height {float(np.sqrt(np.sum(w[:3] * w[:3], dtype=f32))) - float(os.environ.get("PLANET_R", "130048")):.4f}')
+
+# NODES=i,j;... : world position (the transform's frame) and height of grid nodes; the density pass's column directions
+# are kept in the .table.json as 'xyz'.
+if os.environ.get('NODES'):
+    import numpy as np
+    f32 = np.float32
+    b = R['mem'][region]
+    cx = f32(b[0x84]) / f32(b[0x86] - b[0x88]); cy = f32(b[0x85]) / f32(b[0x87] - (b[0x88] >> 1))
+    S = alloc(0x100); outn = []
+    for ij in os.environ['NODES'].split(';'):
+        i, j = map(int, ij.split(','))
+        pt = np.array([f32(i) * cx, f32(grid[i * stride + j]), f32(j) * cx, 1], dtype=f32)
+        mu.mem_write(S + 0x80, pt.astype('<f4').tobytes()); mu.mem_write(S + 0xC0, struct.pack('<4f', 0, 1, 0, 0))
+        call(A(0x141291310), (region, S + 0x40, S + 0x80, S + 0xC0))
+        w = struct.unpack('<4f', bytes(mu.mem_read(S + 0x40, 16)))
+        outn.append([w[0], w[1], w[2], float(np.sqrt(np.sum(np.array(w[:3], dtype=f32) ** 2, dtype=f32))) - float(os.environ.get('PLANET_R', '130048'))])
+    json.dump(outn, open(sys.argv[4] + '.nodes.json', 'w'))
+    for r in outn: print('node world', [round(v, 2) for v in r[:3]], 'height', round(r[3], 3))

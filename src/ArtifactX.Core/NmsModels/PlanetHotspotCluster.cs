@@ -119,7 +119,7 @@ public sealed record PlanetHotspotCluster(
                     float clusterRadius = baseRadius > 0f ? baseRadius : planetRadius;
                     if (terrain != null && baseRadius > 0f)
                     {
-                        float h = PlanetTerrain.Height(terrain, baseDir.X * baseRadius, baseDir.Y * baseRadius, baseDir.Z * baseRadius);
+                        float h = PlanetTerrain.SurfaceHeight(terrain, baseDir.X * baseRadius, baseDir.Y * baseRadius, baseDir.Z * baseRadius, baseRadius);
                         clusterRadius = baseRadius + h;
                     }
                     Vector3 baseLocalPos = baseDir * clusterRadius;
@@ -192,7 +192,7 @@ public sealed record PlanetHotspotCluster(
                 float clusterRadius = baseRadius > 0f ? baseRadius : planetRadius;
                 if (terrain != null && baseRadius > 0f)
                 {
-                    float h = PlanetTerrain.Height(terrain, baseDir.X * baseRadius, baseDir.Y * baseRadius, baseDir.Z * baseRadius);
+                    float h = PlanetTerrain.SurfaceHeight(terrain, baseDir.X * baseRadius, baseDir.Y * baseRadius, baseDir.Z * baseRadius, baseRadius);
                     clusterRadius = baseRadius + h;
                 }
                 Vector3 baseLocalPos = baseDir * clusterRadius;
