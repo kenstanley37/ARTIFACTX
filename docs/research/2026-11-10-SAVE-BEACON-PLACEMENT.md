@@ -206,3 +206,18 @@ exact given the game's columns, so either Core's per-layer value differs from th
 beacons do not stand on open ground. **Next:** with the owner at the 242700FF67B291 beacon (same region as Arkans),
 read its planet and Far regions and run `emu_layers.py`; compare the captured columns with Core's layer values.
 Beacon placement keeps using `Height` until that is settled.
+
+### Riwor V (242700FF67B291), owner at the beacon, 2026-11-10 night
+
+- The beacon stands beside a crashed ship. The ship's site flattens the ground around it (building pads, column
+  radius up to ~105 m), and that flattening is what sets the beacon's height; the game's own surface there is
+  411.45 m (real 411.1). Neither `Height` nor `SurfaceHeight` models that flattening, so this beacon is not a test
+  of the layer rule.
+- Away from the site (four regions 30-250 candidates out, caves removed) `CombineLayers` matches the game within
+  1 cm at LOD 0 with this planet's layers: layer 0 Offset Zero, layers 1-3 Offset All, layer 2 Height 128 (the 128
+  m cap binds), layer 3 MaximumLOD 1. (An earlier mismatch was the harness defaulting to LOD 2.)
+- Core's per-layer values equal the game's columns at the same directions (base 6 mm, layers within 2.5 cm).
+- Open: world positions from the region transform (0x141291310) sit a constant ~13-15 m sideways from the density
+  pass's column directions (Riwor V (-8.0, 5.65, 8.8), Arkans (6.8, 12.1, -5.9)), so on steep ground a point's
+  height depends on which frame it is in (up to ~8 m here). Which frame the save's `wMC` uses needs a game-built
+  beacon on sloped open ground, away from buildings.
