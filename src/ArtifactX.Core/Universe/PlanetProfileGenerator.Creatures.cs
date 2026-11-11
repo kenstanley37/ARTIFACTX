@@ -1,8 +1,13 @@
 namespace ArtifactX.Core.Universe;
 
 /// <summary>One predicted procedural creature for a planet. Seed is the creature's GcCreatureRoleData.Seed (NMS.exe
-/// 184271 0x1416d60e0: the mixed seed of the next two draws of its role's stream, right after the creature is picked).</summary>
-public sealed record PredictedCreature(string Id, string Domain, int Role, ulong Seed = 0)
+/// 184271 0x1416d60e0: the mixed seed of the next two draws of its role's stream, right after the creature is picked).
+/// CreatureType (GcCreatureTypes) and Diet (GcCreatureDiet) are the role data's Type and Diet, set in the same routine:
+/// Type is the creature's RealType, else its ForceType, else role + 22 (Predator, PlayerPredator, Prey, Passive);
+/// Diet is Robot on ROBOT worlds, Carnivore for role 2, a roll for roles 1 and 7 (Omnivore above 0.5, else
+/// Carnivore), Herbivore otherwise. CreatureType feeds the genus seed (SpeciesNames.FaunaSeeds); Diet is kept for
+/// the creature's traits.</summary>
+public sealed record PredictedCreature(string Id, string Domain, int Role, ulong Seed = 0, int CreatureType = 0, int Diet = 0)
 {
     public string Habitat => Domain switch
     {
@@ -45,7 +50,9 @@ public sealed record CreatureGlobals(
     float[] WaterGroups,
     float HerdPenalty);
 
-/// <summary>An individual creature definition from GcCreatureDataTable (filtered by GcCreatureFilenameTable).</summary>
+/// <summary>An individual creature definition from GcCreatureDataTable (filtered by GcCreatureFilenameTable).
+/// Type is its ForceType (what roles filter on); RealType (catalog format 78; 0 on older catalogs) is the type the
+/// spawned creature reports.</summary>
 public sealed record CreatureEntry(
     string Id,
     int Type,
@@ -54,7 +61,8 @@ public sealed record CreatureEntry(
     int HerbMod,
     int PredMod,
     int Rarity,
-    string[] Tags);
+    string[] Tags,
+    int RealType = 0);
 
 /// <summary>An archetype option entry with an ID and a weight.</summary>
 public sealed record CreatureWeightedEntry(string Id, float Weight);
@@ -463,6 +471,7 @@ public static partial class PlanetProfileGenerator
                     {
                         float roll = stack.NextFraction() * totalWeight;
                         string chosenId = "";
+                        CreatureEntry? picked = null;
                         float acc = 0.0f;
                         for (int cIdx = 0; cIdx < tables.Creatures.Length; cIdx++)
                         {
@@ -490,19 +499,30 @@ public static partial class PlanetProfileGenerator
                             if (acc >= roll)
                             {
                                 chosenId = c.Id;
+                                picked = c;
                                 break;
                             }
                         }
 
-                        // The creature's own seed, then (not for robot ground life) a diet roll for roles 1 and 7.
+                        // The creature's own seed, then its diet: robot ground life is Robot (3); role 2 Carnivore (0);
+                        // roles 1 and 7 roll in a child stream, Omnivore (1) above 0.5 (0x144bf56f8), else Carnivore;
+                        // the rest Herbivore (2).
                         ulong seed = stack.NextSeed();
-                        if (ground != "ROBOT" && role.Role is 1 or 7)
+                        int diet;
+                        if (ground == "ROBOT") diet = 3;
+                        else if (role.Role == 2) diet = 0;
+                        else if (role.Role is 1 or 7)
                         {
                             stack.Push();
-                            _ = stack.NextFraction();
+                            diet = 0.5f < stack.NextFraction() ? 1 : 0;
                             stack.Pop();
                         }
-                        chosenCreatures.Add(new PredictedCreature(chosenId, domain, role.Role, seed));
+                        else diet = 2;
+                        int type = picked is null ? 0
+                            : picked.RealType != 0 ? picked.RealType
+                            : picked.Type != 0 ? picked.Type
+                            : role.Role + 22;
+                        chosenCreatures.Add(new PredictedCreature(chosenId, domain, role.Role, seed, type, diet));
                     }
                 }
                 stack.Pop();

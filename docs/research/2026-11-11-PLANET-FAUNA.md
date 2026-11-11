@@ -73,16 +73,55 @@ predicted (`fauna-check` "probe" and "name seeds" lines):
 - Neither A nor B equals the planet seed, any of its 26 child seeds, the address, the creature seed or Mix64 of it.
 - `GcCreatureRoleData.Info` (GcCreatureInfo) holds only descriptive traits, no seeds.
 
-So the name seeds are added when the live creature is discovered. Next: in Ghidra, find the code that builds an
-"Animal" discovery key and writes its +0x18 / +0x20 (the species namer at 184271 `0x140524d3b` reads them), and
-follow those values back to the spawned creature.
+So the name seeds are added when the live creature is discovered.
+
+## Name seeds: formula found, species 87%, genus needs the size class (2026-11-11, later)
+
+Traced in Ghidra (184271; new helper scripts `FindStores.java`, `StringRefs.java`, `ReadData.java`):
+
+- The discovery namer `0x1405248f0` (case 3 = Animal) passes key seeds [2] and [3] to the fauna namer
+  `0x140eb39f0`. Pets store the same pair as `SpeciesSeed` / `GenusSeed` (`0x141230ad0` copies runtime
+  +0x23a8 / +0x23b0 into GcPetData +0x170 / +0x150), so **bEr[2] = species, bEr[3] = genus**.
+- The Animal key builder is `0x14044e1e0`: type 3, the planet address, then [creature seed, djb2 hash of a
+  resource name (bEr[1], fixed per kind), species, genus, optional 5th]. It gets species and genus from
+  `0x14123e740`, all CityHash `Hash128to64(low, high)`:
+  - **species** = H(creature seed, H(CreatureID bytes 8-15, bytes 0-7)) (ID = the spawned creature's data, +0x40);
+  - **genus** = H(int @+0xac, H(int @+0xa0, planet address)) on the live creature component.
+- +0xa0 is the role data's `Type` (GcCreatureTypes), set in `GenerateCreatureRoles` as the creature's `RealType`,
+  else its `ForceType`, else role + 22 (Predator, PlayerPredator, Prey, Passive). The same code sets `Diet`: Robot
+  on ROBOT worlds, Carnivore for role 2, roles 1 and 7 roll (Omnivore when the draw is above 0.5, constant
+  `0x144bf56f8`), else Herbivore. The port now keeps both on `PredictedCreature` (`CreatureType`, `Diet`), and the
+  catalog keeps `RealType` (format 78).
+- +0xac is **not the diet**: it is the creature's **size class** (GcCreatureSizeClasses Small/Medium/Large/Huge,
+  0-3), written in `0x1412345f0` by bucketing its scale (+0xe34) against three globals (`0x14535a7a8`, `a784`,
+  `a73c`; very likely `CreatureMedMinSize` / `LargeMinSize` / `HugeMinSize` in GcCreatureGlobals), the scale first
+  divided by `0x14535a988` when flag +0x116c bit 0 is set; Sentinel-type creatures are forced. The scale comes from
+  the spawned scene node (`0x14530fe50` table, stride 0x28), i.e. the spawner. Checked against the owner's
+  captured creatures (named from their real seeds, matched by name): class 0 = 0.3-1.4 m, 1 = 1.1-2.5 m,
+  2 = 2.6-4.2 m, 3 = up to 7.3 m (fish measured differently).
+
+Measured with `fauna-check` on a format-78 catalog (1,494 discoveries whose creature seed is predicted):
+
+| | Predicted exactly |
+|---|---|
+| Creature type (+0xa0, brute-forced from bEr[3]) | 1,494 / 1,494 |
+| Species seed bEr[2] | 1,304 (87%) |
+| Genus seed bEr[3], size class taken as the diet (wrong) | 243 (by chance) |
+
+Species misses are kinds whose spawned creature data has another ID than the role's pick, e.g. ANTELOPE spawning
+as TRICERATOPS (28), CRAB as SPIDER (27), STRIDER as TWOLEGANTELOPE (14), RODENT as BLOB (11): the model/descriptor
+choice at spawn (bEr[1] is that resource's djb2 hash, so the two travel together).
+
+Next: (1) find how the spawner sets a species' scale (deterministic per species, since a discovery's genus is
+fixed; likely MinScale/MaxScale of the creature data and the role seed) and port the size class, which gives
+genus; (2) the resource choice behind the species misses; then predicted creatures get their real species names.
 
 ## Next layers
 
 1. ~~Waterworld air rule~~ (solved above).
 2. Habitat split: 17 planets where recorded habitats don't fit (e.g. recorded flying x4, predicted flying x1).
    Some are capture noise (blank habitat rows).
-3. ~~Creature identity seed~~ (96%, above); name seeds next. With the seed pair
+3. ~~Creature identity seed~~ (96%, above); name seeds: species 87%, genus needs the size class (above). With the seed pair
    that `SpeciesNames.Fauna` takes, predicted creatures get their real species names, and can be matched one by
    one against the 510 recorded creatures by name.
 4. Traits: rarity, gender, activity, size.

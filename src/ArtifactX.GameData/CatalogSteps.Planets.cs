@@ -341,7 +341,8 @@ public static partial class CatalogSteps
                     (int)c.HerbivoreProbabilityModifier.CreatureRoleFrequencyModifier,
                     (int)c.PredatorProbabilityModifier.CreatureRoleFrequencyModifier,
                     (int)c.Rarity.CreatureRarity,
-                    tags));
+                    tags,
+                    (int)c.RealType.CreatureType));
             }
         }
 

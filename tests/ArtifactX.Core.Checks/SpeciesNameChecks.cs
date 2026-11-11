@@ -73,4 +73,23 @@ internal static class SpeciesNameChecks
         int total = fauna.Length + flora.Length + minerals.Length;
         Console.WriteLine($"Species names: {total} of {total} match the game.");
     }
+
+    /// <summary>Two bird discoveries in the owner's saves (fauna-check "example" lines, 2026-11-11): role seed,
+    /// creature id, planet address, type (Bird 1) and size class (0, found from the saved genus) give the saved
+    /// bEr[2] (species) and bEr[3] (genus).</summary>
+    public static void FaunaSeeds()
+    {
+        (ulong Seed, ulong Address, ulong Species, ulong Genus)[] birds =
+        [
+            (0xCC869D13CB157862, 0x0010F509E8F82734, 0xE080C8AA54BD6E2A, 0x50537CF9333454A9),
+            (0x562DF0D78F457694, 0x0030456DFBFFB004, 0x9B5BF1F808F21DBA, 0x4C04114767B4F981),
+        ];
+        foreach (var b in birds)
+        {
+            var (species, genus) = SpeciesNames.FaunaSeeds(b.Seed, "^BIRD", b.Address, 1, 0);
+            if (species != b.Species || genus != b.Genus)
+                throw new InvalidOperationException($"Fauna seeds {b.Seed:X16}: {species:X16}/{genus:X16}, expected {b.Species:X16}/{b.Genus:X16}.");
+        }
+        Console.WriteLine($"PASS: creature species and genus seeds for {birds.Length} discoveries from the saves.");
+    }
 }

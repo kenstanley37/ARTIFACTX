@@ -36,6 +36,17 @@ namespace ArtifactX.Core.Procedural;
 /// planet address and bEr[0], so the record is matched to its discovery. A
 /// Flora record's UqY[1] is the plant's seed itself. A companion's are m9o and
 /// JrL (the Companions screen at 0x14075733b).
+///
+/// Where a wild creature's two come from (<see cref="FaunaSeeds"/>, 184271, Ghidra 2026-11-11): the Animal
+/// discovery key builder 0x14044e1e0 stores [creature seed, djb2 hash of a resource name, species, genus,
+/// optional 5th] and gets species and genus from 0x14123e740:
+///   species = Hash128to64(low = creature seed, high = Hash128to64(low = CreatureID bytes 8-15, high = bytes 0-7));
+///   genus   = Hash128to64(low = size class, high = Hash128to64(low = creature type, high = planet address)),
+/// the type as the role data has it (PredictedCreature.CreatureType: right for all 1,494 discoveries in the owner's
+/// saves whose creature seed the generator predicts) and the live creature's size class (GcCreatureSizeClasses
+/// 0-3, bucketed from its spawn scale in 0x1412345f0; not predicted yet). Species matches 1,304 of those 1,494; the
+/// rest spawn with other creature data than the role picked (ANTELOPE as TRICERATOPS...). A pet keeps the pair as
+/// SpeciesSeed (0x23a8 at run time) and GenusSeed (0x23b0), copied by 0x141230ad0.
 /// </summary>
 public static class SpeciesNames
 {
@@ -53,6 +64,21 @@ public static class SpeciesNames
         string root = creatureRoots[(int)rng.Next(300)];
         int max = (int)rng.Next(3) + 4;
         return Finish(rng, root + NameGenerator.Generate(rng, 6, 3, max));
+    }
+
+    /// <summary>A wild creature's species and genus seeds (its discovery's bEr[2] and bEr[3], the seedA and seedB
+    /// of <see cref="Fauna"/>) from its role seed, CreatureID ("BIRD", "^BIRD"), the planet's packed universe address,
+    /// its GcCreatureTypes value and its GcCreatureSizeClasses value (Small 0 to Huge 3).</summary>
+    public static (ulong Species, ulong Genus) FaunaSeeds(ulong creatureSeed, string creatureId, ulong planetAddress,
+        int creatureType, int sizeClass)
+    {
+        Span<byte> id = stackalloc byte[16];
+        string text = creatureId.TrimStart('^').ToUpperInvariant();
+        for (int i = 0; i < 16 && i < text.Length; i++) id[i] = (byte)text[i];
+        ulong idHash = Hash128(BitConverter.ToUInt64(id[8..]), BitConverter.ToUInt64(id[..8]));
+        ulong species = Hash128(creatureSeed, idHash);
+        ulong genus = Hash128((ulong)(long)sizeClass, Hash128((ulong)(long)creatureType, planetAddress));
+        return (species, genus);
     }
 
     /// <summary>A plant's species name from its seed, or null without the
