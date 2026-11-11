@@ -37,6 +37,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Planet fauna totals are now right on waterworlds too: they were often a few creatures short, and missed the flying creatures some waterworlds have.
+
 - Save Beacons placed from Planet Details are now real beacons standing on the ground. Before, the game showed only their waypoint.
 
 - Planet Details: the Portal, Crashed Ships and Multi-Tools card labels and descriptions are easier to read.

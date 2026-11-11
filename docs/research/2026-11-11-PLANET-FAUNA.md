@@ -12,25 +12,37 @@ seed 10, added in `665c4e4`) over every planet the owner captured from the game,
 
 | Check | Result (catalog format 77, game build 185034) |
 |---|---|
-| Fauna total per planet vs the game's "x / y fauna" (`planet_details.fauna_total`, 982 planets) | 978 exact (99.6%) |
+| Fauna total per planet vs the game's "x / y fauna" (`planet_details.fauna_total`, 982 planets) | 978 exact (99.6%); **983 / 983 after the waterworld fix** |
 | Planets the game says have no fauna | 136 / 136 |
 | Recorded creatures' habitats fit inside the predicted list (`planet_creatures`, 99 planets) | 82 / 99 |
 
 All four total misses are waterworlds (biome 14): 5 of 9 waterworlds exact, the rest predicted 3 to 7 too few.
 
-## Waterworld air: cause found, rule not yet known
+## Waterworld fauna: SOLVED (983 / 983)
 
-The game's creature lists give waterworlds (`ArchetypeLists.Biomes[14]`) only water archetypes (WATERWORLD 0.7,
-WATERGLOW 0.3) and nothing for air. `SelectArchetype` then forces every unset domain to "EMPTY", so the port
-predicts no flying creatures, while the owner recorded fliers on 3 waterworlds.
+Found by decompiling build 184271 in Ghidra (project copied to `%AppData%\ArtifactX\Research\ghidra-184271`,
+scripts in `scripts/research/ghidra`). The creature routine is `cGcPlanetGenerator::GenerateCreatureRoles`, found with
+`FindByScalars.java` by the constants the port uses (0xBA2E8BA3 = "% 11", 0x16, 0xE, 0x18): `0x1416d60e0`.
 
-Tried: leave air unset there (`forceEmpty: false`), so the fallback picks `AirEmpty` (ONLYAIR). Waterworlds then get
-fliers, but totals drop to 975 / 982 (overshoots of 2 to 6). Reverted: the game adds air only under a condition the
-port doesn't have. Next: read the routine in Ghidra (build 185034) rather than guess.
+- `0x1416d87e0` picks from one optional list: a probability roll, then ground (unless biome 14), water (sea level),
+  air, cave (if caves); then EMPTY for unset domains only when the list's own `OverrideAllDomains` (+0x44) is set.
+  The game files set it on every biome, sub-biome, empty and abandoned list and off on the purple list, which is
+  what the port had assumed per call. Now read from the catalog (older catalogs keep the assumption).
+- The biome's own list applies only when **all four** domains are still unset (and the list isn't empty). The port
+  applied the waterworld list whenever ground was unset. Every waterworld is in a purple-star system; the purple list
+  never sets ground on a waterworld but may set water or air, which the waterworld list then overwrote (and its
+  override turned unset air into EMPTY). Fixing the condition: all 9 recorded waterworlds exact, fliers exactly where
+  the owner recorded them (3 / 3 / 3 / 4).
+- `0x1416d85f0` (weighted pick) pushes and draws even for an empty list; the port now does too (no measured change).
+- Checked and matching the port: table collection `0x1416d8a70` / `0x1416d8c20` (main tables, then additional
+  entries with MaxTablesToAdd), domain order ground-air-water-cave, hemisphere counts (they only mark a creature's
+  hemisphere, inside a popped stream: no effect on the count), all 77 referenced ecosystem tables extracted.
+- Small difference left alone: the game stops adding creatures once more than 22 exist (so up to 23); the port stops
+  at 22. No recorded planet comes close.
 
 ## Next layers
 
-1. Waterworld air rule (above).
+1. ~~Waterworld air rule~~ (solved above).
 2. Habitat split: 17 planets where recorded habitats don't fit (e.g. recorded flying x4, predicted flying x1).
    Some are capture noise (blank habitat rows).
 3. Creature identity: the port gives an archetype id per creature, not the creature's seed. With the seed pair

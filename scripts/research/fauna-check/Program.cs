@@ -55,6 +55,10 @@ foreach (var (system, index, want) in truth)
         if (d == 0) exact++; else if (Math.Abs(d) == 1) off1++;
         if (want == 0) { if (got == 0) zeroRight++; else zeroWrong++; }
         lines.Add($"{system:X}\t{index}\t{types[i].Biome}\t{types[i].SubType}\t{p.Fauna}\twant {want}\tgot {got}");
+        if (types[i].Biome == 14)
+            Console.WriteLine($"waterworld {system:X} {index}: want {want} got {got} star {attributes.Star} uncharted {attributes.Uncharted} " +
+                $"abandoned {attributes.Abandoned} pirate {attributes.Pirate} class {types[i].Class} habitats " +
+                string.Join(",", (p.PredictedCreatures ?? []).GroupBy(c => c.Habitat).Select(g => g.Key + "x" + g.Count())));
     }
     catch (Exception ex) { none++; Console.WriteLine($"{system:X} {index}: {ex.GetType().Name} {ex.Message}"); }
 }
