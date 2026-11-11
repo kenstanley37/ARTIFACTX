@@ -176,12 +176,6 @@
                                     <TextBlock Text="{x:Bind ViewModel.SelectedGalaxy.FormattedTitle, Mode=OneWay}" FontSize="24" FontWeight="Bold" Foreground="{ThemeResource ThemeTextBrush}"/>
                                     <TextBlock Text="{x:Bind ViewModel.SelectedGalaxy.ClassificationName, Mode=OneWay}" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}"/>
                                 </StackPanel>
-                                <Border Grid.Column="1" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="6" Padding="10,6" VerticalAlignment="Top">
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <TextBlock Text="Internal Index:" FontSize="11" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                                        <TextBlock Text="{x:Bind ViewModel.SelectedGalaxy.RealityIndex, Mode=OneWay}" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource ThemeTextBrush}"/>
-                                    </StackPanel>
-                                </Border>
                             </Grid>
 
                             <Border Height="1" Background="{ThemeResource ThemeLineBrush}"/>
