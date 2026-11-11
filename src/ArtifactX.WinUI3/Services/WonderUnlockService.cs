@@ -10,9 +10,10 @@ namespace ArtifactX.WinUI3.Services;
 
 /// <summary>
 /// Handles unlocking and locking of Wonders and Fishing records on the Catalog page.
-/// Manages the 7 fixed-size GcWonderRecord arrays (Planet, Fauna, Flora, Mineral,
-/// Treasures, Glitches, Personal), personal record names (YvA), and the 3 parallel
-/// fishing arrays (ProductList, ProductCountList, LargestCatchList).
+/// Manages 6 of the fixed-size GcWonderRecord arrays (Planet, Fauna, Flora, Mineral,
+/// Treasures, Glitches) and the 3 parallel fishing arrays (ProductList, ProductCountList,
+/// LargestCatchList). Personal Records are never touched (2026-11-11, the owner): players choose
+/// those themselves in game from their own discoveries, so the app has nothing honest to put there.
 ///
 /// The owner asked for this (2026-11-07) and confirmed in game that unlocked records show in the Wonders
 /// screen. The values written are PLACEHOLDERS, not discoveries: a fixed measurement per record (the
@@ -98,7 +99,6 @@ public static class WonderUnlockService
         ["MineralWonders"] = 8,
         ["TreasureWonders"] = 13,
         ["WeirdBasePartWonders"] = 11,
-        ["CustomWonders"] = 12,
     };
 
     /// <summary>Every save path that wonder and fishing record edits stage to.</summary>
@@ -110,8 +110,6 @@ public static class WonderUnlockService
         NmsGameCatalogPaths.WonderRecordPaths["MineralWonders"],
         NmsGameCatalogPaths.WonderRecordPaths["TreasureWonders"],
         NmsGameCatalogPaths.WonderRecordPaths["WeirdBasePartWonders"],
-        NmsGameCatalogPaths.WonderRecordPaths["CustomWonders"],
-        NmsGameCatalogPaths.PersonalRecordNamesPath,
         NmsFishingPaths.ProductListPath,
         NmsFishingPaths.ProductCountListPath,
         NmsFishingPaths.LargestCatchListPath,
@@ -160,15 +158,6 @@ public static class WonderUnlockService
                 ? new JArray(existingArray.Select(v => v.DeepClone()))
                 : CreateDefaultWonderArray(expectedCount);
 
-            JArray? updatedYva = null;
-            if (categoryType.Equals("CustomWonders", StringComparison.OrdinalIgnoreCase))
-            {
-                var existingYva = SaveSessionManager.GetValue(NmsGameCatalogPaths.PersonalRecordNamesPath) as JArray;
-                updatedYva = existingYva is not null && existingYva.Count >= expectedCount
-                    ? new JArray(existingYva.Select(v => v.DeepClone()))
-                    : CreateDefaultYvaArray(expectedCount);
-            }
-
             // Treasures and glitches name an item; every other record names a place.
             bool needsPlace = !categoryType.Equals("TreasureWonders", StringComparison.OrdinalIgnoreCase)
                 && !categoryType.Equals("WeirdBasePartWonders", StringComparison.OrdinalIgnoreCase);
@@ -184,34 +173,16 @@ public static class WonderUnlockService
                 if (unlock)
                 {
                     updated[slotIndex] = CreateUnlockedRecord(categoryType, slotIndex, systemAddress, item);
-                    if (updatedYva is not null && slotIndex < updatedYva.Count)
-                    {
-                        updatedYva[slotIndex] = new JObject
-                        {
-                            ["fH8"] = $"Personal Record {slotIndex + 1}",
-                            ["7bp"] = new JObject { ["93I"] = "Planet" },
-                        };
-                    }
                 }
                 else
                 {
                     updated[slotIndex] = CreateEmptyWonderRecord();
                     item.Detail = null;
                     item.Species = null;
-                    if (updatedYva is not null && slotIndex < updatedYva.Count)
-                    {
-                        updatedYva[slotIndex] = new JObject
-                        {
-                            ["fH8"] = "",
-                            ["7bp"] = new JObject { ["93I"] = "Custom" },
-                        };
-                    }
                 }
             }
 
             SaveSessionManager.StageEdit(updated, recordPath);
-            if (updatedYva is not null)
-                SaveSessionManager.StageEdit(updatedYva, NmsGameCatalogPaths.PersonalRecordNamesPath);
         }
 
         // 2. Process Fishing records
@@ -243,20 +214,6 @@ public static class WonderUnlockService
         var array = new JArray();
         for (int i = 0; i < count; i++)
             array.Add(CreateEmptyWonderRecord());
-        return array;
-    }
-
-    private static JArray CreateDefaultYvaArray(int count)
-    {
-        var array = new JArray();
-        for (int i = 0; i < count; i++)
-        {
-            array.Add(new JObject
-            {
-                ["fH8"] = "",
-                ["7bp"] = new JObject { ["93I"] = "Custom" },
-            });
-        }
         return array;
     }
 

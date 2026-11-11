@@ -94,7 +94,10 @@ public sealed partial class GameCatalogViewModel : ObservableObject
             if (section.Key == "UI_PORTAL_CAT_COLLECTION")
             {
                 newSections.Add(new GameCatalogSectionViewModel(section,
-                    section.Categories.Select(c => WonderCategory(c, catalogue, fish, species)).ToList(), null, tracksKnown: true));
+                    // Personal Records are left out (2026-11-11, the owner): players pick those in game from
+                    // their own discoveries. The game leaves them out of its Wonders total too.
+                    section.Categories.Where(c => c.Type != "CustomWonders")
+                        .Select(c => WonderCategory(c, catalogue, fish, species)).ToList(), null, tracksKnown: true));
                 continue;
             }
             UnlockListViewModel? list = section.Key switch
@@ -168,6 +171,8 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         List<GameCatalogItemViewModel> items;
         if (category.Type == "Fish")
             items = fish.Items.Select(f => new GameCatalogItemViewModel(f.Id, f.Name, fish.Caught.Contains(f.Id), true, true, null)).ToList();
+        // Fossil Records are known from the start: CONFIRMED 2026-11-11, the owner opened Fossil Records on a
+        // brand-new save and every tile was shown (before that it rested on the Wonders totals matching).
         else if (category.Type == "ExhibitBones")
             items = category.Items.Select(id => new GameCatalogItemViewModel(id, names.GetValueOrDefault(id, "Unnamed fossil"), true, false, true,
                 "always known in the game")).ToList();
@@ -175,13 +180,9 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         {
             var records = NmsGameCatalogPaths.WonderRecordPaths.TryGetValue(category.Type, out var path)
                 ? SaveSessionManager.GetValue(path) as JArray : null;
-            var personal = category.Type == "CustomWonders" ? SaveSessionManager.GetValue(NmsGameCatalogPaths.PersonalRecordNamesPath) as JArray : null;
             items = category.Items.Select((id, i) =>
             {
-                // A Personal Record carries the name the player gave it in game.
-                string name = category.ItemNames?.GetValueOrDefault(id) is { Length: > 0 } n ? n
-                    : personal?.ElementAtOrDefault(i)?["fH8"]?.Value<string>() is { Length: > 0 } own ? own
-                    : $"Personal Record {i + 1}";
+                string name = category.ItemNames?.GetValueOrDefault(id) is { Length: > 0 } n ? n : $"Record {i + 1}";
                 var generation = records?.ElementAtOrDefault(i)?["UqY"] as JArray;
                 var (recorded, detail, iconId) = ReadRecord(category.Type, generation);
                 if (category.Type is "TreasureWonders" or "WeirdBasePartWonders") iconId ??= SlotItem(name);
