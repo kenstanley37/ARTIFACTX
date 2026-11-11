@@ -222,4 +222,4 @@ if os.environ.get('SAMPLE'):
         call(A(0x141291310), (region, S + 0x40, S + 0x80, S + 0xC0))
         w = np.array(struct.unpack('<4f', bytes(mu.mem_read(S + 0x40, 16))), dtype=f32)
         print('   L', np.round(L, 3), 'g', np.round(g, 3), 'ij', i, j, 'f', round(float(fx), 3), round(float(fz), 3), 'pt', np.round(pt, 3), 'w', np.round(w, 2))
-        print(f'point {np.round(p, 2)}: game sampling height {float(np.sqrt(np.sum(w[:3] * w[:3], dtype=f32))) - 130048:.4f}')
+        print(f'point {np.round(p, 2)}: game sampling height {float(np.sqrt(np.sum(w[:3] * w[:3], dtype=f32))) - float(os.environ.get("PLANET_R", "130048")):.4f}')

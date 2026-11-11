@@ -135,3 +135,19 @@ byte match, and every body is the same code (only moved: +0x3A0 for the terrain 
 allocator). `nmsbuild.py` maps the 184271 addresses for the installed build; `emu_far.py` and `emu_columns.py` call
 `A(0x...)`. `emu_columns.py` now runs on the planet-5 snapshot taken today: column 4 (the beacon) 267.67 m, as Core's
 `Height`. Step 2 still needs a live Far region dump around the beacon (game loaded on planet 5 of system 0052, Slot 8).
+
+### Step 2 run (2026-11-10 evening, build 185034, owner standing at the planet-5 beacon in Slot 8)
+
+Read-only: `read_far_region_live.py` (Far vtable 0x144BC0690 on 185034, via `static/vtremap.py`), the planet object
+(`read_planet_object_live.py`, block 0x19FB44E0798) and a `.data` snapshot. `emu_far.py` with `LIVE=1`:
+
+- Five live Far regions round the beacon regenerate **exactly** (max |diff| 0.0 each): the remapped emulator is right on 185034.
+- The beacon itself lies in a region not loaded at Far detail (the player stands there), about 3 m past the corner of
+  the nearest one. Sampled inside that region 20-30 m away on the same open ground (`SAMPLE`, `PLANET_R=98304`):
+  **284.5-287.3 m**; extrapolated to the beacon from five regions: 282.1-283.6 m.
+- Core: `Height` 267.7 m, Far-grid estimate 271.7 m. Real beacon 281.2 m.
+
+**Result:** the game's own Far voxel pass puts the ground about 13-16 m above Core's `Height` here, where the real
+beacon stands; Core's port leaves those metres out. This confirms that the missing ground is added inside the voxel
+pass (Features / GridLayers in 0x1412B3770's density pass, 0x1412B3B10 on 185034), not by an LOD switch. Next: hook the
+density pass in `emu_far.py` to split the column into the ported noise term and the rest, then port the rest.
