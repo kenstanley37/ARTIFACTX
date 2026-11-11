@@ -27,8 +27,15 @@
                     Click="Reset_Click" Visibility="{x:Bind ViewModel.HasChanges, Mode=OneWay}"/>
         </Grid>
 
-        <TextBlock Grid.Row="1" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"
-                   Text="What this save knows, laid out like the game's Catalog screen. Coloured items are known; tick an item in Technology, Building Parts or Recipes to learn it, then Save. Items with a lock can't be changed here: the game counts them itself (Wonders are recorded as you play)."/>
+        <StackPanel Grid.Row="1" Spacing="6">
+            <TextBlock Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"
+                       Text="What this save knows, laid out like the game's Catalog screen. Coloured items are known; tick an item to learn or record it, then Save. Items with a lock can't be changed here: the game counts them itself."/>
+            <!-- Unlocked Wonders are placeholders, said plainly (2026-11-11). -->
+            <TextBlock Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" Visibility="{x:Bind ViewModel.IsWondersSelected, Mode=OneWay}"
+                       Text="Wonders you tick here are filled in for you: each gets a typical value and a place in the system you are in now, not a discovery of your own. Records the game made while you played are left as they are unless you untick them."/>
+            <TextBlock Foreground="{ThemeResource ThemeWarningBrush}" TextWrapping="Wrap" Text="{x:Bind ViewModel.WonderProblem, Mode=OneWay}"
+                       Visibility="{x:Bind ViewModel.HasWonderProblem, Mode=OneWay}" AutomationProperties.LiveSetting="Polite"/>
+        </StackPanel>
 
         <!-- Section tiles, as the game's Catalog front page. -->
         <ItemsControl Grid.Row="2" ItemsSource="{x:Bind ViewModel.Sections}">

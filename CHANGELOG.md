@@ -6,6 +6,12 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Ship Designer: paint styles you haven't unlocked yet (expedition rewards such as Titan Stripes) show a padlock. You can still try them on, and a new button unlocks the picked style.
+
+- Ship Designer: "Put these parts in my Exosuit" gives you the design's parts as items, so you can build the ship yourself at a space station. Right-click any part to add just that one.
+
+- Ship Designer: the Paint and My designs cards can be hidden with a button in their heading. Hide Paint to give your saved designs the whole column; the choice is remembered.
+
 - Mobile camera scanning now shows moving brackets around detected portal details and a green lock before opening the system.
 
 - Mobile system details show the address as glyph pictures, ready to dial at a portal.
@@ -25,6 +31,12 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Save Beacons placed from Planet Details are now real beacons standing on the ground. Before, the game showed only their waypoint.
+
+- Planet Details: the Portal, Crashed Ships and Multi-Tools card labels and descriptions are easier to read.
+
+- Works with No Man's Sky Forsaken 7.14: game data is rebuilt once, and planet buildings and cabinet multi-tools are placed with the right spacing again.
+
 - Mobile live scans now keep matching readings on slower phones and restart the camera after returning to the app.
 
 - Mobile live scans now usually open the system within a few seconds: line up the glyphs in the on-screen box. Scans no longer restart when one symbol is briefly unclear over bright scenery or the phone wobbles.
@@ -36,7 +48,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Mobile camera scans handle blue-tinted monitor photos and screen pixel patterns more reliably, and reject more obscured or ambiguous strips before showing an address for review.
 
 - Planetary Rings: Fixed planetary ring detection so only the single planet chosen by the game's solar system layout shows rings, matching in-game Discoveries instead of marking multiple planets per system.
-- Planetary Hotspots & Base Beacons: Resolved Save Beacon elevation calculations by evaluating procedural terrain elevation (`PlanetTerrain.Height`) so placed beacons sit cleanly above the planetary surface (~3m clearance) rather than spawning underground inside procedural bedrock. Added full "Remove" support directly on hotspot and cluster cards to delete and clean up any placed beacons from your save.
+- Planetary Hotspots & Base Beacons: Resolved Save Beacon elevation calculations by evaluating procedural terrain elevation (`PlanetTerrain.Height`) so placed beacons sit cleanly above the planetary surface (~3m clearance) rather than spawning underground inside procedural bedrock. Added full "Remove" support directly on hotspot and cluster cards to delete and clean up beacons ArtifactX placed; Save Beacons you built yourself nearby are never replaced or removed.
 - Planetary Hotspots & Base Sites: Replaced scan event markers with physical in-game Save Beacons (`^BUILDBEACON`) placed directly at the optimal Base Computer and hotspot coordinates. In No Man's Sky, scan events on open terrain are ignored by the game engine, while placed Save Beacons render directly in the world and produce a permanent star HUD waypoint visible across the system.
 - Planetary Hotspots Selection: Fixed radio buttons resetting and hiding all hotspot/cluster cards whenever a game save or landing occurred, preserving your active view mode and filter choices across save reloads.
 - Galaxy Exploration & Presence Tracking: Galaxy Transfer now scans your bases, settlements, teleport network space stations, and system discoveries across all 256 galaxies. View base counts, space stations, and unvisited status badges on each galaxy, with 1-click filter tabs to isolate unvisited galaxies, visited galaxies, or those with active bases and space stations.
@@ -49,7 +61,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Creature 3D Camera: Creature and companion 3D model previews now face towards the player by default with a front three-quarter view, rather than facing away.
 - 3D Creature & Companion Models: Companions page now features an interactive 3D model preview rendered directly from your game install with your pet's active body parts and archetype; planet creature cards now feature a 3D anatomy viewer to inspect planetary fauna and examine 3D rigs.
 - Explore: Dedicated "Crashed Ships" and "Cabinet Multi-Tools" pages under Explore, offloading heavy scans and lists from Current System and Planet Details into streamlined views with filters, planet selection, 3D model previews, and in-game coordinate markers.
-- Catalog: Wonders records (Treasures, Collected Glitches, Planet, Fauna, Flora, Mineral, Personal Records, and Fishing Records) can now be unlocked or cleared directly on the Catalog page with one-click toggling and Unlock All / Clear All support, staging authentic procedural record data and stats.
+- Catalog: Wonders records (Treasures, Collected Glitches, Planet, Fauna, Flora, Mineral, and Fishing Records) can now be unlocked or cleared directly on the Catalog page with one-click toggling and Unlock All / Clear All support. Unlocked records are filled in for you: each gets a typical value and a place in the star system you are in, on a planet or moon that system really has. Personal Records are not shown: those are yours to choose in game.
 - Space Stations: Added a "Register in Teleport Network" action to sync and register all your directed space stations with your Alliance ownership stamp, ensuring every claimed station appears under "Alliance Stations" in the in-game Teleportation Terminal.
 - Space Stations: "Claims in Progress" and "Stations you Direct" sections are now collapsible folding cards that remember their state across sessions.
 - Squadron: Expanded seed boxes with generous width so 18-character hex seeds and roll buttons have comfortable breathing room, with the 3D ship preview positioned to the right with responsive wrapping.

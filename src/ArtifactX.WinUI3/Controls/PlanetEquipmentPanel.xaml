@@ -31,7 +31,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Border Background="{ThemeResource ThemeAccentBrush}" Padding="6,1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" VerticalAlignment="Center">
-                            <TextBlock Text="PORTAL" FontSize="10" FontWeight="Bold" FontFamily="{ThemeResource ThemeDisplayFont}" CharacterSpacing="100" Foreground="White"/>
+                            <TextBlock Text="PORTAL" FontSize="11" FontWeight="Bold" FontFamily="{ThemeResource ThemeDisplayFont}" CharacterSpacing="100" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
                         </Border>
                         <TextBlock Grid.Column="1" Text="{x:Bind Equipment.PortalCoordinates, Mode=OneWay}" FontSize="15" FontWeight="Bold"
                                    FontFamily="{ThemeResource ThemeDisplayFont}" Foreground="{ThemeResource ThemeAccentBrush}"
@@ -42,7 +42,7 @@
                     <!-- Subtitle & Status -->
                     <StackPanel Grid.Row="1" Spacing="4">
                         <TextBlock Text="Ancient glyph portal for interplanetary and interstellar travel."
-                                   Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                                   FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
                         <TextBlock Text="{x:Bind Equipment.PortalStatus, Mode=OneWay}" FontSize="11"
                                    Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
                     </StackPanel>
@@ -83,7 +83,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Border Background="{ThemeResource ThemeAccentBrush}" Padding="6,1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" VerticalAlignment="Center">
-                            <TextBlock Text="CRASHED SHIPS" FontSize="10" FontWeight="Bold" FontFamily="{ThemeResource ThemeDisplayFont}" CharacterSpacing="100" Foreground="White"/>
+                            <TextBlock Text="CRASHED SHIPS" FontSize="11" FontWeight="Bold" FontFamily="{ThemeResource ThemeDisplayFont}" CharacterSpacing="100" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
                         </Border>
                         <TextBlock Grid.Column="1" Text="Wrecks &amp; Salvage" FontSize="13" FontWeight="SemiBold"
                                    Foreground="{ThemeResource ThemeTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
@@ -92,7 +92,7 @@
                     <!-- Subtitle -->
                     <StackPanel Grid.Row="1" Spacing="4">
                         <TextBlock Text="Search predicted crash sites on this planet with interactive 3D model previews, class filters, ship types, and visor coordinates."
-                                   Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                                   FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
                     </StackPanel>
 
                     <!-- Action -->
@@ -119,7 +119,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Border Background="{ThemeResource ThemeDoneBrush}" Padding="6,1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" VerticalAlignment="Center">
-                            <TextBlock Text="MULTI-TOOLS" FontSize="10" FontWeight="Bold" FontFamily="{ThemeResource ThemeDisplayFont}" CharacterSpacing="100" Foreground="White"/>
+                            <TextBlock Text="MULTI-TOOLS" FontSize="11" FontWeight="Bold" FontFamily="{ThemeResource ThemeDisplayFont}" CharacterSpacing="100" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
                         </Border>
                         <TextBlock Grid.Column="1" Text="Cabinets &amp; Shops" FontSize="13" FontWeight="SemiBold"
                                    Foreground="{ThemeResource ThemeTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
@@ -128,7 +128,7 @@
                     <!-- Subtitle -->
                     <StackPanel Grid.Row="1" Spacing="4">
                         <TextBlock Text="Explore weapon cabinets, class rolls, and technology shops across this planet's minor settlements."
-                                   Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                                   FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
                     </StackPanel>
 
                     <!-- Action -->
@@ -144,7 +144,7 @@
         <controls:FoldingCard Title="{x:Bind Equipment.LocatedSitesHeading, Mode=OneWay}" SettingKey="PlanetDetailsLocatedSitesCollapsed">
             <Border Style="{StaticResource ThemeCardStyle}">
                 <StackPanel Padding="18,14,18,16" Spacing="14">
-                    <TextBlock Text="{x:Bind Equipment.LocatedSitesHint, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                    <TextBlock Text="{x:Bind Equipment.LocatedSitesHint, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
 
                     <!-- Active Located Sites from Save / Finds -->
                     <ItemsControl ItemsSource="{x:Bind Equipment.LocatedSites, Mode=OneWay}" Visibility="{x:Bind Equipment.HasLocatedSites, Mode=OneWay}">
