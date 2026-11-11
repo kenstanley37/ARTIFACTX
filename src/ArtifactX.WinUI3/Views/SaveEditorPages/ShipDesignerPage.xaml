@@ -181,6 +181,15 @@
                                     <controls:ChoiceButton Padding="8,5,10,5" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                                                            IsSelected="{x:Bind IsSelected, Mode=OneWay}" Command="{x:Bind SelectCommand}"
                                                            AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}">
+                                        <controls:ChoiceButton.ContextFlyout>
+                                            <MenuFlyout>
+                                                <MenuFlyoutItem Text="Add to Exosuit" Command="{x:Bind AddToExosuitCommand}">
+                                                    <MenuFlyoutItem.Icon>
+                                                        <FontIcon Glyph="&#xE710;"/>
+                                                    </MenuFlyoutItem.Icon>
+                                                </MenuFlyoutItem>
+                                            </MenuFlyout>
+                                        </controls:ChoiceButton.ContextFlyout>
                                         <Grid ColumnSpacing="10">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
@@ -196,6 +205,12 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        <!-- To build the ship in game instead: the parts shown just above, as items for a
+                             station's fabricator (2026-11-11, the user: among the save buttons it didn't say
+                             which parts). Right-click a part or slot adds that one part. -->
+                        <Button Content="Put these parts in my Exosuit" HorizontalAlignment="Stretch" Margin="0,2,0,0"
+                                Command="{x:Bind ViewModel.AddPartsToExosuitCommand}" IsEnabled="{x:Bind ViewModel.WriteEnabled, Mode=OneWay}"
+                                ToolTipService.ToolTip="Puts one of each part listed above in your Exosuit's cargo, so you can build the ship yourself at a space station's ship fabricator. Right-click any part to add just that one."/>
                     </StackPanel>
                     <!-- Some slots offer 40+ parts: filter by name (the list itself is A-Z). -->
                     <TextBox Grid.Row="3" Margin="16,12,16,0" PlaceholderText="Find a part" AutomationProperties.Name="Find a part"
@@ -216,6 +231,15 @@
                                         <controls:ChoiceButton Padding="4" VerticalAlignment="Stretch" IsSelected="{x:Bind IsSelected, Mode=OneWay}"
                                                                Command="{x:Bind SelectCommand}" ToolTipService.ToolTip="{x:Bind Name}"
                                                                AutomationProperties.Name="{x:Bind Name}">
+                                            <controls:ChoiceButton.ContextFlyout>
+                                                <MenuFlyout>
+                                                    <MenuFlyoutItem Text="Add to Exosuit" Command="{x:Bind AddToExosuitCommand}">
+                                                        <MenuFlyoutItem.Icon>
+                                                            <FontIcon Glyph="&#xE710;"/>
+                                                        </MenuFlyoutItem.Icon>
+                                                    </MenuFlyoutItem>
+                                                </MenuFlyout>
+                                            </controls:ChoiceButton.ContextFlyout>
                                             <StackPanel Width="76" Spacing="2">
                                                 <Image Source="{x:Bind Icon}" Visibility="{x:Bind IconVisibility}" Width="46" Height="46" HorizontalAlignment="Center"/>
                                                 <TextBlock Text="{x:Bind Name}" FontSize="11" TextWrapping="Wrap" TextAlignment="Center" MaxLines="3"/>
@@ -304,8 +328,7 @@
                 <!-- Both cards fold (2026-11-11, the user: My designs was a small area to scroll) - hide
                      Paint and the designs take the whole column. Remembered across visits. -->
                 <controls:FoldingCard Title="PAINT" FoldedName="{x:Bind ViewModel.PaintStyleName, Mode=OneWay}"
-                                      SettingKey="ShipDesignerPaintCollapsed">
-                    <Border Style="{StaticResource ThemeCardStyle}">
+                                      SettingKey="ShipDesignerPaintCollapsed" Framed="True">
                         <ScrollViewer>
                             <StackPanel Padding="16,14,16,16" Spacing="16">
                                 <!-- The style, then each colour the style offers. -->
@@ -319,14 +342,26 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="vm:PaintStyleChoiceViewModel">
-                                                <controls:ChoiceButton Content="{x:Bind Name}" Padding="12,5,12,5" IsSelected="{x:Bind IsSelected, Mode=OneWay}"
-                                                                       Command="{x:Bind SelectCommand}" AutomationProperties.Name="{x:Bind Name}"/>
+                                                <!-- A padlock on a style the account hasn't unlocked; still pickable, to try it on. -->
+                                                <controls:ChoiceButton Padding="12,5,12,5" IsSelected="{x:Bind IsSelected, Mode=OneWay}"
+                                                                       Command="{x:Bind SelectCommand}" AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
+                                                                       ToolTipService.ToolTip="{x:Bind LockToolTip, Mode=OneWay}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <FontIcon Glyph="&#xE72E;" FontSize="12" VerticalAlignment="Center" Visibility="{x:Bind IsLocked, Mode=OneWay}"/>
+                                                        <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </controls:ChoiceButton>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                    <!-- Some styles are unlocked in game by expedition rewards; said as the game would. -->
+                                    <!-- Some styles are expedition rewards: said when the account hasn't got the picked one,
+                                         with a button to unlock it (2026-11-11, the user's idea). -->
                                     <TextBlock Text="{x:Bind ViewModel.StyleUnlockNote, Mode=OneWay}" Visibility="{x:Bind ViewModel.StyleUnlockVisible, Mode=OneWay}"
-                                               Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                                               Foreground="{ThemeResource ThemeTextBrush}" FontSize="12" TextWrapping="Wrap"/>
+                                    <Button Content="{x:Bind ViewModel.UnlockStyleText, Mode=OneWay}" Command="{x:Bind ViewModel.UnlockStyleCommand}"
+                                            IsEnabled="{x:Bind ViewModel.WriteEnabled, Mode=OneWay}" Visibility="{x:Bind ViewModel.UnlockStyleVisible, Mode=OneWay}"
+                                            HorizontalAlignment="Left"
+                                            ToolTipService.ToolTip="Unlocks the paint style for your account, as if you had claimed the expedition reward. Nothing is written until you Save."/>
                                 </StackPanel>
                                 <ItemsControl ItemsSource="{x:Bind ViewModel.ColourGroups}">
                                     <ItemsControl.ItemsPanel>
@@ -365,12 +400,10 @@
                                 </ItemsControl>
                             </StackPanel>
                         </ScrollViewer>
-                    </Border>
                 </controls:FoldingCard>
                 <controls:FoldingCard Grid.Row="1" Title="MY DESIGNS" Summary="{x:Bind ViewModel.DesignsSummary, Mode=OneWay}"
-                                      SettingKey="ShipDesignerDesignsCollapsed">
-                    <Border MinHeight="220" Style="{StaticResource ThemeCardStyle}">
-                    <Grid>
+                                      SettingKey="ShipDesignerDesignsCollapsed" Framed="True">
+                    <Grid MinHeight="220">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
@@ -418,7 +451,6 @@
                             </StackPanel>
                         </ScrollViewer>
                     </Grid>
-                    </Border>
                 </controls:FoldingCard>
             </Grid>
 

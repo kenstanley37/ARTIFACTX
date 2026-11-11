@@ -85,6 +85,8 @@ public sealed partial class ShipDesignerViewModel : ObservableObject
     [ObservableProperty, NotifyPropertyChangedFor(nameof(StyleUnlockVisible))] public partial string StyleUnlockNote { get; set; } = "";
     /// <summary>The picked paint style, said in the Paint card's band while it is folded.</summary>
     [ObservableProperty] public partial string PaintStyleName { get; set; } = "";
+    [ObservableProperty] public partial bool UnlockStyleVisible { get; set; }
+    [ObservableProperty] public partial string UnlockStyleText { get; set; } = "";
     /// <summary>How many designs are saved, said in the My designs band (also while folded).</summary>
     [ObservableProperty] public partial string DesignsSummary { get; set; } = "";
     [ObservableProperty] public partial string ShipName { get; set; } = "";
@@ -133,7 +135,26 @@ public sealed partial class ShipDesignerViewModel : ObservableObject
 
     private void OnGameRunningStateChanged(object? sender, bool isRunning) => _ui.TryEnqueue(UpdateWriteState);
 
-    private void OnActiveSessionChanged(object? sender, EventArgs e) => _ui.TryEnqueue(UpdateWriteState);
+    private void OnActiveSessionChanged(object? sender, EventArgs e) => _ui.TryEnqueue(() =>
+    {
+        UpdateWriteState();
+        _ = LoadStyleUnlocksAsync(); // another save has its own account rewards to read
+    });
+
+    /// <summary>Reads which paint styles the account has unlocked, then marks the locked ones. Until it has, and
+    /// if it can't, nothing shows as locked.</summary>
+    private async Task LoadStyleUnlocksAsync()
+    {
+        try
+        {
+            await ShipBuilderService.LoadPaintUnlocksAsync();
+        }
+        catch (Exception)
+        {
+            return; // unreadable account data: styles stay unmarked
+        }
+        UpdateStyleLocks();
+    }
 
     /// <summary>Add and Apply only stage edits, but edits staged while the game runs are lost: the game autosaves,
     /// and reloading its newer save discards them. So they wait until No Man's Sky is closed, like Save in the title bar.</summary>
@@ -156,6 +177,7 @@ public sealed partial class ShipDesignerViewModel : ObservableObject
         WriteBlockedText = gameRunning ? $"Close No Man's Sky to {what}. You can keep choosing meanwhile."
             : !saveLoaded ? $"Load a save to {what}."
             : "";
+        UpdateStyleLocks(); // another save, an unlock staged, or the title bar's Reset
     }
 
     public async Task LoadAsync(int? paintShip)
@@ -175,6 +197,7 @@ public sealed partial class ShipDesignerViewModel : ObservableObject
         HasData = true;
         _seed = NewSeed();
         SelectType(_types[0]);
+        _ = LoadStyleUnlocksAsync();
         if (_paintShip is not null) await EnterPaintModeAsync();
         await RefreshDesignsAsync();
     }
@@ -217,7 +240,7 @@ public sealed partial class ShipDesignerViewModel : ObservableObject
         Slots.Clear();
         if (_type is null) return;
         foreach (var slot in _type.Slots)
-            Slots.Add(new ShipSlotChoiceViewModel(slot, SelectSlot) { Item = _parts.GetValueOrDefault(slot.Id), IsSelected = slot.Id == _slot });
+            Slots.Add(new ShipSlotChoiceViewModel(slot, SelectSlot, AddPartToExosuit) { Item = _parts.GetValueOrDefault(slot.Id), IsSelected = slot.Id == _slot });
     }
 
     private void SelectSlot(BuilderSlot slot)
@@ -254,7 +277,7 @@ public sealed partial class ShipDesignerViewModel : ObservableObject
         if (shown.Count == 0) PartsEmptyText = $"No {slot.Label.ToLowerInvariant()} part matches \"{find}\".";
         string? picked = _parts.GetValueOrDefault(slot.Id);
         foreach (var item in shown)
-            Parts.Add(new ShipPartChoiceViewModel(item.Item, SelectPart) { IsSelected = picked == item.Item });
+            Parts.Add(new ShipPartChoiceViewModel(item.Item, SelectPart, AddPartToExosuit) { IsSelected = picked == item.Item });
     }
 
     private void SelectPart(string item)
@@ -277,15 +300,43 @@ public sealed partial class ShipDesignerViewModel : ObservableObject
         if (_type is null) return;
         foreach (var style in _styles.GetValueOrDefault(_type.StyleGroup) ?? new())
             PaintStyles.Add(new PaintStyleChoiceViewModel(style, SelectStyle) { IsSelected = style == _style });
-        // Some styles are unlocked in game by expedition rewards; say so, as the game would.
-        if (_style is { Unlock.Length: > 0 })
-            StyleUnlockNote = $"In game, {_style.Name} has to be unlocked first ({ShipDesignerText.PartName(_style.Unlock)}).";
+        UpdateStyleLocks();
 
         var data = ShipBuilderService.CurrentColours(_type, _style);
         if (data is null) return;
         var swatches = _swatches.GetValueOrDefault(data.Swatches) ?? new();
         foreach (var group in data.Groups)
             ColourGroups.Add(new ColourGroupViewModel(group, swatches, _colourPicks.GetValueOrDefault(group.Title, group.DefaultIndex), PickColour));
+    }
+
+    /// <summary>Some styles are expedition rewards. Marks the ones the loaded save hasn't unlocked and, for the
+    /// picked one, says so and offers to unlock it. A locked style stays pickable: trying it on is the point.</summary>
+    private void UpdateStyleLocks()
+    {
+        foreach (var choice in PaintStyles)
+            choice.IsLocked = choice.Style.Unlock.Length > 0 && ShipBuilderService.IsPaintStyleUnlocked(choice.Style.Unlock) == false;
+        bool? unlocked = _style is { Unlock.Length: > 0 } ? ShipBuilderService.IsPaintStyleUnlocked(_style.Unlock) : true;
+        StyleUnlockNote = unlocked switch
+        {
+            true => "",
+            false => $"{_style!.Name} is an expedition reward you haven't unlocked, so a space station's ship fabricator won't offer it yet.",
+            null => $"In game, {_style!.Name} is an expedition reward that has to be unlocked first.",
+        };
+        UnlockStyleVisible = unlocked == false;
+        UnlockStyleText = unlocked == false ? $"Unlock {_style!.Name}" : "";
+    }
+
+    [RelayCommand]
+    private async Task UnlockStyleAsync()
+    {
+        if (_style is not { Unlock.Length: > 0 } style || !SaveSessionManager.IsSaveLoaded || GameProcessMonitorService.IsGameRunning) return;
+        if (ShipBuilderService.StageUnlockPaintStyle(style.Unlock) is { } problem)
+        {
+            await _host.ShowMessageAsync($"Couldn't unlock {style.Name}", problem);
+            return;
+        }
+        UpdateStyleLocks();
+        await _host.ShowMessageAsync("Unlocked", $"{style.Name} is unlocked for your account, like a claimed expedition reward. Save from the title bar to write it, then load the save in game.");
     }
 
     private void SelectStyle(PaintStyle style)
@@ -718,6 +769,42 @@ public sealed partial class ShipDesignerViewModel : ObservableObject
 
         ShipBuilderService.StageNewShip(skeleton, slot, _type, _seed, _style, _parts, _swatches, _colourPicks);
         await _host.ShowMessageAsync("Added", $"\"{ShipName}\" is in slot {slot + 1}. Save from the title bar to write it to your save, then load the save in game.");
+    }
+
+    /// <summary>For building the design in game: one of each chosen part into the Exosuit's cargo, the items a space
+    /// station's ship fabricator asks for. Staged through <see cref="ExosuitCargoService"/> like any edit. The
+    /// message names the parts, so the player knows what to look for in the suit.</summary>
+    [RelayCommand]
+    private Task AddPartsToExosuitAsync() =>
+        _type is null ? Task.CompletedTask
+            : AddToExosuitAsync(_type.Slots.Select(s => _parts.GetValueOrDefault(s.Id)).OfType<string>().ToList());
+
+    /// <summary>The right-click menu on a part or slot: that one part.</summary>
+    private void AddPartToExosuit(string item) => _ = AddToExosuitAsync([item]);
+
+    private async Task AddToExosuitAsync(List<string> items)
+    {
+        if (items.Count == 0) return;
+        if (!SaveSessionManager.IsSaveLoaded || GameProcessMonitorService.IsGameRunning)
+        {
+            await _host.ShowMessageAsync("Can't add parts yet", GameProcessMonitorService.IsGameRunning
+                ? "Close No Man's Sky first - parts added while it runs would be lost to the game's autosave."
+                : "Load a save to add parts to its Exosuit.");
+            return;
+        }
+        var added = new List<string>();
+        foreach (string item in items)
+        {
+            if (ExosuitCargoService.AddOne(item) != ExosuitAddResult.Added) break;
+            added.Add(ShipDesignerText.PartName(item));
+        }
+        string names = added.Count <= 1 ? string.Concat(added) : string.Join(", ", added.Take(added.Count - 1)) + " and " + added[^1];
+        if (added.Count == items.Count)
+            await _host.ShowMessageAsync(added.Count == 1 ? "Part added" : "Parts added",
+                $"{names} {(added.Count == 1 ? "is" : "are")} in your Exosuit's cargo. Save from the title bar to write {(added.Count == 1 ? "it" : "them")} to your save, then build the ship at a space station's ship fabricator.");
+        else
+            await _host.ShowMessageAsync("Your Exosuit is full", (added.Count == 0 ? "Nothing was added."
+                : $"Only {names} fitted.") + " Free some Exosuit cargo slots (in game or on the Exosuit page), then try again.");
     }
 
     [RelayCommand]

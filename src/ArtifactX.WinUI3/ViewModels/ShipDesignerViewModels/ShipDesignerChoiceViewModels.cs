@@ -36,7 +36,7 @@ public sealed partial class ShipTypeChoiceViewModel(BuilderType type, Action<Bui
 }
 
 /// <summary>One slot of the ship (cockpit, wings...) with the part picked for it.</summary>
-public sealed partial class ShipSlotChoiceViewModel(BuilderSlot slot, Action<BuilderSlot> select) : ObservableObject
+public sealed partial class ShipSlotChoiceViewModel(BuilderSlot slot, Action<BuilderSlot> select, Action<string> addToExosuit) : ObservableObject
 {
     public BuilderSlot Slot { get; } = slot;
     public string Label { get; } = slot.Label.ToUpperInvariant();
@@ -54,10 +54,17 @@ public sealed partial class ShipSlotChoiceViewModel(BuilderSlot slot, Action<Bui
 
     [RelayCommand]
     private void Select() => select(Slot);
+
+    /// <summary>The right-click menu: the slot's picked part as an item in the Exosuit.</summary>
+    [RelayCommand]
+    private void AddToExosuit()
+    {
+        if (Item is { } item) addToExosuit(item);
+    }
 }
 
 /// <summary>One part the current slot offers.</summary>
-public sealed partial class ShipPartChoiceViewModel(string item, Action<string> select) : ObservableObject
+public sealed partial class ShipPartChoiceViewModel(string item, Action<string> select, Action<string> addToExosuit) : ObservableObject
 {
     public string Item { get; } = item;
     public string Name { get; } = ShipDesignerText.PartName(item);
@@ -69,6 +76,10 @@ public sealed partial class ShipPartChoiceViewModel(string item, Action<string> 
 
     [RelayCommand]
     private void Select() => select(Item);
+
+    /// <summary>The right-click menu: this part as an item in the Exosuit.</summary>
+    [RelayCommand]
+    private void AddToExosuit() => addToExosuit(Item);
 }
 
 /// <summary>One paint style the ship type offers.</summary>
@@ -76,6 +87,14 @@ public sealed partial class PaintStyleChoiceViewModel(PaintStyle style, Action<P
 {
     public PaintStyle Style { get; } = style;
     public string Name { get; } = style.Name;
+
+    /// <summary>The account hasn't unlocked this style (an expedition reward). It can still be picked.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AccessibleName), nameof(LockToolTip))]
+    public partial bool IsLocked { get; set; }
+
+    public string AccessibleName => IsLocked ? $"{Name}, locked" : Name;
+    public string? LockToolTip => IsLocked ? "An expedition reward you haven't unlocked. You can still try it on." : null;
 
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
