@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Themed (see Themes/*.xaml + ThemeStyles.xaml). The Ship Designer: the game's own
-     ship fabricator choices (ShipDesignerPage.xaml.cs) around a preview that never
+     ship fabricator choices (ShipDesignerViewModel) around a preview that never
      scrolls away - parts on the left, the ship in the middle, paint on the right,
      like the game's builder (2026-10-16, the user's layout: the first version listed
      everything in one column and the preview scrolled out of sight). -->
@@ -10,10 +10,20 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:ArtifactX.WinUI3.Controls"
     xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:vm="using:ArtifactX.WinUI3.ViewModels.ShipDesignerViewModels"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Page.Resources>
+        <!-- One colour in a colour group's grid; white outline when picked. -->
+        <DataTemplate x:Key="SwatchTemplate" x:DataType="vm:SwatchChoiceViewModel">
+            <Border Width="31" Height="28" CornerRadius="3" BorderThickness="2" Background="{x:Bind Fill}"
+                    BorderBrush="{x:Bind Outline, Mode=OneWay}" Tapped="{x:Bind Pick}"
+                    ToolTipService.ToolTip="{x:Bind Name}" AutomationProperties.Name="{x:Bind Name}"/>
+        </DataTemplate>
+    </Page.Resources>
 
     <Grid Padding="28,26,28,24" RowSpacing="18">
         <!-- On the page's root element (AdaptiveTriggers on a nested Grid never fire). -->
@@ -88,27 +98,29 @@
              buttons it was easy to miss). Amber when every slot is in use. -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="18">
             <TextBlock Text="SHIP DESIGNER" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
-            <Border x:Name="ShipSlotsBadge" VerticalAlignment="Center" CornerRadius="12" Padding="12,4,12,4" BorderThickness="1"
-                    BorderBrush="{ThemeResource ThemeAccentBrush}" Visibility="Collapsed">
+            <Border VerticalAlignment="Center" CornerRadius="12" Padding="12,4,12,4" BorderThickness="1"
+                    BorderBrush="{x:Bind ViewModel.SlotsBrush, Mode=OneWay}" Visibility="{x:Bind ViewModel.SlotsBadgeVisible, Mode=OneWay}"
+                    ToolTipService.ToolTip="{x:Bind ViewModel.SlotsToolTip, Mode=OneWay}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon x:Name="ShipSlotsIcon" Glyph="&#xE709;" FontSize="13" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                    <TextBlock x:Name="ShipSlotsTxt" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                    <FontIcon Glyph="&#xE709;" FontSize="13" Foreground="{x:Bind ViewModel.SlotsBrush, Mode=OneWay}"/>
+                    <TextBlock Text="{x:Bind ViewModel.SlotsText, Mode=OneWay}" FontSize="13" FontWeight="SemiBold"
+                               Foreground="{x:Bind ViewModel.SlotsBrush, Mode=OneWay}"/>
                 </StackPanel>
             </Border>
         </StackPanel>
 
         <!-- Shown instead of the designer when the game data has no builder yet. -->
-        <StackPanel x:Name="NoDataPanel" Grid.Row="1" Spacing="8" Visibility="Collapsed">
+        <StackPanel Grid.Row="1" Spacing="8" Visibility="{x:Bind ViewModel.HasNoData, Mode=OneWay}">
             <TextBlock Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"
                        Text="The Ship Designer reads the game's own ship fabricator from your game files. Update your game data to use it."/>
-            <HyperlinkButton Content="Update game data now" Padding="0" Click="UpdateDataLink_Click"/>
+            <HyperlinkButton Content="Update game data now" Padding="0" Command="{x:Bind ViewModel.UpdateGameDataCommand}"/>
         </StackPanel>
 
         <!-- Wide: no page scrolling, so each card's own list scrolls inside the window.
              The narrower layouts give the cards fixed heights and scroll the page instead. -->
         <ScrollViewer x:Name="BodyScroll" Grid.Row="1" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled"
                       HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
-        <Grid x:Name="BodyGrid" ColumnSpacing="20" RowSpacing="18" Visibility="Collapsed">
+        <Grid ColumnSpacing="20" RowSpacing="18" Visibility="{x:Bind ViewModel.HasData, Mode=OneWay}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="BodyCol0" Width="400"/>
                 <ColumnDefinition x:Name="BodyCol1" Width="*" MinWidth="360"/>
@@ -133,24 +145,110 @@
                     <Border Style="{StaticResource ThemeBandStyle}">
                         <TextBlock Text="SHIP AND PARTS" Style="{StaticResource ThemeBandTextStyle}"/>
                     </Border>
-                    <!-- Paint mode (Paint.cs): the ship keeps its own parts, so the choices hide. -->
-                    <StackPanel x:Name="PaintPartsNote" Grid.Row="1" Padding="16,14,16,16" Spacing="8" Visibility="Collapsed">
+                    <!-- Paint mode: the ship keeps its own parts, so the choices hide. -->
+                    <StackPanel Grid.Row="1" Padding="16,14,16,16" Spacing="8" Visibility="{x:Bind ViewModel.IsPaintMode, Mode=OneWay}">
                         <TextBlock Text="PARTS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                        <TextBlock x:Name="PaintPartsTxt" TextWrapping="Wrap" Style="{StaticResource ThemeDimTextStyle}"/>
+                        <TextBlock Text="{x:Bind ViewModel.PaintPartsText, Mode=OneWay}" TextWrapping="Wrap" Style="{StaticResource ThemeDimTextStyle}"/>
                     </StackPanel>
-                    <StackPanel x:Name="TypeSection" Grid.Row="1" Padding="16,14,16,4" Spacing="6">
+                    <StackPanel Grid.Row="1" Padding="16,14,16,4" Spacing="6" Visibility="{x:Bind ViewModel.IsDesignMode, Mode=OneWay}">
                         <TextBlock Text="SHIP TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
-                        <ctcontrols:WrapPanel x:Name="TypePanel" HorizontalSpacing="6" VerticalSpacing="6"/>
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Types}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <ctcontrols:WrapPanel HorizontalSpacing="6" VerticalSpacing="6"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ShipTypeChoiceViewModel">
+                                    <controls:ChoiceButton Content="{x:Bind Title}" Padding="12,5,12,5" IsSelected="{x:Bind IsSelected, Mode=OneWay}"
+                                                           Command="{x:Bind SelectCommand}" AutomationProperties.Name="{x:Bind AccessibleName}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
-                    <StackPanel x:Name="PartsSection" Grid.Row="2" Padding="16,12,16,0" Spacing="6">
+                    <StackPanel Grid.Row="2" Padding="16,12,16,0" Spacing="6" Visibility="{x:Bind ViewModel.IsDesignMode, Mode=OneWay}">
                         <TextBlock Text="PARTS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                        <StackPanel x:Name="SlotTabs" Spacing="6"/>
+                        <!-- One row per slot with the part picked for it - the game builder's slots, so the
+                             whole design reads at a glance. Click one to list its parts. -->
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Slots}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="6"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ShipSlotChoiceViewModel">
+                                    <controls:ChoiceButton Padding="8,5,10,5" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                                           IsSelected="{x:Bind IsSelected, Mode=OneWay}" Command="{x:Bind SelectCommand}"
+                                                           AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}">
+                                        <controls:ChoiceButton.ContextFlyout>
+                                            <MenuFlyout>
+                                                <MenuFlyoutItem Text="Add to Exosuit" Command="{x:Bind AddToExosuitCommand}">
+                                                    <MenuFlyoutItem.Icon>
+                                                        <FontIcon Glyph="&#xE710;"/>
+                                                    </MenuFlyoutItem.Icon>
+                                                </MenuFlyoutItem>
+                                            </MenuFlyout>
+                                        </controls:ChoiceButton.ContextFlyout>
+                                        <Grid ColumnSpacing="10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Image Source="{x:Bind Icon, Mode=OneWay}" Width="34" Height="34"/>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{x:Bind Label}" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                                <TextBlock Text="{x:Bind PartName, Mode=OneWay}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </controls:ChoiceButton>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <!-- To build the ship in game instead: the parts shown just above, as items for a
+                             station's fabricator (2026-11-11, the user: among the save buttons it didn't say
+                             which parts). Right-click a part or slot adds that one part. -->
+                        <Button Content="Put these parts in my Exosuit" HorizontalAlignment="Stretch" Margin="0,2,0,0"
+                                Command="{x:Bind ViewModel.AddPartsToExosuitCommand}" IsEnabled="{x:Bind ViewModel.WriteEnabled, Mode=OneWay}"
+                                ToolTipService.ToolTip="Puts one of each part listed above in your Exosuit's cargo, so you can build the ship yourself at a space station's ship fabricator. Right-click any part to add just that one."/>
                     </StackPanel>
                     <!-- Some slots offer 40+ parts: filter by name (the list itself is A-Z). -->
-                    <TextBox x:Name="PartSearchBox" Grid.Row="3" Margin="16,12,16,0" PlaceholderText="Find a part"
-                             TextChanged="PartSearchBox_TextChanged"/>
-                    <ScrollViewer x:Name="PartsScroll" Grid.Row="4" Margin="0,10,0,0">
-                        <ctcontrols:WrapPanel x:Name="PartsPanel" Margin="16,0,16,16" HorizontalSpacing="6" VerticalSpacing="6"/>
+                    <TextBox Grid.Row="3" Margin="16,12,16,0" PlaceholderText="Find a part" AutomationProperties.Name="Find a part"
+                             Text="{x:Bind ViewModel.PartSearch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Visibility="{x:Bind ViewModel.IsDesignMode, Mode=OneWay}"/>
+                    <ScrollViewer Grid.Row="4" Margin="0,10,0,0" Visibility="{x:Bind ViewModel.IsDesignMode, Mode=OneWay}">
+                        <StackPanel Margin="16,0,16,16" Spacing="6">
+                            <TextBlock Text="{x:Bind ViewModel.PartsEmptyText, Mode=OneWay}" Visibility="{x:Bind ViewModel.PartsEmptyVisible, Mode=OneWay}"
+                                       Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.Parts}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <ctcontrols:WrapPanel HorizontalSpacing="6" VerticalSpacing="6"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ShipPartChoiceViewModel">
+                                        <controls:ChoiceButton Padding="4" VerticalAlignment="Stretch" IsSelected="{x:Bind IsSelected, Mode=OneWay}"
+                                                               Command="{x:Bind SelectCommand}" ToolTipService.ToolTip="{x:Bind Name}"
+                                                               AutomationProperties.Name="{x:Bind Name}">
+                                            <controls:ChoiceButton.ContextFlyout>
+                                                <MenuFlyout>
+                                                    <MenuFlyoutItem Text="Add to Exosuit" Command="{x:Bind AddToExosuitCommand}">
+                                                        <MenuFlyoutItem.Icon>
+                                                            <FontIcon Glyph="&#xE710;"/>
+                                                        </MenuFlyoutItem.Icon>
+                                                    </MenuFlyoutItem>
+                                                </MenuFlyout>
+                                            </controls:ChoiceButton.ContextFlyout>
+                                            <StackPanel Width="76" Spacing="2">
+                                                <Image Source="{x:Bind Icon}" Visibility="{x:Bind IconVisibility}" Width="46" Height="46" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="{x:Bind Name}" FontSize="11" TextWrapping="Wrap" TextAlignment="Center" MaxLines="3"/>
+                                            </StackPanel>
+                                        </controls:ChoiceButton>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
                     </ScrollViewer>
                 </Grid>
             </Border>
@@ -173,44 +271,49 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock x:Name="ShipNameTxt" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                            <TextBlock Text="{x:Bind ViewModel.ShipName, Mode=OneWay}" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"/>
                             <!-- New or editing a saved design, always said (2026-10-17: a loaded design
                                  stayed highlighted after the player moved on to a new ship). -->
                             <StackPanel Orientation="Horizontal" Spacing="10">
-                                <TextBlock x:Name="DesignNameTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center"/>
-                                <HyperlinkButton x:Name="NewDesignBtn" Content="New design" FontSize="12" Padding="0" Visibility="Collapsed"
-                                                 Click="NewDesignBtn_Click"
+                                <TextBlock Text="{x:Bind ViewModel.DesignStateText, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}"
+                                           FontSize="12" VerticalAlignment="Center"/>
+                                <HyperlinkButton Content="New design" FontSize="12" Padding="0" Visibility="{x:Bind ViewModel.NewDesignVisible, Mode=OneWay}"
+                                                 Command="{x:Bind ViewModel.NewDesignCommand}"
                                                  ToolTipService.ToolTip="Start a new design. The saved one stays as it was saved."/>
                             </StackPanel>
                         </StackPanel>
-                        <Button Grid.Column="1" x:Name="NewNameBtn" Content="New name" Click="NewNameBtn_Click"
+                        <Button Grid.Column="1" Content="New name" Command="{x:Bind ViewModel.NewNameCommand}"
+                                Visibility="{x:Bind ViewModel.NewNameVisible, Mode=OneWay}"
                                 ToolTipService.ToolTip="The game names a built ship from a random number - pick another to get another name."/>
                     </Grid>
                     <controls:ShipPreview x:Name="PreviewView" Grid.Row="2" Margin="18,10,18,0" MinHeight="200" FitToSize="True"/>
                     <StackPanel Grid.Row="3" Padding="18,10,18,16" Spacing="4">
-                        <TextBlock x:Name="PreviewNote" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
-                                   Text="Drag to turn. Built from your game files with the parts and colours you pick."/>
-                        <!-- Left: into the save (Save.cs). Right: keep it in My designs (Designs.cs). -->
+                        <TextBlock Text="{x:Bind ViewModel.PreviewNote, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                        <!-- Left: into the save. Right: keep it in My designs. -->
                         <ctcontrols:WrapPanel Margin="0,6,0,0" HorizontalSpacing="24" VerticalSpacing="8">
-                            <StackPanel x:Name="PaintActions" Orientation="Horizontal" Spacing="10" Visibility="Collapsed">
-                                <Button x:Name="RepaintBtn" Content="Repaint" Click="RepaintBtn_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
-                                <Button x:Name="RemovePaintBtn" Content="Remove paint..." Click="RemovePaintBtn_Click"
+                            <StackPanel Orientation="Horizontal" Spacing="10" Visibility="{x:Bind ViewModel.IsPaintMode, Mode=OneWay}">
+                                <Button Content="Repaint" Command="{x:Bind ViewModel.RepaintCommand}" IsEnabled="{x:Bind ViewModel.WriteEnabled, Mode=OneWay}"
+                                        Style="{StaticResource ThemeAccentButtonStyle}"/>
+                                <Button Content="Remove paint..." Command="{x:Bind ViewModel.RemovePaintCommand}" IsEnabled="{x:Bind ViewModel.WriteEnabled, Mode=OneWay}"
+                                        Visibility="{x:Bind ViewModel.RemovePaintVisible, Mode=OneWay}"
                                         ToolTipService.ToolTip="Back to the colours the ship had when you found or bought it."/>
-                                <HyperlinkButton Content="Design a new ship instead" Click="ExitPaintBtn_Click" VerticalAlignment="Center"/>
+                                <HyperlinkButton Content="Design a new ship instead" Command="{x:Bind ViewModel.ExitPaintCommand}" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <StackPanel x:Name="DesignActions" Orientation="Horizontal" Spacing="10">
-                                <Button x:Name="AddNewBtn" Content="Add as new ship" Click="AddNewBtn_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
-                                <Button x:Name="ApplyBtn" Content="Apply to a ship..." Click="ApplyBtn_Click"/>
+                            <StackPanel Orientation="Horizontal" Spacing="10" Visibility="{x:Bind ViewModel.IsDesignMode, Mode=OneWay}">
+                                <Button Content="Add as new ship" Command="{x:Bind ViewModel.AddNewCommand}" IsEnabled="{x:Bind ViewModel.AddNewEnabled, Mode=OneWay}"
+                                        Style="{StaticResource ThemeAccentButtonStyle}"/>
+                                <Button Content="Apply to a ship..." Command="{x:Bind ViewModel.ApplyCommand}" IsEnabled="{x:Bind ViewModel.WriteEnabled, Mode=OneWay}"/>
                             </StackPanel>
-                            <StackPanel x:Name="SaveActions" Orientation="Horizontal" Spacing="10">
-                                <Button x:Name="SaveDesignBtn" Content="Save design..." Click="SaveDesignBtn_Click"
+                            <StackPanel Orientation="Horizontal" Spacing="10" Visibility="{x:Bind ViewModel.IsDesignMode, Mode=OneWay}">
+                                <Button Content="{x:Bind ViewModel.SaveDesignText, Mode=OneWay}" Command="{x:Bind ViewModel.SaveDesignCommand}"
+                                        IsEnabled="{x:Bind ViewModel.SaveDesignEnabled, Mode=OneWay}"
                                         ToolTipService.ToolTip="Keep this design in My designs to add or apply to a ship later. Your game save isn't changed."/>
-                                <Button x:Name="SaveAsNewBtn" Content="Save as new..." Click="SaveAsNewBtn_Click" Visibility="Collapsed"
+                                <Button Content="Save as new..." Command="{x:Bind ViewModel.SaveAsNewCommand}" Visibility="{x:Bind ViewModel.SaveAsNewVisible, Mode=OneWay}"
                                         ToolTipService.ToolTip="Keep this as another design, with its own name. The one you loaded stays as it was."/>
                             </StackPanel>
                         </ctcontrols:WrapPanel>
-                        <TextBlock x:Name="WriteBlockedTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
-                                   Visibility="Collapsed"/>
+                        <TextBlock Text="{x:Bind ViewModel.WriteBlockedText, Mode=OneWay}" Visibility="{x:Bind ViewModel.WriteBlockedVisible, Mode=OneWay}"
+                                   Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -222,41 +325,133 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-            <Border x:Name="PaintCard" Style="{StaticResource ThemeCardStyle}">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <Border Style="{StaticResource ThemeBandStyle}">
-                        <TextBlock Text="PAINT" Style="{StaticResource ThemeBandTextStyle}"/>
-                    </Border>
-                    <ScrollViewer Grid.Row="1">
-                        <StackPanel x:Name="PaintPanel" Padding="16,14,16,16" Spacing="16"/>
-                    </ScrollViewer>
-                </Grid>
-            </Border>
-                <Border x:Name="DesignsCard" Grid.Row="1" MinHeight="260" Style="{StaticResource ThemeCardStyle}">
-                    <Grid>
+                <!-- Both cards fold (2026-11-11, the user: My designs was a small area to scroll) - hide
+                     Paint and the designs take the whole column. Remembered across visits. -->
+                <controls:FoldingCard Title="PAINT" FoldedName="{x:Bind ViewModel.PaintStyleName, Mode=OneWay}"
+                                      SettingKey="ShipDesignerPaintCollapsed" Framed="True">
+                        <ScrollViewer>
+                            <StackPanel Padding="16,14,16,16" Spacing="16">
+                                <!-- The style, then each colour the style offers. -->
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="PAINT STYLE" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                    <ItemsControl ItemsSource="{x:Bind ViewModel.PaintStyles}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <ctcontrols:WrapPanel HorizontalSpacing="6" VerticalSpacing="6"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:PaintStyleChoiceViewModel">
+                                                <!-- A padlock on a style the account hasn't unlocked; still pickable, to try it on. -->
+                                                <controls:ChoiceButton Padding="12,5,12,5" IsSelected="{x:Bind IsSelected, Mode=OneWay}"
+                                                                       Command="{x:Bind SelectCommand}" AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"
+                                                                       ToolTipService.ToolTip="{x:Bind LockToolTip, Mode=OneWay}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <FontIcon Glyph="&#xE72E;" FontSize="12" VerticalAlignment="Center" Visibility="{x:Bind IsLocked, Mode=OneWay}"/>
+                                                        <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </controls:ChoiceButton>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <!-- Some styles are expedition rewards: said when the account hasn't got the picked one,
+                                         with a button to unlock it (2026-11-11, the user's idea). -->
+                                    <TextBlock Text="{x:Bind ViewModel.StyleUnlockNote, Mode=OneWay}" Visibility="{x:Bind ViewModel.StyleUnlockVisible, Mode=OneWay}"
+                                               Foreground="{ThemeResource ThemeTextBrush}" FontSize="12" TextWrapping="Wrap"/>
+                                    <Button Content="{x:Bind ViewModel.UnlockStyleText, Mode=OneWay}" Command="{x:Bind ViewModel.UnlockStyleCommand}"
+                                            IsEnabled="{x:Bind ViewModel.WriteEnabled, Mode=OneWay}" Visibility="{x:Bind ViewModel.UnlockStyleVisible, Mode=OneWay}"
+                                            HorizontalAlignment="Left"
+                                            ToolTipService.ToolTip="Unlocks the paint style for your account, as if you had claimed the expedition reward. Nothing is written until you Save."/>
+                                </StackPanel>
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.ColourGroups}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Spacing="16"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:ColourGroupViewModel">
+                                            <StackPanel Spacing="6">
+                                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                                    <TextBlock Text="{x:Bind Title}" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{x:Bind PickedName, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
+                                                               VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                <!-- The game's own grid: two rows, half the swatches in each. -->
+                                                <StackPanel Spacing="3" HorizontalAlignment="Left">
+                                                    <ItemsControl ItemsSource="{x:Bind TopRow}" ItemTemplate="{StaticResource SwatchTemplate}">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <StackPanel Orientation="Horizontal" Spacing="3"/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                    </ItemsControl>
+                                                    <ItemsControl ItemsSource="{x:Bind BottomRow}" ItemTemplate="{StaticResource SwatchTemplate}">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <StackPanel Orientation="Horizontal" Spacing="3"/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                </controls:FoldingCard>
+                <controls:FoldingCard Grid.Row="1" Title="MY DESIGNS" Summary="{x:Bind ViewModel.DesignsSummary, Mode=OneWay}"
+                                      SettingKey="ShipDesignerDesignsCollapsed" Framed="True">
+                    <Grid MinHeight="220">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        <Border Style="{StaticResource ThemeBandStyle}">
-                            <TextBlock Text="MY DESIGNS" Style="{StaticResource ThemeBandTextStyle}"/>
-                        </Border>
-                        <TextBox x:Name="DesignSearchBox" Grid.Row="1" Margin="16,12,16,0" PlaceholderText="Find a design"
-                                 TextChanged="DesignSearchBox_TextChanged"/>
-                        <ScrollViewer Grid.Row="2" Margin="0,10,0,0">
+                        <TextBox Margin="16,12,16,0" PlaceholderText="Find a design" AutomationProperties.Name="Find a design"
+                                 Text="{x:Bind ViewModel.DesignSearch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <ScrollViewer Grid.Row="1" Margin="0,10,0,0">
                             <StackPanel Margin="16,0,16,16">
-                                <TextBlock x:Name="DesignsEmptyTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                           TextWrapping="Wrap" Visibility="Collapsed"/>
-                                <ctcontrols:WrapPanel x:Name="DesignsPanel" HorizontalSpacing="8" VerticalSpacing="8"/>
+                                <TextBlock Text="{x:Bind ViewModel.DesignsEmptyText, Mode=OneWay}" Visibility="{x:Bind ViewModel.DesignsEmptyVisible, Mode=OneWay}"
+                                           Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.Designs}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <ctcontrols:WrapPanel HorizontalSpacing="8" VerticalSpacing="8"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <!-- A card: the picture, name and type/style. Click to load; the corner button
+                                             deletes (beside the card, not inside its button). -->
+                                        <DataTemplate x:DataType="vm:SavedDesignCardViewModel">
+                                            <Grid>
+                                                <controls:ChoiceButton Padding="6" VerticalAlignment="Stretch" IsSelected="{x:Bind IsSelected, Mode=OneWay}"
+                                                                       Command="{x:Bind LoadCommand}" ToolTipService.ToolTip="{x:Bind LoadToolTip}"
+                                                                       AutomationProperties.Name="{x:Bind LoadName}">
+                                                    <StackPanel Width="144" Spacing="2">
+                                                        <Grid Width="144" Height="90" CornerRadius="4" Background="{ThemeResource ThemePanelAltBrush}">
+                                                            <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="Uniform"/>
+                                                            <TextBlock Text="Load it to take a picture" FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
+                                                                       Style="{StaticResource ThemeDimTextStyle}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                       Margin="8" Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}"/>
+                                                        </Grid>
+                                                        <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
+                                                        <TextBlock Text="{x:Bind Subtitle}" FontSize="11" TextTrimming="CharacterEllipsis" Style="{StaticResource ThemeDimTextStyle}"/>
+                                                    </StackPanel>
+                                                </controls:ChoiceButton>
+                                                <Button Padding="6" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,10,0"
+                                                        Command="{x:Bind DeleteCommand}" ToolTipService.ToolTip="Delete this design"
+                                                        AutomationProperties.Name="{x:Bind DeleteName}">
+                                                    <FontIcon Glyph="&#xE74D;" FontSize="12"/>
+                                                </Button>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </ScrollViewer>
                     </Grid>
-                </Border>
+                </controls:FoldingCard>
             </Grid>
 
         </Grid>

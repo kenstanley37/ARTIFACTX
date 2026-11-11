@@ -288,6 +288,45 @@ public static class ShipBuilderService
         SaveSessionManager.StageEdit(entry, CustomisationPath(index));
     }
 
+    /// <summary>Reads the account's unlocked rewards, which <see cref="IsPaintStyleUnlocked"/> needs. Safe to call
+    /// again; a new save session loads its own.</summary>
+    public static Task LoadPaintUnlocksAsync() => VehicleUnlockEditor.Current.LoadAsync();
+
+    /// <summary>Whether a paint style's reward item (PaintStyle.Unlock, the game's ProductsToUnlock, e.g.
+    /// EXPD_SHIPMAT17 for Titan Stripes) is unlocked; null when that can't be told (no save, or the account's
+    /// rewards aren't read) - never shown as locked then.
+    /// The unlock is ACCOUNT-WIDE, not per save. In-game test 2026-11-11: Slot 8's KnownSpecials (24&lt;) holds none
+    /// of EXPD_SHIPMAT13 / EXPD_SHIP_METAL / EXPD_SHIPMAT17, yet its space station fabricator offered all five
+    /// Fighter paint styles - the owner's account owns the three rewards. (The owner's other saves do list them in
+    /// 24&lt;, so the game copies them there, but the list isn't what gates the fabricator.) So unlocked = in the
+    /// account's rewards (accountdata B89 lists and the user settings, as <see cref="VehicleUnlockEditor"/> reads
+    /// them) or in the save's 24&lt;.
+    /// NOT YET CONFIRMED in game: a style showing locked, and <see cref="StageUnlockPaintStyle"/> unlocking it - the
+    /// owner's account has every style (GitHub #1).</summary>
+    public static bool? IsPaintStyleUnlocked(string unlockId)
+    {
+        if (!SaveSessionManager.IsSaveLoaded || VehicleUnlockEditor.Current.Account is not { } account) return null;
+        string id = CatalogService.NormalizeId(unlockId);
+        return account.Rewards.Contains(id)
+            || (SaveSessionManager.GetValue(NmsGameCatalogPaths.KnownSpecialsPath) as JArray)?.Any(t => CatalogService.NormalizeId(t.Value<string>() ?? "") == id) == true;
+    }
+
+    /// <summary>Stages the reward the way the app grants any expedition customisation reward
+    /// (<see cref="VehicleUnlockEditor.Set"/>: the save's 24&lt;, the account's reward list and the user settings),
+    /// written by the title bar's Save and undone by its Reset. Returns why it couldn't, or null when staged.</summary>
+    public static string? StageUnlockPaintStyle(string unlockId)
+    {
+        try
+        {
+            VehicleUnlockEditor.Current.Set(CatalogService.NormalizeId(unlockId), [], true);
+            return null;
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ex.Message;
+        }
+    }
+
     public static void StageRemovePaint(int index)
     {
         SaveSessionManager.StageEdit(new JObject

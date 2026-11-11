@@ -6,6 +6,12 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Ship Designer: paint styles you haven't unlocked yet (expedition rewards such as Titan Stripes) show a padlock. You can still try them on, and a new button unlocks the picked style.
+
+- Ship Designer: "Put these parts in my Exosuit" gives you the design's parts as items, so you can build the ship yourself at a space station. Right-click any part to add just that one.
+
+- Ship Designer: the Paint and My designs cards can be hidden with a button in their heading. Hide Paint to give your saved designs the whole column; the choice is remembered.
+
 - Mobile camera scanning now shows moving brackets around detected portal details and a green lock before opening the system.
 
 - Mobile system details show the address as glyph pictures, ready to dial at a portal.
