@@ -25,6 +25,9 @@ namespace ArtifactX.WinUI3.Services;
 /// 2026-11-10 against game-built beacons on open ground: Arkans 281.24 m (real 281.2), Riwor V on a slope
 /// 473.49 m (real 473.39; Height gave 445.6). Not modelled: building flattening (a beacon beside a crashed ship on
 /// Riwor V stood on the site's flattened ground) and caves.
+/// Still waypoint-only (2026-11-10, Slot 8 tests): "ofi" is the entry's RegionSeed (GcPersistentBBObjectData), and the
+/// game builds a saved object only in the terrain region with that seed. ArtifactX cannot compute region seeds yet, so
+/// its seed (used below to recognise its own beacons) matches no region and only the HUD waypoint shows.
 ///
 /// Ownership: ArtifactX's beacons carry a seed derived from their site (<see cref="SeedFor"/>), so Add and Remove
 /// only ever replace or delete beacons ArtifactX placed, never ones the player built in game nearby.
