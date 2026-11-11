@@ -353,7 +353,7 @@ public static partial class CatalogSteps
                 (w.Water ?? new()).Select(e => new CreatureWeightedEntry(e.Archetype?.Value ?? "", e.Weight)).ToArray());
 
         static CreatureOptWeightedList MapOptList(GcCreatureGenerationOptionalWeightedList opt) =>
-            new(opt.Probability, MapDomainLists(opt.Archetypes));
+            new(opt.Probability, MapDomainLists(opt.Archetypes), opt.OverrideAllDomains);
 
         var subBiomes = (cgen.SubBiomeSpecific ?? Array.Empty<GcCreatureGenerationOptionalWeightedList>()).Select(MapOptList).ToArray();
         var biomes = (cgen.BiomeSpecific ?? Array.Empty<GcCreatureGenerationOptionalWeightedList>()).Select(MapOptList).ToArray();

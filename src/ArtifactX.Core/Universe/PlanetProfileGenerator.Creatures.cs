@@ -65,8 +65,11 @@ public sealed record CreatureDomainWeightedLists(
     CreatureWeightedEntry[] Ground,
     CreatureWeightedEntry[] Water);
 
-/// <summary>An optional archetype list with a probability and domain choices.</summary>
-public sealed record CreatureOptWeightedList(float Prob, CreatureDomainWeightedLists Domains);
+/// <summary>An optional archetype list with a probability and domain choices (GcCreatureGenerationOptionalWeightedList).
+/// OverrideAllDomains: when the list is used, every domain it didn't set becomes EMPTY. Read per list since catalog
+/// format 78; null on older catalogs, which keep the port's old assumption (on for every list but the purple-star one,
+/// the same values the game files have).</summary>
+public sealed record CreatureOptWeightedList(float Prob, CreatureDomainWeightedLists Domains, bool? OverrideAllDomains = null);
 
 /// <summary>The collection of archetype lists from GcCreatureGenerationData.</summary>
 public sealed record CreatureArchetypeLists(
@@ -153,9 +156,17 @@ public static partial class PlanetProfileGenerator
         public float NextFraction() => Top.NextFraction();
     }
 
+    /// <summary>NMS.exe 184271 0x1416d85f0: pushes and draws even for an empty list (then returns nothing), so an
+    /// empty list still moves the parent stream on.</summary>
     private static string? PickWeighted(RngStack stack, CreatureWeightedEntry[]? entries)
     {
-        if (entries is null || entries.Length == 0) return null;
+        if (entries is null || entries.Length == 0)
+        {
+            stack.Push();
+            stack.NextFraction();
+            stack.Pop();
+            return null;
+        }
         stack.Push();
         float totalWeight = 0f;
         for (int i = 0; i < entries.Length; i++) totalWeight += entries[i].Weight;
@@ -174,9 +185,11 @@ public static partial class PlanetProfileGenerator
         return picked;
     }
 
+    /// <summary>NMS.exe 184271 0x1416d87e0: one roll against the list's probability, then a pick per domain, and EMPTY
+    /// for the domains left unset only when the list says OverrideAllDomains.</summary>
     private static void SelectArchetype(RngStack stack, CreatureOptWeightedList optList,
         ref string? ground, ref string? water, ref string? air, ref string? cave,
-        int biome, float sea, bool hasCaves, bool forceEmpty = true)
+        int biome, float sea, bool hasCaves, bool overrideOnOldCatalog = true)
     {
         stack.Push();
         float prob = optList.Prob;
@@ -203,7 +216,7 @@ public static partial class PlanetProfileGenerator
             string? c = PickWeighted(stack, optList.Domains.Cave);
             if (c is not null) cave = c;
         }
-        if (forceEmpty)
+        if (optList.OverrideAllDomains ?? overrideOnOldCatalog)
         {
             ground ??= "EMPTY";
             water ??= "EMPTY";
@@ -212,6 +225,9 @@ public static partial class PlanetProfileGenerator
         }
         stack.Pop();
     }
+
+    private static bool HasAnyEntry(CreatureDomainWeightedLists d) =>
+        d.Ground.Length + d.Air.Length + d.Water.Length + d.Cave.Length > 0;
 
     /// <summary>
     /// Predicts the planet's fauna total and creature roles from its seed and environment.
@@ -256,7 +272,7 @@ public static partial class PlanetProfileGenerator
             }
             else if (star == 4)
             {
-                SelectArchetype(stack, tables.ArchetypeLists.Purple, ref ground, ref water, ref air, ref cave, biome, sea, hasCaves, forceEmpty: false);
+                SelectArchetype(stack, tables.ArchetypeLists.Purple, ref ground, ref water, ref air, ref cave, biome, sea, hasCaves, overrideOnOldCatalog: false);
             }
             else if (abandonedSystem)
             {
@@ -271,12 +287,15 @@ public static partial class PlanetProfileGenerator
                 }
             }
 
-            if (ground is null && biome == 14)
+            // The biome's own list applies only when no earlier list set ANY domain (NMS.exe 184271 0x1416d60e0: all
+            // four slots empty, and the list not empty). Waterworlds are purple-star planets whose purple list may
+            // already have set water or air; applying the waterworld list on "ground unset" alone overwrote those
+            // picks and wiped their fliers (2026-11-11: waterworld fauna totals 5/9 -> see fauna-check).
+            if (ground is null && water is null && air is null && cave is null
+                && biome >= 0 && biome < tables.ArchetypeLists.Biomes.Length
+                && HasAnyEntry(tables.ArchetypeLists.Biomes[biome].Domains))
             {
-                if (14 < tables.ArchetypeLists.Biomes.Length)
-                {
-                    SelectArchetype(stack, tables.ArchetypeLists.Biomes[14], ref ground, ref water, ref air, ref cave, biome, sea, hasCaves);
-                }
+                SelectArchetype(stack, tables.ArchetypeLists.Biomes[biome], ref ground, ref water, ref air, ref cave, biome, sea, hasCaves);
             }
         }
 
