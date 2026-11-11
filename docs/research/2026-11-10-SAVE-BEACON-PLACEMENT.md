@@ -221,3 +221,16 @@ Beacon placement keeps using `Height` until that is settled.
   pass's column directions (Riwor V (-8.0, 5.65, 8.8), Arkans (6.8, 12.1, -5.9)), so on steep ground a point's
   height depends on which frame it is in (up to ~8 m here). Which frame the save's `wMC` uses needs a game-built
   beacon on sloped open ground, away from buildings.
+
+### Decided: the save uses the planet frame; placement switched (2026-11-10 night)
+
+Owner built a Save Beacon on sloped open ground on Riwor V, ~500 m from the crashed ship (Slot 8, 20:04 save):
+`wMC` (97617.83, 77318.80, 39094.70), 473.386 m. `SurfaceHeight` at `wMC` as stored: **473.486 m**; with the
+transform-frame offset applied either way: 468.2 / 469.4 m; `Height`: 445.6 m. So `wMC` is in the planet frame the
+columns use, and the emulator's 13-15 m world-frame shift does not apply to saves. Game-built beacons stand
+0.04-0.1 m below `SurfaceHeight`.
+
+Planet Details' hotspot and base-site positions (`PlanetHotspotService`, `PlanetHotspotCluster`) now use
+`SurfaceHeight`; `SaveBeaconService` still adds 0.2 m. Building, override, cabinet and crashed-ship code keeps the
+game's own `Height` (that is what the game uses for them). Not modelled: building flattening near sites, caves.
+Still to check in game: a beacon placed by ArtifactX at a hotspot shows as a real beacon (limits permitting).

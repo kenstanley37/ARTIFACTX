@@ -19,16 +19,19 @@ namespace ArtifactX.WinUI3.Services;
 /// Why only the waypoint shows (owner tests on Slot 8, 2026-11-10; docs/research/2026-11-10-SAVE-BEACON-PLACEMENT.md):
 /// the c5s entry above is all a real beacon is, and the game accepts ArtifactX's. Two things stop it being built:
 /// the game's limits (BUILDBEACON RegionLimit 1, PlanetLimit 5 in GcBaseBuildingTable; a beacon over a limit keeps
-/// only its waypoint) and height. Beacons are stored where they stand; <c>PlanetTerrain.Height</c> + 0.2 m is the
-/// ground on some planets but 13-21 m too low on others (a real beacon on open ground stood 13.5 m above it), so
-/// the beacon is buried. Placement stays as it is until the full ground height is researched (owner decision).
+/// only its waypoint) and height. Beacons are stored where they stand. <c>PlanetTerrain.Height</c> (the game's
+/// building-height function) was 13-28 m below the ground on some planets, so beacons were buried; hotspot and
+/// base-site positions now use <c>PlanetTerrain.SurfaceHeight</c>, the ground the voxel pass builds. Checked
+/// 2026-11-10 against game-built beacons on open ground: Arkans 281.24 m (real 281.2), Riwor V on a slope
+/// 473.49 m (real 473.39; Height gave 445.6). Not modelled: building flattening (a beacon beside a crashed ship on
+/// Riwor V stood on the site's flattened ground) and caves.
 ///
 /// Ownership: ArtifactX's beacons carry a seed derived from their site (<see cref="SeedFor"/>), so Add and Remove
 /// only ever replace or delete beacons ArtifactX placed, never ones the player built in game nearby.
 /// </summary>
 public static class SaveBeaconService
 {
-    /// <summary>Height above Core's terrain estimate, matching game-placed beacons on ordinary ground.</summary>
+    /// <summary>Height above <c>PlanetTerrain.SurfaceHeight</c>; game-built beacons stood 0.04-0.1 m below it.</summary>
     public const float ClearanceMeters = 0.2f;
 
     /// <summary>Marks ArtifactX's beacon seeds (the low 16 bits); the rest identifies the site.</summary>
