@@ -136,5 +136,56 @@ public static partial class CatalogSteps
             new CatalogItem { GameId = "CATALOGUESECTIONS", NameEnglish = "Catalog sections",
                 DescriptionEnglish = JsonSerializer.Serialize(result) }
         });
+        AddCatalogueIcons(db, wikis.Where(w => w.Key == "UI_PORTAL_CAT_COLLECTION").SelectMany(w => w.Wiki.Categories),
+            new IconExtractionService(extraction, index, targetSize: 128), Text);
+    }
+
+    /// <summary>The Wonders categories' own icons (GcWikiCategory.IconOn, the pictures on the game's category list:
+    /// planet, paw, leaf, rock...), stored as items <see cref="CatalogueCategory.IconIdFor"/> with their icon. Record
+    /// tiles (Planet, Fauna, Flora, Mineral) have no item picture of their own and show these (2026-11-11). Replaced
+    /// whole on every build; an icon image shared with another catalog row is kept.</summary>
+    private static void AddCatalogueIcons(CatalogDbContext db, IEnumerable<GcWikiCategory> categories, IconExtractionService icons,
+        Func<string, string> text)
+    {
+        var existing = db.Categories.FirstOrDefault(c => c.TemplateType == "CatalogueIcons");
+        if (existing is not null)
+        {
+            var itemIds = db.Items.Where(i => i.CategoryId == existing.Id).Select(i => i.Id).ToList();
+            var oldIcons = db.Set<IconAsset>().Where(a => itemIds.Contains(a.ItemId)).ToList();
+            var oldBlobIds = oldIcons.Select(a => a.IconBlobId).Distinct().ToList();
+            db.RemoveRange(oldIcons);
+            db.Items.RemoveRange(db.Items.Where(i => i.CategoryId == existing.Id));
+            db.SaveChanges();
+            var stillUsed = db.Set<IconAsset>().Where(a => oldBlobIds.Contains(a.IconBlobId)).Select(a => a.IconBlobId).ToHashSet();
+            db.RemoveRange(db.Set<IconBlob>().Where(b => oldBlobIds.Contains(b.Id) && !stillUsed.Contains(b.Id)));
+            db.Categories.Remove(existing);
+            db.SaveChanges();
+        }
+
+        var category = new CatalogCategory
+        {
+            TemplateType = "CatalogueIcons",
+            RowType = "GcWikiCategory",
+            SourceMbinPath = "metadata/reality/cataloguewonders.mbin (IconOn)",
+        };
+        // One IconBlob per texture path (unique in the DB): reuse one already there.
+        var blobs = new Dictionary<string, IconBlob>(StringComparer.OrdinalIgnoreCase);
+        foreach (var wikiCategory in categories)
+        {
+            string texture = wikiCategory.IconOn?.Filename?.Value ?? "";
+            if (texture.Length == 0 || icons.ExtractAndConvert(texture) is not { } png) continue;
+            if (!blobs.TryGetValue(texture, out var blob))
+            {
+                blob = db.Set<IconBlob>().FirstOrDefault(b => b.SourceDdsPath == texture) ?? new IconBlob { SourceDdsPath = texture, PngData = png };
+                blobs[texture] = blob;
+            }
+            string key = wikiCategory.CategoryID.Value;
+            var item = new CatalogItem { GameId = CatalogueCategory.IconIdFor(key), NameEnglish = text(key) is { Length: > 0 } name ? name : "Catalog category" };
+            item.Icons.Add(new IconAsset { SourceField = "Icon", IconBlob = blob });
+            category.Items.Add(item);
+        }
+        db.Categories.Add(category);
+        db.SaveChanges();
+        ConsoleStyle.Success($"Wonders category icons: {category.Items.Count}");
     }
 }

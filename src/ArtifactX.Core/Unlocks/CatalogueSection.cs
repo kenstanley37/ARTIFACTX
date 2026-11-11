@@ -21,4 +21,9 @@ public sealed record CatalogueSection(string Key, string Title, string KnownLabe
 /// total (428 = 66 records + 219 fishing + 143 fossils, exact on Slot 1 and 8).</summary>
 public sealed record CatalogueCategory(string Key, string Name, string Type, string[] Items,
     Dictionary<string, string[]>? ItemRecipes = null, Dictionary<string, string>? ItemNames = null,
-    bool Counted = true);
+    bool Counted = true)
+{
+    /// <summary>The catalog item holding a category's own icon (the game's category picture), by category key.
+    /// Written by the game data builder, read by the Catalog page for record tiles.</summary>
+    public static string IconIdFor(string categoryKey) => "CATALOGUEICON_" + categoryKey;
+}

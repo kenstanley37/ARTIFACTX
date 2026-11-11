@@ -87,6 +87,8 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         if (version != _loadVersion) return;
         var species = await CreatureNameService.LoadAsync();
         if (version != _loadVersion) return;
+        await PlanetTypesService.EnsureLoadedAsync(); // Planet Records draw each planet's type
+        if (version != _loadVersion) return;
 
         var newSections = new List<GameCatalogSectionViewModel>();
         foreach (var section in catalogue.Sections)
@@ -185,13 +187,23 @@ public sealed partial class GameCatalogViewModel : ObservableObject
                 string name = category.ItemNames?.GetValueOrDefault(id) is { Length: > 0 } n ? n : $"Record {i + 1}";
                 var generation = records?.ElementAtOrDefault(i)?["UqY"] as JArray;
                 var (recorded, detail, iconId) = ReadRecord(category.Type, generation);
-                if (category.Type is "TreasureWonders" or "WeirdBasePartWonders") iconId ??= SlotItem(name);
+                // Treasures and Glitches show the item recorded; the other records show the game's own picture for
+                // their category (paw, leaf, rock...), and a recorded planet its planet (2026-11-11: all were one star).
+                iconId ??= category.Type is "TreasureWonders" or "WeirdBasePartWonders" ? SlotItem(name)
+                    : Core.Unlocks.CatalogueCategory.IconIdFor(category.Key);
                 return new GameCatalogItemViewModel(id, name, recorded, true, true, null,
-                    detail: detail, iconId: iconId, species: recorded ? SpeciesOf(category.Type, generation, species) : null);
+                    detail: detail, iconId: iconId, species: recorded ? SpeciesOf(category.Type, generation, species) : null)
+                {
+                    Planet = recorded && category.Type == "PlanetWonders" ? RecordPlanet(generation) : null,
+                };
             }).ToList();
         }
         return new GameCatalogCategoryViewModel(category.Name, items, category.Counted);
     }
+
+    /// <summary>The planet a Planet Record points at (its UqY's first value), with its predicted type.</summary>
+    private static KnownPlanet? RecordPlanet(JArray? generation) =>
+        NmsSpaceStationPaths.ParsePackedAddress(generation?.ElementAtOrDefault(0)) is ulong address ? PlanetTypesService.Planet(address) : null;
 
     /// <summary>The name the game shows on a Fauna, Flora or Mineral record.</summary>
     private static string? SpeciesOf(string type, JArray? generation, CreatureNameService species)

@@ -178,6 +178,7 @@ public static class WonderUnlockService
                 {
                     updated[slotIndex] = CreateEmptyWonderRecord();
                     item.Detail = null;
+                    item.Planet = null;
                     item.Species = null;
                 }
             }
@@ -269,6 +270,7 @@ public static class WonderUnlockService
         };
 
         item.Detail = $"{UniverseInfo.PlanetName(systemAddress, planet)} · {UniverseInfo.SystemName(systemAddress)}";
+        item.Planet = categoryType.Equals("PlanetWonders", StringComparison.OrdinalIgnoreCase) ? PlanetTypesService.Planet(planetAddress) : null;
 
         if (categoryType.Equals("CreatureWonders", StringComparison.OrdinalIgnoreCase))
             item.Species ??= "Fauna Record";

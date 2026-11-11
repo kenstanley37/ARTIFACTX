@@ -55,6 +55,13 @@ public sealed partial class GameCatalogItemViewModel : ObservableObject, IUnlock
     [ObservableProperty] public partial bool IsUnlocked { get; set; }
     [ObservableProperty] public partial BitmapImage? Icon { get; set; }
 
+    /// <summary>A Planet Record's planet, drawn in its type's colour instead of the category icon; null otherwise.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPlanet), nameof(ShowIcon), nameof(ShowFallbackStar))]
+    public partial ArtifactX.Core.NmsModels.KnownPlanet? Planet { get; set; }
+    public bool HasPlanet => Planet is not null;
+    public bool ShowIcon => Planet is null;
+
     /// <summary>A dark outline of Icon, shown until the item is known, as the game's Catalog does.</summary>
     [ObservableProperty] public partial ImageSource? Silhouette { get; set; }
 
@@ -64,12 +71,17 @@ public sealed partial class GameCatalogItemViewModel : ObservableObject, IUnlock
     public double TileOpacity => !ShowState || IsUnlocked ? 1 : 0.45;
     public bool ShowTick => ShowState && CanEdit;
 
-    /// <summary>A Wonders record slot ("WONDER:PlanetWonders:3"): no item picture.</summary>
-    public bool IsRecord => GameId.StartsWith("WONDER:", System.StringComparison.Ordinal) && IconId == GameId;
+    /// <summary>A Wonders record slot ("WONDER:PlanetWonders:3") with no picture to show: game data built before the
+    /// category icons were collected (catalog format 77).</summary>
+    public bool ShowFallbackStar => GameId.StartsWith("WONDER:", System.StringComparison.Ordinal) && Icon is null && Planet is null;
     public bool ShowLock => ShowState && !CanEdit;
     public string ToolTip => ReadOnlyReason is null ? Name : $"{Name} - {ReadOnlyReason}";
 
-    partial void OnIconChanged(BitmapImage? value) => OnPropertyChanged(nameof(DisplayIcon));
+    partial void OnIconChanged(BitmapImage? value)
+    {
+        OnPropertyChanged(nameof(DisplayIcon));
+        OnPropertyChanged(nameof(ShowFallbackStar));
+    }
 
     partial void OnSilhouetteChanged(ImageSource? value)
     {
