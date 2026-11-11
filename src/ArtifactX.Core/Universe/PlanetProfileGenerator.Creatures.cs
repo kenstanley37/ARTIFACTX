@@ -8,9 +8,11 @@ namespace ArtifactX.Core.Universe;
 /// Carnivore), Herbivore otherwise. CreatureType feeds the genus seed (SpeciesNames.FaunaSeeds); Diet is kept for
 /// the creature's traits. MinSize/MaxSize are the role description's size-class range (GcCreatureSizeClasses).
 /// Scale is the species' spawn scale and SizeClass its GcCreatureSizeClasses bucket (Small 0 to Huge 3), which
-/// feeds the genus seed; both 0 on catalogs before format 78 (see <see cref="PlanetProfileGenerator.SpeciesScale"/>).</summary>
+/// feeds the genus seed; both 0 on catalogs before format 78 (see <see cref="PlanetProfileGenerator.SpeciesScale"/>).
+/// SpeciesId is the creature ID its species seed is made from: the scene's own creature component Id (CRAB spawns
+/// SPIDER's scene data), else Id.</summary>
 public sealed record PredictedCreature(string Id, string Domain, int Role, ulong Seed = 0, int CreatureType = 0, int Diet = 0,
-    int MinSize = 0, int MaxSize = 0, float Scale = 0, int SizeClass = 0)
+    int MinSize = 0, int MaxSize = 0, float Scale = 0, int SizeClass = 0, string SpeciesId = "")
 {
     public string Habitat => Domain switch
     {
@@ -55,7 +57,9 @@ public sealed record CreatureGlobals(
 
 /// <summary>An individual creature definition from GcCreatureDataTable (filtered by GcCreatureFilenameTable).
 /// Type is its ForceType (what roles filter on); RealType (catalog format 78; 0 on older catalogs) is the type the
-/// spawned creature reports. MinScale/MaxScale (format 78) bound its spawn scale.</summary>
+/// spawned creature reports. MinScale/MaxScale (format 78) bound its spawn scale. TagRarities (format 78) is each
+/// tag's RarityOverride, the rarity a role requiring that tag weighs it by. SpeciesId (format 78; "" when unknown) is
+/// the Id in its scene's creature component, which names the species (the CRAB scene says SPIDER).</summary>
 public sealed record CreatureEntry(
     string Id,
     int Type,
@@ -67,7 +71,9 @@ public sealed record CreatureEntry(
     string[] Tags,
     int RealType = 0,
     float MinScale = 0,
-    float MaxScale = 0);
+    float MaxScale = 0,
+    int[]? TagRarities = null,
+    string SpeciesId = "");
 
 /// <summary>An archetype option entry with an ID and a weight.</summary>
 public sealed record CreatureWeightedEntry(string Id, float Weight);
@@ -457,27 +463,8 @@ public static partial class PlanetProfileGenerator
                     float totalWeight = 0.0f;
                     for (int cIdx = 0; cIdx < tables.Creatures.Length; cIdx++)
                     {
-                        var c = tables.Creatures[cIdx];
-                        if (c.Type != role.ForceType) continue;
-                        if (!c.Eco) continue;
-                        if (c.ForcedOnly && role.ForceId != c.Id) continue;
-                        if (!string.IsNullOrEmpty(role.ForceId) && role.ForceId != c.Id) continue;
-                        if (!string.IsNullOrEmpty(role.ReqTag) && !ContainsTag(c.Tags, role.ReqTag)) continue;
-
-                        float roleMod;
-                        if (role.ForceId == c.Id) roleMod = 1.0f;
-                        else if (role.Role is 1 or 2) roleMod = tables.Globals.RoleFreq[c.PredMod];
-                        else if (role.Role is 3 or 4) roleMod = tables.Globals.RoleFreq[c.HerbMod];
-                        else roleMod = 1.0f;
-
-                        float rarityMod = tables.Globals.RarityFreq[c.Rarity];
-                        if (string.IsNullOrEmpty(role.ForceId) && string.IsNullOrEmpty(role.ReqTag))
-                        {
-                            for (int t = 0; t < c.Tags.Length; t++)
-                                rarityMod *= tables.Globals.HerdPenalty;
-                        }
-
-                        totalWeight += rarityMod * roleMod;
+                        float weight = PickWeight(tables.Creatures[cIdx], role, tables.Globals);
+                        if (weight >= 0) totalWeight += weight;
                     }
 
                     if (totalWeight > 0.0f)
@@ -489,26 +476,9 @@ public static partial class PlanetProfileGenerator
                         for (int cIdx = 0; cIdx < tables.Creatures.Length; cIdx++)
                         {
                             var c = tables.Creatures[cIdx];
-                            if (c.Type != role.ForceType) continue;
-                            if (!c.Eco) continue;
-                            if (c.ForcedOnly && role.ForceId != c.Id) continue;
-                            if (!string.IsNullOrEmpty(role.ForceId) && role.ForceId != c.Id) continue;
-                            if (!string.IsNullOrEmpty(role.ReqTag) && !ContainsTag(c.Tags, role.ReqTag)) continue;
-
-                            float roleMod;
-                            if (role.ForceId == c.Id) roleMod = 1.0f;
-                            else if (role.Role is 1 or 2) roleMod = tables.Globals.RoleFreq[c.PredMod];
-                            else if (role.Role is 3 or 4) roleMod = tables.Globals.RoleFreq[c.HerbMod];
-                            else roleMod = 1.0f;
-
-                            float rarityMod = tables.Globals.RarityFreq[c.Rarity];
-                            if (string.IsNullOrEmpty(role.ForceId) && string.IsNullOrEmpty(role.ReqTag))
-                            {
-                                for (int t = 0; t < c.Tags.Length; t++)
-                                    rarityMod *= tables.Globals.HerdPenalty;
-                            }
-
-                            acc += rarityMod * roleMod;
+                            float weight = PickWeight(c, role, tables.Globals);
+                            if (weight < 0) continue;
+                            acc += weight;
                             if (acc >= roll)
                             {
                                 chosenId = c.Id;
@@ -537,8 +507,9 @@ public static partial class PlanetProfileGenerator
                             : role.Role + 22;
                         var (scale, sizeClass) = picked is null || tables.Sizes is null ? (0f, 0)
                             : SpeciesScale(seed, picked, role.MinSize, role.MaxSize, tables.Sizes);
+                        string speciesId = string.IsNullOrEmpty(picked?.SpeciesId) ? chosenId : picked.SpeciesId;
                         chosenCreatures.Add(new PredictedCreature(chosenId, domain, role.Role, seed, type, diet, role.MinSize,
-                            role.MaxSize, scale, sizeClass));
+                            role.MaxSize, scale, sizeClass, speciesId));
                     }
                 }
                 stack.Pop();
@@ -581,11 +552,42 @@ public static partial class PlanetProfileGenerator
         CreatureTables tables) =>
         GenerateFauna(planetSeed, biome, subType, planetClass, star, faunaLevel, sea, hasCaves, emptySystem, abandonedSystem, tables).Count;
 
-    private static bool ContainsTag(string[] tags, string reqTag)
+    /// <summary>
+    /// A creature's weight for a role, or -1 when it can't fill it (NMS.exe 184271 GenerateCreatureRoles,
+    /// 0x1416d60e0, both passes): its ForceType must be the role's, it must be an ecosystem creature, a forced id
+    /// (or an id that only spawns when forced) must match, and a required tag must be among its tags. Weight = role
+    /// factor (1 for the forced id, else the predator or herbivore frequency for roles 1-2 / 3-4, else 1) times the
+    /// rarity frequency. With a required tag the rarity is that tag's RarityOverride; without one it's the
+    /// creature's own rarity, times the herd penalty once per tag it has.
+    /// </summary>
+    private static float PickWeight(CreatureEntry c, CreatureRoleCandidate role, CreatureGlobals globals)
     {
-        for (int i = 0; i < tags.Length; i++)
-            if (string.Equals(tags[i], reqTag, StringComparison.Ordinal)) return true;
-        return false;
+        if (c.Type != role.ForceType || !c.Eco) return -1;
+        if ((c.ForcedOnly || !string.IsNullOrEmpty(role.ForceId)) && role.ForceId != c.Id) return -1;
+        int tagIndex = -1;
+        if (!string.IsNullOrEmpty(role.ReqTag))
+        {
+            tagIndex = Array.FindIndex(c.Tags, t => string.Equals(t, role.ReqTag, StringComparison.Ordinal));
+            if (tagIndex < 0) return -1;
+        }
+
+        float roleMod;
+        if (role.ForceId == c.Id) roleMod = 1.0f;
+        else if (role.Role is 1 or 2) roleMod = globals.RoleFreq[c.PredMod];
+        else if (role.Role is 3 or 4) roleMod = globals.RoleFreq[c.HerbMod];
+        else roleMod = 1.0f;
+
+        float rarityMod;
+        if (tagIndex >= 0)
+            rarityMod = globals.RarityFreq[c.TagRarities is { } rarities && tagIndex < rarities.Length ? rarities[tagIndex] : c.Rarity];
+        else
+        {
+            rarityMod = globals.RarityFreq[c.Rarity];
+            for (int t = 0; t < c.Tags.Length; t++)
+                rarityMod *= globals.HerdPenalty;
+        }
+        return rarityMod * roleMod;
     }
+
 }
 

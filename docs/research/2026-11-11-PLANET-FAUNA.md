@@ -130,17 +130,42 @@ the creature scales, role size ranges and the four globals (format 78).
 | Genus seed bEr[3] | 1,261 (84%) |
 | Both, so the exact species name | 1,198 (80%) |
 
-The misses are mostly the kinds that spawn with other creature data than the role picked (ANTELOPE as TRICERATOPS,
-CRAB as SPIDER, STRIDER as TWOLEGANTELOPE...): wrong ID for the species seed, and that data's own type and scales
-for the genus. Next: find where the spawner picks that creature data (bEr[1] is the djb2 hash of its resource
-name, so it can be checked directly against the saves).
+Those misses turned out not to be spawn-time swaps; see the next section.
+
+## Creature picks and species ids: 97% exact names this year (2026-11-11, later)
+
+`bEr[1]` is the djb2 hash of the creature's scene file exactly as `GcCreatureFilenameTable` writes it
+(`MODELS/PLANETS/CREATURES/ANTELOPERIG/ANTELOPE.SCENE.MBIN`), so every saved discovery says which creature the game
+spawned. Comparing that with the port's picks showed two things:
+
+- **The port's weighted pick was wrong for roles with a RequireTag.** The game (GenerateCreatureRoles, both passes)
+  weighs a creature by the RarityOverride of the required tag (`GcCreatureTagAndRarity`), not by its own rarity,
+  and applies the herd penalty whenever no tag is required. ANTELOPE vs TRICERATOPS, STRIDER/COW vs
+  TWOLEGANTELOPE, RODENT vs BLOB were all this. Now `PlanetProfileGenerator.PickWeight`; the catalog keeps each
+  tag's rarity. Fauna totals unchanged (983 / 983, the pick doesn't change the draw count).
+- **The species seed uses the scene's creature component Id** (`GcCreatureComponentData.Id`, the +0x40 that
+  0x14123e740 reads): the CRAB and HERMITCRAB scenes say SPIDER. Weird creatures share scenes holding one component
+  each, so the creature's own id wins when its scene has it. The catalog keeps it as `CreatureEntry.SpeciesId`.
+
+| Discovered | Discoveries | Species | Genus | Both (exact species name) |
+|---|---|---|---|---|
+| 2026 | 890 | 869 | 870 | 867 (97.4%) |
+| 2025 | 397 | 391 | 381 | 381 (96%) |
+| 2020-2024 | 209 | 203 | 86 | 85 |
+
+Older discoveries keep the genus seed their game version made, with other GcCreatureTypes numbers (ANTELOPE as
+21/22 where today's game says 25/26), so they can't match today's generator; that's expected. The remaining
+current misses are single wrong picks spread across kinds.
+
+Next: give predicted creatures their species names in the app (Planet Details), and match them one by one against
+the owner's captured creatures; then traits (rarity, gender, activity, height and weight from the scale).
 
 ## Next layers
 
 1. ~~Waterworld air rule~~ (solved above).
 2. Habitat split: 17 planets where recorded habitats don't fit (e.g. recorded flying x4, predicted flying x1).
    Some are capture noise (blank habitat rows).
-3. ~~Creature identity seed~~ (96%, above); species names exact for 80% (above); next the spawn-time creature data choice. With the seed pair
+3. ~~Creature identity seed~~ (96%, above); species names exact for 97% of this year's discoveries (above). With the seed pair
    that `SpeciesNames.Fauna` takes, predicted creatures get their real species names, and can be matched one by
    one against the 510 recorded creatures by name.
 4. Traits: rarity, gender, activity, size.

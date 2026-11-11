@@ -114,6 +114,8 @@ if (args.Length > 2)
     var probe = new List<string>();
     var nameProbe = new List<(ulong Seed, ulong B2, ulong B3, ulong PlanetSeed, ulong Address)>();
     var allNames = new List<(ulong Address, ulong B2, ulong B3)>();
+    var resourceHash = new Dictionary<(ulong, ulong), ulong>();
+    var discoveryYear = new Dictionary<(ulong, ulong), int>();
     var examples = new List<string>();
     var perPlanet = new Dictionary<ulong, (int, int)>();
     var byYear = new SortedDictionary<int, (int, int)>();
@@ -162,8 +164,11 @@ if (args.Length > 2)
             perPlanet[address] = seeds.Contains(seed) ? (tally.Item1 + 1, tally.Item2) : (tally.Item1, tally.Item2 + 1);
             long when = record.SelectToken("ksu.3I1")?.Value<long>() ?? 0;
             int year = when > 0 ? DateTimeOffset.FromUnixTimeSeconds(when).Year : 0;
+            discoveryYear[(address, seed)] = year;
             var yt = byYear.TryGetValue(year, out var y0) ? y0 : (0, 0);
             byYear[year] = seeds.Contains(seed) ? (yt.Item1 + 1, yt.Item2) : (yt.Item1, yt.Item2 + 1);
+            if (v.Count >= 2 && ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ParsePackedAddress(v[1]) is ulong n1)
+                resourceHash[(address, seed)] = n1;
             if (seeds.Contains(seed) && v.Count >= 4 && creatureBySeed.TryGetValue(seed, out var pn)
                 && ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ParsePackedAddress(v[2]) is ulong b2
                 && ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ParsePackedAddress(v[3]) is ulong b3)
@@ -192,11 +197,12 @@ if (args.Length > 2)
     int tested = 0, speciesHit = 0, genusHit = 0, bothHit = 0;
     var speciesMiss = new Dictionary<string, int>();
     var genusMiss = new Dictionary<string, int>();
+    var nameByYear = new SortedDictionary<int, (int, int, int, int)>();
     foreach (var (discSeed, b2, b3, planetSeed, address) in nameProbe)
     {
         tested++;
         var c = creatureBySeed[discSeed].C;
-        var (species, genus) = ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(discSeed, c.Id, address, c.CreatureType, c.SizeClass);
+        var (species, genus) = ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(discSeed, c.SpeciesId, address, c.CreatureType, c.SizeClass);
         if (species == b2)
         {
             speciesHit++;
@@ -222,6 +228,9 @@ if (args.Length > 2)
             genusMiss[k] = genusMiss.GetValueOrDefault(k) + 1;
         }
         if (species == b2 && genus == b3) bothHit++;
+        int dy = discoveryYear.GetValueOrDefault((address, discSeed));
+        var yr = nameByYear.TryGetValue(dy, out var y1) ? y1 : (0, 0, 0, 0);
+        nameByYear[dy] = (yr.Item1 + 1, yr.Item2 + (species == b2 ? 1 : 0), yr.Item3 + (genus == b3 ? 1 : 0), yr.Item4 + (species == b2 && genus == b3 ? 1 : 0));
     }
     // Is int@+0xac an index among the planet's creatures? Count earlier creatures in the predicted list that share
     // the type / id / role / domain+type.
@@ -277,7 +286,29 @@ if (args.Length > 2)
         sizeTally[k] = sizeTally.GetValueOrDefault(k) + 1;
     }
     foreach (var t in sizeTally.OrderByDescending(k => k.Value).Take(25)) Console.WriteLine($"  size {t.Key} x{t.Value}");
+    // bEr[1] against djb2 of the creature filename table's scene files (FILENAMES env var: "ID<TAB>file<TAB>extra"
+    // rows), and which creature ID makes the saved species seed.
+    if (Environment.GetEnvironmentVariable("FILENAMES") is string fnPath && File.Exists(fnPath))
+    {
+        static ulong Djb2(string text) { ulong h = 5381; foreach (char ch in text) h = h * 33 + (ulong)(long)(sbyte)ch; return h; }
+        var sceneByHash = new Dictionary<ulong, string>();
+        foreach (var line in File.ReadAllLines(fnPath))
+            foreach (var f in line.Split('	').Skip(1).Where(f => f.Length > 0))
+                foreach (var form in new[] { f, f.ToLowerInvariant(), f.Replace(".MBIN", ""), f.Replace(".MBIN", "").ToLowerInvariant() })
+                    sceneByHash.TryAdd(Djb2(form), form);
+        var sceneTally = new Dictionary<string, int>();
+        foreach (var (discSeed, b2, b3, planetSeed, address) in nameProbe)
+        {
+            var c = creatureBySeed[discSeed].C;
+            string scene = resourceHash.TryGetValue((address, discSeed), out var h) && sceneByHash.TryGetValue(h, out var sc) ? sc : $"? {h:X16}";
+            string real = allIds.FirstOrDefault(id => ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(discSeed, id, address, 0, 0).Species == b2) ?? "?";
+            string k = $"{c.Id} (species {c.SpeciesId}) -> scene {scene} -> species id {real}";
+            sceneTally[k] = sceneTally.GetValueOrDefault(k) + 1;
+        }
+        foreach (var t in sceneTally.OrderByDescending(k => k.Value).Take(45)) Console.WriteLine($"  scene x{t.Value}: {t.Key}");
+    }
     Console.WriteLine($"name seeds tested {tested}: species {speciesHit}, genus {genusHit}, both {bothHit}");
+    foreach (var (y, (n, sp, ge, bo)) in nameByYear) Console.WriteLine($"  names {y}: {n} discoveries, species {sp}, genus {ge}, both {bo}");
     foreach (var m in speciesMiss.OrderByDescending(k => k.Value).Take(15)) Console.WriteLine($"  species miss x{m.Value}: {m.Key}");
     foreach (var m in genusMiss.OrderByDescending(k => k.Value).Take(15)) Console.WriteLine($"  genus miss x{m.Value}: {m.Key}");
     // The genus's second int (@+0xac, 0-3) is not the role's diet. Name every discovery from its real seeds, find the
