@@ -7,7 +7,7 @@ namespace ArtifactX.Core.Unlocks;
 /// build-184271 special grant routine updates its runtime set. Recycling title
 /// thresholds were checked against installed title data and real integer stats
 /// on 2026-11-02. This never writes a file or changes account-wide entitlements.</summary>
-public static class VehicleUnlockEdits
+public static class RewardUnlockEdits
 {
     public static JArray Specials(JArray current, string id, bool enabled)
     {

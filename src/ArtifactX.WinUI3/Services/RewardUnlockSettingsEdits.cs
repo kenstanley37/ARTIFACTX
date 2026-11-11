@@ -9,7 +9,7 @@ namespace ArtifactX.WinUI3.Services;
 /// <summary>Stages the installed game's settings unlock mirror alongside the
 /// slot/account edits. Never writes until title-bar Save; validates external
 /// changes and backs up the full settings file before committing.</summary>
-internal sealed class VehicleUnlockSettingsEdits : IStagedSaveCompanion
+internal sealed class RewardUnlockSettingsEdits : IStagedSaveCompanion
 {
     private readonly object? _owner = SaveSessionManager.SessionIdentity;
     private string? _path, _original, _pending;

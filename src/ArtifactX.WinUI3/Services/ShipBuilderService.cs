@@ -290,7 +290,7 @@ public static class ShipBuilderService
 
     /// <summary>Reads the account's unlocked rewards, which <see cref="IsPaintStyleUnlocked"/> needs. Safe to call
     /// again; a new save session loads its own.</summary>
-    public static Task LoadPaintUnlocksAsync() => VehicleUnlockEditor.Current.LoadAsync();
+    public static Task LoadPaintUnlocksAsync() => RewardUnlockEditor.Current.LoadAsync();
 
     /// <summary>Whether a paint style's reward item (PaintStyle.Unlock, the game's ProductsToUnlock, e.g.
     /// EXPD_SHIPMAT17 for Titan Stripes) is unlocked; null when that can't be told (no save, or the account's
@@ -299,26 +299,26 @@ public static class ShipBuilderService
     /// of EXPD_SHIPMAT13 / EXPD_SHIP_METAL / EXPD_SHIPMAT17, yet its space station fabricator offered all five
     /// Fighter paint styles - the owner's account owns the three rewards. (The owner's other saves do list them in
     /// 24&lt;, so the game copies them there, but the list isn't what gates the fabricator.) So unlocked = in the
-    /// account's rewards (accountdata B89 lists and the user settings, as <see cref="VehicleUnlockEditor"/> reads
+    /// account's rewards (accountdata B89 lists and the user settings, as <see cref="RewardUnlockEditor"/> reads
     /// them) or in the save's 24&lt;.
     /// NOT YET CONFIRMED in game: a style showing locked, and <see cref="StageUnlockPaintStyle"/> unlocking it - the
     /// owner's account has every style (GitHub #1).</summary>
     public static bool? IsPaintStyleUnlocked(string unlockId)
     {
-        if (!SaveSessionManager.IsSaveLoaded || VehicleUnlockEditor.Current.Account is not { } account) return null;
+        if (!SaveSessionManager.IsSaveLoaded || RewardUnlockEditor.Current.Account is not { } account) return null;
         string id = CatalogService.NormalizeId(unlockId);
         return account.Rewards.Contains(id)
             || (SaveSessionManager.GetValue(NmsGameCatalogPaths.KnownSpecialsPath) as JArray)?.Any(t => CatalogService.NormalizeId(t.Value<string>() ?? "") == id) == true;
     }
 
     /// <summary>Stages the reward the way the app grants any expedition customisation reward
-    /// (<see cref="VehicleUnlockEditor.Set"/>: the save's 24&lt;, the account's reward list and the user settings),
+    /// (<see cref="RewardUnlockEditor.Set"/>: the save's 24&lt;, the account's reward list and the user settings),
     /// written by the title bar's Save and undone by its Reset. Returns why it couldn't, or null when staged.</summary>
     public static string? StageUnlockPaintStyle(string unlockId)
     {
         try
         {
-            VehicleUnlockEditor.Current.Set(CatalogService.NormalizeId(unlockId), [], true);
+            RewardUnlockEditor.Current.Set(CatalogService.NormalizeId(unlockId), [], true);
             return null;
         }
         catch (InvalidOperationException ex)
