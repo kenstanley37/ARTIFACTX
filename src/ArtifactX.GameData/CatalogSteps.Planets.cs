@@ -416,7 +416,9 @@ public static partial class CatalogSteps
                     (int)r.Density.Density,
                     (int)r.ForceType.CreatureType,
                     r.ProbabilityOfBeingEnabled,
-                    (int)r.Role.CreatureRole)).ToArray();
+                    (int)r.Role.CreatureRole,
+                    (int)r.MinSize.CreatureSizeClass,
+                    (int)r.MaxSize.CreatureSizeClass)).ToArray();
                 ecosystemTables[path] = roles;
             }
         }

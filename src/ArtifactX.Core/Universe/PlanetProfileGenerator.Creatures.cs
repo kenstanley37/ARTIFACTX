@@ -6,8 +6,9 @@ namespace ArtifactX.Core.Universe;
 /// Type is the creature's RealType, else its ForceType, else role + 22 (Predator, PlayerPredator, Prey, Passive);
 /// Diet is Robot on ROBOT worlds, Carnivore for role 2, a roll for roles 1 and 7 (Omnivore above 0.5, else
 /// Carnivore), Herbivore otherwise. CreatureType feeds the genus seed (SpeciesNames.FaunaSeeds); Diet is kept for
-/// the creature's traits.</summary>
-public sealed record PredictedCreature(string Id, string Domain, int Role, ulong Seed = 0, int CreatureType = 0, int Diet = 0)
+/// the creature's traits. MinSize/MaxSize are the role description's size-class range (GcCreatureSizeClasses).</summary>
+public sealed record PredictedCreature(string Id, string Domain, int Role, ulong Seed = 0, int CreatureType = 0, int Diet = 0,
+    int MinSize = 0, int MaxSize = 0)
 {
     public string Habitat => Domain switch
     {
@@ -107,14 +108,17 @@ public sealed record CreatureDomainArchetype(
     CreatureDomainTableEntry[] Tables,
     CreatureDomainAdditional[] Additional);
 
-/// <summary>A creature role candidate within an ecosystem role table (GcCreatureRoleDescriptionTable).</summary>
+/// <summary>A creature role candidate within an ecosystem role table (GcCreatureRoleDescriptionTable). MinSize and
+/// MaxSize (GcCreatureSizeClasses, catalog format 78; 0 on older catalogs) bound the creature's size class.</summary>
 public sealed record CreatureRoleCandidate(
     string ForceId,
     string ReqTag,
     int Density,
     int ForceType,
     float Prob,
-    int Role);
+    int Role,
+    int MinSize = 0,
+    int MaxSize = 0);
 
 /// <summary>All creature generation data extracted from the game files.</summary>
 public sealed record CreatureTables(
@@ -522,7 +526,7 @@ public static partial class PlanetProfileGenerator
                             : picked.RealType != 0 ? picked.RealType
                             : picked.Type != 0 ? picked.Type
                             : role.Role + 22;
-                        chosenCreatures.Add(new PredictedCreature(chosenId, domain, role.Role, seed, type, diet));
+                        chosenCreatures.Add(new PredictedCreature(chosenId, domain, role.Role, seed, type, diet, role.MinSize, role.MaxSize));
                     }
                 }
                 stack.Pop();

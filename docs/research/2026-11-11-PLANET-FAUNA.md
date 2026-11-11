@@ -112,6 +112,14 @@ Species misses are kinds whose spawned creature data has another ID than the rol
 as TRICERATOPS (28), CRAB as SPIDER (27), STRIDER as TWOLEGANTELOPE (14), RODENT as BLOB (11): the model/descriptor
 choice at spawn (bEr[1] is that resource's djb2 hash, so the two travel together).
 
+Size-class trace so far (paused 2026-11-11): the scale is read from a run-time table (`0x14530fe50`, stride 0x28,
+indexed per spawned node), so it's set where the creature is placed. The role description has `MinSize` / `MaxSize`
+(GcCreatureSizeClasses), now in the catalog (`CreatureRoleCandidate`, format 78) and on `PredictedCreature`. The real
+size class is often outside that range (range 0-0: real 0 x225, 1 x104, 2 x20, 3 x8), so the range only steers a
+continuous scale. Functions reading the role record's MinSize/MaxSize (+0x574 / +0x56C), by `FindAccess.java`:
+`0x1416cfcc0` and `0x1416d9650` (next to GenerateCreatureRoles), `0x14133aa20`, `0x141390fc0`, `0x1414b9d20`,
+`0x141900540` - read these next.
+
 Next: (1) find how the spawner sets a species' scale (deterministic per species, since a discovery's genus is
 fixed; likely MinScale/MaxScale of the creature data and the role seed) and port the size class, which gives
 genus; (2) the resource choice behind the species misses; then predicted creatures get their real species names.

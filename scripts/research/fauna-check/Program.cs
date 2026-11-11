@@ -257,6 +257,18 @@ if (args.Length > 2)
             if (H((ulong)value, H((ulong)me.CreatureType, address)) == b3) indexHits[name] = indexHits.GetValueOrDefault(name) + 1;
     }
     Console.WriteLine("genus int@+0xac as an index: " + string.Join(", ", indexHits.Select(k => $"{k.Key} {k.Value}")));
+    // The real size class (from the saved genus, type predicted) against the role's MinSize..MaxSize.
+    var sizeTally = new Dictionary<string, int>();
+    foreach (var (discSeed, b2, b3, planetSeed, address) in nameProbe)
+    {
+        var c = creatureBySeed[discSeed].C;
+        int real = -1;
+        for (int y = 0; y < 4; y++)
+            if (ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(discSeed, c.Id, address, c.CreatureType, y).Genus == b3) { real = y; break; }
+        string k = real < 0 ? "type wrong" : $"range {c.MinSize}-{c.MaxSize}: real {real}";
+        sizeTally[k] = sizeTally.GetValueOrDefault(k) + 1;
+    }
+    foreach (var t in sizeTally.OrderBy(k => k.Key)) Console.WriteLine($"  size {t.Key} x{t.Value}");
     Console.WriteLine($"name seeds tested {tested}: species {speciesHit}, genus with diet in place of the size class (placeholder) {genusHit}, both {bothHit}");
     foreach (var m in speciesMiss.OrderByDescending(k => k.Value).Take(15)) Console.WriteLine($"  species miss x{m.Value}: {m.Key}");
     foreach (var m in genusMiss.OrderByDescending(k => k.Value).Take(15)) Console.WriteLine($"  genus miss x{m.Value}: {m.Key}");
