@@ -19,7 +19,8 @@ namespace ArtifactX.WinUI3.Services;
 /// What makes the game build it (owner tests on Slot 8, 2026-11-10; docs/research/2026-11-10-SAVE-BEACON-PLACEMENT.md):
 /// - "ofi" must be the RegionSeed of the 32 m terrain region the beacon stands in (<see cref="PlanetRegions"/>);
 ///   with any other seed the game shows only the HUD waypoint. A byte-exact game entry put back was built; ArtifactX
-///   entries with made-up seeds never were, even alone on a planet.
+///   entries with made-up seeds never were, even alone on a planet. With the real seed, an ArtifactX-written beacon
+///   was built on a steep slope on Riwor V (owner check, 2026-11-10).
 /// - The game's limits: BUILDBEACON RegionLimit 1, PlanetLimit 5 (GcBaseBuildingTable).
 /// - Height: beacons are stored where they stand, so the position uses <c>PlanetTerrain.SurfaceHeight</c> (game-built
 ///   beacons: Arkans 281.24 m vs real 281.2, Riwor V slope 473.49 m vs 473.39). Not modelled: building flattening

@@ -298,7 +298,11 @@ then the hash. **7/7 game-built beacons** reproduce exactly (Riwor V x4 incl. tw
 Ribhakyam, Arkans; radii 130,048 and 98,304; +-faces) - `PlanetRegionChecks` in ArtifactX.Core.Checks.
 
 `SaveBeaconService` now writes this seed and recognises its own beacons by their exact spot (within 0.5 m; old
-0xA87F-tagged ones still recognised). **Still to confirm in game:** an ArtifactX-placed beacon is built.
+0xA87F-tagged ones still recognised).
+
+**Confirmed in game 2026-11-10:** a beacon written exactly as the app writes it (SurfaceHeight + 0.2 m, real
+RegionSeed 0xD7BA50719FC4A4BE, rounded vectors, fresh b1) at +36.33, +68.34 on Riwor V (Slot 8) was built and stood
+on the rock of a steep slope.
 
 Dead ends on the way (for reference): an entitlement-object map at DAT_1472E8810 keyed by (address, seed); a
 per-object physics record; four execute watches on GcPersistentBBObjectData copy sites (never run on placement).

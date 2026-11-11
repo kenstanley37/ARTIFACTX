@@ -25,7 +25,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
-- Save Beacon waypoints placed from Planet Details now sit at ground level. Before, on many planets they were several metres underground.
+- Save Beacons placed from Planet Details are now real beacons standing on the ground. Before, the game showed only their waypoint.
 
 - Works with No Man's Sky Forsaken 7.14: game data is rebuilt once, and planet buildings and cabinet multi-tools are placed with the right spacing again.
 
