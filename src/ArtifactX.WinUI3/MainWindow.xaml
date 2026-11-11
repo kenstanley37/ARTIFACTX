@@ -258,12 +258,6 @@
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="CatalogueNavItem" Content="Catalogue" Tag="Catalogue" Visibility="Collapsed">
-                        <NavigationViewItem.Icon>
-                            <PathIcon x:Name="CataloguePathIcon"/>
-                        </NavigationViewItem.Icon>
-                    </NavigationViewItem>
-
                     <NavigationViewItem x:Name="FishingRecordsNavItem" Content="Fishing Records" Tag="FishingRecords" Visibility="Collapsed">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="FishingRecordsPathIcon"/>

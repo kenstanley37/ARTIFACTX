@@ -6,6 +6,10 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- The Catalogue page is now part of the Catalog page: its technology is the Catalog's Technology section, which also tells you about broken technology placeholders and has a Forget broken technology button.
+
+- Catalog: Wonders records have pictures. Planet Records show each planet in its type's colour, with rings if it has them, and Fauna, Flora and Mineral Records show the game's own paw, leaf and crystal icons. Update your game data once to get them.
+
 - Ship Designer: paint styles you haven't unlocked yet (expedition rewards such as Titan Stripes) show a padlock. You can still try them on, and a new button unlocks the picked style.
 
 - Ship Designer: "Put these parts in my Exosuit" gives you the design's parts as items, so you can build the ship yourself at a space station. Right-click any part to add just that one.
@@ -63,7 +67,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Creature 3D Camera: Creature and companion 3D model previews now face towards the player by default with a front three-quarter view, rather than facing away.
 - 3D Creature & Companion Models: Companions page now features an interactive 3D model preview rendered directly from your game install with your pet's active body parts and archetype; planet creature cards now feature a 3D anatomy viewer to inspect planetary fauna and examine 3D rigs.
 - Explore: Dedicated "Crashed Ships" and "Cabinet Multi-Tools" pages under Explore, offloading heavy scans and lists from Current System and Planet Details into streamlined views with filters, planet selection, 3D model previews, and in-game coordinate markers.
-- Catalog: Wonders records (Treasures, Collected Glitches, Planet, Fauna, Flora, Mineral, and Fishing Records) can now be unlocked or cleared directly on the Catalog page with one-click toggling and Unlock All / Clear All support. Unlocked records are filled in for you: each gets a typical value and a place in the star system you are in, on a planet or moon that system really has. Personal Records are not shown: those are yours to choose in game.
+- Catalog: Wonders records (Treasures, Collected Glitches, Planet, Fauna, Flora, Mineral, and Fishing Records) can now be unlocked or cleared directly on the Catalog page with one-click toggling and Unlock All / Clear All support. Unlocked records are filled in for you: each gets a typical value and a place in the star system you are in, on a planet or moon that system really has. Personal Records are not shown: those are yours to choose in game. Unlock All only fills in the records you don't have yet; your own discoveries are never replaced.
 - Space Stations: Added a "Register in Teleport Network" action to sync and register all your directed space stations with your Alliance ownership stamp, ensuring every claimed station appears under "Alliance Stations" in the in-game Teleportation Terminal.
 - Space Stations: "Claims in Progress" and "Stations you Direct" sections are now collapsible folding cards that remember their state across sessions.
 - Squadron: Expanded seed boxes with generous width so 18-character hex seeds and roll buttons have comfortable breathing room, with the 3D ship preview positioned to the right with responsive wrapping.

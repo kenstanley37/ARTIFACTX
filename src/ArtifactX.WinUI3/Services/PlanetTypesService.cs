@@ -145,6 +145,19 @@ public static class PlanetTypesService
     private static (ulong Portal, int Galaxy) Portal(ulong system) =>
         ((((system >> 40) & 0xFFF) << 32) | (system & 0xFFFFFFFF), (int)((system >> 32) & 0xFF));
 
+    /// <summary>The body at a packed planet address (planet number in bits 52-55, from 1), with its predicted type
+    /// and rings: what a Catalog Planet Record tile draws (2026-11-11). Null until the tables are loaded, or for a
+    /// body the system doesn't have.</summary>
+    public static KnownPlanet? Planet(ulong planetAddress)
+    {
+        int index = (int)((planetAddress >> 52) & 0xF);
+        if (index < 1 || For(planetAddress) is not { Length: > 0 } types || index > types.Length) return null;
+        ulong systemAddress = S.ToSystemAddress(planetAddress);
+        var (portal, galaxy) = Portal(systemAddress);
+        bool hasRings = !SystemGenerator.Bodies(portal, galaxy).IsMoon(index) && PlanetRings.HasRings(portal, galaxy, index);
+        return new KnownPlanet(planetAddress, S.GalaxyNumber(systemAddress), index, types[index - 1].Biome, hasRings, "", false, 0);
+    }
+
     /// <summary>The bodies in <paramref name="system"/> the save doesn't have, as planets
     /// with their predicted type and ring status.</summary>
     public static IEnumerable<KnownPlanet> Undiscovered(ulong system, ICollection<int> known)
