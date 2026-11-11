@@ -17,11 +17,31 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Page.Resources>
+        <!-- A swatch is a real button (2026-11-11: it was a tap-only Border, out of reach of the keyboard and
+             screen readers). The plain template keeps the colour fixed: the default button look would repaint
+             it on hover. Focus shows the system focus ring. -->
+        <Style x:Key="SwatchButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="31"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="UseSystemFocusVisuals" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- One colour in a colour group's grid; white outline when picked. -->
         <DataTemplate x:Key="SwatchTemplate" x:DataType="vm:SwatchChoiceViewModel">
-            <Border Width="31" Height="28" CornerRadius="3" BorderThickness="2" Background="{x:Bind Fill}"
-                    BorderBrush="{x:Bind Outline, Mode=OneWay}" Tapped="{x:Bind Pick}"
-                    ToolTipService.ToolTip="{x:Bind Name}" AutomationProperties.Name="{x:Bind Name}"/>
+            <Button Style="{StaticResource SwatchButtonStyle}" Background="{x:Bind Fill}" BorderBrush="{x:Bind Outline, Mode=OneWay}"
+                    Command="{x:Bind PickCommand}" ToolTipService.ToolTip="{x:Bind Name}"
+                    AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}"/>
         </DataTemplate>
     </Page.Resources>
 
@@ -327,7 +347,7 @@
                 </Grid.RowDefinitions>
                 <!-- Both cards fold (2026-11-11, the user: My designs was a small area to scroll) - hide
                      Paint and the designs take the whole column. Remembered across visits. -->
-                <controls:FoldingCard Title="PAINT" FoldedName="{x:Bind ViewModel.PaintStyleName, Mode=OneWay}"
+                <controls:FoldingCard x:Name="PaintCard" Title="PAINT" FoldedName="{x:Bind ViewModel.PaintStyleName, Mode=OneWay}"
                                       SettingKey="ShipDesignerPaintCollapsed" Framed="True">
                         <ScrollViewer>
                             <StackPanel Padding="16,14,16,16" Spacing="16">
@@ -377,23 +397,19 @@
                                                     <TextBlock Text="{x:Bind PickedName, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                                                VerticalAlignment="Center"/>
                                                 </StackPanel>
-                                                <!-- The game's own grid: two rows, half the swatches in each. -->
-                                                <StackPanel Spacing="3" HorizontalAlignment="Left">
-                                                    <ItemsControl ItemsSource="{x:Bind TopRow}" ItemTemplate="{StaticResource SwatchTemplate}">
-                                                        <ItemsControl.ItemsPanel>
-                                                            <ItemsPanelTemplate>
-                                                                <StackPanel Orientation="Horizontal" Spacing="3"/>
-                                                            </ItemsPanelTemplate>
-                                                        </ItemsControl.ItemsPanel>
-                                                    </ItemsControl>
-                                                    <ItemsControl ItemsSource="{x:Bind BottomRow}" ItemTemplate="{StaticResource SwatchTemplate}">
-                                                        <ItemsControl.ItemsPanel>
-                                                            <ItemsPanelTemplate>
-                                                                <StackPanel Orientation="Horizontal" Spacing="3"/>
-                                                            </ItemsPanelTemplate>
-                                                        </ItemsControl.ItemsPanel>
-                                                    </ItemsControl>
-                                                </StackPanel>
+                                                <!-- The game's own grid: two rows, half the swatches in each, filled row by row.
+                                                     One list, so Tab enters a group once and the arrow keys move between all its
+                                                     colours (2026-11-11: as two lists, Tab skipped the second row). -->
+                                                <ItemsControl ItemsSource="{x:Bind Swatches}" ItemTemplate="{StaticResource SwatchTemplate}"
+                                                              HorizontalAlignment="Left" IsTabStop="False" TabFocusNavigation="Once" XYFocusKeyboardNavigation="Enabled"
+                                                              KeyDown="Swatches_KeyDown" AutomationProperties.Name="{x:Bind GroupTitle}"
+                                                              AutomationProperties.HelpText="Use the arrow keys to move between colours, and Enter to pick one.">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <ctcontrols:UniformGrid Rows="2" ColumnSpacing="3" RowSpacing="3"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                </ItemsControl>
                                             </StackPanel>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
