@@ -276,3 +276,29 @@ real RegionSeed.
 **Next:** Ghidra on the 184271 project (or a new 185034 one): follow the code that places a buildable (ObjectID
 `^BUILDBEACON`, timestamp, the Position/Up/At copies) to where it fills RegionSeed, and the loader that matches saved
 objects to a region. Scripts: scratch `findseed.py`, `findrecs.py`, `pollrec.py`, `remap/bbstores.py`, `remap/seedcmp.py`.
+
+## SOLVED: the RegionSeed (2026-11-10 night, build 185034)
+
+Found with a live hardware write watch (owner-approved; `scripts/research/region-generator/static/hwwatch.py`, never
+writes game memory, clears its debug registers and detaches). The beacon object's seed sits at +0x110 of
+`cGcBaseBuildingObject` (0x140 bytes; RTTI names from Ghidra: `emplace_back_pool<BaseBuildingObjectTemplate*,
+TkHandle<unsigned int,19>&, sBaseObjectHandle, sBaseBuildingMaterial&, bool, bool>`; constructor 0x1403F9F20 in
+184271 clears +0x110 and stores the 6-byte sBaseObjectHandle at +0x118). Placing a beacon fired the watch at a copy
+(0x1403C6541); stores to +0x110 in the base-building code led to the producer:
+
+`FUN_1403DB300` (184271; 0x1403DB250 on 185034) - RegionSeed for a position: projects the point onto the planet's
+cube (planet object +0xD7130 centre, +0x3CA0 radius), asks the region tree (planet +0x3C70, `FUN_1412A13E0`) for the
+node at the requested level, and returns `Hash128to64(Hash128to64(n[+0x74], n[+0x78]), n[+0x7C])` (CityHash,
+0x9DDFEA08EB382D69, ints sign-extended). The node ints are the cell centre in whole metres: Far nodes (level 2) are
+128 m cells (x = radius + 64, others odd multiples of 64).
+
+For saved objects the level is 0: **32 m cells**. Port: `ArtifactX.Core.Universe.PlanetRegions` - point projected
+onto the cube face at the planet radius, face axes `floor(c / 32) * 32 + 16`, the face's own axis `+-(radius + 16)`,
+then the hash. **7/7 game-built beacons** reproduce exactly (Riwor V x4 incl. two placed during the trace, Goyab 47/E2,
+Ribhakyam, Arkans; radii 130,048 and 98,304; +-faces) - `PlanetRegionChecks` in ArtifactX.Core.Checks.
+
+`SaveBeaconService` now writes this seed and recognises its own beacons by their exact spot (within 0.5 m; old
+0xA87F-tagged ones still recognised). **Still to confirm in game:** an ArtifactX-placed beacon is built.
+
+Dead ends on the way (for reference): an entitlement-object map at DAT_1472E8810 keyed by (address, seed); a
+per-object physics record; four execute watches on GcPersistentBBObjectData copy sites (never run on placement).

@@ -1,4 +1,5 @@
 using ArtifactX.Core.NmsModels;
+using ArtifactX.Core.Universe;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -11,33 +12,29 @@ namespace ArtifactX.WinUI3.Services;
 /// Unlike scan events (A1f), which only show for registered procedural buildings, a Save Beacon is a real
 /// physical object with a permanent in-game HUD waypoint.
 ///
-/// Save format (2026-11-10, read-only inspection of Slots 5, 7 and 8): every beacon the game placed away from a
-/// base is one c5s entry {b1: unix seconds, r&lt;7: "^BUILDBEACON", oZw: planet address, ofi: 64-bit seed, CVX: 0,
-/// wMC: position from the planet centre, wJ0: up (= normalised wMC), aNu: facing}; its seed appears nowhere else
-/// in the save. ArtifactX writes the same shape.
+/// Save format: every beacon the game places away from a base is one c5s entry, GcPersistentBBObjectData
+/// {b1: Timestamp, r&lt;7: ObjectID "^BUILDBEACON", oZw: GalacticAddress, ofi: RegionSeed, CVX: UserData 0, wMC:
+/// Position from the planet centre, wJ0: Up (= normalised wMC), aNu: At}. ArtifactX writes the same shape.
 ///
-/// Why only the waypoint shows (owner tests on Slot 8, 2026-11-10; docs/research/2026-11-10-SAVE-BEACON-PLACEMENT.md):
-/// the c5s entry above is all a real beacon is, and the game accepts ArtifactX's. Two things stop it being built:
-/// the game's limits (BUILDBEACON RegionLimit 1, PlanetLimit 5 in GcBaseBuildingTable; a beacon over a limit keeps
-/// only its waypoint) and height. Beacons are stored where they stand. <c>PlanetTerrain.Height</c> (the game's
-/// building-height function) was 13-28 m below the ground on some planets, so beacons were buried; hotspot and
-/// base-site positions now use <c>PlanetTerrain.SurfaceHeight</c>, the ground the voxel pass builds. Checked
-/// 2026-11-10 against game-built beacons on open ground: Arkans 281.24 m (real 281.2), Riwor V on a slope
-/// 473.49 m (real 473.39; Height gave 445.6). Not modelled: building flattening (a beacon beside a crashed ship on
-/// Riwor V stood on the site's flattened ground) and caves.
-/// Still waypoint-only (2026-11-10, Slot 8 tests): "ofi" is the entry's RegionSeed (GcPersistentBBObjectData), and the
-/// game builds a saved object only in the terrain region with that seed. ArtifactX cannot compute region seeds yet, so
-/// its seed (used below to recognise its own beacons) matches no region and only the HUD waypoint shows.
+/// What makes the game build it (owner tests on Slot 8, 2026-11-10; docs/research/2026-11-10-SAVE-BEACON-PLACEMENT.md):
+/// - "ofi" must be the RegionSeed of the 32 m terrain region the beacon stands in (<see cref="PlanetRegions"/>);
+///   with any other seed the game shows only the HUD waypoint. A byte-exact game entry put back was built; ArtifactX
+///   entries with made-up seeds never were, even alone on a planet.
+/// - The game's limits: BUILDBEACON RegionLimit 1, PlanetLimit 5 (GcBaseBuildingTable).
+/// - Height: beacons are stored where they stand, so the position uses <c>PlanetTerrain.SurfaceHeight</c> (game-built
+///   beacons: Arkans 281.24 m vs real 281.2, Riwor V slope 473.49 m vs 473.39). Not modelled: building flattening
+///   near sites and caves.
 ///
-/// Ownership: ArtifactX's beacons carry a seed derived from their site (<see cref="SeedFor"/>), so Add and Remove
-/// only ever replace or delete beacons ArtifactX placed, never ones the player built in game nearby.
+/// Ownership: ArtifactX places its beacon exactly over the site, so a beacon within 0.5 m of that spot is its own
+/// (and beacons written before 2026-11-10 carry the old 0xA87F seed tag). Add and Remove never touch other beacons.
 /// </summary>
 public static class SaveBeaconService
 {
     /// <summary>Height above <c>PlanetTerrain.SurfaceHeight</c>; game-built beacons stood 0.04-0.1 m below it.</summary>
     public const float ClearanceMeters = 0.2f;
 
-    /// <summary>Marks ArtifactX's beacon seeds (the low 16 bits); the rest identifies the site.</summary>
+    /// <summary>The low 16 bits of the made-up seeds ArtifactX wrote before 2026-11-10 (recognised so those beacons can
+    /// be replaced or removed; new beacons carry the real RegionSeed).</summary>
     private const ulong SeedTag = 0xA87F;
 
     private static readonly HashSet<string> AddedKeys = new(StringComparer.OrdinalIgnoreCase);
@@ -72,28 +69,32 @@ public static class SaveBeaconService
         return (angle * avgRadius) < maxSurfaceDistMeters;
     }
 
-    /// <summary>The seed ArtifactX gives a beacon at this site: the same site always gets the same seed.</summary>
-    public static ulong SeedFor(ulong planetAddress, Vector3 localPos)
-    {
-        ulong hash = 1469598103934665603UL;
-        foreach (char ch in PosKey(planetAddress, localPos))
-            hash = (hash ^ ch) * 1099511628211UL;
-        return (hash & ~0xFFFFUL) | SeedTag;
-    }
+    /// <summary>The RegionSeed ("ofi") the game expects at this site: it builds a saved object only in the terrain
+    /// region with that seed (<see cref="PlanetRegions"/>).</summary>
+    public static ulong SeedFor(Vector3 localPos) =>
+        PlanetRegions.Seed(localPos, PlanetBuildingSites.NearestRadius(localPos.Length()));
 
-    private static bool IsArtifactXBeacon(JObject obj) =>
-        NmsSpaceStationPaths.ParsePackedAddress(obj["ofi"]) is ulong seed && (seed & 0xFFFF) == SeedTag;
+    /// <summary>How close (surface distance) a beacon must stand to the site's exact spot to count as ArtifactX's.
+    /// ArtifactX places its beacon exactly over the site; a player's own beacon there would need to be within this.</summary>
+    private const float OwnBeaconTolerance = 0.5f;
 
-    /// <summary>The c5s index of ArtifactX's beacon at this site (within 50 m of surface distance), or -1.</summary>
+    /// <summary>ArtifactX's beacon at this site: on the site's exact spot, or (beacons written before 2026-11-10) carrying
+    /// the old 0xA87F seed tag within 50 m.</summary>
+    private static bool IsOwnBeaconAt(JObject obj, Vector3 position, Vector3 localPos) =>
+        MatchesSite(position, localPos, OwnBeaconTolerance)
+        || (NmsSpaceStationPaths.ParsePackedAddress(obj["ofi"]) is ulong seed && (seed & 0xFFFF) == SeedTag
+            && MatchesSite(position, localPos, 50.0f));
+
+    /// <summary>The c5s index of ArtifactX's beacon at this site, or -1.</summary>
     private static int FindOwnBeacon(JArray objects, ulong planetAddress, Vector3 localPos)
     {
         for (int i = objects.Count - 1; i >= 0; i--)
         {
-            if (objects[i] is not JObject obj || obj["r<7"]?.Value<string>() != "^BUILDBEACON" || !IsArtifactXBeacon(obj)) continue;
+            if (objects[i] is not JObject obj || obj["r<7"]?.Value<string>() != "^BUILDBEACON") continue;
             if (NmsSpaceStationPaths.ParsePackedAddress(obj["oZw"]) != planetAddress) continue;
             if (obj["wMC"] is not JArray arr || arr.Count != 3) continue;
             var position = new Vector3(arr[0]?.Value<float>() ?? 0, arr[1]?.Value<float>() ?? 0, arr[2]?.Value<float>() ?? 0);
-            if (MatchesSite(position, localPos, 50.0f)) return i;
+            if (IsOwnBeaconAt(obj, position, localPos)) return i;
         }
         return -1;
     }
@@ -135,7 +136,7 @@ public static class SaveBeaconService
             ["b1:"] = now,
             ["r<7"] = "^BUILDBEACON",
             ["oZw"] = $"0x{planetAddress:X}",
-            ["ofi"] = $"0x{SeedFor(planetAddress, localPos):X16}",
+            ["ofi"] = $"0x{SeedFor(beaconPos):X16}",
             ["CVX"] = 0,
             ["wMC"] = new JArray(Math.Round(beaconPos.X, 3), Math.Round(beaconPos.Y, 3), Math.Round(beaconPos.Z, 3)),
             ["wJ0"] = new JArray(Math.Round(up.X, 4), Math.Round(up.Y, 4), Math.Round(up.Z, 4)),
