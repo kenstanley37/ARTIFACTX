@@ -16,6 +16,7 @@ public sealed partial class GalaxyTransferPage : Page
     public GalaxyTransferPage()
     {
         InitializeComponent();
+        ViewModel.ScrollToRequested += OnScrollToRequested;
         FishCatchRecorder.SnapshotSeen += OnLiveSnapshot;
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
         SaveSessionManager.PendingEditsChanged += OnPendingEditsChanged;
@@ -23,6 +24,7 @@ public sealed partial class GalaxyTransferPage : Page
 
         Unloaded += (_, _) =>
         {
+            ViewModel.ScrollToRequested -= OnScrollToRequested;
             FishCatchRecorder.SnapshotSeen -= OnLiveSnapshot;
             SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
             SaveSessionManager.PendingEditsChanged -= OnPendingEditsChanged;
@@ -35,6 +37,12 @@ public sealed partial class GalaxyTransferPage : Page
         base.OnNavigatedTo(e);
         _ = ViewModel.LoadAsync();
     }
+
+    /// <summary>Puts the player's galaxy at the top of the list when the page opens or another save loads; the
+    /// list is filled in the same dispatcher pass, so scroll once it has been laid out.</summary>
+    private void OnScrollToRequested(GalaxyRowViewModel row) =>
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+            () => GalaxyList.ScrollIntoView(row, ScrollIntoViewAlignment.Leading));
 
     private void OnLiveSnapshot(PlanetSnapshot snapshot) =>
         DispatcherQueue.TryEnqueue(() => ViewModel.UpdateCurrentGalaxy(snapshot));

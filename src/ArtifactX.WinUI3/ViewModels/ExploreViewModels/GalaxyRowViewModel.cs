@@ -56,11 +56,24 @@ public sealed partial class GalaxyRowViewModel : ObservableObject
     partial void OnIsCurrentChanged(bool value)
     {
         if (Presence.IsCurrent != value)
-        {
             Presence = Presence with { IsCurrent = value, IsVisited = value || Presence.IsVisited };
-            OnPropertyChanged(nameof(IsVisited));
-            OnPropertyChanged(nameof(IsUnvisited));
-            OnPropertyChanged(nameof(PresenceSummary));
-        }
+    }
+
+    /// <summary>Live save updates replace Presence; every badge and count read from it must refresh too.</summary>
+    partial void OnPresenceChanged(GalaxyPresence value)
+    {
+        OnPropertyChanged(nameof(IsVisited));
+        OnPropertyChanged(nameof(IsUnvisited));
+        OnPropertyChanged(nameof(BaseCount));
+        OnPropertyChanged(nameof(StationCount));
+        OnPropertyChanged(nameof(SettlementCount));
+        OnPropertyChanged(nameof(HasBases));
+        OnPropertyChanged(nameof(HasStations));
+        OnPropertyChanged(nameof(HasSettlements));
+        OnPropertyChanged(nameof(Bases));
+        OnPropertyChanged(nameof(Stations));
+        OnPropertyChanged(nameof(PresenceSummary));
+        OnPropertyChanged(nameof(BasesBadgeText));
+        OnPropertyChanged(nameof(StationsBadgeText));
     }
 }
