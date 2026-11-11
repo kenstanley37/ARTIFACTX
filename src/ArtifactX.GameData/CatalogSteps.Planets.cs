@@ -187,7 +187,8 @@ public static partial class CatalogSteps
             e.Min.Caves.Length > 0 && e.Min.Caves[0].Mouth.Active,
             e.Min.NoiseLayers.Select(NoiseLayer).ToArray(),
             e.Max.NoiseLayers.Select(NoiseLayer).ToArray(),
-            e.Min.NoSeaBaseLevel)).ToArray();
+            e.Min.NoSeaBaseLevel,
+            e.Min.WaterFadeInDistance)).ToArray();
         return new TerrainTables(settings, terrain.TerrainPrimeIndexStart, terrain.TerrainPurpleSystemIndexStart,
             terrain.DebugLockTerrainSettingsIndex, terrain.SeaLevelMoon, terrain.SeaLevelGasGiant, terrain.SeaLevelWaterWorld,
             terrain.SeaLevelHigh, terrain.SeaLevelStandard, terrain.PurpleSystemMaxHighWaterChance, terrain.ForcePurpleSystemHighWater);

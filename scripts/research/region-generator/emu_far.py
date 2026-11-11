@@ -175,6 +175,13 @@ def on_density(mu, addr, size, _):
         return list(struct.unpack(f'<{n * k}f', bytes(mu.mem_read(p, 4 * n * k)))) if p else None
     captured.update(pads=arr(0x390, 4), l0=arr(0x8), l6=arr(0xC8), l7=arr(0xE8), r=arr(0x3C0))
 mu.hook_add(UC_HOOK_CODE, on_density, begin=A(0x1412B1D60), end=A(0x1412B1D60))
+# optional, emulator copy only: ZERO=lo-hi;... wipes and PATCH=off:fmt:value;... sets fields of the planet's
+# TkVoxelGeneratorData (planet + 0x2090) before the run, to see what each part adds (2026-11-10).
+VOX = B['planet'] + 0x2090
+for spec in [v for v in os.environ.get('ZERO', '').split(';') if v]:
+    lo, hi = (int(x, 16) for x in spec.split('-')); mu.mem_write(VOX + lo, bytes(hi - lo))
+for spec in [v for v in os.environ.get('PATCH', '').split(';') if v]:
+    off, fmt, val = spec.split(':'); mu.mem_write(VOX + int(off, 16), struct.pack(fmt, float(val) if 'f' in fmt else int(val)))
 call(A(0x141294A00), (region,))
 json.dump(captured, open(sys.argv[4] + '.table.json', 'w'))
 grid = struct.unpack(f'<{stride * stride}f', bytes(mu.mem_read(grid_ptr, 4 * stride * stride)))

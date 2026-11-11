@@ -180,3 +180,29 @@ check with the 2D rule "NoSeaBaseLevel + base + Base-offset layers":
 **Next:** port FUN_1412b05d0 (1,178 bytes; decompile it again with `DecompileList.java` on the 184271 Ghidra project)
 and the surface crossing as Core `PlanetTerrain.SurfaceHeight`, check it against `emu_far.py` regions on several
 planets, then all beacons in the table, then place beacons with it.
+
+### Ported: `PlanetTerrain.CombineLayers` / `SurfaceHeight` (2026-11-10 night)
+
+The density pass's layer rule, from the 184271 decompile (constants: 128 = a layer's reach above its reference,
+0.25 = smooth-union factor), was checked against the emulated Far pass with `emu_layers.py` (caves removed): all 144
+nodes within 9 mm for the planet's real layers and with each Offset type, Subtract, SmoothRadius, HeightOffset, both
+WaterFade modes, layer 0 off and an extra All layer; also layer gating is LOD 0 (MaximumLOD >= 0). 44 of those nodes
+are the `PlanetSurfaceChecks` vectors in ArtifactX.Core.Checks. `WaterFadeInDistance` (100 in all 31 settings, Min
+and Max) is now in the catalog (format 76).
+
+Real beacons through `SurfaceHeight`:
+
+| Beacon | Real | `Height` | `SurfaceHeight` |
+| --- | --- | --- | --- |
+| 505200FF67B291 (Arkans) | 281.2 | 267.7 | **281.24** |
+| 242700FF67B291 | 411.1 | 407.6 | 422.5 |
+| 2409005B6DA013 | 73.3 | 76.3 | 83.1 |
+| 20FE00011476E2 | 20.0 | 20.0 | 21.3 |
+
+(The 105200FF67B291 entry at 88.1 m is an ArtifactX test beacon written at `Height` + 0.2, not ground truth.)
+
+The two misses are 130,048 m planets whose layers use Offset All (layer 2, Height 128) and Zero. The combination is
+exact given the game's columns, so either Core's per-layer value differs from the game's column there, or those
+beacons do not stand on open ground. **Next:** with the owner at the 242700FF67B291 beacon (same region as Arkans),
+read its planet and Far regions and run `emu_layers.py`; compare the captured columns with Core's layer values.
+Beacon placement keeps using `Height` until that is settled.
