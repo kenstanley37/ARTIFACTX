@@ -263,8 +263,17 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             SystemPicture = null;
             return;
         }
-        // Read off the UI thread, but retain the existing image when the bytes did not change.
-        byte[]? bytes = await Task.Run(() => ScreenCaptureLogService.SystemPicture(system) is string path && File.Exists(path) ? File.ReadAllBytes(path) : null);
+        // Read off the UI thread, but retain the existing image when the bytes did not change. A picture being
+        // replaced right now can't be read: keep what's shown, SystemPictureSaved brings the new one.
+        byte[]? bytes;
+        try
+        {
+            bytes = await Task.Run(() => ScreenCaptureLogService.ReadSystemPicture(system));
+        }
+        catch (IOException)
+        {
+            return;
+        }
         if (SystemAddress != system || version != _pictureVersion) return;
         if (bytes is null)
         {
