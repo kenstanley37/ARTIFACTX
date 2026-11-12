@@ -145,7 +145,8 @@ public sealed record CreatureTables(
     CreatureSizeGlobals? Sizes = null,
     string[]? GenderWords = null,
     string[]? ActivityWords = null,
-    string[]? RarityWords = null);
+    string[]? RarityWords = null,
+    string[]? RobotGenderWords = null);
 
 /// <summary>GcCreatureGlobals' size settings (catalog format 79; null on older catalogs): the scales where the
 /// Medium, Large and Huge size classes start, and the largest scale any creature spawns at.</summary>

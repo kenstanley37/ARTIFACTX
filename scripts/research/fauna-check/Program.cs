@@ -486,8 +486,23 @@ if (Environment.GetEnvironmentVariable("TRAITS") == "1")
             }
             if (!byName.TryGetValue(name, out var pc) || pc.Info is not { } info) { unmatched++; continue; }
             matched++;
-            string g1 = pc.Info.Gender1 > 0 && pc.Info.Gender1 <= genderWords.Length ? genderWords[pc.Info.Gender1 - 1] : "?";
-            string g2 = pc.Info.Gender2 > 0 && pc.Info.Gender2 <= genderWords.Length ? genderWords[pc.Info.Gender2 - 1] : "?";
+            if (pc.Id is "ROBOTANTELOPE" or "WALKINGBUILDING" || pc.Diet == 3)
+            {
+                // Robot genders: which draw on the creature's own stream (StartState(seed)) picks them? 9 words.
+                string[] robotWords = ["Electronic", "Virtual", "Uninitialised", "Unmeasurable", "Circular", "Non-boolean", "Mutable", "Asynchronous", "Non-Euclidean"];
+                uint lo = (uint)pc.Seed, hi = (uint)(pc.Seed >> 32);
+                uint s0 = lo == 0 ? 1u : lo, s1 = ((lo << 16) | (lo >> 16)) ^ hi ^ lo;
+                var seq = new List<string>();
+                for (int k = 1; k <= 12; k++)
+                {
+                    ulong t = (ulong)s0 * 0x5A76F899UL + s1; s0 = (uint)t; s1 = (uint)(t >> 32);
+                    seq.Add($"{k}:{robotWords[(int)(((ulong)s0 * 9UL) >> 32)]}");
+                }
+                Console.WriteLine($"  robot {name} {pc.Id} diet {pc.Diet} captured {gender}: {string.Join(" ", seq)}");
+            }
+            var gw = pc.Info.RobotGenders ? profiles.Creatures.RobotGenderWords ?? [] : genderWords;
+            string g1 = pc.Info.Gender1 > 0 && pc.Info.Gender1 <= gw.Length ? gw[pc.Info.Gender1 - 1] : "?";
+            string g2 = pc.Info.Gender2 > 0 && pc.Info.Gender2 <= gw.Length ? gw[pc.Info.Gender2 - 1] : "?";
             bool sOk = string.Equals(size.Trim(), info.Size, StringComparison.OrdinalIgnoreCase);
             string size2 = info.Size2;
             if (size.Trim().Length == 0 && gender.Length == 0) noTraits++;

@@ -22,12 +22,13 @@ public static class CreatureTraitText
     }
 
     /// <summary>The species' two forms, each gender with its weight and height ("Male 121.5kg / 3.0m or Female
-    /// 126.2kg / 3.1m"); the game's Discoveries page shows the one you scan. A form without a known gender (robots)
-    /// shows its size alone.</summary>
+    /// 126.2kg / 3.1m"); the game's Discoveries page shows the one you scan. Robots use their own gender words
+    /// ("Electronic"); a form without a known gender shows its size alone.</summary>
     public static string Forms(PredictedCreature creature, CreatureTables? tables)
     {
         if (creature.Info is not { } info) return "";
-        string Gender(int n) => tables?.GenderWords is { } words && n >= 1 && n <= words.Length ? words[n - 1] + " " : "";
+        string[]? words = info.RobotGenders ? tables?.RobotGenderWords : tables?.GenderWords;
+        string Gender(int n) => words is not null && n >= 1 && n <= words.Length ? words[n - 1] + " " : "";
         var forms = new List<string> { Gender(info.Gender1) + info.Size, Gender(info.Gender2) + info.Size2 };
         return string.Join(" or ", forms.Distinct());
     }

@@ -3,12 +3,12 @@ namespace ArtifactX.Core.Universe;
 /// <summary>
 /// A predicted creature's species info, as the game's Discoveries and analysis visor show it. A species comes in two
 /// forms: gender 1 with height/weight 1, gender 2 with height/weight 2; the Discoveries page shows the form you
-/// scanned (the owner's 446 captured creatures with traits: 374 match one form exactly, most others differ only in
-/// spelling, "Vectorized"). Gender1/Gender2 are 1-based SEX&lt;n&gt; numbers (0 when not predicted: robots draw theirs
-/// from another stream, not ported yet). Rarity is the discovery list's (spawn data, see RarityFor).
+/// scanned (the owner's 446 captured creatures with traits: 407 match one form exactly, the rest are captures without
+/// a size or spelling, "Vectorized"). Gender1/Gender2 are 1-based SEX&lt;n&gt; numbers, or UI_ROBOT_GENDER_&lt;n&gt;
+/// ones when RobotGenders (0 when not predicted). Rarity is the discovery list's (spawn data, see RarityFor).
 /// </summary>
 public sealed record PredictedCreatureInfo(float Height1, float Weight1, float Height2, float Weight2, int Rarity,
-    int Gender1, int Gender2, bool AgeFlag)
+    int Gender1, int Gender2, bool AgeFlag, bool RobotGenders = false)
 {
     /// <summary>"121.5kg / 3.0m", the game's own format ("%0.1fkg / %0.1fm"), for the first form.</summary>
     public string Size => SizeText(Weight1, Height1);
@@ -66,7 +66,21 @@ public static partial class PlanetProfileGenerator
 
         int gender1 = 0, gender2 = 0;
         bool age = true;
-        if (!robot && creature.Id is not ("ROBOTANTELOPE" or "WALKINGBUILDING"))
+        bool robotGenders = robot || creature.Id is "ROBOTANTELOPE" or "WALKINGBUILDING";
+        if (robotGenders && tables.RobotGenderWords is { Length: > 0 } robotWords)
+        {
+            // On the creature's own stream: robots make five text picks (behaviour, three descriptions, diet), a
+            // robot antelope or walking building on a normal world three (the normal path's descriptions); then the
+            // robot note and its description, then gender 1 and gender 2 (no "must differ" here). Checked on the
+            // owner's four robots from robot worlds (gender 1 = draw 8, all four); the normal-world case is the same
+            // code but not yet confirmed by a capture.
+            var own = Rng.Start(creature.Seed);
+            int skip = robot ? 7 : 5;
+            for (int i = 0; i < skip; i++) own.Next();
+            gender1 = (int)(((ulong)own.Next() * (ulong)robotWords.Length) >> 32) + 1;
+            gender2 = (int)(((ulong)own.Next() * (ulong)robotWords.Length) >> 32) + 1;
+        }
+        else if (!robotGenders)
         {
             root.Next(); // notes
             int count = genders.Length;
@@ -78,7 +92,7 @@ public static partial class PlanetProfileGenerator
         }
 
         return new PredictedCreatureInfo(height1, weight1, height2, weight2, RarityFor(creature, scale, tables.Globals),
-            gender1, gender2, age);
+            gender1, gender2, age, robotGenders);
     }
 
     /// <summary>

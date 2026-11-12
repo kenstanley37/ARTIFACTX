@@ -173,7 +173,7 @@ Ghidra on 184271, measured with `fauna-check` (`TRAITS=1`) against the owner's c
 |---|---|---|
 | Rarity (discovery list) | spawn data `0x1416d9650`: groups per km / max(scale, 0.75), over the domain's very-dense groups per km (birds: air); below 0.33 Rare, below 0.66 Uncommon | 477 / 479 |
 | Activity | the role's `ActiveTime`, words `UI_CRE_ACTIVE_*` | 479 / 479 |
-| Gender + weight/height | `0x1416cfcc0`, see below | 403 / 446 whole forms |
+| Gender + weight/height | `0x1416cfcc0`, see below | 407 / 446 whole forms (every complete capture) |
 
 `0x1416cfcc0` runs once per creature, in order, drawing from the planet generator's own stream (+0xba4: the
 stream `GenerateCreatureRoles` takes its two root draws from, i.e. `RngStack.Root`). Each text pick
@@ -181,11 +181,14 @@ stream `GenerateCreatureRoles` takes its two root draws from, i.e. `RngStack.Roo
 picks (one draw each), then Height1 = min(scale, 10) + f * 0.4 - 0.2, Weight1 = min(scale, 10) * 40 + f * 50,
 Height2 = Height1 + f * 0.2, Weight2 = Weight1 + f * 15; notes (one draw); gender 1 over `SEX1..16`, gender 2
 redrawn until different; age (one draw, <= 0.3). Robots (diet Robot, ROBOT worlds) pick on their own seed; with
-ROBOTANTELOPE and WALKINGBUILDING also notes and genders (`UI_ROBOT_GENDER_`, not ported yet).
+ROBOTANTELOPE and WALKINGBUILDING also notes and genders: on the creature's own stream (StartState(seed)) five text
+picks (three on a normal world), the robot note and its description, then gender 1 and 2 over `UI_ROBOT_GENDER_1..9`
+(no "must differ"). The owner's four robots (robot worlds) all show draw 8, gender 1.
 
 A species comes in **two forms**: gender 1 with weight/height 1, gender 2 with weight/height 2. The Discoveries
-page shows the form you scanned. The 43 misses: robots (4, genders not ported), captures with gender but no size,
-and "Vectorized": the owner's game is in US English while the catalog reads UK English ("Vectorised"). Sizes are
+page shows the form you scanned; the analysis visor shows the individual, close to one form. The 39 misses are all
+incomplete captures (gender without size or the reverse; the part recorded matches a form). Spelling is compared
+loosely: the owner's game is in US English ("Vectorized") while the catalog reads UK English ("Vectorised"). Sizes are
 formatted through double, as printf rounds the float's exact value (146.9499 -> 146.9).
 
 Catalog format 80: gender words, the role's `ActiveTime` and its words. Fauna totals (986 / 986) and species names
