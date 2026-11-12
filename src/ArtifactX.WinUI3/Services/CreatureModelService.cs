@@ -203,6 +203,26 @@ public static class CreatureModelService
         return await Task.Run(() => models.Build(scene, allOptions, chosen));
     }
 
+    /// <summary>
+    /// The body parts the game gives a creature (issue #15): its scene's part tree walked with the creature's seed by
+    /// the same selector as ships and multi-tools (Core ShipParts). The seed is the creature's role seed - a wild
+    /// creature's discovery bEr[0], PredictedCreature.Seed; a companion keeps it as its CreatureSeed (WTp). Checked
+    /// 2026-11-12 on the owner's saves: WTp equals the species' discovery bEr[0] for all 132 companions that have one,
+    /// and the parts it picks equal the companion's stored descriptor list (osl) for 90 of 182 companions outright
+    /// (most of the rest had their seed rerolled or parts changed after adoption). Not yet: the anomalous rig's role
+    /// Filter (FLOAT / ROLL / CRYSTAL), so those three kinds can show another body. Null without the part tree
+    /// (game data before format 87).
+    /// </summary>
+    public static async Task<IReadOnlyList<string>?> PartsForSeedAsync(string? scenePath, ulong seed)
+    {
+        if (string.IsNullOrEmpty(scenePath) || seed == 0) return null;
+        await PartTreeService.EnsureAsync();
+        string scene = scenePath.ToLowerInvariant();
+        if (PartTreeService.Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is null) return null;
+        return await Task.Run(() => (IReadOnlyList<string>)ArtifactX.Core.Procedural.ShipParts.Generate(scene, seed, PartTreeService.Load)
+            .Select(p => p.Id).ToList());
+    }
+
     /// <summary>Natural shading for creature materials: eyes, teeth, mouth, horns, pet harness and skin.</summary>
     public static uint CreatureMaterialColour(string material)
     {

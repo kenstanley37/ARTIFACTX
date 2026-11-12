@@ -281,3 +281,17 @@ Owner's Unst Prime (BBFAFCFFA004 planet 2) list: large butterflies and a small b
 now predicted the same. Catalog format 85 (TileType per role table, habitat words). The water diet list now keys on
 TileType 4 too. Habitat fit vs captures 87 -> 94 of 104 planets; the rest are blank captures and a few Underground vs
 Ground cases still unexplained.
+
+## Body parts (issue #15), 2026-11-12
+
+A creature's body parts are picked by the same descriptor selector as ships and multi-tools (Core ShipParts, ported
+from NMS.exe's selector) on its scene's part tree with its **role seed** (discovery bEr[0], PredictedCreature.Seed).
+Evidence (owner's seven saves, fauna-check `PARTS=1`): a companion's CreatureSeed WTp equals its species' discovery
+bEr[0] for 132/132 companions that have a discovery; ShipParts with WTp reproduces the stored descriptor list (osl)
+exactly for 90 of 182 companions (112 with any of its seeds), the rest mostly whole rerolls (seed or parts changed
+after adoption). Creature part trees are in the catalog from format 87 (ShipDescriptors, UsageCategory Creature).
+
+Open: the anomalous rig (WEIRDRIG) takes a role **Filter** ("FLOAT", "ROLL", "CRYSTAL", from the role description
+table) that forces its first choice; neither "take it without a draw", "narrow then draw" nor "redraw until it
+matches" reproduces all the owner's floaters and rollers - read the selector's filter handling (0x142d6b5a0 area).
+Colours are not done: the owner's reroll tests say WTp also drives the colours (palettes, not ported).

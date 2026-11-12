@@ -47,18 +47,22 @@ public sealed partial class CreatureCard : UserControl
     {
         int version = ++_version;
         if (Creature is not { } card || GameDataService.Game is not { } game) return;
-        if (_shownRig == card.RigId) return;
+        string shown = $"{card.RigId}|{card.ModelSeed:X}";
+        if (_shownRig == shown) return;
 
         try
         {
-            var mesh = await CreatureModelService.BuildCreatureMeshAsync(game, card.RigId);
+            // The creature's own body parts from its seed (issue #15); the rig's defaults when not known.
+            var parts = await CreatureModelService.PartsForSeedAsync(card.ModelScene, card.ModelSeed);
+            if (version != _version) return;
+            var mesh = await CreatureModelService.BuildCreatureMeshAsync(game, card.RigId, parts);
             if (version != _version) return;
             if (mesh is null) return;
 
             Preview.StartYawOffset = Math.PI;
             Preview.Show(mesh, material => CreatureModelService.CreatureMaterialColour(material),
                 silhouette: card.IsSilhouette);
-            _shownRig = card.RigId;
+            _shownRig = shown;
         }
         catch (Exception ex)
         {
@@ -73,7 +77,8 @@ public sealed partial class CreatureCard : UserControl
             if (Preview3DRequested is not null)
                 Preview3DRequested.Invoke(this, new(creature, (FrameworkElement)sender));
             else
-                await CreaturePreviewControl.ShowAsync(XamlRoot, creature.Creature, creature.RigId, creature.IsSilhouette);
+                await CreaturePreviewControl.ShowAsync(XamlRoot, creature.Creature, creature.RigId, creature.IsSilhouette,
+                    await CreatureModelService.PartsForSeedAsync(creature.ModelScene, creature.ModelSeed));
         }
     }
 

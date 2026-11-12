@@ -287,9 +287,9 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         foreach (var slot in slots)
         {
             var pred = slot.Predicted;
+            string? scene = pred is null ? null : PlanetTypesService.CreatureTables?.Creatures.FirstOrDefault(c => c.Id == pred.Id)?.Scene;
             string rigId = pred is null ? FallbackRig(saveDiscoveries[slot.Discovery].SpeciesName)
-                : await CreatureModelService.ResolveRigAsync(pred.Id,
-                    scenePath: PlanetTypesService.CreatureTables?.Creatures.FirstOrDefault(c => c.Id == pred.Id)?.Scene) ?? "antelope";
+                : await CreatureModelService.ResolveRigAsync(pred.Id, scenePath: scene) ?? "antelope";
             string habitat = pred is null ? "Native Fauna" : $"{PlanetTypesService.CreatureTables?.HabitatOf(pred) ?? pred.Habitat} Fauna";
             var (rarity, activity) = pred is null ? ("", "") : CreatureTraitText.RarityAndActivity(pred, PlanetTypesService.CreatureTables);
 
@@ -305,7 +305,11 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 allCards.Add(new CreatureCardViewModel(creature, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: true,
                     about: same ? CreatureTraitText.About(pred!, PlanetTypesService.CreatureTables) : "",
                     battle: same ? Panel(CreatureTraitText.Battle(pred!, PlanetTypesService.CreatureTables, disc.SpeciesSeed, disc.GenusSeed)) : null,
-                    canTame: same ? PlanetTypesService.CreatureTables?.CanBattle(pred!) : null));
+                    canTame: same ? PlanetTypesService.CreatureTables?.CanBattle(pred!) : null)
+                {
+                    // The discovery's own seed (bEr[0]) picks its body parts, as the game does.
+                    ModelScene = scene ?? "", ModelSeed = disc.Seed,
+                });
                 continue;
             }
 
@@ -326,7 +330,10 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
             allCards.Add(new CreatureCardViewModel(unscanned, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: false,
                 about: predictedName is null ? "" : CreatureTraitText.About(pred, PlanetTypesService.CreatureTables),
                 battle: predictedName is null ? null : Panel(CreatureTraitText.Battle(pred, PlanetTypesService.CreatureTables, speciesSeed, genusSeed)),
-                canTame: PlanetTypesService.CreatureTables?.CanBattle(pred)));
+                canTame: PlanetTypesService.CreatureTables?.CanBattle(pred))
+            {
+                ModelScene = scene ?? "", ModelSeed = pred.Seed,
+            });
         }
 
         // Creatures a player can adopt first (their battle stats are what people look for), the rest after; the

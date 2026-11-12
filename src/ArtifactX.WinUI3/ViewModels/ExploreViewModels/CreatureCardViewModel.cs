@@ -38,6 +38,11 @@ public sealed partial class CreatureCardViewModel : ObservableObject
 
     public Creature Creature { get; }
     public string RigId { get; }
+
+    /// <summary>The creature's own scene and seed, which pick its body parts (CreatureModelService.PartsForSeedAsync);
+    /// empty / 0 when not known, and the rig's default parts are drawn.</summary>
+    public string ModelScene { get; init; } = "";
+    public ulong ModelSeed { get; init; }
     public bool IsDiscovered { get; }
     public bool IsSilhouette => !IsDiscovered;
     public string Name => Creature.Name;

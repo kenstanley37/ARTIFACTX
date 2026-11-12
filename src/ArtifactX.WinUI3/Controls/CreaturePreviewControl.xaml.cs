@@ -26,9 +26,12 @@ public sealed partial class CreaturePreviewControl : UserControl
     private List<string>? _companionDescriptors;
     private bool _loading = true;
 
-    public CreaturePreviewControl(Creature creature, string? preferredRig = null, bool isSilhouette = false)
+    public CreaturePreviewControl(Creature creature, string? preferredRig = null, bool isSilhouette = false,
+        IReadOnlyList<string>? parts = null)
     {
         Creature = creature;
+        // A wild creature's body parts from its seed (CreatureModelService.PartsForSeedAsync), shown like a companion's.
+        if (parts is { Count: > 0 }) _companionDescriptors = parts.ToList();
         PreferredRig = preferredRig;
         IsSilhouette = isSilhouette;
         InitializeComponent();
@@ -140,9 +143,10 @@ public sealed partial class CreaturePreviewControl : UserControl
     }
 
     /// <summary>Displays a 3D creature anatomy viewer dialog.</summary>
-    public static async Task ShowAsync(XamlRoot root, Creature creature, string? rigId = null, bool isSilhouette = false)
+    public static async Task ShowAsync(XamlRoot root, Creature creature, string? rigId = null, bool isSilhouette = false,
+        IReadOnlyList<string>? parts = null)
     {
-        var control = new CreaturePreviewControl(creature, rigId, isSilhouette);
+        var control = new CreaturePreviewControl(creature, rigId, isSilhouette, parts);
         var dialog = new ContentDialog
         {
             Title = isSilhouette ? "Undiscovered Species 3D Silhouette" : "Creature 3D Anatomy",
