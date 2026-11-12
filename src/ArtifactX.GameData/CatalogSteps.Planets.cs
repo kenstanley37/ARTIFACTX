@@ -506,7 +506,8 @@ public static partial class CatalogSteps
                     (int)r.MinSize.CreatureSizeClass,
                     (int)r.MaxSize.CreatureSizeClass,
                     (int)r.ActiveTime.CreatureActiveTime,
-                    (int)rdt.TileType.TileType)).ToArray();
+                    (int)rdt.TileType.TileType,
+                    r.Filter?.Value ?? "")).ToArray();
                 ecosystemTables[path] = roles;
             }
         }
@@ -556,7 +557,8 @@ public static partial class CatalogSteps
             genders.Count > 0 ? genders.ToArray() : null, activities.All(w => w.Length > 0) ? activities : null,
             rarities.All(w => w.Length > 0) ? rarities : null, robotGenders.Count > 0 ? robotGenders.ToArray() : null, text,
             Produce(cg), ProduceNames(cg, decode, english), PetBattle(decode, english),
-            hemispheres.All(w => w.Length > 0) ? hemispheres : null, terrains.Any(w => w.Length > 0) ? terrains : null);
+            hemispheres.All(w => w.Length > 0) ? hemispheres : null, terrains.Any(w => w.Length > 0) ? terrains : null,
+            Enum.GetNames<GcBiomeSubType.BiomeSubTypeEnum>());
     }
 
     private static InventoryGenerationTables? InventoryTables(Func<string, NMSTemplate?> decode)

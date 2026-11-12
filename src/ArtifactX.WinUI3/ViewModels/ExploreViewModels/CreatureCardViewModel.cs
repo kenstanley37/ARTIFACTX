@@ -43,6 +43,10 @@ public sealed partial class CreatureCardViewModel : ObservableObject
     /// empty / 0 when not known, and the rig's default parts are drawn.</summary>
     public string ModelScene { get; init; } = "";
     public ulong ModelSeed { get; init; }
+
+    /// <summary>The body the creature's role and exotic planet force (CreatureTables.ForcedPartTerms); "" for none.</summary>
+    public string ModelFilter { get; init; } = "";
+    public string ModelSubType { get; init; } = "";
     public bool IsDiscovered { get; }
     public bool IsSilhouette => !IsDiscovered;
     public string Name => Creature.Name;

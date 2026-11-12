@@ -236,14 +236,22 @@ public static class CreatureModelService
     /// maybe the colour seed (to check). Companions draw from their stored parts. Not yet: the anomalous rig's role
     /// Filter (FLOAT / ROLL / CRYSTAL). Null without the part tree (game data before format 87).
     /// </summary>
-    public static async Task<IReadOnlyList<string>?> PartsForSeedAsync(string? scenePath, ulong roleSeed)
+    /// <param name="filter">The role's descriptor Filter and <paramref name="subType"/> the exotic planet's sub-type
+    /// name (CreatureTables.ForcedPartTerms): the parts they name are taken before the seed picks the rest.</param>
+    public static async Task<IReadOnlyList<string>?> PartsForSeedAsync(string? scenePath, ulong roleSeed, string filter = "", string subType = "")
     {
         if (string.IsNullOrEmpty(scenePath) || roleSeed == 0) return null;
         await PartTreeService.EnsureAsync();
         string scene = scenePath.ToLowerInvariant();
-        if (PartTreeService.Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is null) return null;
-        return await Task.Run(() => (IReadOnlyList<string>)ArtifactX.Core.Procedural.ShipParts.Generate(scene, roleSeed, PartTreeService.Load)
-            .Select(p => p.Id).ToList());
+        if (PartTreeService.Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is not { } root) return null;
+        return await Task.Run(() =>
+        {
+            IReadOnlyList<string>? forced = filter.Length == 0 && subType.Length == 0 ? null
+                : ArtifactX.Core.Universe.CreatureTables.ForcedOptions(
+                    ModelPreviewService.AllOptionIds(root, PartTreeService.Load, StringComparer.OrdinalIgnoreCase), filter, subType);
+            return (IReadOnlyList<string>)ArtifactX.Core.Procedural.ShipParts.Generate(scene, roleSeed, PartTreeService.Load, forced)
+                .Select(p => p.Id).ToList();
+        });
     }
 
     /// <summary>Natural shading for creature materials: eyes, teeth, mouth, horns, pet harness and skin.</summary>

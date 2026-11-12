@@ -71,7 +71,7 @@ public sealed partial class PlanetDetailsPage : Page
     {
         var card = request.Creature;
         await CreaturePreviewControl.ShowAsync(XamlRoot, card.Creature, card.RigId, card.IsSilhouette,
-            await CreatureModelService.PartsForSeedAsync(card.ModelScene, card.ModelSeed));
+            await CreatureModelService.PartsForSeedAsync(card.ModelScene, card.ModelSeed, card.ModelFilter, card.ModelSubType));
     }
 
     private void PlanetEquipment_CrashedShipsRequested(object? sender, EventArgs e)

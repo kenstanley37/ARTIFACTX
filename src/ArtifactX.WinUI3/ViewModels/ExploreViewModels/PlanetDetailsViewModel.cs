@@ -288,6 +288,11 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         {
             var pred = slot.Predicted;
             string? scene = pred is null ? null : PlanetTypesService.CreatureTables?.Creatures.FirstOrDefault(c => c.Id == pred.Id)?.Scene;
+            // The body its role and an exotic planet's sub-type force (anomalous floaters, rollers and crystals).
+            var bodyType = PlanetTypesService.For(planet.SystemAddress) is { } bodyTypes && planet.PlanetIndex >= 1 && planet.PlanetIndex <= bodyTypes.Length
+                ? bodyTypes[planet.PlanetIndex - 1] : null;
+            var forced = pred is not null && bodyType is not null && PlanetTypesService.CreatureTables is { } creatureTables
+                ? creatureTables.ForcedPartTerms(pred, bodyType.Biome, bodyType.SubType) : (Filter: "", SubType: "");
             string rigId = pred is null ? FallbackRig(saveDiscoveries[slot.Discovery].SpeciesName)
                 : await CreatureModelService.ResolveRigAsync(pred.Id, scenePath: scene) ?? "antelope";
             string habitat = pred is null ? "Native Fauna" : $"{PlanetTypesService.CreatureTables?.HabitatOf(pred) ?? pred.Habitat} Fauna";
@@ -308,7 +313,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                     canTame: same ? PlanetTypesService.CreatureTables?.CanBattle(pred!) : null)
                 {
                     // The discovery's own seed (bEr[0]) picks its body parts, as the game does.
-                    ModelScene = scene ?? "", ModelSeed = disc.Seed,
+                    ModelScene = scene ?? "", ModelSeed = disc.Seed, ModelFilter = forced.Filter, ModelSubType = forced.SubType,
                 });
                 continue;
             }
@@ -332,7 +337,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 battle: predictedName is null ? null : Panel(CreatureTraitText.Battle(pred, PlanetTypesService.CreatureTables, speciesSeed, genusSeed)),
                 canTame: PlanetTypesService.CreatureTables?.CanBattle(pred))
             {
-                ModelScene = scene ?? "", ModelSeed = pred.Seed,
+                ModelScene = scene ?? "", ModelSeed = pred.Seed, ModelFilter = forced.Filter, ModelSubType = forced.SubType,
             });
         }
 

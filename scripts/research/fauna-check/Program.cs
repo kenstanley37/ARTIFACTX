@@ -208,7 +208,6 @@ if (Environment.GetEnvironmentVariable("FLORASEED") is { Length: > 0 } floraFile
 // makes ShipParts pick its stored body parts (osl) from its scene's part tree (catalog format 87 creature trees).
 if (Environment.GetEnvironmentVariable("PARTS") == "1" && args.Length > 2)
 {
-    ArtifactX.Core.Procedural.ShipParts.SingleCandidateNoDraw = Environment.GetEnvironmentVariable("NODRAW") == "1";
     var trees = new Dictionary<string, IReadOnlyList<ArtifactX.Core.Procedural.PartGroup>?>(StringComparer.OrdinalIgnoreCase);
     var treeJson = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     using (var cc = new SqliteConnection($"Data Source={catalog};Mode=ReadOnly"))
@@ -334,7 +333,6 @@ if (Environment.GetEnvironmentVariable("PARTS") == "1" && args.Length > 2)
 // PICK=<system hex>:<planet>:<species name>: a predicted creature's kind, scene, seed and the parts ShipParts picks.
 if (Environment.GetEnvironmentVariable("PICK") is { Length: > 0 } pickArg)
 {
-    ArtifactX.Core.Procedural.ShipParts.SingleCandidateNoDraw = Environment.GetEnvironmentVariable("NODRAW") == "1";
     var parts = pickArg.Split(':');
     ulong sys = ulong.Parse(parts[0], NumberStyles.HexNumber);
     int index = int.Parse(parts[1]) - 1;
@@ -357,6 +355,7 @@ if (Environment.GetEnvironmentVariable("PICK") is { Length: > 0 } pickArg)
     }
     IReadOnlyList<ArtifactX.Core.Procedural.PartGroup>? Load(string path) => treeJson.TryGetValue(path, out var j) ? ArtifactX.Core.Procedural.ShipParts.ParseTree(j) : null;
     ulong planetAddress = (sys & ~(0xFUL << 52)) | ((ulong)(index + 1) << 52);
+    Console.WriteLine($"planet type: biome {types[index].Biome} subtype {types[index].SubType}");
     foreach (var c in p.PredictedCreatures ?? [])
     {
         var (sp, ge) = ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(c.Seed, c.SpeciesId, planetAddress, c.CreatureType, c.SizeClass);
@@ -365,6 +364,14 @@ if (Environment.GetEnvironmentVariable("PICK") is { Length: > 0 } pickArg)
         string scene = Array.Find(profiles.Creatures!.Creatures, e => e.Id == c.Id)?.Scene ?? "";
         Console.WriteLine($"{name}: {c.Id} species {c.SpeciesId} scene {scene} seed {c.Seed:X16}");
         Console.WriteLine("picked: " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(scene, c.Seed, Load).Select(x => $"{x.Group}={x.Id}")));
+        if (Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is { } forcedRoot)
+        {
+            IEnumerable<string> Ids(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> gs) => gs.SelectMany(g => g.Options.SelectMany(o => new[] { o.Id }.Concat(o.Children.SelectMany(Ids))));
+            var terms = profiles.Creatures!.ForcedPartTerms(c, types[index].Biome, types[index].SubType);
+            var forced = CreatureTables.ForcedOptions(Ids(forcedRoot), terms.Filter, terms.SubType);
+            Console.WriteLine($"forced terms '{terms.Filter}' '{terms.SubType}' -> [{string.Join(" ", forced)}]: " +
+                string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(scene, c.Seed, Load, forced).Select(x => x.Id)));
+        }
         if (Environment.GetEnvironmentVariable("PICKSEED") is { Length: > 0 } extra)
             Console.WriteLine("with " + extra + ": " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(scene, ulong.Parse(extra, NumberStyles.HexNumber), Load).Select(x => $"{x.Group}={x.Id}")));
         if (Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is { } root)

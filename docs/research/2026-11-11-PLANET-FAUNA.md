@@ -307,3 +307,11 @@ role seed picks (hippo head with head plate, turtle shell with spikes, tricerato
 creature walking around perfectly". The game's own Discoveries page draws the same species differently (horned head,
 other back spikes): the game is inconsistent there, not the port. The rig's pet harness (PETHARNESSMAT, not a
 selectable part) is now left off wild creatures. GameData.Checks `--creature-part-probe` shows what each part is.
+
+**Anomalous rig solved 2026-11-12:** the WEIRDRIG bodies are named after the exotic sub-biomes (GcBiomeSubType:
+FractCube, Bubble, Shards, WireCell, HydroGarden floaters; Structure, Contour, Beam rollers). The role's Filter (FLOAT /
+ROLL / CRYSTAL, role description table) forces the first choice and the planet's sub-type the variant - not a draw,
+which is why no draw rule fitted the owner's anomalous companions. Owner's B. Bloatlexia on the HydroGarden planet
+Azzaviu XII (4F8FBFFA005 planet 4): glowing orbs in game = _FLOAT_HYDROGARDENXOR (VORTEXLIGHT / CORELIGHT materials);
+the seed alone picked _FLOAT_SHARDS. Catalog format 88 (role Filter, sub-type names); CreatureTables.ForcedPartTerms /
+ForcedOptions feed ShipParts' stored-parts path. Crystal bodies (Pillar / Gem) have no sub-type name: seed-picked.
