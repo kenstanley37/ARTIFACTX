@@ -41,6 +41,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Game text now uses US English, as the game shows it to US players ("Vectorized", not "Vectorised"). Update your game data once to get it.
+
 - Current System no longer stops with a "file in use" error when a system picture is read while screen recording is saving a new one.
 
 - Planet Details no longer goes blank after your game data is rebuilt, the theme changes or you switch to the save the game is using: the page reopens on the same planet.
