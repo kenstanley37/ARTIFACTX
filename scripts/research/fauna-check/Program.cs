@@ -54,6 +54,16 @@ if (Environment.GetEnvironmentVariable("TIMING") == "1")
                 attributes.GasGiantPlanet, profiles, attributes.Uncharted, attributes.Abandoned).PredictedCreatures ?? [])
                 .Where(c => profiles.Creatures!.CanBattle(c) == true));
     }
+    // KIND=<creature id>: that kind's sizes over the sample (size class counts, tallest forms).
+    if (Environment.GetEnvironmentVariable("KIND") is { Length: > 0 } kind)
+    {
+        var all = tameable.Where(c => c.Id == kind).ToList();
+        var entry = Array.Find(profiles.Creatures!.Creatures, c => c.Id == kind);
+        Console.WriteLine($"{kind}: {all.Count} adoptable, MinScale {entry?.MinScale} MaxScale {entry?.MaxScale}, " +
+            $"size classes {string.Join(", ", all.GroupBy(c => c.SizeClass).OrderBy(g => g.Key).Select(g => $"{g.Key}x{g.Count()}"))}");
+        foreach (var c in all.OrderByDescending(c => c.Info?.Height2 ?? 0).Take(5))
+            Console.WriteLine($"  scale {c.Scale:F2} class {c.SizeClass} height {c.Info?.Height2:F1} m weight {c.Info?.Weight2:F0} kg role {c.Role}");
+    }
     foreach (var g in tameable.GroupBy(c => c.SizeClass).OrderBy(g => g.Key))
         Console.WriteLine($"  size class {g.Key}: {g.Count()} ({100.0 * g.Count() / tameable.Count:F1}%)" +
             (g.Key == 3 ? "  " + string.Join(", ", g.GroupBy(c => c.Id).OrderByDescending(k => k.Count()).Select(k => $"{k.Key} {k.Count()}")) : ""));
