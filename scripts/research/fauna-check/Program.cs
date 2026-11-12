@@ -146,6 +146,64 @@ if (Environment.GetEnvironmentVariable("MT") is { Length: > 0 } mtArg)
     return;
 }
 
+// FLORASEED=<file of "address bEr0 bEr1" hex lines>: where a Flora discovery's bEr[0] comes from. bEr[1] is djb2 of the
+// plant's scene path (257/257 in the owner's saves); bEr[0] is shared by two scenes on one planet (a placement list's
+// seed?). Searches each planet's child seeds and early stream draws for it.
+if (Environment.GetEnvironmentVariable("FLORASEED") is { Length: > 0 } floraFile)
+{
+    static ulong Mix(ulong v) { v = (v ^ (v >> 33)) * 0x64DD81482CBD31D7UL; v = (v ^ (v >> 33)) * 0xE36AA5C613612997UL; return v ^ (v >> 33); }
+    static ulong H(ulong low, ulong high) { const ulong K = 0x9DDFEA08EB382D69UL; ulong a = (low ^ high) * K; a ^= a >> 47; ulong b = (high ^ a) * K; b ^= b >> 47; return b * K; }
+    static (uint, uint) Start(ulong seed) { uint lo = (uint)seed, hi = (uint)(seed >> 32); return (lo == 0 ? 1u : lo, ((lo >> 16) | (lo << 16)) ^ hi ^ lo); }
+    static uint Next(ref (uint S0, uint S1) s) { ulong t = (ulong)s.S0 * 0x5A76F899UL + s.S1; s = ((uint)t, (uint)(t >> 32)); return s.S0; }
+    var keys = File.ReadAllLines(floraFile).Select(l => l.Split(' ')).Select(p => (A: ulong.Parse(p[0], NumberStyles.HexNumber), B0: ulong.Parse(p[1], NumberStyles.HexNumber), B1: ulong.Parse(p[2], NumberStyles.HexNumber))).ToList();
+    int found = 0;
+    var where = new Dictionary<string, int>();
+    foreach (var planet in keys.GroupBy(k => k.A))
+    {
+        ulong address = planet.Key;
+        var (code, galaxy) = Gen(address & ~(0xFUL << 52));
+        int index = (int)((address >> 52) & 0xF) - 1;
+        var bodySeeds = SystemGenerator.Bodies(code, galaxy).PlanetSeeds;
+        if (index < 0 || index >= bodySeeds.Length) continue;
+        ulong planetSeed = bodySeeds[index];
+        var candidates = new Dictionary<ulong, string>();
+        void Add(ulong v, string name) => candidates.TryAdd(v, name);
+        Add(planetSeed, "planet seed");
+        var child = PlanetProfileGenerator.ChildSeeds(planetSeed);
+        for (int c = 0; c < child.Length; c++)
+        {
+            Add(child[c], $"child {c}");
+            var s = Start(child[c]);
+            for (int d = 0; d < 600; d++)
+            {
+                uint lo = Next(ref s), hi = Next(ref s);
+                Add(Mix(((ulong)hi << 32) | lo), $"child {c} pair {d}");
+            }
+        }
+        // The object-selection stream (seeds[7]: two draws -> Mix64 -> its own stream).
+        var o = Start(child[7]);
+        uint olo = Next(ref o), ohi = Next(ref o);
+        ulong objSeed = Mix(((ulong)ohi << 32) | olo);
+        Add(objSeed, "object stream seed");
+        var os = Start(objSeed);
+        for (int d = 0; d < 2000; d++) { uint lo = Next(ref os), hi = Next(ref os); Add(Mix(((ulong)hi << 32) | lo), $"object pair {d}"); }
+        foreach (var k in planet)
+        {
+            string? how = candidates.TryGetValue(k.B0, out var n) ? n
+                : k.B0 == H(planetSeed, k.B1) ? "H(planet, scene)" : k.B0 == H(k.B1, planetSeed) ? "H(scene, planet)"
+                : k.B0 == H(address, k.B1) ? "H(address, scene)" : k.B0 == H(k.B1, address) ? "H(scene, address)" : null;
+            if (how is null) continue;
+            found++;
+            string bucket = System.Text.RegularExpressions.Regex.Replace(how, @"\d+$", "N");
+            where[bucket] = where.GetValueOrDefault(bucket) + 1;
+            if (found <= 12) Console.WriteLine($"  {address:X} {k.B0:X16}: {how}");
+        }
+    }
+    Console.WriteLine($"found {found} of {keys.Count}");
+    foreach (var w in where.OrderByDescending(w => w.Value)) Console.WriteLine($"  {w.Key}: {w.Value}");
+    return;
+}
+
 // HEMI=<system hex>:<planet index from 1>: one planet's predicted creatures with names and hemispheres
 // ("Found in the North / South"), to check against the game's discovery list.
 if (Environment.GetEnvironmentVariable("HEMI") is { Length: > 0 } hemiArg)
