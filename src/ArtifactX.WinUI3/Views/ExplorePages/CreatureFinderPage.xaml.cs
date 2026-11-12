@@ -34,6 +34,11 @@ public sealed partial class CreatureFinderPage : Page
 
     private void ClearFilters_Click(object sender, RoutedEventArgs e) => ViewModel.ClearFilters();
 
+    private void Pin_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is CreatureFinderRowViewModel row) ViewModel.TogglePin(row);
+    }
+
     private void Results_ItemClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is CreatureFinderRowViewModel row) Frame.Navigate(typeof(PlanetDetailsPage), row.Planet);

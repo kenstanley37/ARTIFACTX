@@ -70,6 +70,25 @@ if (Environment.GetEnvironmentVariable("TIMING") == "1")
     return;
 }
 
+// NEARBY=<system hex>:<region radius>: the Creature Finder's nearby search in Core (NearbySystems +
+// TameableCreatureSearch): systems, adoptable creatures, Huge ones and time.
+if (Environment.GetEnvironmentVariable("NEARBY") is { Length: > 0 } nearbyArg)
+{
+    var parts = nearbyArg.Split(':');
+    ulong start = ulong.Parse(parts[0], NumberStyles.HexNumber);
+    int radius = int.Parse(parts[1]);
+    var settings = Row<GalaxyGenerationSettings>("GALAXYGENERATION");
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    var systems = NearbySystems.Around(start, radius, settings).ToList();
+    Console.WriteLine($"{systems.Count} systems ({systems.Count(s => s.Purple)} purple), start's system listed: " +
+        $"{systems.Any(s => s.SystemAddress == (start & ~(0xFUL << 52)))}, counted in {sw.ElapsedMilliseconds} ms");
+    var found = new System.Collections.Concurrent.ConcurrentBag<TameableCreature>();
+    Parallel.ForEach(systems, s => { foreach (var t in TameableCreatureSearch.InSystem(s.SystemAddress, biomes, profiles)) found.Add(t); });
+    Console.WriteLine($"{found.Count} adoptable creatures, {found.Count(t => t.Creature.SizeClass == 3)} Huge, " +
+        $"{found.Count(t => t.Potential == 3)} S potential, all three stats S: {found.Count(t => t.Classes.All(c => c == 3))}; total {sw.ElapsedMilliseconds} ms");
+    return;
+}
+
 // HEMI=<system hex>:<planet index from 1>: one planet's predicted creatures with names and hemispheres
 // ("Found in the North / South"), to check against the game's discovery list.
 if (Environment.GetEnvironmentVariable("HEMI") is { Length: > 0 } hemiArg)

@@ -3,16 +3,20 @@ using ArtifactX.Core.Procedural;
 using ArtifactX.Core.Universe;
 using ArtifactX.WinUI3.Helpers.Fauna;
 using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Services;
 
 /// <summary>One creature the Creature Finder lists: where it lives, its name, whether this save has discovered it,
-/// its traits, its two forms' sizes ("Male 121.5kg / 3.0m or Female ...") and its pet-battle classes.</summary>
+/// its traits and its pet-battle classes. Kept small (a nearby search can hold 200,000): text only the cards show,
+/// like the forms' sizes, is made by the card.</summary>
 public sealed record FoundCreature(KnownPlanet Planet, string Name, bool Discovered, PredictedCreature Creature,
-    CreatureBattle Battle, string Rarity, string Activity, string Habitat, string Forms)
+    CreatureBattle Battle, string Rarity, string Activity, string Habitat)
 {
     /// <summary>The taller form's height in metres (0 when the game data predates sizes).</summary>
     public float Height => Creature.Info is { } info ? System.Math.Max(info.Height1, info.Height2) : 0;
@@ -64,10 +68,59 @@ public static class CreatureFinderService
                         planet.Address, creature.CreatureType, creature.SizeClass);
                 if (CreatureTraitText.Battle(creature, tables, speciesSeed, genusSeed) is not { } battle) continue;
                 var (rarity, activity) = CreatureTraitText.RarityAndActivity(creature, tables);
-                found.Add(new FoundCreature(planet, name, disc is not null, creature, battle, rarity, activity, tables.HabitatOf(creature),
-                    CreatureTraitText.Forms(creature, tables)));
+                found.Add(new FoundCreature(planet, name, disc is not null, creature, battle, rarity, activity, tables.HabitatOf(creature)));
             }
         }
         return found;
+    }
+
+    /// <summary>How many systems lie within <paramref name="regionRadius"/> regions of <paramref name="start"/> (for the
+    /// status line before a nearby search); null without the galaxy settings (catalog before format 44).</summary>
+    public static async Task<int?> CountNearbyAsync(ulong start, int regionRadius)
+    {
+        if (await CatalogService.GetGalaxyGenerationSettingsAsync() is not { } settings) return null;
+        return await Task.Run(() => NearbySystems.Around(start, regionRadius, settings).Count());
+    }
+
+    /// <summary>
+    /// The adoptable creatures in every system within <paramref name="regionRadius"/> regions of
+    /// <paramref name="start"/> (Core NearbySystems + TameableCreatureSearch, so the mobile app can run the same search
+    /// from a typed or scanned address), leaving out <paramref name="skipSystems"/> (the ones the saves already cover).
+    /// None of these is discovered by the save. Runs in parallel off the UI thread. Around the owner's AC Colony Star
+/// (2026-11-12, fauna-check NEARBY): radius 0 = 607 systems, 13,139 creatures in 0.5 s; radius 1 = 10,226 systems,
+/// 213,351 creatures in 4 s (Core part).
+    /// </summary>
+    public static async Task<List<FoundCreature>> FindNearbyAsync(ulong start, int regionRadius, IReadOnlySet<ulong> skipSystems,
+        IProgress<int>? progress = null, CancellationToken cancel = default)
+    {
+        await PlanetTypesService.EnsureLoadedAsync();
+        var names = await CreatureNameService.LoadAsync();
+        if (await CatalogService.GetGalaxyGenerationSettingsAsync() is not { } settings
+            || PlanetTypesService.BiomeTables is not { } biomes || PlanetTypesService.ProfileTables is not { Creatures: { } tables } profiles)
+            return new();
+        return await Task.Run(() =>
+        {
+            var systems = NearbySystems.Around(start, regionRadius, settings)
+                .Where(s => !skipSystems.Contains(s.SystemAddress)).ToList();
+            var found = new ConcurrentBag<FoundCreature>();
+            int done = 0;
+            Parallel.ForEach(systems, new ParallelOptions { CancellationToken = cancel }, system =>
+            {
+                var planets = new Dictionary<ulong, KnownPlanet?>(); // one record per body, shared by its creatures
+                foreach (var t in TameableCreatureSearch.InSystem(system.SystemAddress, biomes, profiles))
+                {
+                    if (!planets.TryGetValue(t.PlanetAddress, out var planet))
+                        planets[t.PlanetAddress] = planet = PlanetTypesService.Planet(t.PlanetAddress);
+                    if (planet is null) continue;
+                    if (names.PredictedSpecies(t.Creature, t.PlanetAddress) is not { } name) continue;
+                    if (CreatureTraitText.Battle(t.Creature, tables, t.SpeciesSeed, t.GenusSeed) is not { } battle) continue;
+                    var (rarity, activity) = CreatureTraitText.RarityAndActivity(t.Creature, tables);
+                    found.Add(new FoundCreature(planet, name, false, t.Creature, battle, rarity, activity, tables.HabitatOf(t.Creature)));
+                }
+                int n = Interlocked.Increment(ref done);
+                if (n % 250 == 0) progress?.Report(n);
+            });
+            return found.ToList();
+        }, cancel);
     }
 }
