@@ -124,7 +124,7 @@ public static partial class CatalogSteps
 
     /// <summary>Merged English localisation lookup across all <c>language/nms_*_english.mbin</c> files, with the
     /// game's US English text (<c>nms_*_usenglish.mbin</c>) taking over wherever it has an entry - the text a US player
-    /// sees ("Vectorized", not "Vectorised"; owner's choice 2026-11-12, issue #64 for other languages). Cached for
+    /// sees ("Vectorized", not "Vectorised"; owner's choice 2026-11-12, catalog format 81; issue #64 for other languages). Cached for
     /// the current <paramref name="pcbanksPath"/>.</summary>
     private static IReadOnlyDictionary<string, string> GetMergedEnglishLookup(string pcbanksPath)
     {
