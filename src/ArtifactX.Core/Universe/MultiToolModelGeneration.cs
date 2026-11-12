@@ -25,6 +25,15 @@ public static class MultiToolModelGeneration
         IReadOnlyList<PartGroup> tree;
         try { tree = ShipParts.ParseTree(tables.DescriptorJson); }
         catch (Exception error) when (error is JsonException or InvalidOperationException or KeyNotFoundException) { return null; }
+        return Resolve(modelSeed, tables, tree);
+    }
+
+    /// <summary>The same, with the descriptor tree already parsed (<see cref="ShipParts.ParseTree"/> of
+    /// tables.DescriptorJson), for callers resolving many seeds.</summary>
+    public static ResolvedStandardMultiTool? Resolve(ulong modelSeed, MultiToolModelTables tables, IReadOnlyList<PartGroup> tree)
+    {
+        if (tables.Root is null
+            || !string.Equals(tables.ModelPath, SystemMultiToolGenerator.MainModel, StringComparison.OrdinalIgnoreCase)) return null;
         bool unresolvedReference = false;
         string descriptor = ShipParts.DescriptorFor(tables.ModelPath);
         IReadOnlyList<PartGroup>? Load(string path)

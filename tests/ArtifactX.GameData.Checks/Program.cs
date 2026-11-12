@@ -97,6 +97,55 @@ if (args.Length == 1 && args[0] == "--planet-shop-survey-check")
 }
 
 
+if (args.Length == 2 && args[0] == "--multitool-kind-check")
+{
+    // Issue #60: the Multi-Tool Finder's kinds (Core MultiToolKindClassifier: catalog scene SizeTags) against the app's
+    // Current System kinds (MultiToolKinds: weapon tags read from the game's model files) for 3,000 pool seeds.
+    string catalog = Path.GetFullPath(args[1]);
+    using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={catalog};Mode=ReadOnly");
+    connection.Open();
+    string Row(string id)
+    {
+        using var query = connection.CreateCommand();
+        query.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId=$id";
+        query.Parameters.AddWithValue("$id", id);
+        return (string)query.ExecuteScalar()!;
+    }
+    var modelTables = JsonSerializer.Deserialize<ArtifactX.Core.Universe.MultiToolModelTables>(Row("MULTITOOLMODEL"))!;
+    var inventory = JsonSerializer.Deserialize<ArtifactX.Core.Universe.InventoryGenerationTables>(Row("INVENTORYGENERATION"))!;
+    var classifier = new ArtifactX.Core.Universe.MultiToolKindClassifier(modelTables);
+    var game = GameInstall.Find() ?? throw new InvalidOperationException("No game install found.");
+    var tags = new ShipModels(game).WeaponTags(ArtifactX.Core.Universe.SystemMultiToolGenerator.MainModel);
+    var tree = ArtifactX.Core.Procedural.ShipParts.ParseTree(modelTables.DescriptorJson);
+    string descriptor = ArtifactX.Core.Procedural.ShipParts.DescriptorFor(modelTables.ModelPath);
+    var rng = new Random(60);
+    int same = 0, differ = 0;
+    var counts = new Dictionary<string, int>();
+    for (int n = 0; n < 3000; n++)
+    {
+        ulong address = ((ulong)rng.Next() << 32 | (uint)rng.Next()) & 0xFF_FFFF_FFFF_FFFFUL;
+        foreach (var tool in ArtifactX.Core.Universe.SystemMultiToolGenerator.GeneratePool(address,
+                     ArtifactX.Core.Universe.MultiToolPoolSource.SpaceStation, "Space Station", definitions: inventory.MultiToolPools)
+                 .Where(t => t.PoolType == "Standard").Take(1))
+        {
+            string core = classifier.KindOf(tool);
+            var picked = ArtifactX.Core.Procedural.ShipParts.Generate(modelTables.ModelPath, tool.Seed,
+                    p => string.Equals(p, descriptor, StringComparison.OrdinalIgnoreCase) ? tree : null)
+                .Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            string app = picked.Contains("_MULTITOOL_ALIENXRARE") ? "Alien" : picked.Contains("_MULTITOOL_STARTXRARE") ? "Starter"
+                : picked.Contains("_MULTITOOL_PRISTINEXRARE") ? "Experimental" : !picked.Contains("_MULTITOOL_NORMAL") ? "?"
+                : picked.Any(p => tags.TryGetValue(p, out var t) && t is "WEAPON_LARGE" or "WEAPON_MEDIUM") ? "Rifle" : "Pistol";
+            counts[core] = counts.GetValueOrDefault(core) + 1;
+            if (core == app) same++;
+            else { differ++; if (differ <= 10) Console.WriteLine($"  differ: seed {tool.Seed:X16} finder {core} app {app}"); }
+        }
+    }
+    Console.WriteLine($"kinds: {string.Join(", ", counts.OrderByDescending(k => k.Value).Select(k => $"{k.Key} {k.Value}"))}");
+    if (differ > 0) throw new InvalidOperationException($"{differ} of {same + differ} kinds differ from the app's.");
+    Console.WriteLine($"PASS: Multi-Tool Finder kinds match the app's for {same} seeds.");
+    return;
+}
+
 if (args.Length == 3 && args[0] == "--industrial-cleanup-catalog-check")
 {
     string output = Path.GetFullPath(args[2]);

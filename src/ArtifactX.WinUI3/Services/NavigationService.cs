@@ -39,6 +39,7 @@ public static class NavigationService
         ["CabinetMultiTools"] = typeof(CabinetMultiToolsPage),
         ["PlanetFinder"] = typeof(PlanetFinderPage),
         ["CreatureFinder"] = typeof(CreatureFinderPage),
+        ["MultiToolFinder"] = typeof(MultiToolFinderPage),
         ["Bases"] = typeof(BasesPage),
         ["BaseDetails"] = typeof(BaseDetailsPage),
         ["Finds"] = typeof(FindsPage),
