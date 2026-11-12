@@ -88,7 +88,7 @@ public sealed partial class MultiToolFinderViewModel : ObservableObject
         var cancel = _cancel = new CancellationTokenSource();
         if (await MultiToolFinderService.StationsSupportedAsync(_saveInputs) is false)
         {
-            Status = "This save's space stations use the older layout, so their cabinets can't be worked out yet.";
+            Status = "The station cabinets can't be worked out for this save yet (an expedition, or space stations with the older layout). Switch to your main save to search.";
             _found = [];
             Apply();
             return;
