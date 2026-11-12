@@ -732,3 +732,12 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 
 
 
+
+## 2026-11-11 storage stack limits
+
+### Bug 78: Base Storage Caps Metal Plating at 20, the Game Allows 40
+- **Source**: Owner, 2026-11-11, Steam Slot 8 screenshots (ArtifactX Cargo > Base Storage, container 9; in game, the same container on the freighter's storage tabs).
+- **Evidence**: Metal Plating added to Base Storage in ArtifactX shows 20/20 and stacks no higher. In game the same slots read 20/40, so a storage container holds 40 Metal Plating per slot.
+- **Suspect**: the app takes one maximum per item from the catalog (`Items.MaxStackSize`, read by `CatalogService.TryGetStackInfo`) whatever inventory the item is in, while the game's limit also depends on the inventory kind (storage containers, freighter, Exosuit cargo and so on use different stack limits). Find the game's per-inventory rule (stack-limit tables in the reality data / the container's inventory class) before changing it, and check other products and substances in several inventories, not just Metal Plating.
+- **Scope**: Owner, 2026-11-11: likely not just Metal Plating; many items may get the wrong limit in some inventories. Treat it as a deeper investigation of stack limits across all inventory kinds, planned for later.
+- **Status**: Logged, not fixed.
