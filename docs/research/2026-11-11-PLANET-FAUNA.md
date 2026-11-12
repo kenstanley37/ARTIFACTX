@@ -250,3 +250,34 @@ Also to fix: `PredictedCreature.DefaultDisplayName` is a hand-typed English tabl
   scratchpad. Only `emu_sys.py` and its extracted game files survive (scratchpad of session ffdfbde9), plus
   `scripts/research/region-generator/emu`. Addresses in old notes are for builds 180836/184271, not 185034.
 - Keep new research tooling under `scripts/research/`, not in a scratchpad.
+
+## Hemisphere ("Found in the North / South"), 2026-11-12
+
+NMS.exe 184271, Ghidra. Each domain archetype (and each additional-table group) has ChanceOfHemisphereLimit and
+MaxToHemisphereLimit. 0x1416d8c20: one draw against the chance; when under it, MaxToHemisphereLimit draws each add
+one to a per-table count (index = draw * table count >> 32). 0x1416d9190 stores that count with the collected table
+(cGcRoleTableData +8). In the role loop of 0x1416d60e0, each role opens a child stream (the third push, which the port
+already discarded): f = one draw; if 1.0 (0x144bf5c48) / the table's role count < f and the table's count > 0, one
+more draw x gives the hemisphere (~x & 1) + 1 (1 Northern, 2 Southern) and the count drops by one. The child stream is
+popped, so the picks are unchanged (fauna totals still 987/987, activity 487/487).
+
+Words: UI_CRE_HEMISPHERE_NORTH / _SOUTH (catalog format 84). Ground truth so far: Doroug XV (13500FE0E2923 planet 3)
+I. Aippglutera predicted South, seen South in game 2026-10-22 (issue #6). The issue's "T. Milkvigneum: Always Active /
+Found in the South" is most likely Aippglutera's scrolling row: Milkvigneum's captured activity is Diurnal, and the
+port says it is found anywhere. More checks wanted. Harness: `HEMI=<system hex>:<planet> dotnet run` in
+scripts/research/fauna-check.
+
+CONFIRMED in game 2026-11-12 (owner, Slot 8): Haka Beta (BBFAFCFFA004 planet 3, AC Colony Star) predicted only
+T. Airchedeisium as South; the game's Discoveries list shows "... Active / Found in the South" on T. Airchedeisium and
+no hemisphere on the other 9 (10/10). Unst Prime (planet 2): none predicted, none in game (14/14). Two planets, 2/2 South.
+
+## Habitat word, 2026-11-12
+
+The discovery line is built by 0x14077b2e0 ("%s / %s / %s / %s": rarity, habitat, activity, hemisphere). Habitat =
+UI_CRE_TERRAIN_<TileType> (GcTerrainTileType order: AIR, BASE, ROCK, MOUNTAIN, WATER, CAVE, DIRT, LIQUID, SUBSTANCE),
+where TileType is the role data's (+0x5CC), copied from its GcCreatureRoleDescriptionTable (+0x1C) in 0x1416d60e0;
+creatures of GcCreatureTypes 1-4 (Bird, FlyingLizard, FlyingSnake, Butterfly) or 48 (ProtoFlyer) always read AIR.
+Owner's Unst Prime (BBFAFCFFA004 planet 2) list: large butterflies and a small bird from ground tables show "Flying" -
+now predicted the same. Catalog format 85 (TileType per role table, habitat words). The water diet list now keys on
+TileType 4 too. Habitat fit vs captures 87 -> 94 of 104 planets; the rest are blank captures and a few Underground vs
+Ground cases still unexplained.

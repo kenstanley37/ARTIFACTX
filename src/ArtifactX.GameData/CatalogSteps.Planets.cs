@@ -505,7 +505,8 @@ public static partial class CatalogSteps
                     (int)r.Role.CreatureRole,
                     (int)r.MinSize.CreatureSizeClass,
                     (int)r.MaxSize.CreatureSizeClass,
-                    (int)r.ActiveTime.CreatureActiveTime)).ToArray();
+                    (int)r.ActiveTime.CreatureActiveTime,
+                    (int)rdt.TileType.TileType)).ToArray();
                 ecosystemTables[path] = roles;
             }
         }
@@ -545,10 +546,17 @@ public static partial class CatalogSteps
         var activities = activityKeys.Select(k => english.TryGetValue(k, out var w) ? w : "").ToArray();
         // The discovery list's rarity words, in GcRarity order (Common, Uncommon, Rare).
         var rarities = new[] { "COMMON", "UNCOMMON", "RARE" }.Select(k => english.TryGetValue(k, out var w) ? w : "").ToArray();
+        // The hemisphere words, in GcCreatureHemiSphere order after Any (Northern, Southern): "Found in the North".
+        var hemispheres = new[] { "UI_CRE_HEMISPHERE_NORTH", "UI_CRE_HEMISPHERE_SOUTH" }.Select(k => english.TryGetValue(k, out var w) ? w : "").ToArray();
+        // The habitat words in GcTerrainTileType order, as 0x14077b2e0 lists them (no text for Liquid / Substance: "").
+        var terrains = Enum.GetNames<GcTerrainTileType.TileTypeEnum>()
+            .Select(n => english.TryGetValue("UI_CRE_TERRAIN_" + (n switch { "Base" => "BASE", "Underwater" => "WATER", _ => n.ToUpperInvariant() }), out var w) ? w : "")
+            .ToArray();
         return new CreatureTables(globals, creatures.ToArray(), archetypeLists, domainArchetypes, ecosystemTables, sizes,
             genders.Count > 0 ? genders.ToArray() : null, activities.All(w => w.Length > 0) ? activities : null,
             rarities.All(w => w.Length > 0) ? rarities : null, robotGenders.Count > 0 ? robotGenders.ToArray() : null, text,
-            Produce(cg), ProduceNames(cg, decode, english), PetBattle(decode, english));
+            Produce(cg), ProduceNames(cg, decode, english), PetBattle(decode, english),
+            hemispheres.All(w => w.Length > 0) ? hemispheres : null, terrains.Any(w => w.Length > 0) ? terrains : null);
     }
 
     private static InventoryGenerationTables? InventoryTables(Func<string, NMSTemplate?> decode)

@@ -10,12 +10,34 @@ namespace ArtifactX.Core.Universe;
 /// Scale is the species' spawn scale and SizeClass its GcCreatureSizeClasses bucket (Small 0 to Huge 3), which
 /// feeds the genus seed; both 0 on catalogs before format 79 (see <see cref="PlanetProfileGenerator.SpeciesScale"/>).
 /// SpeciesId is the creature ID its species seed is made from: the scene's own creature component Id (CRAB spawns
-/// SPIDER's scene data), else Id.</summary>
+/// SPIDER's scene data), else Id. HemiSphere is the role data's GcCreatureHemiSphere (0 Any, 1 Northern, 2 Southern):
+/// the discovery list's "Found in the North / South" (see <see cref="PlanetProfileGenerator.HemiSphereFor"/>).</summary>
 public sealed record PredictedCreature(string Id, string Domain, int Role, ulong Seed = 0, int CreatureType = 0, int Diet = 0,
     int MinSize = 0, int MaxSize = 0, float Scale = 0, int SizeClass = 0, string SpeciesId = "", PredictedCreatureInfo? Info = null,
-    int Density = 0, float GroupsPerKm = 0, int ActiveTime = 2)
+    int Density = 0, float GroupsPerKm = 0, int ActiveTime = 2, int HemiSphere = 0, int TileType = -1)
 {
-    public string Habitat => Domain switch
+    /// <summary>The terrain the habitat word is read from (NMS.exe 184271 0x14077b2e0): Air (0) for creatures of type
+    /// Bird, FlyingLizard, FlyingSnake, Butterfly (1-4) or ProtoFlyer (48), wherever they spawn; else the role's
+    /// TileType, its table's (GcCreatureRoleDescriptionTable +0x1C, copied in 0x1416d60e0); null when the game data
+    /// predates TileType (catalog format 85).</summary>
+    public int? HabitatTile => CreatureType is >= 1 and <= 4 or 48 ? 0 : TileType >= 0 ? TileType : null;
+
+    /// <summary>The discovery list's habitat word (NMS.exe 184271 0x14077b2e0): the role's terrain, except that
+    /// creatures of type Bird, FlyingLizard, FlyingSnake, Butterfly (1-4) or ProtoFlyer (48) always read "Flying",
+    /// even from a ground table (owner's Unst Prime list, 2026-11-12: large butterflies and a small bird from the
+    /// ground tables show "Flying").</summary>
+    public string Habitat => HabitatTile switch
+    {
+        0 => "Flying",
+        3 => "Mountainous",
+        4 => "Underwater",
+        5 => "Underground",
+        >= 1 => "Ground",
+        _ => DomainHabitat,
+    };
+
+    /// <summary>The habitat by domain, for game data without TileType.</summary>
+    private string DomainHabitat => Domain switch
     {
         "air" => "Flying",
         "water" => "Underwater",
@@ -128,7 +150,8 @@ public sealed record CreatureDomainArchetype(
 
 /// <summary>A creature role candidate within an ecosystem role table (GcCreatureRoleDescriptionTable). MinSize and
 /// MaxSize (GcCreatureSizeClasses, catalog format 79; 0 on older catalogs) bound the creature's size class.
-/// ActiveTime (GcCreatureActiveTime, format 80; AnyTime on older catalogs) is when it's about.</summary>
+/// ActiveTime (GcCreatureActiveTime, format 80; AnyTime on older catalogs) is when it's about. TileType (format 85;
+/// -1 on older catalogs) is its table's GcTerrainTileType, which the role data copies and the habitat word reads.</summary>
 public sealed record CreatureRoleCandidate(
     string ForceId,
     string ReqTag,
@@ -138,9 +161,12 @@ public sealed record CreatureRoleCandidate(
     int Role,
     int MinSize = 0,
     int MaxSize = 0,
-    int ActiveTime = 2);
+    int ActiveTime = 2,
+    int TileType = -1);
 
-/// <summary>All creature generation data extracted from the game files.</summary>
+/// <summary>All creature generation data extracted from the game files. HemiSphereWords (catalog format 84; null before)
+/// are UI_CRE_HEMISPHERE_NORTH / _SOUTH ("Found in the North", "Found in the South"); TerrainWords (format 85) the
+/// habitat words UI_CRE_TERRAIN_* in GcTerrainTileType order (Air "Flying", Base "Ground" ... Cave "Underground").</summary>
 public sealed record CreatureTables(
     CreatureGlobals Globals,
     CreatureEntry[] Creatures,
@@ -155,8 +181,16 @@ public sealed record CreatureTables(
     CreatureTextWords? Text = null,
     Dictionary<string, string>? Produce = null,
     Dictionary<string, string>? ProduceNames = null,
-    PetBattleTables? PetBattle = null)
+    PetBattleTables? PetBattle = null,
+    string[]? HemiSphereWords = null,
+    string[]? TerrainWords = null)
 {
+    /// <summary>The discovery list's habitat word ("Flying", "Underground"), from the game's words when the game data
+    /// has them (format 85), else the English fallback (<see cref="PredictedCreature.Habitat"/>).</summary>
+    public string HabitatOf(PredictedCreature creature) =>
+        TerrainWords is { } words && creature.HabitatTile is int tile && tile >= 0 && tile < words.Length && words[tile].Length > 0
+            ? words[tile] : creature.Habitat;
+
     /// <summary>The item a kind of creature produces when fed (the analysis visor's "Produces"): its HarvestingProducts
     /// entry by the spawned creature's id, else Wild Milk (FOOD_V_MILK, NMS.exe 0x1412431d0's default); null on game
     /// data before format 80.</summary>
@@ -421,7 +455,8 @@ public static partial class PlanetProfileGenerator
         stack.Pop();
 
         // 5. Tables
-        var collectedTables = new List<(CreatureDomainTableEntry Entry, string Domain)>();
+        // Each collected table carries how many of its roles are limited to one hemisphere (cGcRoleTableData +8).
+        var collectedTables = new List<(CreatureDomainTableEntry Entry, string Domain, int[] Hemi)>();
         stack.Push();
         string?[] chosen = [ground, air, water, cave];
 
@@ -434,18 +469,12 @@ public static partial class PlanetProfileGenerator
             {
                 stack.Push();
                 stack.Push();
-                if (arch.ChanceHemi > stack.NextFraction())
-                {
-                    for (int m = 0; m < arch.MaxHemi; m++)
-                    {
-                        _ = (uint)(((ulong)stack.Next() * (ulong)arch.Tables.Length) >> 32);
-                    }
-                }
+                var hemi = HemiSphereCounts(stack, arch.ChanceHemi, arch.MaxHemi, arch.Tables.Length);
                 stack.Pop();
                 for (int t = 0; t < arch.Tables.Length; t++)
                 {
                     if (!string.IsNullOrEmpty(arch.Tables[t].Table))
-                        collectedTables.Add((arch.Tables[t], DomainNames[d]));
+                        collectedTables.Add((arch.Tables[t], DomainNames[d], [hemi[t]]));
                 }
                 stack.Pop();
             }
@@ -464,17 +493,12 @@ public static partial class PlanetProfileGenerator
                 {
                     var ae = arch.Additional[a];
                     stack.Push();
-                    if (ae.ChanceHemi > stack.NextFraction())
-                    {
-                        for (int m = 0; m < ae.MaxHemi; m++)
-                        {
-                            _ = (uint)(((ulong)stack.Next() * (ulong)ae.Tables.Length) >> 32);
-                        }
-                    }
+                    var hemi = HemiSphereCounts(stack, ae.ChanceHemi, ae.MaxHemi, ae.Tables.Length);
                     stack.Pop();
 
+                    // Picks by index into the tables still available; the hemisphere counts follow the original index.
                     int countToPick = ae.Count;
-                    var avail = new List<CreatureDomainTableEntry>(ae.Tables);
+                    var avail = Enumerable.Range(0, ae.Tables.Length).ToList();
                     if (countToPick > avail.Count) countToPick = avail.Count;
                     for (int p = 0; p < countToPick; p++)
                     {
@@ -482,10 +506,11 @@ public static partial class PlanetProfileGenerator
                         stack.Push();
                         int idx = (int)(((ulong)stack.Next() * (ulong)avail.Count) >> 32);
                         stack.Pop();
-                        var te = avail[idx];
+                        int original = avail[idx];
                         avail.RemoveAt(idx);
+                        var te = ae.Tables[original];
                         if (!string.IsNullOrEmpty(te.Table))
-                            collectedTables.Add((te, DomainNames[d]));
+                            collectedTables.Add((te, DomainNames[d], [hemi[original]]));
                     }
                 }
                 stack.Pop();
@@ -498,7 +523,7 @@ public static partial class PlanetProfileGenerator
         var chosenCreatures = new List<PredictedCreature>();
         for (int i = 0; i < collectedTables.Count; i++)
         {
-            var (te, domain) = collectedTables[i];
+            var (te, domain, hemiLeft) = collectedTables[i];
             if (!tables.EcosystemTables.TryGetValue(te.Table, out var roles)) continue;
             stack.Push();
             stack.Push();
@@ -509,7 +534,15 @@ public static partial class PlanetProfileGenerator
                 stack.Push();
                 stack.Push();
                 stack.Pop();
+                // Hemisphere, on its own child stream (so it never moves the picks): above 1 / role count, while
+                // the table has hemisphere-limited roles left, one more draw - even Southern, odd Northern.
                 stack.Push();
+                int hemiSphere = 0;
+                if (HemiSphereChance / roles.Length < stack.NextFraction() && hemiLeft[0] > 0)
+                {
+                    hemiSphere = (int)(~stack.Next() & 1) + 1;
+                    hemiLeft[0]--;
+                }
                 stack.Pop();
                 float draw = stack.NextFraction();
                 if (draw <= role.Prob && chosenCreatures.Count < 22)
@@ -565,7 +598,7 @@ public static partial class PlanetProfileGenerator
                         chosenCreatures.Add(new PredictedCreature(chosenId, domain, role.Role, seed, type, diet, role.MinSize,
                             role.MaxSize, scale, sizeClass, speciesId, Density: role.Density,
                             GroupsPerKm: GroupsPerKm(tables.Globals, domain, role.Density, te.DensityMod, faunaLevel),
-                            ActiveTime: role.ActiveTime));
+                            ActiveTime: role.ActiveTime, HemiSphere: hemiSphere, TileType: role.TileType));
                     }
                 }
                 stack.Pop();
@@ -605,6 +638,34 @@ public static partial class PlanetProfileGenerator
         int sizeClass = scale < sizes.MedMinSize ? 0 : scale < sizes.LargeMinSize ? 1 : scale < sizes.HugeMinSize ? 2 : 3;
         return (scale, sizeClass);
     }
+
+    private const float HemiSphereChance = 1.0f; // 0x144bf5c48
+
+    /// <summary>
+    /// How many roles of each of a domain's tables are limited to one hemisphere (NMS.exe 184271 0x1416d8c20, Ghidra
+    /// 2026-11-12): one draw against the archetype's ChanceOfHemisphereLimit, and when under it MaxToHemisphereLimit
+    /// draws, each adding one to the table it lands on. Which roles, and which hemisphere, is decided per role
+    /// (<see cref="HemiSphereFor"/>).
+    /// </summary>
+    private static int[] HemiSphereCounts(RngStack stack, float chance, int max, int tableCount)
+    {
+        var counts = new int[tableCount];
+        if (chance > stack.NextFraction())
+            for (int m = 0; m < max; m++)
+                counts[(int)(((ulong)stack.Next() * (ulong)tableCount) >> 32)]++;
+        return counts;
+    }
+
+    /// <summary>The discovery list's hemisphere word, "North" or "South" ("Found in the South"), for
+    /// <see cref="PredictedCreature.HemiSphere"/> 1 / 2; empty for creatures found anywhere. GenerateCreatureRoles
+    /// (0x1416d60e0) decides it per role on a child stream: a draw above 1 / the table's role count while the table
+    /// has hemisphere-limited roles left, then one draw, even = Southern, odd = Northern.</summary>
+    public static string HemiSphereFor(PredictedCreature creature) => creature.HemiSphere switch
+    {
+        1 => "North",
+        2 => "South",
+        _ => "",
+    };
 
     /// <summary>Predicts the planet's fauna total count.</summary>
     public static int GenerateFaunaCount(ulong planetSeed, int biome, int subType, int planetClass,

@@ -56,12 +56,13 @@ public static partial class PlanetProfileGenerator
         if (!robot)
         {
             // Behaviour by role, then diet by diet (water creatures: the water list), each one draw when the list has
-            // words (0x1416cdfb0 draws only then). Diet text may name the biome's plant or meat. The water test is
-            // the role data's TileType 4 in the game, taken here as "lives in water" (unconfirmed).
+            // words (0x1416cdfb0 draws only then). Diet text may name the biome's plant or meat. The water list is
+            // for roles whose TileType is Underwater (4); without TileType (before format 85), the water domain.
             var text = tables.Text;
             string[] behaviours = text is not null && creature.Role >= 0 && creature.Role < text.Behaviours.Length ? text.Behaviours[creature.Role] : [];
             behaviour = Pick(ref root, behaviours);
-            var dietLists = creature.Domain == "water" ? text?.WaterDiets : text?.Diets;
+            bool water = creature.TileType >= 0 ? creature.TileType == 4 : creature.Domain == "water";
+            var dietLists = water ? text?.WaterDiets : text?.Diets;
             string[] diets = dietLists is not null && creature.Diet >= 0 && creature.Diet < dietLists.Length ? dietLists[creature.Diet] : [];
             diet = Pick(ref root, diets);
             int b = subType == SwampSub ? Swamp : subType == LavaSub ? Lava : biome;

@@ -49,8 +49,6 @@ public sealed partial class CreatureCardViewModel : ObservableObject
     public bool HasAbout => About.Length > 0;
     /// <summary>The visor's "Trait Potential" panel: overall class, Combat Effectiveness / Agility / Health and element.</summary>
     public CreatureBattleViewModel? Battle { get; }
-    public bool HasBattle => Battle is not null;
-    public string BattleName => Battle?.AutomationName ?? "";
     public string CompanionNote { get; }
     public bool IsExtinct => Creature.Rarity == "Extinct";
     public string BadgeText => IsDiscovered ? "DISCOVERED" : "UNDISCOVERED";
