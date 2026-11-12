@@ -96,7 +96,7 @@ public sealed partial class FoodStoreControl : UserControl
 
     private void MaxAllQtyBtn_Click(object sender, RoutedEventArgs e)
     {
-        _model?.MaxAllQuantities();
+        Grid.MaxAllQuantities();
         Grid.Refresh();
         Changed?.Invoke(this, EventArgs.Empty);
     }

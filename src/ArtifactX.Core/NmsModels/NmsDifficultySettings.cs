@@ -44,6 +44,15 @@ public class NmsDifficultySettings
 
     [JsonIgnore]
     public string GameMode => Preset?.DisplayName ?? "Unknown";
+
+    /// <summary>
+    /// The save's stack-limit setting ("High", "Normal", "Low"): LyC/:fe is the active GcDifficultySettingsData, its
+    /// fields in libMBIN Index order (8 flags, then DeathConsequences n7p "ItemGrave", ... ActiveSurvivalBars tEx "All",
+    /// ..., InventoryStackLimits kZ5 at index 15, ... CreatureHostility BbG "FullEcosystem", ... Fishing B;B
+    /// "NormalCatchWindow", NPCPopulation Z52 "Full"), each option wrapping its enum (kZ5.?SS). Checked 2026-11-12 on
+    /// the owner's Slot 1 (Normal preset): kZ5.?SS = "High", and every stored slot MaxAmount fits the High sizes.
+    /// </summary>
+    public static readonly string[] InventoryStackLimitsPath = ["vLc", "6f=", "LyC", ":fe", "kZ5", "?SS"];
 }
 
 /// <summary>

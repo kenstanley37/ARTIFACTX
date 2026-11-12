@@ -76,7 +76,7 @@ public sealed partial class CorvetteCacheControl : UserControl
 
     private void MaxAllQtyBtn_Click(object sender, RoutedEventArgs e)
     {
-        _viewModel.MaxAllQuantities();
+        CacheGrid.MaxAllQuantities();
         CacheGrid.Refresh();
         PageResetBtn.Visibility = Visibility.Visible;
     }
