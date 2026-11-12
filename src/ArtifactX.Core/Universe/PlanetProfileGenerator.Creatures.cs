@@ -8,7 +8,7 @@ namespace ArtifactX.Core.Universe;
 /// Carnivore), Herbivore otherwise. CreatureType feeds the genus seed (SpeciesNames.FaunaSeeds); Diet is kept for
 /// the creature's traits. MinSize/MaxSize are the role description's size-class range (GcCreatureSizeClasses).
 /// Scale is the species' spawn scale and SizeClass its GcCreatureSizeClasses bucket (Small 0 to Huge 3), which
-/// feeds the genus seed; both 0 on catalogs before format 78 (see <see cref="PlanetProfileGenerator.SpeciesScale"/>).
+/// feeds the genus seed; both 0 on catalogs before format 79 (see <see cref="PlanetProfileGenerator.SpeciesScale"/>).
 /// SpeciesId is the creature ID its species seed is made from: the scene's own creature component Id (CRAB spawns
 /// SPIDER's scene data), else Id.</summary>
 public sealed record PredictedCreature(string Id, string Domain, int Role, ulong Seed = 0, int CreatureType = 0, int Diet = 0,
@@ -57,8 +57,8 @@ public sealed record CreatureGlobals(
 
 /// <summary>An individual creature definition from GcCreatureDataTable (filtered by GcCreatureFilenameTable).
 /// Type is its ForceType (what roles filter on); RealType (catalog format 78; 0 on older catalogs) is the type the
-/// spawned creature reports. MinScale/MaxScale (format 78) bound its spawn scale. TagRarities (format 78) is each
-/// tag's RarityOverride, the rarity a role requiring that tag weighs it by. SpeciesId (format 78; "" when unknown) is
+/// spawned creature reports. MinScale/MaxScale (format 79) bound its spawn scale. TagRarities (format 79) is each
+/// tag's RarityOverride, the rarity a role requiring that tag weighs it by. SpeciesId (format 79; "" when unknown) is
 /// the Id in its scene's creature component, which names the species (the CRAB scene says SPIDER).</summary>
 public sealed record CreatureEntry(
     string Id,
@@ -119,7 +119,7 @@ public sealed record CreatureDomainArchetype(
     CreatureDomainAdditional[] Additional);
 
 /// <summary>A creature role candidate within an ecosystem role table (GcCreatureRoleDescriptionTable). MinSize and
-/// MaxSize (GcCreatureSizeClasses, catalog format 78; 0 on older catalogs) bound the creature's size class.</summary>
+/// MaxSize (GcCreatureSizeClasses, catalog format 79; 0 on older catalogs) bound the creature's size class.</summary>
 public sealed record CreatureRoleCandidate(
     string ForceId,
     string ReqTag,
@@ -139,7 +139,7 @@ public sealed record CreatureTables(
     Dictionary<string, CreatureRoleCandidate[]> EcosystemTables,
     CreatureSizeGlobals? Sizes = null);
 
-/// <summary>GcCreatureGlobals' size settings (catalog format 78; null on older catalogs): the scales where the
+/// <summary>GcCreatureGlobals' size settings (catalog format 79; null on older catalogs): the scales where the
 /// Medium, Large and Huge size classes start, and the largest scale any creature spawns at.</summary>
 public sealed record CreatureSizeGlobals(float MedMinSize, float LargeMinSize, float HugeMinSize, float MaxCreatureSize);
 

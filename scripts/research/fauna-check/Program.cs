@@ -116,6 +116,7 @@ if (args.Length > 2)
     var allNames = new List<(ulong Address, ulong B2, ulong B3)>();
     var resourceHash = new Dictionary<(ulong, ulong), ulong>();
     var discoveryYear = new Dictionary<(ulong, ulong), int>();
+    var recent = new List<(ulong Address, ulong Seed, ulong B2, ulong B3)>();
     var examples = new List<string>();
     var perPlanet = new Dictionary<ulong, (int, int)>();
     var byYear = new SortedDictionary<int, (int, int)>();
@@ -169,6 +170,10 @@ if (args.Length > 2)
             byYear[year] = seeds.Contains(seed) ? (yt.Item1 + 1, yt.Item2) : (yt.Item1, yt.Item2 + 1);
             if (v.Count >= 2 && ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ParsePackedAddress(v[1]) is ulong n1)
                 resourceHash[(address, seed)] = n1;
+            if (Environment.GetEnvironmentVariable("SINCE") is string since && record.SelectToken("ksu.3I1")?.Value<long>() >= long.Parse(since)
+                && v.Count >= 4 && ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ParsePackedAddress(v[2]) is ulong r2
+                && ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ParsePackedAddress(v[3]) is ulong r3)
+                recent.Add((address, seed, r2, r3));
             if (seeds.Contains(seed) && v.Count >= 4 && creatureBySeed.TryGetValue(seed, out var pn)
                 && ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ParsePackedAddress(v[2]) is ulong b2
                 && ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ParsePackedAddress(v[3]) is ulong b3)
@@ -308,6 +313,68 @@ if (args.Length > 2)
         foreach (var t in sceneTally.OrderByDescending(k => k.Value).Take(45)) Console.WriteLine($"  scene x{t.Value}: {t.Key}");
     }
     Console.WriteLine($"name seeds tested {tested}: species {speciesHit}, genus {genusHit}, both {bothHit}");
+    {
+        List<string> words;
+        using (var cc = new SqliteConnection($"Data Source={catalog};Mode=ReadOnly"))
+        {
+            cc.Open();
+            var cmd = cc.CreateCommand();
+            cmd.CommandText = "SELECT i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='MultiToolNameWords' AND i.NameEnglish='CRE'";
+            words = JsonSerializer.Deserialize<List<string>>((string)cmd.ExecuteScalar()!)!;
+        }
+        foreach (var (address, seed, r2, r3) in recent)
+        {
+            string real = ArtifactX.Core.Procedural.SpeciesNames.Fauna(r2, r3, words) ?? "?";
+            string predictedName = "not predicted";
+            if (creatureBySeed.TryGetValue(seed, out var pc))
+            {
+                var c = pc.C;
+                var (sp, ge) = ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(seed, c.SpeciesId, address, c.CreatureType, c.SizeClass);
+                predictedName = $"{ArtifactX.Core.Procedural.SpeciesNames.Fauna(sp, ge, words)} ({c.Id}, species id {c.SpeciesId}, type {c.CreatureType}, size {c.SizeClass}, scale {c.Scale:F2})";
+            }
+            Console.WriteLine($"  recent {address:X}: game {real} | predicted {predictedName}");
+        }
+    }
+    // PLAYER_PLANET=1: the predicted species names on the planet the newest save's player stands on.
+    if (Environment.GetEnvironmentVariable("PLAYER_PLANET") == "1")
+        foreach (var file in Directory.EnumerateFiles(args[2], "save*.hg.json", SearchOption.AllDirectories).OrderByDescending(File.GetLastWriteTimeUtc).Take(1))
+        {
+            Newtonsoft.Json.Linq.JToken root;
+            using (var reader = new Newtonsoft.Json.JsonTextReader(new StreamReader(file)) { SupportMultipleContent = true })
+                root = Newtonsoft.Json.Linq.JToken.ReadFrom(reader);
+            if (ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ReadSystemAddress(root["vLc"]?["6f="]?["yhJ"]) is not ulong systemHere)
+            {
+                Console.WriteLine("  player address not found");
+                continue;
+            }
+            int jsv = root["vLc"]?["6f="]?["yhJ"]?["oZw"]?["jsv"]?.Value<int>() ?? 0;
+            foreach (int index in new[] { jsv - 1, jsv })
+            {
+            if (index < 0) continue;
+            ulong here = systemHere;
+            var (code, galaxy) = Gen(here & ~(0xFUL << 52));
+            var types = PlanetGenerator.Generate(code, galaxy, biomes);
+            var attributes = SystemGenerator.Attributes(code, galaxy);
+            var bodySeeds = SystemGenerator.Bodies(code, galaxy).PlanetSeeds;
+            var p = PlanetProfileGenerator.Generate(bodySeeds[index], index, types[index], (int)attributes.Star, PlanetGenerator.GalaxyType(galaxy),
+                attributes.GasGiantPlanet, profiles, attributes.Uncharted, attributes.Abandoned);
+            List<string> words;
+            using (var cc = new SqliteConnection($"Data Source={catalog};Mode=ReadOnly"))
+            {
+                cc.Open();
+                var cmd = cc.CreateCommand();
+                cmd.CommandText = "SELECT i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='MultiToolNameWords' AND i.NameEnglish='CRE'";
+                words = JsonSerializer.Deserialize<List<string>>((string)cmd.ExecuteScalar()!)!;
+            }
+            Console.WriteLine($"  player at {here:X16}, planet index {index}");
+            foreach (var c in p.PredictedCreatures ?? [])
+            {
+                ulong planetAddress = (here & ~(0xFUL << 52)) | ((ulong)(index + 1) << 52);
+                var (sp, ge) = ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(c.Seed, c.SpeciesId, planetAddress, c.CreatureType, c.SizeClass);
+                Console.WriteLine($"  predicted on this planet: {ArtifactX.Core.Procedural.SpeciesNames.Fauna(sp, ge, words)} ({c.Id}, {c.Habitat}, size {c.SizeClass})");
+            }
+            }
+        }
     foreach (var (y, (n, sp, ge, bo)) in nameByYear) Console.WriteLine($"  names {y}: {n} discoveries, species {sp}, genus {ge}, both {bo}");
     foreach (var m in speciesMiss.OrderByDescending(k => k.Value).Take(15)) Console.WriteLine($"  species miss x{m.Value}: {m.Key}");
     foreach (var m in genusMiss.OrderByDescending(k => k.Value).Take(15)) Console.WriteLine($"  genus miss x{m.Value}: {m.Key}");

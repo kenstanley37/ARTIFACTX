@@ -54,7 +54,7 @@ public sealed class CreatureNameService
     public string? MineralRecord(ulong seed) => seed == 0 ? null : SpeciesNames.Mineral(seed, _mineralSuffix);
 
     /// <summary>The species name the game will give a predicted creature when it's discovered, or null when the game
-    /// data predates catalog format 78 (no spawn scale, so no genus seed) or the words are missing. Right for 97% of
+    /// data predates catalog format 79 (no spawn scale, so no genus seed) or the words are missing. Right for 97% of
     /// the owner's 2026 discoveries (SpeciesNames.FaunaSeeds).</summary>
     public string? PredictedSpecies(PredictedCreature creature, ulong planetAddress)
     {
