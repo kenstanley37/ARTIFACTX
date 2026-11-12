@@ -10,21 +10,31 @@ namespace ArtifactX.WinUI3.ViewModels.ExploreViewModels;
 public sealed partial class CreatureCardViewModel : ObservableObject
 {
     public CreatureCardViewModel(Creature creature, ulong system, int planet, string? rigId = null, bool isDiscovered = true, string about = "",
-        CreatureBattleViewModel? battle = null)
+        CreatureBattleViewModel? battle = null, bool? canTame = null)
     {
         About = about;
-        Battle = battle;
         Creature = creature;
         RigId = rigId ?? "antelope";
         IsDiscovered = isDiscovered;
         Traits = string.Join(" · ", new[] { creature.Rarity, creature.Habitat, creature.Activity }.Where(s => s.Length > 0));
         Body = string.Join(" · ", new[] { creature.Gender, creature.Size }.Where(s => s.Length > 0));
-        string? noPet = IsExtinct ? "extinct"
-            : creature.Habitat.Contains("Underwater", StringComparison.OrdinalIgnoreCase) ? "lives underwater"
+        // The game's own flag (CanBeUsedInPetBattler) when the game data has it; otherwise a guess from the habitat.
+        // Some hovering kinds (flying lizards, snakes, beetles) can be pets, so the guess only applies without the flag.
+        string? reason = creature.Habitat.Contains("Underwater", StringComparison.OrdinalIgnoreCase) ? "lives underwater"
             : Regex.IsMatch(creature.Habitat, "Fly|Flight|Air|Sky", RegexOptions.IgnoreCase) ? "flies"
             : null;
-        CompanionNote = noPet is null ? "" : $"Can't be a companion - {noPet}";
+        string? noPet = IsExtinct ? "extinct"
+            : canTame == true ? null
+            : canTame == false ? reason ?? ""
+            : reason;
+        CanTame = noPet is null;
+        CompanionNote = noPet is null ? "" : noPet.Length > 0 ? $"Can't be a companion - {noPet}" : "Can't be a companion";
+        // Battle stats only matter for creatures a player can adopt.
+        Battle = CanTame ? battle : null;
     }
+
+    /// <summary>Whether a player can adopt this creature (and so take it into pet battles); untameable cards go last.</summary>
+    public bool CanTame { get; }
 
     public Creature Creature { get; }
     public string RigId { get; }

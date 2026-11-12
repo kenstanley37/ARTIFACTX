@@ -62,7 +62,9 @@ public sealed record CreatureGlobals(
 /// tag's RarityOverride, the rarity a role requiring that tag weighs it by. SpeciesId (format 79; "" when unknown) is
 /// the Id in its scene's creature component, which names the species (the CRAB scene says SPIDER). Scene (format 80)
 /// is its model, GcCreatureFilenameTable's Filename. ForcedAffinity (format 82) is its pet-battle element when set
-/// (GcPetBattlerAffinity, 1-8; 0 = by biome).</summary>
+/// (GcPetBattlerAffinity, 1-8; 0 = by biome). PetBattler (format 83; null on older catalogs) is its
+/// CanBeUsedInPetBattler: whether players can adopt it as a battle pet (46 of 86 kinds in build 184271; no fish, birds,
+/// diggers, worms or deep-sea creatures).</summary>
 public sealed record CreatureEntry(
     string Id,
     int Type,
@@ -78,7 +80,8 @@ public sealed record CreatureEntry(
     int[]? TagRarities = null,
     string SpeciesId = "",
     string Scene = "",
-    int ForcedAffinity = 0);
+    int ForcedAffinity = 0,
+    bool? PetBattler = null);
 
 /// <summary>An archetype option entry with an ID and a weight.</summary>
 public sealed record CreatureWeightedEntry(string Id, float Weight);
@@ -160,6 +163,15 @@ public sealed record CreatureTables(
     public string? ProduceOf(PredictedCreature creature) => Produce is null ? null
         : Produce.TryGetValue(string.IsNullOrEmpty(creature.SpeciesId) ? creature.Id : creature.SpeciesId, out var item) ? item
         : Produce.TryGetValue(creature.Id, out item) ? item : "FOOD_V_MILK";
+
+    /// <summary>Whether players can adopt this kind of creature as a battle pet (the spawned creature data's
+    /// CanBeUsedInPetBattler, by species id then kind); null when the game data predates format 83.</summary>
+    public bool? CanBattle(PredictedCreature creature)
+    {
+        string id = string.IsNullOrEmpty(creature.SpeciesId) ? creature.Id : creature.SpeciesId;
+        var data = Array.Find(Creatures, c => c.Id == id) ?? Array.Find(Creatures, c => c.Id == creature.Id);
+        return data?.PetBattler;
+    }
 }
 
 /// <summary>Pet-battle tables (catalog format 82, GcGameTableGlobals): ClassRolls are the C/B/A/S weights per core stat

@@ -67,7 +67,8 @@
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Grid.Column="1" Text="{x:Bind Creature.Battle.Heading, Mode=OneWay}"
-                                   Style="{StaticResource ThemeEyebrowStyle}" FontSize="10" VerticalAlignment="Center"/>
+                                   Style="{StaticResource ThemeEyebrowStyle}" FontSize="10" VerticalAlignment="Center"
+                                   TextWrapping="WrapWholeWords"/>
                         <Border Grid.Column="2" Visibility="{x:Bind Creature.Battle.HasElement, Mode=OneWay}"
                                 CornerRadius="4" Padding="6,2" BorderThickness="1" BorderBrush="{ThemeResource ThemeLineBrush}"
                                 Background="{ThemeResource ThemeVoidBrush}" VerticalAlignment="Center">

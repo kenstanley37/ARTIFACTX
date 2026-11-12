@@ -328,7 +328,8 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 var disc = saveDiscoveries[slot.Discovery];
                 allCards.Add(new CreatureCardViewModel(creature, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: true,
                     about: same ? CreatureTraitText.About(pred!, PlanetTypesService.CreatureTables) : "",
-                    battle: same ? Panel(CreatureTraitText.Battle(pred!, PlanetTypesService.CreatureTables, disc.SpeciesSeed, disc.GenusSeed)) : null));
+                    battle: same ? Panel(CreatureTraitText.Battle(pred!, PlanetTypesService.CreatureTables, disc.SpeciesSeed, disc.GenusSeed)) : null,
+                    canTame: same ? PlanetTypesService.CreatureTables?.CanBattle(pred!) : null));
                 continue;
             }
 
@@ -348,9 +349,13 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 planet.Address, pred.CreatureType, pred.SizeClass);
             allCards.Add(new CreatureCardViewModel(unscanned, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: false,
                 about: predictedName is null ? "" : CreatureTraitText.About(pred, PlanetTypesService.CreatureTables),
-                battle: predictedName is null ? null : Panel(CreatureTraitText.Battle(pred, PlanetTypesService.CreatureTables, speciesSeed, genusSeed))));
+                battle: predictedName is null ? null : Panel(CreatureTraitText.Battle(pred, PlanetTypesService.CreatureTables, speciesSeed, genusSeed)),
+                canTame: PlanetTypesService.CreatureTables?.CanBattle(pred)));
         }
 
+        // Creatures a player can adopt first (their battle stats are what people look for), the rest after; the
+        // sort is stable, so each group keeps the game's order.
+        allCards = allCards.OrderBy(c => c.CanTame ? 0 : 1).ToList();
         Creatures = allCards;
         ShowSpeciesLeft(planet, allCards);
     }

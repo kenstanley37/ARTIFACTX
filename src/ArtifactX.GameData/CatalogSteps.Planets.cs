@@ -427,7 +427,8 @@ public static partial class CatalogSteps
                     tagRows.Select(t => (int)t.RarityOverride.CreatureRarity).ToArray(),
                     sceneIds.GetValueOrDefault(id, ""),
                     scenes.GetValueOrDefault(id, ""),
-                    (int)c.PetBattlerForcedAffinity.PetBattlerAffinity));
+                    (int)c.PetBattlerForcedAffinity.PetBattlerAffinity,
+                    c.CanBeUsedInPetBattler));
             }
         }
 
