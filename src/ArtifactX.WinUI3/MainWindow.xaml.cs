@@ -166,6 +166,7 @@ public sealed partial class MainWindow : Window
         SquadronPathIcon.Data = G(NavIconGeometries.Squadron);
         CargoPathIcon.Data = G(NavIconGeometries.BaseStorage);
         CompanionsPathIcon.Data = G(NavIconGeometries.Companions);
+        CreatureFinderPathIcon.Data = G(NavIconGeometries.Companions);
         SettlementsPathIcon.Data = G(NavIconGeometries.Settlements);
         SpaceStationsPathIcon.Data = G(NavIconGeometries.SpaceStations);
         PlanetsPathIcon.Data = G(NavIconGeometries.Planets);
@@ -442,6 +443,7 @@ public sealed partial class MainWindow : Window
         CrashedShipsNavItem.Visibility = PlanetsNavItem.Visibility;
         CabinetMultiToolsNavItem.Visibility = PlanetsNavItem.Visibility;
         PlanetFinderNavItem.Visibility = PlanetsNavItem.Visibility;
+        CreatureFinderNavItem.Visibility = PlanetsNavItem.Visibility;
         NearCoreNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         GalaxyTransferNavItem.Visibility = NearCoreNavItem.Visibility;
         RegionsNavItem.Visibility = NearCoreNavItem.Visibility;

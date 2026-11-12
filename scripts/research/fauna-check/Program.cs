@@ -20,6 +20,29 @@ var biomes = Row<BiomeTables>("BIOMETABLES");
 var profiles = Row<PlanetProfileTables>("PLANETPROFILE");
 Console.WriteLine($"creature tables loaded: {profiles.Creatures is not null}");
 
+// TIMING=1: how long a whole-system profile takes (the creature finder predicts every known system).
+if (Environment.GetEnvironmentVariable("TIMING") == "1")
+{
+    var rnd = new Random(1);
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    int bodies = 0, creatures = 0;
+    for (int n = 0; n < 300; n++)
+    {
+        ulong code = ((ulong)rnd.Next(0x1000) << 32) | (uint)rnd.Next(0x7FFFFFFF);
+        var types = PlanetGenerator.Generate(code, 0, biomes);
+        var attributes = SystemGenerator.Attributes(code, 0);
+        var seeds = SystemGenerator.Bodies(code, 0).PlanetSeeds;
+        for (int i = 0; i < types.Length && i < seeds.Length; i++)
+        {
+            var p = PlanetProfileGenerator.Generate(seeds[i], i, types[i], (int)attributes.Star, PlanetGenerator.GalaxyType(0),
+                attributes.GasGiantPlanet, profiles, attributes.Uncharted, attributes.Abandoned);
+            bodies++; creatures += p.PredictedCreatures?.Count() ?? 0;
+        }
+    }
+    Console.WriteLine($"300 systems, {bodies} bodies, {creatures} creatures: {sw.ElapsedMilliseconds} ms");
+    return;
+}
+
 var truth = new List<(ulong System, int Index, int Total)>();
 using (var u = new SqliteConnection($"Data Source={userDb};Mode=ReadOnly"))
 {

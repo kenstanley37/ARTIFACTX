@@ -276,33 +276,9 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         var predicted = profile?.PredictedCreatures ?? [];
         var nameService = await CreatureNameService.LoadAsync();
 
-        // 1. Collect save discoveries for this planet (bEr[0] is the creature's seed, bEr[2]/[3] its name seeds)
-        var saveDiscoveries = new List<(string SpeciesName, ulong Seed, ulong SpeciesSeed, ulong GenusSeed)>();
-        if (_snapshot.Discoveries is JArray discoveries)
-        {
-            int fallbackIdx = 1;
-            foreach (var record in discoveries.OfType<JObject>())
-            {
-                if (record["8P3"] is not JObject key || key["<Dn"]?.Value<string>() != "Animal") continue;
-                if (NmsSpaceStationPaths.ParsePackedAddress(key["5L6"]) is not ulong addr || addr != planet.Address) continue;
-                if (string.IsNullOrEmpty(record["ksu"]?["f5Q"]?.Value<string>()) && string.IsNullOrEmpty(record["ksu"]?["K7E"]?.Value<string>())) continue;
-                if (key["bEr"] is not JArray bEr || bEr.Count < 2) continue;
-
-                ulong seed = NmsSpaceStationPaths.ParsePackedAddress(bEr[0]) ?? 0;
-                ulong seedA = bEr.Count > 2 ? (NmsSpaceStationPaths.ParsePackedAddress(bEr[2]) ?? 0) : 0;
-                ulong seedB = bEr.Count > 3 ? (NmsSpaceStationPaths.ParsePackedAddress(bEr[3]) ?? 0) : 0;
-
-                string? custom = record["q9a"]?["q5u"]?.Value<string>()?.Trim();
-                string species = !string.IsNullOrWhiteSpace(custom)
-                    ? custom
-                    : (nameService.Companion(seedA, seedB) ?? $"Species #{fallbackIdx++}");
-
-                if (saveDiscoveries.Any(s => string.Equals(s.SpeciesName, species, StringComparison.OrdinalIgnoreCase)))
-                    continue;
-
-                saveDiscoveries.Add((species, seed, seedA, seedB));
-            }
-        }
+        // 1. The save's discoveries on this planet (bEr[0] is the creature's seed, bEr[2]/[3] its name seeds).
+        var saveDiscoveries = FaunaDiscoveryService.ReadAll(_snapshot.Discoveries as JArray, nameService)
+            .GetValueOrDefault(planet.Address) ?? [];
 
         // 2. One card per predicted creature, its discovery found by seed (PlanetFaunaPairing), then any discoveries
         //    beyond the predicted list.

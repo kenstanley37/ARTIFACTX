@@ -293,6 +293,11 @@
                                 <FontIcon Glyph="&#xE721;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
+                        <NavigationViewItem x:Name="CreatureFinderNavItem" Content="Creature Finder" Tag="CreatureFinder">
+                            <NavigationViewItem.Icon>
+                                <PathIcon x:Name="CreatureFinderPathIcon"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
                         <NavigationViewItem Content="Finds" Tag="Finds">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE734;" FontFamily="Segoe MDL2 Assets"/>
