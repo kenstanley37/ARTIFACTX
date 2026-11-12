@@ -215,6 +215,13 @@ the map and each product's NameLower ("Leopard-Fruit").
 Catalog format 80: gender, behaviour, diet and note words, the role's `ActiveTime` and its words. Fauna totals (986 / 986) and species names
 (881 / 904 this year) unchanged.
 
+**Pet battle stats (not started):** the analysis visor's "Trait Potential" panel (Combat Effectiveness, Agility,
+Health classes and the element) is drawn by `0x140757700` (`UI_PB_BINOC_HEADER_WILD`) from stats its caller
+`0x1412da090` builds: pet data for the wild creature, then `0x1413cfa80` for the battler stats; the element is the
+creature data's `PetBattlerForcedAffinity` (+0xcc) unless 0 or 9, else a per-biome table (`0x145328c9c`). Ground
+truth: the owner's three 2026-11-11 visor screenshots (I. Elephabatum C/C/C Fire, N. Dasiythrodia B/A/S Fire,
+H. Scrofbuyae S/B/S Fire; trait potential C, A, S).
+
 ## Next layers
 
 1. ~~Waterworld air rule~~ (solved above).
