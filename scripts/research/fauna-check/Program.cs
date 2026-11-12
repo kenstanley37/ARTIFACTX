@@ -261,6 +261,47 @@ foreach (var ((system, index), habitats) in recorded)
 Console.WriteLine($"planets with recorded creatures {planets}: habitats fit {fit}, don't fit {misfit}");
 foreach (var l in misfitLines.Take(12)) Console.WriteLine("  " + l);
 
+// WHERE=<name,name,...> with the Working folder as third argument: the planet each named creature's discovery record
+// says it lives on (bEr[2]/bEr[3] name seeds -> species name), to tell a capture filed under the wrong planet.
+if (Environment.GetEnvironmentVariable("WHERE") is { Length: > 0 } whereArg && args.Length > 2)
+{
+    var wanted = whereArg.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    List<string> creWords;
+    using (var cc = new SqliteConnection($"Data Source={catalog};Mode=ReadOnly"))
+    {
+        cc.Open();
+        var cmd = cc.CreateCommand();
+        cmd.CommandText = "SELECT i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='MultiToolNameWords' AND i.NameEnglish='CRE'";
+        creWords = JsonSerializer.Deserialize<List<string>>((string)cmd.ExecuteScalar()!)!;
+    }
+    var hits = new SortedSet<string>();
+    foreach (var file in Directory.EnumerateFiles(args[2], "save*.hg.json", SearchOption.AllDirectories))
+    {
+        Newtonsoft.Json.Linq.JToken? root;
+        try
+        {
+            using var reader = new Newtonsoft.Json.JsonTextReader(new StreamReader(file)) { SupportMultipleContent = true };
+            root = Newtonsoft.Json.Linq.JToken.ReadFrom(reader);
+        }
+        catch { continue; }
+        if (root?.SelectToken("fDu.ETO.OsQ.?fB") is not Newtonsoft.Json.Linq.JArray discoveries) continue;
+        foreach (var record in discoveries.OfType<Newtonsoft.Json.Linq.JObject>())
+        {
+            if (record["8P3"] is not Newtonsoft.Json.Linq.JObject key || key["<Dn"]?.Value<string>() != "Animal") continue;
+            if (ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ParsePackedAddress(key["5L6"]) is not ulong address) continue;
+            if (key["bEr"] is not Newtonsoft.Json.Linq.JArray v || v.Count < 4) continue;
+            if (ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ParsePackedAddress(v[2]) is not ulong a
+                || ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ParsePackedAddress(v[3]) is not ulong b) continue;
+            string? name = ArtifactX.Core.Procedural.SpeciesNames.Fauna(a, b, creWords);
+            if (name is not null && wanted.Contains(name))
+                hits.Add($"{name,-18} planet address {address:X} (system {address & ~(0xFUL << 52):X}, planet {(address >> 52) & 0xF})");
+        }
+    }
+    foreach (var h in hits) Console.WriteLine("  " + h);
+    Console.WriteLine($"{hits.Count} records for {wanted.Count} names");
+    return;
+}
+
 // Seeds: each creature discovery in the decrypted saves (read-only) stores bEr[0]; does the planet's predicted list
 // contain a creature with that seed? Usage: third argument = %AppData%\ArtifactX\Working.
 if (args.Length > 2)
