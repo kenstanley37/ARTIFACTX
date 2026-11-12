@@ -161,9 +161,10 @@ public sealed record CreatureTables(
 
 /// <summary>Behaviour and diet words (catalog format 80): per role and per diet the numbered words a creature's info
 /// picks from (GcCreatureGlobals Temperments / Diets / WaterDiets prefixes), and per biome the plant and meat words
-/// that fill %BIOME_PLANT% / %BIOME_MEAT% (DietVeg / DietMeat); Notes are the UI_CREATURE_NOTE_&lt;n&gt; words.</summary>
+/// that fill %BIOME_PLANT% / %BIOME_MEAT% (DietVeg / DietMeat); Notes are the UI_CREATURE_NOTE_&lt;n&gt; words, and the
+/// Robot* lists robots' (UI_CREA_ROBOT_BEHAVE_ / _DIET_ / _NOTE_).</summary>
 public sealed record CreatureTextWords(string[][] Behaviours, string[][] Diets, string[][] WaterDiets, string[] Plants, string[] Meats,
-    string[]? Notes = null);
+    string[]? Notes = null, string[]? RobotBehaviours = null, string[]? RobotDiets = null, string[]? RobotNotes = null);
 
 /// <summary>GcCreatureGlobals' size settings (catalog format 79; null on older catalogs): the scales where the
 /// Medium, Large and Huge size classes start, and the largest scale any creature spawns at.</summary>

@@ -95,9 +95,23 @@ public static partial class PlanetProfileGenerator
             // robot note and its description, then gender 1 and gender 2 (no "must differ" here). Checked on the
             // owner's four robots from robot worlds (gender 1 = draw 8, all four); the normal-world case is the same
             // code but not yet confirmed by a capture.
+            // Behaviour (draw 1) and diet (draw 4) here only for robots; the note is draw 6, or 4 on a normal world.
+            // Robot behaviour, diet and notes follow the confirmed draw order but aren't checked against a scan yet.
             var own = Rng.Start(creature.Seed);
-            int skip = robot ? 7 : 5;
-            for (int i = 0; i < skip; i++) own.Next();
+            var t = tables.Text;
+            if (robot)
+            {
+                behaviour = Pick(ref own, t?.RobotBehaviours ?? []);
+                own.Next(); own.Next(); // descriptions
+                diet = Pick(ref own, t?.RobotDiets ?? []);
+                own.Next(); // description
+            }
+            else
+            {
+                own.Next(); own.Next(); own.Next(); // the normal path's three descriptions
+            }
+            notes = Pick(ref own, t?.RobotNotes ?? []);
+            own.Next(); // the note's description
             gender1 = (int)(((ulong)own.Next() * (ulong)robotWords.Length) >> 32) + 1;
             gender2 = (int)(((ulong)own.Next() * (ulong)robotWords.Length) >> 32) + 1;
         }
