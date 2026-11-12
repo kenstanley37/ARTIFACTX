@@ -475,21 +475,19 @@ public static class CreatureListService
     }
 
     /// <summary>"planet Waterworld" in the notes, matched to a planet of a system the player was recently in.</summary>
+    /// <summary>The recent planet the notes name (Core NotesPlanetMatcher: "planet X" first, then the bare name with
+    /// its capitals), or null when none or several do.</summary>
     private static (ulong, int)? PlanetIn(string text)
     {
-        string norm = Regex.Replace(text, @"\s+", " ");
-        var found = new List<(ulong, int)>();
+        var candidates = new List<((ulong, int) Key, string Name)>();
         foreach (ulong system in PlanetPageReader.Recent())
         {
             var f = UniverseInfo.For(system);
             for (int b = 1; b <= f.PlanetCount + f.MoonCount; b++)
                 foreach (var name in new[] { UniverseInfo.PlanetName(system, b), UniverseInfo.GeneratedPlanetName(system, b) }.Distinct())
-                    // The name alone: the model can cover the words before it ("Di" | "lanet Waterworld", 2026-10-18).
-                    if (name.Length > 3 && Regex.IsMatch(norm, $@"(?<![\p{{L}}]){Regex.Escape(name)}(?![\p{{L}}])", RegexOptions.IgnoreCase))
-                        found.Add((system, b));
+                    candidates.Add(((system, b), name));
         }
-        found = found.Distinct().ToList();
-        return found.Count == 1 ? found[0] : null;
+        return ArtifactX.Core.Capture.NotesPlanetMatcher.Find(text, candidates);
     }
 
     private static Dictionary<string, Dictionary<string, Creature>> All
