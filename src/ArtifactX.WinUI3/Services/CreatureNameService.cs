@@ -1,5 +1,6 @@
 using ArtifactX.Core.NmsModels;
 using ArtifactX.Core.Procedural;
+using ArtifactX.Core.Universe;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -51,6 +52,18 @@ public sealed class CreatureNameService
 
     /// <summary>The mineral on a Mineral record (its UqY[1]).</summary>
     public string? MineralRecord(ulong seed) => seed == 0 ? null : SpeciesNames.Mineral(seed, _mineralSuffix);
+
+    /// <summary>The species name the game will give a predicted creature when it's discovered, or null when the game
+    /// data predates catalog format 78 (no spawn scale, so no genus seed) or the words are missing. Right for 97% of
+    /// the owner's 2026 discoveries (SpeciesNames.FaunaSeeds).</summary>
+    public string? PredictedSpecies(PredictedCreature creature, ulong planetAddress)
+    {
+        if (creature.Seed == 0 || creature.Scale <= 0 || creature.CreatureType == 0) return null;
+        var (species, genus) = SpeciesNames.FaunaSeeds(creature.Seed,
+            string.IsNullOrEmpty(creature.SpeciesId) ? creature.Id : creature.SpeciesId,
+            planetAddress, creature.CreatureType, creature.SizeClass);
+        return SpeciesNames.Fauna(species, genus, _creatureRoots);
+    }
 
     /// <summary>A companion's species from its m9o and JrL.</summary>
     public string? Companion(ulong seedA, ulong seedB) =>

@@ -1,4 +1,5 @@
 using ArtifactX.Core.NmsModels;
+using ArtifactX.Core.Universe;
 using ArtifactX.WinUI3.Controls;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -254,8 +255,8 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         var predicted = profile?.PredictedCreatures ?? [];
         var nameService = await CreatureNameService.LoadAsync();
 
-        // 1. Collect save discoveries for this planet
-        var saveDiscoveries = new List<(string SpeciesName, ulong SeedA, ulong SeedB)>();
+        // 1. Collect save discoveries for this planet (bEr[0] is the creature's seed, bEr[2]/[3] its name seeds)
+        var saveDiscoveries = new List<(string SpeciesName, ulong Seed)>();
         if (_snapshot.Discoveries is JArray discoveries)
         {
             int fallbackIdx = 1;
@@ -266,6 +267,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 if (string.IsNullOrEmpty(record["ksu"]?["f5Q"]?.Value<string>()) && string.IsNullOrEmpty(record["ksu"]?["K7E"]?.Value<string>())) continue;
                 if (key["bEr"] is not JArray bEr || bEr.Count < 2) continue;
 
+                ulong seed = NmsSpaceStationPaths.ParsePackedAddress(bEr[0]) ?? 0;
                 ulong seedA = bEr.Count > 2 ? (NmsSpaceStationPaths.ParsePackedAddress(bEr[2]) ?? 0) : 0;
                 ulong seedB = bEr.Count > 3 ? (NmsSpaceStationPaths.ParsePackedAddress(bEr[3]) ?? 0) : 0;
 
@@ -277,87 +279,40 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 if (saveDiscoveries.Any(s => string.Equals(s.SpeciesName, species, StringComparison.OrdinalIgnoreCase)))
                     continue;
 
-                saveDiscoveries.Add((species, seedA, seedB));
+                saveDiscoveries.Add((species, seed));
             }
         }
 
-        // 2. Build creature cards combining predicted species and save discoveries
+        // 2. One card per predicted creature, its discovery found by seed (PlanetFaunaPairing), then any discoveries
+        //    beyond the predicted list.
         var allCards = new List<CreatureCardViewModel>();
-        var usedDiscoveries = new HashSet<int>();
-
-        for (int i = 0; i < predicted.Length; i++)
+        var slots = PlanetFaunaPairing.Pair(predicted, saveDiscoveries.Select(d => d.Seed).ToList());
+        foreach (var slot in slots)
         {
-            var pred = predicted[i];
-            string rigId = await CreatureModelService.ResolveRigAsync(pred.Id) ?? "antelope";
+            var pred = slot.Predicted;
+            string rigId = pred is null ? FallbackRig(saveDiscoveries[slot.Discovery].SpeciesName)
+                : await CreatureModelService.ResolveRigAsync(pred.Id) ?? "antelope";
+            string habitat = pred is null ? "Native Fauna" : $"{pred.Habitat} Fauna";
 
-            // If there's an unused discovery in save, assign it to this slot
-            if (usedDiscoveries.Count < saveDiscoveries.Count)
+            if (slot.Discovery >= 0)
             {
-                int discIdx = -1;
-                for (int d = 0; d < saveDiscoveries.Count; d++)
-                {
-                    if (!usedDiscoveries.Contains(d)) { discIdx = d; break; }
-                }
-
-                if (discIdx >= 0)
-                {
-                    usedDiscoveries.Add(discIdx);
-                    var disc = saveDiscoveries[discIdx];
-                    if (!CreatureListService.IsDeleted(planet.SystemAddress, planet.PlanetIndex, disc.SpeciesName))
-                    {
-                        var creature = new Creature(
-                            Name: disc.SpeciesName,
-                            Rarity: "Discovered",
-                            Habitat: $"{pred.Habitat} Fauna",
-                            Activity: "",
-                            Gender: "",
-                            Size: "",
-                            Picture: false,
-                            SeenAt: "Discovered");
-                        allCards.Add(new CreatureCardViewModel(creature, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: true));
-                        continue;
-                    }
-                }
+                string name = saveDiscoveries[slot.Discovery].SpeciesName;
+                if (CreatureListService.IsDeleted(planet.SystemAddress, planet.PlanetIndex, name)) continue;
+                var creature = new Creature(Name: name, Rarity: "Discovered", Habitat: habitat, Activity: "", Gender: "",
+                    Size: "", Picture: false, SeenAt: "Discovered");
+                allCards.Add(new CreatureCardViewModel(creature, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: true));
+                continue;
             }
 
-            // Otherwise this is an undiscovered species
-            string unscannedName = $"Unscanned {pred.DefaultDisplayName}";
-            if (!CreatureListService.IsDeleted(planet.SystemAddress, planet.PlanetIndex, unscannedName))
-            {
-                var unscanned = new Creature(
-                    Name: unscannedName,
-                    Rarity: "Undiscovered",
-                    Habitat: $"{pred.Habitat} Fauna",
-                    Activity: "",
-                    Gender: "",
-                    Size: "",
-                    Picture: false,
-                    SeenAt: "Unscanned");
-                allCards.Add(new CreatureCardViewModel(unscanned, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: false));
-            }
-        }
-
-        // Any remaining discoveries that exceeded predicted count
-        for (int d = 0; d < saveDiscoveries.Count; d++)
-        {
-            if (usedDiscoveries.Contains(d)) continue;
-            var disc = saveDiscoveries[d];
-            if (CreatureListService.IsDeleted(planet.SystemAddress, planet.PlanetIndex, disc.SpeciesName)) continue;
-
-            uint hash = 2166136261;
-            foreach (char c in disc.SpeciesName) hash = (hash ^ c) * 16777619;
-            string rigId = CreaturePreviewControl.LandRigs[hash % (uint)CreaturePreviewControl.LandRigs.Length];
-
-            var creature = new Creature(
-                Name: disc.SpeciesName,
-                Rarity: "Discovered",
-                Habitat: "Native Fauna",
-                Activity: "",
-                Gender: "",
-                Size: "",
-                Picture: false,
-                SeenAt: "Discovered");
-            allCards.Add(new CreatureCardViewModel(creature, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: true));
+            // Not discovered yet: the species name the game will give it, marked as a prediction; older game data
+            // can't predict it, so the kind is shown instead.
+            if (pred is null) continue;
+            string? predictedName = nameService.PredictedSpecies(pred, planet.Address);
+            string unscannedName = predictedName ?? $"Unscanned {pred.DefaultDisplayName}";
+            if (CreatureListService.IsDeleted(planet.SystemAddress, planet.PlanetIndex, unscannedName)) continue;
+            var unscanned = new Creature(Name: unscannedName, Rarity: predictedName is null ? "Undiscovered" : "Predicted",
+                Habitat: habitat, Activity: "", Gender: "", Size: "", Picture: false, SeenAt: "Unscanned");
+            allCards.Add(new CreatureCardViewModel(unscanned, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: false));
         }
 
         Creatures = allCards;
@@ -367,6 +322,14 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
     /// <summary>
     /// Shows species count found vs total.
     /// </summary>
+    /// <summary>A stable land model for a discovery the generator didn't predict, picked from its name.</summary>
+    private static string FallbackRig(string speciesName)
+    {
+        uint hash = 2166136261;
+        foreach (char c in speciesName) hash = (hash ^ c) * 16777619;
+        return CreaturePreviewControl.LandRigs[hash % (uint)CreaturePreviewControl.LandRigs.Length];
+    }
+
     private void ShowSpeciesLeft(KnownPlanet planet, IReadOnlyList<CreatureCardViewModel> cards)
     {
         int? total = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex)?.FaunaTotal
