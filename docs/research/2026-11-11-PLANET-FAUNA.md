@@ -157,7 +157,11 @@ Older discoveries keep the genus seed their game version made, with other GcCrea
 21/22 where today's game says 25/26), so they can't match today's generator; that's expected. The remaining
 current misses are single wrong picks spread across kinds.
 
-Next: give predicted creatures their species names in the app (Planet Details), and match them one by one against
+**Confirmed in game, 2026-11-11 (Slot 8):** Planet Details showed the unscanned creature on Orduenev D27 as
+"P. Rainaemera (Predicted)"; scanned at 20:06 the game named it P. Rainaemera. B. Warloxigesea (Gakiraw Yonez) also
+matched the generator from a fresh decrypt. Shown in the app since `aa66a59` (catalog format 79).
+
+Next (done: names on Planet Details), and match them one by one against
 the owner's captured creatures; then traits (rarity, gender, activity, height and weight from the scale).
 
 ## Next layers
