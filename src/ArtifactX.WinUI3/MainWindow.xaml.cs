@@ -359,14 +359,16 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>Re-creates the current page so it picks up a newly applied
-    /// theme - already-built elements keep the old theme's brushes. Removes
-    /// the extra back-stack entry so Back still goes where the user expects.</summary>
+    /// theme, rebuilt game data or another save - already-built elements keep
+    /// what they read. Passes the page's own navigation parameter again (Planet
+    /// Details opened empty without its planet, 2026-11-11) and removes the extra
+    /// back-stack entry so Back still goes where the user expects.</summary>
     private void ReloadCurrentPage()
     {
         var pageType = ContentFrame.CurrentSourcePageType;
         if (pageType is null) return;
 
-        ContentFrame.Navigate(pageType);
+        ContentFrame.Navigate(pageType, _currentPageParameter);
         if (ContentFrame.BackStackDepth > 0)
             ContentFrame.BackStack.RemoveAt(ContentFrame.BackStackDepth - 1);
     }
@@ -511,7 +513,7 @@ public sealed partial class MainWindow : Window
         await SaveSessionManager.LoadAsync(slot);
         // Rebuild the page on screen from the new save (pages read it as they open).
         if (ContentFrame.CurrentSourcePageType is Type page && page != typeof(SaveFolderSelectPage))
-            ContentFrame.Navigate(page);
+            ReloadCurrentPage();
     }
 
     /// <summary>"New" counts on Multi-Tool and Starships for what the game added
@@ -629,8 +631,13 @@ public sealed partial class MainWindow : Window
             ReloadCurrentPage();
     }
 
+    /// <summary>The parameter the page on screen was opened with (a planet for Planet Details), so
+    /// ReloadCurrentPage can open it again the same way.</summary>
+    private object? _currentPageParameter;
+
     private void ContentFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
     {
+        _currentPageParameter = e.Parameter;
         string targetTag = NavigationService.ResolveNavTag(e.SourcePageType);
         if (!string.IsNullOrEmpty(targetTag))
         {
@@ -858,7 +865,7 @@ public sealed partial class MainWindow : Window
             if (ContentFrame.CurrentSourcePageType == typeof(GameDataSetupPage))
                 ShowSaveSelection();
             else if (ContentFrame.CurrentSourcePageType is Type page && page != typeof(SaveFolderSelectPage))
-                ContentFrame.Navigate(page);
+                ReloadCurrentPage();
             // The "ready" note goes away on its own.
             _gameDataReadyTimer?.Stop();
             _gameDataReadyTimer = DispatcherQueue.CreateTimer();
