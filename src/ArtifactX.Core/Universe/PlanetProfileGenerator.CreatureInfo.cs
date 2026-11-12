@@ -8,7 +8,7 @@ namespace ArtifactX.Core.Universe;
 /// ones when RobotGenders (0 when not predicted). Rarity is the discovery list's (spawn data, see RarityFor).
 /// </summary>
 public sealed record PredictedCreatureInfo(float Height1, float Weight1, float Height2, float Weight2, int Rarity,
-    int Gender1, int Gender2, bool AgeFlag, bool RobotGenders = false)
+    int Gender1, int Gender2, bool AgeFlag, bool RobotGenders = false, string Behaviour = "", string Diet = "", string Notes = "")
 {
     /// <summary>"121.5kg / 3.0m", the game's own format ("%0.1fkg / %0.1fm"), for the first form.</summary>
     public string Size => SizeText(Weight1, Height1);
@@ -45,15 +45,35 @@ public static partial class PlanetProfileGenerator
     /// WALKINGBUILDING also notes and genders; their age flag is always set. (This routine also sets GcCreatureInfo
     /// .Rarity from Height1 - above 2.0, above 1.1 - but the discovery list shows the spawn data's, RarityFor.)
     /// </summary>
-    private static PredictedCreatureInfo? CreatureInfoFor(ref Rng root, PredictedCreature creature, string? ground, CreatureTables tables)
+    private static PredictedCreatureInfo? CreatureInfoFor(ref Rng root, PredictedCreature creature, string? ground, int biome, int subType,
+        CreatureTables tables)
     {
         if (tables.Sizes is not { } sizes || tables.GenderWords is not { Length: > 0 } genders) return null;
         var entry = Array.Find(tables.Creatures, c => c.Id == creature.Id);
         bool robot = creature.Diet == 3 || ground == "ROBOT";
+        string behaviour = "", diet = "";
         if (!robot)
         {
-            root.Next(); // behaviour
-            root.Next(); // diet text
+            // Behaviour by role, then diet by diet (water creatures: the water list), each one draw when the list has
+            // words (0x1416cdfb0 draws only then). Diet text may name the biome's plant or meat. The water test is
+            // the role data's TileType 4 in the game, taken here as "lives in water" (unconfirmed).
+            var text = tables.Text;
+            string[] behaviours = text is not null && creature.Role >= 0 && creature.Role < text.Behaviours.Length ? text.Behaviours[creature.Role] : [];
+            behaviour = Pick(ref root, behaviours);
+            var dietLists = creature.Domain == "water" ? text?.WaterDiets : text?.Diets;
+            string[] diets = dietLists is not null && creature.Diet >= 0 && creature.Diet < dietLists.Length ? dietLists[creature.Diet] : [];
+            diet = Pick(ref root, diets);
+            int b = subType == SwampSub ? Swamp : subType == LavaSub ? Lava : biome;
+            if (text is not null && b >= 0)
+            {
+                if (b < text.Plants.Length) diet = diet.Replace("%BIOME_PLANT%", text.Plants[b]);
+                if (b < text.Meats.Length) diet = diet.Replace("%BIOME_MEAT%", text.Meats[b]);
+            }
+            if (text is null)
+            {
+                root.Next(); // behaviour
+                root.Next(); // diet text
+            }
         }
 
         float scale = entry is null ? 0 : SpeciesScale(creature.Seed, entry, creature.MinSize, creature.MaxSize, sizes).Scale;
@@ -66,6 +86,7 @@ public static partial class PlanetProfileGenerator
 
         int gender1 = 0, gender2 = 0;
         bool age = true;
+        string notes = "";
         bool robotGenders = robot || creature.Id is "ROBOTANTELOPE" or "WALKINGBUILDING";
         if (robotGenders && tables.RobotGenderWords is { Length: > 0 } robotWords)
         {
@@ -82,7 +103,8 @@ public static partial class PlanetProfileGenerator
         }
         else if (!robotGenders)
         {
-            root.Next(); // notes
+            if (tables.Text?.Notes is { Length: > 0 } noteWords) notes = Pick(ref root, noteWords);
+            else root.Next(); // notes
             int count = genders.Length;
             gender1 = (int)(((ulong)root.Next() * (ulong)count) >> 32) + 1;
             if (count > 1)
@@ -92,7 +114,14 @@ public static partial class PlanetProfileGenerator
         }
 
         return new PredictedCreatureInfo(height1, weight1, height2, weight2, RarityFor(creature, scale, tables.Globals),
-            gender1, gender2, age, robotGenders);
+            gender1, gender2, age, robotGenders, behaviour, diet, notes);
+    }
+
+    /// <summary>One numbered word, as 0x1416cdfb0 picks it: a draw only when there are words, n = (w * count) &gt;&gt; 32.</summary>
+    private static string Pick(ref Rng rng, string[] words)
+    {
+        if (words.Length == 0) return "";
+        return words[(int)(((ulong)rng.Next() * (ulong)words.Length) >> 32)];
     }
 
     /// <summary>

@@ -191,7 +191,15 @@ incomplete captures (gender without size or the reverse; the part recorded match
 loosely: the owner's game is in US English ("Vectorized") while the catalog reads UK English ("Vectorised"). Sizes are
 formatted through double, as printf rounds the float's exact value (146.9499 -> 146.9).
 
-Catalog format 80: gender words, the role's `ActiveTime` and its words. Fauna totals (986 / 986) and species names
+**Behaviour, diet, notes** (the analysis visor's lines): the same picks, now with their words. GcCreatureGlobals
+names a key prefix per role (`Temperments`: TEMPERAMENT_PREY...) and per diet (`Diets`, `WaterDiets` for creatures
+in water - the game tests the role's TileType 4, taken as "in water", unconfirmed); the pick draws only when keys
+exist. Diet text fills %BIOME_PLANT% / %BIOME_MEAT% from `DietVeg` / `DietMeat` by biome (swamp and lava sub-biomes
+use 12 / 13). Notes are `UI_CREATURE_NOTE_<n>`. The owner's three scans on a Hikovsky planet (2026-11-11
+screenshots) are exact: Hasty / Solar Vine / Photosensitive, Methodical / Solar Vine / Drinks blood, Peaceful /
+Solar Vine / Can sense magnetic fields. Not yet: robots' behaviour and diet (UI_CREA_ROBOT_*), Age words, Produces.
+
+Catalog format 80: gender, behaviour, diet and note words, the role's `ActiveTime` and its words. Fauna totals (986 / 986) and species names
 (881 / 904 this year) unchanged.
 
 ## Next layers

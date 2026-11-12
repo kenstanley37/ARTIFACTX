@@ -21,6 +21,18 @@ public static class CreatureTraitText
         return (rarity, activity);
     }
 
+    /// <summary>Behaviour, diet and notes as one line ("Hasty · eats Solar Vine · Photosensitive"), the analysis visor's
+    /// Behavior, Diet and Notes; empty on game data before format 80.</summary>
+    public static string About(PredictedCreature creature)
+    {
+        if (creature.Info is not { } info) return "";
+        var parts = new List<string>();
+        if (info.Behaviour.Length > 0) parts.Add(info.Behaviour);
+        if (info.Diet.Length > 0) parts.Add($"eats {info.Diet}");
+        if (info.Notes.Length > 0) parts.Add(info.Notes);
+        return string.Join(" · ", parts);
+    }
+
     /// <summary>The species' two forms, each gender with its weight and height ("Male 121.5kg / 3.0m or Female
     /// 126.2kg / 3.1m"); the game's Discoveries page shows the one you scan. Robots use their own gender words
     /// ("Electronic"); a form without a known gender shows its size alone.</summary>

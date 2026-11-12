@@ -50,6 +50,9 @@
             <!-- Gender and size: a predicted species' two forms ("Male 121.5kg / 3.0m or Female 126.2kg / 3.1m"). -->
             <TextBlock Text="{x:Bind Creature.Body, Mode=OneWay}" Visibility="{x:Bind Creature.HasBody, Mode=OneWay}"
                        Style="{StaticResource ThemeBodyTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+            <!-- Behaviour, diet and notes, as the analysis visor shows them. -->
+            <TextBlock Text="{x:Bind Creature.About, Mode=OneWay}" Visibility="{x:Bind Creature.HasAbout, Mode=OneWay}"
+                       Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
             <TextBlock Text="{x:Bind Creature.CompanionNote, Mode=OneWay}" FontSize="11"
                        Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
         </StackPanel>

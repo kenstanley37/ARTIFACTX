@@ -464,9 +464,27 @@ public static partial class CatalogSteps
             }
         }
 
-        var sizes = decode("GCCREATUREGLOBALS.MBIN") is GcCreatureGlobals cg
-            ? new CreatureSizeGlobals(cg.CreatureMedMinSize, cg.CreatureLargeMinSize, cg.CreatureHugeMinSize, cg.MaxCreatureSize)
-            : null;
+        var cg = decode("GCCREATUREGLOBALS.MBIN") as GcCreatureGlobals;
+        var sizes = cg is null ? null
+            : new CreatureSizeGlobals(cg.CreatureMedMinSize, cg.CreatureLargeMinSize, cg.CreatureHugeMinSize, cg.MaxCreatureSize);
+        // Behaviour and diet text: GcCreatureGlobals names a key prefix per role (Temperments) and per diet (Diets,
+        // WaterDiets); a creature's info picks PREFIX<n> among the keys that exist (NMS.exe 0x1416cdfb0). Diet
+        // text may hold %BIOME_PLANT% / %BIOME_MEAT%, filled from DietVeg / DietMeat by biome.
+        string[] Numbered(string prefix)
+        {
+            var words = new List<string>();
+            if (!string.IsNullOrEmpty(prefix))
+                for (int n = 1; english.TryGetValue(prefix + n, out var w); n++) words.Add(w);
+            return words.ToArray();
+        }
+        string Word(string key) => !string.IsNullOrEmpty(key) && english.TryGetValue(key, out var w) ? w : "";
+        CreatureTextWords? text = cg is null ? null : new CreatureTextWords(
+            (cg.Temperments ?? []).Select(p => Numbered(p?.Value ?? "")).ToArray(),
+            (cg.Diets ?? []).Select(p => Numbered(p?.Value ?? "")).ToArray(),
+            (cg.WaterDiets ?? []).Select(p => Numbered(p?.Value ?? "")).ToArray(),
+            (cg.DietVeg ?? []).Select(k => Word(k?.Value ?? "")).ToArray(),
+            (cg.DietMeat ?? []).Select(k => Word(k?.Value ?? "")).ToArray(),
+            Numbered("UI_CREATURE_NOTE_"));
         // The gender words a creature's info draws from (NMS.exe 0x1416cfcc0 picks "SEX" + n, n from 1 up to the
         // last key that exists: 16 in build 185034, Male to None).
         var genders = new List<string>();
@@ -481,7 +499,7 @@ public static partial class CatalogSteps
         var rarities = new[] { "COMMON", "UNCOMMON", "RARE" }.Select(k => english.TryGetValue(k, out var w) ? w : "").ToArray();
         return new CreatureTables(globals, creatures.ToArray(), archetypeLists, domainArchetypes, ecosystemTables, sizes,
             genders.Count > 0 ? genders.ToArray() : null, activities.All(w => w.Length > 0) ? activities : null,
-            rarities.All(w => w.Length > 0) ? rarities : null, robotGenders.Count > 0 ? robotGenders.ToArray() : null);
+            rarities.All(w => w.Length > 0) ? rarities : null, robotGenders.Count > 0 ? robotGenders.ToArray() : null, text);
     }
 
     private static InventoryGenerationTables? InventoryTables(Func<string, NMSTemplate?> decode)

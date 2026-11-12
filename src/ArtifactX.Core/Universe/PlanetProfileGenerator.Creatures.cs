@@ -146,7 +146,14 @@ public sealed record CreatureTables(
     string[]? GenderWords = null,
     string[]? ActivityWords = null,
     string[]? RarityWords = null,
-    string[]? RobotGenderWords = null);
+    string[]? RobotGenderWords = null,
+    CreatureTextWords? Text = null);
+
+/// <summary>Behaviour and diet words (catalog format 80): per role and per diet the numbered words a creature's info
+/// picks from (GcCreatureGlobals Temperments / Diets / WaterDiets prefixes), and per biome the plant and meat words
+/// that fill %BIOME_PLANT% / %BIOME_MEAT% (DietVeg / DietMeat); Notes are the UI_CREATURE_NOTE_&lt;n&gt; words.</summary>
+public sealed record CreatureTextWords(string[][] Behaviours, string[][] Diets, string[][] WaterDiets, string[] Plants, string[] Meats,
+    string[]? Notes = null);
 
 /// <summary>GcCreatureGlobals' size settings (catalog format 79; null on older catalogs): the scales where the
 /// Medium, Large and Huge size classes start, and the largest scale any creature spawns at.</summary>
@@ -536,7 +543,7 @@ public static partial class PlanetProfileGenerator
         // Each creature's info, in order, from the generator's own stream (0x1416cfcc0 per creature).
         var withInfo = new PredictedCreature[chosenCreatures.Count];
         for (int i = 0; i < withInfo.Length; i++)
-            withInfo[i] = chosenCreatures[i] with { Info = CreatureInfoFor(ref stack.Root, chosenCreatures[i], ground, tables) };
+            withInfo[i] = chosenCreatures[i] with { Info = CreatureInfoFor(ref stack.Root, chosenCreatures[i], ground, biome, subType, tables) };
         return (withInfo.Length, withInfo);
     }
 

@@ -374,7 +374,7 @@ if (args.Length > 2)
                 var t = profiles.Creatures!;
                 string W(string[]? list, int i) => list is not null && i >= 0 && i < list.Length ? list[i] : "?";
                 string traits = c.Info is { } inf
-                    ? $"{W(t.RarityWords, inf.Rarity)} · {c.Habitat} · {W(t.ActivityWords, c.ActiveTime)} | {W(t.GenderWords, inf.Gender1 - 1)} {inf.Size} or {W(t.GenderWords, inf.Gender2 - 1)} {inf.Size2}"
+                    ? $"{W(t.RarityWords, inf.Rarity)} · {c.Habitat} · {W(t.ActivityWords, c.ActiveTime)} | {W(t.GenderWords, inf.Gender1 - 1)} {inf.Size} or {W(t.GenderWords, inf.Gender2 - 1)} {inf.Size2} | behaviour {inf.Behaviour}, diet {inf.Diet}, notes {inf.Notes}"
                     : "no info";
                 Console.WriteLine($"  predicted on this planet: {ArtifactX.Core.Procedural.SpeciesNames.Fauna(sp, ge, words)} ({c.Id}) {traits}");
             }

@@ -324,7 +324,8 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 bool same = pred is not null && saveDiscoveries[slot.Discovery].Seed == pred.Seed;
                 var creature = new Creature(Name: name, Rarity: same && rarity.Length > 0 ? rarity : "Discovered", Habitat: habitat,
                     Activity: same ? activity : "", Gender: "", Size: "", Picture: false, SeenAt: "Discovered");
-                allCards.Add(new CreatureCardViewModel(creature, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: true));
+                allCards.Add(new CreatureCardViewModel(creature, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: true,
+                    about: same ? CreatureTraitText.About(pred!) : ""));
                 continue;
             }
 
@@ -340,7 +341,8 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 Habitat: habitat, Activity: predictedName is null ? "" : activity, Gender: "",
                 Size: predictedName is null ? "" : CreatureTraitText.Forms(pred, PlanetTypesService.CreatureTables),
                 Picture: false, SeenAt: "Unscanned");
-            allCards.Add(new CreatureCardViewModel(unscanned, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: false));
+            allCards.Add(new CreatureCardViewModel(unscanned, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: false,
+                about: predictedName is null ? "" : CreatureTraitText.About(pred)));
         }
 
         Creatures = allCards;
