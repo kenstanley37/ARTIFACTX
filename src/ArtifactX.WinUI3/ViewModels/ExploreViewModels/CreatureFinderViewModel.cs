@@ -42,7 +42,8 @@ public sealed partial class CreatureFinderViewModel : ObservableObject
     public ChoiceFilter Galaxy { get; } = new("Galaxy", 220);
 
     [ObservableProperty] public partial string Search { get; set; } = "";
-    [ObservableProperty] public partial int SortIndex { get; set; }       // 0 Trait Potential, 1-3 one stat, 4 nearest
+    [ObservableProperty] public partial int SortIndex { get; set; }       // 0 Trait Potential, 1-3 one stat, 4 biggest, 5 nearest
+    [ObservableProperty] public partial int SizeIndex { get; set; }       // 0 any, 1 Medium or bigger, 2 Large or bigger, 3 Huge only
     [ObservableProperty] public partial int PotentialIndex { get; set; }  // 0 any, 1 B or better, 2 A or better, 3 S only
     [ObservableProperty] public partial int DiscoveredIndex { get; set; } // 0 all, 1 not discovered yet, 2 discovered
     [ObservableProperty] public partial bool IncludeOtherSlots { get; set; } = true;
@@ -65,6 +66,7 @@ public sealed partial class CreatureFinderViewModel : ObservableObject
 
     partial void OnSortIndexChanged(int value) => Apply();
     partial void OnPotentialIndexChanged(int value) => Apply();
+    partial void OnSizeIndexChanged(int value) => Apply();
     partial void OnDiscoveredIndexChanged(int value) => Apply();
     partial void OnIncludeOtherSlotsChanged(bool value) => _ = RefreshAsync(++_loadVersion);
 
@@ -147,6 +149,7 @@ public sealed partial class CreatureFinderViewModel : ObservableObject
         Element.Reset();
         Galaxy.Reset();
         PotentialIndex = 0;
+        SizeIndex = 0;
         DiscoveredIndex = 0;
         _quiet = false;
         Apply();
@@ -162,6 +165,7 @@ public sealed partial class CreatureFinderViewModel : ObservableObject
 
         var filtered = _found
             .Where(f => f.Battle.Potential >= minPotential)
+            .Where(f => SizeIndex == 0 || f.Creature.Scale > 0 && f.Creature.SizeClass >= SizeIndex)
             .Where(f => !Element.IsSet || f.Battle.Element == Element.Value)
             .Where(f => galaxy < 0 || f.Planet.Galaxy == galaxy)
             .Where(f => DiscoveredIndex switch { 1 => !f.Discovered, 2 => f.Discovered, _ => true })
@@ -175,7 +179,8 @@ public sealed partial class CreatureFinderViewModel : ObservableObject
         {
             >= 1 and <= 3 => filtered.OrderByDescending(x => x.Found.Battle.Stats[SortIndex - 1].Class)
                 .ThenByDescending(x => x.Found.Battle.Potential).ThenByDescending(x => Total(x.Found)),
-            4 => filtered.OrderBy(x => x.Distance ?? double.MaxValue).ThenByDescending(x => x.Found.Battle.Potential),
+            4 => filtered.OrderByDescending(x => x.Found.Height).ThenByDescending(x => x.Found.Battle.Potential),
+            5 => filtered.OrderBy(x => x.Distance ?? double.MaxValue).ThenByDescending(x => x.Found.Battle.Potential),
             _ => filtered.OrderByDescending(x => x.Found.Battle.Potential).ThenByDescending(x => Total(x.Found)),
         };
         var rows = ordered.ThenBy(x => x.Distance ?? double.MaxValue).Take(MaxRows)
@@ -184,7 +189,7 @@ public sealed partial class CreatureFinderViewModel : ObservableObject
         ResultCount = filtered.Count > MaxRows
             ? $"Best {MaxRows:N0} of {filtered.Count:N0} creatures"
             : $"{filtered.Count:N0} of {_found.Count:N0} creatures";
-        ActiveFilters = new[] { search.Length > 0, Element.IsSet, Galaxy.IsSet, PotentialIndex > 0, DiscoveredIndex > 0 }.Count(on => on);
+        ActiveFilters = new[] { search.Length > 0, Element.IsSet, Galaxy.IsSet, PotentialIndex > 0, SizeIndex > 0, DiscoveredIndex > 0 }.Count(on => on);
     }
 
     private static bool Matches(FoundCreature f, string search) =>

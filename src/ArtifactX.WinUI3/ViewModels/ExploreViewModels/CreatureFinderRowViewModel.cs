@@ -17,6 +17,9 @@ public sealed class CreatureFinderRowViewModel
         DistanceLabel = string.Join(" · ", new[] { PlanetText.Distance(planet, here, distance), PlanetText.GalaxyLabel(planet.Galaxy) }
             .Where(s => s.Length > 0));
         StatusLabel = found.Discovered ? "Discovered by you" : "Not discovered yet";
+        // The size class (GcCreatureSizeClasses), then both forms with gender, weight and height.
+        string sizeClass = found.Creature.Scale > 0 ? SizeWord(found.Creature.SizeClass) : "";
+        SizeLabel = string.Join(" · ", new[] { sizeClass, found.Forms }.Where(s => s.Length > 0));
         Battle = new CreatureBattleViewModel(found.Battle);
         AutomationName = $"{Name}, {StatusLabel}, on {PlanetLabel}. {Battle.AutomationName}";
     }
@@ -29,6 +32,11 @@ public sealed class CreatureFinderRowViewModel
     public string Traits { get; }
     public string DistanceLabel { get; }
     public string StatusLabel { get; }
+    public string SizeLabel { get; }
+    public bool HasSize => SizeLabel.Length > 0;
+
+    /// <summary>A size class's plain word (GcCreatureSizeClasses: Small, Medium, Large, Huge).</summary>
+    public static string SizeWord(int sizeClass) => sizeClass switch { 1 => "Medium", 2 => "Large", 3 => "Huge", _ => "Small" };
     public bool IsDiscovered => Found.Discovered;
     public CreatureBattleViewModel Battle { get; }
     public string PortalCode => Planet.PortalCode;

@@ -40,6 +40,23 @@ if (Environment.GetEnvironmentVariable("TIMING") == "1")
         }
     }
     Console.WriteLine($"300 systems, {bodies} bodies, {creatures} creatures: {sw.ElapsedMilliseconds} ms");
+    // Size classes of the creatures players can adopt (SizeClass 3 = Huge), and which kinds are Huge.
+    var tameable = new List<PredictedCreature>();
+    rnd = new Random(1);
+    for (int n = 0; n < 300; n++)
+    {
+        ulong code = ((ulong)rnd.Next(0x1000) << 32) | (uint)rnd.Next(0x7FFFFFFF);
+        var types = PlanetGenerator.Generate(code, 0, biomes);
+        var attributes = SystemGenerator.Attributes(code, 0);
+        var seeds = SystemGenerator.Bodies(code, 0).PlanetSeeds;
+        for (int i = 0; i < types.Length && i < seeds.Length; i++)
+            tameable.AddRange((PlanetProfileGenerator.Generate(seeds[i], i, types[i], (int)attributes.Star, PlanetGenerator.GalaxyType(0),
+                attributes.GasGiantPlanet, profiles, attributes.Uncharted, attributes.Abandoned).PredictedCreatures ?? [])
+                .Where(c => profiles.Creatures!.CanBattle(c) == true));
+    }
+    foreach (var g in tameable.GroupBy(c => c.SizeClass).OrderBy(g => g.Key))
+        Console.WriteLine($"  size class {g.Key}: {g.Count()} ({100.0 * g.Count() / tameable.Count:F1}%)" +
+            (g.Key == 3 ? "  " + string.Join(", ", g.GroupBy(c => c.Id).OrderByDescending(k => k.Count()).Select(k => $"{k.Key} {k.Count()}")) : ""));
     return;
 }
 

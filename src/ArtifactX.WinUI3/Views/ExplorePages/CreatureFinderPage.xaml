@@ -40,6 +40,7 @@
                                     <ComboBoxItem Content="Best Combat Effectiveness"/>
                                     <ComboBoxItem Content="Best Agility"/>
                                     <ComboBoxItem Content="Best Health"/>
+                                    <ComboBoxItem Content="Biggest first"/>
                                     <ComboBoxItem Content="Nearest to you first"/>
                                 </ComboBox>
                                 <ComboBox Header="Trait Potential" Width="180" SelectedIndex="{x:Bind ViewModel.PotentialIndex, Mode=TwoWay}">
@@ -47,6 +48,12 @@
                                     <ComboBoxItem Content="B or better"/>
                                     <ComboBoxItem Content="A or better"/>
                                     <ComboBoxItem Content="S only"/>
+                                </ComboBox>
+                                <ComboBox Header="Size" Width="180" SelectedIndex="{x:Bind ViewModel.SizeIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="Any size"/>
+                                    <ComboBoxItem Content="Medium or bigger"/>
+                                    <ComboBoxItem Content="Large or bigger"/>
+                                    <ComboBoxItem Content="Huge only"/>
                                 </ComboBox>
                                 <ComboBox Header="{x:Bind ViewModel.Element.Header}" Width="{x:Bind ViewModel.Element.Width}"
                                           ItemsSource="{x:Bind ViewModel.Element.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Element.Selected, Mode=TwoWay}"/>
@@ -94,11 +101,11 @@
                                             <TextBlock Text="{x:Bind DistanceLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                                        TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind DistanceLabel}"/>
                                             <TextBlock Text="{x:Bind Traits}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{x:Bind SizeLabel}" Visibility="{x:Bind HasSize}" Style="{StaticResource ThemeBodyTextStyle}"
+                                                       FontSize="12" TextWrapping="Wrap"/>
                                             <controls:CreatureBattlePanel Battle="{x:Bind Battle}" Margin="0,4,0,4"/>
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <controls:GlyphStrip Code="{x:Bind PortalCode}" Title="{x:Bind PlanetLabel}" GlyphSize="18"/>
-                                                <controls:CopyCodeButton Code="{x:Bind PortalCode}"/>
-                                            </StackPanel>
+                                            <controls:GlyphStrip Code="{x:Bind PortalCode}" Title="{x:Bind PlanetLabel}" GlyphSize="18"/>
+                                            <controls:CopyCodeButton Code="{x:Bind PortalCode}" HorizontalAlignment="Left"/>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>
