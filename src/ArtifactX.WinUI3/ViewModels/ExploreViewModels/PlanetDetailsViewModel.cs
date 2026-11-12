@@ -62,7 +62,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
             var parts = new List<string> { Position };
             foreach (var label in new[] { "Sentinels", "Weather" })
                 if (Conditions.FirstOrDefault(f => f.Label == label) is { } fact && fact.Value.Length > 0 && fact.Value != NotRecorded)
-                    parts.Add($"{label} {fact.Value}");
+                    parts.Add($"{label} {fact.Value.Replace(" · ", ", ")}"); // "Extreme burning, occasional storms": one fact, not two
             if (IsHere) parts.Add("You are here");
             return string.Join("  ·  ", parts.Where(p => p.Length > 0));
         }
