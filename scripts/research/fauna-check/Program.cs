@@ -330,6 +330,40 @@ if (Environment.GetEnvironmentVariable("PARTS") == "1" && args.Length > 2)
     return;
 }
 
+// EXOTIC=<system hex>:<region radius>: exotic planets near a system whose anomalous creatures are rollers or crystals
+// (to check their bodies in game): kind, sub-type, planet, system, regions away, portal address.
+if (Environment.GetEnvironmentVariable("EXOTIC") is { Length: > 0 } exoticArg)
+{
+    var parts = exoticArg.Split(':');
+    ulong start = ulong.Parse(parts[0], NumberStyles.HexNumber);
+    var settings = Row<GalaxyGenerationSettings>("GALAXYGENERATION");
+    var names = profiles.Creatures!.BiomeSubTypeNames ?? [];
+    var rows = new System.Collections.Concurrent.ConcurrentBag<(int Away, string Line)>();
+    Parallel.ForEach(NearbySystems.Around(start, int.Parse(parts[1]), settings, includePurple: false), s =>
+    {
+        var (code, galaxy) = SystemProfiles.PortalOf(s.SystemAddress);
+        PlanetType[] types;
+        try { types = PlanetGenerator.Generate(code, galaxy, biomes); } catch { return; }
+        if (!types.Any(t => t.Biome == 7)) return;
+        var all = SystemProfiles.Generate(s.SystemAddress, biomes, profiles);
+        var seeds = SystemGenerator.Bodies(code, galaxy).PlanetSeeds;
+        for (int i = 0; i < types.Length && i < all.Length; i++)
+        {
+            if (types[i].Biome != 7 || all[i]?.PredictedCreatures is not { } creatures) continue;
+            foreach (var c in creatures.Where(c => c.Id is "WEIRDROLL" or "WEIRDCRYSTAL" or "WEIRDFLOAT"))
+            {
+                ulong a = s.SystemAddress;
+                string portal = $"{i + 1:X}{(a >> 40) & 0xFFF:X3}{(a >> 24) & 0xFF:X2}{(a >> 12) & 0xFFF:X3}{a & 0xFFF:X3}";
+                string sub = types[i].SubType >= 0 && types[i].SubType < names.Length ? names[types[i].SubType] : types[i].SubType.ToString();
+                rows.Add((s.RegionsAway, $"{c.Id,-13} {sub,-12} {SystemGenerator.PlanetName(seeds[i]),-18} in {SystemGenerator.SystemName(code, galaxy),-20} regions away {s.RegionsAway}  portal {portal}"));
+            }
+        }
+    });
+    foreach (var r in rows.OrderBy(r => r.Away).ThenBy(r => r.Line).Take(4000)) Console.WriteLine("  " + r.Line);
+    Console.WriteLine($"{rows.Count} found");
+    return;
+}
+
 // PICK=<system hex>:<planet>:<species name>: a predicted creature's kind, scene, seed and the parts ShipParts picks.
 if (Environment.GetEnvironmentVariable("PICK") is { Length: > 0 } pickArg)
 {
@@ -723,7 +757,7 @@ if (args.Length > 2)
         string k = real < 0 ? "type wrong" : real == c.SizeClass ? "class predicted" : $"class wrong: predicted {c.SizeClass} (scale {c.Scale:F2}) real {real}, {c.Id} range {c.MinSize}-{c.MaxSize}";
         sizeTally[k] = sizeTally.GetValueOrDefault(k) + 1;
     }
-    foreach (var t in sizeTally.OrderByDescending(k => k.Value).Take(25)) Console.WriteLine($"  size {t.Key} x{t.Value}");
+    foreach (var t in sizeTally.OrderByDescending(k => k.Value).Take(4000)) Console.WriteLine($"  size {t.Key} x{t.Value}");
     // bEr[1] against djb2 of the creature filename table's scene files (FILENAMES env var: "ID<TAB>file<TAB>extra"
     // rows), and which creature ID makes the saved species seed.
     if (Environment.GetEnvironmentVariable("FILENAMES") is string fnPath && File.Exists(fnPath))
