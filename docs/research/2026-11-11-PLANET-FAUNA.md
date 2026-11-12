@@ -266,3 +266,14 @@ I. Aippglutera predicted South, seen South in game 2026-10-22 (issue #6). The is
 Found in the South" is most likely Aippglutera's scrolling row: Milkvigneum's captured activity is Diurnal, and the
 port says it is found anywhere. More checks wanted. Harness: `HEMI=<system hex>:<planet> dotnet run` in
 scripts/research/fauna-check.
+
+## Habitat word, 2026-11-12
+
+The discovery line is built by 0x14077b2e0 ("%s / %s / %s / %s": rarity, habitat, activity, hemisphere). Habitat =
+UI_CRE_TERRAIN_<TileType> (GcTerrainTileType order: AIR, BASE, ROCK, MOUNTAIN, WATER, CAVE, DIRT, LIQUID, SUBSTANCE),
+where TileType is the role data's (+0x5CC), copied from its GcCreatureRoleDescriptionTable (+0x1C) in 0x1416d60e0;
+creatures of GcCreatureTypes 1-4 (Bird, FlyingLizard, FlyingSnake, Butterfly) or 48 (ProtoFlyer) always read AIR.
+Owner's Unst Prime (BBFAFCFFA004 planet 2) list: large butterflies and a small bird from ground tables show "Flying" -
+now predicted the same. Catalog format 85 (TileType per role table, habitat words). The water diet list now keys on
+TileType 4 too. Habitat fit vs captures 87 -> 94 of 104 planets; the rest are blank captures and a few Underground vs
+Ground cases still unexplained.

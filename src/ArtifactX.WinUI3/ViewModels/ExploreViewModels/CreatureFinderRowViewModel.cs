@@ -13,7 +13,7 @@ public sealed class CreatureFinderRowViewModel
         var planet = found.Planet;
         Name = found.Name;
         PlanetLabel = $"{UniverseInfo.PlanetName(planet.SystemAddress, planet.PlanetIndex)} · {UniverseInfo.SystemName(planet.SystemAddress)}";
-        Traits = string.Join(" · ", new[] { found.Rarity, found.Creature.Habitat, found.Activity }.Where(s => s.Length > 0));
+        Traits = string.Join(" · ", new[] { found.Rarity, found.Habitat, found.Activity }.Where(s => s.Length > 0));
         DistanceLabel = string.Join(" · ", new[] { PlanetText.Distance(planet, here, distance), PlanetText.GalaxyLabel(planet.Galaxy) }
             .Where(s => s.Length > 0));
         StatusLabel = found.Discovered ? "Discovered by you" : "Not discovered yet";

@@ -12,7 +12,7 @@ namespace ArtifactX.WinUI3.Services;
 /// <summary>One creature the Creature Finder lists: where it lives, its name, whether this save has discovered it,
 /// its traits and its pet-battle classes.</summary>
 public sealed record FoundCreature(KnownPlanet Planet, string Name, bool Discovered, PredictedCreature Creature,
-    CreatureBattle Battle, string Rarity, string Activity);
+    CreatureBattle Battle, string Rarity, string Activity, string Habitat);
 
 /// <summary>
 /// The Creature Finder's search (issue #6): every creature a player can adopt as a battle pet (the game's
@@ -60,7 +60,7 @@ public static class CreatureFinderService
                         planet.Address, creature.CreatureType, creature.SizeClass);
                 if (CreatureTraitText.Battle(creature, tables, speciesSeed, genusSeed) is not { } battle) continue;
                 var (rarity, activity) = CreatureTraitText.RarityAndActivity(creature, tables);
-                found.Add(new FoundCreature(planet, name, disc is not null, creature, battle, rarity, activity));
+                found.Add(new FoundCreature(planet, name, disc is not null, creature, battle, rarity, activity, tables.HabitatOf(creature)));
             }
         }
         return found;

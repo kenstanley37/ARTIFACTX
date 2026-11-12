@@ -14,9 +14,30 @@ namespace ArtifactX.Core.Universe;
 /// the discovery list's "Found in the North / South" (see <see cref="PlanetProfileGenerator.HemiSphereFor"/>).</summary>
 public sealed record PredictedCreature(string Id, string Domain, int Role, ulong Seed = 0, int CreatureType = 0, int Diet = 0,
     int MinSize = 0, int MaxSize = 0, float Scale = 0, int SizeClass = 0, string SpeciesId = "", PredictedCreatureInfo? Info = null,
-    int Density = 0, float GroupsPerKm = 0, int ActiveTime = 2, int HemiSphere = 0)
+    int Density = 0, float GroupsPerKm = 0, int ActiveTime = 2, int HemiSphere = 0, int TileType = -1)
 {
-    public string Habitat => Domain switch
+    /// <summary>The terrain the habitat word is read from (NMS.exe 184271 0x14077b2e0): Air (0) for creatures of type
+    /// Bird, FlyingLizard, FlyingSnake, Butterfly (1-4) or ProtoFlyer (48), wherever they spawn; else the role's
+    /// TileType, its table's (GcCreatureRoleDescriptionTable +0x1C, copied in 0x1416d60e0); null when the game data
+    /// predates TileType (catalog format 85).</summary>
+    public int? HabitatTile => CreatureType is >= 1 and <= 4 or 48 ? 0 : TileType >= 0 ? TileType : null;
+
+    /// <summary>The discovery list's habitat word (NMS.exe 184271 0x14077b2e0): the role's terrain, except that
+    /// creatures of type Bird, FlyingLizard, FlyingSnake, Butterfly (1-4) or ProtoFlyer (48) always read "Flying",
+    /// even from a ground table (owner's Unst Prime list, 2026-11-12: large butterflies and a small bird from the
+    /// ground tables show "Flying").</summary>
+    public string Habitat => HabitatTile switch
+    {
+        0 => "Flying",
+        3 => "Mountainous",
+        4 => "Underwater",
+        5 => "Underground",
+        >= 1 => "Ground",
+        _ => DomainHabitat,
+    };
+
+    /// <summary>The habitat by domain, for game data without TileType.</summary>
+    private string DomainHabitat => Domain switch
     {
         "air" => "Flying",
         "water" => "Underwater",
@@ -129,7 +150,8 @@ public sealed record CreatureDomainArchetype(
 
 /// <summary>A creature role candidate within an ecosystem role table (GcCreatureRoleDescriptionTable). MinSize and
 /// MaxSize (GcCreatureSizeClasses, catalog format 79; 0 on older catalogs) bound the creature's size class.
-/// ActiveTime (GcCreatureActiveTime, format 80; AnyTime on older catalogs) is when it's about.</summary>
+/// ActiveTime (GcCreatureActiveTime, format 80; AnyTime on older catalogs) is when it's about. TileType (format 85;
+/// -1 on older catalogs) is its table's GcTerrainTileType, which the role data copies and the habitat word reads.</summary>
 public sealed record CreatureRoleCandidate(
     string ForceId,
     string ReqTag,
@@ -139,10 +161,12 @@ public sealed record CreatureRoleCandidate(
     int Role,
     int MinSize = 0,
     int MaxSize = 0,
-    int ActiveTime = 2);
+    int ActiveTime = 2,
+    int TileType = -1);
 
 /// <summary>All creature generation data extracted from the game files. HemiSphereWords (catalog format 84; null before)
-/// are UI_CRE_HEMISPHERE_NORTH / _SOUTH ("Found in the North", "Found in the South").</summary>
+/// are UI_CRE_HEMISPHERE_NORTH / _SOUTH ("Found in the North", "Found in the South"); TerrainWords (format 85) the
+/// habitat words UI_CRE_TERRAIN_* in GcTerrainTileType order (Air "Flying", Base "Ground" ... Cave "Underground").</summary>
 public sealed record CreatureTables(
     CreatureGlobals Globals,
     CreatureEntry[] Creatures,
@@ -158,8 +182,15 @@ public sealed record CreatureTables(
     Dictionary<string, string>? Produce = null,
     Dictionary<string, string>? ProduceNames = null,
     PetBattleTables? PetBattle = null,
-    string[]? HemiSphereWords = null)
+    string[]? HemiSphereWords = null,
+    string[]? TerrainWords = null)
 {
+    /// <summary>The discovery list's habitat word ("Flying", "Underground"), from the game's words when the game data
+    /// has them (format 85), else the English fallback (<see cref="PredictedCreature.Habitat"/>).</summary>
+    public string HabitatOf(PredictedCreature creature) =>
+        TerrainWords is { } words && creature.HabitatTile is int tile && tile >= 0 && tile < words.Length && words[tile].Length > 0
+            ? words[tile] : creature.Habitat;
+
     /// <summary>The item a kind of creature produces when fed (the analysis visor's "Produces"): its HarvestingProducts
     /// entry by the spawned creature's id, else Wild Milk (FOOD_V_MILK, NMS.exe 0x1412431d0's default); null on game
     /// data before format 80.</summary>
@@ -567,7 +598,7 @@ public static partial class PlanetProfileGenerator
                         chosenCreatures.Add(new PredictedCreature(chosenId, domain, role.Role, seed, type, diet, role.MinSize,
                             role.MaxSize, scale, sizeClass, speciesId, Density: role.Density,
                             GroupsPerKm: GroupsPerKm(tables.Globals, domain, role.Density, te.DensityMod, faunaLevel),
-                            ActiveTime: role.ActiveTime, HemiSphere: hemiSphere));
+                            ActiveTime: role.ActiveTime, HemiSphere: hemiSphere, TileType: role.TileType));
                     }
                 }
                 stack.Pop();
