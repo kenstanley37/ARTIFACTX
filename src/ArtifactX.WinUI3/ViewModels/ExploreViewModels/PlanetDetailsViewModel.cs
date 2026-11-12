@@ -311,7 +311,8 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         {
             var pred = slot.Predicted;
             string rigId = pred is null ? FallbackRig(saveDiscoveries[slot.Discovery].SpeciesName)
-                : await CreatureModelService.ResolveRigAsync(pred.Id) ?? "antelope";
+                : await CreatureModelService.ResolveRigAsync(pred.Id,
+                    scenePath: PlanetTypesService.CreatureTables?.Creatures.FirstOrDefault(c => c.Id == pred.Id)?.Scene) ?? "antelope";
             string habitat = pred is null ? "Native Fauna" : $"{pred.Habitat} Fauna";
             var (rarity, activity) = pred is null ? ("", "") : CreatureTraitText.RarityAndActivity(pred, PlanetTypesService.CreatureTables);
 

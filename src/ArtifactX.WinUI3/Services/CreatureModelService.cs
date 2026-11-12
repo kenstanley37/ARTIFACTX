@@ -109,7 +109,7 @@ public static class CreatureModelService
     };
 
     /// <summary>Resolves a creature species archetype and/or its descriptor list to a known rig ID.</summary>
-    public static async Task<string?> ResolveRigAsync(string? archetype, IEnumerable<string>? descriptors = null)
+    public static async Task<string?> ResolveRigAsync(string? archetype, IEnumerable<string>? descriptors = null, string? scenePath = null)
     {
         if (!string.IsNullOrWhiteSpace(archetype))
         {
@@ -132,6 +132,16 @@ public static class CreatureModelService
                 if (rig is not null && RigScenes.ContainsKey(rig))
                     return rig;
             }
+        }
+
+        // The creature's own scene from the game's filename table (catalog format 80): WEIRDCRYSTAL ->
+        // WEIRD/WEIRDRIGGROUND.SCENE.MBIN -> "weirdrigground", so kinds without an alias get their real model.
+        if (!string.IsNullOrEmpty(scenePath))
+        {
+            string stem = Path.GetFileName(scenePath.Replace('\\', '/'));
+            int dot = stem.IndexOf('.');
+            if (dot > 0) stem = stem[..dot];
+            if (RigScenes.ContainsKey(stem)) return stem.ToLowerInvariant();
         }
 
         return null;

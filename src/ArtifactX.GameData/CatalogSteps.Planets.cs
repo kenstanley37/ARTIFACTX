@@ -346,12 +346,14 @@ public static partial class CatalogSteps
 
         var validIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var sceneIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var scenes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (cfnt.Table is not null)
         {
             foreach (var f in cfnt.Table)
                 if (!string.IsNullOrEmpty(f.ID?.Value))
                 {
                     validIds.Add(f.ID.Value);
+                    if (!string.IsNullOrEmpty(f.Filename?.Value)) scenes.TryAdd(f.ID.Value, f.Filename.Value);
                     if (!string.IsNullOrEmpty(f.Filename?.Value) && CreatureComponentId(f.Filename.Value, f.ID.Value, decode) is string sceneId)
                         sceneIds[f.ID.Value] = sceneId;
                 }
@@ -379,7 +381,8 @@ public static partial class CatalogSteps
                     c.MinScale,
                     c.MaxScale,
                     tagRows.Select(t => (int)t.RarityOverride.CreatureRarity).ToArray(),
-                    sceneIds.GetValueOrDefault(id, "")));
+                    sceneIds.GetValueOrDefault(id, ""),
+                    scenes.GetValueOrDefault(id, "")));
             }
         }
 

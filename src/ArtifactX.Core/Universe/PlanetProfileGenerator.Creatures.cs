@@ -60,7 +60,8 @@ public sealed record CreatureGlobals(
 /// Type is its ForceType (what roles filter on); RealType (catalog format 78; 0 on older catalogs) is the type the
 /// spawned creature reports. MinScale/MaxScale (format 79) bound its spawn scale. TagRarities (format 79) is each
 /// tag's RarityOverride, the rarity a role requiring that tag weighs it by. SpeciesId (format 79; "" when unknown) is
-/// the Id in its scene's creature component, which names the species (the CRAB scene says SPIDER).</summary>
+/// the Id in its scene's creature component, which names the species (the CRAB scene says SPIDER). Scene (format 80)
+/// is its model, GcCreatureFilenameTable's Filename.</summary>
 public sealed record CreatureEntry(
     string Id,
     int Type,
@@ -74,7 +75,8 @@ public sealed record CreatureEntry(
     float MinScale = 0,
     float MaxScale = 0,
     int[]? TagRarities = null,
-    string SpeciesId = "");
+    string SpeciesId = "",
+    string Scene = "");
 
 /// <summary>An archetype option entry with an ID and a weight.</summary>
 public sealed record CreatureWeightedEntry(string Id, float Weight);
