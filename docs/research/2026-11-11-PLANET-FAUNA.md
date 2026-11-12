@@ -267,6 +267,10 @@ Found in the South" is most likely Aippglutera's scrolling row: Milkvigneum's ca
 port says it is found anywhere. More checks wanted. Harness: `HEMI=<system hex>:<planet> dotnet run` in
 scripts/research/fauna-check.
 
+CONFIRMED in game 2026-11-12 (owner, Slot 8): Haka Beta (BBFAFCFFA004 planet 3, AC Colony Star) predicted only
+T. Airchedeisium as South; the game's Discoveries list shows "... Active / Found in the South" on T. Airchedeisium and
+no hemisphere on the other 9 (10/10). Unst Prime (planet 2): none predicted, none in game (14/14). Two planets, 2/2 South.
+
 ## Habitat word, 2026-11-12
 
 The discovery line is built by 0x14077b2e0 ("%s / %s / %s / %s": rarity, habitat, activity, hemisphere). Habitat =

@@ -65,6 +65,7 @@ if (Environment.GetEnvironmentVariable("HEMI") is { Length: > 0 } hemiArg)
         creWords = JsonSerializer.Deserialize<List<string>>((string)cmd.ExecuteScalar()!)!;
     }
     ulong planetAddress = (sys & ~(0xFUL << 52)) | ((ulong)(index + 1) << 52);
+    Console.WriteLine($"  planet {index + 1}: {SystemGenerator.PlanetName(bodySeeds[index])}");
     foreach (var c in p.PredictedCreatures ?? [])
     {
         var (sp, ge) = ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(c.Seed, c.SpeciesId, planetAddress, c.CreatureType, c.SizeClass);
