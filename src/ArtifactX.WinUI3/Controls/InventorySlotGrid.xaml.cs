@@ -644,11 +644,13 @@ public sealed partial class InventorySlotGrid : UserControl
     }
 
 
-    /// <summary>A full stack of an item in this container: technology is 100
-    /// (durability, not a count), products use their stack size times this
-    /// container's multiplier, substances 9999 (see the add-item flyout).</summary>
+    /// <summary>A full stack of an item in this container: technology is 100 (durability, not a count); products
+    /// their stack size times the inventory's product size and substances the inventory's substance size, both from
+    /// the game's tables for the save's stack-limit setting and this inventory's stack group (Bug 78,
+    /// InventoryStackLimitService); without those (older game data, special containers) the page's
+    /// ProductStorageMultiplier and 9999.</summary>
     public int StackCapFor(string? categoryLabel, int? maxStackSize) =>
-        Helpers.Inventory.StackCaps.For(categoryLabel, maxStackSize, ProductStorageMultiplier);
+        InventoryStackLimitService.CapFor(categoryLabel, maxStackSize, ViewModel?.StackGroup, ProductStorageMultiplier);
 
     /// <summary>Unlocked slots with nothing in them.</summary>
     /// <summary>Locked slots this inventory could still unlock (within its

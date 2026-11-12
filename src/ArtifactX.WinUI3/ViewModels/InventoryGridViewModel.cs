@@ -37,6 +37,10 @@ public partial class InventoryGridViewModel : ObservableObject
     [ObservableProperty]
     public partial string? CurrentClass { get; set; }
 
+    /// <summary>The inventory's stack group as the save names it (WA4.rri: Personal, Ship, Freighter, Chest,
+    /// BaseCapsule...), which with the save's stack-limit setting decides a full stack (InventoryStackLimitService).</summary>
+    public string? StackGroup { get; private set; }
+
     public InventoryGridViewModel(string[] containerPath, int maxColumns, int maxRows)
     {
         _containerPath = containerPath;
@@ -68,6 +72,7 @@ public partial class InventoryGridViewModel : ObservableObject
 
         CurrentClass = SaveSessionManager.GetValue(ClassPath)?.Value<string>()
             ?? containerToken["B@N"]?["1o6"]?.Value<string>();
+        StackGroup = containerToken["WA4"]?["rri"]?.Value<string>();
 
         // Both unlocked positions AND occupied slots check for a staged
         // whole-array override first - this is the single source of truth

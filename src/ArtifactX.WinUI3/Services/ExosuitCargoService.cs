@@ -21,10 +21,9 @@ public static class ExosuitCargoService
     {
         if (!SaveSessionManager.IsSaveLoaded) return ExosuitAddResult.NoSave;
         if (CatalogService.TryGetStackInfo(itemId) is not var (category, maxStack)) return ExosuitAddResult.Unknown;
-        int cap = StackCaps.For(category, maxStack, StackCaps.CargoProductMultiplier);
-
         var cargo = new InventoryGridViewModel(NmsInventoryContainer.ExosuitCargoPath, ExosuitCapacity.CargoColumns, ExosuitCapacity.CargoRows);
         cargo.Load();
+        int cap = InventoryStackLimitService.CapFor(category, maxStack, cargo.StackGroup, StackCaps.CargoProductMultiplier);
         string id = itemId.TrimStart('^');
         var stack = cargo.Cells.FirstOrDefault(c => c.IsOccupied && c.Amount < c.MaxAmount
             && string.Equals(c.ItemId?.TrimStart('^'), id, System.StringComparison.OrdinalIgnoreCase));

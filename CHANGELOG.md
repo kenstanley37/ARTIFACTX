@@ -4,6 +4,10 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ## Unreleased
 
+### Fixed
+
+- Items you add get the game's real stack size for the inventory they go in: Metal Plating now stacks to 40 in base storage containers (it stopped at 20), freighter and base storage sizes are right, and on Normal or Low inventory stack limits substances stop where the game stops them instead of 9999. Update your game data once to get this.
+
 ### Added
 
 - Creature Finder (Explore): every creature you can adopt on the planets in your saves and the rest of their systems, ranked by its pet-battle Trait Potential, Combat Effectiveness, Agility and Health, with filters for class, element, galaxy and whether you've discovered it. Click one to open its planet and dial the portal address to go there.
