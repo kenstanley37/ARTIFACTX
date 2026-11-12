@@ -105,7 +105,8 @@
                         <!-- Galaxy ListView Container -->
                         <Border Grid.Row="3" Background="{ThemeResource ThemeVoidBrush}" BorderBrush="{ThemeResource ThemeLineBrush}"
                                 BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
-                            <ListView ItemsSource="{x:Bind ViewModel.FilteredGalaxies, Mode=OneWay}"
+                            <ListView x:Name="GalaxyList"
+                                      ItemsSource="{x:Bind ViewModel.FilteredGalaxies, Mode=OneWay}"
                                       SelectedItem="{x:Bind ViewModel.SelectedGalaxy, Mode=TwoWay}"
                                       SelectionMode="Single"
                                       AutomationProperties.Name="List of galaxies">

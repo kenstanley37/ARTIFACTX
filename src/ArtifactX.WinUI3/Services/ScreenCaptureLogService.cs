@@ -434,6 +434,19 @@ public static class ScreenCaptureLogService
     /// <summary>The picture of a system's planets as the game's Discoveries view draws them, if one was taken.</summary>
     public static string? SystemPicture(ulong system) => File.Exists(PicturePath(system)) ? PicturePath(system) : null;
 
+    /// <summary>The bytes of a system's picture, or null when none was taken. Opened so a capture can still replace
+    /// it meanwhile; throws IOException if the file is busy anyway (the caller keeps what it shows, and
+    /// <see cref="SystemPictureSaved"/> follows the new picture).</summary>
+    public static byte[]? ReadSystemPicture(ulong system)
+    {
+        string path = PicturePath(system);
+        if (!File.Exists(path)) return null;
+        using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var copy = new MemoryStream();
+        file.CopyTo(copy);
+        return copy.ToArray();
+    }
+
     /// <summary>Crops the planets from a system's Discoveries view (right of the list, below
     /// the name: x 46-93%, y 32-87%) and keeps it for the Planets page, once a session per
     /// system - kept apart from the recordings, so clearing those never removes it.</summary>
@@ -448,14 +461,7 @@ public static class ScreenCaptureLogService
         var crop = new byte[cw * ch * 4];
         for (int y = 0; y < ch; y++) System.Buffer.BlockCopy(px, ((y0 + y) * w + x0) * 4, crop, y * cw * 4, cw * 4);
         using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(crop.AsBuffer(), BitmapPixelFormat.Bgra8, cw, ch, BitmapAlphaMode.Ignore);
-        using (var file = new FileStream(PicturePath(system), FileMode.Create, FileAccess.ReadWrite))
-        using (var stream = file.AsRandomAccessStream())
-        {
-            var options = new BitmapPropertySet { ["ImageQuality"] = new BitmapTypedValue(0.88, Windows.Foundation.PropertyType.Single) };
-            var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, stream, options);
-            encoder.SetSoftwareBitmap(bitmap);
-            await encoder.FlushAsync();
-        }
+        await WriteJpegAsync(PicturePath(system), bitmap);
         SystemPictureSaved?.Invoke(system);
         return true;
     }
@@ -469,15 +475,43 @@ public static class ScreenCaptureLogService
         var crop = new byte[cw * ch * 4];
         for (int y = 0; y < ch; y++) System.Buffer.BlockCopy(px, ((y0 + y) * w + x0) * 4, crop, y * cw * 4, cw * 4);
         using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(crop.AsBuffer(), BitmapPixelFormat.Bgra8, cw, ch, BitmapAlphaMode.Ignore);
-        using (var file = new FileStream(path, FileMode.Create, FileAccess.ReadWrite))
-        using (var stream = file.AsRandomAccessStream())
-        {
-            var options = new BitmapPropertySet { ["ImageQuality"] = new BitmapTypedValue(0.88, Windows.Foundation.PropertyType.Single) };
-            var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, stream, options);
-            encoder.SetSoftwareBitmap(bitmap);
-            await encoder.FlushAsync();
-        }
+        await WriteJpegAsync(path, bitmap);
         return true;
+    }
+
+    /// <summary>Encodes a picture into a temporary file beside its path, then swaps it in, so a page reading the
+    /// picture never sees it half written (2026-11-11: Current System read a system picture while a capture was
+    /// still writing it and got "file in use"). A reader holding the old file for that instant is waited out.</summary>
+    private static async Task WriteJpegAsync(string path, SoftwareBitmap bitmap)
+    {
+        string temp = path + ".tmp";
+        try
+        {
+            using (var file = new FileStream(temp, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
+            using (var stream = file.AsRandomAccessStream())
+            {
+                var options = new BitmapPropertySet { ["ImageQuality"] = new BitmapTypedValue(0.88, Windows.Foundation.PropertyType.Single) };
+                var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, stream, options);
+                encoder.SetSoftwareBitmap(bitmap);
+                await encoder.FlushAsync();
+            }
+            for (int attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    File.Move(temp, path, overwrite: true);
+                    return;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && attempt < 10)
+                {
+                    await Task.Delay(50);
+                }
+            }
+        }
+        finally
+        {
+            try { if (File.Exists(temp)) File.Delete(temp); } catch (IOException) { }
+        }
     }
 
     /// <summary>Keeps the log under 1 GB by deleting the oldest files.</summary>

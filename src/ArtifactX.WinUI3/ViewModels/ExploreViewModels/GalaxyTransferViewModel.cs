@@ -73,6 +73,12 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
     {
     }
 
+    /// <summary>Asks the page to scroll the list to a row: raised only when the page opens or another save is
+    /// loaded, never on live updates, so the player's scroll position is kept while they read.</summary>
+    public event Action<GalaxyRowViewModel>? ScrollToRequested;
+
+    /// <summary>Reads the save and starts the list at the player's galaxy. On a reload (another save loaded while
+    /// the page is open) the same 256 rows are updated in place rather than rebuilt.</summary>
     public async Task LoadAsync()
     {
         await Task.Run(() =>
@@ -81,11 +87,12 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
             var presenceMap = GalaxyTransferService.GetGalaxyPresence();
             bool isStaged = GalaxyTransferService.HasStagedTransfer();
 
-            var rows = NmsGalaxyInfo.AllGalaxies
-                .Select(g => new GalaxyRowViewModel(
-                    g,
-                    presenceMap.TryGetValue(g.Number, out var pres) ? pres : GalaxyPresence.Empty(g.Number, g.Number == current.Number)))
-                .ToList();
+            GalaxyPresence PresenceOf(GalaxyInfo g) =>
+                presenceMap.TryGetValue(g.Number, out var pres) ? pres : GalaxyPresence.Empty(g.Number, g.Number == current.Number);
+
+            List<GalaxyRowViewModel>? rows = _allRows.Count == 0
+                ? NmsGalaxyInfo.AllGalaxies.Select(g => new GalaxyRowViewModel(g, PresenceOf(g))).ToList()
+                : null;
 
             App.MainWindowInstance?.DispatcherQueue?.TryEnqueue(() =>
             {
@@ -93,13 +100,22 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
                 CurrentGalaxyTitle = $"Galaxy {current.Number}: {current.Name}";
                 CurrentGalaxyClassification = current.ClassificationName;
                 IsTransferStaged = isStaged;
-                _allRows = rows;
+                if (rows is not null)
+                    _allRows = rows;
+                else
+                    foreach (var row in _allRows)
+                    {
+                        row.IsCurrent = row.Number == current.Number;
+                        row.Presence = PresenceOf(row.Info);
+                    }
 
                 UpdateCounts();
                 ApplyFilter();
 
                 SelectedGalaxy = FilteredGalaxies.FirstOrDefault(r => r.Number == current.Number)
                     ?? FilteredGalaxies.FirstOrDefault();
+                if (SelectedGalaxy is { } start)
+                    ScrollToRequested?.Invoke(start);
 
                 UpdateTransferState();
             });
@@ -218,9 +234,15 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
             return false;
         }).ToList();
 
-        FilteredGalaxies.Clear();
-        foreach (var item in filtered)
-            FilteredGalaxies.Add(item);
+        // Change only the rows that differ (both lists keep galaxy order), so the rows still showing stay where
+        // they are on screen instead of the list resetting to the top.
+        var keep = new HashSet<GalaxyRowViewModel>(filtered);
+        for (int i = FilteredGalaxies.Count - 1; i >= 0; i--)
+            if (!keep.Contains(FilteredGalaxies[i]))
+                FilteredGalaxies.RemoveAt(i);
+        for (int i = 0; i < filtered.Count; i++)
+            if (i >= FilteredGalaxies.Count || !ReferenceEquals(FilteredGalaxies[i], filtered[i]))
+                FilteredGalaxies.Insert(i, filtered[i]);
 
         if (SelectedGalaxy is not null && !FilteredGalaxies.Contains(SelectedGalaxy))
         {
@@ -275,8 +297,9 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Quietly updates the current galaxy, telemetry, and HERE badge in-place without rebuilding the list
-    /// or resetting scroll position/selection. Follows live game saves and staged edits.
+    /// Quietly updates the current galaxy, telemetry, badges and filter in place without rebuilding the list
+    /// or moving the scroll position. Follows live game saves and staged edits; warping to another galaxy moves
+    /// the HERE badge but not the list.
     /// </summary>
     public void UpdateCurrentGalaxy(PlanetSnapshot? snapshot = null)
     {
@@ -311,6 +334,7 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
             }
 
             UpdateCounts();
+            ApplyFilter();
             UpdateTransferState();
         });
     }
