@@ -73,4 +73,37 @@ internal static class SpeciesNameChecks
         int total = fauna.Length + flora.Length + minerals.Length;
         Console.WriteLine($"Species names: {total} of {total} match the game.");
     }
+
+    /// <summary>Two bird discoveries in the owner's saves (fauna-check "example" lines, 2026-11-11): role seed,
+    /// creature id, planet address, type (Bird 1) and size class (0, found from the saved genus) give the saved
+    /// bEr[2] (species) and bEr[3] (genus).</summary>
+    public static void FaunaSeeds()
+    {
+        (ulong Seed, ulong Address, ulong Species, ulong Genus)[] birds =
+        [
+            (0xCC869D13CB157862, 0x0010F509E8F82734, 0xE080C8AA54BD6E2A, 0x50537CF9333454A9),
+            (0x562DF0D78F457694, 0x0030456DFBFFB004, 0x9B5BF1F808F21DBA, 0x4C04114767B4F981),
+        ];
+        foreach (var b in birds)
+        {
+            var (species, genus) = SpeciesNames.FaunaSeeds(b.Seed, "^BIRD", b.Address, 1, 0);
+            if (species != b.Species || genus != b.Genus)
+                throw new InvalidOperationException($"Fauna seeds {b.Seed:X16}: {species:X16}/{genus:X16}, expected {b.Species:X16}/{b.Genus:X16}.");
+        }
+        Console.WriteLine($"PASS: creature species and genus seeds for {birds.Length} discoveries from the saves.");
+    }
+
+    /// <summary>A flying lizard discovered in the owner's saves (fauna-check "size example", 2026-11-11): its
+    /// creature data scales 1-4.5, role size range 0-3 and the game's size settings (Medium from 1.2, Large from 2.5,
+    /// Huge from 4.5, cap 8, build 185034) give scale 4.3946 - Large, the size class its saved genus seed was made
+    /// with.</summary>
+    public static void FaunaSizeClass()
+    {
+        var lizard = new ArtifactX.Core.Universe.CreatureEntry("FLYINGLIZARD", 0, true, false, 0, 0, 0, [], 0, 1f, 4.5f);
+        var sizes = new ArtifactX.Core.Universe.CreatureSizeGlobals(1.2f, 2.5f, 4.5f, 8f);
+        var (scale, sizeClass) = ArtifactX.Core.Universe.PlanetProfileGenerator.SpeciesScale(0x82772FBC8FB5C320, lizard, 0, 3, sizes);
+        if (Math.Abs(scale - 4.3946304f) > 1e-5f || sizeClass != 2)
+            throw new InvalidOperationException($"Flying lizard scale {scale} class {sizeClass}, expected 4.3946304 class 2.");
+        Console.WriteLine("PASS: a creature's spawn scale and size class from its role seed.");
+    }
 }

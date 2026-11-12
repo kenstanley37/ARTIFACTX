@@ -297,6 +297,32 @@ public static partial class CatalogSteps
             Creatures: Creatures(creatures, decode));
     }
 
+    /// <summary>The Id of the creature component (GcCreatureComponentData) in a creature's scene, through the scene's
+    /// ATTACHMENT entities, nodes in order: the creature's own id when the scene has a component for it (the weird
+    /// creatures share scenes with one component each), else the first. Some scenes carry another kind's data only
+    /// (the CRAB and HERMITCRAB scenes say SPIDER); a discovery's species seed is made from this Id (NMS.exe 184271
+    /// 0x14123e740 reads it from the live creature's component data +0x40). Checked against the owner's saves.</summary>
+    private static string? CreatureComponentId(string scenePath, string ownId, Func<string, NMSTemplate?> decode)
+    {
+        var found = new List<string>();
+        if (decode(scenePath.Replace('\\', '/').ToUpperInvariant()) is not libMBIN.NMS.Toolkit.TkSceneNodeData root) return null;
+        var pending = new Queue<libMBIN.NMS.Toolkit.TkSceneNodeData>();
+        pending.Enqueue(root);
+        while (pending.Count > 0)
+        {
+            var node = pending.Dequeue();
+            foreach (var attr in node.Attributes ?? new())
+                if (attr.Name?.Value == "ATTACHMENT" && !string.IsNullOrEmpty(attr.Value?.Value)
+                    && decode(attr.Value.Value.Replace('\\', '/').ToUpperInvariant()) is libMBIN.NMS.Toolkit.TkAttachmentData entity)
+                    foreach (var component in entity.Components ?? new())
+                        if (component.Template is GcCreatureComponentData creature && !string.IsNullOrEmpty(creature.Id?.Value))
+                            found.Add(creature.Id.Value);
+            foreach (var child in node.Children ?? new())
+                pending.Enqueue(child);
+        }
+        return found.FirstOrDefault(id => string.Equals(id, ownId, StringComparison.OrdinalIgnoreCase)) ?? found.FirstOrDefault();
+    }
+
     private static CreatureTables? Creatures(GcCreatureGenerationData cgen, Func<string, NMSTemplate?> decode)
     {
         if (decode(CreatureArchetypesFile) is not GcCreatureGenerationArchetypes carch
@@ -318,11 +344,16 @@ public static partial class CatalogSteps
             cgen.HerdCreaturePenalty);
 
         var validIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var sceneIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (cfnt.Table is not null)
         {
             foreach (var f in cfnt.Table)
                 if (!string.IsNullOrEmpty(f.ID?.Value))
+                {
                     validIds.Add(f.ID.Value);
+                    if (!string.IsNullOrEmpty(f.Filename?.Value) && CreatureComponentId(f.Filename.Value, f.ID.Value, decode) is string sceneId)
+                        sceneIds[f.ID.Value] = sceneId;
+                }
         }
 
         var creatures = new List<CreatureEntry>();
@@ -332,7 +363,8 @@ public static partial class CatalogSteps
             {
                 string id = c.Id?.Value ?? "";
                 if (!validIds.Contains(id)) continue;
-                var tags = (c.Tags ?? new()).Select(t => t.Tag?.Value ?? "").Where(t => t.Length > 0).ToArray();
+                var tagRows = (c.Tags ?? new()).Where(t => !string.IsNullOrEmpty(t.Tag?.Value)).ToArray();
+                var tags = tagRows.Select(t => t.Tag.Value).ToArray();
                 creatures.Add(new CreatureEntry(
                     id,
                     (int)c.ForceType.CreatureType,
@@ -341,7 +373,12 @@ public static partial class CatalogSteps
                     (int)c.HerbivoreProbabilityModifier.CreatureRoleFrequencyModifier,
                     (int)c.PredatorProbabilityModifier.CreatureRoleFrequencyModifier,
                     (int)c.Rarity.CreatureRarity,
-                    tags));
+                    tags,
+                    (int)c.RealType.CreatureType,
+                    c.MinScale,
+                    c.MaxScale,
+                    tagRows.Select(t => (int)t.RarityOverride.CreatureRarity).ToArray(),
+                    sceneIds.GetValueOrDefault(id, "")));
             }
         }
 
@@ -415,12 +452,17 @@ public static partial class CatalogSteps
                     (int)r.Density.Density,
                     (int)r.ForceType.CreatureType,
                     r.ProbabilityOfBeingEnabled,
-                    (int)r.Role.CreatureRole)).ToArray();
+                    (int)r.Role.CreatureRole,
+                    (int)r.MinSize.CreatureSizeClass,
+                    (int)r.MaxSize.CreatureSizeClass)).ToArray();
                 ecosystemTables[path] = roles;
             }
         }
 
-        return new CreatureTables(globals, creatures.ToArray(), archetypeLists, domainArchetypes, ecosystemTables);
+        var sizes = decode("GCCREATUREGLOBALS.MBIN") is GcCreatureGlobals cg
+            ? new CreatureSizeGlobals(cg.CreatureMedMinSize, cg.CreatureLargeMinSize, cg.CreatureHugeMinSize, cg.MaxCreatureSize)
+            : null;
+        return new CreatureTables(globals, creatures.ToArray(), archetypeLists, domainArchetypes, ecosystemTables, sizes);
     }
 
     private static InventoryGenerationTables? InventoryTables(Func<string, NMSTemplate?> decode)
