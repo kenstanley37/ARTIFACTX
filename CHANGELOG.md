@@ -37,6 +37,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- Current System no longer stops with a "file in use" error when a system picture is read while screen recording is saving a new one.
+
 - Galaxy Transfer: the galaxy list opens at the galaxy you're in and stays where you scrolled it while the game saves. Filters no longer jump the list back to the top, and a galaxy's base and station badges update as soon as the game saves.
 
 - Planet fauna totals are now right on waterworlds too: they were often a few creatures short, and missed the flying creatures some waterworlds have.
