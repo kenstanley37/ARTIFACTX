@@ -57,10 +57,6 @@ public sealed partial class CreatureFinderViewModel : ObservableObject
     [ObservableProperty] public partial bool IncludeOtherSlots { get; set; } = true;
     [ObservableProperty] public partial int AreaIndex { get; set; }       // 0 the saves' systems, 1 + your region, 2 + the regions around it
 
-    /// <summary>The picked kind, for its 3D preview ("" = any kind).</summary>
-    [ObservableProperty] public partial string KindPreview { get; private set; } = "";
-    [ObservableProperty] public partial string KindPreviewName { get; private set; } = "";
-
     [ObservableProperty] public partial IReadOnlyList<CreatureFinderRowViewModel> Results { get; private set; } = [];
     [ObservableProperty] public partial string ResultCount { get; private set; } = "";
     [ObservableProperty] public partial string Status { get; private set; } = "";
@@ -264,8 +260,6 @@ public sealed partial class CreatureFinderViewModel : ObservableObject
             ? $"Best {MaxRows:N0} of {filtered.Count:N0} creatures"
             : $"{filtered.Count:N0} of {_found.Count:N0} creatures";
         ActiveFilters = new[] { search.Length > 0, Kind.IsSet, Element.IsSet, Galaxy.IsSet, PotentialIndex > 0, SizeIndex > 0, DiscoveredIndex > 0 }.Count(on => on);
-        KindPreview = Kind.Value;
-        KindPreviewName = Kind.IsSet ? ArtifactX.Core.Universe.CreatureKindNames.Name(Kind.Value) : "";
     }
 
     private double? Distance(FoundCreature f) => _here is ulong here ? NmsPlanets.DistanceLightYears(here, f.Planet.SystemAddress) : null;

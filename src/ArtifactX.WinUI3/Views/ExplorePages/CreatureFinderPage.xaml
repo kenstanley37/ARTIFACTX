@@ -74,9 +74,6 @@
                                 </ComboBox>
                                 <CheckBox Content="Include my other save slots" IsChecked="{x:Bind ViewModel.IncludeOtherSlots, Mode=TwoWay}" VerticalAlignment="Bottom"/>
                             </ctcontrols:WrapPanel>
-                            <!-- The picked kind's model, once, instead of a model on every card. -->
-                            <controls:CreatureKindPreview Kind="{x:Bind ViewModel.KindPreview, Mode=OneWay}"
-                                                          KindName="{x:Bind ViewModel.KindPreviewName, Mode=OneWay}" HorizontalAlignment="Left"/>
                         </StackPanel>
                     </controls:FoldingCard>
                     <StackPanel Padding="20,16,20,20" Spacing="14">
