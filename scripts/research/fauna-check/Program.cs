@@ -371,7 +371,12 @@ if (args.Length > 2)
             {
                 ulong planetAddress = (here & ~(0xFUL << 52)) | ((ulong)(index + 1) << 52);
                 var (sp, ge) = ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(c.Seed, c.SpeciesId, planetAddress, c.CreatureType, c.SizeClass);
-                Console.WriteLine($"  predicted on this planet: {ArtifactX.Core.Procedural.SpeciesNames.Fauna(sp, ge, words)} ({c.Id}, {c.Habitat}, size {c.SizeClass})");
+                var t = profiles.Creatures!;
+                string W(string[]? list, int i) => list is not null && i >= 0 && i < list.Length ? list[i] : "?";
+                string traits = c.Info is { } inf
+                    ? $"{W(t.RarityWords, inf.Rarity)} · {c.Habitat} · {W(t.ActivityWords, c.ActiveTime)} | {W(t.GenderWords, inf.Gender1 - 1)} {inf.Size} or {W(t.GenderWords, inf.Gender2 - 1)} {inf.Size2}"
+                    : "no info";
+                Console.WriteLine($"  predicted on this planet: {ArtifactX.Core.Procedural.SpeciesNames.Fauna(sp, ge, words)} ({c.Id}) {traits}");
             }
             }
         }
