@@ -12,14 +12,18 @@ namespace ArtifactX.WinUI3.Helpers.Fauna;
 /// </summary>
 public static class CreatureTraitText
 {
-    /// <summary>Rarity and activity, as the game's discovery list shows them ("Rare", "Always Active").</summary>
+    /// <summary>Rarity and activity, as the game's discovery list shows them ("Rare", "Always Active"); the activity
+    /// is followed by the hemisphere when the species lives in only one ("Always Active · Found in the South", catalog
+    /// format 84).</summary>
     public static (string Rarity, string Activity) RarityAndActivity(PredictedCreature creature, CreatureTables? tables)
     {
         string rarity = creature.Info is { } info && tables?.RarityWords is { Length: 3 } rarities && info.Rarity is >= 0 and < 3
             ? rarities[info.Rarity] : "";
         string activity = tables?.ActivityWords is { Length: 5 } activities && creature.ActiveTime is >= 0 and < 5
             ? activities[creature.ActiveTime] : "";
-        return (rarity, activity);
+        string hemisphere = tables?.HemiSphereWords is { Length: 2 } words && creature.HemiSphere is 1 or 2
+            ? words[creature.HemiSphere - 1] : "";
+        return (rarity, string.Join(" · ", new[] { activity, hemisphere }.Where(s => s.Length > 0)));
     }
 
     /// <summary>Age, behaviour, diet, notes and produce as one line ("Perpetual (young: Juvenile) · Hasty · eats Solar

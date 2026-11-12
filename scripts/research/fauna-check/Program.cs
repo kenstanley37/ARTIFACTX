@@ -43,6 +43,37 @@ if (Environment.GetEnvironmentVariable("TIMING") == "1")
     return;
 }
 
+// HEMI=<system hex>:<planet index from 1>: one planet's predicted creatures with names and hemispheres
+// ("Found in the North / South"), to check against the game's discovery list.
+if (Environment.GetEnvironmentVariable("HEMI") is { Length: > 0 } hemiArg)
+{
+    var parts = hemiArg.Split(':');
+    ulong sys = ulong.Parse(parts[0], NumberStyles.HexNumber);
+    int index = int.Parse(parts[1]) - 1;
+    var (code, galaxy) = Gen(sys & ~(0xFUL << 52));
+    var types = PlanetGenerator.Generate(code, galaxy, biomes);
+    var attributes = SystemGenerator.Attributes(code, galaxy);
+    var bodySeeds = SystemGenerator.Bodies(code, galaxy).PlanetSeeds;
+    var p = PlanetProfileGenerator.Generate(bodySeeds[index], index, types[index], (int)attributes.Star, PlanetGenerator.GalaxyType(galaxy),
+        attributes.GasGiantPlanet, profiles, attributes.Uncharted, attributes.Abandoned);
+    List<string> creWords;
+    using (var cc = new SqliteConnection($"Data Source={catalog};Mode=ReadOnly"))
+    {
+        cc.Open();
+        var cmd = cc.CreateCommand();
+        cmd.CommandText = "SELECT i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='MultiToolNameWords' AND i.NameEnglish='CRE'";
+        creWords = JsonSerializer.Deserialize<List<string>>((string)cmd.ExecuteScalar()!)!;
+    }
+    ulong planetAddress = (sys & ~(0xFUL << 52)) | ((ulong)(index + 1) << 52);
+    foreach (var c in p.PredictedCreatures ?? [])
+    {
+        var (sp, ge) = ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(c.Seed, c.SpeciesId, planetAddress, c.CreatureType, c.SizeClass);
+        Console.WriteLine($"  {ArtifactX.Core.Procedural.SpeciesNames.Fauna(sp, ge, creWords),-18} {c.Id,-16} {c.Habitat,-11} role {c.Role}  " +
+            $"hemisphere {PlanetProfileGenerator.HemiSphereFor(c) switch { "" => "any", var h => h }}");
+    }
+    return;
+}
+
 var truth = new List<(ulong System, int Index, int Total)>();
 using (var u = new SqliteConnection($"Data Source={userDb};Mode=ReadOnly"))
 {
