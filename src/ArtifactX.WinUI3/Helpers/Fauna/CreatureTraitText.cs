@@ -21,12 +21,16 @@ public static class CreatureTraitText
         return (rarity, activity);
     }
 
-    /// <summary>Behaviour, diet, notes and produce as one line ("Hasty · eats Solar Vine · Photosensitive · produces
-    /// Wild Milk"), the analysis visor's Behavior, Diet, Notes and Produces; empty on game data before format 80.</summary>
+    /// <summary>Age, behaviour, diet, notes and produce as one line ("Perpetual (young: Juvenile) · Hasty · eats Solar
+    /// Vine · Photosensitive · produces Wild Milk"), the analysis visor's Age, Behavior, Diet, Notes and Produces; empty
+    /// on game data before format 80.</summary>
     public static string About(PredictedCreature creature, CreatureTables? tables)
     {
         if (creature.Info is not { } info) return "";
         var parts = new List<string>();
+        // Age: adults' word, then the young ones' (the visor shows whichever individual you scan).
+        if (tables?.Text?.Ages is { } ages && info.AdultAge >= 1 && info.AdultAge <= ages.Length)
+            parts.Add(info.BabyAge >= 1 && info.BabyAge <= ages.Length ? $"{ages[info.AdultAge - 1]} (young: {ages[info.BabyAge - 1]})" : ages[info.AdultAge - 1]);
         if (info.Behaviour.Length > 0) parts.Add(info.Behaviour);
         if (info.Diet.Length > 0) parts.Add($"eats {info.Diet}");
         if (info.Notes.Length > 0) parts.Add(info.Notes);

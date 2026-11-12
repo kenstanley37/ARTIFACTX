@@ -8,7 +8,8 @@ namespace ArtifactX.Core.Universe;
 /// ones when RobotGenders (0 when not predicted). Rarity is the discovery list's (spawn data, see RarityFor).
 /// </summary>
 public sealed record PredictedCreatureInfo(float Height1, float Weight1, float Height2, float Weight2, int Rarity,
-    int Gender1, int Gender2, bool AgeFlag, bool RobotGenders = false, string Behaviour = "", string Diet = "", string Notes = "")
+    int Gender1, int Gender2, bool AgeFlag, bool RobotGenders = false, string Behaviour = "", string Diet = "", string Notes = "",
+    int AdultAge = 0, int BabyAge = 0)
 {
     /// <summary>"121.5kg / 3.0m", the game's own format ("%0.1fkg / %0.1fm"), for the first form.</summary>
     public string Size => SizeText(Weight1, Height1);
@@ -127,8 +128,15 @@ public static partial class PlanetProfileGenerator
             age = root.NextFraction() <= AgeChance;
         }
 
+        // The analysis visor's age word (NMS.exe 184271 0x1412e3f40): one draw w from the role seed (StartState, one
+        // step); a baby is AGE (w * 3 >> 32) + 1 (Infant, Young, Juvenile), an adult of a regular species (w * 3 >> 32)
+        // + 4 (Adult, Mature, Elderly), of a weird-age species (w >> 30) + 7 (Indeterminate ... Perpetual).
+        var ageStream = Rng.Start(creature.Seed);
+        uint w = ageStream.Next();
+        int babyAge = (int)(((ulong)w * 3) >> 32) + 1;
+        int adultAge = age ? (int)(w >> 30) + 7 : (int)(((ulong)w * 3) >> 32) + 4;
         return new PredictedCreatureInfo(height1, weight1, height2, weight2, RarityFor(creature, scale, tables.Globals),
-            gender1, gender2, age, robotGenders, behaviour, diet, notes);
+            gender1, gender2, age, robotGenders, behaviour, diet, notes, adultAge, babyAge);
     }
 
     /// <summary>One numbered word, as 0x1416cdfb0 picks it: a draw only when there are words, n = (w * count) &gt;&gt; 32.</summary>

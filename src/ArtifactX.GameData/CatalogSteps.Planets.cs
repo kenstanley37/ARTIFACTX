@@ -515,7 +515,8 @@ public static partial class CatalogSteps
             (cg.DietVeg ?? []).Select(k => Word(k?.Value ?? "")).ToArray(),
             (cg.DietMeat ?? []).Select(k => Word(k?.Value ?? "")).ToArray(),
             Numbered("UI_CREATURE_NOTE_"),
-            Numbered("UI_CREA_ROBOT_BEHAVE_"), Numbered("UI_CREA_ROBOT_DIET_"), Numbered("UI_CREA_ROBOT_NOTE_"));
+            Numbered("UI_CREA_ROBOT_BEHAVE_"), Numbered("UI_CREA_ROBOT_DIET_"), Numbered("UI_CREA_ROBOT_NOTE_"),
+            Numbered("AGE"));
         // The gender words a creature's info draws from (NMS.exe 0x1416cfcc0 picks "SEX" + n, n from 1 up to the
         // last key that exists: 16 in build 185034, Male to None).
         var genders = new List<string>();

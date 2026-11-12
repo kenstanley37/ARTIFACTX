@@ -199,7 +199,13 @@ use 12 / 13). Notes are `UI_CREATURE_NOTE_<n>`. The owner's three scans on a Hik
 screenshots) are exact: Hasty / Solar Vine / Photosensitive, Methodical / Solar Vine / Drinks blood, Peaceful /
 Solar Vine / Can sense magnetic fields. Robots' behaviour (draw 1, UI_CREA_ROBOT_BEHAVE_: binary words), diet
 (draw 4, UI_CREA_ROBOT_DIET_) and notes (draw 6, UI_CREA_ROBOT_NOTE_; draw 4 for a robot antelope or walking building
-on a normal world) follow the gender-confirmed draw order but aren't checked against a scan yet. Not yet: Age words.
+on a normal world) follow the gender-confirmed draw order but aren't checked against a scan yet.
+
+**Age** (the visor's, 0x1412e3f40): one draw w from the role seed (StartState, one step). A baby shows AGE
+(w * 3 >> 32) + 1 (Infant, Young, Juvenile); an adult of a regular species (w * 3 >> 32) + 4 (Adult, Mature, Elderly);
+of a species with GcCreatureInfo.Age Weird - the info routine's age draw, <= 0.3 - (w >> 30) + 7 (Indeterminate,
+Constant, Fluctuating, Perpetual). The owner's five scans match: Perpetual x2, Elderly (adults), Juvenile, Infant
+(young ones).
 
 **Produces** is per kind: `0x1412345f0` looks the spawned creature's id up in GcCreatureGlobals `HarvestingProducts`
 and keeps the index; `0x1412431d0` gives FOOD_V_MILK (Wild Milk) to kinds not listed. The owner's four scans match:
