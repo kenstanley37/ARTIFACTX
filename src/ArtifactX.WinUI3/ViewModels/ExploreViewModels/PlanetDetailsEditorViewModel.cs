@@ -103,7 +103,7 @@ public sealed partial class PlanetDetailsEditorViewModel : ObservableObject
     public IReadOnlyList<string> LifeChoices { get; }
     public string NamePlaceholder { get; }
     public string NameHint { get; }
-    public IReadOnlyList<string> WaterChoices { get; } = ["Not recorded", "Yes", "No"];
+    public IReadOnlyList<string> WaterChoices { get; } = (string[])["Not recorded", "Yes", "No"];
     public ObservableCollection<string> Resources { get; }
     public ObservableCollection<string> Notes { get; }
 

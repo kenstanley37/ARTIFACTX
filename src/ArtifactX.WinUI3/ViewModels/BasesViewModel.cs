@@ -23,7 +23,7 @@ public sealed partial class BasesViewModel : ObservableObject
     public BasesViewModel()
     {
         Sections =
-        [
+        (BaseSectionViewModel[])[
             new(BaseKind.Freighter, "", "No freighter base in this save"),
             new(BaseKind.Planet, "", "No planet bases in this save"),
             new(BaseKind.Station, "", "No claimed space stations in this save"),

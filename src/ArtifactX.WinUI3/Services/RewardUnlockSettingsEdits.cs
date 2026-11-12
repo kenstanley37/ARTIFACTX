@@ -47,7 +47,7 @@ internal sealed class RewardUnlockSettingsEdits : IStagedSaveCompanion
     {
         if (!HasChanges || _path is null) return;
         await ValidateAsync();
-        BackupService.BackupFiles([_path], BackupService.BuildAccountDataGroupKey(Path.GetDirectoryName(_path)!));
+        BackupService.BackupFiles((string[])[_path], BackupService.BuildAccountDataGroupKey(Path.GetDirectoryName(_path)!));
         await File.WriteAllTextAsync(_path, _pending!, new System.Text.UTF8Encoding(_bom));
         _original = _pending;
         _pending = null;

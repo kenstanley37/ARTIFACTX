@@ -95,7 +95,7 @@ public sealed partial class EggSequencerViewModel : ObservableObject
         foreach (var slot in Enum.GetValues<EggCatalystSlot>()) Slots.Add(new EggSlotViewModel(slot, rules, fullDose, Text));
         // The egg's own name, as the game shows it ("Mecha-Mouse Egg"); a number only tells same-named eggs apart.
         var saved = CompanionService.ReadEggs();
-        Eggs = [new EggChoice("Any egg (no exact numbers)", null),
+        Eggs = (EggChoice[])[new EggChoice("Any egg (no exact numbers)", null),
             .. saved.Select((e, i) => new EggChoice(saved.Count(o => o.Name == e.Name) > 1
                 ? $"{e.Name} ({saved.Take(i + 1).Count(o => o.Name == e.Name)})" : e.Name, e))];
         SelectedEgg = Eggs.Count > 1 ? Eggs[1] : Eggs[0];
@@ -136,11 +136,11 @@ public sealed partial class EggSequencerViewModel : ObservableObject
         return slot switch
         {
             EggCatalystSlot.GrowthHormone =>
-                [any, new("Makes it bigger", r => r.Effect.Grows), new("Makes it smaller", r => !r.Effect.Grows)],
+                (EggFilterOption[])[any, new("Makes it bigger", r => r.Effect.Grows), new("Makes it smaller", r => !r.Effect.Grows)],
             EggCatalystSlot.NeuralCalibrator =>
-                [any, .. _slotRows.Select(r => r.TraitWord).Distinct().Order()
+                (EggFilterOption[])[any, .. _slotRows.Select(r => r.TraitWord).Distinct().Order()
                     .Select(word => new EggFilterOption($"Toward {word}", r => r.TraitWord == word))],
-            _ => [any, new($"Certain with 10 or fewer", r => r.Needed <= 10)],
+            _ => (EggFilterOption[])[any, new($"Certain with 10 or fewer", r => r.Needed <= 10)],
         };
     }
 

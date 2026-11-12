@@ -87,7 +87,7 @@ internal sealed class RewardUnlockAccountEdits : IStagedSaveCompanion
     {
         if (_session is null || _path is null || !HasChanges) return;
         await ValidateAsync();
-        BackupService.BackupFiles([_path], BackupService.BuildAccountDataGroupKey(Path.GetDirectoryName(_path) ?? ""));
+        BackupService.BackupFiles((string[])[_path], BackupService.BuildAccountDataGroupKey(Path.GetDirectoryName(_path) ?? ""));
         await Task.Run(() => _session.CommitAsync([]));
         _originalJson = _session.Root.ToString(Formatting.None);
         // Refresh other account pages on next visit, rather than leaving a cached

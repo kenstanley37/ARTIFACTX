@@ -42,10 +42,10 @@ public sealed partial class CrashedShipsPageViewModel : ObservableObject
     public ObservableCollection<CrashedShipPlanetChoice> PlanetChoices { get; } = [];
     [ObservableProperty] public partial CrashedShipPlanetChoice? SelectedPlanet { get; set; }
 
-    public IReadOnlyList<string> ShipClassChoices { get; } = ["Any class", "S-class", "A-class", "B-class", "C-class"];
+    public IReadOnlyList<string> ShipClassChoices { get; } = (string[])["Any class", "S-class", "A-class", "B-class", "C-class"];
     [ObservableProperty] public partial int ShipClassChoice { get; set; } = 1; // Default S-class
 
-    public IReadOnlyList<string> ShipCountChoices { get; } = ["5", "10", "25", "50", "100", "250", "All"];
+    public IReadOnlyList<string> ShipCountChoices { get; } = (string[])["5", "10", "25", "50", "100", "250", "All"];
     private static readonly int[] ShipCounts = [5, 10, 25, 50, 100, 250, int.MaxValue];
     [ObservableProperty] public partial int ShipCountChoice { get; set; } = 1; // Default 10
     private int ShownShips => ShipCounts[Math.Clamp(ShipCountChoice, 0, ShipCounts.Length - 1)];

@@ -88,7 +88,7 @@ public sealed partial class BaseDetailsPage : Page
     {
         bool confirmed = await DeleteConfirmation.ShowListAsync(XamlRoot, $"Delete {ViewModel.Row.Name}?",
             "This deletes the base from this save, with everything built in it.",
-            [$"{ViewModel.Row.Name} - {ViewModel.Row.Detail}"],
+            (string[])[$"{ViewModel.Row.Name} - {ViewModel.Row.Detail}"],
             "A deleted base is gone completely, base computer and all - to empty it but keep it, delete its parts instead.");
         if (confirmed && ViewModel.DeleteBase()) GoBack();
     }
@@ -97,7 +97,7 @@ public sealed partial class BaseDetailsPage : Page
     {
         bool confirmed = await DeleteConfirmation.ShowListAsync(XamlRoot, $"Delete {ViewModel.Row.Name}?",
             "This deletes this placed object from this save.",
-            [$"{ViewModel.Row.Name} - {ViewModel.Row.Detail}"]);
+            (string[])[$"{ViewModel.Row.Name} - {ViewModel.Row.Detail}"]);
         if (confirmed && ViewModel.DeleteObject()) GoBack();
     }
 }

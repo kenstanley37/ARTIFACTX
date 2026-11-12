@@ -73,14 +73,14 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
 
     /// <summary>How many matches to list (index into <see cref="ShipCounts"/>); 10 by default, remembered. "All" is
     /// every wreck of the planet (about 2,000 on a Large planet).</summary>
-    public IReadOnlyList<string> ShipCountChoices { get; } = ["5", "10", "25", "50", "100", "250", "500", "All"];
+    public IReadOnlyList<string> ShipCountChoices { get; } = (string[])["5", "10", "25", "50", "100", "250", "500", "All"];
     private static readonly int[] ShipCounts = [5, 10, 25, 50, 100, 250, 500, int.MaxValue];
     [ObservableProperty]
     public partial int ShipCountChoice { get; set; } = Remembered(ShipCountKey, ShipCounts.Length - 1, 1);
     private int ShownShips => ShipCounts[System.Math.Clamp(ShipCountChoice, 0, ShipCounts.Length - 1)];
 
     /// <summary>The class filter's choices, in the order of the buttons (index 0 = any class).</summary>
-    public IReadOnlyList<string> ShipClassChoices { get; } = ["Any class", "S-class", "A-class", "B-class", "C-class"];
+    public IReadOnlyList<string> ShipClassChoices { get; } = (string[])["Any class", "S-class", "A-class", "B-class", "C-class"];
 
     /// <summary>The class filter: 0 = any, 1 = S (the default) .. 4 = C; remembered across sessions.</summary>
     [ObservableProperty]
