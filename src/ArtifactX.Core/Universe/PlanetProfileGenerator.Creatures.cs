@@ -12,7 +12,8 @@ namespace ArtifactX.Core.Universe;
 /// SpeciesId is the creature ID its species seed is made from: the scene's own creature component Id (CRAB spawns
 /// SPIDER's scene data), else Id.</summary>
 public sealed record PredictedCreature(string Id, string Domain, int Role, ulong Seed = 0, int CreatureType = 0, int Diet = 0,
-    int MinSize = 0, int MaxSize = 0, float Scale = 0, int SizeClass = 0, string SpeciesId = "")
+    int MinSize = 0, int MaxSize = 0, float Scale = 0, int SizeClass = 0, string SpeciesId = "", PredictedCreatureInfo? Info = null,
+    int Density = 0, float GroupsPerKm = 0)
 {
     public string Habitat => Domain switch
     {
@@ -137,7 +138,8 @@ public sealed record CreatureTables(
     CreatureArchetypeLists ArchetypeLists,
     Dictionary<string, Dictionary<string, CreatureDomainArchetype>> DomainArchetypes,
     Dictionary<string, CreatureRoleCandidate[]> EcosystemTables,
-    CreatureSizeGlobals? Sizes = null);
+    CreatureSizeGlobals? Sizes = null,
+    string[]? GenderWords = null);
 
 /// <summary>GcCreatureGlobals' size settings (catalog format 79; null on older catalogs): the scales where the
 /// Medium, Large and Huge size classes start, and the largest scale any creature spawns at.</summary>
@@ -151,10 +153,16 @@ public static partial class PlanetProfileGenerator
     {
         private readonly Rng[] _stack = new Rng[8];
         private int _count;
+        private Rng _root;
+
+        /// <summary>The generator's own stream (NMS.exe 184271 cGcPlanetGenerator +0xba4): two draws seed the stack,
+        /// then it carries on through every creature's info (<see cref="CreatureInfoFor"/>), creature by creature.</summary>
+        public ref Rng Root => ref _root;
 
         public RngStack(ulong rootSeed)
         {
-            var root = Rng.Start(rootSeed);
+            _root = Rng.Start(rootSeed);
+            ref var root = ref _root;
             ulong lo = root.Next(), hi = root.Next();
             ulong initSeed = Mix64((hi << 32) | lo);
             _stack[0] = Rng.Start(initSeed);
@@ -509,14 +517,19 @@ public static partial class PlanetProfileGenerator
                             : SpeciesScale(seed, picked, role.MinSize, role.MaxSize, tables.Sizes);
                         string speciesId = string.IsNullOrEmpty(picked?.SpeciesId) ? chosenId : picked.SpeciesId;
                         chosenCreatures.Add(new PredictedCreature(chosenId, domain, role.Role, seed, type, diet, role.MinSize,
-                            role.MaxSize, scale, sizeClass, speciesId));
+                            role.MaxSize, scale, sizeClass, speciesId, Density: role.Density,
+                            GroupsPerKm: GroupsPerKm(tables.Globals, domain, role.Density, te.DensityMod, faunaLevel)));
                     }
                 }
                 stack.Pop();
             }
             stack.Pop();
         }
-        return (chosenCreatures.Count, chosenCreatures.ToArray());
+        // Each creature's info, in order, from the generator's own stream (0x1416cfcc0 per creature).
+        var withInfo = new PredictedCreature[chosenCreatures.Count];
+        for (int i = 0; i < withInfo.Length; i++)
+            withInfo[i] = chosenCreatures[i] with { Info = CreatureInfoFor(ref stack.Root, chosenCreatures[i], ground, tables) };
+        return (withInfo.Length, withInfo);
     }
 
     /// <summary>
@@ -551,6 +564,15 @@ public static partial class PlanetProfileGenerator
         int star, int faunaLevel, float sea, bool hasCaves, bool emptySystem, bool abandonedSystem,
         CreatureTables tables) =>
         GenerateFauna(planetSeed, biome, subType, planetClass, star, faunaLevel, sea, hasCaves, emptySystem, abandonedSystem, tables).Count;
+
+    /// <summary>The role data's GroupsPerSquareKm (GenerateCreatureRoles, 184271): the domain's groups per km for the
+    /// role's density, times the table's density modifier, times the planet's fauna-level modifier.</summary>
+    private static float GroupsPerKm(CreatureGlobals g, string domain, int density, int densityMod, int faunaLevel)
+    {
+        float[] groups = domain switch { "air" => g.AirGroups, "water" => g.WaterGroups, "cave" => g.CaveGroups, _ => g.GroundGroups };
+        static float At(float[] a, int i) => i >= 0 && i < a.Length ? a[i] : 0;
+        return At(groups, density) * At(g.DensityMods, densityMod) * At(g.LifeDensity, faunaLevel);
+    }
 
     /// <summary>
     /// A creature's weight for a role, or -1 when it can't fill it (NMS.exe 184271 GenerateCreatureRoles,

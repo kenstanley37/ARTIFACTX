@@ -104,7 +104,7 @@ public static partial class CatalogSteps
                 Decode(BiomeArchiveFile) is GcBiomeFileList archive ? Options(archive) : null);
             rows.Add(new CatalogItem { GameId = "BIOMETABLES", NameEnglish = "BiomeTables", DescriptionEnglish = JsonSerializer.Serialize(tables) });
 
-            var details = ProfileTables(files, biomes, Decode);
+            var details = ProfileTables(files, biomes, Decode, GetMergedEnglishLookup(pcbanksPath));
             if (details is not null)
             {
                 var descTexts = EnglishTexts(index, extraction, DescriptorKeys);
@@ -237,7 +237,8 @@ public static partial class CatalogSteps
             MeasuredModelRadius.ContainsKey(c) ? ModelRadius(table, c, decode) : 0)).ToArray();
     }
 
-    private static PlanetProfileTables? ProfileTables(GcBiomeFileList files, GcBiomeListPerStarType biomes, Func<string, NMSTemplate?> decode)
+    private static PlanetProfileTables? ProfileTables(GcBiomeFileList files, GcBiomeListPerStarType biomes, Func<string, NMSTemplate?> decode,
+        IReadOnlyDictionary<string, string> english)
     {
         if (decode("GCTERRAINGLOBALS.GLOBAL.MBIN") is not GcTerrainGlobals terrain
             || decode("GCSOLARGENERATIONGLOBALS.GLOBAL.MBIN") is not GcSolarGenerationGlobals solar
@@ -294,7 +295,7 @@ public static partial class CatalogSteps
                 && (int)GcBuildingClassification.BuildingClassEnum.ScrapYard < buildings.BuildingPlacement.Length
                 ? buildings.BuildingPlacement[(int)GcBuildingClassification.BuildingClassEnum.ScrapYard].Density.ToArray()
                 : null,
-            Creatures: Creatures(creatures, decode));
+            Creatures: Creatures(creatures, decode, english));
     }
 
     /// <summary>The Id of the creature component (GcCreatureComponentData) in a creature's scene, through the scene's
@@ -323,7 +324,7 @@ public static partial class CatalogSteps
         return found.FirstOrDefault(id => string.Equals(id, ownId, StringComparison.OrdinalIgnoreCase)) ?? found.FirstOrDefault();
     }
 
-    private static CreatureTables? Creatures(GcCreatureGenerationData cgen, Func<string, NMSTemplate?> decode)
+    private static CreatureTables? Creatures(GcCreatureGenerationData cgen, Func<string, NMSTemplate?> decode, IReadOnlyDictionary<string, string> english)
     {
         if (decode(CreatureArchetypesFile) is not GcCreatureGenerationArchetypes carch
             || decode(CreatureDataTableFile) is not GcCreatureDataTable cdt
@@ -462,7 +463,12 @@ public static partial class CatalogSteps
         var sizes = decode("GCCREATUREGLOBALS.MBIN") is GcCreatureGlobals cg
             ? new CreatureSizeGlobals(cg.CreatureMedMinSize, cg.CreatureLargeMinSize, cg.CreatureHugeMinSize, cg.MaxCreatureSize)
             : null;
-        return new CreatureTables(globals, creatures.ToArray(), archetypeLists, domainArchetypes, ecosystemTables, sizes);
+        // The gender words a creature's info draws from (NMS.exe 0x1416cfcc0 picks "SEX" + n, n from 1 up to the
+        // last key that exists: 16 in build 185034, Male to None).
+        var genders = new List<string>();
+        for (int n = 1; english.TryGetValue($"SEX{n}", out var word); n++) genders.Add(word);
+        return new CreatureTables(globals, creatures.ToArray(), archetypeLists, domainArchetypes, ecosystemTables, sizes,
+            genders.Count > 0 ? genders.ToArray() : null);
     }
 
     private static InventoryGenerationTables? InventoryTables(Func<string, NMSTemplate?> decode)
