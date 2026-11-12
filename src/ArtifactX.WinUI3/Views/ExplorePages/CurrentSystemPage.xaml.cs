@@ -1,3 +1,4 @@
+using ArtifactX.WinUI3.Helpers.Layout;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Microsoft.UI.Xaml;
@@ -59,6 +60,11 @@ public sealed partial class CurrentSystemPage : Page
     }
 
     /// <summary>The planet type tables arrived: show the bodies nobody has discovered yet.</summary>
+    // The pinned title row's summary shows once the location block has scrolled away.
+    private void Scroller_ViewChanged(object? sender, ScrollViewerViewChangedEventArgs e) => UpdateSummary();
+    private void LocationPanel_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateSummary();
+    private void UpdateSummary() => Summary.IsShown = PinnedHeader.IsScrolledAway(Scroller, LocationPanel);
+
     private void OnPlanetTypesLoaded() => DispatcherQueue.TryEnqueue(() => ViewModel.Refresh(notes: false));
 
     /// <summary>The game started or stopped, or a marker was staged or saved: the planet cards' marker buttons follow.</summary>

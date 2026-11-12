@@ -45,24 +45,34 @@
 
     </Page.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Padding="28,22,28,40" Spacing="18">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-            <Grid ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Button Content="‹  Back to Planets" Click="Back_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.HasSiblings, Mode=OneWay}">
-                    <Button Content="‹ Previous planet" Click="Previous_Click" IsEnabled="{x:Bind ViewModel.CanGoPrevious, Mode=OneWay}"/>
-                    <Button Content="Next planet ›" Click="Next_Click" IsEnabled="{x:Bind ViewModel.CanGoNext, Mode=OneWay}"/>
-                </StackPanel>
-            </Grid>
+        <!-- Pinned bar (owner idea, 2026-11-11): always on screen; once the header card scrolls away it also
+             says which planet this is, so the page doesn't need scrolling back up. -->
+        <Grid Padding="28,18,28,12" ColumnSpacing="20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Button Content="‹  Back to Planets" Click="Back_Click" Style="{StaticResource ThemeAccentButtonStyle}" VerticalAlignment="Center"/>
+            <controls:PinnedSummary x:Name="Summary" Grid.Column="1" Title="{x:Bind ViewModel.Title, Mode=OneWay}"
+                                    Accent="{x:Bind ViewModel.Classification, Mode=OneWay}" Details="{x:Bind ViewModel.SummaryDetails, Mode=OneWay}"/>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.HasSiblings, Mode=OneWay}">
+                <Button Content="‹ Previous planet" Click="Previous_Click" IsEnabled="{x:Bind ViewModel.CanGoPrevious, Mode=OneWay}"/>
+                <Button Content="Next planet ›" Click="Next_Click" IsEnabled="{x:Bind ViewModel.CanGoNext, Mode=OneWay}"/>
+            </StackPanel>
+        </Grid>
+
+        <ScrollViewer x:Name="Scroller" Grid.Row="1" VerticalScrollBarVisibility="Auto" ViewChanged="Scroller_ViewChanged">
+        <StackPanel Padding="28,4,28,40" Spacing="18">
 
             <!-- Header: the planet, where it is, its glyphs and its conditions -->
-            <Border Style="{StaticResource ThemeCardStyle}">
+            <Border x:Name="HeaderCard" Style="{StaticResource ThemeCardStyle}" SizeChanged="HeaderCard_SizeChanged">
                 <Grid>
                     <Border Margin="-1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Opacity="0.25">
                         <Border.Background>
@@ -319,5 +329,6 @@
                 </Grid>
             </Grid>
         </StackPanel>
-    </ScrollViewer>
+        </ScrollViewer>
+    </Grid>
 </Page>

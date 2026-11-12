@@ -12,15 +12,22 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid>
-      <ScrollViewer>
-        <StackPanel Padding="28,26,28,40" Spacing="22">
-            <Grid>
+      <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+            <!-- Pinned title row (2026-11-11): once the location block scrolls away it also says which system
+                 this is and where you are in it, so the planets below keep their context. -->
+            <Grid Padding="28,26,28,14" ColumnSpacing="24">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="CURRENT SYSTEM" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
+                <controls:PinnedSummary x:Name="Summary" Grid.Column="1" Title="{x:Bind ViewModel.Heading, Mode=OneWay}"
+                                        Accent="{x:Bind ViewModel.Facts, Mode=OneWay}" Details="{x:Bind ViewModel.SummaryPlace, Mode=OneWay}"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
                             ToolTipService.ToolTip="This page follows your game: each time No Man's Sky saves, it shows your new location and discoveries. It only reads the save; it never changes it.">
                     <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
                                   Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
@@ -30,6 +37,9 @@
                     <HyperlinkButton Content="How it works" Click="ShowHelp_Click" Padding="4,0" FontSize="12" Visibility="{x:Bind ViewModel.HelpHidden, Mode=OneWay}"/>
                 </StackPanel>
             </Grid>
+
+      <ScrollViewer x:Name="Scroller" Grid.Row="1" ViewChanged="Scroller_ViewChanged">
+        <StackPanel Padding="28,0,28,40" Spacing="22">
 
             <!-- How live follow works - dismissible; reopened from the status link. -->
             <Border Visibility="{x:Bind ViewModel.IsHelpVisible, Mode=OneWay}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
@@ -91,7 +101,7 @@
                     </Border>
                     <Grid>
                         <StackPanel x:Name="SystemBody" Padding="{x:Bind ViewModel.BodyPadding, Mode=OneWay}" Spacing="18">
-                            <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="18">
+                            <ctcontrols:WrapPanel x:Name="LocationPanel" HorizontalSpacing="32" VerticalSpacing="18" SizeChanged="LocationPanel_SizeChanged">
                                 <Border Width="{x:Bind ViewModel.FrameWidth, Mode=OneWay}" Height="{x:Bind ViewModel.FrameHeight, Mode=OneWay}"
                                         CornerRadius="{ThemeResource ThemeCardCornerRadius}" Background="{ThemeResource ThemeVoidBrush}">
                                     <Grid>
@@ -238,7 +248,7 @@
         </StackPanel>
       </ScrollViewer>
       <!-- Viewport-level notification stays centered even when the page is scrolled. -->
-      <Border x:Name="SystemChangeOverlay" Visibility="Collapsed" IsHitTestVisible="False"
+      <Border x:Name="SystemChangeOverlay" Grid.RowSpan="2" Visibility="Collapsed" IsHitTestVisible="False"
               HorizontalAlignment="Center" VerticalAlignment="Center" Padding="34,18"
               Background="{ThemeResource ThemeAccentBrush}" BorderBrush="{ThemeResource ThemeTextBrush}" BorderThickness="2"
               CornerRadius="{ThemeResource ThemeCardCornerRadius}">
