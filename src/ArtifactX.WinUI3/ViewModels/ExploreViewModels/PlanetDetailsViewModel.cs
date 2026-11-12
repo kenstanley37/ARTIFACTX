@@ -1,6 +1,7 @@
 using ArtifactX.Core.NmsModels;
 using ArtifactX.Core.Universe;
 using ArtifactX.WinUI3.Controls;
+using ArtifactX.WinUI3.Helpers.Fauna;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Dispatching;
@@ -312,13 +313,16 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
             string rigId = pred is null ? FallbackRig(saveDiscoveries[slot.Discovery].SpeciesName)
                 : await CreatureModelService.ResolveRigAsync(pred.Id) ?? "antelope";
             string habitat = pred is null ? "Native Fauna" : $"{pred.Habitat} Fauna";
+            var (rarity, activity) = pred is null ? ("", "") : CreatureTraitText.RarityAndActivity(pred, PlanetTypesService.CreatureTables);
 
             if (slot.Discovery >= 0)
             {
                 string name = saveDiscoveries[slot.Discovery].SpeciesName;
                 if (CreatureListService.IsDeleted(planet.SystemAddress, planet.PlanetIndex, name)) continue;
-                var creature = new Creature(Name: name, Rarity: "Discovered", Habitat: habitat, Activity: "", Gender: "",
-                    Size: "", Picture: false, SeenAt: "Discovered");
+                // Rarity and activity only when the discovery is this very creature (same seed), not a leftover slot.
+                bool same = pred is not null && saveDiscoveries[slot.Discovery].Seed == pred.Seed;
+                var creature = new Creature(Name: name, Rarity: same && rarity.Length > 0 ? rarity : "Discovered", Habitat: habitat,
+                    Activity: same ? activity : "", Gender: "", Size: "", Picture: false, SeenAt: "Discovered");
                 allCards.Add(new CreatureCardViewModel(creature, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: true));
                 continue;
             }
@@ -329,8 +333,12 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
             string? predictedName = nameService.PredictedSpecies(pred, planet.Address);
             string unscannedName = predictedName ?? $"Unscanned {pred.DefaultDisplayName}";
             if (CreatureListService.IsDeleted(planet.SystemAddress, planet.PlanetIndex, unscannedName)) continue;
-            var unscanned = new Creature(Name: unscannedName, Rarity: predictedName is null ? "Undiscovered" : "Predicted",
-                Habitat: habitat, Activity: "", Gender: "", Size: "", Picture: false, SeenAt: "Unscanned");
+            // Traits as the game's discovery list shows them, then the species' two forms (gender with weight and height).
+            var unscanned = new Creature(Name: unscannedName,
+                Rarity: predictedName is null ? "Undiscovered" : rarity.Length > 0 ? $"Predicted · {rarity}" : "Predicted",
+                Habitat: habitat, Activity: predictedName is null ? "" : activity, Gender: "",
+                Size: predictedName is null ? "" : CreatureTraitText.Forms(pred, PlanetTypesService.CreatureTables),
+                Picture: false, SeenAt: "Unscanned");
             allCards.Add(new CreatureCardViewModel(unscanned, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: false));
         }
 
@@ -338,9 +346,6 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         ShowSpeciesLeft(planet, allCards);
     }
 
-    /// <summary>
-    /// Shows species count found vs total.
-    /// </summary>
     /// <summary>A stable land model for a discovery the generator didn't predict, picked from its name.</summary>
     private static string FallbackRig(string speciesName)
     {
@@ -349,6 +354,9 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         return CreaturePreviewControl.LandRigs[hash % (uint)CreaturePreviewControl.LandRigs.Length];
     }
 
+    /// <summary>
+    /// Shows species count found vs total.
+    /// </summary>
     private void ShowSpeciesLeft(KnownPlanet planet, IReadOnlyList<CreatureCardViewModel> cards)
     {
         int? total = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex)?.FaunaTotal

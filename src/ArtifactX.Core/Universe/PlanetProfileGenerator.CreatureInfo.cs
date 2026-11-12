@@ -20,9 +20,6 @@ public sealed record PredictedCreatureInfo(float Height1, float Weight1, float H
     /// (146.95 -> 147.0), so format through double.</summary>
     private static string SizeText(float weight, float height) =>
         string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{(double)weight:0.0}kg / {(double)height:0.0}m");
-
-    /// <summary>The game's word for the rarity (GcRarity: Common, Uncommon, Rare).</summary>
-    public string RarityName => Rarity switch { 2 => "Rare", 1 => "Uncommon", _ => "Common" };
 }
 
 public static partial class PlanetProfileGenerator

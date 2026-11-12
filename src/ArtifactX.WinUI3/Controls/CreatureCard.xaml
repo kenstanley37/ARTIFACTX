@@ -47,6 +47,9 @@
                        TextTrimming="CharacterEllipsis"/>
             <TextBlock Text="{x:Bind Creature.Traits, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}"
                        FontSize="12" TextWrapping="Wrap"/>
+            <!-- Gender and size: a predicted species' two forms ("Male 121.5kg / 3.0m or Female 126.2kg / 3.1m"). -->
+            <TextBlock Text="{x:Bind Creature.Body, Mode=OneWay}" Visibility="{x:Bind Creature.HasBody, Mode=OneWay}"
+                       Style="{StaticResource ThemeBodyTextStyle}" FontSize="12" TextWrapping="Wrap"/>
             <TextBlock Text="{x:Bind Creature.CompanionNote, Mode=OneWay}" FontSize="11"
                        Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
         </StackPanel>

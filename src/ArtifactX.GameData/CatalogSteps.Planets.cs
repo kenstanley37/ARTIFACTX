@@ -455,7 +455,8 @@ public static partial class CatalogSteps
                     r.ProbabilityOfBeingEnabled,
                     (int)r.Role.CreatureRole,
                     (int)r.MinSize.CreatureSizeClass,
-                    (int)r.MaxSize.CreatureSizeClass)).ToArray();
+                    (int)r.MaxSize.CreatureSizeClass,
+                    (int)r.ActiveTime.CreatureActiveTime)).ToArray();
                 ecosystemTables[path] = roles;
             }
         }
@@ -467,8 +468,14 @@ public static partial class CatalogSteps
         // last key that exists: 16 in build 185034, Male to None).
         var genders = new List<string>();
         for (int n = 1; english.TryGetValue($"SEX{n}", out var word); n++) genders.Add(word);
+        // The words for a role's ActiveTime, in GcCreatureActiveTime order (OnlyDay ... OnlyNight).
+        string[] activityKeys = ["UI_CRE_ACTIVE_DAY", "UI_CRE_ACTIVE_MOSTLY_DAY", "UI_CRE_ACTIVE_ANYTIME", "UI_CRE_ACTIVE_MOSTLY_NIGHT", "UI_CRE_ACTIVE_NIGHT"];
+        var activities = activityKeys.Select(k => english.TryGetValue(k, out var w) ? w : "").ToArray();
+        // The discovery list's rarity words, in GcRarity order (Common, Uncommon, Rare).
+        var rarities = new[] { "COMMON", "UNCOMMON", "RARE" }.Select(k => english.TryGetValue(k, out var w) ? w : "").ToArray();
         return new CreatureTables(globals, creatures.ToArray(), archetypeLists, domainArchetypes, ecosystemTables, sizes,
-            genders.Count > 0 ? genders.ToArray() : null);
+            genders.Count > 0 ? genders.ToArray() : null, activities.All(w => w.Length > 0) ? activities : null,
+            rarities.All(w => w.Length > 0) ? rarities : null);
     }
 
     private static InventoryGenerationTables? InventoryTables(Func<string, NMSTemplate?> decode)

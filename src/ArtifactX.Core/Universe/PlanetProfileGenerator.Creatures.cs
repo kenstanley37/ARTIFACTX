@@ -13,7 +13,7 @@ namespace ArtifactX.Core.Universe;
 /// SPIDER's scene data), else Id.</summary>
 public sealed record PredictedCreature(string Id, string Domain, int Role, ulong Seed = 0, int CreatureType = 0, int Diet = 0,
     int MinSize = 0, int MaxSize = 0, float Scale = 0, int SizeClass = 0, string SpeciesId = "", PredictedCreatureInfo? Info = null,
-    int Density = 0, float GroupsPerKm = 0)
+    int Density = 0, float GroupsPerKm = 0, int ActiveTime = 2)
 {
     public string Habitat => Domain switch
     {
@@ -120,7 +120,8 @@ public sealed record CreatureDomainArchetype(
     CreatureDomainAdditional[] Additional);
 
 /// <summary>A creature role candidate within an ecosystem role table (GcCreatureRoleDescriptionTable). MinSize and
-/// MaxSize (GcCreatureSizeClasses, catalog format 79; 0 on older catalogs) bound the creature's size class.</summary>
+/// MaxSize (GcCreatureSizeClasses, catalog format 79; 0 on older catalogs) bound the creature's size class.
+/// ActiveTime (GcCreatureActiveTime, format 80; AnyTime on older catalogs) is when it's about.</summary>
 public sealed record CreatureRoleCandidate(
     string ForceId,
     string ReqTag,
@@ -129,7 +130,8 @@ public sealed record CreatureRoleCandidate(
     float Prob,
     int Role,
     int MinSize = 0,
-    int MaxSize = 0);
+    int MaxSize = 0,
+    int ActiveTime = 2);
 
 /// <summary>All creature generation data extracted from the game files.</summary>
 public sealed record CreatureTables(
@@ -139,7 +141,9 @@ public sealed record CreatureTables(
     Dictionary<string, Dictionary<string, CreatureDomainArchetype>> DomainArchetypes,
     Dictionary<string, CreatureRoleCandidate[]> EcosystemTables,
     CreatureSizeGlobals? Sizes = null,
-    string[]? GenderWords = null);
+    string[]? GenderWords = null,
+    string[]? ActivityWords = null,
+    string[]? RarityWords = null);
 
 /// <summary>GcCreatureGlobals' size settings (catalog format 79; null on older catalogs): the scales where the
 /// Medium, Large and Huge size classes start, and the largest scale any creature spawns at.</summary>
@@ -518,7 +522,8 @@ public static partial class PlanetProfileGenerator
                         string speciesId = string.IsNullOrEmpty(picked?.SpeciesId) ? chosenId : picked.SpeciesId;
                         chosenCreatures.Add(new PredictedCreature(chosenId, domain, role.Role, seed, type, diet, role.MinSize,
                             role.MaxSize, scale, sizeClass, speciesId, Density: role.Density,
-                            GroupsPerKm: GroupsPerKm(tables.Globals, domain, role.Density, te.DensityMod, faunaLevel)));
+                            GroupsPerKm: GroupsPerKm(tables.Globals, domain, role.Density, te.DensityMod, faunaLevel),
+                            ActiveTime: role.ActiveTime));
                     }
                 }
                 stack.Pop();

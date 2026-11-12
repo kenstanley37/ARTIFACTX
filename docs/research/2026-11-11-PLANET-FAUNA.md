@@ -164,6 +164,33 @@ matched the generator from a fresh decrypt. Shown in the app since `aa66a59` (ca
 Next (done: names on Planet Details), and match them one by one against
 the owner's captured creatures; then traits (rarity, gender, activity, height and weight from the scale).
 
+## Creature traits: rarity, activity, genders, weight and height (2026-11-12, overnight)
+
+Ghidra on 184271, measured with `fauna-check` (`TRAITS=1`) against the owner's captured creatures
+(`planet_creatures`), matched to predictions by species name on the same planet (479 of 519 matched):
+
+| Trait | Where it comes from | Exact |
+|---|---|---|
+| Rarity (discovery list) | spawn data `0x1416d9650`: groups per km / max(scale, 0.75), over the domain's very-dense groups per km (birds: air); below 0.33 Rare, below 0.66 Uncommon | 477 / 479 |
+| Activity | the role's `ActiveTime`, words `UI_CRE_ACTIVE_*` | 479 / 479 |
+| Gender + weight/height | `0x1416cfcc0`, see below | 403 / 446 whole forms |
+
+`0x1416cfcc0` runs once per creature, in order, drawing from the planet generator's own stream (+0xba4: the
+stream `GenerateCreatureRoles` takes its two root draws from, i.e. `RngStack.Root`). Each text pick
+(`0x1416cdfb0`) counts the numbered keys PREFIX1..n and makes one draw. For a normal creature: behaviour and diet
+picks (one draw each), then Height1 = min(scale, 10) + f * 0.4 - 0.2, Weight1 = min(scale, 10) * 40 + f * 50,
+Height2 = Height1 + f * 0.2, Weight2 = Weight1 + f * 15; notes (one draw); gender 1 over `SEX1..16`, gender 2
+redrawn until different; age (one draw, <= 0.3). Robots (diet Robot, ROBOT worlds) pick on their own seed; with
+ROBOTANTELOPE and WALKINGBUILDING also notes and genders (`UI_ROBOT_GENDER_`, not ported yet).
+
+A species comes in **two forms**: gender 1 with weight/height 1, gender 2 with weight/height 2. The Discoveries
+page shows the form you scanned. The 43 misses: robots (4, genders not ported), captures with gender but no size,
+and "Vectorized": the owner's game is in US English while the catalog reads UK English ("Vectorised"). Sizes are
+formatted through double, as printf rounds the float's exact value (146.9499 -> 146.9).
+
+Catalog format 80: gender words, the role's `ActiveTime` and its words. Fauna totals (986 / 986) and species names
+(881 / 904 this year) unchanged.
+
 ## Next layers
 
 1. ~~Waterworld air rule~~ (solved above).

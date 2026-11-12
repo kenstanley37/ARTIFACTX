@@ -30,6 +30,7 @@ public sealed partial class CreatureCardViewModel : ObservableObject
     public string Name => Creature.Name;
     public string Traits { get; }
     public string Body { get; }
+    public bool HasBody => Body.Length > 0;
     public string CompanionNote { get; }
     public bool IsExtinct => Creature.Rarity == "Extinct";
     public string BadgeText => IsDiscovered ? "DISCOVERED" : "UNDISCOVERED";

@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Planet Details: creatures you haven't scanned yet also show their rarity and when they're about (for example "Predicted · Rare · Ground Fauna · Always Active"), and the two forms the species comes in, each with its gender, weight and height. Discovered creatures show their rarity and activity too. Update your game data once to get this.
+
 - Planet Details and Current System keep their top bar on screen while you scroll. Once the planet or system card is out of view, the bar also shows its name, type and key facts (sentinels, weather, star, economy, where you are), so you no longer have to scroll back up.
 
 - The Catalogue page is now part of the Catalog page: its technology is the Catalog's Technology section, which also tells you about broken technology placeholders and has a Forget broken technology button.

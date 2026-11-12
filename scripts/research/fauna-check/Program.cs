@@ -438,6 +438,8 @@ if (Environment.GetEnvironmentVariable("TRAITS") == "1")
     int matched = 0, unmatched = 0, sizeOk = 0, rarityOk = 0, genderOk = 0, genderAny = 0, heightOk = 0, variantOk = 0, noTraits = 0;
     var variantMiss = new List<string>();
     var rarityTable = new Dictionary<string, int>();
+    int activityOk = 0, activityAll = 0;
+    var activityMiss = new List<string>();
     var densityTable = new Dictionary<string, int>();
     var rarityPoints = new List<(float H1, int Size, float Scale, string Rarity, string Domain)>();
     var miss = new List<string>();
@@ -445,13 +447,13 @@ if (Environment.GetEnvironmentVariable("TRAITS") == "1")
     {
         u.Open();
         var cmd = u.CreateCommand();
-        cmd.CommandText = "SELECT system_address, planet_index, name, rarity, gender, size FROM planet_creatures WHERE deleted = 0 AND name <> ''";
+        cmd.CommandText = "SELECT system_address, planet_index, name, rarity, gender, size, activity FROM planet_creatures WHERE deleted = 0 AND name <> ''";
         using var r = cmd.ExecuteReader();
         while (r.Read())
         {
             ulong system = ulong.Parse(r.GetString(0), NumberStyles.HexNumber) & ~(0xFUL << 52);
             int index = r.GetInt32(1);
-            string name = r.GetString(2), rarity = r.GetString(3), gender = r.GetString(4), size = r.GetString(5);
+            string name = r.GetString(2), rarity = r.GetString(3), gender = r.GetString(4), size = r.GetString(5), activity = r.GetString(6);
             if (!planetNames.TryGetValue((system, index), out var byName))
             {
                 byName = new Dictionary<string, PredictedCreature>(StringComparer.OrdinalIgnoreCase);
@@ -496,15 +498,21 @@ if (Environment.GetEnvironmentVariable("TRAITS") == "1")
             rarityTable[rk] = rarityTable.GetValueOrDefault(rk) + 1;
             if (sOk) sizeOk++;
             if (size.Contains($"{info.Height1.ToString("0.0", CultureInfo.InvariantCulture)}m")) heightOk++;
-            if (string.Equals(rarity, info.RarityName, StringComparison.OrdinalIgnoreCase)) rarityOk++;
+            if (string.Equals(rarity, RarityWord(info.Rarity), StringComparison.OrdinalIgnoreCase)) rarityOk++;
+            var words = profiles.Creatures.ActivityWords;
+            string predictedActivity = words is { Length: 5 } && pc.ActiveTime is >= 0 and < 5 ? words[pc.ActiveTime] : "?";
+            if (activity.Length > 0) { activityAll++; if (string.Equals(activity, predictedActivity, StringComparison.OrdinalIgnoreCase)) activityOk++; else if (activityMiss.Count < 8) activityMiss.Add($"{name} {pc.Id} {pc.Domain}: captured {activity}, predicted {predictedActivity}"); }
             if (string.Equals(gender, g1, StringComparison.OrdinalIgnoreCase)) genderOk++;
             if (string.Equals(gender, g1, StringComparison.OrdinalIgnoreCase) || string.Equals(gender, g2, StringComparison.OrdinalIgnoreCase)) genderAny++;
-            if ((!sOk || !string.Equals(rarity, info.RarityName, StringComparison.OrdinalIgnoreCase)) && miss.Count < 25)
-                miss.Add($"{name,-20} {pc.Id,-14} captured [{rarity,-8} {gender,-11} {size,-17}] predicted [{info.RarityName,-8} {g1}/{g2} {info.Size} | {info.Weight2:0.0}kg / {info.Height2:0.0}m]");
+            if ((!sOk || !string.Equals(rarity, RarityWord(info.Rarity), StringComparison.OrdinalIgnoreCase)) && miss.Count < 25)
+                miss.Add($"{name,-20} {pc.Id,-14} captured [{rarity,-8} {gender,-11} {size,-17}] predicted [{RarityWord(info.Rarity),-8} {g1}/{g2} {info.Size} | {info.Weight2:0.0}kg / {info.Height2:0.0}m]");
         }
     }
     Console.WriteLine($"traits: captured creatures matched by name {matched} (not matched {unmatched}); size exact {sizeOk}, height {heightOk}, rarity {rarityOk}, gender = first {genderOk}, gender either {genderAny}");
+    string RarityWord(int r) => profiles.Creatures.RarityWords is { Length: 3 } rw && r is >= 0 and < 3 ? rw[r] : "?";
     static bool SameWord(string a, string b) => string.Equals(a.Trim().TrimStart('•', ' ').Replace("ized", "ised"), b.Replace("ized", "ised"), StringComparison.OrdinalIgnoreCase);
+    Console.WriteLine($"traits: activity {activityOk} of {activityAll}");
+    foreach (var m in activityMiss) Console.WriteLine("  activity miss " + m);
     Console.WriteLine($"traits: one whole variant (gender + size) matches {variantOk} of {matched - noTraits} with traits recorded");
     foreach (var m in variantMiss) Console.WriteLine("  variant miss " + m);
     foreach (var t in densityTable.OrderBy(k => k.Key)) Console.WriteLine($"  {t.Key} x{t.Value}");
