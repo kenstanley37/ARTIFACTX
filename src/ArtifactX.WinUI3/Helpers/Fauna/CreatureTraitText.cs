@@ -40,19 +40,18 @@ public static class CreatureTraitText
         return string.Join(" · ", parts);
     }
 
-    /// <summary>The analysis visor's "Trait Potential" panel as one line ("Trait Potential S: Combat Effectiveness S ·
-    /// Agility B · Health S · Fire"), from the species' name seeds (the saved ones for a discovered creature); empty on
-    /// game data before format 82.</summary>
-    public static string Battle(PredictedCreature creature, CreatureTables? tables, ulong speciesSeed, ulong genusSeed)
+    /// <summary>The analysis visor's "Trait Potential" panel, from the species' name seeds (the saved ones for a
+    /// discovered creature): the heading, overall class, the three stats in the visor's order (Combat Effectiveness,
+    /// Agility, Health) with their classes (0 = C ... 3 = S), and the element. Null on game data before format 82.</summary>
+    public static CreatureBattle? Battle(PredictedCreature creature, CreatureTables? tables, ulong speciesSeed, ulong genusSeed)
     {
-        if (tables?.PetBattle is not { Labels.Length: 4 } battle || battle.ClassRolls.Length < 3) return "";
+        if (tables?.PetBattle is not { Labels.Length: 4 } battle || battle.ClassRolls.Length < 3) return null;
         var (classes, potential) = PetBattlerClasses.Roll(speciesSeed, genusSeed, battle.ClassRolls);
-        const string Letters = "CBAS";
         // The visor lists Combat Effectiveness, Agility, Health: stats 2, 1, 0 in GcPetBattlerCoreStat order.
-        var parts = new[] { 2, 1, 0 }.Select(i => $"{battle.Labels[i]} {Letters[classes[i]]}").ToList();
-        if (creature.Info is { Element: >= 0 } info && info.Element < battle.AffinityWords.Length && battle.AffinityWords[info.Element].Length > 0)
-            parts.Add(battle.AffinityWords[info.Element]);
-        return $"{battle.Labels[3]} {Letters[potential]}: {string.Join(" · ", parts)}";
+        var stats = new[] { 2, 1, 0 }.Select(i => (battle.Labels[i], classes[i])).ToArray();
+        string element = creature.Info is { Element: >= 0 } info && info.Element < battle.AffinityWords.Length
+            ? battle.AffinityWords[info.Element] : "";
+        return new CreatureBattle(battle.Labels[3], potential, stats, element);
     }
 
     /// <summary>The species' two forms, each gender with its weight and height ("Male 121.5kg / 3.0m or Female
@@ -67,3 +66,6 @@ public static class CreatureTraitText
         return string.Join(" or ", forms.Distinct());
     }
 }
+
+/// <summary>A creature's pet-battle classes as the visor shows them (classes 0 = C ... 3 = S).</summary>
+public sealed record CreatureBattle(string Heading, int Potential, (string Label, int Class)[] Stats, string Element);

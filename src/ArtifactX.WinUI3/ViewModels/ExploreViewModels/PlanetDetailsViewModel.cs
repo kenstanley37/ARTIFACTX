@@ -328,7 +328,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 var disc = saveDiscoveries[slot.Discovery];
                 allCards.Add(new CreatureCardViewModel(creature, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: true,
                     about: same ? CreatureTraitText.About(pred!, PlanetTypesService.CreatureTables) : "",
-                    battle: same ? CreatureTraitText.Battle(pred!, PlanetTypesService.CreatureTables, disc.SpeciesSeed, disc.GenusSeed) : ""));
+                    battle: same ? Panel(CreatureTraitText.Battle(pred!, PlanetTypesService.CreatureTables, disc.SpeciesSeed, disc.GenusSeed)) : null));
                 continue;
             }
 
@@ -348,12 +348,14 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 planet.Address, pred.CreatureType, pred.SizeClass);
             allCards.Add(new CreatureCardViewModel(unscanned, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: false,
                 about: predictedName is null ? "" : CreatureTraitText.About(pred, PlanetTypesService.CreatureTables),
-                battle: predictedName is null ? "" : CreatureTraitText.Battle(pred, PlanetTypesService.CreatureTables, speciesSeed, genusSeed)));
+                battle: predictedName is null ? null : Panel(CreatureTraitText.Battle(pred, PlanetTypesService.CreatureTables, speciesSeed, genusSeed))));
         }
 
         Creatures = allCards;
         ShowSpeciesLeft(planet, allCards);
     }
+
+    private static CreatureBattleViewModel? Panel(CreatureBattle? battle) => battle is null ? null : new CreatureBattleViewModel(battle);
 
     /// <summary>A stable land model for a discovery the generator didn't predict, picked from its name.</summary>
     private static string FallbackRig(string speciesName)

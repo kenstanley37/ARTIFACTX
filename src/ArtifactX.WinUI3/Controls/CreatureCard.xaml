@@ -4,7 +4,8 @@
     x:Class="ArtifactX.WinUI3.Controls.CreatureCard"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:ArtifactX.WinUI3.Controls">
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:explore="using:ArtifactX.WinUI3.ViewModels.ExploreViewModels">
 
     <Border Padding="10" CornerRadius="6" Background="{ThemeResource ThemeVoidBrush}"
             BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
@@ -47,14 +48,57 @@
                        TextTrimming="CharacterEllipsis"/>
             <TextBlock Text="{x:Bind Creature.Traits, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}"
                        FontSize="12" TextWrapping="Wrap"/>
+            <!-- Pet-battle panel, laid out like the analysis visor's Trait Potential panel: the stats players pick arena
+                 pets by, so they get their own block with the game's class colours. -->
+            <Border Visibility="{x:Bind Creature.HasBattle, Mode=OneWay}" Margin="0,4,0,2" Padding="10,8"
+                    CornerRadius="{ThemeResource ThemeCardCornerRadius}" Background="{ThemeResource ThemePanelAltBrush}"
+                    BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                    AutomationProperties.Name="{x:Bind Creature.BattleName, Mode=OneWay}">
+                <StackPanel Spacing="6">
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Width="28" Height="28" CornerRadius="4" Background="{x:Bind Creature.Battle.PotentialBrush, Mode=OneWay}">
+                            <TextBlock Text="{x:Bind Creature.Battle.Potential, Mode=OneWay}" FontSize="16" FontWeight="Bold"
+                                       FontFamily="{ThemeResource ThemeDisplayFont}" Foreground="White"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Grid.Column="1" Text="{x:Bind Creature.Battle.Heading, Mode=OneWay}"
+                                   Style="{StaticResource ThemeEyebrowStyle}" FontSize="10" VerticalAlignment="Center"/>
+                        <Border Grid.Column="2" Visibility="{x:Bind Creature.Battle.HasElement, Mode=OneWay}"
+                                CornerRadius="4" Padding="6,2" BorderThickness="1" BorderBrush="{ThemeResource ThemeLineBrush}"
+                                Background="{ThemeResource ThemeVoidBrush}" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind Creature.Battle.Element, Mode=OneWay}" FontSize="11"
+                                       FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}"/>
+                        </Border>
+                    </Grid>
+                    <ItemsControl ItemsSource="{x:Bind Creature.Battle.Stats, Mode=OneWay}" IsTabStop="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="explore:BattleStatRow">
+                                <Grid Margin="0,1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{x:Bind Label}" FontSize="12" Foreground="{ThemeResource ThemeTextBrush}" VerticalAlignment="Center"/>
+                                    <Border Grid.Column="1" Width="22" Height="20" CornerRadius="3" Background="{x:Bind Brush}">
+                                        <TextBlock Text="{x:Bind Letter}" FontSize="12" FontWeight="Bold" Foreground="White"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
             <!-- Gender and size: a predicted species' two forms ("Male 121.5kg / 3.0m or Female 126.2kg / 3.1m"). -->
             <TextBlock Text="{x:Bind Creature.Body, Mode=OneWay}" Visibility="{x:Bind Creature.HasBody, Mode=OneWay}"
                        Style="{StaticResource ThemeBodyTextStyle}" FontSize="12" TextWrapping="Wrap"/>
             <!-- Behaviour, diet and notes, as the analysis visor shows them. -->
             <TextBlock Text="{x:Bind Creature.About, Mode=OneWay}" Visibility="{x:Bind Creature.HasAbout, Mode=OneWay}"
-                       Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
-            <!-- Pet-battle classes and element, as the visor's Trait Potential panel shows them. -->
-            <TextBlock Text="{x:Bind Creature.Battle, Mode=OneWay}" Visibility="{x:Bind Creature.HasBattle, Mode=OneWay}"
                        Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
             <TextBlock Text="{x:Bind Creature.CompanionNote, Mode=OneWay}" FontSize="11"
                        Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
