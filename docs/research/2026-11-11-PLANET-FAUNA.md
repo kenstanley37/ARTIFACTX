@@ -295,3 +295,8 @@ Open: the anomalous rig (WEIRDRIG) takes a role **Filter** ("FLOAT", "ROLL", "CR
 table) that forces its first choice; neither "take it without a draw", "narrow then draw" nor "redraw until it
 matches" reproduces all the owner's floaters and rollers - read the selector's filter handling (0x142d6b5a0 area).
 Colours are not done: the owner's reroll tests say WTp also drives the colours (palettes, not ported).
+
+**Correction, same evening:** a wild creature's parts come from its **appearance seed = Mix64(role seed)**, which the
+discovery key stores as bEr[4] (363/365 records). The owner's G. Towerravusosa (Slot 8) showed it: the role seed gave a
+hippo head and turtle shell, the appearance seed the triceratops head with horns, diplodocus body and hippo tail seen
+in game. Companions split: 78 match ShipParts(WTp), 18 ShipParts(Mix64(WTp)) - they draw from their stored osl anyway.

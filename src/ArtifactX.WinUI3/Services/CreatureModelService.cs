@@ -204,23 +204,30 @@ public static class CreatureModelService
     }
 
     /// <summary>
-    /// The body parts the game gives a creature (issue #15): its scene's part tree walked with the creature's seed by
-    /// the same selector as ships and multi-tools (Core ShipParts). The seed is the creature's role seed - a wild
-    /// creature's discovery bEr[0], PredictedCreature.Seed; a companion keeps it as its CreatureSeed (WTp). Checked
-    /// 2026-11-12 on the owner's saves: WTp equals the species' discovery bEr[0] for all 132 companions that have one,
-    /// and the parts it picks equal the companion's stored descriptor list (osl) for 90 of 182 companions outright
-    /// (most of the rest had their seed rerolled or parts changed after adoption). Not yet: the anomalous rig's role
-    /// Filter (FLOAT / ROLL / CRYSTAL), so those three kinds can show another body. Null without the part tree
-    /// (game data before format 87).
+    /// The body parts the game gives a wild creature (issue #15): its scene's part tree walked by the same selector as
+    /// ships and multi-tools (Core ShipParts) with its **appearance seed**, Mix64 of its role seed (discovery bEr[0],
+    /// PredictedCreature.Seed). The discovery key keeps that appearance seed as bEr[4]: Mix64(bEr[0]) on 363 of 365
+    /// records in the owner's saves (2026-11-12), and it gives G. Towerravusosa (Slot 8, Menuscuryd Setaj) the
+    /// triceratops head with nose horn and horns, diplodocus body with back spikes and hippo tail seen in game, where
+    /// the bare role seed gave a hippo head and turtle shell. Companions draw from their stored parts instead. Not yet:
+    /// the anomalous rig's role Filter (FLOAT / ROLL / CRYSTAL). Null without the part tree (game data before format 87).
     /// </summary>
-    public static async Task<IReadOnlyList<string>?> PartsForSeedAsync(string? scenePath, ulong seed)
+    public static async Task<IReadOnlyList<string>?> PartsForSeedAsync(string? scenePath, ulong roleSeed)
     {
-        if (string.IsNullOrEmpty(scenePath) || seed == 0) return null;
+        if (string.IsNullOrEmpty(scenePath) || roleSeed == 0) return null;
         await PartTreeService.EnsureAsync();
         string scene = scenePath.ToLowerInvariant();
         if (PartTreeService.Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is null) return null;
-        return await Task.Run(() => (IReadOnlyList<string>)ArtifactX.Core.Procedural.ShipParts.Generate(scene, seed, PartTreeService.Load)
+        ulong appearance = Mix64(roleSeed);
+        return await Task.Run(() => (IReadOnlyList<string>)ArtifactX.Core.Procedural.ShipParts.Generate(scene, appearance, PartTreeService.Load)
             .Select(p => p.Id).ToList());
+    }
+
+    private static ulong Mix64(ulong v)
+    {
+        v = (v ^ (v >> 33)) * 0x64DD81482CBD31D7UL;
+        v = (v ^ (v >> 33)) * 0xE36AA5C613612997UL;
+        return v ^ (v >> 33);
     }
 
     /// <summary>Natural shading for creature materials: eyes, teeth, mouth, horns, pet harness and skin.</summary>

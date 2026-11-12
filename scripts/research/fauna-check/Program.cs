@@ -247,6 +247,11 @@ if (Environment.GetEnvironmentVariable("PARTS") == "1" && args.Length > 2)
             var seeds = new List<(string Name, ulong Seed)>();
             foreach (var key in new[] { "WTp", "1p=", "uAX", "6fX" })
                 if (pet[key] is Newtonsoft.Json.Linq.JArray pair && pair.Count == 2 && Hex(pair[1]) is ulong v && v != 0) seeds.Add((key, v));
+            if (seeds.FirstOrDefault(x => x.Name == "WTp") is { Seed: not 0 } wt)
+            {
+                ulong m = wt.Seed; m = (m ^ (m >> 33)) * 0x64DD81482CBD31D7UL; m = (m ^ (m >> 33)) * 0xE36AA5C613612997UL; m ^= m >> 33;
+                seeds.Insert(0, ("mix(WTp)", m));
+            }
             foreach (var key in new[] { "m9o", "JrL" })
                 if (Hex(pet[key]) is ulong v && v != 0) seeds.Add((key, v));
             string best = "none"; int bestHits = -1;
@@ -258,6 +263,7 @@ if (Environment.GetEnvironmentVariable("PARTS") == "1" && args.Length > 2)
                 if (hits == stored.Count && picked.Count == stored.Count) { partsExact++; bySeed[name] = bySeed.GetValueOrDefault(name) + 1; best = name + " EXACT"; break; }
             }
             if (companions <= 12) Console.WriteLine($"  {id,-16} {scene,-60} stored {stored.Count}, best {best} ({bestHits})  [{string.Join(" ", stored)}]");
+            if (Environment.GetEnvironmentVariable("PARTSKIND") == "1") Console.WriteLine($"  KIND {id} {(best.EndsWith("EXACT") && best.StartsWith("WTp") ? "wtp-exact" : best.EndsWith("EXACT") ? "other-exact" : "miss")}");
             // Role Filter test (weird rig: groundtableweird Filter FLOAT / ROLL / CRYSTAL): top choice only, or every match.
             if (Environment.GetEnvironmentVariable("PARTSFILTER") == "1" && id is "WEIRDFLOAT" or "WEIRDROLL" or "WEIRDCRYSTAL"
                 && seeds.FirstOrDefault(x => x.Name == "WTp") is { Seed: not 0 } wf && Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is { } rootGroups)
@@ -321,6 +327,47 @@ if (Environment.GetEnvironmentVariable("PARTS") == "1" && args.Length > 2)
         if (linked <= 8) Console.WriteLine($"  {pid,-14} WTp {wtp:X16}  discovery bEr0 {d.B0:X16}  species {a:X16}");
     }
     Console.WriteLine($"companions linked to a discovery {linked}, WTp == bEr[0]: {same0}");
+    return;
+}
+
+// PICK=<system hex>:<planet>:<species name>: a predicted creature's kind, scene, seed and the parts ShipParts picks.
+if (Environment.GetEnvironmentVariable("PICK") is { Length: > 0 } pickArg)
+{
+    var parts = pickArg.Split(':');
+    ulong sys = ulong.Parse(parts[0], NumberStyles.HexNumber);
+    int index = int.Parse(parts[1]) - 1;
+    var (code, galaxy) = Gen(sys & ~(0xFUL << 52));
+    var types = PlanetGenerator.Generate(code, galaxy, biomes);
+    var attributes = SystemGenerator.Attributes(code, galaxy);
+    var bodySeeds = SystemGenerator.Bodies(code, galaxy).PlanetSeeds;
+    var p = PlanetProfileGenerator.Generate(bodySeeds[index], index, types[index], (int)attributes.Star, PlanetGenerator.GalaxyType(galaxy),
+        attributes.GasGiantPlanet, profiles, attributes.Uncharted, attributes.Abandoned);
+    var treeJson = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    List<string> creWords;
+    using (var cc = new SqliteConnection($"Data Source={catalog};Mode=ReadOnly"))
+    {
+        cc.Open();
+        var cmd = cc.CreateCommand();
+        cmd.CommandText = "SELECT i.NameEnglish, i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='ShipDescriptors'";
+        using (var r = cmd.ExecuteReader()) while (r.Read()) treeJson[r.GetString(0)] = r.GetString(1);
+        cmd.CommandText = "SELECT i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='MultiToolNameWords' AND i.NameEnglish='CRE'";
+        creWords = JsonSerializer.Deserialize<List<string>>((string)cmd.ExecuteScalar()!)!;
+    }
+    IReadOnlyList<ArtifactX.Core.Procedural.PartGroup>? Load(string path) => treeJson.TryGetValue(path, out var j) ? ArtifactX.Core.Procedural.ShipParts.ParseTree(j) : null;
+    ulong planetAddress = (sys & ~(0xFUL << 52)) | ((ulong)(index + 1) << 52);
+    foreach (var c in p.PredictedCreatures ?? [])
+    {
+        var (sp, ge) = ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(c.Seed, c.SpeciesId, planetAddress, c.CreatureType, c.SizeClass);
+        string name = ArtifactX.Core.Procedural.SpeciesNames.Fauna(sp, ge, creWords) ?? "?";
+        if (!name.Equals(parts[2], StringComparison.OrdinalIgnoreCase)) continue;
+        string scene = Array.Find(profiles.Creatures!.Creatures, e => e.Id == c.Id)?.Scene ?? "";
+        Console.WriteLine($"{name}: {c.Id} species {c.SpeciesId} scene {scene} seed {c.Seed:X16}");
+        Console.WriteLine("picked: " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(scene, c.Seed, Load).Select(x => $"{x.Group}={x.Id}")));
+        if (Environment.GetEnvironmentVariable("PICKSEED") is { Length: > 0 } extra)
+            Console.WriteLine("with " + extra + ": " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(scene, ulong.Parse(extra, NumberStyles.HexNumber), Load).Select(x => $"{x.Group}={x.Id}")));
+        if (Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is { } root)
+            foreach (var g in root) Console.WriteLine($"  group {g.Type}: {string.Join(", ", g.Options.Select(o => $"{o.Id}({o.Weight})"))}");
+    }
     return;
 }
 
