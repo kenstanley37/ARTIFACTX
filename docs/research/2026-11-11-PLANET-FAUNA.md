@@ -215,7 +215,16 @@ the map and each product's NameLower ("Leopard-Fruit").
 Catalog format 80: gender, behaviour, diet and note words, the role's `ActiveTime` and its words. Fauna totals (986 / 986) and species names
 (881 / 904 this year) unchanged.
 
-**Pet battle stats (not started):** the analysis visor's "Trait Potential" panel (Combat Effectiveness, Agility,
+**Pet battle stats: SOLVED (2026-11-12).** Classes: seed = Hash128to64(low = genus, high = species);
+XXH3-64 (seed 0, default secret; `System.IO.Hashing`) of StartState(seed) + "CORE_STAT_CLASSES", then per stat
+XXH3-64 of StartState(that) + the 16-byte name (COMBAT, SPEED, HEALTH in GcPetBattlerCoreStat order MaxHealth,
+Speed, CombatPotential), one generator step, weighted C/B/A/S pick (GcGameTableGlobals CoreStatClassRollTable).
+Overall = highest of thresholds 0/1/4/7 the class sum reaches. The visor lists Combat Effectiveness =
+CombatPotential, Agility = Speed, Health = MaxHealth. Element: the creature data's PetBattlerForcedAffinity (1-8),
+else PetBiomeAffinities by biome (swamp 12, lava 13, anomaly 7). Four visor panels match exactly (Elephabatum,
+Dasiythrodia, Scrofbuyae, Warloxigesea). `Core/Companions/PetBattlerClasses`; catalog format 82.
+
+Earlier lead, kept for reference: the analysis visor's "Trait Potential" panel (Combat Effectiveness, Agility,
 Health classes and the element) is drawn by `0x140757700` (`UI_PB_BINOC_HEADER_WILD`) from stats its caller
 `0x1412da090` builds: pet data for the wild creature, then `0x1413cfa80` for the battler stats; the element is the
 creature data's `PetBattlerForcedAffinity` (+0xcc) unless 0 or 9, else a per-biome table (`0x145328c9c`). Ground

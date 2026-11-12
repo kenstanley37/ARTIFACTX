@@ -1,3 +1,4 @@
+using ArtifactX.Core.Companions;
 using ArtifactX.Core.Universe;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,6 +38,21 @@ public static class CreatureTraitText
         if (tables?.ProduceOf(creature) is string item && tables.ProduceNames?.GetValueOrDefault(item) is { Length: > 0 } product)
             parts.Add($"produces {product}");
         return string.Join(" · ", parts);
+    }
+
+    /// <summary>The analysis visor's "Trait Potential" panel as one line ("Trait Potential S: Combat Effectiveness S ·
+    /// Agility B · Health S · Fire"), from the species' name seeds (the saved ones for a discovered creature); empty on
+    /// game data before format 82.</summary>
+    public static string Battle(PredictedCreature creature, CreatureTables? tables, ulong speciesSeed, ulong genusSeed)
+    {
+        if (tables?.PetBattle is not { Labels.Length: 4 } battle || battle.ClassRolls.Length < 3) return "";
+        var (classes, potential) = PetBattlerClasses.Roll(speciesSeed, genusSeed, battle.ClassRolls);
+        const string Letters = "CBAS";
+        // The visor lists Combat Effectiveness, Agility, Health: stats 2, 1, 0 in GcPetBattlerCoreStat order.
+        var parts = new[] { 2, 1, 0 }.Select(i => $"{battle.Labels[i]} {Letters[classes[i]]}").ToList();
+        if (creature.Info is { Element: >= 0 } info && info.Element < battle.AffinityWords.Length && battle.AffinityWords[info.Element].Length > 0)
+            parts.Add(battle.AffinityWords[info.Element]);
+        return $"{battle.Labels[3]} {Letters[potential]}: {string.Join(" · ", parts)}";
     }
 
     /// <summary>The species' two forms, each gender with its weight and height ("Male 121.5kg / 3.0m or Female

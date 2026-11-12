@@ -312,6 +312,20 @@ public static partial class CatalogSteps
         return produce;
     }
 
+    /// <summary>The pet-battle tables the analysis visor's "Trait Potential" panel reads (GcGameTableGlobals): the class
+    /// weights per core stat, the element per biome, the element words and the panel's labels (catalog format 82).</summary>
+    private static PetBattleTables? PetBattle(Func<string, NMSTemplate?> decode, IReadOnlyDictionary<string, string> english)
+    {
+        if (decode("GCGAMETABLEGLOBALS.MBIN") is not GcGameTableGlobals gt) return null;
+        string Word(string? key) => !string.IsNullOrEmpty(key) && english.TryGetValue(key, out var w) ? w : "";
+        return new PetBattleTables(
+            (gt.CoreStatClassRollTable ?? []).Select(r => (r.Roll ?? []).ToArray()).ToArray(),
+            (gt.PetBiomeAffinities ?? []).Select(a => (int)a.PetBattlerAffinity).ToArray(),
+            (gt.PetAffinityLocLower ?? []).Select(k => Word(k?.Value)).ToArray(),
+            // GcPetBattlerCoreStat order (MaxHealth, Speed, CombatPotential), then the panel's heading.
+            [Word("UI_PB_STAT_HEADER_HEALTH"), Word("UI_PB_STAT_HEADER_SPEED"), Word("UI_PB_STAT_HEADER_BUDGET"), Word("UI_PB_BINOC_HEADER_WILD")]);
+    }
+
     /// <summary>Each produced item's name as the analysis visor writes it (the product's NameLower, "Leopard-Fruit").</summary>
     private static Dictionary<string, string>? ProduceNames(GcCreatureGlobals? cg, Func<string, NMSTemplate?> decode,
         IReadOnlyDictionary<string, string> english)
@@ -412,7 +426,8 @@ public static partial class CatalogSteps
                     c.MaxScale,
                     tagRows.Select(t => (int)t.RarityOverride.CreatureRarity).ToArray(),
                     sceneIds.GetValueOrDefault(id, ""),
-                    scenes.GetValueOrDefault(id, "")));
+                    scenes.GetValueOrDefault(id, ""),
+                    (int)c.PetBattlerForcedAffinity.PetBattlerAffinity));
             }
         }
 
@@ -532,7 +547,7 @@ public static partial class CatalogSteps
         return new CreatureTables(globals, creatures.ToArray(), archetypeLists, domainArchetypes, ecosystemTables, sizes,
             genders.Count > 0 ? genders.ToArray() : null, activities.All(w => w.Length > 0) ? activities : null,
             rarities.All(w => w.Length > 0) ? rarities : null, robotGenders.Count > 0 ? robotGenders.ToArray() : null, text,
-            Produce(cg), ProduceNames(cg, decode, english));
+            Produce(cg), ProduceNames(cg, decode, english), PetBattle(decode, english));
     }
 
     private static InventoryGenerationTables? InventoryTables(Func<string, NMSTemplate?> decode)

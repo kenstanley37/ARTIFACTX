@@ -9,7 +9,7 @@ namespace ArtifactX.Core.Universe;
 /// </summary>
 public sealed record PredictedCreatureInfo(float Height1, float Weight1, float Height2, float Weight2, int Rarity,
     int Gender1, int Gender2, bool AgeFlag, bool RobotGenders = false, string Behaviour = "", string Diet = "", string Notes = "",
-    int AdultAge = 0, int BabyAge = 0)
+    int AdultAge = 0, int BabyAge = 0, int Element = -1)
 {
     /// <summary>"121.5kg / 3.0m", the game's own format ("%0.1fkg / %0.1fm"), for the first form.</summary>
     public string Size => SizeText(Weight1, Height1);
@@ -136,7 +136,21 @@ public static partial class PlanetProfileGenerator
         int babyAge = (int)(((ulong)w * 3) >> 32) + 1;
         int adultAge = age ? (int)(w >> 30) + 7 : (int)(((ulong)w * 3) >> 32) + 4;
         return new PredictedCreatureInfo(height1, weight1, height2, weight2, RarityFor(creature, scale, tables.Globals),
-            gender1, gender2, age, robotGenders, behaviour, diet, notes, adultAge, babyAge);
+            gender1, gender2, age, robotGenders, behaviour, diet, notes, adultAge, babyAge, ElementFor(creature, biome, subType, tables));
+    }
+
+    /// <summary>The pet-battle element the analysis visor shows (0x1412da090): the spawned creature data's
+    /// PetBattlerForcedAffinity when set (1-8), else GcGameTableGlobals PetBiomeAffinities for the planet's biome as
+    /// the adoption routine 0x1405110b0 maps it (swamp 12, lava 13, the anomaly biomes 8-10 as 7). -1 without the
+    /// tables. The owner's three scans on a scorched planet: Fire.</summary>
+    private static int ElementFor(PredictedCreature creature, int biome, int subType, CreatureTables tables)
+    {
+        if (tables.PetBattle is not { } battle) return -1;
+        string id = string.IsNullOrEmpty(creature.SpeciesId) ? creature.Id : creature.SpeciesId;
+        var data = Array.Find(tables.Creatures, c => c.Id == id) ?? Array.Find(tables.Creatures, c => c.Id == creature.Id);
+        if (data is { ForcedAffinity: >= 1 and <= 8 }) return data.ForcedAffinity;
+        int b = subType == SwampSub ? Swamp : subType == LavaSub ? Lava : biome is >= 8 and <= 10 ? 7 : biome;
+        return b >= 0 && b < battle.BiomeAffinities.Length ? battle.BiomeAffinities[b] : -1;
     }
 
     /// <summary>One numbered word, as 0x1416cdfb0 picks it: a draw only when there are words, n = (w * count) &gt;&gt; 32.</summary>

@@ -378,6 +378,12 @@ if (args.Length > 2)
                     ? $"{W(t.RarityWords, inf.Rarity)} · {c.Habitat} · {W(t.ActivityWords, c.ActiveTime)} | {W(t.GenderWords, inf.Gender1 - 1)} {inf.Size} or {W(t.GenderWords, inf.Gender2 - 1)} {inf.Size2} | behaviour {inf.Behaviour}, diet {inf.Diet}, notes {inf.Notes}, age {W(t.Text?.Ages, inf.AdultAge - 1)} (babies {W(t.Text?.Ages, inf.BabyAge - 1)})"
                     : "no info";
                 Console.WriteLine($"  predicted on this planet: {ArtifactX.Core.Procedural.SpeciesNames.Fauna(sp, ge, words)} ({c.Id}) {traits}");
+                int[][] rolls = t.PetBattle?.ClassRolls ?? [[30, 30, 25, 15], [30, 30, 25, 15], [30, 30, 25, 15]];
+                var (cls, pot) = ArtifactX.Core.Companions.PetBattlerClasses.Roll(sp, ge, rolls);
+                const string L = "CBAS";
+                string element = c.Info is { Element: >= 0 } ei && t.PetBattle is { } pb && ei.Element < pb.AffinityWords.Length ? pb.AffinityWords[ei.Element] : "?";
+                Console.WriteLine($"    seeds 0x{sp:X16} 0x{ge:X16}");
+                Console.WriteLine($"    battle classes [MaxHealth {L[cls[0]]}, Speed {L[cls[1]]}, CombatPotential {L[cls[2]]}] potential {L[pot]} element {element}");
             }
             }
         }

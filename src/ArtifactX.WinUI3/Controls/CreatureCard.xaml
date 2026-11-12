@@ -53,6 +53,9 @@
             <!-- Behaviour, diet and notes, as the analysis visor shows them. -->
             <TextBlock Text="{x:Bind Creature.About, Mode=OneWay}" Visibility="{x:Bind Creature.HasAbout, Mode=OneWay}"
                        Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+            <!-- Pet-battle classes and element, as the visor's Trait Potential panel shows them. -->
+            <TextBlock Text="{x:Bind Creature.Battle, Mode=OneWay}" Visibility="{x:Bind Creature.HasBattle, Mode=OneWay}"
+                       Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
             <TextBlock Text="{x:Bind Creature.CompanionNote, Mode=OneWay}" FontSize="11"
                        Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
         </StackPanel>

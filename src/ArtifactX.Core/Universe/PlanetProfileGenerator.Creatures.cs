@@ -61,7 +61,8 @@ public sealed record CreatureGlobals(
 /// spawned creature reports. MinScale/MaxScale (format 79) bound its spawn scale. TagRarities (format 79) is each
 /// tag's RarityOverride, the rarity a role requiring that tag weighs it by. SpeciesId (format 79; "" when unknown) is
 /// the Id in its scene's creature component, which names the species (the CRAB scene says SPIDER). Scene (format 80)
-/// is its model, GcCreatureFilenameTable's Filename.</summary>
+/// is its model, GcCreatureFilenameTable's Filename. ForcedAffinity (format 82) is its pet-battle element when set
+/// (GcPetBattlerAffinity, 1-8; 0 = by biome).</summary>
 public sealed record CreatureEntry(
     string Id,
     int Type,
@@ -76,7 +77,8 @@ public sealed record CreatureEntry(
     float MaxScale = 0,
     int[]? TagRarities = null,
     string SpeciesId = "",
-    string Scene = "");
+    string Scene = "",
+    int ForcedAffinity = 0);
 
 /// <summary>An archetype option entry with an ID and a weight.</summary>
 public sealed record CreatureWeightedEntry(string Id, float Weight);
@@ -149,7 +151,8 @@ public sealed record CreatureTables(
     string[]? RobotGenderWords = null,
     CreatureTextWords? Text = null,
     Dictionary<string, string>? Produce = null,
-    Dictionary<string, string>? ProduceNames = null)
+    Dictionary<string, string>? ProduceNames = null,
+    PetBattleTables? PetBattle = null)
 {
     /// <summary>The item a kind of creature produces when fed (the analysis visor's "Produces"): its HarvestingProducts
     /// entry by the spawned creature's id, else Wild Milk (FOOD_V_MILK, NMS.exe 0x1412431d0's default); null on game
@@ -158,6 +161,11 @@ public sealed record CreatureTables(
         : Produce.TryGetValue(string.IsNullOrEmpty(creature.SpeciesId) ? creature.Id : creature.SpeciesId, out var item) ? item
         : Produce.TryGetValue(creature.Id, out item) ? item : "FOOD_V_MILK";
 }
+
+/// <summary>Pet-battle tables (catalog format 82, GcGameTableGlobals): ClassRolls are the C/B/A/S weights per core stat
+/// (GcPetBattlerCoreStat order), BiomeAffinities the element per biome, AffinityWords the element words, Labels the
+/// stat names in the same order then the panel's heading ("Trait Potential").</summary>
+public sealed record PetBattleTables(int[][] ClassRolls, int[] BiomeAffinities, string[] AffinityWords, string[] Labels);
 
 /// <summary>Behaviour and diet words (catalog format 80): per role and per diet the numbered words a creature's info
 /// picks from (GcCreatureGlobals Temperments / Diets / WaterDiets prefixes), and per biome the plant and meat words

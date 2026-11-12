@@ -1,4 +1,5 @@
 using ArtifactX.Core.NmsModels;
+using ArtifactX.Core.Procedural;
 using ArtifactX.Core.Universe;
 using ArtifactX.WinUI3.Controls;
 using ArtifactX.WinUI3.Helpers.Fauna;
@@ -276,7 +277,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         var nameService = await CreatureNameService.LoadAsync();
 
         // 1. Collect save discoveries for this planet (bEr[0] is the creature's seed, bEr[2]/[3] its name seeds)
-        var saveDiscoveries = new List<(string SpeciesName, ulong Seed)>();
+        var saveDiscoveries = new List<(string SpeciesName, ulong Seed, ulong SpeciesSeed, ulong GenusSeed)>();
         if (_snapshot.Discoveries is JArray discoveries)
         {
             int fallbackIdx = 1;
@@ -299,7 +300,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 if (saveDiscoveries.Any(s => string.Equals(s.SpeciesName, species, StringComparison.OrdinalIgnoreCase)))
                     continue;
 
-                saveDiscoveries.Add((species, seed));
+                saveDiscoveries.Add((species, seed, seedA, seedB));
             }
         }
 
@@ -324,8 +325,10 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 bool same = pred is not null && saveDiscoveries[slot.Discovery].Seed == pred.Seed;
                 var creature = new Creature(Name: name, Rarity: same && rarity.Length > 0 ? rarity : "Discovered", Habitat: habitat,
                     Activity: same ? activity : "", Gender: "", Size: "", Picture: false, SeenAt: "Discovered");
+                var disc = saveDiscoveries[slot.Discovery];
                 allCards.Add(new CreatureCardViewModel(creature, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: true,
-                    about: same ? CreatureTraitText.About(pred!, PlanetTypesService.CreatureTables) : ""));
+                    about: same ? CreatureTraitText.About(pred!, PlanetTypesService.CreatureTables) : "",
+                    battle: same ? CreatureTraitText.Battle(pred!, PlanetTypesService.CreatureTables, disc.SpeciesSeed, disc.GenusSeed) : ""));
                 continue;
             }
 
@@ -341,8 +344,11 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 Habitat: habitat, Activity: predictedName is null ? "" : activity, Gender: "",
                 Size: predictedName is null ? "" : CreatureTraitText.Forms(pred, PlanetTypesService.CreatureTables),
                 Picture: false, SeenAt: "Unscanned");
+            var (speciesSeed, genusSeed) = SpeciesNames.FaunaSeeds(pred.Seed, string.IsNullOrEmpty(pred.SpeciesId) ? pred.Id : pred.SpeciesId,
+                planet.Address, pred.CreatureType, pred.SizeClass);
             allCards.Add(new CreatureCardViewModel(unscanned, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: false,
-                about: predictedName is null ? "" : CreatureTraitText.About(pred, PlanetTypesService.CreatureTables)));
+                about: predictedName is null ? "" : CreatureTraitText.About(pred, PlanetTypesService.CreatureTables),
+                battle: predictedName is null ? "" : CreatureTraitText.Battle(pred, PlanetTypesService.CreatureTables, speciesSeed, genusSeed)));
         }
 
         Creatures = allCards;

@@ -9,9 +9,11 @@ namespace ArtifactX.WinUI3.ViewModels.ExploreViewModels;
 /// <summary>One creature on a planet's page: 3D model, species name and traits.</summary>
 public sealed partial class CreatureCardViewModel : ObservableObject
 {
-    public CreatureCardViewModel(Creature creature, ulong system, int planet, string? rigId = null, bool isDiscovered = true, string about = "")
+    public CreatureCardViewModel(Creature creature, ulong system, int planet, string? rigId = null, bool isDiscovered = true, string about = "",
+        string battle = "")
     {
         About = about;
+        Battle = battle;
         Creature = creature;
         RigId = rigId ?? "antelope";
         IsDiscovered = isDiscovered;
@@ -35,6 +37,9 @@ public sealed partial class CreatureCardViewModel : ObservableObject
     /// <summary>Behaviour, diet and notes of a predicted species ("Hasty · eats Solar Vine · Photosensitive").</summary>
     public string About { get; }
     public bool HasAbout => About.Length > 0;
+    /// <summary>The visor's "Trait Potential" panel ("Trait Potential S: Combat Effectiveness S · Agility B · Health S · Fire").</summary>
+    public string Battle { get; }
+    public bool HasBattle => Battle.Length > 0;
     public string CompanionNote { get; }
     public bool IsExtinct => Creature.Rarity == "Extinct";
     public string BadgeText => IsDiscovered ? "DISCOVERED" : "UNDISCOVERED";
